@@ -2,12 +2,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import '../../test/deviceZone'
-import { PROFILE, balanceRows, TWELVE_YEARS } from '../balanceFixtures'
+import { GRADING, balanceRows, TWELVE_YEARS } from '../balanceFixtures'
 import { historyOfYears, THREE_YEARS, yearRow } from '../historyFixtures'
 import { HistoryPage } from './HistoryPage'
-import type { GradingInputs } from './history/types'
-
-const GRADING: GradingInputs = { profile: PROFILE, missingAge: null, weightKnown: true }
 
 afterEach(cleanup)
 
@@ -28,14 +25,10 @@ describe('HistoryPage', () => {
   it('opens with the balance over the years, before the hours, and says what grading needs when it cannot draw', () => {
     const history = { ...historyOfYears(THREE_YEARS), balance: balanceRows(TWELVE_YEARS) }
     const { rerender } = render(<HistoryPage history={history} units="metric" grading={GRADING} />)
-    const figures = screen
-      .getAllByRole('figure')
-      .map((figure) => figure.getAttribute('aria-labelledby'))
-    expect(figures).toHaveLength(2)
-    expect(screen.getAllByRole('figure')[0]).toHaveAccessibleName(
-      'Running led every year until 2019',
-    )
-    expect(screen.getAllByRole('figure')[1]).toHaveAccessibleName('Hours per year')
+    const figures = screen.getAllByRole('figure')
+    const balance = screen.getByRole('figure', { name: 'Running led every year until 2019' })
+    const hours = screen.getByRole('figure', { name: 'Hours per year' })
+    expect(figures.indexOf(balance)).toBeLessThan(figures.indexOf(hours))
     const missing = { profile: null, missingAge: 'sex' as const, weightKnown: true }
     rerender(<HistoryPage history={history} units="metric" grading={missing} />)
     expect(screen.getByText('Age grade by year needs your sex.')).toBeInTheDocument()

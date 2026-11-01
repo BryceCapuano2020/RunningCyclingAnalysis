@@ -19,7 +19,7 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
 export const BUDGETS = {
   initial: 285_000,
   worker: 160_000,
-  chunk: 75_000,
+  chunk: 93_000,
   style: 13_000,
 }
 

@@ -4,7 +4,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { BestsByYearChart } from '../../charts/BestsByYearChart'
 import { SPORT_ORDER } from '../../sports'
-import { SportToggle } from './SportToggle'
+import { sportToggle } from './sportToggle'
 
 export interface BestsByYearSectionProps {
   bests: YearBests
@@ -20,9 +20,11 @@ export function BestsByYearSection({ bests, units }: BestsByYearSectionProps) {
     return <p className="secondary">Add outdoor runs or rides to see your bests by year.</p>
   }
   return (
-    <>
-      <SportToggle sports={sports} selected={sport} onSelect={setPicked} />
-      <BestsByYearChart key={sport} sport={sport} efforts={bests[sport]} units={units} />
-    </>
+    <BestsByYearChart
+      sport={sport}
+      efforts={bests[sport]}
+      units={units}
+      controls={sportToggle({ sports, selected: sport, onSelect: setPicked })}
+    />
   )
 }

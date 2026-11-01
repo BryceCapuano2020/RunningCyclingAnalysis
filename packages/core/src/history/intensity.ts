@@ -1,9 +1,10 @@
 import { civilOfDay, localDayOf } from '../calendar'
 import { sameSet } from '../digestMemo'
+import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
 import { effortSplit, periodTimeInZones, settingsKey } from '../zones'
 import type { MeasureTime } from '../zones'
-import { HISTORY_SPORTS, perSport } from './sports'
+import { perSport } from './sports'
 import type { HistoryInput, HistoryPart } from './types'
 
 /** One sport's heart-rate time in one calendar year, as the share of it in each band. */
@@ -57,7 +58,7 @@ function sharesOf(times: readonly MeasureTime[], activities: number): IntensityS
 function build(digests: ActivityDigest[], input: HistoryInput): IntensityRow[] {
   const byYear = new Map<number, ActivityDigest[]>()
   for (const digest of digests) {
-    if (!HISTORY_SPORTS.includes(digest.sport)) continue
+    if (!SPORTS.includes(digest.sport)) continue
     const year = civilOfDay(localDayOf(digest)).year
     const list = byYear.get(year)
     if (list === undefined) byYear.set(year, [digest])
@@ -72,7 +73,7 @@ function build(digests: ActivityDigest[], input: HistoryInput): IntensityRow[] {
     const times = periodTimeInZones(
       inYear,
       input.settings,
-      input.estimates,
+      input.estimates ?? null,
       input.heartRateSetAside,
       input.nowMs,
     )
@@ -85,11 +86,13 @@ function build(digests: ActivityDigest[], input: HistoryInput): IntensityRow[] {
   })
 }
 
+const NONE: ReadonlySet<string> = new Set()
+
 /** The same answer for the same day, zone references, settings and set-aside heart rate, whatever the period. */
 const same = (a: HistoryInput, b: HistoryInput): boolean =>
   a.nowMs === b.nowMs &&
-  a.estimates === b.estimates &&
+  (a.estimates ?? null) === (b.estimates ?? null) &&
   settingsKey(a.settings) === settingsKey(b.settings) &&
-  sameSet(a.heartRateSetAside, b.heartRateSetAside)
+  sameSet(a.heartRateSetAside ?? NONE, b.heartRateSetAside ?? NONE)
 
 export const intensity: HistoryPart<IntensityRow[]> = { empty: [], build, same }

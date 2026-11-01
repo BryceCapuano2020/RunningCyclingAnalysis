@@ -3,11 +3,15 @@ import type { BalanceYear, YearBest } from '@rca/core/history'
 import { balanceLibrary, REFERENCE, SETTINGS } from '@rca/core/history/test/balanceLibrary'
 import type { YearSpec } from '@rca/core/history/test/balanceLibrary'
 import type { AgeProfile } from './grades'
+import type { GradingInputs } from './pages/history/types'
 
 export { SETTINGS, TWELVE_YEARS } from '@rca/core/history/test/balanceLibrary'
 
 /** An athlete born in 1985: 28 in the first year of the twelve. */
 export const PROFILE: AgeProfile = { birthYear: 1985, sex: 'male' }
+
+/** What the History page grades by when the athlete has given a birth year and sex. */
+export const GRADING: GradingInputs = { profile: PROFILE, missingAge: null, weightKnown: true }
 
 /** The Balance rows the History makes of a synthetic library of these years, judged against a reference heart rate of 190. */
 export function balanceRows(years: readonly YearSpec[]): BalanceYear[] {

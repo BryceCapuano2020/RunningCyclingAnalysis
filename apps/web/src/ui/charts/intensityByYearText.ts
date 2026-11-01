@@ -1,6 +1,7 @@
 import type { IntensityRow, IntensityShares } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import { formatCount } from '../format/count'
+import { NO_VALUE } from '../format/noValue'
 import { SPORT_ACTIVITY, SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { percentText } from '../zoneTimeCopy'
 import type { ChartTableData, TooltipContent } from './chartTypes'
@@ -23,7 +24,6 @@ export const MIN_HARD_LEAD = 0.05
 /** The heart-rate time of a sport a year must hold, 20 hours, before its hard share can be the finding. */
 export const MIN_FINDING_SECONDS = 20 * 3600
 
-const DASH = '—'
 const FOR_SPORT: Record<Sport, string> = { run: 'for running', ride: 'for riding' }
 
 /** What an empty chart says, per sport: its heart rate is missing, or its zones have no maximum to be cut from. */
@@ -89,8 +89,8 @@ export function intensityTable(years: readonly IntensityRow[], sport: Sport): Ch
       const timed = shares.seconds > 0
       return [
         String(row.year),
-        ...BANDS.map((band) => (timed ? percentText(shares[band]) : DASH)),
-        timed ? (shares.seconds / 3600).toFixed(1) : DASH,
+        ...BANDS.map((band) => (timed ? percentText(shares[band]) : NO_VALUE)),
+        timed ? (shares.seconds / 3600).toFixed(1) : NO_VALUE,
         formatCount(shares.counted),
       ]
     }),
@@ -110,7 +110,7 @@ export function intensityTooltip(
   const shares = row.sports[sport]
   const title = String(row.year)
   if (shares.seconds <= 0) {
-    return { x, y, title, rows: [{ label: 'Heart rate', value: DASH, note: 'None to count' }] }
+    return { x, y, title, rows: [{ label: 'Heart rate', value: NO_VALUE, note: 'None to count' }] }
   }
   const noun = shares.counted === 1 ? SPORT_ACTIVITY[sport] : SPORT_PLURAL[sport]
   return {

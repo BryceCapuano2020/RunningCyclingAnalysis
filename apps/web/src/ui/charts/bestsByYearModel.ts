@@ -1,5 +1,5 @@
 import { HALF_MARATHON_M, MARATHON_M } from '@rca/core/constants'
-import type { BestEffort, YearBest } from '@rca/core/history'
+import type { BestEffort, BestInYear } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { METRES_PER_KM, METRES_PER_MILE, PACE_UNIT, formatRecordTime } from '@rca/core/units'
@@ -79,7 +79,7 @@ const TIME_OF: Record<
 function markOf(
   sport: Sport,
   length: number,
-  [year, value, hard, estimated]: YearBest,
+  [year, value, hard, estimated]: BestInYear,
   units: UnitSystem,
 ): BestMark {
   const native = NATIVE_OF[sport](value, length)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { IntensityRow } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import { ChartFrame } from './ChartFrame'
@@ -25,6 +26,8 @@ export interface IntensityByYearChartProps {
   years: readonly IntensityRow[]
   /** The sport whose bars are drawn. */
   sport: Sport
+  /** The sport toggle, which the chart puts in its frame's controls row. */
+  controls?: ReactNode
 }
 
 const DESCRIPTION =
@@ -35,7 +38,7 @@ const NOTE = "Heart rate in today's zones, with set-aside readings left out."
  * Each year's heart-rate time for one sport, as one bar of 100%, split into easy, moderate and hard. The title is the
  * finding (the hardest year), or the measure when there is none. The table gives each year's shares, time and count.
  */
-export function IntensityByYearChart({ years, sport }: IntensityByYearChartProps) {
+export function IntensityByYearChart({ years, sport, controls }: IntensityByYearChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const height = useChartHeight()
   const layoutOf = sizedOnce((size: ChartSize) => intensityLayout(years, sport, size))
@@ -45,6 +48,7 @@ export function IntensityByYearChart({ years, sport }: IntensityByYearChartProps
     <ChartFrame
       title={intensityTitle(years, sport)}
       description={DESCRIPTION}
+      controls={controls}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       note={NOTE}

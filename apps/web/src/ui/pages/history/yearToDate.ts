@@ -4,7 +4,7 @@ import type { HistorySection } from './types'
 
 export const yearToDate: HistorySection = {
   id: 'year-to-date',
-  order: 30,
+  order: 40,
   render: ({ history, units }) =>
     createElement(YearToDateChart, { data: history.yearToDate, units }),
 }

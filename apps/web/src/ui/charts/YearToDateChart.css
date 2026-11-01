@@ -1,8 +1,3 @@
-.year-to-date {
-  display: grid;
-  gap: var(--space-3);
-}
-
 /* A past year is a thin neutral line, so this year's sport line stands out in front of it. */
 .year-to-date__line {
   fill: none;

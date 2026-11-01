@@ -2,8 +2,8 @@ import { useState } from 'react'
 import type { IntensityRow } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import { IntensityByYearChart } from '../../charts/IntensityByYearChart'
-import { SegmentedControl } from '../../components/SegmentedControl'
-import { SPORT_LABEL, SPORT_ORDER } from '../../sports'
+import { SPORT_ORDER } from '../../sports'
+import { sportToggle } from './sportToggle'
 
 export interface IntensityByYearSectionProps {
   years: readonly IntensityRow[]
@@ -19,19 +19,13 @@ export function IntensityByYearSection({ years }: IntensityByYearSectionProps) {
     years.some((row) => row.sports[sport].activities > 0),
   )
   const [picked, setPicked] = useState<Sport | null>(null)
-  const sport: Sport = picked ?? withTime[0] ?? withActivities[0] ?? SPORT_ORDER[0]
+  const [first] = [...withTime, ...withActivities, ...SPORT_ORDER]
+  const sport: Sport = picked ?? first!
   return (
-    <>
-      {withTime.length > 1 ? (
-        <SegmentedControl
-          legend="Sport"
-          legendHidden
-          options={withTime.map((value) => ({ value, label: SPORT_LABEL[value] }))}
-          selected={sport}
-          onSelect={setPicked}
-        />
-      ) : null}
-      <IntensityByYearChart years={years} sport={sport} />
-    </>
+    <IntensityByYearChart
+      years={years}
+      sport={sport}
+      controls={sportToggle({ sports: withTime, selected: sport, onSelect: setPicked })}
+    />
   )
 }

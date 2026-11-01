@@ -1,6 +1,7 @@
 import { civilOfDay, dayOfCivil, localDayOf, localDayOfInstant } from '../calendar'
+import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
-import { HISTORY_SPORTS, perSport } from './sports'
+import { perSport } from './sports'
 import type { HistoryInput, HistoryPart } from './types'
 
 /** The last day a year can have, a leap year's. Daily arrays are indexed by day of the year, so index 0 is unused. */
@@ -100,7 +101,7 @@ function emptyDaily(): DailyMetres {
 function dailyByYear(digests: ActivityDigest[], thisYear: number): Map<number, DailyMetres> {
   const byYear = new Map<number, DailyMetres>()
   for (const digest of digests) {
-    if (!HISTORY_SPORTS.includes(digest.sport)) continue
+    if (!SPORTS.includes(digest.sport)) continue
     const { year, day } = yearDayOf(localDayOf(digest))
     if (year > thisYear) continue
     const daily = byYear.get(year) ?? emptyDaily()
@@ -127,7 +128,11 @@ function yearRowOf(
   }
 }
 
+/** The answer for a library with nothing in it: no days to sample and no years. */
+const EMPTY: YearToDate = { today: { year: 0, day: 0 }, days: [], years: [] }
+
 function build(digests: ActivityDigest[], input: HistoryInput): YearToDate {
+  if (digests.length === 0) return EMPTY
   const todayDay = localDayOfInstant(input.nowMs)
   const { year, day } = yearDayOf(todayDay)
   const { month, date } = civilOfDay(todayDay)
@@ -151,7 +156,7 @@ const sameDay = (a: HistoryInput, b: HistoryInput): boolean =>
   localDayOfInstant(a.nowMs) === localDayOfInstant(b.nowMs)
 
 export const yearToDate: HistoryPart<YearToDate> = {
-  empty: { today: { year: 0, day: 0 }, days: [], years: [] },
+  empty: EMPTY,
   build,
   same: sameDay,
 }

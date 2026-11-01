@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { BestEffort } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -25,6 +26,8 @@ export interface BestsByYearChartProps {
   /** The sport's best at each length in each year (core's `bests`). */
   efforts: readonly BestEffort[]
   units: UnitSystem
+  /** The sport toggle, which the chart puts in its frame's controls row. */
+  controls?: ReactNode
 }
 
 /** The key for a point's two states: solid when heart rate shows the effort hard, an outline when it does not. */
@@ -70,7 +73,7 @@ function tooltipFor(model: BestsModel, i: number, x: number, y: number): Tooltip
  * own axis (pace for a run, faster up; power for a ride), the all-time best large and labelled, and a best that heart rate
  * does not show was hard drawn hollow. The title is the measure.
  */
-export function BestsByYearChart({ sport, efforts, units }: BestsByYearChartProps) {
+export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYearChartProps) {
   const model = useMemo(() => bestsModel(sport, efforts, units), [sport, efforts, units])
   const [active, setActive] = useState<number | null>(null)
   const layoutOf = sizedOnce((size: ChartSize) =>
@@ -84,6 +87,7 @@ export function BestsByYearChart({ sport, efforts, units }: BestsByYearChartProp
       <ChartFrame
         title={title}
         description={`Your ${SPORT_PLURAL[sport]}' bests by year.`}
+        controls={controls}
         empty={empty}
         table={{ columns: [], rows: [] }}
       >
@@ -96,6 +100,7 @@ export function BestsByYearChart({ sport, efforts, units }: BestsByYearChartProp
     <ChartFrame
       title={title}
       lede={lede}
+      controls={controls}
       description={`${lede}. A small chart for each of ${model.panels.map((panel) => panel.label).join(', ')}, with a mark for each year. The all-time best is labelled.`}
       height={bestsChartHeight(model.panels.length)}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}

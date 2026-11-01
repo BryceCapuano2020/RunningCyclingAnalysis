@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { NO_HISTORY } from '@rca/core/history'
 import { afterEach, describe, expect, it } from 'vitest'
+import { GRADING } from '../balanceFixtures'
 import { libraryOf } from '../calendarFixtures'
 import { HistoryPage } from './HistoryPage'
 
@@ -27,18 +28,17 @@ describe('HistoryPage with the training calendar', () => {
     ]),
   }
 
-  it('draws the calendar after the hours per year, and names the streak and the biggest week', () => {
-    render(<HistoryPage history={history} units="metric" />)
+  it('draws the calendar before the hours per year, and names the streak and the biggest week', () => {
+    render(<HistoryPage history={history} units="metric" grading={GRADING} />)
     const figures = screen.getAllByRole('figure')
-    expect(figures).toHaveLength(2)
-    expect(screen.getByRole('figure', { name: 'Run hours per year' })).toBeInTheDocument()
+    const hours = screen.getByRole('figure', { name: 'Run hours per year' })
     const calendar = screen.getByRole('figure', { name: 'Run training calendar' })
     expect(calendar).toHaveTextContent('Your longest running streak was 1 week')
-    expect(figures.indexOf(calendar)).toBe(1)
+    expect(figures.indexOf(calendar)).toBeLessThan(figures.indexOf(hours))
   })
 
   it('gives each year the same hours in the calendar as in Hours per year', () => {
-    render(<HistoryPage history={history} units="metric" />)
+    render(<HistoryPage history={history} units="metric" grading={GRADING} />)
     const hours = screen.getByRole('table', { name: 'Hours per year, by sport' })
     const training = screen.getByRole('table', { name: 'Training by year' })
     for (const [year, run] of [

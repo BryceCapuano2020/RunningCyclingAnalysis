@@ -1486,12 +1486,18 @@ listed at the size the runs show it, so a small one reads as small.
 
 A tab between Ride and Activities. It ignores the period and shows the whole library, built in the worker from the
 analysed digests (`packages/core/src/history`) and remembered like the look-back. All the parts together stay within
-100 ms to build 2,000 activities, 2 ms again and 24 KB of JSON (`history.perf.test.ts`).
+100 ms to build 2,000 activities, 2 ms again and 35.8 KB of JSON, 20% over the 29.8 KB the seven parts post for that
+library (`history.perf.test.ts`).
 
 **The page.** The title, one row of totals (years on file, total hours, each sport's distance in the units setting; a
 sport with no activity has none), then one chart for each section, each on `ChartFrame` with its table, tooltip and
 keyboard reading. A library with no run or ride gets one line saying what to add. A chart's title is its finding when the library holds one, such as "2025 was your hardest year for running" (Intensity by year), else its measure ("Hours per year", or "Run hours per year" for one sport). A finding is one clause and never repeats the bars. One axis, sport
 colours from the tokens, a label on the tallest bar only, no gridline through a bar.
+
+The sections sit in this order: Balance over the years, Training calendar, Hours per year, Year to date, Bests by year,
+Best curve by year, Intensity by year. A sport toggle (Run and Ride, or All, Run and Ride) is never beside a chart but in
+its frame's control row (`ChartFrame`'s `controls`), under the title, so it sits in one place on every chart and keeps
+its focus when the chart redraws for the other sport.
 
 **Adding a chart.** In core, a file `history/<name>.ts` that exports a `HistoryPart`, and one
 `export { <name> } from './<name>'` line in `history/parts.ts`; the name is its key in `SessionState.history`. On the web,
@@ -1510,10 +1516,11 @@ filter keeps. Below 560 px the columns are months, each tinted by its average we
 cells by date, and the table has a row for each year; its summary gives each calendar year's hours and activities, as
 Hours per year does. The core part keeps each week and sport in three characters
 (`history/weekCells.ts`), about 4 KB for thirteen years.
+
 **Bests by year.** Small charts of a sport's best at each length in each calendar year, one panel for each length on one
 run of years, each panel with its own axis: a run's mile, 5 km, 10 km, half marathon and marathon as pace (faster up, in
 the units setting), a ride's 5, 20 and 60 minutes as power. The all-time best is the large mark and the only label. A Run
-and Ride toggle sits above it when both sports have a best. Runs come from `distanceBests` and rides from the year's best
+and Ride toggle is in its control row when both sports have a best. Runs come from `distanceBests` and rides from the year's best
 curve (`history/yearlyCurves.ts` calls `sportCurves` once for each year, so no second best-effort logic stands beside the
 sport pages'). An indoor run and a ride whose power is set aside hold no best. A best that heart rate does not show was
 hard (`effortVerdict`, the effort gate's own test) is drawn hollow and keyed, never dropped, and its table cell starts

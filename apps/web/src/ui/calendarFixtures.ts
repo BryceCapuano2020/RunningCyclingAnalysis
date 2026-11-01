@@ -38,7 +38,11 @@ function digestsOf(spec: DaySpec, index: number): ActivityDigest[] {
             durationS: (did[0] / did[1]) * 3600,
             distanceM: 10_000,
             elevationGainM: 0,
-          } as ActivityDigest
+            // No curve and no calibration, as a run without a best effort has: every part of the history runs over it.
+            curve: [],
+            hrBlocks: [],
+            calibration: null,
+          } as unknown as ActivityDigest
         }),
   )
 }

@@ -4,7 +4,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { YearCurvesChart } from '../../charts/YearCurvesChart'
 import { SPORT_ORDER } from '../../sports'
-import { SportToggle } from './SportToggle'
+import { sportToggle } from './sportToggle'
 
 export interface BestCurveByYearSectionProps {
   curves: YearCurves
@@ -23,9 +23,11 @@ export function BestCurveByYearSection({ curves, units }: BestCurveByYearSection
     return <p className="secondary">Add runs or rides from more than one year to compare years.</p>
   }
   return (
-    <>
-      <SportToggle sports={sports} selected={sport} onSelect={setPicked} />
-      <YearCurvesChart key={sport} sport={sport} curves={curves[sport]} units={units} />
-    </>
+    <YearCurvesChart
+      sport={sport}
+      curves={curves[sport]}
+      units={units}
+      controls={sportToggle({ sports, selected: sport, onSelect: setPicked })}
+    />
   )
 }

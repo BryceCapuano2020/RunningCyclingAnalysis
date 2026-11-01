@@ -1,4 +1,5 @@
 import type { YearDistance, YearToDate } from '@rca/core/history'
+import { SPORTS } from '@rca/core/types'
 import type { Sport } from '@rca/core/types'
 
 /** Today is 1 March of a common year: its 60th day, so a leap year's 1 March is its 61st. */
@@ -19,15 +20,14 @@ function yearAt(year: number, perDay: Partial<Record<Sport, number>>): YearDista
   const dayOf = (day: number) => (leap && day >= TODAY.day ? Math.min(day + 1, 366) : day)
   const hectometres = (day: number, sport: Sport) =>
     Math.round(((perDay[sport] ?? 0) * dayOf(day)) / 100)
-  const sports: Sport[] = ['run', 'ride']
   const days = SAMPLE_DAYS.filter((day) => day <= reach)
   return {
     year,
     hectometres: Object.fromEntries(
-      sports.map((sport) => [sport, days.map((day) => hectometres(day, sport))]),
+      SPORTS.map((sport) => [sport, days.map((day) => hectometres(day, sport))]),
     ) as YearDistance['hectometres'],
     toDate: Object.fromEntries(
-      sports.map((sport) => [sport, hectometres(TODAY.day, sport)]),
+      SPORTS.map((sport) => [sport, hectometres(TODAY.day, sport)]),
     ) as YearDistance['toDate'],
   }
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { SportYearCurves } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -38,6 +39,8 @@ export interface YearCurvesChartProps {
   /** The sport's best curve in each calendar year (core's `yearCurves`). */
   curves: SportYearCurves
   units: UnitSystem
+  /** The sport toggle, which the chart puts in its frame's controls row. */
+  controls?: ReactNode
 }
 
 /** The faintest an older year's line is drawn, and how much the newest of them gains over it. */
@@ -97,7 +100,7 @@ function noteOf(model: YearCurvesModel, line: YearLine, i: number): string | und
  * named at their ends, with a mark at the 20 minute best, hollow when heart rate does not show it was hard. The title is the
  * finding about the 20 minute best.
  */
-export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) {
+export function YearCurvesChart({ sport, curves, units, controls }: YearCurvesChartProps) {
   const model = useMemo(() => yearCurvesModel(sport, curves), [sport, curves])
   const [active, setActive] = useState<number | null>(null)
   const height = useChartHeight()
@@ -109,6 +112,7 @@ export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) 
       <ChartFrame
         title={`${SPORT_LABEL[sport]} best curve by year`}
         description={`Your ${SPORT_PLURAL[sport]}' best efforts, one line for each year.`}
+        controls={controls}
         empty={`Add ${SPORT_PLURAL[sport]} from more than one year to compare them`}
         table={{ columns: [], rows: [] }}
       >
@@ -122,6 +126,7 @@ export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) 
   return (
     <ChartFrame
       title={title}
+      controls={controls}
       description={curvesDescription(sport)}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}

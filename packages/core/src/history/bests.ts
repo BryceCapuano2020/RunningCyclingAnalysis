@@ -22,13 +22,13 @@ import {
  * heart rate shows the effort was hard, and whether the value is estimated (a ride's watts from a bike model, not a meter).
  * One that is not shown hard is still the year's best, as a floor.
  */
-export type YearBest = readonly [year: number, value: number, hard: boolean, estimated: boolean]
+export type BestInYear = readonly [year: number, value: number, hard: boolean, estimated: boolean]
 
 /** A sport's best at one length, in each year that has one, oldest year first. */
 export interface BestEffort {
   /** Metres for a run's distance, seconds for a ride's duration. */
   length: number
-  years: YearBest[]
+  years: BestInYear[]
 }
 
 export type YearBests = Record<Sport, BestEffort[]>
@@ -57,7 +57,7 @@ function runBests(digests: ActivityDigest[], input: HistoryInput): BestEffort[] 
     }
     const years = [...best]
       .sort(([a], [b]) => a - b)
-      .map(([year, { seconds, digest }]): YearBest => [
+      .map(([year, { seconds, digest }]): BestInYear => [
         year,
         seconds,
         shownHard(digest, seconds, input),
@@ -71,7 +71,7 @@ function runBests(digests: ActivityDigest[], input: HistoryInput): BestEffort[] 
 function rideBests(digests: ActivityDigest[], input: HistoryInput): BestEffort[] {
   const inYear = curvesByYear(digests, input)
   return LENGTHS.ride.flatMap((durationS) => {
-    const years = inYear.flatMap((year): YearBest[] => {
+    const years = inYear.flatMap((year): BestInYear[] => {
       const point = year.curves.rideCurve.find((p) => p.durationS === durationS)
       if (point === undefined || !(point.value > 0) || !Number.isFinite(point.value)) return []
       return [

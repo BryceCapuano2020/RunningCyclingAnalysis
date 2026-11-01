@@ -12,7 +12,10 @@ const INPUT = {
   gate: undefined,
 }
 
-/** A digest with the fields the calendar reads and nothing of anyone's activity. */
+/**
+ * A digest with the fields the calendar reads and nothing of anyone's activity. It has no curve and no power calibration,
+ * as a real run without a best effort has none: every part of the history runs over it.
+ */
 function digest(id: string, startMs: number, fields: Partial<ActivityDigest> = {}): ActivityDigest {
   const sport: Sport = 'run'
   return {
@@ -23,6 +26,9 @@ function digest(id: string, startMs: number, fields: Partial<ActivityDigest> = {
     durationS: 3600,
     distanceM: 10_000,
     elevationGainM: 100,
+    curve: [],
+    hrBlocks: [],
+    calibration: null,
     ...fields,
   } as ActivityDigest
 }

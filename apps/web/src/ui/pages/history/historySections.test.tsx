@@ -11,6 +11,7 @@ import {
   RUN_CURVES,
   historyWithBests,
 } from '../../historyBestsFixtures'
+import { GRADING } from '../../balanceFixtures'
 import { THREE_YEARS } from '../../historyFixtures'
 import { HistoryPage } from '../HistoryPage'
 import { BestCurveByYearSection } from './BestCurveByYearSection'
@@ -93,15 +94,19 @@ describe('best curve by year', () => {
 describe('the History page', () => {
   it('has both charts after the hours, bests by year first, from the whole library’s history', () => {
     chartWidth(800)
-    render(<HistoryPage history={{ ...historyWithBests(), years: THREE_YEARS }} units="metric" />)
+    render(
+      <HistoryPage
+        history={{ ...historyWithBests(), years: THREE_YEARS }}
+        units="metric"
+        grading={GRADING}
+      />,
+    )
     const names = screen
       .getAllByRole('figure')
       .map((figure) => figure.getAttribute('aria-labelledby'))
     const titles = names.map((id) => document.getElementById(id!)!.textContent)
-    expect(titles).toEqual([
-      'Hours per year',
-      'Run bests by year',
-      'Your 20 min pace peaked in 2021',
-    ])
+    // The sections with nothing in this history say so, and sit where they sit; the three it has run in this order.
+    const mine = ['Hours per year', 'Run bests by year', 'Your 20 min pace peaked in 2021']
+    expect(titles.filter((title) => mine.includes(title ?? ''))).toEqual(mine)
   })
 })

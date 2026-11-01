@@ -14,7 +14,10 @@ const INPUT: HistoryInput = {
   gate: undefined,
 }
 
-/** A digest with the fields the history reads and nothing of anyone's activity. */
+/**
+ * A digest with the fields the history reads and nothing of anyone's activity. It has no curve and no power calibration,
+ * as a real run without a best effort has none: every part of the history runs over it.
+ */
 function digest(id: string, startMs: number, fields: Partial<ActivityDigest> = {}): ActivityDigest {
   return {
     modelRevision: MODEL_REVISION,
@@ -24,6 +27,9 @@ function digest(id: string, startMs: number, fields: Partial<ActivityDigest> = {
     durationS: 3600,
     distanceM: 1000,
     elevationGainM: 0,
+    curve: [],
+    hrBlocks: [],
+    calibration: null,
     ...fields,
   } as ActivityDigest
 }
@@ -144,6 +150,8 @@ describe('yearToDate', () => {
   it('has no years for an empty library, and leaves a day after this year out of every row', () => {
     expect(yearToDateOf([]).years).toEqual([])
     expect(NO_HISTORY.yearToDate.years).toEqual([])
+    // A session with nothing loaded builds the history of no digests, and gets the answer that stands for none.
+    expect(historyOf([], INPUT).yearToDate).toBe(NO_HISTORY.yearToDate)
     expect(yearToDateOf([digest('future', at(2030, 5))]).years).toEqual([])
     const data = yearToDateOf([digest('past', at(2025, 1)), digest('future', at(2030, 5))])
     expect(data.years.map((row) => row.year)).toEqual([2025, 2026, 2027])

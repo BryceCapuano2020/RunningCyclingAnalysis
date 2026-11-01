@@ -48,84 +48,84 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
   const lastPoint = data.days.indexOf(data.today.day)
 
   return (
-    <div className="year-to-date">
-      <SegmentedControl
-        legend="Sport"
-        legendHidden
-        options={SPORT_OPTIONS}
-        selected={sport}
-        onSelect={(next) => {
-          setPicked(next)
-          setActive(null)
-        }}
-      />
-      <ChartFrame
-        title={yearToDateTitle(data, sport, units)}
-        description={`Distance so far by day of the year, for ${SPORT_PLURAL[sport]}, one line for each year. This year is the thick line.`}
-        height={height}
-        plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-        empty={hasData ? undefined : `Add ${SPORT_PLURAL[sport]} to see this chart`}
-        idleReadout={hasData ? idleFrom(tooltipFor(lastPoint, 0, 0)) : undefined}
-        table={yearToDateTable(data, sport, units)}
-        surface={(size) => plotSurface(size, layoutOf(size)?.pointXs ?? null, active, setActive)}
-        overlay={(size) => {
-          const layout = layoutOf(size)
-          return tooltipOverlay(
+    <ChartFrame
+      title={yearToDateTitle(data, sport, units)}
+      controls={
+        <SegmentedControl
+          legend="Sport"
+          legendHidden
+          options={SPORT_OPTIONS}
+          selected={sport}
+          onSelect={(next) => {
+            setPicked(next)
+            setActive(null)
+          }}
+        />
+      }
+      description={`Distance so far by day of the year, for ${SPORT_PLURAL[sport]}, one line for each year. This year is the thick line.`}
+      height={height}
+      plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
+      empty={hasData ? undefined : `Add ${SPORT_PLURAL[sport]} to see this chart`}
+      idleReadout={hasData ? idleFrom(tooltipFor(lastPoint, 0, 0)) : undefined}
+      table={yearToDateTable(data, sport, units)}
+      surface={(size) => plotSurface(size, layoutOf(size)?.pointXs ?? null, active, setActive)}
+      overlay={(size) => {
+        const layout = layoutOf(size)
+        return tooltipOverlay(
+          size,
+          tooltipAt(
             size,
-            tooltipAt(
-              size,
-              layout?.pointXs ?? null,
-              active,
-              (index, x, y) => tooltipFor(index, x, y),
-              layout?.pointYs,
-            ),
-          )
-        }}
-      >
-        {(size) => {
-          const m = layoutOf(size)
-          if (m === null) return null
-          const fontSize = axisFontSize(size.width)
-          const activeX = active === null ? undefined : m.dayXs[active]
-          return (
-            <>
-              <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
-              <ChartYAxis
-                ticks={m.yTicks}
-                plot={size.plot}
-                title={`Total distance (${distanceUnit(units).unit})`}
-                fontSize={fontSize}
+            layout?.pointXs ?? null,
+            active,
+            (index, x, y) => tooltipFor(index, x, y),
+            layout?.pointYs,
+          ),
+        )
+      }}
+    >
+      {(size) => {
+        const m = layoutOf(size)
+        if (m === null) return null
+        const fontSize = axisFontSize(size.width)
+        const activeX = active === null ? undefined : m.dayXs[active]
+        return (
+          <>
+            <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
+            <ChartYAxis
+              ticks={m.yTicks}
+              plot={size.plot}
+              title={`Total distance (${distanceUnit(units).unit})`}
+              fontSize={fontSize}
+            />
+            {activeX === undefined ? null : <Crosshair x={activeX} plot={size.plot} />}
+            {m.lines.map((line) => (
+              <path
+                key={line.year}
+                data-testid="year-line"
+                data-year={line.year}
+                className={
+                  line.current
+                    ? `chart-series__line chart-series__line--${sport}`
+                    : 'year-to-date__line'
+                }
+                d={line.d}
               />
-              {activeX === undefined ? null : <Crosshair x={activeX} plot={size.plot} />}
-              {m.lines.map((line) => (
-                <path
-                  key={line.year}
-                  data-testid="year-line"
-                  data-year={line.year}
-                  className={
-                    line.current
-                      ? `chart-series__line chart-series__line--${sport}`
-                      : 'year-to-date__line'
-                  }
-                  d={line.d}
-                />
-              ))}
-              {m.labels.map((label) => (
-                <text
-                  key={`${label.year}-${label.current ? 'this' : 'best'}`}
-                  data-testid={label.current ? 'year-label-this' : 'year-label-best'}
-                  className="chart-series__label"
-                  x={label.x}
-                  y={label.y}
-                  textAnchor={label.anchor}
-                >
-                  {label.year}
-                </text>
-              ))}
-            </>
-          )
-        }}
-      </ChartFrame>
-    </div>
+            ))}
+            {m.labels.map((label) => (
+              <text
+                key={`${label.year}-${label.current ? 'this' : 'best'}`}
+                data-testid={label.current ? 'year-label-this' : 'year-label-best'}
+                className="chart-series__label"
+                x={label.x}
+                y={label.y}
+                textAnchor={label.anchor}
+              >
+                {label.year}
+              </text>
+            ))}
+          </>
+        )
+      }}
+    </ChartFrame>
   )
 }

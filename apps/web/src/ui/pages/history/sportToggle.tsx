@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
 import { SegmentedControl } from '../../components/SegmentedControl'
 import { SPORT_LABEL } from '../../sports'
@@ -9,9 +10,12 @@ export interface SportToggleProps {
   onSelect: (sport: Sport) => void
 }
 
-/** The Run and Ride choice above a History chart; a chart with one sport has no choice to make. */
-export function SportToggle({ sports, selected, onSelect }: SportToggleProps) {
-  if (sports.length < 2) return null
+/**
+ * The Run and Ride choice for a History chart's `controls` row, or nothing when the chart has one sport and so no
+ * choice to make. It sits in the frame, so the chart keeps it when it redraws for the other sport.
+ */
+export function sportToggle({ sports, selected, onSelect }: SportToggleProps): ReactNode {
+  if (sports.length < 2) return undefined
   return (
     <SegmentedControl
       legend="Sport"
