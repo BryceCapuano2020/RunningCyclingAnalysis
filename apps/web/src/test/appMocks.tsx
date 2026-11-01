@@ -80,6 +80,7 @@ function makeAccount(): AccountController {
     updateProfile,
     markExpired: vi.fn(),
     refresh: vi.fn(async () => null),
+    retryLookup: vi.fn(),
     error: null,
   }
 }

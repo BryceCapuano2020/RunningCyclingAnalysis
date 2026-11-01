@@ -32,7 +32,7 @@ describe('outboxText', () => {
 
   it('says what was left for another day', () => {
     expect(outboxText(status({ saved: 1, pending: 5 }))).toBe(
-      'Saved 1 activity from your last import. 5 activities are still waiting to be saved and will finish the next time the page opens.',
+      'Saved 1 activity from your last import. 5 activities are still waiting to be saved. They save when the connection returns, or the next time the page loads.',
     )
   })
 
