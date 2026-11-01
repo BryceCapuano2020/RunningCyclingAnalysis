@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseDigest, serializeDigest } from '@rca/core/digest'
+import { MARATHON_M } from '@rca/core/constants'
 import type { ActivityDigest } from '@rca/core/types'
 import { tryReadDigest } from '@rca/core/digest/read'
 import { mutantsOf } from '@rca/core/digest/test/mutants'
@@ -248,6 +249,13 @@ describe('every reader of a digest gives the same verdict', () => {
 // The corpus is drawn once, as the collection reads this file, not inside the first test that asks for it.
 const CORPUS = corpusWires()
 
+/** The wire of a digest as revision 6 wrote it: a run's best over the marathon (kept from revision 7) taken out. */
+function withoutMarathon(wire: DigestWire): DigestWire {
+  const bests = wire.distanceBests
+  if (!Array.isArray(bests)) return wire
+  return { ...wire, distanceBests: bests.filter((best) => best.distanceM !== MARATHON_M) }
+}
+
 describe('digests in existing libraries read as they did', () => {
   const REVISIONS: Array<number | undefined> = [undefined, 1, 2, 6]
 
@@ -266,7 +274,9 @@ describe('digests in existing libraries read as they did', () => {
     const step = Math.ceil(STRIDE / 3)
     for (const wire of CORPUS.filter((w, i) => i % step === 0 || w.distanceM === null)) {
       for (const revision of REVISIONS) {
-        const { modelRevision: _drop, ...rest } = wire
+        const { modelRevision: _drop, ...held } = wire
+        // The corpus is digested now; a library held before revision 7 has no best over the marathon.
+        const rest = withoutMarathon(held)
         const input = revision === undefined ? rest : { ...rest, modelRevision: revision }
         const where = `${String(wire.id)} at revision ${String(revision)}`
         const floor = ofZod(FloorStoredDigestSchema, input)

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import {
   BALANCE_TITLE,
   edgesOf,
@@ -14,7 +15,6 @@ import {
  * any workout, so the import that made it is what the row tells.
  */
 
-const MODEL_REVISION = 6
 const ROW = '[data-testid="checkin-row"]'
 
 /** Puts a baseline of an empty library, taken ten hours ago, in the check-in database for the device. */

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { hashedFileName } from '@rca/core/import/minimise'
 import { activitiesRows, importSummaryShown, libraryLoaded, uploadFixtures } from './helpers.js'
 import {
   CACHE_BYTES,
@@ -14,10 +15,10 @@ import {
 const JUNE_1 = Date.UTC(2025, 5, 1)
 const JUNE_20 = Date.UTC(2025, 5, 20)
 const YEAR_2030 = Date.UTC(2030, 0, 1)
-/** one-ride.gpx and one-run.tcx start on 14 and 13 June 2025; an activity's id begins with its start. */
+/** one-ride.gpx and one-run.tcx start on 14 and 13 June 2025; an activity's id is its start and a hash of its file's name. */
 const RIDE_START = Date.UTC(2025, 5, 14, 6, 30)
-const RIDE_ID = `${RIDE_START}-one-ride.gpx`
-const RUN_ID = '1749798900000-one-run.tcx'
+const RIDE_ID = `${RIDE_START}-${hashedFileName('one-ride.gpx')}`
+const RUN_ID = `1749798900000-${hashedFileName('one-run.tcx')}`
 const MIB = 1024 * 1024
 const SLOW = { timeout: 30_000 }
 
