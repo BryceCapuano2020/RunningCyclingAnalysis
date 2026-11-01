@@ -280,7 +280,8 @@ export function useImportActions({
 
   const undoLabels = useCallback(() => {
     const current = accountRef.current
-    const userId = current.status === 'signed-in' ? current.me?.user.id : undefined
+    // Signed out, the labels are on the library kept in this browser.
+    const userId = current.status === 'signed-in' ? current.me?.user.id : null
     if (userId === undefined) return
     send({ type: 'undoLabels', settings: settingsRef.current, userId })
   }, [accountRef, send, settingsRef])

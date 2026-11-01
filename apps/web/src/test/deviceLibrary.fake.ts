@@ -35,6 +35,18 @@ export function memoryDeviceLibrary(): DeviceLibrary {
         entries.set(workoutKey, { ...row, file })
       }
     },
+    setLabel: async (workoutKey, digestId, { from, athleteType }, expected) => {
+      if (expected !== undefined && expected !== epoch) throw new LibraryReplaced()
+      const row = entries.get(workoutKey)
+      if (row === undefined || row.digest.id !== digestId) return false
+      if ((row.digest.athleteType ?? null) !== from) return false
+      const { athleteType: _was, ...rest } = row.digest
+      entries.set(workoutKey, {
+        ...row,
+        digest: athleteType === null ? rest : { ...rest, athleteType },
+      })
+      return true
+    },
     remove: async (workoutKey) => {
       entries.delete(workoutKey)
     },

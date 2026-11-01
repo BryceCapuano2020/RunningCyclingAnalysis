@@ -1757,6 +1757,7 @@ function refusingLibrary(): DeviceLibrary {
     route: async () => null,
     put: refused,
     backfillFile: refused,
+    setLabel: refused,
     removeIfDigest: refused,
     // Storage the browser does not offer holds nothing, and so has no epoch to move.
     epoch: async () => 0,
