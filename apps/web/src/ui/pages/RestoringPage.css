@@ -24,3 +24,8 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* The list of held-out activities sits apart from the page's actions above it. */
+.held-out {
+  margin-top: var(--space-6);
+}

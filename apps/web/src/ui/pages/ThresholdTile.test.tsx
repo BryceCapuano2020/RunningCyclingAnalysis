@@ -9,6 +9,7 @@ import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fi
 import type { GradeOutcome } from '../grades'
 import { THRESHOLD_MEANING } from '../sports'
 import { ThresholdTile } from './ThresholdTile'
+import { thresholdTileIsBare } from './thresholdTileBare'
 
 afterEach(cleanup)
 
@@ -73,6 +74,27 @@ describe('ThresholdTile', () => {
     expect(container.querySelector('.range-track')).toBeNull()
     expect(container.textContent).not.toMatch(/NaN/)
     expect(container.querySelector('.stat-tile__number')).not.toBeNull()
+  })
+
+  it('renders nothing when it would hold only its name: no figure, the headline says what it needs, no grade', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const result = makeResult({ activities: [run], runCp: null })
+    const props = {
+      sport: 'run' as const,
+      result,
+      units: 'metric' as const,
+      massKg: 75,
+      grade: null,
+      weighted: true,
+    }
+    const alone = render(<ThresholdTile {...props} needInHeadline />)
+    expect(alone.container).toBeEmptyDOMElement()
+    expect(thresholdTileIsBare({ ...props, needInHeadline: true })).toBe(true)
+    // Where the headline does not say it, the tile does, so it is not bare.
+    cleanup()
+    const said = render(<ThresholdTile {...props} />)
+    expect(said.container.querySelector('.stat-tile__line')).toHaveTextContent(/^Needs /)
+    expect(thresholdTileIsBare(props)).toBe(false)
   })
 
   it('shows the floor of the efforts a refused fit left out, as At least, with no track', () => {

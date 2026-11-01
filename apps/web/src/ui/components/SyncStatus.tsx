@@ -5,6 +5,7 @@ import type { SyncIssue } from '@rca/core/session'
 import { MOVED_NOTE } from '../analysis/copy'
 import { megabytes } from '../format/units'
 import { resetSentence } from '../limitCopy'
+import { WarningIcon } from './icons'
 import { plural } from './plural'
 import { hasRetryableIssue } from '../useSaveRetry'
 import './SyncStatus.css'
@@ -157,14 +158,21 @@ export function SyncStatus({
   } else {
     text = ''
   }
-  const messageClass =
-    issues.length > 0 ? 'sync-status__message sync-status__message--failed' : 'sync-status__message'
+  const failed = issues.length > 0
+  const messageClass = failed
+    ? 'sync-status__message sync-status__message--failed'
+    : 'sync-status__message'
   const showCount = signedIn && uploading !== null && uploading > 0
   if (text === '' && !showCount) return null
 
   return (
     <div className="sync-status">
-      {text !== '' && <p className={messageClass}>{text}</p>}
+      {text !== '' && (
+        <p className={messageClass}>
+          {failed && <WarningIcon />}
+          {text}
+        </p>
+      )}
       {signedIn && onRetry !== undefined && hasRetryableIssue(issues) && (
         <button
           type="button"

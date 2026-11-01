@@ -37,7 +37,7 @@ export function HeldLibraryPage({
         {view.update && (
           <button
             type="button"
-            className="btn"
+            className="btn btn-primary"
             onClick={() => {
               // aria-disabled while busy, not disabled: a disabled button drops the focus it holds.
               if (!analysis.busy) analysis.rebuildSavedActivities()
@@ -48,7 +48,8 @@ export function HeldLibraryPage({
             {analysis.busy ? 'Updating…' : 'Update now'}
           </button>
         )}
-        {view.addFiles && <AddFilesButton onFiles={onFiles} />}
+        {/* Update now is the page's main action when both are offered. */}
+        {view.addFiles && <AddFilesButton onFiles={onFiles} primary={!view.update} />}
       </div>
       <HeldBackList activities={analysis.state.heldOut} />
     </section>

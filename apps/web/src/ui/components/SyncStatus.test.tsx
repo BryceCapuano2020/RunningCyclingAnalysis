@@ -127,6 +127,16 @@ describe('SyncStatus', () => {
     expect(status).toHaveClass('sync-status__message--failed')
   })
 
+  it('draws a warning icon before a failed save, and none before a saved one', () => {
+    const { rerender } = render(<SyncStatus {...props({ issues: [issue('network', 2)] })} />)
+    const icon = message().querySelector('svg.icon')
+    expect(icon).not.toBeNull()
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    rerender(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, savedCount: 2 })} />)
+    expect(message().querySelector('svg')).toBeNull()
+  })
+
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     expect(message()).toHaveTextContent(

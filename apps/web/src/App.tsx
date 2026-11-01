@@ -138,8 +138,8 @@ export function App() {
   const key = pageKeyOf(route, page)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
-  const heldTitle =
-    page === 'held' ? heldViewFor(analysis, signedIn, fileRetentionAvailable).title : ''
+  const heldView = page === 'held' ? heldViewFor(analysis, signedIn, fileRetentionAvailable) : null
+  const heldTitle = heldView?.title ?? ''
   useDocumentTitle(
     libraryPageTitle(page, heldTitle) ??
       documentTitleFor(route, analysis.state.result, analysis.state.library),
@@ -223,7 +223,11 @@ export function App() {
             restoringPage || onLanding ? null : (
               <AddFilesButton
                 onFiles={setup.requestImport}
-                primary={hasResult || signedIn || knowledge === 'present'}
+                // The library page's own buttons (Update now, else its Add files) are its one primary action.
+                primary={
+                  (hasResult || signedIn || knowledge === 'present') &&
+                  !(heldView?.update || heldView?.addFiles)
+                }
               />
             )
           }
