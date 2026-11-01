@@ -46,4 +46,14 @@ describe('outboxText', () => {
       '1 activity is still waiting to be saved. It saves when the connection returns, or the next time the page loads.',
     )
   })
+
+  it('leaves out the waiting count while the import’s own sentence says its saves wait', () => {
+    expect(outboxText(status({ pending: 1 }), false, true)).toBeNull()
+    expect(outboxText(status({ saved: 2, pending: 1 }), false, true)).toBe(
+      'Saved 2 activities from your last import.',
+    )
+    expect(outboxText(status({ failed: 1, pending: 1 }), false, true)).toContain(
+      'could not be saved',
+    )
+  })
 })

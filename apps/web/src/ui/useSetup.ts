@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApiRequestError } from '../api/apiError'
 import { messageOf } from '../api/messageOf'
 import { useLatest } from './analysis/useLatest'
 import { isReadableFileName } from './readableFiles'
@@ -25,6 +26,13 @@ function markDeviceSetupDone() {
 }
 
 const NOT_SAVED = 'Your answers could not be saved. Try again.'
+
+/** Said when the connection was lost: the press is kept and runs again when it returns, so it says so. */
+const CONNECTION_LOST =
+  'Your connection dropped, so your answers could not be saved. They are saved and your files analysed when it returns, or press Analyse my files to try now.'
+
+const lostConnection = (failure: unknown): boolean =>
+  failure instanceof ApiRequestError && failure.code === 'network_error'
 
 export interface SetupOptions {
   /**
@@ -101,6 +109,8 @@ export function useSetup({
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // The answers of a press the lost connection cut short: they are sent again when the connection returns.
+  const [waitingForConnection, setWaitingForConnection] = useState<ProfilePatch | null>(null)
   // Files waiting for the athlete's answer.
   const [held, setHeld] = useState<File[]>([])
   // Files whose answer is in place, handed to addFiles by the effect below.
@@ -194,15 +204,30 @@ export function useSetup({
     async (patch: ProfilePatch) => {
       setSaving(true)
       setSaveError(null)
+      setWaitingForConnection(null)
       try {
         await store(patch)
       } catch (failure) {
-        setSaveError(messageOf(failure, NOT_SAVED))
+        if (lostConnection(failure)) {
+          setSaveError(CONNECTION_LOST)
+          setWaitingForConnection(patch)
+        } else {
+          setSaveError(messageOf(failure, NOT_SAVED))
+        }
       }
       setSaving(false)
     },
     [store],
   )
+  const latestFinish = useLatest(finish)
+
+  // A press the connection cut short is not dropped: it runs again, once, when the connection returns.
+  useEffect(() => {
+    if (waitingForConnection === null) return
+    const again = () => void latestFinish()(waitingForConnection)
+    window.addEventListener('online', again, { once: true })
+    return () => window.removeEventListener('online', again)
+  }, [latestFinish, waitingForConnection])
 
   const skip = useCallback(
     async (kept: ProfilePatch) => {
@@ -210,6 +235,7 @@ export function useSetup({
       skipping.current = true
       setSaving(true)
       setSaveError(null)
+      setWaitingForConnection(null)
       try {
         await store(kept)
       } catch {

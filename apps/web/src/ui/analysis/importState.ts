@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { sameRegime } from '@rca/core/period'
+import type { NewBest } from '@rca/core/lookback'
 import type { SessionState } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { EMPTY_SESSION } from './model'
@@ -16,6 +17,8 @@ export interface ImportChange {
   outcome: ImportOutcome
   before: AnalysisResult | null
   after: AnalysisResult | null
+  /** The bests "since your last import" lists, which are the bests this summary names; null where there is no check-in. */
+  bests?: readonly NewBest[] | null
 }
 
 /** The analysis an import is compared with, and the period it was made under: the result on screen, or nothing for the sample. */
