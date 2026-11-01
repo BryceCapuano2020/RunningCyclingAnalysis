@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { calendarOf, fiveYearCalendar } from '../calendarFixtures'
+import { fiveYearLibrary, libraryOf } from '../calendarFixtures'
 import type { DaySpec } from '../calendarFixtures'
 import { TrainingCalendarChart } from './TrainingCalendarChart'
 
@@ -37,25 +37,28 @@ const JANUARY: DaySpec[] = [
 const steps = () =>
   screen.getAllByTestId('calendar-cell').map((cell) => cell.getAttribute('data-step'))
 const status = () => screen.getByRole('status')
+/** The hours a week the key writes under the joins of its tints. */
+const edges = () => screen.getAllByTestId('calendar-ramp-edge').map((edge) => edge.textContent)
 /** The drawing alone, whose labels share their text with the tables. */
 const drawing = () => within(screen.getByRole('img', { name: /^Heatmap/ }))
 
 describe('TrainingCalendarChart', () => {
   it('draws a cell for each week from the first to the last, tinted by its hours, with a week of rest plain', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     expect(screen.getByRole('figure', { name: 'Training calendar' })).toBeInTheDocument()
-    // 1 h, none, 4 h and 12 h a week against a ceiling of 12: steps 1, 0, 2 and 5.
+    // 1 h, none, 4 h and 12 h a week, on tints of 2.5 h: the first is up to 2.5, the last over 10.
     expect(steps()).toEqual(['1', '0', '2', '5'])
     expect(drawing().getByText('2024')).toBeInTheDocument()
     expect(drawing().getByText('Jan')).toBeInTheDocument()
     expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('None')
-    expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('12+ h a week')
+    expect(edges()).toEqual(['2.5', '5', '7.5', '10'])
+    expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('h a week')
   })
 
   it('leads with the longest streak and the biggest week, from the data', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     const figure = screen.getByRole('figure')
     expect(figure).toHaveTextContent(
       'Your longest streak was 2 weeks, ending the week of 22 Jan 2024. ' +
@@ -65,7 +68,7 @@ describe('TrainingCalendarChart', () => {
 
   it('reads a week with the keyboard: the week, the hours and count of each sport, and the total of two', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     const surface = screen.getByTestId('plot-surface')
     fireEvent.keyDown(surface, { key: 'Home' })
     for (const text of ['Week of 1 Jan 2024', '1.0 h Run', '1 run']) {
@@ -84,7 +87,7 @@ describe('TrainingCalendarChart', () => {
 
   it('reads the week under the pointer, a pixel of the gap between cells included', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     const third = screen.getAllByTestId('calendar-cell')[2]!
     const x = Number(third.getAttribute('x'))
     const y = Number(third.getAttribute('y'))
@@ -101,17 +104,18 @@ describe('TrainingCalendarChart', () => {
 
   it('keeps a sport with the filter: its own tints and ceiling, its own findings', () => {
     chartWidth(800)
-    const { container } = render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    const { container } = render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     const radios = screen.getAllByRole('radio')
     expect(radios.map((radio) => (radio as HTMLInputElement).value)).toEqual(['all', 'run', 'ride'])
     fireEvent.click(screen.getByLabelText('Ride'))
     expect(container.querySelector('.calendar')).toHaveAttribute('data-sport', 'ride')
-    // Two hours of riding in the last week, none before it.
-    expect(steps()).toEqual(['0', '0', '0', '5'])
-    expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('2+ h a week')
+    // Two hours of riding in the last week, none before it: on tints of half an hour, the last edge is 2.
+    expect(steps()).toEqual(['0', '0', '0', '4'])
+    expect(edges()).toEqual(['0.5', '1', '1.5', '2'])
     expect(screen.getByRole('figure')).toHaveTextContent('Your longest riding streak was 1 week')
     fireEvent.click(screen.getByLabelText('Run'))
     expect(steps()).toEqual(['1', '0', '2', '5'])
+    expect(edges()).toEqual(['2', '4', '6', '8'])
     expect(screen.getByRole('figure')).toHaveTextContent('Your biggest running week was 10.0 hours')
     fireEvent.click(screen.getByLabelText('All'))
     expect(container.querySelector('.calendar')).not.toHaveAttribute('data-sport')
@@ -119,14 +123,14 @@ describe('TrainingCalendarChart', () => {
 
   it('is named by the sport and has no filter where only one trained', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf([{ on: [2024, 1, 2], ride: [3, 1] }])} />)
+    render(<TrainingCalendarChart {...libraryOf([{ on: [2024, 1, 2], ride: [3, 1] }])} />)
     expect(screen.getByRole('figure', { name: 'Ride training calendar' })).toBeInTheDocument()
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
 
   it('gives the hours of every week in a table with a row for each year, and what each year held', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     const table = screen.getByRole('table', { name: 'Hours in each week, by year' })
     const heads = within(table).getAllByRole('columnheader')
     expect(heads).toHaveLength(53)
@@ -137,19 +141,19 @@ describe('TrainingCalendarChart', () => {
     const summary = screen.getByRole('table', { name: 'Training by year' })
     const year = within(summary).getAllByRole('row')[1]!
     expect(within(year).getByRole('rowheader')).toHaveTextContent('2024')
-    // Three weeks with training, 17 hours of it, in five activities.
+    // 17 hours in five activities.
     expect(
       within(year)
         .getAllByRole('cell')
         .map((c) => c.textContent),
-    ).toEqual(['3', '17.0', '5'])
+    ).toEqual(['17.0', '5'])
   })
 
   it('puts the week that spans New Year in one cell of the new year, and a long year in 53 columns', () => {
     chartWidth(800)
     render(
       <TrainingCalendarChart
-        calendar={calendarOf([
+        {...libraryOf([
           { on: [2020, 12, 29], run: [1, 1] },
           { on: [2021, 1, 4], run: [2, 1] },
         ])}
@@ -165,9 +169,35 @@ describe('TrainingCalendarChart', () => {
     expect(within(second!).getAllByRole('cell')[0]).toHaveTextContent('2.0')
   })
 
+  it('totals a year by its calendar days, as Hours per year does, though a week spans New Year', () => {
+    chartWidth(800)
+    render(
+      <TrainingCalendarChart
+        {...libraryOf([
+          { on: [2025, 12, 31], run: [1, 1] },
+          { on: [2026, 1, 2], run: [1.5, 1] },
+        ])}
+      />,
+    )
+    // One cell, of the week whose Thursday is 1 January 2026, holds both days.
+    expect(steps()).toHaveLength(1)
+    const summary = screen.getByRole('table', { name: 'Training by year' })
+    const rows = within(summary).getAllByRole('row').slice(1)
+    expect(
+      rows.map((row) =>
+        within(row)
+          .getAllByRole('cell')
+          .map((cell) => cell.textContent),
+      ),
+    ).toEqual([
+      ['1.0', '1'],
+      ['1.5', '1'],
+    ])
+  })
+
   it('lays out by the month on a phone, a month’s tint the hours in its average week', () => {
     chartWidth(360)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     // One cell: January 2024 held these four weeks (Thursdays the 4th, 11th, 18th and 25th), 17 h or 4.25 h a week.
     expect(steps()).toHaveLength(1)
     expect(screen.getByRole('table', { name: 'Hours in each month, by year' })).toBeInTheDocument()
@@ -197,13 +227,13 @@ describe('TrainingCalendarChart', () => {
 
   it('shows the latest week in the phone’s readout row until one is selected', () => {
     chartWidth(360)
-    render(<TrainingCalendarChart calendar={calendarOf(JANUARY)} />)
+    render(<TrainingCalendarChart {...libraryOf(JANUARY)} />)
     expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toContain('Jan 2024')
   })
 
   it('draws the whole of a long library, with a gap that is plain cells between tinted ones', () => {
     chartWidth(1000)
-    render(<TrainingCalendarChart calendar={fiveYearCalendar()} />)
+    render(<TrainingCalendarChart {...fiveYearLibrary()} />)
     const all = steps()
     expect(all).toHaveLength(5 * 52)
     const quiet = all.slice(2 * 52 + 24, 2 * 52 + 32)
@@ -214,7 +244,7 @@ describe('TrainingCalendarChart', () => {
 
   it('says what to add where the library holds no training', () => {
     chartWidth(800)
-    render(<TrainingCalendarChart calendar={calendarOf([])} />)
+    render(<TrainingCalendarChart {...libraryOf([])} />)
     expect(screen.getByText('Add runs or rides to see your training calendar.')).toBeInTheDocument()
     expect(screen.queryAllByTestId('calendar-cell')).toHaveLength(0)
     expect(screen.queryByTestId('calendar-ramp')).toBeNull()

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { trainingWeeks } from '@rca/core/history'
-import type { TrainingCalendar } from '@rca/core/history'
+import type { TrainingCalendar, YearRow } from '@rca/core/history'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import { filterOf, gridOf } from './calendarGrid'
@@ -28,6 +28,8 @@ import './TrainingCalendarChart.css'
 
 export interface TrainingCalendarChartProps {
   calendar: TrainingCalendar
+  /** The calendar years of the library, whose totals the summary table gives as the hours chart does. */
+  years: readonly YearRow[]
 }
 
 const ALL_OPTION = { value: 'all' as const, label: 'All' }
@@ -38,7 +40,7 @@ const EMPTY_TEXT = 'Add runs or rides to see your training calendar.'
  * for the hours. A week with no training is a plain cell, so a gap in the run reads at a glance. The filter keeps one
  * sport, whose hue the ramp takes. A phone has a column for each month, which is the average week of it.
  */
-export function TrainingCalendarChart({ calendar }: TrainingCalendarChartProps) {
+export function TrainingCalendarChart({ calendar, years }: TrainingCalendarChartProps) {
   const weeks = useMemo(() => trainingWeeks(calendar), [calendar])
   const [chosen, setChosen] = useState<CalendarFilter>('all')
   const [measure, width] = useSize()
@@ -83,7 +85,7 @@ export function TrainingCalendarChart({ calendar }: TrainingCalendarChartProps) 
                   onSelect={setChosen}
                 />
               ) : null}
-              <CalendarRampKey ceiling={ramp.ceiling} />
+              <CalendarRampKey edges={ramp.edges} />
             </div>
           )
         }
@@ -91,7 +93,7 @@ export function TrainingCalendarChart({ calendar }: TrainingCalendarChartProps) 
         plotBottomMargin={CALENDAR_BOTTOM_PX}
         empty={grid.cells.length === 0 ? EMPTY_TEXT : undefined}
         idleReadout={idleFrom(tooltipFor(last, mode, 0, 0))}
-        summary={summaryOf(weeks, grid.years, filter)}
+        summary={summaryOf(years, filter)}
         table={tableOf(grid, mode)}
         surface={(size) => calendarSurface(size, layoutOf(size), grid.cells.length, at, setActive)}
         overlay={(size) =>
