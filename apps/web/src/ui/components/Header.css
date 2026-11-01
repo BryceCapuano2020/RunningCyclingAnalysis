@@ -176,7 +176,7 @@ html {
     background: var(--surface-0);
   }
 
-  /* Four equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
+  /* Five equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
      together: the bar scrolls instead, which its overflow rules below handle. */
   .header__tab {
     flex: 1 1 0;

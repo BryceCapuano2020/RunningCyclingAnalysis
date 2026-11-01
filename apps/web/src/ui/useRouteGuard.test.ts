@@ -12,6 +12,7 @@ describe('needsResult', () => {
     expect(needsResult({ page: 'profile' })).toBe(false)
     expect(needsResult({ page: 'method' })).toBe(false)
     expect(needsResult({ page: 'run' })).toBe(true)
+    expect(needsResult({ page: 'history' })).toBe(true)
     expect(needsResult({ page: 'activity', id: 'a' })).toBe(true)
   })
 })
@@ -20,6 +21,7 @@ describe('coldNoticeFor', () => {
   it('says what a deep link needs, once the library has answered', () => {
     expect(coldNoticeFor({ route: { page: 'activity', id: 'a' }, ...cold })).toBe(COLD_NOTICE)
     expect(coldNoticeFor({ route: { page: 'run' }, ...cold })).toBe(COLD_NOTICE)
+    expect(coldNoticeFor({ route: { page: 'history' }, ...cold })).toBe(COLD_NOTICE)
   })
 
   it('says nothing on Balance or Profile, which the landing page is for', () => {

@@ -30,6 +30,7 @@ export const CONSUMERS = {
   fitness: 'readable', // the run and ride monitors
   splits: 'readable', // the activity page's splits
   listing: 'readable', // the library summaries
+  history: 'readable', // the History page's parts
 } as const satisfies Record<string, 'readable' | 'current'>
 
 export type Consumer = keyof typeof CONSUMERS

@@ -14,6 +14,7 @@ import type { PeriodZoneTimes } from './zones/timeCache'
 import type { ZoneEstimates } from './zones'
 import type { FitnessBySport } from './fitness/types'
 import type { LookBack } from './lookback/compute'
+import type { History } from './history/compute'
 import type { ChangeEvidence } from './change/types'
 
 /** An activity file this import could not use, with why. */
@@ -93,6 +94,11 @@ export interface SessionState {
    * library-wide whatever period is picked, and small however long the library (no list past its cap).
    */
   lookBack: LookBack
+  /**
+   * The charts of the History page, one entry for each part in history/parts.ts: built from every analysed activity,
+   * whatever period is picked, and remembered for the same digests.
+   */
+  history: History
   /**
    * The references that estimated zones are cut from: the thresholds and reference heart rates of the whole
    * library, whatever period is picked, so an activity has the same zones everywhere. Null without an analysis.
