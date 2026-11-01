@@ -7,7 +7,6 @@ import { RACE_PREDICTIONS_NAME, racePredictionNeed, racePredictionsOf } from '..
 import { distanceRecords } from '../records'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
-import { notHardNote } from '../changeHeld'
 import { bestEffortRows, curvesOf } from './bestEffortRows'
 import { BestEffortsEvidence } from './BestEffortsEvidence'
 import { bestEffortsFinding } from './bestEffortsFinding'
@@ -194,7 +193,6 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
                   rows: buildRows(sport, current, earlier),
                   previousLabel,
                   change,
-                  held: previous ? notHardNote(sport, result, previous, previousLabel) : null,
                 }
           }
         />

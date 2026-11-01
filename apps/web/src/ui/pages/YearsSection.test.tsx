@@ -47,7 +47,9 @@ describe('the "Your years" section', () => {
       },
     }
     render(<YearsSection sport="ride" lookBack={short} units="metric" />)
-    expect(screen.getByText(/So far there are 23 steady rides over 19 weeks\./)).toBeInTheDocument()
+    expect(
+      screen.getByText('Needs 40 steady rides over 52 weeks. You have 23 over 19.'),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('figure')).toBeNull()
   })
 

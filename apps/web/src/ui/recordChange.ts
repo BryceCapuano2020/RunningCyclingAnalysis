@@ -4,6 +4,7 @@ import type { Sport } from '@rca/core/types'
 import { PACE_UNIT, formatPower, formatRecordTime, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { perKilogramWords, shownDirection } from './changeWords'
+import { inSentence } from './previousLabel'
 
 /** The words every "no clear change" line begins with; each follows them with "from" and the period it is against. */
 export const NO_CLEAR_CHANGE = 'No clear change'
@@ -61,7 +62,7 @@ export function recordChange(
 ): string | null {
   const verdict = verdictOfCall(call)
   if (!Number.isFinite(now) || !Number.isFinite(before) || verdict === 'untested') return null
-  const earlier = previousLabel.toLowerCase()
+  const earlier = inSentence(previousLabel)
   const none = `${NO_CLEAR_CHANGE} from ${earlier}`
   if (verdict === 'none') return none
   const direction = directionOf(call)

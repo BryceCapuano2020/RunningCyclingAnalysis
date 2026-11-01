@@ -23,9 +23,9 @@ export interface FitnessAndCheckInProps {
 
 /**
  * The fitness cards and, one line under them, "Since your last import" or, when that has nothing new or has been seen,
- * "Your years". The row leads only when there is no card to lead (a library with no steady run). It takes the place
- * while it has not been seen; a row that has appeared in this visit stays until it is hidden, so opening it does not take
- * it away.
+ * "Your years". The row leads only when there is no card to lead (a library with no steady run). The years take the place
+ * until their lead has been seen, and a new lead is shown once; a row that has appeared in this visit stays until it is
+ * hidden, so opening it does not take it away.
  */
 export function FitnessAndCheckIn({
   analysis,
@@ -39,7 +39,7 @@ export function FitnessAndCheckIn({
   const years = useMemo(() => yearsWords(lookBack, fitness, units), [lookBack, fitness, units])
   const first = firstRowOf({
     checkIn: analysis.checkIn,
-    hasYears: years !== null,
+    yearsLead: years?.key ?? null,
     importIncomplete: analysis.incompleteImport !== null,
     isSample,
   })
@@ -56,7 +56,7 @@ export function FitnessAndCheckIn({
     appeared && words !== null && shown ? (
       <CheckInRow words={words} onSeen={analysis.markCheckInSeen} />
     ) : yearsAppeared && years !== null && shown ? (
-      <YearsRow words={years} onSeen={analysis.markLookBackSeen} />
+      <YearsRow words={years} onSeen={(event) => analysis.markLookBackSeen(event, years.key)} />
     ) : null
   const section = (
     <FitnessSection fitness={fitness} units={units} library={library} soleSport={soleSport} />

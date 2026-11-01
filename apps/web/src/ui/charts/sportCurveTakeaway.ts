@@ -51,21 +51,12 @@ export interface TakeawayInput {
   level?: string
   /** The change test for the two periods (see changeEvidence); null where there is no period before. */
   change: ChangeEvidence | null
-  /**
-   * Why the best 20 minutes is not compared, when the effort gate holds it (see notHardNote): the one reason a page gives,
-   * in place of "no clear change" for that length. Null or absent when nothing holds it.
-   */
-  held?: string | null
 }
 
 /** A row whose value, in either period, is its own effort's: a carried value is a longer effort's, not a finding at this length. */
 const measuredIn = (row: CurveRow, key: 'value' | 'previous') =>
   Number.isFinite(row[key]) &&
   (key === 'value' ? row.carried !== true : row.previousCarried !== true)
-
-/** Whether the effort gate holds the best 20 minutes, which it then speaks for, however the change test judged the length. */
-const isHeld = (durationS: number, held: string | null | undefined) =>
-  held != null && durationS === HEADLINE_DURATION_S
 
 /**
  * The effort the comparison reads: the best 20 minutes when both periods have a measured one, else the longest
@@ -76,14 +67,12 @@ function comparedRow(
   rows: readonly CurveRow[],
   sport: Sport,
   change: ChangeEvidence | null,
-  held: string | null | undefined,
 ): CurveRow | undefined {
   const both = rows.filter(
     (row) =>
       measuredIn(row, 'value') &&
       measuredIn(row, 'previous') &&
-      (isHeld(row.durationS, held) ||
-        verdictAt(change, sport, row.durationS, 'headline') !== 'untested'),
+      verdictAt(change, sport, row.durationS, 'headline') !== 'untested',
   )
   return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
 }
@@ -109,15 +98,10 @@ interface Comparison {
  */
 function comparisonOf(
   row: CurveRow,
-  { sport, units, previousLabel, change, held }: TakeawayInput & { previousLabel: string },
+  { sport, units, previousLabel, change }: TakeawayInput & { previousLabel: string },
 ): Comparison | { text: string; durationS: null } {
   const wording = WORDING[sport]
   const call = callAt(change, sport, row.durationS)
-  // A best held for its effort is not compared, whatever the change test says of it: the reason is the gate's, said once as
-  // every page says it.
-  if (held != null && row.durationS === HEADLINE_DURATION_S) {
-    return { text: held, durationS: null }
-  }
   const verdict = verdictOfCall(call, 'headline')
   const shift = plottedValue(sport, row.value, units) - plottedValue(sport, row.previous, units)
   const amount = Math.round(Math.abs(shift))
@@ -151,8 +135,8 @@ function comparisonOf(
  * could judge.
  */
 function comparison(input: TakeawayInput): Comparison | { text: string; durationS: null } | null {
-  const { sport, rows, previousLabel, change, held } = input
-  const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change, held)
+  const { sport, rows, previousLabel, change } = input
+  const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change)
   if (previousLabel === null || compared === undefined) return null
   return comparisonOf(compared, { ...input, previousLabel })
 }
@@ -167,8 +151,8 @@ export function takeawayAt(input: TakeawayInput, durationS: number): string | nu
 }
 
 /**
- * The sentence for one effort length when it names a change, null when it is the finding of no change (or held, or
- * not judged). A second chart of the same finding cites it only when it adds a change, so the page does not say
+ * The sentence for one effort length when it names a change, null when it is the finding of no change (or not
+ * judged). A second chart of the same finding cites it only when it adds a change, so the page does not say
  * "no clear change" twice.
  */
 export function namedChangeAt(input: TakeawayInput, durationS: number): string | null {
@@ -187,8 +171,7 @@ function changeAt(
     row === undefined ||
     !measuredIn(row, 'value') ||
     !measuredIn(row, 'previous') ||
-    (!isHeld(durationS, input.held) &&
-      verdictAt(change, sport, durationS, 'headline') === 'untested')
+    verdictAt(change, sport, durationS, 'headline') === 'untested'
   ) {
     return null
   }

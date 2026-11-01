@@ -19,6 +19,17 @@ describe('recordChange', () => {
     )
   })
 
+  it('names a window further back by its months, as they are', () => {
+    const now = speedForMileSeconds(402)
+    const before = speedForMileSeconds(414)
+    expect(recordChange('run', now, before, 'imperial', 'Jan to Mar', higher)).toBe(
+      '0:12 /mi faster than Jan to Mar',
+    )
+    expect(recordChange('run', now, before, 'imperial', 'Jan to Mar', none)).toBe(
+      'No clear change from Jan to Mar',
+    )
+  })
+
   it('says a run is slower when its pace has fallen back', () => {
     const now = speedForMileSeconds(414)
     const before = speedForMileSeconds(402)

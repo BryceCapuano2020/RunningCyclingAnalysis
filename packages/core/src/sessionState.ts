@@ -16,7 +16,7 @@ import type { ZoneEstimates } from './zones'
 import type { FitnessBySport } from './fitness/types'
 import type { LookBack } from './lookback/compute'
 import type { History } from './history/compute'
-import type { ChangeEvidence } from './change/types'
+import type { ChangeEvidence, EarlierComparison } from './change/types'
 
 /** An activity file this import could not use, with why. */
 export interface RejectedFile extends Rejection {
@@ -123,6 +123,12 @@ export interface SessionState {
    * both sports at every curve duration (see changeEvidence). Null where `previous` is.
    */
   change: ChangeEvidence | null
+  /**
+   * The window the What changed strip compares with when the period before holds too few efforts to test: the latest
+   * earlier window of the same length where the change test can be made (`earlierComparison`), with its curves and test.
+   * Null when the period before is enough, and for all time. `previous` and `change` stay the period before's.
+   */
+  earlier: EarlierComparison | null
   /** The best efforts each activity holds across the whole library, not the period. */
   records: Map<string, EarnedRecord[]>
 }

@@ -4,24 +4,18 @@ import type { Sport } from '../types'
 import type { LookBack } from './compute'
 import type { EffortMilestones, HindsightEpisode, HindsightFitness, QuietStretch } from './types'
 
-const YEAR_MS = 365.25 * 86_400_000
+/** How large an episode's change was, in natural-log units, whichever way it went. */
+const sizeOf = (episode: HindsightEpisode): number => Math.abs(Math.log1p(episode.change.value))
 
 /**
- * Whether an episode is strong enough to be the lead of the look-back (never in a library under two years): a change of `lead.delta` or more, `lead.z` standard
- * errors against the floor, ended or begun within the last `lead.years` before the horizon. Being listed needs less
- * (the monitor's own bar); a lead is what the page opens on, so it is held to more. A slip still open at the horizon is
- * judged by when it began.
+ * Whether an episode is strong enough to be the lead of the look-back (never in a library under two years): a change of
+ * `lead.delta` or more, `lead.z` standard errors against the floor, whenever it happened. Being listed needs less (the
+ * monitor's own bar); a lead is what the page opens on, so it is held to more.
  */
 export function meetsLeadBar(episode: HindsightEpisode, years: HindsightFitness): boolean {
   // Under two years no season can be told from change, so nothing leads.
   if (years.toMs - years.fromMs < LOOKBACK.list.shortWeeks * 7 * 86_400_000) return false
-  const size = Math.abs(Math.log1p(episode.change.value))
-  const when = episode.toMs ?? episode.fromMs
-  return (
-    size >= LOOKBACK.lead.delta &&
-    Math.abs(episode.z) >= LOOKBACK.lead.z &&
-    years.toMs - when <= LOOKBACK.lead.years * YEAR_MS
-  )
+  return sizeOf(episode) >= LOOKBACK.lead.delta && Math.abs(episode.z) >= LOOKBACK.lead.z
 }
 
 /**
@@ -53,9 +47,35 @@ export type Lead =
 
 const YEARS_MS = 365.25 * 86_400_000
 
+/** "2021-05": the month a moment falls in, which is how far the lead's sentence dates it. */
+const monthKey = (ms: number): string => new Date(ms).toISOString().slice(0, 7)
+
 /**
- * What the look-back opens on, or null when nothing earns it: (1) the most recent episode that meets the lead bar and
- * has ended (an open one is on the fitness card; the sport with more steady runs on a tie), (2) a quiet stretch of a year or more that reaches the horizon, only when the
+ * What names a lead, so that what the athlete has seen of it is not taken for what they have seen of the next: the
+ * sport, the kind of episode (or the stretch, or the effort) and the months its sentence dates it by. Months, not days,
+ * because the segmentation of an old stretch can move a boundary by a few weeks when later runs arrive, which is not news.
+ */
+export function leadKey(lead: Lead): string {
+  switch (lead.kind) {
+    case 'episode':
+      return [
+        lead.sport,
+        lead.episode.kind,
+        monthKey(lead.episode.fromMs),
+        lead.episode.toMs === null ? '' : monthKey(lead.episode.toMs),
+      ].join(':')
+    case 'quiet':
+      return [lead.sport, 'quiet', monthKey(lead.stretch.fromMs), monthKey(lead.stretch.toMs)].join(
+        ':',
+      )
+    case 'best':
+      return [lead.sport, 'best', JSON.stringify(lead.best.effort)].join(':')
+  }
+}
+
+/**
+ * What the look-back opens on, or null when nothing earns it: (1) the largest episode that meets the lead bar and
+ * has ended, of any age (an open one is on the fitness card; the more recent, then the sport with more steady runs, on a tie), (2) a quiet stretch of a year or more that reaches the horizon, only when the
  * sport's live status allows it, (3) the most recent listed episode that has ended, (4) the best that has stood longest. A sport that is too short leads with nothing,
  * and a library under two years has no episode or quiet lead.
  */
@@ -70,6 +90,7 @@ export function leadOf(lookBack: LookBack, live: Record<Sport, LiveState>): Lead
   )
   episodes.sort(
     (a, b) =>
+      sizeOf(b.episode) - sizeOf(a.episode) ||
       (b.episode.toMs ?? b.episode.fromMs) - (a.episode.toMs ?? a.episode.fromMs) ||
       b.runs - a.runs,
   )

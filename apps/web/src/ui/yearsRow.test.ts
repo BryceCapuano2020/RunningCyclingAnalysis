@@ -15,8 +15,45 @@ describe('what "Your years" says', () => {
     expect(words.lead).toBe(
       'From May 2021 your pace at 148 bpm was about 8.7% (6 to 11%) slower. By January 2022 it was back.',
     )
+    // What names the lead is its kind and the months its sentence dates it by.
+    expect(words.key).toBe('run:slip-back:2021-05:2022-01')
     // The lead is not listed again; the other episode is, and not as an open-ended claim about now.
     expect(words.rows).toEqual([])
+  })
+
+  it('leads with the largest episode however old, dated, and lists the smaller one that is newer', () => {
+    const old = {
+      kind: 'improvement' as const,
+      fromMs: Date.UTC(2009, 2, 1),
+      toMs: Date.UTC(2009, 8, 1),
+      change: { value: 0.16, low: 0.13, high: 0.19 },
+      regained: null,
+      remaining: null,
+      z: 8,
+      steps: 1,
+      runs: 70,
+    }
+    const older = {
+      ...YEARS_LOOKBACK,
+      sports: {
+        ...YEARS_LOOKBACK.sports,
+        run: {
+          ...YEARS_LOOKBACK.sports.run,
+          fitness: {
+            ...RUN_YEARS,
+            fromMs: Date.UTC(2008, 0, 1),
+            episodes: [old, ...RUN_YEARS.episodes],
+          },
+        },
+      },
+    }
+    const words = yearsWords(older, NO_FITNESS, 'metric')!
+    expect(words.lead).toMatch(
+      /got about \d+% \(\d+ to \d+%\) faster between March and September 2009\./,
+    )
+    // The slip that came back is newer and smaller: it is a row now, not the lead.
+    expect(words.rows).toHaveLength(1)
+    expect(words.rows[0]).toMatch(/^May 2021 to January 2022\. Slipped about/)
   })
 
   it('never leads with a best that has stood: a library whose only lead is a best has no row', () => {
@@ -71,25 +108,34 @@ describe('what "Your years" says', () => {
 
 describe('which row sits under the fitness card', () => {
   const base = { importIncomplete: false, isSample: false }
-  it('is the check-in first, then the years, each until it is seen', () => {
+  const lead = 'run:slip-back:2021-05:2022-01'
+  it('is the check-in first until it is seen, then the years until their lead is seen', () => {
     const unseen = { checkIn: QUIET_CHECK_IN, seen: false }
-    expect(firstRowOf({ ...base, checkIn: unseen, hasYears: true })).toBe('checkIn')
-    expect(firstRowOf({ ...base, checkIn: { ...unseen, seen: true }, hasYears: true })).toBe(
+    expect(firstRowOf({ ...base, checkIn: unseen, yearsLead: lead })).toBe('checkIn')
+    expect(firstRowOf({ ...base, checkIn: { ...unseen, seen: true }, yearsLead: lead })).toBe(
       'lookBack',
     )
-    expect(firstRowOf({ ...base, checkIn: none, hasYears: true })).toBe('lookBack')
+    expect(firstRowOf({ ...base, checkIn: none, yearsLead: lead })).toBe('lookBack')
     expect(
-      firstRowOf({ ...base, checkIn: { ...none, lookBackSeen: true }, hasYears: true }),
+      firstRowOf({ ...base, checkIn: { ...none, lookBackSeenFor: lead }, yearsLead: lead }),
     ).toBeNull()
-    expect(firstRowOf({ ...base, checkIn: none, hasYears: false })).toBeNull()
+    expect(firstRowOf({ ...base, checkIn: none, yearsLead: null })).toBeNull()
+  })
+
+  it('shows a new lead once, though an earlier one was seen, and not the seen one again', () => {
+    const seen = { ...none, lookBackSeenFor: lead }
+    expect(firstRowOf({ ...base, checkIn: seen, yearsLead: lead })).toBeNull()
+    expect(
+      firstRowOf({ ...base, checkIn: seen, yearsLead: 'run:improvement:2009-03:2009-09' }),
+    ).toBe('lookBack')
   })
 
   it('is none while an import is partial and for the sample', () => {
     expect(
-      firstRowOf({ checkIn: none, hasYears: true, importIncomplete: true, isSample: false }),
+      firstRowOf({ checkIn: none, yearsLead: lead, importIncomplete: true, isSample: false }),
     ).toBeNull()
     expect(
-      firstRowOf({ checkIn: none, hasYears: true, importIncomplete: false, isSample: true }),
+      firstRowOf({ checkIn: none, yearsLead: lead, importIncomplete: false, isSample: true }),
     ).toBeNull()
   })
 })

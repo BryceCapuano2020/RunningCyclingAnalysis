@@ -6,10 +6,10 @@ import { useSighting } from './useSighting'
 import './CheckInRow.css'
 
 /**
- * Whether the row was hidden in this page load. A session that stores nothing cannot keep the flag, so the row, which
+ * The lead the row was hidden for in this page load. A session that stores nothing cannot keep the flag, so the row, which
  * comes and goes with the page it is on, must not come back after Hide on the next visit to Balance.
  */
-let hiddenThisLoad = false
+let hiddenThisLoad: string | null = null
 
 export interface YearsRowProps {
   words: YearsWords
@@ -21,14 +21,15 @@ export interface YearsRowProps {
  * "Your years": the look-back's lead in one line under the fitness card, and behind the disclosure the other episodes.
  * It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
  * the line is cut after two lines and the panel gives it whole. Opening or hiding it, or being shown it on two page
- * loads, is seen, and a seen row gives up the place; its content stays on the Run and Ride pages.
+ * loads, is seeing its lead, and a seen lead gives up the place until the look-back has a new one; its content stays on
+ * the Run and Ride pages.
  */
 export function YearsRow({ words, onSeen }: YearsRowProps) {
   const row = useRef<HTMLElement>(null)
   const [hidden, setHidden] = useState(hiddenThisLoad)
   const seen = useSighting(row, onSeen, 'lookBack')
 
-  if (hidden || hiddenThisLoad) return null
+  if (hidden === words.key || hiddenThisLoad === words.key) return null
   return (
     <section
       ref={row}
@@ -60,8 +61,8 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
             type="button"
             className="checkin-row__hide"
             onClick={() => {
-              hiddenThisLoad = true
-              setHidden(true)
+              hiddenThisLoad = words.key
+              setHidden(words.key)
               seen.current('hide')
               // The button that had focus goes with the row: focus goes to the page's heading.
               focusPageHeading()
