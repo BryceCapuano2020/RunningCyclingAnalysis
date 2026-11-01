@@ -363,8 +363,8 @@ function fillStream(
 
 /**
  * Each known sample held for the seconds after it, up to `maxS` or the next sample, not through a pause. A temperature
- * is logged every few seconds (on a recording interval of 3 s to 6 s, or only when it changes), and a reading is the
- * best account of the seconds until the next; leaving them unknown would put a file's coverage at a third.
+ * is logged every few seconds, and a reading is the best account of the seconds until the next; leaving them
+ * unknown would put a file's coverage far under the half the summary asks for.
  */
 function holdForward(known: Float64Array, paused: Uint8Array, maxS: number): Float64Array {
   const out = Float64Array.from(known)

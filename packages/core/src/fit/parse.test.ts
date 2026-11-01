@@ -101,7 +101,7 @@ function reasonOf(result: ParseResult): string {
 }
 
 describe('a device that logs the temperature every few seconds', () => {
-  it('has its file read as a day with a temperature, not as one with a third of a reading', () => {
+  it('has its file read as a day with a temperature, not as one with too few readings', () => {
     // A record every second, with a temperature on every third, as a watch on a 3 s smart recording does.
     const records = secondly(START_MS, 3600, { speed: 3.2, power: 210, heartRate: 150 })
     records.forEach((record, i) => {

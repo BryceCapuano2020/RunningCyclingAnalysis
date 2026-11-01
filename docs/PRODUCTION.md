@@ -476,7 +476,7 @@ activities at a time with accessible paging.
   walking-pace rule reads it, a steep descent saves only half of Minetti's saving (`descentCost`) and a split ratio
   is checked, a lone power spike and a dropped second no longer set or lose a best (a best window may have 1%
   unusable seconds), a run keeps its best over the marathon, and the warm-day term of fitness reads the
-  temperature (a reading is held for up to 10 s, since watches log it every few seconds, so a file's coverage is not a third). A new activity's id and file name hold a hash of the file's name, and its title is generated unless the
+  temperature (a reading is held for up to 10 s, since watches log it every few seconds). A new activity's id and file name hold a hash of the file's name, and its title is generated unless the
   account sends titles. Weeks are cut at local Mondays, from the shift. It is `exclusive`: a library holds its
   results back and shows the update panel while any digest is revision 6 (`HOLD_ON_ANY_STALE`). New imports are
   revision 7; "Update now" rebuilds from retained originals, and dropping the original export again rebuilds
