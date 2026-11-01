@@ -29,7 +29,8 @@ export function useWaitingSaves({
   busy,
   libraryStatus,
 }: WaitingSavesInput): OutboxStatus | null {
-  const [rows, setRows] = useState(0)
+  // Kept with the account it was read for: after a switch, the last account's count is not this one's.
+  const [read, setRead] = useState<{ userId: string; count: number } | null>(null)
   useEffect(() => {
     // While the worker's resume is sending, the rows change under any count; it is read again when that ends.
     if (userId === undefined || busy || libraryStatus === 'loading') return
@@ -37,7 +38,7 @@ export function useWaitingSaves({
     let current = true
     // A browser that offers no storage holds no rows; a read that fails says nothing.
     waitingCount(userId).then(
-      (count) => current && setRows(count),
+      (count) => current && setRead({ userId, count }),
       () => undefined,
     )
     return () => {
@@ -45,6 +46,7 @@ export function useWaitingSaves({
     }
   }, [userId, busy, libraryStatus, outbox])
   if (outbox !== null) return outbox
+  const rows = read !== null && read.userId === userId ? read.count : 0
   if (userId === undefined || rows === 0 || issues.length > 0 || libraryStatus === 'loading')
     return null
   return { pending: rows, saved: 0, failed: 0, finished: true }

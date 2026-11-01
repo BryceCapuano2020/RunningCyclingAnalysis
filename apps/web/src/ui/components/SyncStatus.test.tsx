@@ -445,11 +445,21 @@ describe('SyncStatus retry', () => {
     expect(message().textContent).toMatch(/Try again now/)
   })
 
-  it('says to add the file again for an original a server error stopped, with no retry button', () => {
+  it('says to add the file again for an original that could not be kept, with no retry button', () => {
     render(<SyncStatus {...props({ issues: [issue('original-unsent', 2)], onRetry: vi.fn() })} />)
     expect(message()).toHaveTextContent(
-      'A server error stopped 2 originals from being kept. The summaries were saved. Add their files again to keep them.',
+      '2 originals could not be kept. The summaries were saved. Add their files again to keep them.',
     )
     expect(screen.queryByRole('button', { name: 'Try again now' })).not.toBeInTheDocument()
+  })
+
+  it('does not promise a resend after a reload for an original held in memory', () => {
+    render(<SyncStatus {...props({ issues: [issue('original-held', 1)], onRetry: vi.fn() })} />)
+    const text = message().textContent ?? ''
+    expect(text).toContain('1 original could not be sent. The summary was saved.')
+    expect(text).toContain('or when you press Try again now')
+    expect(text).toContain('if you reload first, add its file again')
+    expect(text).not.toContain('next time the page loads')
+    expect(screen.getByRole('button', { name: 'Try again now' })).toBeInTheDocument()
   })
 })

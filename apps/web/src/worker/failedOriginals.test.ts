@@ -28,7 +28,10 @@ function recordOf(digest: typeof first): ActivityRecord {
 function context(over: Partial<RetryContext> = {}): RetryContext {
   return {
     userId: 'u1',
-    savedRecords: new Map(),
+    // The library holds the records the tests hold originals for.
+    savedRecords: new Map(
+      [first, second, third].map((digest) => [`rec-${digest!.id}`, recordOf(digest)]),
+    ),
     missingOriginals: new Set(),
     hiddenIds: () => new Set(),
     cancelled: () => false,

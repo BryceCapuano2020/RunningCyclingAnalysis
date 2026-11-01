@@ -162,6 +162,7 @@ const deleteContext: DeleteGroupContext = {
   savedRecords,
   unmatchedOriginals,
   missingOriginals,
+  failedOriginals,
   routes,
   workbench,
   device,

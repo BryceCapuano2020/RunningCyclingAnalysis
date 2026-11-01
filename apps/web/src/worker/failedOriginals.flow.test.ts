@@ -2,7 +2,9 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiRequestError, createActivity, uploadFile } from '../api/client'
+import { ApiRequestError, createActivity, deleteActivity, uploadFile } from '../api/client'
+import { deleteSavedGroup } from './deleteGroup'
+import type { DeleteGroupContext } from './deleteGroup'
 import { accountSaver } from './accountSave'
 import type { AccountSaveContext } from './accountSave'
 import { workoutKeyOf } from './device'
@@ -15,7 +17,9 @@ vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
   createActivity: vi.fn(),
   uploadFile: vi.fn(),
+  deleteActivity: vi.fn(),
 }))
+vi.mock('./heldIndex', () => ({ forgetHeldKeys: vi.fn(async () => undefined) }))
 // Nothing is waiting in the outbox: the activity's summary was saved, only its original failed.
 vi.mock('./outbox', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./outbox')>()),
@@ -84,7 +88,7 @@ describe('an original whose upload failed, and Try again now', () => {
     vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Broke'))
     const save = accountSaver(ctx)
     await save(item)
-    expect(await save.finish?.(new Set())).toEqual([{ key, code: 'server' }])
+    expect(await save.finish?.(new Set())).toEqual([{ key, code: 'original-held' }])
     expect(failedOriginals.size).toBe(1)
     expect(missingOriginals.has(key)).toBe(true)
 
@@ -134,6 +138,50 @@ describe('an original whose upload failed, and Try again now', () => {
     await save(item)
 
     expect(await save.finish?.(new Set())).toEqual([{ key, code: 'storage-quota' }])
+    expect(failedOriginals.size).toBe(0)
+  })
+
+  it('goes with the activity when it is deleted, and is not sent to an id that is gone', async () => {
+    const { ctx, parts, failedOriginals, missingOriginals } = setup()
+    vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Broke'))
+    const save = accountSaver(ctx)
+    await save(item)
+    await save.finish?.(new Set())
+    expect(failedOriginals.size).toBe(1)
+
+    vi.mocked(deleteActivity).mockResolvedValue(undefined)
+    const deleting = {
+      session: { removeActivity: vi.fn(() => ({})) },
+      savedRecords: ctx.savedRecords,
+      unmatchedOriginals: new Set<string>(),
+      missingOriginals,
+      failedOriginals,
+      routes: { forget: vi.fn() },
+      workbench: { remove: vi.fn(async () => true) },
+      device: { dropKept: vi.fn(async () => undefined) },
+      post: vi.fn(),
+      reportLibrary: vi.fn(),
+    } as unknown as DeleteGroupContext
+    await deleteSavedGroup(deleting, record, 'u1', {} as never)
+    expect(failedOriginals.size).toBe(0)
+
+    vi.mocked(uploadFile).mockClear()
+    await startResume(parts, 'u1', true).finished
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('lets go of one whose record is gone from the library, without sending it', async () => {
+    const { ctx, parts, failedOriginals } = setup()
+    vi.mocked(uploadFile).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Broke'))
+    const save = accountSaver(ctx)
+    await save(item)
+    await save.finish?.(new Set())
+    ctx.savedRecords.clear()
+    vi.mocked(uploadFile).mockClear()
+
+    await startResume(parts, 'u1', true).finished
+
+    expect(uploadFile).not.toHaveBeenCalled()
     expect(failedOriginals.size).toBe(0)
   })
 })

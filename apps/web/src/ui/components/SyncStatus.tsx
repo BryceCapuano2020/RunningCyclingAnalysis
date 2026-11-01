@@ -108,8 +108,10 @@ function issueSentence(
         : `${formatCount(count)} workouts are already saved from different files. Delete the saved copies first to replace them.`
     case 'originals-off':
       return `Original files are turned off in your profile, so ${originals} ${wereOrWas} not kept. ${summaries} Turn on Keep original files in my library on Profile to keep them.`
+    case 'original-held':
+      return `${originals} could not be sent. ${summaries} ${count === 1 ? 'It sends' : 'They send'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}. Keep this page open: if you reload first, add ${count === 1 ? 'its file' : 'their files'} again.`
     case 'original-unsent':
-      return `A server error stopped ${originals} from being kept. ${summaries} Add ${count === 1 ? 'its file' : 'their files'} again to keep ${them}.`
+      return `${originals} could not be kept. ${summaries} Add ${count === 1 ? 'its file' : 'their files'} again to keep ${them}.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. ${count === 1 ? 'It saves' : 'They save'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}.`
     case 'server':

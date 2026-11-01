@@ -135,4 +135,24 @@ describe('saves a reload found waiting', () => {
     expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
   })
+
+  it("forgets the last account's rows when another signs in", async () => {
+    vi.mocked(waitingCount).mockResolvedValue(3)
+    const view = render(<AppNotices {...props({ libraryStatus: 'loaded' })} />)
+    await act(async () => undefined)
+    expect(screen.getByText(/3 activities are still waiting/)).toBeInTheDocument()
+
+    // The other account's count is slow to arrive: the first account's rows are not shown under it.
+    vi.mocked(waitingCount).mockReturnValue(new Promise(() => undefined))
+    await act(async () =>
+      view.rerender(
+        <AppNotices
+          {...props({ libraryStatus: 'loaded' })}
+          accountUser={{ userId: 'u2', email: 'b@example.com' }}
+        />,
+      ),
+    )
+
+    expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
+  })
 })

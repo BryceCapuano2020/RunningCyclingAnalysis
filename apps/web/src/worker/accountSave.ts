@@ -117,7 +117,7 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
       if (ctx.failedOriginals === undefined || !isTransient(code)) return code
       // Held for Try again now and the automatic resend; past the budget the athlete is told to add the file again.
       return ctx.failedOriginals.keep(sync.userId, record, item.bytes, code)
-        ? code
+        ? 'original-held'
         : 'original-unsent'
     },
   })

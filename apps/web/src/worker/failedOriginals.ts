@@ -84,6 +84,12 @@ export class FailedOriginals {
       this.take(ctx.userId).map(([key, held]) =>
         gate.run(async () => {
           if (stopped || ctx.cancelled()) return
+          // The activity was deleted since: there is nothing to attach the file to.
+          if (!ctx.savedRecords.has(held.record.id)) {
+            this.drop(key)
+            settled.push(key)
+            return
+          }
           if (hidden.has(held.digestId)) {
             this.drop(key)
             settled.push(key)

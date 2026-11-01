@@ -4,7 +4,7 @@ import type { SyncIssueCode } from './saveFailure'
 
 describe('which failures sending again can clear', () => {
   it('is the connection and a server error, and nothing a limit or a refusal says', () => {
-    const codes: SyncIssueCode[] = ['network', 'server']
+    const codes: SyncIssueCode[] = ['network', 'server', 'original-held']
     const others: SyncIssueCode[] = [
       'signed-out',
       'storage-quota',
