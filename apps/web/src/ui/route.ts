@@ -1,14 +1,12 @@
 import { useSyncExternalStore } from 'react'
+import { SIMPLE_PAGES } from './pageRules'
+import type { SimplePage } from './pageRules'
 
 /**
  * The page the URL hash names. Hash routes need no fallback rule on the static host, and an
  * unknown hash shows Balance rather than an error.
  */
-export type Route =
-  | { page: 'balance' | 'run' | 'ride' | 'activities' | 'method' | 'profile' }
-  | { page: 'activity'; id: string }
-
-const SIMPLE_PAGES = ['run', 'ride', 'activities', 'method', 'profile'] as const
+export type Route = { page: SimplePage } | { page: 'activity'; id: string }
 
 export function parseRoute(hash: string): Route {
   // A query is not part of the page. One trailing slash is ignored, so '#/run/' and '#/run' are the same page.
