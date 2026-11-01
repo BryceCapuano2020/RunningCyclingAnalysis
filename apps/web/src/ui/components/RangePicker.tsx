@@ -43,9 +43,12 @@ export interface RangePickerProps {
   dates?: string
   /** A sentence under the dates, such as why the default shows all time. */
   note?: string
-  /** How many of the total are in the period. */
+  /** How many of the total are in the period, whether or not the analysis counts them. */
   shown: number
+  /** How many are on file: every activity of the kind counted, whether or not the analysis reads it. */
   total: number
+  /** Of the total, how many the analysis does not count. Said once, after the count, with a link to them. */
+  notCounted?: number
   /** What is counted; the activities unless a sport page says otherwise. */
   noun?: keyof typeof NOUNS
   /**
@@ -55,8 +58,8 @@ export interface RangePickerProps {
   compact?: boolean
   /** Where the count links to, such as the activity list that holds them. */
   countHref?: string
-  /** What the count leaves out, such as "(38 walking-pace runs left out)", said after it. */
-  leftOut?: string
+  /** Where "not counted" links to: the activities left out, with the reason on each. */
+  notCountedHref?: string
   /** An import is running, so a pick waits for it and says so. */
   busy?: boolean
   /**
@@ -81,10 +84,11 @@ export function RangePicker({
   note,
   shown,
   total,
+  notCounted = 0,
   noun = 'activity',
   compact = false,
   countHref,
-  leftOut,
+  notCountedHref,
   busy = false,
   onChange,
 }: RangePickerProps) {
@@ -115,15 +119,13 @@ export function RangePicker({
   const offered = custom ? [...options, CUSTOM_OPTION] : options
   const [singular, pluralForm] = NOUNS[noun]
   const totalPhrase = plural(total, singular, pluralForm)
-  // All of them need no count, unless something is said to be left out of it: then it says how many it is.
+  const notCountedText = notCounted > 0 ? `${formatCount(notCounted)} not counted` : ''
+  // A period that holds fewer than the total says "42 of 1,200". One that holds them all says the total only to give what is not counted.
   const count =
-    shown < total
-      ? `${formatCount(shown)} of ${totalPhrase}`
-      : leftOut === undefined
-        ? ''
-        : totalPhrase
+    shown < total ? `${formatCount(shown)} of ${totalPhrase}` : notCounted > 0 ? totalPhrase : ''
   // Changing the period changes every number on the page, so the choice, the count and the dates are
-  // announced. The region stays mounted, so the announcement is made when its text changes.
+  // announced. The region stays mounted, so the announcement is made when its text changes. It is hidden from sight:
+  // the caption gives the same count.
   const counted =
     total === 0
       ? `No ${pluralForm} to show`
@@ -133,7 +135,7 @@ export function RangePicker({
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
-  const announcement = [counted, choiceLabel, dates, swapped ? SWAPPED_NOTE : '']
+  const announcement = [counted, notCountedText, choiceLabel, dates, swapped ? SWAPPED_NOTE : '']
     .filter((part) => part !== undefined && part !== '')
     .join(', ')
   const rootRef = useRef<HTMLDivElement>(null)
@@ -181,7 +183,16 @@ export function RangePicker({
           {count !== '' && (
             <span className="range-picker__count">
               {countHref === undefined ? count : <a href={countHref}>{count}</a>}
-              {leftOut === undefined ? null : ` ${leftOut}`}
+              {notCountedText !== '' && (
+                <>
+                  {', '}
+                  {notCountedHref === undefined ? (
+                    notCountedText
+                  ) : (
+                    <a href={notCountedHref}>{notCountedText}</a>
+                  )}
+                </>
+              )}
             </span>
           )}
           {swapped && (

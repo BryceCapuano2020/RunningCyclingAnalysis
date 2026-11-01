@@ -11,41 +11,36 @@ describe('ProfileFootnote', () => {
   it('says what the results are based on, in the units the athlete uses, with a link to Profile', () => {
     render(<ProfileFootnote massKg={75} units="metric" birthYear={1986} sex="male" />)
     const note = screen.getByText(/Based on/)
-    expect(note).toHaveTextContent(
-      'Based on 75 kg, man and your age at each effort. Change on Profile',
-    )
-    expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
-      'href',
-      '#/profile',
-    )
+    expect(note).toHaveTextContent('Based on your age, sex and 75 kg. Edit')
+    const link = screen.getByRole('link', { name: 'Edit your details on Profile' })
+    expect(link).toHaveAttribute('href', '#/profile')
+    expect(link).toHaveTextContent(/^Edit$/)
   })
 
   it('writes the weight in pounds for imperial', () => {
     render(<ProfileFootnote massKg={75} units="imperial" birthYear={1986} sex="male" />)
     expect(screen.getByText(/Based on/)).toHaveTextContent(
-      'Based on 165.3 lb, man and your age at each effort.',
+      'Based on your age, sex and 165.3 lb. Edit',
     )
   })
 
-  it('writes woman for a woman', () => {
+  it('names no sex of its own, whichever is set', () => {
     render(<ProfileFootnote massKg={75} units="metric" birthYear={1986} sex="female" />)
-    expect(screen.getByText(/Based on/)).toHaveTextContent(
-      '75 kg, woman and your age at each effort.',
-    )
+    const note = screen.getByText(/Based on/)
+    expect(note).toHaveTextContent('Based on your age, sex and 75 kg. Edit')
+    expect(note).not.toHaveTextContent(/woman|man\b/)
   })
 
   it('leaves out a part that is not set, such as the weight before one is entered', () => {
     render(<ProfileFootnote massKg={null} units="metric" birthYear={1986} sex="male" />)
     const note = screen.getByText(/Based on/)
-    expect(note).toHaveTextContent('Based on man and your age at each effort. Change on Profile')
+    expect(note).toHaveTextContent('Based on your age and sex. Edit')
     expect(note).not.toHaveTextContent('kg')
   })
 
   it('leaves out the sex when it is not set', () => {
     render(<ProfileFootnote massKg={75} units="metric" birthYear={1986} sex={null} />)
-    expect(screen.getByText(/Based on/)).toHaveTextContent(
-      'Based on 75 kg and your age at each effort. Change on Profile',
-    )
+    expect(screen.getByText(/Based on/)).toHaveTextContent('Based on your age and 75 kg. Edit')
   })
 
   it('leaves its link off the unset line where the page already links to Profile from a note of its own', () => {

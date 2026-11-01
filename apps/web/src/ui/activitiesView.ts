@@ -4,9 +4,13 @@ import { hashQuery } from './route'
 
 export type SportFilter = 'all' | 'run' | 'ride'
 
+/** Every activity on file, or only the ones the analysis leaves out. */
+export type ShowFilter = 'all' | 'not-counted'
+
 /** What the Activities list shows, and the page of it. The address keeps it, so Back returns to it. */
 export interface ActivitiesView {
   sport: SportFilter
+  show: ShowFilter
   sort: ActivitySort
   /** A period in days, or 'all' for the whole library. */
   period: 'all' | number
@@ -19,6 +23,7 @@ export interface ActivitiesView {
 /** The whole library, newest first, on its first page. */
 export const DEFAULT_VIEW: ActivitiesView = {
   sport: 'all',
+  show: 'all',
   sort: 'newest',
   period: 'all',
   bucket: null,
@@ -26,6 +31,7 @@ export const DEFAULT_VIEW: ActivitiesView = {
 }
 
 const SPORTS: readonly SportFilter[] = ['all', 'run', 'ride']
+const SHOWS: readonly ShowFilter[] = ['all', 'not-counted']
 
 function oneOf<T extends string>(value: string | null, options: readonly T[], fallback: T): T {
   return options.find((option) => option === value) ?? fallback
@@ -52,6 +58,7 @@ function pageOf(value: string | null): number {
 export function viewFromQuery(query: URLSearchParams): ActivitiesView {
   return {
     sport: oneOf(query.get('sport'), SPORTS, DEFAULT_VIEW.sport),
+    show: oneOf(query.get('show'), SHOWS, DEFAULT_VIEW.show),
     sort: oneOf(query.get('sort'), ACTIVITY_SORTS, DEFAULT_VIEW.sort),
     period: periodOf(query.get('period')),
     bucket: bucketOf(query.get('bucket')),
@@ -63,6 +70,7 @@ export function viewFromQuery(query: URLSearchParams): ActivitiesView {
 export function queryFromView(view: ActivitiesView): string {
   const query = new URLSearchParams()
   if (view.sport !== DEFAULT_VIEW.sport) query.set('sport', view.sport)
+  if (view.show !== DEFAULT_VIEW.show) query.set('show', view.show)
   if (view.sort !== DEFAULT_VIEW.sort) query.set('sort', view.sort)
   if (view.period !== DEFAULT_VIEW.period) query.set('period', String(view.period))
   if (view.bucket !== null) query.set('bucket', view.bucket)

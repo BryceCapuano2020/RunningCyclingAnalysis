@@ -1162,11 +1162,9 @@ describe('SportPage cycling figures without a weight', () => {
       null,
       NO_TRENDS,
       true,
-      <p>Based on 75 kg, man and your age at each effort. Change on Profile</p>,
+      <p>Based on your age, sex and 75 kg. Edit</p>,
     )
-    expect(
-      screen.getByText('Based on 75 kg, man and your age at each effort. Change on Profile'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Based on your age, sex and 75 kg. Edit')).toBeInTheDocument()
   })
 })
 
