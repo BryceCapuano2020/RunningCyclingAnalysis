@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import {
-  BALANCE_TITLE,
   activitiesRows,
   goTo,
+  libraryLoaded,
   openSample,
   signInAs,
   uniqueEmail,
@@ -79,7 +79,8 @@ for (const size of SIZES) {
       const email = uniqueEmail()
       await page.goto('/')
       await uploadFixtures(page, ['one-run.fit'])
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
+      // The headline moves from the Balance title to the level title as the analysis settles, so wait on the kept file.
+      await libraryLoaded(page, 1)
       await signInAs(page.request, email, 'Ada Lovelace')
       await page.goto('/')
       const offer = page.getByRole('region', { name: 'Activities kept in this browser' })

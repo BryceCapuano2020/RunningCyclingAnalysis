@@ -72,6 +72,8 @@ describe('a signed-in library with every digest held out', () => {
     render(<App />)
     const buttons = screen.getAllByRole('button', { name: 'Update now' })
     expect(buttons).toHaveLength(1)
+    // One primary action on the screen: Update now, not the header's Add files as well.
+    expect(document.querySelectorAll('.btn-primary')).toHaveLength(1)
     expect(buttons[0]).toHaveClass('btn-primary')
     expect(screen.queryByLabelText('Saved activity updates')).not.toBeInTheDocument()
     fireEvent.click(buttons[0]!)
@@ -95,6 +97,8 @@ describe('a signed-in library with every digest held out', () => {
     expect(screen.getByText(/412 activities need their files added again/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Add files' }).length).toBeGreaterThan(0)
+    // With no Update now, Add files is the one primary action.
+    expect(document.querySelectorAll('.btn-primary')).toHaveLength(1)
   })
 
   it('never says "add your files first" on a deep link, since the library is there', () => {
