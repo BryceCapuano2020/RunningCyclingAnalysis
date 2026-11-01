@@ -242,6 +242,20 @@ html {
     justify-content: center;
   }
 
+  /* When sign-in is unavailable and Try again is offered, the button holds the status's width and the status is
+     read and not shown, so the header does not move. */
+  .header__account .account-menu__pending.account-menu__pending--with-retry {
+    position: absolute;
+    width: 1px;
+    min-width: 0;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+
+  .header__account .account-menu__retry {
+    min-width: 6.05rem;
+  }
+
   .header__account .google-sign-in__rest {
     position: absolute;
     width: 1px;
@@ -328,6 +342,11 @@ html {
 
   .header__account .account-menu__pending {
     width: 5.3rem;
+  }
+
+  .header__account .account-menu__retry {
+    min-width: 5.3rem;
+    padding: 0 var(--space-1);
   }
 }
 

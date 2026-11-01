@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { sameAnalysisSettings, sameCountedRuns } from '@rca/core/athlete'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { WorkerRequest } from '../worker/protocol'
@@ -7,6 +6,7 @@ import type { AnalysisController } from './analysis/controller'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useAdoptionActions } from './analysis/adoptionActions'
+import { useSettingsSync } from './analysis/useSettingsSync'
 import { useImportActions } from './analysis/importActions'
 import { useImportManifest } from './analysis/importManifestHook'
 import type { ManifestScope } from './importManifest'
@@ -310,17 +310,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       setErrorNotice((notice) => (notice?.message === STILL_WORKING ? null : notice)),
   })
 
-  const { send } = transport
-  // The analysis is redone when a mass changes, dated ones included, when what the heart-rate reference reads changes
-  // (the year of birth and an entered maximum heart rate), or when the runs counted at walking pace change. Other dated
-  // settings only ride along on later requests, since no analysis depends on them.
-  useEffect(() => {
-    const changed =
-      !sameAnalysisSettings(settingsRef.current, settings) ||
-      !sameCountedRuns(settingsRef.current, settings)
-    settingsRef.current = settings
-    if (changed) send({ type: 'setSettings', settings })
-  }, [settings, send])
+  useSettingsSync(settings, settingsRef, transport.send)
 
   useAccountTransitions({
     account,
@@ -356,6 +346,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryStatus: library.libraryStatus,
     restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
+    resumeSaves: libraryActions.resumeSaves,
     detail: library.detail,
     missingOriginals: library.missingOriginals,
     outdatedWithOriginal: library.outdatedWithOriginal,

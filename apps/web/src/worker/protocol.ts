@@ -142,6 +142,11 @@ export type WorkerRequest =
       uploadTitles?: boolean
     } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string; uploadTitles?: boolean }
+  /**
+   * Sends the saves the outbox holds now, in the tab that holds the account's writer lock, without reading the library
+   * again. Answered with the state, once they have ended, so the saves that went are off its list of unsaved ones.
+   */
+  | { type: 'resumeSaves'; settings: AthleteSettings; userId: string }
   /** Takes off the labels the last import applied from its export's list (its summary's Undo). */
   | { type: 'undoLabels'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
