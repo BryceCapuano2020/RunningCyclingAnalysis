@@ -31,7 +31,11 @@ function stubLocks(held: Set<string>) {
   })
 }
 
-function contextOf(endResume: () => Promise<void>): LibraryContext {
+function contextOf(
+  endResume: () => Promise<void>,
+  restartResume: (userId: string) => void = () => undefined,
+  stamp: () => () => boolean = () => () => true,
+): LibraryContext {
   return {
     session: {
       loadDigests: () => ({}),
@@ -45,9 +49,10 @@ function contextOf(endResume: () => Promise<void>): LibraryContext {
     post: () => undefined,
     reportLibrary: () => undefined,
     reportUnreadable: () => undefined,
-    stamp: () => () => true,
+    stamp,
     waitingToChange: () => 0,
     endResume,
+    restartResume,
   }
 }
 
@@ -80,5 +85,40 @@ describe('updating the stale activities', () => {
     )
 
     expect(result.stopped).toBe('elsewhere')
+  })
+
+  it('starts the outbox resume again after the update, in the order end, update, restart', async () => {
+    vi.mocked(listActivities).mockResolvedValue([])
+    stubLocks(new Set())
+    const order: string[] = []
+
+    await rebuildStale(
+      contextOf(
+        async () => void order.push('end'),
+        (userId) => void order.push(`restart ${userId}`),
+      ),
+      {} as AthleteSettings,
+      USER,
+    )
+
+    expect(order).toEqual(['end', `restart ${USER}`])
+  })
+
+  it('does not restart it for a library that was replaced meanwhile', async () => {
+    vi.mocked(listActivities).mockResolvedValue([])
+    stubLocks(new Set())
+    const restart = vi.fn()
+
+    await rebuildStale(
+      contextOf(
+        async () => undefined,
+        restart,
+        () => () => false,
+      ),
+      {} as AthleteSettings,
+      USER,
+    )
+
+    expect(restart).not.toHaveBeenCalled()
   })
 })

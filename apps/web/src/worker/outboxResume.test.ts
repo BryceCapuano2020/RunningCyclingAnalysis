@@ -182,6 +182,40 @@ describe('resuming the saves an earlier visit left', () => {
     }
   })
 
+  it('keeps a row the server keeps failing, still saves the rows after it, and reports it as waiting', async () => {
+    const stuck = digests[0]!
+    vi.mocked(createActivity).mockImplementation(async (digest) => {
+      if (digest.id === stuck.id) throw new ApiRequestError(502, 'bad_gateway', 'Down')
+      return { record: { ...recordOf(0), id: `rec-${digest.id}`, digest }, created: true }
+    })
+    const posted: WorkerResponse[] = []
+    const settled: [string, string][] = []
+    const { outbox, rows: left } = memoryOutbox([rowFor(0), rowFor(1), rowFor(2)])
+    const resume = resumeOutbox({
+      userId: 'u1',
+      outbox,
+      savedRecords: new Map(),
+      sending: new SendingKeys(),
+      post: (message) => posted.push(message),
+      settled: async (row, outcome) => void settled.push([row.digestId, outcome]),
+    })
+
+    const result = await resume.finished
+
+    expect(result).toMatchObject({ saved: 2, failed: 0, kept: 1, stopped: null })
+    expect([...left.keys()]).toEqual([rowFor(0).key])
+    // The page counts it among the saves still waiting, and the worker did not mark it saved.
+    expect(last(posted)).toEqual({
+      type: 'outbox',
+      pending: 1,
+      saved: 2,
+      failed: 0,
+      finished: true,
+    })
+    expect(settled).toContainEqual([stuck.id, 'kept'])
+    expect(settled.filter(([, outcome]) => outcome === 'saved')).toHaveLength(2)
+  })
+
   it('does not count a lost connection against the row, however many loads it spans', async () => {
     vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
     for (let load = 0; load < MAX_ATTEMPTS + 2; load++) {

@@ -46,6 +46,8 @@ export interface LibraryContext {
   waitingToChange: () => number
   /** Stops this tab's own outbox resume and waits for it to let go of the writer lock, so Update is not refused by it. */
   endResume: () => Promise<void>
+  /** Starts the outbox resume again after an update, where none is going: the rows it set aside go now. */
+  restartResume: (userId: string) => void
 }
 
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
@@ -121,6 +123,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       (!record.hasFile || ctx.unmatchedOriginals.has(record.id)),
   ).length
   const positions = new Map(records.map((record, index) => [record.id, index]))
+  const stampHolds = ctx.stamp()
   const steps: UpdateSteps = {
     original: (record) => originalActivity(record, userId),
     digest: digestActivity,
@@ -133,7 +136,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       ctx.session.replaceDigest(workoutKeyOf(saved.digest), saved.digest)
       await ctx.captureTrace?.(activity, userId)
     },
-    stampHolds: ctx.stamp(),
+    stampHolds,
     waiting: ctx.waitingToChange,
     sleep: waitNoting,
     note: noteWork,
@@ -142,6 +145,8 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   // This tab's own resume may hold the writer lock: it stops first, so only another tab's hold refuses the update.
   await ctx.endResume()
   const ran = await asWriter(userId, () => runUpdate(candidates, steps))
+  // The resume this update set aside starts again, unless the library or the account changed meanwhile.
+  if (stampHolds()) ctx.restartResume(userId)
   const update = ran.writer ? ran.value : NOT_THE_WRITER
   // The library this ran for was replaced meanwhile, so nothing it learned is put back over the new one.
   if (update.stopped === 'discarded') {

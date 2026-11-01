@@ -10,6 +10,7 @@ import {
   digestOf,
   MAX_ATTEMPTS,
   openOutbox,
+  RETRY_OPEN_AFTER_MS,
   sweepOutbox,
   waitingCount,
 } from './outbox'
@@ -282,6 +283,28 @@ describe('an open that never answers', () => {
       request.onsuccess?.()
 
       expect(close).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('tries a slow open again later, and does not make each save wait out the timeout in between', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      vi.stubGlobal('indexedDB', { open: () => ({}) as IDBOpenDBRequest })
+      const outbox = openOutbox('u1')
+      const first = outbox.add(item(FIRST))
+      await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS)
+      await first
+
+      // Storage answers now. Within the pause the failed open stands, so a save returns at once without a row.
+      vi.stubGlobal('indexedDB', new IDBFactory())
+      await outbox.add(item(FIRST))
+      await expect(outbox.pending()).resolves.toEqual([])
+
+      await vi.advanceTimersByTimeAsync(RETRY_OPEN_AFTER_MS)
+      await outbox.add(item(FIRST))
+      expect(await outbox.pending()).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }
