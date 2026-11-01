@@ -27,8 +27,11 @@ results, every page except Profile and How sure is this? shows a restoring state
 header holds the wordmark, the four tabs (once there is a result, and while results restore), one
 **Add files** button (not on the landing page, whose drop zone has its own, nor while they restore, except on Profile and How sure is this?), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
-and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
-button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
+and "Sign-in is unavailable right now" when accounts cannot be reached, with a **Try again** button that looks the
+account up at once (the browser coming back online, or the tab becoming visible, asks again too, at most every 30 s). Both hold the sign-in
+button's width, so the header does not move; on a phone the button takes the status's place.
+
+Saves the connection dropped say so under the page's notices ("2 activities were not fully saved because the connection dropped. They save when the connection returns, or when you press Try again now.") and are sent again by the outbox: when the browser comes back online (at most every 10 s), on **Try again now**, and when the library loads. Each of these asks the one tab that holds the account's writer lock to send, and none reads the library again. The busy strip is fixed to the bottom of the window and
 appears only once a run has lasted about 400 ms, so a quick change never moves the page. Its count reads "Reading 214 of 1,032 activity files": the total is the files an export lists as activities, so it
 differs from the summary's count of all the files, which also holds the ones an export does not list. A screen reader
 is told "Adding your files" once at the start and is not read the strip. The reason

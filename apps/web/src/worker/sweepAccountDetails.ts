@@ -12,13 +12,14 @@ import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
  * the server, never on a network error. Best effort: what storage refuses is tried again at the next load.
  */
 export async function sweepAccountDetails(keepUserId: string | null): Promise<void> {
-  // An environment without IndexedDB could never have kept these recordings.
-  if (typeof indexedDB === 'undefined') return
-  // The check-in database is swept whether or not any recording was stored: the index of files read is kept without one.
-  await sweepCheckin(keepUserId).catch(() => undefined)
-  // The waiting saves (summaries and file names) of other accounts go the same way, once somebody else is signed in.
-  await sweepOutbox(keepUserId)
   try {
+    // An environment without IndexedDB could never have kept these recordings. Where the browser refuses site
+    // storage, even naming `indexedDB` can throw, which is the same answer.
+    if (typeof indexedDB === 'undefined') return
+    // The check-in database is swept whether or not any recording was stored: the index of files read is kept without one.
+    await sweepCheckin(keepUserId).catch(() => undefined)
+    // The waiting saves (summaries and file names) of other accounts go the same way, once somebody else is signed in.
+    await sweepOutbox(keepUserId).catch(() => undefined)
     // A visitor who never stored a recording has no database, and looking must not make one.
     if (!(await workbenchExists())) return
     for (const userId of await accountsWithRecordings()) {

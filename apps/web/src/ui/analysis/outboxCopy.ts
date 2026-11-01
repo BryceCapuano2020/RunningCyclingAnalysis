@@ -19,7 +19,7 @@ export function outboxText(status: OutboxStatus): string | null {
   }
   if (pending > 0) {
     parts.push(
-      `${plural(pending, ...ACTIVITIES)} ${pending === 1 ? 'is' : 'are'} still waiting to be saved and will finish the next time the page opens.`,
+      `${plural(pending, ...ACTIVITIES)} ${pending === 1 ? 'is' : 'are'} still waiting to be saved. ${pending === 1 ? 'It saves' : 'They save'} when the connection returns, or the next time the page loads.`,
     )
   }
   return parts.length === 0 ? null : parts.join(' ')

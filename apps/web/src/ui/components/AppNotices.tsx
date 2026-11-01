@@ -22,6 +22,7 @@ import { DeviceOffer } from './DeviceOffer'
 import { hiddenCopiesText } from '../analysis/hiddenCopiesCopy'
 import { LibraryNotices } from './LibraryNotices'
 import { SyncStatus } from './SyncStatus'
+import { useSaveRetry } from '../useSaveRetry'
 import { useSampleNotice } from './useSampleNotice'
 import './AppNotices.css'
 
@@ -125,6 +126,15 @@ export function AppNotices({
   // The runs counted despite walking pace: the way back, where runs are listed or analysed.
   const countedHere = analysis.state.countedWalkingRuns
   const outboxLine = analysis.outbox === null ? null : outboxText(analysis.outbox)
+  // Saves the connection dropped go again when it is back, and when the athlete asks.
+  const saves = useSaveRetry({
+    signedIn,
+    issues: analysis.state.syncIssues,
+    outbox: analysis.outbox,
+    busy: analysis.busy,
+    libraryStatus: analysis.libraryStatus,
+    resume: analysis.resumeSaves,
+  })
   const sample = useSampleNotice({ page, shown: result !== null && isSample, units })
   return (
     <div className="app__notices">
@@ -157,6 +167,7 @@ export function AppNotices({
           signedIn={signedIn}
           moved={movedAnything(moved)}
           hiddenCopies={analysis.state.hiddenDuplicates}
+          onRetry={(control) => runThenFocus(saves.retry, control)}
         />
         <LibraryNotices
           analysis={analysis}

@@ -24,7 +24,7 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { hrefFor, useRoute } from './ui/route'
 import { useRouteHistory } from './ui/routeHistory'
 import { useLoadedPages } from './ui/useLoadedPages'
-import { focusPageHeading } from './ui/pages/pageHeading'
+import { useRunThenFocus } from './ui/useRunThenFocus'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
@@ -210,28 +210,7 @@ export function App() {
     window.location.replace(hrefFor({ page: 'balance' }))
   }
 
-  // Stop, restart and retry unmount their own button when they finish. Once that button has gone
-  // and focus went with it, focus moves to the page's heading. Focus the user has moved elsewhere
-  // is left where it is.
-  const focusAfter = useRef<{ control: Element | null } | null>(null)
-  const [, setFocusTick] = useState(0)
-  // The control is passed by the caller because Safari and Firefox do not focus a clicked button.
-  function runThenFocus(action: () => void, control?: Element) {
-    const active = document.activeElement
-    action()
-    focusAfter.current = { control: control ?? (active === document.body ? null : active) }
-    setFocusTick((tick) => tick + 1)
-  }
-  useEffect(() => {
-    const pending = focusAfter.current
-    if (pending === null) return
-    const active = document.activeElement
-    // The button that ran the action is still there: wait for it to go.
-    if (pending.control?.isConnected) return
-    focusAfter.current = null
-    if (active !== null && active !== document.body && active.isConnected) return
-    focusPageHeading()
-  })
+  const runThenFocus = useRunThenFocus()
 
   const accountsAvailable = account.status !== 'unavailable'
   // The landing page's drop zone has its own Add files, so the header leaves its button out there.
@@ -259,6 +238,7 @@ export function App() {
               me={account.me}
               onSignIn={account.signIn}
               onSignOut={signOutWarning.requestSignOut}
+              onRetry={account.retryLookup}
             />
           }
         />
