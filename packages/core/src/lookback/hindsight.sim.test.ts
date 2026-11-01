@@ -281,9 +281,10 @@ describe('planted changes', () => {
         if (dip.kind === 'slip-back') back++
       }
     }
-    // Observed 7 of 272 found (0.026): the card, fooled by the wander, said back for 4, and a false alarm of the card before the
-    // dip, listed, lowered the level it is judged against for 3. It was 2 of 267 before the card's declarations split the plateaus;
-    // the owner's own library, with its four slips found, outranks the difference.
+    // Observed 8 of 276 found (0.029; 7 of 272 before a slip the card declared was kept through a weak step back out of it): the
+    // card, fooled by the wander, said back for some, and a false alarm of the card before the dip, listed, lowered the level it
+    // is judged against for others. It was 2 of 267 before the card's declarations split the plateaus; the owner's own library,
+    // with its four slips found, outranks the difference.
     expect(dipFound).toBeGreaterThan(200)
     expect(back / dipFound).toBeLessThanOrEqual(0.03)
   })
