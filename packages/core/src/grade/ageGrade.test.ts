@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import { METRES_PER_MILE } from '../units/convert'
 import {
   FIRST_GRADED_AGE,

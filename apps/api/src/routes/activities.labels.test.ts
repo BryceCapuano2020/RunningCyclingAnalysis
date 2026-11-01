@@ -427,7 +427,7 @@ describe('PATCH /api/activities/labels', () => {
   })
 
   describe('against a rebuild of the same row', () => {
-    /** Revision 5 is read beside the current 6, so a client can label it and a rebuild can replace it. */
+    /** Revision 6 is read beside the current 7 (made mixable here), so a client can label it and a rebuild can replace it. */
     const exclusive = (revision: number): RevisionDeclaration => ({
       revision,
       kind: 'exclusive',
@@ -436,9 +436,9 @@ describe('PATCH /api/activities/labels', () => {
       affects: [],
     })
     const MIXED: readonly RevisionDeclaration[] = [
-      ...[1, 2, 3, 4, 5].map(exclusive),
+      ...[1, 2, 3, 4, 5, 6].map(exclusive),
       {
-        revision: 6,
+        revision: 7,
         kind: 'mixable',
         adds: [],
         changes: [],

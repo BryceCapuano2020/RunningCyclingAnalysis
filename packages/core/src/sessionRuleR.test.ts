@@ -1,3 +1,4 @@
+import { hashedFileName } from './import/minimise'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
@@ -68,7 +69,7 @@ describe.each([
     for (const { state, stored } of results) {
       expect(stored).toEqual(first.stored)
       expect(state.result?.activities).toHaveLength(1)
-      expect(state.result?.activities[0]?.id).toContain('one.fit')
+      expect(state.result?.activities[0]?.id).toContain(hashedFileName('one.fit'))
       expect(state.hiddenDuplicates).toBe(2)
       expect(state.totalActivities).toBe(1)
       expect(state.library).toHaveLength(1)
@@ -85,7 +86,7 @@ describe('the same copies on the device, with nowhere to save them', () => {
         SETTINGS,
       )
       expect(state.hiddenDuplicates).toBe(2)
-      expect(state.result?.activities[0]?.id).toContain('one.fit')
+      expect(state.result?.activities[0]?.id).toContain(hashedFileName('one.fit'))
     }
   })
 })
@@ -108,7 +109,7 @@ describe('a sink that holds work back until the copies are known', () => {
       sink,
     )
 
-    expect(seen.sort()).toEqual(['one.gpx', 'one.tcx'])
+    expect(seen.sort()).toEqual(['one.gpx', 'one.tcx'].map(hashedFileName).sort())
     expect(state.syncIssues).toEqual([{ code: 'storage-quota', count: 1 }])
   })
 

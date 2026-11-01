@@ -8,9 +8,9 @@ const CORE = join(ROOT, 'packages/core/src')
 const WEB = join(ROOT, 'apps/web/src')
 
 /**
- * Calls that read or set a calendar field in `Date`'s own zone, or build a date from local fields. Only
- * calendar.ts may: every figure that depends on a day, a week, a month or a year asks it, so a figure is the
- * same on every device (D12 section 2.5).
+ * Calls that read or set a calendar field in `Date`'s own zone, or build a date from local fields. Not even
+ * calendar.ts reads it: the viewer's zone is handed to it once, by the adapter named below, and every figure that
+ * depends on a day, a week, a month or a year asks the calendar, so a figure is the same on every device (D12 section 2.5).
  */
 const FIELD_CALL =
   /\.(?:getTimezoneOffset|setHours|getHours|getMinutes|getDate|getFullYear|setFullYear|getMonth|getDay|setDate)\(|Intl\.DateTimeFormat\(/
@@ -38,7 +38,6 @@ const reads = (text: string) => FIELD_CALL.test(text) || buildsFromFields(text)
  * device's own wall clock, or names a file or an activity by it; none is part of a figure.
  */
 const ALLOWED: Record<string, string> = {
-  'packages/core/src/calendar.ts': 'the one module that does calendar arithmetic',
   'packages/core/src/import/names.ts': 'the hour names an activity ("Morning run") when imported',
   'packages/core/src/units/format.ts': 'the hour of a time on the screen',
   'apps/web/src/worker/viewerZone.ts': 'the adapter that hands the device zone to the calendar',
@@ -65,7 +64,7 @@ function sources(dir: string, out: { path: string; text: string }[] = []) {
 describe('the device’s zone', () => {
   const files = [...sources(CORE), ...sources(WEB)]
 
-  it('is read in calendar.ts and the files named here only', () => {
+  it('is read in the files named here only', () => {
     expect(files.length).toBeGreaterThan(600)
     const offenders = files.filter(({ text }) => reads(text)).map(({ path }) => path)
     expect(offenders.sort()).toEqual(Object.keys(ALLOWED).sort())
@@ -90,7 +89,7 @@ describe('the device’s zone', () => {
     expect(reads('new Date(f(a, b))')).toBe(false)
   })
 
-  it('is read by calendar.ts, which is where the guard looks for it', () => {
-    expect(files.find((f) => f.path === 'packages/core/src/calendar.ts')!.text).toSatisfy(reads)
+  it('is read by the adapter that hands it to the calendar, which is where the guard looks for it', () => {
+    expect(files.find((f) => f.path === 'apps/web/src/worker/viewerZone.ts')!.text).toSatisfy(reads)
   })
 })

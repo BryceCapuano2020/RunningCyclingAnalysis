@@ -12,7 +12,7 @@ import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import { trustedPower } from './powerCheck'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
-import { localAxisMs, localWeeksOn, weekEndFor, weekEndsSpan } from '../calendar'
+import { localAxisMs, weekEndFor, weekEndsSpan } from '../calendar'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
 import { EVERY_EFFORT_KEYED } from './readingRule'
 import type { KeyedReadingRule, ReadingRule } from './readingRule'
@@ -78,7 +78,7 @@ interface Best {
 interface Reading {
   id: string
   startMs: number
-  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  /** The start on the axis the weeks are cut on (calendar.ts). */
   weekMs: number
   sport: Sport
   best: Best
@@ -144,7 +144,7 @@ function readingsOf(digests: ActivityDigest[], best: (digest: ActivityDigest) =>
       })
   }
   // Digests are in order of start; the week axis moves a start by up to a day either way, so cut weeks need not be.
-  if (localWeeksOn()) readings.sort((x, y) => x.weekMs - y.weekMs || (x.id < y.id ? -1 : 1))
+  readings.sort((x, y) => x.weekMs - y.weekMs || (x.id < y.id ? -1 : 1))
   return readings
 }
 

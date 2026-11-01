@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import { makeActivity } from './components/fixtures'
 import { groupByMonth, sortActivities } from './activitySort'
 

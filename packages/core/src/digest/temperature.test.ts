@@ -3,14 +3,12 @@ import { parseGpx } from '../gpx/parse'
 import { parseTcx } from '../tcx/parse'
 import type { ParseResult } from '../import/result'
 import type { Activity } from '../types'
-import { digestActivityAt } from './digestActivity'
+import { digestActivity } from './digestActivity'
 import { movingMask } from './masks'
 import { readDigest } from './readDigest'
 import { parseDigest, serializeDigest } from './serialize'
 import { temperatureSummary } from './temperature'
 import { syntheticActivity } from './test/syntheticActivity'
-
-const SEVEN = 7
 
 /** A run of `n` seconds with temperature `at(i)` each second, with `edit` applied. */
 function run(n: number, at: (i: number) => number, edit: (a: Activity) => void = () => {}) {
@@ -43,7 +41,7 @@ describe('the temperature summary', () => {
   it('T3: is absent for a file with no temperature', () => {
     const a = syntheticActivity({ n: 3600 })
     expect(summary(a)).toBeUndefined()
-    expect(digestActivityAt(a, SEVEN)).not.toHaveProperty('temperature')
+    expect(digestActivity(a)).not.toHaveProperty('temperature')
   })
 
   it('T4: is absent for a run with under 10 minutes after the warm-up', () => {
@@ -96,23 +94,13 @@ describe('the temperature summary', () => {
 })
 
 describe('the temperature field of a digest', () => {
-  it('is written only from revision 7, and no other byte of the digest differs', () => {
-    const a = run(3600, () => 17)
-    const before = digestActivityAt(a, 6)
-    const after = digestActivityAt(a, SEVEN)
-    expect(before).not.toHaveProperty('temperature')
+  it('is written for a run with a reading (identity.rev7.test.ts pins that no other byte differs from revision 6)', () => {
+    const after = digestActivity(run(3600, () => 17))
     expect(after.temperature).toEqual({ c: 17, coverage: 1 })
-    expect({ ...after, temperature: undefined, modelRevision: 6 }).toEqual({
-      ...before,
-      temperature: undefined,
-    })
   })
 
   it('T7: survives parseDigest and the stored and device readers', () => {
-    const digest = digestActivityAt(
-      run(3600, () => 21.5),
-      SEVEN,
-    )
+    const digest = digestActivity(run(3600, () => 21.5))
     expect(parseDigest(serializeDigest(digest)).temperature).toEqual({ c: 21.5, coverage: 1 })
     const wire = JSON.parse(serializeDigest(digest)) as Record<string, unknown>
     for (const view of ['stored', 'device', 'create'] as const) {

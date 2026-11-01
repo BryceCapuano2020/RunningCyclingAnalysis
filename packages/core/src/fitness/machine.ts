@@ -21,7 +21,7 @@ const M = FITNESS.monitor
 
 /** Weeks count from the Monday `calendar.ts` names, so they line up for every library and match the findings engine's. */
 export const weekOfMs = (ms: number): number => Math.floor((ms - WEEK_ORIGIN_MS) / WEEK_MS)
-/** The week an instant is in, in the viewer's zone (the UTC week while local weeks are off). */
+/** The week an instant is in, in the viewer's zone. */
 export const localWeekOf = (ms: number): number =>
   weekOfMs(ms + dayShiftFor({ startMs: ms }) * DAY_MS)
 /** The end of a week, Sunday 23:59:59.999 UTC, as the findings engine's weeks end. */
@@ -31,7 +31,7 @@ export const dayOfWeekEnd = (week: number): number => (week + 1) * 7
 export const dayOfMs = (ms: number): number => (ms - WEEK_ORIGIN_MS) / DAY_MS
 /** A day on the clock as a label: the midnight that starts it, counted as if the local day were the UTC one. */
 export const msOfDay = (day: number): number => WEEK_ORIGIN_MS + day * DAY_MS
-/** The same midnight as the instant it is in the viewer's zone (the label itself while local weeks are off). */
+/** The same midnight as the instant it is in the viewer's zone. */
 export const instantOfDay = (day: number): number => weekEndInstant(msOfDay(day) - 1) + 1
 
 export type MachineState =

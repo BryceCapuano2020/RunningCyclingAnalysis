@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import { bodyMassOn, hasDatedMass, massAtFor, sameMasses } from './mass'
 import type { Measurement } from './measurements'
 import type { AthleteSettings } from './settings'

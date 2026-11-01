@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test'
-
-const MODEL_REVISION = 6
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 
 /** Puts a baseline of an empty library, taken ten hours ago, in the check-in database for the device. */
 export async function seedBaseline(page: Page): Promise<void> {

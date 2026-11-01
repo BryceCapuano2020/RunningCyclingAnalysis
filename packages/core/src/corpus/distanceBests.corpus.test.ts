@@ -26,7 +26,7 @@ function runDigests() {
       .filter((name) => /\.(fit|gpx|tcx)$/i.test(name))
       .sort()
       .flatMap((name) => {
-        const parsed = parseActivityFile(bytes(name), name)
+        const parsed = parseActivityFile(bytes(name), name, undefined, { hashedIds: false })
         if (!parsed.ok) return []
         return parsed.activities
           .filter((activity) => activity.sport === 'run')

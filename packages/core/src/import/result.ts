@@ -53,8 +53,8 @@ export interface ParseLimits {
 
 export interface ParseOptions {
   /**
-   * Whether the activity id is made from a hash of the file name (D12 E7). Defaults to whether the current model revision
-   * is 7 or later; a test sets it to reach either.
+   * Whether the activity id is made from a hash of the file name (D12 E7). Defaults to true; a test sets it to false to reach
+   * the id of the earlier revisions.
    */
   hashedIds?: boolean
   /** The clock for the date check, in epoch milliseconds. Defaults to Date.now(). */

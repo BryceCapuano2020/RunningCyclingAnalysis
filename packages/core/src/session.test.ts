@@ -1,3 +1,4 @@
+import { hashedFileName } from './import/minimise'
 import './test/warmSample'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
@@ -934,7 +935,9 @@ describe('AnalysisSession', () => {
     expect(retried.syncIssues).toEqual([{ code: 'network', count: 1 }])
     expect(outcome).toMatchObject({
       filesAdded: 0,
-      duplicates: [expect.objectContaining({ fileName: 'run.fit', detail: 'run.fit' })],
+      duplicates: [
+        expect.objectContaining({ fileName: 'run.fit', detail: hashedFileName('run.fit') }),
+      ],
       added: [],
     })
   })
@@ -1278,7 +1281,7 @@ describe('the same workout in more than one format', () => {
     const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('1.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('activities/1.fit'))
     expect(state.hiddenDuplicates).toBe(1)
   })
 
@@ -1331,16 +1334,16 @@ describe('the same workout in more than one format', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('1.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('activities/1.fit'))
     expect(state.hiddenDuplicates).toBe(1)
     // Every distinct second is stored (rule R); the analysis shows the FIT and the summary names the GPX a copy.
     expect(synced.sort()).toEqual(['activities/1.fit', 'activities/1.gpx'])
     expect(duplicates).toEqual([
       {
         fileName: 'activities/1.gpx',
-        reason: 'Same workout as activities/1.fit',
+        reason: `Same workout as ${hashedFileName('activities/1.fit')}`,
         code: 'duplicate',
-        detail: 'activities/1.fit',
+        detail: hashedFileName('activities/1.fit'),
       },
     ])
   })
@@ -1354,7 +1357,7 @@ describe('the same workout in more than one format', () => {
     const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('b.tcx')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('b.tcx'))
   })
 
   it('counts a FIT imported after a saved GPX copy once, and hides the GPX copy', async () => {
@@ -1363,7 +1366,7 @@ describe('the same workout in more than one format', () => {
     const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('run.fit'))
     expect(state.hiddenDuplicates).toBe(1)
   })
 
@@ -1382,7 +1385,7 @@ describe('the same workout in more than one format', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('run.fit'))
     expect(state.hiddenDuplicates).toBe(1)
     expect(synced).toBe(1)
   })
@@ -1400,7 +1403,7 @@ describe('the same workout in more than one format', () => {
       },
     )
 
-    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('run.fit'))
     expect(state.hiddenDuplicates).toBe(1)
     expect(synced).toBe(1)
   })
@@ -1411,7 +1414,7 @@ describe('the same workout in more than one format', () => {
     const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('run.fit'))
     expect(state.hiddenDuplicates).toBe(0)
   })
 
@@ -1463,7 +1466,7 @@ describe('near-duplicate copies of one workout in the same format', () => {
       const session = new AnalysisSession()
       const state = await session.addFiles(files, SETTINGS)
       expect(state.result?.activities).toHaveLength(1)
-      expect(state.result?.activities[0]?.id).toContain('strap.fit')
+      expect(state.result?.activities[0]?.id).toContain(hashedFileName('strap.fit'))
     }
   })
 
@@ -1478,7 +1481,7 @@ describe('near-duplicate copies of one workout in the same format', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('long.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('long.fit'))
   })
 
   it('keeps the smaller id among stored copies that are equally rich', () => {
@@ -1528,7 +1531,7 @@ describe('transitive near-duplicates and the visible count', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.result?.activities[0]?.id).toContain('fit.fit')
+    expect(state.result?.activities[0]?.id).toContain(hashedFileName('fit.fit'))
     expect(state.hiddenDuplicates).toBe(2)
   })
 
@@ -1702,9 +1705,9 @@ describe('AnalysisSession rejected files, per import', () => {
     expect(duplicates).toEqual([
       {
         fileName: 'copy.gpx',
-        reason: 'Same workout as run.fit',
+        reason: `Same workout as ${hashedFileName('run.fit')}`,
         code: 'duplicate',
-        detail: 'run.fit',
+        detail: hashedFileName('run.fit'),
       },
     ])
   })

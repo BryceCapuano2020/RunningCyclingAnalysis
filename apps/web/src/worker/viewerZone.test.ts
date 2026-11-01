@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  localDayNumber,
-  setViewerZone,
-  UTC_ZONE,
-  weekEndFor,
-  withLocalWeeks,
-} from '@rca/core/calendar'
+import { localDayNumber, setViewerZone, UTC_ZONE, weekEndFor } from '@rca/core/calendar'
 import { deviceZone, installDeviceZone } from './viewerZone'
 
 afterEach(() => {
@@ -63,20 +57,20 @@ describe('the device zone in the calendar', () => {
   it('cuts a Sunday evening and a Monday morning into their own local weeks', () => {
     inZone('America/Los_Angeles', () => {
       installDeviceZone()
-      withLocalWeeks(true, () => {
+      {
         const sundayEnd = at(2026, 3, 9) - 1
         // Sunday 8 March, 18:00 PDT is Monday 01:00 UTC: Sunday's week.
         expect(weekEndFor({ startMs: at(2026, 3, 9, 1) })).toBe(sundayEnd)
         // Monday 9 March, 00:30 PDT is 07:30 UTC: the next week.
         expect(weekEndFor({ startMs: at(2026, 3, 9, 7, 30) })).toBe(sundayEnd + 7 * 86_400_000)
-      })
+      }
     })
     inZone('Pacific/Auckland', () => {
       installDeviceZone()
-      withLocalWeeks(true, () => {
+      {
         // Monday 16 March, 00:30 NZDT is Sunday 15 March, 11:30 UTC: Monday's week.
         expect(weekEndFor({ startMs: at(2026, 3, 15, 11, 30) })).toBe(at(2026, 3, 23) - 1)
-      })
+      }
     })
   })
 

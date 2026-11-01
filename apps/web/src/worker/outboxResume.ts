@@ -16,13 +16,19 @@ import { noteWork } from './workerWire'
 /** Failures after which a row is let go at once: the server holds another copy, or the account is going. */
 const NEVER_TAKEN = new Set<SyncIssueCode>(['activity-conflict', 'account-deleting'])
 
-/** How a row's save ended: the server has it now, had it already, holds another file for it, was let go, or waits. */
-export type RowOutcome = 'saved' | 'held' | 'conflict' | 'let-go' | 'kept'
+/**
+ * How a row's save ended: the server has it now, had it already, holds another file for it, was let go, waits, or is
+ * from an older analysis and waits for its file (`stale`: it stays in the outbox, unsent).
+ */
+export type RowOutcome = 'saved' | 'held' | 'conflict' | 'let-go' | 'kept' | 'stale'
 
 /** What a resume came to. `stopped` is why it gave up on the rest, when it did. */
 export interface ResumeResult {
   saved: number
-  /** Rows let go for good: refused too often, from an older analysis, unreadable, or taken by another file. */
+  /**
+   * Rows that could not be saved: refused too often, unreadable or taken by another file (these are let go for good),
+   * or from an older analysis (these stay in the outbox until their file is added again).
+   */
   failed: number
   /** Of those, the ones the server holds another copy of (same second, different file). */
   conflicts: number
@@ -65,9 +71,9 @@ export interface Resume {
  * while it does, and it tells the page how it is going and how it ended.
  *
  * Only a refusal counts against a row: after a few the athlete is told it could not be saved, to add its file
- * again. A stop (a limit, a signed-out account), a lost connection, a server error (5xx), a row an import is sending or one a newer
- * version wrote leaves the row as it is for another day. A row from an older analysis is let go unsent, since the
- * server would refuse it.
+ * again. A stop (a limit, a signed-out account), a lost connection, a server error (5xx), a row an import is sending or
+ * one a newer version wrote leaves the row as it is for another day. A row from an older analysis is not sent, since the
+ * server would refuse it, and not dropped: it stays, and counts among those that need their file added again.
  */
 export function resumeOutbox(ctx: ResumeContext): Resume {
   let cancelled = false
@@ -105,11 +111,9 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
       const revision = revisionStatus(digest.modelRevision)
       // A newer version of the app wrote it: it is left alone, as the kept library leaves such a row.
       if (revision === 'newer') return 'kept'
-      // Only a digest the server would refuse is let go; one it reads beside the current model (compatible) is sent.
-      if (revision === 'stale') {
-        await ctx.outbox.done(row.key, row.digestId)
-        return 'let-go'
-      }
+      // A digest the server would refuse is not sent, and not dropped: it stays until its file is added again (the
+      // library counts it with the activities that need their files). One it reads beside the current model (compatible) is sent.
+      if (revision === 'stale') return 'stale'
       if (held.has(row.key)) {
         // The server has it already, from the import that was cut off or from a retry.
         await ctx.outbox.done(row.key, row.digestId)
@@ -163,7 +167,7 @@ export function resumeOutbox(ctx: ResumeContext): Resume {
           noteWork()
           const outcome = await resumeRow(row)
           if (outcome === 'saved') saved++
-          else if (outcome === 'let-go' || outcome === 'conflict') failed++
+          else if (outcome === 'let-go' || outcome === 'conflict' || outcome === 'stale') failed++
           else if (outcome === 'kept') kept++
           if (outcome === 'conflict') conflicts++
           await ctx.settled?.(row, outcome).catch(() => undefined)

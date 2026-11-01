@@ -7,15 +7,13 @@ import type { LocalDayShift } from './types'
  * zone, given once at the edge, says. No UTC offset is kept.
  *
  * The days of a period, a custom range, a dated setting and an age are cut in the viewer's zone, given once
- * at the edge (`setViewerZone`), and `Date`'s own zone is not read: a figure is the same on every device. Until
- * the flag is set they are cut in the device's zone as they always were, and this is the one module that
- * reads it (calendar.guard.test.ts forbids every other).
+ * at the edge (`setViewerZone`), and `Date`'s own zone is not read here: a figure is the same on every device
+ * (calendar.guard.test.ts forbids every other module to read it).
  *
- * Weeks run Monday to Sunday. Until the release that writes revision 7 they are cut in UTC, as they always
- * were: `LOCAL_WEEKS` is false, every function here gives the UTC answer, and nothing in a digest or a figure
- * moves. That release sets it true together with the revision, so the figures are re-pinned once.
+ * Weeks run Monday to Sunday and are cut in local days: an activity's day is its UTC day plus the shift its file
+ * records, or the viewer's zone's where it records none. The weeks were cut in UTC until the release that wrote revision 7
+ * (the figures were re-pinned once, with the digests); with no shift in a file and the viewer's zone UTC the two are the same.
  */
-export const LOCAL_WEEKS = false
 
 export const WEEK_MS = 7 * DAY_MS
 
@@ -37,20 +35,19 @@ export interface Dated {
   localDayShift?: LocalDayShift
 }
 
-let localWeeks = LOCAL_WEEKS
 let viewerZone: Zone = UTC_ZONE
-/** Counts every change of the setting or the zone, so a cache that read either can tell it is stale. */
+/** Counts every change of the viewer's zone, so a cache that read it can tell it is stale. */
 let calendarVersion = 0
 
 /**
- * What a remembered answer must also match: it changes whenever local weeks or the viewer's zone do.
+ * What a remembered answer must also match: it changes whenever the viewer's zone does.
  * Memos keyed by digests alone would otherwise serve a week cut in one zone to a reader in another.
  */
 export function calendarKey(): number {
   return calendarVersion
 }
 
-/** A function that is true once each time the calendar (local weeks, the viewer's zone) has changed since it was last asked. */
+/** A function that is true once each time the calendar (the viewer's zone) has changed since it was last asked. */
 export function calendarWatch(): () => boolean {
   let seen = calendarVersion
   return () => {
@@ -58,31 +55,6 @@ export function calendarWatch(): () => boolean {
     seen = calendarVersion
     return moved
   }
-}
-
-/**
- * Runs `run` with local weeks on or off. For tests: the setting is put back when `run` returns, so a run that
- * returns a promise would continue under the real one and is refused.
- */
-export function withLocalWeeks<T>(on: boolean, run: () => T): T {
-  const before = localWeeks
-  localWeeks = on
-  calendarVersion++
-  try {
-    const result = run()
-    if (result instanceof Promise) {
-      throw new TypeError('withLocalWeeks cannot hold the setting across an await')
-    }
-    return result
-  } finally {
-    localWeeks = before
-    calendarVersion++
-  }
-}
-
-/** Whether weeks are cut in local days now. */
-export function localWeeksOn(): boolean {
-  return localWeeks
 }
 
 /** Sets the viewer's zone, once, at the edge that knows it (the worker). Returns the one it replaced. */
@@ -108,11 +80,9 @@ export function localDayNumber(item: Dated, zone: Zone = viewerZone): number {
 
 /**
  * How many days later than its UTC day an activity falls, for the code that places activities on a continuous
- * clock of days (the fitness monitor): its shift, or the viewer's zone's where the file gave none. Zero while
- * local weeks are off.
+ * clock of days (the fitness monitor): its shift, or the viewer's zone's where the file gave none.
  */
 export function dayShiftFor(item: Dated): number {
-  if (!localWeeks) return 0
   return item.localDayShift ?? shiftFromZone(viewerZone, item.startMs)
 }
 
@@ -131,11 +101,9 @@ export function weekEndMs(ms: number): number {
  * the local day were the UTC one, so an instant (a start, a window's edge) cannot be compared with it: at UTC-7 a
  * run at 18:00 on Sunday starts after Monday 00:00 UTC. This puts the start on that axis, at its own time of day
  * on its local date, so `localAxisMs(a) <= end` is exactly `weekEndFor(a) <= end` for a week end, and a window
- * of whole days cut at week ends holds the same activities as the weeks it spans. With local weeks off it is the
- * start itself.
+ * of whole days cut at week ends holds the same activities as the weeks it spans.
  */
 export function localAxisMs(item: Dated, zone: Zone = viewerZone): number {
-  if (!localWeeks) return item.startMs
   return item.startMs + (localDayNumber(item, zone) - Math.floor(item.startMs / DAY_MS)) * DAY_MS
 }
 
@@ -155,22 +123,20 @@ export function weekEndsSpan(items: readonly Dated[]): { first: number; last: nu
 }
 
 /**
- * The end of the week an activity belongs to, as the instant that week's UTC Sunday ends. With local weeks off
- * that is the week of its UTC start. With them on it is the week of its local day, so a run that starts at
- * 00:30 Monday local time belongs to that Monday's week wherever the zone puts it against UTC.
+ * The end of the week an activity belongs to, as the instant that week's UTC Sunday ends: the week of its local
+ * day, so a run that starts at 00:30 Monday local time belongs to that Monday's week wherever the zone puts it
+ * against UTC.
  */
 export function weekEndFor(item: Dated, zone: Zone = viewerZone): number {
-  if (!localWeeks) return weekEndMs(item.startMs)
   return (MONDAY_DAY_NUMBER + (weekOfDay(localDayNumber(item, zone)) + 1) * 7) * DAY_MS - 1
 }
 
 /**
  * The instant a week end is, in the viewer's zone: the last millisecond of that local Sunday. The week end itself
  * is a label on the week axis (see `localAxisMs`); this is the instant to hand to code that compares instants
- * (a start `<=` an as-of date). With local weeks off the label is the instant.
+ * (a start `<=` an as-of date).
  */
 export function weekEndInstant(weekEnd: number, zone: Zone = viewerZone): number {
-  if (!localWeeks) return weekEnd
   const guess = weekEnd - zone(weekEnd) * 60_000
   return weekEnd - zone(guess) * 60_000
 }
@@ -178,12 +144,9 @@ export function weekEndInstant(weekEnd: number, zone: Zone = viewerZone): number
 // ---------------------------------------------------------------------------------------------------------
 // Days of a period, a custom range, a dated setting and an age.
 
-/** The device's zone at an instant: what `Date` has always used here. The only read of it. */
-const deviceZone: Zone = (ms) => -new Date(ms).getTimezoneOffset()
-
-/** The zone days are cut in: the viewer's with local weeks on, the device's before. */
+/** The zone days are cut in: the viewer's, given once at the edge that knows it. */
 function dayZone(): Zone {
-  return localWeeks ? viewerZone : deviceZone
+  return viewerZone
 }
 
 /** The number of the local calendar day that holds the instant, counted from 1 January 1970. */
@@ -191,30 +154,9 @@ export function localDayOfInstant(ms: number): number {
   return Math.floor((ms + dayZone()(ms) * 60_000) / DAY_MS)
 }
 
-/**
- * Instants whose offsets tell one device zone from another: the turn of each season, and the weeks the zones change their
- * clocks in, over four decades. Reading them costs microseconds, where naming the zone through `Intl` costs about 12 ms the
- * first time it is asked and a good 50 us after.
- */
-const ZONE_PROBES_MS: readonly number[] = [
-  1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030, 2035,
-].flatMap((year) =>
-  [
-    [0, 1],
-    [2, 20],
-    [6, 1],
-    [9, 20],
-    [10, 10],
-  ].map(([month, day]) => Date.UTC(year, month!, day)),
-)
-
-/**
- * The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. With local
- * weeks off it is the device's offsets at `ZONE_PROBES_MS`, which differ between the zones that cut days differently.
- */
+/** The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. */
 export function dayZoneKey(): string {
-  if (localWeeks) return `viewer:${calendarVersion}`
-  return ZONE_PROBES_MS.map((ms) => deviceZone(ms)).join(',')
+  return `viewer:${calendarVersion}`
 }
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
@@ -231,11 +173,11 @@ export function localYearOf(ms: number): number {
 }
 
 /**
- * The local calendar day of an activity, counted from 1 January 1970: from the shift its file recorded where local
- * weeks are on, else the day its start falls on in the zone days are cut in.
+ * The local calendar day of an activity, counted from 1 January 1970: from the shift its file recorded, else the day
+ * its start falls on in the viewer's zone.
  */
 export function localDayOf(item: Dated): number {
-  return localWeeks ? localDayNumber(item) : localDayOfInstant(item.startMs)
+  return localDayNumber(item)
 }
 
 /** The year, month (0 to 11) and day of the month a day number is. */
@@ -266,13 +208,6 @@ export function noonOnLabelDate(label: number): number {
 
 /** The instant the local day numbered `day` starts. */
 export function startOfDayNumber(day: number): number {
-  if (!localWeeks) {
-    const { year, month, date } = civilOfDay(day)
-    const start = new Date(0)
-    start.setFullYear(year, month, date)
-    start.setHours(0, 0, 0, 0)
-    return start.getTime()
-  }
   return instantOfLocal(day * DAY_MS, viewerZone)
 }
 
@@ -288,31 +223,16 @@ function instantOfLocal(localMs: number, zone: Zone): number {
 
 /** The first millisecond of the local day that holds ms. */
 export function startOfLocalDay(ms: number): number {
-  if (!localWeeks) {
-    const date = new Date(ms)
-    date.setHours(0, 0, 0, 0)
-    return date.getTime()
-  }
   return instantOfLocal(localDayOfInstant(ms) * DAY_MS, viewerZone)
 }
 
 /** The last millisecond of the local day that holds ms, so a period ends with its last day. */
 export function endOfLocalDay(ms: number): number {
-  if (!localWeeks) {
-    const date = new Date(ms)
-    date.setHours(23, 59, 59, 999)
-    return date.getTime()
-  }
   return instantOfLocal((localDayOfInstant(ms) + 1) * DAY_MS, viewerZone) - 1
 }
 
 /** The instant that falls the given number of local calendar days before ms, at the same time of day. */
 export function daysBefore(ms: number, days: number): number {
-  if (!localWeeks) {
-    const date = new Date(ms)
-    date.setDate(date.getDate() - days)
-    return date.getTime()
-  }
   return instantOfLocal(ms + viewerZone(ms) * 60_000 - days * DAY_MS, viewerZone)
 }
 
@@ -323,12 +243,6 @@ export function calendarDays(startMs: number, endMs: number): number {
 
 /** The local midnight that starts a real day, or null when the year, month and day name none (31 June). */
 export function startOfRealDay(year: number, month: number, day: number): number | null {
-  if (!localWeeks) {
-    const date = new Date(year, month - 1, day)
-    const real =
-      date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-    return real ? date.getTime() : null
-  }
   const date = new Date(Date.UTC(year, month - 1, day))
   const real =
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
@@ -338,12 +252,6 @@ export function startOfRealDay(year: number, month: number, day: number): number
 /** The local midnight that starts the day a `YYYY-MM-DD` names, without checking that it is a day. */
 export function startOfDayText(text: string): number {
   const [year = 0, month = 1, day = 1] = text.split('-').map(Number)
-  if (!localWeeks) {
-    const start = new Date(0)
-    start.setFullYear(year, month - 1, day)
-    start.setHours(0, 0, 0, 0)
-    return start.getTime()
-  }
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
   return instantOfLocal(date.getTime(), viewerZone)

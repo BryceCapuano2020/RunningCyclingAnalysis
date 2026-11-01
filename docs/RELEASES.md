@@ -20,6 +20,13 @@ Newest first. One row per `deploy:built`, including a deploy that was rolled bac
 
 A rollback floor only moves forward. It moves when a release applies a migration that older Workers
 cannot read, changes what a stored digest holds, or makes a browser storage upgrade one-way.
+
+The release that writes model revision 7 (R2) moves the floor to the Worker of the release before it (R1, which
+reads revision 7 and writes none), so R1 is a separate deploy that goes first and must be live and in use before R2.
+R1's row, added before R2 deploys, names that Worker's version id as its floor, so the floor `deploy:built` prints after
+R2 is R1 and not `3e17b541`; R2's row records it too. A failed R2 smoke test is rolled back by hand with
+`wrangler rollback <that id>`. `RCA_SAFE_ROLLBACK_VERSION` is moved to that id as well (PRODUCTION.md, the digest
+paragraph, step 2), for the manual Deploy workflow, which is the only thing that reads it.
 `RCA_SAFE_ROLLBACK_VERSION` (see PRODUCTION.md) must never name a version older than the latest
 floor here. A rollback floor also does not protect the sign-up list: any Worker older than the release that
 carries `ALLOWED_EMAILS` ignores it, so rolling back to one reopens public sign-up (see PRODUCTION.md, Sign-up
@@ -51,6 +58,7 @@ list).
 
 | Date        | Main sha | Worker version | Migrations   | Rollback floor    | Notes                                                                                                                                                                                                                                |
 | ----------- | -------- | -------------- | ------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 Nov 2026  | ddafc89e | 629d9942       | 0010, 0011   | 629d9942          | Stage D without revision 7 (W1): effort gate, change test, look-back, check-in, ride cap, one-sport pages, import and sync integrity, sign-up list, read-only switch. Rollback floor for the revision 7 release.                     |
 | 30 Oct 2026 | 40b3a4be | 96043823       | none         | 3e17b541          | Stage C fitness at the same heart rate (run card above Balance, Run page, evidence, sample slip), reference max heart rate from three days, zones from current fitness, one body-weight rule. No contract, digest or storage change. |
 | 29 Oct 2026 | 54e897a6 | 9fdb7f91       | none         | 3e17b541          | Single-line Balance hero, sync fixes, zone edges and interval detector, Garmin import, parser hardening, findings engine (off). Adds an optional `race` digest field; an older Worker strips it.                                     |
 | 29 Oct 2026 | 89a82201 | c9d9cb9b       | none         | 3e17b541          | Stage B: chart system, Balance level scale, Activity page charts, Run and Ride redesign, first impression. No digest or storage change.                                                                                              |

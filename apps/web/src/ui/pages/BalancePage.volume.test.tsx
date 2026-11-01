@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import '../../test/deviceZone'
 import { DAY_MS } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'

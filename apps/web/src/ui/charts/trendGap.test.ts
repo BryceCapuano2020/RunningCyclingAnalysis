@@ -1,5 +1,6 @@
 import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
+import '../../test/deviceZone'
 import { GAP_NOTE_MIN_WEEKS, gapNote, longestGap } from './trendGap'
 
 /** Sunday 6 October 2024, UTC, and the Sundays after it. */

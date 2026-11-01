@@ -1,3 +1,4 @@
+import { hashedFileName } from './minimise'
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { MIB } from '../constants'
@@ -193,9 +194,9 @@ describe('parseActivityFile reason codes: the rest of the core refusals', () => 
     expect(duplicates).toEqual([
       {
         fileName: 'copy.gpx',
-        reason: 'Same workout as run.fit',
+        reason: `Same workout as ${hashedFileName('run.fit')}`,
         code: 'duplicate',
-        detail: 'run.fit',
+        detail: hashedFileName('run.fit'),
       },
     ])
   })

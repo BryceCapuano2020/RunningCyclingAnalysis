@@ -368,6 +368,43 @@ describe('resample', () => {
     expect(Array.from(r.speed.slice(1000))).toEqual(Array.from({ length: 500 }, () => NaN))
   })
 
+  it('holds a temperature reading until the next one, for at most 10 s, and not before the first', () => {
+    // A temperature logged every 4 s, then nothing for 30 s, then every 4 s again.
+    const at = (t: number) => (t < 40 || t >= 70 ? t % 4 === 0 : false)
+    const records = Array.from({ length: 120 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 3,
+      temperature: at(t) ? 20 + (t >= 70 ? 1 : 0) : undefined,
+    }))
+    const r = resample(records)
+    const temperature = r.temperature!
+    expect(Array.from(temperature.slice(0, 40)).every((c) => c === 20)).toBe(true)
+    // The last reading before the silence, 36 s, holds 10 s and no more.
+    expect(temperature[46]).toBe(20)
+    expect(Number.isNaN(temperature[47]!)).toBe(true)
+    expect(Number.isNaN(temperature[69]!)).toBe(true)
+    expect(temperature[72]).toBe(21)
+    // Every second after the readings resume is covered.
+    let known = 0
+    for (let t = 72; t < 120; t++) if (Number.isFinite(temperature[t]!)) known++
+    expect(known).toBe(48)
+  })
+
+  it('does not hold a temperature through a pause', () => {
+    const records = [
+      ...Array.from({ length: 30 }, (_, t) => ({ tMs: t * 1000, speed: 3, temperature: 20 })),
+      { tMs: 100_000, speed: 3 },
+    ]
+    const r = resample(records, [
+      { tMs: 0, eventType: 'start' },
+      { tMs: 32_000, eventType: 'stop' },
+      { tMs: 90_000, eventType: 'start' },
+    ])
+    expect(r.temperature![31]).toBe(20)
+    expect(r.paused[35]).toBe(1)
+    expect(Number.isNaN(r.temperature![35]!)).toBe(true)
+  })
+
   it('leaves heart rate unknown before and after its samples', () => {
     const records = Array.from({ length: 1500 }, (_, t) => ({
       tMs: t * 1000,

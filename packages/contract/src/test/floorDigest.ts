@@ -11,10 +11,11 @@ import { checkEvidence, evidenceFields } from './floorEvidence.ts'
 import { MAX_DIGEST_BYTES } from '../limits.ts'
 
 /**
- * A frozen copy of the digest schemas of the rollback floor Worker (3e17b541, built from bd8aaf7a),
- * so a test can ask whether a digest the current code accepts is one the floor can still read back
- * after a rollback. Do not edit it to follow the current rules. When the rollback floor moves
- * (docs/RELEASES.md), replace it with the contract of the new floor.
+ * A frozen copy of the digest schemas of the Worker 3e17b541 (built from bd8aaf7a), the rollback floor
+ * until release R2 moved it to W1 (the Worker of release R1, test/frozen/r1). It stays as the oldest
+ * reader the existing libraries were written for: a test asks that every reader reads what it read, and
+ * that revision 7's lock flag is what it could not, which is why the floor moved. Do not edit it to follow
+ * the current rules.
  *
  * It freezes the server's two schemas. The device library's reader (`parseDigest` in @rca/core) is
  * not frozen: it is a browser-side reader that a rollback does not change, so no copy of it is needed.

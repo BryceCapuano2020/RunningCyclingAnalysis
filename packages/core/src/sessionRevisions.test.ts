@@ -19,11 +19,11 @@ const exclusive = (revision: number): RevisionDeclaration => ({
   affects: [],
 })
 
-/** Revision 6 is the current one, as in production, but mixable: revision 5 is read beside it and revision 4 is stale. */
+/** Revision 7 is the current one, as in production, but made mixable here: revision 6 is read beside it and revision 5 is stale. */
 const MIXED: readonly RevisionDeclaration[] = [
-  ...[1, 2, 3, 4, 5].map(exclusive),
+  ...[1, 2, 3, 4, 5, 6].map(exclusive),
   {
-    revision: 6,
+    revision: 7,
     kind: 'mixable',
     adds: [],
     changes: [],
@@ -32,10 +32,10 @@ const MIXED: readonly RevisionDeclaration[] = [
     bound: 'mixingStudy',
   },
 ]
-const CURRENT = 6
-const COMPATIBLE = 5
-const STALE = 4
-const NEWER = 7
+const CURRENT = 7
+const COMPATIBLE = 6
+const STALE = 5
+const NEWER = 8
 
 const run: Activity = sampleDataset().activities.find((a) => a.sport === 'run')!
 

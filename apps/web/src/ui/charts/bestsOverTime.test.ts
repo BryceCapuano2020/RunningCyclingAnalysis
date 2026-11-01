@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
-import { setViewerZone, withLocalWeeks } from '@rca/core/calendar'
+import { setViewerZone } from '@rca/core/calendar'
 import { OLDEST_OPACITY, bestDots, dotsLayout, opacityOf } from './bestsOverTime'
 import { activityDate } from './trendTicks'
 
@@ -86,16 +86,12 @@ describe('dotsLayout axis dates', () => {
       const labels = () => dotsLayout(dots, 'run', 'metric', SIZE)!.xTicks.map((tick) => tick.label)
       const before = setViewerZone(() => minutes)
       try {
-        for (const localWeeks of [false, true]) {
-          withLocalWeeks(localWeeks, () => {
-            // Both instants fall on a different UTC day than the viewer's, which the axis used to name.
-            expect(labels()).toEqual([dayOnly(first), dayOnly(last)])
-            expect(labels()).not.toEqual([
-              `${new Date(first).getUTCDate()} Aug`,
-              `${new Date(last).getUTCDate()} Oct`,
-            ])
-          })
-        }
+        // Both instants fall on a different UTC day than the viewer's, which the axis used to name.
+        expect(labels()).toEqual([dayOnly(first), dayOnly(last)])
+        expect(labels()).not.toEqual([
+          `${new Date(first).getUTCDate()} Aug`,
+          `${new Date(last).getUTCDate()} Oct`,
+        ])
       } finally {
         setViewerZone(before)
         vi.unstubAllEnvs()

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { setViewerZone, withLocalWeeks } from '@rca/core/calendar'
+import { setViewerZone } from '@rca/core/calendar'
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { BestsOverTimeChart } from './BestsOverTimeChart'
@@ -131,17 +131,6 @@ describe('BestsOverTimeChart', () => {
 
   it('dates an effort on the viewer’s own day, as the activity list does, not the UTC day', () => {
     chartWidth(640)
-    vi.stubEnv('TZ', 'America/Los_Angeles')
-    // 03:00 UTC on 7 Jan is the evening of 6 Jan in Los Angeles.
-    const late = { ...POINTS[0]!, runAtMs: Date.UTC(2026, 0, 7, 3) }
-    const { container } = render(
-      <BestsOverTimeChart {...PROPS} points={[late, ...POINTS.slice(2)]} />,
-    )
-    expect(container.querySelector('tbody tr th, tbody tr td')?.textContent).toBe('6 Jan 2026')
-  })
-
-  it('names the same day on main and at revision 7: the viewer’s day, not the UTC day', () => {
-    chartWidth(640)
     // 03:00 UTC on 7 Jan is 20:00 on 6 Jan at UTC-7, whatever zone the device is in.
     const late = { ...POINTS[0]!, runAtMs: Date.UTC(2026, 0, 7, 3) }
     const first = () => {
@@ -154,7 +143,7 @@ describe('BestsOverTimeChart', () => {
     }
     const before = setViewerZone(() => -7 * 60)
     try {
-      expect(withLocalWeeks(true, first)).toBe('6 Jan 2026')
+      expect(first()).toBe('6 Jan 2026')
     } finally {
       setViewerZone(before)
     }

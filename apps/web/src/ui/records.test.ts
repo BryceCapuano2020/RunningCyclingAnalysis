@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import '../test/deviceZone'
 import { fitCriticalPower } from '@rca/core/cp'
 import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'

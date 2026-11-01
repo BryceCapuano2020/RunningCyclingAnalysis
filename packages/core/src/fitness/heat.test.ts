@@ -244,7 +244,7 @@ describe('the term in the fitness status', () => {
   it('ignores a temperature on a digest that is not of revision 7', () => {
     const old = warmLibrary(0.04, () => true).map((d) => Object.assign({}, d, { modelRevision: 6 }))
     const run = statuses(old).run
-    expect(run.evidence?.method).not.toHaveProperty('heat')
+    expect(run.evidence?.method ?? {}).not.toHaveProperty('heat')
     expect(statuses(old)).toEqual(
       statuses(
         old.map((d) => {

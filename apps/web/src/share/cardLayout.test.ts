@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import type { Period } from '@rca/core/period'
 import { cardFileName, CARD_FORMATS, MIN_GAP, placeBlocks, type Block } from './cardLayout'
 

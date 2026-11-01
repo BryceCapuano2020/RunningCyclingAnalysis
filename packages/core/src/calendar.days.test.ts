@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   calendarDays,
   dayZoneKey,
@@ -12,7 +12,6 @@ import {
   startOfDayText,
   startOfLocalDay,
   startOfRealDay,
-  withLocalWeeks,
 } from './calendar'
 import type { Zone } from './calendar'
 import { DAY_MS } from './constants'
@@ -35,11 +34,11 @@ const fixed =
 const newYork: Zone = (ms) =>
   ms < at(2026, 3, 8, 7) ? -300 : ms < at(2026, 11, 1, 6) ? -240 : -300
 
-/** Runs `run` with local weeks on and the viewer in `zone`, then puts both back. */
+/** Runs `run` with the viewer in `zone`, then puts it back. */
 function inZone<T>(zone: Zone, run: () => T): T {
   const before = setViewerZone(zone)
   try {
-    return withLocalWeeks(true, run)
+    return run()
   } finally {
     setViewerZone(before)
   }
@@ -150,55 +149,14 @@ describe('age in the viewer’s zone', () => {
 describe('the zone’s key', () => {
   it('changes when the viewer is given another zone, so a result kept for one is not taken for another', () => {
     const keys = new Set<string>()
-    withLocalWeeks(true, () => {
+    {
       const before = setViewerZone(fixed(1))
       keys.add(dayZoneKey())
       setViewerZone(fixed(1))
       keys.add(dayZoneKey())
       setViewerZone(before)
-    })
-    expect(keys.size).toBe(2)
-  })
-
-  describe('while local weeks are off', () => {
-    type Env = { env: Record<string, string | undefined> }
-    const env = (globalThis as { process?: Env }).process!.env
-    const saved = env.TZ
-    afterEach(() => {
-      if (saved === undefined) delete env.TZ
-      else env.TZ = saved
-    })
-    const keyIn = (zone: string) => {
-      env.TZ = zone
-      return dayZoneKey()
     }
-
-    it('is the same in one device zone and differs between zones that cut days differently', () => {
-      const zones = [
-        'UTC',
-        'America/Los_Angeles',
-        'America/Phoenix',
-        'America/Denver',
-        'Europe/London',
-        'Europe/Berlin',
-        'Asia/Kolkata',
-        'Pacific/Auckland',
-        'Australia/Sydney',
-      ]
-      const keys = zones.map(keyIn)
-      expect(new Set(keys).size).toBe(zones.length)
-      expect(zones.map(keyIn)).toEqual(keys)
-    })
-
-    it('does not ask Intl for the zone’s name, which costs about 12 ms the first time', () => {
-      const asked = vi.spyOn(Intl, 'DateTimeFormat')
-      try {
-        dayZoneKey()
-        expect(asked).not.toHaveBeenCalled()
-      } finally {
-        asked.mockRestore()
-      }
-    })
+    expect(keys.size).toBe(2)
   })
 })
 
@@ -218,7 +176,7 @@ describe('thresholdAt', () => {
     const evening = at(2026, 3, 9, 1)
     // In UTC weeks that Monday 01:00 is the week after, which the second step already holds.
     expect(thresholdAt([step(sunday + 7 * DAY_MS, FIT)], evening)?.fit).toBe(FIT)
-    withLocalWeeks(true, () => {
+    {
       const before = setViewerZone(fixed(-7))
       try {
         // Sunday evening is Sunday's week: the step that starts at that Sunday's end holds.
@@ -229,7 +187,7 @@ describe('thresholdAt', () => {
       } finally {
         setViewerZone(before)
       }
-    })
+    }
   })
 })
 
@@ -238,11 +196,11 @@ describe('the day shift an activity carries', () => {
   const newYear = { startMs: at(2027, 1, 1, 1), localDayShift: -1 as const }
 
   it('sets the age by the year of its local day', () => {
-    withLocalWeeks(true, () => {
+    {
       expect(ageAt(1990, newYear)).toBe(36)
       expect(ageAt(1990, { startMs: newYear.startMs, localDayShift: 0 })).toBe(37)
       expect(ageAt(1990, newYear.startMs)).toBe(37)
-    })
+    }
   })
 
   it('sets the week a threshold is read in', () => {
@@ -252,23 +210,23 @@ describe('the day shift an activity carries', () => {
       { fromMs: sunday + 7 * DAY_MS, fit: FIT, asOfMs: null, lastFit: 0 },
     ]
     const evening = { startMs: at(2026, 3, 9, 1), localDayShift: -1 as const }
-    withLocalWeeks(true, () => {
+    {
       expect(thresholdAt(steps, evening)).toBeNull()
       expect(thresholdAt(steps, { startMs: evening.startMs, localDayShift: 0 })?.fit).toBe(FIT)
-    })
+    }
   })
 })
 
 describe('noonOnLabelDate', () => {
   it('is noon on the date a week end reads, in the zone days are cut in', () => {
     const sundayEnd = at(2026, 3, 16) - 1
-    withLocalWeeks(true, () => {
+    {
       const before = setViewerZone(fixed(-7))
       try {
         expect(noonOnLabelDate(sundayEnd)).toBe(at(2026, 3, 15, 19))
       } finally {
         setViewerZone(before)
       }
-    })
+    }
   })
 })

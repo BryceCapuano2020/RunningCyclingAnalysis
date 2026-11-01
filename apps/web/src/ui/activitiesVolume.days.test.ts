@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { localDayOf, setViewerZone, UTC_ZONE, withLocalWeeks } from '@rca/core/calendar'
+import { localDayOf, setViewerZone } from '@rca/core/calendar'
+import { installDeviceZone } from '../worker/viewerZone'
 import { makeActivity } from './components/fixtures'
 import { bucketLabel, bucketSpan, inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
 import { sampleProfileAt } from './sampleAthlete'
@@ -13,7 +14,7 @@ import { deviceZone } from '../worker/viewerZone'
  */
 afterEach(() => {
   vi.unstubAllEnvs()
-  setViewerZone(UTC_ZONE)
+  installDeviceZone()
 })
 
 const at = (y: number, m: number, d: number, h = 0, min = 0) => Date.UTC(y, m - 1, d, h, min)
@@ -25,14 +26,14 @@ const run = (startMs: number, localDayShift?: -1 | 0 | 1) =>
     ...(localDayShift === undefined ? {} : { localDayShift }),
   })
 
-describe('with local weeks on', () => {
+describe('the weeks of a library, in the viewer’s zone', () => {
   // Sunday 8 March 2026, 18:00 at UTC-8 (PST): Monday 9 March 02:00 UTC, the day before DST starts at 10:00 UTC.
   const sundayEvening = at(2026, 3, 9, 2)
   const mondayMorning = at(2026, 3, 9, 16)
   const nextSunday = at(2026, 3, 16, 3)
 
   it('counts a Sunday evening in its own local week, by the file’s shift', () => {
-    withLocalWeeks(true, () => {
+    {
       const buckets = volumeBuckets([
         run(sundayEvening, -1),
         run(mondayMorning, 0),
@@ -40,13 +41,13 @@ describe('with local weeks on', () => {
       ])
       expect(buckets.map((b) => b.key)).toEqual(['w:2026-2-2', 'w:2026-2-9'])
       expect(buckets.map((b) => b.totals.run.count)).toEqual([1, 2])
-    })
+    }
   })
 
   it('counts by the viewer’s zone where a file gave no shift, across a daylight saving change', () => {
     vi.stubEnv('TZ', 'America/Los_Angeles')
     setViewerZone(deviceZone)
-    withLocalWeeks(true, () => {
+    {
       const items = [run(sundayEvening), run(mondayMorning), run(at(2026, 3, 9, 6, 59))]
       expect(items.map(localDayOf)).toEqual([
         Math.floor(at(2026, 3, 8) / 86_400_000),
@@ -61,17 +62,7 @@ describe('with local weeks on', () => {
       expect(inBucket(items, 'w:2026-2-9')).toEqual([items[1]])
       expect(monthTotals(items).get('2026-2')?.run.count).toBe(3)
       expect(bucketLabel({ kind: 'month', startMs: span.startMs })).toMatch(/Mar/)
-    })
-  })
-
-  it('names the same keys with it off, in the device’s zone', () => {
-    vi.stubEnv('TZ', 'America/Los_Angeles')
-    const items = [run(sundayEvening), run(mondayMorning)]
-    expect(volumeBuckets(items).map((b) => b.key)).toEqual(['w:2026-2-2', 'w:2026-2-9'])
-    withLocalWeeks(true, () => {
-      setViewerZone(deviceZone)
-      expect(volumeBuckets(items).map((b) => b.key)).toEqual(['w:2026-2-2', 'w:2026-2-9'])
-    })
+    }
   })
 })
 
@@ -79,9 +70,12 @@ describe('the sample athlete’s year', () => {
   it('is the year of the newest effort in the zone it is read in', () => {
     // 1 January 2027, 02:00 UTC is still 31 December 2026 in Los Angeles.
     const newestMs = at(2027, 1, 1, 2)
+    // The calendar reads the zone the page handed it, so install the device's after each change of it.
     vi.stubEnv('TZ', 'America/Los_Angeles')
+    installDeviceZone()
     expect(sampleProfileAt(newestMs).birthYear).toBe(2026 - 37)
     vi.stubEnv('TZ', 'UTC')
+    installDeviceZone()
     expect(sampleProfileAt(newestMs).birthYear).toBe(2027 - 37)
   })
 })
@@ -92,26 +86,25 @@ describe('the list under its headings and the hours under the trend', () => {
     const late = run(at(2026, 4, 1, 2), -1)
     const early = run(at(2026, 4, 1, 12), 0)
     setViewerZone(deviceZone)
-    withLocalWeeks(true, () => {
+    {
       const groups = groupByMonth([late, early])
       expect(groups.map((g) => g.items.length)).toEqual([1, 1])
       expect(groups[0]!.key).toBe([...monthTotals([late]).keys()][0])
       expect(groups[0]!.label).toMatch(/Mar/)
       expect(groups[1]!.label).toMatch(/Apr/)
-    })
+    }
   })
 
   it('starts the hours at the week of the period’s first local day', () => {
     // Monday 9 March, 02:00 UTC is Sunday evening at UTC-7: the week before.
     const sundayEnd = at(2026, 3, 9) - 1
     const trendEnds = [sundayEnd + 7 * 86_400_000]
-    withLocalWeeks(true, () => {
+    {
       setViewerZone(() => -7 * 60)
       expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual([
         sundayEnd,
         sundayEnd + 7 * 86_400_000,
       ])
-    })
-    expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual(trendEnds)
+    }
   })
 })

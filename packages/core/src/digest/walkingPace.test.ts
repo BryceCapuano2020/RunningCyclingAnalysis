@@ -108,12 +108,16 @@ describe('a run at walking pace', () => {
     expect(digestActivity(burst).walkingPace).toBe(true)
   })
 
-  it('does not read a cadence of unknown unit as steps', () => {
-    const unknown = runAt(WALK, 1800, (a) => {
-      a.cadence = new Float32Array(a.n).fill(165)
-      a.cadenceUnit = 'unknown'
-    })
-    expect(digestActivity(unknown).walkingPace).toBe(true)
+  it('reads a cadence of unknown unit as steps only when its value says so: 135 or more, never the gap', () => {
+    const unknown = (cadence: number) =>
+      runAt(WALK, 1800, (a) => {
+        a.cadence = new Float32Array(a.n).fill(cadence)
+        a.cadenceUnit = 'unknown'
+      })
+    // Steps near 165 can only be steps (revision 7 resolves the unit, as revision7.cadence.test.ts has it).
+    expect(digestActivity(unknown(165)).walkingPace).toBeUndefined()
+    // A median in the gap between strides and steps has no unit, and is not guessed.
+    expect(digestActivity(unknown(112)).walkingPace).toBe(true)
   })
 
   it('is judged on moving time, so a long stop does not make a run slow', () => {

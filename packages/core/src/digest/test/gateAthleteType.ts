@@ -32,7 +32,7 @@ function ride(): Activity {
 
 /** The activity of a file, read with the type its export gave it. */
 function read(bytes: Uint8Array, name: string, activityType: string): Activity {
-  const parsed = parseActivityFile(bytes, name, undefined, { activityType })
+  const parsed = parseActivityFile(bytes, name, undefined, { activityType, hashedIds: false })
   const first = parsed.ok ? parsed.activities[0] : undefined
   if (first === undefined) throw new Error(`${name} did not read`)
   return first

@@ -7,7 +7,7 @@ import { hashedFileName } from './minimise'
 
 /**
  * An activity's id is made from its file's name. From revision 7 it is made from a hash of the name (E7), so the id on
- * the device, in the trace cache and in the account are one. Below it the id is as it was.
+ * the device, in the trace cache and in the account are one. Asked not to, it is as it was.
  */
 const run = sampleDataset().activities.find((activity) => activity.sport === 'run')!
 const bytes = new Uint8Array(encodeFit(run, { gps: true }))
@@ -20,13 +20,13 @@ const idOf = (fileName: string, hashedIds?: boolean) => {
 }
 
 describe('the id of an imported activity', () => {
-  it('is made from the file name as it is while the current revision is below 7', () => {
-    expect(idOf('activities/12345678.fit')).toMatch(/-activities\/12345678\.fit$/)
+  it('is made from the file name as it is when asked not to hash it', () => {
     expect(idOf('activities/12345678.fit', false)).toMatch(/-activities\/12345678\.fit$/)
   })
 
-  it('is made from a hash of the file name when asked, keeping the extension', () => {
-    const id = idOf('activities/12345678.fit', true)
+  it('is made from a hash of the file name, keeping the extension', () => {
+    const id = idOf('activities/12345678.fit')
+    expect(idOf('activities/12345678.fit', true)).toBe(id)
     expect(fileNameOf(id)).toBe(hashedFileName('activities/12345678.fit'))
     expect(id).not.toContain('12345678')
     expect(id).toMatch(/\.fit$/)

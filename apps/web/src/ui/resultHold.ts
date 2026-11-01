@@ -57,11 +57,12 @@ export interface HoldInputs {
 }
 
 /**
- * Whether one stale digest holds every result back, as the design has it for an exclusive revision. Off, the
- * results of the digests that are read still show beside the notice, as they do today, and `updating` applies
- * only when nothing is readable. One line to turn it on, when revision 7 makes a mixed library a real state.
+ * Whether one stale digest holds every result back, as it does for an exclusive revision, which revision 7 is
+ * (the mixing study, D12 section 1.8). On, `updating` applies while any digest is held out for another model, and the
+ * results of the digests that are read wait; off, they would show beside the notice and `updating` would apply only
+ * when nothing is readable.
  */
-export const HOLD_ON_ANY_STALE = false
+export const HOLD_ON_ANY_STALE = true
 
 type Reason = (result: AnalysisResult | null, inputs: HoldInputs) => Hold | null
 

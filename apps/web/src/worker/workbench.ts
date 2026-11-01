@@ -1,6 +1,6 @@
 import type { ActivityTrace } from '@rca/core/workbench'
 import { noteWork } from './workerWire'
-import { traceQualityOf } from '@rca/core/quality'
+import { traceQualityOf } from '@rca/core/digest'
 import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'

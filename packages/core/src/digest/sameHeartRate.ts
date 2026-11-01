@@ -15,7 +15,7 @@ import type {
 } from './sameHeartRateTypes'
 import { effortsCount } from './effortTrust'
 import { firstStartingAfter } from './startOrder'
-import { localAxisMs, localWeeksOn, weekEndFor, weekEndMs, weekEndsSpan } from '../calendar'
+import { localAxisMs, weekEndFor, weekEndMs, weekEndsSpan } from '../calendar'
 import type { Dated } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
@@ -47,7 +47,7 @@ const READING: Record<Sport, Reading> = {
 
 /** One steady block, in order of the time of its activity; `activity` counts the activities that give blocks. */
 interface Block extends Dated {
-  /** The start on the axis the weeks are cut on (calendar.ts); the start itself with local weeks off. */
+  /** The start on the axis the weeks are cut on (calendar.ts). */
   weekMs: number
   /** The end of the week of the activity's local day (calendar.ts). */
   weekEnd: number
@@ -80,7 +80,7 @@ function blocksOf(ordered: ActivityDigest[], sport: Sport, setAside: ReadonlySet
     }
   }
   // Digests are in order of start; the week axis moves a start by up to a day either way, so cut weeks need not be.
-  if (localWeeksOn()) blocks.sort((a, b) => a.weekMs - b.weekMs)
+  blocks.sort((a, b) => a.weekMs - b.weekMs)
   return blocks
 }
 

@@ -3,14 +3,11 @@ import { FLAT_RUN_COST } from '../constants'
 import { runReadings } from '../fitness/runReadings'
 import { descentCost, runCost } from '../metabolic'
 import type { Activity, ActivityDigest, DigestSplit } from '../types'
-import { digestActivityAt } from './digestActivity'
+import { digestActivity } from './digestActivity'
 import { gapRun, hillRun, ratioRun } from './test/gateFixturesE5'
 import { syntheticActivity } from './test/syntheticActivity'
 
-const at = (a: Activity, revision: number) => digestActivityAt(a, revision)
-
-/** The digest without the revision that wrote it. */
-const body = (d: ActivityDigest) => ({ ...d, modelRevision: 0 })
+const at = (a: Activity) => digestActivity(a)
 
 /** Flat-equivalent seconds over clock seconds for each kilometre that has both. */
 const credits = (d: ActivityDigest): number[] =>
@@ -20,28 +17,25 @@ const credits = (d: ActivityDigest): number[] =>
       : [s.gradeAdjustedSeconds / s.seconds],
   )
 
-describe('a steep descent at revision 7', () => {
+describe('a steep descent', () => {
   // hillRun climbs for the first third, so the later kilometres are the steady descent.
   const steady = (d: ActivityDigest) => d.splits!.km[4]!
 
   it('D1: a steady -10% descent keeps the credited share of the saving, not all of it', () => {
     const run = hillRun(-0.1)
-    const [before, after] = [steady(at(run, 6)), steady(at(run, 7))]
-    expect(before.gradeAdjustedSeconds! / before.seconds!).toBeCloseTo(
-      FLAT_RUN_COST / runCost(-0.1),
-      3,
-    )
-    expect(after.gradeAdjustedSeconds! / after.seconds!).toBeCloseTo(
+    const split = steady(at(run))
+    expect(split.gradeAdjustedSeconds! / split.seconds!).toBeCloseTo(
       FLAT_RUN_COST / descentCost(-0.1),
       3,
     )
-    expect(after.gradeAdjustedSeconds!).toBeLessThan(before.gradeAdjustedSeconds!)
-    expect(after.gradeAdjustedSeconds!).toBeGreaterThan(after.seconds!)
+    // Less than all of Minetti's saving (what revision 6 credited), and still some of it.
+    expect(split.gradeAdjustedSeconds! / split.seconds!).toBeLessThan(FLAT_RUN_COST / runCost(-0.1))
+    expect(split.gradeAdjustedSeconds!).toBeGreaterThan(split.seconds!)
   })
 
   it('D7: the credit follows descentCost across -5% to -25%, and stops growing past -18%', () => {
     const shares = [-0.05, -0.08, -0.12, -0.18, -0.25].map((g) => {
-      const split = steady(at(hillRun(g), 7))
+      const split = steady(at(hillRun(g)))
       expect(split.gradeAdjustedSeconds! / split.seconds!, `${g}`).toBeCloseTo(
         FLAT_RUN_COST / descentCost(g),
         3,
@@ -52,12 +46,15 @@ describe('a steep descent at revision 7', () => {
     for (let i = 1; i < 4; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]!)
   })
 
-  it('D3: a run with no grade below -4% is the same digest at revisions 6 and 7', () => {
-    const run = hillRun(-0.03)
-    expect(body(at(run, 7))).toEqual(body(at(run, 6)))
+  it('D3: a run with no grade below -4% is credited Minetti’s whole saving, as revision 6 did', () => {
+    const split = steady(at(hillRun(-0.03)))
+    expect(split.gradeAdjustedSeconds! / split.seconds!).toBeCloseTo(
+      FLAT_RUN_COST / runCost(-0.03),
+      3,
+    )
   })
 
-  it('D6: a symmetric up and down loop nets nearer to zero credit than before', () => {
+  it('D6: a symmetric up and down loop nets to nearly zero credit', () => {
     const n = 2400
     const altitude = new Float64Array(n)
     for (let i = 1; i < n; i++) altitude[i] = altitude[i - 1]! + (i < n / 2 ? 0.06 : -0.06) * 3
@@ -71,32 +68,21 @@ describe('a steep descent at revision 7', () => {
         whole.reduce((sum, s) => sum + s.seconds!, 0)
       )
     }
-    expect(Math.abs(net(at(loop, 7)) - 1)).toBeLessThan(0.02)
-    expect(Math.abs(net(at(loop, 7)) - 1)).toBeLessThan(Math.abs(net(at(loop, 6)) - 1))
-  })
-
-  it('moves only the splits, not the bests or the curve, of a run with no steep descent', () => {
-    for (const run of [hillRun(-0.03), ratioRun(1.011)]) {
-      const [before, after] = [at(run, 6), at(run, 7)]
-      expect(after.curve).toEqual(before.curve)
-      expect(after.hrBlocks).toEqual(before.hrBlocks)
-      expect(after.distanceBests).toEqual(before.distanceBests)
-    }
+    expect(Math.abs(net(at(loop)) - 1)).toBeLessThan(0.02)
   })
 })
 
-describe('the distance against the speed stream at revision 7', () => {
+describe('the distance against the speed stream', () => {
   const worst = (d: ActivityDigest) => Math.max(...credits(d).map((c) => Math.abs(c - 1)))
 
   it('D4: a flat run whose distance is 1.1% over its speed shows no credit in any split', () => {
     const run = ratioRun(1.011)
-    expect(worst(at(run, 6))).toBeGreaterThan(0.01)
-    expect(worst(at(run, 7))).toBeLessThan(0.001)
+    expect(worst(at(run))).toBeLessThan(0.001)
   })
 
   it('D4: it corrects the whole range from 0.97 to 1.07', () => {
     for (const ratio of [0.97, 1.0, 1.03, 1.07]) {
-      expect(worst(at(ratioRun(ratio), 7)), `${ratio}`).toBeLessThan(0.001)
+      expect(worst(at(ratioRun(ratio))), `${ratio}`).toBeLessThan(0.001)
     }
   })
 
@@ -104,25 +90,14 @@ describe('the distance against the speed stream at revision 7', () => {
     for (const gapS of [6, 10, 20]) {
       const run = gapRun(gapS)
       // Without the gap's seconds out of the ratio a 20 s gap reads 6% over.
-      expect(worst(at(run, 7)), `${gapS}`).toBeLessThan(0.001)
-      expect(worst(at(run, 7)), `${gapS}`).toBeLessThanOrEqual(worst(at(run, 6)) + 1e-9)
+      expect(worst(at(run)), `${gapS}`).toBeLessThan(0.001)
     }
   })
 
-  it('D5: a ratio outside 0.95 to 1.08 is left as it was', () => {
+  it('D5: a ratio outside 0.95 to 1.08 is left as it was: the credit shows the whole difference', () => {
     for (const ratio of [0.9, 0.94, 1.1, 1.2]) {
-      const run = ratioRun(ratio)
-      expect(at(run, 7).splits, `${ratio}`).toEqual(at(run, 6).splits)
+      expect(worst(at(ratioRun(ratio))), `${ratio}`).toBeGreaterThan(Math.abs(ratio - 1) * 0.5)
     }
-  })
-
-  it('leaves the curve, bests and the metabolic stream alone: only the splits move', () => {
-    const run = ratioRun(1.011)
-    expect({ ...at(run, 7), splits: undefined }).toEqual({
-      ...at(run, 6),
-      splits: undefined,
-      modelRevision: 7,
-    })
   })
 
   it('D9: a treadmill run is corrected inside the bounds, as it was outside them, and is not a fitness run', () => {
@@ -131,11 +106,9 @@ describe('the distance against the speed stream at revision 7', () => {
       run.indoor = true
       return run
     }
-    expect(worst(at(treadmill(1.01), 7))).toBeLessThan(0.001)
-    expect(worst(at(treadmill(0.92), 7))).toBeGreaterThan(0.05)
-    expect(at(treadmill(1.1), 7).splits).toEqual(at(treadmill(1.1), 6).splits)
-    for (const revision of [6, 7]) {
-      expect(runReadings(at(treadmill(1.01), revision), 'run')).toBeNull()
-    }
+    expect(worst(at(treadmill(1.01)))).toBeLessThan(0.001)
+    expect(worst(at(treadmill(0.92)))).toBeGreaterThan(0.05)
+    expect(worst(at(treadmill(1.1)))).toBeGreaterThan(0.05)
+    expect(runReadings(at(treadmill(1.01)), 'run')).toBeNull()
   })
 })

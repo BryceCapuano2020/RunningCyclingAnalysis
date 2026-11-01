@@ -5,6 +5,7 @@ import type { Me } from '@rca/contract'
 import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { workoutKey } from '@rca/core/duplicates'
 import { parseFit } from '@rca/core/fit'
+import { hashedFileName } from '@rca/core/import/minimise'
 import { activitiesRows, apiActivities, fixturePath, signInAs, uniqueEmail } from './helpers.js'
 
 const NAME = 'Ada Lovelace'
@@ -72,7 +73,8 @@ test('saves an activity an earlier visit left in the outbox, once the library ha
     .toBe(1)
   await expect(await activitiesRows(page)).toHaveCount(1)
   const [saved] = await apiActivities(page.request)
-  expect(saved?.fileName).toBe('one-run.fit')
+  // New saves send a hash of the file's name (E7), also one an earlier visit left in the outbox.
+  expect(saved?.fileName).toBe(hashedFileName('one-run.fit'))
 
   // The row is gone once the server has the activity, so a later visit does not send it again.
   const left = await page.evaluate(

@@ -76,11 +76,4 @@ describe('what is sent of a new activity from revision 7', () => {
     expect(rest).toEqual(before)
     expect(workoutKey(sent.sport, sent.startMs)).toBe(workoutKey(digest.sport, digest.startMs))
   })
-
-  it('sends a digest of an earlier revision as it is', () => {
-    const digest = digestOf(ID, 'Title', 6)
-    const sent = minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
-    expect(sent.digest).toBe(digest)
-    expect(sent.fileName).toBe('activities/12345678.fit')
-  })
 })

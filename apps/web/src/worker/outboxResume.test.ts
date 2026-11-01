@@ -321,13 +321,26 @@ describe('resuming the saves an earlier visit left', () => {
     }
   })
 
-  it('lets a row from an older analysis go without sending it, and counts it as one that could not be saved', async () => {
+  it('does not send a row from an older analysis and does not drop it: it stays, counted as needing its file', async () => {
     const old = serializeDigest({ ...digests[0]!, modelRevision: 1 })
     const { resume, posted, left } = setup([rowFor(0, { digestJson: old }), rowFor(1)])
     await resume.finished
     expect(createActivity).toHaveBeenCalledTimes(1)
-    expect(left.size).toBe(0)
-    expect(last(posted)).toMatchObject({ saved: 1, failed: 1, finished: true })
+    expect([...left.keys()]).toEqual([rowFor(0).key])
+    expect(last(posted)).toMatchObject({ saved: 1, failed: 1, pending: 0, finished: true })
+  })
+
+  it('tells of the row from an older analysis on every visit until its file is added', async () => {
+    const old = serializeDigest({ ...digests[0]!, modelRevision: 1 })
+    const { resume, posted, left } = setup([rowFor(0, { digestJson: old })])
+    await resume.finished
+    expect(left.size).toBe(1)
+    expect(last(posted)).toMatchObject({ failed: 1, finished: true })
+    const again = setup([...left.values()])
+    await again.resume.finished
+    expect(createActivity).not.toHaveBeenCalled()
+    expect(again.left.size).toBe(1)
+    expect(last(again.posted)).toMatchObject({ failed: 1, finished: true })
   })
 
   it('leaves a row a newer version wrote exactly as it is', async () => {
@@ -381,17 +394,17 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('sends a row from an older analysis that the current one reads beside its own', async () => {
-    // Revision 7 changes nothing the older digests rely on, so a revision 6 row is compatible and is sent.
-    const seven: RevisionDeclaration = {
-      revision: 7,
+    // A later revision 8 changes nothing the older digests rely on, so a revision 7 row is compatible and is sent.
+    const eight: RevisionDeclaration = {
+      revision: 8,
       kind: 'additive',
       adds: [],
       changes: [],
       affects: [],
     }
-    await withRevisionTableAsync([...REVISIONS, seven], async () => {
-      const older = serializeDigest({ ...digests[0]!, modelRevision: 6 })
-      const current = serializeDigest({ ...digests[1]!, modelRevision: 7 })
+    await withRevisionTableAsync([...REVISIONS, eight], async () => {
+      const older = serializeDigest({ ...digests[0]!, modelRevision: 7 })
+      const current = serializeDigest({ ...digests[1]!, modelRevision: 8 })
       const { resume, left } = setup([
         rowFor(0, { digestJson: older }),
         rowFor(1, { digestJson: current }),

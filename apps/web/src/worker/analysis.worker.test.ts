@@ -1,3 +1,4 @@
+import { hashedFileName } from '@rca/core/import/minimise'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
@@ -1846,7 +1847,7 @@ describe('device library', () => {
     await send(signedOutImport(gpxFile()))
 
     const [entry] = await keptDevice().all()
-    expect(entry?.digest.id).toMatch(/-run\.fit$/)
+    expect(entry?.digest.id).toMatch(new RegExp(`-${hashedFileName('run.fit')}$`))
 
     vi.resetModules()
     const restarted = await startWorker()
@@ -3176,7 +3177,9 @@ describe('rule R: near-copies of one workout in the worker', () => {
       expect(mocked.createActivity).toHaveBeenCalledTimes(2)
       expect(mocked.uploadFile).toHaveBeenCalledOnce()
       const [id] = mocked.uploadFile.mock.calls[0] ?? []
-      const fit = mocked.createActivity.mock.calls.find(([digest]) => digest.id.endsWith('a.fit'))
+      const fit = mocked.createActivity.mock.calls.find(([digest]) =>
+        digest.id.endsWith(hashedFileName('a.fit')),
+      )
       expect(id).toBe(`rec-${fit?.[0].id}`)
       expect(messages.at(-1)).toMatchObject({
         type: 'state',
@@ -3809,7 +3812,7 @@ describe('an import of an export whose list labels activities the account holds'
     )
   }
 
-  it('sends no label while the labels are off, and reads the type of the file as it always did', async () => {
+  it('sends no label to a held workout while the labels are off; the digest of the new import carries its own', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
@@ -3823,8 +3826,8 @@ describe('an import of an export whose list labels activities the account holds'
     const reply = messages.at(-1)
     expect(reply).toMatchObject({ type: 'state', outcome: { activities: 1 } })
     expect(reply).not.toHaveProperty('outcome.labelled')
-    // The digest saved is the one main made: no label below revision 7.
-    expect(mocked.createActivity.mock.calls[0]?.[0]).not.toHaveProperty('athleteType')
+    // The digest saved is revision 7's: it carries the label the list gave its own file.
+    expect(mocked.createActivity.mock.calls[0]?.[0]).toMatchObject({ athleteType: 'hike' })
   })
 
   describe('with the labels switched on', () => {

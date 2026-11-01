@@ -15,7 +15,8 @@ const kept = new WeakMap<ActivityTrace, Float64Array | null>()
 
 /**
  * The run's metabolic power at each second, from its speed and the grade its altitude gives over the
- * distance that speed implies, as the best efforts are read; null without a speed or an altitude stream.
+ * distance that speed implies, as the best efforts are read (a steep descent saves what `descentCost` says,
+ * as in the digest); null without a speed or an altitude stream.
  */
 function metabolicPower(trace: ActivityTrace): Float64Array | null {
   const cached = kept.get(trace)
@@ -28,7 +29,7 @@ function metabolicPower(trace: ActivityTrace): Float64Array | null {
       Float64Array.from(altitude),
       travelledDistance(metres, trace.distance),
     )
-    power = runMetabolicPower(metres, grade, PRIORS.runEconomyScale.mean)
+    power = runMetabolicPower(metres, grade, PRIORS.runEconomyScale.mean, { steepDescent: true })
   }
   kept.set(trace, power)
   return power

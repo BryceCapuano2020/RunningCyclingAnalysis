@@ -1,3 +1,4 @@
+import { hashedFileName } from '@rca/core/import/minimise'
 import { noteUploadTitles } from './uploadPolicy'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import {
@@ -662,7 +663,7 @@ describe('createActivity', () => {
       fileName: string
       fileHash: string
     }
-    expect(body.fileName).toBe('run.fit')
+    expect(body.fileName).toBe(hashedFileName('run.fit'))
     expect(body.fileHash).toBe(hash)
     expect(body.digest.durationS).toBeNull()
     expect(body.digest.curve[0]?.value).toBeNull()

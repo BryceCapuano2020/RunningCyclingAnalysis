@@ -1,3 +1,5 @@
+import { markTimerPauses, normalizeTimerEventType } from './resampleTimer'
+
 /** Longest gap, in seconds, bridged by interpolation. Longer gaps are treated as pauses or dropouts. */
 export const MAX_INTERPOLATED_GAP_S = 10
 export const MAX_ACTIVITY_GRID_SECONDS = 7 * 24 * 60 * 60
@@ -167,7 +169,13 @@ export function resample(
     heartRate,
     power,
     ...(hasCadence ? { cadence: Float32Array.from(cadenceKnown) } : {}),
-    ...(hasTemperature ? { temperature: Float32Array.from(temperatureKnown) } : {}),
+    ...(hasTemperature
+      ? {
+          temperature: Float32Array.from(
+            holdForward(temperatureKnown, paused, MAX_INTERPOLATED_GAP_S),
+          ),
+        }
+      : {}),
     paused,
     unrecorded,
     hasPower,
@@ -220,80 +228,6 @@ function markPauses(recorded: Uint8Array): Uint8Array {
     previous = i
   }
   return paused
-}
-
-function markTimerPauses(
-  recorded: Uint8Array,
-  startMs: number,
-  events: RawTimerEvent[],
-): Uint8Array {
-  const paused = new Uint8Array(recorded.length)
-  const indexAt = (tMs: number) => Math.round((tMs - startMs) / 1000)
-  const ordered = events.filter((event) => Number.isFinite(event.tMs)).sort((a, b) => a.tMs - b.tMs)
-  let pauseStart: number | null = null
-  for (const event of ordered) {
-    const eventType = normalizeTimerEventType(event.eventType)
-    if (!eventType) continue
-    if (isTimerStop(eventType)) {
-      if (pauseStart === null) pauseStart = indexAt(event.tMs)
-    } else if (isTimerStart(eventType) && pauseStart !== null) {
-      fillRange(paused, pauseStart, indexAt(event.tMs))
-      pauseStart = null
-    }
-  }
-  // A stop with no later start lasts only until records resume, so later data is not lost.
-  if (pauseStart !== null) {
-    fillRange(paused, pauseStart, nextRecordedIndex(recorded, pauseStart + 1))
-  }
-  return paused
-}
-
-/** Sets [from, to) to 1, clipped to the grid. */
-function fillRange(values: Uint8Array, from: number, to: number): void {
-  const start = Math.max(0, from)
-  const end = Math.min(values.length, to)
-  if (end > start) values.fill(1, start, end)
-}
-
-/** Index of the first recorded second at or after `from`, or the grid length if there is none. */
-function nextRecordedIndex(recorded: Uint8Array, from: number): number {
-  for (let i = Math.max(0, from); i < recorded.length; i++) {
-    if (recorded[i] === 1) return i
-  }
-  return recorded.length
-}
-
-type TimerEventType = 'start' | 'stop' | 'stopAll' | 'stopDisable' | 'stopDisableAll'
-
-function normalizeTimerEventType(eventType: string | number): TimerEventType | null {
-  if (
-    eventType === 'start' ||
-    eventType === 'stop' ||
-    eventType === 'stopAll' ||
-    eventType === 'stopDisable' ||
-    eventType === 'stopDisableAll'
-  ) {
-    return eventType
-  }
-  if (eventType === 0) return 'start'
-  if (eventType === 1) return 'stop'
-  if (eventType === 4) return 'stopAll'
-  if (eventType === 8) return 'stopDisable'
-  if (eventType === 9) return 'stopDisableAll'
-  return null
-}
-
-function isTimerStop(eventType: TimerEventType): boolean {
-  return (
-    eventType === 'stop' ||
-    eventType === 'stopAll' ||
-    eventType === 'stopDisable' ||
-    eventType === 'stopDisableAll'
-  )
-}
-
-function isTimerStart(eventType: TimerEventType): boolean {
-  return eventType === 'start'
 }
 
 function isFiniteValue(value: number): boolean {
@@ -350,6 +284,28 @@ function fillStream(
       } else {
         out[i] = gap
       }
+    }
+  }
+  return out
+}
+
+/**
+ * Each known sample held for the seconds after it, up to `maxS` or the next sample, not through a pause. A temperature
+ * is logged every few seconds, and a reading is the best account of the seconds until the next; leaving them
+ * unknown would put a file's coverage far under the half the summary asks for.
+ */
+function holdForward(known: Float64Array, paused: Uint8Array, maxS: number): Float64Array {
+  const out = Float64Array.from(known)
+  let last = Number.NaN
+  let since = Number.POSITIVE_INFINITY
+  for (let i = 0; i < known.length; i++) {
+    if (Number.isFinite(known[i]!)) {
+      last = known[i]!
+      since = 0
+    } else if (paused[i] === 1) {
+      since = Number.POSITIVE_INFINITY
+    } else if (++since <= maxS) {
+      out[i] = last
     }
   }
   return out

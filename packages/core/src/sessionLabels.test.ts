@@ -28,6 +28,12 @@ function exportZip(types: [string, string, string]): File {
   return new File([new Uint8Array(zipSync(entries))], 'export.zip')
 }
 
+/** A digest as an import before revision 7 saved it: no label, whatever the list called the file. */
+function unlabelled(digest: ActivityDigest): ActivityDigest {
+  const { athleteType: _label, ...rest } = digest
+  return rest
+}
+
 /** Imports the export and returns what was saved and the types the list gave. */
 async function imported(types: [string, string, string]) {
   const saved: ActivityDigest[] = []
@@ -76,7 +82,7 @@ describe('the types an import’s list gives', () => {
 describe('applyLabels', () => {
   it('labels the held workouts whose file the list names with a type in the table, and no other', async () => {
     const { saved, listedTypes } = await imported(['Hike', 'Run', 'Weight Training'])
-    const held = saved.map((digest, i) => ({ id: `rec${i}`, digest }))
+    const held = saved.map((digest, i) => ({ id: `rec${i}`, digest: unlabelled(digest) }))
     const proposals = applyLabels(held, listedTypes!)
     expect(proposals.map((p) => [p.id, p.athleteType, p.from]).sort()).toEqual(
       [
@@ -92,9 +98,9 @@ describe('applyLabels', () => {
   it('does it at any model revision, and never replaces the athlete’s own label', async () => {
     const { saved, listedTypes } = await imported(['Hike', 'Walk', 'Nordic Ski'])
     const held = [
-      { id: 'a', digest: { ...saved[0]!, modelRevision: 3 } },
-      { id: 'b', digest: { ...saved[1]!, athleteType: 'other' as const } },
-      { id: 'c', digest: saved[2]! },
+      { id: 'a', digest: { ...unlabelled(saved[0]!), modelRevision: 3 } },
+      { id: 'b', digest: { ...unlabelled(saved[1]!), athleteType: 'other' as const } },
+      { id: 'c', digest: unlabelled(saved[2]!) },
     ]
     const proposals = applyLabels(held, listedTypes!)
     expect(proposals.map((p) => p.id)).toEqual(['a', 'c'])
@@ -103,16 +109,20 @@ describe('applyLabels', () => {
 
   it('gives nothing for a localised name, or for a list that names none', async () => {
     const { saved, listedTypes } = await imported(['Wanderung', 'Run', 'Ride'])
-    const held = saved.map((digest, i) => ({ id: `r${i}`, digest }))
+    const held = saved.map((digest, i) => ({ id: `r${i}`, digest: unlabelled(digest) }))
     expect(applyLabels(held, listedTypes!)).toEqual([])
     expect(applyLabels(held, new Map())).toEqual([])
   })
 
-  it('matches a file by its key: case, a .gz and the path do not matter', async () => {
+  it('matches a file by its key: a .gz does not matter, and for a workout saved before revision 7 nor do case or the path', async () => {
     const { saved } = await imported(['Run', 'Run', 'Run'])
     const held = [{ id: 'x', digest: saved[0]! }]
-    expect(applyLabels(held, new Map([['Activities/1.FIT', 'Hike']]))).toHaveLength(1)
+    expect(applyLabels(held, new Map([['activities/1.fit.gz', 'Hike']]))).toHaveLength(1)
     expect(applyLabels(held, new Map([['activities/9.fit.gz', 'Hike']]))).toHaveLength(0)
+    const before = { ...saved[0]!, id: saved[0]!.id.replace(/-.*$/, '-activities/1.fit') }
+    expect(
+      applyLabels([{ id: 'x', digest: before }], new Map([['Activities/1.FIT', 'Hike']])),
+    ).toHaveLength(1)
   })
 
   it('is undone by its inverse: each label taken off at the revision it was put on', () => {

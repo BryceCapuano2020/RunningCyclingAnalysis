@@ -427,7 +427,6 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain(
       'Activities saved before keep the title and file name they were saved with',
     )
-    expect(text).not.toContain('model revision 7')
     expect(text).toContain('it is not secrecy')
     expect(text).toContain('rca.uploadTitles.v1')
   })

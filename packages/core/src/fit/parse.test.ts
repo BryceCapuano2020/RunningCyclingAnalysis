@@ -1,3 +1,4 @@
+import { hashedFileName } from '../import/minimise'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
@@ -5,6 +6,7 @@ import { DEFAULT_PARSE_LIMITS } from '../import/result'
 import type { ParseResult } from '../import/result'
 import { generatedName, withStartTimesWhereShared } from '../import/names'
 import { parseFit } from './parse'
+import { digestActivity } from '../digest/digestActivity'
 import { buildFit, secondly } from './fitTestFiles'
 import type { TestRecord } from './fitTestFiles'
 import { FILE_TYPE, SPORT } from './protocol/profile'
@@ -97,6 +99,28 @@ function reasonOf(result: ParseResult): string {
   if (result.ok) throw new Error('expected a failure')
   return result.reason
 }
+
+describe('a device that logs the temperature every few seconds', () => {
+  it('has its file read as a day with a temperature, not as one with too few readings', () => {
+    // A record every second, with a temperature on every third, as a watch on a 3 s smart recording does.
+    const records = secondly(START_MS, 3600, { speed: 3.2, power: 210, heartRate: 150 })
+    records.forEach((record, i) => {
+      record.distance = i * 3.2
+      if (i % 3 === 0) record.temperature = 21
+    })
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'running', startMs: START_MS, durationS: 3600, records }],
+        }),
+        'warm.fit',
+      ),
+    )
+    const known = Array.from(parsed.temperature ?? []).filter(Number.isFinite).length
+    expect(known / parsed.n).toBeGreaterThan(0.95)
+    expect(digestActivity(parsed).temperature).toEqual({ c: 21, coverage: 1 })
+  })
+})
 
 describe('parseFit round trip', () => {
   it('normalizes FIT running cadence and retains temperature with device lap boundaries', () => {
@@ -234,7 +258,7 @@ describe('parseFit round trip', () => {
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
     expect(a.name).toBe(generatedName(START_MS, 'ride'))
-    expect(a.id).toBe(`${START_MS}-Morning Ride.fit`)
+    expect(a.id).toBe(`${START_MS}-${hashedFileName('Morning Ride.fit')}`)
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(120)
     expect(a.hasPower).toBe(true)
@@ -768,11 +792,11 @@ describe('parseFit multi-session files', () => {
     expect(result.skipped).toEqual([])
     expect(result.activities.map((a) => a.sport)).toEqual(['run', 'ride'])
     const [run, ride] = result.activities
-    expect(run?.id).toBe(`${START_MS}-duathlon.fit#0`)
+    expect(run?.id).toBe(`${START_MS}-${hashedFileName('duathlon.fit')}#0`)
     expect(run?.name).toBe(generatedName(START_MS, 'run'))
     expect(run?.startMs).toBe(START_MS)
     expect(run?.n).toBe(600)
-    expect(ride?.id).toBe(`${START_MS + 700_000}-duathlon.fit#1`)
+    expect(ride?.id).toBe(`${START_MS + 700_000}-${hashedFileName('duathlon.fit')}#1`)
     expect(ride?.name).toBe(generatedName(START_MS + 700_000, 'ride'))
     expect(ride?.startMs).toBe(START_MS + 700_000)
     expect(ride?.n).toBe(900)
@@ -899,7 +923,10 @@ describe('parseFit multi-session files', () => {
     if (!result.ok) return
     expect(result.skipped).toEqual(['swimming session skipped'])
     expect(result.activities.map((a) => a.sport)).toEqual(['ride', 'run'])
-    expect(result.activities.map((a) => a.id)).toEqual([`${t1}-tri.fit#1`, `${t2}-tri.fit#2`])
+    expect(result.activities.map((a) => a.id)).toEqual([
+      `${t1}-${hashedFileName('tri.fit')}#1`,
+      `${t2}-${hashedFileName('tri.fit')}#2`,
+    ])
   })
 
   it('skips an e-bike session in a multi-session file with a short reason', () => {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ActivityDigest } from '../types'
-import { digestActivity, digestActivityAt } from './digestActivity'
+import { digestActivity } from './digestActivity'
 import { digestHash } from './test/digestHashes'
 import {
   EVENING_UTC_MS,
@@ -15,10 +15,9 @@ import {
 import type { Activity } from '../types'
 
 /**
- * The local-day field is gated: a digest made at `MODEL_REVISION` 6 is byte for byte what it was before the
- * field existed, although the importer now reads the zone from the file. The hashes below were taken from
- * main (2b6a75cd) before the importer read it, on files that each carry a local time. `identity.test.ts` and
- * `sessionIdentity.test.ts` are the same proof on the sample dataset and are unchanged.
+ * The local-day field is the only thing revision 7 adds to a digest of these files. The hashes below were taken from
+ * main (2b6a75cd) at revision 6, before the importer read the zone from the file, on files that each carry a local
+ * time. The digest now, less the field and with the revision put back, is byte for byte that digest.
  */
 
 // An activity's name carries the hour of day in the device's zone ("Evening run"), so the hashes depend on it. They
@@ -98,21 +97,10 @@ function asRevision6(digest: ActivityDigest): ActivityDigest {
   return { ...rest, modelRevision: 6 }
 }
 
-describe('the digest below revision 7', () => {
-  for (const [name, { make, hash }] of Object.entries(MAIN)) {
-    it(`of a ${name} is the digest main made, by default and at revision 6`, async () => {
-      const digest = digestActivity(make())
-      expect(await digestHash(digest)).toBe(hash)
-      expect(await digestHash(digestActivityAt(make(), 6))).toBe(hash)
-      expect(digest).not.toHaveProperty('localDayShift')
-    })
-  }
-})
-
 describe('the digest at revision 7', () => {
   for (const [name, { make, hash, shift }] of Object.entries(MAIN)) {
     it(`of a ${name} adds only the day shift the file gives`, async () => {
-      const digest = digestActivityAt(make(), 7)
+      const digest = digestActivity(make())
       expect(digest.modelRevision).toBe(7)
       expect(digest.localDayShift).toBe(shift)
       expect(Object.hasOwn(digest, 'localDayShift')).toBe(shift !== undefined)

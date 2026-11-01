@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { DAY_MS } from '@rca/core/constants'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import '../../test/deviceZone'
 import type { VolumeWeek } from '../weeklyVolume'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
 

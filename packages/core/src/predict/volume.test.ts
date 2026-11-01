@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '../test/deviceZone'
 import { DAY_MS } from '../constants'
 import { typicalWeeklyDistance } from './volume'
 

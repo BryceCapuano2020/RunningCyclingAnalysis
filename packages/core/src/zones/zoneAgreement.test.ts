@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { digestActivity } from '../digest/digestActivity'
 import { syntheticActivity } from '../digest/test/syntheticActivity'
 import { mulberry32 } from '../math'
-import { assessQuality } from '../quality'
+import { traceQualityOf } from '../digest/traceQuality'
 import type { Activity } from '../types'
 import { activityTraceOf } from '../workbench/trace'
 import type { ZoneMeasure } from './schemes'
@@ -26,7 +26,7 @@ function bothWays(activity: Activity, measure: ZoneMeasure, reference: number) {
   }
   const digest = digestActivity(activity)
   const counted = activityTimeInZones(digest, [set])[measure]
-  const trace = activityTraceOf(activity, assessQuality(activity, []))
+  const trace = activityTraceOf(activity, traceQualityOf(activity))
   const exact = traceTimeInZones(trace, measure, set.zones, 0, activity.n)
   return { digest: counted?.kind === 'counted' ? counted.seconds : null, trace: exact.seconds }
 }
@@ -83,7 +83,7 @@ describe('time in zones, the digest and the trace', () => {
 /** Both ways for one activity over many thresholds; the digest and the trace are made once. */
 function sweep(activity: Activity, measure: ZoneMeasure, references: number[]) {
   const digest = digestActivity(activity)
-  const trace = activityTraceOf(activity, assessQuality(activity, []))
+  const trace = activityTraceOf(activity, traceQualityOf(activity))
   let mismatches = 0
   let cases = 0
   for (const reference of references) {

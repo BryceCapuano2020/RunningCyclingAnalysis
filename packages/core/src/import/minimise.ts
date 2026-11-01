@@ -1,4 +1,3 @@
-import { hasRevision7 } from '../digest/revision7Gate'
 import { fileNameOf } from '../duplicates'
 import { sha256TextHex } from '../sha256Sync'
 import type { ActivityDigest } from '../types'
@@ -50,15 +49,14 @@ export function hashedDigestId(id: string): string {
 }
 
 /**
- * The digest and file name to send for a new activity. A digest below revision 7 is sent as it is, so nothing changes
- * until the release that writes revision 7.
+ * The digest and file name to send for a new activity: the id and the file name hashed, and the title generated unless the
+ * account sends titles.
  */
 export function minimisedForUpload(
   digest: ActivityDigest,
   fileName: string,
   policy: UploadPolicy,
 ): { digest: ActivityDigest; fileName: string } {
-  if (!hasRevision7(digest.modelRevision)) return { digest, fileName }
   return {
     digest: {
       ...digest,
