@@ -52,8 +52,6 @@ export interface BalanceHeroProps {
   controls?: ReactNode
   /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
   leftOut?: LeftOutRuns
-  /** A library of one sport whose threshold was withheld: what its best 20 minutes still shows, ahead of what is needed. */
-  soleFloor?: string | null
 }
 
 /**
@@ -77,7 +75,6 @@ export function BalanceHero({
   levels = null,
   controls = null,
   leftOut,
-  soleFloor = null,
 }: BalanceHeroProps) {
   const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
@@ -113,13 +110,11 @@ export function BalanceHero({
       leftOut?.count ?? 0,
       holdWithRideOut(rideLeftOut, hold),
     )
-    // What a one-sport page's best 20 minutes still shows leads what the threshold needs.
-    const body = [soleFloor, detail].filter((part) => part !== null && part !== '').join(' ')
     return (
       <div className="balance-hero__pair">
         <section className="balance-hero">
           {head(title)}
-          {body === '' ? null : <p className="lede secondary">{body}</p>}
+          {detail === '' ? null : <p className="lede secondary">{detail}</p>}
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>

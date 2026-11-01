@@ -1,7 +1,8 @@
+import { SPORTS } from '../types'
 import type { Sport } from '../types'
 
 /** The sports findings are made for, in the order detectors are run. */
-export const FINDING_SPORTS: readonly Sport[] = ['run', 'ride']
+export const FINDING_SPORTS: readonly Sport[] = SPORTS
 
 /**
  * The bar a finding must clear to be spoken, and the numbers its ranking and statistics share. The

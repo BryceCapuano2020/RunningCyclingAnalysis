@@ -1,4 +1,5 @@
 import type { ActivityDigest, Sport } from '../types'
+import { SPORTS } from '../types'
 import { DIGEST_VERSION } from './modelRevision'
 import { revisionStatus } from './revisions'
 import { DigestReadError } from './parseValue'
@@ -13,8 +14,6 @@ import type { DigestView } from './readRules'
 
 export { readDigest }
 export type { DigestView }
-
-const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /**
  * What names an activity, read apart from the rest of its digest: enough to list it and to know which

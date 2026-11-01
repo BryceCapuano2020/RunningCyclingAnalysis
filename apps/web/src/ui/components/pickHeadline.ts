@@ -1,6 +1,7 @@
-import { HEADLINE_MIN_ACTIVITIES, SPORTS, hasEvidence, headlineShortfall } from '@rca/core/answer'
+import { HEADLINE_MIN_ACTIVITIES, hasEvidence, headlineShortfall } from '@rca/core/answer'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { SPORTS } from '@rca/core/types'
 import type { Comparison, ComparisonPoint } from '@rca/core/types'
 
 export interface HeadlinePick {

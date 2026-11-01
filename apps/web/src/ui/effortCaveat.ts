@@ -217,7 +217,7 @@ export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boole
 /** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the share and the full reading. */
 export interface EffortChipText {
   hard: boolean
-  /** "Not a hard effort · 70%" or "Hard effort · 95%": the share of the sport's reference heart rate, as the line shows it. */
+  /** "Not all-out" or "Hard effort · 95%": the share of the sport's reference heart rate shows only on a hard effort. */
   label: string
   /** The whole reading, which a definition opens: the share, what it is a share of, and what would change it. */
   detail: string
@@ -237,7 +237,7 @@ export function effortChipText(
   if (!share.confirmed) return { hard: false, label: 'Effort not confirmed', detail: share.line }
   return {
     hard: share.hard,
-    label: `${share.hard ? 'Hard effort' : 'Not a hard effort'} · ${share.percent}%`,
+    label: share.hard ? `Hard effort · ${share.percent}%` : 'Not all-out',
     detail: share.line,
   }
 }

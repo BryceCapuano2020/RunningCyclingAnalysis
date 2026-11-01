@@ -2,6 +2,7 @@ import { HEADLINE_DURATION_S } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
 import { effortsCount } from '../digest/effortTrust'
 import type { ActivitySummary } from '../digest/summary'
+import { SPORTS } from '../types'
 import type { Curve, Sport } from '../types'
 
 /*
@@ -9,9 +10,6 @@ import type { Curve, Sport } from '../types'
  * headline's (or a fitted threshold). The Balance headline and the search for the default window (window.ts) read the
  * same rule, so a window the search settles on is one the headline can compare in.
  */
-
-/** The sports the answer weighs, in the order the sports sit. A new discipline joins here and in the tables keyed by Sport. */
-export const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** The analysed activities each sport needs in the window before the headline sets one against the other. */
 export const HEADLINE_MIN_ACTIVITIES = 3

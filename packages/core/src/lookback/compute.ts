@@ -7,6 +7,7 @@ import { memoByDigests, sameSet } from '../digestMemo'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
 import { dayOfMs } from '../fitness/machine'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
+import { SPORTS } from '../types'
 import { hindsightOf, horizonDay } from './hindsight'
 import { milestonesOf } from './milestones'
 import type { EffortMilestones, SportYears } from './types'
@@ -27,8 +28,6 @@ export interface LookBack {
   horizonMs: number
   sports: Record<Sport, SportLookBack>
 }
-
-const SPORTS: readonly Sport[] = ['run', 'ride']
 
 /** Nothing to say: no library. */
 export const NO_LOOKBACK: LookBack = {

@@ -2,8 +2,9 @@ import { startOfLocalDay } from '../calendar'
 import type { AnalysisResult } from '../digest/combine'
 import { DEFAULT_PERIOD_DAYS, splitPeriods, windowEnding } from '../period'
 import type { PeriodChoice, WindowChoice } from '../period'
+import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
-import { SPORTS, hasEvidence, headlineShortfall } from './evidence'
+import { hasEvidence, headlineShortfall } from './evidence'
 
 /*
  * The default period is a search, so a page has one window and one set of numbers. The windows tried are the
