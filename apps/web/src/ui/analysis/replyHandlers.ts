@@ -211,6 +211,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
           ? null
           : comparableBefore(pending?.baseline, message.state),
         after: message.state.result,
+        bests: message.checkIn?.checkIn?.bests ?? null,
       })
     }
     if (pending?.kind === 'loadServer') {

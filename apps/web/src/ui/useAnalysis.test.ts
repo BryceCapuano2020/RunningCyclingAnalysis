@@ -2216,7 +2216,36 @@ describe('useAnalysis state', () => {
     finishDeviceLoad({ ...STATE, result: before })
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'state', state: { ...STATE, result: after }, outcome }))
-    expect(result.current.importChange).toEqual({ outcome, before, after })
+    expect(result.current.importChange).toEqual({ outcome, before, after, bests: null })
+  })
+
+  it('keeps the bests the check-in of the same reply lists, so the summary names those and no others', () => {
+    const outcome = { activities: 1, rejected: 0, duplicates: [], runs: 1, rides: 0 }
+    const best = {
+      sport: 'run' as const,
+      effort: { kind: 'distance' as const, distanceM: 5000 },
+      unit: 's' as const,
+      value: 1500,
+      previous: 1600,
+      atMs: 1,
+      older: false,
+    }
+    const checkIn = { sinceMs: 1, added: { run: 1, ride: 0 }, older: { run: null, ride: null } }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: makeResult({ runCp: null }) })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, result: makeResult() },
+        outcome,
+        checkIn: {
+          checkIn: { ...checkIn, bests: [best], fitness: [], episodes: [], quiet: false },
+          seen: false,
+        },
+      }),
+    )
+    expect(result.current.importChange?.bests).toEqual([best])
   })
 
   it('compares the import with nothing when the sample was on screen', () => {

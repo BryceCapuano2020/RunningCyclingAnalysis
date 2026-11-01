@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
-import { OLDEST_OPACITY, bestDots, opacityOf } from './bestsOverTime'
+import { setViewerZone, withLocalWeeks } from '@rca/core/calendar'
+import { OLDEST_OPACITY, bestDots, dotsLayout, opacityOf } from './bestsOverTime'
+import { activityDate } from './trendTicks'
 
 const DAY = 86_400_000
 const START = Date.UTC(2026, 0, 5)
@@ -56,4 +58,48 @@ describe('opacityOf', () => {
   it('is solid for a single dot or dots on one day', () => {
     expect(opacityOf([{ atMs: START, value: 4, wkg: null }])).toEqual([1])
   })
+})
+
+describe('dotsLayout axis dates', () => {
+  const SIZE = {
+    width: 640,
+    height: 320,
+    plot: { left: 40, right: 620, top: 10, bottom: 280 },
+    tooltipId: 't',
+    hintId: 'h',
+    titleId: 'i',
+  }
+  const dotAt = (atMs: number) => ({ atMs, value: 4, wkg: null })
+
+  // A day name drops its year: "13 Aug 2026" is "13 Aug" on the axis.
+  const dayOnly = (ms: number) => activityDate(ms).replace(/ \d{4}$/, '')
+
+  // Fixed-offset zones, so the device's zone and the viewer's are the same one whichever way the days are cut.
+  it.each([
+    ['UTC-7', 'Etc/GMT+7', -7 * 60, Date.UTC(2026, 7, 14, 3), Date.UTC(2026, 9, 2, 5)],
+    ['UTC+13', 'Etc/GMT-13', 13 * 60, Date.UTC(2026, 7, 13, 20), Date.UTC(2026, 9, 1, 14)],
+  ])(
+    'names the ends of the axis by the viewer’s day, as the table and tooltip do, at %s',
+    (_name, tz, minutes, first, last) => {
+      vi.stubEnv('TZ', tz)
+      const dots = [dotAt(first), dotAt(last)]
+      const labels = () => dotsLayout(dots, 'run', 'metric', SIZE)!.xTicks.map((tick) => tick.label)
+      const before = setViewerZone(() => minutes)
+      try {
+        for (const localWeeks of [false, true]) {
+          withLocalWeeks(localWeeks, () => {
+            // Both instants fall on a different UTC day than the viewer's, which the axis used to name.
+            expect(labels()).toEqual([dayOnly(first), dayOnly(last)])
+            expect(labels()).not.toEqual([
+              `${new Date(first).getUTCDate()} Aug`,
+              `${new Date(last).getUTCDate()} Oct`,
+            ])
+          })
+        }
+      } finally {
+        setViewerZone(before)
+        vi.unstubAllEnvs()
+      }
+    },
+  )
 })

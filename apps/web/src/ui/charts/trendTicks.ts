@@ -40,9 +40,39 @@ export function shortDateWithYear(ms: number): string {
  * that day's noon, so the name is the same whichever zone the device is in.
  */
 export function activityDate(ms: number): string {
-  const day = localDayOfInstant(ms)
-  const noon = startOfDayNumber(day) + 12 * 3_600_000
-  return `${formatDayMonth(noon, noon)} ${civilOfDay(day).year}`
+  return `${activityDayMonth(ms)} ${civilOfDay(localDayOfInstant(ms)).year}`
+}
+
+/** Noon of the viewer's day that holds the moment: the browser names it as that day. */
+function activityNoon(ms: number): number {
+  return startOfDayNumber(localDayOfInstant(ms)) + 12 * 3_600_000
+}
+
+/** The viewer's day and month of an activity's moment, such as "12 Jan". */
+function activityDayMonth(ms: number): string {
+  const noon = activityNoon(ms)
+  return formatDayMonth(noon, noon)
+}
+
+/** How a date axis names an instant: its week-end day in UTC, or the viewer's day of an activity. */
+export interface DayNames {
+  day: (ms: number) => string
+  dayWithYear: (ms: number) => string
+  month: (ms: number) => string
+}
+
+/** A trend's weeks end on UTC Sundays: named by the UTC date. */
+const WEEK_END_NAMES: DayNames = {
+  day: shortDate,
+  dayWithYear: shortDateWithYear,
+  month: (ms) => formatMonth(utcDayLocal(ms), true),
+}
+
+/** Moments of activities: named by the viewer's day, as the list, the badges and the chart's table are. */
+export const ACTIVITY_NAMES: DayNames = {
+  day: activityDayMonth,
+  dayWithYear: activityDate,
+  month: (ms) => formatMonth(activityNoon(ms), true),
 }
 
 /** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */
@@ -72,12 +102,13 @@ export function trendDateTicks(
   endsMs: readonly number[],
   x: Scale,
   gaps: readonly QuietGap[] = [],
+  names: DayNames = WEEK_END_NAMES,
 ): AxisTick[] {
   const first = endsMs[0]
   const last = endsMs.at(-1)
   if (first === undefined || last === undefined || endsMs.length < 2) return []
   if ((last - first) / DAY_MS < WEEKLY_LABEL_SPAN_DAYS) {
-    return endsMs.map((ms) => ({ position: x(ms), label: shortDate(ms) }))
+    return endsMs.map((ms) => ({ position: x(ms), label: names.day(ms) }))
   }
   const months = monthStartsBetween(first, last)
     .filter((ms) => ms - first >= END_CLEARANCE_MS && last - ms >= END_CLEARANCE_MS)
@@ -85,13 +116,11 @@ export function trendDateTicks(
     .map((ms) => ({ position: x(ms), label: formatMonth(utcDayLocal(ms), true) }))
   // Past 26 weeks the chart is drawn by the month, so its first tick is named by its month, as the others are.
   const firstLabel =
-    (last - first) / DAY_MS > MONTHLY_AFTER_DAYS
-      ? formatMonth(utcDayLocal(first), true)
-      : shortDateWithYear(first)
+    (last - first) / DAY_MS > MONTHLY_AFTER_DAYS ? names.month(first) : names.dayWithYear(first)
   return [
     { position: x(first), label: firstLabel },
     ...months,
-    { position: x(last), label: shortDate(last) },
+    { position: x(last), label: names.day(last) },
   ]
 }
 

@@ -136,7 +136,13 @@ export function AppNotices({
     libraryStatus: analysis.libraryStatus,
   })
   const outboxLine =
-    outbox === null ? null : outboxText(outbox, analysis.savedCount !== null && issues.length === 0)
+    outbox === null
+      ? null
+      : outboxText(
+          outbox,
+          analysis.savedCount !== null && issues.length === 0,
+          hasRetryableIssue(issues),
+        )
   // Saves the connection dropped go again when it is back, and when the athlete asks.
   const saves = useSaveRetry({
     signedIn,
