@@ -23,9 +23,9 @@ export interface FitnessAndCheckInProps {
 
 /**
  * The fitness cards and, one line under them, "Since your last import" or, when that has nothing new or has been seen,
- * "Your years". The row leads only when there is no card to lead (a library with no steady run). It takes the place
- * while it has not been seen; a row that has appeared in this visit stays until it is hidden, so opening it does not take
- * it away.
+ * "Your years". The row leads only when there is no card to lead (a library with no steady run). The years take the place
+ * for as long as they have a lead to tell and have not been hidden; a row that has appeared in this visit stays until it
+ * is hidden, so opening it does not take it away.
  */
 export function FitnessAndCheckIn({
   analysis,

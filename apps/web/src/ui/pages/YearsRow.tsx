@@ -20,8 +20,8 @@ export interface YearsRowProps {
 /**
  * "Your years": the look-back's lead in one line under the fitness card, and behind the disclosure the other episodes.
  * It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
- * the line is cut after two lines and the panel gives it whole. Opening or hiding it, or being shown it on two page
- * loads, is seen, and a seen row gives up the place; its content stays on the Run and Ride pages.
+ * the line is cut after two lines and the panel gives it whole. It stays under the card while the look-back has a lead
+ * to tell; hiding it gives up the place for good, and its content stays on the Run and Ride pages.
  */
 export function YearsRow({ words, onSeen }: YearsRowProps) {
   const row = useRef<HTMLElement>(null)

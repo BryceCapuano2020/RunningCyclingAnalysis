@@ -311,11 +311,13 @@ describe('clearing', () => {
 })
 
 describe('the row "Your years"', () => {
-  it('is seen once opened, once hidden, or after two page loads, and is not the check-in row', async () => {
+  it('is seen once hidden, and not by being opened or shown again, and is not the check-in row', async () => {
     const m = await fresh()
     const keeper = m.keeper()
-    expect(await keeper.markSeen('device', 'lookBack', 'impression')).toBe(false)
-    expect(await keeper.markSeen('device', 'lookBack', 'impression')).toBe(true)
+    expect(await keeper.markSeen('device', 'lookBack', 'open')).toBe(false)
+    for (let load = 0; load < 3; load++) {
+      expect(await keeper.markSeen('device', 'lookBack', 'impression')).toBe(false)
+    }
     const hidden = m.keeper()
     expect(await hidden.markSeen('account:u1', 'lookBack', 'hide')).toBe(true)
     // The check-in row is a separate record: it needs a baseline, and the years' flags do not make it seen.
@@ -324,7 +326,7 @@ describe('the row "Your years"', () => {
 
   it('is told with the view even when there is no baseline, and kept across a reload', async () => {
     const m = await fresh()
-    await m.keeper().markSeen('device', 'lookBack', 'open')
+    await m.keeper().markSeen('device', 'lookBack', 'hide')
     expect(await m.keeper().view('device', () => snap([5], T0))).toEqual({
       checkIn: null,
       seen: false,
@@ -346,8 +348,8 @@ describe('storage that cannot be used', () => {
     await keeper.begin('device', null)
     await keeper.settle('device', COMPLETE)
     expect(await keeper.view('device', () => snap([5], T0))).toEqual({ checkIn: null, seen: false })
-    // The flags are kept for the tab: "Your years" opened is seen, and the view says so with no check-in.
-    expect(await keeper.markSeen('device', 'lookBack', 'open')).toBe(true)
+    // The flags are kept for the tab: "Your years" hidden is seen, and the view says so with no check-in.
+    expect(await keeper.markSeen('device', 'lookBack', 'hide')).toBe(true)
     expect(await keeper.view('device', () => snap([5], T0))).toEqual({
       checkIn: null,
       seen: false,

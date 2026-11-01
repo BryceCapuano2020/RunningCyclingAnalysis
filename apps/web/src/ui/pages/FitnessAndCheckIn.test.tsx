@@ -92,7 +92,7 @@ describe('the fitness cards and "Your years"', () => {
     expect(screen.queryByTestId('checkin-row')).toBeNull()
   })
 
-  it('shows nothing for years that have been seen, the sample, an import that stopped short, or no years', () => {
+  it('shows nothing for years that have been hidden, the sample, an import that stopped short, or no years', () => {
     for (const over of [
       { checkIn: { checkIn: null, seen: false, lookBackSeen: true } },
       { state: { isSample: true } },
@@ -105,7 +105,7 @@ describe('the fitness cards and "Your years"', () => {
     }
   })
 
-  it('keeps the row it has shown when it becomes seen, until it is hidden', () => {
+  it('keeps the row it has shown when it is hidden elsewhere, until this one is hidden', () => {
     const { rerender } = render(withYears())
     expect(screen.getByTestId('years-row')).toBeInTheDocument()
     rerender(withYears({ checkIn: { checkIn: null, seen: false, lookBackSeen: true } }))

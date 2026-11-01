@@ -5,7 +5,8 @@ import type { CheckInView } from '../worker/checkinKeeper'
 
 /**
  * Which row is under the fitness card. One of the two: the check-in ("Since your last import") while it has not been seen,
- * else "Your years" while those have not been seen. Neither while an import is known partial, and neither for the sample.
+ * else "Your years" while it has a lead to tell and has not been hidden. Neither while an import is known partial, and
+ * neither for the sample.
  */
 
 export type FirstRow = 'checkIn' | 'lookBack' | null
@@ -32,7 +33,7 @@ export function firstRowOf({
 }: RowInputs): FirstRow {
   if (importIncomplete || isSample) return null
   if (checkIn.checkIn !== null && !checkIn.seen) return 'checkIn'
-  // The check-in has nothing new, or has been seen: the years take the place until they are seen too.
+  // The check-in has nothing new, or has been seen: the years take the place for as long as they have news and are not hidden.
   return hasYears && checkIn.lookBackSeen !== true ? 'lookBack' : null
 }
 

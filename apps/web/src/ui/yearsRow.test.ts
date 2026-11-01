@@ -19,6 +19,41 @@ describe('what "Your years" says', () => {
     expect(words.rows).toEqual([])
   })
 
+  it('leads with the largest episode however old, dated, and lists the smaller one that is newer', () => {
+    const old = {
+      kind: 'improvement' as const,
+      fromMs: Date.UTC(2009, 2, 1),
+      toMs: Date.UTC(2009, 8, 1),
+      change: { value: 0.16, low: 0.13, high: 0.19 },
+      regained: null,
+      remaining: null,
+      z: 8,
+      steps: 1,
+      runs: 70,
+    }
+    const older = {
+      ...YEARS_LOOKBACK,
+      sports: {
+        ...YEARS_LOOKBACK.sports,
+        run: {
+          ...YEARS_LOOKBACK.sports.run,
+          fitness: {
+            ...RUN_YEARS,
+            fromMs: Date.UTC(2008, 0, 1),
+            episodes: [old, ...RUN_YEARS.episodes],
+          },
+        },
+      },
+    }
+    const words = yearsWords(older, NO_FITNESS, 'metric')!
+    expect(words.lead).toMatch(
+      /got about \d+% \(\d+ to \d+%\) faster between March and September 2009\./,
+    )
+    // The slip that came back is newer and smaller: it is a row now, not the lead.
+    expect(words.rows).toHaveLength(1)
+    expect(words.rows[0]).toMatch(/^May 2021 to January 2022\. Slipped about/)
+  })
+
   it('never leads with a best that has stood: a library whose only lead is a best has no row', () => {
     const best: EffortMilestones = {
       effort: { kind: 'duration', durationS: 300 },
@@ -71,7 +106,7 @@ describe('what "Your years" says', () => {
 
 describe('which row sits under the fitness card', () => {
   const base = { importIncomplete: false, isSample: false }
-  it('is the check-in first, then the years, each until it is seen', () => {
+  it('is the check-in first until it is seen, then the years until they are hidden', () => {
     const unseen = { checkIn: QUIET_CHECK_IN, seen: false }
     expect(firstRowOf({ ...base, checkIn: unseen, hasYears: true })).toBe('checkIn')
     expect(firstRowOf({ ...base, checkIn: { ...unseen, seen: true }, hasYears: true })).toBe(

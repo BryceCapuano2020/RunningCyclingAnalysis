@@ -29,8 +29,8 @@ export const LOOKBACK = {
   },
   /** An episode is listed when a step is this large and this clear (the monitor's own bar); under `shortWeeks` of data the size is `shortDelta`. */
   list: { delta: 0.04, z: 3.3, shortWeeks: 104, shortDelta: 0.08 },
-  /** An episode is the lead of the look-back only on a stronger bar, and only within the last `years`. */
-  lead: { delta: 0.07, z: 5.5, years: 5 },
+  /** An episode is the lead of the look-back only on a stronger bar, whatever its age. */
+  lead: { delta: 0.07, z: 5.5 },
   /** The card's slip belongs to a hindsight fall when it was declared within this many weeks before it, or twice as many after. */
   liveMatchWeeks: 8,
   /**

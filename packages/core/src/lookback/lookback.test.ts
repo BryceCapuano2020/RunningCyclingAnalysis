@@ -190,19 +190,59 @@ function look(run: HindsightFitness, over: Partial<SportLookBack> = {}): LookBac
 const live = (run: LiveState): Record<'run' | 'ride', LiveState> => ({ run, ride: null })
 
 describe('what leads', () => {
-  it('is the most recent episode that meets the lead bar: 7% and z 5.5, within five years, never under two years', () => {
+  it('meets the lead bar at 7% and z 5.5, whenever it happened, and never in a library under two years', () => {
     const strong = years()
     expect(meetsLeadBar(strong.episodes[0]!, strong)).toBe(true)
     const small = episode({ change: { value: 0.06, low: 0.03, high: 0.09 } })
     expect(meetsLeadBar(small, strong)).toBe(false)
     expect(meetsLeadBar(episode({ z: 5 }), strong)).toBe(false)
-    expect(meetsLeadBar(episode({ fromMs: T0 - 8 * YEAR, toMs: T0 - 7 * YEAR }), strong)).toBe(
-      false,
-    )
+    // Its age is no part of the bar: an episode eight years before the horizon is as strong as one of last year.
+    expect(meetsLeadBar(episode({ fromMs: T0 - 8 * YEAR, toMs: T0 - 7 * YEAR }), strong)).toBe(true)
     const short = years({ toMs: T0 + 1.5 * YEAR })
     expect(meetsLeadBar(strong.episodes[0]!, short)).toBe(false)
     const lead = leadOf(look(strong), live('holding'))
     expect(lead).toMatchObject({ kind: 'episode', sport: 'run' })
+  })
+
+  it('leads with the largest episode of any age, and the more recent only on a tie', () => {
+    const big = episode({
+      fromMs: T0 - 8 * YEAR,
+      toMs: T0 - 7.5 * YEAR,
+      change: { value: 0.15, low: 0.12, high: 0.18 },
+    })
+    const smaller = episode({ change: { value: 0.09, low: 0.06, high: 0.12 } })
+    const lead = (episodes: HindsightEpisode[]) =>
+      leadOf(look(years({ episodes })), live('holding'))
+    expect(lead([smaller, big])).toMatchObject({ kind: 'episode', episode: big })
+    expect(lead([big, smaller])).toMatchObject({ kind: 'episode', episode: big })
+    // A fall counts by its size, not its sign.
+    const fall = episode({
+      kind: 'slip-back',
+      change: { value: -0.2, low: -0.24, high: -0.16 },
+      z: -8,
+      fromMs: T0 + YEAR,
+      toMs: T0 + 1.5 * YEAR,
+    })
+    expect(lead([big, fall])).toMatchObject({ episode: fall })
+    // The same size: the later one.
+    const same = episode({ fromMs: T0 + 3 * YEAR, toMs: T0 + 3.5 * YEAR })
+    expect(lead([smaller, same])).toMatchObject({ episode: same })
+  })
+
+  it('dates an old lead with its month and year', () => {
+    const old = episode({ fromMs: Date.UTC(2015, 2, 1), toMs: Date.UTC(2015, 7, 1) })
+    const some = years({
+      fromMs: Date.UTC(2014, 0, 1),
+      toMs: Date.UTC(2025, 0, 1),
+      episodes: [old],
+    })
+    const lead = leadOf(look(some), live('holding'))!
+    expect(leadSentence(lead, look(some), 'metric')).toMatch(/between March and August 2015\./)
+    // A break with no gap on record is dated too.
+    const broke = episode({ kind: 'after-break', fromMs: Date.UTC(2016, 4, 1) })
+    expect(episodeSentence(broke, look(some).sports.run, some)).toMatch(
+      /^After a break from running in May 2016, /,
+    )
   })
 
   it('says a rise held only when the live status allows it', () => {
@@ -431,8 +471,6 @@ describe('the words', () => {
   it('says what a short library lacks, once', () => {
     expect(
       tooShortText({ kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 }),
-    ).toBe(
-      'Your years start to read once you have a year of steady running behind the latest 12 weeks: 40 steady runs over 52 weeks. So far there are 23 steady runs over 19 weeks.',
-    )
+    ).toBe('Needs 40 steady runs over 52 weeks. You have 23 over 19.')
   })
 })

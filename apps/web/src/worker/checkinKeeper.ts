@@ -13,7 +13,7 @@ export interface CheckInView {
   checkIn: CheckIn | null
   /** Seen for this baseline: opened, hidden, or shown on two page loads. The row then gives up its place. */
   seen: boolean
-  /** The athlete has opened or hidden "Your years", or been shown it on two page loads: it gives up its place. Absent is not. */
+  /** The athlete has hidden "Your years": it gives up its place for good. Opening it or seeing it again does not. Absent is not. */
   lookBackSeen?: boolean
 }
 
@@ -217,14 +217,12 @@ export class CheckInKeeper {
   }
 }
 
-/** Whether "Your years" has been opened, hidden or shown on enough page loads; it belongs to the scope, not to a baseline. */
+/**
+ * Whether "Your years" has been hidden; it belongs to the scope, not to a baseline. Opening it or being shown it does not
+ * retire it: it stays while it has a lead to tell.
+ */
 function seenLookBack(seen: SeenRecord): boolean {
-  const part = seen.lookBack
-  return (
-    part.openedAtMs !== null ||
-    part.hiddenAtMs !== null ||
-    part.impressions >= SEEN_AFTER_IMPRESSIONS
-  )
+  return seen.lookBack.hiddenAtMs !== null
 }
 
 /** Whether the check-in against `baseline` has been opened, hidden or shown on enough page loads. */

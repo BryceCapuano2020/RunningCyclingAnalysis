@@ -90,8 +90,8 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 - **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the
   session's peak, beyond it by the session's average, a sprint of a minute or less always), so a swing in how many hard efforts a period
   holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every
-  effort in both, and the strip then says the effort was not checked. The curves' bests are not filtered. The strip withholds a comparison
-  whose shown best was not hard, and compares one that was only not checked (no heart rate, too few days).
+  effort in both. The curves' bests are not filtered. The strip and the curve titles withhold no comparison for a best that was not hard:
+  the test alone decides, and a best heart rate cannot judge is compared like any other.
 - **Bests-over-time dots** (`dotsRule`, D5.5): the same gate, built by the same function as the change test's rule (`gatedRule`) in the other
   mode. The change test needs evidence of a hard effort, so it leaves out a point heart rate cannot judge (no heart rate, set aside, a thin
   library, a reference that cannot certify a maximum). The dots withhold only what heart rate shows was not hard (`shownNotHard`), so those points

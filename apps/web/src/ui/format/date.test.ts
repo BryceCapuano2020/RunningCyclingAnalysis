@@ -4,6 +4,7 @@ import {
   formatDay,
   formatDayMonth,
   formatMonth,
+  formatMonths,
   formatRowDay,
   formatSpan,
   formatTimeOfDay,
@@ -66,6 +67,31 @@ describe('formatDay', () => {
     vi.stubEnv('TZ', 'Pacific/Auckland')
     // 20:00 UTC on 2 June is 08:00 on 3 June in Auckland, which is in winter time (UTC+12).
     expect(formatDay(Date.UTC(2026, 5, 2, 20, 0), JUNE_10_2026)).toBe('Wed 3 Jun')
+  })
+})
+
+describe('formatMonths', () => {
+  const local = (year: number, month: number, day: number) =>
+    new Date(year, month - 1, day).getTime()
+  const now = local(2026, 6, 10)
+
+  it('names the months a window covers, with no year in the year of now', () => {
+    expect(formatMonths(local(2026, 1, 5), local(2026, 3, 29), now)).toBe('Jan to Mar')
+    // A window inside one month is that month.
+    expect(formatMonths(local(2026, 2, 2), local(2026, 2, 27), now)).toBe('Feb')
+  })
+
+  it('writes the year once, at the end, when the window lies in one other year', () => {
+    expect(formatMonths(local(2024, 1, 8), local(2024, 3, 31), now)).toBe('Jan to Mar 2024')
+    expect(formatMonths(local(2024, 5, 1), local(2024, 5, 28), now)).toBe('May 2024')
+  })
+
+  it('writes the year after each month when the window crosses a year end', () => {
+    expect(formatMonths(local(2025, 11, 3), local(2026, 1, 25), now)).toBe('Nov 2025 to Jan 2026')
+  })
+
+  it('writes the year when the window ends in a year other than now’s, even from the same month', () => {
+    expect(formatMonths(local(2025, 12, 1), local(2025, 12, 28), now)).toBe('Dec 2025')
   })
 })
 
