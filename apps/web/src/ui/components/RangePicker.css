@@ -22,9 +22,8 @@
 }
 
 /*
- * Four periods fit one row at 390 px, with 8 px either side of each label. A narrower phone wraps
- * them onto a second row rather than overflowing the page. Each keeps its own border, so the wrap
- * needs no shared edges.
+ * Where the labels are full, the periods wrap onto a second row rather than overflow the page. Each keeps its own
+ * border, so the wrap needs no shared edges.
  */
 .range-picker .segmented-control__options {
   flex-wrap: wrap;
@@ -39,14 +38,14 @@
 }
 
 /*
- * At or below 360 px, which is PERIOD_SHORT_LABEL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the segments show short
- * labels ("6 wk", "All") so all of them fit one row. The full name stays in the page for assistive technology.
+ * At or below 479 px, which is PERIOD_SHORT_LABEL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the segments show short
+ * labels ("6 wk", "All") so all six fit one row. The full name stays in the page for assistive technology.
  */
 .range-picker .segmented-control__short {
   display: none;
 }
 
-@media (max-width: 360px) {
+@media (max-width: 479px) {
   .range-picker .segmented-control__short {
     display: inline;
   }
@@ -138,8 +137,9 @@
 }
 
 /*
- * The five chips are one row on a phone: they fit at 360 px and up, and slide sideways under it, with the last one
- * cut at the edge to say so, rather than wrapping to a second row the first screen has no room for.
+ * The six chips are one row on a phone, with short labels: at 360 px and below (SMALL_PHONE_MAX_WIDTH_PX in
+ * ui/layoutBreakpoints.ts) their padding tightens to fit 320 px. If they still do not fit they slide sideways, with the last
+ * one cut at the edge to say so, rather than wrapping to a second row the first screen has no room for.
  */
 @media (max-width: 479px) {
   .range-picker--compact .segmented-control__options,
@@ -161,4 +161,12 @@
 .range-picker--compact .range-picker__caption a {
   color: inherit;
   text-underline-offset: 2px;
+}
+
+@media (max-width: 360px) {
+  .range-picker .segmented-control__option,
+  .range-picker--compact .segmented-control__option {
+    padding-inline: 4px;
+    font-size: var(--text-sm);
+  }
 }

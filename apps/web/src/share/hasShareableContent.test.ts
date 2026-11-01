@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceGap } from '../ui/balanceGap'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
+import { curvePoint } from '../ui/charts/fixtures'
+import { gate } from '../ui/effortGateFixtures'
+import { heldPick } from '../ui/resultHold'
 import { hasShareableContent } from './hasShareableContent'
 
 const NO_COMPARISON = { prior: [], calibrated: null }
@@ -49,6 +52,21 @@ describe('hasShareableContent', () => {
 
   it('is false when the run has no threshold, even with a comparison', () => {
     expect(hasShareableContent(makeResult({ runCp: null }), GAP, true)).toBe(false)
+  })
+
+  it('stays false when the effort gate withheld a threshold, though the balance is now stated', () => {
+    // A best that was not hard no longer holds the balance back, but the card shows both thresholds, which the gate withholds.
+    const notHard = makeResult({
+      runCp: null,
+      runCpRefusal: 'effort',
+      runCurve: [curvePoint(1200, 5, 'a')],
+      effortGate: { run: gate(), ride: gate() },
+    })
+    expect(heldPick(notHard).pick).not.toBeNull()
+    expect(hasShareableContent(notHard, GAP, true)).toBe(false)
+    // With the threshold kept, the same bests that were not hard share like any other.
+    const kept = { ...makeResult(), effortGate: { run: gate(), ride: gate() } }
+    expect(hasShareableContent(kept, GAP, true)).toBe(true)
   })
 
   it('is false when neither a comparison nor a grade gap says how the balance leans', () => {
