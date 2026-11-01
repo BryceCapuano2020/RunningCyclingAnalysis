@@ -27,13 +27,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const NONE: IntensityShares = { easy: 0, moderate: 0, hard: 0, seconds: 0, counted: 0 }
+const NONE: IntensityShares = {
+  easy: 0,
+  moderate: 0,
+  hard: 0,
+  seconds: 0,
+  counted: 0,
+  noZones: 0,
+  activities: 0,
+}
+/** Twenty hours of heart-rate time, the floor for a year to be the finding. */
 const shares = (easy: number, moderate: number, hard: number): IntensityShares => ({
   easy,
   moderate,
   hard,
-  seconds: 36_000,
+  seconds: 72_000,
   counted: 12,
+  noZones: 0,
+  activities: 12,
 })
 const yearOf = (year: number, run: IntensityShares = NONE): IntensityRow => ({
   year,
@@ -97,7 +108,7 @@ describe('IntensityByYearChart', () => {
       '10% Hard',
       '30% Moderate',
       '60% Easy',
-      '10.0 h Heart-rate time',
+      '20.0 h Heart-rate time',
       '12 runs',
     ]) {
       expect(status).toHaveTextContent(text)
@@ -117,7 +128,7 @@ describe('IntensityByYearChart', () => {
           .map((cell) => cell.textContent)
         return [within(row).getByRole('rowheader').textContent].concat(cells)
       })
-    expect(rows[0]).toEqual(['2023', '60%', '30%', '10%', '10.0', '12'])
+    expect(rows[0]).toEqual(['2023', '60%', '30%', '10%', '20.0', '12'])
     expect(rows.at(-1)).toEqual(['2026', '—', '—', '—', '—', '0'])
   })
 

@@ -47,7 +47,15 @@ describe('intensity', () => {
       zoneDigest({ id: 'b', sport: 'run', startMs: noon(2025, 6, 1), heartRate: [150, 600] }),
     ])
     expect(rows.map((row) => row.year)).toEqual([2023, 2024, 2025])
-    expect(rows[1]!.sports.run).toEqual({ easy: 0, moderate: 0, hard: 0, seconds: 0, counted: 0 })
+    expect(rows[1]!.sports.run).toEqual({
+      easy: 0,
+      moderate: 0,
+      hard: 0,
+      seconds: 0,
+      counted: 0,
+      noZones: 0,
+      activities: 0,
+    })
   })
 
   it('re-cuts every year by the zones the settings give now, not those it was recorded in', () => {
@@ -60,6 +68,24 @@ describe('intensity', () => {
       settings: { massKg: 75, bikeMassKg: 9, measurements: maxima(180) },
     })
     expect(lower[0]!.sports.run.hard).toBeCloseTo(1)
+  })
+
+  it("cuts every year by today's zones, so a maximum entered later moves no earlier year", () => {
+    // 150 bpm is moderate under the 200 bpm maximum that applied in 2023, and hard under the 180 bpm entered in 2025.
+    const measurements: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2020-01-01' },
+      { kind: 'maxHeartRate', sport: 'run', value: 180, from: '2025-01-01' },
+    ]
+    const rows = historyOf(
+      [
+        zoneDigest({ id: 'old', sport: 'run', startMs: noon(2023, 6, 10), heartRate: [150, 600] }),
+        zoneDigest({ id: 'new', sport: 'run', startMs: noon(2025, 6, 10), heartRate: [150, 600] }),
+      ],
+      input({ settings: { massKg: 75, bikeMassKg: 9, measurements } }),
+    ).intensity
+    expect(rows.map((row) => row.year)).toEqual([2023, 2024, 2025])
+    expect(rows[0]!.sports.run.hard).toBeCloseTo(1)
+    expect(rows[2]!.sports.run.hard).toBeCloseTo(1)
   })
 
   it('leaves out a set-aside heart rate, and not one whose power is set aside', () => {
@@ -75,16 +101,25 @@ describe('intensity', () => {
 
   it('counts nothing for an activity with no heart rate, and is empty for no activities', () => {
     const rows = intensityOf([zoneDigest({ id: 'none', sport: 'run', startMs: noon(2025, 3, 1) })])
-    expect(rows[0]!.sports.run).toMatchObject({ seconds: 0, counted: 0 })
+    expect(rows[0]!.sports.run).toMatchObject({ seconds: 0, counted: 0, noZones: 0, activities: 1 })
     expect(intensityOf([])).toEqual(NO_HISTORY.intensity)
   })
 
-  it('is remembered for the same digests and zones, and made again when the set-aside list changes', () => {
+  it('counts a heart rate with no maximum to cut zones from as no zones, not as no heart rate', () => {
+    const rows = intensityOf(
+      [zoneDigest({ id: 'a', sport: 'ride', startMs: noon(2025, 3, 10), heartRate: [150, 600] })],
+      { settings: { massKg: 75, bikeMassKg: 9 } },
+    )
+    expect(rows[0]!.sports.ride).toMatchObject({ counted: 0, noZones: 1, activities: 1 })
+  })
+
+  it('is remembered for the same day, digests and zones, and made again for a new day or set-aside list', () => {
     const digests = [
       zoneDigest({ id: 'a', sport: 'run', startMs: noon(2025, 3, 10), heartRate: [150, 600] }),
     ]
     const first = historyOf(digests, input()).intensity
-    expect(historyOf([...digests], input({ nowMs: Date.UTC(2030, 0, 2) })).intensity).toBe(first)
+    expect(historyOf([...digests], input()).intensity).toBe(first)
+    expect(historyOf(digests, input({ nowMs: Date.UTC(2030, 0, 2) })).intensity).not.toBe(first)
     const later = historyOf(digests, input({ heartRateSetAside: new Set(['a']) })).intensity
     expect(later).not.toBe(first)
     expect(later[0]!.sports.run.counted).toBe(0)

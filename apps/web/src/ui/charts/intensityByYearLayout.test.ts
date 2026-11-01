@@ -3,7 +3,15 @@ import type { IntensityRow, IntensityShares } from '@rca/core/history'
 import type { ChartSize } from './chartTypes'
 import { intensityLayout } from './intensityByYearLayout'
 
-const NONE: IntensityShares = { easy: 0, moderate: 0, hard: 0, seconds: 0, counted: 0 }
+const NONE: IntensityShares = {
+  easy: 0,
+  moderate: 0,
+  hard: 0,
+  seconds: 0,
+  counted: 0,
+  noZones: 0,
+  activities: 0,
+}
 const SIZE: ChartSize = {
   width: 400,
   height: 300,
@@ -19,7 +27,15 @@ describe('intensityLayout', () => {
       {
         year: 2025,
         sports: {
-          run: { easy: 0.5, moderate: 0.25, hard: 0.25, seconds: 36_000, counted: 9 },
+          run: {
+            easy: 0.5,
+            moderate: 0.25,
+            hard: 0.25,
+            seconds: 36_000,
+            counted: 9,
+            noZones: 0,
+            activities: 9,
+          },
           ride: NONE,
         },
       },
