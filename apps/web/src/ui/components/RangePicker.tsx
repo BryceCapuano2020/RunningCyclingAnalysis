@@ -29,10 +29,10 @@ export interface RangePickerProps {
   /** The choice on screen, unless the athlete has picked one here since. */
   choice: PeriodChoice
   /**
-   * The default shows all time, because its 12 weeks lack a sport the library has. The control then selects
-   * All time, the period in force, and not the 12 weeks the choice names.
+   * The window the default stands for, once the default has been resolved. On the default the control selects the segment
+   * of that window, the period in force, and none before it is resolved. Ignored for any other choice.
    */
-  fellBack?: boolean
+  resolved?: PeriodChoice
   /** The periods offered. The Balance and sport pages offer all of them, the activity list fewer. */
   options?: RangeOption[]
   /** Whether the Custom segment is offered: the Balance and sport pages, not the activity list. */
@@ -73,7 +73,7 @@ export interface RangePickerProps {
  */
 export function RangePicker({
   choice,
-  fellBack = false,
+  resolved,
   options = RANGE_OPTIONS,
   custom = false,
   range = null,
@@ -99,8 +99,8 @@ export function RangePicker({
   }>({ count: 0, answered: 0, latest: null })
   const waiting = picks.count > picks.answered
   const picked = waiting && picks.latest !== null ? picks.latest : choice
-  // A default that fell back is all time on screen, so that is the segment that shows as selected.
-  const checked: PeriodChoice = fellBack && picked === 'default' ? 'all' : picked
+  // The default is the window it resolved to on screen, so that is the segment that shows as selected.
+  const checked: PeriodChoice = picked === 'default' ? (resolved ?? picked) : picked
   // The form is open while a custom range is on screen, or while the athlete has picked Custom and not
   // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
   const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))
@@ -155,6 +155,11 @@ export function RangePicker({
         legendHidden={compact}
         options={offered.map(({ value, label, short }) => ({ value, label, short }))}
         selected={customOpen ? CUSTOM_OPTION.value : optionValue(checked)}
+        onReselect={(value) => {
+          // The segment of a resolved default is checked without being a pick, so clicking it makes the pick.
+          const next = picked === 'default' ? choiceOfValue(value) : undefined
+          if (next !== undefined) pick(next)
+        }}
         onSelect={(value) => {
           if (value === CUSTOM_OPTION.value) {
             setCustomOpen(true)

@@ -20,8 +20,7 @@ import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
-import { withheldFloorLine } from '../thresholdFloor'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
 import { balanceChanges } from './balanceChangeItems'
@@ -156,7 +155,7 @@ export function BalancePage({
   // when it has one; with two but no balance, the headline already names the levels.
   const hasReading = reading !== null
   const levels = useMemo(() => {
-    const sports = SPORT_ORDER.filter((sport) => hasReading || inPeriod[sport] > 0)
+    const sports = BALANCE_PAIR.filter((sport) => hasReading || inPeriod[sport] > 0)
     if (!hasReading && sports.length !== 1) return null
     const model = balanceLevels({ grades, sports, inPeriod, missingAge, basis })
     return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
@@ -243,9 +242,6 @@ export function BalancePage({
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         leftOut={leftOut}
-        soleFloor={
-          soleSport === null ? null : withheldFloorLine(result, soleSport, settings.massKg, units)
-        }
         action={
           <ShareImageButton
             result={result}

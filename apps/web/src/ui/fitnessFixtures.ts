@@ -1,5 +1,6 @@
 import type { FitnessPoint, FitnessState, FitnessStatus, Shortfall } from '@rca/core/fitness'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import type { Sport } from '@rca/core/types'
 
 const DAY_MS = 86_400_000
 const STEP_MS = 28 * DAY_MS
@@ -187,10 +188,24 @@ export function rideStatus(status: FitnessStatus): FitnessStatus {
 
 export const RIDE_SLIPPING = rideStatus(SLIPPING)
 
-/** A status that waits on what `shortfall` says, with `steady` steady runs in all. */
-export function waitingStatus(shortfall: Shortfall, steady = 7): FitnessStatus {
+/** The fixtures' level in each sport's unit, and the heart rate it is read at. */
+const LEVEL_SCALE: Record<Sport, number> = { run: 1, ride: WATTS_PER_MS }
+const WAITING_HR: Record<Sport, number> = { run: 150, ride: 140 }
+
+/**
+ * A status that waits on what `shortfall` says, with `steady` steady activities in all, of a run unless `sport` says
+ * otherwise. From 3 steady activities it tells the level (the fixtures' 3.3 m/s, or 200 W for a ride), as a real one does.
+ */
+export function waitingStatus(
+  shortfall: Shortfall,
+  steady = 7,
+  sport: Sport = 'run',
+): FitnessStatus {
+  const scale = LEVEL_SCALE[sport]
   return {
     ...fitnessStatus('not-enough-evidence', () => 0),
+    sport,
+    referenceHr: WAITING_HR[sport],
     now: null,
     before: null,
     change: null,
@@ -199,6 +214,18 @@ export function waitingStatus(shortfall: Shortfall, steady = 7): FitnessStatus {
     evidence: null,
     series: [],
     shortfall,
+    ...(steady < 3
+      ? {}
+      : {
+          level: {
+            value: FITNESS_BEFORE * scale,
+            low: (FITNESS_BEFORE - 0.1) * scale,
+            high: (FITNESS_BEFORE + 0.1) * scale,
+            runs: steady,
+            fromMs: FITNESS_AS_OF_MS - 40 * DAY_MS,
+            toMs: FITNESS_AS_OF_MS - 2 * DAY_MS,
+          },
+        }),
     entered: null,
     steady,
   }

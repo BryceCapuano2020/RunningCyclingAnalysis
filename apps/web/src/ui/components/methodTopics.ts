@@ -38,8 +38,8 @@ const EFFORT_PHRASE = (() => {
 })()
 
 /**
- * Each fixed period the picker offers, with the window the trend really uses for it, in days. The
- * default and all time have no fixed length, so they are not listed.
+ * Each fixed period the picker offers, with the window the trend really uses for it, in days. All time has no
+ * fixed length, so it is not listed.
  */
 const WINDOW_EXAMPLES = listWords(
   RANGE_OPTIONS.flatMap((option) =>

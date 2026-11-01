@@ -213,23 +213,28 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })
 
-// The sample is a runner who took up riding this autumn, so it has too few steady rides from before the last 8 weeks
-// (a count shortfall reads "not enough steady rides yet, N of M"; see FitnessCard.test.tsx): home says so in one line and
-// does not draw a waiting card, and the Ride page holds the ride's own card, with the count it is waiting on and no run on it.
-test('Balance shows a ride that is still waiting as one line, and the Ride page holds its card', async ({
+// The sample is a runner who took up riding this autumn, so it has too few steady rides from before the last 8 weeks to call a
+// trend (see FitnessCard.test.tsx): home gives the ride's level in one line and does not draw a waiting card, and the Ride page
+// holds the ride's own card, with the level, what a trend needs and no run on it.
+test('Balance tells a ride that cannot call a trend as one line, and the Ride page holds its card', async ({
   page,
 }) => {
   await openSample(page)
   await expect(page.locator('.fitness-card')).toHaveCount(1)
   const line = page.getByTestId('ride-fitness-line')
-  await expect(line).toContainText(/Ride fitness: not enough steady rides yet, \d+ of 12/)
+  await expect(line).toHaveText(/^\d+ W at \d+ bpm \(\d+ to \d+\)\. From \d+ steady rides\.$/)
   await line.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
   await expect(ride).toHaveCount(1)
-  await expect(ride.locator('.fitness-card__state')).toHaveText('Not enough evidence yet')
-  expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(/\bpower\b/i)
+  await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
+  expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(
+    /^\d+ W at \d+ bpm \(\d+ to \d+\)\.$/,
+  )
+  await expect(ride.getByTestId('fitness-needs')).toHaveText(
+    /^\d+ more earlier rides? to see a trend\.$/,
+  )
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })
 

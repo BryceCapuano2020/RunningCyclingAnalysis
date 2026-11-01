@@ -9,6 +9,7 @@ describe('parseRoute', () => {
     ['#/', { page: 'balance' }],
     ['#/run', { page: 'run' }],
     ['#/ride', { page: 'ride' }],
+    ['#/history', { page: 'history' }],
     ['#/activities', { page: 'activities' }],
     ['#/method', { page: 'method' }],
     ['#/profile', { page: 'profile' }],
@@ -20,7 +21,7 @@ describe('parseRoute', () => {
     expect(parseRoute(hash)).toEqual(route)
   })
 
-  it.each(['#/nowhere', '#/run/extra', '#/activities/a/b', '#/profile/x'])(
+  it.each(['#/nowhere', '#/run/extra', '#/activities/a/b', '#/profile/x', '#/history/2024'])(
     'shows Balance for the unknown hash %s',
     (hash) => {
       expect(parseRoute(hash)).toEqual({ page: 'balance' })
@@ -38,6 +39,7 @@ describe('hrefFor', () => {
       { page: 'balance' },
       { page: 'run' },
       { page: 'ride' },
+      { page: 'history' },
       { page: 'activities' },
       { page: 'method' },
       { page: 'profile' },

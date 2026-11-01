@@ -3,7 +3,15 @@
  * type, the address parser, the tab titles and the rules below. Balance is first, and an unknown
  * address shows it.
  */
-export const SIMPLE_PAGES = ['balance', 'run', 'ride', 'activities', 'method', 'profile'] as const
+export const SIMPLE_PAGES = [
+  'balance',
+  'run',
+  'ride',
+  'history',
+  'activities',
+  'method',
+  'profile',
+] as const
 
 export type SimplePage = (typeof SIMPLE_PAGES)[number]
 
@@ -34,6 +42,7 @@ export const PAGE_RULES: Record<PageName, PageRule> = {
   balance: { needsResult: false, ownPage: null, ownOverResult: false },
   run: { needsResult: true, ownPage: null, ownOverResult: false },
   ride: { needsResult: true, ownPage: null, ownOverResult: false },
+  history: { needsResult: true, ownPage: null, ownOverResult: false },
   activities: { needsResult: true, ownPage: null, ownOverResult: false },
   activity: { needsResult: true, ownPage: null, ownOverResult: false },
   method: { needsResult: false, ownPage: 'method', ownOverResult: false },

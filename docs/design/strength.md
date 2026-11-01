@@ -24,8 +24,10 @@ A set record is one row per set:
 `LiftState` is what the lift module computes from the sets: e1RM per lift with its range, the
 demonstrated floor, relative strength and weekly load. It travels beside the `SessionState` fields.
 
-A balance reading is pairwise: `{ pair, unit, lead: { centre, low, high }, lean }`. Run and ride is the
-one pair that exists today (`balanceGap.ts` has the same lead and lean without `pair` or `unit`).
+A balance reading is pairwise: `{ pair, unit, lead: { centre, low, high }, lean }`, typed as `PairReading`
+in `packages/core/src/types.ts`. A positive lead favours the first discipline of `pair`. Run and ride is
+the one pair that exists today (`BALANCE_PAIR` in `ui/sports.ts`). The hero's `BalanceReading` extends
+`PairReading`; `balanceGap.ts` has the same lead and lean without `pair` or `unit`.
 
 ## 2. Decisions
 

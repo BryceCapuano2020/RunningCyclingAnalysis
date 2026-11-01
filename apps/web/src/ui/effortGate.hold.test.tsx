@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { EffortGate } from '@rca/core/effort'
 import { curvePoint } from './charts/fixtures'
+import { basisLine } from './components/basisLine'
 import { makeActivity, makeResult } from './components/fixtures'
 import { heldAction, heldReason, uncheckedNote } from './components/headlineNeed'
 import { headlinePick } from './components/pickHeadline'
@@ -11,7 +12,7 @@ import { heldPick, heldTexts, holdOf } from './resultHold'
 
 afterEach(cleanup)
 
-describe('the hold on the Balance headline', () => {
+describe('a best 20 minutes the effort gate did not show hard, on the Balance headline', () => {
   const curve = [curvePoint(1200, 5, 'a')]
   const three = (sport: 'run' | 'ride') =>
     Array.from({ length: 3 }, (_, n) => makeActivity({ id: `${sport}-${n}`, sport }))
@@ -23,31 +24,45 @@ describe('the hold on the Balance headline', () => {
       effortGate: { run, ride },
     })
 
-  it('holds nothing when both best 20 minutes were hard, and the pick is the pick it always was', () => {
+  it('holds nothing when both bests were hard, and the pick is the pick it always was', () => {
     const result = base(HARD, HARD)
     expect(holdOf(result)).toBeNull()
     expect(heldPick(result).pick).toEqual(headlinePick(result))
     expect(heldPick(result).pick).not.toBeNull()
+    expect(basisLine(result)).toBeNull()
   })
 
-  it('holds a sport that was not a hard effort, naming it, while the pick itself stays pure', () => {
-    const result = base(gate(), HARD)
-    expect(headlinePick(result)).not.toBeNull()
-    const hold = holdOf(result)!
-    expect(hold).toMatchObject({ reason: 'effort', sports: ['run'] })
-    expect(hold.text).toBe(
-      'Your best 20 min run was not a hard effort: it reached 80% of your running reference heart rate, under the 90% that marks a hard effort.',
-    )
-    expect(hold.action).toBe(
-      'Add a 20 min run reaching 90% of your reference heart rate to compare them.',
-    )
-    expect(heldPick(result)).toEqual({ hold, pick: null })
+  it('holds nothing for a best that was not hard: the pick stands, and the line says what it rests on', () => {
+    for (const result of [base(gate(), HARD), base(gate(), gate()), base(HARD, gate())]) {
+      expect(holdOf(result)).toBeNull()
+      expect(heldPick(result)).toEqual({ hold: null, pick: headlinePick(result) })
+      expect(heldPick(result).pick).not.toBeNull()
+    }
   })
 
-  it('does not hold a sport whose effort was not checked: the comparison is shown with a note beside it', () => {
-    expect(holdOf(base(NO_HEART_RATE, HARD))).toBeNull()
-    expect(holdOf(base(HARD, THIN))).toBeNull()
-    expect(heldPick(base(NO_HEART_RATE, HARD)).pick).not.toBeNull()
+  it('says which sport’s best was not all-out, or that neither was', () => {
+    expect(basisLine(base(gate(), HARD))).toBe(
+      "Your run best wasn't all-out, so running could be higher.",
+    )
+    expect(basisLine(base(HARD, gate()))).toBe(
+      "Your ride best wasn't all-out, so cycling could be higher.",
+    )
+    expect(basisLine(base(gate(), gate()))).toBe('Neither best was all-out.')
+  })
+
+  it('says it of a reference that cannot confirm a hard effort as of one that can', () => {
+    const habitual = gate({ reference: 'habitual', neededS: null })
+    expect(basisLine(base(habitual, HARD))).toBe(
+      "Your run best wasn't all-out, so running could be higher.",
+    )
+  })
+
+  it('says nothing of a best that was only not checked: the comparison is shown with a note beside it', () => {
+    for (const result of [base(NO_HEART_RATE, HARD), base(HARD, THIN), base(UNKNOWN, HARD)]) {
+      expect(holdOf(result)).toBeNull()
+      expect(heldPick(result).pick).not.toBeNull()
+      expect(basisLine(result)).toBeNull()
+    }
     expect(uncheckedNote(base(NO_HEART_RATE, HARD))).toBe(
       'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
     )
@@ -57,22 +72,21 @@ describe('the hold on the Balance headline', () => {
     expect(uncheckedNote(base(UNKNOWN, HARD))).toBeNull()
   })
 
-  it('holds a sport not shown hard and notes the other that was not checked', () => {
-    const held = holdOf(base(gate(), NO_HEART_RATE))!
-    expect(held.sports).toEqual(['run'])
-    expect(uncheckedNote(base(gate(), NO_HEART_RATE))).toContain(
-      'no heart rate on your best 20 min ride',
-    )
+  it('says both when one best was not hard and the other was not checked', () => {
+    const result = base(gate(), NO_HEART_RATE)
+    expect(basisLine(result)).toBe("Your run best wasn't all-out, so running could be higher.")
+    expect(uncheckedNote(result)).toContain('no heart rate on your best 20 min ride')
+  })
+
+  it('leaves a sport with no 20 minute effort to the need, which an effort of that length mends', () => {
+    // No ride best of 20 minutes: the pick waits for one, whether the run's best was hard or not.
+    const result = { ...base(gate(), UNKNOWN), rideCurve: [], rideCp: null }
+    expect(headlinePick(result)).toBeNull()
+    expect(heldAction(result, undefined)).toBe('Add one ride of 20 min or more to compare them.')
   })
 
   it('tells a reader of the energy view or Balance what the hold says, with the precedence of holdOf', () => {
     const result = base(gate(), HARD)
-    const effort = heldTexts(result, undefined)
-    expect(effort.hold?.reason).toBe('effort')
-    expect(effort.reason).toContain('Your best 20 min run was not a hard effort')
-    expect(effort.action).toBe(
-      'Add a 20 min run reaching 90% of your reference heart rate to compare them.',
-    )
     const ride = heldTexts(result, undefined, {
       implausibleRide: { text: 'The ride is implausible.', action: 'Check it.' },
     })
@@ -90,30 +104,13 @@ describe('the hold on the Balance headline', () => {
     expect(few.action).toBe('Add 2 more runs and 3 more rides to compare them.')
   })
 
-  it('does not ask for a harder effort of a reference that cannot be trusted', () => {
-    const hold = holdOf(base(gate({ reference: 'habitual', neededS: null }), HARD))!
-    expect(hold.text).toContain('cannot be called hard')
-    expect(hold.action).toBe(
-      'Set your max heart rate in Profile, or reach hard heart rates on several days.',
-    )
-    expect(hold.action).not.toContain('Add a hard')
+  it('never asks for a hard effort, of a sport or of a reference', () => {
+    const result = base(gate({ reference: 'habitual', neededS: null }), gate())
+    expect(heldReason(result, undefined)).not.toMatch(/hard|reference/)
+    expect(heldAction(result, undefined)).not.toMatch(/hard|reference/)
   })
 
-  it('says what lifts it for each sport, in one sentence', () => {
-    const both = base(gate(), gate())
-    expect(heldReason(both, undefined)).toContain('Your best 20 min run was not a hard effort')
-    expect(heldReason(both, undefined)).toContain('Your best 20 min ride was not a hard effort')
-    expect(heldAction(both, undefined)).toBe(
-      'Add a 20 min run and a 20 min ride, each reaching 90% of your reference heart rate to compare them.',
-    )
-    // A sport with no 20 minute effort at all is asked for one, beside the sport that needs a hard one.
-    const mixed = { ...base(gate(), HARD), rideCurve: [], rideCp: null }
-    expect(heldAction(mixed, undefined)).toBe(
-      'Add a 20 min run reaching 90% of your reference heart rate and one ride of 20 min or more to compare them.',
-    )
-  })
-
-  it('has a seam for a ride that works out to more than a runner can do, above the effort', () => {
+  it('has a seam for a ride that works out to more than a runner can do', () => {
     const result = base(gate(), HARD)
     const hold = holdOf(result, {
       implausibleRide: { text: 'The ride is implausible.', action: 'Check it.' },

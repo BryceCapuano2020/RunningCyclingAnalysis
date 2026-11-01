@@ -31,8 +31,8 @@ describe('the snapshot', () => {
 
   const planted = plantedLibrary({ seed: 3, weeks: 120, perWeek: 3, noise: 0.03, effects: [] })
   const nowMs = planted.lastMs + DAY_MS
-  const look = lookBackOf(planted.digests, SETTINGS, new Set(), nowMs)
-  const fitness = fitnessStatuses(planted.digests, new Set(), { nowMs })
+  const look = lookBackOf(planted.digests, SETTINGS, new Set())
+  const fitness = fitnessStatuses(planted.digests, new Set())
   const taken = snapshotOf(
     { digests: planted.digests, fitness, lookBack: look, revision: MODEL_REVISION },
     nowMs + 12_345,

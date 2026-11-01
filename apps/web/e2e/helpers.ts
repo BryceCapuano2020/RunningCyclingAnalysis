@@ -24,12 +24,13 @@ export const BALANCE_TITLE =
 /** The axe tags checked: WCAG 2.0, 2.1 and 2.2 A and AA, and axe's best practices. */
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
 
-export type Destination = 'Balance' | 'Run' | 'Ride' | 'Activities' | 'Profile'
+export type Destination = 'Balance' | 'Run' | 'Ride' | 'History' | 'Activities' | 'Profile'
 
 const HEADINGS: Record<Destination, string | RegExp> = {
   Balance: BALANCE_TITLE,
   Run: 'Run',
   Ride: 'Ride',
+  History: 'History',
   Activities: 'Activities',
   Profile: 'Profile',
 }
@@ -106,6 +107,16 @@ export async function openSample(page: Page): Promise<void> {
   // Test only: the pointer is left where the button was, and a mouse resting on a term defined in place opens its
   // note, which would cover what the test clicks next. A phone has no resting pointer (Definition ignores touch).
   await page.mouse.move(0, 0)
+}
+
+/**
+ * A period segment by its full name, "6 weeks", as its label: a click lands on the label whether the full name or the short one
+ * ("6 wk") is showing, and a phone shows the short one (up to 479 px) while the full name stays in the page for assistive technology.
+ */
+export function periodSegment(group: Locator, name: string): Locator {
+  return group
+    .locator('label')
+    .filter({ has: group.page().getByRole('radio', { name, exact: true }) })
 }
 
 /** The setup dialog's name. It has one heading for every visitor. */

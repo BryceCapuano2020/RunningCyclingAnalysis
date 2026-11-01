@@ -3,7 +3,7 @@ import { FITNESS, fitnessLines } from '@rca/core/fitness'
 import type { FitnessBySport, FitnessState, FitnessStatus, Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { FITNESS_WORDS } from './fitnessWords'
+import { latestActivityText } from './periodCopy'
 import { SPORT_FORMAT, SPORT_ORDER } from './sports'
 
 /** The shapes that say a state without colour: each is drawn by FitnessGlyph. */
@@ -26,7 +26,7 @@ export const FITNESS_STATE: Record<FitnessState, { label: string; glyph: Fitness
   back: { label: 'Back', glyph: 'back' },
   improving: { label: 'Improving', glyph: 'improving' },
   improved: { label: 'Improved', glyph: 'improved' },
-  'not-enough-evidence': { label: 'Not enough evidence yet', glyph: 'waiting' },
+  'not-enough-evidence': { label: 'No trend yet', glyph: 'waiting' },
 }
 
 /** The two ends of the track, in the words of each sport's output: "slower" and "faster", "less" and "more". */
@@ -56,14 +56,6 @@ const TRACK_MIN_SPAN = 0.12
 const TRACK_STEP = 0.04
 const TRACK_ROOM = 1.15
 
-/** A progress shape for a status that waits on counts: how many steady runs it has of how many it needs. */
-export interface FitnessProgress {
-  have: number
-  need: number
-  /** What is counted, in words: "steady runs over 8 different weeks". */
-  of: string
-}
-
 export interface FitnessView {
   sport: Sport
   state: FitnessState
@@ -71,10 +63,13 @@ export interface FitnessView {
   glyph: FitnessGlyphKey
   headline: string
   support: string
+  /** What a trend needs, for a status that cannot call one. Empty otherwise. */
+  needs: string
+  /** How old the status is, once its newest activity is long ago by the clock: "Latest activity 9 months ago." Null while it is recent. */
+  age: string | null
   /** A change that began to be shown within the last weeks: "the week of 12 Oct". Null otherwise. */
   fresh: string | null
   track: FitnessTrackModel | null
-  progress: FitnessProgress | null
   status: FitnessStatus
 }
 
@@ -161,49 +156,18 @@ export function trackOf(status: FitnessStatus, units: UnitSystem): FitnessTrackM
   })
 }
 
-/** What a status that is waiting on counts has of them, for the progress shape, or null when it counts nothing. */
-export function progressOf(status: FitnessStatus): FitnessProgress | null {
-  const { shortfall } = status
-  if (status.state !== 'not-enough-evidence' || shortfall === null) return null
-  const words = FITNESS_WORDS[status.sport]
-  if (shortfall.kind === 'history') {
-    return {
-      have: shortfall.have,
-      need: shortfall.need,
-      of: `${words.steadyPlural} before the last ${FITNESS.monitor.refEndWeeks} weeks`,
-    }
-  }
-  if (shortfall.kind === 'recent') {
-    return {
-      have: shortfall.have,
-      need: shortfall.need,
-      of: `${words.steadyPlural} in the last ${shortfall.weeks} weeks`,
-    }
-  }
-  return null
-}
-
-/** The sentence a waiting status opens with, which its label says instead. */
-const WAITING_OPENER = /^Not enough (?:recent )?evidence yet\.\s*/
-
-/** What a waiting status is called: "recent" when it is the last weeks that are short, not the history. */
-function waitingLabel(status: FitnessStatus): string {
-  const kind = status.shortfall?.kind
-  return kind === 'recent' || kind === 'break'
-    ? 'Not enough recent evidence yet'
-    : FITNESS_STATE['not-enough-evidence'].label
-}
-
-export function viewOf(status: FitnessStatus, units: UnitSystem): FitnessView {
-  const { glyph } = FITNESS_STATE[status.state]
-  const waiting = status.state === 'not-enough-evidence'
-  const label = waiting ? waitingLabel(status) : FITNESS_STATE[status.state].label
+/**
+ * What a status is drawn as. The status itself is as of the newest activity; `nowMs` is the clock, read here for display
+ * only: a state is new for a few weeks of today, and a library last written to long ago says how old it is.
+ */
+export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number): FitnessView {
+  const { glyph, label } = FITNESS_STATE[status.state]
   const lines = fitnessLines(status, units)
-  if (waiting) lines.headline = lines.headline.replace(WAITING_OPENER, '')
+  const age = latestActivityText(status.asOfMs, nowMs)
   const fresh =
     status.entered !== null &&
     FRESH_STATES.has(status.state) &&
-    status.asOfMs - status.entered.atMs < FITNESS.display.freshWeeks * WEEK_MS
+    nowMs - status.entered.atMs < FITNESS.display.freshWeeks * WEEK_MS
       ? weekOf(status.entered.atMs)
       : null
   return {
@@ -213,16 +177,29 @@ export function viewOf(status: FitnessStatus, units: UnitSystem): FitnessView {
     glyph,
     headline: tidy(lines.headline),
     support: tidy(lines.support),
+    needs: tidy(lines.needs),
+    age: age === null ? null : `${age}.`,
     fresh,
     track: trackOf(status, units),
-    progress: progressOf(status),
     status,
   }
 }
 
+/** The headline, its support and its age as one line, for a sport that is a line on the page rather than a card. */
+export const lineOf = (view: FitnessView): string =>
+  [view.headline, view.support, view.age ?? ''].filter((part) => part !== '').join(' ')
+
+/** Whether any sport has a status worth drawing. */
+export const hasFitnessView = (fitness: FitnessBySport): boolean =>
+  SPORT_ORDER.some((sport) => worthShowing(fitness[sport]))
+
 /** The statuses worth showing, in the order the sports sit everywhere, as what the page draws. */
-export function fitnessViews(fitness: FitnessBySport, units: UnitSystem): FitnessView[] {
+export function fitnessViews(
+  fitness: FitnessBySport,
+  units: UnitSystem,
+  nowMs: number,
+): FitnessView[] {
   return SPORT_ORDER.flatMap((sport) =>
-    worthShowing(fitness[sport]) ? [viewOf(fitness[sport], units)] : [],
+    worthShowing(fitness[sport]) ? [viewOf(fitness[sport], units, nowMs)] : [],
   )
 }

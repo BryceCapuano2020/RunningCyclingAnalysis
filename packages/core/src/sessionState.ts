@@ -1,5 +1,6 @@
 import type { HeldOutActivity } from './sessionLibrary'
 import type { ActivitySummary, AnalysisResult } from './digest'
+import type { AnswerWindow } from './answer'
 import type { Period } from './period'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
@@ -14,6 +15,7 @@ import type { PeriodZoneTimes } from './zones/timeCache'
 import type { ZoneEstimates } from './zones'
 import type { FitnessBySport } from './fitness/types'
 import type { LookBack } from './lookback/compute'
+import type { History } from './history/compute'
 import type { ChangeEvidence } from './change/types'
 
 /** An activity file this import could not use, with why. */
@@ -69,6 +71,12 @@ export interface SessionState {
   countedWalkingRuns: string[]
   /** The period analysed: its choice and its dates. The library lists every activity regardless. */
   period: Period
+  /**
+   * The window the period stands on, and why. The default choice is searched for the shortest of 12 weeks, 26 weeks and
+   * 12 months where every sport the athlete does has a best 20 min not shown easy, else all time (`resolveWindow`); its
+   * `passed` windows say what the shorter ones lacked. Any other choice is its own window, `asked`.
+   */
+  answerWindow: AnswerWindow
   /** Every visible activity, newest first, whatever the period: the activity list and its pages. */
   library: ActivitySummary[]
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
@@ -107,6 +115,11 @@ export interface SessionState {
    * library-wide whatever period is picked, and small however long the library (no list past its cap).
    */
   lookBack: LookBack
+  /**
+   * The charts of the History page, one entry for each part in history/parts.ts: built from every analysed activity,
+   * whatever period is picked, and remembered for the same digests.
+   */
+  history: History
   /**
    * The references that estimated zones are cut from: the thresholds and reference heart rates of the whole
    * library, whatever period is picked, so an activity has the same zones everywhere. Null without an analysis.

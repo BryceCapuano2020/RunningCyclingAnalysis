@@ -8,6 +8,7 @@ import type { WeekRecord } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
 import { withoutSeason } from './season'
+import { withLevel } from './level'
 import { describe } from './status'
 import { noFitness } from './types'
 import type { FitnessBySport, FitnessStatus } from './types'
@@ -18,14 +19,10 @@ import type { RunPoint } from './windows'
 export interface FitnessOptions {
   /**
    * The date the status is as of, in the library's own time (a findings mark, for one). When not given it is the
-   * newest activity's, or `nowMs` if that is later.
+   * newest activity's, never today's: an export that ended months ago is read as it stood, not as a long break. A
+   * sport is on a break when its own newest steady activity is 4 weeks or more before that date.
    */
   asOfMs?: number
-  /**
-   * The wall clock, which the session passes already cut to the day so the memory still hits. The newest
-   * activity is not "now": a runner who stopped is told so after four weeks.
-   */
-  nowMs?: number
   /** Which sports are compared, over the default (RIDE_FITNESS_ENABLED for rides): for tests. */
   enabled?: Partial<Record<Sport, boolean>>
 }
@@ -106,7 +103,7 @@ function readSport(
     ...(heat === null ? {} : { heat: heat.b }),
   }
   return {
-    status: describe(sport, { ...series, method }, seen, records, asOfMs),
+    status: withLevel(describe(sport, { ...series, method }, seen, records, asOfMs), seen),
     // The runs as the unit read them, with the warm days added back when the term is on: the look-back reads what the card does.
     history: { runs, referenceHr: series.referenceHr, records },
   }
@@ -125,7 +122,7 @@ interface Computed {
 function compute(digests: ActivityDigest[], input: Input): Computed {
   const current = orderedFor('fitness', digests)
   const newest = current.at(-1)?.startMs ?? 0
-  const asOfMs = input.options.asOfMs ?? Math.max(newest, input.options.nowMs ?? 0)
+  const asOfMs = input.options.asOfMs ?? newest
   const upTo = current.filter((d) => d.startMs <= asOfMs)
   const read = (sport: Sport): { status: FitnessStatus; history: FitnessHistory } => {
     if (upTo.length === 0) return { status: noFitness(sport), history: NO_HISTORY }
@@ -149,7 +146,6 @@ const remembered = memoByDigests<Input, Computed>(
   (a, b) =>
     sameSet(a.setAside, b.setAside) &&
     a.options.asOfMs === b.options.asOfMs &&
-    a.options.nowMs === b.options.nowMs &&
     a.options.enabled?.run === b.options.enabled?.run &&
     a.options.enabled?.ride === b.options.enabled?.ride,
 )

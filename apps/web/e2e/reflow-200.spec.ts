@@ -33,20 +33,27 @@ async function expectFits(page: Page): Promise<void> {
   expect(await clippedContent(page)).toEqual([])
 }
 
-/** The tab bar's links, left to right: none overlaps the next, whether the bar fits or scrolls. */
+/** The tab bar's links: five, and none overlaps another, whether the bar fits, wraps to a second row or scrolls. */
 async function expectTabsApart(page: Page): Promise<void> {
   const boxes = await page
     .getByRole('navigation', { name: 'Sections' })
     .getByRole('link')
     .evaluateAll((links) =>
       links.map((link) => {
-        const { left, right } = link.getBoundingClientRect()
-        return { left, right }
+        const { left, right, top, bottom } = link.getBoundingClientRect()
+        return { left, right, top, bottom }
       }),
     )
-  expect(boxes).toHaveLength(4)
-  for (let i = 1; i < boxes.length; i += 1) {
-    expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right - 1)
+  expect(boxes).toHaveLength(5)
+  for (const [i, a] of boxes.entries()) {
+    for (const b of boxes.slice(i + 1)) {
+      const apart =
+        a.right <= b.left + 1 ||
+        b.right <= a.left + 1 ||
+        a.bottom <= b.top + 1 ||
+        b.bottom <= a.top + 1
+      expect(apart).toBe(true)
+    }
   }
 }
 

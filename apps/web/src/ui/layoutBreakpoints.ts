@@ -37,7 +37,7 @@ export const SHORT_PHONE_MAX_HEIGHT_PX = 700
  */
 export const LANDSCAPE_TWO_COLUMN_MIN_WIDTH_PX = 560
 
-/** At or below this width the tab labels shrink, so four equal tabs keep "ACTIVITIES" in one line. */
+/** At or below this width the tab labels shrink, so five equal tabs keep "ACTIVITIES" in one line from 350 px. */
 export const SMALL_PHONE_MAX_WIDTH_PX = 360
 
 /** From this width About you and Body and bike sit side by side on Profile, and stack below it. */
@@ -47,10 +47,10 @@ export const PROFILE_PAIR_MIN_WIDTH_PX = 900
 export const PERIOD_FULL_WIDTH_MAX_WIDTH_PX = 479
 
 /**
- * At or below this width the period control shows short labels ("6 wk", "All"), so all of its segments fit one row
- * on a 320 px phone. The full names stay as the segments' accessible names.
+ * At or below this width the period control shows short labels ("6 wk", "All"), so all six of its segments fit one row
+ * on a phone: the full names need about 440 px. The full names stay as the segments' accessible names.
  */
-export const PERIOD_SHORT_LABEL_MAX_WIDTH_PX = 360
+export const PERIOD_SHORT_LABEL_MAX_WIDTH_PX = 479
 
 /**
  * At or below this width the equivalence list sets its values a step smaller, with narrower columns,

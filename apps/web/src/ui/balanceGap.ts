@@ -1,8 +1,9 @@
 import { leanOfLead, type Lead, type Lean } from '../domain/lean'
 import type { HeadlineGrades, SportGrade } from './grades'
 import { wholeGrade } from './gradeFormat'
+import { BALANCE_PAIR } from './sports'
 
-/** Running's age-grade lead over cycling, in whole points, with its range and the lean it gives. */
+/** The first sport's age-grade lead over the second's, in whole points, with its range and the lean it gives. */
 export interface BalanceGap extends Lead {
   lean: Lean
 }
@@ -19,17 +20,17 @@ function bounds(sport: SportGrade): Lead {
 }
 
 /**
- * Running's age-grade lead over cycling in whole points. A run is one activity's estimate and has
- * no range; a ride is estimated through its running equivalent, and its range is the gap's range.
- * Both sides are whole percents, so the gap is the difference of the grades the cards show.
+ * The first sport's age-grade lead over the second's in whole points. A run is one activity's estimate
+ * and has no range; a ride is estimated through its running equivalent, and its range is the gap's
+ * range. Both sides are whole percents, so the gap is the difference of the grades the cards show.
  */
-export function balanceGap(run: SportGrade, ride: SportGrade): BalanceGap {
-  const runBounds = bounds(run)
-  const rideBounds = bounds(ride)
+export function balanceGap(first: SportGrade, second: SportGrade): BalanceGap {
+  const firstBounds = bounds(first)
+  const secondBounds = bounds(second)
   const lead: Lead = {
-    centre: runBounds.centre - rideBounds.centre,
-    low: runBounds.low - rideBounds.high,
-    high: runBounds.high - rideBounds.low,
+    centre: firstBounds.centre - secondBounds.centre,
+    low: firstBounds.low - secondBounds.high,
+    high: firstBounds.high - secondBounds.low,
   }
   return { ...lead, lean: leanOfLead(lead) }
 }
@@ -39,6 +40,9 @@ export function balanceGap(run: SportGrade, ride: SportGrade): BalanceGap {
  * balance falls back to the energy ratio.
  */
 export function gapOfHeadline(headline: HeadlineGrades): BalanceGap | null {
-  if (headline.run.kind !== 'graded' || headline.ride.kind !== 'graded') return null
-  return balanceGap(headline.run.grade, headline.ride.grade)
+  const [first, second] = BALANCE_PAIR
+  const one = headline[first]
+  const other = headline[second]
+  if (one.kind !== 'graded' || other.kind !== 'graded') return null
+  return balanceGap(one.grade, other.grade)
 }

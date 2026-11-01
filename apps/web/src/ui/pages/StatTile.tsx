@@ -13,11 +13,14 @@ const BASIS_TEXT: Record<TileBasis, string> = {
   floor: 'At least',
 }
 
-/** The chip that says what kind of evidence a figure is, a ring for an estimate and a dot for what was recorded. */
-export function BasisChip({ basis }: { basis: TileBasis }) {
+/**
+ * The chip that says what kind of evidence a figure is, a ring for an estimate and a dot for what was recorded. A
+ * `label` names the figure itself, such as "Best 12 min", in place of the kind's word.
+ */
+export function BasisChip({ basis, label }: { basis: TileBasis; label?: string }) {
   return (
     <span className={`tag tag--ink tag--small stat-tile__basis stat-tile__basis--${basis}`}>
-      {BASIS_TEXT[basis]}
+      {label ?? BASIS_TEXT[basis]}
     </span>
   )
 }
@@ -32,6 +35,8 @@ export interface StatTileProps {
   gloss?: string
   /** What kind of evidence the figure is; left out where the tile has no figure to give evidence for. */
   basis?: TileBasis
+  /** The chip's words when the figure is named by what it is, such as "Best 12 min", rather than by its kind. */
+  basisLabel?: string
   /** The tile's figure, set large, with its unit and a second reading beside it. */
   figure?: { number: string; unit: string; side?: string }
   /** The range shape under the figure, when the figure has a range to draw. */
@@ -63,6 +68,7 @@ export function StatTile({
   definition,
   gloss,
   basis,
+  basisLabel,
   figure,
   track,
   children,
@@ -74,7 +80,7 @@ export function StatTile({
         <h3 className="tag stat-tile__name">
           <HeadingText heading={heading} definition={definition} />
         </h3>
-        {basis === undefined ? null : <BasisChip basis={basis} />}
+        {basis === undefined ? null : <BasisChip basis={basis} label={basisLabel} />}
       </div>
       {gloss === undefined ? null : <p className="stat-tile__gloss">{gloss}</p>}
       {figure === undefined ? null : (

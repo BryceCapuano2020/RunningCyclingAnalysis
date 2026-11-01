@@ -17,6 +17,11 @@ export interface SegmentedControlProps<T extends string> {
   /** Null when nothing has been chosen yet, so no segment is checked. */
   selected: T | null
   onSelect: (value: T) => void
+  /**
+   * Called when the segment that is already checked is clicked again, which a radio reports as no change. For a control whose
+   * checked segment can be one the person did not pick, such as the window a default settled on, so that click can pick it.
+   */
+  onReselect?: (value: T) => void
 }
 
 /**
@@ -29,6 +34,7 @@ export function SegmentedControl<T extends string>({
   options,
   selected,
   onSelect,
+  onReselect,
 }: SegmentedControlProps<T>) {
   const groupName = useId()
   return (
@@ -53,6 +59,9 @@ export function SegmentedControl<T extends string>({
                 value={option.value}
                 checked={isSelected}
                 onChange={() => onSelect(option.value)}
+                onClick={() => {
+                  if (isSelected) onReselect?.(option.value)
+                }}
               />
               {option.short === undefined ? (
                 <span>{option.label}</span>
