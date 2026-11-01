@@ -8,6 +8,9 @@ const LAST_DAY = 366
 const WEEK_DAYS = 7
 const WEEKS = 52
 
+/** Distances are kept in whole hectometres, a metre count rounded to the nearest 100 m, to keep the payload small. */
+export const HECTOMETRE_METRES = 100
+
 /** Metres each sport covered on each day of a year, indexed by day of the year (1 to 366). */
 type DailyMetres = Record<Sport, number[]>
 
@@ -19,16 +22,27 @@ interface Today {
   date: number
 }
 
-/** One calendar year: the distance each sport covered by each sample day, and by the same calendar date as today. */
+/** A sample day of today's year, with the calendar date it falls on. */
+interface Sample {
+  day: number
+  month: number
+  date: number
+}
+
+/** One calendar year's distance, in hectometres, for the sample days of today's year and for today's calendar date. */
 export interface YearDistance {
   year: number
-  /** Cumulative metres at each of `YearToDate.days` the year has reached: every day for a past year, up to today for this one. */
-  metres: Record<Sport, number[]>
-  /** Cumulative metres through the same calendar date as today, so a leap year is compared by its date, not its day number. */
+  /**
+   * Cumulative hectometres through the calendar date of each sample the year has reached: every sample for a past year,
+   * up to today for this one. A sample is read at the same calendar date in every year, so a leap year's 1 March is
+   * read through 1 March, not through the day that falls on 1 March in a common year.
+   */
+  hectometres: Record<Sport, number[]>
+  /** Cumulative hectometres through the same calendar date as today: the entry of `hectometres` at today's sample. */
   toDate: Record<Sport, number>
 }
 
-/** Each calendar year's distance by day of the year, for the year-to-date chart. Its lines are drawn through `days`. */
+/** Each calendar year's distance by sample day, for the year-to-date chart. Its lines are drawn through `days`. */
 export interface YearToDate {
   /** Today's local year and its day of that year (1 to 366). */
   today: { year: number; day: number }
@@ -58,13 +72,23 @@ function sampleDays(today: number): number[] {
   return [...new Set([...weeks, LAST_DAY - 1, LAST_DAY, today])].sort((a, b) => a - b)
 }
 
-/** Cumulative metres through each day in `days`, which are ascending, rounded to whole metres. */
-function throughEach(daily: readonly number[], days: readonly number[]): number[] {
+/** Each sample day of today's year with its calendar date. A day past this year's end reads as its last day. */
+function samplesOf(year: number, days: number[]): Sample[] {
+  const start = dayOfCivil(year, 0, 1)
+  const length = dayOfCivil(year + 1, 0, 1) - start
+  return days.map((day) => {
+    const { month, date } = civilOfDay(start + Math.min(day, length) - 1)
+    return { day, month, date }
+  })
+}
+
+/** Cumulative hectometres through each day in `days`, which are ascending, each rounded to the nearest 100 m. */
+function hectometresThrough(daily: readonly number[], days: readonly number[]): number[] {
   let sum = 0
   let day = 0
   return days.map((through) => {
     for (; day < through; day++) sum += daily[day + 1] ?? 0
-    return Math.round(sum)
+    return Math.round(sum / HECTOMETRE_METRES)
   })
 }
 
@@ -86,13 +110,20 @@ function dailyByYear(digests: ActivityDigest[], thisYear: number): Map<number, D
   return byYear
 }
 
-function yearRowOf(year: number, daily: DailyMetres, days: number[], today: Today): YearDistance {
-  const reached = year === today.year ? days.filter((day) => day <= today.day) : days
+function yearRowOf(
+  year: number,
+  daily: DailyMetres,
+  samples: Sample[],
+  today: Today,
+): YearDistance {
+  const reached =
+    year === today.year ? samples.filter((sample) => sample.day <= today.day) : samples
+  const through = reached.map((sample) => dayOfYearOn(year, sample.month, sample.date))
   const sameDate = dayOfYearOn(year, today.month, today.date)
   return {
     year,
-    metres: perSport((sport) => throughEach(daily[sport], reached)),
-    toDate: perSport((sport) => throughEach(daily[sport], [sameDate])[0] ?? 0),
+    hectometres: perSport((sport) => hectometresThrough(daily[sport], through)),
+    toDate: perSport((sport) => hectometresThrough(daily[sport], [sameDate])[0] ?? 0),
   }
 }
 
@@ -102,6 +133,7 @@ function build(digests: ActivityDigest[], input: HistoryInput): YearToDate {
   const { month, date } = civilOfDay(todayDay)
   const today: Today = { year, day, month, date }
   const days = sampleDays(day)
+  const samples = samplesOf(year, days)
   const byYear = dailyByYear(digests, year)
   const first = byYear.size === 0 ? null : Math.min(year, ...byYear.keys())
   const years =
@@ -109,7 +141,7 @@ function build(digests: ActivityDigest[], input: HistoryInput): YearToDate {
       ? []
       : Array.from({ length: year - first + 1 }, (_, i) => {
           const row = first + i
-          return yearRowOf(row, byYear.get(row) ?? emptyDaily(), days, today)
+          return yearRowOf(row, byYear.get(row) ?? emptyDaily(), samples, today)
         })
   return { today: { year, day }, days, years }
 }

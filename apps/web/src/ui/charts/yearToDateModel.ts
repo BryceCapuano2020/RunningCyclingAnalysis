@@ -1,3 +1,4 @@
+import { HECTOMETRE_METRES } from '@rca/core/history'
 import type { YearDistance, YearToDate } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import { shortDate } from './trendTicks'
@@ -10,9 +11,14 @@ export function currentRow(data: YearToDate): YearDistance | undefined {
   return data.years.find((row) => row.year === data.today.year)
 }
 
-/** The distance a year has reached at its last sample: its whole year for a past year, its total so far for this one. */
+/** A distance in hectometres, as the part keeps it, in metres. */
+export const metresOf = (hectometres: number): number => hectometres * HECTOMETRE_METRES
+
+/**
+ * The hectometres a year has reached at its last sample: its whole year for a past year, its total so far for this one.
+ */
 export function lastOf(row: YearDistance, sport: Sport): number {
-  return row.metres[sport].at(-1) ?? 0
+  return row.hectometres[sport].at(-1) ?? 0
 }
 
 /** Whether any year has distance in a sport, so the chart has a line to draw for it. */

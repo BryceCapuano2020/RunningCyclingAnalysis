@@ -8,7 +8,14 @@ import type { AxisTick, ChartSize } from './chartTypes'
 import { linePath } from './paths'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import { fitTicks } from './ticks'
-import { YEAR_DAYS, bestPastYear, currentRow, lastOf, todayIndex } from './yearToDateModel'
+import {
+  YEAR_DAYS,
+  bestPastYear,
+  currentRow,
+  lastOf,
+  metresOf,
+  todayIndex,
+} from './yearToDateModel'
 
 /** Space between a year's label and its line's end, in px. */
 const LABEL_OFFSET_PX = 6
@@ -61,17 +68,17 @@ export function yearToDateLayout(
   const x = linearScale([0, YEAR_DAYS], [plot.left, plot.right])
   const dayXs = data.days.map(x)
   const pointCount = todayIndex(data) + 1
-  const peak = Math.max(0, ...data.years.map((row) => lastOf(row, sport) / perUnit))
+  const peak = Math.max(0, ...data.years.map((row) => metresOf(lastOf(row, sport)) / perUnit))
   const { domain, ticks } = niceDomain([0, peak], 3, 0)
   const y = linearScale(domain, [plot.bottom, plot.top])
-  const valueY = (metres: number) => y(metres / perUnit)
+  const valueY = (hectometres: number) => y(metresOf(hectometres) / perUnit)
   const lines = data.years.map((row) => ({
     year: row.year,
     current: row.year === data.today.year,
-    d: linePath(row.metres[sport].map((metres, i) => ({ x: dayXs[i]!, y: valueY(metres) }))),
+    d: linePath(row.hectometres[sport].map((value, i) => ({ x: dayXs[i]!, y: valueY(value) }))),
   }))
   const now = currentRow(data)
-  const pointYs = now === undefined ? [] : now.metres[sport].map(valueY)
+  const pointYs = now === undefined ? [] : now.hectometres[sport].map(valueY)
   const labels: YearToDateLabel[] = []
   const best = bestPastYear(data, sport)
   if (best !== undefined) {

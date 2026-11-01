@@ -10,37 +10,37 @@ export const SAMPLE_DAYS = Array.from(
 ).sort((a, b) => a - b)
 
 /**
- * A year that covers `perDay` metres a day: its cumulative distance on each sample day it has reached, which is every
- * day for a past year and today for this one, and its total through `sameDate`, its day of the same calendar date.
+ * A year that covers `perDay` metres a day, in hectometres as the part keeps it. A sample reads the same calendar date
+ * as today's sample, so in a leap year every day from 1 March on is one day later than its number.
  */
-function yearAt(
-  year: number,
-  perDay: Partial<Record<Sport, number>>,
-  sameDate = TODAY.day,
-): YearDistance {
+function yearAt(year: number, perDay: Partial<Record<Sport, number>>): YearDistance {
   const reach = year === TODAY.year ? TODAY.day : 366
-  const days = SAMPLE_DAYS.filter((day) => day <= reach)
+  const leap = year % 4 === 0
+  const dayOf = (day: number) => (leap && day >= TODAY.day ? Math.min(day + 1, 366) : day)
+  const hectometres = (day: number, sport: Sport) =>
+    Math.round(((perDay[sport] ?? 0) * dayOf(day)) / 100)
   const sports: Sport[] = ['run', 'ride']
+  const days = SAMPLE_DAYS.filter((day) => day <= reach)
   return {
     year,
-    metres: Object.fromEntries(
-      sports.map((sport) => [sport, days.map((day) => Math.round((perDay[sport] ?? 0) * day))]),
-    ) as YearDistance['metres'],
+    hectometres: Object.fromEntries(
+      sports.map((sport) => [sport, days.map((day) => hectometres(day, sport))]),
+    ) as YearDistance['hectometres'],
     toDate: Object.fromEntries(
-      sports.map((sport) => [sport, Math.round((perDay[sport] ?? 0) * sameDate)]),
+      sports.map((sport) => [sport, hectometres(TODAY.day, sport)]),
     ) as YearDistance['toDate'],
   }
 }
 
 /**
- * A synthetic library of four years. The leap year is compared through 1 March as its 61st day. Run has a line for
- * every year, and ride has none in 2024 or 2026. The best past year to date is 2025 for both sports.
+ * A synthetic library of four years. The leap year is read through 1 March as its 61st day. Run has a line for every
+ * year, and ride has none in 2024 or 2026. The best past year to date is 2025 for both sports.
  */
 export const YEAR_TO_DATE: YearToDate = {
   today: TODAY,
   days: SAMPLE_DAYS,
   years: [
-    yearAt(2024, { run: 1000 }, 61),
+    yearAt(2024, { run: 1000 }),
     yearAt(2025, { run: 1500, ride: 500 }),
     yearAt(2026, { run: 1000 }),
     yearAt(2027, { run: 1200 }),
