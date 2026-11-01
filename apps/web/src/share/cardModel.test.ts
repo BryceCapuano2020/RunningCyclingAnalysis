@@ -9,7 +9,7 @@ import { energyReading, gapReading } from '../ui/components/balanceScale'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
-import { SPORT_ORDER } from '../ui/sports'
+import { BALANCE_PAIR } from '../ui/sports'
 import { buildShareCard, shareableHost } from './cardModel'
 
 /** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
@@ -90,9 +90,9 @@ describe('buildShareCard', () => {
     expect(card?.meter).toEqual(gapReading(gap))
   })
 
-  it('lists the heroes in the order the sport order gives, so the columns match the meter', () => {
+  it('lists the heroes in the order of the balance pair, so the columns match the meter', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.heroes.map((hero) => hero.sport)).toEqual([...SPORT_ORDER])
+    expect(card?.heroes.map((hero) => hero.sport)).toEqual([...BALANCE_PAIR])
   })
 
   it('has no card while the sports cannot be compared, so no "needs harder efforts" card is shared', () => {

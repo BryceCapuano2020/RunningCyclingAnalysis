@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import { balanceTitle } from '../components/headlineText'
 import type { BalanceReading } from '../components/balanceScale'
+import { BALANCE_PAIR } from '../sports'
 import { eyebrowText, titleParts } from './balanceCopy'
 
 const points = (centre: number, low: number, high: number): BalanceReading => ({
+  pair: BALANCE_PAIR,
   unit: 'points',
   lean: centre > 2 ? 'run' : centre < -2 ? 'ride' : 'even',
   lead: { centre, low, high },

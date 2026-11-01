@@ -15,7 +15,7 @@ import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
-import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
+import { BALANCE_PAIR, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
 
@@ -163,7 +163,7 @@ function heroesFor(
   grades: Record<Sport, GradeOutcome | null>,
 ): ShareHero[] | null {
   const heroes: ShareHero[] = []
-  for (const sport of SPORT_ORDER) {
+  for (const sport of BALANCE_PAIR) {
     const hero = heroFor(result, sport, settings, units, grades[sport])
     if (hero === null) return null
     heroes.push(hero)

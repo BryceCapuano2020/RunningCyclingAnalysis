@@ -75,15 +75,16 @@ function leaderOf(lean: Exclude<Lean, 'even'>): { leader: string; other: string 
     : { leader: SPORT_NOUN.ride, other: SPORT_NOUN.run }
 }
 
-/** The sport a balance reads from: the one its best estimate favours, running when the estimate rounds to zero. */
+/** The sport a balance reads from: the one its best estimate favours, the pair's first when the estimate rounds to zero. */
 export function readFrom(reading: BalanceReading): Sport {
-  return wholeCentre(reading.lead) < 0 ? 'ride' : 'run'
+  const [first, second] = reading.pair
+  return wholeCentre(reading.lead) < 0 ? second : first
 }
 
 /** A lead's range from the side it is read from: both ends positive when the range stays on that sport's side. */
 export function sideRange(reading: BalanceReading): [number, number] {
   const { low, high } = reading.lead
-  return readFrom(reading) === 'ride' ? [-high, -low] : [low, high]
+  return readFrom(reading) === reading.pair[1] ? [-high, -low] : [low, high]
 }
 
 /**
@@ -151,14 +152,15 @@ function gradeSummary(reading: BalanceReading): string {
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
-function energySummary({ unit, lean, lead }: BalanceReading, duration: string): string {
+function energySummary(reading: BalanceReading, duration: string): string {
+  const { lean, lead } = reading
   if (lean === 'even') {
-    return `Over ${duration}, your running and your cycling are level as energy per kilogram, within ${rangeText({ unit, lean, lead })}.`
+    return `Over ${duration}, your running and your cycling are level as energy per kilogram, within ${rangeText(reading)}.`
   }
   const { leader, other } = leaderOf(lean)
   // The edge's rule, so a lead under half a percent reads as its value, never as 0%.
   const amount = percentEdge(Math.abs(lead.centre), false)
-  const within = isPoint({ unit, lean, lead }) ? '' : `, within ${rangeText({ unit, lean, lead })}`
+  const within = isPoint(reading) ? '' : `, within ${rangeText(reading)}`
   return `Over ${duration}, your ${leader} is ${amount} higher than your ${other}${within}, as energy per kilogram.`
 }
 

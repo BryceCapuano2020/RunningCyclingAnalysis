@@ -19,7 +19,7 @@ import { notHardNote } from '../changeHeld'
 import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { uncheckedLine } from './balanceUnchecked'
 import { effortLabel, isEstimatedRecord, valueAt } from '../records'
-import { SPORT_NOUN, SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR, SPORT_NOUN } from '../sports'
 
 /**
  * How a change in the strip is known. Every item is one the change test called: a best that left the band its
@@ -52,7 +52,7 @@ export const MAX_CHANGES = 4
 type Compared = { item: ChangeItem | null; note?: string; unchecked?: string } | null
 
 /** The sports in the order a positive lead favours them: running first, as every scale in the app does. */
-const [FIRST, SECOND] = SPORT_ORDER
+const [FIRST, SECOND] = BALANCE_PAIR
 
 /** The sport a lead's sign favours. */
 function favoured(lead: number): Sport {
@@ -230,7 +230,7 @@ const FAVOURS: Record<Sport, 1 | -1> = { run: 1, ride: -1 }
  * called, and push opposite ways, each way has a best behind it.
  */
 function leanSupported(moved: number, verdicts: Record<Sport, ChangeVerdict>): boolean {
-  const pushes = SPORT_ORDER.flatMap((sport) => {
+  const pushes = BALANCE_PAIR.flatMap((sport) => {
     const verdict = verdicts[sport]
     if (verdict !== 'higher' && verdict !== 'lower') return []
     return [FAVOURS[sport] * (verdict === 'higher' ? 1 : -1)]
@@ -311,7 +311,7 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   // A sport whose best was withheld as not a hard effort, or that is held for want of a weight, explains no move of the lean.
   const shown: Record<Sport, boolean> = { run: true, ride: rideShown }
   const verdicts = Object.fromEntries(
-    SPORT_ORDER.map((sport) => [
+    BALANCE_PAIR.map((sport) => [
       sport,
       !shown[sport] || notHardNote(sport, result, previous, previousLabel) !== null
         ? 'untested'
@@ -321,7 +321,7 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   const leanOutcome = (): Compared => {
     if (gap === null || grading === null) return null
     // With neither sport's best judged there is nothing to say a lean moved on.
-    if (SPORT_ORDER.every((sport) => verdicts[sport] === 'untested')) return null
+    if (BALANCE_PAIR.every((sport) => verdicts[sport] === 'untested')) return null
     const before = previousGap(result, previous, grading)
     return before === null ? null : { item: leanItem(gap, before, verdicts) }
   }
