@@ -148,9 +148,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
-    fitness: fitnessStatuses(analysed, new Set(held), {
-      nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
-    }),
+    // As of the newest activity, not the clock: an export that ended months ago is not a long break.
+    fitness: fitnessStatuses(analysed, new Set(held)),
     lookBack:
       athlete === null
         ? NO_LOOKBACK

@@ -35,7 +35,10 @@ export function withDefinitions(text: string, status: FitnessStatus, units: Unit
   const meaning = fitnessDefinitions(status, units)
   const rules: Rule[] = [
     { pattern: /^At \d+ bpm/, meaning: meaning.sameHeartRate },
+    // A level with no change in it says the heart rate in the middle of its line and its range in the units of the figure.
+    { pattern: /\bat \d+ bpm/, meaning: meaning.sameHeartRate },
     { pattern: /\(\d+(?:\.\d)?(?: to \d+(?:\.\d)?)?%\)/, meaning: meaning.range },
+    { pattern: /\((?:\d+:\d{2}|\d+) to (?:\d+:\d{2}|\d+)\)/, meaning: meaning.range },
     { pattern: /steady (?:runs?|rides?)/, meaning: meaning.steadyRun },
   ]
   const found = rules

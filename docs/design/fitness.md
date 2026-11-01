@@ -86,10 +86,12 @@ shown back, including one after a shallow dip, can be spoken.
    about 2 s, 9 ms a mark.
 2. The fit and the reference heart rate are read on the whole history to the date, so a past week's reading
    can move a little as the library grows.
-3. Today is the wall clock, not the newest activity: the session passes it cut to the day (so the memory still
-   hits; the sample athlete keeps the sample season's own day), and a break of four weeks or more, or fewer than
-   four steady runs in eight weeks, makes the status line "not enough recent evidence" without changing the
-   monitor's state. The monitor is evaluated at completed week ends only, so a week still going joins at its end.
+3. The date is the newest activity's, not the wall clock, so an export that ended months ago is told as it stood and
+   is not a long break (the session no longer passes the clock to the status). A sport whose own newest steady run is
+   four weeks or more before that date, or fewer than four steady runs in eight weeks, cannot call a trend ("not enough
+   recent evidence") without changing the monitor's state; it then tells its level (`FitnessStatus.level`: from three
+   steady runs, over the shortest of 8, 12, 16, 26 or 52 weeks that holds three, dated on a break) and what a trend
+   needs. The monitor is evaluated at completed week ends only, so a week still going joins at its end.
 4. Known gaps, measured: its budget is 0.2 alarms an athlete-year on quiet libraries (`alarmBudget`; the family of detectors shares 0.5). A seasonal
    swing of 3% amplitude is over that budget, a known gap: its simulation holds it to 0.65 an athlete-year, a strap change
    to 0.5, and the whole registry with season, strap change and spikes together to the same 0.65; a watch or strap change of 3 to 5% reads as a real slip, since the data cannot
@@ -288,10 +290,10 @@ steadiness, so any pace counts. A power meter's blocks are noisier than a run's 
   own spread): 5% to 15% in a slip state when nothing changed; an 8% loss 25 weeks before the end is slipping or holding below
   with its range clear of zero in 93% to 98%.
 
-Home shows a card for each sport that has a status, run first; a ride that is still waiting on its count is one line there
-("Ride fitness: not enough steady rides yet, 7 of 12") and a full card on the Ride page, in watts at the ride's reference heart
-rate. A library with no outdoor ride with a power meter shows none. Findings already covered rides. The sample's rides read "not
-enough evidence" (33 steady rides known to within 7%, too loosely to call level).
+Home shows a card for each sport that has a status, run first; a ride that cannot call a trend is one line there, its level
+("212 W at 140 bpm (205 to 219). From 7 steady rides.") and a full card on the Ride page, in watts at the ride's reference heart
+rate. A library with no outdoor ride with a power meter shows none. Findings already covered rides. The sample's rides give a level
+and no trend (33 steady rides known to within 7%, too loosely to call level).
 
 ### Ride false alarms in the first two years (found at G5, not fixed)
 

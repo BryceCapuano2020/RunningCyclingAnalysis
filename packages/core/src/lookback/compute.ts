@@ -66,8 +66,11 @@ type YearsInput = Pick<LookBackInput, 'setAside' | 'nowMs' | 'zone'>
 function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
   const current = orderedFor('fitness', digests)
   if (current.length === 0) return null
-  const options = { nowMs: input.nowMs }
-  const asOfMs = Math.max(current.at(-1)!.startMs, input.nowMs)
+  const newest = current.at(-1)!.startMs
+  const asOfMs = Math.max(newest, input.nowMs)
+  // The card is as of the newest activity; the years are told through the clock, so a later date is passed on. When they
+  // are the same date the options are the card's own and its replay is shared.
+  const options = asOfMs > newest ? { asOfMs } : {}
   // Days are on the fitness clock: a day is the local one, as the runs' are.
   const asOfDay = dayOfMs(asOfMs) + dayShiftFor({ startMs: asOfMs })
   const statuses = fitnessStatuses(digests, input.setAside, options)

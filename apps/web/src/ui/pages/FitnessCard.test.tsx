@@ -11,7 +11,6 @@ import {
   IMPROVING,
   RECOVERING,
   SLIPPING,
-  waitingStatus,
 } from '../fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -97,65 +96,6 @@ describe('FitnessSection', () => {
     expect(screen.queryByText('Ride')).not.toBeInTheDocument()
   })
 
-  it('draws a ride that is still waiting as one line on the home page, with its count and a link to the Ride page', () => {
-    const waiting = waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }, 7)
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_LIBRARY}
-      />,
-    )
-    expect(screen.getAllByRole('article')).toHaveLength(1)
-    const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('Ride fitness: not enough steady rides yet, 7 of 12')
-    expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
-    cleanup()
-    // The Ride page draws the full waiting card, with the count.
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_LIBRARY}
-        sport="ride"
-      />,
-    )
-    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
-    expect(screen.queryByTestId('ride-fitness-line')).toBeNull()
-  })
-
-  it('draws the section for a waiting ride alone (a library of rides) as the line, and says "recent" when it is the weeks that are short', () => {
-    const recent = waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }, 30)
-    render(
-      <FitnessSection
-        fitness={{ run: NO_FITNESS.run, ride: { ...recent, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_RIDE_LIBRARY}
-      />,
-    )
-    expect(screen.queryByRole('article')).toBeNull()
-    expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
-      'Ride fitness: not enough recent steady rides yet, 2 of 4',
-    )
-  })
-
-  it('says a ride with enough rides but too wide a range is too uncertain to call, with no count', () => {
-    const imprecise = {
-      ...waitingStatus({ kind: 'imprecise', within: 0.07 }, 33),
-      sport: 'ride' as const,
-    }
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: imprecise }}
-        units="metric"
-        library={FITNESS_RIDE_LIBRARY}
-      />,
-    )
-    const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('Ride fitness: too uncertain to call yet')
-    expect(line).not.toHaveTextContent(/not enough|of \d/)
-  })
-
   it('shows one sport’s card without naming the sport, which its own page already names', () => {
     renderSection({ sport: 'run' })
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
@@ -204,20 +144,6 @@ describe('FitnessSection', () => {
       expect(container.querySelector('.fitness-glyph')).toHaveAttribute('aria-hidden', 'true')
       cleanup()
     }
-  })
-
-  it('counts what a waiting status needs, with a shape and no track, and no evidence panel', () => {
-    const { container } = renderSection({
-      run: waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
-    })
-    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
-    expect(container.querySelectorAll('.fitness-progress__cell')).toHaveLength(12)
-    expect(container.querySelectorAll('.fitness-progress__cell.is-on')).toHaveLength(7)
-    expect(container.querySelector('.fitness-progress__count')?.textContent).toBe(
-      '7 of 12 steady runs before the last 8 weeks',
-    )
-    expect(container.querySelector('.fitness-track')).toBeNull()
-    expect(screen.queryByText('See the evidence')).not.toBeInTheDocument()
   })
 })
 

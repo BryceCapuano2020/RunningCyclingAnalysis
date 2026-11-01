@@ -23,7 +23,7 @@ describe('the look-back of a long library', () => {
     const digests = [...run.digests, ...ride.digests].sort((a, b) => a.startMs - b.startMs)
     const nowMs = Math.max(run.lastMs, ride.lastMs)
     const t0 = performance.now()
-    fitnessStatuses(digests, NONE, { nowMs })
+    fitnessStatuses(digests, NONE)
     const fitness = performance.now() - t0
     const t1 = performance.now()
     lookBackOf(digests, SETTINGS, NONE, nowMs)

@@ -1376,9 +1376,9 @@ earlier level. The analysis is in [design/fitness.md](design/fitness.md); this i
 
 **Where.** A "Your fitness" section above the balance on Balance, and the same card above the threshold on a sport's page
 (without the sport's name, which the title says). One card for each sport that has a status, run first; the Ride page holds the ride's card
-alone. A ride that is still waiting on its count is one line on Balance ("Ride fitness: not enough steady rides yet, 7 of 12", or "Ride fitness: too uncertain to call yet"
-when there are enough rides but the range is too wide; linking to the Ride page), not a card of its own; its full card, with the count, is on the Ride page. A sport with no steady
-run, or no outdoor ride with a power meter, has no card. The landing page's example shows the same
+alone. A ride that cannot call a trend yet is one line on Balance, its level ("212 W at 140 bpm (205 to 219). From 7 steady rides.", linking to the Ride page), not a card of its own; its full card is on the Ride page. A sport with only 1 or 2 steady
+activities is one line and no card, worded by sport ("2 steady rides with a power meter so far.", "1 steady run with heart rate so far."). A sport with no steady
+run, or no outdoor ride with a power meter, has no card. The status is as of the newest activity, not the clock, so an export that ended months ago is told as it stood and is not a long break. The landing page's example shows the same
 finding for the sample athlete as its second panel, below the drop zone so Add files stays on the first screen, (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test).
 
 **The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
@@ -1390,8 +1390,11 @@ seasonal swing was taken out of every run, a line saying so ("Allowing for your 
 **track**: "before" at the middle, "slower" and "faster" at the ends, the 90% range as a band and a hollow ring for the
 estimate (an estimate is a ring and a band, never a dash); a recovery marks the low it fell to, so the way back reads along the
 track. The track's scale holds at 12% either way and widens in 4% steps. It is hidden from assistive technology; the sentence
-carries the figures. A status that is waiting says so in a smaller word ("Not enough evidence yet", "Not enough recent evidence
-yet"), without repeating the sentence's opener, and shows how many steady runs it has of how many it needs as a row of pills.
+carries the figures. A status that cannot call a trend says "No trend yet" in the state's place and gives the level where the change would
+be: "5:30 /km at 140 bpm (5:20 to 5:40)." with "From 7 steady runs." under it, and one line for what a trend needs ("5 more earlier runs to see a trend.",
+"A steady run in the last 4 weeks to see a trend."). It has no track and no evidence panel, and no slip or rise in it. Every shortfall gets this: too few earlier runs, too few recent runs, a range
+too wide to call level, and a break, which dates the level ("in March"). The level is the shortest of the last 8, 12, 16, 26 or 52 weeks that holds 3 steady runs, else all of them, read like the
+status's own levels. It changes none of the monitor's tests or the false-alarm budget.
 
 **See the evidence.** A native disclosure that mounts its panel when opened. The chart (`FitnessChart`) is named "Pace at 150 bpm
 over time" and has a table twin: the level at four-week steps, each a hollow ring with its 90% range as a shaded band, the

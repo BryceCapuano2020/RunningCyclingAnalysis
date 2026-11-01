@@ -90,7 +90,7 @@ describe('a library through lookBackOf', () => {
       ],
     })
     const asOfMs = dip.lastMs
-    const history = fitnessHistories(dip.digests, NONE, { nowMs: asOfMs }).run
+    const history = fitnessHistories(dip.digests, NONE).run
     expect(history.records.length).toBeGreaterThan(200)
     const told = lookBackOf(dip.digests, SETTINGS, NONE, asOfMs).sports.run.fitness
     const direct = hindsightOf({

@@ -11,14 +11,7 @@ import {
   fitnessStatus,
   waitingStatus,
 } from './fitnessFixtures'
-import {
-  FITNESS_STATE,
-  fitnessViews,
-  progressOf,
-  trackOf,
-  viewOf,
-  worthShowing,
-} from './fitnessModel'
+import { FITNESS_STATE, fitnessViews, lineOf, trackOf, viewOf, worthShowing } from './fitnessModel'
 import { fitnessDefinitions } from './fitnessText'
 
 const DAY_MS = 86_400_000
@@ -38,7 +31,7 @@ describe('what each state is called, and the shape that says it', () => {
         back: 'Back',
         improving: 'Improving',
         improved: 'Improved',
-        'not-enough-evidence': 'Not enough evidence yet',
+        'not-enough-evidence': 'No trend yet',
       },
     )
   })
@@ -74,20 +67,41 @@ describe('viewOf', () => {
     expect(viewOf(IMPROVING, 'metric').fresh).toBeNull()
   })
 
-  it('says a waiting status once: its label, then the sentence without the same words', () => {
+  it('tells a waiting status as its level, then what a trend needs, under a label that claims no trend', () => {
     const history = viewOf(
       waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
       'metric',
     )
-    expect(history.label).toBe('Not enough evidence yet')
-    expect(history.headline).not.toMatch(/^Not enough/)
-    expect(history.headline).toMatch(/^Pace at the same heart rate is read from 12 steady runs/)
+    expect(history.label).toBe('No trend yet')
+    expect(history.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13).')
+    expect(history.support).toBe('From 7 steady runs.')
+    expect(history.needs).toBe('5 more earlier runs to see a trend.')
     const recent = viewOf(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), 'metric')
-    expect(recent.label).toBe('Not enough recent evidence yet')
-    expect(recent.headline).toMatch(/^There are 2 steady runs in the last 8 weeks/)
+    expect(recent.label).toBe('No trend yet')
+    expect(recent.needs).toBe('2 more runs in the last 8 weeks to see a trend.')
     const gap = viewOf(waitingStatus({ kind: 'break', weeksSince: 9 }), 'metric')
-    expect(gap.label).toBe('Not enough recent evidence yet')
-    expect(gap.headline).toBe('The last steady run was 9 weeks ago.')
+    expect(gap.label).toBe('No trend yet')
+    expect(gap.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13) in October.')
+    const wide = viewOf(waitingStatus({ kind: 'imprecise', within: 0.07 }, 33), 'metric')
+    expect(wide.support).toBe('From 33 steady runs.')
+    expect(wide.needs).toBe('More steady runs narrow the range to see a trend.')
+    // A state that is called has no such line.
+    expect(viewOf(SLIPPING, 'metric').needs).toBe('')
+  })
+
+  it('gives a status with fewer than 3 steady activities only the one line', () => {
+    const few = viewOf(
+      waitingStatus({ kind: 'history', have: 2, need: 12, weeks: 2, needWeeks: 8 }, 2, 'ride'),
+      'metric',
+    )
+    expect(few.headline).toBe('2 steady rides with a power meter so far.')
+    expect(few.support + few.needs).toBe('')
+    expect(lineOf(few)).toBe('2 steady rides with a power meter so far.')
+  })
+
+  it('makes a line of the headline and its support', () => {
+    const level = viewOf(waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride'), 'metric')
+    expect(lineOf(level)).toBe('200 W at 140 bpm (194 to 206). From 33 steady rides.')
   })
 })
 
@@ -128,21 +142,7 @@ describe('trackOf', () => {
   })
 })
 
-describe('progressOf and worthShowing', () => {
-  it('counts the steady runs a status is waiting on, and only for the shortfalls that are counts', () => {
-    expect(
-      progressOf(waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 })),
-    ).toEqual({ have: 7, need: 12, of: 'steady runs before the last 8 weeks' })
-    expect(progressOf(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }))).toEqual({
-      have: 2,
-      need: 4,
-      of: 'steady runs in the last 8 weeks',
-    })
-    expect(progressOf(waitingStatus({ kind: 'break', weeksSince: 6 }))).toBeNull()
-    expect(progressOf(waitingStatus({ kind: 'imprecise', within: 0.07 }))).toBeNull()
-    expect(progressOf(SLIPPING)).toBeNull()
-  })
-
+describe('worthShowing', () => {
   it('shows every state, and a waiting status only when it has runs to count', () => {
     expect(worthShowing(SLIPPING)).toBe(true)
     expect(worthShowing(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }))).toBe(true)
