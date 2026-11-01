@@ -321,7 +321,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
     `packages/core/src/constants.ts`). The first compares the best 5 and 20 min overall, from any point in an
     effort, with the best that starts after 60, 90 and 120 min of moving time (`periodDurability`). Every session
     counts toward a late best, hard or not, and a heart rate that cannot be trusted keeps none out: a lower figure
-    late on can also mean the run never asked for more, and the note says so. The note labels how hard the sessions were
+    late on can also mean the run never asked for more, and the note says so. With no session behind it that a heart rate shows was hard, the share
+    is a floor and the stat says "at least" ("Best 20 min held at least 94% after 90 min"). The note labels how hard the sessions were
     from the ruler, in a short line ("4 runs peaked at 92% to 99% of max heart rate."). Its title
     is one stat, the share of output held at the deepest level with 3 activities behind it at the longest
     duration that has them, with that duration: "Best 20 min held 94% after 90 min". The note gives the sentence ("After 90 min your
@@ -339,7 +340,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
     (`docs/research/durability.md`), a light reference and not a verdict, and the note says that heat,
     hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart rate is
     set aside has no drift. A period with fewer than 3 long sessions, or fewer than 3 steady efforts, reads the whole library for that
-    reading and says so in its note ("This period has too few long runs, so this uses all of yours."); each reading pools on its own
+    reading and says so in its note ("This period has too few long runs, so this uses all of yours.") and in the line itself: the stat ends
+    ", all time" and the drift is dated ("On steady runs over an hour from May 2021 to October 2026, efficiency fell 3% ..."; its row says
+    "Efficiency fell 3% from the first half to the second, May 2021 to October 2026."); each reading pools on its own
     (`lateEvidence` takes the library, and sets `durabilityPooled` or `driftPooled`). A reading the library cannot give either is left out and
     its need is a sentence that names it ("Durability needs 3 runs longer than an hour." with "with a power meter" for a ride, or "Heart rate drift needs
     3 steady runs over an hour with heart rate." and for a ride "with a power meter and heart rate"). With neither, the section
@@ -365,8 +368,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   above what your other bests suggest. Your 2 min best is 9% below: it may be relatively low, or
   untested." It names at most the three that stand out most, shortest first, and only a duration whose
   range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
-  the rest is always said to be possibly untested, since a best is a lower bound. With none standing out and 40 or more activities of the sport in the period it
-  says "Your bests are in line with each other, compared from 5 s to 60 min." and offers no strip; with fewer it says "Nothing stands out in your bests, compared from 5 s to 60 min. It takes 40 activities to say they agree; this period has 25." (a few efforts can match a curve by chance). A stand-out is judged at a stricter level in a library under 40 activities (the 5% level scaled by activities over 40), the size it states is shrunk toward the athlete's own curve (positive-part James-Stein, so the duration that noise helped most is not stated at full size), and the curve's spread is never tightened by the points the lower-bound refit drops (`profile/standOut.sim.test.ts` records the false-stand-out rates). With some
+  the rest is always said to be possibly untested, since a best is a lower bound. With none standing out and 40 or more activities of the sport it
+  says "Your bests are in line with each other, compared from 5 s to 60 min." and offers no strip; with fewer it says "Nothing stands out in your bests, compared from 5 s to 60 min." and never "in line" (a few efforts can match a curve by chance, and the level is already cut to the library's size, so the sentence still answers). When the bests are the whole library's the sentence says all-time: "Your all-time 5 min best is 14% above what your other bests suggest." A stand-out is judged at a stricter level in a library under 40 activities (the 5% level scaled by activities over 40), the size it states is shrunk toward the athlete's own curve (positive-part James-Stein, so the duration that noise helped most is not stated at full size), and the curve's spread is never tightened by the points the lower-bound refit drops (`profile/standOut.sim.test.ts` records the false-stand-out rates). With some
   standing out by less than 2% it adds ", apart from small differences on the chart". The span names the first and last durations the profile compares (from 2 min when the short end is not anchored), which can start earlier than the curve above it, whose table begins at 1 min. Durations are named as every effort length is,
   in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"
   and "ahead of" are never used, and "grade" means age grade only.

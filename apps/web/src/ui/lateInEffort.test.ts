@@ -279,7 +279,8 @@ describe('the ruler under the late bests and the drift', () => {
       ruler: { sessions: 3, lowShare: 0.93, highShare: 0.931 },
     }
     expect(lateInEffort('run', one).durability!.note).toContain('3 runs peaked at 93% of max')
-    expect(lateInEffort('run', lateEvidenceFor('run')).durability!.note).not.toContain('peaked')
+    const bare = { ...lateEvidenceFor('run'), ruler: null }
+    expect(lateInEffort('run', bare).durability!.note).not.toContain('peaked')
   })
 
   it('says how hard the steady efforts were, from their average heart rate over the maximum', () => {
@@ -335,5 +336,64 @@ describe('when the period held too little and the reading is the whole libraryâ€
     })
     expect(durability!.note).not.toContain('too few')
     expect(drift!.note).toContain('too few steady runs')
+  })
+})
+
+describe('the stat where no session was shown hard', () => {
+  it('is a floor, "at least", with no ruler or none that reached a hard heart rate', () => {
+    for (const ruler of [null, undefined, { sessions: 0, lowShare: 0, highShare: 0 }]) {
+      const { durability } = lateInEffort('ride', { ...lateEvidenceFor('ride'), ruler })
+      expect(durability!.stat).toBe('Best 20 min held at least 94% after 90 min')
+    }
+  })
+
+  it('is the share itself with a session that reached a hard heart rate', () => {
+    const { durability } = lateInEffort('ride', lateEvidenceFor('ride'))
+    expect(durability!.stat).toBe('Best 20 min held 94% after 90 min')
+  })
+
+  it('says the floor on the row too, for a library of easy long runs', () => {
+    const easy = { ...lateEvidenceFor('run'), ruler: null, drift: [] }
+    expect(lateFinding(lateInEffort('run', easy))).toMatch(
+      /^Best 20 min held at least \d+% after 90 min\.$/,
+    )
+  })
+})
+
+describe('the window a pooled line names', () => {
+  it('says all time in the durability stat when the whole library is read, and not otherwise', () => {
+    const pooled = { ...lateEvidenceFor('ride'), durabilityPooled: true as const }
+    expect(lateInEffort('ride', pooled).durability!.stat).toBe(
+      'Best 20 min held 94% after 90 min, all time',
+    )
+    expect(lateInEffort('ride', lateEvidenceFor('ride')).durability!.stat).not.toContain('all time')
+  })
+
+  it('keeps the floor and the window together', () => {
+    const both = { ...lateEvidenceFor('ride'), ruler: null, durabilityPooled: true as const }
+    expect(lateInEffort('ride', both).durability!.stat).toBe(
+      'Best 20 min held at least 94% after 90 min, all time',
+    )
+  })
+
+  it('dates the drift in its lede and its row when the whole library is read', () => {
+    const pooled = { ...lateEvidenceFor('run'), driftPooled: true as const }
+    const reading = lateInEffort('run', pooled)
+    // driftPoints are a week apart from 6 January 2025, twelve of them.
+    expect(reading.drift!.window).toBe('January 2025 to March 2025')
+    expect(reading.drift!.lede).toBe(
+      'On steady runs over an hour from January 2025 to March 2025, efficiency fell 3% from the first half to the second (median of 12 runs).',
+    )
+    expect(lateFinding(reading)).toContain(
+      'Efficiency fell 3% from the first half to the second, January 2025 to March 2025.',
+    )
+  })
+
+  it('names one month when the efforts share it, and no dates for the periodâ€™s own', () => {
+    const one = { ...NONE, drift: driftPoints([2, 3, 4]), driftPooled: true as const }
+    expect(lateInEffort('run', one).drift!.window).toBe('January 2025')
+    const own = lateInEffort('run', lateEvidenceFor('run'))
+    expect(own.drift!.window).toBeNull()
+    expect(own.drift!.lede).not.toMatch(/ from [A-Z][a-z]+ \d{4}/)
   })
 })

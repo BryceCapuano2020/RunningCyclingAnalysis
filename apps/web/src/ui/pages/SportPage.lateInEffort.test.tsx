@@ -89,6 +89,23 @@ describe('late in long sessions on a sport page', () => {
     },
   )
 
+  it('says "at least" where no session behind the late bests was shown hard', () => {
+    renderPage('run', { ...lateEvidenceFor('run'), ruler: null })
+    expect(closedRow('Durability')).toMatch(/Best 20 min held at least \d+% after 90 min\./)
+    const section = openSection('Durability')
+    expect(within(section).getAllByRole('figure')[0]).toHaveAccessibleDescription(
+      /^Best 20 min held at least \d+% after 90 min$/,
+    )
+  })
+
+  it('names the window in the row when the whole library is read, and dates the drift', () => {
+    renderPage('ride', { ...lateEvidenceFor('ride'), durabilityPooled: true, driftPooled: true })
+    expect(closedRow('Durability')).toMatch(/Best 20 min held 94% after 90 min, all time\./)
+    expect(closedRow('Durability')).toMatch(
+      /Efficiency fell 3% from the first half to the second, January 2025 to March 2025\./,
+    )
+  })
+
   it('keeps the activity count out of the stat', () => {
     renderPage('ride', lateEvidenceFor('ride'))
     expect(closedRow('Durability')).not.toMatch(/\d+ rides/)
