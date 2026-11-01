@@ -23,8 +23,8 @@ export interface ZoneChartRow {
 
 export interface ZoneTimeChartProps {
   title: string
-  /** The sentence the bars support. */
-  lede: string
+  /** A line under the title, such as the stretch the bars are of; absent for none. */
+  lede?: string
   rows: readonly ZoneChartRow[]
   table: ChartTableData
   /** A short table above `table` in the text view. */

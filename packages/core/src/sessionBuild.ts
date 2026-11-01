@@ -208,7 +208,10 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     timeInZones:
       athlete === null || analysis === null
         ? NO_ZONE_TIMES
-        : zoneTimes.get(selected, previous, athlete, zoneEstimates, setAside),
+        : zoneTimes.get(selected, previous, athlete, zoneEstimates, setAside, {
+            library: analysed,
+            period,
+          }),
     previous:
       athlete !== null && bikeModel !== undefined && previous.length > 0
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {

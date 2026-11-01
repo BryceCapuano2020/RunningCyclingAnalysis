@@ -1,4 +1,5 @@
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
+import { sessionsOf } from '../effort'
 import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '../types'
@@ -12,6 +13,8 @@ import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { gatedThreshold } from './effortGating'
+import { effortsCount } from './effortTrust'
+import { floorEffortsOf } from './thresholdFloor'
 import { thresholdTimeline } from './thresholdTimeline'
 import { effortGatesOf } from './twentyMinute'
 
@@ -40,17 +43,16 @@ function reportedFits(
 export function libraryThresholds(
   digests: ActivityDigest[],
   settings: AthleteSettings,
-): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline'> {
+): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline' | 'floor'> {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedFor('setAside', digests)
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(ordered, masses).model
+  const curves = bestCurves(ordered, masses, bikeModel, settings.massKg, null)
   return {
-    fit: reportedFits(
-      bestCurves(ordered, masses, bikeModel, settings.massKg, null),
-      settings.massKg,
-    ),
+    fit: reportedFits(curves, settings.massKg),
+    floor: floorEffortsOf(ordered, masses, bikeModel, null),
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, null),
   }
 }
@@ -87,6 +89,13 @@ export function judgeHeartRate(
   )
   const { setAside, reference, observedMax, observedSource, effort, trusted } = heart
   const cross = heartRateCrossCheck(trusted, masses, bikeModel, fits)
+  const sessionsOfSport = (sport: Sport) =>
+    sessionsOf(
+      ordered.filter((digest) => digest.sport === sport && effortsCount(digest)),
+      effort.referenceHr[sport],
+      effort.reading[sport],
+      setAside,
+    )
   const { kappa, lnKappaSe } = cross
   const judgement: HeartRateJudgement = {
     setAside: [...setAside].sort(),
@@ -107,6 +116,11 @@ export function judgeHeartRate(
         setAside,
       ),
     ),
+    floor: floorEffortsOf(ordered, masses, bikeModel, gate),
+    sessions: {
+      run: sessionsOfSport('run'),
+      ride: sessionsOfSport('ride'),
+    },
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate, {
       referenceHr: effort.referenceHr,
       referenceReading: effort.reading,

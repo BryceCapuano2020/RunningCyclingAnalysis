@@ -234,16 +234,16 @@ describe('a sport page with everything to show', () => {
 })
 
 describe('race predictions where the effort could not be checked', () => {
-  it('says so under the predictions, which carry every run’s bests', () => {
+  it('says so once, under the threshold, and carries every run’s bests as a prediction', () => {
     const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     openSection('Race predictions')
-    // Once under the threshold, once under the predictions.
     expect(
       screen.getAllByText(
         'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
+    expect(screen.queryByText('No slower than')).toBeNull()
   })
 
   it('says nothing of it where the effort was checked', () => {
@@ -274,11 +274,9 @@ describe('a sport page with sections that have nothing to show', () => {
       'Best durations',
     ])
     expect(lineIn('Your years')).toBe('Needs a year of runs.')
-    expect(lineIn('Race predictions')).toBe(
-      'Needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted.',
-    )
+    expect(lineIn('Race predictions')).toBe('Needs a run of a mile or more.')
     expect(lineIn('Time in zones')).toBe(
-      'Needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+      'Needs an activity with heart rate, or a threshold pace entered on Profile.',
     )
     expect(lineIn('Same heart rate, week by week')).toMatch(
       /^Needs at least \d+ steady 5-minute stretches/,

@@ -19,6 +19,8 @@ function setOf(sport: ZoneSet['sport'], measure: ZoneMeasure, reference: number)
     estimatedFrom: [sport],
     maxHeartRateFrom: null,
     asOfMs: null,
+    floorS: null,
+    fromHighest: false,
     citation: '',
     zones: zonesFor(measure, reference),
   }
@@ -220,9 +222,7 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
     expect(
-      screen.getByText(
-        'No pace zones for this run. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
-      ),
+      screen.getByText('No pace zones for this run. A run of 20 min or more sets your pace zones.'),
     ).toBeInTheDocument()
   })
 })
@@ -279,7 +279,7 @@ describe('ActivityZoneTime, a heart rate the date has no zones for', () => {
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
     expect(
-      screen.getByText(/^No heart rate zones for this run\. None of your efforts reached/),
+      screen.getByText(/^No heart rate zones for this run\. Enter your max heart rate on Profile/),
     ).toBeInTheDocument()
     expect(screen.queryByText(/heartRate/)).toBeNull()
   })

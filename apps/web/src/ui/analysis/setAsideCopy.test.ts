@@ -14,6 +14,8 @@ const JUDGED: HeartRateJudgement = {
   effortReference: NO_EFFORT_REFERENCE,
   fit: { run: null, ride: null },
   thresholdTimeline: { run: [], ride: [] },
+  floor: NO_HEART_RATE_JUDGEMENT.floor,
+  sessions: NO_HEART_RATE_JUDGEMENT.sessions,
   threshold: { run: 5, ride: 4 },
   calibration: null,
   rideGate: null,

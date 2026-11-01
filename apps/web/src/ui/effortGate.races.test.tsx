@@ -5,6 +5,8 @@ import { HALF_MARATHON_M } from '@rca/core/constants'
 import type { EffortGate } from '@rca/core/effort'
 import { makeActivity, makeResult } from './components/fixtures'
 import { gate, UNKNOWN } from './effortGateFixtures'
+import { raceAnswerOf } from './raceAnswer'
+import { forecastOf } from './test/raceForecast'
 import { racePredictionNeed, racePredictionsOf } from './racePredictions'
 
 afterEach(cleanup)
@@ -44,24 +46,35 @@ describe('race predictions and the effort gate', () => {
     expect(racePredictionsOf('run', result([run('hard', 180)]))?.races.length).toBeGreaterThan(0)
   })
 
-  it('does not carry the easy pace of a run whose peak heart rate was easy, and asks for a hard run of a mile or more', () => {
+  it('does not carry the easy pace of a run whose peak heart rate was easy as a prediction', () => {
     expect(racePredictionsOf('run', result([run('easy', 140)]))).toBeNull()
-    expect(racePredictionNeed('run', result([run('easy', 140)]))).toBe(
-      'Needs a hard run of a mile or more. None of your runs reached a hard heart rate',
-    )
   })
 
-  it('asks for the reference, not a run, where it cannot show one hard', () => {
-    const need = racePredictionNeed(
-      'run',
-      result([run('a', 190)], {
-        reference: 'habitual',
-        neededS: null,
-        sessions: { hard: [], endurance: [] },
-      }),
-    )
-    expect(need).toContain('Needs a reference heart rate that can be trusted.')
-    expect(need).toContain('Set your max heart rate in Profile')
+  it('answers from an easy run with a bound: every race is no slower than a time carried from it', () => {
+    const answer = forecastOf(raceAnswerOf('run', result([run('easy', 140)]), null))
+    expect(answer.kind).toBe('bound')
+    expect(answer.window).toBe('period')
+    expect(answer.found.races.map((race) => race.distanceM)).toEqual([
+      5000, 10000, 21_097.5, 42_195,
+    ])
+    // The 10 km was run in 44:00 and is held there; the others are carried from the best of the two.
+    expect(answer.found.races[1]!.seconds).toBe(44 * 60)
+    expect(answer.basis).toEqual({ distanceM: 5000, startMs: run('easy', 140).startMs })
+  })
+
+  it('answers with a bound where the reference cannot show a run hard, however hard the run', () => {
+    const habitual = result([run('a', 190)], {
+      reference: 'habitual',
+      neededS: null,
+      sessions: { hard: [], endurance: [] },
+    })
+    expect(racePredictionsOf('run', habitual)).toBeNull()
+    expect(raceAnswerOf('run', habitual, null)?.kind).toBe('bound')
+  })
+
+  it('does not call a run hard because it is the only one: a hard run among easy ones sets the answer', () => {
+    const answer = raceAnswerOf('run', result([run('easy', 140), run('hard', 180)]), null)
+    expect(answer?.kind).toBe('predicted')
   })
 
   it('keeps the hard run’s bests among easy ones, and a run with no heart rate', () => {
@@ -87,14 +100,15 @@ describe('race predictions and the effort gate', () => {
     expect(found.races.some((race) => race.methods.some((m) => m.fromM === 10000))).toBe(false)
   })
 
-  it('carries every run’s bests where the gate could not judge, and says nothing is withheld', () => {
+  it('carries every run’s bests where the gate could not judge, as a prediction and not a bound', () => {
     const unchecked = result([run('easy', 140)], { verdict: 'unknown', unchecked: 'noHeartRate' })
     expect(racePredictionsOf('run', unchecked)).not.toBeNull()
+    expect(raceAnswerOf('run', unchecked, null)?.kind).toBe('predicted')
   })
 
-  it('keeps the usual need where no run holds a best', () => {
-    expect(racePredictionNeed('run', result([]))).toBe(
-      'Needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted',
-    )
+  it('asks only for a run of a mile or more, and only where the library holds none', () => {
+    expect(racePredictionNeed('run')).toBe('Needs a run of a mile or more')
+    expect(raceAnswerOf('run', result([]), null)).toBeNull()
+    expect(raceAnswerOf('ride', result([run('easy', 140)]), null)).toBeNull()
   })
 })

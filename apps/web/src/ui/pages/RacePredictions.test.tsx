@@ -3,6 +3,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { makeActivity, makeResult } from '../components/fixtures'
+import { raceAnswerOf } from '../raceAnswer'
+import { forecastOf } from '../test/raceForecast'
+import type { RaceWindow } from '../raceAnswer'
 import { racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
 import type { DistanceRecord } from '../records'
@@ -22,11 +25,11 @@ const withBests = makeActivity({
 /** The run's predictions for a result, drawn the way the sport page draws them. */
 function renderPredictions(
   result: AnalysisResult,
-  allTime = false,
+  window: RaceWindow = 'period',
   records: readonly Pick<DistanceRecord, 'distanceM' | 'seconds' | 'activity'>[] = [],
 ) {
-  const found = racePredictionsOf('run', result)
-  if (found === null) throw new Error('the result gives no predictions')
+  const answer = forecastOf(raceAnswerOf('run', result, window === 'all' ? null : 84))
+  const { found, basis } = answer
   // The page hands the section the recorded bests that sit off its predictions; `records` come first, as a
   // best the predictions were not worked out from (a run the effort gate left out).
   const ran = ranBests(
@@ -35,7 +38,15 @@ function renderPredictions(
     RAN_OPENED_AT,
   )
   return render(
-    <RacePredictions sport="run" found={found} units="metric" allTime={allTime} ran={ran} />,
+    <RacePredictions
+      sport="run"
+      found={found}
+      units="metric"
+      window={window}
+      basis={basis}
+      openedAt={RAN_OPENED_AT}
+      ran={ran}
+    />,
   )
 }
 
@@ -73,7 +84,7 @@ describe('RacePredictions', () => {
     expect(rows[0]!.querySelectorAll('.race-bar__end')).toHaveLength(2)
   })
 
-  it('names each bar for a screen reader by the time, its assumed spread and both estimates', () => {
+  it('names each bar for a screen reader by the time, its range and both estimates', () => {
     const result = makeResult({
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
@@ -81,7 +92,7 @@ describe('RacePredictions', () => {
     renderPredictions(result)
     const bar = screen.getAllByRole('img', { name: /^5 km predicted/ })[0]!
     expect(bar.getAttribute('aria-label')).toMatch(
-      /^5 km predicted \d+:\d\d, assumed spread \d+:\d\d to \d+:\d\d\. from your best runs \d+:\d\d, from heart rate \d+:\d\d\.$/,
+      /^5 km predicted \d+:\d\d, range \d+:\d\d to \d+:\d\d\. from your best runs \d+:\d\d, from heart rate \d+:\d\d\.$/,
     )
   })
 
@@ -126,21 +137,21 @@ describe('RacePredictions', () => {
       'From your runs',
       'From heart rate (VO2max 50)',
     ])
-    // The spread is the one term defined in place: pressed, it says what the spread is.
-    expect(within(entries[3]!).getByRole('button', { name: 'Assumed spread' })).toBeInTheDocument()
+    // The range is the one term defined in place: pressed, it says what the range is.
+    expect(within(entries[3]!).getByRole('button', { name: 'Range' })).toBeInTheDocument()
     expect(within(entries[3]!).getByRole('note')).toHaveTextContent(
-      /10th to 90th percentile of an assumed error/,
+      /10th to the 90th percentile of the typical error/,
     )
   })
 
-  it('calls the spread an assumed spread, never a range or a confidence interval', () => {
+  it('calls the spread a range, never an assumed spread or a confidence interval', () => {
     const view = renderPredictions(
       makeResult({ activities: [withBests], runVo2max: { vo2max: 62, runs: 5, hillCapped: 0 } }),
     )
     openAbout()
     const text = view.container.textContent ?? ''
-    expect(text).toMatch(/assumed spread/i)
-    expect(text).not.toMatch(/\brange\b|confidence/i)
+    expect(text).toMatch(/\brange\b/i)
+    expect(text).not.toMatch(/spread|confidence/i)
   })
 
   it('keeps the explanation, the table of every figure and where each estimate came from behind About these predictions', () => {
@@ -157,14 +168,7 @@ describe('RacePredictions', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((h) => h.textContent),
-    ).toEqual([
-      'Race',
-      'Pace',
-      'Predicted',
-      'Assumed spread',
-      'From your best runs',
-      'From heart rate',
-    ])
+    ).toEqual(['Race', 'Pace', 'Predicted', 'Range', 'From your best runs', 'From heart rate'])
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getAllByRole('cell')[2]!.textContent).toMatch(/^\d+:\d\d to \d+:\d\d$/)
     expect(
@@ -177,18 +181,10 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
   })
 
-  it('says under the title that it is the middle of two estimates, or the one there is', () => {
-    const both = renderPredictions(
-      makeResult({ activities: [withBests], runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 } }),
-    )
-    expect(
-      screen.getByText('The middle of two estimates, for a flat course on a good day.'),
-    ).toBeInTheDocument()
-    both.unmount()
-    renderPredictions(makeResult({ activities: [withBests] }))
-    expect(
-      screen.getByText('From your best times in this period, for a flat course on a good day.'),
-    ).toBeInTheDocument()
+  it('says under the title the run the times were carried from, and nothing about the method', () => {
+    const dated = makeActivity({ ...withBests, startMs: RAN_AT })
+    renderPredictions(makeResult({ activities: [dated] }))
+    expect(screen.getByText('From your 5 km on 27 Nov.')).toBeInTheDocument()
   })
 
   it('carries a race from the outdoor run, not from a faster indoor run', () => {
@@ -219,7 +215,7 @@ describe('RacePredictions', () => {
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
     })
-    const view = renderPredictions(result, true)
+    const view = renderPredictions(result, 'all')
     openAbout()
     expect(screen.getByText(/your best times on file, carried to the distance/)).toBeInTheDocument()
     expect(
@@ -229,14 +225,14 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
     view.unmount()
 
-    renderPredictions(result, false)
+    renderPredictions(result)
     openAbout()
     expect(screen.queryByText(/best period/)).not.toBeInTheDocument()
     expect(screen.getByText(/your best times in this period, carried/)).toBeInTheDocument()
   })
 
   it('names the best period for runs alone in All time too', () => {
-    renderPredictions(makeResult({ activities: [withBests] }), true)
+    renderPredictions(makeResult({ activities: [withBests] }), 'all')
     openAbout()
     expect(
       screen.getByText(
@@ -302,23 +298,19 @@ describe('RacePredictions', () => {
       expect(ten.floored).toBe(true)
     })
 
-    it('says a floored row is no slower than a time run, and the method note says a time run is the limit', () => {
+    it('labels a floored row Your best, and the method note says a time run is the limit', () => {
       const view = renderPredictions(slowHeartRate)
       const row = Array.from(view.container.querySelectorAll('.race-row')).find(
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
       )!
-      expect(row.querySelector('.race-row__ran')?.textContent).toBe(
-        'No slower than a time you have run',
-      )
-      expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(
-        /No slower than a time you have run\.$/,
-      )
+      expect(row.querySelector('.race-row__ran')?.textContent).toBe('Your best')
+      expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(/Your best\.$/)
       openAbout()
-      expect(screen.getByText(/the prediction is no slower than that time/)).toBeInTheDocument()
+      expect(screen.getByText(/the prediction is held at that time/)).toBeInTheDocument()
     })
 
     it('says what was run and when on the row, and marks it as a dot labelled Run on the bar', () => {
-      const view = renderPredictions(slowHeartRate, false, [easy])
+      const view = renderPredictions(slowHeartRate, 'period', [easy])
       const row = Array.from(view.container.querySelectorAll('.race-row')).find(
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
       )!
@@ -335,7 +327,7 @@ describe('RacePredictions', () => {
     })
 
     it('keys the dot and repeats the run in the table', () => {
-      renderPredictions(slowHeartRate, false, [easy])
+      renderPredictions(slowHeartRate, 'period', [easy])
       expect(
         within(screen.getByRole('list', { name: 'Key' })).getByText(/^Run:/),
       ).toBeInTheDocument()
@@ -347,30 +339,30 @@ describe('RacePredictions', () => {
       expect(within(table).getByText('38:00 on 27 Nov')).toBeInTheDocument()
     })
 
-    it('says a best slower than the whole spread asks for more than has been run, with no dot', () => {
+    it('says a best slower than the whole range asks for more than has been run, with no dot', () => {
       // Heart rate alone carries a fast 10 km that the only 10 km run (50:00) does not support.
       const slow = { distanceM: 10_000, seconds: 50 * 60, activity: quick }
       const fast = makeResult({
         activities: [quick],
         runVo2max: { vo2max: 62, runs: 4, hillCapped: 0 },
       })
-      const view = renderPredictions(fast, false, [slow])
+      const view = renderPredictions(fast, 'period', [slow])
       const row = Array.from(view.container.querySelectorAll('.race-row')).find(
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
       )!
       expect(row.querySelector('.race-row__ran')?.textContent).toBe(
-        'Your best is 50:00, from 27 Nov, slower than this spread',
+        'Your best is 50:00, from 27 Nov, slower than this range',
       )
       expect(row.querySelector('.race-bar__ran')).toBeNull()
       expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
     })
 
-    it('shows nothing of a run that is neither faster than its prediction nor outside its spread', () => {
+    it('shows nothing of a run that is neither faster than its prediction nor outside its range', () => {
       const view = renderPredictions(makeResult({ activities: [withBests] }))
       // The 10 km is held to the 10 km already run; that is the only note on any row.
       expect(
         Array.from(view.container.querySelectorAll('.race-row__ran')).map((el) => el.textContent),
-      ).toEqual(['No slower than a time you have run'])
+      ).toEqual(['Your best'])
       expect(view.container.querySelector('.race-bar__ran')).toBeNull()
       expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
       openAbout()

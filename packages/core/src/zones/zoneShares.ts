@@ -58,31 +58,6 @@ export function mainZone(
   return best < 0 ? null : { level: best + 1, share: shares[best]! }
 }
 
-export interface ZoneShift {
-  /** 1 for the lowest effort. */
-  level: number
-  /** The share of the time then, and the share now, 0 to 1. */
-  before: number
-  after: number
-}
-
-/**
- * The zone whose share of the time moved most between two periods of the same measure, or null when
- * either has no time. The size is the change in share, in absolute terms: from 20% to 30% is 0.1.
- */
-export function biggestShift(before: MeasureTime, after: MeasureTime): ZoneShift | null {
-  if (before.totalSeconds <= 0 || after.totalSeconds <= 0) return null
-  const [then, now] = [zoneShares(before), zoneShares(after)]
-  let shift: ZoneShift | null = null
-  now.forEach((share, i) => {
-    const change = Math.abs(share - then[i]!)
-    if (shift === null || change > Math.abs(shift.after - shift.before)) {
-      shift = { level: i + 1, before: then[i]!, after: share }
-    }
-  })
-  return shift
-}
-
 /** Whether any counted activity used the app's estimate, not an entered setting. */
 function usedEstimate(time: MeasureTime): boolean {
   return time.counted > time.entered

@@ -16,7 +16,7 @@ export const DEFINITIONS = {
     'Your pace, scored against the standard for your age and sex. 70% means you ran at 70% of the standard pace. A ride is graded through the running pace of equal effort.',
   range90:
     'The span the true value is expected to fall in, nine times out of ten. A wide range means the figure is less certain; a narrow one means it is firm.',
-  assumedSpread:
-    'The 10th to 90th percentile of an assumed error. The marathon’s error is a published validation figure and the shorter races’ are a judgement, so read it as a spread around the time, not as a promise of where the time will fall.',
+  predictionRange:
+    'From the 10th to the 90th percentile of the typical error at this distance. The marathon’s error is a published validation figure. The shorter races’ errors are a judgement.',
   level: `A band of the age grade: ${LEVELS_TEXT}.`,
 } as const

@@ -5,12 +5,12 @@ import type { DistanceRecord } from '../records'
 
 /**
  * A recorded best at a race's distance set beside its prediction, for its row: one faster than the prediction (also its
- * dot on the bar), or one slower than the whole spread, which says the prediction asks for more than has been run.
+ * dot on the bar), or one slower than the whole range, which says the prediction asks for more than has been run.
  */
 export interface RanBest {
   distanceM: number
   seconds: number
-  /** Whether the recorded best is faster than the prediction, or slower than the top of its spread. */
+  /** Whether the recorded best is faster than the prediction, or slower than the top of its range. */
   side: 'faster' | 'slower'
   /** The day it was run, such as "27 Nov", with the year when it is not the one the page opened in. */
   when: string
@@ -48,11 +48,11 @@ export function ranBests(
 
 /**
  * What a row says of its recorded best: "You ran 40:07 on 27 Nov", or, for one slower than the spread, "Your best is
- * 44:10, from 27 Nov, slower than this spread".
+ * 44:10, from 27 Nov, slower than this range".
  */
 export function ranText(ran: RanBest): string {
   const time = formatRecordTime(ran.seconds)
   return ran.side === 'faster'
     ? `You ran ${time} on ${ran.when}`
-    : `Your best is ${time}, from ${ran.when}, slower than this spread`
+    : `Your best is ${time}, from ${ran.when}, slower than this range`
 }
