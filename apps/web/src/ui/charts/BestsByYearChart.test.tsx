@@ -144,8 +144,8 @@ describe('BestsByYearChart', () => {
       {
         length: 5000,
         years: [
-          [2022, 1500, false],
-          [2023, 1490, false],
+          [2022, 1500, false, false],
+          [2023, 1490, false, false],
         ],
       },
     ]
@@ -156,8 +156,8 @@ describe('BestsByYearChart', () => {
       {
         length: 5000,
         years: [
-          [2022, 1500, true],
-          [2023, 1490, true],
+          [2022, 1500, true, false],
+          [2023, 1490, true, false],
         ],
       },
     ]
@@ -180,5 +180,32 @@ describe('BestsByYearChart', () => {
     )
     expect(container.querySelectorAll('[data-testid="bests-panel"]')).toHaveLength(3)
     expect(marks(container)).toHaveLength(7)
+  })
+
+  it('draws an estimated ride best hollow and tagged, and labels the highest measured one', () => {
+    chartWidth(800)
+    const efforts: BestEffort[] = [
+      {
+        length: 1200,
+        years: [
+          [2021, 280, true, false],
+          [2022, 300, true, false],
+          [2023, 320, true, true],
+        ],
+      },
+    ]
+    const { container } = render(<BestsByYearChart sport="ride" efforts={efforts} units="metric" />)
+    const hollow = marks(container).filter((mark) => mark.getAttribute('data-hollow') === 'true')
+    expect(hollow).toHaveLength(1)
+    const labels = Array.from(
+      container.querySelectorAll('[data-testid="best-label"]'),
+      (n) => n.textContent,
+    )
+    expect(labels).toEqual(['300 W'])
+    const key = within(screen.getByRole('list', { name: 'Legend' }))
+    expect(key.getByText('Estimated')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'End' })
+    expect(screen.getByRole('status')).toHaveTextContent('Estimated')
+    expect(within(screen.getByRole('table')).getByText('320 W, estimated')).toBeInTheDocument()
   })
 })

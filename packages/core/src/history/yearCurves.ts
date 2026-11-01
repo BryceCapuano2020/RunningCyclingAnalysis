@@ -5,7 +5,13 @@ import { sig } from '../lookback/round'
 import type { ActivityDigest, Curve, Sport, SportCurves } from '../types'
 import { perSport } from './sports'
 import type { HistoryInput, HistoryPart } from './types'
-import { curvesByYear, pointShownHard, sameHardness, sameRidePricing } from './yearlyCurves'
+import {
+  curvesByYear,
+  pointEstimated,
+  pointShownHard,
+  sameHardness,
+  sameRidePricing,
+} from './yearlyCurves'
 
 /** One calendar year's best curve in a sport's own number. */
 export interface YearCurve {
@@ -14,6 +20,8 @@ export interface YearCurve {
   values: (number | null)[]
   /** Whether heart rate shows the year's best 20 minutes was hard. False without one. */
   hard: boolean
+  /** The indexes in `durations` whose value is estimated (a ride's watts from a bike model, not a meter); usually none. */
+  estimated: number[]
 }
 
 /** A sport's years of best curves, oldest first. A year with no effort the chart can draw is left out. */
@@ -52,9 +60,11 @@ function build(digests: ActivityDigest[], input: HistoryInput): YearCurves {
       durations,
       years: years.flatMap((year) => {
         const curve = CURVE_OF[sport](year.curves)
-        const values = durations.map((durationS) => {
-          const value = curve.find((point) => point.durationS === durationS)?.value ?? Number.NaN
-          const native = NATIVE[sport](value)
+        const points = durations.map((durationS) =>
+          curve.find((point) => point.durationS === durationS),
+        )
+        const values = points.map((point) => {
+          const native = NATIVE[sport](point?.value ?? Number.NaN)
           return native > 0 && Number.isFinite(native) ? native : null
         })
         if (values.every((value) => value === null)) return []
@@ -64,6 +74,11 @@ function build(digests: ActivityDigest[], input: HistoryInput): YearCurves {
             year: year.year,
             values,
             hard: headline !== undefined && pointShownHard(year, headline, input),
+            estimated: points.flatMap((point, i) =>
+              point !== undefined && values[i] !== null && pointEstimated(year, sport, point)
+                ? [i]
+                : [],
+            ),
           },
         ]
       }),

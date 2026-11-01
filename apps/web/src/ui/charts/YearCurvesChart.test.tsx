@@ -139,4 +139,84 @@ describe('YearCurvesChart', () => {
     const { container } = render(<YearCurvesChart sport="run" curves={RUN_CURVES} units="metric" />)
     expect(lines(container)).toHaveLength(4)
   })
+
+  it('marks an estimated 20 minute best hollow though it was a hard effort', () => {
+    chartWidth(800)
+    const estimated = {
+      ...RIDE_CURVES,
+      years: RIDE_CURVES.years.map((year) => Object.assign({}, year, { estimated: [2] })),
+    }
+    const { container } = render(<YearCurvesChart sport="ride" curves={estimated} units="metric" />)
+    const marks = Array.from(container.querySelectorAll('[data-testid="year-curve-mark"]'))
+    expect(marks.map((mark) => mark.getAttribute('data-hollow'))).toEqual(['true'])
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'Home' })
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    expect(screen.getByRole('status')).toHaveTextContent('Estimated')
+    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent(
+      '290 W, estimated',
+    )
+  })
+
+  it('says fastest for a pace when the newest year holds the best', () => {
+    chartWidth(800)
+    const rising = {
+      ...RUN_CURVES,
+      years: RUN_CURVES.years
+        .slice(0, 2)
+        .map((year, i) => Object.assign({}, year, { year: 2020 + i })),
+    }
+    render(<YearCurvesChart sport="run" curves={rising} units="metric" />)
+    expect(
+      screen.getByRole('figure', { name: 'Your 20 min pace is fastest in 2021' }),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('YearCurvesChart with many years', () => {
+  const many = {
+    durations: [60, 300, 1200, 3600],
+    years: Array.from({ length: 9 }, (_, i) => ({
+      year: 2015 + i,
+      values: [600 + i, 330 + i, 260 + (i === 3 ? 20 : i), 220 + i],
+      hard: true,
+      estimated: [],
+    })),
+  }
+
+  it('draws the newest year, the best year and the two newest others in colour, and the rest grey with no label', () => {
+    chartWidth(800)
+    const { container } = render(<YearCurvesChart sport="ride" curves={many} units="metric" />)
+    const count = (id: string) => container.querySelectorAll(`[data-testid="${id}"]`).length
+    // 2023 is the newest and 2018 the best; 2021 and 2022 are the newest of the others.
+    expect(count('year-curve-named')).toBe(2)
+    expect(count('year-curve-coloured')).toBe(2)
+    expect(count('year-curve-grey')).toBe(5)
+    const labels = Array.from(
+      container.querySelectorAll('[data-testid="year-curve-label"]'),
+      (n) => n.textContent,
+    )
+    expect(labels).toEqual(['2018', '2021', '2022', '2023'])
+    expect(screen.getByText('Other years are grey')).toBeInTheDocument()
+    // Only the named years carry the 20 minute mark.
+    expect(container.querySelectorAll('[data-testid="year-curve-mark"]')).toHaveLength(2)
+  })
+
+  it('draws the grey years first and the named years last, so the colour lies over them', () => {
+    chartWidth(800)
+    const { container } = render(<YearCurvesChart sport="ride" curves={many} units="metric" />)
+    const order = Array.from(container.querySelectorAll('[data-year]'), (line) =>
+      line.getAttribute('data-testid'),
+    )
+    expect(order.indexOf('year-curve-named')).toBeGreaterThan(order.lastIndexOf('year-curve-grey'))
+    expect(order.indexOf('year-curve-coloured')).toBeGreaterThan(
+      order.lastIndexOf('year-curve-grey'),
+    )
+  })
+
+  it('keeps every year in the table twin', () => {
+    chartWidth(800)
+    render(<YearCurvesChart sport="ride" curves={many} units="metric" />)
+    expect(within(screen.getByRole('table')).getAllByRole('rowheader')).toHaveLength(9)
+  })
 })
