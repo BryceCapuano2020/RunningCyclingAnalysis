@@ -6,17 +6,22 @@ import { spreadApart } from './chartInteraction'
 import { logScale } from './scale'
 import { plottedValue, sportYAxis } from './sportAxis'
 import { axisFontSize, durationTicks, fitTicks, labelWidth, rootScale } from './ticks'
-import { labelledYears } from './yearCurvesModel'
+import { isCrowded, labelledYears, namedYears } from './yearCurvesModel'
 import type { YearCurvesModel } from './yearCurvesModel'
 
 /** The gap, px, between a line's end and the year that names it. */
 const LABEL_GAP_PX = 8
 
-/** A year's line: its year, the points it has (null where it has none) and whether it is labelled. */
+/**
+ * A year's line: its year, the points it has (null where it has none), whether it is named (heavier, marked at its 20 minute
+ * best), whether it carries a label at its end, and whether it is grey (a crowded chart's years that are in no colour).
+ */
 export interface LineLayout {
   year: number
   recency: number
+  named: boolean
   labelled: boolean
+  grey: boolean
   points: (Point | null)[]
 }
 
@@ -33,8 +38,8 @@ export interface YearCurvesLayout {
   yTicks: AxisTick[]
   lines: LineLayout[]
   labels: EndLabel[]
-  /** The 20 minute point of each labelled line, where the finding's mark sits; empty when the finding is about another length. */
-  headline: { year: number; hard: boolean; point: Point }[]
+  /** The 20 minute point of each named line, where the finding's mark sits (hollow for a floor or an estimate); empty when the finding is about another length. */
+  headline: { year: number; hollow: boolean; point: Point }[]
 }
 
 /** The room a label of a year needs to the right of the plot, px, at the reader's text size. */
@@ -61,11 +66,15 @@ export function yearCurvesLayout(
     line.values.flatMap((value) => (value === null ? [] : [plotted(value)])),
   )
   const { y, ticks } = sportYAxis(model.sport, values, plot)
-  const named = new Set(labelledYears(model))
+  const named = new Set(namedYears(model))
+  const labelled = new Set(labelledYears(model))
+  const crowded = isCrowded(model)
   const lines = model.lines.map((line): LineLayout => ({
     year: line.year,
     recency: line.recency,
-    labelled: named.has(line.year),
+    named: named.has(line.year),
+    labelled: labelled.has(line.year),
+    grey: crowded && !labelled.has(line.year),
     points: line.values.map((value, i) =>
       value === null ? null : { x: x(model.durations[i]!), y: y(plotted(value)) },
     ),
@@ -83,9 +92,12 @@ export function yearCurvesLayout(
       ? []
       : lines.flatMap((line) => {
           const point = line.points[model.focus!]
-          const hard = model.lines.find((l) => l.year === line.year)?.hard ?? false
-          return line.labelled && point !== null && point !== undefined
-            ? [{ year: line.year, hard, point }]
+          const source = model.lines.find((l) => l.year === line.year)
+          // A floor (not confirmed hard) or an estimate is drawn hollow.
+          const hollow =
+            source === undefined || !source.hard || source.estimated[model.focus!] === true
+          return line.named && point !== null && point !== undefined
+            ? [{ year: line.year, hollow, point }]
             : []
         })
   return {

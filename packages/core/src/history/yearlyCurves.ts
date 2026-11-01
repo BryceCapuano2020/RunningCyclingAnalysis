@@ -6,7 +6,8 @@ import { trustedPower } from '../digest/powerCheck'
 import { fitBikeModelOver, sportCurves } from '../digest/rideCurves'
 import { memoByDigests, sameSet } from '../digestMemo'
 import { hasEstimatedRide } from '../records/progression'
-import type { ActivityDigest, CurvePoint, SportCurves } from '../types'
+import type { ActivityDigest, CurvePoint, Sport, SportCurves } from '../types'
+import { isEstimated } from './estimated'
 import { shownHard } from './hardness'
 import type { HistoryInput } from './types'
 import { yearOfDigest } from './yearOf'
@@ -85,4 +86,9 @@ export function pointShownHard(
   return (
     digest !== undefined && shownHard(digest, Math.max(point.durationS, point.windowS ?? 0), input)
   )
+}
+
+/** Whether the effort behind a curve point of a sport is estimated (see `isEstimated`). */
+export function pointEstimated(year: CurvesOfYear, sport: Sport, point: CurvePoint): boolean {
+  return isEstimated(sport, point.activityId === null ? undefined : year.byId.get(point.activityId))
 }

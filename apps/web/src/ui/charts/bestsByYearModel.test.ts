@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { BestEffort } from '@rca/core/history'
 import { RIDE_BESTS, RUN_BESTS } from '../historyBestsFixtures'
 import { bestsModel, bestsNote, markCell, markNote } from './bestsByYearModel'
 
@@ -45,8 +46,8 @@ describe('bestsModel', () => {
         {
           length: 300,
           years: [
-            [2020, 310, true],
-            [2021, 310, true],
+            [2020, 310, true, false],
+            [2021, 310, true, false],
           ],
         },
       ],
@@ -56,11 +57,86 @@ describe('bestsModel', () => {
   })
 
   it('says whether any mark is a floor and whether any is hard, for the key', () => {
-    expect(bestsModel('run', RUN_BESTS, 'metric')).toMatchObject({ anyFloor: true, anyHard: true })
-    const allHard = bestsModel('run', [{ length: 5000, years: [[2022, 1500, true]] }], 'metric')!
-    expect([allHard.anyFloor, allHard.anyHard]).toEqual([false, true])
-    const none = bestsModel('run', [{ length: 5000, years: [[2022, 1500, false]] }], 'metric')!
-    expect([none.anyFloor, none.anyHard]).toEqual([true, false])
+    expect(bestsModel('run', RUN_BESTS, 'metric')).toMatchObject({
+      anyHollow: true,
+      anySolid: true,
+    })
+    const allHard = bestsModel(
+      'run',
+      [{ length: 5000, years: [[2022, 1500, true, false]] }],
+      'metric',
+    )!
+    expect([allHard.anyHollow, allHard.anySolid]).toEqual([false, true])
+    const none = bestsModel(
+      'run',
+      [{ length: 5000, years: [[2022, 1500, false, false]] }],
+      'metric',
+    )!
+    expect([none.anyHollow, none.anySolid]).toEqual([true, false])
+  })
+})
+
+describe('estimated bests', () => {
+  const ride = (...years: [number, number, boolean][]): BestEffort[] => [
+    {
+      length: 1200,
+      years: years.map(([year, watts, estimated]) => [year, watts, true, estimated]),
+    },
+  ]
+
+  it('never lets an estimate be the all-time best while a measured value is there', () => {
+    // 2022's 320 W is a bike model's; the highest of the meter's readings is 2021's 300 W.
+    const model = bestsModel(
+      'ride',
+      ride([2020, 290, false], [2021, 300, false], [2022, 320, true]),
+      'metric',
+    )!
+    expect(model.panels[0]!.best).toBe(1)
+    expect(model.panels[0]!.marks[2]).toMatchObject({ estimated: true, hollow: true })
+  })
+
+  it('takes the highest estimate as the best when every value is one', () => {
+    const model = bestsModel('ride', ride([2020, 290, true], [2021, 310, true]), 'metric')!
+    expect(model.panels[0]!.best).toBe(1)
+  })
+
+  it('draws an estimate hollow though it was a hard effort, and a floor hollow though it was measured', () => {
+    const model = bestsModel('ride', ride([2020, 290, false], [2021, 300, true]), 'metric')!
+    const [meter, estimate] = model.panels[0]!.marks
+    expect([meter!.hollow, estimate!.hollow]).toEqual([false, true])
+    expect(model).toMatchObject({ anyHollow: true, anySolid: true, hollowKey: 'Estimated' })
+  })
+
+  it('names why a mark is hollow in the key: estimated, not confirmed hard, or both', () => {
+    const both = bestsModel(
+      'ride',
+      [
+        {
+          length: 300,
+          years: [
+            [2020, 300, false, false],
+            [2021, 310, true, true],
+          ],
+        },
+      ],
+      'metric',
+    )!
+    expect(both.hollowKey).toBe('Estimated or not confirmed hard')
+    expect(bestsModel('run', RUN_BESTS, 'metric')!.hollowKey).toBe('Not confirmed hard')
+  })
+
+  it('tags an estimate in a note and last in a table cell, as the records do', () => {
+    const model = bestsModel('ride', ride([2020, 290, true], [2021, 300, false]), 'metric')!
+    const [estimate] = model.panels[0]!.marks
+    expect(markNote(estimate!, false)).toBe('Estimated')
+    expect(markNote(estimate!, true)).toBe('All-time best, Estimated')
+    expect(markCell(estimate!)).toBe('290 W, estimated')
+    const floor = bestsModel(
+      'ride',
+      [{ length: 1200, years: [[2021, 300, false, true]] }],
+      'metric',
+    )!
+    expect(markCell(floor.panels[0]!.marks[0]!)).toBe('At least 300 W, estimated')
   })
 })
 

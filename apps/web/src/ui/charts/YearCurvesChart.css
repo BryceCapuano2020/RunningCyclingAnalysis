@@ -11,10 +11,21 @@
   stroke-width: 3px;
 }
 
+/* A year in no colour, once there are many: thin, mid grey (the previous period's mark), and quiet under the years in colour. */
+.year-curve--grey {
+  stroke: var(--previous-mark);
+  stroke-width: 1px;
+  stroke-opacity: 0.7;
+}
+
 /* Forced colours ignore opacity: the older years take the muted text colour and the named ones the sport's system colour. */
 @media (forced-colors: active) {
   .year-curve {
     stroke: GrayText;
+  }
+
+  .year-curve--grey {
+    stroke-opacity: 1;
   }
 
   .year-curve--named[data-sport='run'] {

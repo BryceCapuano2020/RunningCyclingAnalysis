@@ -81,6 +81,20 @@ describe('best curve by year', () => {
     expect(carried(120)).toBe(false)
   })
 
+  it('lists the durations whose value is a bike model’s and not a meter’s, for rides only', () => {
+    const { ride, run } = yearCurvesOf([
+      rideDigest('meter', at(2021), { 300: 300, 1200: 250 }),
+      rideDigest('model', at(2021, 9), { 1200: 280 }, { powerSource: 'virtual' }),
+      runDigest('a', at(2021), { 1200: 4 }),
+    ])
+    const at5 = ride.durations.indexOf(300)
+    const at20 = ride.durations.indexOf(1200)
+    // The model's 20 minutes is the year's best there; its value carried to the shorter durations is not above the meter's 5 minutes.
+    expect(ride.years[0]!.estimated).toContain(at20)
+    expect(ride.years[0]!.estimated).not.toContain(at5)
+    expect(run.years[0]!.estimated).toEqual([])
+  })
+
   it('is remembered for the same digests, and made again when the ride pricing changes', () => {
     const library = [
       rideDigest('a', at(2021), { 1200: 250 }),

@@ -3,6 +3,7 @@ import type { SportYearCurves } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
@@ -22,11 +23,13 @@ import {
   curvesAxisTitle,
   curvesDescription,
   curvesTitle,
+  isCrowded,
   labelledYears,
   yearCurvesModel,
 } from './yearCurvesModel'
-import type { YearCurvesModel } from './yearCurvesModel'
+import type { YearCurvesModel, YearLine } from './yearCurvesModel'
 import { endLabelRoom, yearCurvesLayout } from './yearCurvesLayout'
+import type { LineLayout } from './yearCurvesLayout'
 import './ChartSeries.css'
 import './YearCurvesChart.css'
 
@@ -59,9 +62,33 @@ function tooltipFor(
       kind: model.sport,
       label: String(line.year),
       value: formatNative(model.sport, line.values[i]!, units),
-      note: model.focus === i && !line.hard ? 'Not confirmed hard' : undefined,
+      note: noteOf(model, line, i),
     }))
   return { x, y, title: formatDuration(durationS), rows }
+}
+
+/** How a line is drawn: named (heavier), grey, in colour at its age's opacity and labelled, or in colour at its age's opacity. */
+type LineKind = 'named' | 'grey' | 'coloured' | 'faint'
+
+const kindOf = (line: LineLayout): LineKind =>
+  line.named ? 'named' : line.grey ? 'grey' : line.labelled ? 'coloured' : 'faint'
+
+const TEST_ID: Record<LineKind, string> = {
+  named: 'year-curve-named',
+  grey: 'year-curve-grey',
+  coloured: 'year-curve-coloured',
+  faint: 'year-curve',
+}
+const LAYER: Record<LineKind, number> = { grey: 0, faint: 1, coloured: 1, named: 2 }
+const layerOf = (line: LineLayout): number => LAYER[kindOf(line)]
+
+/** What a value says beside it: that it is estimated, and that the 20 minute best was not confirmed hard. */
+function noteOf(model: YearCurvesModel, line: YearLine, i: number): string | undefined {
+  const parts = [
+    line.estimated[i] ? 'Estimated' : null,
+    model.durations[i] === HEADLINE_DURATION_S && !line.hard ? 'Not confirmed hard' : null,
+  ].filter((part) => part !== null)
+  return parts.length === 0 ? undefined : parts.join(', ')
 }
 
 /**
@@ -100,7 +127,7 @@ export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) 
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       plotRightMargin={endLabelRoom}
       legend={[]}
-      keyNote="Older years are fainter"
+      keyNote={isCrowded(model) ? 'Other years are grey' : 'Older years are fainter'}
       idleReadout={idleFrom(tooltipFor(model, units, idle, 0, 0), 'Best')}
       table={{
         caption: `${SPORT_LABEL[sport]} best at each duration, by year. At least marks a 20 minute best not confirmed hard.`,
@@ -128,8 +155,8 @@ export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) 
         if (m === null) return null
         const fontSize = axisFontSize(size.width)
         const { active: activeR } = markerRadii(size.width)
-        // The older years go down first, so the labelled lines lie over them.
-        const drawn = [...m.lines].sort((a, b) => Number(a.labelled) - Number(b.labelled))
+        // The grey years go down first, then the other years in colour, and the named years last, so they lie over the rest.
+        const drawn = [...m.lines].sort((a, b) => layerOf(a) - layerOf(b))
         return (
           <>
             <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
@@ -138,24 +165,32 @@ export function YearCurvesChart({ sport, curves, units }: YearCurvesChartProps) 
             {drawn.map((line) => (
               <path
                 key={line.year}
-                data-testid={line.labelled ? 'year-curve-named' : 'year-curve'}
+                data-testid={TEST_ID[kindOf(line)]}
                 data-year={line.year}
-                className={line.labelled ? 'year-curve year-curve--named' : 'year-curve'}
+                className={
+                  line.named
+                    ? 'year-curve year-curve--named'
+                    : line.grey
+                      ? 'year-curve year-curve--grey'
+                      : 'year-curve'
+                }
                 data-sport={sport}
                 strokeOpacity={
-                  line.labelled ? undefined : OLDEST_OPACITY + OPACITY_RANGE * line.recency
+                  line.named || line.grey
+                    ? undefined
+                    : OLDEST_OPACITY + OPACITY_RANGE * line.recency
                 }
                 d={linePath(line.points)}
               />
             ))}
-            {m.headline.map(({ year, hard, point }) => (
+            {m.headline.map(({ year, hollow, point }) => (
               <SportMark
                 key={year}
                 sport={sport}
                 x={point.x}
                 y={point.y}
                 r={activeR}
-                hollow={!hard}
+                hollow={hollow}
                 testId="year-curve-mark"
               />
             ))}

@@ -34,12 +34,12 @@ const RING: Record<'dot' | 'diamond', 'ring' | 'ring-diamond'> = {
 }
 
 function legendOf(model: BestsModel): ChartLegendEntry[] | undefined {
-  if (!model.anyFloor) return undefined
+  if (!model.anyHollow) return undefined
   const { glyph } = SPORT_FORMAT[model.sport]
-  if (!model.anyHard) return []
+  if (!model.anySolid) return []
   return [
     { label: 'Hard effort', kind: model.sport, swatch: glyph },
-    { label: 'Not confirmed hard', kind: model.sport, swatch: RING[glyph] },
+    { label: model.hollowKey, kind: model.sport, swatch: RING[glyph] },
   ]
 }
 
@@ -100,7 +100,7 @@ export function BestsByYearChart({ sport, efforts, units }: BestsByYearChartProp
       height={bestsChartHeight(model.panels.length)}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       legend={legendOf(model)}
-      keyNote={model.anyHard ? undefined : 'Hollow marks are not confirmed hard'}
+      keyNote={model.anySolid ? undefined : `Hollow marks are ${model.hollowKey.toLowerCase()}`}
       idleReadout={idleFrom(tooltipFor(model, latest, 0, 0))}
       table={{
         caption: `${title}, ${lede.toLowerCase()}. At least marks a best not confirmed hard.`,
@@ -157,7 +157,7 @@ export function BestsByYearChart({ sport, efforts, units }: BestsByYearChartProp
                         x={point.x}
                         y={point.y}
                         r={top || i === active ? activeR : marker}
-                        hollow={!mark.hard}
+                        hollow={mark.hollow}
                         testId={top ? 'best-mark-top' : 'best-mark'}
                       />
                     )

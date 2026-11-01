@@ -1467,10 +1467,15 @@ and Ride toggle sits above it when both sports have a best. Runs come from `dist
 curve (`history/yearlyCurves.ts` calls `sportCurves` once for each year, so no second best-effort logic stands beside the
 sport pages'). An indoor run and a ride whose power is set aside hold no best. A best that heart rate does not show was
 hard (`effortVerdict`, the effort gate's own test) is drawn hollow and keyed, never dropped, and its table cell starts
-with "At least".
+with "At least". A ride's best from a bike model and not a power meter (`isEstimatedRecord`'s rule, from the activity's power
+source) is hollow too, tagged "Estimated", and ends its table cell with ", estimated". An estimate is never the labelled
+all-time best while a measured value exists in the panel.
 
 **Best curve by year.** Every year's best curve on the sport page's own scales (duration on a log axis from a minute, or
 from where the sport's curve starts, to three hours). The newest year and the best year are in the sport colour, named at
-their ends and marked at the 20 minute best; the others are fainter the older they are, on one ramp. The title is the
-finding about the 20 minute best ("Your 20 min power peaked in 2024"), or "is highest in" when the newest year holds it.
-A sport needs two years to be compared. The table twin lists every year at every duration.
+their ends and marked at the 20 minute best (hollow for a floor or an estimate); the others are fainter the older they
+are, on one ramp. Past six years only four are in colour (the newest, the best and the two newest of the others, each
+labelled) and the rest are thin grey lines with no label. The title is the finding about the 20 minute best ("Your 20 min
+power peaked in 2024"), or "is fastest in" for a pace and "is highest in" for a power when the newest year holds it. An
+estimate is never the best year while a year has a measured value. A sport needs two years to be compared. The table twin
+lists every year at every duration, tagging an estimated value ", estimated".

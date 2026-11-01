@@ -71,7 +71,7 @@ describe('run bests by year', () => {
       runDigest('lost', at(2022, 3), {}, { distanceBests: [{ distanceM: FIVE_K, seconds: NaN }] }),
     ])
     // The earlier run holds it, and it was hard.
-    expect(run[0]!.years).toEqual([[2022, 1100, true]])
+    expect(run[0]!.years).toEqual([[2022, 1100, true, false]])
   })
 
   it('leaves out an indoor run, which holds no best', () => {
@@ -205,6 +205,42 @@ describe('ride bests by year', () => {
     expect(hardOf(EASY_BPM)).toBe(false)
     expect(hardOf(null)).toBe(false)
     expect(hardOf(HARD_BPM, UNJUDGED)).toBe(false)
+  })
+})
+
+describe('estimated bests', () => {
+  const estimatedOf = (digests: Parameters<typeof historyOf>[0]) =>
+    bestsOf(digests)
+      .ride.find((effort) => effort.length === 1200)!
+      .years.map(([, , , e]) => e)
+
+  it('tags a ride’s best that did not come from a power meter, and never a run’s', () => {
+    expect(
+      estimatedOf([
+        rideDigest('meter', at(2020), { 1200: 250 }),
+        rideDigest('model', at(2021), { 1200: 250 }, { powerSource: 'virtual' }),
+        rideDigest('none', at(2022), { 1200: 250 }, { powerSource: 'none' }),
+      ]),
+    ).toEqual([false, true, true])
+    const { run } = bestsOf([
+      runDigest('a', at(2021), {}, { distanceBests: [{ distanceM: FIVE_K, seconds: 1100 }] }),
+    ])
+    expect(run[0]!.years[0]![3]).toBe(false)
+  })
+
+  it('tags the ride that holds the year’s best, not another of the year', () => {
+    expect(
+      estimatedOf([
+        rideDigest('meter', at(2021), { 1200: 240 }),
+        rideDigest('model', at(2021, 9), { 1200: 260 }, { powerSource: 'virtual' }),
+      ]),
+    ).toEqual([true])
+    expect(
+      estimatedOf([
+        rideDigest('meter', at(2021), { 1200: 270 }),
+        rideDigest('model', at(2021, 9), { 1200: 260 }, { powerSource: 'virtual' }),
+      ]),
+    ).toEqual([false])
   })
 })
 

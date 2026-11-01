@@ -4,17 +4,25 @@ import { ofSport } from '../digest/ordered'
 import { EFFORT_LENGTHS_S } from '../digest/trendPoints'
 import { METRES_PER_KM } from '../units/convert'
 import type { ActivityDigest, Sport } from '../types'
+import { isEstimated } from './estimated'
 import { shownHard } from './hardness'
 import { perSport } from './sports'
 import type { HistoryInput, HistoryPart } from './types'
 import { yearOfDigest } from './yearOf'
-import { curvesByYear, pointShownHard, sameHardness, sameRidePricing } from './yearlyCurves'
+import {
+  curvesByYear,
+  pointEstimated,
+  pointShownHard,
+  sameHardness,
+  sameRidePricing,
+} from './yearlyCurves'
 
 /**
- * A calendar year's best at one length: the year, the value (a run's time over a distance, s; a ride's power, W), and
- * whether heart rate shows the effort was hard. One that is not shown hard is still the year's best, as a floor.
+ * A calendar year's best at one length: the year, the value (a run's time over a distance, s; a ride's power, W), whether
+ * heart rate shows the effort was hard, and whether the value is estimated (a ride's watts from a bike model, not a meter).
+ * One that is not shown hard is still the year's best, as a floor.
  */
-export type YearBest = readonly [year: number, value: number, hard: boolean]
+export type YearBest = readonly [year: number, value: number, hard: boolean, estimated: boolean]
 
 /** A sport's best at one length, in each year that has one, oldest year first. */
 export interface BestEffort {
@@ -53,6 +61,7 @@ function runBests(digests: ActivityDigest[], input: HistoryInput): BestEffort[] 
         year,
         seconds,
         shownHard(digest, seconds, input),
+        isEstimated('run', digest),
       ])
     return years.length === 0 ? [] : [{ length: distanceM, years }]
   })
@@ -65,7 +74,14 @@ function rideBests(digests: ActivityDigest[], input: HistoryInput): BestEffort[]
     const years = inYear.flatMap((year): YearBest[] => {
       const point = year.curves.rideCurve.find((p) => p.durationS === durationS)
       if (point === undefined || !(point.value > 0) || !Number.isFinite(point.value)) return []
-      return [[year.year, Math.round(point.value), pointShownHard(year, point, input)]]
+      return [
+        [
+          year.year,
+          Math.round(point.value),
+          pointShownHard(year, point, input),
+          pointEstimated(year, 'ride', point),
+        ],
+      ]
     })
     return years.length === 0 ? [] : [{ length: durationS, years }]
   })

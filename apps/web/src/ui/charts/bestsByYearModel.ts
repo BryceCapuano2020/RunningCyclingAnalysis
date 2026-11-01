@@ -19,6 +19,10 @@ export interface BestMark {
   time: string | null
   /** Whether heart rate shows the effort was hard; a best that was not is still the year's best, as a floor. */
   hard: boolean
+  /** Whether the value is a bike model's and not a power meter's. */
+  estimated: boolean
+  /** Drawn as an outline: a floor, or an estimate. */
+  hollow: boolean
 }
 
 /** One length's small chart: its name, and a mark for each year of the axis (null where the year has no best). */
@@ -35,9 +39,11 @@ export interface BestsModel {
   /** Every year from the first with a best to the last, so a year without one is an empty room. */
   years: number[]
   panels: BestPanel[]
-  /** Whether any mark is a floor, and whether any is hard: the key names the two when both are there. */
-  anyFloor: boolean
-  anyHard: boolean
+  /** Whether any mark is hollow, and whether any is solid: the key names the two when both are there. */
+  anyHollow: boolean
+  anySolid: boolean
+  /** What a hollow mark is, for the key: "Estimated", "Not confirmed hard" or both. */
+  hollowKey: string
 }
 
 /** A run distance's name on its panel. */
@@ -73,7 +79,7 @@ const TIME_OF: Record<
 function markOf(
   sport: Sport,
   length: number,
-  [year, value, hard]: YearBest,
+  [year, value, hard, estimated]: YearBest,
   units: UnitSystem,
 ): BestMark {
   const native = NATIVE_OF[sport](value, length)
@@ -84,14 +90,21 @@ function markOf(
     text: formatNative(sport, native, units),
     time: TIME_OF[sport](value, length, units),
     hard,
+    estimated,
+    hollow: !hard || estimated,
   }
 }
 
-/** The index of the highest native value, the earliest where two tie; -1 with none. */
+/**
+ * The index of the highest native value, the earliest where two tie; -1 with none. An estimate is the best only where no
+ * measured value is there, so a model's reading never stands above a meter's.
+ */
 function bestOf(marks: readonly (BestMark | null)[]): number {
+  const measured = marks.some((mark) => mark !== null && !mark.estimated)
   let best = -1
   marks.forEach((mark, i) => {
-    if (mark !== null && (best < 0 || mark.native > marks[best]!.native)) best = i
+    if (mark === null || (measured && mark.estimated)) return
+    if (best < 0 || mark.native > marks[best]!.native) best = i
   })
   return best
 }
@@ -123,14 +136,21 @@ export function bestsModel(
     }
   })
   const marks = panels.flatMap((panel) => panel.marks).filter((mark) => mark !== null)
+  const reasons = [
+    marks.some((mark) => mark.estimated) ? 'Estimated' : null,
+    marks.some((mark) => !mark.hard) ? 'not confirmed hard' : null,
+  ].filter((reason) => reason !== null)
   return {
     sport,
     years,
     panels,
-    anyFloor: marks.some((mark) => !mark.hard),
-    anyHard: marks.some((mark) => mark.hard),
+    anyHollow: marks.some((mark) => mark.hollow),
+    anySolid: marks.some((mark) => !mark.hollow),
+    hollowKey: sentenceCase(reasons.join(' or ')),
   }
 }
+
+const sentenceCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
 /** The line under a bests chart's title: its unit, and which way is better. */
 const UNIT_NOTE: Record<Sport, (units: UnitSystem) => string> = {
@@ -140,16 +160,20 @@ const UNIT_NOTE: Record<Sport, (units: UnitSystem) => string> = {
 
 export const bestsNote = (sport: Sport, units: UnitSystem): string => UNIT_NOTE[sport](units)
 
-/** What a mark says beside its value: the time, the all-time best, and that it is a floor. */
+/** What a mark says beside its value: the time, the all-time best, that it is estimated, and that it is a floor. */
 export function markNote(mark: BestMark, isBest: boolean): string | undefined {
   const parts = [
     mark.time,
     isBest ? 'All-time best' : null,
+    mark.estimated ? 'Estimated' : null,
     mark.hard ? null : 'Not confirmed hard',
   ].filter((part) => part !== null)
   return parts.length === 0 ? undefined : parts.join(', ')
 }
 
-/** A mark as a table cell: a floor says so first. */
-export const markCell = (mark: BestMark | null): string =>
-  mark === null ? 'None' : mark.hard ? mark.text : `At least ${mark.text}`
+/** A mark as a table cell: a floor says so first, an estimate last, as the records do ("312 W, estimated"). */
+export function markCell(mark: BestMark | null): string {
+  if (mark === null) return 'None'
+  const value = mark.hard ? mark.text : `At least ${mark.text}`
+  return mark.estimated ? `${value}, estimated` : value
+}

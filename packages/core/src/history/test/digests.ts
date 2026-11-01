@@ -3,7 +3,7 @@ import { MODEL_REVISION } from '../../digest/modelRevision'
 import { NO_EFFORT_REFERENCE } from '../../effort'
 import type { EffortReference } from '../../effort'
 import { flatSpeedToMetabolic } from '../../metabolic'
-import type { Activity, ActivityDigest, Sport } from '../../types'
+import type { Activity, ActivityDigest, PowerSource, Sport } from '../../types'
 import type { HistoryInput } from '../types'
 
 /** A flat activity of 2501 s, digested once per sport; the helpers below override the parts a test reads. */
@@ -41,6 +41,8 @@ export interface DigestFields {
   secondsAtPeak?: number
   avgHeartRate?: number | null
   distanceBests?: ActivityDigest['distanceBests']
+  /** Where a ride's watts came from; a ride is measured unless it says otherwise. */
+  powerSource?: PowerSource
 }
 
 /** The fields of a digest that a test sets, with the heart-rate distribution that goes with a peak. */
@@ -85,11 +87,11 @@ export function rideDigest(
 ): ActivityDigest {
   return {
     ...BASE.ride,
+    powerSource: 'measured',
     ...withFields(fields),
     id,
     startMs,
     modelRevision: MODEL_REVISION,
-    powerSource: 'measured',
     curve: BASE.ride.curve.map((p) =>
       Object.assign({}, p, {
         value: p.durationS in watts ? watts[p.durationS]! : NaN,
