@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
 import { analysisStub } from '../../test/analysisStub'
 import { QUIET_CHECK_IN } from '../checkInFixtures'
-import { FITNESS_LIBRARY, SLIPPING } from '../fitnessFixtures'
+import { FITNESS_AS_OF_MS, FITNESS_LIBRARY, SLIPPING } from '../fitnessFixtures'
 import { YEARS_LOOKBACK } from '../yearsFixtures'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 
-afterEach(cleanup)
+/** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(FITNESS_AS_OF_MS)
+})
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 const SEEN = { checkIn: QUIET_CHECK_IN, seen: true }
 const UNSEEN = { checkIn: QUIET_CHECK_IN, seen: false }

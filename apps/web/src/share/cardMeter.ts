@@ -6,7 +6,7 @@ import {
   capText,
   meterFraction,
 } from '../ui/components/balanceScale'
-import { SPORT_LABEL, SPORT_ORDER } from '../ui/sports'
+import { BALANCE_PAIR, SPORT_LABEL } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import {
   SANS_400,
@@ -88,21 +88,20 @@ function drawMeter(ctx: CardContext, meter: ShareMeter, x: number, y: number, wi
   ctx.fill()
   strokeWith(ctx, CARD_COLORS.ink, 4, () => ctx.arc(centre, centreY, DOT_RADIUS, 0, Math.PI * 2))
 
-  // The ends name the sports in SPORT_ORDER: the first sport is on the left, as on the cards.
-  const [left, right] = SPORT_ORDER
+  // The ends name the sports in BALANCE_PAIR: the first sport is on the left, as on the cards.
+  const [left, right] = BALANCE_PAIR
   const labelY = y + LABEL_TOP
   const capped = cappedEnds(lead)
-  const cappedSport = { run: capped.running, ride: capped.cycling }
   ctx.textAlign = 'left'
   drawLines(ctx, [SPORT_LABEL[left]], x, labelY, LABEL, CARD_COLORS.secondary)
-  if (cappedSport[left]) {
+  if (capped.left) {
     drawCap(ctx, SPORT_LABEL[left], { x, y: labelY, align: 'left' }, capText(unit))
   }
   ctx.textAlign = 'center'
   drawLines(ctx, [EVEN_LABEL], x + width / 2, labelY, EVEN, CARD_COLORS.muted)
   ctx.textAlign = 'right'
   drawLines(ctx, [SPORT_LABEL[right]], x + width, labelY, LABEL, CARD_COLORS.secondary)
-  if (cappedSport[right]) {
+  if (capped.right) {
     drawCap(ctx, SPORT_LABEL[right], { x: x + width, y: labelY, align: 'right' }, capText(unit))
   }
   ctx.textAlign = 'left'

@@ -15,7 +15,7 @@ import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import { balanceMoveItem } from './balanceMove'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
@@ -296,7 +296,7 @@ export function whatMoved(
     weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
   ])
   const balance = balanceItem(before, after, profile, weighted, added, hold)
-  const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
+  const sports: readonly Sport[] = weighted ? BALANCE_PAIR : ['run']
   const bests = bestsAgreeing(
     [
       ...bestItems(before, after, settings.massKg, units, sports),

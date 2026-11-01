@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SPORT_ORDER } from '../sports'
+import { BALANCE_PAIR } from '../sports'
 import type { BalanceGap } from '../balanceGap'
 import { interval } from './fixtures'
 import {
@@ -12,9 +12,6 @@ import {
   meterFraction,
 } from './balanceScale'
 
-/** Whether running is the first sport in SPORT_ORDER, so a running lead sits on the left. */
-const RUN_ON_LEFT = SPORT_ORDER[0] === 'run'
-
 function gap(overrides: Partial<BalanceGap> = {}): BalanceGap {
   return { centre: 6, low: 2, high: 10, lean: 'run', ...overrides }
 }
@@ -24,12 +21,12 @@ describe('meterFraction', () => {
     expect(meterFraction(0)).toBe(0.5)
   })
 
-  it('puts a running lead on the running side of the track, as the sport order says', () => {
-    expect(meterFraction(6) < 0.5).toBe(RUN_ON_LEFT)
+  it('puts a lead toward the first sport of the pair on the left of the track', () => {
+    expect(meterFraction(6)).toBeLessThan(0.5)
   })
 
-  it('puts a cycling lead on the cycling side, the other way round', () => {
-    expect(meterFraction(-6) < 0.5).toBe(!RUN_ON_LEFT)
+  it('puts a lead toward the second sport on the right, the other way round', () => {
+    expect(meterFraction(-6)).toBeGreaterThan(0.5)
   })
 
   it('mirrors a lead of either sport about the centre', () => {
@@ -38,10 +35,9 @@ describe('meterFraction', () => {
     }
   })
 
-  it('moves steadily toward the running side as the lead grows', () => {
-    const direction = RUN_ON_LEFT ? -1 : 1
-    expect((meterFraction(10) - meterFraction(0)) * direction).toBeGreaterThan(0)
-    expect((meterFraction(20) - meterFraction(10)) * direction).toBeGreaterThan(0)
+  it('moves steadily toward the left as a lead toward the first sport grows', () => {
+    expect(meterFraction(0) - meterFraction(10)).toBeGreaterThan(0)
+    expect(meterFraction(10) - meterFraction(20)).toBeGreaterThan(0)
   })
 
   it('keeps a lead at the scale span just inside the end of the track', () => {
@@ -58,26 +54,20 @@ describe('meterFraction', () => {
 
 describe('cappedEnds', () => {
   it('caps neither end while the range stays inside the span', () => {
-    expect(cappedEnds(gap())).toEqual({ running: false, cycling: false })
+    expect(cappedEnds(gap())).toEqual({ left: false, right: false })
   })
 
-  it('caps the running end only past the span: a lead of exactly 30 is at the end, not past it', () => {
-    expect(cappedEnds({ centre: 35, low: 31, high: 40 }).running).toBe(true)
-    expect(cappedEnds({ centre: 30, low: 30, high: 30 }).running).toBe(false)
+  it('caps the left end only past the span: a lead of exactly 30 is at the end, not past it', () => {
+    expect(cappedEnds({ centre: 35, low: 31, high: 40 }).left).toBe(true)
+    expect(cappedEnds({ centre: 30, low: 30, high: 30 }).left).toBe(false)
   })
 
-  it('caps the running end when only the top of the range is past the span', () => {
-    expect(cappedEnds({ centre: 10, low: 5, high: 32 })).toEqual({
-      running: true,
-      cycling: false,
-    })
+  it('caps the left end when only the top of the range is past the span', () => {
+    expect(cappedEnds({ centre: 10, low: 5, high: 32 })).toEqual({ left: true, right: false })
   })
 
-  it('caps the cycling end the same way, on the other side of zero', () => {
-    expect(cappedEnds({ centre: -31, low: -40, high: -20 })).toEqual({
-      running: false,
-      cycling: true,
-    })
+  it('caps the right end the same way, on the other side of zero', () => {
+    expect(cappedEnds({ centre: -31, low: -40, high: -20 })).toEqual({ left: false, right: true })
   })
 })
 
@@ -88,13 +78,14 @@ describe('energyReading', () => {
     expect(reading.lead.centre).toBeCloseTo(12, 6)
     expect(reading.lead.low).toBeCloseTo(5, 6)
     expect(reading.lead.high).toBeCloseTo(20, 6)
-    expect(reading.lean).toBe('run')
+    expect(reading.lean).toBe(BALANCE_PAIR[0])
+    expect(reading.pair).toEqual(BALANCE_PAIR)
   })
 
   it('reads a cycling lead as its inverse, so the two sports mirror', () => {
     const reading = energyReading(interval(0.75, 0.8, 0.9))
     expect(reading.lead.centre).toBeCloseTo(-25, 6)
-    expect(reading.lean).toBe('ride')
+    expect(reading.lean).toBe(BALANCE_PAIR[1])
   })
 
   it('is even when the 90% range spans 1', () => {
@@ -112,6 +103,7 @@ describe('gapReading and balanceReading', () => {
   it('reads the age-grade gap in points, with its lean and range', () => {
     const reading = gapReading(gap({ centre: -4, low: -8, high: 0, lean: 'even' }))
     expect(reading).toEqual({
+      pair: BALANCE_PAIR,
       unit: 'points',
       lean: 'even',
       lead: { centre: -4, low: -8, high: 0 },

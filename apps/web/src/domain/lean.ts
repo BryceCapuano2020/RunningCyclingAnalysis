@@ -1,15 +1,14 @@
+import type { PairLead, Sport } from '@rca/core/types'
+
 /** Which way a balance leans: toward one sport, or even when the two are level. */
-export type Lean = 'run' | 'ride' | 'even'
+export type Lean = Sport | 'even'
 
 /**
- * A lead on a scale: its centre and the low and high ends of its range. A positive lead favours
- * running, whatever the scale measures.
+ * A lead on a scale: its centre and the low and high ends of its range. A positive lead favours the first
+ * sport of the compared pair and a negative one the second, whatever the scale measures. The pair is run
+ * and ride today, run first (`BALANCE_PAIR` in ui/sports.ts).
  */
-export interface Lead {
-  centre: number
-  low: number
-  high: number
-}
+export type Lead = PairLead
 
 /** A lead within this many whole points of grade, or whole percent of energy, is level. */
 export const LEVEL_BAND = 2

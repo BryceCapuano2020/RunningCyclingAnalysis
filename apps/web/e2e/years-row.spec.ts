@@ -13,7 +13,7 @@ import {
 /**
  * "Your years" (D9): the row under the fitness card on Balance and the section on the Run page. The first-screen
  * contracts of analysis.spec.ts run on the sample, which has too few weeks for a row; this runs them with one. The library
- * is generated here (70 steady runs nine days apart, a slower stretch in the middle), so it is a slip that came back.
+ * is generated here (96 steady runs nine days apart, a slower stretch in the middle), so it is a slip that came back.
  */
 
 const ROW = '[data-testid="years-row"]'
@@ -31,13 +31,17 @@ function gpx(startMs: number, speed: number, hr: number): string {
   return `<?xml version="1.0"?><gpx version="1.1" creator="e2e" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"><trk><type>running</type><trkseg>${points.join('')}</trkseg></trk></gpx>`
 }
 
-/** Seventy runs from January 2023, nine days apart; those 28 to 45 are 10% slower. */
+/**
+ * Ninety-six runs from January 2023, nine days apart; those 28 to 51 are 10% slower. The years are told as of the newest run,
+ * through 12 weeks before it, and a library under two years to that point leads with nothing, so this one runs past two years.
+ * The slow stretch is 24 runs, which this length lists as an episode.
+ */
 function library() {
   const start = Date.UTC(2023, 0, 2, 7)
-  return Array.from({ length: 70 }, (_, i) => ({
+  return Array.from({ length: 96 }, (_, i) => ({
     name: `run-${String(i).padStart(2, '0')}.gpx`,
     mimeType: 'application/gpx+xml',
-    buffer: Buffer.from(gpx(start + i * 9 * 86_400_000, i >= 28 && i < 46 ? 3.06 : 3.4, 150)),
+    buffer: Buffer.from(gpx(start + i * 9 * 86_400_000, i >= 28 && i < 52 ? 3.06 : 3.4, 150)),
   }))
 }
 

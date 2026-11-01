@@ -8,7 +8,7 @@ import { milestonesOf } from './milestones'
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const NONE: ReadonlySet<string> = new Set()
 
-function mixed(): { digests: ActivityDigest[]; nowMs: number } {
+function mixed(): { digests: ActivityDigest[] } {
   const run = plantedLibrary({ seed: 31, weeks: 300, perWeek: 4, noise: 0.03, effects: [] })
   const ride = plantedLibrary({
     seed: 32,
@@ -20,7 +20,6 @@ function mixed(): { digests: ActivityDigest[]; nowMs: number } {
   })
   return {
     digests: [...run.digests, ...ride.digests].sort((a, b) => a.startMs - b.startMs),
-    nowMs: Math.max(run.lastMs, ride.lastMs),
   }
 }
 
@@ -70,9 +69,9 @@ describe('milestones read one sport at a time', () => {
 
 describe('the look-back when the body mass changes', () => {
   it('keeps the years and the runs’ milestones it made, and prices the rides again', () => {
-    const { digests, nowMs } = mixed()
-    const before = lookBackOf(digests, SETTINGS, NONE, nowMs)
-    const after = lookBackOf(digests, { massKg: 85, bikeMassKg: 9 }, NONE, nowMs)
+    const { digests } = mixed()
+    const before = lookBackOf(digests, SETTINGS, NONE)
+    const after = lookBackOf(digests, { massKg: 85, bikeMassKg: 9 }, NONE)
 
     expect(after).not.toBe(before)
     // The same answers, not copies: nothing about them was worked out again.

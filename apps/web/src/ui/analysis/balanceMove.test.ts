@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceReading } from '../components/balanceScale'
+import { BALANCE_PAIR } from '../sports'
 import { balanceMoveItem } from './balanceMove'
 
 /** An even balance in points, as the Balance page reads it: signed, running against cycling. */
 function evenPoints(centre: number, low: number, high: number): BalanceReading {
-  return { unit: 'points', lean: 'even', lead: { centre, low, high } }
+  return { pair: BALANCE_PAIR, unit: 'points', lean: 'even', lead: { centre, low, high } }
 }
 
 describe('balanceMoveItem: an even balance', () => {

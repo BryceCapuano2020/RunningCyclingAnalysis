@@ -112,9 +112,11 @@ describe('the sample athlete’s fitness story', () => {
     expect(shortfall.have).toBeLessThan(shortfall.need)
     expect(rides.steady).toBeGreaterThanOrEqual(12)
     expect(rides.referenceHr).not.toBeNull()
-    expect(fitnessLines(rides, 'metric').headline).toMatch(
-      /^Not enough evidence yet\. Power at the same heart rate is read from \d+ steady rides/,
-    )
+    // It tells its level in watts, and what a trend needs, where it used to refuse.
+    const lines = fitnessLines(rides, 'metric')
+    expect(lines.headline).toMatch(/^\d+ W at \d+ bpm \(\d+ to \d+\)\.$/)
+    expect(lines.support).toMatch(/^From \d+ steady rides\.$/)
+    expect(lines.needs).toMatch(/^\d+ more earlier rides? to see a trend\.$/)
   })
 })
 
