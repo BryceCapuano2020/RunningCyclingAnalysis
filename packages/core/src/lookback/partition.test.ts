@@ -4,17 +4,14 @@ import { LOOKBACK } from './params'
 import { medianInPlace } from '../math'
 import type { RunPoint } from '../fitness/windows'
 import { localMedians } from './localMedians'
-import { partition } from './partition'
+import { partition, plateauCost } from './partition'
+import type { PlateauSums } from './partition'
 
 const S = LOOKBACK.segment
 
 /** The cut as the full search makes it: every start tried for every end. The pruned search must give the very same arrays. */
-function exhaustive(
-  weeks: number,
-  count: Float64Array,
-  present: Float64Array,
-  cost: (a: number, b: number) => number,
-) {
+function exhaustive(weeks: number, count: Float64Array, present: Float64Array, sums: PlateauSums) {
+  const cost = (a: number, b: number) => plateauCost(count, sums, a, b)
   const best = new Float64Array(weeks + 1).fill(Number.POSITIVE_INFINITY)
   const from = new Int32Array(weeks + 1).fill(-1)
   best[0] = -S.beta
@@ -66,13 +63,8 @@ function series(seed: number, weeks: number, steps: number[], noise: number, gap
     present[i]! += present[i - 1]!
   }
   const sigma = 0.02
-  const cost = (a: number, b: number): number => {
-    const k = count[b]! - count[a]!
-    if (k === 0) return 0
-    const total = sum[b]! - sum[a]!
-    return (squares[b]! - squares[a]! - (total * total) / k) / (sigma * sigma)
-  }
-  return { weeks, count, present, cost, scale: squares[weeks]! / (sigma * sigma) }
+  const sums = { sum, squares, sigma2: sigma * sigma }
+  return { weeks, count, present, sums, scale: squares[weeks]! / (sigma * sigma) }
 }
 
 describe('partition', () => {
@@ -97,8 +89,8 @@ describe('partition', () => {
     }
     for (const [seed, weeks, steps, noise, gap] of cases) {
       const s = series(seed, weeks, steps, noise, gap)
-      const full = exhaustive(s.weeks, s.count, s.present, s.cost)
-      const pruned = partition(s.weeks, s.count, s.present, s.cost, s.scale)
+      const full = exhaustive(s.weeks, s.count, s.present, s.sums)
+      const pruned = partition(s.weeks, s.count, s.present, s.sums, s.scale)
       expect(Array.from(pruned.from), `seed ${seed}`).toEqual(Array.from(full.from))
       expect(Array.from(pruned.best), `seed ${seed}`).toEqual(Array.from(full.best))
     }
@@ -108,9 +100,13 @@ describe('partition', () => {
     const weeks = 200
     const count = Float64Array.from({ length: weeks + 1 }, (_, i) => i * 2)
     const present = Float64Array.from({ length: weeks + 1 }, (_, i) => i)
-    const cost = () => 0
-    const full = exhaustive(weeks, count, present, cost)
-    const pruned = partition(weeks, count, present, cost, 0)
+    const sums = {
+      sum: new Float64Array(weeks + 1),
+      squares: new Float64Array(weeks + 1),
+      sigma2: 1,
+    }
+    const full = exhaustive(weeks, count, present, sums)
+    const pruned = partition(weeks, count, present, sums, 0)
     expect(Array.from(pruned.from)).toEqual(Array.from(full.from))
     expect(Array.from(pruned.best)).toEqual(Array.from(full.best))
   })

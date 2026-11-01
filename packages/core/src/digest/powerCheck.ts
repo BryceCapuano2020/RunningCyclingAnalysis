@@ -7,6 +7,14 @@ import { massesOf } from './masses'
 /** Whether a sport's power is judged against the pro ceiling: a ride's is, a run has no power. */
 const POWER_JUDGED: Record<Sport, boolean> = { run: false, ride: true }
 
+type PowerCheck = 'set-aside' | 'kept' | undefined
+
+// A ride's points are priced one after another, each asking for the same answer; the last one asked is kept. Digests and
+// the masses made from a set of settings do not change, so it is the answer for as long as it is the same pair.
+let askedOf: object | null = null
+let askedWith: Masses | null = null
+let asked: PowerCheck
+
 /**
  * Whether a ride's power is in question (see implausiblePower, and estimatedPowerOver for a ride without a meter): 'set-aside' while it is left out of every best,
  * 'kept' once the athlete chose to keep it. Undefined for a run, for a ride whose power is plausible, and while
@@ -15,7 +23,19 @@ const POWER_JUDGED: Record<Sport, boolean> = { run: false, ride: true }
 export function powerCheckOf(
   digest: Pick<ActivityDigest, 'id' | 'curve' | 'sport' | 'startMs'>,
   masses: Masses,
-): 'set-aside' | 'kept' | undefined {
+): PowerCheck {
+  if (digest === askedOf && masses === askedWith) return asked
+  const check = checkOf(digest, masses)
+  askedOf = digest
+  askedWith = masses
+  asked = check
+  return check
+}
+
+function checkOf(
+  digest: Pick<ActivityDigest, 'id' | 'curve' | 'sport' | 'startMs'>,
+  masses: Masses,
+): PowerCheck {
   if (!POWER_JUDGED[digest.sport] || !masses.massKnown) return undefined
   if (
     !implausiblePower(digest, masses.bodyKg(digest)) &&

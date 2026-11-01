@@ -31,6 +31,9 @@ export interface DurationReadings {
 /** Every activity's reading at each curve duration, by sport: `byDuration[i]` is for DURATIONS_S[i]. */
 export type Readings = Record<Sport, DurationReadings[]>
 
+/** What a point the rule leaves out is priced at. */
+const NOT_COUNTED = { wkg: Number.NaN, watts: Number.NaN, alone: false }
+
 const empty = (): DurationReadings[] => DURATIONS_S.map(() => ({ values: [], measured: [] }))
 
 /**
@@ -53,28 +56,27 @@ export function readingsOf(
   const out: Readings = { run: empty(), ride: empty() }
   for (const digest of orderedFor('change', digests)) {
     if (!rule.activity(digest)) continue
-    const curve =
-      shortestS > 0 ? digest.curve.filter((point) => point.durationS >= shortestS) : digest.curve
-    const points = curve.map((point) =>
-      rule.point(digest, point)
-        ? pointWkg(point, digest, masses, bikeModel, standing)
-        : { wkg: Number.NaN, watts: Number.NaN, alone: false },
-    )
+    const curve = digest.curve
     const measured = digest.powerSource === 'measured'
-    // From the longest length down: `held` is the best of the points that count at every shorter length too.
+    const target = out[digest.sport]
+    // From the longest length down: `held` is the best of the points that count at every shorter length too. A point
+    // shorter than `shortestS` is not priced and does not take part.
     let held = Number.NEGATIVE_INFINITY
-    for (let i = points.length - 1; i >= 0; i--) {
-      const { wkg, alone } = points[i]!
+    for (let i = curve.length - 1; i >= 0; i--) {
+      const point = curve[i]!
+      if (shortestS > 0 && !(point.durationS >= shortestS)) continue
+      const { wkg, alone } = rule.point(digest, point)
+        ? pointWkg(point, digest, masses, bikeModel, standing)
+        : NOT_COUNTED
       const finite = Number.isFinite(wkg)
       if (finite && !alone && wkg > held) held = wkg
       const here = finite && alone ? Math.max(held, wkg) : held
-      const index = INDEX_OF.get(curve[i]!.durationS)
+      const index = INDEX_OF.get(point.durationS)
       if (index === undefined || !Number.isFinite(here)) continue
       const value = COMPARED[digest.sport](here)
       if (!(value > 0)) continue
-      const target = out[digest.sport][index]!
-      target.values.push(value)
-      target.measured.push(measured)
+      target[index]!.values.push(value)
+      target[index]!.measured.push(measured)
     }
   }
   return out

@@ -173,7 +173,8 @@ export function milestonesOf(
   const ordered = orderedFor('records', digests)
   const out: Record<Sport, EffortMilestones[]> = { run: [], ride: [] }
   if (ordered.length === 0) return out
-  const asOfMs = ordered.reduce((newest, d) => Math.max(newest, d.startMs), 0)
+  // The list is in order of start, so the newest is the last.
+  const asOfMs = Math.max(0, ordered.at(-1)!.startMs)
   // The gate is read once, and only for a library with estimated rides (a meter's points all hold, gate or none): the
   // progression takes it as it is and reads the lengths shown alone.
   const wantsRide = only.includes('ride')

@@ -2,6 +2,36 @@ import { LOOKBACK } from './params'
 
 const S = LOOKBACK.segment
 
+/** Prefix sums over the weeks (index `w` holds the weeks before `w`) from which a plateau's cost is made, and the spread it is in. */
+export interface PlateauSums {
+  sum: Float64Array
+  squares: Float64Array
+  /** The squared spread of one run: the unit the cost is in. */
+  sigma2: number
+}
+
+/**
+ * The squared deviation of the runs of the weeks `a` up to `b` from their mean, in squared run spreads. It is read from
+ * the sums, not from a function passed in, so the search keeps one compiled form for every library it is asked of.
+ */
+export function plateauCost(count: Float64Array, sums: PlateauSums, a: number, b: number): number {
+  return costBetween(count, sums.sum, sums.squares, sums.sigma2, a, b)
+}
+
+function costBetween(
+  count: Float64Array,
+  sum: Float64Array,
+  squares: Float64Array,
+  sigma2: number,
+  a: number,
+  b: number,
+): number {
+  const k = count[b]! - count[a]!
+  if (k === 0) return 0
+  const total = sum[b]! - sum[a]!
+  return (squares[b]! - squares[a]! - (total * total) / k) / sigma2
+}
+
 /**
  * The cheapest cut of the weeks into plateaus: `best[b]` is the least total cost of cutting the first `b` weeks (each
  * plateau its `cost` plus `beta`), `from[b]` where the last plateau begins. A plateau spans `minWeeks` and holds `minRuns`
@@ -19,12 +49,31 @@ export function partition(
   weeks: number,
   count: Float64Array,
   present: Float64Array,
-  cost: (a: number, b: number) => number,
+  sums: PlateauSums,
   /** The size of the sums the costs are made of (the squares over the weeks, in squared run spreads), which bounds their rounding. */
   scale: number,
 ): { best: Float64Array; from: Int32Array } {
   const best = new Float64Array(weeks + 1).fill(Number.POSITIVE_INFINITY)
   const from = new Int32Array(weeks + 1).fill(-1)
+  search(weeks, count, present, sums.sum, sums.squares, sums.sigma2, scale, best, from)
+  return { best, from }
+}
+
+/**
+ * The search, filling `best` and `from`. It hands back nothing: a loop compiled while the code after it has never run is
+ * thrown away when it ends, and the next library would then run it slowly again until it was compiled once more.
+ */
+function search(
+  weeks: number,
+  count: Float64Array,
+  present: Float64Array,
+  sum: Float64Array,
+  squares: Float64Array,
+  sigma2: number,
+  scale: number,
+  best: Float64Array,
+  from: Int32Array,
+): void {
   const { minWeeks, minRuns, minDistinctWeeks, beta } = S
   best[0] = -beta
   // The starts still in play, in order; the first end each was found beaten at; the value each last cost.
@@ -47,7 +96,7 @@ export function partition(
       countB - count[guess]! >= minRuns &&
       presentB - present[guess]! >= minDistinctWeeks
     ) {
-      const c = cost(guess, b)
+      const c = costBetween(count, sum, squares, sigma2, guess, b)
       bound = best[guess]! + c + beta
       costs[guess] = c
       last[guess] = bound
@@ -77,7 +126,7 @@ export function partition(
       if (countB - count[a]! < minRuns || presentB - present[a]! < minDistinctWeeks) continue
       // It cost more than the best cut when last priced, and a plateau only costs more as it grows.
       if (last[a]! > bound + slack) continue
-      const c = guess === a ? costs[a]! : cost(a, b)
+      const c = guess === a ? costs[a]! : costBetween(count, sum, squares, sigma2, a, b)
       costs[a] = c
       tried[triedCount++] = a
       const value = best[a]! + c + beta
@@ -100,5 +149,4 @@ export function partition(
     }
     live[liveCount++] = b
   }
-  return { best, from }
 }

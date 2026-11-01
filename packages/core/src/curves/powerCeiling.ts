@@ -37,12 +37,22 @@ const CEILING_TABLE = [
   ...WORLD_CLASS_POWER_WKG.slice(1),
 ].map((entry) => ({ durationS: entry.durationS, speedMs: entry.wkg * POWER_CEILING_MARGIN }))
 
+// Every point of a library's ride curves is judged against the ceiling of one of the few durations the digests use, so
+// each is worked out once (as the run ceiling is, see runCeiling.ts).
+const ceilings = new Map<number, number>()
+const MAX_REMEMBERED = 64
+
 /**
  * The most W/kg a rider holds for durationS: the world-class edge, widened by the margin. Between the
  * profile's durations it is a line in log duration and log W/kg; beyond its ends it holds the end value.
  */
 export function ridePowerCeilingWkg(durationS: number): number {
-  return interpolatedCeiling(CEILING_TABLE, durationS)
+  let wkg = ceilings.get(durationS)
+  if (wkg === undefined) {
+    wkg = interpolatedCeiling(CEILING_TABLE, durationS)
+    if (ceilings.size < MAX_REMEMBERED) ceilings.set(durationS, wkg)
+  }
+  return wkg
 }
 
 /**
