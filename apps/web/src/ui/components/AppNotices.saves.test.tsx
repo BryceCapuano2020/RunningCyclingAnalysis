@@ -82,7 +82,7 @@ describe('saves a reload found waiting', () => {
     })
 
     expect(waitingCount).toHaveBeenCalledWith('u1')
-    expect(screen.getByText(/3 activities are still waiting to be saved/)).toBeInTheDocument()
+    expect(screen.getByText(/3 activities are waiting to be saved/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again now' }))
     expect(resumeSaves).toHaveBeenCalledOnce()
   })
@@ -93,7 +93,7 @@ describe('saves a reload found waiting', () => {
       render(<AppNotices {...props({ libraryStatus: 'failed' })} />)
     })
 
-    expect(screen.getByText(/1 activity is still waiting to be saved/)).toBeInTheDocument()
+    expect(screen.getByText(/1 activity is waiting to be saved/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again now' })).toBeInTheDocument()
   })
 
@@ -101,14 +101,14 @@ describe('saves a reload found waiting', () => {
     vi.mocked(waitingCount).mockResolvedValue(3)
     const loading = render(<AppNotices {...props({ libraryStatus: 'loading' })} />)
     await act(async () => undefined)
-    expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting to be saved/)).not.toBeInTheDocument()
     loading.unmount()
 
     vi.mocked(waitingCount).mockResolvedValue(0)
     await act(async () => {
       render(<AppNotices {...props({ libraryStatus: 'loaded' })} />)
     })
-    expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting to be saved/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again now' })).not.toBeInTheDocument()
   })
 
@@ -118,7 +118,7 @@ describe('saves a reload found waiting', () => {
     await act(async () => {
       render(<AppNotices {...props({ libraryStatus: 'loaded', outbox })} />)
     })
-    expect(screen.getByText(/1 activity is still waiting to be saved/)).toBeInTheDocument()
+    expect(screen.getByText(/1 activity is waiting to be saved/)).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
 
     cleanup()
@@ -132,7 +132,7 @@ describe('saves a reload found waiting', () => {
         />,
       )
     })
-    expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting to be saved/)).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
   })
 
@@ -151,7 +151,7 @@ describe('saves a reload found waiting', () => {
       )
     })
     expect(screen.getAllByText(/saves when the connection returns/)).toHaveLength(1)
-    expect(screen.queryByText(/still waiting to be saved/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting to be saved/)).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Try again now' })).toHaveLength(1)
   })
 
@@ -159,7 +159,7 @@ describe('saves a reload found waiting', () => {
     vi.mocked(waitingCount).mockResolvedValue(3)
     const view = render(<AppNotices {...props({ libraryStatus: 'loaded' })} />)
     await act(async () => undefined)
-    expect(screen.getByText(/3 activities are still waiting/)).toBeInTheDocument()
+    expect(screen.getByText(/3 activities are waiting to be saved/)).toBeInTheDocument()
 
     // The other account's count is slow to arrive: the first account's rows are not shown under it.
     vi.mocked(waitingCount).mockReturnValue(new Promise(() => undefined))
@@ -172,6 +172,6 @@ describe('saves a reload found waiting', () => {
       ),
     )
 
-    expect(screen.queryByText(/still waiting/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting to be saved/)).not.toBeInTheDocument()
   })
 })

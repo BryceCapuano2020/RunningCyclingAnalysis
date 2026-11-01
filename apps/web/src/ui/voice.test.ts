@@ -36,10 +36,10 @@ const RULES = Object.keys(PATTERN) as Rule[]
 const BUDGET: Record<Rule, number> = {
   'em dash': 18,
   ', not a': 7,
-  honest: 1,
-  'read from': 9,
+  honest: 0,
+  'read from': 8,
   comparable: 0,
-  'reference heart rate': 10,
+  'reference heart rate': 9,
   'flat pace': 16,
   'Ride on foot': 4,
   'Output per heartbeat': 2,
@@ -47,7 +47,7 @@ const BUDGET: Record<Rule, number> = {
   'Your years': 6,
   'Stand-out': 0,
   'It takes': 1,
-  '; ': 52,
+  '; ': 51,
 }
 
 /** The core's modules that write the athlete's sentences, relative to packages/core/src. */

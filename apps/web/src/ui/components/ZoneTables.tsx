@@ -21,11 +21,6 @@ export interface ZoneTablesProps {
   weightKnown: boolean
   units: UnitSystem
   /**
-   * The sport page's newest threshold fit, in the sport's own number (m/s for a run, watts for a ride), where there is one.
-   * An estimated threshold that reads differently says so beside its figure.
-   */
-  newestFits?: Partial<Record<Sport, number>>
-  /**
    * Offers the way to correct an estimated max heart rate: the Set control beside the figure calls this with
    * the sport and the figure, and the page opens its dated-settings form to that setting. Without it the figure
    * is stated and not offered for correction.
@@ -77,7 +72,6 @@ export function ZoneTables({
   estimates,
   weightKnown,
   units,
-  newestFits,
   onSetMaxHeartRate,
 }: ZoneTablesProps) {
   const titleId = useId()
@@ -114,14 +108,9 @@ export function ZoneTables({
         )
       ) : (
         <>
-          <p className="secondary">
-            Zones in effect today, from your entered settings or, without one, estimated from your
-            activities: heart rate from your maximum, pace and power from your best efforts, held
-            steady until a real change. They follow published schemes, named under each table.
-          </p>
           <div className="zone-tables__grid">
             {sets.map((set) => {
-              const table = zoneTable(set, units, newestFits?.[set.sport])
+              const table = zoneTable(set, units)
               const id = `${titleId}-${set.sport}-${set.measure}`
               return (
                 <div key={`${set.sport}.${set.measure}`} className="zone-tables__table">

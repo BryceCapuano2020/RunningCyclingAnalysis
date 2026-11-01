@@ -133,7 +133,7 @@ describe('RejectedFiles: one line and a disclosure', () => {
       <Skipped rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]} />,
     )
 
-    const reason = 'It holds no recorded points, so there is nothing to read.'
+    const reason = 'It holds no recorded points.'
     expect(screen.getAllByText(`a.gpx: ${reason}`)).toHaveLength(1)
     expect(screen.getAllByText(`b.gpx: ${reason}`)).toHaveLength(1)
     const list = container.querySelector<HTMLElement>('.rejected-files__list')!
@@ -200,9 +200,7 @@ describe('RejectedFiles: the files that need a look', () => {
   it('says an empty file holds no points, and does not tell its owner to export it again', () => {
     render(<Skipped rejected={[skipped('empty.gpx', 'empty')]} />)
 
-    expect(
-      screen.getByText('empty.gpx: It holds no recorded points, so there is nothing to read.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('empty.gpx: It holds no recorded points.')).toBeInTheDocument()
     expect(screen.queryByText(/export/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/activity records/)).not.toBeInTheDocument()
   })
@@ -253,13 +251,13 @@ describe('RejectedFiles: the files that need a look', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'short.fit: Too short: it records less than a minute. Check the recording on your device.',
+        'short.fit: Too short. It records less than a minute. Check the recording on your device.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryAllByText(/Check the recording on your device\./)).toHaveLength(1)
     expect(screen.getByText('bad2.fit: Damaged, so it could not be read.')).toBeInTheDocument()
     expect(
-      screen.getByText('short2.fit: Too short: it records less than a minute.'),
+      screen.getByText('short2.fit: Too short. It records less than a minute.'),
     ).toBeInTheDocument()
   })
 
@@ -287,7 +285,7 @@ describe('RejectedFiles: the files that need a look', () => {
     render(<Skipped unsupportedFiles={3} types={{ pwx: 2, kml: 1 }} />)
 
     expect(
-      screen.getByText(/^3 files in a format this app does not read: 2 \.pwx, 1 \.kml\./),
+      screen.getByText(/^3 files in a format this app does not read \(2 \.pwx, 1 \.kml\)\./),
     ).toBeInTheDocument()
   })
 

@@ -1009,14 +1009,14 @@ describe('ProfilePage zones and dated settings', () => {
       expect(screen.getByRole('table', { name })).toBeInTheDocument()
     }
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /From your runs: threshold pace/,
+      /Threshold pace: \d+:\d{2} \/km, from your runs/,
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
-      /From your rides: threshold power/,
+      /Threshold power: \d+ W, from your rides/,
     )
   })
 
-  it('says a held threshold is not the newest fit only where the two differ', () => {
+  it('gives an estimated threshold its figure and source, with no note on a newer fit', () => {
     const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
     const held = estimatesFrom(result)
     renderProfile({}, { state: { result, zoneEstimates: held } })
@@ -1036,7 +1036,10 @@ describe('ProfilePage zones and dated settings', () => {
     }
     renderProfile({}, { state: { result, zoneEstimates: earlier } })
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /Zones keep this threshold until the fit moves by more than its error; the Run page shows the newest fit/,
+      /Threshold pace: \d+:\d{2} \/km, from your runs/,
+    )
+    expect(screen.getByRole('table', { name: /^Run pace zones/ })).not.toHaveAccessibleName(
+      /keep this threshold|newest fit/,
     )
     // A ride whose held fit is the newest says nothing.
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).not.toHaveAccessibleName(
@@ -1110,7 +1113,7 @@ describe('ProfilePage zones and dated settings', () => {
       { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     const table = screen.getByRole('table', { name: /^Ride power zones/ })
-    expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
+    expect(table).toHaveAccessibleName(/Threshold power: 250 W, entered by you/)
     expect(within(table).getByText('375 W or more')).toBeInTheDocument()
     expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
@@ -1157,7 +1160,7 @@ describe('ProfilePage zones and dated settings', () => {
       { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
-      /You entered/,
+      /Threshold power: 250 W, entered by you/,
     )
   })
 

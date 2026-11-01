@@ -52,5 +52,5 @@ export function listingLimitReached(
   nowMs = Date.now(),
 ): string {
   if (serverMessage !== LIST_ROWS_LIMIT_MESSAGE) return limitReached('read', resetsAtMs, nowMs)
-  return `You have reached today's limit on rows read from your library (${formatCount(LIST_ROWS_PER_DAY)} per day). ${resetSentence(resetsAtMs, nowMs)}`
+  return `You have reached today's limit on rows listed from your library (${formatCount(LIST_ROWS_PER_DAY)} per day). ${resetSentence(resetsAtMs, nowMs)}`
 }

@@ -11,7 +11,7 @@ function damagedText(manifest: ImportManifest): string {
     .map(({ name, lost }) =>
       lost === null
         ? `${name} ends early, so some of its files are missing.`
-        : `${name} is damaged: ${plural(lost, 'file')} in it could not be read.`,
+        : `${name} is damaged, and ${plural(lost, 'file')} in it could not be read.`,
     )
   const more = manifest.damaged.length - NAMED
   const rest =
@@ -37,7 +37,7 @@ export function incompleteText(manifest: ImportManifest): string {
     expected === null || read >= expected
       ? 'The last import stopped before it finished.'
       : `The last import stopped after ${groupThousands(String(read))} of ${groupThousands(String(expected))} files.`
-  return `${reached} What it added is here. ${again}: files already added are skipped.`
+  return `${reached} What it added is here. ${again}. Files already added are skipped.`
 }
 
 /**

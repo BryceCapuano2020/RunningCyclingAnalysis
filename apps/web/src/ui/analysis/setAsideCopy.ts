@@ -27,18 +27,18 @@ function libraryReference(sports: readonly Sport[], judgement: HeartRateJudgemen
   return named.length === 0 ? '' : ` across all your activities (${named.join(', ')})`
 }
 
-/** Why heart rate is set aside, with the reference it was judged against. */
+/** Why heart rate is set aside, as the rest of a sentence about it, with the max heart rate it was judged against. */
 function rule(sports: readonly Sport[], judgement: HeartRateJudgement): string {
   return (
-    `through ${formatDuration(HR_SET_ASIDE_MIN_S)} or more at or above your threshold, its heart rate ` +
-    `stayed under ${formatPercent(HR_SET_ASIDE_FLOOR)} of your reference heart rate` +
-    `${libraryReference(sports, judgement)} or read too low for the power, through that effort or across the whole activity, which a working sensor would not show`
+    `stayed under ${formatPercent(HR_SET_ASIDE_FLOOR)} of your max heart rate` +
+    `${libraryReference(sports, judgement)} for ${formatDuration(HR_SET_ASIDE_MIN_S)} or more ` +
+    'at or above your threshold, or was too low for the power.'
   )
 }
 
 /** The note on an activity whose heart rate is set aside. */
 export function setAsideActivityText(sport: Sport, judgement: HeartRateJudgement): string {
-  return `We left this activity's heart rate out of the heart-rate check and the effort checks: ${rule([sport], judgement)}.`
+  return `We left this activity's heart rate out of the heart-rate and effort checks. Its heart rate ${rule([sport], judgement)}`
 }
 
 /** The line on How sure is this?, or null when nothing is set aside. */
@@ -51,5 +51,5 @@ export function setAsideText(result: AnalysisResult, judgement: HeartRateJudgeme
   const counted = sports.map(
     (sport) => `${formatCount(counts[sport])} ${counts[sport] === 1 ? sport : `${sport}s`}`,
   )
-  return `Heart rate from ${counted.join(' and ')} is left out: on each, ${rule(sports, judgement)}.`
+  return `Heart rate is left out of ${counted.join(' and ')}. On each, heart rate ${rule(sports, judgement)}`
 }
