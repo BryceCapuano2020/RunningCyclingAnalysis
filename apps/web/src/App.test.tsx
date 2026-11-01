@@ -432,6 +432,25 @@ describe('deleting the account', () => {
     await waitFor(() => expect(window.localStorage.getItem('rca.countedRuns.v1')).toBeNull())
   })
 
+  it('forgets the profile values mirrored into this browser once the account is gone, and keeps them when it could not be deleted', async () => {
+    const stored = '{"units":"metric","birthYear":1990,"sex":"female"}'
+    window.localStorage.setItem('rca.preferences.v1', stored)
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => {
+      throw new Error('Busy')
+    })
+    const view = render(<App />)
+    await confirmDeletion()
+    await screen.findByText('Your account could not be deleted. Try again.')
+    expect(window.localStorage.getItem('rca.preferences.v1')).toBe(stored)
+    view.unmount()
+
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+    await confirmDeletion()
+    await waitFor(() => expect(window.localStorage.getItem('rca.preferences.v1')).toBeNull())
+  })
+
   it('says on the landing page that the account and its data were deleted', async () => {
     window.location.hash = '#/profile'
     app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
