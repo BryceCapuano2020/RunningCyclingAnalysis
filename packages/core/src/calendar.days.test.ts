@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   calendarDays,
   dayZoneKey,
@@ -160,8 +160,45 @@ describe('the zone’s key', () => {
     expect(keys.size).toBe(2)
   })
 
-  it('is the device’s zone name while local weeks are off', () => {
-    expect(dayZoneKey()).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  describe('while local weeks are off', () => {
+    type Env = { env: Record<string, string | undefined> }
+    const env = (globalThis as { process?: Env }).process!.env
+    const saved = env.TZ
+    afterEach(() => {
+      if (saved === undefined) delete env.TZ
+      else env.TZ = saved
+    })
+    const keyIn = (zone: string) => {
+      env.TZ = zone
+      return dayZoneKey()
+    }
+
+    it('is the same in one device zone and differs between zones that cut days differently', () => {
+      const zones = [
+        'UTC',
+        'America/Los_Angeles',
+        'America/Phoenix',
+        'America/Denver',
+        'Europe/London',
+        'Europe/Berlin',
+        'Asia/Kolkata',
+        'Pacific/Auckland',
+        'Australia/Sydney',
+      ]
+      const keys = zones.map(keyIn)
+      expect(new Set(keys).size).toBe(zones.length)
+      expect(zones.map(keyIn)).toEqual(keys)
+    })
+
+    it('does not ask Intl for the zone’s name, which costs about 12 ms the first time', () => {
+      const asked = vi.spyOn(Intl, 'DateTimeFormat')
+      try {
+        dayZoneKey()
+        expect(asked).not.toHaveBeenCalled()
+      } finally {
+        asked.mockRestore()
+      }
+    })
   })
 })
 

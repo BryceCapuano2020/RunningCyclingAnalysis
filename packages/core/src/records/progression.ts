@@ -96,18 +96,21 @@ export function readingsByDuration(
   price: Pricer,
   only?: readonly number[],
 ): Reading[][] {
-  return DURATIONS_S.map((_, index) => {
-    const readings: Reading[] = []
-    if (only !== undefined && !only.includes(index)) return readings
-    for (const digest of own) {
+  const out: Reading[][] = DURATIONS_S.map(() => [])
+  const indexes = DURATIONS_S.map((_, index) => index).filter(
+    (index) => only === undefined || only.includes(index),
+  )
+  // An activity at a time, all its durations together: what prices one point has the activity's other points to hand.
+  for (const digest of own) {
+    for (const index of indexes) {
       const point = pointAt(digest, index)
       if (!point) continue
       const { value, alone } = price(point, digest)
       if (Number.isFinite(value))
-        readings.push({ id: digest.id, startMs: digest.startMs, value, alone })
+        out[index]!.push({ id: digest.id, startMs: digest.startMs, value, alone })
     }
-    return readings
-  })
+  }
+  return out
 }
 
 /**

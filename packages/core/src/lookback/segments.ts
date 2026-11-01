@@ -254,13 +254,14 @@ export function segmentLevels(
     squares[i]! += squares[i - 1]!
     present[i]! += present[i - 1]!
   }
-  const cost = (a: number, b: number): number => {
-    const k = count[b]! - count[a]!
-    if (k === 0) return 0
-    const total = sum[b]! - sum[a]!
-    return (squares[b]! - squares[a]! - (total * total) / k) / (sigma * sigma)
-  }
-  const { best, from } = partition(weeks, count, present, cost, squares[weeks]! / (sigma * sigma))
+  const sigma2 = sigma * sigma
+  const { best, from } = partition(
+    weeks,
+    count,
+    present,
+    { sum, squares, sigma2 },
+    squares[weeks]! / sigma2,
+  )
   if (best[weeks] === Number.POSITIVE_INFINITY) return null
   const edges = [weeks]
   for (let b = weeks; from[b]! > 0; b = from[b]!) edges.unshift(from[b]!)

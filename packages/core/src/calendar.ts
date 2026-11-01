@@ -191,9 +191,30 @@ export function localDayOfInstant(ms: number): number {
   return Math.floor((ms + dayZone()(ms) * 60_000) / DAY_MS)
 }
 
-/** The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. */
+/**
+ * Instants whose offsets tell one device zone from another: the turn of each season, and the weeks the zones change their
+ * clocks in, over four decades. Reading them costs microseconds, where naming the zone through `Intl` costs about 12 ms the
+ * first time it is asked and a good 50 us after.
+ */
+const ZONE_PROBES_MS: readonly number[] = [
+  1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030, 2035,
+].flatMap((year) =>
+  [
+    [0, 1],
+    [2, 20],
+    [6, 1],
+    [9, 20],
+    [10, 10],
+  ].map(([month, day]) => Date.UTC(year, month!, day)),
+)
+
+/**
+ * The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. With local
+ * weeks off it is the device's offsets at `ZONE_PROBES_MS`, which differ between the zones that cut days differently.
+ */
 export function dayZoneKey(): string {
-  return localWeeks ? `viewer:${calendarVersion}` : Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (localWeeks) return `viewer:${calendarVersion}`
+  return ZONE_PROBES_MS.map((ms) => deviceZone(ms)).join(',')
 }
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
