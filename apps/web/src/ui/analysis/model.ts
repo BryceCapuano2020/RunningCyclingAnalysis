@@ -147,6 +147,7 @@ export const EMPTY_SESSION: SessionState = {
   trend: [],
   previous: null,
   change: null,
+  earlier: null,
   effortTrends: NO_TRENDS,
   dotsWithheld: NONE_WITHHELD,
   sameHeartRate: NO_SAME_HEART_RATE,

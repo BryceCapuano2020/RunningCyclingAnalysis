@@ -54,13 +54,12 @@ count, and none does against a reference that cannot certify a maximum.
 
 The two periods are always read alike. At each length the call is made from those hard readings when both periods hold
 enough of them (the minimum sizes count readings), and otherwise from every effort in both periods; `ChangeCall.gated` says
-which, and the strip adds "Effort not checked on the running comparison" when it is false. Dropping the efforts without a
+which, and the strip lists the call either way. Dropping the efforts without a
 heart rate from one period while keeping them in the other would bring the swing back, which is why a strap worn in one
 period only sends the call to every effort. At 4 efforts a week, equal capability, 30% hard against 90%: 19 and 20 of 60
 seeds were called `higher` (run, ride) through every effort, and 2 and 1 of the 55 whose calls were made from the hard efforts
-(the other 5 fell back to every effort and say so). The curves' bests keep every effort, so a demonstrated best that was not
-hard still shows; the strip withholds a comparison whose shown best was not hard (`notHardNote`) and does not withhold one the
-gate could not judge.
+(the other 5 fell back to every effort). The curves' bests keep every effort, so a demonstrated best that was not
+hard still shows. The test is the only gate: the strip and the curve titles withhold no comparison for a best that was not hard.
 
 **Limit.** At 60 s or less easy sessions count, so a swing in hard share is not controlled there. The gate reads a session's heart rate, not the effort inside it: a sprint or a hard interval in a session whose
 peak stayed under the line is counted by length (sprints) or lost (efforts of 1 to 20 minutes), and a library with a strap in
@@ -111,10 +110,10 @@ The owner's export: a multi-year library of about 2,000 activities, mostly runs,
 
 ## Where it is used
 
-| Surface                                         | Reads                                                                                                                                                                                   |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sport curve title (`curveTakeaway`)             | the 20 minute call at the headline level, else the longest length both periods hold that the test could judge                                                                           |
-| Best-effort list change column (`recordChange`) | the call at the record's length, record level                                                                                                                                           |
-| Balance "What changed" (`balanceChanges`)       | the 20 minute call of each sport, headline level; the lean needs a called best that moves it the way it moved, and a sport whose best was withheld as not hard counts as untested there |
-| Best efforts over time title (`takeawayAt`)     | the call at the chosen length, headline level                                                                                                                                           |
-| Import summary                                  | no call: it lists figures only when the period was one regime before and after (`sameRegime`)                                                                                           |
+| Surface                                         | Reads                                                                                                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sport curve title (`curveTakeaway`)             | the 20 minute call at the headline level, else the longest length both periods hold that the test could judge                                                                 |
+| Best-effort list change column (`recordChange`) | the call at the record's length, record level                                                                                                                                 |
+| Balance "What changed" (`balanceChanges`)       | the 20 minute call of each sport, headline level, against the previous period or a window back that holds enough; the lean needs a called best that moves it the way it moved |
+| Best efforts over time title (`takeawayAt`)     | the call at the chosen length, headline level                                                                                                                                 |
+| Import summary                                  | no call: it lists figures only when the period was one regime before and after (`sameRegime`)                                                                                 |

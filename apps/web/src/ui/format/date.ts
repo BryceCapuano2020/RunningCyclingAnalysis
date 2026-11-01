@@ -98,6 +98,20 @@ export function formatMonth(ms: number, withYear: boolean): string {
 }
 
 /**
+ * The months a window of days covers, such as "Jan to Mar". A year is written unless both ends fall in the year of
+ * nowMs: once, at the end, when the ends share a year, else after each.
+ */
+export function formatMonths(startMs: number, endMs: number, nowMs = Date.now()): string {
+  const [from, to] = [formatMonth(startMs, false), formatMonth(endMs, false)]
+  const [startYear, endYear, thisYear] = [startMs, endMs, nowMs].map((ms) =>
+    new Date(ms).getFullYear(),
+  ) as [number, number, number]
+  const months = from === to && startYear === endYear ? from : `${from} to ${to}`
+  if (startYear === endYear) return startYear === thisYear ? months : `${months} ${endYear}`
+  return `${from} ${startYear} to ${to} ${endYear}`
+}
+
+/**
  * A month's full name in the viewer's local zone and language, such as "March", for a sentence; with the year when
  * `withYear` is set, "March 2025".
  */

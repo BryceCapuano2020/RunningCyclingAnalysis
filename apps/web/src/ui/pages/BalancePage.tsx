@@ -9,6 +9,7 @@ import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
+import { formatMonths } from '../format/date'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
@@ -86,8 +87,9 @@ export function BalancePage({
     period,
     library: allActivities,
     trend,
-    previous,
-    change,
+    previous: periodBefore,
+    change: changeBefore,
+    earlier,
     heartRateJudgement,
   } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
@@ -161,8 +163,14 @@ export function BalancePage({
     const model = balanceLevels({ grades, sports, inPeriod, missingAge, basis })
     return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
   }, [hasReading, grades, inPeriod, missingAge, basis])
-  // What moved since the previous period, graded as this period is; the previous gap is priced once here.
-  const previousLabel = previousPeriodLabel(period.days)
+  // What moved since the previous period, or since the latest earlier window when the previous one holds too little to
+  // test; graded as this period is, and the previous gap is priced once here.
+  const previous = earlier?.previous ?? periodBefore
+  const change = earlier?.change ?? changeBefore
+  const previousLabel =
+    earlier === null
+      ? previousPeriodLabel(period.days)
+      : formatMonths(earlier.startMs, earlier.endMs, period.endMs ?? earlier.endMs)
   const changes = useMemo(
     () =>
       balanceChanges({

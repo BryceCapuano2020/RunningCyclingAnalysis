@@ -1,4 +1,5 @@
 import { resolveWindow } from './answer'
+import { earlierComparison } from './change/earlier'
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
@@ -159,6 +160,12 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
           held,
           { effortReference: judgement.effortReference },
         )
+  // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
+  const effortRule = hardEffortRule(judgement.effortReference, setAside)
+  const change =
+    athlete !== null && bikeModel !== undefined && previous.length > 0
+      ? periods.change(selected, previous, athlete, bikeModel, judgement.rideGate, effortRule)
+      : null
   return {
     result: analysis,
     trend: efforts[HEADLINE_DURATION_S],
@@ -209,17 +216,22 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             setAside,
           })
         : null,
-    change:
-      athlete !== null && bikeModel !== undefined && previous.length > 0
-        ? // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
-          periods.change(
-            selected,
-            previous,
-            athlete,
+    change,
+    // The window to compare with when the period before holds too little: the latest earlier one that holds enough.
+    earlier:
+      athlete !== null &&
+      bikeModel !== undefined &&
+      period.startMs !== null &&
+      period.endMs !== null &&
+      period.days !== null
+        ? earlierComparison(analysed, {
+            period: { startMs: period.startMs, endMs: period.endMs, days: period.days },
+            settings: athlete,
             bikeModel,
-            judgement.rideGate,
-            hardEffortRule(judgement.effortReference, setAside),
-          )
+            gate: judgement.rideGate,
+            rule: effortRule,
+            immediate: change,
+          })
         : null,
     rejected: inputs.rejected,
     unsupportedFiles: inputs.unsupportedFiles,

@@ -143,6 +143,11 @@ function customPeriod(choice: CustomRange): Period {
   return { choice: range, startMs, endMs, days: calendarDays(startMs, endMs), fellBack: false }
 }
 
+/** The first millisecond of a window `back` periods before one that starts at `startMs` and counts `days`; the window ends where the one after it starts. */
+export function windowStart(startMs: number, days: number, back: number): number {
+  return back === 0 ? startMs : daysBefore(startOfLocalDay(startMs), days * back)
+}
+
 /**
  * Splits the visible digests into the period and the one before it, of the same length in calendar
  * days. A period that counts back from a number of days ends at the newest activity's day, not today,
@@ -158,7 +163,7 @@ export function splitPeriods(
   if (startMs === null || endMs === null) return { period, selected: [], previous: [] }
   const selected = visible.filter((d) => d.startMs >= startMs && d.startMs <= endMs)
   if (days === null) return { period, selected, previous: [] }
-  const previousStartMs = daysBefore(startOfLocalDay(startMs), days)
+  const previousStartMs = windowStart(startMs, days, 1)
   const previous = visible.filter((d) => d.startMs >= previousStartMs && d.startMs < startMs)
   return { period, selected, previous }
 }

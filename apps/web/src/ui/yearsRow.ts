@@ -1,4 +1,4 @@
-import { episodeRow, leadOf, leadSentence } from '@rca/core/lookback'
+import { episodeRow, leadKey, leadOf, leadSentence } from '@rca/core/lookback'
 import type { Lead, LookBack } from '@rca/core/lookback'
 import type { FitnessBySport } from '@rca/core/fitness/types'
 import type { Sport } from '@rca/core/types'
@@ -12,6 +12,8 @@ import type { UnitSystem } from '@rca/core/units'
 export interface YearsWords {
   lead: string
   rows: string[]
+  /** Names the lead (`leadKey`): what the athlete has seen of the row is seen of this lead only. */
+  key: string
 }
 
 /** The most episodes the opened row lists; the rest are counted. */
@@ -57,5 +59,5 @@ export function yearsWords(
     all.length - MOST_ROWS + told.reduce((total, { years }) => total + years.omittedEpisodes, 0)
   const rows = all.slice(0, MOST_ROWS).map((row) => row.text)
   if (omitted > 0) rows.push(`And ${omitted} smaller ${omitted === 1 ? 'change' : 'changes'}.`)
-  return { lead: leadSentence(lead, lookBack, units), rows }
+  return { lead: leadSentence(lead, lookBack, units), rows, key: leadKey(lead) }
 }
