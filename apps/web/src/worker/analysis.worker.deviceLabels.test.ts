@@ -62,6 +62,18 @@ async function startWorker() {
   return { send }
 }
 
+/**
+ * The run on its own, before the export: from revision 7 a new import carries the label its own list gives, so the
+ * workouts the list is applied to afterwards are the ones the library held without one.
+ */
+const importBare = (): WorkerRequest => ({
+  type: 'addFiles',
+  files: [new File([RUN_FILE_BYTES], 'activities/1.fit')],
+  settings: SETTINGS,
+  sync: null,
+  saveToDevice: true,
+})
+
 const importHikes = (): WorkerRequest => ({
   type: 'addFiles',
   files: [hikeExport()],
@@ -84,6 +96,7 @@ afterEach(() => {
 describe('an import into the library kept in this browser, of an export whose list labels a workout', () => {
   it('changes nothing while the labels are off: no label, no count, the workout stays in the analysis', async () => {
     const { send } = await startWorker()
+    await send(importBare())
     const reply = (await send(importHikes())).at(-1)
     expect(reply).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
     expect(reply).not.toHaveProperty('outcome.labelled')
@@ -97,6 +110,7 @@ describe('an import into the library kept in this browser, of an export whose li
     async function importLabelled() {
       vi.doMock('./labelsConfig', () => ({ ATHLETE_LABELS_ENABLED: true }))
       const worker = await startWorker()
+      await worker.send(importBare())
       const messages = await worker.send(importHikes())
       return { ...worker, messages }
     }
@@ -176,8 +190,11 @@ describe('an import into the library kept in this browser, of an export whose li
           sync: null,
         })
       ).at(-1)
+      // Nothing held was labelled (no count of labels applied). The file's own list type is in its digest from revision 7,
+      // so it is left out of the analysis as a new import is, and it is kept nowhere.
       expect(reply).not.toHaveProperty('outcome.labelled')
-      expect(reply).toMatchObject({ state: { totalActivities: 1 } })
+      expect(reply).toMatchObject({ state: { totalActivities: 0, labelledRuns: 1 } })
+      expect(await kept.library!.all()).toEqual([])
     })
   })
 })
