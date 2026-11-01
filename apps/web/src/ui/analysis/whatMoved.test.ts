@@ -203,22 +203,28 @@ describe('whatMoved: bests', () => {
     ])
   })
 
-  it('lists a cycling best in watts, and a best with no earlier value', () => {
-    const before = resultWith({ rideCurve: [curvePoint(1200, Number.NaN, null)] })
+  it('lists a cycling best in watts', () => {
+    const before = resultWith({ rideCurve: [curvePoint(1200, 250, 'ride-1')] })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RIDE],
-      rideCurve: [curvePoint(1200, 262, 'ride-2'), curvePoint(3600, 210, 'ride-2')],
+      rideCurve: [curvePoint(1200, 262, 'ride-2')],
     })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'New best 20 min ride: 262 W',
         spoken: 'New best 20 minutes ride: 262 watts',
       },
-      {
-        text: 'New best 60 min ride: 210 W',
-        spoken: 'New best 1 hour ride: 210 watts',
-      },
     ])
+  })
+
+  it('calls no duration a new best when there was no earlier best there, as the check-in row does', () => {
+    // An empty baseline for the duration: the first value is a first reading, not a beaten one.
+    const before = resultWith({ rideCurve: [curvePoint(1200, Number.NaN, null)] })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCurve: [curvePoint(1200, 262, 'ride-2'), curvePoint(3600, 210, 'ride-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists the run best before the ride best', () => {
@@ -288,7 +294,11 @@ describe('whatMoved: distance bests', () => {
   })
 
   it('lists a distance best set by an activity the import added, with its time', () => {
-    const before = resultWith({ activities: [{ ...RUN, distanceBests: [] }, RIDE] })
+    const slower = makeActivity({
+      ...RUN,
+      distanceBests: [{ distanceM: 21097.5, seconds: 6000 }],
+    })
+    const before = resultWith({ activities: [slower, RIDE] })
     const after = resultWith({ activities: [RUN, RIDE, HALF] })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
@@ -296,6 +306,12 @@ describe('whatMoved: distance bests', () => {
         spoken: 'New best half marathon: 1 hour 27 minutes 54 seconds',
       },
     ])
+  })
+
+  it('does not call a distance a new best when there was no earlier time at it, as the check-in row does', () => {
+    const before = resultWith({ activities: [{ ...RUN, distanceBests: [] }, RIDE] })
+    const after = resultWith({ activities: [RUN, RIDE, HALF] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('does not list a distance best that is no faster than the one on file', () => {
@@ -607,7 +623,7 @@ describe('whatMoved while no weight is entered', () => {
   it('keeps the running best but holds the cycling best until a weight is entered', () => {
     const before = resultWith({
       runCurve: [curvePoint(1200, 15.749, 'run-1')],
-      rideCurve: [curvePoint(1200, Number.NaN, null)],
+      rideCurve: [curvePoint(1200, 250, 'ride-1')],
     })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RUN, NEW_RIDE],
@@ -681,6 +697,7 @@ describe('whatMoved: an import that added one activity', () => {
     const before = resultWith({
       rideCp: rideFit(225),
       comparison: balance(interval(1.05, 1.12, 1.2)),
+      rideCurve: [curvePoint(1200, 250, 'ride-1')],
     })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RIDE],
@@ -747,7 +764,10 @@ describe('whatMoved: an import that added one activity', () => {
   })
 
   it('says the balance did not move for an even balance whose figures held, with its new best', () => {
-    const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
+    const before = resultWith({
+      comparison: balance(interval(0.95, 1.0, 1.05)),
+      rideCurve: [curvePoint(1200, 250, 'ride-1')],
+    })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RIDE],
       comparison: balance(interval(0.95, 1.0, 1.05)),

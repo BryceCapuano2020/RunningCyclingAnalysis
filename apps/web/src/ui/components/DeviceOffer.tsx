@@ -43,7 +43,8 @@ export function DeviceOffer({
     <>
       {adoption !== null && (
         <div className="notice device-offer">
-          <p>{adoptionText(adoption)}</p>
+          {/* The notice region says it (AppNotices), so a screen reader is not given it a second time here. */}
+          <p aria-hidden="true">{adoptionText(adoption)}</p>
           <div className="device-offer__actions">
             <button
               type="button"

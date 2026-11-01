@@ -63,11 +63,21 @@ describe('ActivitiesPage beside the period on Balance', () => {
     expect(screen.getByText(/^Balance, Run and Ride show the last 12 months\./)).toBeInTheDocument()
   })
 
-  it('says nothing when the other pages show all time, or when it is not told their period', () => {
+  it('says nothing when the other pages and the list both show all time, or when it is not told their period', () => {
     renderPage(ALL_TIME)
     expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
     cleanup()
     renderPage()
+    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+  })
+
+  it('says the other pages show all time when the list is narrowed to a shorter period', async () => {
+    renderPage(ALL_TIME)
+    await userEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
+    expect(
+      screen.getByText('Balance, Run and Ride show all time. This list has its own period.'),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('radio', { name: 'All time' }))
     expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
   })
 
