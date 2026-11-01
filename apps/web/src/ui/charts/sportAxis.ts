@@ -162,7 +162,6 @@ export function fittedYAxis(
   sport: Sport,
   values: number[],
   plot: PlotBox,
-  intervals = INTERVALS,
 ): { y: Scale; ticks: AxisTick[] } {
   const middle = (Math.min(...values) + Math.max(...values)) / 2
   const fat = widened(values, FITTED_MIN_SPAN[sport](middle))
@@ -170,5 +169,5 @@ export function fittedYAxis(
   const hi = Math.max(...fat)
   const pad = (hi - lo) * FITTED_PAD
   const padded = [lo - pad, hi + pad]
-  return sportYAxis(sport, padded, plot, true, FITTED_MIN_PACE_SPAN_S, intervals)
+  return sportYAxis(sport, padded, plot, true, FITTED_MIN_PACE_SPAN_S)
 }

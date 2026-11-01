@@ -2,7 +2,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
-import { spreadApart } from './chartInteraction'
+import { spreadWithin } from './chartInteraction'
 import { logScale } from './scale'
 import { plottedValue, sportYAxis } from './sportAxis'
 import { axisFontSize, durationTicks, fitTicks, labelWidth, rootScale } from './ticks'
@@ -82,10 +82,13 @@ export function yearCurvesLayout(
   const ends = lines
     .filter((line) => line.labelled)
     .map((line) => ({ year: line.year, end: line.points.findLast((point) => point !== null)! }))
-  const fontSize = axisFontSize(width)
-  const spread = spreadApart(
+  // The names keep a line's height apart and inside the plot, so a crowd at its foot does not run onto the x axis's labels.
+  const lineH = (axisFontSize(width) + 2) * rootScale()
+  const spread = spreadWithin(
     ends.map(({ end }) => end.y),
-    fontSize + 2,
+    lineH,
+    plot.top + lineH / 2,
+    plot.bottom - lineH / 2,
   )
   const headline =
     model.focus === null || model.durations[model.focus] !== HEADLINE_DURATION_S
