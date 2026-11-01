@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { makeResult } from '../components/fixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { StandOutSection } from './StandOutSection'
-import { standOutFinding, standOutOf } from './standOut'
-import { standOutLack } from './standOutLack'
+import { standOutFinding, standOutFor } from './standOut'
+import type { StandOut } from './standOut'
+import type { ReadyProfile } from '@rca/core/profile'
 
 afterEach(cleanup)
 
@@ -15,8 +16,22 @@ const standing = makeResult({
   rideMeasuredCurve: profileCurve((durationS, value) => (durationS === 60 ? value * 1.15 : value)),
 })
 
+type Result = ReturnType<typeof makeResult>
+
+/** What the period's own bests say, with no library to read instead. */
+function answerOf(result: Result, sport: 'run' | 'ride'): StandOut {
+  const held = result.activities.filter((activity) => activity.sport === sport).length
+  return standOutFor(result, sport, null, result.activities, held)
+}
+
+/** The period's profile, or null while its bests cannot be compared. */
+function standOutOf(result: Result, sport: 'run' | 'ride'): ReadyProfile | null {
+  const answer = answerOf(result, sport)
+  return 'profile' in answer ? answer.profile : null
+}
+
 /** The section as the page draws it once it is open: the note and the strip, from what the bests say. */
-function renderSection(sport: 'run' | 'ride', result: ReturnType<typeof makeResult>) {
+function renderSection(sport: 'run' | 'ride', result: Result) {
   const profile = standOutOf(result, sport)
   if (profile === null) throw new Error('the bests cannot be compared')
   return render(<StandOutSection sport={sport} profile={profile} />)
@@ -118,10 +133,15 @@ describe('StandOutSection', () => {
   })
 })
 
-describe('standOutLack', () => {
-  it('is null when the bests can be compared', () => {
+describe('the best durations when they cannot be compared', () => {
+  const lackOf = (result: Result, sport: 'run' | 'ride') => {
+    const answer = answerOf(result, sport)
+    return 'lack' in answer ? answer.lack : null
+  }
+
+  it('has no lack when the bests can be compared', () => {
     const result = makeResult({ activities: profileActivities('run'), runCurve: profileCurve() })
-    expect(standOutLack('run', result)).toBeNull()
+    expect(lackOf(result, 'run')).toBeNull()
   })
 
   it('names what a ride needs to be compared, a best at 12 min or more with a power meter', () => {
@@ -129,9 +149,7 @@ describe('standOutLack', () => {
       activities: profileActivities('ride', 'measured'),
       rideMeasuredCurve: profileCurve((_, value) => value, [720, 900, 1200, 1800, 2700, 3600]),
     })
-    expect(standOutLack('ride', result)).toBe(
-      'Where your bests stand out: needs a best at 12 min or more, with a power meter.',
-    )
+    expect(lackOf(result, 'ride')).toBe('Needs a best at 12 min or more, with a power meter')
   })
 
   it('asks a ride without a power meter for one, since estimated watts are never compared', () => {
@@ -140,14 +158,87 @@ describe('standOutLack', () => {
       rideCurve: profileCurve(),
       rideMeasuredCurve: [],
     })
-    expect(standOutLack('ride', result)).toMatch(/with a power meter\.$/)
+    expect(lackOf(result, 'ride')).toMatch(/with a power meter$/)
   })
 
   it('says a curve could not be fitted, rather than naming something missing, when none fits', () => {
     const rising = profileCurve((durationS) => 100 + durationS / 20)
     const result = makeResult({ activities: profileActivities('run'), runCurve: rising })
-    expect(standOutLack('run', result)).toBe(
-      'Where your bests stand out: a curve could not be fitted to your bests, so none is compared.',
+    expect(lackOf(result, 'run')).toBe(
+      'A curve could not be fitted to your bests, so none is compared',
     )
+  })
+})
+
+describe('the best durations of a period short of activities', () => {
+  /** A ride's bests with the 1 min best 15% over the model, so it stands out wherever it is read. */
+  const standingCurve = profileCurve((durationS, value) =>
+    durationS === 60 ? value * 1.15 : value,
+  )
+  const few = makeResult({
+    activities: profileActivities('ride', 'measured', 12),
+    rideMeasuredCurve: profileCurve(),
+  })
+  const library = profileActivities('ride', 'measured', 40)
+
+  it('reads the bests of the whole library, and says it is the library’s', () => {
+    const answer = standOutFor(few, 'ride', standingCurve, library, 40)
+    if (!('profile' in answer)) throw new Error('no answer')
+    expect(answer.allTime).toBe(true)
+    expect(answer.profile.rows.find((row) => row.durationS === 60)?.standsOut).toBe('above')
+    // The period's own bests are in line, so the answer is the library's and not that.
+    expect(standOutOf(few, 'ride')?.rows.every((row) => row.standsOut === null)).toBe(true)
+  })
+
+  it('judges the library at its own size, not the period’s', () => {
+    const answer = standOutFor(few, 'ride', standingCurve, library, 40)
+    if (!('profile' in answer)) throw new Error('no answer')
+    expect(answer.profile.activities).toBe(40)
+  })
+
+  it('keeps the period’s own once it holds 40 activities of the sport', () => {
+    const enough = makeResult({
+      activities: profileActivities('ride', 'measured', 40),
+      rideMeasuredCurve: profileCurve(),
+    })
+    const answer = standOutFor(enough, 'ride', standingCurve, library, 80)
+    expect(answer).toMatchObject({ allTime: false })
+  })
+
+  it('keeps the period’s own when the library holds no more of the sport', () => {
+    const answer = standOutFor(few, 'ride', standingCurve, library, 12)
+    expect(answer).toMatchObject({ allTime: false })
+  })
+
+  it('keeps the period’s own when the library’s bests are not handed down', () => {
+    expect(standOutFor(few, 'ride', null, library, 40)).toMatchObject({ allTime: false })
+  })
+
+  it('reads the library when the period’s bests cannot be compared at all', () => {
+    const thin = makeResult({
+      activities: profileActivities('ride', 'measured', 12),
+      rideMeasuredCurve: profileCurve((_, value) => value, [720, 900, 1200, 1800, 2700, 3600]),
+    })
+    expect(standOutFor(thin, 'ride', standingCurve, library, 40)).toMatchObject({ allTime: true })
+  })
+
+  it('says what to add when neither the period nor the library can be compared', () => {
+    const short = profileCurve((_, value) => value, [720, 900, 1200, 1800, 2700, 3600])
+    const thin = makeResult({
+      activities: profileActivities('ride', 'measured', 12),
+      rideMeasuredCurve: short,
+    })
+    expect(standOutFor(thin, 'ride', short, library, 40)).toEqual({
+      lack: 'Needs a best at 12 min or more, with a power meter',
+    })
+  })
+
+  it('names the window in the sentence itself, as all-time bests', () => {
+    const answer = standOutFor(few, 'ride', standingCurve, library, 40)
+    if (!('profile' in answer)) throw new Error('no answer')
+    expect(standOutFinding(answer.profile, true)).toMatch(
+      /^Your all-time 1 min best is \d+% above what your other bests suggest\.$/,
+    )
+    expect(standOutFinding(answer.profile)).toMatch(/^Your 1 min best is/)
   })
 })

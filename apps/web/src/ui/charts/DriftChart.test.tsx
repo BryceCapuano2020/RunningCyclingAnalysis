@@ -6,7 +6,7 @@ import { DECOUPLING_REFERENCE, driftDescription } from '../lateInEffort'
 import { DriftChart } from './DriftChart'
 
 const NOTE = 'How a dot is made.'
-const TAKEAWAY = 'Output per heartbeat fell 3% from the first half to the second.'
+const TAKEAWAY = 'Efficiency fell 3% from the first half to the second.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])
 const NAMES = Object.fromEntries(POINTS.map((p, i) => [p.activityId, `Long run ${i + 1}`]))
 
@@ -36,14 +36,14 @@ describe('DriftChart', () => {
     renderChart()
     expect(
       screen.getByRole('figure', {
-        name: 'Change in output per heartbeat on steady runs, first half to second',
+        name: 'Change in efficiency on steady runs, first half to second',
       }),
     ).toBeInTheDocument()
     cleanup()
     renderChart('ride')
     expect(
       screen.getByRole('figure', {
-        name: 'Change in output per heartbeat on steady rides, first half to second',
+        name: 'Change in efficiency on steady rides, first half to second',
       }),
     ).toBeInTheDocument()
   })
@@ -58,7 +58,7 @@ describe('DriftChart', () => {
     'describes %s drift in grammatical sentences, with the reference in lower case mid-sentence',
     (sport) => {
       expect(driftDescription(sport)).toBe(
-        `One dot for each steady ${sport} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: a common coaching reference line.`,
+        `One dot for each steady ${sport} over an hour: the percent its efficiency changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: a common coaching reference line.`,
       )
     },
   )
@@ -138,7 +138,7 @@ describe('DriftChart', () => {
     )
     expect(rise).toBeLessThan(fall!)
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Change in output per heartbeat (%)',
+      'Change in efficiency (%)',
     )
     expect(within(screen.getByRole('table')).getByText('Rose 3%')).toBeInTheDocument()
   })
@@ -159,7 +159,7 @@ describe('DriftChart', () => {
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('Long run 1')
-    expect(status).toHaveTextContent('Output per heartbeat fell 1%')
+    expect(status).toHaveTextContent('Efficiency fell 1%')
     expect(status).toHaveTextContent('1 h 10 min of moving time')
   })
 

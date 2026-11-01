@@ -137,7 +137,7 @@ describe('SportPage: your years', () => {
       lookBack,
     )
 
-  it('is the first section, closed, named by its own finding', () => {
+  it('is the first section, open, named by its own finding', () => {
     page(YEARS_LOOKBACK)
     expect(closedRow('Your years')).toBe(
       'Your yearsYour pace at 148 bpm slipped in 2021 and came back',
@@ -154,9 +154,11 @@ describe('SportPage: your years', () => {
     expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
   })
 
-  it('is not on the page when there are no years to tell', () => {
+  it('says what it needs, in its own place, when there are no years to tell', () => {
     page(undefined)
-    expect(screen.queryByRole('region', { name: 'Your years' })).toBeNull()
+    const years = screen.getByRole('region', { name: 'Your years' })
+    expect(years).toHaveTextContent('Needs a year of runs.')
+    expect(years.closest('details')).toBeNull()
   })
 })
 
@@ -587,7 +589,8 @@ describe('SportPage', () => {
     expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
     expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toBeVisible()
     expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    // The answer asks for nothing; the sections below say their own needs, each in its own place.
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
   })
 
@@ -608,7 +611,7 @@ describe('SportPage', () => {
       within(section).getByText('Best 12 min', { selector: '.stat-tile__basis' }),
     ).toBeVisible()
     expect(within(section).queryByText(/At least|From your best/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
   })
 
   it('asks for an effort of 20 min or longer, with no number, when the longest best is under 5 min', () => {
@@ -1593,7 +1596,7 @@ describe('SportPage depth', () => {
       },
     )
 
-    it('leaves the section out, and says what is missing in the list at the end, with too little data', () => {
+    it('is one line in its own place that says what is missing, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
       renderPage(
         'ride',
@@ -1610,13 +1613,13 @@ describe('SportPage depth', () => {
         null,
         none,
       )
-      expect(screen.queryByRole('region', { name: 'Same heart rate, week by week' })).toBeNull()
-      const list = screen.getByRole('region', { name: 'Not enough yet' })
+      const line = screen.getByRole('region', { name: 'Same heart rate, week by week' })
+      expect(line.querySelector('figure')).toBeNull()
+      expect(line.closest('details')).toBeNull()
       expect(
-        within(list).getByText(
-          'Same heart rate, week by week: needs steady stretches from at least 6 rides in 4 weeks.',
-        ),
+        within(line).getByText('Needs steady stretches from at least 6 rides in 8 weeks.'),
       ).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     })
 
     it('is not on a sport page with nothing in the period', () => {

@@ -11,10 +11,13 @@ const COUNTS: Record<Sport, string> = {
   ride: 'Counts rides with a power meter.',
 }
 
-/** Under the chart: how a dot is made and what it counts. */
-function noteFor(sport: Sport): string {
-  const window = plural(SAME_HEART_RATE.windowDays / 7, 'week')
-  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday, and a week with too little data has none. ${COUNTS[sport]}`
+/** Under the chart: how a dot is made and what it counts, and when the weeks are the library's, that they are. */
+function noteFor(sport: Sport, data: SameHeartRate): string {
+  const { windowDays, wideWindowDays } = SAME_HEART_RATE
+  const window = plural(windowDays / 7, 'week')
+  const wide = plural(wideWindowDays / 7, 'week')
+  const scope = data.scope === 'library' ? ' These are your newest weeks, whatever the period.' : ''
+  return `Each dot is fitted to the steady 5-minute stretches of the ${window} to that Sunday. A quiet stretch reaches back ${wide}. ${COUNTS[sport]}${scope}`
 }
 
 /**
@@ -33,5 +36,5 @@ export function SameHeartRateSection({
   units: UnitSystem
 }) {
   if (data.reportedWeeks < 2) return null
-  return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport)} />
+  return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport, data)} />
 }

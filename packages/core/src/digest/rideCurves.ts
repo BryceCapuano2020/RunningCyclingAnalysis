@@ -210,6 +210,11 @@ export function bestCurves(
   return { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById }
 }
 
+/** The best run values among the runs, read by every effort that counts: `bestCurves`' run curve, which needs no model or mass. */
+export function runBestOf(ordered: ActivityDigest[]): EffortPoint[] {
+  return everyRunBest(ofSport(ordered, 'run'), null)
+}
+
 /** The best watts at each duration among the rides with a power meter, which need no bike model. */
 export function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
   return measuredBest(ofSport(ordered, 'ride').filter(isMeasured), null)

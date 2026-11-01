@@ -7,13 +7,19 @@ import { fastestMs } from './test/timing'
 
 /**
  * What a session costs on a library of 2,000 activities, about four years of ten a week, in the worker.
- * Locally an all-time load takes about 80 ms, 12 weeks about 21 ms and a change of body
+ * Locally an all-time load takes about 250 ms, 12 weeks about 21 ms and a change of body
  * mass about 30 ms; before the draws were sorted by their bits and a week's activities were found by
  * search, they took about 175, 65 and 62 ms. A change of body mass had grown to about 55 ms as the state
  * took in zones, trends and records, until what it does not read (the runs, the draws, the library's
  * order) was kept, the judgement's work was shared with the analysis of the whole library and each best
  * stopped making a point for every candidate. The budgets are well over the current figures, so a pass per
  * activity added to the state, or a sort that goes back to a comparison, fails them on a loaded runner too.
+ *
+ * An all-time load was about 80 ms until all time reported every week of the same heart rate, not the newest 52 of each
+ * sport. This library has about 390 such weeks, each a Theil-Sen fit of 200 draws at about 0.55 ms, so the weekly fits are
+ * about 215 ms of the 250 and the cost grows with the weeks, not with the activities. Each week's fit is the cost it was; the
+ * findings, which do not draw the weeks, still read the newest 52. The runner took 359 ms with the weeks, so the budget is 450.
+ * The search that ends on all time pays the same weekly fits (308 ms on the runner against 300), so its budget is 450 for the same reason.
  *
  * The default period is a search over 12 weeks, 26 weeks and 12 months (answer/window.ts), each analysed through the period
  * cache and the search stopping at the first window where every sport qualifies. The library here has no hard effort, so
@@ -22,10 +28,10 @@ import { fastestMs } from './test/timing'
  * windows more than the all-time load itself (about 90 ms against 90): the same library with its rides older than a year.
  */
 const ACTIVITIES = 2000
-const ALL_TIME_BUDGET_MS = 300
+const ALL_TIME_BUDGET_MS = 450
 const DEFAULT_BUDGET_MS = 80
 const SEARCH_BUDGET_MS = 160
-const SEARCH_TO_ALL_TIME_BUDGET_MS = 300
+const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
 const MASS_CHANGE_BUDGET_MS = 80
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the

@@ -98,7 +98,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
-      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, as ${SPORT_FORMAT[sport].titleUnit(units)}.`}
+      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, or 8 weeks in a quiet stretch, as ${SPORT_FORMAT[sport].titleUnit(units)}.`}
       note={note}
       table={{
         columns: ['Week ending', nativeLabel(sport), '90% range', 'Stretches'],
@@ -108,7 +108,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
           rangeText(week, sport, units),
           String(week.blocks),
         ]),
-        caption: `Output at ${reference} bpm, fitted to the steady 5-minute stretches of the 4 weeks to each Sunday. A week with too little data has no value.`,
+        caption: `Output at ${reference} bpm, fitted to the steady 5-minute stretches of the 4 weeks to each Sunday, or 8 weeks in a quiet stretch. A week with too little data has no value.`,
         phoneHidden: [3],
       }}
       empty={hasData ? undefined : NO_WEEKS_TEXT}

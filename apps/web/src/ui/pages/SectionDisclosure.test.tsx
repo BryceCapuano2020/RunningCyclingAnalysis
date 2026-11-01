@@ -18,7 +18,7 @@ function renderDisclosure() {
 }
 
 describe('SectionDisclosure', () => {
-  it('is a named region whose closed row says the section’s name and its finding', () => {
+  it('is a named region whose row says the section’s name and its finding', () => {
     renderDisclosure()
     const region = screen.getByRole('region', { name: 'At the same heart rate' })
     const summary = region.querySelector('summary')!
@@ -26,21 +26,53 @@ describe('SectionDisclosure', () => {
     expect(within(summary).getByText('You run 6 s/km faster than in March')).toBeInTheDocument()
   })
 
-  it('is closed, and mounts nothing until it is opened', () => {
+  it('is open to start with, and shows its content', () => {
     renderDisclosure()
-    expect(screen.getByRole('region').querySelector('details')).not.toHaveAttribute('open')
-    expect(screen.queryByText('The chart')).toBeNull()
+    expect(screen.getByRole('region').querySelector('details')).toHaveAttribute('open')
+    expect(screen.getByText('The chart')).toBeInTheDocument()
   })
 
-  it('mounts its content when it opens, and keeps it mounted when it closes', () => {
+  it('keeps its content mounted when the reader folds it and opens it again', () => {
     renderDisclosure()
     const details = screen.getByRole('region').querySelector('details')!
-    details.open = true
-    fireEvent(details, new Event('toggle'))
-    expect(screen.getByText('The chart')).toBeInTheDocument()
     details.open = false
     fireEvent(details, new Event('toggle'))
     expect(screen.getByText('The chart')).toBeInTheDocument()
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(screen.getByText('The chart')).toBeInTheDocument()
+  })
+
+  it('is a band while open and the card of one row when folded', () => {
+    renderDisclosure()
+    const region = screen.getByRole('region')
+    const details = region.querySelector('details')!
+    expect(region).toHaveClass('band')
+    expect(region).not.toHaveClass('panel')
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(region).toHaveClass('panel')
+    expect(region).not.toHaveClass('band')
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(region).toHaveClass('band')
+  })
+
+  it('marks a section whose body says its finding already, so the row says it only when folded', () => {
+    const { container } = render(
+      <SectionDisclosure
+        id="x"
+        title="Durability"
+        finding="Best 20 min held 94% after 90 min"
+        restated
+      >
+        <p>The chart</p>
+      </SectionDisclosure>,
+    )
+    expect(container.querySelector('section')).toHaveAttribute('data-restated')
+    cleanup()
+    renderDisclosure()
+    expect(screen.getByRole('region')).not.toHaveAttribute('data-restated')
   })
 
   it('carries the id the “On this page” row scrolls to, on the element that opens', () => {

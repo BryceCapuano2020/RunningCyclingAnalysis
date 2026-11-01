@@ -94,11 +94,11 @@ export function raceName(distanceM: number): string {
   return RACE_NAME[distanceM as keyof typeof RACE_NAME] ?? `${Math.round(distanceM / 1000)} km`
 }
 
-/** The section's name, in its heading and in the page's "Not enough yet" list. */
+/** The section's name, in its heading. */
 export const RACE_PREDICTIONS_NAME = 'Race predictions'
 
 /**
- * What each predictor needs before it gives a race, as the sentence the "Not enough yet" list says it in. The
+ * What each predictor needs before it gives a race, as the sentence the section says it in. The
  * running predictor carries a best from the mile up to a race, or reads the heart rate of outdoor runs: an estimate of VO2max
  * needs VO2MAX_MIN_RUNS of them with a reference heart rate that can be trusted, and indoor pace is left out of it.
  */

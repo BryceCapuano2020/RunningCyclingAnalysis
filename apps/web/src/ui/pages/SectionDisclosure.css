@@ -1,4 +1,4 @@
-/* A section behind a disclosure: a panel whose closed row names the section and says what it found. */
+/* A section with content, open to start with: a band like the others, or the card of one row when folded. The row names the section and says what it found. */
 .sport-disclosure {
   min-width: 0;
 }
@@ -23,6 +23,15 @@
   align-self: center;
 }
 
+/* A band has no card to pad inside: its row and body sit on the page's own edge. */
+.sport-disclosure.band .sport-disclosure__summary {
+  padding-inline: 0;
+}
+
+.sport-disclosure.band .sport-disclosure__body {
+  padding-inline: 0;
+}
+
 .sport-disclosure__title {
   color: var(--text-primary);
   font-family: var(--font-display);
@@ -37,6 +46,11 @@
   color: var(--text-secondary);
   font-size: var(--text-md);
   text-wrap: pretty;
+}
+
+/* While open, a body that says the finding already (a chart titled by it) does not have the row say it twice. */
+.sport-disclosure[data-restated] .sport-disclosure__details[open] .sport-disclosure__finding {
+  display: none;
 }
 
 .sport-disclosure__body {

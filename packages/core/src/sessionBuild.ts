@@ -7,6 +7,7 @@ import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
+import { libraryBestsOf } from './libraryBests'
 import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
@@ -144,11 +145,18 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         )
   const sameHeartRate =
     analysis === null ? NO_SAME_HEART_RATE : periods.sameHeartRate(selected, analysed, fromMs, held)
+  // The stand-out reads the library's bests while the period holds too few activities of a sport to judge them.
+  const libraryBests =
+    athlete === null || analysis === null || period.days === null
+      ? null
+      : libraryBestsOf(selected, analysed, athlete)
   const late =
     analysis === null
       ? NO_LATE_EVIDENCE
       : periods.late(
           selected.filter((digest) => !powerAside.has(digest.id)),
+          // A period with too little to say a late best or drift reads the whole library's, set aside alike.
+          analysed.filter((digest) => !powerAside.has(digest.id)),
           held,
           { effortReference: judgement.effortReference },
         )
@@ -164,6 +172,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     effortTrends: efforts,
     dotsWithheld,
     sameHeartRate,
+    libraryBests,
     lateEvidence: late,
     heartRateJudgement: judgement,
     // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.

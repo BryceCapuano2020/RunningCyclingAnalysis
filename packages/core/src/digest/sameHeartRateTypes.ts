@@ -10,7 +10,7 @@ import type { Sport } from '../types'
 export type Lack = 'blocks' | 'activities' | 'weeks' | 'spread' | 'range' | 'period'
 
 export interface SameHeartRateWeek {
-  /** End of the week, as a trend's: Sunday 23:59:59.999 UTC. The window is the 28 days to it. */
+  /** End of the week, as a trend's: Sunday 23:59:59.999 UTC. The window is the 28 days to it, or 56 when `wide`. */
   endMs: number
   /** Output at the reference heart rate with its 90% interval; null when the week lacks something. */
   fit: OutputAtHeartRate | null
@@ -18,12 +18,14 @@ export interface SameHeartRateWeek {
   /** Blocks in the window, and the activities they come from. */
   blocks: number
   activities: number
+  /** Set when the 28 days held too few activities and the window reaches back 56. Absent otherwise. */
+  wide?: true
 }
 
 export interface SameHeartRate {
   /** Fixed for the whole period, bpm, rounded to 5; null without a block. */
   referenceHeartRate: number | null
-  /** Every week from the first that can be reported to the last, reporting or not. */
+  /** Every week from the first that can be reported to the last, reporting or not. All time has all of them. */
   weeks: SameHeartRateWeek[]
   /** How many of the weeks report. The weeks claim no change: the fitness status is the sport's voice on that. */
   reportedWeeks: number
@@ -31,6 +33,8 @@ export interface SameHeartRate {
   lacks: Lack | null
   /** The end of the period's last week: the Sunday of its newest activity, of either sport. Null without a block. */
   latestWeekEndMs: number | null
+  /** Set when the period had no week to report and the weeks are the library's newest. Absent otherwise. */
+  scope?: 'library'
 }
 
 export type SameHeartRateBySport = Record<Sport, SameHeartRate>

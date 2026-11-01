@@ -3,7 +3,7 @@ import { SectionDisclosure } from './SectionDisclosure'
 import { anchorOf } from './sectionAnchor'
 import type { SectionId, SectionOutcome } from './sportSections'
 
-/** One cell of a row: a section's content as a card, or as a disclosure when it has a closed row. */
+/** One cell of a row: a section's content as a card, or as a disclosure, open to start with, when it has a row of its own. */
 export function SectionCell({
   sport,
   id,

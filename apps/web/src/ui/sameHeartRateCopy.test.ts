@@ -70,9 +70,7 @@ describe('the weekly view’s words', () => {
   })
 
   it('says a short period in plain words', () => {
-    expect(LACK_TEXT.period('run')).toBe(
-      'Needs 4 weeks of steady efforts with heart rate. Pick a longer period to see it.',
-    )
+    expect(LACK_TEXT.period('run')).toBe('Needs 4 weeks of steady efforts with heart rate.')
   })
 
   it('never calls it fitness, or a strength or a limit', () => {

@@ -3,7 +3,7 @@ import type { ChangeEvidence } from '@rca/core/change/types'
 import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
 import type { DotsWithheld, EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
+import type { Curve, Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { LookBack } from '@rca/core/lookback'
 import type { MeasureTime } from '@rca/core/zones'
@@ -31,8 +31,13 @@ export interface SportPageProps {
   fitness?: FitnessBySport
   /** Each sport's years in hindsight, whatever the period: the page's "Your years" section reads its own sport's. */
   lookBack?: LookBack
-  /** This sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
+  /** This sport's durability, and the heart rate drift of its steady efforts, over the period. */
   lateEvidence: LateEvidence
+  /**
+   * This sport's best curve over the whole library, handed down when the period holds too few activities of some sport
+   * to judge its own bests: the best durations read it then. Absent or null: the period's curve is the one.
+   */
+  libraryBests?: Curve | null
   /** This sport's time in each zone over the period, one row for each measure. Absent: none counted. */
   zoneTimes?: readonly MeasureTime[]
   /** The same over the period before it, or null for all time or when it holds no activities. */

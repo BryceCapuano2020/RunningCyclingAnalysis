@@ -1,4 +1,4 @@
-import { DAY_MS } from '../constants'
+import { DAY_MS, SAME_HEART_RATE } from '../constants'
 import { driftTrend } from '../digest/driftTrend'
 import { periodDurability } from '../digest/durabilityPeriod'
 import { sameHeartRate } from '../digest/sameHeartRate'
@@ -169,7 +169,10 @@ export function buildTables(
 ): SharedTables {
   const mine = (sport: Sport) => digests.filter((d) => d.sport === sport)
   const tables = {} as SharedTables
-  lazily(tables, 'sameHeartRate', () => sameHeartRate(digests, setAside, {}))
+  // The findings read the newest year of weeks, as a period does: every week of a long library is the page's, not theirs.
+  lazily(tables, 'sameHeartRate', () =>
+    sameHeartRate(digests, setAside, { newestWeeks: SAME_HEART_RATE.maxWeeks }),
+  )
   lazily(tables, 'weeklyMoving', () => perSport((sport) => weeklyMoving(mine(sport), asOfMs)))
   lazily(tables, 'coverage', () => perSport((sport) => weeklyCoverage(mine(sport), asOfMs)))
   lazily(tables, 'sourceChanges', () =>

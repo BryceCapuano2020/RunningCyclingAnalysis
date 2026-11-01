@@ -13,27 +13,10 @@ import './SportPage.css'
 
 export type { SportPageProps } from './sportPageProps'
 
-/** Why some sections have nothing to show yet, in one muted list, so an empty section has no heading. */
-function NotEnoughYet({ lacks }: { lacks: readonly string[] }) {
-  if (lacks.length === 0) return null
-  return (
-    <section className="section" aria-labelledby="not-enough-yet">
-      <h2 id="not-enough-yet" className="eyebrow">
-        Not enough yet
-      </h2>
-      <ul className="muted sport-page__lacks">
-        {lacks.map((lack) => (
-          <li key={lack}>{lack}</li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 /**
  * One sport's page: the answer, the period control under it, a row that jumps to each section, then the sections
- * as the rows of its list in sportSections give: the open ones, then the closed ones, each of which says its
- * finding on its closed row. A section with nothing to show leaves no card; its reason is in the list at the end.
+ * as the rows of its list in sportSections give, each open to start with and each saying its finding on its row.
+ * A section the library cannot fill yet is one line in its own place that says what to add: none leaves the page.
  */
 export function SportPage(props: SportPageProps) {
   const {
@@ -52,10 +35,8 @@ export function SportPage(props: SportPageProps) {
   const [openedAt] = useState(() => Date.now())
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
-  const { rows, nav, lacks } =
-    held || count === 0
-      ? { rows: [], nav: [], lacks: [] }
-      : layoutOf(sport, { ...props, count, openedAt })
+  const { rows, nav } =
+    held || count === 0 ? { rows: [], nav: [] } : layoutOf(sport, { ...props, count, openedAt })
   const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt)
   return (
     <div className="page-stack sport-page" data-sport={sport}>
@@ -84,7 +65,6 @@ export function SportPage(props: SportPageProps) {
           ))}
         </div>
       ))}
-      <NotEnoughYet lacks={lacks} />
       {footnote}
     </div>
   )
