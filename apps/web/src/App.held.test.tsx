@@ -46,6 +46,16 @@ function staleLibrary(count = 3000) {
   })
 }
 
+function savedRun(id: string) {
+  return {
+    id,
+    name: 'Run',
+    startMs: Date.UTC(2024, 0, 1),
+    sport: 'run' as const,
+    copy: { id, rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
+  }
+}
+
 beforeEach(() => {
   resetAppMocks()
   window.location.hash = '#/'
@@ -147,6 +157,29 @@ describe('a library that has not answered', () => {
       screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: LANDING })).not.toBeInTheDocument()
+  })
+
+  it('keeps the restoring page while the worker has listed the saved runs but not counted them, signed in', () => {
+    setAccount('signed-in')
+    app.analysis.libraryStatus = 'loading'
+    app.analysis.savedActivities = [savedRun('s0')]
+    render(<App />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Your library is here' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/holds no runs or rides yet/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the restoring page while the worker has listed the saved runs but not counted them, signed out', () => {
+    setAccount('signed-out')
+    app.analysis.restoring = true
+    app.analysis.savedActivities = [savedRun('s0')]
+    render(<App />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/holds no runs or rides yet/)).not.toBeInTheDocument()
   })
 
   it('says it is not showing yet, with the retry above, when the library could not be loaded', () => {

@@ -49,6 +49,12 @@ describe('libraryPageOf', () => {
     expect(pages({ knowledge: 'unknown', failed: true, restoring: true })[0]).toBe('restoring')
   })
 
+  it('keeps the restoring page for a present library until the read that counts it has answered', () => {
+    expect(pages({ knowledge: 'present', restoring: true })[0]).toBe('restoring')
+    expect(pages({ knowledge: 'present', loading: true })[0]).toBe('restoring')
+    expect(pages({ knowledge: 'present', loading: false })[0]).toBe('held')
+  })
+
   it('shows the result pages whenever there is a result', () => {
     expect(pages({ hasResult: true, knowledge: 'present' })).toEqual([
       'result',
