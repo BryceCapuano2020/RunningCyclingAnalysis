@@ -1449,8 +1449,7 @@ analysed digests (`packages/core/src/history`) and remembered like the look-back
 
 **The page.** The title, one row of totals (years on file, total hours, each sport's distance in the units setting; a
 sport with no activity has none), then one chart for each section, each on `ChartFrame` with its table, tooltip and
-keyboard reading. A library with no run or ride gets one line saying what to add. A chart's title is its measure
-("Hours per year", or "Run hours per year" for one sport), never a sentence that repeats the bars. One axis, sport
+keyboard reading. A library with no run or ride gets one line saying what to add. A chart's title is its finding when the library holds one, such as "2025 was your hardest year for running" (Intensity by year), else its measure ("Hours per year", or "Run hours per year" for one sport). A finding is one clause and never repeats the bars. One axis, sport
 colours from the tokens, a label on the tallest bar only, no gridline through a bar.
 
 **Adding a chart.** In core, a file `history/<name>.ts` that exports a `HistoryPart`, and one

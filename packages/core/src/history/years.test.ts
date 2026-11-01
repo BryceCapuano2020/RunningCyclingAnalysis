@@ -7,6 +7,8 @@ import { historyOf, NO_HISTORY } from './compute'
 const INPUT = {
   settings: { massKg: 70, bikeMassKg: 9 },
   setAside: new Set<string>(),
+  heartRateSetAside: new Set<string>(),
+  estimates: null,
   nowMs: Date.UTC(2030, 0, 1),
   gate: undefined,
 }
