@@ -3,7 +3,7 @@ import { goTo, openSample } from './helpers.js'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
-test('a Run section opens and shuts by mouse and by Enter on a phone, and its body mounts on first open', async ({
+test('a Run section is open on a phone, shuts and opens by mouse and by Enter, and keeps its body', async ({
   page,
 }) => {
   await openSample(page)
@@ -13,20 +13,22 @@ test('a Run section opens and shuts by mouse and by Enter on a phone, and its bo
   const details = section.locator('.sport-disclosure__details')
   const summary = section.locator('.sport-disclosure__summary')
   const body = section.locator('.sport-disclosure__body')
-  await expect(details).not.toHaveAttribute('open')
-  await expect(body).toBeEmpty()
-
-  await summary.click()
+  // A section with content is open to start with, with its chart drawn.
   await expect(details).toHaveAttribute('open')
   await expect(section.getByRole('figure').first()).toBeVisible()
 
   await summary.click()
   await expect(details).not.toHaveAttribute('open')
+  await expect(body).toBeHidden()
+
+  await summary.click()
+  await expect(details).toHaveAttribute('open')
+  await expect(section.getByRole('figure').first()).toBeVisible()
 
   await summary.focus()
   await page.keyboard.press('Enter')
-  await expect(details).toHaveAttribute('open')
+  await expect(details).not.toHaveAttribute('open')
   await expect(summary).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(details).not.toHaveAttribute('open')
+  await expect(details).toHaveAttribute('open')
 })

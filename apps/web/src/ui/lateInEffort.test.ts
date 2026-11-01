@@ -154,14 +154,12 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', lateEvidenceFor('run')).needs).toEqual([])
   })
 
-  it('names each missing half in a sentence of its own, so a line never says the whole section lacks what one half does', () => {
+  it('is one line to add when neither half has anything, since steady efforts over an hour give both', () => {
     expect(lateInEffort('run', NONE).needs).toEqual([
-      'Durability needs 3 runs longer than an hour.',
-      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
+      'Add 3 steady runs over an hour with heart rate.',
     ])
     expect(lateInEffort('ride', NONE).needs).toEqual([
-      'Durability needs 3 rides longer than an hour with a power meter.',
-      'Heart rate drift needs 3 steady rides over an hour with a power meter and heart rate.',
+      'Add 3 steady rides over an hour with a power meter and heart rate.',
     ])
   })
 

@@ -55,14 +55,14 @@ describe('SectionNav', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Race predictions' }))
   })
 
-  it('opens a closed section, mounting its content, and puts the keyboard on its summary', () => {
+  it('opens a section the reader folded, keeping its content, and puts the keyboard on its summary', () => {
     renderPage()
-    expect(screen.queryByText('The chart')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate' }))
     const details = document.getElementById('closed-card') as HTMLDetailsElement
     expect(details.open).toBe(true)
-    // The toggle event is the browser's; its handler mounts the content.
+    details.open = false
     fireEvent(details, new Event('toggle'))
+    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate' }))
+    expect(details.open).toBe(true)
     expect(screen.getByText('The chart')).toBeInTheDocument()
     expect(document.activeElement).toBe(details.querySelector('summary'))
   })

@@ -89,7 +89,7 @@ export interface DriftReading {
 export interface LateInEffort {
   durability: DurabilityReading | null
   drift: DriftReading | null
-  /** What each missing half needs, a plain sentence for each that names the half; empty when nothing is missing. */
+  /** What the missing half needs, a plain sentence that names it, or one line to add for both; empty when nothing is missing. */
   needs: string[]
 }
 
@@ -249,6 +249,11 @@ function driftNeed(sport: Sport): string {
   return `Heart rate drift needs ${plural(minActivities, `steady ${SPORT_ACTIVITY[sport]}`, `steady ${SPORT_PLURAL[sport]}`)} over an hour with ${DRIFT_NEEDS_DEVICE[sport]}.`
 }
 
+/** What both halves need when neither has anything: steady efforts over an hour give each, so the line says what to add. */
+function bothNeed(sport: Sport): string {
+  return `Add ${plural(minActivities, `steady ${SPORT_ACTIVITY[sport]}`, `steady ${SPORT_PLURAL[sport]}`)} over an hour with ${DRIFT_NEEDS_DEVICE[sport]}.`
+}
+
 /**
  * What a sport's durability and heart rate drift say. Durability needs minActivities activities at a level; drift
  * needs as many steady efforts. Both read the whole library when the period holds too few (see `lateEvidence`). A
@@ -260,10 +265,13 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
   return {
     durability,
     drift,
-    needs: [
-      ...(durability === null ? [durabilityNeed(sport)] : []),
-      ...(drift === null ? [driftNeed(sport)] : []),
-    ],
+    needs:
+      durability === null && drift === null
+        ? [bothNeed(sport)]
+        : [
+            ...(durability === null ? [durabilityNeed(sport)] : []),
+            ...(drift === null ? [driftNeed(sport)] : []),
+          ],
   }
 }
 

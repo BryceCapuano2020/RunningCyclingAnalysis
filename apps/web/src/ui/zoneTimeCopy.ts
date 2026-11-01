@@ -14,10 +14,9 @@ import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
 import { plural } from './components/plural'
 import { lowerFirst, upperFirst } from './format/firstLetter'
-import { lackLine } from './pages/lackLine'
 import { SPORT_PLURAL } from './sports'
 
-/** The section's name, in its heading and in the page's "Not enough yet" list. */
+/** The section's name, in its heading. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
 
 /** A zone has to move this much of the period's time, as a share, for the lede to call it a change. */
@@ -201,25 +200,19 @@ export function zoneSourceNote(rows: readonly MeasureTime[]): string {
   return 'Zones follow your Profile settings where you have them, and are estimated where you do not.'
 }
 
-/** What each sport needs to show its time in zones, for the "Not enough yet" list. */
+/** What each sport needs to show its time in zones. */
 const NEED: Record<Sport, string> = {
   run: 'heart rate, or a threshold pace entered on Profile',
   ride: 'heart rate or a power meter',
 }
 
-/** Why there is no time in zones to show, as a "Not enough yet" line, or null when there is some. */
+/** What the section needs when there is no time in zones to show, or null when there is some. */
 export function timeInZonesLack(sport: Sport, rows: readonly MeasureTime[]): string | null {
   if (describable(rows).length > 0) return null
   const withoutZones = rows.some((row) => row.noZones > 0 && row.counted === 0)
   if (withoutZones) {
-    return lackLine(
-      TIME_IN_ZONES_NAME,
-      'needs a max heart rate or a threshold, entered on Profile or, for a threshold, found from your activities.',
-    )
+    return 'Needs a max heart rate or a threshold, entered on Profile or, for a threshold, found from your activities.'
   }
   const hours = MIN_ZONE_SECONDS / 3600
-  return lackLine(
-    TIME_IN_ZONES_NAME,
-    `needs ${plural(MIN_ZONE_ACTIVITIES, 'activity', 'activities')} with ${NEED[sport]}, and ${plural(hours, 'hour')} of them.`,
-  )
+  return `Needs ${plural(MIN_ZONE_ACTIVITIES, 'activity', 'activities')} with ${NEED[sport]}, and ${plural(hours, 'hour')} of them.`
 }

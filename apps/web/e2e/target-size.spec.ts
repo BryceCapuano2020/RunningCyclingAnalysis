@@ -61,14 +61,10 @@ async function smallTargets(page: Page, standardPx: number): Promise<Small[]> {
   }, standardPx)
 }
 
-/** Opens each closed section of a sport page, so the controls inside them are on the page to be measured. */
+/** Waits for the sections of a sport page, which are open to start with, so the controls inside them are on the page to be measured. */
 async function openSections(page: Page): Promise<void> {
-  const summaries = page.locator('.sport-disclosure__summary')
-  const count = await summaries.count()
-  for (let i = 0; i < count; i += 1) {
-    await summaries.nth(i).click()
-    await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(i + 1)
-  }
+  const count = await page.locator('.sport-disclosure__summary').count()
+  await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
 }
 
 const PAGES: Destination[] = ['Balance', 'Run', 'Ride', 'Activities', 'Profile']

@@ -95,8 +95,8 @@ geographic.
   (time or pace over date, this visit highlighted; reuse `ui/charts`, a text table for screen
   readers).
 - Sport page: a "Regular routes" section in `SPORT_SECTIONS` (top 3 by visits in the period; rows
-  show visits, best, latest against median, small sparkline). With none it yields a lack line in the
-  existing "Not enough yet" list, so no empty heading.
+  show visits, best, latest against median, small sparkline). With none it is one line in its own place that
+  says what to add, like every section that has nothing to show.
 - Ledes (copy module with tests, like `sameHeartRateCopy.ts`):
   - "Your fastest of 14 times on this loop (8:00 per mile, 9 s a mile quicker than the one before)."
   - "3% faster than your median here, at 2 bpm lower heart rate." Same-heart-rate wording only when

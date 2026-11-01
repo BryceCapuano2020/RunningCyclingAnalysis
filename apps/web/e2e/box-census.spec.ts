@@ -4,7 +4,8 @@ import { goTo, openSample } from './helpers'
 
 /**
  * The box ratchet (D10, fewer boxes). Run and Ride put 71% of their height in bordered, shadowed cards; the
- * sections, the answer and the fitness card are bands now, and what keeps a box is a closed disclosure row. The
+ * sections, the answer and the fitness card are bands now, an open disclosure with them, and what keeps a box is a
+ * folded disclosure row. The
  * caps are the measured values (6% and 11% at most, normal and forced colours) plus about 2 points, so they may only be lowered: a new card on a sport page fails here.
  */
 const CAP = { desktop: 0.08, phone: 0.12 } as const
@@ -27,10 +28,15 @@ for (const size of SIZES) {
         await expect(page.locator('.fitness-card')).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const census = await boxCensus(page)
-        // The disclosure rows are the boxes that remain, and there are some, so the census is not blind.
-        expect(census.boxes.length).toBeGreaterThan(0)
+        // Sections are open to start with, and an open one is a band: only a box that is a disclosure card may remain.
         expect(census.boxes.filter((box) => !box.startsWith('section.panel'))).toEqual([])
         expect(census.share).toBeLessThanOrEqual(size.cap)
+        // A folded disclosure is a card of one row, so the census is not blind to it.
+        await page.locator('.sport-disclosure__summary').first().click()
+        await expect(page.locator('section.panel.sport-disclosure')).toHaveCount(1)
+        const folded = await boxCensus(page)
+        expect(folded.boxes.some((box) => box.startsWith('section.panel'))).toBe(true)
+        expect(folded.share).toBeLessThanOrEqual(size.cap)
       })
     }
   }

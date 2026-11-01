@@ -31,7 +31,7 @@ describe('What is calculated', () => {
       /same heart rate/,
       /Level target/,
       /Grade by duration/,
-      /stand out/,
+      /Best durations/,
       /Virtual power/,
       /Splits/,
       /The timeline in detail/,
@@ -61,7 +61,7 @@ describe('What is calculated', () => {
       sameHeartRate: /same heart rate/,
       lateInEffort: /Durability/,
       timeInZones: /Time in zones/,
-      standOut: /stand out/i,
+      standOut: /Best durations/,
       evidence: /Best efforts and curves/,
     }
     const calculated = namesIn('calculated')

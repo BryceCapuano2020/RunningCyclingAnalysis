@@ -240,10 +240,12 @@ describe('the records under the curve', () => {
   it('names the one activity every record was set in once, under the strip, and not on each tile', () => {
     renderPage('run', makeResult({ activities: [withDistances] }))
     expect(tiles().every((tile) => tile.querySelector('a') === null)).toBe(true)
-    expect(screen.getByText(/^All set on/).querySelector('a')).toHaveAttribute(
-      'href',
-      '#/activities/run-d',
-    )
+    const curve = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(curve)
+        .getByText(/^All set on/)
+        .querySelector('a'),
+    ).toHaveAttribute('href', '#/activities/run-d')
   })
 
   it('links each tile to its own activity when they were set in different ones', () => {
@@ -371,14 +373,17 @@ describe('"On this page" and the layout', () => {
     ).toEqual(['Best efforts', 'Best efforts over time', 'All best efforts'])
   })
 
-  it('opens a closed section when its button is pressed, and scrolls to it', () => {
+  it('opens a section the reader folded when its button is pressed, and scrolls to it', () => {
     renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
     const region = screen.getByRole('region', { name: 'Same heart rate, week by week' })
-    expect(within(region).queryByRole('figure')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate, week by week' }))
     const details = region.querySelector('details')!
+    // A section with content is open to start with.
     expect(details.open).toBe(true)
+    expect(within(region).getByRole('figure')).toBeInTheDocument()
+    details.open = false
     fireEvent(details, new Event('toggle'))
+    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate, week by week' }))
+    expect(details.open).toBe(true)
     expect(within(region).getByRole('figure')).toBeInTheDocument()
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })

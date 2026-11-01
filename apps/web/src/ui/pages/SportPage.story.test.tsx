@@ -116,10 +116,12 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, best efforts, race predictions, time in zones and best efforts over time open, in that order', () => {
+  it('reads answer, years, best efforts, race predictions, time in zones and best efforts over time, in that order', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    // The page is given no look-back here, so the years are one line in their place.
     expect(headings()).toEqual([
       'Threshold pace, estimated',
+      'Your years',
       'Best efforts',
       'Race predictions',
       'Time in zones',
@@ -127,33 +129,33 @@ describe('a sport page with everything to show', () => {
     ])
   })
 
-  it('follows with the same heart rate, durability, stand-out and the full list, each closed', () => {
+  it('follows with the same heart rate, durability, best durations and the full list, each open', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const closed = [
+    const sections = [
       'Same heart rate, week by week',
       'Durability',
-      'Where your bests stand out',
+      'Best durations',
       'All best efforts',
     ]
-    const order = regions().filter((name) => closed.includes(name ?? ''))
-    expect(order).toEqual(closed)
-    for (const name of closed) {
+    const order = regions().filter((name) => sections.includes(name ?? ''))
+    expect(order).toEqual(sections)
+    for (const name of sections) {
       const details = screen.getByRole('region', { name }).querySelector('details')!
-      expect(details.open).toBe(false)
-      expect(details.querySelector('.sport-disclosure__body')).toBeEmptyDOMElement()
+      expect(details.open).toBe(true)
+      expect(details.querySelector('.sport-disclosure__body')).not.toBeEmptyDOMElement()
     }
   })
 
-  it('says its finding on every closed row, so closed still tells the athlete something', () => {
+  it('says its finding on every row, so a section the reader folds still tells the athlete something', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    // The closed row says what is drawn and names the heart rate, so "the same" is a number. It claims no change.
+    // The row says what is drawn and names the heart rate, so "the same" is a number. It claims no change.
     expect(closedRow('Same heart rate, week by week')).toBe(
       'Same heart rate, week by weekYour pace each week at 145 bpm.',
     )
     expect(closedRow('Durability')).toMatch(
       /Best 20 min held \d+% after 90 min\. Efficiency fell 3%/,
     )
-    expect(closedRow('Where your bests stand out')).toMatch(/Your 5 min best is [23]\d% above/)
+    expect(closedRow('Best durations')).toMatch(/Your 5 min best is [23]\d% above/)
     expect(closedRow('All best efforts')).toMatch(
       /^All best efforts\d+ best efforts and the activity each was set in$/,
     )
@@ -162,7 +164,7 @@ describe('a sport page with everything to show', () => {
   it('has no heading of its own for the curve’s title, the closed sections or the stand-out finding', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByRole('heading', { name: 'Pace curve' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Where your bests stand out' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Best durations' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Not enough yet' })).toBeNull()
   })
 
@@ -176,33 +178,29 @@ describe('a sport page with everything to show', () => {
     expect(tiles.querySelector('ul.records')).toBeNull()
   })
 
-  it('keeps every best effort in a closed section that opens to the full list', () => {
+  it('shows every best effort from the start, in a section the reader can fold', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const closed = screen.getByRole('region', { name: 'All best efforts' })
-    expect(closed.querySelector('ul.records')).toBeNull()
-    openSection('All best efforts')
-    expect(closed.querySelector('ul.records')).not.toBeNull()
+    const section = screen.getByRole('region', { name: 'All best efforts' })
+    expect(section.querySelector('ul.records')).not.toBeNull()
+    expect(section.querySelector('details')).toHaveAttribute('open')
   })
 
-  it('opens the stand-out section to the strip of each best against the others', () => {
+  it('draws the strip of each best against the others when one stands out, with no press', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const region = screen.getByRole('region', { name: 'Where your bests stand out' })
-    expect(within(region).queryByRole('figure')).toBeNull()
-    openSection('Where your bests stand out')
+    const region = screen.getByRole('region', { name: 'Best durations' })
     expect(within(region).getByRole('figure')).toBeInTheDocument()
   })
 
-  it('says the bests are in line when nothing stands out, and draws no strip when it opens', () => {
+  it('says the bests are in line when nothing stands out, and draws no strip', () => {
     const result = makeResult({
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    expect(closedRow('Where your bests stand out')).toMatch(
-      /Your bests are in line with each other/,
-    )
-    const region = openSection('Where your bests stand out')
-    expect(within(region).queryByRole('figure')).toBeNull()
+    expect(closedRow('Best durations')).toMatch(/Your bests are in line with each other/)
+    expect(
+      within(screen.getByRole('region', { name: 'Best durations' })).queryByRole('figure'),
+    ).toBeNull()
   })
 
   it('draws the dated bests with no line and no wash, and no sentence about a dip in a window', () => {
@@ -258,56 +256,83 @@ describe('race predictions where the effort could not be checked', () => {
 describe('a sport page with sections that have nothing to show', () => {
   const newRun = () => makeResult({ activities: [makeActivity({ id: 'run-1', sport: 'run' })] })
 
-  it('leaves the empty sections without a heading and gathers why in one muted list at the end', () => {
+  /** The one line a section says in its own place. */
+  const lineIn = (name: string) =>
+    screen.getByRole('region', { name }).querySelector('p.muted')?.textContent
+
+  it('says one line in each empty section’s own place, and names the section', () => {
     renderPage('run', newRun())
     expect(headings()).toEqual([
       'Threshold pace, estimated',
+      'Your years',
       'Best efforts',
+      'Race predictions',
+      'Time in zones',
       'Best efforts over time',
-      'Not enough yet',
+      'Same heart rate, week by week',
+      'Durability',
+      'Best durations',
     ])
-    // Only the sections with something to show have a row.
-    expect(regions()).not.toContain('Durability')
-    expect(regions()).not.toContain('Same heart rate, week by week')
-    const section = screen.getByRole('region', { name: 'Not enough yet' })
-    const items = within(section)
-      .getAllByRole('listitem')
-      .map((item) => item.textContent)
-    expect(items).toEqual([
-      'Race predictions: needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted.',
-      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
-      expect.stringMatching(
-        /^Same heart rate, week by week: needs at least \d+ steady 5-minute stretches/,
-      ),
-      'Durability needs 3 runs longer than an hour.',
-      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
-      expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
-    ])
-    expect(section.querySelector('ul')).toHaveClass('muted')
+    expect(lineIn('Your years')).toBe('Needs a year of runs.')
+    expect(lineIn('Race predictions')).toBe(
+      'Needs a best of a mile or more, or 2 outdoor runs with a heart rate that can be trusted.',
+    )
+    expect(lineIn('Time in zones')).toBe(
+      'Needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+    )
+    expect(lineIn('Same heart rate, week by week')).toMatch(
+      /^Needs at least \d+ steady 5-minute stretches/,
+    )
+    expect(lineIn('Durability')).toBe('Add 3 steady runs over an hour with heart rate.')
+    expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations/)
   })
 
-  it('puts the list after the sections and before the footnote', () => {
+  it('has no list of what is missing, and no empty section is a fold or a nav button', () => {
     renderPage('run', newRun())
-    const list = screen.getByRole('region', { name: 'Not enough yet' })
-    const last = screen.getByRole('region', { name: 'All best efforts' })
-    expect(follows(last, list)).toBe(true)
-    expect(follows(list, screen.getByText('Page footnote'))).toBe(true)
-  })
-
-  it('does not list race predictions for a ride, which has none to give', () => {
-    renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
-    const section = screen.getByRole('region', { name: 'Not enough yet' })
-    expect(within(section).queryByText(/Race predictions/)).toBeNull()
-    expect(within(section).getByText(/^Where your bests stand out: needs/)).toBeInTheDocument()
-  })
-
-  it('shows no list when every section has something to say', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    expect(screen.queryByText('Not enough yet')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
+    for (const name of ['Your years', 'Durability', 'Best durations']) {
+      expect(screen.getByRole('region', { name }).closest('details')).toBeNull()
+    }
+    const nav = screen.getByRole('navigation', { name: 'On this page' })
+    expect(within(nav).queryByRole('button', { name: 'Durability' })).toBeNull()
+    expect(within(nav).getByRole('button', { name: 'Best efforts over time' })).toBeInTheDocument()
   })
 
-  it('shows no list on a page with no activities', () => {
+  it('keeps the lines in the sections’ own order, before the footnote', () => {
+    renderPage('run', newRun())
+    const durability = screen.getByRole('region', { name: 'Durability' })
+    const durations = screen.getByRole('region', { name: 'Best durations' })
+    const full = screen.getByRole('region', { name: 'All best efforts' })
+    expect(follows(durability, durations)).toBe(true)
+    expect(follows(durations, full)).toBe(true)
+    expect(follows(full, screen.getByText('Page footnote'))).toBe(true)
+  })
+
+  it('gives a ride no race predictions, which it has none to give, and asks for a power meter', () => {
+    renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
+    expect(screen.queryByRole('region', { name: 'Race predictions' })).toBeNull()
+    expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations.*power meter\.$/)
+    expect(lineIn('Durability')).toBe(
+      'Add 3 steady rides over an hour with a power meter and heart rate.',
+    )
+  })
+
+  it('shows one answer for durability and a line for the half it lacks, when only drift shows', () => {
+    renderPage('run', newRun(), undefined, {
+      ...lateEvidenceFor('run'),
+      durability: NO_LATE_EVIDENCE.run.durability,
+    })
+    const section = screen.getByRole('region', { name: 'Durability' })
+    expect(within(section).getAllByRole('figure')).toHaveLength(1)
+    expect(
+      within(section).getByText('Durability needs 3 runs longer than an hour.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no empty section on a page with no activities', () => {
     renderPage('run', makeResult({ activities: [] }))
+    expect(screen.queryByRole('region', { name: 'Durability' })).toBeNull()
     expect(screen.queryByText('Not enough yet')).toBeNull()
   })
 })
