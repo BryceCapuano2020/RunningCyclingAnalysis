@@ -143,7 +143,7 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('counts a refusal against the row and keeps it for the next load', async () => {
-    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(422, 'invalid_digest', 'Boom'))
     const { resume, posted, left, attempts } = setup([rowFor(0)])
     await resume.finished
     expect(attempts.get(workoutKeyOf(digests[0]!))).toBe(1)
@@ -159,12 +159,61 @@ describe('resuming the saves an earlier visit left', () => {
   })
 
   it('lets a row go once the refusals reach the limit, and says it could not be saved', async () => {
-    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
+    vi.mocked(createActivity).mockRejectedValue(new ApiRequestError(422, 'invalid_digest', 'Boom'))
     const { resume, posted, left, attempts } = setup([rowFor(0, { attempts: 0 })])
     attempts.set(workoutKeyOf(digests[0]!), MAX_ATTEMPTS - 1)
     await resume.finished
     expect(left.size).toBe(0)
     expect(last(posted)).toMatchObject({ pending: 0, failed: 1, finished: true })
+  })
+
+  it('does not count a server error against the row, however many loads an outage spans', async () => {
+    for (const status of [500, 502, 503]) {
+      vi.mocked(createActivity).mockRejectedValue(
+        new ApiRequestError(status, 'server_error', 'Down'),
+      )
+      for (let load = 0; load < MAX_ATTEMPTS + 2; load++) {
+        const { resume, posted, left, attempts } = setup([rowFor(0)])
+        await resume.finished
+        expect(attempts.size).toBe(0)
+        expect(left.size).toBe(1)
+        expect(last(posted)).toMatchObject({ pending: 1, failed: 0, finished: true })
+      }
+    }
+  })
+
+  it('keeps a row the server keeps failing, still saves the rows after it, and reports it as waiting', async () => {
+    const stuck = digests[0]!
+    vi.mocked(createActivity).mockImplementation(async (digest) => {
+      if (digest.id === stuck.id) throw new ApiRequestError(502, 'bad_gateway', 'Down')
+      return { record: { ...recordOf(0), id: `rec-${digest.id}`, digest }, created: true }
+    })
+    const posted: WorkerResponse[] = []
+    const settled: [string, string][] = []
+    const { outbox, rows: left } = memoryOutbox([rowFor(0), rowFor(1), rowFor(2)])
+    const resume = resumeOutbox({
+      userId: 'u1',
+      outbox,
+      savedRecords: new Map(),
+      sending: new SendingKeys(),
+      post: (message) => posted.push(message),
+      settled: async (row, outcome) => void settled.push([row.digestId, outcome]),
+    })
+
+    const result = await resume.finished
+
+    expect(result).toMatchObject({ saved: 2, failed: 0, kept: 1, stopped: null })
+    expect([...left.keys()]).toEqual([rowFor(0).key])
+    // The page counts it among the saves still waiting, and the worker did not mark it saved.
+    expect(last(posted)).toEqual({
+      type: 'outbox',
+      pending: 1,
+      saved: 2,
+      failed: 0,
+      finished: true,
+    })
+    expect(settled).toContainEqual([stuck.id, 'kept'])
+    expect(settled.filter(([, outcome]) => outcome === 'saved')).toHaveLength(2)
   })
 
   it('does not count a lost connection against the row, however many loads it spans', async () => {

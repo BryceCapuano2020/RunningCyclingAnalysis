@@ -15,7 +15,7 @@ import { clearOutbox } from './outbox'
 import { SendingKeys } from './sendingKeys'
 import { startResume } from './startResume'
 import type { ResumeParts } from './startResume'
-import type { Writing } from './writerResume'
+import { ResumeHolder } from './resumeHolder'
 import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
@@ -96,6 +96,8 @@ const libraryContext: LibraryContext = {
     return () => view.libraryEpoch === libraryEpoch && view.activeScope === activeScope
   },
   waitingToChange: waitingToChangeLibrary,
+  endResume: () => resume.end(),
+  restartResume: (userId) => resume.restart(() => startResume(resumeParts, userId)),
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // A request that makes headway (an answer, a chunk of a download) counts as work, so a slow link is not a stall.
@@ -128,7 +130,7 @@ const reportDetail = detailReporter(workbench, post, () =>
 )
 
 /** The activities an earlier visit began to save and did not are finished, apart from the requests that follow. */
-let resume: Writing | null = null
+const resume = new ResumeHolder()
 const resumeParts: ResumeParts = { session, deviceLibrary, savedRecords, sending, workbench }
 const adoptionContext: AdoptionRequestContext = {
   session,
@@ -139,13 +141,11 @@ const adoptionContext: AdoptionRequestContext = {
   view,
   libraryContext,
   post,
-  resume: () => resume,
-  resumeEnded: () => {
-    resume = null
-  },
+  resume: () => resume.get(),
+  resumeEnded: () => resume.clear(),
 }
 function finishLoad(state: SessionState, userId: string): SessionState {
-  resume = startResume(resumeParts, userId)
+  resume.start(() => startResume(resumeParts, userId))
   void offerDevice(adoptionContext, userId)
   return state
 }
@@ -209,8 +209,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       // A resume belongs to the library it began under.
-      resume?.cancel()
-      resume = null
+      resume.cancel()
       return finishLoad(
         await loadServer(
           libraryContext,
@@ -223,10 +222,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'resumeSaves':
       // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
       if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
-        resume?.cancel()
-        await resume?.finished
-        resume = startResume(resumeParts, request.userId)
-        await resume.finished
+        await resume.end()
+        await resume.start(() => startResume(resumeParts, request.userId)).finished
       }
       return session.setSettings(request.settings)
     case 'undoLabels':
@@ -261,8 +258,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'clear':
       view.libraryEpoch++
       undo.labelUndo.clear()
-      resume?.cancel()
-      resume = null
+      resume.cancel()
       provisionalItems.clear()
       view.showingSample = false
       workbench.clearMemory()
