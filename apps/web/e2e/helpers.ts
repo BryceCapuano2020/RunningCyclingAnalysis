@@ -108,6 +108,16 @@ export async function openSample(page: Page): Promise<void> {
   await page.mouse.move(0, 0)
 }
 
+/**
+ * A period segment by its full name, "6 weeks", as its label: a click lands on the label whether the full name or the short one
+ * ("6 wk") is showing, and a phone shows the short one (up to 479 px) while the full name stays in the page for assistive technology.
+ */
+export function periodSegment(group: Locator, name: string): Locator {
+  return group
+    .locator('label')
+    .filter({ has: group.page().getByRole('radio', { name, exact: true }) })
+}
+
 /** The setup dialog's name. It has one heading for every visitor. */
 export const SETUP_DIALOG_NAME = /^A few details$/
 

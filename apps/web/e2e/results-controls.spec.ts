@@ -6,6 +6,7 @@ import {
   activitiesRows,
   goTo,
   openSample,
+  periodSegment,
 } from './helpers.js'
 
 test('the Activities period narrows its own rows and All time restores them all, and a Balance pick hides none', async ({
@@ -13,13 +14,13 @@ test('the Activities period narrows its own rows and All time restores them all,
 }) => {
   await openSample(page)
   // Activities has its own period control, so a pick on Balance leaves every activity listed.
-  await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
+  await periodSegment(page.getByRole('group', { name: 'Period' }), '6 weeks').click()
   // The sample's season is far longer than a page of the list, so a full list shows one page of rows.
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
   await expect(page.locator('.range-picker__count')).toHaveCount(0)
 
   const period = page.getByRole('group', { name: 'Period' })
-  await period.getByText('6 weeks', { exact: true }).click()
+  await periodSegment(period, '6 weeks').click()
   const count = page.locator('.range-picker__count')
   await expect(count).toHaveText(/^\d+ of \d+ activities$/)
   const [, inPeriod, total] =
@@ -29,7 +30,7 @@ test('the Activities period narrows its own rows and All time restores them all,
   const rows = page.locator('.activity-list__items > li')
   await expect(rows).toHaveCount(Math.min(Number(inPeriod), LIST_PAGE_SIZE))
 
-  await period.getByText('All time', { exact: true }).click()
+  await periodSegment(period, 'All time').click()
   await expect(page.locator('.range-picker__count')).toHaveCount(0)
   await expect(rows).toHaveCount(LIST_PAGE_SIZE)
 })
@@ -39,7 +40,7 @@ test('Custom applies the two days entered, and the caption dates the period they
 }) => {
   await openSample(page)
   const period = page.getByRole('group', { name: 'Period' })
-  await period.getByText('Custom', { exact: true }).click()
+  await periodSegment(period, 'Custom').click()
   const form = page.locator('.range-picker__custom')
   await form.getByLabel('From').fill('2000-01-01')
   await form.getByLabel('To').fill('2000-01-02')
@@ -54,7 +55,7 @@ test('Custom applies the two days entered, and the caption dates the period they
 test('the Custom form fits 320 px, with no page scroll sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await openSample(page)
-  await page.getByRole('group', { name: 'Period' }).getByText('Custom', { exact: true }).click()
+  await periodSegment(page.getByRole('group', { name: 'Period' }), 'Custom').click()
   const form = page.locator('.range-picker__custom')
   await expect(form.getByLabel('From')).toBeVisible()
   const edges = await form
@@ -71,7 +72,7 @@ test('the Custom fields are a control tall with 16 px text, Apply sits below the
   await page.setViewportSize({ width: 390, height: 844 })
   await openSample(page)
   const period = page.getByRole('group', { name: 'Period' })
-  await period.getByText('Custom', { exact: true }).click()
+  await periodSegment(period, 'Custom').click()
   const form = page.locator('.range-picker__custom')
   const from = form.getByLabel('From')
   const fromBox = await from.boundingBox()
@@ -100,7 +101,7 @@ test('a six-week period compares the best efforts with the six weeks before it',
   const legend = page.getByRole('list', { name: 'Legend' })
   await expect(legend.getByText('Previous 12 weeks')).toBeVisible()
 
-  await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
+  await periodSegment(page.getByRole('group', { name: 'Period' }), '6 weeks').click()
   await expect(legend.getByText('Previous 6 weeks')).toBeVisible()
   await expect(legend.getByText('Previous 12 weeks')).toHaveCount(0)
 })
