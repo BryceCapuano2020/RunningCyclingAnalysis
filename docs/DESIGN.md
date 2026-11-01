@@ -279,9 +279,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   is not read against Profile's all-time figure) and a chip that says Estimated (a ring) or At least (a floor, a held
   best), its fit drawn as a slim track with the two ends printed and the word "range" between them (lighter for a fit's own spread, as against
   the range between two fits that uneven bests give), what it means, and the heart-rate check said once, as a chip
-  beside the name: "Hard efforts on file · 97% of reference heart rate" with a tick, or "Not a hard effort · 80% of
-  reference heart rate" with a warning, the Balance evidence card's two labels; the full sentence (where the
-  reference comes from, what would raise it) is the chip's definition, one press away. On the right (40%) the **level of the best 20
+  beside the name: "Hard effort · 97%" with a tick, or "Not all-out" with a warning and no share, the Balance
+  tile's two labels; the full sentence (the share, where the reference comes from, what would raise it) is the
+  chip's definition, one press away. On the right (40%) the **level of the best 20
   minutes** at display size with its percent, one line of what it grades, and the level ladder on the neutral
   level bands, a dot for a recorded effort and a ring with its range for an estimated one. Then the period
   control, then "On this page", then the sport's sections as the rows its list gives (`SPORT_ROWS` in
@@ -517,7 +517,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **The import summary compares like with like.** It lists what an import moved only when the period was in the same regime before and after (the same length, all time both times, or the same custom days: `sameRegime`). The default period is 12 weeks until an import brings a sport the library lacked and then all time; a threshold or grade across that switch is a different stretch of the library, not a change, so the summary lists nothing then.
 - **The period control sits under the levels,** as one compact row of chips with the real dates, the count (linked to Activities, with "(38 walking-pace runs left out)" where
   runs at walking pace are), and, where a longer period holds the same activities as a shorter one, "Same 14 activities as 12 weeks". At 360 px and below the chips read "6 wk", "12 wk", "12 mo", "All" and "Custom", with the full names kept as their accessible names, so all five fit one row.
-- **Three tiles at most** give the headline numbers (the lean has no tile: the headline, the lede and the meter's dot say it once, and a tile figure never exceeds `--display-2`): each sport's threshold ("threshold" is a defined term, with the plain-words meaning the sport page gives; the figure at display size, the fit's spread as a slim track labelled "range", lighter than a 90% range and left out where its ends print the same, a chip saying Estimated or At least, a line under the name that says what a threshold is, "Pace you could hold for about 30 min", where the best 20 min was faster than it a line "Your best 20 min was faster: 6:37 /mi" (higher, for watts), the grade line, and a one-line chip with the share that says how hard the best 20 min was by heart rate, "Not a hard effort · 70%" or "Hard effort · 95%", whose full reading opens as a definition and which is never a card). When the best 20 min was not a hard effort the threshold is withheld: the tile shows that best as "At least", without a spread, with the line that says what it reached and that a hard 20 min effort would give the threshold; a reference heart rate that cannot be a maximum reads "Effort not confirmed" with no share (docs/design/effort-gate.md), and the ride on foot
+- **Three tiles at most** give the headline numbers (the lean has no tile: the headline, the lede and the meter's dot say it once, and a tile figure never exceeds `--display-2`): each sport's threshold ("threshold" is a defined term, with the plain-words meaning the sport page gives; the figure at display size, the fit's spread as a slim track labelled "range", lighter than a 90% range and left out where its ends print the same, a chip saying Estimated or At least, a line under the name that says what a threshold is, "Pace you could hold for about 30 min", where the best 20 min was faster than it a line "Your best 20 min was faster: 6:37 /mi" (higher, for watts), the grade line, and a one-line chip with the share that says how hard the best 20 min was by heart rate, "Not all-out" or "Hard effort · 95%", whose full reading opens as a definition and which is never a card). When the threshold is refused, for any reason, the tile keeps its title and shows the sport's floor under the chip "At least", without a spread, with one line that names the best it rests on, "From your best 30 min."; it asks for no harder effort and states no share of heart rate; a reference heart rate that cannot be a maximum reads "Effort not confirmed" with no share (docs/design/effort-gate.md), and the ride on foot
   (the pace, the watts and the pace as a pair of chips, the activity that set it, and the equivalence table folded under it; an estimated ride under 10 min is not priced as a pace, and the tile asks for a ride of 10 min or more). A tile with no
   figure to give, one held for a weight or waiting for an effort, has no chip and no track.
 - **Terms that carry the answer are defined in place** (`Definition`): age grade in the first sentence, the 90% range at the meter's "range", level on each level line. A term opens on a resting pointer only for a mouse or pen on a device that can hover (`pointerType` and `(hover: hover)`), never for touch, which leaves hover stuck on iOS. No box around a term may be transformed, filtered, contained or promoted (`will-change`): the phone's fixed sheet would be trapped in it, and `analysis.spec.ts` walks every term's ancestors to check. A note wraps whatever line it sits in. Each is a button that opens a short note under it, over it where the window has no room under it and has more above, and on a phone
@@ -544,14 +544,19 @@ and the tests named at the foot of that page keep the two in step. A display siz
   allowing for hills, as if on level ground." On an activity page the note sits under its splits when they show a flat pace column.
   Otherwise, when the splits are not kept, too short, or show no flat pace, it sits under the best efforts,
   if one carries a Flat mark, and it waits for the splits to settle.
-- **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
-  each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
-  20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
-  3 and 20 min", or, when efforts are held in that range and none reaches 1140 s, "Needs an effort of about
-  20 min. Your longest so far is 5 min.", so the place never asks for efforts the card lists. No threshold: the efforts are flat, the work capacity is below the least a rider or a
+- **A threshold is checked before it is shown, and a refused one shows its floor.** A refusal changes the
+  label and never blanks the number. Three reasons refuse a fit. Missing efforts: fewer than four efforts from 3 to
+  20 min, or none that reaches 1140 s (within 5% of 20 minutes). No threshold: the efforts are flat, the work capacity is below the least a rider or a
   runner has (3 kJ of cycling W′, or 15 m of running D′, which is 58.5 J per kg), or the threshold is
   not below the lowest of the efforts it was fitted to, since a threshold cannot be faster than an effort
-  held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
+  held. Effort: the best 20 min was not a hard effort (docs/design/effort-gate.md). A flat 3 to 20 min curve is
+  normal for a steady, high-volume athlete, so none of the three asks for a harder effort. The card keeps its title
+  ("Run threshold", "Ride threshold") and shows the floor from the sport's best effort of 20 min or longer, `EffortGate.floor`:
+  the best 30 min where the curve has one, else the best 20 min. The chip reads "At least" and one line under the
+  figure names the best, "From your best 30 min." When nothing reaches 20 min, the floor is the longest best on file and the line
+  names it, "From your best 12 min." Only a sport that holds no best at all shows no number, and its place reads
+  "Needs an effort of 20 min or longer". The floor is shown only: zones, predictions and the share card read the fitted
+  threshold, which stays empty. The work capacity floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
@@ -574,8 +579,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   replaces the standard-error range for that sport. When the main threshold is refused, the range starts
   from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
   floor, with the same line under it: a demonstrated effort the threshold sits above, not a threshold.
-  The Balance card follows the same rule: it shows the floor as its hero under "Threshold power, at least" (or
-  "pace"), with no meaning line, in place of "Needs a harder effort between 3 and 20 min". The share card does not:
+  The Balance card follows the same rule: it shows the floor as its hero under the chip "At least", with no
+  meaning line and the same basis line. The share card does not:
   its threshold is an estimate it labels "estimated", so a card with only a floor is not offered.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "No clear change from previous 6 weeks" when the
@@ -958,7 +963,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **Indoor activities are counted, not hidden.** A treadmill run keeps its time, distance and heart rate but its pace holds no best
   (`effortsCount`, one rule in core). A runner whose only runs are on a treadmill reads "All 33 of your runs were on a treadmill. Their
   time, distance and heart rate count; their pace is not used for bests or thresholds, because a belt’s speed is not a distance
-  covered. Add outdoor runs of 3 minutes or more to see them." in the threshold's place, not "Needs efforts". A mixed library says the
+  covered. Add outdoor runs of 3 minutes or more to see them." in the threshold's place, not "Needs an effort". A mixed library says the
   split once, under the sport page's answer: "20 of your 33 runs were on a treadmill; their pace is not used for bests or thresholds."
   A trainer ride's power comes from its meter, so it counts like an outdoor ride's and is only disclosed: "6 of your 40 rides were
   indoors; their power counts like any other." Race predictions name the heart-rate route as it is: 2 outdoor runs with a heart

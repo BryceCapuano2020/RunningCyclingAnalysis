@@ -13,7 +13,7 @@ import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import { effortsCount } from '@rca/core/digest'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { CriticalPowerRefusal, Curve, Sport } from '@rca/core/types'
+import type { Curve, Sport } from '@rca/core/types'
 import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { UnitSystem } from '@rca/core/units'
@@ -201,11 +201,6 @@ const THRESHOLD_OF: Record<Sport, Threshold> = {
 /** Whether a sport's threshold was fitted: false when its fit is missing or refused. */
 export function hasThreshold(result: AnalysisResult, sport: Sport): boolean {
   return { run: result.runCp, ride: result.rideCp }[sport] !== null
-}
-
-/** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
-export function refusalOf(result: AnalysisResult, sport: Sport): CriticalPowerRefusal | null {
-  return { run: result.runCpRefusal, ride: result.rideCpRefusal }[sport]
 }
 
 /** The best effort at each record duration, with the activity that set it. */

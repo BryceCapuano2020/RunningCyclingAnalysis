@@ -268,9 +268,7 @@ describe('BalancePage', () => {
     )
     // The check sits on the tile it qualifies, as a one-line chip: no card of its own.
     const tile = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(
-      within(tile).getByRole('button', { name: 'Not a hard effort · 80%' }),
-    ).toBeInTheDocument()
+    expect(within(tile).getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
     expect(
       within(screen.getByRole('article', { name: 'Run threshold' })).getByRole('button', {
         name: 'Hard effort · 95%',

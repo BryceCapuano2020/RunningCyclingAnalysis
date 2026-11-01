@@ -20,7 +20,6 @@ import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
-import { withheldFloorLine } from '../thresholdFloor'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
@@ -251,9 +250,6 @@ export function BalancePage({
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
         leftOut={leftOut}
-        soleFloor={
-          soleSport === null ? null : withheldFloorLine(result, soleSport, settings.massKg, units)
-        }
         action={
           <ShareImageButton
             result={result}

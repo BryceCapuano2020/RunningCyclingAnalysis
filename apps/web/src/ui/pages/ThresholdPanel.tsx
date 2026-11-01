@@ -6,14 +6,10 @@ import { periodName } from '../components/rangeOptions'
 import { effortChipText } from '../effortCaveat'
 import { threshold } from '../records'
 import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
-import { floorThreshold } from '../thresholdFloor'
+import { floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
-import {
-  heldBestHeading,
-  thresholdUncheckedLine,
-  thresholdWithheldLine,
-} from '../thresholdWithheld'
+import { thresholdUncheckedLine } from '../thresholdUnchecked'
 import { unevenNote } from '../unevenNote'
 import { EffortChip } from './EffortChip'
 import { RangeTrack } from './RangeTrack'
@@ -22,8 +18,8 @@ import { BasisChip } from './StatTile'
 /**
  * The threshold, as the page's answer: its name with a chip that says whether it is an estimate, the figure at
  * display size, its range drawn as a track with the two ends printed under it, what it means, and whether the
- * best 20 minutes was a hard effort. With the fit refused, a held best is shown in its place as "at least",
- * and the refusal is not said; with neither, the line says what is needed.
+ * best 20 minutes was a hard effort. With the fit refused, the sport's floor is shown in its place as "at least"
+ * with the best it rests on, and the refusal is not said; with no best at all, the line says what to add.
  */
 export function ThresholdPanel({
   sport,
@@ -43,19 +39,15 @@ export function ThresholdPanel({
   const hero = fitted ?? floorThreshold(result, sport, massKg, units)
   const span = thresholdSpan(result, sport, massKg, units)
   const floorNote = unevenNote(result, sport)
-  const withheld = thresholdWithheldLine(result, sport)
-  const heldHeading = heldBestHeading(result, sport)
   const unchecked = fitted === null ? null : thresholdUncheckedLine(result, sport)
-  // The line under a withheld best says what the chip would, so the chip is left out beside it.
-  const effortChip =
-    withheld === null
-      ? effortChipText(
-          sport,
-          result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
-        )
-      : null
+  const effortChip = effortChipText(
+    sport,
+    result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
+  )
   // A held best is a floor, not an estimate, and is not called one.
   const floor = fitted === null && hero !== null
+  // An uneven fit's note names the bests the floor rests on, so the basis line is not said beside it.
+  const basis = floor && floorNote === null ? floorBasisLine(result, sport) : null
   const at =
     span === null
       ? 0.5
@@ -71,21 +63,15 @@ export function ThresholdPanel({
         <h2
           id={`${sport}-threshold`}
           className="eyebrow sport-hero__eyebrow"
-          aria-label={
-            heldHeading === null
-              ? `${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`
-              : `${heldHeading}, recorded`
-          }
+          aria-label={`${THRESHOLD_HEADING[sport]}${floor ? ', at least' : ', estimated'}`}
         >
-          {heldHeading ?? THRESHOLD_HEADING[sport]}
+          {THRESHOLD_HEADING[sport]}
         </h2>
         {/* The threshold is the period's: Profile's is all time's, and the two should not look like one figure. */}
         <span className="tag sport-hero__period">{`· ${periodName(rangeDays)}`}</span>
         {hero && (
           <span aria-hidden="true">
-            <BasisChip
-              basis={heldHeading === null ? (floor ? 'floor' : 'estimated') : 'recorded'}
-            />
+            <BasisChip basis={floor ? 'floor' : 'estimated'} />
           </span>
         )}
         {effortChip && <EffortChip chip={effortChip} className="sport-hero__check" />}
@@ -110,7 +96,7 @@ export function ThresholdPanel({
         </div>
       )}
       {hero && floorNote && <p className="muted">{floorNote}</p>}
-      {hero && withheld && <p className="muted">{withheld}</p>}
+      {basis && <p className="muted">{basis}</p>}
       {unchecked && <p className="muted">{unchecked}</p>}
       {fitted && <p className="sport-hero__meaning">{THRESHOLD_MEANING[sport]}</p>}
     </section>
