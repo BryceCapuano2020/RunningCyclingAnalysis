@@ -1,6 +1,8 @@
 /* The range as a shape: a rounded track, a band between two ticks, and a ring for the estimate. */
 .range-track {
   --track: 16px;
+  /* The track runs this far past each end of the band, so a ring centred on an end stays on the track. */
+  --reach: calc(var(--track) / 2);
   display: grid;
   gap: var(--space-1);
 }
@@ -14,7 +16,7 @@
 
 .range-track__band {
   position: absolute;
-  inset: 0 var(--band-end) 0 var(--band-start);
+  inset: 0 var(--reach);
   border-radius: calc(var(--track) / 2);
   background: var(--sport-colour-soft, var(--neutral-band));
 }
@@ -29,17 +31,17 @@
 }
 
 .range-track__cap--first {
-  left: var(--band-start);
+  left: calc(var(--reach) - 1px);
 }
 
 .range-track__cap--second {
-  right: var(--band-end);
+  right: calc(var(--reach) - 1px);
 }
 
 .range-track__ring {
   position: absolute;
   top: 50%;
-  left: var(--at);
+  left: calc(var(--reach) + var(--at) * (100% - var(--track)));
   box-sizing: border-box;
   width: var(--track);
   height: var(--track);
@@ -53,6 +55,8 @@
 .range-track__ends {
   display: flex;
   justify-content: space-between;
+  /* The printed ends start where the band does. */
+  padding-inline: var(--reach);
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: 600;

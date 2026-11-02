@@ -326,7 +326,10 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
   return { items: items.slice(0, MAX_CHANGES) }
 }
 
-/** The strip's line when the change test called nothing: the periods were compared, and no best left what chance puts between them. */
+/**
+ * The strip's line when the change test called nothing: the periods were compared, and no best left what chance puts
+ * between them. It names the length it judged (the headline's), since a shorter or longer best on a sport page may move.
+ */
 export function noChangeText(previousLabel: string): string {
-  return `${NO_CLEAR_CHANGE} from ${withThe(previousLabel)}.`
+  return `${NO_CLEAR_CHANGE} at ${effortLabel(HEADLINE_DURATION_S)} from ${withThe(previousLabel)}.`
 }

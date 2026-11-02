@@ -45,7 +45,7 @@ const EXPECTED = {
     sole: 'run',
     title: 'Your running so far',
     detail: '',
-    split: '20 treadmill runs not counted.',
+    split: '20 treadmill runs: pace not used.',
     cards: 1,
   },
   treadmillOnly: {

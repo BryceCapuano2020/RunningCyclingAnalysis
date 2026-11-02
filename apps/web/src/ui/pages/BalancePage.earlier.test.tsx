@@ -87,7 +87,7 @@ describe('what changed, on a library whose period before holds too little', () =
       },
     })
     expect(screen.getByRole('region', { name: 'What changed · vs Jan to Mar 2023' })).toBeVisible()
-    expect(screen.getByText('No clear change from Jan to Mar 2023.')).toBeVisible()
+    expect(screen.getByText('No clear change at 20 min from Jan to Mar 2023.')).toBeVisible()
   })
 
   it('compares with the period before when the session found no earlier window', () => {

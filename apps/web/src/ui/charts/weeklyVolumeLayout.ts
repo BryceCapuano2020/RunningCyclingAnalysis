@@ -9,6 +9,7 @@ import { linearScale, niceDomain, tickDecimals } from './scale'
 import { timeScale } from './timeScale'
 import type { TimeScale } from './timeScale'
 import { fitTicks } from './ticks'
+import { monthBarTicks } from './monthBarTicks'
 import { trendXTicks } from './trendTicks'
 
 /** The widest a bar is drawn, in px. */
@@ -150,12 +151,13 @@ export function peakOf(
 /**
  * The drawn layout of the volume at a chart size. Its x scale is the trend's, from the first row's end to
  * the last at the plot's two edges, so a row's bar stands under that row's point. Null with fewer than two
- * rows, which has no scale.
+ * rows, which has no scale. Where the rows are months (`monthly`), each tick names its own bar's month.
  */
 export function weeklyVolumeLayout(
   weeks: readonly VolumeWeek[],
   size: ChartSize,
   gaps: readonly QuietGap[] = [],
+  monthly = false,
 ): VolumeLayout | null {
   const first = weeks[0]
   const last = weeks.at(-1)
@@ -183,12 +185,18 @@ export function weeklyVolumeLayout(
     xs,
     bars,
     ys: bars.map((bar) => bar.segments.at(-1)?.y ?? plot.bottom),
-    xTicks: trendXTicks(
-      weeks.map((week) => week.endMs),
-      x,
-      size,
-      gaps,
-    ),
+    xTicks: monthly
+      ? monthBarTicks(
+          weeks.map((week) => week.endMs),
+          xs,
+          size,
+        )
+      : trendXTicks(
+          weeks.map((week) => week.endMs),
+          x,
+          size,
+          gaps,
+        ),
     yTicks: fitTicks(
       ticks.map((tick) => ({ position: y(tick), label: tick.toFixed(decimals) })),
       { axis: 'y', width },

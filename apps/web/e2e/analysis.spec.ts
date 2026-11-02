@@ -196,6 +196,23 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   // The name and the range say the threshold is an estimate, so the tile carries no Estimated chip, and one status at most.
   await expect(run.locator('.stat-tile__number')).toBeVisible()
   await expect(run.locator('.range-track')).toBeVisible()
+  // The band runs from the first printed end to the last, and the ring sits on it.
+  const track = await run.locator('.range-track').evaluate((el) => {
+    const box = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
+    const printed = Array.from(el.querySelectorAll('.range-track__ends > [aria-hidden="true"]'))
+    const [band, ring] = [box('.range-track__band'), box('.range-track__ring')]
+    return {
+      bandLeft: band.left,
+      bandRight: band.right,
+      firstLeft: printed[0]!.getBoundingClientRect().left,
+      lastRight: printed[2]!.getBoundingClientRect().right,
+      ringMiddle: (ring.left + ring.right) / 2,
+    }
+  })
+  expect(Math.abs(track.bandLeft - track.firstLeft)).toBeLessThan(1)
+  expect(Math.abs(track.bandRight - track.lastRight)).toBeLessThan(1)
+  expect(track.ringMiddle).toBeGreaterThanOrEqual(track.bandLeft - 0.5)
+  expect(track.ringMiddle).toBeLessThanOrEqual(track.bandRight + 0.5)
   await expect(run.getByText('Estimated', { exact: true })).toHaveCount(0)
   await expect(run.locator('.stat-tile__basis')).toHaveCount(0)
   expect(await run.locator('.stat-tile__effort').count()).toBeLessThanOrEqual(1)

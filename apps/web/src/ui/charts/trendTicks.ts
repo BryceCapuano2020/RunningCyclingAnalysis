@@ -125,7 +125,7 @@ export function trendDateTicks(
 }
 
 /** The room kept between two tick labels, in px. */
-const TICK_LABEL_GAP_PX = 8
+export const TICK_LABEL_GAP_PX = 8
 
 /** The left and right edges of a tick's label as the axis sets it: centred, or against the plot's edge near either end. */
 export function labelExtent(

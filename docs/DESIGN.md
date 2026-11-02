@@ -314,7 +314,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   card: the **threshold** on the left (60%) at display size, named with its period ("Threshold pace · 12 weeks", so it
   is not read against Profile's all-time figure) and a chip that says Estimated (a ring) or At least (a floor, a held
   best), its fit drawn as a slim track with the two ends printed and the word "range" between them (lighter for a fit's own spread, as against
-  the range between two fits that uneven bests give), and the heart-rate check said once, as a chip
+  the range between two fits that uneven bests give; the band runs from the first printed end to the last, and the ring sits on the band at the value, on an end when it equals one), and the heart-rate check said once, as a chip
   beside the name: "Hard effort" with a tick, or "Not all-out" with a warning, the Balance
   tile's two labels; the full sentence (the share, where the max heart rate comes from, what would raise it) is the
   chip's definition, one press away. On the right (40%) the **age grade of the best 20
@@ -442,7 +442,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   with none is skipped and marked on the axis. Past 26
   weeks it draws a bar a month, dated at the month's last week and
   holding the average hours a week of the weeks the month has in the span (its note says "Average hours a
-  week, by month."). A week counts as training, for where the chart starts and what ends a skipped
+  week, by month."), and each label under a bar names that bar's month with its year ("Oct 2026", a partial last month
+  included): every bar where the labels clear one another, else every second or later bar counted back from the last, so
+  the labels are evenly spaced and the latest month is always named. A week counts as training, for where the chart starts and what ends a skipped
   stretch, from an hour; the quiet early years of a library are not drawn. The tallest bar carries its hours ("4.8 h"). The chart's title is its name and no sentence sits under it: the bars show
   how the hours moved. The chart has the shared frame's tooltip, arrow-key reading and table (week or month, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
@@ -553,7 +555,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   grew or eased, whichever sport it favours, and this period's 90% range is written from the side it leans to, as the headline writes it; no claim is made about whether the earlier range overlaps it. A best's title says what moved against the period before ("Faster 20 min run than the previous 12 weeks"), as
   it is not a personal record. The previous period's grades are worked out from its curves the way this period's are, the ride at the mass it was ridden at.
   Previous thresholds are not in the session state, so thresholds are not listed. With nothing to list the strip says
-  "No clear change from the previous 12 weeks." (or "from Jan to Mar.") when something could be compared and the test called nothing; where only some could be compared it lists those. With nothing to compare in any window, and under All time, the strip is absent and says nothing. The change test is the only gate: it reads every effort when heart rate cannot pick the hard ones of both periods, so the strip withholds no best for not being a hard effort and carries no line about an effort that was not checked.
+  "No clear change at 20 min from the previous 12 weeks." (or "at 20 min from Jan to Mar.") when something could be compared and the test called nothing; where only some could be compared it lists those. With nothing to compare in any window, and under All time, the strip is absent and says nothing. The change test is the only gate: it reads every effort when heart rate cannot pick the hard ones of both periods, so the strip withholds no best for not being a hard effort and carries no line about an effort that was not checked.
 - **The import summary compares like with like.** It lists what an import moved only when the period was in the same regime before and after (the same length, all time both times, or the same custom days: `sameRegime`). The default period is the window the search settles on, so an import that brings a sport the library lacked, or a hard effort, can move it from 12 weeks to a longer window or all time; a threshold or grade across that switch is a different stretch of the library, not a change, so the summary lists nothing then.
 - **The period control sits under the levels,** as one compact row of chips with the real dates, the count (linked to Activities, then "9 not counted", linked to the Activities list of those, where
   any are), and, where a longer period holds the same activities as a shorter one, "Same 14 activities as 12 weeks". Where the default settled on a longer window than 12 weeks, one line in the caption says why the shorter was passed over: "Last 12 weeks had no hard runs." (`windowLine`; "Last 12 weeks had too few rides." whatever the window; "no hard efforts" where both sports lacked one). The lit segment of the control says which window the page is on, and no line when the first window was taken or the athlete picked. At 479 px and below the chips read "6 wk", "12 wk", "6 mo", "12 mo", "All" and "Custom", with the full names kept as their accessible names, so all six fit one row, with tighter padding and smaller text at 360 px and below.
@@ -1013,7 +1015,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **Indoor activities are counted, not hidden.** A treadmill run keeps its time, distance and heart rate but its pace holds no best
   (`effortsCount`, one rule in core). A runner whose only runs are on a treadmill reads "All 33 of your runs were on a treadmill. Add an outdoor run of 3 min or more." in the
   threshold's place, not "Needs an effort". A mixed library says the
-  split once, under the sport page's answer: "20 treadmill runs not counted."
+  split once, under the sport page's answer: "20 treadmill runs: pace not used."
   A trainer ride's power comes from its meter, so it counts like an outdoor ride's and is said nowhere. The heart-rate route to a race prediction keeps its rules: 2 outdoor runs with a heart
   rate that can be trusted in the period (indoor pace is left out of the VO2max estimate).
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be

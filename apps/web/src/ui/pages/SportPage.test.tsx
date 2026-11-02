@@ -1827,7 +1827,7 @@ describe('SportPage with activities held indoors', () => {
       makeActivity({ id: `run-${i}`, sport: 'run', indoor: i < 2 }),
     )
     renderPage('run', makeResult({ activities: runs }))
-    expect(screen.getByTestId('indoor-split')).toHaveTextContent('2 treadmill runs not counted.')
+    expect(screen.getByTestId('indoor-split')).toHaveTextContent('2 treadmill runs: pace not used.')
   })
 
   it('says nothing of the split when no ride was indoors', () => {

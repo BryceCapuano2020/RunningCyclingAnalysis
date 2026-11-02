@@ -80,7 +80,7 @@ export function WeeklyVolumeChart({ weeks: given, plotRightMargin, axis }: Weekl
   const gapNote = axisGapNote(gaps, 'training')
   const axisNotes = gapNote === null ? [] : [gapNote]
   const height = useChartHeight(PLOT_PX)
-  const layoutOf = sizedOnce((size: ChartSize) => weeklyVolumeLayout(weeks, size, gaps))
+  const layoutOf = sizedOnce((size: ChartSize) => weeklyVolumeLayout(weeks, size, gaps, monthly))
   // A phone's readout row says the latest week that was trained until a point is selected.
   const latest = lastIndexWhere(weeks, trained)
   const idle = idleFrom(tooltipFor(data, latest, 0, 0))

@@ -76,7 +76,9 @@ describe('BalanceChanges', () => {
     const { container } = render(
       <BalanceChanges changes={{ items: [] }} previousLabel="Previous 12 weeks" />,
     )
-    expect(screen.getByText('No clear change from the previous 12 weeks.')).toBeInTheDocument()
+    expect(
+      screen.getByText('No clear change at 20 min from the previous 12 weeks.'),
+    ).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
   })
 
@@ -121,7 +123,7 @@ describe('BalanceChanges', () => {
       <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,
     )
     expect(screen.getByRole('region', { name: 'What changed · vs Jan to Mar' })).toBeInTheDocument()
-    expect(screen.getByText('No clear change from Jan to Mar.')).toBeInTheDocument()
+    expect(screen.getByText('No clear change at 20 min from Jan to Mar.')).toBeInTheDocument()
     expect(container.querySelector('ul')).toBeNull()
   })
 

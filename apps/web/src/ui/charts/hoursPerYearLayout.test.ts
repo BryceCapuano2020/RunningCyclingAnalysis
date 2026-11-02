@@ -49,6 +49,22 @@ describe('the years under the bars', () => {
     expect(m.xTicks.map((tick) => tick.position)).toEqual(m.xs)
   })
 
+  it('puts every label under its own bar and spaces a thinned set evenly, at any count and width', () => {
+    for (const width of [PHONE, 320, 800, 1100]) {
+      for (let count = 2; count <= 45; count++) {
+        const m = hoursPerYearLayout(yearsFrom(1985, count), sizeAt(width))!
+        const at = m.xTicks.map((tick) => m.xs.findIndex((x) => Math.abs(x - tick.position) < 1e-6))
+        expect(at.every((index) => index >= 0)).toBe(true)
+        // The label is its bar's own year, in whichever of the three forms fits.
+        at.forEach((index, i) =>
+          expect(String(1985 + index)).toMatch(new RegExp(`${m.xTicks[i]!.label.slice(-2)}$`)),
+        )
+        const steps = at.slice(1).map((index, i) => index - at[i]!)
+        expect(new Set(steps).size).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
   it('writes a century’s turn with its two digits and a leading zero', () => {
     expect(labels(13, PHONE, 1998).slice(0, 4)).toEqual(['98', '99', '00', '01'])
   })
