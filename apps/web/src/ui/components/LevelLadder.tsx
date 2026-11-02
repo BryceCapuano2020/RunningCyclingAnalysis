@@ -112,18 +112,13 @@ function offScaleText(grade: SportGrade): string | null {
 }
 
 /**
- * The bands the grade falls in: the band of its centre, or every band from the range's low end to
- * its high end when a ride's range crosses an edge. Each is filled and named in bold.
+ * The band the grade falls in, filled and named in bold: the band of its centre, or of a ride's range when the whole
+ * range sits in one band. A range across an edge marks none, since no level is named there (`gradeLevelText`): the
+ * ring and its range bar show the number and range alone.
  */
 function currentBands(grade: SportGrade): Set<string> {
-  const names = BANDS.map((band) => band.name)
-  const levels = [grade.centre, grade.range?.low, grade.range?.high]
-  const indexes = levels
-    .flatMap((level) => (level ? [names.indexOf(level.level)] : []))
-    .filter((index) => index >= 0)
-  const first = Math.min(...indexes)
-  const last = Math.max(...indexes)
-  return new Set(names.filter((_, index) => index >= first && index <= last))
+  const level = gradeLevelText(grade)
+  return new Set(level === null ? [] : [level])
 }
 
 /**
@@ -179,8 +174,9 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
 
 /**
  * An age grade on the level bands, on a 30% to 100% scale. A run is read as recorded: a solid dot.
- * A ride is estimated: a ring over a band for its model range. The band the grade falls in is filled
- * and its name is bold, and the names, percentages and key are visible text beside the drawing.
+ * A ride is estimated: a ring over its model range. The band the grade falls in is filled and its name
+ * is bold, unless a ride's range crosses an edge and no band is named. The names and percentages are
+ * visible text beside the drawing.
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)

@@ -45,15 +45,11 @@ afterEach(() => {
 describe('DurabilityChart', () => {
   it('is titled by what it draws, and gives each figure in the sport’s own unit', () => {
     const { container } = renderChart('run')
-    expect(
-      screen.getByRole('figure', { name: 'Best efforts overall and late' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Durability of best efforts' })).toBeInTheDocument()
     expect(container.querySelector('.late-chart__value')?.textContent).toMatch(/\/km/)
     cleanup()
     const ride = renderChart('ride')
-    expect(
-      screen.getByRole('figure', { name: 'Best efforts overall and late' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Durability of best efforts' })).toBeInTheDocument()
     expect(ride.container.querySelector('.late-chart__value')?.textContent).toMatch(/\d W/)
   })
 

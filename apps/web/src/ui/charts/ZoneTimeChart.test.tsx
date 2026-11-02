@@ -74,26 +74,26 @@ describe('ZoneTimeChart', () => {
 
   it('writes the percent inside a segment that is wide enough, and leaves a sliver bare', () => {
     const { container } = chart([1, 98, 1, 0, 0])
-    const percents = [...container.querySelectorAll('.zone-time__percent[data-zone]')]
-      .filter((text) => !text.classList.contains('zone-time__percent--key'))
-      .map((text) => text.textContent)
+    const percents = [...container.querySelectorAll('.zone-time__percent[data-zone]')].map(
+      (text) => text.textContent,
+    )
     expect(percents).toEqual(['98%'])
   })
 
   it('names every zone under its segment where the segment can hold the name', () => {
     const { container } = chart([1, 60, 24, 14, 1], { names: NAMES })
-    const under = [...container.querySelectorAll('.zone-time__number')]
-      .map((text) => text.textContent)
-      .filter((text) => text !== 'Easy' && text !== 'Hard')
+    const under = [...container.querySelectorAll('.zone-time__number')].map(
+      (text) => text.textContent,
+    )
     // Every segment wide enough holds its number and name; the 1% slivers are too narrow for either.
     expect(under).toEqual(['2 Endurance', '3 Tempo', '4 Threshold'])
   })
 
   it('numbers every zone that is wide enough when the row has no names', () => {
     const { container } = chart([40, 40, 20, 0, 0])
-    const under = [...container.querySelectorAll('.zone-time__number')]
-      .map((text) => text.textContent)
-      .filter((text) => text !== 'Easy' && text !== 'Hard')
+    const under = [...container.querySelectorAll('.zone-time__number')].map(
+      (text) => text.textContent,
+    )
     expect(under).toEqual(['1', '2', '3'])
   })
 
@@ -107,17 +107,30 @@ describe('ZoneTimeChart', () => {
     expect(container.querySelector('.zone-time__takeaway')).toBeNull()
   })
 
-  it('ends with a key from easy to hard, each step in its own ramp colour', () => {
-    const { container } = chart([1, 1, 1, 1, 1])
-    const chips = [...container.querySelectorAll('.zone-time__chip')]
-    expect(chips.map((chip) => chip.getAttribute('data-zone'))).toEqual(['1', '2', '3', '4', '5'])
-    const words = [...container.querySelectorAll('.zone-time__key .zone-time__number')].map(
-      (text) => text.textContent,
+  it('has no key under the bars: each bar names its own zones once, so none can disagree with a bar of seven', () => {
+    const { container } = render(
+      <ZoneTimeChart
+        title="Share of time in each zone"
+        rows={[
+          { label: 'Heart rate', seconds: [1, 1, 1, 1, 1], summary: 'x', names: NAMES },
+          { label: 'Power', seconds: [1, 1, 1, 1, 1, 1, 1], summary: 'y' },
+        ]}
+        table={table}
+      />,
     )
-    expect(words).toEqual(['Easy', 'Hard'])
+    expect(container.querySelector('.zone-time__key, .zone-time__chip')).toBeNull()
+    expect(container.textContent).not.toMatch(/\bEasy\b|\bHard\b/)
+    // Each bar says how many steps it has, so the long ramp is read by the bar of seven and by no other.
+    const bars = [...container.querySelectorAll('.zone-time__bar')]
+    expect(bars.map((bar) => bar.getAttribute('data-steps'))).toEqual(['5', '7'])
+    expect(
+      [...bars[1]!.querySelectorAll('rect.zone-time__segment')].map((rect) =>
+        rect.getAttribute('data-zone'),
+      ),
+    ).toEqual(['1', '2', '3', '4', '5', '6', '7'])
   })
 
-  it('stacks one band for each measure above the key', () => {
+  it('stacks one band for each measure', () => {
     const { container } = render(
       <ZoneTimeChart
         title="Share of time in each zone"
@@ -235,13 +248,14 @@ describe('takeawayText', () => {
 })
 
 describe('ZoneTimeChart styles', () => {
-  it.each([1, 2, 3, 4, 5])(
+  it.each([1, 2, 3, 4, 5, 6, 7])(
     'colours zone %i from the sport ramp, and its percent from that step’s ink',
     (zone) => {
-      // A chart outside a sport's surface falls back to the running ramp, so no segment is left unpainted.
+      // A chart outside a sport's surface falls back to the running ramp (the long one past five), so no segment is left unpainted.
+      const fallback = zone <= 5 ? `--zone-run-${zone}` : `--zone-ride-long-${zone}`
       expect(css).toMatch(
         new RegExp(
-          `\\.zone-time__segment\\[data-zone='${zone}'\\][^{]*\\{[^}]*fill: var\\(--zone-${zone}, var\\(--zone-run-${zone}\\)\\)`,
+          `\\.zone-time__segment\\[data-zone='${zone}'\\][^{]*\\{[^}]*fill: var\\(--zone-${zone}, var\\(${fallback}\\)\\)`,
         ),
       )
       expect(css).toMatch(
@@ -252,6 +266,15 @@ describe('ZoneTimeChart styles', () => {
     },
   )
 
+  it('reads the long ramp for a bar of seven, and every step of it, ink included', () => {
+    const block = css.slice(css.indexOf(".zone-time__bar[data-steps='7'] {"))
+    const rule = block.slice(0, block.indexOf('}'))
+    for (const step of [1, 2, 3, 4, 5, 6, 7]) {
+      expect(rule).toContain(`--zone-${step}: var(--zone-ride-long-${step});`)
+      expect(rule).toContain(`--zone-ink-${step}: var(--zone-ink-long-${step});`)
+    }
+  })
+
   it('never uses a literal colour, a tint of the sport colour or the old tint variable', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
     expect(css).not.toContain('--zone-tint')
@@ -260,7 +283,7 @@ describe('ZoneTimeChart styles', () => {
 
   it('falls back in forced colours to the highlight with its own text colour, and system text elsewhere', () => {
     const forced = css.slice(css.indexOf('@media (forced-colors: active)'))
-    expect(forced).toMatch(/\.zone-time__segment\[data-zone\],[^{]*\{[^}]*fill: Highlight/)
+    expect(forced).toMatch(/\.zone-time__segment\[data-zone\] \{[^}]*fill: Highlight/)
     expect(forced).toMatch(/\.zone-time__percent\[data-zone\] \{[^}]*fill: HighlightText/)
     expect(forced).toContain('CanvasText')
   })

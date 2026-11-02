@@ -75,6 +75,20 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--zone-ink-3`         | `#ffffff`   | `#0e1116`   | Text on zone 3 of either sport (4.5:1 or better)                                                                                           |
 | `--zone-ink-4`         | `#ffffff`   | `#0e1116`   | Text on zone 4 of either sport (4.5:1 or better)                                                                                           |
 | `--zone-ink-5`         | `#ffffff`   | `#0e1116`   | Text on zone 5 of either sport (4.5:1 or better)                                                                                           |
+| `--zone-ride-long-1`   | `#5182f2`   | `#4662b9`   | Cycling power zone 1 of 7, lowest effort first (the long ramp: blue into indigo in light, into azure in dark)                              |
+| `--zone-ride-long-2`   | `#3f67f7`   | `#4572c6`   | Cycling power zone 2 of 7, lowest effort first                                                                                             |
+| `--zone-ride-long-3`   | `#3c50e2`   | `#4482d3`   | Cycling power zone 3 of 7, lowest effort first                                                                                             |
+| `--zone-ride-long-4`   | `#3939cd`   | `#4192df`   | Cycling power zone 4 of 7, lowest effort first                                                                                             |
+| `--zone-ride-long-5`   | `#361db8`   | `#3ea2ea`   | Cycling power zone 5 of 7, lowest effort first                                                                                             |
+| `--zone-ride-long-6`   | `#2f198e`   | `#3cb2f4`   | Cycling power zone 6 of 7, lowest effort first                                                                                             |
+| `--zone-ride-long-7`   | `#251566`   | `#3cc3fe`   | Cycling power zone 7 of 7, lowest effort first                                                                                             |
+| `--zone-ink-long-1`    | `#0e1116`   | `#ffffff`   | Text on zone 1 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-2`    | `#ffffff`   | `#ffffff`   | Text on zone 2 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-3`    | `#ffffff`   | `#0e1116`   | Text on zone 3 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-4`    | `#ffffff`   | `#0e1116`   | Text on zone 4 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-5`    | `#ffffff`   | `#0e1116`   | Text on zone 5 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-6`    | `#ffffff`   | `#0e1116`   | Text on zone 6 of 7 (4.5:1 or better)                                                                                                      |
+| `--zone-ink-long-7`    | `#ffffff`   | `#0e1116`   | Text on zone 7 of 7 (4.5:1 or better)                                                                                                      |
 | `--ch-pace`            | `#1b8a4d`   | `#3fc27a`   | Activity page: pace or speed channel                                                                                                       |
 | `--ch-power`           | `#b86400`   | `#f0a030`   | Activity page: power channel                                                                                                               |
 | `--ch-heartrate`       | `#b02e9a`   | `#e072cc`   | Activity page: heart rate channel                                                                                                          |
@@ -120,7 +134,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 **Zone ramps.** Five steps for each sport, lowest effort first, with one ink per step (`--zone-ink-n`) for both. Ride is blue
 throughout. Run goes from orange into umber and its chroma falls toward the strong end, so effort deepens into earth and
 never into the status red. Every step keeps 3:1 on the card and its ink 4.5:1; a neighbour is at least 7 apart in CIEDE2000
-in light and 5 in dark, under every colour vision. `zoneRamp.test.ts` checks all of it from `tokens.css`.
+in light and 5 in dark, under every colour vision. A ride's power has seven zones, which five steps cannot tell apart, so a
+bar of seven reads the long ramp (`--zone-ride-long-n`, with `--zone-ink-long-n`): blue into indigo in light and into azure in
+dark, with the same 3:1 and 4.5:1 and neighbours at least 5.5 apart in light and 4 in dark, since seven steps leave less room.
+`zoneRamp.test.ts` checks all of it from `tokens.css`.
 
 ## Type
 

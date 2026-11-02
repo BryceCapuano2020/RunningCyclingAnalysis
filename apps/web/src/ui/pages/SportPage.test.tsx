@@ -383,7 +383,7 @@ describe('SportPage', () => {
     expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'range, W' })
   })
 
-  it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {
+  it('draws the uneven fit as a range and writes no caption about the bests it left out', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const uneven = {
       fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
@@ -395,9 +395,7 @@ describe('SportPage', () => {
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
     // Between two fits, not one fit's spread, so it is a range.
     expect(rangeTrack(section)).toEqual({ ends: ['48', '58'], label: 'range, W' })
-    expect(
-      within(section).getByText('Best 15 min and 20 min mixed hard and easy.'),
-    ).toBeInTheDocument()
+    expect(within(section).queryByText(/mixed hard and easy/)).not.toBeInTheDocument()
   })
 
   it('shows the floor as the figure, with its range and note, when the threshold is refused', () => {
@@ -421,7 +419,8 @@ describe('SportPage', () => {
     expect(heroFigure(section)).toEqual({ number: '52', unit: 'W' })
     expect(rangeTrack(section)).toEqual({ ends: ['52', '58'], label: 'range, W' })
     expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
-    expect(within(section).getByText(/mixed hard and easy/)).toBeInTheDocument()
+    expect(within(section).getByText('From your best 20 min.')).toBeInTheDocument()
+    expect(within(section).queryByText(/mixed hard and easy/)).not.toBeInTheDocument()
     // A floor is a held best, not an estimate, so it is not called one.
     expect(within(section).queryByText('Estimated')).not.toBeInTheDocument()
   })
@@ -721,6 +720,8 @@ describe('SportPage', () => {
     expect(records.getByText('5 min')).toBeInTheDocument()
     expect(records.getByText('20 min')).toBeInTheDocument()
     expect(records.getByText('60 min')).toBeInTheDocument()
+    // A duration's figure is a pace, so only a distance's time is marked as a finish time.
+    expect(records.queryByText('Finish time')).not.toBeInTheDocument()
     expect(within(section).getAllByRole('link', { name: 'Morning run, 5 Jan' })[0]).toHaveAttribute(
       'href',
       '#/activities/run-1',
@@ -1104,6 +1105,11 @@ describe('SportPage distance records', () => {
     expect(section.getByText('5 km')).toBeTruthy()
     expect(section.getByText('21:00')).toBeTruthy()
     expect(section.getByText('4:12 /km')).toBeTruthy()
+    // A distance row is a finish time and a duration row a pace, so each distance row says which it is.
+    for (const name of ['1 km', '5 km']) {
+      expect(within(recordNamed(bestEfforts(), name)).getByText('Finish time')).toBeTruthy()
+    }
+    expect(section.getAllByText('Finish time')).toHaveLength(2)
     // Both distance bests were set in the same run, so the run is named once under the list.
     expect(section.getAllByRole('link', { name: /Parkrun/ })).toHaveLength(1)
     expect(section.getByText('All set on')).toBeInTheDocument()
@@ -1632,7 +1638,7 @@ describe('SportPage depth', () => {
       },
     )
 
-    it('is one line in its own place that says what is missing, with too little data', () => {
+    it('is one line in its own place that says what the library has, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
       renderPage(
         'ride',
@@ -1653,7 +1659,7 @@ describe('SportPage depth', () => {
       expect(line.querySelector('figure')).toBeNull()
       expect(line.closest('details')).toBeNull()
       expect(
-        within(line).getByText('Needs steady stretches from at least 6 rides in 8 weeks.'),
+        within(line).getByText('0 of 6 rides with steady stretches in 8 weeks.'),
       ).toBeInTheDocument()
       expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     })

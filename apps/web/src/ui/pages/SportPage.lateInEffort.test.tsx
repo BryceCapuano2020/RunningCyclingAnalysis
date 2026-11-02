@@ -64,10 +64,13 @@ describe('durability on a sport page', () => {
     const section = screen.getByRole('region', { name: 'Durability' })
     const figures = within(section).getAllByRole('figure')
     expect(figures).toHaveLength(2)
-    expect(figures[0]).toHaveAccessibleDescription(/^\d+% of your best 20 min after 90 min$/)
-    expect(figures[1]).toHaveAccessibleDescription(
-      'Efficiency fell 3% from the first half to the second.',
+    expect(figures[0]).toHaveAccessibleDescription(
+      /^Durability: \d+% of your best 20 min after 90 min\.$/,
     )
+    expect(figures[1]).toHaveAccessibleDescription('Heart rate drift: efficiency fell 3%.')
+    // Each chart's eyebrow and headline say the one term.
+    expect(figures[0]).toHaveAccessibleName('Durability of best efforts')
+    expect(figures[1]).toHaveAccessibleName('Heart rate drift on steady runs')
     // The charts say their finding once and no sentence under them says it again or says how it is made.
     expect(within(section).queryByText(/overall\./)).toBeNull()
     expect(within(section).queryByText(/warm-up|Heat, hydration|peaked at/)).toBeNull()
@@ -81,7 +84,7 @@ describe('durability on a sport page', () => {
     )
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')[0]).toHaveAccessibleDescription(
-      /^at least \d+% of your best 20 min after 90 min$/,
+      /^Durability: at least \d+% of your best 20 min after 90 min\.$/,
     )
   })
 
@@ -97,7 +100,7 @@ describe('durability on a sport page', () => {
     expect(closedRow('Durability')).not.toMatch(/\d+ rides/)
   })
 
-  it('shows the durability alone, and says what drift needs under it, when drift is short', () => {
+  it('shows the durability alone, and says what the library has of drift under it, when drift is short', () => {
     renderPage('run', {
       ...lateEvidenceFor('run'),
       drift: lateEvidenceFor('run').drift.slice(0, 2),
@@ -108,7 +111,7 @@ describe('durability on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
       within(section).getByText(
-        'Heart rate drift needs 3 steady runs over an hour with heart rate.',
+        'Heart rate drift: 2 of 3 steady runs over an hour with heart rate.',
       ),
     ).toBeInTheDocument()
   })
@@ -120,18 +123,18 @@ describe('durability on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(
-      within(section).getByText('Durability needs 3 rides longer than an hour with a power meter.'),
+      within(section).getByText('Durability: 0 of 3 rides longer than an hour with a power meter.'),
     ).toBeInTheDocument()
   })
 
-  it('is one line in its place with nothing to show, and says what to add', () => {
+  it('is one line in its place with nothing to show, and says what the library has', () => {
     renderPage('ride', NO_LATE_EVIDENCE.ride)
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(section.closest('details')).toBeNull()
     expect(section.querySelector('figure')).toBeNull()
     expect(
       within(section).getByText(
-        'Add 3 steady rides over an hour with a power meter and heart rate.',
+        '0 of 3 steady rides over an hour with a power meter and heart rate.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()

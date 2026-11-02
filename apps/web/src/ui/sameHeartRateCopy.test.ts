@@ -57,10 +57,47 @@ describe('the weekly view’s words', () => {
     expect(sameHeartRateTitle('ride', 145)).not.toMatch(/more|less|faster|slower|change/i)
   })
 
-  it('names what is missing, in a muted line, when there is nothing to draw', () => {
+  it('says what the library has, with its counts, when there is nothing to draw', () => {
+    const few = data([null, null], false)
+    // The week that came closest to reporting is the one with the most stretches, the latest of equals.
+    const weeks = [
+      { ...few.weeks[0]!, lacks: 'activities' as const, blocks: 7, activities: 3 },
+      {
+        ...few.weeks[1]!,
+        lacks: 'activities' as const,
+        blocks: 7,
+        activities: 4,
+        wide: true as const,
+      },
+    ]
+    expect(sameHeartRateLackText('run', { ...few, weeks, lacks: 'activities' })).toBe(
+      '4 of 6 runs with steady stretches in 8 weeks.',
+    )
+    expect(sameHeartRateLackText('ride', { ...few, weeks: [weeks[0]!], lacks: 'activities' })).toBe(
+      '3 of 6 rides with steady stretches in 4 weeks.',
+    )
     expect(
-      sameHeartRateLackText('run', { ...data([null, null], false), lacks: 'activities' }),
-    ).toBe(LACK_TEXT.activities('run'))
+      sameHeartRateLackText('run', {
+        ...few,
+        weeks: [{ ...weeks[0]!, lacks: 'blocks', blocks: 5 }],
+        lacks: 'blocks',
+      }),
+    ).toBe('5 of 8 steady 5-minute stretches with heart rate in 4 weeks.')
+  })
+
+  it('says what a lack needs where it is not a count', () => {
+    expect(sameHeartRateLackText('run', { ...data([null, null], false), lacks: 'weeks' })).toBe(
+      LACK_TEXT.weeks('run'),
+    )
+  })
+
+  it('never opens with needs where it has a count to give', () => {
+    const counted = sameHeartRateLackText('ride', {
+      ...data([null, null], false),
+      weeks: [{ ...week(0, null), lacks: 'activities', blocks: 9, activities: 2 }],
+      lacks: 'activities',
+    })
+    expect(counted).not.toMatch(/needs/i)
   })
 
   it('draws weeks that report even when too few to name a trend: there is no lack', () => {
@@ -75,7 +112,9 @@ describe('the weekly view’s words', () => {
       lacks: 'blocks',
       latestWeekEndMs: null,
     }
-    expect(sameHeartRateLackText('ride', none)).toBe(LACK_TEXT.blocks('ride'))
+    expect(sameHeartRateLackText('ride', none)).toBe(
+      '0 of 8 steady 5-minute stretches with heart rate in 8 weeks.',
+    )
   })
 
   it('says a short period in plain words', () => {

@@ -195,28 +195,16 @@ describe('the phone readout row at rest', () => {
     expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
   })
 
-  it('wraps a long resting sentence in the row and never cuts it with an ellipsis', () => {
-    const resting = css.slice(css.indexOf('.chart-frame__readout--compact::before {'))
-    const rule = resting.slice(0, resting.indexOf('}'))
-    expect(rule).toContain('content: attr(data-idle)')
-    // A cut sentence would need all three of these; the row only ever grows.
-    expect(rule).not.toMatch(/text-overflow/)
-    expect(rule).not.toMatch(/white-space:\s*nowrap/)
-    expect(rule).not.toMatch(/overflow:\s*hidden/)
-    expect(css).not.toMatch(/readout--compact[^{]*\{[^}]*text-overflow/)
-    // The same sentence is restated while nothing is selected, where the base rule's hint would otherwise outrank it.
-    expect(css).toMatch(
-      /\.chart-frame__readout--compact:not\(:has\(\.chart-tooltip__title\)\)::before \{\s*content: attr\(data-idle\)/,
+  it('wraps its resting line rather than end it in an ellipsis, and keeps its room while a reading is drawn', () => {
+    const idle = css.slice(
+      css.indexOf('.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {'),
     )
-  })
-
-  it('keeps the resting sentence in the flow, hidden, while a reading is drawn, so the plot never moves', () => {
+    const rule = idle.slice(0, idle.indexOf('}'))
+    expect(rule).not.toMatch(/text-overflow|white-space: nowrap|overflow: hidden/)
+    expect(rule).toContain('overflow-wrap: anywhere')
+    // Hidden and not removed, so the row's height is the same whether a reading is drawn or not.
     expect(css).toMatch(
-      /\.chart-frame__readout--compact:has\(\.chart-tooltip__title\)::before \{\s*visibility: hidden/,
-    )
-    // The old rule took the sentence out of the row while a reading showed, which let a taller row collapse.
-    expect(css).not.toMatch(
-      /\.chart-frame__readout--compact:not\(:has\(\.chart-tooltip__title\)\)::before \{[^}]*(overflow|nowrap)/,
+      /\.chart-frame__readout--compact:has\(\.chart-tooltip__title\)::before \{[^}]*visibility: hidden/,
     )
   })
 

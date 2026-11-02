@@ -9,7 +9,7 @@ const uneven = {
   floor: 3.2,
 }
 
-const NOTE = 'Best 15 min and 20 min mixed hard and easy.'
+const ESTIMATE = 'The top end uses estimated watts.'
 
 describe('unevenNote', () => {
   it('is null without an uneven fit for the sport', () => {
@@ -17,30 +17,30 @@ describe('unevenNote', () => {
     expect(unevenNote(makeResult(), 'ride')).toBeNull()
   })
 
-  it('names the durations that were left out, and no more', () => {
-    expect(unevenNote(makeResult({ runCpUneven: uneven }), 'run')).toBe(NOTE)
-    expect(unevenNote(makeResult({ runCpUneven: { ...uneven, leftOutS: [1200] } }), 'run')).toBe(
-      'Best 20 min mixed hard and easy.',
-    )
+  it('names no bests that were left out: the range shows the spread', () => {
+    expect(unevenNote(makeResult({ runCpUneven: uneven }), 'run')).toBeNull()
+    expect(
+      unevenNote(makeResult({ runCpUneven: { ...uneven, leftOutS: [1200] } }), 'run'),
+    ).toBeNull()
   })
 
-  it('says the same for a ride, and names no estimate while its watts are measured', () => {
+  it('says nothing of a ride whose watts are measured', () => {
     const activities = [makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'measured' })]
     const result = makeResult({
       activities,
       rideCurve: [curvePoint(1200, 3.0, 'ride-1')],
       rideCpUneven: uneven,
     })
-    expect(unevenNote(result, 'ride')).toBe(NOTE)
+    expect(unevenNote(result, 'ride')).toBeNull()
   })
 
-  it('adds that the top end uses estimated watts when the ride fit draws on them', () => {
+  it('says the top end uses estimated watts when the ride fit draws on them', () => {
     const activities = [makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' })]
     const result = makeResult({
       activities,
       rideCurve: [curvePoint(1200, 3.0, 'ride-1')],
       rideCpUneven: uneven,
     })
-    expect(unevenNote(result, 'ride')).toBe(`${NOTE} The top end uses estimated watts.`)
+    expect(unevenNote(result, 'ride')).toBe(ESTIMATE)
   })
 })

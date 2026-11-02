@@ -88,18 +88,21 @@ interface Comparison {
   text: string
   /** The effort the sentence is about, in seconds: it must be marked on the curve, or the title cites a length the plot does not show. */
   durationS: number
+  /** Whether the sentence names a change; false for no clear change, which still says the length it was judged at. */
+  changed: boolean
 }
 
 /**
- * What the change test says of one row, as a sentence, and the effort length the sentence cites (null for no clear
- * change, which names no length). The title is a headline, so it is
+ * What the change test says of one row, as a sentence, and the effort length the sentence cites: a change names it
+ * ("15 min is 64 W higher"), and so does no clear change ("No clear change at 20 min"), since the title is about
+ * that length and not about the curve. The title is a headline, so it is
  * held to the stricter band. Which way a move went is the call's (the compared unit), never the displayed watts; where
  * they disagree the sentence is in watts per kilogram.
  */
 function comparisonOf(
   row: CurveRow,
   { sport, units, previousLabel, change }: TakeawayInput & { previousLabel: string },
-): Comparison | { text: string; durationS: null } {
+): Comparison {
   const wording = WORDING[sport]
   const call = callAt(change, sport, row.durationS)
   const verdict = verdictOfCall(call, 'headline')
@@ -107,32 +110,35 @@ function comparisonOf(
   const amount = Math.round(Math.abs(shift))
   const against = `the ${lowerFirst(previousLabel)}`
   const length = effortLabel(row.durationS)
-  if (verdict !== 'higher' && verdict !== 'lower') {
-    return { text: `${NO_CLEAR_CHANGE} from ${against}`, durationS: null }
+  const none: Comparison = {
+    text: `${NO_CLEAR_CHANGE} at ${length} from ${against}`,
+    durationS: row.durationS,
+    changed: false,
   }
+  if (verdict !== 'higher' && verdict !== 'lower') return none
   const direction = directionOf(call, 'headline')
   // Better is lower for a pace (a smaller number of seconds): the displayed figure and the call must agree on it.
   const shownBetter = shownDirection(wording.lowerIsBetter ? -shift : shift)
   if (shownBetter !== direction || amount === 0) {
     const perKilo = perKilogramWords(sport, call, 'headline')
     return perKilo === null
-      ? { text: `${NO_CLEAR_CHANGE} from ${against}`, durationS: null }
-      : { text: `${length} is ${perKilo} than ${against}`, durationS: row.durationS }
+      ? none
+      : { text: `${length} is ${perKilo} than ${against}`, durationS: row.durationS, changed: true }
   }
   const { unit } = splitValue(formatNative(sport, row.value, units))
   return {
     text: `${length} is ${wording.size(amount, unit)} ${direction > 0 ? wording.better : wording.worse} than ${against}`,
     durationS: row.durationS,
+    changed: true,
   }
 }
 
 /**
  * What a curve with a period before says: how far the 20 minute effort (or the longest effort both periods have
- * measured) moved, when the change test calls it a change, and then which effort that was; or that there is no clear
- * change, which cites no effort. Null with no period before, or no effort both periods have measured and the test
- * could judge.
+ * measured) moved, when the change test calls it a change, or that there is no clear change at that length. Null with
+ * no period before, or no effort both periods have measured and the test could judge.
  */
-function comparison(input: TakeawayInput): Comparison | { text: string; durationS: null } | null {
+function comparison(input: TakeawayInput): Comparison | null {
   const { sport, rows, previousLabel, change } = input
   const compared = previousLabel === null ? undefined : comparedRow(rows, sport, change)
   if (previousLabel === null || compared === undefined) return null
@@ -141,7 +147,7 @@ function comparison(input: TakeawayInput): Comparison | { text: string; duration
 
 /**
  * The sentence for one effort length, as the curve's title would say it: how far it moved against the period
- * before when the change test calls it, or that there is no clear change. Null without a period before, when either
+ * before when the change test calls it, or that there is no clear change at it. Null without a period before, when either
  * period has no measured effort of that length, or when the test could not judge it.
  */
 export function takeawayAt(input: TakeawayInput, durationS: number): string | null {
@@ -155,13 +161,10 @@ export function takeawayAt(input: TakeawayInput, durationS: number): string | nu
  */
 export function namedChangeAt(input: TakeawayInput, durationS: number): string | null {
   const found = changeAt(input, durationS)
-  return found !== null && found.durationS !== null ? found.text : null
+  return found !== null && found.changed ? found.text : null
 }
 
-function changeAt(
-  input: TakeawayInput,
-  durationS: number,
-): Comparison | { text: string; durationS: null } | null {
+function changeAt(input: TakeawayInput, durationS: number): Comparison | null {
   const { sport, rows, previousLabel, change } = input
   const row = rows.find((candidate) => candidate.durationS === durationS)
   if (
@@ -178,7 +181,7 @@ function changeAt(
 
 /**
  * The effort length the curve's finding cites, when it cites one: the curve then marks it, so the title never
- * names a length the plot leaves unlabelled. Null for a finding about the best 20 minutes only, or about no effort.
+ * names a length the plot leaves unlabelled. Null without a comparison, whose title names the best 20 minutes alone.
  */
 export function citedDurationS(input: TakeawayInput): number | null {
   return comparison(input)?.durationS ?? null
@@ -187,7 +190,7 @@ export function citedDurationS(input: TakeawayInput): number | null {
 /**
  * The curve's finding, as the sentence its title carries. With a period before, it says how far the 20 minute
  * effort (or the longest effort both periods have measured) moved, when the move clears the floor above, or that
- * there is no clear change. Without one, it names the best, with its level. A carried value is never read
+ * there is no clear change at that length. Without one, it names the best, with its level. A carried value is never read
  * as a finding. Null when the curve has no measured effort to name.
  */
 export function curveTakeaway(input: TakeawayInput): string | null {

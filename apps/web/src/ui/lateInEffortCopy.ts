@@ -59,9 +59,9 @@ export function driftChange(decouplingPct: number): string {
 /** The qualifier of a reading made of the whole library, as the period held too few steady efforts. */
 const ALL_TIME = ', all time'
 
-/** What the middle steady effort's efficiency did from its first half to its second, as the chart's headline. */
-export function driftLede(medianPct: number, allTime = false): string {
-  return `Efficiency ${driftChange(medianPct)} from the first half to the second${allTime ? ALL_TIME : ''}.`
+/** The durability chart's headline, and the first part of the section's row: "Durability: 99% of your best 20 min after an hour." */
+export function durabilityLine(stat: string): string {
+  return `Durability: ${stat}.`
 }
 
 /** What heart rate drift says on the section's row: "efficiency fell 3%", or "level" within 1% either way. */
@@ -74,6 +74,17 @@ export function driftFinding(medianPct: number, allTime = false): string {
         ? `efficiency rose ${-percent}%`
         : 'level'
   return `${said}${allTime ? ALL_TIME : ''}`
+}
+
+/** The drift chart's headline, as the section's row says it too: "Heart rate drift: level." */
+export function driftLede(medianPct: number, allTime = false): string {
+  return `Heart rate drift: ${driftFinding(medianPct, allTime)}.`
+}
+
+/** The label on the median line: "Median: fell 3%", "Median: level". Short, since it sits in the chart's margin. */
+export function driftMedianLabel(medianPct: number): string {
+  const percent = Math.round(medianPct)
+  return `Median: ${percent >= 1 ? `fell ${percent}%` : percent <= -1 ? `rose ${-percent}%` : 'level'}`
 }
 
 /** The line a drift chart draws at the common reference, in words. */

@@ -47,8 +47,7 @@ export function ThresholdPanel({
   )
   // A held best is a floor, not an estimate, and is not called one.
   const floor = fitted === null && hero !== null
-  // An uneven fit's note names the bests the floor rests on, so the basis line is not said beside it.
-  const basis = floor && floorNote === null ? floorBasisLine(result, sport) : null
+  const basis = floor ? floorBasisLine(result, sport) : null
   // A best too short to be a floor is named by what it is, and is not called "at least".
   const best = floor ? bestLabel(result, sport) : null
   const at =

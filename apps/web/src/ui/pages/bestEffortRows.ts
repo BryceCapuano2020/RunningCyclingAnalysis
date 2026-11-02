@@ -63,6 +63,9 @@ function setDaysOf(activity: ActivitySummary | null, openedAt: number): number |
   return activity === null ? null : calendarDaysBetween(activity.startMs, openedAt)
 }
 
+/** The mark beside a distance best's time, so the column reads: a duration's row is a pace, and this row is a finish time. */
+export const FINISH_MARK = 'Finish time'
+
 /** A run distance's row label in sentence case, such as "Half marathon" from its record name. */
 function rowLabel(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
@@ -130,7 +133,7 @@ function distanceRowsOf(input: BestEffortInput): {
     sub: paceIsTime(record.distanceM, units) ? null : record.pace,
     // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
     grade: recordGradeCell(sport, outcomes[index] ?? null, null, 'row'),
-    tags: [],
+    tags: [FINISH_MARK],
     change: null,
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,

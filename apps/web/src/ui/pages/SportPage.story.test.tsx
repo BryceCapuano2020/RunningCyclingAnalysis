@@ -273,8 +273,10 @@ describe('a sport page with sections that have nothing to show', () => {
     expect(lineIn('Time in zones')).toBe(
       'Needs an activity with heart rate, or a threshold pace entered on Profile.',
     )
-    expect(lineIn('Pace at heart rate')).toMatch(/^Needs at least \d+ steady 5-minute stretches/)
-    expect(lineIn('Durability')).toBe('Add 3 steady runs over an hour with heart rate.')
+    expect(lineIn('Pace at heart rate')).toBe(
+      '0 of 8 steady 5-minute stretches with heart rate in 8 weeks.',
+    )
+    expect(lineIn('Durability')).toBe('0 of 3 steady runs over an hour with heart rate.')
     expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations/)
   })
 
@@ -300,12 +302,12 @@ describe('a sport page with sections that have nothing to show', () => {
     expect(follows(full, screen.getByText('Page footnote'))).toBe(true)
   })
 
-  it('gives a ride no race predictions, which it has none to give, and asks for a power meter', () => {
+  it('gives a ride no race predictions, which it has none to give, and counts its power meter rides', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
     expect(screen.queryByRole('region', { name: 'Race predictions' })).toBeNull()
     expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations.*power meter\.$/)
     expect(lineIn('Durability')).toBe(
-      'Add 3 steady rides over an hour with a power meter and heart rate.',
+      '0 of 3 steady rides over an hour with a power meter and heart rate.',
     )
   })
 
@@ -317,7 +319,7 @@ describe('a sport page with sections that have nothing to show', () => {
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
-      within(section).getByText('Durability needs 3 runs longer than an hour.'),
+      within(section).getByText('Durability: 0 of 3 runs longer than an hour.'),
     ).toBeInTheDocument()
   })
 

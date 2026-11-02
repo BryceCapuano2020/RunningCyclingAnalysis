@@ -269,7 +269,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   sports' curves are on a 12% wash of the sport's colour to the foot of the axis, and the period before is a thinner (2 px) solid
   grey line, never dashed. The curve's title is its finding (`curveTakeaway`): with a period before, how far the best
   20 minutes (or the longest effort both periods have measured) moved ("20 min is 11 s/km faster than the previous 12 weeks", "20 min is 12 W higher than ...", or in power per kilogram, "20 min is 5% more power per kilogram than ...", where a change of weight moves the watts the other way from the call,
-  with the seconds set tight to the unit), or "No clear change from the previous 12 weeks" (no length, no size and no reason: the method page says what the test can tell apart); without one, the best with its level
+  with the seconds set tight to the unit), or "No clear change at 20 min from the previous 12 weeks" (the length it was judged at, and no size and no reason: the method page says what the test can tell apart; the curve marks that length, as it does for a change); without one, the best with its level
   ("Best 20 min: 4:11 /km, Local"). One test decides, for every curve and every page, so the same data always gets the same verdict: the change test
   (`packages/core/src/change`, [design/change-test.md](design/change-test.md)), which calls a change only when the real difference between the two periods' bests is outside the middle 90% of
   the differences the athlete's own efforts make when dealt out at random between the two periods. A length the periods hold too few efforts of to test gets no comparison, and the title names the best instead. A title and Balance's strip hold a call to the stricter 95% band, since they state several claims at once; a record row keeps the 90% band. A ride is tested on its power-meter rides, or on estimated against estimated, and a mix that differs between the periods is not tested. A carried value (below) is never read as a finding, in either period: the
@@ -345,7 +345,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
     A run with none of its distance bests shows its duration bests. No sentence sits under the tiles: a run's pace is GAP, which is a term with its meaning one press away.
     **See your runs** opens Activities filtered to that sport.
   - **Best efforts by day** shows the efforts of 5, 20 or 60 minutes that were the best of their stretch, each as a dot
-    on the day it was done, older ones fainter (35% at the oldest, solid at the newest), with no line and no wash: the days
+    on the day it was done, older ones fainter (35% at the oldest, solid at the newest; in dark the fade keeps a third of its depth, so the oldest still keeps 3:1 against the card), with no line and no wash: the days
     between dots hold no reading, and a line through best efforts measured how often the athlete went hard. Its title is the change
     test's finding about that length against the previous period with the window named ("20 min is 11 s/km faster than
     the previous 12 weeks"), and the effort ("Best 20 min") when there is no previous period (All time), the test could not judge the length or it finds no clear change, which the curve above says once.
@@ -363,21 +363,22 @@ and the tests named at the foot of that page keep the two in step. A display siz
     its speed), which runs only a few per cent past the extremes, so a small fall is a short bar and not an
     empty row. **View as table** lists each figure with its fall against the best overall and the activities
     behind it. The second reading is the heart rate drift of steady efforts over an hour (`driftTrend`), named "Heart rate drift on
-    steady runs" and titled "Efficiency fell 3% from the first half to the second."
-    (or "rose", or "held level" when it rounds to under 1%). The chart is a dot for each steady effort
+    steady runs" and titled "Heart rate drift: efficiency fell 3%."
+    (or "rose", or "Heart rate drift: level." when it rounds to under 1%), the line the row says too. Its eyebrow, headline and axis ("Heart rate drift (%)") use that one term, and the first
+    reading's, "Durability of best efforts" over "Durability: 94% of your best 20 min after 90 min.", use theirs. The chart is a dot for each steady effort
     by date, its change in efficiency in percent (a fall is below zero), a line at the median across
-    the dots labelled "Median: fell 3%", and a dashed line at a 5% fall named in the key as "A fall of 5%".
+    the dots labelled "Median: fell 3%" ("Median: level"), in a right margin sized to that label so it is never cut off, and a dashed line at a 5% fall named in the key as "A fall of 5%".
     That is a coaching convention
     (`docs/research/durability.md`), a light reference and not a verdict. An activity whose heart rate is
     set aside has no drift. A period with fewer than 3 long sessions, or fewer than 3 steady efforts, reads the whole library for that
-    reading and says so in the line itself: the stat ends ", all time" ("94% of your best 20 min after 90 min, all time") and so does the drift ("Efficiency fell 3% from the first half to the second, all time."); each reading pools on its own
+    reading and says so in the line itself: the stat ends ", all time" ("94% of your best 20 min after 90 min, all time") and so does the drift ("Heart rate drift: efficiency fell 3%, all time."); each reading pools on its own
     (`lateEvidence` takes the library, and sets `durabilityPooled` or `driftPooled`). The row says both: "Durability: 99% of your best 20 min after an hour. Heart rate drift: efficiency fell 3%." ("Heart rate drift: level." within 1% either way). A reading the library cannot give either is left out and
-    its need is a sentence that names it ("Durability needs 3 runs longer than an hour." with "with a power meter" for a ride, or "Heart rate drift needs
-    3 steady runs over an hour with heart rate." and for a ride "with a power meter and heart rate"), in a line under the half that shows.
-    With neither, the section is one line that says what to add ("Add 3 steady runs over an hour with heart rate."). The copy never says limiter, weak, strength, "holding you back" or "ahead of".
+    what the library has is one line with its counts under the half that shows ("Durability: 2 of 3 runs longer than an hour." with "with a power meter" for a ride, or "Heart rate drift: 2 of 3 steady
+    runs over an hour with heart rate." and for a ride "with a power meter and heart rate"), never a line that begins "Needs".
+    With neither, the section is one line of the count of steady efforts ("0 of 3 steady runs over an hour with heart rate."). The copy never says limiter, weak, strength, "holding you back" or "ahead of".
   - **A section with nothing to show is its name and one line, in its own place.** The line says what to add, in the plain words
     the section would have used, worded by the Voice rules: under "Race predictions", "Needs a run of a mile or more."; under "Time in zones", "Needs an activity with heart rate, or a
-    threshold pace entered on Profile."; under "Durability", "Add 3 steady runs over an hour with heart rate." (a ride, "with a power meter and heart rate"). It is a
+    threshold pace entered on Profile."; under "Durability", "0 of 3 steady runs over an hour with heart rate." (a ride, "with a power meter and heart rate"). It is a
     card of its own with no fold, so the page has no "Not enough yet" list and no section vanishes in silence. A section with content for
     one half says the other half's need in a line under it. "On this page" lists the sections that hold an answer, not the lines.
     A page with no activities has none.
@@ -481,9 +482,11 @@ and the tests named at the foot of that page keep the two in step. A display siz
   the fitness status is the sport's one voice on that signal, tested on its own statistic. The closed row says what is drawn, "Pace at 145 bpm, by week.", and
   nothing of the fitness status.
   With too little data to draw, the section is one line in its own place that names what is missing, one of: too few steady
-  5-minute stretches, too few activities, activities in too few weeks, heart rate that hardly varies, no effort near the reference heart
+  5-minute stretches or too few activities, which say what the library has against what a reading takes, from the week that came closest
+  ("3 of 8 steady 5-minute stretches with heart rate in 8 weeks.", "2 of 6 rides with steady stretches in 8 weeks.", over 4 weeks
+  where that week's window did not reach back further), and activities in too few weeks, heart rate that hardly varies, no effort near the reference heart
   rate in the latest weeks, or less than 4 weeks of steady efforts ("Needs 4 weeks of steady
-  efforts with heart rate."); the numbers in them come from `SAME_HEART_RATE`.
+  efforts with heart rate."); the numbers in them come from `SAME_HEART_RATE`. A week the reader scrubs to says its own count the same way.
   A week's window is the 28 days to its Sunday, or 56 days when those hold under 6 activities, so a quiet month still reads. A period with
   no week that reports reads the library's newest weeks instead (up to a year), as the reference heart rate is read, and the note says
   "These are your newest weeks, whatever the period." All time shows every week that reports, not the newest 52; a period shows its newest 52 at most.
@@ -564,8 +567,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   the drawing and fills its column, with no fixed width. Its bar is the same height at every width,
   and its marker a fixed size, so the labels stay on the bar as the column narrows. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
   a ring over an outlined band for its model range. The bands the grade falls in are filled in its
-  sport's soft colour and named in bold: the band of its centre, or every band from the low end of a
-  ride's range to its high end. Band edges are ticks. A marker past either end of the scale stays
+  sport's soft colour and named in bold: the band of its centre, or of a ride's range when the whole range sits in
+  one band. A range across an edge names no level and fills no band, as the number and range beside it name none
+  ("59% (50 to 71)"); the ring and its range bar show the spread. Band edges are ticks. A marker past either end of the scale stays
   inside the track, outline included, and a chevron stands just outside that end; one line under
   the ladder says the grade is below or above the scale, and with the grade on it there is no line. The shape has no key in
   words: the Estimated chip says what a ring is.
@@ -605,11 +609,11 @@ and the tests named at the foot of that page keep the two in step. A display siz
   while the easier riding round it was all the rider could hold at the start. The threshold is then
   fitted without those bests, and it is the top of the range, from the main threshold to that one
   ("Range 261 to 296 W"). Such a fit is kept only above the main one. Under the range, one muted
-  line says which bests: "Best 15 min and 20 min mixed hard and easy." (a single best, "Best 20 min mixed hard and easy."). When
-  the uneven fit draws on estimated watts, the line adds "The top end uses estimated watts." The range
+  line says nothing of which bests: the range shows the spread, and a caption of "mixed hard and easy" beside the hard-effort chip contradicted it. When
+  the uneven fit draws on estimated watts, the line says "The top end uses estimated watts." The range
   replaces the standard-error range for that sport. When the main threshold is refused, the range starts
   from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
-  floor, with the same line under it: a demonstrated effort the threshold sits above, not a threshold.
+  floor, with the line "From your best 20 min." under it: a demonstrated effort the threshold sits above, not a threshold.
   The Balance card follows the same rule: it shows the floor as its hero under the chip "At least", with no
   meaning line and the same basis line. The share card does not:
   its threshold is an estimate it labels "estimated", so a card with only a floor is not offered.
@@ -1070,7 +1074,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   "Threshold pace, estimated" on the app's cards and pages. The share card has no note, so its run threshold reads "Threshold GAP, estimated". "Grade" means an age grade and nothing else.
 - **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. In each
   unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
-  imperial, 1 km in metric. A run added before the half marathon was recorded gets it only when it is added again: the library
+  imperial, 1 km in metric. In All best efforts every distance row carries a "Finish time" chip beside its time, so the column reads
+  beside the duration rows, whose figures are paces. A run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
@@ -1359,11 +1364,14 @@ pace entered on Profile." in its own place.
 **Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label in capitals with the easy and hard
 shares at the right ("31% easy · 28% hard"), the bar across the full width with rounded outer ends and a 2 px gap between
 segments, the share inside each segment where it fits at display size, and under each segment its number and name ("2 Endurance")
-where they fit, or its number alone where the segment is at least 20 px wide. Under the bars a key reads Easy, the five
-steps numbered, Hard. A segment is a step of the sport's five-step zone ramp (`--zone-1` to `--zone-5`, aliased for each
-`data-sport` from `--zone-run-n` and `--zone-ride-n`), and its text takes that step's ink (`--zone-ink-n`). The ramp darkens with
+where they fit, or its number alone where the segment is at least 20 px wide. There is no key under the bars: each bar names
+its own zones once, so no key can say five where a bar has seven. A segment is a step of the sport's five-step zone ramp (`--zone-1` to `--zone-5`, aliased for each
+`data-sport` from `--zone-run-n` and `--zone-ride-n`), and its text takes that step's ink (`--zone-ink-n`). A ride's power has seven
+zones, so its bar reads the long ramp instead (`--zone-ride-long-n` with `--zone-ink-long-n`, set on the bar by `data-steps`), and no zone is left
+unpainted. The ramp darkens with
 effort in light and, in dark, grows more luminous at full saturation without paling. `zoneRamp.test.ts` checks it from the tokens: every step keeps 3:1 against the card
-and the page, its ink 4.5:1, and neighbouring steps stay apart in CIEDE2000 (at least 7 in light and 5 in dark, where every step stays saturated) for normal
+and the page, its ink 4.5:1, and neighbouring steps stay apart in CIEDE2000 (at least 7 in light and 5 in dark, where every step stays saturated, and for the long
+ramp 5.5 and 4, since seven steps leave less room) for normal
 colour vision and for protanopia, deuteranopia and tritanopia. The number, the name and the table say which zone is which, so colour is never the
 only cue. In forced colours every segment is the highlight colour with its text in the highlight's own text colour. The
 figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").

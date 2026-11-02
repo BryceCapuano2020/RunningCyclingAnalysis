@@ -450,13 +450,13 @@ describe('the effort the title cites', () => {
     carried(1200, 214, 3600),
   ]
 
-  const compare = (curve: CurvePoint[], earlier: CurvePoint[]) =>
+  const compare = (curve: CurvePoint[], earlier: CurvePoint[], call = changeOf('higher')) =>
     render(
       <SportCurveChart
         sport="ride"
         curve={curve}
         previous={{ curve: earlier, label: 'Previous 12 weeks' }}
-        change={changeOf('higher')}
+        change={call}
         massKg={MASS_KG}
         units="metric"
       />,
@@ -493,9 +493,26 @@ describe('the effort the title cites', () => {
     expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
   })
 
-  it('adds nothing for a title that says no clear change, which cites no effort', () => {
+  it('marks the length a no-clear-change title names, and adds nothing else', () => {
     chartWidth(900)
-    const { container } = compare(NOW, NOW)
+    const { container } = compare(NOW, NOW, changeOf('none'))
+    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
+      'No clear change at 20 min from the previous 12 weeks',
+    )
+    expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
     expect(container.querySelector('[data-annotation="best-900"]')).toBeNull()
+  })
+
+  it('marks a 15 min effort that a no-clear-change title names when there is no 20 min in both periods', () => {
+    chartWidth(288)
+    const { container } = compare(
+      NOW,
+      [...BEFORE.slice(0, 2), measured(900, 280)],
+      changeOf('none'),
+    )
+    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
+      'No clear change at 15 min from the previous 12 weeks',
+    )
+    expect(container.querySelector('[data-annotation="best-900"]')).not.toBeNull()
   })
 })
