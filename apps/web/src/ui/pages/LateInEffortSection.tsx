@@ -31,7 +31,7 @@ export function LateInEffortSection({
           sport={sport}
           groups={durability.groups}
           units={units}
-          takeaway={durability.stat}
+          takeaway={durability.lede}
         />
       )}
       {drift !== null && (

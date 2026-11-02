@@ -195,6 +195,19 @@ describe('the phone readout row at rest', () => {
     expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
   })
 
+  it('wraps its resting line rather than end it in an ellipsis, and keeps its room while a reading is drawn', () => {
+    const idle = css.slice(
+      css.indexOf('.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {'),
+    )
+    const rule = idle.slice(0, idle.indexOf('}'))
+    expect(rule).not.toMatch(/text-overflow|white-space: nowrap|overflow: hidden/)
+    expect(rule).toContain('overflow-wrap: anywhere')
+    // Hidden and not removed, so the row's height is the same whether a reading is drawn or not.
+    expect(css).toMatch(
+      /\.chart-frame__readout--compact:has\(\.chart-tooltip__title\)::before \{[^}]*visibility: hidden/,
+    )
+  })
+
   it('animates its growth only where motion is welcome', () => {
     const animation = css.indexOf('animation: chart-readout-open')
     expect(animation).toBeGreaterThan(-1)

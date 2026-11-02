@@ -90,8 +90,8 @@ describe('a sportâ€™s late bests', () => {
 
 describe('the drift lede', () => {
   it('says the median fall from the first half to the second', () => {
-    expect(driftLede(3.2)).toBe('Efficiency fell 3% from the first half to the second.')
-    expect(driftLede(6.4)).toBe('Efficiency fell 6% from the first half to the second.')
+    expect(driftLede(3.2)).toBe('Heart rate drift: efficiency fell 3%.')
+    expect(driftLede(6.4)).toBe('Heart rate drift: efficiency fell 6%.')
   })
 
   it('says a rise as a rise and a change under 1% as level', () => {
@@ -99,8 +99,8 @@ describe('the drift lede', () => {
     expect(driftChange(0.4)).toBe('held level')
     expect(driftChange(-0.4)).toBe('held level')
     expect(driftChange(0.5)).toBe('fell 1%')
-    expect(driftLede(-2.4)).toBe('Efficiency rose 2% from the first half to the second.')
-    expect(driftLede(0.2)).toBe('Efficiency held level from the first half to the second.')
+    expect(driftLede(-2.4)).toBe('Heart rate drift: efficiency rose 2%.')
+    expect(driftLede(0.2)).toBe('Heart rate drift: level.')
   })
 
   it('takes the median of the efforts, the mean of the middle two for an even count', () => {
@@ -110,7 +110,7 @@ describe('the drift lede', () => {
       durability: [],
       drift: driftPoints([1, 2, 3, 3, 4, 2, 5, 3, 6, 3, 4, 2]),
     })
-    expect(drift!.lede).toBe('Efficiency fell 3% from the first half to the second.')
+    expect(drift!.lede).toBe('Heart rate drift: efficiency fell 3%.')
     expect(drift!.medianPct).toBe(3)
   })
 
@@ -140,18 +140,21 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', lateEvidenceFor('run')).needs).toEqual([])
   })
 
-  it('is one line to add when neither half has anything, since steady efforts over an hour give both', () => {
+  it('is one line of what the library has when neither half has anything, since steady efforts over an hour give both', () => {
     expect(lateInEffort('run', NONE).needs).toEqual([
-      'Add 3 steady runs over an hour with heart rate.',
+      '0 of 3 steady runs over an hour with heart rate.',
     ])
     expect(lateInEffort('ride', NONE).needs).toEqual([
-      'Add 3 steady rides over an hour with a power meter and heart rate.',
+      '0 of 3 steady rides over an hour with a power meter and heart rate.',
+    ])
+    expect(lateInEffort('ride', { ...NONE, drift: driftPoints([2, 3]) }).needs).toEqual([
+      '2 of 3 steady rides over an hour with a power meter and heart rate.',
     ])
   })
 
-  it('names the durability need alone when only drift shows', () => {
+  it('names the durability count alone when only drift shows', () => {
     expect(lateInEffort('run', { ...NONE, drift: driftPoints([2, 3, 4]) }).needs).toEqual([
-      'Durability needs 3 runs longer than an hour.',
+      'Durability: 0 of 3 runs longer than an hour.',
     ])
   })
 
@@ -161,15 +164,30 @@ describe('what the section needs', () => {
       drift: driftPoints([2, 3, 4]),
     }
     const [need] = lateInEffort('ride', two).needs
-    expect(need).toBe('Durability needs 3 rides longer than an hour with a power meter.')
+    expect(need).toBe('Durability: 2 of 3 rides longer than an hour with a power meter.')
     expect(need).not.toMatch(/hard|reference/)
   })
 
-  it('asks for steady efforts with heart rate when only drift is missing', () => {
+  it('counts the steady efforts with heart rate when only drift is missing', () => {
     const { durability } = lateEvidenceFor('run')
     expect(lateInEffort('run', { durability, drift: [] }).needs).toEqual([
-      'Heart rate drift needs 3 steady runs over an hour with heart rate.',
+      'Heart rate drift: 0 of 3 steady runs over an hour with heart rate.',
     ])
+    expect(lateInEffort('run', { durability, drift: driftPoints([2, 3]) }).needs).toEqual([
+      'Heart rate drift: 2 of 3 steady runs over an hour with heart rate.',
+    ])
+  })
+
+  it('never reads as a refusal: no line begins with needs or asks the athlete to add', () => {
+    const evidence = [NONE, { ...NONE, drift: driftPoints([2]) }, lateEvidenceFor('run')]
+    for (const sport of ['run', 'ride'] as const) {
+      for (const each of evidence) {
+        for (const need of lateInEffort(sport, each).needs) {
+          expect(need).toMatch(/\d of 3 /)
+          expect(need).not.toMatch(/\bneeds?\b|^Add /i)
+        }
+      }
+    }
   })
 
   it('never uses the words the owner rules out', () => {
@@ -251,7 +269,7 @@ describe('when the period held too little and the reading is the whole libraryâ€
     }
     const { durability, drift } = lateInEffort('ride', pooled)
     expect(durability!.stat).toBe('94% of your best 20 min after 90 min, all time')
-    expect(drift!.lede).toBe('Efficiency fell 3% from the first half to the second, all time.')
+    expect(drift!.lede).toBe('Heart rate drift: efficiency fell 3%, all time.')
     const own = lateInEffort('ride', lateEvidenceFor('ride'))
     expect(own.durability!.stat).not.toContain('all time')
     expect(own.drift!.lede).not.toContain('all time')

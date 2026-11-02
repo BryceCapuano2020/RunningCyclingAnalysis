@@ -46,14 +46,23 @@ describe('LevelLadder', () => {
     ).toBeInTheDocument()
   })
 
-  it('fills and names both bands when a ride range crosses a band edge', () => {
+  it('fills and names no band when a ride range crosses a band edge: the number and range stand alone', () => {
     const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(2)
-    const names = Array.from(
-      container.querySelectorAll('.level-ladder__name--current'),
-      (el) => el.textContent,
-    )
-    expect(names).toEqual(['Local', 'Regional'])
+    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(0)
+    expect(container.querySelectorAll('.level-ladder__name--current')).toHaveLength(0)
+    // The ring and its range are still drawn, from the range's low end to its high end.
+    expect(container.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(container.querySelector('.level-ladder__range')).not.toBeNull()
+  })
+
+  it('fills and names the one band a ride range sits wholly inside', () => {
+    const within: SportGrade = {
+      centre: gradeAt(67.6, 'Local'),
+      range: { low: gradeAt(63, 'Local'), high: gradeAt(68.5, 'Local') },
+    }
+    const { container } = render(<LevelLadder sport="ride" grade={within} />)
+    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(1)
+    expect(container.querySelector('.level-ladder__name--current')).toHaveTextContent('Local')
   })
 
   it('draws a dot for a run and a ring for a ride, with no key in words beside the drawing', () => {

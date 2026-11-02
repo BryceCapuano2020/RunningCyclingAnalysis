@@ -40,9 +40,8 @@ const BAR_TOP = 24
 const BAR_HEIGHT = 44
 const NAME_GAP = 16
 const ROW_GAP = 22
-/** The key under the bars: Easy, five numbered steps, Hard. */
-const KEY_HEIGHT = 30
-const KEY_CHIP = { width: 34, height: 22, gap: 6 }
+/** The room under the last band's labels: the bands' own gap is between two bands and is not kept after the last. */
+const END_GAP = 4
 const BAR_RADIUS = 8
 /** The gap kept between two segments, px. */
 const SEGMENT_GAP = 2
@@ -67,15 +66,16 @@ function rowHeight(dropped: boolean): number {
   return (BAR_TOP + BAR_HEIGHT + NAME_GAP + ROW_GAP + (dropped ? TAKEAWAY_LINE : 0)) * scale
 }
 
-/** Where each band starts, and the height of the whole chart: each band, then the key. */
+/** Where each band starts, and the height of the whole chart: each band, one after the other. */
 function layoutOf(rows: readonly ZoneChartRow[], width: number) {
   const rootPx = rootFontPx()
   const dropped = rows.map((row) => takeawayDrops(row, width, rootPx))
   const tops = dropped.map((_, i) =>
     dropped.slice(0, i).reduce((sum, drop) => sum + rowHeight(drop), 0),
   )
-  const keyTop = tops.length === 0 ? 0 : tops.at(-1)! + rowHeight(dropped.at(-1)!)
-  return { dropped, tops, keyTop, height: keyTop + KEY_HEIGHT * geometryScale() }
+  const end = tops.length === 0 ? 0 : tops.at(-1)! + rowHeight(dropped.at(-1)!)
+  const height = tops.length === 0 ? 0 : end - (ROW_GAP - END_GAP) * geometryScale()
+  return { dropped, tops, height }
 }
 
 function Bar({
@@ -102,7 +102,7 @@ function Bar({
   const segments = segmentsOf(row.seconds, size.width)
   const clip = `${clipId}-${index}`
   return (
-    <g>
+    <g className="zone-time__bar" data-steps={row.seconds.length}>
       <text className="zone-time__label" x={0} y={baseline}>
         {row.label}
       </text>
@@ -168,52 +168,11 @@ function Bar({
   )
 }
 
-/** The key: the five steps, numbered, from easy to hard, in the ramp's colours. */
-function Key({ y }: { y: number }) {
-  const scale = geometryScale()
-  const chip = { width: KEY_CHIP.width * scale, height: KEY_CHIP.height * scale }
-  const step = chip.width + KEY_CHIP.gap * scale
-  const left = 40 * scale
-  return (
-    <g className="zone-time__key">
-      <text className="zone-time__number" x={0} y={y + 16 * scale}>
-        Easy
-      </text>
-      {[1, 2, 3, 4, 5].map((level) => (
-        <g key={level}>
-          <rect
-            className="zone-time__chip"
-            data-zone={level}
-            x={left + (level - 1) * step}
-            y={y}
-            width={chip.width}
-            height={chip.height}
-            rx={4 * scale}
-          />
-          <text
-            className="zone-time__percent zone-time__percent--key"
-            data-zone={level}
-            x={left + (level - 1) * step + chip.width / 2}
-            y={y + chip.height / 2}
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            {level}
-          </text>
-        </g>
-      ))}
-      <text className="zone-time__number" x={left + 5 * step + 2} y={y + 16 * scale}>
-        Hard
-      </text>
-    </g>
-  )
-}
-
 /**
- * The share of time in each zone as a stacked horizontal bar for each measure, on the sport's five-step ramp:
- * the percent inside each segment where it fits, the zone's number and name under it where they fit, and the
- * easy and hard shares above the bar as its takeaway. Under the bars a key reads Easy 1 2 3 4 5 Hard. The
- * sentence the bars support is above them and the same numbers are in a table behind View as table.
+ * The share of time in each zone as a stacked horizontal bar for each measure, on the sport's ramp (a bar of seven
+ * zones, a ride's power, on the long one): the percent inside each segment where it fits, the zone's number and name
+ * under it where they fit, and the easy and hard shares above the bar as its takeaway. Each bar names its own zones
+ * once, so no key under the bars can disagree with one; the same numbers are in a table behind View as table.
  */
 export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeChartProps) {
   const clipId = useId().replaceAll(':', '')
@@ -228,7 +187,7 @@ export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeCha
       summary={summary}
     >
       {(size) => {
-        const { dropped, tops, keyTop } = layoutOf(rows, size.width)
+        const { dropped, tops } = layoutOf(rows, size.width)
         return (
           <>
             {rows.map((row, i) => (
@@ -242,7 +201,6 @@ export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeCha
                 clipId={clipId}
               />
             ))}
-            <Key y={keyTop} />
           </>
         )
       }}

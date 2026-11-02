@@ -4,7 +4,7 @@ import { SAME_HEART_RATE } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { LACK_TEXT, sameHeartRateTitle } from '../sameHeartRateCopy'
+import { lackLine, sameHeartRateTitle } from '../sameHeartRateCopy'
 import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
@@ -68,7 +68,7 @@ function tooltipFor(
         note:
           lacks === null
             ? `90% range ${rangeText(week, sport, units)}, ${plural(week.blocks, 'stretch', 'stretches')} from ${plural(week.activities, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])}`
-            : LACK_TEXT[lacks](sport, referenceHr),
+            : lackLine(lacks, sport, referenceHr, week),
       },
     ],
   }

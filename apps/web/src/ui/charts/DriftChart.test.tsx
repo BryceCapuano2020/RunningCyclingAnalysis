@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { driftPoints } from '../lateFixtures'
 import { DECOUPLING_REFERENCE, driftDescription } from '../lateInEffort'
 import { DriftChart } from './DriftChart'
+import { labelWidthPx } from './rootFont'
 
-const TAKEAWAY = 'Efficiency fell 3% from the first half to the second.'
+const TAKEAWAY = 'Heart rate drift: efficiency fell 3%.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])
 const NAMES = Object.fromEntries(POINTS.map((p, i) => [p.activityId, `Long run ${i + 1}`]))
 
@@ -17,6 +18,7 @@ describe('DriftChart', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   const renderChart = (sport: 'run' | 'ride' = 'run') =>
@@ -106,6 +108,50 @@ describe('DriftChart', () => {
     expect(dots[3]).toBeGreaterThan(dots[0]!)
   })
 
+  it.each([0.2, 3, 12, -4])(
+    'keeps the median label inside the chart, whatever it says (%s%% median)',
+    (medianPct) => {
+      class WideObserver {
+        private readonly callback: ResizeObserverCallback
+
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback
+        }
+
+        observe() {
+          const entry = { contentRect: { width: 900 } } as unknown as ResizeObserverEntry
+          this.callback([entry], this as unknown as ResizeObserver)
+        }
+
+        unobserve() {}
+
+        disconnect() {}
+      }
+      vi.stubGlobal('ResizeObserver', WideObserver)
+      const { container } = render(
+        <DriftChart
+          sport="ride"
+          points={POINTS}
+          names={NAMES}
+          takeaway={TAKEAWAY}
+          medianPct={medianPct}
+        />,
+      )
+      const label = container.querySelector('.drift-chart__median-label')!
+      const width = Number(container.querySelector('svg')!.getAttribute('viewBox')!.split(' ')[2])
+      expect(Number(label.getAttribute('x')) + labelWidthPx(label.textContent!, 16)).toBeLessThan(
+        width,
+      )
+    },
+  )
+
+  it('says the median in the chart’s own words, level and not "held level"', () => {
+    const { container } = render(
+      <DriftChart sport="run" points={POINTS} names={NAMES} takeaway={TAKEAWAY} medianPct={0.2} />,
+    )
+    expect(container.querySelector('.drift-chart__median-label')?.textContent).toBe('Median: level')
+  })
+
   it('draws a rise above zero and reads it as a rise', () => {
     const rising = driftPoints([-3, 2, 4])
     const { container } = render(
@@ -116,7 +162,7 @@ describe('DriftChart', () => {
     )
     expect(rise).toBeLessThan(fall!)
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Change in efficiency (%)',
+      'Heart rate drift (%)',
     )
     expect(within(screen.getByRole('table')).getByText('Rose 3%')).toBeInTheDocument()
   })
