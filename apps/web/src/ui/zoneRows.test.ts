@@ -147,10 +147,36 @@ describe('the source and basis of an estimated zone set', () => {
       floorS: 1800,
     })
     expect(sourceText(set)).toBe('From your best 30 min on 15 Mar 2025')
+    // A floor says so beside its figure: the real threshold is at least that.
     expect(zoneTable(set, 'metric').detail).toBe(
-      'Threshold pace: 4:46 /km, from your best 30 min on 15 Mar 2025',
+      'Threshold pace: at least 4:46 /km, from your best 30 min on 15 Mar 2025',
     )
     expect(sourceText({ ...set, floorS: 1200 })).toBe('From your best 20 min on 15 Mar 2025')
+  })
+
+  it('says “at least” for a power floor and for none of the figures that are not floors', () => {
+    const asOfMs = new Date(2025, 2, 15, 12).getTime()
+    const power = setOf({
+      sport: 'ride',
+      measure: 'power',
+      reference: 240,
+      estimatedFrom: ['ride'],
+      asOfMs,
+      floorS: 1800,
+    })
+    expect(zoneTable(power, 'metric').detail).toBe(
+      'Threshold power: at least 240 W, from your best 30 min on 15 Mar 2025',
+    )
+    // A fit dated by its month, an estimate from the rides and an entered figure are not floors.
+    expect(zoneTable({ ...power, floorS: null }, 'metric').detail).toBe(
+      'Threshold power: 240 W, set in Mar 2025',
+    )
+    expect(zoneTable({ ...power, floorS: null, asOfMs: null }, 'metric').detail).toBe(
+      'Threshold power: 240 W, from your rides',
+    )
+    expect(
+      zoneTable({ ...power, source: 'entered', floorS: null, asOfMs: null }, 'metric').detail,
+    ).toBe('Threshold power: 240 W, entered by you')
   })
 
   it('says a max heart rate cut from the highest on file is that, and can still be corrected', () => {

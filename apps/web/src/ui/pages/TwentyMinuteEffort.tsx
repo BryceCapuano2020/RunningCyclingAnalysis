@@ -19,14 +19,16 @@ export function TwentyMinuteEffort() {
       <h3 id={TWENTY_MINUTE_ID} tabIndex={-1}>
         The 20 min effort
       </h3>
-      <p className="secondary">{`Balance uses your best ${HEADLINE_LABEL} in each sport.`}</p>
       <p className="secondary">
-        The heart-rate check judges that effort against your{' '}
-        <Definition meaning={MAX_HEART_RATE_MEANING}>max heart rate</Definition>.
-      </p>
-      <p className="secondary">It says whether the effort was hard.</p>
-      <p className="secondary">
-        {`A steady ${HEADLINE_LABEL} run, or a ${HEADLINE_LABEL} ride ridden hard, with heart rate on, narrows the check.`}
+        <span className="method__line">{`Balance uses your best ${HEADLINE_LABEL} in each sport.`}</span>{' '}
+        <span className="method__line">
+          The heart-rate check judges that effort against your{' '}
+          <Definition meaning={MAX_HEART_RATE_MEANING}>max heart rate</Definition>.
+        </span>{' '}
+        <span className="method__line">It says whether the effort was hard.</span>{' '}
+        <span className="method__line">
+          {`A steady ${HEADLINE_LABEL} run, or a ${HEADLINE_LABEL} ride ridden hard, with heart rate on, narrows the check.`}
+        </span>
       </p>
     </>
   )

@@ -3,12 +3,12 @@ import { goTo, openSample } from './helpers.js'
 
 /**
  * Balance and the sport pages show one period; the Activities list keeps its own, which starts with the whole
- * library (docs/DESIGN.md, Period). When the two differ the list says so, so a visitor who picked 6 weeks on Balance
- * and finds "All time" here is not left to wonder whether the choice was lost. Run at the project's own window and
- * at 320 px.
+ * library (docs/DESIGN.md, Period). The list does not explain itself with a line: its own period control is
+ * the explanation, and it is checked on All time whatever Balance is on. Run at the project's own window and at
+ * 320 px.
  */
 for (const width of [undefined, 320]) {
-  test(`Activities says it has its own period when Balance is on a shorter one${width === undefined ? '' : ` at ${width} px`}`, async ({
+  test(`Activities keeps its own period when Balance is on a shorter one${width === undefined ? '' : ` at ${width} px`}`, async ({
     page,
   }) => {
     if (width !== undefined) await page.setViewportSize({ width, height: 640 })
@@ -16,29 +16,16 @@ for (const width of [undefined, 320]) {
     await page.getByRole('radio', { name: /^6 (weeks|wk)$/ }).check({ force: true })
     await goTo(page, 'Activities')
 
-    const note = page.getByText(
-      'Balance, Run and Ride show the last 6 weeks. This list has its own period.',
-    )
-    await expect(note).toBeVisible()
+    // The page is there, and its own control starts on the whole library.
+    await expect(page.getByRole('heading', { level: 1, name: 'Activities' })).toBeVisible()
     await expect(page.getByRole('radio', { name: 'All time' })).toBeChecked()
+    await expect(page.getByText(/This list has its own period/)).toHaveCount(0)
+    await expect(page.getByText(/Balance, Run and Ride show/)).toHaveCount(0)
 
-    // Setting the list to the same length makes the two agree, and the line goes.
+    // Narrowing the list is the list's own choice, and it still says nothing about the other pages.
     await page.getByRole('radio', { name: /^6 (weeks|wk)$/ }).check({ force: true })
-    await expect(note).toHaveCount(0)
+    await expect(page.getByRole('radio', { name: /^6 (weeks|wk)$/ })).toBeChecked()
+    await expect(page.getByRole('radio', { name: 'All time' })).not.toBeChecked()
+    await expect(page.getByText(/This list has its own period/)).toHaveCount(0)
   })
 }
-
-test('Activities says the other pages show all time when its own list is on 6 weeks', async ({
-  page,
-}) => {
-  await openSample(page)
-  await page.getByRole('radio', { name: 'All time' }).check({ force: true })
-  await goTo(page, 'Activities')
-  const note = page.getByText('Balance, Run and Ride show all time. This list has its own period.')
-  // Both on all time: nothing to say.
-  await expect(page.getByRole('radio', { name: 'All time' })).toBeChecked()
-  await expect(note).toHaveCount(0)
-
-  await page.getByRole('radio', { name: /^6 (weeks|wk)$/ }).check({ force: true })
-  await expect(note).toBeVisible()
-})

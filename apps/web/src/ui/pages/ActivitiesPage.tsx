@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { startedWithin, windowEnding } from '@rca/core/period'
-import type { Period, PeriodChoice } from '@rca/core/period'
+import type { PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
 import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
@@ -12,7 +12,7 @@ import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../a
 import type { ActivitiesView, ShowFilter, SportFilter } from '../activitiesView'
 import { countsOf, isNotCounted } from '../activityCounts'
 import { ActivityList } from '../components/ActivityList'
-import { LIBRARY_RANGE_OPTIONS, periodName } from '../components/rangeOptions'
+import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
 import { allCountedText, listEmptyText, periodClause } from '../periodCopy'
 import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
@@ -45,11 +45,6 @@ export interface ActivitiesPageProps {
   libraryError?: string | null
   /** Saved activities held out of the analysis, listed after the others with why. */
   heldOut?: readonly HeldOutActivity[]
-  /**
-   * The period Balance and the sport pages are showing. This list keeps its own, which starts with the whole
-   * library, so when the analysis is on a shorter one the page says the two are apart.
-   */
-  analysisPeriod?: Period
 }
 
 const NONE_HELD: readonly HeldOutActivity[] = []
@@ -71,20 +66,6 @@ function periodFromChoice(choice: PeriodChoice): ActivitiesView['period'] {
 }
 
 /**
- * Whether the list is on a different period from the one Balance and the sport pages show. The same period is the
- * same length in days, counted back from the newest activity, or all time on both, whichever pick or search named it
- * on the analysis side. A custom range is never the list's own, whatever its length in days.
- */
-function apartFromAnalysis(
-  analysis: Period | undefined,
-  listPeriod: ActivitiesView['period'],
-): analysis is Period {
-  if (analysis === undefined) return false
-  if (typeof analysis.choice === 'object') return true
-  return analysis.days === null ? listPeriod !== 'all' : analysis.days !== listPeriod
-}
-
-/**
  * Every activity in the library, counted by sport. The page has its own period and sport filters,
  * which start with the whole library and only narrow what is listed, and a sort. Its view is kept in
  * the address, so Back returns to the same page of it.
@@ -102,7 +83,6 @@ export function ActivitiesPage({
   libraryNotice = null,
   libraryError = null,
   heldOut = NONE_HELD,
-  analysisPeriod,
 }: ActivitiesPageProps) {
   // A page that removed an activity sends the list here marked, so the list announces the outcome.
   const [arrivedAfterRemoval] = useState(() => hasRemovedMark(window.location.hash))
@@ -223,17 +203,6 @@ export function ActivitiesPage({
               answered(null)
             }}
           />
-          {apartFromAnalysis(analysisPeriod, period) && (
-            <p className="secondary activities__period-note">
-              {`Balance, Run and Ride show ${
-                analysisPeriod.days === null
-                  ? 'all time'
-                  : typeof analysisPeriod.choice === 'object'
-                    ? 'your custom range'
-                    : `the last ${periodName(analysisPeriod.days)}`
-              }. This list has its own period.`}
-            </p>
-          )}
           <div className="activities__filters">
             <SegmentedControl
               legend="Sport"

@@ -117,7 +117,7 @@ commitment.
    `volumeCaption`).
 2. **E** worker and session-state wiring (on the module registry of [architecture-1.md](architecture-1.md), if built by then); then in parallel **F**
    sport-page Load section (stacked bar plus table, run coral and ride blue), **G** Balance lines,
-   Method and CalculatedSection entries, DESIGN.md.
+   Method and How this works entries, DESIGN.md.
 3. **H** activity-page line; **I** research spike on impulse-response against demonstrated bests.
 
 Tests: hand-computed fixtures (a 1-hour ride with a known spread gives exactly N kJ and M points);

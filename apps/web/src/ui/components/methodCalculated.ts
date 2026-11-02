@@ -1,57 +1,68 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
-import { HEADLINE_LABEL } from '../grades'
-import { effortLabel } from '../records'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S, HEADLINE_DURATION_S } from '@rca/core/constants'
+import { CHANGE } from '@rca/core/change'
+import {
+  DEFAULT_WINDOW_DAYS,
+  EFFORT_LENGTHS_S,
+  MIN_WINDOW_DAYS,
+  trendWindowDays,
+} from '@rca/core/digest/trendPoints'
+import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
+import type { MethodEntry } from './methodEntryTypes'
+import { RANGE_OPTIONS } from './rangeOptions'
 
-/** Where a number the app shows comes from. */
-export type CalculationState = 'calculated' | 'read' | 'unavailable'
+/** "a, b and c", for a short list in a sentence. */
+const listWords = (items: readonly string[]) =>
+  `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
 
-/** The heading of each state, and the lines under it that say what the state means. */
-export const STATE_COPY: Record<CalculationState, { title: string; lines: readonly string[] }> = {
-  calculated: {
-    title: 'Calculated by this app',
-    lines: [
-      'Worked out from your files.',
-      'Your year of birth, sex and weight are used where a figure needs them.',
-    ],
-  },
-  read: { title: 'Recorded in your files', lines: ['Taken as your files recorded them.'] },
-  unavailable: {
-    title: 'Not available from activity files',
-    lines: ['These need inputs an activity file does not hold.'],
-  },
-}
+/** The effort lengths the trend offers, as copy: "5 min, 20 min or 60 min". */
+const EFFORT_PHRASE = (() => {
+  const lengths = EFFORT_LENGTHS_S.map((durationS) => effortLabel(durationS))
+  return `${lengths.slice(0, -1).join(', ')} or ${lengths.at(-1)}`
+})()
 
-/** The states in the order the page lists them. */
-export const STATE_ORDER: readonly CalculationState[] = ['calculated', 'read', 'unavailable']
-
-/** One thing the app shows, or cannot show: its name, where it comes from, and its plain lines. */
-export interface CalculationItem {
-  name: string
-  state: CalculationState
-  lines: readonly string[]
-}
+/**
+ * Each fixed period the picker offers, with the window the trend really uses for it, in days. All time has no
+ * fixed length, so it is not listed.
+ */
+const WINDOW_EXAMPLES = listWords(
+  RANGE_OPTIONS.flatMap((option) =>
+    typeof option.choice === 'number'
+      ? [`${option.label.toLowerCase()} uses ${trendWindowDays(option.choice)} days`]
+      : [],
+  ),
+)
 
 /** The shortest and longest efforts a threshold is fitted to, as copy: "3 to 20 min". */
 const THRESHOLD_EFFORTS = `${CP_FIT_MIN_S / 60} to ${effortLabel(CP_FIT_MAX_S)}`
 
-/** Every feature the app has today, each in one state, in the order the page lists them. */
-export const CALCULATION_ITEMS: readonly CalculationItem[] = [
+/** The longer best a threshold's floor is taken from, s: the best 30 min where the curve holds one. */
+const FLOOR_LONG_S = 30 * 60
+
+const HEADLINE = effortLabel(HEADLINE_DURATION_S)
+
+/** The entries about the efforts and what is drawn from them, calculated by the app, in page order. */
+export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
   {
-    name: 'Balance and levels',
+    name: 'Thresholds and floors',
     state: 'calculated',
     lines: [
-      `Each sport’s best ${HEADLINE_LABEL} is graded for your age and sex on published standards.`,
-      'The two grades give the balance.',
-      'Rides are graded through a running equivalent.',
+      `A threshold is critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts.`,
+      'Its range is the fit’s own range, which is not the balance’s 90% range.',
+      `A floor, marked “At least”, is your best ${effortLabel(FLOOR_LONG_S)} or else ${HEADLINE}, and your real threshold is at least that.`,
+      `A ${HEADLINE} best that was not hard sets a floor instead of a threshold.`,
     ],
-  },
-  {
-    name: 'Thresholds and their range',
-    state: 'calculated',
-    lines: [
-      `Critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts.`,
-      'Its range is the fit’s own range.',
-      'It is not the balance’s 90% range.',
+    detail: [
+      `A best under ${HEADLINE} is labelled with its length and is not a floor.`,
+      'A threshold’s own range is drawn lighter.',
+      'It runs down by one standard error of the fit.',
+      'It runs up by an allowance for how hard the effort behind it was.',
+      'A best that was not quite all-out puts the fit under the truth.',
+      'So the spread reaches further above the threshold than below it.',
+      'It reaches further the less clearly hard the effort was.',
+      'The allowance is calibrated on simulated athletes.',
+      'It is not measured on people.',
+      'The spread shows how loosely the fit was pinned down.',
+      'It does not show where your capability lies.',
     ],
   },
   {
@@ -59,27 +70,93 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     state: 'calculated',
     lines: [
       'The best pace or power you held for each length of time, from every activity in the period.',
+      'Best efforts are only as good as the hardest efforts on file.',
+      `Running bests by time start at ${effortLabel(RECORD_DURATIONS_S.run[0]!)} and the running curve at ${effortLabel(CURVE_START_S.run)}.`,
+      'Shorter slope-adjusted windows mostly measure the slope reading, so they say little about the runner.',
     ],
   },
   {
     name: 'Best efforts over time',
     state: 'calculated',
     lines: [
-      'The best of each stretch, on the day it was done.',
-      'It shows when each best was set.',
+      'Each dot is the best effort of its stretch, on the day it was done.',
+      `Each chart is for one length: ${EFFORT_PHRASE}.`,
+      'Running uses grade-adjusted pace (GAP).',
+      'That is your pace allowing for hills, as if on level ground.',
+      'Cycling uses power in watts.',
+      'Older dots are fainter.',
+      'There is no line.',
+      'The days between two dots hold no reading.',
+      'A line through best efforts shows how often you went hard as much as how fit you were.',
+      'A fitness status comes from steady efforts at the same heart rate.',
+      'Where a sport has one, that status is the trend.',
+    ],
+    detail: [
+      'A dot is the effort that led a trailing window ending on some Sunday in UTC.',
+      `Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days.`,
+      `So ${WINDOW_EXAMPLES}.`,
+      `All time uses ${DEFAULT_WINDOW_DAYS} days.`,
+      'Each effort is judged on energy rate.',
+      'It is converted with the period’s one bike model, which is fitted to its activities.',
+      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
+      'The size taken out is under See the evidence on the card.',
     ],
   },
   {
-    name: 'Whether a change is a change',
+    name: 'How a change is called',
     state: 'calculated',
-    lines: ['A move between two periods is called a change only when it is bigger than chance.'],
+    lines: [
+      'The app calls a change only when it is bigger than chance.',
+      'Chance is worked out from your own efforts in both periods.',
+      'It pools the efforts of the period and the one before.',
+      'It deals them out at random into a “now” and a “before” side, each at its real size.',
+      'It calls a change when the real difference falls outside the middle 90% of those deals.',
+      'So the bar is yours.',
+      'It is wider for a length with few efforts.',
+      'It is also wider when efforts vary more.',
+      `With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it.`,
+      'A best is a floor on what you can do.',
+      'So a period without a hard effort can read as lower.',
+    ],
+    detail: [
+      `For each length the two periods’ efforts are dealt out ${CHANGE.draws.toLocaleString('en-US')} times.`,
+      'Each difference is the natural log of one side’s best over the other’s.',
+      'Running is compared as grade-adjusted speed, and cycling as watts per kilogram.',
+      'So a change of weight between the periods is not read as a change of power.',
+      'The band is the 5th to the 95th percentile of those deals.',
+      'A card, a strip or a title that states a change on its own is held to the 2.5th to the 97.5th.',
+      'The simulated libraries had a real library’s spread.',
+      'Periods with no change were called a change in 3% to 8% of pairs on a record row.',
+      'On a title or the strip, it was 2% to 5%.',
+      'The same simulations found a 10% gain in a run’s 20 min in about two athletes in five.',
+      'For a ride’s 5 min, a 10% gain was found in about one athlete in eight.',
+      'A swing in how many hard efforts a period holds is not allowed for.',
+      'It reads as a change in the best.',
+    ],
+  },
+  {
+    name: 'The default period',
+    state: 'calculated',
+    lines: [
+      'The default period is the shortest window where every sport qualifies.',
+      'The windows tried are 12 weeks, 26 weeks and 12 months.',
+      'Each sport needs 3 activities with a usable effort.',
+      'Each sport also needs a 20 min best that is hard, or not checked.',
+      'If no window qualifies, the default is the one with evidence for every sport and the most sports qualifying.',
+      'With no evidence for every sport, all time is used.',
+      'Evidence is a threshold, or a 20 min best.',
+      'If two windows tie, the shorter one is used.',
+      'A period you pick yourself is always used.',
+    ],
   },
   {
     name: 'Race predictions',
     state: 'calculated',
     lines: [
       'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance.',
-      'Each has a range from typical prediction error.',
+      'A race prediction’s range is a typical prediction error for that distance.',
+      'The marathon’s range comes from a published validation.',
+      'The shorter races’ ranges are a judgement, scaled down with distance.',
     ],
   },
   {
@@ -99,178 +176,11 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     ],
   },
   {
-    name: 'Level target',
-    state: 'calculated',
-    lines: [
-      'What the lower sport’s best effort would need to be to match the other.',
-      'It is in that sport’s own unit.',
-    ],
-  },
-  {
-    name: 'Grade by duration',
-    state: 'calculated',
-    lines: [
-      'Your age grade at each effort length.',
-      'It shows which lengths each sport grades higher.',
-    ],
-  },
-  {
     name: 'Best durations',
     state: 'calculated',
     lines: [
       'Each best is set against your own curve.',
       'A length that stands out from the rest is named.',
     ],
-  },
-  {
-    name: 'Virtual power',
-    state: 'calculated',
-    lines: [
-      'Estimated watts on steady climbs for rides with no power meter.',
-      'They come from speed, gradient and your weight.',
-      'They are checked against rides that have a meter.',
-    ],
-  },
-  {
-    name: 'Splits',
-    state: 'calculated',
-    lines: [
-      'Run splits by kilometre or mile, with grade-adjusted pace.',
-      'They come from the recorded distance and moving time.',
-      'Laps the device recorded are offered as a second view.',
-    ],
-  },
-  {
-    name: 'Moving time and climb',
-    state: 'calculated',
-    lines: [
-      'Moving time leaves out pauses and gaps in the recording.',
-      'Climb adds up the recorded altitude.',
-      'It ignores small barometer noise.',
-    ],
-  },
-  {
-    name: 'The timeline in detail',
-    state: 'calculated',
-    lines: [
-      'The detail view shows your measures on one time axis, smoothed to what you are viewing.',
-      'It summarises any stretch you select.',
-    ],
-  },
-  {
-    name: 'Time in zones',
-    state: 'calculated',
-    lines: [
-      'How long you spent in each training zone over a period, or a stretch you select.',
-      'It uses heart rate, power meter and run pace, by each day’s zones.',
-    ],
-  },
-  {
-    name: 'Durability',
-    state: 'calculated',
-    lines: [
-      'Your best 5 and 20 minute output after the first hour or two of a session.',
-      'It also shows how efficiency drifts across a steady effort of an hour or more.',
-    ],
-  },
-  {
-    name: 'How your reps held up',
-    state: 'calculated',
-    lines: [
-      'For intervals with a slower or shorter recovery between laps of one length, how each rep moved from the first to the last.',
-    ],
-  },
-  {
-    name: 'Weekly hours by sport',
-    state: 'calculated',
-    lines: [
-      'Moving time each week for each sport, under the Balance trend.',
-      'It shows how the hours were shared.',
-    ],
-  },
-  {
-    name: 'Runs at walking pace',
-    state: 'calculated',
-    lines: [
-      'A run slower than 15:00 a mile with no runner’s cadence or jogging is marked as walking pace.',
-      'It is left out of your run analysis.',
-    ],
-  },
-  {
-    name: 'Dated settings and estimated zones',
-    state: 'calculated',
-    lines: [
-      'Weight, max heart rate and threshold apply from their dates.',
-      'With none entered, they are estimated from your activities.',
-      'Zones are cut from them.',
-    ],
-  },
-  {
-    name: 'Equivalence across sports',
-    state: 'calculated',
-    lines: [
-      'A ride’s power is converted to the running pace that costs the same energy.',
-      'Your heart rate checks that conversion in both sports.',
-      'So the two share one unit.',
-    ],
-  },
-  {
-    name: 'Heart-rate set-aside',
-    state: 'calculated',
-    lines: [
-      'A heart rate that cannot be right for the effort is left out of the heart-rate checks.',
-      'The watts and pace still count.',
-    ],
-  },
-  {
-    name: 'Sport, start time, distance, speed and route',
-    state: 'read',
-    lines: [
-      'Sport is the file’s activity type.',
-      'Distance and speed are the device’s.',
-      'Otherwise they come from the recorded GPS positions with bad fixes dropped.',
-    ],
-  },
-  {
-    name: 'Heart rate',
-    state: 'read',
-    lines: [
-      'Each reading is your sensor’s.',
-      'Dropouts and implausible readings are left out, never corrected.',
-    ],
-  },
-  {
-    name: 'Power from a power meter',
-    state: 'read',
-    lines: ['Watts from a meter are the meter’s own readings.'],
-  },
-  {
-    name: 'Timelines and laps',
-    state: 'read',
-    lines: [
-      'Speed, heart rate, power, cadence, altitude and temperature as recorded.',
-      'Also the laps your device marked.',
-    ],
-  },
-  {
-    name: 'Readiness and recovery scores',
-    state: 'unavailable',
-    lines: [
-      'They are built from sleep, heart-rate variability and resting heart rate.',
-      'An activity file does not carry those.',
-    ],
-  },
-  {
-    name: 'Vendor tests such as 4DP',
-    state: 'unavailable',
-    lines: [
-      'They come from the vendor’s own test and model.',
-      'So they cannot be worked out from an activity file.',
-    ],
-  },
-  {
-    name: 'Lab measures such as lactate',
-    state: 'unavailable',
-    lines: ['They need a blood sample or a gas analyser.', 'No activity file records either.'],
   },
 ]

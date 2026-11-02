@@ -1,7 +1,9 @@
 import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
+import { MethodLines } from '../components/MethodLines'
+import { MethodText } from '../components/MethodText'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { SECTION_ID } from '../components/methodTopics'
-import { LEVEL_BANDS, SEX_NOUN } from '../grades'
+import { HEADLINE_LABEL, LEVEL_BANDS, SEX_NOUN } from '../grades'
 import { hrefFor } from '../route'
 import './AgeGradingSection.css'
 
@@ -40,58 +42,70 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
       <h2 id={SECTION_ID.grades} tabIndex={-1}>
         Age grades and levels
       </h2>
-      <p className="secondary">
-        {`A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and sex, divided by your time.`}
-      </p>
-      <p className="secondary">70% means 70% of standard pace.</p>
-      <p className="secondary">{`Levels are bands of the grade: ${BAND_TEXT}.`}</p>
-      <p className="secondary">{`Below ${RECREATIONAL_BELOW}% is Recreational.`}</p>
-      <p className="secondary">A level name shows only when the whole range sits in one band.</p>
-      <p className="secondary">
-        Otherwise the number and its range show alone, with no level name.
-      </p>
-      <p className="secondary">A run’s grade uses its grade-adjusted pace (GAP).</p>
-      <p className="secondary">GAP is the recorded pace, corrected for hills.</p>
-      <p className="secondary">A ride has no published cycling standard.</p>
-      <p className="secondary">Its best effort is converted to a running equivalent.</p>
-      <p className="secondary">
-        That is the flat running speed that costs the same energy over the same time.
-      </p>
-      <p className="secondary">The equivalent is graded like a run.</p>
-      <p className="secondary">So a ride grade is an estimate.</p>
-      <p className="secondary">
-        The level target on Balance is the watts whose running equivalent grades to the other
-        sport’s whole-percent grade.
-      </p>
-      <p className="secondary">Its range is the 5th to 95th percentile of the equivalence.</p>
-      <p className="secondary">
-        Grade by duration on Balance grades each sport’s best effort at each duration.
-      </p>
-      <p className="secondary">A ride comes with its range.</p>
-      <p className="secondary">
-        A sport is higher at a duration only where the run’s grade leaves the ride’s range.
-      </p>
-      <p className="secondary">Inside that range, the two are level.</p>
-      <p className="secondary">Each effort is graded at your age on its own date.</p>
-      <p className="secondary">It is not graded at the newest activity’s date.</p>
-      <p className="secondary">Age changes across a period, so the date matters.</p>
-      <p className="secondary">A run takes the date of its best effort at that duration.</p>
-      <p className="secondary">A ride takes the date of its own best ride at that duration.</p>
-      <p className="secondary">Its running equivalent comes from that ride.</p>
-      <p className="secondary">
-        {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
-        <a className="age-grading__link" href={hrefFor({ page: 'profile' })}>
-          Change age and sex
-        </a>
-      </p>
-      <p className="muted age-grading__source">
-        Source: <StandardsCredit />, a public domain dedication.
-      </p>
-      <ul className="method__facts">
-        {LIMITS.map((limit) => (
-          <li key={limit}>{limit}</li>
-        ))}
-      </ul>
+      <MethodText>
+        <MethodLines
+          lines={[
+            `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and sex, divided by your time.`,
+            '70% means 70% of standard pace.',
+            `Levels are bands of the grade: ${BAND_TEXT}.`,
+            `Below ${RECREATIONAL_BELOW}% is Recreational.`,
+            'A level name shows only when the whole range sits in one band.',
+            'Otherwise the number and its range show alone, with no level name.',
+            'A run’s grade uses its grade-adjusted pace (GAP).',
+            'GAP is the recorded pace, corrected for hills.',
+          ]}
+        />
+        <MethodLines
+          lines={[
+            'A ride has no published cycling standard.',
+            'Its best effort is converted to a running equivalent.',
+            'That is the flat running speed that costs the same energy over the same time.',
+            'The equivalent is graded like a run.',
+            'So a ride grade is an estimate.',
+            `The grades of each sport’s best ${HEADLINE_LABEL} give the balance.`,
+          ]}
+        />
+        <MethodLines
+          lines={[
+            'The level target on Balance is what the lower sport’s best effort would need to be to match the other.',
+            'It is in that sport’s own unit.',
+            'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
+            'Its range is the 5th to 95th percentile of the equivalence.',
+          ]}
+        />
+        <MethodLines
+          lines={[
+            'Grade by duration on Balance grades each sport’s best effort at each duration.',
+            'A ride comes with its range.',
+            'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
+            'Inside that range, the two are level.',
+          ]}
+        />
+        <MethodLines
+          lines={[
+            'Each effort is graded at your age on its own date.',
+            'It is not graded at the newest activity’s date.',
+            'Age changes across a period, so the date matters.',
+            'A run takes the date of its best effort at that duration.',
+            'A ride takes the date of its own best ride at that duration.',
+            'Its running equivalent comes from that ride.',
+          ]}
+        />
+        <p className="secondary">
+          {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
+          <a className="age-grading__link" href={hrefFor({ page: 'profile' })}>
+            Change age and sex
+          </a>
+        </p>
+        <p className="muted age-grading__source">
+          Source: <StandardsCredit />, a public domain dedication.
+        </p>
+        <ul className="method__facts">
+          {LIMITS.map((limit) => (
+            <li key={limit}>{limit}</li>
+          ))}
+        </ul>
+      </MethodText>
     </section>
   )
 }

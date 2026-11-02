@@ -11,8 +11,7 @@ export const SECTION_NAME: Record<keyof typeof SECTION_ID, string> = {
   grades: 'Age grades and levels',
   heart: 'Heart-rate check',
   accuracy: 'Virtual power meter accuracy',
-  calculated: 'What is calculated',
-  how: 'How this works and what it assumes',
+  how: 'How this works',
 }
 
 /** The sections on the page, in order. The accuracy section shows only when there is one. */
@@ -22,7 +21,6 @@ export function contentsOf(hasAccuracy: boolean): ContentsEntry[] {
     { id: SECTION_ID.grades, label: SECTION_NAME.grades },
     { id: SECTION_ID.heart, label: SECTION_NAME.heart },
     ...(hasAccuracy ? [{ id: SECTION_ID.accuracy, label: SECTION_NAME.accuracy }] : []),
-    { id: SECTION_ID.calculated, label: SECTION_NAME.calculated },
     { id: SECTION_ID.how, label: SECTION_NAME.how },
   ]
 }

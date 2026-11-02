@@ -21,6 +21,11 @@ export const ENERGY_BRIDGE = [
   'Both come from the same 90% spread in the model’s assumptions.',
   'So the two ranges describe one uncertainty in two units.',
 ]
+/** What the 90% range is, once, under the energy view. */
+export const ENERGY_RANGE = [
+  'The 90% range is the spread the model gives for its assumptions.',
+  'If those assumptions hold, the true value falls inside it nine times in ten.',
+]
 /** The energy view when Balance shows the energy ratio instead of an age-grade gap. */
 export const ENERGY_FALLBACK = [
   'When Balance has no age-grade gap to show, it shows the energy ratio instead.',
