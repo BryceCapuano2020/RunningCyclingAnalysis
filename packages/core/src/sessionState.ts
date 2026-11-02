@@ -96,7 +96,7 @@ export interface SessionState {
   effortTrends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
   /** The effort lengths whose dots the effort gate left too few to draw, that the period has without it: their empty state names the gate. */
   dotsWithheld: DotsWithheld
-  /** Each sport's output at one heart rate, week by week over the period. */
+  /** Each sport's output at one heart rate, week by week over the period: the heart rate the fitness card names. */
   sameHeartRate: SameHeartRateBySport
   /** Each sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
   lateEvidence: LateEvidenceBySport
@@ -107,7 +107,8 @@ export interface SessionState {
   heartRateJudgement: HeartRateJudgement
   /**
    * Each sport's fitness at the same effort over the whole library, whatever period is picked: slipping,
-   * holding, recovering, back, or not enough evidence yet, with the figures and runs behind it.
+   * holding, recovering, back, or not enough evidence yet, with the figures and runs behind it. Its onset and low are
+   * dated by the look-back's episode where the look-back lists it (lookback/cardDates.ts).
    */
   fitness: FitnessBySport
   /**

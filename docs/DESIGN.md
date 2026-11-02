@@ -487,7 +487,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   A week's window is the 28 days to its Sunday, or 56 days when those hold under 6 activities, so a quiet month still reads. A period with
   no week that reports reads the library's newest weeks instead (up to a year), as the reference heart rate is read, and the note says
   "These are your newest weeks, whatever the period." All time shows every week that reports, not the newest 52; a period shows its newest 52 at most.
-  The spread and range checks stay as they were. The reference heart rate is the library's, not the period's. The words are "pace at heart rate", never "fitness"
+  The spread and range checks stay as they were. The heart rate is the fitness card's, under every period, so the card, the look-back and these weeks name one number (`sameHeartRate` takes it as `referenceHr`; a sport the card has none for reads at the median of its own blocks). A week whose 28 days lie wholly above or below that heart rate reaches back 56 days too, so the series keeps one heart rate (the week is marked `wide`); only a week that neither window reaches has no reading. The words are "pace at heart rate", never "fitness"
   (apart from the status), "limiter", "weak", "strength", "holding you back" or "ahead of". The chart is named with the heart rate,
   "Pace at 145 bpm, by week" ("Power at 145 bpm, by week" for a ride). It draws a light dot for each week that reports (a diamond
   for a ride, as in every chart); a week that does not report has no dot and a mark on the date axis. The vertical axis is the
@@ -1457,6 +1457,8 @@ reliably. A change of 5% it usually sees within a few months, and not always."; 
 a ride, a run's inside about 4%; a ride is adjusted for heart rate only, a run for heart rate and climb); the steady runs it rests on as links to their activities (the newest eight,
 then all on a press); and why some runs do not count. The level series is `FitnessStatus.series`: at most 20 points, no per-run data; a step is named by the weeks it is read over and dated by the last day it includes ("the 8 weeks to 25 Oct"). The copy is in the athlete's units: a run is read in whole kilometres, so for miles it gives the distance in miles beside them. The older weekly same-heart-rate section is the weekly view only: it is titled "Pace at heart rate" ("Power at heart rate" for a ride) and claims no change for either sport, so there is one voice on the signal.
 
+**One episode.** The card follows one episode of the monitor, and dates its onset and its low from the runs up to then (the low is the middle of the lowest 20-week level of the whole episode). The look-back cuts the same runs into plateaus once it sees both sides of every change, so it can split a long episode in two slips, and the card's low could fall past the end of the slip it names, in the next year. Where the look-back lists the episode, the card takes its dates (`datedByLookBack`, `lookback/cardDates.ts`, applied in `buildState`): the onset becomes the start of the slip or rise that begins within 14 weeks of it, and the low is kept when it lies inside the deepest slip from there on and moved to the middle of that slip when it does not. An episode the look-back does not list keeps the card's dates. The count of runs the level before is read from is taken again over the weeks before the new onset, so "N in the 32 weeks before March" counts the weeks it names. A finding about the episode takes the same dates (`datedAt`, only when it speaks). The History chart shades the look-back's episodes, so the card, the look-back and the chart name the same ones.
+
 **Terms in a sentence.** A defined term in a paragraph reaches a pixel past its line (`p .definition__term::after`), as wide as
 its text and as tall as the line. Consecutive lines of a sentence touch, so the 12 px reach a term keeps elsewhere let a press on
 the lower half of one term open the term on the line below it. A term outside a paragraph keeps its 44 px target.
@@ -1486,10 +1488,9 @@ the years need).
 own finding ("Your pace at 148 bpm slipped in 2021 and came back"). The finding is the latest episode that ended; else one
 still open, as the year it began; else a quiet stretch, only while the card allows saying a level held; else, with only bests,
 "Your best efforts by year"; a short library has no finding on its row.
-Opened it holds, in this order: the chart, the episodes, the quiet stretches and stretches with no steady runs (steady rides on
-the Ride page), the bests by year. The chart draws the plateaus as a step line with the 90% range of each as a band, and each
-episode as a span labelled Slip, Rise or Break (shape and word; the slips have a dashed edge), with the plateaus as its table
-twin. The groups are headed with h3. A short library gets one line of what it needs and what it has ("Needs 40 steady runs over 52 weeks. You have 23 over 19.") here and nowhere else, never on
+Opened it holds, in this order: the episodes, the quiet stretches and stretches with no steady runs (steady rides on
+the Ride page), the bests by year. The picture of the years is the History tab's ("Fitness over the years"), so the section
+draws none. The groups are headed with h3. A short library gets one line of what it needs and what it has ("Needs 40 steady runs over 52 weeks. You have 23 over 19.") here and nowhere else, never on
 Balance. A sport with nothing to say has no section.
 
 **Copy.** It leads with an episode or a recovery, never a standing best. It says nothing of now (the card does), gives no
@@ -1500,8 +1501,8 @@ listed at the size the runs show it, so a small one reads as small.
 
 A tab between Ride and Activities. It ignores the period and shows the whole library, built in the worker from the
 analysed digests (`packages/core/src/history`) and remembered like the look-back. All the parts together stay within
-100 ms to build 2,000 activities, 2 ms again and 35.8 KB of JSON, 20% over the 29.8 KB the seven parts post for that
-library (`history.perf.test.ts`).
+100 ms to build 2,000 activities, 2 ms again and 47.9 KB of JSON, 20% over the 39.9 KB the eight parts post for that
+library, 10 KB of it the fitness dots (`history.perf.test.ts`).
 
 **The page.** The title, one row of totals (years on file, total hours, each sport's distance in the units setting; a
 sport with no activity has none), then one chart for each section, each on `ChartFrame` with its table, tooltip and
@@ -1550,3 +1551,16 @@ labelled) and the rest are thin grey lines with no label. The title is the findi
 power peaked in 2024"), or "is fastest in" for a pace and "is highest in" for a power when the newest year holds it. An
 estimate is never the best year while a year has a measured value. A sport needs two years to be compared. The table twin
 lists every year at every duration, tagging an estimated value ", estimated".
+
+**Fitness over the years.** Every steady run or ride of the library as one dot, its pace or power at the fitness card's heart
+rate, with a line through their median and the look-back's slips and rises shaded behind (a slip has a dashed edge; each
+carries its word). A toggle picks the sport when both have at least 8 steady activities; a sport with fewer is left out, and a library with neither gets one line saying what to add. The vertical axis is fitted to the dots, from the 1st to the 99th percentile once there are 100 of them, and a dot past it sits on the edge of the plot, so a few runs read wrong do not squeeze the years into a band. The title is "Fitness over the years" and one line under it
+names the measure ("Pace at 142 bpm on steady runs"). The core part (`history/fitness.ts`) reads the dots from the card's
+own memory of the runs (`fitnessHistories`) and the spans from the look-back's (`hindsightsOf`), so the dots are the steady
+runs the card counts, at its heart rate, over the episodes the look-back lists, and the session replays each sport once for
+the card, the look-back and this chart. It posts compact arrays: the first dot's day and the days between dots, each value in steps (0.01 m/s for a run,
+1 W for a ride), the median every 28 days over the 6 weeks either side (null where fewer than 4 dots fall in them, so a long
+gap breaks the line), the middle 80% of each calendar year, and the spans. About 7 bytes a dot: 1,750 steady activities of
+2,000 post in 12 KB. The dots are one path (a point of zero length with a round cap for a run, a closed diamond for a ride),
+not a node each, so 2,000 stay smooth. The keyboard reads one calendar year at a time (median, middle 80%, count, and any
+slip or rise in it), and the table twin lists the same years, with the slips and rises in a second table.

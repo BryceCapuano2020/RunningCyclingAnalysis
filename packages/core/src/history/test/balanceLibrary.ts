@@ -102,3 +102,6 @@ export const TWELVE_YEARS: readonly YearSpec[] = Array.from({ length: 12 }, (_, 
 })
   .filter(({ year }) => year !== 2018)
   .map((spec) => (spec.year === 2016 ? { year: spec.year, run: spec.run } : spec))
+
+/** Steady runs, three a week from January 2021, at one heart rate: what the fitness dots are drawn from. */
+export { steadyLibrary } from '../../fitness/test/runDigest'

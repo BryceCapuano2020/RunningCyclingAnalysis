@@ -5,6 +5,7 @@ import { plantedLibrary } from '../findings/test/plantedLibrary'
 import type { PlantedSpec } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { ActivityDigest } from '../types'
+import { datedByLookBack } from '../lookback/cardDates'
 import { fitnessHistories, fitnessStatuses } from './compute'
 import { NO_FITNESS } from './types'
 
@@ -284,7 +285,18 @@ describe('the session', () => {
   it("reads the library's own set-aside judgement, not a period's", () => {
     const state = sessionOn().loadDigests(planted.digests, settings)
     const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside))
-    expect(state.fitness).toEqual(direct)
+    // The card names its episode by the look-back's dates (lookback/cardDates.ts); nothing else of the status moves.
+    const histories = fitnessHistories(planted.digests, new Set(state.heartRateJudgement.setAside))
+    expect(state.fitness).toEqual(datedByLookBack(direct, state.lookBack, histories))
+    for (const sport of ['run', 'ride'] as const) {
+      const { onsetMs, lowMs, evidence, ...rest } = state.fitness[sport]
+      const { onsetMs: _onset, lowMs: _low, evidence: before, ...same } = direct[sport]
+      expect(rest).toEqual(same)
+      // The runs the level before is counted over move with the onset; the recent runs do not.
+      expect(evidence?.recent).toEqual(before?.recent)
+      expect(Math.abs((onsetMs ?? 0) - (direct[sport].onsetMs ?? 0))).toBeLessThan(15 * WEEK)
+      expect(lowMs === null).toBe(direct[sport].lowMs === null)
+    }
   })
 
   it('is empty before anything is loaded and after a clear', () => {

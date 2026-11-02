@@ -5,6 +5,7 @@ import {
   balanceLibrary,
   REFERENCE,
   SETTINGS,
+  steadyLibrary,
   TWELVE_YEARS,
 } from '@rca/core/history/test/balanceLibrary'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -15,9 +16,12 @@ import { HistoryPage } from './HistoryPage'
 
 afterEach(cleanup)
 
-/** The twelve synthetic years, with a maximum heart rate for each sport so the intensity part has zones to cut by. */
+/**
+ * The twelve synthetic years, with a maximum heart rate for each sport so the intensity part has zones to cut by, and a
+ * year of steady runs for the fitness dots.
+ */
 function everyChart() {
-  const history = historyOf(balanceLibrary(TWELVE_YEARS), {
+  const history = historyOf([...balanceLibrary(TWELVE_YEARS), ...steadyLibrary(150)], {
     settings: {
       ...SETTINGS,
       measurements: [
@@ -36,7 +40,7 @@ function everyChart() {
 }
 
 describe('HistoryPage with every chart', () => {
-  it('draws the seven sections in page order, each with a chart of the library and none empty', () => {
+  it('draws the eight sections in page order, each with a chart of the library and none empty', () => {
     const sections = everyChart()
     expect(sections.map((section) => section.dataset.section)).toEqual([
       'balance-over-years',
@@ -45,6 +49,7 @@ describe('HistoryPage with every chart', () => {
       'year-to-date',
       'bests-by-year',
       'best-curve-by-year',
+      'fitness-over-years',
       'intensity-by-year',
     ])
     for (const section of sections) {

@@ -17,9 +17,22 @@ describe('the session state: output at the same heart rate', () => {
     const expected = sameHeartRate(
       digests(),
       new Set(combine(digests(), SETTINGS).heartRateSetAside),
-      {},
+      { referenceHr: { run: state.fitness.run.referenceHr, ride: state.fitness.ride.referenceHr } },
     )
     expect(state.sameHeartRate).toEqual(expected)
+  })
+
+  it('is read at the heart rate the fitness card names, under every period, for both sports', () => {
+    const session = new AnalysisSession()
+    session.loadDigests(digests(), SETTINGS)
+    for (const choice of ['all', 42] as const) {
+      const state = session.setRange(choice, SETTINGS)
+      for (const sport of ['run', 'ride'] as const) {
+        expect(state.fitness[sport].referenceHr).not.toBeNull()
+        expect(state.sameHeartRate[sport].referenceHeartRate).toBe(state.fitness[sport].referenceHr)
+        expect(state.lookBack.sports[sport].referenceHr).toBe(state.fitness[sport].referenceHr)
+      }
+    }
   })
 
   it('is not worked out again when only the body mass changes', () => {

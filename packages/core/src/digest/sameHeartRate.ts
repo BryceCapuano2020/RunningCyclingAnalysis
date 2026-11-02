@@ -146,14 +146,13 @@ function windowOf(endMs: number, blocks: readonly Block[], windowMs: number): Bl
   )
 }
 
-function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
-  const narrow = windowOf(endMs, blocks, WINDOW_MS)
-  // A window short of activities reaches back further, so a quiet month still reads. It stays the narrow one
-  // when reaching back finds nothing more.
-  const short = new Set(narrow.map((b) => b.activity)).size < SAME_HEART_RATE.minActivities
-  const reaching = short ? windowOf(endMs, blocks, WIDE_WINDOW_MS) : narrow
-  const wide = reaching.length > narrow.length
-  const window = wide ? reaching : narrow
+/** One week read over `window`, at the reference heart rate. `wide` marks a window that reached back past 28 days. */
+function readWeek(
+  endMs: number,
+  window: readonly Block[],
+  referenceHr: number,
+  wide: boolean,
+): SameHeartRateWeek {
   const activities = new Set(window.map((b) => b.activity)).size
   const base = {
     endMs,
@@ -169,6 +168,25 @@ function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): S
   const random = mulberry32(SAME_HEART_RATE.seed + Math.round(endMs / WEEK_MS))
   const fit = outputAtHeartRate(fitBlocksOf(kept), referenceHr, random)
   return { ...base, fit, lacks: fit === null ? 'spread' : null }
+}
+
+/**
+ * A week: the 28 days to its end read at the reference heart rate. A window short of activities reaches back further, so
+ * a quiet month still reads; it stays the narrow one when reaching back finds nothing more. The reference is the fitness
+ * card's, which 28 days can lie wholly above or below (a fit is never read past its blocks): such a week reaches back the
+ * same way, so the series keeps its one heart rate, and has no reading only when the longer window does not reach it either.
+ */
+function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+  const narrow = windowOf(endMs, blocks, WINDOW_MS)
+  const short = new Set(narrow.map((b) => b.activity)).size < SAME_HEART_RATE.minActivities
+  const reaching = short ? windowOf(endMs, blocks, WIDE_WINDOW_MS) : narrow
+  const wide = reaching.length > narrow.length
+  const week = readWeek(endMs, wide ? reaching : narrow, referenceHr, wide)
+  if (week.lacks !== 'range' || wide) return week
+  const wider = windowOf(endMs, blocks, WIDE_WINDOW_MS)
+  if (wider.length <= narrow.length) return week
+  const again = readWeek(endMs, wider, referenceHr, true)
+  return again.lacks === null ? again : week
 }
 
 /**
@@ -195,9 +213,9 @@ function weekEnds(
 }
 
 /**
- * The reference heart rate: the median heart rate of the library's blocks in its newest referenceWeeks
- * weeks, rounded to the reference step. It is the library's, not the period's, so choosing another
- * period does not move it. Null without a block.
+ * The reference heart rate when the caller has none to give: the median heart rate of the library's blocks in its newest
+ * referenceWeeks weeks, rounded to the reference step. It is the library's, not the period's, so choosing another
+ * period does not move it. Null without a block. The session always gives the fitness card's instead.
  */
 function referenceOf(library: readonly Block[]): number | null {
   const last = library.at(-1)
@@ -241,10 +259,11 @@ function forSport(
   sport: Sport,
   setAside: ReadonlySet<string>,
   fromMs: number | undefined,
-  newestWeeks?: number,
+  newestWeeks: number | undefined,
+  given: number | null | undefined,
 ): SameHeartRate {
   const libraryBlocks = blocksOf(library, sport, setAside)
-  const referenceHeartRate = referenceOf(libraryBlocks)
+  const referenceHeartRate = given ?? referenceOf(libraryBlocks)
   if (referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
   const all = library === ordered ? libraryBlocks : blocksOf(ordered, sport, setAside)
   const libraryLast = weekEndsSpan(library)!.last
@@ -267,11 +286,24 @@ function forSport(
     : { referenceHeartRate, ...own, latestWeekEndMs }
 }
 
+/** What `sameHeartRate` is given besides the digests and the set-aside list. */
+export interface SameHeartRateOptions {
+  fromMs?: number
+  library?: ActivityDigest[]
+  newestWeeks?: number
+  /**
+   * The heart rate each sport is read at: the fitness card's, so that the card, the look-back and these weeks name one
+   * heart rate. A sport with none (null, or left out) is read at the median of its own blocks.
+   */
+  referenceHr?: Partial<Record<Sport, number | null>>
+}
+
 /**
  * Each sport's output at the same heart rate, week by week. For a week, the blocks of steady effort
- * in the 28 days to its Sunday (56 when those hold under six activities) are fitted by Theil-Sen, output on
- * heart rate, and read at one reference heart rate for every period: the median heart rate of the library's
- * newest year of blocks. A period with no week to draw takes the library's newest weeks instead.
+ * in the 28 days to its Sunday (56 when those hold under six activities, or none on one side of the reference) are
+ * fitted by Theil-Sen, output on heart rate, and read at one reference heart rate for every period: the fitness
+ * card's (`referenceHr`), else the median heart rate of the library's newest year of blocks. A period with no week to
+ * draw takes the library's newest weeks instead.
  * Measured rides and outdoor runs only, and not the activities whose heart rate is set aside. fromMs is
  * the period's start, so that no window reaches before it; `library` is every digest, whatever the
  * period, and is the digests when not given. All time reports every week; `newestWeeks` caps it to the newest
@@ -281,12 +313,19 @@ function forSport(
 export function sameHeartRate(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
-  opts: { fromMs?: number; library?: ActivityDigest[]; newestWeeks?: number },
+  opts: SameHeartRateOptions,
 ): SameHeartRateBySport {
   const ordered = orderedFor('sameHeartRate', digests)
   const library = opts.library === undefined ? ordered : orderedFor('sameHeartRate', opts.library)
-  return {
-    run: forSport(ordered, library, 'run', setAside, opts.fromMs, opts.newestWeeks),
-    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs, opts.newestWeeks),
-  }
+  const forThe = (sport: Sport) =>
+    forSport(
+      ordered,
+      library,
+      sport,
+      setAside,
+      opts.fromMs,
+      opts.newestWeeks,
+      opts.referenceHr?.[sport],
+    )
+  return { run: forThe('run'), ride: forThe('ride') }
 }

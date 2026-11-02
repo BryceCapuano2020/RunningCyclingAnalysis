@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import '../../test/deviceZone'
 import { GRADING, balanceRows, TWELVE_YEARS } from '../balanceFixtures'
+import { dotsFixture, slipAndRise } from '../fitnessYearsFixtures'
 import { historyOfYears, THREE_YEARS, yearRow } from '../historyFixtures'
 import { HistoryPage } from './HistoryPage'
 
@@ -33,6 +34,25 @@ describe('HistoryPage', () => {
     rerender(<HistoryPage history={history} units="metric" grading={missing} />)
     expect(screen.getByText('Age grade by year needs your sex.')).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: 'Hours per year' })).toBeInTheDocument()
+  })
+
+  it('adds the fitness dots after the hours, with a toggle for the sport when both have some', () => {
+    const history = {
+      ...historyOfYears(THREE_YEARS),
+      fitness: {
+        run: dotsFixture({ years: [2021, 2022, 2023], spans: slipAndRise(2021) }),
+        ride: dotsFixture({ sport: 'ride', years: [2022, 2023] }),
+      },
+    }
+    const { container } = render(<HistoryPage history={history} units="metric" grading={GRADING} />)
+    const names = screen
+      .getAllByRole('figure')
+      .map((figure) => figure.querySelector('figcaption')?.textContent)
+    expect(names.indexOf('Hours per year')).toBeGreaterThanOrEqual(0)
+    expect(names.indexOf('Fitness over the years')).toBeGreaterThan(names.indexOf('Hours per year'))
+    const section = container.querySelector<HTMLElement>('[data-section="fitness-over-years"]')!
+    expect(within(section).getByRole('radio', { name: 'Run' })).toBeChecked()
+    expect(within(section).getByRole('radio', { name: 'Ride' })).toBeInTheDocument()
   })
 
   it('works for one year of one sport', () => {

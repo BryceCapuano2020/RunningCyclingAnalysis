@@ -24,6 +24,7 @@ import type {
   AthleteSettings,
   BikeModel,
   HrCalibration,
+  Sport,
   SportCurves,
 } from './types'
 
@@ -215,8 +216,9 @@ export class PeriodCache {
     library: ActivityDigest[],
     fromMs: number | null,
     setAside: readonly string[],
+    referenceHr: Readonly<Record<Sport, number | null>>,
   ): SameHeartRateBySport {
-    return this.evidence.sameHeartRate(selected, library, fromMs, setAside)
+    return this.evidence.sameHeartRate(selected, library, fromMs, setAside, referenceHr)
   }
 
   /** Late-effort evidence over the selected period, pooled with the library where the period holds too little; see `EvidenceMemo`. */

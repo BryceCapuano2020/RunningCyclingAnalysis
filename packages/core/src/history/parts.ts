@@ -2,6 +2,7 @@
 export { balance } from './balance'
 export { calendar } from './calendar'
 export { years } from './years'
+export { fitness } from './fitness'
 export { yearToDate } from './yearToDate'
 export { bests } from './bests'
 export { yearCurves } from './yearCurves'
