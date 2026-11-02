@@ -1,22 +1,28 @@
 /*
- * The ramp is one hue in five tints of the page: the ink mixed into --surface-0, so the same rules hold in light and
- * dark. All sports use the neutral ink; one sport takes its own colour from data-sport (tokens.css). No training is the
- * plain --surface-2 cell. The first tint keeps 2:1 against it for every ink in both schemes, and each tint is
- * darker (lighter, in dark) than the one before; TrainingCalendarChart.css.test.ts checks both from these values.
+ * The ramp is one hue in five steps, each a clear step from the one before. Neutral (All) mixes its ink into --surface-0
+ * for four tints and ends on the ink. A sport's colour is too close in lightness to its neighbours for that, so its
+ * last two steps deepen it toward --text-primary (darker in light, lighter in dark). No training is the plain
+ * --surface-2 cell. The first step keeps 2:1 against it for every ink in both schemes, and each step is darker (lighter,
+ * in dark) than the one before by a clear margin; TrainingCalendarChart.css.test.ts checks both from these values.
  */
 .calendar {
   --calendar-ink: var(--neutral-mark);
   --calendar-step-0: var(--surface-2);
-  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 63%, var(--surface-0));
-  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 74%, var(--surface-0));
-  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 84%, var(--surface-0));
-  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 92%, var(--surface-0));
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 46%, var(--surface-0));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 61%, var(--surface-0));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 75%, var(--surface-0));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 88%, var(--surface-0));
   --calendar-step-5: var(--calendar-ink);
   min-width: 0;
 }
 
 .calendar[data-sport] {
   --calendar-ink: var(--sport-colour);
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 62%, var(--surface-0));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 76%, var(--surface-0));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 92%, var(--surface-0));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 84%, var(--text-primary));
+  --calendar-step-5: color-mix(in srgb, var(--calendar-ink) 66%, var(--text-primary));
 }
 
 .calendar__controls {

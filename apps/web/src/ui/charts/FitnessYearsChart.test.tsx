@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { dotsFixture, openSlip, slipAndRise } from '../fitnessYearsFixtures'
+import { dotsFixture, openSlip, slipAndRise, startOf } from '../fitnessYearsFixtures'
 import { FitnessYearsChart } from './FitnessYearsChart'
 
 /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
@@ -193,5 +193,77 @@ describe('FitnessYearsChart', () => {
     expect(container.querySelector('svg')).toHaveTextContent('GAP (/mi), faster up')
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'Home' })
     expect(screen.getByRole('status')).toHaveTextContent('/mi')
+  })
+
+  describe('with the pointer on the plot', () => {
+    // A slip from March to July of 2021 and a rise from September 2021 to April 2022: both touch 2021.
+    const both = dotsFixture({
+      years: [2020, 2021, 2022],
+      spans: [
+        { kind: 'slip', fromDay: startOf(2021) + 60, toDay: startOf(2021) + 200 },
+        { kind: 'rise', fromDay: startOf(2021) + 250, toDay: startOf(2022) + 100 },
+      ],
+    })
+    const rects = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('[data-testid="fitness-span"] rect'))
+    const middleOf = (rect: Element) =>
+      Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2
+    const labels = () =>
+      Array.from(
+        screen.getByRole('status').querySelectorAll('.chart-tooltip__label'),
+        (l) => l.textContent,
+      )
+
+    it('reads the year it is over, and puts the slip or rise under it, with its months, first', () => {
+      chartWidth(800)
+      const { container } = render(<FitnessYearsChart sport="run" dots={both} units="metric" />)
+      const [slip, rise] = rects(container)
+      const surface = screen.getByTestId('plot-surface')
+      fireEvent.pointerMove(surface, { clientX: middleOf(slip!), clientY: 100 })
+      expect(screen.getByRole('status')).toHaveTextContent('2021')
+      expect(labels().slice(-2)).toEqual(['Slip', 'Rise'])
+      expect(screen.getByRole('status')).toHaveTextContent('March to July 2021')
+      fireEvent.pointerMove(surface, { clientX: middleOf(rise!), clientY: 100 })
+      expect(screen.getByRole('status')).toHaveTextContent('2021')
+      expect(labels().slice(-2)).toEqual(['Rise', 'Slip'])
+      expect(screen.getByRole('status')).toHaveTextContent('September 2021 to April 2022')
+      // The band under the pointer is firmer, and the other is not.
+      expect(rise).toHaveClass('fitness-years__span--read')
+      expect(slip).not.toHaveClass('fitness-years__span--read')
+    })
+
+    it('shows no band as read when the pointer is between them, or off the plot', () => {
+      chartWidth(800)
+      const { container } = render(<FitnessYearsChart sport="run" dots={both} units="metric" />)
+      const [slip, rise] = rects(container)
+      const between =
+        (Number(slip!.getAttribute('x')) +
+          Number(slip!.getAttribute('width')) +
+          Number(rise!.getAttribute('x'))) /
+        2
+      fireEvent.pointerMove(screen.getByTestId('plot-surface'), { clientX: between, clientY: 100 })
+      expect(container.querySelector('.fitness-years__span--read')).toBeNull()
+      expect(labels().slice(-2)).toEqual(['Slip', 'Rise'])
+      fireEvent.pointerLeave(screen.getByTestId('plot-surface'))
+      expect(container.querySelector('.fitness-years__span--read')).toBeNull()
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    })
+
+    it('reads the year the pointer is in even where a narrow first year has its middle nearer', () => {
+      chartWidth(800)
+      const shifted = { ...both, firstDay: startOf(2020) + 330 }
+      const { container } = render(<FitnessYearsChart sport="run" dots={shifted} units="metric" />)
+      // A tenth of the way into the 2021 room, which is as wide as 2022's: the middle of the narrow 2020 room is nearer.
+      const [, mid2021, mid2022] = Array.from(
+        container.querySelectorAll('.chart-x-axis__tick'),
+        (t) => Number(t.getAttribute('x')),
+      )
+      const room = mid2022! - mid2021!
+      fireEvent.pointerMove(screen.getByTestId('plot-surface'), {
+        clientX: mid2021! - 0.4 * room,
+        clientY: 100,
+      })
+      expect(screen.getByRole('status')).toHaveTextContent('2021')
+    })
   })
 })

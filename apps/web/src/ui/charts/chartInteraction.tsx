@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChartTooltip } from './ChartTooltip'
-import type { ChartSize, TooltipContent } from './chartTypes'
+import type { ChartSize, Point, TooltipContent } from './chartTypes'
 import { nearestByX, stepActive } from './hover'
 import type { PositionPick } from './hover'
 import { PlotSurface } from './PlotSurface'
@@ -27,7 +27,8 @@ export function markerRadii(width: number): MarkerRadii {
 /**
  * The focusable plot layer shared by the line charts. xs holds the pixel x of each navigable
  * point, in the order the arrow keys step through them. Null xs means the chart has no layout.
- * The pointer picks a point with pick: the nearest, or for a stepped line the last at or before it.
+ * The pointer picks a point with pick: the nearest, or for a stepped line the last at or before it. A chart
+ * that reads more of the pointer than its x, such as the line it is near, takes it whole with onPointer.
  */
 export function plotSurface(
   size: ChartSize,
@@ -35,12 +36,16 @@ export function plotSurface(
   active: number | null,
   setActive: (index: number | null) => void,
   pick: PositionPick = nearestByX,
+  onPointer?: (point: Point | null) => void,
 ): ReactNode {
   if (xs === null) return null
   return (
     <PlotSurface
       size={size}
-      onPoint={(point) => setActive(point === null ? null : pick(xs, point.x))}
+      onPoint={(point) => {
+        setActive(point === null ? null : pick(xs, point.x))
+        onPointer?.(point)
+      }}
       onKey={(key) => {
         const next = stepActive(active, xs.length, key)
         if (next) setActive(next.index)

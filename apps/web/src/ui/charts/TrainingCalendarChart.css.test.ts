@@ -15,54 +15,72 @@ const schemes: [string, Tokens][] = [
 
 /** The least contrast of the first tint against a week with no training, so a gap reads next to any week of training. */
 const FIRST_AGAINST_NONE = 2
-/** The least contrast between one tint and the next, so five tints stay five. */
-const NEIGHBOUR = 1.08
+/** The least contrast between one step and the next, so five steps are five: neutral, then a sport's colour. */
+const NEIGHBOUR = { neutral: 1.25, sport: 1.15 }
 
-/** The share of ink in each of the four mixed tints, from the stylesheet: the fifth is the ink itself. */
-const SHARES = [
-  ...css.matchAll(
-    /--calendar-step-[1-4]:\s*color-mix\(in srgb, var\(--calendar-ink\) (\d+)%, var\(--surface-0\)\)/g,
-  ),
-].map((match) => Number(match[1]) / 100)
+/** The five step expressions of the rule `selector`, by step, as the stylesheet writes them. */
+function stepsOf(selector: string): string[] {
+  const start = css.indexOf(`${selector} {`)
+  expect(start, `${selector} is in the stylesheet`).toBeGreaterThanOrEqual(0)
+  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
+  const steps = [...body.matchAll(/--calendar-step-([1-5]):\s*([^;]+);/g)]
+  return steps.map((match) => match[2]!.trim())
+}
 
-/** What `color-mix(in srgb, ink share, base)` paints, as the browser mixes opaque colours. */
-function mixed(ink: string, base: string, share: number): string {
+/** What `color-mix(in srgb, a share, b)` paints, as the browser mixes opaque colours. */
+function mixed(top: string, below: string, share: number): string {
   const channels = [1, 3, 5].map((at) => {
-    const top = parseInt(ink.slice(at, at + 2), 16)
-    const below = parseInt(base.slice(at, at + 2), 16)
-    return Math.round(top * share + below * (1 - share))
+    const upper = parseInt(top.slice(at, at + 2), 16)
+    const lower = parseInt(below.slice(at, at + 2), 16)
+    return Math.round(upper * share + lower * (1 - share))
       .toString(16)
       .padStart(2, '0')
   })
   return `#${channels.join('')}`
 }
 
+/** A step's colour: the ink itself, or the ink mixed into a token by the share the stylesheet gives. */
+function stepColour(expression: string, tokens: Tokens, ink: string): string {
+  if (expression === 'var(--calendar-ink)') return ink
+  const match = /^color-mix\(in srgb, var\(--calendar-ink\) (\d+)%, var\(--([a-z0-9-]+)\)\)$/.exec(
+    expression,
+  )
+  expect(match, `${expression} is the ink or a mix of it`).not.toBeNull()
+  return mixed(ink, colour(tokens, match![2]!), Number(match![1]) / 100)
+}
+
 describe('the calendar ramp', () => {
-  it('has four mixed tints that grow in ink, and the ink itself as the fifth', () => {
-    expect(SHARES).toHaveLength(4)
-    expect(SHARES).toEqual([...SHARES].sort((a, b) => a - b))
-    expect(css).toMatch(/--calendar-step-5:\s*var\(--calendar-ink\)/)
+  it('takes the sport’s colour for its ink when a sport is filtered, and the neutral ink otherwise', () => {
+    expect(css).toMatch(/\.calendar \{[^}]*--calendar-ink:\s*var\(--neutral-mark\)/)
+    expect(css).toMatch(/\.calendar\[data-sport\] \{[^}]*--calendar-ink:\s*var\(--sport-colour\)/)
     expect(css).toMatch(/--calendar-step-0:\s*var\(--surface-2\)/)
   })
 
-  for (const [name, tokens] of schemes) {
-    for (const ink of ['neutral-mark', 'series-run', 'series-ride']) {
-      const steps = [
-        ...SHARES.map((share) => mixed(colour(tokens, ink), colour(tokens, 'surface-0'), share)),
-        colour(tokens, ink),
-      ]
+  it('has five steps for neutral and for a sport, each set in the sheet', () => {
+    expect(stepsOf('.calendar')).toHaveLength(5)
+    expect(stepsOf('.calendar[data-sport]')).toHaveLength(5)
+    expect(stepsOf('.calendar')[4]).toBe('var(--calendar-ink)')
+  })
 
-      it(`keeps the first ${ink} tint ${FIRST_AGAINST_NONE}:1 from no training in ${name}`, () => {
+  for (const [name, tokens] of schemes) {
+    for (const [ink, selector, kind] of [
+      ['neutral-mark', '.calendar', 'neutral'],
+      ['series-run', '.calendar[data-sport]', 'sport'],
+      ['series-ride', '.calendar[data-sport]', 'sport'],
+    ] as const) {
+      const steps = stepsOf(selector).map((step) => stepColour(step, tokens, colour(tokens, ink)))
+
+      it(`keeps the first ${ink} step ${FIRST_AGAINST_NONE}:1 from no training in ${name}`, () => {
         expect(contrast(steps[0]!, colour(tokens, 'surface-2'))).toBeGreaterThanOrEqual(
           FIRST_AGAINST_NONE,
         )
       })
 
-      it(`keeps the ${ink} tints apart and in order of ink in ${name}`, () => {
+      it(`keeps the ${ink} steps clearly apart and in order of ink in ${name}`, () => {
         const lighter = name === 'dark'
         steps.slice(1).forEach((step, i) => {
           const before = steps[i]!
-          expect(contrast(step, before)).toBeGreaterThanOrEqual(NEIGHBOUR)
+          expect(contrast(step, before)).toBeGreaterThanOrEqual(NEIGHBOUR[kind])
           // Light darkens with hours; dark gets more luminous with them.
           expect(luminance(step) > luminance(before)).toBe(lighter)
         })

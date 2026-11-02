@@ -7,9 +7,19 @@
   stroke-linejoin: round;
 }
 
+/* The past year under the pointer: heavier and in the text colour, so any of the grey lines can be told. */
+.year-to-date__line--read {
+  stroke: var(--text-primary);
+  stroke-width: 2.5px;
+}
+
 /* In forced colours the past years take the system's text colour, and this year keeps its sport line. */
 @media (forced-colors: active) {
   .year-to-date__line {
     stroke: CanvasText;
+  }
+
+  .year-to-date__line--read {
+    stroke-width: 3px;
   }
 }

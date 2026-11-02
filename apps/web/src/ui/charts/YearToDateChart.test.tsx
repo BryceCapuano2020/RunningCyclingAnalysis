@@ -44,11 +44,70 @@ describe('YearToDateChart', () => {
     expect(lines[0]!.getAttribute('class')).toBe('year-to-date__line')
   })
 
-  it('names the best past year at its line’s end, and this year beside its own', () => {
+  it('names the best past year and the year before this one at their lines’ ends, and this year beside its own', () => {
     chartWidth(800)
     render(<YearToDateChart data={YEAR_TO_DATE} units="metric" />)
     expect(screen.getByTestId('year-label-best')).toHaveTextContent('2025')
+    expect(screen.getByTestId('year-label-previous')).toHaveTextContent('2026')
     expect(screen.getByTestId('year-label-this')).toHaveTextContent('2027')
+    // The fourth line, 2024, stays unnamed until it is pointed at.
+    expect(document.querySelectorAll('text.chart-series__label')).toHaveLength(3)
+  })
+
+  it('keeps its title true when this year is ahead: it says above, and the year it names keeps its label', () => {
+    chartWidth(800)
+    const years = YEAR_TO_DATE.years.map((row) =>
+      row.year === 2027
+        ? {
+            ...row,
+            hectometres: { ...row.hectometres, run: row.hectometres.run.map((v) => v * 2) },
+            toDate: { ...row.toDate, run: row.toDate.run * 2 },
+          }
+        : row,
+    )
+    render(<YearToDateChart data={{ ...YEAR_TO_DATE, years }} units="metric" />)
+    expect(screen.getByRole('figure', { name: '2027 is 54 km above 2025' })).toBeInTheDocument()
+    expect(screen.getByTestId('year-label-best')).toHaveTextContent('2025')
+  })
+
+  it('identifies any year by pointing at its line: it goes bold, is named, and leads the reading', () => {
+    chartWidth(800)
+    const { container } = render(<YearToDateChart data={YEAR_TO_DATE} units="metric" />)
+    const line = (year: number) => container.querySelector(`[data-year="${year}"]`)!
+    // A point on 2024's line (which 2026's nearly shares), read from the path the chart drew.
+    const points = [
+      ...line(2024)
+        .getAttribute('d')!
+        .matchAll(/[ML]([\d.]+) ([\d.]+)/g),
+    ]
+    const [x, y] = [Number(points[10]![1]), Number(points[10]![2])]
+    fireEvent.pointerMove(screen.getByTestId('plot-surface'), { clientX: x, clientY: y })
+    expect(line(2024)).toHaveClass('year-to-date__line--read')
+    expect(line(2025)).not.toHaveClass('year-to-date__line--read')
+    expect(screen.getByTestId('year-label-read')).toHaveTextContent('2024')
+    const rows = Array.from(screen.getByRole('status').querySelectorAll('.chart-tooltip__label'))
+    expect(rows.map((row) => row.textContent)).toEqual(['2024', '2027', '2026', '2025'])
+    // Leaving the plot lets go of it.
+    fireEvent.pointerLeave(screen.getByTestId('plot-surface'))
+    expect(line(2024)).not.toHaveClass('year-to-date__line--read')
+    expect(screen.queryByTestId('year-label-read')).toBeNull()
+  })
+
+  it('names no extra year for a pointer on a line that already carries its name, or far from every line', () => {
+    chartWidth(800)
+    const { container } = render(<YearToDateChart data={YEAR_TO_DATE} units="metric" />)
+    const path = container.querySelector('[data-year="2025"]')!.getAttribute('d')!
+    const [, x, y] = /[ML]([\d.]+) ([\d.]+)/.exec(
+      path.slice(path.indexOf('L') + 1).replace(/^/, 'M'),
+    )!
+    fireEvent.pointerMove(screen.getByTestId('plot-surface'), {
+      clientX: Number(x),
+      clientY: Number(y),
+    })
+    expect(container.querySelector('[data-year="2025"]')).toHaveClass('year-to-date__line--read')
+    expect(screen.queryByTestId('year-label-read')).toBeNull()
+    fireEvent.pointerMove(screen.getByTestId('plot-surface'), { clientX: Number(x), clientY: 30 })
+    expect(container.querySelector('.year-to-date__line--read')).toBeNull()
   })
 
   it('gives each year its distance to today and its whole year in a table', () => {

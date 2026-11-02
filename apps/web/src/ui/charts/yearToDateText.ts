@@ -40,18 +40,23 @@ export function yearToDateTable(data: YearToDate, sport: Sport, units: UnitSyste
 }
 
 /**
- * A sample's tooltip: the day, and each year's distance to that day, newest year first. This year's row takes its
- * sport's colour and the past years are neutral.
+ * A sample's tooltip: the day, and each year's distance to that day, newest year first, or the year the pointer is on
+ * (`read`) first. This year's row takes its sport's colour and the past years are neutral.
  */
 export function yearToDateTooltip(
   data: YearToDate,
   sport: Sport,
   units: UnitSystem,
   index: number,
+  read: number | null = null,
 ): { title: string; rows: TooltipRow[] } {
   const day = data.days[index] ?? data.today.day
   const rows: TooltipRow[] = []
-  for (const row of [...data.years].reverse()) {
+  const newestFirst = [...data.years].reverse()
+  const ordered = newestFirst
+    .filter((row) => row.year === read)
+    .concat(newestFirst.filter((row) => row.year !== read))
+  for (const row of ordered) {
     const hectometres = row.hectometres[sport][index]
     if (hectometres === undefined) continue
     const current = row.year === data.today.year

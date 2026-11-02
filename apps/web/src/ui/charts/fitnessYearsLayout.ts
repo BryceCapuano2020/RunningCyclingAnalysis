@@ -40,6 +40,8 @@ export interface SpanBox {
   kind: 'slip' | 'rise'
   x0: number
   x1: number
+  /** Where the span sits in the dots' `spans`, which hold its dates. */
+  index: number
 }
 
 export interface FitnessYearsLayout {
@@ -56,6 +58,16 @@ export interface FitnessYearsLayout {
   ys: number[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+}
+
+/**
+ * The year whose room holds the pixel x (the first or the last when x lies outside them), so the pointer reads the year
+ * it is over. Rooms are in proportion to their days, so the nearest middle is not always the room the pointer is in.
+ */
+export function yearAtX(rooms: readonly { x1: number }[], x: number): number | null {
+  if (rooms.length === 0) return null
+  const found = rooms.findIndex((room) => x < room.x1)
+  return found < 0 ? rooms.length - 1 : found
 }
 
 /** A diamond of half-width r on (x, y) as a closed subpath, every vertex rounded to a tenth of a pixel. */
@@ -122,9 +134,9 @@ export function fitnessYearsLayout(
   )
   // A span is drawn from where it began to where it ended, or the look-back's horizon while it lasts, within the plot.
   const horizon = dots.horizonDay ?? to
-  const spans = dots.spans.flatMap(({ kind, fromDay, toDay }): SpanBox[] => {
+  const spans = dots.spans.flatMap(({ kind, fromDay, toDay }, index): SpanBox[] => {
     const [a, b] = [Math.max(fromDay, from), Math.min(toDay ?? horizon, to)]
-    return b > a ? [{ kind, x0: x(a), x1: x(b) }] : []
+    return b > a ? [{ kind, x0: x(a), x1: x(b), index }] : []
   })
   const rooms = dots.years.map(({ year }) => ({
     x0: x(Math.max(yearStartDay(year), from)),

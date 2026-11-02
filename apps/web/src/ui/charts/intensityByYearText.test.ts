@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IntensityRow, IntensityShares } from '@rca/core/history'
 import {
   emptyTextOf,
-  hardestYear,
+  highestHardShare,
   intensityTable,
   intensityTitle,
   intensityTooltip,
@@ -35,28 +35,30 @@ const year = (
   ride: IntensityShares = NONE,
 ): IntensityRow => ({ year, sports: { run, ride } })
 
-describe('the hardest year', () => {
+describe('the year with the highest hard share', () => {
   it('is the year with the largest hard share when it leads the next by 5 points', () => {
     const years = [year(2023, timed(0.1)), year(2024, timed(0.2)), year(2025, timed(0.5))]
-    expect(hardestYear(years, 'run')?.year).toBe(2025)
-    expect(intensityTitle(years, 'run')).toBe('2025 was your hardest year for running')
+    expect(highestHardShare(years, 'run')?.year).toBe(2025)
+    expect(intensityTitle(years, 'run')).toBe('2025 had your highest share of hard running')
   })
 
   it('falls back to the measure when the lead is under 5 points', () => {
     const years = [year(2024, timed(0.3)), year(2025, timed(0.32))]
-    expect(hardestYear(years, 'run')).toBeNull()
+    expect(highestHardShare(years, 'run')).toBeNull()
     expect(intensityTitle(years, 'run')).toBe('Run intensity by year')
   })
 
   it('leaves out a year with under 20 hours of the sport, and needs two that have it', () => {
     const thin = [year(2024, timed(0.9, 19.9)), year(2025, timed(0.3)), year(2023, timed(0.1))]
-    expect(hardestYear(thin, 'run')?.year).toBe(2025)
-    expect(hardestYear([year(2025, timed(0.6)), year(2024, timed(0.9, 19.9))], 'run')).toBeNull()
+    expect(highestHardShare(thin, 'run')?.year).toBe(2025)
+    expect(
+      highestHardShare([year(2025, timed(0.6)), year(2024, timed(0.9, 19.9))], 'run'),
+    ).toBeNull()
   })
 
   it('counts exactly 20 hours, and names riding for the ride', () => {
     const years = [year(2024, NONE, timed(0.1)), year(2025, NONE, timed(0.4, 20))]
-    expect(intensityTitle(years, 'ride')).toBe('2025 was your hardest year for riding')
+    expect(intensityTitle(years, 'ride')).toBe('2025 had your highest share of hard riding')
     expect(intensityTitle(years, 'run')).toBe('Run intensity by year')
   })
 })
@@ -93,6 +95,11 @@ describe('the table and the tooltip', () => {
       ['2024', '75%', '0%', '25%', '10.0', '3'],
       ['2025', '—', '—', '—', '—', '0'],
     ])
+  })
+
+  it('leaves the count of activities to the tooltip on a phone, so the table fits the page', () => {
+    const table = intensityTable([year(2024, timed(0.25, 10, 3))], 'run')
+    expect(table.phoneHidden).toEqual([table.columns.indexOf('Activities counted')])
   })
 
   it('reads a year from the top band down, then its time and count', () => {

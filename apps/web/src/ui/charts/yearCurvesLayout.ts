@@ -4,7 +4,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { spreadWithin } from './chartInteraction'
 import { logScale } from './scale'
-import { plottedValue, sportYAxis } from './sportAxis'
+import { curveYAxis, plottedValue } from './sportAxis'
 import { axisFontSize, durationTicks, fitTicks, labelWidth, rootScale } from './ticks'
 import { isCrowded, labelledYears, namedYears } from './yearCurvesModel'
 import type { YearCurvesModel } from './yearCurvesModel'
@@ -65,7 +65,7 @@ export function yearCurvesLayout(
   const values = model.lines.flatMap((line) =>
     line.values.flatMap((value) => (value === null ? [] : [plotted(value)])),
   )
-  const { y, ticks } = sportYAxis(model.sport, values, plot)
+  const { y, ticks } = curveYAxis(model.sport, values, plot)
   const named = new Set(namedYears(model))
   const labelled = new Set(labelledYears(model))
   const crowded = isCrowded(model)

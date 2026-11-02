@@ -4,7 +4,8 @@ import './ChartLegend.css'
 
 /**
  * Key shape: a square for a fill, a dot or a diamond for a point (a ring or a hollow diamond when the point is hollow), a band for a shaded range, a line,
- * a dashed line for an estimate, or a thinner grey line for the previous period.
+ * a dashed line for an estimate, a thinner grey line for the previous period, or a pale dashed square for a stretch
+ * still going (a year so far).
  */
 export type LegendSwatch =
   | 'solid'
@@ -17,6 +18,7 @@ export type LegendSwatch =
   | 'line'
   | 'dashed'
   | 'previous'
+  | 'partial'
 
 export interface ChartLegendEntry {
   label: string
@@ -93,6 +95,14 @@ function keyFor(entry: ChartLegendEntry): ReactNode {
       )
     case 'previous':
       return <span aria-hidden="true" className="chart-legend__key chart-legend__key--previous" />
+    case 'partial':
+      return (
+        <span
+          aria-hidden="true"
+          className="chart-legend__key chart-legend__key--partial"
+          data-sport={entry.kind === 'neutral' ? undefined : entry.kind}
+        />
+      )
     case 'solid':
       return <span aria-hidden="true" className={`swatch ${SWATCH_CLASS[entry.kind]}`} />
   }

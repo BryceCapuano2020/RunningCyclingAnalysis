@@ -37,7 +37,7 @@ const JANUARY: DaySpec[] = [
 const steps = () =>
   screen.getAllByTestId('calendar-cell').map((cell) => cell.getAttribute('data-step'))
 const status = () => screen.getByRole('status')
-/** The hours a week the key writes under the joins of its tints. */
+/** The hours a week the key writes under the joins of its tints, the last with its plus. */
 const edges = () => screen.getAllByTestId('calendar-ramp-edge').map((edge) => edge.textContent)
 /** The drawing alone, whose labels share their text with the tables. */
 const drawing = () => within(screen.getByRole('img', { name: /^Heatmap/ }))
@@ -52,7 +52,8 @@ describe('TrainingCalendarChart', () => {
     expect(drawing().getByText('2024')).toBeInTheDocument()
     expect(drawing().getByText('Jan')).toBeInTheDocument()
     expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('None')
-    expect(edges()).toEqual(['2.5', '5', '7.5', '10'])
+    // The last edge opens the darkest tint, so it ends in a plus and no other does.
+    expect(edges()).toEqual(['2.5', '5', '7.5', '10+'])
     expect(screen.getByTestId('calendar-ramp')).toHaveTextContent('h a week')
   })
 
@@ -111,11 +112,11 @@ describe('TrainingCalendarChart', () => {
     expect(container.querySelector('.calendar')).toHaveAttribute('data-sport', 'ride')
     // Two hours of riding in the last week, none before it: on tints of half an hour, the last edge is 2.
     expect(steps()).toEqual(['0', '0', '0', '4'])
-    expect(edges()).toEqual(['0.5', '1', '1.5', '2'])
+    expect(edges()).toEqual(['0.5', '1', '1.5', '2+'])
     expect(screen.getByRole('figure')).toHaveTextContent('Your longest riding streak was 1 week')
     fireEvent.click(screen.getByLabelText('Run'))
     expect(steps()).toEqual(['1', '0', '2', '5'])
-    expect(edges()).toEqual(['2', '4', '6', '8'])
+    expect(edges()).toEqual(['2', '4', '6', '8+'])
     expect(screen.getByRole('figure')).toHaveTextContent('Your biggest running week was 10.0 hours')
     fireEvent.click(screen.getByLabelText('All'))
     expect(container.querySelector('.calendar')).not.toHaveAttribute('data-sport')

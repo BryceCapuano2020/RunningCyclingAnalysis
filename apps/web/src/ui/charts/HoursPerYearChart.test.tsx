@@ -102,4 +102,59 @@ describe('HoursPerYearChart', () => {
     const readout = screen.getByTestId('chart-readout')
     expect(readout.getAttribute('data-idle')).toContain('2023')
   })
+
+  it('draws the year still going lighter, calls it so far everywhere it is read, and keys it', () => {
+    chartWidth(800)
+    const { container } = render(<HoursPerYearChart years={THREE_YEARS} current={2023} />)
+    const partial = Array.from(container.querySelectorAll('[data-testid="year-bar"]')).map((bar) =>
+      bar.getAttribute('data-partial'),
+    )
+    // Run and ride in 2021, run in 2022, run and ride in 2023: only the last two parts are the year going.
+    expect(partial).toEqual([null, null, null, 'true', 'true'])
+    const items = within(screen.getByRole('list', { name: 'Legend' })).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Run', 'Ride', '2023 so far'])
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'End' })
+    expect(screen.getByRole('status')).toHaveTextContent('2023 so far')
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowLeft' })
+    expect(screen.getByRole('status')).not.toHaveTextContent('so far')
+    const table = screen.getByRole('table', { name: 'Hours per year, by sport' })
+    expect(
+      within(table)
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['2021', '2022', '2023 so far'])
+  })
+
+  it('keys a single sport’s year so far alone, and leaves the key out when no year is going', () => {
+    chartWidth(800)
+    const years = [
+      yearRow(2024, { hours: 50, activities: 30 }),
+      yearRow(2025, { hours: 9, activities: 5 }),
+    ]
+    const { rerender } = render(<HoursPerYearChart years={years} current={2025} />)
+    const items = within(screen.getByRole('list', { name: 'Legend' })).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual(['2025 so far'])
+    // The key is the bar's own look, in the sport's colour: a pale fill and a dashed edge.
+    expect(items[0]!.querySelector('.chart-legend__key--partial')).toHaveAttribute(
+      'data-sport',
+      'run',
+    )
+    rerender(<HoursPerYearChart years={years} current={2031} />)
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(screen.queryByText(/so far/)).toBeNull()
+  })
+
+  it('labels every bar of a long library on a phone', () => {
+    chartWidth(358)
+    const years = Array.from({ length: 13 }, (_, i) =>
+      yearRow(2014 + i, { hours: 30 + i, activities: 20 }),
+    )
+    const { container } = render(<HoursPerYearChart years={years} current={2026} />)
+    const ticks = Array.from(
+      container.querySelectorAll('.chart-x-axis__tick'),
+      (t) => t.textContent,
+    )
+    expect(ticks).toHaveLength(13)
+    expect(container.querySelectorAll('[data-testid="year-bar"]')).toHaveLength(13)
+  })
 })

@@ -111,4 +111,17 @@ describe('the History page', () => {
     const mine = ['Hours per year', 'Run bests by year', 'Your 20 min pace peaked in 2021']
     expect(titles.filter((title) => mine.includes(title ?? ''))).toEqual(mine)
   })
+
+  it('calls the library’s latest year "so far" when it is the year the clock is in, and no year otherwise', () => {
+    chartWidth(800)
+    const base = { ...historyWithBests(), years: THREE_YEARS }
+    const going = { ...base, yearToDate: { ...base.yearToDate, today: { year: 2023, day: 120 } } }
+    const { rerender } = render(
+      <HistoryPage history={going} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
+    )
+    expect(screen.getAllByText('2023 so far').length).toBeGreaterThan(0)
+    const past = { ...base, yearToDate: { ...base.yearToDate, today: { year: 2024, day: 5 } } }
+    rerender(<HistoryPage history={past} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />)
+    expect(screen.queryByText(/so far/)).toBeNull()
+  })
 })

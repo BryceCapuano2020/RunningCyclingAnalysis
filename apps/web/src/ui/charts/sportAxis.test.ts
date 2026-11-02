@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlotBox } from './chartTypes'
 import {
   axisTitle,
+  curveYAxis,
   fillsArea,
   formatNative,
   nativeLabel,
@@ -121,5 +122,40 @@ describe('paceUnitName and fillsArea', () => {
   it('fills only watts: pace has no zero to fill down to', () => {
     expect(fillsArea('ride')).toBe(true)
     expect(fillsArea('run')).toBe(false)
+  })
+})
+
+describe('curveYAxis', () => {
+  const wide = [230, 300, 440, 720]
+
+  it('fits a pace axis to a wide range, where sportYAxis rounds it out to a 0:00 tick', () => {
+    expect(sportYAxis('run', wide, PLOT).ticks.map((tick) => tick.label)).toContain('0:00')
+    const { y, ticks } = curveYAxis('run', wide, PLOT)
+    const labels = ticks.map((tick) => tick.label)
+    expect(labels).not.toContain('0:00')
+    // Round minutes inside the data's range with a little room, not more than six.
+    expect(labels).toEqual(['4:00', '6:00', '8:00', '10:00', '12:00'])
+    const height = PLOT.bottom - PLOT.top
+    expect(y(230) - PLOT.top).toBeLessThan(0.1 * height)
+    expect(PLOT.bottom - y(720)).toBeLessThan(0.1 * height)
+    // Faster is up, and the ticks run down the page as the pace slows.
+    expect(y(230)).toBeLessThan(y(720))
+    expect(ticks.every((tick, i) => i === 0 || tick.position > ticks[i - 1]!.position)).toBe(true)
+  })
+
+  it('keeps a narrow range at least half a minute tall, so a change of seconds is not a cliff', () => {
+    const { y } = curveYAxis('run', [300, 304], PLOT)
+    expect(Math.abs(y(304) - y(300))).toBeLessThan(0.2 * (PLOT.bottom - PLOT.top))
+    expect(curveYAxis('run', [300, 304], PLOT).ticks.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('leaves the power axis as the sport pages draw it, from zero', () => {
+    const [curve, page] = [
+      curveYAxis('ride', [196, 640], PLOT),
+      sportYAxis('ride', [196, 640], PLOT),
+    ]
+    expect(curve.ticks).toEqual(page.ticks)
+    expect(curve.y(400)).toBe(page.y(400))
+    expect(curveYAxis('ride', [196, 640], PLOT).ticks[0]?.label).toBe('0')
   })
 })

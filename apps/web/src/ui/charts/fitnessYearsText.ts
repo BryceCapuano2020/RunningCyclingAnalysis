@@ -56,15 +56,20 @@ function periodText(span: DotsSpan): string {
 
 const WORD: Record<DotsSpan['kind'], string> = { slip: 'Slip', rise: 'Rise' }
 
-/** The slips and rises that touch a calendar year. */
-function spansIn(dots: FitnessDots, year: number): DotsSpan[] {
+/** The slips and rises that touch a calendar year, each with its place among the dots' spans. */
+function spansIn(dots: FitnessDots, year: number): { span: DotsSpan; index: number }[] {
   const from = (Date.UTC(year, 0, 1) - WEEK_ORIGIN_MS) / DAY_MS
   const to = (Date.UTC(year + 1, 0, 1) - WEEK_ORIGIN_MS) / DAY_MS
   const horizon = dots.horizonDay ?? to
-  return dots.spans.filter((s) => s.fromDay < to && (s.toDay ?? horizon) > from)
+  return dots.spans
+    .map((span, index) => ({ span, index }))
+    .filter(({ span }) => span.fromDay < to && (span.toDay ?? horizon) > from)
 }
 
-/** A year's tooltip: the middle of its steady activities and their middle 80%, how many there were, and any slip or rise in it. */
+/**
+ * A year's tooltip: the middle of its steady activities and their middle 80%, how many there were, and any slip or rise
+ * in it with its months. The ones under the pointer (`under`, their places among the dots' spans) come first.
+ */
 export function yearTooltip(
   dots: FitnessDots,
   sport: Sport,
@@ -72,6 +77,7 @@ export function yearTooltip(
   i: number,
   x: number,
   y: number,
+  under: readonly number[] = [],
 ): TooltipContent | null {
   const year = dots.years[i]
   if (year === undefined) return null
@@ -88,7 +94,11 @@ export function yearTooltip(
           },
           { label: upper(words.steadyPlural), value: formatCount(year.n) },
         ]
-  for (const span of spansIn(dots, year.year)) {
+  const spans = spansIn(dots, year.year)
+  for (const { span } of [
+    ...spans.filter(({ index }) => under.includes(index)),
+    ...spans.filter(({ index }) => !under.includes(index)),
+  ]) {
     rows.push({ kind: 'neutral', label: WORD[span.kind], value: periodText(span) })
   }
   return { x, y, title: String(year.year), rows }

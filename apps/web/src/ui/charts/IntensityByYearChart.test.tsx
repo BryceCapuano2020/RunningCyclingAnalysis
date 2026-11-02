@@ -67,7 +67,7 @@ describe('IntensityByYearChart', () => {
     chartWidth(800)
     const { container } = render(<IntensityByYearChart years={YEARS} sport="run" />)
     expect(
-      screen.getByRole('figure', { name: '2025 was your hardest year for running' }),
+      screen.getByRole('figure', { name: '2025 had your highest share of hard running' }),
     ).toBeInTheDocument()
     expect(bands(container)).toEqual([
       'easy',

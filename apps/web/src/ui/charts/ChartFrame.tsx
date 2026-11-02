@@ -49,8 +49,8 @@ export interface ChartFrameProps {
   summary?: ChartTableData
   /**
    * What a phone's readout row says while no point is selected: the chart's latest or headline value, such as
-   * "Latest: 64% run, 58% ride, week of 25 Oct". The row is one line then, and shows a point's full reading over it
-   * only while one is selected. Left out, it says how to select a point.
+   * "Latest: 64% run, 58% ride, week of 25 Oct". The row is a line (two where the sentence is long) then, and shows a point's full
+   * reading over it only while one is selected. Left out, it says how to select a point.
    */
   idleReadout?: string
   /** Replaces the plot with a short message when set. */
@@ -70,14 +70,17 @@ export interface ChartFrameProps {
 }
 
 /**
- * Whether a key is shown: two entries, or one line or dashed entry, which names a single series that the
- * plot would otherwise leave unnamed. A single dot or diamond is left out, as a point's shape needs no key.
+ * Whether a key is shown: two entries, or one line, dashed or partial entry, which names a single series (or a
+ * stretch of one) that the plot would otherwise leave unnamed. A single dot or diamond is left out, as a point's
+ * shape needs no key.
  */
 function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
   if (legend === undefined) return false
   return (
     legend.length >= 2 ||
-    legend.some((entry) => entry.swatch === 'dashed' || entry.swatch === 'line')
+    legend.some(
+      (entry) => entry.swatch === 'dashed' || entry.swatch === 'line' || entry.swatch === 'partial',
+    )
   )
 }
 

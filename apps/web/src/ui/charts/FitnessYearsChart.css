@@ -46,6 +46,12 @@
   stroke-dasharray: 4 3;
 }
 
+/* The slip or rise the pointer is over: a firmer wash, so its dates in the reading are plainly its own. */
+.fitness-years__span--read {
+  fill-opacity: 0.22;
+  stroke-opacity: 0.8;
+}
+
 .fitness-years__span--rise {
   stroke-dasharray: none;
   fill-opacity: 0.16;
