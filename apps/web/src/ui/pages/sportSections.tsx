@@ -118,15 +118,18 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
   years: (context) => {
     const { sport, lookBack, units, fitness } = context
     const block = lookBack?.sports[sport]
-    const finding = block === undefined ? null : yearsFinding(block, fitness?.[sport].state ?? null)
-    return lookBack === undefined || block === undefined || finding === null
+    if (lookBack === undefined || block === undefined) {
+      return emptyOf(context, 'years', nothingToTell(sport))
+    }
+    const tooShort = block.fitness.kind === 'too-short'
+    const finding = tooShort
+      ? undefined
+      : (yearsFinding(block, fitness?.[sport].state ?? null) ?? undefined)
+    return finding === undefined && !tooShort
       ? emptyOf(context, 'years', nothingToTell(sport))
       : {
           content: <YearsSection sport={sport} lookBack={lookBack} units={units} />,
-          closed: {
-            title: NAV_LABEL.years(sport),
-            finding: block.fitness.kind === 'too-short' ? undefined : finding,
-          },
+          closed: { title: NAV_LABEL.years(sport), finding },
         }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),

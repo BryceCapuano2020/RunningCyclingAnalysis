@@ -36,6 +36,16 @@ describe('How sure is this? copy', () => {
     expect(period?.plain).toContain('A period you pick yourself is always used.')
   })
 
+  it('says in the detail that a fitness status takes the seasonal swing out, and where its size is', () => {
+    const trend = TOPICS.find((topic) => topic.id === 'trend')
+    expect(trend?.detail).toContain(
+      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
+    )
+    expect(trend?.detail).toContain('The size taken out is under See the evidence on the card.')
+    // The card no longer says it, and the main page holds none of it.
+    expect(trend?.plain.join(' ')).not.toMatch(/seasonal/)
+  })
+
   it('says “at least” on a threshold marks a floor, and a best that was not hard is treated as one', () => {
     const threshold = TOPICS.find((topic) => topic.id === 'threshold')
     expect(threshold?.plain).toContain('“At least” before a threshold marks a floor.')

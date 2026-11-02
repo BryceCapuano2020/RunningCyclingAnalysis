@@ -54,7 +54,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     expect(screen.getAllByRole('article')).toHaveLength(1)
     const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('200 W at 140 bpm (194 to 206). From 7 steady rides.')
+    expect(line).toHaveTextContent('200 W (194 to 206) at 140 bpm. From 7 steady rides.')
     expect(line).not.toHaveTextContent(/Ride fitness|not enough|of 12|trend/)
     expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
     cleanup()
@@ -69,7 +69,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
       />,
     )
     const card = screen.getByRole('article', { name: 'No trend yet' })
-    expect(spoken(card)).toContain('200 W at 140 bpm (194 to 206).')
+    expect(spoken(card)).toContain('200 W (194 to 206) at 140 bpm.')
     expect(spoken(card)).toContain('From 7 steady rides.')
     expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
       '5 more earlier rides to see a trend.',
@@ -89,7 +89,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     expect(screen.queryByRole('article')).toBeNull()
     expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
-      '200 W at 140 bpm (194 to 206). From 30 steady rides.',
+      '200 W (194 to 206) at 140 bpm. From 30 steady rides.',
     )
     cleanup()
     const imprecise = waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride')
@@ -102,7 +102,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
       />,
     )
     const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('200 W at 140 bpm (194 to 206). From 33 steady rides.')
+    expect(line).toHaveTextContent('200 W (194 to 206) at 140 bpm. From 33 steady rides.')
     expect(line).not.toHaveTextContent(/uncertain|not enough|of \d+ /)
   })
 
@@ -119,7 +119,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
       />,
     )
     const card = screen.getByRole('article', { name: 'No trend yet' })
-    expect(spoken(card)).toContain('(4:54 to 5:13) in October.')
+    expect(spoken(card)).toContain('(4:54 to 5:13) at 150 bpm in October.')
     expect(spoken(card)).toContain('From 40 steady runs.')
     expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
       'A steady run in the last 4 weeks to see a trend.',
@@ -188,7 +188,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     })
     expect(screen.getByRole('article', { name: 'No trend yet' })).toBeInTheDocument()
     const words = spoken(screen.getByRole('article'))
-    expect(words).toContain('5:03 /km at 150 bpm (4:54 to 5:13).')
+    expect(words).toContain('5:03 /km (4:54 to 5:13) at 150 bpm.')
     expect(words).toContain('From 7 steady runs.')
     expect(words).toContain('5 more earlier runs to see a trend.')
     expect(words).not.toMatch(BANNED)
@@ -206,6 +206,6 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     const terms = within(screen.getByRole('article'))
       .getAllByRole('button', { expanded: false })
       .map((button) => button.textContent)
-    expect(terms).toEqual(['at 150 bpm', '(4:54 to 5:13)', 'steady runs'])
+    expect(terms).toEqual(['(4:54 to 5:13)', 'at 150 bpm', 'steady runs'])
   })
 })

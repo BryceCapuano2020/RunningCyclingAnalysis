@@ -32,6 +32,16 @@ function spoken(node: Element): string {
   return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
 }
 
+/** A card's paragraphs as read: the level, a line for each change, and the evidence under them. */
+function linesOf(card: Element) {
+  const text = (selector: string) => spoken(card.querySelector(selector)!)
+  return {
+    headline: text('.fitness-card__headline'),
+    changes: [...card.querySelectorAll('[data-testid="fitness-change"]')].map(spoken),
+    support: text('.fitness-card__support'),
+  }
+}
+
 function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPPING } = {}) {
   const { run = SLIPPING, ...rest } = over
   return render(
@@ -83,10 +93,13 @@ describe('FitnessSection', () => {
     )
     const cards = screen.getAllByRole('article', { name: 'Slipping' })
     expect(cards.map((card) => card.getAttribute('data-sport'))).toEqual(['run', 'ride'])
-    expect(spoken(cards[1]!)).toMatch(
-      /At 140 bpm you now ride at \d+ W, .*% \(\d+ to \d+%\) less than the/,
+    const ride = linesOf(cards[1]!)
+    expect(ride.headline).toMatch(/^\d+ W at 140 bpm\.$/)
+    expect(ride.changes).toHaveLength(1)
+    expect(ride.changes[0]).toMatch(
+      /^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/,
     )
-    expect(spoken(cards[1]!)).toMatch(/12 steady rides/)
+    expect(ride.support).toMatch(/^From 12 steady rides, /)
     expect(spoken(cards[1]!)).not.toMatch(BANNED)
     both.unmount()
     render(
@@ -110,14 +123,27 @@ describe('FitnessSection', () => {
     expect(screen.getByText('Run')).toBeInTheDocument()
   })
 
-  it('says the state, the sentence with its range and the steady runs behind it', () => {
+  it('says the state, the level first, a line for the change with its range and the steady runs behind it', () => {
     renderSection()
     const card = screen.getByRole('article')
-    const words = spoken(card)
-    expect(words).toMatch(/Slipping/)
-    expect(words).toMatch(/At 150 bpm you now run .*\/km, .*% \(\d+ to \d+%\) slower than the/)
-    expect(words).toMatch(/12 steady runs/)
-    expect(words).not.toMatch(BANNED)
+    expect(spoken(card)).toMatch(/Slipping/)
+    const lines = linesOf(card)
+    expect(lines.headline).toMatch(/^\d:\d{2} \/km at 150 bpm\.$/)
+    expect(lines.changes).toHaveLength(1)
+    expect(lines.changes[0]).toMatch(
+      /^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/,
+    )
+    expect(lines.support).toMatch(/^From 12 steady runs, \d+ [A-Z][a-z]{2} to \d+ [A-Z][a-z]{2}\.$/)
+    expect(spoken(card)).not.toMatch(BANNED)
+  })
+
+  it('says a recovery in two lines, each with one range, and no line for the season', () => {
+    renderSection({ run: RECOVERING })
+    const { changes } = linesOf(screen.getByRole('article'))
+    expect(changes).toHaveLength(2)
+    expect(changes[0]).toMatch(/^Up \d+% \(\d+ to \d+\) from your \w+ low\.$/)
+    expect(changes[1]).toMatch(/^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/)
+    expect(screen.queryByTestId('fitness-season')).toBeNull()
   })
 
   it('defines the terms that carry the answer in place: the heart rate, the range and a steady run', () => {
@@ -126,10 +152,10 @@ describe('FitnessSection', () => {
     const terms = within(card)
       .getAllByRole('button', { expanded: false })
       .map((button) => button.textContent)
-    expect(terms).toContain('At 150 bpm')
-    expect(terms.some((text) => /^\(\d+ to \d+%\)$/.test(text ?? ''))).toBe(true)
+    expect(terms).toContain('at 150 bpm')
+    expect(terms.some((text) => /^\(\d+ to \d+\)$/.test(text ?? ''))).toBe(true)
     expect(terms).toContain('steady runs')
-    const heartRate = within(card).getByRole('button', { name: 'At 150 bpm' })
+    const heartRate = within(card).getByRole('button', { name: 'at 150 bpm' })
     fireEvent.click(heartRate)
     expect(card.querySelector('.definition__note')?.textContent).toMatch(/one heart rate, 150 bpm/)
   })
@@ -203,7 +229,7 @@ describe('the evidence panel', () => {
     expect(spoken(panel)).not.toMatch(BANNED)
   })
 
-  it('says the athlete’s own seasonal swing was taken out, when one was, and says "rode" for a ride', () => {
+  it('keeps the athlete’s own seasonal swing in the evidence, off the card, and says "rode" for a ride', () => {
     const seasoned = (status: typeof SLIPPING) => ({
       ...status,
       evidence: { ...status.evidence!, method: { ...status.evidence!.method, seasonal: 0.021 } },
@@ -217,9 +243,11 @@ describe('the evidence panel', () => {
     expect(spoken(panel)).toMatch(
       /Your usual seasonal swing, up to 2\.1% either side of your usual, has been taken out of every steady run first\./,
     )
-    expect(screen.getByTestId('fitness-season')).toHaveTextContent(
-      'Allowing for your usual seasonal swing, up to 2.1% either side.',
+    // The card above the evidence says nothing of the season.
+    expect(spoken(screen.getByRole('article').querySelector('.fitness-card__body')!)).not.toMatch(
+      /season/i,
     )
+    expect(screen.queryByTestId('fitness-season')).toBeNull()
     expect(spoken(panel)).toMatch(/the pace you ran at 150 bpm/)
     cleanup()
     render(

@@ -163,8 +163,7 @@ through "back", a false slip stayed on screen for a year or more. Six changes, a
    on the last whole years (at most four), clipped, shrunk by how far it stands above the wander (weekly levels, lag-1
    correlation) and taken out of every run before any test reads it. It is refitted every 4 weeks, so a card's level
    can step by a fraction of a per cent on the week of a refit; an episode keeps the swing it was declared with. The card
-   says so ("Allowing for your usual seasonal swing, up to 2.1% either side.") and so does the evidence
-   (`FitnessMethod.seasonal`). Plain and wander libraries get no term about 70% of the time (90% under 1.2%); a planted 3%
+   is not told on the card; the evidence says so (`FitnessMethod.seasonal`) and How sure is this? says that a status does it. Plain and wander libraries get no term about 70% of the time (90% under 1.2%); a planted 3%
    season comes back at 2.6 to 2.9%; a step part-way through leaks at most `2 * size / (pi * years)` into it, and a clean step is
    gated out altogether (what it leaves in the residuals swamps the swing); with a wander on top, a third of libraries find a term,
    2% at the 90th percentile. It reads no temperature; the warm-day term below (D12, revision 7) does, and the season is then fitted on what is left.

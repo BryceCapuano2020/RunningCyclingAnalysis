@@ -144,6 +144,8 @@ const TOPIC_LIST = [
       `All time uses ${DEFAULT_WINDOW_DAYS} days.`,
       'Each effort is judged on energy rate.',
       'It is converted with the period’s one bike model, which is fitted to its activities.',
+      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
+      'The size taken out is under See the evidence on the card.',
     ],
   },
   {

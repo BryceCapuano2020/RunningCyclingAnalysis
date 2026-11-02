@@ -55,9 +55,9 @@ describe('LandingExample', () => {
     for (const end of ['value', 'low', 'high'] as const) {
       expect(example.change[end]).toBeCloseTo(run.change![end], 3)
     }
-    // The sentence says the same size and range in pace, which the example repeats as written.
-    const { headline } = fitnessLines(run, 'metric')
-    expect(headline).toContain(`${example.shown.size} (${example.shown.range}) slower`)
+    // The card's line says the same size and range in pace, which the example repeats as written.
+    const { changes } = fitnessLines(run, 'metric')
+    expect(changes[0]).toContain(`${example.shown.size} (${example.shown.range}) off`)
   })
 
   it('gives the finding as a second panel of its own: its state, one sentence and the change as a track', () => {
@@ -66,7 +66,7 @@ describe('LandingExample', () => {
     expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
     expect(
       screen.getByText(
-        `At ${fitness.referenceHr} bpm you now run ${fitness.shown.size} (${fitness.shown.range}) slower than before.`,
+        `${fitness.shown.size} (${fitness.shown.range}) off your old level at ${fitness.referenceHr} bpm.`,
       ),
     ).toBeInTheDocument()
     expect(container.querySelector('.fitness-track__band')).not.toBeNull()

@@ -4,9 +4,8 @@ import type { UnitSystem } from '@rca/core/units'
 import { SportIcon } from '../components/icons'
 import { useHoldInputs } from '../holdContext'
 import { SPORT_LABEL } from '../sports'
-import { adjustedForWarmDays, seasonSwing } from '../fitnessModel'
+import { adjustedForWarmDays } from '../fitnessModel'
 import type { FitnessView } from '../fitnessModel'
-import { FITNESS_WORDS } from '../fitnessWords'
 import { withDefinitions } from '../fitnessText'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessGlyph } from './FitnessGlyph'
@@ -33,7 +32,6 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
   const partial = useHoldInputs().partialImport
   const { status } = view
   const waiting = view.state === 'not-enough-evidence'
-  const seasonal = waiting ? null : seasonSwing(status)
   const warm = !waiting && adjustedForWarmDays(status)
   const evidenceOf = view.status.evidence !== null && view.status.series.length > 1
   // Held with the headline: a library known to be only part of what was added gives no state to show.
@@ -95,6 +93,11 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
             <span>{view.label}</span>
           </p>
           <p className="fitness-card__headline">{withDefinitions(view.headline, status, units)}</p>
+          {view.changes.map((line) => (
+            <p key={line} className="fitness-card__change" data-testid="fitness-change">
+              {withDefinitions(line, status, units)}
+            </p>
+          ))}
           {view.support === '' ? null : (
             <p className="fitness-card__support">{withDefinitions(view.support, status, units)}</p>
           )}
@@ -113,11 +116,6 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
               Adjusted for warm days.
             </p>
           ) : null}
-          {seasonal === null ? null : (
-            <p className="fitness-card__support" data-testid="fitness-season">
-              {`Allowing for your usual seasonal swing, ${seasonal}.`}
-            </p>
-          )}
         </div>
         {view.track === null ? null : (
           <div className="fitness-card__shape">
@@ -134,7 +132,10 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
         >
           <summary>
             <span>See the evidence</span>
-            <span className="sr-only">{` for your ${FITNESS_WORDS[view.sport].output.toLowerCase()} at the same heart rate`}</span>
+            {/* Two cards on Balance: a control list needs to tell them apart. */}
+            {showSport ? (
+              <span className="sr-only">{` for ${SPORT_LABEL[view.sport].toLowerCase()}`}</span>
+            ) : null}
           </summary>
           {mounted ? <FitnessEvidence status={status} units={units} library={library} /> : null}
         </details>

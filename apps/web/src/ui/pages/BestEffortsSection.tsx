@@ -12,15 +12,12 @@ import { SPORT_PLURAL } from '../sports'
 import { thresholdLine } from '../thresholdLine'
 import { curvesOf } from './bestEffortRows'
 import type { BestEffortRows } from './bestEffortRows'
-import { RecordTiles } from './RecordTiles'
-import { tileRows } from './tileRows'
 import type { SectionContext } from './sportPageProps'
 
 /**
- * A sport's best efforts: the curve they make with its findings written on it, and under it a strip of the
- * records the sport is read by. The full list, and where the bests stand out from each other, are behind
- * disclosures further down the page. The heading names the card for a screen reader; the chart's own title
- * and finding are the visible ones.
+ * A sport's best efforts: the curve they make with its findings written on it. The records themselves are in "All best
+ * efforts" below, once: a strip of tiles under the curve would list the same rows again. The heading names the card for
+ * a screen reader; the chart's own title and finding are the visible ones.
  */
 export function BestEffortsSection(context: SectionContext & { list: BestEffortRows }) {
   const { sport, result, previousLabel, massKg, units, count, profile, list } = context
@@ -48,7 +45,6 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
         }
         change={context.change}
       />
-      <RecordTiles tiles={tileRows(sport, list.rows)} />
       {sport === 'ride' && list.someEstimated && (
         <p className="muted">
           {`Power meters measured ${formatCount(measuredRides)} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}

@@ -84,14 +84,14 @@ export const FITNESS_WORDS: Record<Sport, FitnessWords> = {
 
 /** What a library's one sport needs before it has a fitness status at all, said as a line when the page has no card to show. */
 export const FITNESS_LACK_LINE: Record<Sport, string> = {
-  run: 'Fitness at the same effort needs heart rate: add runs recorded with a strap or watch.',
-  ride: 'Fitness at the same effort needs power: add rides recorded with a power meter.',
+  run: 'Fitness needs heart rate. Add runs recorded with a strap or watch.',
+  ride: 'Fitness needs power. Add rides recorded with a power meter.',
 }
 
 /**
  * The same line for a library whose every activity of the sport was indoors, where the fitness reading skips them (it reads
- * a run's kilometre splits, and a treadmill's belt speed is not a distance covered): it needs outdoor ones, not heart rate.
+ * a run's kilometre splits, and a treadmill's belt speed is not a distance covered): it asks for outdoor ones.
  */
 export const FITNESS_LACK_INDOOR_LINE: Partial<Record<Sport, string>> = {
-  run: 'Fitness at the same effort needs outdoor runs, as it leaves treadmill runs out: add runs recorded outdoors with a strap or watch.',
+  run: 'Fitness skips treadmill runs. Add runs recorded outdoors with a strap or watch.',
 }

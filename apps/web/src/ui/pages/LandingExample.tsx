@@ -63,7 +63,7 @@ export function LandingFitnessExample() {
           <span>{SLIP.label}</span>
         </p>
         <p className="landing-example__sentence">
-          {`At ${fitness.referenceHr} bpm you now run ${fitness.shown.size} (${fitness.shown.range}) slower than before.`}
+          {`${fitness.shown.size} (${fitness.shown.range}) off your old level at ${fitness.referenceHr} bpm.`}
         </p>
         <FitnessTrack track={SLIP_TRACK} />
       </div>

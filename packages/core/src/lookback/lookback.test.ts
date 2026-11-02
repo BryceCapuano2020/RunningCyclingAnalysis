@@ -237,15 +237,19 @@ describe('what leads', () => {
       episodes: [old],
     })
     const lead = leadOf(look(some), live('holding'))!
-    expect(leadSentence(lead, look(some), 'metric')).toMatch(/between March and August 2015\./)
+    expect(leadSentence(lead, look(some), 'metric')).toBe(
+      'Improved 9% (7 to 12) between March and August 2015.',
+    )
     // A break with no gap on record is dated too.
     const broke = episode({ kind: 'after-break', fromMs: Date.UTC(2016, 4, 1) })
-    expect(episodeSentence(broke, look(some).sports.run, some)).toMatch(
-      /^After a break from running in May 2016, /,
+    expect(episodeSentence(broke, look(some).sports.run, some)).toBe(
+      'Pace was 9% (7 to 12) faster after a break from running in May 2016.',
     )
     // A ride's break is from riding, in the table keyed by sport.
     const rides = { ...look(some).sports.ride, fitness: some, referenceHr: 150 }
-    expect(episodeSentence(broke, rides, some)).toMatch(/^After a break from riding in May 2016, /)
+    expect(episodeSentence(broke, rides, some)).toBe(
+      'Power was 10% (7 to 13) higher after a break from riding in May 2016.',
+    )
   })
 
   it('names a lead by its sport, kind and the months it is dated by, so a nudged boundary is not a new lead', () => {
@@ -369,11 +373,11 @@ describe('the words', () => {
       sport,
       fit,
     )
-    expect(open).toMatch(
-      /^From January 2023 your pace at 148 bpm was about \d+(\.\d)?% \(\d+ to \d+%\) slower, and in January 2025 it was still lower\./,
-    )
+    expect(open).toBe('Slipped 8% (4 to 11) in January 2023. Still lower in January 2025.')
     const held = episodeSentence(episode(), sport, fit, true)
-    expect(held).toMatch(/and held there through January 2025\.$/)
+    expect(held).toMatch(
+      /^Improved 9% \(7 to 12\) between January and \w+ 2023\. Held through January 2025\.$/,
+    )
     expect(episodeSentence(episode(), sport, fit, false)).not.toMatch(/held/)
   })
 
@@ -387,7 +391,7 @@ describe('the words', () => {
       sport,
       fit,
     )
-    expect(back).toMatch(/By July 2023 it was back\.$/)
+    expect(back).toBe('Slipped 9% (6 to 11) in January 2023. Back by July 2023.')
     const partly = episodeSentence(
       episode({
         kind: 'slip-partly-back',
@@ -398,8 +402,36 @@ describe('the words', () => {
       sport,
       fit,
     )
-    // The baseline is named, so it reads as its own comparison beside the fitness card's "than before <day>".
-    expect(partly).toMatch(/was still about .* slower than before [A-Z][a-z]+ \d{4}\.$/)
+    // Each sentence holds one range: the slip, what came back, and what is still missing.
+    expect(partly).toBe(
+      'Slipped 14% (10 to 18) in January 2023. Up 6% (3 to 8) by July 2023. Still 6% (3 to 10) off.',
+    )
+    for (const sentence of partly.split('. ')) expect(sentence.match(/\(/g)).toHaveLength(1)
+  })
+
+  it('writes each row of the list with the size first and one range to a sentence', () => {
+    const slip = { value: -0.12, low: -0.15, high: -0.09 }
+    const row = (over: Partial<HindsightEpisode>) => episodeRow(episode(over), sport, fit)
+    expect(row({ kind: 'slip-back', change: slip })).toMatch(
+      /^January to \w+ 2023\. Slipped 14% \(10 to 18\), then back\. 90 steady runs\.$/,
+    )
+    expect(
+      row({
+        kind: 'slip-partly-back',
+        change: slip,
+        regained: { value: 0.06, low: 0.03, high: 0.09 },
+      }),
+    ).toMatch(
+      /^January to \w+ 2023\. Slipped 14% \(10 to 18\)\. Then up 6% \(3 to 8\)\. 90 steady runs\.$/,
+    )
+    expect(row({ kind: 'improvement' })).toMatch(
+      /^January to \w+ 2023\. Improved 9% \(7 to 12\)\. 90 steady runs\.$/,
+    )
+    for (const kind of ['slip-back', 'slip-partly-back', 'slip-open', 'improvement'] as const) {
+      const said = row({ kind, change: slip, regained: { value: 0.06, low: 0.03, high: 0.09 } })
+      for (const sentence of said.split('. '))
+        expect(sentence.match(/\(/g)?.length ?? 0).toBeLessThan(2)
+    }
   })
 
   it('names a break and then the step after it', () => {
@@ -415,8 +447,8 @@ describe('the words', () => {
       sport,
       withBreak,
     )
-    expect(text).toMatch(
-      /^No steady runs from December 2022 to February 2023\. When they resumed, your pace at 148 bpm was about .* slower\.$/,
+    expect(text).toBe(
+      'No steady runs from December 2022 to February 2023. Then pace was 6% (3 to 10) slower.',
     )
   })
 
@@ -442,7 +474,7 @@ describe('the words', () => {
       'metric',
     )
     expect(rows[0]).toBe(
-      'Best 20 min: 4:50 /km, set on 14 May 2021; it has stood 1 year 1 month as of 1 June 2022.',
+      'Best 20 min: 4:50 /km, set on 14 May 2021. It has stood 1 year 1 month as of 1 June 2022.',
     )
     expect(rows[1]).toBe('By year: 2020 5:13 /km, 2021 4:50 /km, 2022 (so far) 5:03 /km.')
     expect(rows).toContain('Faster in 2021 than in 2020.')

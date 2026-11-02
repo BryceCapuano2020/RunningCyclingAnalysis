@@ -55,25 +55,32 @@ describe("the finding a sport's years are named by", () => {
         ],
       }),
     )
-    expect(yearsFinding(run)).toBe('Your pace at 148 bpm got faster in 2023')
-    expect(episodeFinding(episode({}), run)).toBe(
-      'Your pace at 148 bpm slipped in 2021 and came back',
-    )
+    expect(yearsFinding(run)).toBe('Improved in 2023')
+    expect(episodeFinding(episode({}), run)).toBe('Slipped in 2021, then came back')
     expect(episodeFinding(episode({ kind: 'slip-partly-back' }), run)).toBe(
-      'Your pace at 148 bpm slipped in 2021 and came part of the way back',
+      'Slipped in 2021, then came part of the way back',
     )
+    expect(episodeFinding(episode({ kind: 'slip-open' }), run)).toBe(
+      'Slipped in 2021, stayed lower until it fell again',
+    )
+    expect(
+      episodeFinding(
+        episode({ kind: 'after-break', change: { value: 0.08, low: 0.05, high: 0.1 } }),
+        run,
+      ),
+    ).toBe('Pace was faster after the break in 2021')
   })
 
   it('says a ride in power, and an open slip only as the year it began', () => {
     const ride = block('ride', years({ episodes: [episode({ kind: 'slip-open', toMs: null })] }))
-    expect(yearsFinding(ride)).toBe('Your power at 140 bpm slipped in 2021')
+    expect(yearsFinding(ride)).toBe('Slipped in 2021')
     const up = block(
       'ride',
       years({
         episodes: [episode({ kind: 'improvement', change: { value: 0.08, low: 0.06, high: 0.1 } })],
       }),
     )
-    expect(yearsFinding(up)).toBe('Your power at 140 bpm got higher in 2021')
+    expect(yearsFinding(up)).toBe('Improved in 2021')
   })
 
   it('falls back to a quiet stretch, then to nothing, and says what a short library needs', () => {
@@ -81,19 +88,18 @@ describe("the finding a sport's years are named by", () => {
       'run',
       years({ quiet: [{ fromMs: T(2021, 6), toMs: T(2024, 7), within: 0.03, runs: 310 }] }),
     )
-    expect(yearsFinding(quiet)).toBe(
-      'From June 2021 to July 2024 your pace at 148 bpm stayed within 3%',
-    )
+    expect(yearsFinding(quiet)).toBe('Pace stayed within 3% from June 2021 to July 2024')
     // A statement that a level stayed within a range waits for the card to allow it.
     expect(yearsFinding(quiet, 'slipping')).toBeNull()
-    expect(yearsFinding(quiet, 'holding')).toMatch(/stayed within 3%$/)
+    expect(yearsFinding(quiet, 'holding')).toMatch(/^Pace stayed within 3% from /)
     expect(yearsFinding(block('run', years({})))).toBeNull()
     expect(yearsFinding(block('run', { kind: 'unavailable' }))).toBeNull()
+    // A sport too short for its years has no finding: its section says what it needs.
     expect(
       yearsFinding(
         block('run', { kind: 'too-short', steady: 20, weeks: 30, needSteady: 40, needWeeks: 52 }),
       ),
-    ).toBe('Your years start after a year of steady running')
+    ).toBeNull()
   })
 
   it('names a sport with only bests by that, not by a best that has stood', () => {
@@ -107,7 +113,7 @@ describe("the finding a sport's years are named by", () => {
       verdicts: [],
     }
     const ride = { ...block('ride', years({})), milestones: [best] }
-    expect(yearsFinding(ride)).toBe('Your best efforts by year')
+    expect(yearsFinding(ride)).toBe('Best efforts by year')
   })
 
   it('says rides where a ride is meant: steady riding, steady rides', () => {
@@ -118,9 +124,7 @@ describe("the finding a sport's years are named by", () => {
       needSteady: 40,
       needWeeks: 52,
     } as const
-    expect(yearsFinding(block('ride', short))).toBe(
-      'Your years start after a year of steady riding',
-    )
+    expect(yearsFinding(block('ride', short))).toBeNull()
     expect(tooShortText(short, 'ride')).toBe(
       'Needs 40 steady rides over 52 weeks. You have 20 over 30.',
     )

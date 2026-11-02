@@ -130,7 +130,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
           rangeText(p, status, units),
           String(p.runs),
         ]),
-        caption: `${word} at ${hr} bpm at steps four weeks apart. A step is read from the ${FITNESS_WORDS[sport].steadyPlural} of the 4 to 16 weeks to its date, the fewest that hold enough of them.`,
+        caption: `${word} at ${hr} bpm at steps four weeks apart. A step uses the ${FITNESS_WORDS[sport].steadyPlural} of the 4 to 16 weeks to its date, the fewest that hold enough of them.`,
         phoneHidden: [3],
       }}
       empty={emptyText(series.length, before)}

@@ -82,11 +82,13 @@ describe('the sample athlete’s fitness story', () => {
   })
 
   it('reads in plain words, with no pace or cause the data cannot give', () => {
-    const { headline, support } = fitnessLines(status, 'metric')
-    expect(headline).toMatch(
-      /^At \d+ bpm you now run \d:\d{2} \/km, [\d.]+% \(\d+ to \d+%\) slower than the \d:\d{2} \/km before \d{1,2} [A-Z][a-z]{2}\.$/,
+    const { headline, changes, support } = fitnessLines(status, 'metric')
+    expect(headline).toMatch(/^\d:\d{2} \/km at \d+ bpm\.$/)
+    expect(changes).toHaveLength(1)
+    expect(changes[0]).toMatch(
+      /^\d+% \(\d+ to \d+\) off your (?:\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
     )
-    expect(lintCopy(`${headline} ${support}`)).toEqual([])
+    expect(lintCopy([headline, ...changes, support].join(' '))).toEqual([])
   })
 
   // One other week and zone, since each clock draws a whole season of its own. The other days of the week and
@@ -114,7 +116,7 @@ describe('the sample athlete’s fitness story', () => {
     expect(rides.referenceHr).not.toBeNull()
     // It tells its level in watts, and what a trend needs, where it used to refuse.
     const lines = fitnessLines(rides, 'metric')
-    expect(lines.headline).toMatch(/^\d+ W at \d+ bpm \(\d+ to \d+\)\.$/)
+    expect(lines.headline).toMatch(/^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/)
     expect(lines.support).toMatch(/^From \d+ steady rides\.$/)
     expect(lines.needs).toMatch(/^\d+ more earlier rides? to see a trend\.$/)
   })

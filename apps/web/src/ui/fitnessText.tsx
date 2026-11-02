@@ -28,16 +28,15 @@ interface Rule {
 }
 
 /**
- * A sentence from the analysis with its terms defined in place: the heart rate it is read at, a range and
+ * A line from the analysis with its terms defined in place: the heart rate it is taken at, a range and
  * "steady run", the first of each. Text that has none of them comes back as it is.
  */
 export function withDefinitions(text: string, status: FitnessStatus, units: UnitSystem): ReactNode {
   const meaning = fitnessDefinitions(status, units)
   const rules: Rule[] = [
-    { pattern: /^At \d+ bpm/, meaning: meaning.sameHeartRate },
-    // A level with no change in it says the heart rate in the middle of its line and its range in the units of the figure.
+    // The level says its heart rate after its figure and range.
     { pattern: /\bat \d+ bpm/, meaning: meaning.sameHeartRate },
-    { pattern: /\(\d+(?:\.\d)?(?: to \d+(?:\.\d)?)?%\)/, meaning: meaning.range },
+    // A range is the two ends of a size or a figure in brackets: "(5 to 15)", "(5:20 to 5:40)".
     { pattern: /\((?:\d+:\d{2}|\d+) to (?:\d+:\d{2}|\d+)\)/, meaning: meaning.range },
     { pattern: /steady (?:runs?|rides?)/, meaning: meaning.steadyRun },
   ]

@@ -5,7 +5,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 
 /**
- * What "Your years" says on Balance: the look-back's lead as the line, and under it the episodes the lead is not,
+ * What "History" says on Balance: the look-back's lead as the line, and under it the episodes the lead is not,
  * newest first, so opening the row tells more than the line and never the same thing twice. The lead is chosen against
  * what the fitness cards say now (`leadOf`), so the line cannot contradict a card.
  */
@@ -59,5 +59,7 @@ export function yearsWords(
     all.length - MOST_ROWS + told.reduce((total, { years }) => total + years.omittedEpisodes, 0)
   const rows = all.slice(0, MOST_ROWS).map((row) => row.text)
   if (omitted > 0) rows.push(`And ${omitted} smaller ${omitted === 1 ? 'change' : 'changes'}.`)
-  return { lead: leadSentence(lead, lookBack, units), rows, key: leadKey(lead) }
+  // Both sports have years to tell: the lead names its sport, as the rows do.
+  const said = leadSentence(lead, lookBack, units)
+  return { lead: named ? `${SPORT_NAME[lead.sport]}: ${said}` : said, rows, key: leadKey(lead) }
 }

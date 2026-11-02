@@ -26,12 +26,12 @@ afterEach(() => {
 
 const words = () => yearsWords(YEARS_LOOKBACK, NO_FITNESS, 'metric')!
 
-describe('the "Your years" row', () => {
-  it('is a region named "Your years" with the lead as its line and no heading in the outline', async () => {
+describe('the History row', () => {
+  it('is a region named "History" with the lead as its line and no heading in the outline', async () => {
     const Row = await freshRow()
     render(<Row words={words()} onSeen={vi.fn()} />)
-    const region = screen.getByRole('region', { name: 'Your years' })
-    expect(region).toHaveTextContent(/From May 2021 your pace at 148 bpm was about 8\.7%/)
+    const region = screen.getByRole('region', { name: 'History' })
+    expect(region).toHaveTextContent('Slipped 9% (6 to 11) in May 2021. Back by January 2022.')
     expect(screen.queryByRole('heading')).toBeNull()
   })
 
@@ -39,12 +39,12 @@ describe('the "Your years" row', () => {
     const Row = await freshRow()
     const onSeen = vi.fn()
     render(<Row words={words()} onSeen={onSeen} />)
-    expect(screen.getByText('Show your years.', { exact: false })).toHaveClass('sr-only')
+    expect(screen.getByText('Show history.', { exact: false })).toHaveClass('sr-only')
     const details = document.querySelector('details')!
     details.open = true
     fireEvent(details, new Event('toggle'))
     expect(onSeen).toHaveBeenCalledWith('open')
-    expect(screen.getByTestId('years-row')).toHaveTextContent(/By January 2022 it was back/)
+    expect(screen.getByTestId('years-row')).toHaveTextContent(/Back by January 2022\./)
   })
 
   it('moves focus to the page heading when it hides, and stays hidden when the page comes back', async () => {

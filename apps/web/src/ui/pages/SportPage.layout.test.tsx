@@ -200,7 +200,7 @@ describe('the answer: threshold and level in one card', () => {
   })
 })
 
-describe('the records under the curve', () => {
+describe('the records of the page', () => {
   const at = new Date(2026, 0, 12, 9).getTime()
   const withDistances = run({
     id: 'run-d',
@@ -214,41 +214,53 @@ describe('the records under the curve', () => {
       { distanceM: 21_097.5, seconds: 6000 },
     ],
   })
-  const tiles = () =>
-    within(screen.getByRole('list', { name: 'Best efforts' })).getAllByRole('listitem')
+  /** The rows of "All best efforts", the one place the page lists its records. */
+  const rows = () =>
+    within(screen.getByRole('region', { name: 'All best efforts' })).getAllByRole('listitem')
+  const rowNamed = (label: string) =>
+    rows().find((row) => row.querySelector('.records__label')?.textContent === label)!
 
-  it('shows a run’s four distances as tiles, with the time, the pace and the activity', () => {
+  it('lists a run’s distances once, in All best efforts, with the time, the pace and the activity', () => {
     renderPage('run', makeResult({ activities: [withDistances] }))
-    const items = tiles()
-    expect(items.map((tile) => tile.querySelector('.record-tiles__label')?.textContent)).toEqual([
-      '1 km',
-      '1 mi',
-      '5 km',
-      '10 km',
-    ])
-    expect(items.map((tile) => tile.querySelector('.record-tiles__value')?.textContent)).toEqual([
-      '3:20',
-      '5:40',
-      '21:00',
-      '45:00',
-    ])
+    const labels = rows().map((row) => row.querySelector('.records__label')?.textContent)
+    for (const label of ['1 km', '1 mi', '5 km', '10 km']) expect(labels).toContain(label)
+    expect(new Set(labels).size).toBe(labels.length)
+    const values = Object.fromEntries(
+      ['1 km', '1 mi', '5 km', '10 km'].map((label) => [
+        label,
+        rowNamed(label).querySelector('.records__value')?.textContent,
+      ]),
+    )
+    expect(values).toEqual({ '1 km': '3:20', '1 mi': '5:40', '5 km': '21:00', '10 km': '45:00' })
     // The kilometre's pace is its time, so it has none beside it; the others show their pace.
-    expect(items[0]!.querySelector('.record-tiles__sub')).toBeNull()
-    expect(items[2]!.querySelector('.record-tiles__sub')).toHaveTextContent('4:12 /km')
+    expect(rowNamed('1 km').querySelector('.records__sub')).toBeNull()
+    expect(rowNamed('5 km').querySelector('.records__sub')).toHaveTextContent('4:12 /km')
   })
 
-  it('names the one activity every record was set in once, under the strip, and not on each tile', () => {
+  it('draws no strip of tiles under the curve, whose rows the list below holds', () => {
     renderPage('run', makeResult({ activities: [withDistances] }))
-    expect(tiles().every((tile) => tile.querySelector('a') === null)).toBe(true)
+    // The curve's card is there, and the list has the rows; the strip that repeated them is not.
     const curve = screen.getByRole('region', { name: 'Best efforts' })
+    expect(curve.querySelector('.sport-curve, figure')).not.toBeNull()
+    expect(curve.querySelector('.record-tiles')).toBeNull()
+    expect(document.querySelector('.record-tiles')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
+    expect(rows().length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('names the one activity every record was set in once, under the list, and not on each row', () => {
+    renderPage('run', makeResult({ activities: [withDistances] }))
+    expect(rows().every((row) => row.querySelector('a') === null)).toBe(true)
+    const all = screen.getByRole('region', { name: 'All best efforts' })
     expect(
-      within(curve)
+      within(all)
         .getByText(/^All set on/)
+        .closest('p')!
         .querySelector('a'),
     ).toHaveAttribute('href', '#/activities/run-d')
   })
 
-  it('links each tile to its own activity when they were set in different ones', () => {
+  it('links each row to its own activity when they were set in different ones', () => {
     const other = run({
       id: 'run-o',
       name: 'Long run',
@@ -256,23 +268,22 @@ describe('the records under the curve', () => {
       distanceBests: [{ distanceM: 10_000, seconds: 2640 }],
     })
     renderPage('run', makeResult({ activities: [withDistances, other] }))
-    const links = tiles().flatMap((tile) => Array.from(tile.querySelectorAll('a')))
+    const links = rows().flatMap((row) => Array.from(row.querySelectorAll('a')))
     expect(links.map((link) => link.getAttribute('href'))).toContain('#/activities/run-o')
     expect(links.map((link) => link.getAttribute('href'))).toContain('#/activities/run-d')
   })
 
-  it('gives a tile a level chip where the distance has a standard, and none for the kilometre', () => {
+  it('gives a row a level where the distance has a standard, and none for the kilometre', () => {
     renderPage('run', makeResult({ activities: [withDistances] }), { profile: MAN_BORN_1986 })
-    const items = tiles()
-    expect(items[0]!.querySelector('.record-tiles__grade')).toBeNull()
-    for (const tile of items.slice(1)) {
-      expect(tile.querySelector('.record-tiles__grade')?.textContent).toMatch(
+    expect(rowNamed('1 km').querySelector('.records__grade')).toBeNull()
+    for (const label of ['1 mi', '5 km', '10 km']) {
+      expect(rowNamed(label).querySelector('.records__grade')?.textContent).toMatch(
         /^(Recreational|Local|Regional|National|World) · \d+%$/,
       )
     }
   })
 
-  it('shows a ride’s 1, 5, 20 and 60 minute bests in watts with watts a kilogram', () => {
+  it('lists a ride’s 1, 5, 20 and 60 minute bests in watts with watts a kilogram, once', () => {
     const ride = makeActivity({
       id: 'r',
       sport: 'ride',
@@ -291,15 +302,12 @@ describe('the records under the curve', () => {
         ],
       }),
     )
-    const items = tiles()
-    expect(items.map((tile) => tile.querySelector('.record-tiles__label')?.textContent)).toEqual([
-      '1 min',
-      '5 min',
-      '20 min',
-      '60 min',
-    ])
-    expect(items[0]!.querySelector('.record-tiles__value')).toHaveTextContent('450 W')
-    expect(items[0]!.querySelector('.record-tiles__sub')).toHaveTextContent('6.0 W/kg')
+    const labels = rows().map((row) => row.querySelector('.records__label')?.textContent)
+    expect(labels).toEqual(expect.arrayContaining(['1 min', '5 min', '20 min', '60 min']))
+    expect(new Set(labels).size).toBe(labels.length)
+    expect(rowNamed('1 min').querySelector('.records__value')).toHaveTextContent('450 W')
+    expect(rowNamed('1 min').querySelector('.records__sub')).toHaveTextContent('6.0 W/kg')
+    expect(document.querySelector('.record-tiles')).toBeNull()
   })
 
   it('names the full list on its row and says no count or finding there, with a profile or without', () => {
@@ -312,9 +320,10 @@ describe('the records under the curve', () => {
     expect(bare.textContent).toBe('All best efforts')
   })
 
-  it('has no strip, and no empty list, without a record', () => {
+  it('has no strip of tiles, and no empty one, without a record', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] }))
     expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
+    expect(document.querySelector('.record-tiles')).toBeNull()
   })
 })
 

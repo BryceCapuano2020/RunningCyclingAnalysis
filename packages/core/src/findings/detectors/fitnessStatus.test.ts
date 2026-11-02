@@ -44,7 +44,7 @@ describe('the fitness-status detector', () => {
     expect(finding.direction).toBe('worse')
     expect(finding.effect).toBeLessThan(-0.04)
     expect(finding.headline).toMatch(
-      /^At \d+ bpm you now run \d+(\.\d)?% \(\d+( to \d+)?%\) slower than before /,
+      /^\d+% \(\d+ to \d+\) off your level before \d{1,2} [A-Z][a-z]{2}( \d{4})? at \d+ bpm\.$/,
     )
     expect(finding.headline).not.toMatch(/\/km|\/mi/)
     expect(finding.confidence).toBeGreaterThanOrEqual(0.8)
@@ -74,7 +74,7 @@ describe('the fitness-status detector', () => {
     expect(finding.direction).toBe('better')
     expect(finding.effect).toBeGreaterThan(0.04)
     expect(finding.headline).toMatch(
-      /^At \d+ bpm you now run \d+(\.\d)?% \(\d+( to \d+)?%\) faster than before /,
+      /^\d+% \(\d+ to \d+\) faster than your level before \d{1,2} [A-Z][a-z]{2}( \d{4})? at \d+ bpm\.$/,
     )
     expect(finding.headline).not.toMatch(/\/km|\/mi/)
     // Not at the first sign: the first mark that speaks is weeks after the rise is first shown as improving.
@@ -151,7 +151,7 @@ describe('the fitness-status detector', () => {
     expect(ids).toContain('fitness-status:run:back')
     const back = episodesOf(result.marks).find((e) => e.finding.id.endsWith(':back'))!.finding
     expect(back.direction).toBe('better')
-    expect(back.headline).toMatch(/^At \d+ bpm you are back/)
+    expect(back.headline).toMatch(/^Back (?:and \d+% .* faster than|at) your /)
     expect(back.confidence).toBeGreaterThanOrEqual(0.8)
   })
 

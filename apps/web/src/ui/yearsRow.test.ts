@@ -9,12 +9,10 @@ import { RUN_YEARS, YEARS_LOOKBACK } from './yearsFixtures'
 
 const none = { checkIn: null, seen: false } as const
 
-describe('what "Your years" says', () => {
+describe('what "History" says on Balance', () => {
   it('leads with the slip that came back, dated, and keeps the slip still open out of the list', () => {
     const words = yearsWords(YEARS_LOOKBACK, NO_FITNESS, 'metric')!
-    expect(words.lead).toBe(
-      'From May 2021 your pace at 148 bpm was about 8.7% (6 to 11%) slower. By January 2022 it was back.',
-    )
+    expect(words.lead).toBe('Slipped 9% (6 to 11) in May 2021. Back by January 2022.')
     // What names the lead is its kind and the months its sentence dates it by.
     expect(words.key).toBe('run:slip-back:2021-05:2022-01')
     // The lead is not listed again; the other episode is, and not as an open-ended claim about now.
@@ -48,12 +46,10 @@ describe('what "Your years" says', () => {
       },
     }
     const words = yearsWords(older, NO_FITNESS, 'metric')!
-    expect(words.lead).toMatch(
-      /got about \d+% \(\d+ to \d+%\) faster between March and September 2009\./,
-    )
+    expect(words.lead).toBe('Improved 14% (12 to 16) between March and September 2009.')
     // The slip that came back is newer and smaller: it is a row now, not the lead.
     expect(words.rows).toHaveLength(1)
-    expect(words.rows[0]).toMatch(/^May 2021 to January 2022\. Slipped about/)
+    expect(words.rows[0]).toMatch(/^May 2021 to January 2022\. Slipped 9% \(6 to 11\), then back\./)
   })
 
   it('never leads with a best that has stood: a library whose only lead is a best has no row', () => {

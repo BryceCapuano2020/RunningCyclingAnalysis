@@ -25,19 +25,16 @@ const MONTHS = [
 const month = (ms: number) => MONTHS[new Date(ms).getUTCMonth()]!
 
 /**
- * A date names its year when it is not in the year the status is as of, so a change that began or a low that fell
- * in an earlier year reads unambiguously ("before 1 Aug 2022"), and a recent one stays short.
+ * A date names its year when it is not in the year the status is as of, so a low that fell in an earlier year reads
+ * unambiguously ("July 2024"), and a recent one stays short.
  */
-const year = (ms: number, asOfMs: number) =>
-  new Date(ms).getUTCFullYear() === new Date(asOfMs).getUTCFullYear()
-    ? ''
-    : ` ${new Date(ms).getUTCFullYear()}`
-const dayOf = (ms: number, asOfMs: number) => `${formatDay(ms)}${year(ms, asOfMs)}`
-const monthOf = (ms: number, asOfMs: number) => `${month(ms)}${year(ms, asOfMs)}`
+const yearOf = (ms: number) => new Date(ms).getUTCFullYear()
+const yearIn = (ms: number, asOfMs: number) =>
+  yearOf(ms) === yearOf(asOfMs) ? '' : ` ${yearOf(ms)}`
+const monthOf = (ms: number, asOfMs: number) => `${month(ms)}${yearIn(ms, asOfMs)}`
 
 /** How each sport's level and change are said: the verb, the words for less and more, and the level as the athlete's units write it. */
 interface Words {
-  verb: string
   less: string
   more: string
   /** What follows the amount in a sentence with no figure for the level itself. */
@@ -58,7 +55,6 @@ interface Words {
 
 const WORDS: Record<Sport, Words> = {
   run: {
-    verb: 'run',
     less: 'slower',
     more: 'faster',
     tail: '',
@@ -73,7 +69,6 @@ const WORDS: Record<Sport, Words> = {
     shown: (change) => change / (1 + change),
   },
   ride: {
-    verb: 'ride at',
     less: 'less',
     more: 'more',
     tail: ' power',
@@ -97,29 +92,33 @@ export function shownChange(sport: Sport, r: Ranged): Ranged {
 /** Whether the whole range is on one side of level: only then is there a direction to say. */
 export const oneSided = (r: Ranged): boolean => r.low > 0 || r.high < 0
 
+/** A size as the athlete reads it: whole percentages, and a tenth under 1% so a small change does not read as none. */
+const percent = (fraction: number): string => {
+  const size = Math.abs(fraction) * 100
+  return `${size < 1 ? Number(size.toFixed(1)) : Math.round(size)}%`
+}
+
 /**
- * The ends of a range as whole percentages, "3 to 9%"; one figure when they round together. A range on one side of
+ * The ends of a range as whole percentages, "3 to 9"; nothing when they round together. A range on one side of
  * level is written as sizes, the words beside it giving the direction. One that crosses level keeps its signs
- * ("-3 to +4%"), since its ends lie on different sides and sizes alone would say the same of both.
+ * ("-3 to +4"), since its ends lie on different sides and sizes alone would say the same of both.
  */
 const rangeText = (r: Ranged): string => {
   const [lo, hi] = [Math.round(r.low * 100), Math.round(r.high * 100)]
   if (oneSided(r)) {
     const [a, b] = [Math.abs(lo), Math.abs(hi)].sort((x, y) => x - y)
-    return a === b ? `${b}%` : `${a} to ${b}%`
+    return a === b ? '' : `${a} to ${b}`
   }
   const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
-  return lo === hi ? `${signed(hi)}%` : `${signed(lo)} to ${signed(hi)}%`
+  return lo === hi ? '' : `${signed(lo)} to ${signed(hi)}`
 }
 
-/** "6% (3 to 9%)": the size of a change and the range it may lie in. */
+/** "6% (3 to 9)": the size of a change and the range it may lie in, the range left out when it rounds to the size. */
 export const sized = (sport: Sport, r: Ranged) => {
   const shown = shownChange(sport, r)
-  return `${formatRelative(shown.value)} (${rangeText(shown)})`
+  const range = rangeText(shown)
+  return `${percent(shown.value)}${range === '' ? '' : ` (${range})`}`
 }
-
-/** The side a change is on: "slower" or "faster" than the level it is against. */
-const side = (w: Words, r: Ranged) => (r.value < 0 ? w.less : w.more)
 
 /**
  * How far from level the runs allow the athlete to be, as a percentage in the athlete's terms: the log distance
@@ -130,12 +129,45 @@ export function withinText(sport: Sport, within: number): string {
   return formatRelative(Math.max(Math.abs(f(Math.expm1(within))), Math.abs(f(Math.expm1(-within)))))
 }
 
-/** The month a change began, or the day the level before it ended. */
-const before = (ms: number | null, asOfMs: number) =>
-  ms === null ? '' : ` before ${dayOf(ms, asOfMs)}`
+/** The year a date falls in, as the status reads it. */
+const sameYear = (ms: number, asOfMs: number) => yearOf(ms) === yearOf(asOfMs)
+
+/**
+ * The level a change is against: "your 2019 level" for one that ended in an earlier year, "your level before 28 Feb"
+ * in the status's own year, and "your old level" when its end is not dated. A finding is kept, so it names the day:
+ * "your level before 28 Feb 2019".
+ */
+function oldLevel(s: FitnessStatus, dated = false): string {
+  if (s.onsetMs === null) return 'your old level'
+  if (dated) return `your level before ${formatDay(s.onsetMs)}${yearIn(s.onsetMs, s.asOfMs)}`
+  return sameYear(s.onsetMs, s.asOfMs)
+    ? `your level before ${formatDay(s.onsetMs)}`
+    : `your ${yearOf(s.onsetMs)} level`
+}
+
+/** The low a recovery rose from: "your 2020 low", or "your July low" in the status's own year; a finding says "your low in July 2020". */
+const lowName = (s: FitnessStatus, dated = false) =>
+  dated
+    ? `your low in ${monthOf(s.lowMs!, s.asOfMs)}`
+    : `your ${sameYear(s.lowMs!, s.asOfMs) ? month(s.lowMs!) : yearOf(s.lowMs!)} low`
 
 /** Whether the whole range is above the old level: the athlete is not only back but faster. */
 const faster = (s: FitnessStatus) => s.change!.low > 0
+
+/** A level the range allows no direction for: "At your 2019 level, within 4.6%". */
+const atLevel = (s: FitnessStatus, dated = false) =>
+  `At ${oldLevel(s, dated)}, within ${withinText(s.sport, s.within!)}`
+
+/** The size of a change against the old level, or the level itself when its range crosses it; no full stop. */
+function against(s: FitnessStatus, dated = false): string {
+  const w = WORDS[s.sport]
+  const change = s.change!
+  if (!oneSided(change)) return atLevel(s, dated)
+  const size = sized(s.sport, change)
+  return change.value < 0
+    ? `${size} off ${oldLevel(s, dated)}`
+    : `${size} ${w.more}${w.tail} than ${oldLevel(s, dated)}`
+}
 
 /** What a trend needs, from the counts a shortfall holds, in the sport's own words: one short line. */
 function needsText(sport: Sport, s: Shortfall): string {
@@ -163,44 +195,44 @@ function needsText(sport: Sport, s: Shortfall): string {
   }
 }
 
+export interface FitnessLines {
+  /** The level, number first: "5:30 /km at 150 bpm." */
+  headline: string
+  /** One line for each change, number first; empty for a status that cannot call a trend. */
+  changes: string[]
+  /** The steady activities the level rests on. */
+  support: string
+  /** What a trend needs, for a status that cannot call one; empty otherwise. */
+  needs: string
+}
+
 /**
- * A status that cannot call a trend: the level it does have, at the reference heart rate with its range and the steady
- * activities it is read from (dated when the sport is on a break), and what a trend needs; with fewer than three
- * steady activities, one line saying so.
+ * A status that cannot call a trend: the level it does have, with its range, at the max heart rate it is taken at (dated
+ * when the sport is on a break), the steady activities it rests on and what a trend needs; with fewer than three steady
+ * activities, one line saying so.
  */
 function waitingLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
   const w = WORDS[s.sport]
   if (s.shortfall!.kind === 'unavailable') {
-    const plural = SPORT_ADAPTERS[s.sport].nounPlural
-    return {
-      headline: `Not enough evidence yet. ${plural[0]!.toUpperCase()}${plural.slice(1)} are not compared at the same heart rate yet.`,
-      support: '',
-      needs: '',
-    }
+    return { headline: 'Not enough evidence yet.', changes: [], support: '', needs: '' }
   }
   const level = s.level
-  if (level === undefined) return { headline: w.none(s.steady), support: '', needs: '' }
+  if (level === undefined) {
+    return { headline: w.none(s.steady), changes: [], support: '', needs: '' }
+  }
   const on = s.shortfall!.kind === 'break' ? ` in ${monthOf(level.toMs, s.asOfMs)}` : ''
   return {
-    headline: `${w.level(level.value, system)} at ${s.referenceHr} bpm (${w.range(level.low, level.high, system)})${on}.`,
+    headline: `${w.level(level.value, system)} (${w.range(level.low, level.high, system)}) at ${s.referenceHr} bpm${on}.`,
+    changes: [],
     support: `From ${counted(level.runs, w.steady)}.`,
     needs: needsText(s.sport, s.shortfall!),
   }
 }
 
-/** The support line: the runs in the recent stretch and, where there is one, the runs they are compared with. */
-function support(s: FitnessStatus, against: string | null): string {
-  const ev = s.evidence!
-  const w = WORDS[s.sport]
-  const recent = `${counted(ev.recent.runs, w.steady)}, ${formatDay(ev.recent.fromMs)} to ${formatDay(ev.recent.toMs)}`
-  return against === null ? `${recent}.` : `${recent}, against ${against}.`
-}
-
-export interface FitnessLines {
-  headline: string
-  support: string
-  /** What a trend needs, for a status that cannot call one; empty otherwise. */
-  needs: string
+/** The support line: the steady activities in the recent stretch, with the days they span. */
+function support(s: FitnessStatus): string {
+  const { recent } = s.evidence!
+  return `From ${counted(recent.runs, WORDS[s.sport].steady)}, ${formatDay(recent.fromMs)} to ${formatDay(recent.toMs)}.`
 }
 
 /** A status that calls a state: it has a change and a level to say. */
@@ -210,76 +242,39 @@ const isSpoken = (s: FitnessStatus): s is Spoken =>
   s.state !== 'not-enough-evidence' && s.change !== null && s.now !== null
 
 /**
- * The status in the athlete's units (pace per kilometre or mile, watts), as a headline with its range and
- * a line of the evidence behind it. A run's change is said in pace, as the page shows it. States the
+ * The status in the athlete's units (pace per kilometre or mile, watts): the level first, then a line for each change
+ * with its range, then the evidence behind it. A run's change is said in pace, as the page shows it. States the
  * change and the level; never what caused it.
  */
 export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
-  return isSpoken(s) ? { ...spokenLines(s, system), needs: '' } : waitingLines(s, system)
+  return isSpoken(s) ? spokenLines(s, system) : waitingLines(s, system)
 }
 
-function spokenLines(s: Spoken, system: UnitSystem): Omit<FitnessLines, 'needs'> {
-  const w = WORDS[s.sport]
-  const hr = `${s.referenceHr} bpm`
-  const now = w.level(s.now, system)
-  const was = w.level(s.before!, system)
-  const since = before(s.onsetMs, s.asOfMs)
-  const runs = s.evidence!.baseline?.runs
-  const weeksBefore = (weeks: number) =>
-    runs === undefined ? null : `${runs} in the ${weeks} weeks${since || ' before'}`
-  const reference = M.refStartWeeks - M.refEndWeeks
-  // A direction is said only when the whole range is on one side of level.
-  const level = !oneSided(s.change)
+function spokenLines(s: Spoken, system: UnitSystem): FitnessLines {
+  const headline = `${WORDS[s.sport].level(s.now, system)} at ${s.referenceHr} bpm.`
+  return {
+    headline,
+    changes: changesOf(s).map((line) => `${line}.`),
+    support: support(s),
+    needs: '',
+  }
+}
+
+/** One line for each change a state tells, without its full stop. */
+function changesOf(s: Spoken): string[] {
   switch (s.state) {
-    case 'slipping':
-      return {
-        headline: level
-          ? `At ${hr} you now ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
-        support: support(s, weeksBefore(M.onsetBaseWeeks)),
-      }
-    case 'holding':
-      return {
-        headline: `At ${hr} you ${w.verb} ${now}, level with the ${reference} weeks before (within ${withinText(s.sport, s.within!)}).`,
-        support: support(s, `${runs} in the ${reference} weeks before`),
-      }
-    case 'improving':
-      return {
-        headline: level
-          ? `At ${hr} you now ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you now ${w.verb} ${now}, ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
-        support: support(s, weeksBefore(M.onsetBaseWeeks)),
-      }
-    case 'improved':
-      return {
-        headline: level
-          ? `At ${hr} you ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you ${w.verb} ${now}, holding ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
-        support: support(s, null),
-      }
-    case 'holding-below':
-      return {
-        headline: level
-          ? `At ${hr} you ${w.verb} ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you ${w.verb} ${now}, holding ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
-        support: support(s, null),
-      }
+    case 'holding': {
+      const weeks = M.refStartWeeks - M.refEndWeeks
+      return [`Level with the ${weeks} weeks before, within ${withinText(s.sport, s.within!)}`]
+    }
     case 'recovering': {
-      const regained = oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'
-      return {
-        headline: level
-          ? `At ${hr} you have ${regained} since your low in ${monthOf(s.lowMs!, s.asOfMs)}: ${now}, level with the ${was}${since} (within ${withinText(s.sport, s.within!)}).`
-          : `At ${hr} you have ${regained} since your low in ${monthOf(s.lowMs!, s.asOfMs)}: ${now}, ${s.change.value < 0 ? 'still' : 'now'} ${sized(s.sport, s.change)} ${side(w, s.change)} than the ${was}${since}.`,
-        support: support(s, null),
-      }
+      const up = oneSided(s.gain!) ? `Up ${sized(s.sport, s.gain!)}` : 'Up'
+      return [`${up} from ${lowName(s)}`, against(s)]
     }
     case 'back':
-      return {
-        headline: faster(s)
-          ? `At ${hr} you are back and ${w.more}: ${now} against ${was}${since}, ${sized(s.sport, s.change)} ${w.more}.`
-          : `At ${hr} you are back: ${now} against ${was}${since}, within ${withinText(s.sport, s.within!)}.`,
-        support: support(s, null),
-      }
+      return [faster(s) ? against(s) : atLevel(s)]
+    default:
+      return [against(s)]
   }
 }
 
@@ -288,19 +283,17 @@ function spokenLines(s: Spoken, system: UnitSystem): Omit<FitnessLines, 'needs'>
  * athlete's unit setting can change after it is made, so it carries sizes and dates only.
  */
 export function fitnessFindingHeadline(s: FitnessStatus): string {
-  const w = WORDS[s.sport]
-  const hr = `${s.referenceHr} bpm`
-  const since = before(s.onsetMs, s.asOfMs)
+  const at = ` at ${s.referenceHr} bpm`
   switch (s.state) {
     case 'slipping':
     case 'improved':
-      return `At ${hr} you now ${w.verb} ${sized(s.sport, s.change!)} ${side(w, s.change!)}${w.tail}${since ? ` than${since}` : ''}.`
+      return `${against(s, true)}${at}.`
     case 'recovering':
-      return `At ${hr} you have ${oneSided(s.gain!) ? `regained ${sized(s.sport, s.gain!)}` : 'regained ground'} since your low in ${monthOf(s.lowMs!, s.asOfMs)}.`
+      return `${oneSided(s.gain!) ? `Up ${sized(s.sport, s.gain!)}` : 'Up'} from ${lowName(s, true)}${at}.`
     case 'back':
       return faster(s)
-        ? `At ${hr} you are back and ${sized(s.sport, s.change!)} ${w.more}${since ? ` than${since}` : ''}.`
-        : `At ${hr} you are back to your level${since}, within ${withinText(s.sport, s.within!)}.`
+        ? `Back and ${against(s, true)}${at}.`
+        : `Back at ${oldLevel(s, true)}${at}, within ${withinText(s.sport, s.within!)}.`
     default:
       return ''
   }

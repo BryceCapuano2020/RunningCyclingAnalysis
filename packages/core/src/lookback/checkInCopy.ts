@@ -34,7 +34,7 @@ const STATE: Record<FitnessState, string> = {
   back: 'back',
   improving: 'improving',
   improved: 'improved',
-  'not-enough-evidence': 'not yet readable',
+  'not-enough-evidence': 'showing no trend',
 }
 
 /** A state that has not changed, as it reads after "is" with "as at your last import". */
@@ -47,8 +47,6 @@ const STILL: Record<FitnessState, string> = {
   improving: 'still improving',
   improved: 'still improved',
 }
-
-const lower = (text: string) => `${text[0]!.toLowerCase()}${text.slice(1)}`
 
 /** "14 runs and 3 rides", leaving out a sport with none; empty when there are none. */
 function addedText(added: CheckIn['added']): string {
@@ -83,7 +81,7 @@ function bestLine(best: NewBest, system: UnitSystem): string {
   const name = `${effortName(best.effort)} ${NOUN[best.sport][0]}`
   const value = bestValue(best, best.value, system)
   if (best.older)
-    return `Found in older files: your best ${name} is ${value}, from ${new Date(best.atMs).getUTCFullYear()}.`
+    return `Your best ${name} is ${value}, found in older files from ${new Date(best.atMs).getUTCFullYear()}.`
   const by = betterBy(best, system)
   return `New best ${name}: ${value}${by === '' ? '' : `, ${by} than before`}, set on ${dayMonthYear(best.atMs)}.`
 }
@@ -92,15 +90,13 @@ function fitnessLine(line: FitnessLine): string {
   const name = FITNESS_NAME[line.sport]
   switch (line.kind) {
     case 'moved':
-      return line.from === 'not-enough-evidence'
-        ? `${name} could not be read at your last import; it is ${STATE[line.to]} now.`
-        : `${name} was ${STATE[line.from]} at your last import; it is ${STATE[line.to]} now.`
+      return `${name} is ${STATE[line.to]} now. It was ${STATE[line.from]} at your last import.`
     case 'began':
       return `${name} has been ${STATE[line.state]} since ${monthYear(line.sinceMs)}.`
     case 'same':
       return line.within === null
-        ? `${name} is ${STILL[line.state]}, as at your last import.`
-        : `${name} is ${STILL[line.state]}, as at your last import: no clear change, within ${withinText(line.sport, line.within)} of before.`
+        ? `${name} is ${STILL[line.state]}.`
+        : `${name} is ${STILL[line.state]}. No clear change, within ${withinText(line.sport, line.within)}.`
   }
 }
 
@@ -113,27 +109,27 @@ const A: Record<NewEpisode['kind'], string> = {
 }
 
 function episodeLine(e: NewEpisode): string {
-  const span = e.toMs === null ? `from ${monthYear(e.fromMs)}` : monthsBetween(e.fromMs, e.toMs)
-  return `Older files added ${A[e.kind]} to your ${NOUN[e.sport][0]} years: ${span}.`
+  const span = e.toMs === null ? monthYear(e.fromMs) : monthsBetween(e.fromMs, e.toMs)
+  return `Older files added ${A[e.kind]} to your ${NOUN[e.sport][0]} history, from ${span}.`
 }
 
-/** The older files an import filled in: "Found in older files: 120 runs from 2019 to 2021." */
+/** The older files an import filled in: "120 runs found in older files, from 2019 to 2021." */
 function olderLine(sport: Sport, older: NonNullable<CheckIn['older'][Sport]>): string {
   const [from, to] = [
     new Date(older.fromMs).getUTCFullYear(),
     new Date(older.toMs).getUTCFullYear(),
   ]
   const years = from === to ? `${from}` : `${from} to ${to}`
-  return `Found in older files: ${counted(older.count, ...NOUN[sport])} from ${years}.`
+  return `${counted(older.count, ...NOUN[sport])} found in older files, from ${years}.`
 }
 
-/** The clause of the one-line check-in for a sport's fitness: "run fitness shows no clear change, within 2% of before". */
-function quietClause(line: FitnessLine): string {
-  const name = lower(FITNESS_NAME[line.sport])
+/** The sentence of the one-line check-in for a sport's fitness when it did not move: "Run fitness shows no clear change, within 2%." */
+function quietSentence(line: FitnessLine): string {
+  const name = FITNESS_NAME[line.sport]
   if (line.kind !== 'same') return ''
   return line.within === null
-    ? `${name} is ${STILL[line.state]}`
-    : `${name} shows no clear change, within ${withinText(line.sport, line.within)} of before`
+    ? `${name} is ${STILL[line.state]}.`
+    : `${name} shows no clear change, within ${withinText(line.sport, line.within)}.`
 }
 
 export interface CheckInText {
@@ -148,10 +144,13 @@ export function checkInText(checkIn: CheckIn, system: UnitSystem): CheckInText {
   const since = localDayMonthYear(checkIn.sinceMs)
   const added = addedText(checkIn.added)
   if (checkIn.quiet) {
-    const clauses = checkIn.fitness.map(quietClause).filter((c) => c !== '')
-    const checked = clauses.length === 0 ? '.' : `, and ${clauses.join(' and ')}.`
+    const sentences = checkIn.fitness.map(quietSentence).filter((sentence) => sentence !== '')
     return {
-      headline: `${added === '' ? 'Nothing added' : `${added} added`} since ${since}. Nothing moved: no new bests${checked}`,
+      headline: [
+        `${added === '' ? 'Nothing added' : `${added} added`} since ${since}.`,
+        'Nothing moved.',
+        ...sentences,
+      ].join(' '),
       lines: [],
     }
   }

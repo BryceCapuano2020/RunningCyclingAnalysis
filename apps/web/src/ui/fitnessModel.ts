@@ -61,7 +61,10 @@ export interface FitnessView {
   state: FitnessState
   label: string
   glyph: FitnessGlyphKey
+  /** The level, number first. */
   headline: string
+  /** One line for each change, number first. Empty for a status that cannot call a trend. */
+  changes: string[]
   support: string
   /** What a trend needs, for a status that cannot call one. Empty otherwise. */
   needs: string
@@ -176,6 +179,7 @@ export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number):
     label,
     glyph,
     headline: tidy(lines.headline),
+    changes: lines.changes.map(tidy),
     support: tidy(lines.support),
     needs: tidy(lines.needs),
     age: age === null ? null : `${age}.`,
@@ -185,9 +189,11 @@ export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number):
   }
 }
 
-/** The headline, its support and its age as one line, for a sport that is a line on the page rather than a card. */
+/** The headline, its changes, its support and its age as one line, for a sport that is a line on the page rather than a card. */
 export const lineOf = (view: FitnessView): string =>
-  [view.headline, view.support, view.age ?? ''].filter((part) => part !== '').join(' ')
+  [view.headline, ...view.changes, view.support, view.age ?? '']
+    .filter((part) => part !== '')
+    .join(' ')
 
 /** Whether any sport has a status worth drawing. */
 export const hasFitnessView = (fitness: FitnessBySport): boolean =>

@@ -160,14 +160,17 @@ describe('a sport page with everything to show', () => {
     expect(screen.queryByRole('heading', { name: 'Not enough yet' })).toBeNull()
   })
 
-  it('puts the record tiles under the curve, and the stand-out finding in its own closed section, not as a caption', () => {
+  it('lists the records once, below the curve, and puts the best durations finding in its own section, not as a caption', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const curve = within(section).getByRole('figure', { name: 'Best efforts' })
-    const tiles = within(section).getByRole('list', { name: 'Best efforts' })
-    expect(follows(curve, tiles)).toBe(true)
+    // No strip of tiles under the curve: the records are in All best efforts, further down the page.
+    expect(within(section).queryByRole('list', { name: 'Best efforts' })).toBeNull()
+    expect(section.querySelector('ul.records, .record-tiles')).toBeNull()
+    const all = screen.getByRole('region', { name: 'All best efforts' })
+    expect(all.querySelector('ul.records')).not.toBeNull()
+    expect(follows(curve, all)).toBe(true)
     expect(within(section).queryByText(/^Your 5 min best is/)).toBeNull()
-    expect(tiles.querySelector('ul.records')).toBeNull()
   })
 
   it('shows every best effort from the start, in a section the reader can fold', () => {
@@ -423,8 +426,8 @@ describe('a sport page’s fitness', () => {
     })
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     expect(within(fitness).getAllByRole('article')).toHaveLength(1)
-    expect(fitness.textContent).toMatch(/you now ride at \d+ W/)
-    expect(fitness.textContent).not.toMatch(/you now run/)
+    expect(fitness.querySelector('.fitness-card__headline')).toHaveTextContent(/^\d+ W at 140 bpm/)
+    expect(fitness.textContent).not.toMatch(/\/km|\/mi/)
   })
 
   it('claims no change in the weekly pace-at-heart-rate section, whatever the status above it says', () => {
