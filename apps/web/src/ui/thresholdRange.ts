@@ -97,6 +97,11 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
   return { low, centre: fit.cp, high, spread: true }
 }
 
+/** Whether a sport's threshold has a range to show. */
+export function hasThresholdRange(result: AnalysisResult, sport: Sport): boolean {
+  return rangeCps(result, sport) !== null
+}
+
 /**
  * The threshold's range as a line, in the sport's own unit, such as "Range 22:58 to 23:49 /km" or
  * "Range 48 to 49 W", or "About 48 W" when both ends print the same. What the range is, and when it is left

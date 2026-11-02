@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makeActivity, makeResult } from './components/fixtures'
 import { curvePoint } from './charts/fixtures'
+import { UNKNOWN } from './effortGateFixtures'
 import { unevenNote } from './unevenNote'
 
 const uneven = {
@@ -42,5 +43,26 @@ describe('unevenNote', () => {
       rideCpUneven: uneven,
     })
     expect(unevenNote(result, 'ride')).toBe(ESTIMATE)
+  })
+
+  it('says nothing when there is no range for the line to sit under', () => {
+    const activities = [makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' })]
+    const result = makeResult({
+      activities,
+      rideCurve: [curvePoint(1200, 3.0, 'ride-1')],
+      rideCp: null,
+      rideCpRefusal: 'shape',
+      rideCpUneven: uneven,
+      effortGate: {
+        run: UNKNOWN,
+        ride: {
+          ...UNKNOWN,
+          verdict: 'notHard',
+          unchecked: null,
+          floor: { durationS: 1800, value: 3.7 },
+        },
+      },
+    })
+    expect(unevenNote(result, 'ride')).toBeNull()
   })
 })

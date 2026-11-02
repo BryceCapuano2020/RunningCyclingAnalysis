@@ -33,6 +33,11 @@ describe('gatedThreshold', () => {
     })
   })
 
+  it('drops an uneven fit that still holds the 20 minutes the gate judged', () => {
+    const with20 = { ...UNEVEN, leftOutS: [600] }
+    expect(gatedThreshold(NOT_HARD, REFUSED, with20).uneven).toBeNull()
+  })
+
   it('withholds nothing when it cannot judge', () => {
     expect(gatedThreshold(NO_EFFORT_GATE, PASSED, UNEVEN)).toEqual({
       fit: FIT,
