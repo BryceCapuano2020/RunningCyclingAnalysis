@@ -20,7 +20,7 @@ export { hindsightsOf, lookBackOf, NO_LOOKBACK } from './compute'
 export { datedAt, datedByLookBack } from './cardDates'
 export type { CardRuns } from './cardDates'
 export type { LookBack, SportLookBack } from './compute'
-export { leadOf, mayStateHeld } from './lead'
+export { leadKey, leadOf, mayStateHeld } from './lead'
 export type { Lead, LiveState } from './lead'
 export { milestonesOf } from './milestones'
 export {

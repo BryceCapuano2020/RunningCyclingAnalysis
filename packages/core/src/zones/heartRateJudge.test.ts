@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { combine } from '../digest/combine'
+import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
 import { NO_HEART_RATE_JUDGEMENT } from '../digest/setAsideTypes'
+import type { FloorEffort } from '../digest/thresholdTimelineTypes'
 import { HeartRateJudge } from './heartRateJudge'
 import { SET_ASIDE_SETTINGS as settings, setAsideLibrary } from './test/setAsideLibrary'
+
+/** The best 30 minutes among a sport's floor efforts, else the best 20: what the analysis holds as the library's floor. */
+function bestOfAll(efforts: readonly FloorEffort[]) {
+  const hold = Math.max(0, ...efforts.map((effort) => effort[1]))
+  if (hold > 0) return { durationS: THRESHOLD_HOLD_S, value: hold }
+  const headline = Math.max(0, ...efforts.map((effort) => effort[2]))
+  return headline > 0 ? { durationS: HEADLINE_DURATION_S, value: headline } : null
+}
 
 describe('HeartRateJudge', () => {
   const { digests } = setAsideLibrary()
@@ -23,6 +33,17 @@ describe('HeartRateJudge', () => {
     })
     expect(judgement.threshold.run).toBeGreaterThan(0)
     expect(judgement.threshold.ride).toBeGreaterThan(0)
+  })
+
+  it("holds the library's hard sessions and floors, as the all-time analysis reports them", () => {
+    const judgement = new HeartRateJudge().of(digests, settings)
+    for (const sport of ['run', 'ride'] as const) {
+      const gate = library.effortGate[sport]
+      expect(judgement.sessions[sport]).toEqual(gate.sessions)
+      const best = bestOfAll(judgement.floor[sport])
+      expect(best?.durationS).toBe(gate.floor?.durationS)
+      expect(best?.value).toBeCloseTo(gate.floor!.value, 3)
+    }
   })
 
   it('keeps the answer while the digests and the masses are the same', () => {
@@ -59,11 +80,19 @@ describe('HeartRateJudge', () => {
     expect(judgement).toEqual({
       ...NO_HEART_RATE_JUDGEMENT,
       fit: judgement.fit,
+      floor: judgement.floor,
       thresholdTimeline: judgement.thresholdTimeline,
     })
     // The thresholds are still the library's, for the zones: as the analysis of the same digests reports them.
     const analysis = combine(bare, settings)
     expect(judgement.fit).toEqual({ run: analysis.runCp, ride: analysis.rideCp })
+    // So are the floors: the best 30 minutes (else 20) the analysis holds as its own floor.
+    for (const sport of ['run', 'ride'] as const) {
+      const held = analysis.effortGate[sport].floor
+      const best = bestOfAll(judgement.floor[sport])
+      expect(best?.durationS).toBe(held?.durationS)
+      expect(best?.value).toBeCloseTo(held!.value, 3)
+    }
   })
 
   it.each([

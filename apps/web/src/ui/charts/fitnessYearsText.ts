@@ -12,7 +12,7 @@ import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 import { outputOf } from './fitnessYearsLayout'
 import { plottedValue } from './sportAxis'
 
-const DASH = '—'
+const NONE = 'None'
 
 /** The vertical axis's title: a pace says which way is faster, since its axis runs the other way. */
 const AXIS_TITLE: Record<Sport, (units: UnitSystem) => string> = {
@@ -83,7 +83,7 @@ export function yearTooltip(
   const words = FITNESS_WORDS[sport]
   const rows: TooltipRow[] =
     year.n === 0
-      ? [{ label: upper(words.steadyPlural), value: DASH, note: 'None' }]
+      ? [{ label: upper(words.steadyPlural), value: NONE }]
       : [
           {
             kind: sport,
@@ -104,7 +104,7 @@ export function yearsTable(dots: FitnessDots, sport: Sport, units: UnitSystem): 
   const words = FITNESS_WORDS[sport]
   const row = (year: DotsYear): string[] =>
     year.n === 0
-      ? [String(year.year), DASH, DASH, '0']
+      ? [String(year.year), NONE, NONE, '0']
       : [
           String(year.year),
           output(dots, sport, units, year.median),

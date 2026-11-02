@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  THRESHOLD_NEEDS,
+  ZONE_WINDOW_LINE,
   activityLede,
+  describable,
   leftOutNotes,
   percentText,
-  periodLede,
   timeInZonesLack,
+  zoneBasisNotes,
   zoneSourceNote,
   zonesChangedNotes,
   zoneTimeText,
@@ -15,7 +18,6 @@ const BANNED = ['limiter', 'weak', 'strength', 'holding you back', 'ahead of', '
 
 /** 10 hours: 60% in zones 1 and 2, 30% middle, 10% hard. */
 const easyRun = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0])
-const hardRun = measureTime('run', 'heartRate', [3600, 7200, 3600, 14_400, 7200])
 
 describe('percentText', () => {
   it('rounds to a whole percent, and keeps a trace from reading as none', () => {
@@ -35,73 +37,64 @@ describe('zoneTimeText', () => {
   })
 })
 
-describe('periodLede', () => {
-  it('says how much of the time was easy and how much hard when there is nothing to compare', () => {
-    expect(periodLede('run', [easyRun], null, null)).toBe(
-      '60% of your running time with heart rate was easy (heart rate zones 1 and 2), and 10% was hard (heart rate zones 4 and up).',
-    )
+describe('describable', () => {
+  const thin = measureTime('run', 'heartRate', [60, 60, 0, 0, 0], { counted: 1 })
+  const pace = measureTime('run', 'pace', [3600, 7200, 7200, 3600, 0])
+
+  it('keeps the measures with 3 activities and an hour, most time first', () => {
+    expect(describable([thin, pace, easyRun])).toEqual([easyRun, pace])
   })
 
-  it('says the biggest change against the period before once a zone moved by 5 points', () => {
-    const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0])
-    const after = measureTime('run', 'heartRate', [3600, 10_800, 7200, 14_400, 0])
-    expect(periodLede('run', [after], [before], 'Previous 6 weeks')).toBe(
-      'Heart rate zone 4 took 40% of your running time with heart rate, up from 10% in the previous 6 weeks.',
-    )
+  it('describes whatever there is over all time, the last window there is', () => {
+    expect(describable([thin])).toEqual([])
+    expect(describable([thin], true)).toEqual([thin])
+    expect(
+      describable([measureTime('run', 'pace', [0, 0, 0, 0, 0], { counted: 0 })], true),
+    ).toEqual([])
   })
 
-  it('says a fall as down', () => {
-    const lede = periodLede('run', [easyRun], [hardRun], 'Previous 6 weeks')
-    expect(lede).toMatch(
-      /^Heart rate zone \d took \d+% of your running time with heart rate, down from \d+% in the previous 6 weeks\.$/,
-    )
+  it('names the stretch a wider window is of in a few words', () => {
+    expect(ZONE_WINDOW_LINE).toEqual({ year: 'Last 12 months.', all: 'All time.' })
+  })
+})
+
+describe('zoneBasisNotes', () => {
+  const asOfMs = new Date(2025, 9, 3, 12).getTime()
+
+  it('says heart rate zones are cut from the highest on file where no effort reached near a maximum', () => {
+    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { fromHighest: true })
+    expect(zoneBasisNotes([row])).toEqual([
+      'Heart rate zones are cut from your highest heart rate on file.',
+    ])
   })
 
-  it('does not call a change when the zones themselves changed between the periods', () => {
-    const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], {
-      enteredReferences: [200],
+  it('says pace and power zones are cut from the best 30 min or 20 min, with the day it was set', () => {
+    const all = measureTime('run', 'pace', [1, 1, 1, 1, 1], {
+      counted: 8,
+      floor: { durationS: 1800, asOfMs, activities: 8 },
     })
-    const after = measureTime('run', 'heartRate', [3600, 10_800, 7200, 14_400, 0], {
-      enteredReferences: [180],
+    expect(zoneBasisNotes([all])).toEqual([
+      'Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.',
+    ])
+    const some = measureTime('ride', 'power', [1, 1, 1, 1, 1], {
+      counted: 8,
+      floor: { durationS: 1200, asOfMs, activities: 3 },
     })
-    expect(periodLede('run', [after], [before], 'Previous 6 weeks')).toMatch(/was easy/)
+    expect(zoneBasisNotes([some])).toEqual([
+      'Power zones for 3 of 8 activities are cut from your best 20 min power, up to 3 Oct 2025.',
+    ])
   })
 
-  it('falls back to easy and hard when no zone moved enough', () => {
-    expect(periodLede('run', [easyRun], [easyRun], 'Previous 6 weeks')).toMatch(/was easy/)
-  })
-
-  it('does not compare with a previous period that has too little time', () => {
-    const thin = measureTime('run', 'heartRate', [60, 60, 0, 0, 0], { counted: 1 })
-    expect(periodLede('run', [easyRun], [thin], 'Previous 6 weeks')).toMatch(/was easy/)
-  })
-
-  it('leads with the measure that has the most time, and names a ride as riding', () => {
-    const power = measureTime('ride', 'power', [3600, 3600, 3600, 3600, 3600, 3600, 3600])
-    const hr = measureTime('ride', 'heartRate', [3600, 3600, 3600, 3600, 3600])
-    expect(periodLede('ride', [hr, power], null, null)).toMatch(
-      /^\d+% of your riding time with measured power was easy \(power zones 1 and 2\)/,
-    )
-  })
-
-  it('says a pace is of the time with a pace reading', () => {
-    const pace = measureTime('run', 'pace', [7200, 14_400, 10_800, 3600, 0])
-    expect(periodLede('run', [pace], null, null)).toMatch(
-      /^60% of your running time with a pace reading was easy/,
-    )
-  })
-
-  it('is null when no measure has enough time', () => {
-    const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], { counted: 1 })
-    expect(periodLede('run', [thin], null, null)).toBeNull()
+  it('says nothing of zones cut from a maximum or a fit that stands', () => {
+    expect(zoneBasisNotes([easyRun, measureTime('run', 'pace', [1, 1, 1, 1, 1])])).toEqual([])
   })
 
   it('never uses a banned word', () => {
-    for (const lede of [
-      periodLede('run', [easyRun], null, null),
-      periodLede('run', [easyRun], [hardRun], 'Previous 6 weeks'),
-    ]) {
-      for (const word of BANNED) expect(lede?.toLowerCase()).not.toContain(word)
+    const row = measureTime('run', 'pace', [1, 1, 1, 1, 1], {
+      floor: { durationS: 1800, asOfMs, activities: 2 },
+    })
+    for (const note of [...zoneBasisNotes([row]), ...Object.values(THRESHOLD_NEEDS)]) {
+      for (const word of BANNED) expect(note.toLowerCase()).not.toContain(word)
     }
   })
 })
@@ -145,14 +138,19 @@ describe('leftOutNotes', () => {
     })
     expect(leftOutNotes('run', [row])).toEqual([
       '2 of 12 runs had no heart rate to count.',
-      '1 of 12 runs had no heart rate zones for their date. None of your efforts reached near your maximum, so there is no max to cut zones from. Enter your max heart rate on Profile to get them.',
+      '1 of 12 runs had no heart rate zones for their date. Enter your max heart rate on Profile to get them.',
     ])
+  })
+
+  it('groups the thousands of a long history, as the count above it does', () => {
+    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 1200, noData: 34 })
+    expect(leftOutNotes('run', [row])).toEqual(['34 of 1,234 runs had no heart rate to count.'])
   })
 
   it('says what gives a pace or a power zones when a date has none', () => {
     const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 5, noZones: 2 })
     expect(leftOutNotes('run', [pace])).toEqual([
-      '2 of 7 runs had no pace zones for their date. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
+      '2 of 7 runs had no pace zones for their date. A run of 20 min or more sets your pace zones.',
     ])
   })
 
@@ -226,13 +224,17 @@ describe('timeInZonesLack', () => {
   it('says what the sport needs when there is too little', () => {
     const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], { counted: 1 })
     expect(timeInZonesLack('run', [thin])).toBe(
-      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+      'Needs an activity with heart rate, or a threshold pace entered on Profile.',
     )
-    expect(timeInZonesLack('ride', [])).toMatch(/with heart rate or a power meter/)
+    expect(timeInZonesLack('ride', [])).toBe('Needs an activity with heart rate or a power meter.')
+    // Over all time, the widest window there is, whatever the library holds is described.
+    expect(timeInZonesLack('run', [thin], true)).toBeNull()
   })
 
   it('asks for a reference when the activities have data but no zones', () => {
     const noZones = measureTime('run', 'heartRate', [0, 0, 0, 0, 0], { counted: 0, noZones: 6 })
-    expect(timeInZonesLack('run', [noZones])).toMatch(/needs a max heart rate or a threshold/)
+    expect(timeInZonesLack('run', [noZones])).toBe(
+      'Needs a max heart rate or a threshold, entered on Profile.',
+    )
   })
 })

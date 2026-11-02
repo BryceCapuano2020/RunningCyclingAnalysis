@@ -62,45 +62,50 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 - **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile keep their title, show
   that best as "At least" with no spread, and name it in one line, "From your best 30 min." (see above). The share card and anything that needs both
-  fits waits for them. An unchecked threshold is shown with "Effort not checked: no heart rate on your best 20 min run."
-- **Chip**: "Hard effort · N%" with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
+  fits waits for them. An unchecked threshold is shown with "No heart rate on your best 20 min run, so the effort was not checked." (on the sport page; Balance says it once, under the lede)
+- **Chip**: "Hard effort", its detail giving the share, with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
   "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not all-out" with no share,
   "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
   (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
   has its chip. The ride on foot card says the ride behind its pace was not hard or not checked, and nothing of one that was.
 - **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window whose judged 20 minutes was not hard has no fit. The
-  activity page then reads an older fit within 12 months, else shows heart-rate zones only: for an athlete who is persistently
-  not hard the pace and power zones are absent, which is the honest state.
+  activity page then reads an older fit within 12 months, else a floor (the best 30 minutes, else the best 20, of the 12 months up
+  to the activity's week, dated; for today's zones alone, the newest effort older than that): for an athlete who is persistently
+  not hard the pace and power zones are cut from the floor. Heart-rate zones are cut from the
+  highest heart rate on file where no effort reached near a maximum, and say so.
 - **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
   for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
   heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
-  so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Nothing left: "Needs a
-  hard run of a mile or more", or the reference action.
+  so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Where no run is
+  shown hard, the card is a bound ("No slower than"), from the period, then the 12 months ending with it (`raceAnswerOf`);
+  a hard run in the year answers before an easy one in the period. Runs older than that year are told as they were run ("You ran
+  19:58 in Oct 2024"), with no forecast. Nothing left only where the library has no run of a mile.
 - **Balance headline**: never held for the gate. A best 20 minutes that was not shown hard still gives a pick, so the lean, the tiles,
   the level target and the changes are all stated, and the lean is the same centre rule (`leanOfLead`). A best not shown hard is a floor:
   real ability is at least this. One line under the balance says so (`basisLine`, `ui/components/basisLine.ts`): "Your ride best
   wasn't all-out, so cycling could be higher.", or "Neither best was all-out."; nothing when both were hard. A best that was only not
-  checked is shown with its own note, "Effort not checked: ...". The page is titled by the balance whatever the bests were
+  checked is shown with its own note, "No heart rate on your best 20 min run, so the effort was not checked." The page is titled by the balance whatever the bests were
   (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable. The level
-  rows say "best 20 min, not a hard effort". What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
+  rows say nothing of it; the line under the lede does. What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
   'updating', 'partial-import', 'implausible-ride'; a ride at the top of the age tables leaves the pick out with no fault to name.
   The share card still waits for both thresholds, which the gate withholds, so a library whose bests were not hard shows the balance
   and offers no card.
 - **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the
   session's peak, beyond it by the session's average, a sprint of a minute or less always), so a swing in how many hard efforts a period
   holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every
-  effort in both, and the strip then says the effort was not checked. The curves' bests are not filtered. The strip withholds a comparison
-  whose shown best was not hard, and compares one that was only not checked (no heart rate, too few days).
+  effort in both. The curves' bests are not filtered. The strip and the curve titles withhold no comparison for a best that was not hard:
+  the test alone decides, and a best heart rate cannot judge is compared like any other.
 - **Bests-over-time dots** (`dotsRule`, D5.5): the same gate, built by the same function as the change test's rule (`gatedRule`) in the other
   mode. The change test needs evidence of a hard effort, so it leaves out a point heart rate cannot judge (no heart rate, set aside, a thin
   library, a reference that cannot certify a maximum). The dots withhold only what heart rate shows was not hard (`shownNotHard`), so those points
   stay; a sprint stays in both. They differ in nothing else. The set-aside list is the heart-rate one, as the change test takes it. A length the
   gate leaves with fewer than two dots while the period has two without it is flagged (`dotsWithheld` in the state), and the empty state names the gate.
-- **Late in long sessions** (RCA-043): a late best counts only sessions that reached a hard heart rate (a session with no heart rate counts); under
-  3 such sessions the headline is hidden, and with a reference that cannot be trusted the need is the reference. The note gives the ruler.
-  Each steady effort of the drift carries its average share of the reference, and the note gives its range. Drift is not filtered: it
-  is defined on submaximal steady efforts.
+- **Durability** (RCA-043, answered in A4a): a late best counts every session. A session that was not hard, or whose reference cannot be
+  trusted, no longer keeps its late best out, since that left a library of easy long runs with no answer; with no hard session behind it the figure is a floor and the
+  stat says "at least", and the note says a lower figure late on can mean the run never asked for more. The note labels the ruler in a short line. A period with under
+  3 long sessions reads the library and says so. Each steady effort of the drift carries its average share of the maximum, and the note
+  gives its range. Drift is not filtered: it is defined on submaximal steady efforts.
 
 ## The fit spread
 

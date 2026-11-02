@@ -1,6 +1,5 @@
 import { sameAnalysisSettings } from './athlete/references'
 import { sameDigests } from './sameDigests'
-import { SameHeartRateCache } from './sameHeartRateCache'
 import { TrendMemo } from './trendMemo'
 import { calendarWatch } from './calendar'
 import { changeEvidence } from './change/evidence'
@@ -14,10 +13,10 @@ import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
-import { lateEvidence } from './digest/lateEvidence'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
+import { EvidenceMemo } from './evidenceMemo'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
 import type {
@@ -75,7 +74,7 @@ const ANALYSES_KEPT = 4
  */
 export class PeriodCache {
   private moved = { trend: calendarWatch() }
-  private same = new SameHeartRateCache()
+  private evidence = new EvidenceMemo()
   private trendMemo = new TrendMemo()
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private changeEntries: (Inputs & {
@@ -87,12 +86,6 @@ export class PeriodCache {
   private previousEntry:
     | (Inputs & { previous: ActivityDigest[]; gate: string; hardness: string; curves: SportCurves })
     | null = null
-  // Late-effort evidence reads no mass either: its key is the digests and the set-aside, newest use first.
-  private lateEntries: {
-    selected: ActivityDigest[]
-    setAside: string
-    result: LateEvidenceBySport
-  }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
   private analysisEntries: (Inputs & {
@@ -170,7 +163,7 @@ export class PeriodCache {
     this.analysisEntries = this.analysisEntries.filter((entry) =>
       entry.selected.every((digest) => held.has(digest)),
     )
-    this.same.release(held)
+    this.evidence.releaseAbsent(held)
     // The previous period's curves and the change test hold both periods' digests.
     const heldBoth = (entry: { selected: ActivityDigest[]; previous: ActivityDigest[] }) =>
       entry.selected.every((digest) => held.has(digest)) &&
@@ -217,7 +210,7 @@ export class PeriodCache {
     )
   }
 
-  /** Each sport's output at the same heart rate over the selected period (see `SameHeartRateCache`). */
+  /** Output at the same heart rate over the selected period; see `EvidenceMemo`. */
   sameHeartRate(
     selected: ActivityDigest[],
     library: ActivityDigest[],
@@ -225,31 +218,17 @@ export class PeriodCache {
     setAside: readonly string[],
     referenceHr: Readonly<Record<Sport, number | null>>,
   ): SameHeartRateBySport {
-    return this.same.of(selected, library, fromMs, setAside, referenceHr)
+    return this.evidence.sameHeartRate(selected, library, fromMs, setAside, referenceHr)
   }
 
-  /**
-   * Each sport's late-effort evidence over the selected period, reused while the digests, the set-aside and the
-   * reference it judges sessions by are the same.
-   */
+  /** Late-effort evidence over the selected period, pooled with the library where the period holds too little; see `EvidenceMemo`. */
   late(
     selected: ActivityDigest[],
+    library: ActivityDigest[],
     setAside: readonly string[],
     judged?: LateReference,
   ): LateEvidenceBySport {
-    const key = `${setAside.join(',')}|${JSON.stringify(judged ?? null)}`
-    const hit = this.lateEntries.findIndex(
-      (entry) => entry.setAside === key && sameDigests(entry.selected, selected),
-    )
-    if (hit >= 0) {
-      const [entry] = this.lateEntries.splice(hit, 1)
-      this.lateEntries.unshift(entry!)
-      return entry!.result
-    }
-    const result = lateEvidence(selected, new Set(setAside), judged)
-    this.lateEntries.unshift({ selected, setAside: key, result })
-    this.lateEntries.length = Math.min(this.lateEntries.length, ANALYSES_KEPT)
-    return result
+    return this.evidence.late(selected, library, setAside, judged)
   }
 
   /** The curves of the period before, priced with the selected period's bike model. */

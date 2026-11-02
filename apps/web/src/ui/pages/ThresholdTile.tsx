@@ -5,12 +5,11 @@ import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
-import { SPORT_LABEL, THRESHOLD_GLOSS, THRESHOLD_MEANING } from '../sports'
+import { SPORT_LABEL, THRESHOLD_MEANING } from '../sports'
 import { bestLabel, floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { bestBeyondThresholdLine } from '../thresholdBest'
 import { thresholdSpan } from '../thresholdRange'
-import { thresholdUncheckedLine } from '../thresholdUnchecked'
 import { gradeLine, needsWeight } from './thresholdTileBare'
 import { EffortChip } from './EffortChip'
 import { effortChipText } from '../effortCaveat'
@@ -67,7 +66,7 @@ export function ThresholdTile({
   levelShown = false,
   defineTerm = true,
 }: ThresholdTileProps) {
-  // A fitted threshold has its gloss under the name, which says what it is, so the word is defined only where it has none.
+  // A fitted threshold's title says what it is, so the word is defined only where there is no figure to read.
   const defined = defineTerm ? DEFINED[sport] : undefined
   if (needsWeight(sport, weighted)) {
     return (
@@ -91,7 +90,6 @@ export function ThresholdTile({
   const effort = headlineEffort(sport, records)
   const basis = fitted === null ? floorBasisLine(result, sport) : null
   const best = fitted === null ? bestLabel(result, sport) : null
-  const unchecked = fitted === null ? null : thresholdUncheckedLine(result, sport)
   const chip = effortChipText(sport, effortCheck)
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
@@ -123,7 +121,6 @@ export function ThresholdTile({
       sport={sport}
       heading={NAME[sport]}
       definition={definition}
-      gloss={fitted === null ? undefined : THRESHOLD_GLOSS[sport]}
       basis={fitted === null ? (best === null ? 'floor' : 'recorded') : 'estimated'}
       basisLabel={best ?? undefined}
       figure={{
@@ -144,7 +141,6 @@ export function ThresholdTile({
     >
       {bestLine === null ? null : <p className="stat-tile__line">{bestLine}</p>}
       {basis === null ? null : <p className="stat-tile__line">{basis}</p>}
-      {unchecked === null ? null : <p className="stat-tile__line">{unchecked}</p>}
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
       {chip === null ? null : (
         <p className="stat-tile__effort">

@@ -46,7 +46,7 @@ describe('fitness over the years: the dots', () => {
   })
 
   it('holds each dot to a hundredth of a metre a second, the values the unit read', () => {
-    const { runs } = fitnessHistories(dip.digests, new Set(), { nowMs: dip.lastMs }).run
+    const { runs } = fitnessHistories(dip.digests, new Set()).run
     expect(dots.step).toBe(0.01)
     runs.forEach((run, i) => {
       expect(Math.abs(dots.levels[i]! * dots.step - Math.exp(run.x))).toBeLessThanOrEqual(0.005001)

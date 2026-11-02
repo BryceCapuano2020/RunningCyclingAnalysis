@@ -27,9 +27,9 @@
   font-size: var(--display-3);
 }
 
-/* The sport toggle of the fitness dots sits a step above the chart's title. */
-.fitness-years {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+/* What a chart needs from the athlete before it can draw: one line, and the button that adds it. */
+.history__prompt {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
 }

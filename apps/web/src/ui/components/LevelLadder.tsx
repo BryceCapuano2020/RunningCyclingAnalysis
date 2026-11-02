@@ -105,7 +105,9 @@ function ladderLabel(sport: Sport, grade: SportGrade): string {
   const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
   const beyond = side === null ? '' : `, ${side} the ${scale}`
   const name = SPORT_FORMAT[sport].gradeName
-  return `${name} ${formatGrade(centre.grade)}, ${gradeLevelText(grade)}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+  const level = gradeLevelText(grade)
+  const named = level === null ? '' : `, ${level}`
+  return `${name} ${formatGrade(centre.grade)}${named}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
 }
 
 /** The key under the drawing: what its shape means, and whether the grade lies off the scale. */

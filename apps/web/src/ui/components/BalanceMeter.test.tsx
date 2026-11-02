@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Lean } from '../../domain/lean'
-import { SPORT_ORDER, SPORT_TITLE } from '../sports'
+import { BALANCE_PAIR, SPORT_TITLE } from '../sports'
 import { energyReading, gapReading, meterFraction, SCALE_SPAN } from './balanceScale'
 import type { BalanceReading } from './balanceScale'
 import { interval } from './fixtures'
@@ -89,9 +89,9 @@ describe('BalanceMeter with a grade gap', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName(/Cycling grades 6 points higher/)
   })
 
-  it('labels each end with the sport that sits there, in the sport order', () => {
+  it('labels each end with the sport that sits there, in the order of the balance pair', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const [left, right] = SPORT_ORDER
+    const [left, right] = BALANCE_PAIR
     expect(endLabel(container, 'left').textContent).toContain(SPORT_TITLE[left])
     expect(endLabel(container, 'right').textContent).toContain(SPORT_TITLE[right])
   })

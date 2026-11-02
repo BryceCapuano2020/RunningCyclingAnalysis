@@ -24,13 +24,13 @@ export const REFERENCE_ACTION =
 export const HIGH_ACTION = 'If it is right, enter it as your max heart rate in Profile.'
 
 /** Why a library with too few days with heart rate was not checked, and what would let it be. */
-export const THIN_WHY = 'Effort not checked: too few days with heart rate.'
+export const THIN_WHY = 'Too few days with heart rate, so the effort was not checked.'
 export const THIN_ACTION =
   'Add your year of birth or max heart rate in Profile, or record more days with heart rate.'
 
 /** What a gate that did not show an effort hard says: why, and what would change it. */
 export interface EffortWords {
-  /** Why, as a clause that follows "Your best 20 min": "reached 82% of your running reference heart rate". */
+  /** Why, as a clause that follows "Your best 20 min": "reached 82% of your running max heart rate". */
   why: string
   /** What would change it, as a sentence. */
   action: string
@@ -65,7 +65,7 @@ export function referenceWords(
         why:
           supplier === noun
             ? `the highest ${noun} heart rate on file${bpmText(bpm)} is too low to be a maximum`
-            : `the highest heart rate on file for your ${supplier}, which your ${noun} reference is worked out from, is too low to be a maximum`,
+            : `the highest heart rate on file for your ${supplier}, which your ${noun} max is worked out from, is too low to be a maximum`,
         action: REFERENCE_ACTION,
       }
     case 'habitual':
@@ -95,13 +95,13 @@ export function borrowedText(sport: Sport, supplier: Sport): string {
   return BORROWED_FROM[sport](SPORT_NOUN[supplier])
 }
 
-/** What a share is a share of: the sport's reference heart rate, and where it comes from when the other sport supplied it. */
+/** What a share is a share of: the sport's max heart rate, and where it comes from when the other sport supplied it. */
 function referenceOfShare(sport: Sport, gate: EffortGate): string {
   const noun = SPORT_NOUN[sport]
   if (gate.referenceFrom === null || gate.referenceFrom === sport) {
-    return `your ${noun} reference heart rate`
+    return `your ${noun} max heart rate`
   }
-  return `the heart rate your ${noun} reference expects (${borrowedText(sport, gate.referenceFrom)})`
+  return `your ${noun} max heart rate (${borrowedText(sport, gate.referenceFrom)})`
 }
 
 /**
@@ -138,7 +138,7 @@ export function uncheckedWords(
   switch (gate.unchecked) {
     case 'noHeartRate':
       return {
-        why: `Effort not checked: no heart rate on your best ${EFFORT_TEXT} ${SPORT_ACTIVITY[sport]}.`,
+        why: `No heart rate on your best ${EFFORT_TEXT} ${SPORT_ACTIVITY[sport]}, so the effort was not checked.`,
         action: `Add a ${SPORT_ACTIVITY[sport]} with heart rate to check it.`,
         add: `a ${SPORT_ACTIVITY[sport]} with heart rate`,
       }
@@ -150,18 +150,13 @@ export function uncheckedWords(
 }
 
 /**
- * What a level read from a sport's best 20 minutes rests on, when that best was not shown to be a hard effort; null when
- * it was, or when the gate has nothing to say (no 20 minute best).
+ * Whether a level read from a sport's best 20 minutes rests on a best that was not shown to be a hard effort: it was
+ * under the line, or it could not be checked (no heart rate on it, too few days with heart rate). False when it was
+ * hard, or when the gate has nothing to say (no 20 minute best).
  */
-export function basisOf(gate: EffortGate): string | null {
-  const base = `best ${EFFORT_TEXT}`
-  if (gate.verdict === 'notHard') {
-    return gate.reference === 'trusted'
-      ? `${base}, not a hard effort`
-      : `${base}, effort not confirmed`
-  }
-  return gate.verdict === 'unknown' &&
-    (gate.unchecked === 'noHeartRate' || gate.unchecked === 'thin')
-    ? `${base}, effort not checked`
-    : null
+export function isUnconfirmed(gate: EffortGate): boolean {
+  if (gate.verdict === 'notHard') return true
+  return (
+    gate.verdict === 'unknown' && (gate.unchecked === 'noHeartRate' || gate.unchecked === 'thin')
+  )
 }

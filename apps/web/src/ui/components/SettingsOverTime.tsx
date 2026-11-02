@@ -211,12 +211,7 @@ export function SettingsOverTime({
   return (
     <section className="section settings-over-time" aria-labelledby={`${baseId}-title`}>
       <h2 id={`${baseId}-title`}>Settings over time</h2>
-      <p className="secondary">
-        Date a weight, a max heart rate or a threshold. Each activity uses the setting in effect on
-        its own day, so a ride from last year uses last year’s weight. Before your first entry your
-        earliest one applies. With none, ride results use your current weight, and thresholds and
-        zones are estimated from your activities.
-      </p>
+      <p className="secondary">Add dated values. Each activity uses the value from its day.</p>
       <form className="settings-over-time__form" onSubmit={(event) => void add(event)}>
         <div className="settings-over-time__field">
           {/* Its own label, since a label that wrapped the select would be named by every option. */}

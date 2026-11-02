@@ -81,8 +81,20 @@ describe('the balance when a best 20 min was not shown hard', () => {
     render20(HARD, NO_HEART_RATE)
     expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
     expect(
-      screen.getAllByText(/Effort not checked: no heart rate on your best 20 min ride/).length,
-    ).toBeGreaterThan(0)
+      screen.getAllByText(/No heart rate on your best 20 min ride, so the effort was not checked/)
+        .length,
+    ).toBe(1)
+  })
+
+  it('says no heart rate once: under the lede, not again in a line under the tiles', () => {
+    render20(HARD, NO_HEART_RATE)
+    expect(screen.getAllByText(/^No heart rate on your best 20 min ride/)).toHaveLength(1)
+    expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
+    cleanup()
+    // With nothing said under the lede, the line under the tiles still tells files with no heart rate.
+    render20(HARD, HARD)
+    expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
   })
 
   it('keeps every other line of the answer, the level target among them', () => {

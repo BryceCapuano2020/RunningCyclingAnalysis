@@ -36,9 +36,10 @@ Parameters are in `SAME_HEART_RATE` (`packages/core/src/constants.ts`), the one 
   whose heart rate is set aside (`AnalysisResult.heartRateSetAside`). A run block faster than the world
   record ceiling for five minutes, or under twice resting power, is left out as the heart-rate check leaves it.
 - **Weeks.** One point for each Sunday (UTC, as the trend's weeks end), from the first whose 28-day window
-  lies inside the period to the last, at most the newest 52. The window is the 28 days to the Sunday. For
+  lies inside the period to the last, at most the newest 52. The window is the 28 days to the Sunday, or the
+  56 days when those hold under 6 activities (the activity minimum), so a quiet month still reads. For
   all time, which has no start, the first week is that of the first full 28 days, so no week is read from a
-  shorter window.
+  shorter window, and every week is reported, not the newest 52.
 - **Reference heart rate.** Fixed per sport for the library: the median heart rate of its newest 52 weeks
   of blocks (not set aside), rounded to 5 bpm, so choosing another period does not move it. Activities
   outside the period are not judged for set-aside, so a faulty sensor outside it can enter the median. A week reports only when the reference lies inside the
@@ -85,7 +86,9 @@ Parameters are in `SAME_HEART_RATE` (`packages/core/src/constants.ts`), the one 
 - **Cardiac drift.** The first 10 minutes are skipped, but a long block late in an effort sits higher in
   heart rate than an early one at the same output. Blocks of one activity share its drift.
 - **A short period.** The windows lie inside the period, so a 6-week period reports about two weeks. A
-  sport whose steady stretches stop within 4 weeks of the period's start reports none.
+  period with fewer than two weeks that report reads the library's newest weeks (up to 52) instead, as the
+  reference heart rate is read, and the result says so (`scope: 'library'`). A sport whose steady stretches
+  stop within 4 weeks of the library's start reports none.
 - **A run's output is its flat speed.** Hills, wind and surface are not in it. The model prices the gradient,
   not the wind or a soft surface.
 - **No comparison between athletes or sports.** The reference heart rate is the athlete's own, and each

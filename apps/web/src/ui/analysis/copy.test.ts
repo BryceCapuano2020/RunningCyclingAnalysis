@@ -259,7 +259,7 @@ describe('exportFailureText', () => {
     expect(
       exportFailureText({ type: 'error', message: LIST_ROWS_LIMIT_MESSAGE, issue: 'daily-limit' }),
     ).toMatch(
-      /^You have reached today's limit on rows read from your library \(200,000 per day\)\. It resets at .*, your time\.$/,
+      /^You have reached today's limit on rows listed from your library \(200,000 per day\)\. It resets at .*, your time\.$/,
     )
   })
 

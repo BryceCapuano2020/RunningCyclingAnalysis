@@ -1,10 +1,10 @@
 import { SPORT_ADAPTERS } from '../findings/adapters'
 import { counted, formatDay, formatRelative } from '../findings/copy'
 import type { Sport } from '../types'
-import { formatPace, formatPower } from '../units'
+import { formatPace, formatPaceValue, formatPower, formatWatts } from '../units'
 import type { UnitSystem } from '../units'
 import { FITNESS } from './params'
-import type { FitnessStatus, Ranged, Shortfall } from './types'
+import type { FitnessStatus, Ranged, Shortfall, SpokenState } from './types'
 
 const M = FITNESS.monitor
 
@@ -44,6 +44,10 @@ interface Words {
   tail: string
   steady: string
   level: (output: number, system: UnitSystem) => string
+  /** The ends of a range of output, as numbers and in the order the athlete reads them: a run's faster pace comes first. */
+  range: (low: number, high: number, system: UnitSystem) => string
+  /** The one line for a sport with fewer than three steady activities, `have` of them so far. */
+  none: (have: number) => string
   /**
    * A change in output (0.1 is 10% more) as the athlete reads it. The page shows runs as paces, so a
    * run that goes from 5:00 to 5:30 /km is 10% slower though its speed fell by 9.1%; rides stay on power.
@@ -60,6 +64,12 @@ const WORDS: Record<Sport, Words> = {
     tail: '',
     steady: 'steady run',
     level: formatPace,
+    range: (low, high, system) =>
+      `${formatPaceValue(high, system)} to ${formatPaceValue(low, system)}`,
+    none: (have) =>
+      have === 0
+        ? 'No steady runs with heart rate yet.'
+        : `${counted(have, 'steady run')} with heart rate so far.`,
     shown: (change) => change / (1 + change),
   },
   ride: {
@@ -69,6 +79,11 @@ const WORDS: Record<Sport, Words> = {
     tail: ' power',
     steady: 'steady ride',
     level: (output) => formatPower(output),
+    range: (low, high) => `${formatWatts(low)} to ${formatWatts(high)}`,
+    none: (have) =>
+      have === 0
+        ? 'No steady rides with a power meter yet.'
+        : `${counted(have, 'steady ride')} with a power meter so far.`,
     shown: (change) => change,
   },
 }
@@ -122,22 +137,54 @@ const before = (ms: number | null, asOfMs: number) =>
 /** Whether the whole range is above the old level: the athlete is not only back but faster. */
 const faster = (s: FitnessStatus) => s.change!.low > 0
 
-/** The text of a shortfall, with its counts. */
-function shortfallText(sport: Sport, s: Shortfall): string {
+/** What a trend needs, from the counts a shortfall holds, in the sport's own words: one short line. */
+function needsText(sport: Sport, s: Shortfall): string {
   const adapter = SPORT_ADAPTERS[sport]
   const w = WORDS[sport]
-  const output = adapter.outputName[0]!.toUpperCase() + adapter.outputName.slice(1)
+  const earlier = `More earlier ${adapter.nounPlural} to see a trend.`
   switch (s.kind) {
     case 'history':
-      return `Not enough evidence yet. ${output} at the same heart rate is read from ${s.need} ${w.steady}s over ${s.needWeeks} different weeks, from ${M.refEndWeeks} to ${M.refStartWeeks} weeks ago; there ${s.have === 1 ? 'is' : 'are'} ${counted(s.have, w.steady)} in ${counted(s.weeks, 'different week')}.`
+      if (s.have < s.need) {
+        return `${counted(s.need - s.have, `more earlier ${adapter.noun}`)} to see a trend.`
+      }
+      return s.weeks < s.needWeeks
+        ? `Earlier ${adapter.nounPlural} in ${counted(s.needWeeks - s.weeks, 'more week')} to see a trend.`
+        : earlier
     case 'recent':
-      return `Not enough recent evidence yet. There ${s.have === 1 ? 'is' : 'are'} ${counted(s.have, w.steady)} in the last ${s.weeks} weeks; ${s.need} ${s.need === 1 ? 'is' : 'are'} needed.`
+      return s.have < s.need
+        ? `${counted(s.need - s.have, `more ${adapter.noun}`)} in the last ${s.weeks} weeks to see a trend.`
+        : earlier
     case 'break':
-      return `Not enough recent evidence yet. The last ${w.steady} was ${counted(s.weeksSince, 'week')} ago.`
+      return `A ${w.steady} in the last ${FITNESS.display.breakWeeks} weeks to see a trend.`
     case 'imprecise':
-      return `Not enough evidence yet. The ${w.steady}s so far leave ${adapter.outputName} at the same heart rate uncertain by about ${withinText(sport, s.within)}, too wide to call it level.`
+      return `More ${w.steady}s narrow the range to see a trend.`
     case 'unavailable':
-      return `Not enough evidence yet. ${adapter.nounPlural[0]!.toUpperCase()}${adapter.nounPlural.slice(1)} are not compared at the same heart rate yet.`
+      return ''
+  }
+}
+
+/**
+ * A status that cannot call a trend: the level it does have, at the reference heart rate with its range and the steady
+ * activities it is read from (dated when the sport is on a break), and what a trend needs; with fewer than three
+ * steady activities, one line saying so.
+ */
+function waitingLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
+  const w = WORDS[s.sport]
+  if (s.shortfall!.kind === 'unavailable') {
+    const plural = SPORT_ADAPTERS[s.sport].nounPlural
+    return {
+      headline: `Not enough evidence yet. ${plural[0]!.toUpperCase()}${plural.slice(1)} are not compared at the same heart rate yet.`,
+      support: '',
+      needs: '',
+    }
+  }
+  const level = s.level
+  if (level === undefined) return { headline: w.none(s.steady), support: '', needs: '' }
+  const on = s.shortfall!.kind === 'break' ? ` in ${monthOf(level.toMs, s.asOfMs)}` : ''
+  return {
+    headline: `${w.level(level.value, system)} at ${s.referenceHr} bpm (${w.range(level.low, level.high, system)})${on}.`,
+    support: `From ${counted(level.runs, w.steady)}.`,
+    needs: needsText(s.sport, s.shortfall!),
   }
 }
 
@@ -152,7 +199,15 @@ function support(s: FitnessStatus, against: string | null): string {
 export interface FitnessLines {
   headline: string
   support: string
+  /** What a trend needs, for a status that cannot call one; empty otherwise. */
+  needs: string
 }
+
+/** A status that calls a state: it has a change and a level to say. */
+type Spoken = FitnessStatus & { state: SpokenState; change: Ranged; now: number }
+
+const isSpoken = (s: FitnessStatus): s is Spoken =>
+  s.state !== 'not-enough-evidence' && s.change !== null && s.now !== null
 
 /**
  * The status in the athlete's units (pace per kilometre or mile, watts), as a headline with its range and
@@ -160,10 +215,11 @@ export interface FitnessLines {
  * change and the level; never what caused it.
  */
 export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
+  return isSpoken(s) ? { ...spokenLines(s, system), needs: '' } : waitingLines(s, system)
+}
+
+function spokenLines(s: Spoken, system: UnitSystem): Omit<FitnessLines, 'needs'> {
   const w = WORDS[s.sport]
-  if (s.state === 'not-enough-evidence' || s.change === null || s.now === null) {
-    return { headline: shortfallText(s.sport, s.shortfall!), support: '' }
-  }
   const hr = `${s.referenceHr} bpm`
   const now = w.level(s.now, system)
   const was = w.level(s.before!, system)

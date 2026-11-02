@@ -9,7 +9,8 @@ import type { ActivityDigest, AthleteSettings } from '../types'
 import { HeartRateJudge } from './heartRateJudge'
 import { secondsByZone } from './timeInZones'
 import { estimatesOf } from './test/estimates'
-import { missingThresholdZones, zoneEstimatesOf, zonesAt } from './zones'
+import { missingThresholdZones } from './missingZones'
+import { zoneEstimatesOf, zonesAt } from './zones'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const WEEK_MS = 7 * DAY_MS
@@ -23,8 +24,8 @@ function fallen(): ActivityDigest[] {
   return weeklyRuns(0, 130, (week) => (week < 60 ? 1 : 0.85))
 }
 
-function estimatesFor(library: ActivityDigest[]) {
-  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS), Number.MAX_SAFE_INTEGER)
+function estimatesFor(library: ActivityDigest[], nowMs = Number.MAX_SAFE_INTEGER) {
+  return zoneEstimatesOf(new HeartRateJudge().of(library, SETTINGS), nowMs)
 }
 
 describe('zones from current fitness', () => {
@@ -74,6 +75,8 @@ describe('zones from current fitness', () => {
         source: 'entered',
         reference,
         asOfMs: null,
+        floorS: null,
+        fromHighest: false,
       })
     }
   })
@@ -103,9 +106,29 @@ describe('when the half year cannot support a threshold', () => {
     expect(missingThresholdZones(at(60), SETTINGS, estimates)).toEqual([])
   })
 
-  it('has no estimated pace zones after a year, and says which are missing', () => {
+  it('cuts the zones of today from the newest effort when none is within a year, and dates it', () => {
+    // The last hard run was in week 19; today is week 75. Its year up to week 75 holds none, so the newest effort stands in.
+    const today = estimatesFor([...hard, ...easy], at(19 + 56))
+    const set = pace(zonesAt(at(19 + 56), SETTINGS, today))!
+    const lastHard = FIRST_MONDAY_MS + (19 * 7 + 2) * DAY_MS
+    expect(set).toMatchObject({ source: 'estimated', floorS: 1800 })
+    expect(set.asOfMs).toBeLessThanOrEqual(lastHard)
+    expect(set.asOfMs).toBeGreaterThan(FIRST_MONDAY_MS - 1)
+    expect(missingThresholdZones(at(19 + 56), SETTINGS, today)).toEqual([])
+  })
+
+  it('has no zones for a date in the past after a year without an effort, and says which are missing', () => {
+    expect(estimates.floor!.run.length).toBeGreaterThan(0)
     expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
+      { sport: 'run', measure: 'pace', outgrown: false },
+    ])
+  })
+
+  it('has none where the library holds no 20 minute effort, even for today', () => {
+    const bare = { ...estimatesFor([...hard, ...easy], at(19 + 56)), floor: { run: [], ride: [] } }
+    expect(pace(zonesAt(at(19 + 56), SETTINGS, bare))).toBeUndefined()
+    expect(missingThresholdZones(at(19 + 56), SETTINGS, bare)).toEqual([
       { sport: 'run', measure: 'pace', outgrown: false },
     ])
   })
@@ -126,18 +149,23 @@ describe('when the half year cannot support a threshold', () => {
 })
 
 describe('the session', () => {
-  it('keeps heart-rate zones where the pace and power zones lapse', () => {
+  it('cuts pace and power from the floor where their fits lapse, and keeps heart rate', () => {
     const session = new AnalysisSession()
     const state = session.loadSample(SETTINGS)
     const newest = state.library[0]!.startMs
     const soon = session.zonesAt(newest, SETTINGS)
     expect(soon.some((set) => set.measure === 'pace')).toBe(true)
     expect(soon.some((set) => set.measure === 'power')).toBe(true)
+    expect(soon.every((set) => set.floorS === null)).toBe(true)
     const later = session.zonesAt(newest + 400 * DAY_MS, SETTINGS)
-    expect(later.map((set) => set.measure).sort()).toEqual(['heartRate', 'heartRate'])
-    expect(missingThresholdZones(newest + 400 * DAY_MS, SETTINGS, state.zoneEstimates)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
-      { sport: 'ride', measure: 'power', outgrown: false },
+    expect(later.map((set) => set.measure).sort()).toEqual([
+      'heartRate',
+      'heartRate',
+      'pace',
+      'power',
     ])
+    const floored = later.filter((set) => set.measure !== 'heartRate')
+    expect(floored.every((set) => set.floorS !== null && set.asOfMs !== null)).toBe(true)
+    expect(missingThresholdZones(newest + 400 * DAY_MS, SETTINGS, state.zoneEstimates)).toEqual([])
   })
 })

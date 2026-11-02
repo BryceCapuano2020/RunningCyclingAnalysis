@@ -29,7 +29,7 @@ import {
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
 import { formatGrade } from './gradeFormat'
-import { ageProfileOf, heroGradeLine } from './grades'
+import { ageProfileOf, gradeLevelText, heroGradeLine } from './grades'
 
 /** A date in 2026, the year the fixtures use, and an old one for an effort set long ago. */
 const IN_2026 = new Date(2026, 2, 1).getTime()
@@ -260,7 +260,7 @@ describe('grade parts', () => {
     })
   })
 
-  it('names both levels when a ride range crosses a band boundary', () => {
+  it('names no level when a ride range crosses a band boundary, so the number and range stand alone', () => {
     const grade: SportGrade = {
       centre: { grade: 0.6, level: 'Local' },
       range: {
@@ -270,9 +270,9 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', grade)).toEqual({
       lead: 'Estimated',
-      level: 'Recreational to Local',
+      level: null,
       value: '60%',
-      range: '55–64%',
+      range: '55 to 64',
     })
   })
 
@@ -286,7 +286,7 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', ride, 'record')).toMatchObject({
       lead: 'Estimated through its running equivalent',
-      level: 'Recreational to Local',
+      level: null,
     })
     expect(
       gradeParts('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'record').lead,
@@ -303,9 +303,9 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', grade)).toEqual({
       lead: 'Estimated',
-      level: 'Recreational to Local',
+      level: null,
       value: '60%',
-      range: '55–64%',
+      range: '55 to 64',
     })
     expect(gradeParts('ride', grade, 'record').lead).toBe(
       'Estimated through its running equivalent',
@@ -331,7 +331,7 @@ describe('grade parts', () => {
       lead: 'Estimated',
       level: 'Local',
       value: '66%',
-      range: '63–69%',
+      range: '63 to 69',
     })
   })
 
@@ -348,12 +348,12 @@ describe('grade parts', () => {
         MAN_BORN_1986,
       ),
     )
-    // The range runs from 62% (Local) to 70% (Regional), so both levels are named.
+    // The range runs from 62% (Local) to 70% (Regional), so no level is named.
     expect(gradeParts('ride', grade)).toMatchObject({
       lead: 'Estimated',
-      level: 'Local to Regional',
+      level: null,
       value: '66%',
-      range: '62–70%',
+      range: '62 to 70',
     })
   })
 
@@ -448,6 +448,27 @@ describe('distanceGrade', () => {
   })
 })
 
+describe('gradeLevelText', () => {
+  const band = (grade: number, level: string) => ({ grade, level })
+
+  it('names the level of a run, which has no range', () => {
+    expect(gradeLevelText({ centre: band(0.64, 'Local'), range: null })).toBe('Local')
+  })
+
+  it('names the level when the whole range sits in one band, and none when it crosses two', () => {
+    const centre = band(0.64, 'Local')
+    expect(
+      gradeLevelText({ centre, range: { low: band(0.62, 'Local'), high: band(0.68, 'Local') } }),
+    ).toBe('Local')
+    expect(
+      gradeLevelText({
+        centre,
+        range: { low: band(0.58, 'Recreational'), high: band(0.68, 'Local') },
+      }),
+    ).toBeNull()
+  })
+})
+
 describe('heroGradeLine', () => {
   const grade = (level: string, centre: number): SportGrade => ({
     centre: { grade: centre, level },
@@ -458,7 +479,7 @@ describe('heroGradeLine', () => {
     expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
   })
 
-  it('names a ride whose range crosses a level with both ends, as the page does', () => {
+  it('gives a ride whose range crosses a level its number and range alone, as the page does', () => {
     const ride: SportGrade = {
       centre: { grade: 0.61, level: 'Recreational' },
       range: {
@@ -466,6 +487,6 @@ describe('heroGradeLine', () => {
         high: { grade: 0.67, level: 'Local' },
       },
     }
-    expect(heroGradeLine(ride)).toBe('Recreational to Local · 61% on best 20 min')
+    expect(heroGradeLine(ride)).toBe('61% (55 to 67) on best 20 min')
   })
 })

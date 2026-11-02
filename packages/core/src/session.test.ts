@@ -430,6 +430,7 @@ describe('AnalysisSession', () => {
       effortTrends: NO_TRENDS,
       dotsWithheld: NONE_WITHHELD,
       sameHeartRate: NO_SAME_HEART_RATE,
+      libraryBests: null,
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
@@ -439,6 +440,7 @@ describe('AnalysisSession', () => {
       timeInZones: NO_ZONE_TIMES,
       previous: null,
       change: null,
+      earlier: null,
       records: new Map(),
     })
   })
@@ -533,6 +535,7 @@ describe('AnalysisSession', () => {
       effortTrends: NO_TRENDS,
       dotsWithheld: NONE_WITHHELD,
       sameHeartRate: NO_SAME_HEART_RATE,
+      libraryBests: null,
       lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
@@ -542,6 +545,7 @@ describe('AnalysisSession', () => {
       timeInZones: NO_ZONE_TIMES,
       previous: null,
       change: null,
+      earlier: null,
       records: new Map(),
     })
   })

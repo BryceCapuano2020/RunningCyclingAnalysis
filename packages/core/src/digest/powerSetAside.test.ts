@@ -97,7 +97,7 @@ describe('a ride whose power is set aside is out of every ride computation', () 
     const held = sameHeartRate.mock.calls.at(-1)?.[3]
     expect(held).toContain('plateau')
     expect(held).not.toContain('normal')
-    const [drift, heldForDrift] = late.mock.calls.at(-1) ?? []
+    const [drift, , heldForDrift] = late.mock.calls.at(-1) ?? []
     expect(drift?.map((d) => d.id)).toEqual(['normal'])
     expect(heldForDrift).toContain('plateau')
     sameHeartRate.mockRestore()

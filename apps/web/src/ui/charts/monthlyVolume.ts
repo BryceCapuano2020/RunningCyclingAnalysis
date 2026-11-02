@@ -23,7 +23,7 @@ export const hasRealVolume = (week: VolumeWeek): boolean =>
   hoursOf(totalSeconds(week)) >= REAL_VOLUME_HOURS
 
 /** Said under the chart when its bars are months, so a bar is not read as a month's total. */
-export const MONTHLY_VOLUME_NOTE = 'Each bar is a month: its average hours a week.'
+export const MONTHLY_VOLUME_NOTE = 'Average hours a week, by month.'
 
 /**
  * The rows of the volume chart. The weeks before the first with real volume and after the last are left off, and

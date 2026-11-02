@@ -46,10 +46,10 @@ describe('the weeks at the heart rate the fitness card names', () => {
       referenceHr: { ride: 135 },
     }).ride
     expect(referenceHeartRate).toBe(135)
-    const widened = weeks.filter((week) => week.widenedToDays !== undefined)
+    const widened = weeks.filter((week) => week.wide === true)
     expect(widened.length).toBeGreaterThanOrEqual(2)
     for (const week of widened) {
-      expect(week.widenedToDays).toBe(56)
+      expect(week.wide).toBe(true)
       expect(week.lacks).toBeNull()
       // Read at 135 bpm itself, not at the nearest heart rate its 28 days held.
       expect(week.fit!.output / BASE.ride(135)).toBeGreaterThan(0.97)
@@ -58,7 +58,7 @@ describe('the weeks at the heart rate the fitness card names', () => {
     // Every week that has a reading is one heart rate, and a week whose 28 days held it is read over 28.
     expect(weeks.filter((week) => week.lacks === 'range')).toEqual([])
     expect(
-      weeks.filter((week) => week.widenedToDays === undefined && week.fit !== null).length,
+      weeks.filter((week) => week.wide === undefined && week.fit !== null).length,
     ).toBeGreaterThan(widened.length)
   })
 
@@ -79,6 +79,6 @@ describe('the weeks at the heart rate the fitness card names', () => {
     }).ride
     expect(weeks.length).toBeGreaterThan(0)
     expect(reportedWeeks).toBe(0)
-    expect(weeks.every((w) => w.lacks === 'range' && w.widenedToDays === undefined)).toBe(true)
+    expect(weeks.every((w) => w.lacks === 'range' && w.wide === undefined)).toBe(true)
   })
 })

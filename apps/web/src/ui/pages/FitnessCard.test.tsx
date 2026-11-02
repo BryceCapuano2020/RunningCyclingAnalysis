@@ -11,7 +11,7 @@ import {
   IMPROVING,
   RECOVERING,
   SLIPPING,
-  waitingStatus,
+  FITNESS_AS_OF_MS,
 } from '../fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -36,6 +36,7 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
   const { run = SLIPPING, ...rest } = over
   return render(
     <FitnessSection
+      nowMs={FITNESS_AS_OF_MS}
       fitness={{ run, ride: NO_FITNESS.ride }}
       units="metric"
       library={FITNESS_LIBRARY}
@@ -61,7 +62,9 @@ describe('FitnessSection', () => {
   })
 
   it('draws nothing for a library with no status to show, and no ride card for a library with no ride status', () => {
-    const empty = render(<FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />)
+    const empty = render(
+      <FitnessSection nowMs={FITNESS_AS_OF_MS} fitness={NO_FITNESS} units="metric" library={[]} />,
+    )
     expect(empty.container).toBeEmptyDOMElement()
     empty.unmount()
     renderSection()
@@ -72,6 +75,7 @@ describe('FitnessSection', () => {
     const library = [...FITNESS_LIBRARY, ...FITNESS_RIDE_LIBRARY]
     const both = render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
         units="metric"
         library={library}
@@ -87,6 +91,7 @@ describe('FitnessSection', () => {
     both.unmount()
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: RIDE_SLIPPING }}
         units="metric"
         library={library}
@@ -95,65 +100,6 @@ describe('FitnessSection', () => {
     )
     expect(screen.getAllByRole('article')).toHaveLength(1)
     expect(screen.queryByText('Ride')).not.toBeInTheDocument()
-  })
-
-  it('draws a ride that is still waiting as one line on the home page, with its count and a link to the Ride page', () => {
-    const waiting = waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }, 7)
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_LIBRARY}
-      />,
-    )
-    expect(screen.getAllByRole('article')).toHaveLength(1)
-    const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('Ride fitness: not enough steady rides yet, 7 of 12')
-    expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
-    cleanup()
-    // The Ride page draws the full waiting card, with the count.
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: { ...waiting, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_LIBRARY}
-        sport="ride"
-      />,
-    )
-    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
-    expect(screen.queryByTestId('ride-fitness-line')).toBeNull()
-  })
-
-  it('draws the section for a waiting ride alone (a library of rides) as the line, and says "recent" when it is the weeks that are short', () => {
-    const recent = waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }, 30)
-    render(
-      <FitnessSection
-        fitness={{ run: NO_FITNESS.run, ride: { ...recent, sport: 'ride' } }}
-        units="metric"
-        library={FITNESS_RIDE_LIBRARY}
-      />,
-    )
-    expect(screen.queryByRole('article')).toBeNull()
-    expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
-      'Ride fitness: not enough recent steady rides yet, 2 of 4',
-    )
-  })
-
-  it('says a ride with enough rides but too wide a range is too uncertain to call, with no count', () => {
-    const imprecise = {
-      ...waitingStatus({ kind: 'imprecise', within: 0.07 }, 33),
-      sport: 'ride' as const,
-    }
-    render(
-      <FitnessSection
-        fitness={{ run: SLIPPING, ride: imprecise }}
-        units="metric"
-        library={FITNESS_RIDE_LIBRARY}
-      />,
-    )
-    const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('Ride fitness: too uncertain to call yet')
-    expect(line).not.toHaveTextContent(/not enough|of \d/)
   })
 
   it('shows one sport’s card without naming the sport, which its own page already names', () => {
@@ -196,6 +142,17 @@ describe('FitnessSection', () => {
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
   })
 
+  it('says how old the status is once its newest activity is long ago by the clock, and drops the New marker', () => {
+    renderSection({ nowMs: FITNESS_AS_OF_MS + 280 * 86_400_000 })
+    expect(screen.getByTestId('fitness-age')).toHaveTextContent('Latest activity 9 months ago.')
+    expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
+    expect(spoken(screen.getByRole('article'))).not.toMatch(BANNED)
+    cleanup()
+    renderSection()
+    expect(screen.queryByTestId('fitness-age')).not.toBeInTheDocument()
+    expect(screen.getByTestId('fitness-new')).toBeInTheDocument()
+  })
+
   it('has a label and a track for each state that has a change, and the track stays out of the reading order', () => {
     for (const run of [SLIPPING, RECOVERING, HOLDING, IMPROVING, IMPROVED]) {
       const { container } = renderSection({ run })
@@ -204,20 +161,6 @@ describe('FitnessSection', () => {
       expect(container.querySelector('.fitness-glyph')).toHaveAttribute('aria-hidden', 'true')
       cleanup()
     }
-  })
-
-  it('counts what a waiting status needs, with a shape and no track, and no evidence panel', () => {
-    const { container } = renderSection({
-      run: waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
-    })
-    expect(screen.getByRole('article', { name: 'Not enough evidence yet' })).toBeInTheDocument()
-    expect(container.querySelectorAll('.fitness-progress__cell')).toHaveLength(12)
-    expect(container.querySelectorAll('.fitness-progress__cell.is-on')).toHaveLength(7)
-    expect(container.querySelector('.fitness-progress__count')?.textContent).toBe(
-      '7 of 12 steady runs before the last 8 weeks',
-    )
-    expect(container.querySelector('.fitness-track')).toBeNull()
-    expect(screen.queryByText('See the evidence')).not.toBeInTheDocument()
   })
 })
 
@@ -281,6 +224,7 @@ describe('the evidence panel', () => {
     cleanup()
     render(
       <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: RIDE_SLIPPING }}
         units="metric"
         library={FITNESS_RIDE_LIBRARY}
@@ -390,6 +334,7 @@ describe('fitness while the library is only part of what was added', () => {
     render(
       <HoldInputsContext.Provider value={PARTIAL}>
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}
@@ -404,11 +349,16 @@ describe('fitness while the library is only part of what was added', () => {
   })
 
   it('holds a card shown on its own, and a sport’s page, the same way', () => {
-    const [view] = fitnessViews({ run: SLIPPING, ride: NO_FITNESS.ride }, 'metric')
+    const [view] = fitnessViews(
+      { run: SLIPPING, ride: NO_FITNESS.ride },
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
     render(
       <HoldInputsContext.Provider value={PARTIAL}>
         <FitnessCard view={view!} units="metric" library={FITNESS_LIBRARY} />
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}
@@ -425,7 +375,7 @@ describe('fitness while the library is only part of what was added', () => {
   it('draws nothing for a library with no status, held or not', () => {
     const { container } = render(
       <HoldInputsContext.Provider value={PARTIAL}>
-        <FitnessSection fitness={NO_FITNESS} units="metric" library={[]} />
+        <FitnessSection nowMs={FITNESS_AS_OF_MS} fitness={NO_FITNESS} units="metric" library={[]} />
       </HoldInputsContext.Provider>,
     )
     expect(container).toBeEmptyDOMElement()
@@ -435,6 +385,7 @@ describe('fitness while the library is only part of what was added', () => {
     render(
       <HoldInputsContext.Provider value={{}}>
         <FitnessSection
+          nowMs={FITNESS_AS_OF_MS}
           fitness={{ run: SLIPPING, ride: NO_FITNESS.ride }}
           units="metric"
           library={FITNESS_LIBRARY}

@@ -10,13 +10,13 @@ const hr = measureTime('run', 'heartRate', [3600, 21_600, 7200, 3600, 0], { ente
 const pace = measureTime('run', 'pace', [1800, 7200, 3600, 1800, 0], { counted: 5, noData: 3 })
 
 describe('TimeInZonesSection', () => {
-  it('names the section and gives one lede, a bar for each measure and the table behind a disclosure', () => {
+  it('names the section and gives a bar for each measure and the table behind a disclosure, with no sentence over them', () => {
     render(
       <TimeInZonesSection sport="run" rows={[hr, pace]} previous={null} previousLabel={null} />,
     )
     const section = screen.getByRole('region', { name: 'Time in zones' })
     expect(section).toHaveAttribute('data-sport', 'run')
-    expect(within(section).getAllByText(/was easy/)).toHaveLength(1)
+    expect(within(section).queryByText(/was easy|took \d+% of your/)).toBeNull()
     const bars = within(section).getByRole('img')
     expect(bars).toHaveAccessibleName(/Heart rate: zone 1 10%, zone 2 60%/)
     expect(bars).toHaveAccessibleName(/Pace: zone 1 13%/)
@@ -43,7 +43,7 @@ describe('TimeInZonesSection', () => {
     expect(screen.getByText(/where you have them/)).toBeInTheDocument()
   })
 
-  it('leaves out a measure with too little time, and says what moved against the period before', () => {
+  it('leaves out a measure with too little time, and does not restate the change in a sentence', () => {
     const thin = measureTime('run', 'pace', [60, 0, 0, 0, 0], { counted: 1 })
     const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], { entered: 8 })
     render(
@@ -55,7 +55,7 @@ describe('TimeInZonesSection', () => {
       />,
     )
     expect(screen.getByRole('img')).not.toHaveAccessibleName(/Pace/)
-    expect(screen.getByText(/in the previous 6 weeks\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/in the previous 6 weeks/)).toBeNull()
   })
 
   it('draws nothing when no measure has enough time', () => {
@@ -118,5 +118,78 @@ describe('TimeInZonesSection', () => {
     render(<TimeInZonesSection sport="run" rows={[row]} previous={null} previousLabel={null} />)
     expect(screen.getByText('2 of 11 runs had heart rate set aside.')).toBeInTheDocument()
     expect(screen.getByText('1 of 11 runs had no heart rate to count.')).toBeInTheDocument()
+  })
+
+  it('says which stretch the bars are of when the period held too little, and compares with nothing', () => {
+    const { unmount } = render(
+      <TimeInZonesSection
+        sport="run"
+        rows={[hr]}
+        previous={null}
+        previousLabel={null}
+        zoneWindow="year"
+      />,
+    )
+    expect(screen.getByText('Last 12 months.')).toBeInTheDocument()
+    unmount()
+    render(
+      <TimeInZonesSection
+        sport="run"
+        rows={[hr]}
+        previous={null}
+        previousLabel={null}
+        zoneWindow="all"
+        relaxed
+      />,
+    )
+    expect(screen.getByText('All time.')).toBeInTheDocument()
+    expect(screen.queryByText('Last 12 months.')).toBeNull()
+  })
+
+  it('says nothing of a stretch for the period itself', () => {
+    render(<TimeInZonesSection sport="run" rows={[hr]} previous={null} previousLabel={null} />)
+    expect(screen.queryByText(/Last 12 months|All time/)).toBeNull()
+  })
+
+  it('draws whatever all time holds when it is under 3 activities and an hour', () => {
+    const little = measureTime('run', 'heartRate', [600, 600, 0, 0, 0], { counted: 1 })
+    const { container, unmount } = render(
+      <TimeInZonesSection sport="run" rows={[little]} previous={null} previousLabel={null} />,
+    )
+    expect(container).toBeEmptyDOMElement()
+    unmount()
+    render(
+      <TimeInZonesSection
+        sport="run"
+        rows={[little]}
+        previous={null}
+        previousLabel={null}
+        zoneWindow="all"
+        relaxed
+      />,
+    )
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 50%/)
+  })
+
+  it('says heart rate zones were cut from the highest on file, and pace from the best 30 min, dated', () => {
+    const highest = { ...hr, entered: 0, fromHighest: true as const }
+    const floored = {
+      ...pace,
+      floor: { durationS: 1800, asOfMs: new Date(2025, 9, 3, 12).getTime(), activities: 5 },
+    }
+    render(
+      <TimeInZonesSection
+        sport="run"
+        rows={[highest, floored]}
+        previous={null}
+        previousLabel={null}
+      />,
+    )
+    expect(
+      screen.getByText('Heart rate zones are cut from your highest heart rate on file.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.'),
+    ).toBeInTheDocument()
   })
 })

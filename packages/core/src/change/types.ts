@@ -1,4 +1,4 @@
-import type { Sport } from '../types'
+import type { Sport, SportCurves } from '../types'
 
 /**
  * What the change test says about one effort length: the later period's best is above what the two periods'
@@ -44,6 +44,18 @@ export interface ChangeCall {
 
 /** The change test for both sports, one call per curve duration. */
 export type ChangeEvidence = Record<Sport, ChangeCall[]>
+
+/**
+ * A window of the same length as the period, further back than the one before it, that the change test can use when the
+ * one before it holds too little. Its curves and the test are made as the period before's are.
+ */
+export interface EarlierComparison {
+  /** The window's first and last millisecond. */
+  startMs: number
+  endMs: number
+  previous: SportCurves
+  change: ChangeEvidence
+}
 
 /**
  * The bar a surface holds a call to: `record` is the 90% band (the best-effort list's rows, the dated bests), `headline`

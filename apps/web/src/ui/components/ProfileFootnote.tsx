@@ -1,7 +1,6 @@
 import type { Sex } from '@rca/core/grade'
 import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, weightUnit } from '../athlete'
-import { SEX_NOUN } from '../grades'
 import { hrefFor } from '../route'
 
 export interface ProfileFootnoteProps {
@@ -14,7 +13,7 @@ export interface ProfileFootnoteProps {
   unsetLink?: boolean
 }
 
-/** A list in words: "75 kg", "75 kg and man", "75 kg, man and your age at each effort". */
+/** A list in words: "your age", "your age and sex", "your age, sex and 75 kg". */
 function listed(parts: string[]): string {
   const last = parts.at(-1)
   return parts.length < 2 ? (last ?? '') : `${parts.slice(0, -1).join(', ')} and ${last}`
@@ -32,11 +31,12 @@ export function ProfileFootnote({
   unsetLink = true,
 }: ProfileFootnoteProps) {
   // Each grade is at the age on the day of its effort, which its own line states, so today's age is not given
-  // here to disagree with it: the line says only that the year of birth is used.
+  // here to disagree with it: the line says only that the year of birth is used. The sex is named by its place on
+  // Profile, not repeated.
   const parts = [
+    birthYear === null ? null : 'your age',
+    sex === null ? null : 'sex',
     massKg === null ? null : `${displayWeight(massKg, units)} ${weightUnit(units)}`,
-    sex === null ? null : SEX_NOUN[sex],
-    birthYear === null ? null : 'your age at each effort',
   ].filter((part): part is string => part !== null)
   const unset = parts.length === 0
   return (
@@ -45,9 +45,13 @@ export function ProfileFootnote({
       {(!unset || unsetLink) && (
         <>
           {' '}
-          <a href={hrefFor({ page: 'profile' })}>
-            {unset ? 'Add them on Profile' : 'Change on Profile'}
-          </a>
+          {unset ? (
+            <a href={hrefFor({ page: 'profile' })}>Add them on Profile</a>
+          ) : (
+            <a href={hrefFor({ page: 'profile' })} aria-label="Edit your details on Profile">
+              Edit
+            </a>
+          )}
         </>
       )}
     </p>

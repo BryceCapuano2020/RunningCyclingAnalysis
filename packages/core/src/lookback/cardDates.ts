@@ -88,17 +88,18 @@ function dated(status: FitnessStatus, years: SportYears, runs: readonly RunPoint
 }
 
 /**
- * One sport's status dated by the look-back of the same library at its date, for a reader that holds a status and not the
- * session's look-back (a finding made at a mark). The same dates the card names, so a finding and the card name one month.
+ * One sport's status dated by the look-back of the same digests, for a reader that holds a status and not the session's
+ * look-back (a finding made at a mark, whose digests end there). The same dates the card names, so a finding and the card
+ * name one month.
  */
 export function datedAt(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
   status: FitnessStatus,
 ): FitnessStatus {
-  const years = hindsightsOf(digests, setAside, status.asOfMs)?.[status.sport]
+  const years = hindsightsOf(digests, setAside)?.[status.sport]
   if (years === undefined) return status
-  const { runs } = fitnessHistories(digests, setAside, { nowMs: status.asOfMs })[status.sport]
+  const { runs } = fitnessHistories(digests, setAside)[status.sport]
   return dated(status, years, runs)
 }
 

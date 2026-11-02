@@ -258,7 +258,7 @@ describe('what a week needs before it reports', () => {
     const last = weeks.at(-1)!
     expect(last.lacks).toBeNull()
     expect(last.fit).not.toBeNull()
-    expect(last.widenedToDays).toBe(56)
+    expect(last.wide).toBe(true)
   })
 
   it('leaves a week out when no window reaches the reference heart rate, and says its range', () => {
@@ -271,7 +271,7 @@ describe('what a week needs before it reports', () => {
     const last = weeks.at(-1)!
     expect(last.fit).toBeNull()
     expect(last.lacks).toBe('range')
-    expect(last.widenedToDays).toBeUndefined()
+    expect(last.wide).toBeUndefined()
   })
 
   it('has one reported week at most with four weeks of data, and says what is missing', () => {

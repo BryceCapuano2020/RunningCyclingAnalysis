@@ -30,7 +30,7 @@ export function durabilityRow(
   }
 }
 
-/** Steady efforts a week apart, each losing the given share of its output per heartbeat. */
+/** Steady efforts a week apart, each losing the given share of its efficiency. */
 export function driftPoints(decoupling: readonly number[]): DriftPoint[] {
   return decoupling.map((pct, i) => ({
     activityId: `steady-${i}`,
@@ -48,7 +48,7 @@ const FRESH: Record<Sport, [number, number]> = { run: [16, 14], ride: [310, 270]
 /**
  * Late-effort evidence a sport page can draw. A run's values are metabolic W/kg and a ride's are watts,
  * as the digests hold them. The 5 min row has a late best at all three levels but the last has too few
- * activities; the 20 min row stops at 90 min.
+ * activities; the 20 min row stops at 90 min. Four sessions behind them reached a hard heart rate.
  */
 export function lateEvidenceFor(sport: Sport): LateEvidence {
   const [fresh5, fresh20] = FRESH[sport]
@@ -66,5 +66,7 @@ export function lateEvidenceFor(sport: Sport): LateEvidence {
       ]),
     ],
     drift: driftPoints([1, 2, 3, 3, 4, 2, 5, 3, 6, 3, 4, 2]),
+    // Some of the sessions behind the late bests reached a hard heart rate, so the shares are not floors.
+    ruler: { sessions: 4, lowShare: 0.92, highShare: 0.99 },
   }
 }

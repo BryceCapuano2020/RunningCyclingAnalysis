@@ -26,8 +26,13 @@ describe('walking pace copy', () => {
   })
 
   it('points the note under the notices at the activity page, where one run is counted', () => {
-    expect(walkingPaceText(2)).toMatch(/Open one to count it as a run\.$/)
-    expect(walkingPaceText(1)).toMatch(/Open it to count it as a run\.$/)
+    expect(walkingPaceText(2)).toBe(
+      '2 saved runs are at walking pace. They stay in your activities and are left out of your run analysis. Open one to count it as a run.',
+    )
+    expect(walkingPaceText(1)).toBe(
+      '1 saved run is at walking pace. It stays in your activities and is left out of your run analysis. Open it to count it as a run.',
+    )
+    expect(walkingPaceText(2, false)).not.toContain('Open')
   })
 
   it('keys a run by its sport and start second, as the library keys a workout', () => {
@@ -71,11 +76,11 @@ describe('activities the athlete labelled', () => {
 
   it('have a note under the notices and one on the activity page, naming the label', () => {
     expect(labelledText(1)).toBe(
-      '1 saved activity is labelled Hike, Walk or another type in your export, so it stays in your activities and is left out of your analysis. Open it to count it as a run or ride.',
+      '1 saved activity is labelled Hike, Walk or another type in your export. It stays in your activities and is left out of your analysis. Open it to count it as a run or ride.',
     )
-    expect(labelledText(3)).toMatch(/^3 saved activities are labelled .* they stay .* are left out/)
+    expect(labelledText(3)).toMatch(/^3 saved activities are labelled .* They stay .* are left out/)
     expect(labelledNote('hike')).toBe(
-      'You labelled this activity Hike in your export, so it is left out of your run and ride analysis.',
+      'You labelled this activity Hike in your export. It is left out of your run and ride analysis.',
     )
     expect(ATHLETE_LABEL_CHIP.ski).toBe('Ski')
   })

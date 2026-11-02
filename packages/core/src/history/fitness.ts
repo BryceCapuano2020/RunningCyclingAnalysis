@@ -161,13 +161,13 @@ function dotsOf(sport: Sport, history: FitnessHistory, years: SportYears | undef
  * the same heart rate, the same episodes.
  */
 function build(digests: ActivityDigest[], input: HistoryInput): Record<Sport, FitnessDots> {
-  const histories = fitnessHistories(digests, input.setAside, { nowMs: input.nowMs })
-  const years = hindsightsOf(digests, input.setAside, input.nowMs)
+  const histories = fitnessHistories(digests, input.setAside)
+  const years = hindsightsOf(digests, input.setAside)
   return perSport((sport) => dotsOf(sport, histories[sport], years?.[sport]))
 }
 
 export const fitness: HistoryPart<Record<Sport, FitnessDots>> = {
   empty: perSport(() => NO_DOTS),
   build,
-  same: (a, b) => sameSet(a.setAside, b.setAside) && a.nowMs === b.nowMs,
+  same: (a, b) => sameSet(a.setAside, b.setAside),
 }

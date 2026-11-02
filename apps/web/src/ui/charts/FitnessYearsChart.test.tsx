@@ -150,7 +150,7 @@ describe('FitnessYearsChart', () => {
           .getAllByRole('cell')
           .map((c) => c.textContent),
       )[1],
-    ).toEqual(['—', '—', '0'])
+    ).toEqual(['None', 'None', '0'])
   })
 
   it('gives each year in a table, and the slips and rises in a second one', () => {

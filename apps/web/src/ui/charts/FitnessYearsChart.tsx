@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { FitnessDots } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -24,6 +25,8 @@ export interface FitnessYearsChartProps {
   /** The sport's steady activities over the whole library, as the fitness card reads them. */
   dots: FitnessDots
   units: UnitSystem
+  /** The sport toggle, which the chart puts in its frame's controls row. */
+  controls?: ReactNode
 }
 
 /** The narrowest a slip's or rise's shading can be, px, and still carry its word. */
@@ -39,8 +42,11 @@ const upper = (text: string): string => `${text[0]!.toUpperCase()}${text.slice(1
  * not a node each, so a library of thousands stays smooth. The keyboard reads one year at a time, and the table
  * holds the same years.
  */
-export function FitnessYearsChart({ sport, dots, units }: FitnessYearsChartProps) {
-  const [active, setActive] = useState<number | null>(null)
+export function FitnessYearsChart({ sport, dots, units, controls }: FitnessYearsChartProps) {
+  // The year being read belongs to the sport it was read in: the other sport starts with none.
+  const [read, setRead] = useState<{ sport: Sport; year: number | null }>({ sport, year: null })
+  const active = read.sport === sport ? read.year : null
+  const setActive = (year: number | null) => setRead({ sport, year })
   const height = useChartHeight()
   // The layout is kept between renders, so reading a year does not lay the dots out again.
   const layoutOf = useMemo(
@@ -53,6 +59,7 @@ export function FitnessYearsChart({ sport, dots, units }: FitnessYearsChartProps
     <ChartFrame
       title="Fitness over the years"
       lede={`${words.output} at ${atText(dots)} on ${words.steadyPlural}`}
+      controls={controls}
       description={`${dots.levels.length} ${words.steadyPlural} from ${dots.years[0]?.year} to ${dots.years[last]?.year}, each ${words.output.toLowerCase()} at ${atText(dots)}, with a line through their median and the slips and rises shaded.`}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
@@ -135,22 +142,6 @@ export function FitnessYearsChart({ sport, dots, units }: FitnessYearsChartProps
           </g>
         )
       }}
-    </ChartFrame>
-  )
-}
-
-const EMPTY = 'Add steady runs with heart rate, or rides with power, to see this.'
-
-/** The chart's place when no sport has enough steady activities to draw: its title and one line saying what to add. */
-export function FitnessYearsEmpty() {
-  return (
-    <ChartFrame
-      title="Fitness over the years"
-      description="No steady runs or rides yet."
-      empty={EMPTY}
-      table={{ columns: ['Year'], rows: [] }}
-    >
-      {() => null}
     </ChartFrame>
   )
 }

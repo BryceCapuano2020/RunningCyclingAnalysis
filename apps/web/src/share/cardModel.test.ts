@@ -9,7 +9,7 @@ import { energyReading, gapReading } from '../ui/components/balanceScale'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
-import { SPORT_ORDER } from '../ui/sports'
+import { BALANCE_PAIR } from '../ui/sports'
 import { buildShareCard, shareableHost } from './cardModel'
 
 /** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
@@ -53,7 +53,7 @@ const RUN_GRADE: GradeOutcome = {
   age: 37,
   grade: { centre: { grade: 0.64, level: 'Local' }, range: null },
 }
-/** A ride graded through its running equivalent: Recreational to Local, 61%, range 55 to 67%. */
+/** A ride graded through its running equivalent: 61%, range 55 to 67, across two levels. */
 const RIDE_GRADE: GradeOutcome = {
   kind: 'graded',
   age: 37,
@@ -62,8 +62,8 @@ const RIDE_GRADE: GradeOutcome = {
     range: { low: { grade: 0.55, level: 'Recreational' }, high: { grade: 0.67, level: 'Local' } },
   },
 }
-const GRADED_FOOTNOTE = 'Graded on the USATF road standards. A level, not a ranking.'
-const ESTIMATE_FOOTNOTE = 'Estimated from your files. Not a ranking.'
+const GRADED_FOOTNOTE = 'Age-graded on USATF road standards.'
+const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
 describe('buildShareCard', () => {
   it('uses the app name as the title', () => {
@@ -90,9 +90,9 @@ describe('buildShareCard', () => {
     expect(card?.meter).toEqual(gapReading(gap))
   })
 
-  it('lists the heroes in the order the sport order gives, so the columns match the meter', () => {
+  it('lists the heroes in the order of the balance pair, so the columns match the meter', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.heroes.map((hero) => hero.sport)).toEqual([...SPORT_ORDER])
+    expect(card?.heroes.map((hero) => hero.sport)).toEqual([...BALANCE_PAIR])
   })
 
   it('has no card while the sports cannot be compared, so no "needs harder efforts" card is shared', () => {
@@ -123,16 +123,16 @@ describe('buildShareCard', () => {
     const metric = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     const imperial = cardFor(makeResult(), SETTINGS, 'imperial', 42, false)
     expect(metric?.heroes[0]).toMatchObject({
-      label: 'Threshold flat pace, estimated from your best 3 to 20 min',
+      label: 'Threshold GAP, estimated from your best 3 to 20 min',
       figure: { number: '23:23', unit: '/km' },
     })
     expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('names each threshold as estimated from the best 3 to 20 min efforts, a run as flat pace', () => {
+  it('names each threshold as estimated from the best 3 to 20 min efforts, a run as GAP', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.label)).toEqual([
-      'Threshold flat pace, estimated from your best 3 to 20 min',
+      'Threshold GAP, estimated from your best 3 to 20 min',
       'Threshold power, estimated from your best 3 to 20 min',
     ])
   })
@@ -194,7 +194,7 @@ describe('buildShareCard', () => {
     })
     expect(card?.heroes.map((hero) => hero.grade)).toEqual([
       'Local · 64% on best 20 min',
-      'Recreational to Local · 61% on best 20 min',
+      '61% (55 to 67) on best 20 min',
     ])
   })
 
@@ -209,7 +209,7 @@ describe('buildShareCard', () => {
   it('carries the balance as a magnitude line in points, with its range', () => {
     const gap: BalanceGap = { centre: 6, low: 4, high: 8, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
-    expect(card?.magnitude).toBe('Running grades 6 points higher, within 4 to 8')
+    expect(card?.magnitude).toBe('Running grades 6 points higher (4 to 8)')
     // The page's meter reads its lead with the same helper, so the card and the page agree.
     expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
   })
@@ -218,7 +218,7 @@ describe('buildShareCard', () => {
     const gap: BalanceGap = { centre: 9, low: -4, high: 18, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, gap)
     expect(card?.headline).toBe('Your balance leans toward running')
-    expect(card?.magnitude).toBe('Running grades 9 points higher, within −4 to +18')
+    expect(card?.magnitude).toBe('Running grades 9 points higher (−4 to +18)')
     expect(card?.meter).toEqual(gapReading(gap))
   })
 
@@ -247,7 +247,7 @@ describe('buildShareCard', () => {
       const card = graded()
       expect(card?.heroes.map((hero) => hero.grade)).toEqual([
         'Local · 64% on best 20 min',
-        'Recreational to Local · 61% on best 20 min',
+        '61% (55 to 67) on best 20 min',
       ])
       expect(card?.meter).toEqual(gapReading(gap))
       expect(card?.footnote).toBe(GRADED_FOOTNOTE)
@@ -316,7 +316,7 @@ describe('buildShareCard', () => {
     expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
   })
 
-  it('says the card is graded, and a level and not a ranking, once a grade is on it', () => {
+  it('says the card is age-graded, on its standard, once a grade is on it', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, true, null, {
       run: RUN_GRADE,
       ride: null,

@@ -961,10 +961,10 @@ describe('MethodPage without a weight', () => {
       within(section).getByText(/Best efforts are judged against running 188 bpm/),
     ).toBeInTheDocument()
     expect(within(section).getByText(/Both best efforts reached at least 90%/)).toBeInTheDocument()
-    // The reference heart rate is defined in one sentence, where the heart-rate check is explained.
+    // The max heart rate is defined in plain words, where the heart-rate check is explained.
     expect(
       within(section).getByText(
-        /Your reference heart rate is set from the highest sustained heart rate that several separate days reached.*6 bpm below running/,
+        /Your max heart rate is the highest sustained heart rate that several separate days reached.*6 bpm below running/,
       ),
     ).toBeInTheDocument()
 

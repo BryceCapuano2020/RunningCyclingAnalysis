@@ -6,7 +6,6 @@ import { plural } from '../components/plural'
 import { formatCount } from '../format/count'
 import { SPORT_NOTE, gradeLevelText, sportGrade } from '../grades'
 import { activityMasses } from '../activityMasses'
-import { notHardNote } from '../changeHeld'
 import { activityNames } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_PLURAL } from '../sports'
@@ -44,13 +43,10 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
         activityNames={activityNames(result.activities)}
         activityMasses={activityMasses(result.activities)}
         threshold={thresholdLine(result, sport, massKg, units)}
-        bestLevel={headline?.kind === 'graded' ? gradeLevelText(headline.grade) : undefined}
-        change={context.change}
-        held={
-          context.previous && previousLabel
-            ? notHardNote(sport, result, context.previous, previousLabel)
-            : null
+        bestLevel={
+          headline?.kind === 'graded' ? (gradeLevelText(headline.grade) ?? undefined) : undefined
         }
+        change={context.change}
       />
       <RecordTiles tiles={tileRows(sport, list.rows)} />
       {SPORT_NOTE[sport] && <p className="muted">{SPORT_NOTE[sport]}</p>}

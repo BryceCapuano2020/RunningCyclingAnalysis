@@ -71,11 +71,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
   it('names where the figure comes from and asks if it is right, with a Set control that says which figure', () => {
     const onSet = vi.fn()
     zones(onSet)
-    expect(
-      screen.getByText(
-        'Max heart rate: 186 bpm, the highest you reached on 4 separate days since Sep 2021.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     expect(screen.getAllByText(/^Is that right\?/)).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
     expect(onSet).toHaveBeenCalledWith('run', 186)
@@ -98,9 +94,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
 
   it('states the source without the question when it cannot be set from here', () => {
     zones()
-    expect(
-      screen.getByText(/186 bpm, the highest you reached on 4 separate days/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Set your/ })).toBeNull()
     expect(screen.queryByText(/Is that right/)).toBeNull()
   })
@@ -132,9 +126,7 @@ describe('ZoneTables, a pace or power the fitness cannot give today', () => {
     expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: /^Run pace zones/ })).toBeNull()
     expect(
-      screen.getByText(
-        'No run pace zones today. A hard, even 3–5 min effort and a hard 20 min effort set your pace zones.',
-      ),
+      screen.getByText('No run pace zones today. A run of 20 min or more sets your pace zones.'),
     ).toBeInTheDocument()
     expect(screen.getByText(/^No ride power zones today\./)).toBeInTheDocument()
   })
@@ -206,13 +198,11 @@ describe('ZoneTables, a max heart rate that cannot be one', () => {
     expect(screen.getByText(/Is that right\?/)).toBeTruthy()
   })
 
-  it('shows no heart rate zones where no effort reached near the max, and says what would give them', () => {
-    zones({ ...base(), untrustedMax: { run: 'habitual' } })
-    expect(screen.queryByRole('table', { name: /^Run heart rate zones/ })).toBeNull()
-    expect(
-      screen.getByText(
-        /^No run heart rate zones today\. None of your efforts reached near your maximum/,
-      ),
-    ).toBeTruthy()
+  it('cuts heart rate zones from the highest on file where no effort reached near the max, and says so', () => {
+    zones({ ...base(), untrustedMax: { run: 'habitual' } }, vi.fn())
+    const table = screen.getByRole('table', { name: /^Run heart rate zones/ })
+    expect(table).toHaveAccessibleName(/Max heart rate: 205 bpm, your highest on file/)
+    expect(screen.queryByText(/^No run heart rate zones today/)).toBeNull()
+    expect(screen.getByText(/Is that right\?/)).toBeTruthy()
   })
 })

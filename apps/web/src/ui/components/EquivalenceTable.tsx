@@ -23,7 +23,7 @@ export interface EquivalenceTableProps {
 
 /** The three columns, named once for the table's heads, and again for the phone list's labels. */
 const EFFORT_LABEL = 'Ride effort'
-const PACE_LABEL = 'Flat pace'
+const PACE_LABEL = 'Pace (GAP)'
 const RANGE_LABEL = '90% range'
 
 /** An effort in words: its duration and its watts. */
@@ -31,7 +31,7 @@ function effortOf(equivalent: Equivalence): string {
   return `${effortLabel(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`
 }
 
-/** The model range of the flat pace, from its slow end to its fast end, in the viewer's unit. */
+/** The model range of the pace, from its slow end to its fast end, in the viewer's unit. */
 function rangeOf(equivalent: Equivalence, units: UnitSystem): string {
   const { p95, p05 } = equivalent.runSpeed
   return `${formatPaceValue(p95, units)} to ${formatPaceValue(p05, units)} ${PACE_UNIT[units]}`
@@ -71,7 +71,7 @@ function EffortList({
   )
 }
 
-/** Each ride effort in its own watts, with the flat running pace it matches and its model range. */
+/** Each ride effort in its own watts, with the running pace (GAP) it matches and its model range. */
 export function EquivalenceTable({
   equivalents,
   units,

@@ -1,14 +1,20 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, THRESHOLD_HOLD_S } from '@rca/core/constants'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
 import { PER } from './format/units'
 
 /**
- * The sports in the order they sit everywhere: the card row, the balance meter and the share card.
- * The first is on the left, so running is on the left and cycling on the right.
+ * The sports in the order they sit in lists and charts, running first. A list that totals or draws
+ * every sport reads this one; the balance reads BALANCE_PAIR.
  */
 export const SPORT_ORDER = ['run', 'ride'] as const
+
+/**
+ * The two sports the balance compares, in the order a positive lead favours them: the first is on the
+ * left of the meter and the share card, so running is on the left and cycling on the right.
+ */
+export const BALANCE_PAIR = ['run', 'ride'] as const
 
 /**
  * What differs between the sports, in one place. A sport's own number is its flat pace for running,
@@ -124,13 +130,4 @@ export const THRESHOLD_NEEDS_TEXT = `Needs an effort of ${EFFORT_MAX_TEXT} or lo
 export const THRESHOLD_MEANING: Record<Sport, string> = {
   run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
   ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
-}
-
-/**
- * What a threshold is, in one line under its tile's name: the figure it gives, and for how long it can be held: the
- * time the fit supports (`THRESHOLD_HOLD_S`), not an hour.
- */
-export const THRESHOLD_GLOSS: Record<Sport, string> = {
-  run: `Pace you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
-  ride: `Power you could hold for about ${formatDuration(THRESHOLD_HOLD_S)}`,
 }

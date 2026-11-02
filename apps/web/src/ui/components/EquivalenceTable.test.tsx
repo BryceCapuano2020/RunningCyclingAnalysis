@@ -40,7 +40,7 @@ describe('EquivalenceTable', () => {
   it('lists the ride effort, the flat running pace it matches and its 90% range', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Ride effort', 'Flat pace', '90% range'])
+    expect(headers).toEqual(['Ride effort', 'Pace (GAP)', '90% range'])
 
     const row = within(screen.getByRole('row', { name: /20 min at 250 W/ }))
     expect(row.getByText('20 min at 250 W')).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('EquivalenceTable', () => {
     const item = items[0] as HTMLElement
     expect(Array.from(item.querySelectorAll('dt')).map((term) => term.textContent)).toEqual([
       'Ride effort',
-      'Flat pace',
+      'Pace (GAP)',
       '90% range',
     ])
     expect(within(item).getByText('4:10 /km')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('EquivalenceTable', () => {
     expect(labels).toHaveAttribute('aria-hidden', 'true')
     expect(
       Array.from(labels?.querySelectorAll('span') ?? []).map((span) => span.textContent),
-    ).toEqual(['Ride effort', 'Flat pace', '90% range'])
+    ).toEqual(['Ride effort', 'Pace (GAP)', '90% range'])
     const terms = [...container.querySelectorAll<HTMLElement>('.equivalence-list dt')]
     expect(terms).toHaveLength(6)
     for (const term of terms) expect(term).toHaveClass('sr-only')

@@ -67,11 +67,9 @@ describe('ResultPage age grades', () => {
     expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*67%\s*Local/,
     )
-    expect(
-      screen.getByText(
-        /^Graded for a \d+-year-old man on the USATF road standards\. A level, not a ranking\.$/,
-      ),
-    ).toBeInTheDocument()
+    const source = document.querySelector('.balance__source')
+    source?.querySelectorAll('.definition__note').forEach((note) => note.remove())
+    expect(source).toHaveTextContent(/^Age-graded on USATF road standards\.$/)
   })
 
   it('asks once for the year of birth alone when only that is missing', () => {
@@ -217,10 +215,8 @@ describe('ResultPage footnote', () => {
     ['ride', { page: 'ride' }],
   ] as const)('says what the %s page is based on, with a link to Profile', (_name, route) => {
     renderFooter(route, false)
-    expect(
-      screen.getByText(/Based on 75 kg, man and your age at each effort\./),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
+    expect(screen.getByText(/Based on your age, sex and 75 kg\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Edit your details on Profile' })).toHaveAttribute(
       'href',
       '#/profile',
     )
@@ -287,8 +283,10 @@ describe('ResultPage footnote', () => {
 
   it('leaves the line off the sample, which has its own persona', () => {
     renderFooter({ page: 'run' }, true)
-    expect(screen.queryByRole('link', { name: 'Change on Profile' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Based on 75 kg/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Edit your details on Profile' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Based on your age/)).not.toBeInTheDocument()
   })
 })
 
@@ -680,7 +678,7 @@ describe('ResultPage period', () => {
         passed,
       })
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        'All time. Your last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
+        'Last 12 weeks had too few rides, so this uses all time · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
       )
       // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
@@ -703,7 +701,7 @@ describe('ResultPage period', () => {
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-      'Your last 12 months. Your last 12 weeks had no hard runs',
+      'Last 12 weeks had no hard runs, so this uses 12 months',
     )
   })
 

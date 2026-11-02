@@ -71,19 +71,19 @@ describe('a threshold the effort gate withheld', () => {
   it('says a shown threshold was not checked where there was no heart rate to check it by', () => {
     const noHr = makeResult({ effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } })
     expect(thresholdUncheckedLine(noHr, 'run')).toBe(
-      'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
+      'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
     )
     const thin = makeResult({ effortGate: { run: THIN, ride: UNKNOWN } })
-    expect(thresholdUncheckedLine(thin, 'run')).toContain('too few days with heart rate')
+    expect(thresholdUncheckedLine(thin, 'run')).toContain('Too few days with heart rate')
     expect(thresholdUncheckedLine(makeResult(), 'run')).toBeNull()
   })
 
-  it('says a shown threshold was not checked, on the panel and the tile', () => {
+  it('says a shown threshold was not checked on the panel, and leaves the tile to the balance’s one note', () => {
     const result = makeResult({ effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } })
     const panel = render(
       <ThresholdPanel sport="run" result={result} massKg={70} units="metric" rangeDays={null} />,
     )
-    expect(panel.container.textContent).toContain('Effort not checked: no heart rate')
+    expect(panel.container.textContent).toContain('No heart rate on your best 20 min run')
     cleanup()
     const tile = render(
       <ThresholdTile
@@ -95,6 +95,7 @@ describe('a threshold the effort gate withheld', () => {
         weighted
       />,
     )
-    expect(tile.container.textContent).toContain('Effort not checked: no heart rate')
+    expect(tile.container.textContent).not.toMatch(/not checked/)
+    expect(tile.container.querySelector('.stat-tile__number')).not.toBeNull()
   })
 })

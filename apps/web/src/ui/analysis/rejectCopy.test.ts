@@ -23,15 +23,15 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
   it.each([
     ['not-activity', 'Not a FIT, GPX or TCX file, so it cannot be read.'],
     ['corrupt', 'Damaged, so it could not be read.'],
-    ['empty', 'It holds no recorded points, so there is nothing to read.'],
-    ['too-short', 'Too short: it records less than a minute.'],
-    ['too-sparse', 'Recorded too sparsely: its points are more than 10 seconds apart.'],
+    ['empty', 'It holds no recorded points.'],
+    ['too-short', 'Too short. It records less than a minute.'],
+    ['too-sparse', 'Recorded too sparsely. Its points are more than 10 seconds apart.'],
     ['too-long', 'Longer than 48 hours, so it is left out.'],
     ['too-much-data', 'Too much data for one file.'],
     ['no-date', 'Its times are device time only, so it cannot be placed in your history.'],
     ['implausible-date', 'Its date is not plausible, so it is left out.'],
     ['no-sport', 'It does not say whether it is a run or a ride, so it is not guessed.'],
-    ['e-bike', 'E-bike rides are left out, because motor help hides your own power.'],
+    ['e-bike', 'E-bike rides are left out. Motor help hides your own power.'],
     ['duplicate', 'Same workout as run.fit, so it was not counted twice.'],
     ['unreadable', 'This file could not be read.'],
   ] as const)('words the %s code', (code, copy) => {
@@ -59,7 +59,7 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
 
   it('never calls an empty file damaged, or tells its owner to export it again', () => {
     const copy = rejectionCopy(file('empty.gpx', { code: 'empty' }))
-    expect(copy).toBe('It holds no recorded points, so there is nothing to read.')
+    expect(copy).toBe('It holds no recorded points.')
     expect(copy).not.toMatch(/records|export/i)
   })
 
@@ -222,10 +222,10 @@ describe('rejectCopy: the sports of both sources', () => {
 describe('rejectCopy: details the core gives', () => {
   it('says how many entries a damaged archive lost, from the count the core gives', () => {
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }))).toBe(
-      '2 entries could not be read because the archive is damaged. Export it again.',
+      '2 entries could not be read. The archive is damaged. Export it again.',
     )
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '1' }))).toBe(
-      '1 entry could not be read because the archive is damaged. Export it again.',
+      '1 entry could not be read. The archive is damaged. Export it again.',
     )
   })
 
@@ -248,7 +248,7 @@ describe('rejectionCopy: a line keeps its advice unless it is told not to', () =
       'Damaged, so it could not be read.',
     )
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }), false)).toBe(
-      '2 entries could not be read because the archive is damaged.',
+      '2 entries could not be read. The archive is damaged.',
     )
     expect(
       rejectionCopy(file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) }), false),
@@ -274,8 +274,8 @@ describe('rejectionCopy: a line keeps its advice unless it is told not to', () =
   })
 
   it.each([
-    ['too-short', 'Too short: it records less than a minute.'],
-    ['too-sparse', 'Recorded too sparsely: its points are more than 10 seconds apart.'],
+    ['too-short', 'Too short. It records less than a minute.'],
+    ['too-sparse', 'Recorded too sparsely. Its points are more than 10 seconds apart.'],
     ['no-date', 'Its times are device time only, so it cannot be placed in your history.'],
     ['implausible-date', 'Its date is not plausible, so it is left out.'],
   ] as const)(
@@ -393,7 +393,7 @@ describe('rejectionCopy: a file with too many tracks, activities or laps', () =>
   it('says to split it when the core says so, and says only that it is too much otherwise', () => {
     const many = file('collection.gpx', { code: 'too-much-data', detail: 'split' })
     expect(rejectionCopy(many, false)).toBe(
-      'Too many tracks, activities or laps for one file: split it into one file for each activity.',
+      'Too many tracks, activities or laps for one file. Split it into one file for each activity.',
     )
     expect(rejectionCopy(file('heavy.fit', { code: 'too-much-data' }), false)).toBe(
       'Too much data for one file.',
@@ -410,13 +410,13 @@ describe('unreadFormatsCopy', () => {
 
   it('names the formats, the most common first, when they account for every file', () => {
     expect(unreadFormatsCopy(1_203, false, { kml: 3, pwx: 1_200 })).toBe(
-      '1,203 files in a format this app does not read: 1,200 .pwx, 3 .kml.',
+      '1,203 files in a format this app does not read (1,200 .pwx, 3 .kml).',
     )
   })
 
   it('breaks a tie by name, and carries the advice after the names', () => {
     expect(unreadFormatsCopy(2, true, { pwx: 1, hrm: 1 })).toMatch(
-      /^2 files in a format this app does not read: 1 \.hrm, 1 \.pwx\. \S/,
+      /^2 files in a format this app does not read \(1 \.hrm, 1 \.pwx\)\. \S/,
     )
   })
 

@@ -18,7 +18,12 @@ export interface StoredMarks extends Marks {
 /** What the athlete has seen of each row, so a row that has been seen stops taking the first place. */
 export interface SeenRecord {
   v: 1
+  /**
+   * `forLead` names the lead of "Your years" the counts are of (`leadKey`): a new lead starts them again, so a row is seen
+   * once for each lead. A record from before the lead was kept has none, and its counts are of no lead.
+   */
   lookBack: {
+    forLead?: string | null
     impressions: number
     lastAtMs: number | null
     openedAtMs: number | null

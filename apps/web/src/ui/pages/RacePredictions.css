@@ -295,3 +295,14 @@
     background: CanvasText;
   }
 }
+
+/* A race whose run was not shown hard prints "No slower than" above its time, and has no bar. */
+.race-row__bound {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}

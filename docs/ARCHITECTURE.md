@@ -627,12 +627,15 @@ and How sure is this? pages (one `ResultPage` chunk, with the method page shared
 and the Profile page load the first time they are shown, while a page that is not ready shows a plain
 loading line after a short wait (`ui/lazyPages.ts`). They start loading when files are being read, a
 kept library is restoring or someone is signed in, in parallel with the analysis, so the usual path
-shows no loading line. Focus and scroll move to a page's heading once the page is on screen.
+shows no loading line. The History page is its own chunk with its own budget: its charts are the
+heaviest part of the result pages, and Balance needs only Balance over the years, so it loads the first
+time the History tab is opened and is not preloaded. Focus and scroll move to a page's heading once the
+page is on screen.
 
 The analysis runs in the Web Worker. A browser that kept results starts it with the page, so the
 restoring page ends as soon as the library replies. Any other visit starts it when the browser is idle,
-or sooner when files, the sample or a sign-in need it, so the worker (465 KB raw, 152 KB gzip against a
-160 KB budget) stays off the critical path and a library whose hint is missing still restores. A page that fails to load (offline, or a
+or sooner when files, the sample or a sign-in need it, so the worker (465 KB raw, 158 KB gzip against a
+185 KB budget) stays off the critical path and a library whose hint is missing still restores. A page that fails to load (offline, or a
 build that replaced its file) shows "Couldn’t load this page." with a Retry button, and the header and
 tabs stay. The worker is its own bundle, so the app entry and the worker each carry their own copy of zod; the entry
 holds it for the API client.

@@ -2,7 +2,7 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
 import { GradesLink, GradingLink } from '../components/GradingLink'
 import { LevelLadder } from '../components/LevelLadder'
-import { HEADLINE_LABEL, LEVEL_NOT_RANKING, gradeParts, notGradedText } from '../grades'
+import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { BasisChip } from './StatTile'
@@ -16,7 +16,7 @@ const GRADED: Record<Sport, (age: number) => string> = {
   ride: (age) => `graded as its run equivalent at age ${age} on the `,
 }
 
-/** A level longer than this, a ride's range across two bands, is set a step smaller so it holds two lines. */
+/** A level longer than this is set a step smaller so it holds two lines. */
 const LONG_LEVEL = 12
 
 /** A figure with its "estimated" in brackets, so it reads as one phrase before "on your best 20 min". */
@@ -39,7 +39,7 @@ export interface LevelPanelProps {
   missingAge: AgeGap | null
 }
 
-/** The level and its percent at display size, a ride's range and its estimated chip beside them. */
+/** The level and its percent at display size, a ride's range and its estimated chip beside them. A range across two bands names no level. */
 function LevelFigure({
   sport,
   outcome,
@@ -51,21 +51,23 @@ function LevelFigure({
   return (
     <>
       <p className="display sport-hero__level">
-        <span
-          className={
-            level.length > LONG_LEVEL
-              ? 'sport-hero__level-name sport-hero__level-name--long'
-              : 'sport-hero__level-name'
-          }
-        >
-          {level}
-        </span>
+        {level === null ? null : (
+          <span
+            className={
+              level.length > LONG_LEVEL
+                ? 'sport-hero__level-name sport-hero__level-name--long'
+                : 'sport-hero__level-name'
+            }
+          >
+            {level}
+          </span>
+        )}
         <span className="sport-hero__level-value">{value}</span>
       </p>
       {lead !== null && (
         <p className="sport-hero__level-basis">
           <BasisChip basis="estimated" />
-          {range !== null && <span className="muted">{`range ${range}`}</span>}
+          {range !== null && <span className="muted">{`(${range})`}</span>}
         </p>
       )}
     </>
@@ -103,7 +105,7 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
             <GradesLink className="age-grade__standards">
               {ROAD_STANDARDS_SOURCE.shortName}
             </GradesLink>
-            {`. ${LEVEL_NOT_RANKING}`}
+            {'.'}
           </p>
           <LevelLadder sport={sport} grade={outcome.grade} />
           <GradingLink />

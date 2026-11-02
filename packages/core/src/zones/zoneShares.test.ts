@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MeasureTime } from './periodTime'
 import {
-  biggestShift,
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
@@ -44,16 +43,6 @@ describe('zone shares', () => {
   it('names the main zone, the lower one on a tie, and none without time', () => {
     expect(mainZone(time([10, 40, 40, 10, 0]))).toEqual({ level: 2, share: 0.4 })
     expect(mainZone(time([0, 0, 0, 0, 0]))).toBeNull()
-  })
-
-  it('finds the zone whose share moved most between two periods', () => {
-    const before = time([10, 30, 40, 20, 0])
-    const after = time([10, 60, 20, 10, 0])
-    const shift = biggestShift(before, after)
-    expect(shift?.level).toBe(2)
-    expect(shift?.before).toBeCloseTo(0.3, 12)
-    expect(shift?.after).toBeCloseTo(0.6, 12)
-    expect(biggestShift(time([0, 0, 0, 0, 0]), after)).toBeNull()
   })
 
   it('tells periods cut by the same zones from those whose zones changed', () => {

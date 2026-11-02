@@ -15,7 +15,7 @@ const METHOD_HEADING_ID = 'landing-method-heading'
  * summaries are stored in the private library, so it says the analysis stays on the device and no more.
  */
 function privacyLine(signedIn: boolean): string {
-  return signedIn ? 'Your files are analysed on your device.' : 'Nothing leaves your device.'
+  return signedIn ? 'Your files are analysed on your device.' : 'Your files stay on your device.'
 }
 
 export interface LandingPageProps {
@@ -55,7 +55,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
           <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
             Are you a better runner or a better cyclist?
           </h1>
-          <p className="lede secondary">{`Drop in your Strava or Garmin export or watch files to see your level in each sport for your age, with honest ranges. ${privacyLine(signedIn)}`}</p>
+          <p className="lede secondary">{`Add your Strava or Garmin export. See your level in each sport for your age. ${privacyLine(signedIn)}`}</p>
         </section>
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
@@ -94,14 +94,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power (estimated without a power meter).`}
-        </p>
-        <p className="secondary">
-          Each result is compared with the standard for your age and sex on the day of that effort.
-        </p>
-        <p className="secondary">
-          A ride’s result is an estimate with a range. If the two could be level, it says they are
-          in balance.
+          {`Each sport is judged on your best ${HEADLINE_LABEL} against the standard for your age and sex.`}
         </p>
         <a href="#/method">Full method</a>
       </section>

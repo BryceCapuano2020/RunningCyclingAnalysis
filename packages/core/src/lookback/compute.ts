@@ -42,8 +42,6 @@ export const NO_LOOKBACK: LookBack = {
 export interface LookBackInput {
   settings: AthleteSettings
   setAside: ReadonlySet<string>
-  /** The wall clock, cut to the day by the caller so the memory still hits. */
-  nowMs: number
   gate: EstimatedRideGate | null | undefined
   /** How the zone cuts local days (see `localZoneKey`): an answer made in another zone is not taken. */
   zone: string
@@ -56,7 +54,7 @@ interface Years {
   sports: Record<Sport, Pick<SportLookBack, 'referenceHr' | 'fitness'>>
 }
 
-type YearsInput = Pick<LookBackInput, 'setAside' | 'nowMs' | 'zone'>
+type YearsInput = Pick<LookBackInput, 'setAside' | 'zone'>
 
 /**
  * The fitness in hindsight of each sport. It reads the digests, the set-aside list and the date alone, never the
@@ -65,12 +63,12 @@ type YearsInput = Pick<LookBackInput, 'setAside' | 'nowMs' | 'zone'>
 function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
   const current = orderedFor('fitness', digests)
   if (current.length === 0) return null
-  const options = { nowMs: input.nowMs }
-  const asOfMs = Math.max(current.at(-1)!.startMs, input.nowMs)
+  // The card's own date, the newest activity's, so both read one replay and agree to the week. The clock is not read here.
+  const asOfMs = current.at(-1)!.startMs
   // Days are on the fitness clock: a day is the local one, as the runs' are.
   const asOfDay = dayOfMs(asOfMs) + dayShiftFor({ startMs: asOfMs })
-  const statuses = fitnessStatuses(digests, input.setAside, options)
-  const histories = fitnessHistories(digests, input.setAside, options)
+  const statuses = fitnessStatuses(digests, input.setAside)
+  const histories = fitnessHistories(digests, input.setAside)
   const sport = (s: Sport): Years['sports'][Sport] => ({
     referenceHr: histories[s].referenceHr,
     fitness:
@@ -95,7 +93,7 @@ function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
 
 const rememberedYears = memoByDigests<YearsInput, Years | null>(
   yearsOf,
-  (a, b) => sameSet(a.setAside, b.setAside) && a.nowMs === b.nowMs && a.zone === b.zone,
+  (a, b) => sameSet(a.setAside, b.setAside) && a.zone === b.zone,
 )
 
 /**
@@ -105,9 +103,8 @@ const rememberedYears = memoByDigests<YearsInput, Years | null>(
 export function hindsightsOf(
   digests: ActivityDigest[],
   setAside: ReadonlySet<string>,
-  nowMs: number,
 ): Record<Sport, SportYears> | null {
-  const years = rememberedYears(digests, { setAside, nowMs, zone: localZoneKey() })
+  const years = rememberedYears(digests, { setAside, zone: localZoneKey() })
   if (years === null) return null
   return { run: years.sports.run.fitness, ride: years.sports.ride.fitness }
 }
@@ -160,7 +157,6 @@ const remembered = memoByDigests<LookBackInput, LookBack>(
   compute,
   (a, b) =>
     sameSet(a.setAside, b.setAside) &&
-    a.nowMs === b.nowMs &&
     a.gate === b.gate &&
     a.zone === b.zone &&
     a.settings.massKg === b.settings.massKg &&
@@ -170,20 +166,18 @@ const remembered = memoByDigests<LookBackInput, LookBack>(
 
 /**
  * The library's years: each sport's fitness at the same effort in hindsight, and its bests over the years. A function
- * of the digests, the set-aside list, the settings and the date alone, library-wide (whatever period is picked), and
- * remembered for the same digests so that a change of period costs nothing.
+ * of the digests, the set-aside list and the settings alone, library-wide (whatever period is picked), told as of the
+ * newest activity like the fitness card, and remembered for the same digests so that a change of period costs nothing.
  */
 export function lookBackOf(
   digests: ActivityDigest[],
   settings: AthleteSettings,
   setAside: ReadonlySet<string>,
-  nowMs: number,
   gate?: EstimatedRideGate | null,
 ): LookBack {
   return remembered(digests, {
     settings,
     setAside,
-    nowMs,
     gate,
     zone: localZoneKey(),
   })

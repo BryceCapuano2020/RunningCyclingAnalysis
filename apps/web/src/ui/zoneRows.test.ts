@@ -11,6 +11,8 @@ function setOf(partial: Partial<ZoneSet> & Pick<ZoneSet, 'measure' | 'reference'
     estimatedFrom: ['ride'],
     maxHeartRateFrom: null,
     asOfMs: null,
+    floorS: null,
+    fromHighest: false,
     zones: zonesFor(partial.measure, partial.reference),
     ...partial,
   }
@@ -91,25 +93,21 @@ describe('zoneTable', () => {
   it('titles a table by sport and measure, with its source and reference', () => {
     const table = zoneTable(setOf({ measure: 'power', reference: 250 }), 'metric')
     expect(table.title).toBe('Ride power zones')
-    expect(table.detail).toBe('From your rides: threshold power 250 W')
+    expect(table.detail).toBe('Threshold power: 250 W, from your rides')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
-  it('says an estimated threshold is the held one, with the newest fit, only where the two read differently', () => {
+  it('gives an estimated threshold its figure and its source, with no note on a newer fit', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
-    expect(zoneTable(set, 'metric', 3.51).detail).toBe(
-      'From your runs: threshold pace 4:46 /km. Zones keep this threshold until the fit moves by more than its error; the Run page shows the newest fit, 4:45 /km',
-    )
-    expect(zoneTable(set, 'metric', 3.5).detail).toBe('From your runs: threshold pace 4:46 /km')
-    expect(zoneTable(set, 'metric').detail).toBe('From your runs: threshold pace 4:46 /km')
+    expect(zoneTable(set, 'metric').detail).toBe('Threshold pace: 4:46 /km, from your runs')
   })
 
   it('says an entered reference was entered', () => {
     const set = setOf({ sport: 'run', measure: 'heartRate', reference: 188, source: 'entered' })
     expect(sourceText(set)).toBe('You entered')
-    expect(zoneTable(set, 'metric').detail).toBe('You entered: max heart rate 188 bpm')
+    expect(zoneTable(set, 'metric').detail).toBe('Max heart rate: 188 bpm, entered by you')
     expect(zoneTable(set, 'metric').title).toBe('Run heart rate zones')
   })
 
@@ -133,9 +131,44 @@ describe('the source and basis of an estimated zone set', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
     expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
     expect(sourceText(set)).toBe('From your runs')
+    expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe(
+      'Threshold pace: 4:46 /km, set in Mar 2025',
+    )
   })
 
-  it('says how many separate days reached an estimated max heart rate, and since when', () => {
+  it('dates a pace or power cut from the floor by the effort that set it, and names the effort', () => {
+    const asOfMs = new Date(2025, 2, 15, 12).getTime()
+    const set = setOf({
+      sport: 'run',
+      measure: 'pace',
+      reference: 3.5,
+      estimatedFrom: ['run'],
+      asOfMs,
+      floorS: 1800,
+    })
+    expect(sourceText(set)).toBe('From your best 30 min on 15 Mar 2025')
+    expect(zoneTable(set, 'metric').detail).toBe(
+      'Threshold pace: 4:46 /km, from your best 30 min on 15 Mar 2025',
+    )
+    expect(sourceText({ ...set, floorS: 1200 })).toBe('From your best 20 min on 15 Mar 2025')
+  })
+
+  it('says a max heart rate cut from the highest on file is that, and can still be corrected', () => {
+    const set = setOf({
+      sport: 'run',
+      measure: 'heartRate',
+      reference: 176,
+      estimatedFrom: ['run'],
+      fromHighest: true,
+      maxHeartRateFrom: { bpm: 176, days: 5, sinceMs: 0 },
+    })
+    expect(maxHeartRateBasis(set)).toBe('176 bpm, your highest on file')
+    const table = zoneTable(set, 'metric')
+    expect(table.detail).toBe('Max heart rate: 176 bpm, your highest on file')
+    expect(table.askable).toBe(true)
+  })
+
+  it('gives an estimated max heart rate as its figure alone, whatever days reached it', () => {
     const own = setOf({
       sport: 'run',
       measure: 'heartRate',
@@ -143,17 +176,13 @@ describe('the source and basis of an estimated zone set', () => {
       estimatedFrom: ['run'],
       maxHeartRateFrom: { bpm: 185.6, days: 4, sinceMs: SEPTEMBER_2021 },
     })
-    expect(maxHeartRateBasis(own)).toBe(
-      '186 bpm, the highest you reached on 4 separate days since Sep 2021',
-    )
+    expect(maxHeartRateBasis(own)).toBe('186 bpm')
     expect(zoneTable(own, 'metric')).toMatchObject({
-      detail: 'Max heart rate: 186 bpm, the highest you reached on 4 separate days since Sep 2021',
+      detail: 'Max heart rate: 186 bpm',
       askable: true,
     })
     const thin = { ...own, maxHeartRateFrom: { bpm: 185.6, days: 1, sinceMs: SEPTEMBER_2021 } }
-    expect(maxHeartRateBasis(thin)).toBe(
-      '186 bpm, the highest you reached, on a single day since Sep 2021',
-    )
+    expect(maxHeartRateBasis(thin)).toBe('186 bpm')
   })
 
   it("says a sport's reference is worked out from the other sport's maximum", () => {

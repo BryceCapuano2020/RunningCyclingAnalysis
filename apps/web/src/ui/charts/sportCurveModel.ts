@@ -14,6 +14,7 @@ import type { CurveRow, View } from './curveTable'
 import { logScale } from './scale'
 import { formatNative, nativeLabel, plottedValue, sportYAxis, usable } from './sportAxis'
 import { durationTicks, fitTicks } from './ticks'
+import { drawnCount } from './walkingCut'
 
 /** The first duration, s, a sport's chart draws: its curve's start, and never under a minute. */
 function chartStartS(sport: Sport): number {
@@ -23,9 +24,11 @@ function chartStartS(sport: Sport): number {
 /**
  * One row per duration from the sport's curve start with a value in either period. A row is carried when
  * its value is a longer effort's, copied down the curve by the envelope: the file has no effort of its length.
+ * A run's curve stops at its longest duration that is not at walking pace: the values beyond it are left off the row, and a
+ * row with none left goes.
  */
 export function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[] {
-  return durationRows([curve, before])
+  const rows = durationRows([curve, before])
     .filter(({ durationS }) => durationS >= chartStartS(sport))
     .map(({ durationS, points: [current, earlier] }) => ({
       durationS,
@@ -37,7 +40,21 @@ export function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[]
       carriedFromS:
         current !== undefined && isCarried(current) ? (current.windowS ?? undefined) : undefined,
     }))
-    .filter((row) => Number.isFinite(row.value) || Number.isFinite(row.previous))
+  const drawnValues = drawnCount(
+    sport,
+    rows.map((row) => row.value),
+  )
+  const drawnPrevious = drawnCount(
+    sport,
+    rows.map((row) => row.previous),
+  )
+  rows.forEach((row, i) => {
+    if (i >= drawnValues) {
+      Object.assign(row, { value: NaN, activityId: null, carried: false, carriedFromS: undefined })
+    }
+    if (i >= drawnPrevious) Object.assign(row, { previous: NaN, previousCarried: false })
+  })
+  return rows.filter((row) => Number.isFinite(row.value) || Number.isFinite(row.previous))
 }
 
 /** A duration the records list names, which the curve marks at each of its points. */

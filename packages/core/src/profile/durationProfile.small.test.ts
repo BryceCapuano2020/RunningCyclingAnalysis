@@ -4,15 +4,42 @@ import { durationProfile, profileSentence } from './index'
 import { modelCurve, scaled } from './test/curves'
 
 describe('what a small library can say', () => {
-  it('does not say the bests are in line with each other with fewer than 40 activities behind them', () => {
-    const few = durationProfile(modelCurve(), 5, 25)
-    if (few.status !== 'ready') throw new Error('not ready')
-    const text = profileSentence(few, formatDuration)
-    expect(text).not.toContain('in line with')
-    expect(text).toContain('takes 40 activities to say they agree; this period has 25')
-    const enough = durationProfile(modelCurve(), 5, 40)
-    if (enough.status !== 'ready') throw new Error('not ready')
-    expect(profileSentence(enough, formatDuration)).toContain('in line with each other')
+  it('says nothing stands out, and never that the bests are in line, with fewer than 40 activities', () => {
+    for (const activities of [3, 12, 25, 39]) {
+      const profile = durationProfile(modelCurve(), 5, activities)
+      if (profile.status !== 'ready') throw new Error('not ready')
+      const text = profileSentence(profile, formatDuration)
+      expect(text).toBe('Nothing stands out in your bests, compared from 5 s to 1 h.')
+      expect(text).not.toContain('in line')
+      expect(text).not.toMatch(/takes \d+ activities/)
+    }
+  })
+
+  it('says the bests are in line with each other from 40 activities', () => {
+    for (const activities of [40, 400]) {
+      const profile = durationProfile(modelCurve(), 5, activities)
+      if (profile.status !== 'ready') throw new Error('not ready')
+      expect(profileSentence(profile, formatDuration)).toBe(
+        'Your bests are in line with each other, compared from 5 s to 1 h.',
+      )
+    }
+  })
+
+  it('names the window of the whole library as all-time bests, in either sentence', () => {
+    const small = durationProfile(modelCurve(), 5, 12)
+    const full = durationProfile(modelCurve(), 5, 40)
+    if (small.status !== 'ready' || full.status !== 'ready') throw new Error('not ready')
+    expect(profileSentence(small, formatDuration, { allTime: true })).toBe(
+      'Nothing stands out in your all-time bests, compared from 5 s to 1 h.',
+    )
+    expect(profileSentence(full, formatDuration, { allTime: true })).toBe(
+      'Your all-time bests are in line with each other, compared from 5 s to 1 h.',
+    )
+    const standing = durationProfile(scaled(1200, 1.4), 5, 40)
+    if (standing.status !== 'ready') throw new Error('not ready')
+    expect(profileSentence(standing, formatDuration, { allTime: true })).toMatch(
+      /^Your all-time 20 min best is \d+% above what your other bests suggest\./,
+    )
   })
 
   it('judges a duration at a stricter level in a small library, and shrinks what stands out', () => {

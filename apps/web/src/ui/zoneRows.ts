@@ -1,9 +1,16 @@
 import type { Sport } from '@rca/core/types'
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
-import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
+import {
+  formatClock,
+  formatDuration,
+  formatPaceValue,
+  formatPower,
+  PACE_UNIT,
+  paceSeconds,
+} from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { formatMonth } from './format/date'
+import { formatDayMonth, formatMonth } from './format/date'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
 /** What each measure is called in a table's title. */
@@ -17,6 +24,10 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
+    // A pace or power no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
+    if (set.floorS !== null && set.asOfMs !== null) {
+      return `From your best ${formatDuration(set.floorS)} on ${formatDayMonth(set.asOfMs)}`
+    }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
     // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
     return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
@@ -30,18 +41,17 @@ const OTHER_MAX: Record<Sport, string> = {
 }
 
 /**
- * Where an estimated max heart rate comes from, as the start of a sentence: its own sport's reference is the
- * highest value several separate days reached, since the date the stretch it was taken over begins; the other
- * sport's is worked out from the first. Null for an entered reference, or any measure but heart rate.
+ * The figure an estimated max heart rate is shown with, as the start of a sentence. Its own sport's is the
+ * highest value reached on separate days, so the figure stands alone; the other sport's is worked out from
+ * the first, and says so. Null for an entered reference, or any measure but heart rate.
  */
 export function maxHeartRateBasis(set: ZoneSet): string | null {
   if (set.measure !== 'heartRate' || set.source !== 'estimated') return null
   const bpm = `${Math.round(set.reference)} bpm`
-  const from = set.maxHeartRateFrom
-  if (from === null) return `${bpm}, ${OTHER_MAX[set.sport]}`
-  const since = formatMonth(from.sinceMs, true)
-  if (from.days <= 1) return `${bpm}, the highest you reached, on a single day since ${since}`
-  return `${bpm}, the highest you reached on ${from.days} separate days since ${since}`
+  // No effort reached near a maximum, so the zones are cut from the highest there is.
+  if (set.fromHighest) return `${bpm}, your highest on file`
+  if (set.maxHeartRateFrom === null) return `${bpm}, ${OTHER_MAX[set.sport]}`
+  return bpm
 }
 
 /**
@@ -114,51 +124,45 @@ export interface ZoneTable {
   title: string
   /** Whether the figure is an estimated max heart rate, which the athlete can be asked to confirm or correct. */
   askable: boolean
-  /** Where the reference came from and what it was: "From your rides: threshold power 250 W". */
+  /** The reference and where it came from: "Threshold power: 250 W, from your rides". */
   detail: string
   citation: string
   columns: string[]
   rows: string[][]
 }
 
-/**
- * What an estimated threshold says when it is not the newest fit. The zones keep the threshold they had until a window's
- * fit moves by more than its own error and stays there, so the sport pages' newest fit can differ by a second or a watt.
- * It is said only where the two read differently, with the newest figure. A heart rate is a maximum, not a fitted threshold.
- */
-const HELD_NOTE: Record<ZoneMeasure, ((sport: string, newest: string) => string) | null> = {
-  power: (sport, newest) => HELD_WORDS(sport, newest),
-  pace: (sport, newest) => HELD_WORDS(sport, newest),
-  heartRate: null,
-}
-
-function HELD_WORDS(sport: string, newest: string): string {
-  return `. Zones keep this threshold until the fit moves by more than its error; the ${sport} page shows the newest fit, ${newest}`
-}
-
 const REFERENCE_NAME: Record<ZoneMeasure, string> = {
-  power: 'threshold power',
-  heartRate: 'max heart rate',
-  pace: 'threshold pace',
+  power: 'Threshold power',
+  heartRate: 'Max heart rate',
+  pace: 'Threshold pace',
+}
+
+/**
+ * Where a power or pace reference came from, after its figure: a fit is dated by the month it was set, an
+ * estimate names the sports it is from, and an entered one says so.
+ */
+function referenceSourceText(set: ZoneSet): string {
+  if (set.source === 'entered') return 'entered by you'
+  // A floor is the best 30 min or 20 min of the 12 months up to the date, named with the day it was set.
+  if (set.floorS !== null && set.asOfMs !== null) {
+    return `from your best ${formatDuration(set.floorS)} on ${formatDayMonth(set.asOfMs)}`
+  }
+  if (set.asOfMs !== null) return `set in ${formatMonth(set.asOfMs, true)}`
+  return `from your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */
-export function zoneTable(set: ZoneSet, units: UnitSystem, newestFit?: number): ZoneTable {
+export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
   const basis = maxHeartRateBasis(set)
   const reference = REFERENCE_TEXT[set.measure](set.reference, units)
-  const newest = newestFit === undefined ? null : REFERENCE_TEXT[set.measure](newestFit, units)
-  const held =
-    set.source === 'estimated' && newest !== null && newest !== reference
-      ? (HELD_NOTE[set.measure]?.(SPORT_LABEL[set.sport], newest) ?? '')
-      : ''
   return {
     title: `${SPORT_LABEL[set.sport]} ${MEASURE_TITLE[set.measure]} zones`,
     askable: basis !== null,
     // An estimated max heart rate says where it came from in place of the figure alone.
     detail:
       basis !== null
-        ? `Max heart rate: ${basis}`
-        : `${sourceText(set)}: ${REFERENCE_NAME[set.measure]} ${reference}${held}`,
+        ? `${REFERENCE_NAME[set.measure]}: ${basis}`
+        : `${REFERENCE_NAME[set.measure]}: ${reference}, ${referenceSourceText(set)}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [

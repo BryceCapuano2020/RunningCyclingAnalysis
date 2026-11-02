@@ -61,7 +61,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Race predictions',
     state: 'calculated',
-    line: 'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance, with a spread assumed from typical prediction error.',
+    line: 'Times for the usual road races, from your best runs, heart-rate VO2max and weekly running distance, with a range from typical prediction error.',
   },
   {
     name: 'Output at the same heart rate',
@@ -84,7 +84,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'Your age grade at each effort length, so you see which lengths each sport grades higher.',
   },
   {
-    name: 'Where your bests stand out',
+    name: 'Best durations',
     state: 'calculated',
     line: 'Each best set against your own curve, so a length that stands out from the rest is named.',
   },
@@ -114,9 +114,9 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'How long you spent in each training zone over a period, or a stretch you select, from heart rate, power meter and run pace, by each day’s zones.',
   },
   {
-    name: 'Late in long sessions',
+    name: 'Durability',
     state: 'calculated',
-    line: 'Your best 5 and 20 minute output after the first hour or two of a session, and how output per heart rate drifts across a steady effort of an hour or more.',
+    line: 'Your best 5 and 20 minute output after the first hour or two of a session, and how efficiency drifts across a steady effort of an hour or more.',
   },
   {
     name: 'How your reps held up',

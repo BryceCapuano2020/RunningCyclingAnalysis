@@ -3,13 +3,12 @@ import type { Sport } from '@rca/core/types'
 import { Definition } from '../components/Definition'
 import './StatTile.css'
 
-/** What kind of evidence a tile's figure is: a model's estimate, a held floor, an equivalent, or recorded. */
-export type TileBasis = 'estimated' | 'recorded' | 'equivalent' | 'floor'
+/** What kind of evidence a tile's figure is: a model's estimate, a held floor, or recorded. */
+export type TileBasis = 'estimated' | 'recorded' | 'floor'
 
 const BASIS_TEXT: Record<TileBasis, string> = {
   estimated: 'Estimated',
   recorded: 'Recorded',
-  equivalent: 'As running',
   floor: 'At least',
 }
 
@@ -31,8 +30,6 @@ export interface StatTileProps {
   heading: string
   /** A word in the heading to define in place, such as "threshold", and what it means. */
   definition?: { term: string; meaning: string }
-  /** One line under the heading that says what the figure is, such as how long it could be held. */
-  gloss?: string
   /** What kind of evidence the figure is; left out where the tile has no figure to give evidence for. */
   basis?: TileBasis
   /** The chip's words when the figure is named by what it is, such as "Best 12 min", rather than by its kind. */
@@ -66,7 +63,6 @@ export function StatTile({
   sport,
   heading,
   definition,
-  gloss,
   basis,
   basisLabel,
   figure,
@@ -82,7 +78,6 @@ export function StatTile({
         </h3>
         {basis === undefined ? null : <BasisChip basis={basis} label={basisLabel} />}
       </div>
-      {gloss === undefined ? null : <p className="stat-tile__gloss">{gloss}</p>}
       {figure === undefined ? null : (
         <p className="stat-tile__figure">
           <span className="display stat-tile__number">{figure.number}</span>

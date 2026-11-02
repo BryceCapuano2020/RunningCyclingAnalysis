@@ -137,7 +137,7 @@ describe('SportPage: your years', () => {
       lookBack,
     )
 
-  it('is the first section, closed, named by its own finding', () => {
+  it('is the first section, open, named by its own finding', () => {
     page(YEARS_LOOKBACK)
     expect(closedRow('Your years')).toBe(
       'Your yearsYour pace at 148 bpm slipped in 2021 and came back',
@@ -152,9 +152,11 @@ describe('SportPage: your years', () => {
     expect(within(years).queryByRole('figure')).toBeNull()
   })
 
-  it('is not on the page when there are no years to tell', () => {
+  it('says what it needs, in its own place, when there are no years to tell', () => {
     page(undefined)
-    expect(screen.queryByRole('region', { name: 'Your years' })).toBeNull()
+    const years = screen.getByRole('region', { name: 'Your years' })
+    expect(years).toHaveTextContent('Needs a year of runs.')
+    expect(years.closest('details')).toBeNull()
   })
 })
 
@@ -585,7 +587,8 @@ describe('SportPage', () => {
     expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
     expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toBeVisible()
     expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    // The answer asks for nothing; the sections below say their own needs, each in its own place.
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
   })
 
@@ -606,7 +609,7 @@ describe('SportPage', () => {
       within(section).getByText('Best 12 min', { selector: '.stat-tile__basis' }),
     ).toBeVisible()
     expect(within(section).queryByText(/At least|From your best/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Needs/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
   })
 
   it('asks for an effort of 20 min or longer, with no number, when the longest best is under 5 min', () => {
@@ -766,7 +769,7 @@ describe('SportPage age grades', () => {
     const records = openSection('All best efforts')
     // The lead is said once under the list, so the row reads only its level, range and percent.
     expect(recordNamed(records, '20 min').querySelector('.records__grade')?.textContent).toBe(
-      'Local to Regional · 67% (63–71%)',
+      '67% (63 to 71)',
     )
     expect(
       within(records).getByText('Estimated through its running equivalent'),
@@ -785,16 +788,14 @@ describe('SportPage age grades', () => {
     )
 
     const caption = screen.getByText(/graded at age 40 on the/)
-    expect(caption).toHaveTextContent(
-      '4:00 /km, graded at age 40 on the USATF road standards. A level, not a ranking.',
-    )
+    expect(caption).toHaveTextContent('4:00 /km, graded at age 40 on the USATF road standards.')
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
       '#/method',
     )
   })
 
-  it('says the grades are a level, not a ranking, at the end of the caption', () => {
+  it('ends the caption at the standard, with no line about a ranking', () => {
     renderPage(
       'run',
       makeResult({
@@ -805,9 +806,9 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
+    expect(screen.queryByText(/not a ranking/)).not.toBeInTheDocument()
     expect(screen.getByText(/graded at age 40 on the/)).toHaveTextContent(
-      /on the USATF road standards\. A level, not a ranking\.$/,
+      /on the USATF road standards\.$/,
     )
   })
 
@@ -848,7 +849,7 @@ describe('SportPage age grades', () => {
     )
     const caption = screen.getByText(/graded as its run equivalent at age 40 on the/)
     expect(caption).toHaveTextContent(
-      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards. A level, not a ranking.',
+      '400 W (estimated), graded as its run equivalent at age 40 on the USATF road standards.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -1157,11 +1158,9 @@ describe('SportPage cycling figures without a weight', () => {
       null,
       NO_TRENDS,
       true,
-      <p>Based on 75 kg, man and your age at each effort. Change on Profile</p>,
+      <p>Based on your age, sex and 75 kg. Edit</p>,
     )
-    expect(
-      screen.getByText('Based on 75 kg, man and your age at each effort. Change on Profile'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Based on your age, sex and 75 kg. Edit')).toBeInTheDocument()
   })
 })
 
@@ -1221,9 +1220,7 @@ describe('SportPage depth', () => {
     )
 
     const caption = screen.getByText(/graded at age \d+ on the/)
-    expect(caption).toHaveTextContent(
-      /graded at age \d+ on the USATF road standards\. A level, not a ranking\.$/,
-    )
+    expect(caption).toHaveTextContent(/graded at age \d+ on the USATF road standards\.$/)
   })
 
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
@@ -1421,7 +1418,7 @@ describe('SportPage depth', () => {
         name: '',
       }),
     ).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
+      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
     )
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
@@ -1444,7 +1441,7 @@ describe('SportPage depth', () => {
     })
     expect(chip.closest('.sport-hero__head')).not.toBeNull()
     expect(threshold.querySelector('.sport-hero__meaning')?.nextElementSibling).toBeNull()
-    expect(screen.getAllByText(/reached 70% of your running reference heart rate/)).toHaveLength(1)
+    expect(screen.getAllByText(/reached 70% of your running max heart rate/)).toHaveLength(1)
   })
 
   it('shows no heart-rate line when heart rate is not on file for the sport', () => {
@@ -1456,7 +1453,7 @@ describe('SportPage depth', () => {
       }),
     )
 
-    expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
   })
 
   it.each(['run', 'ride'] as const)(
@@ -1477,7 +1474,7 @@ describe('SportPage depth', () => {
         }),
       )
 
-      expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
     },
   )
 
@@ -1591,7 +1588,7 @@ describe('SportPage depth', () => {
       },
     )
 
-    it('leaves the section out, and says what is missing in the list at the end, with too little data', () => {
+    it('is one line in its own place that says what is missing, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
       renderPage(
         'ride',
@@ -1608,13 +1605,13 @@ describe('SportPage depth', () => {
         null,
         none,
       )
-      expect(screen.queryByRole('region', { name: 'Same heart rate, week by week' })).toBeNull()
-      const list = screen.getByRole('region', { name: 'Not enough yet' })
+      const line = screen.getByRole('region', { name: 'Same heart rate, week by week' })
+      expect(line.querySelector('figure')).toBeNull()
+      expect(line.closest('details')).toBeNull()
       expect(
-        within(list).getByText(
-          'Same heart rate, week by week: needs steady stretches from at least 6 rides in 4 weeks.',
-        ),
+        within(line).getByText('Needs steady stretches from at least 6 rides in 8 weeks.'),
       ).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     })
 
     it('is not on a sport page with nothing in the period', () => {

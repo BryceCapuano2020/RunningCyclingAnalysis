@@ -64,9 +64,9 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
       expect(basisLine(result)).toBeNull()
     }
     expect(uncheckedNote(base(NO_HEART_RATE, HARD))).toBe(
-      'Effort not checked: no heart rate on your best 20 min run. Add a run with heart rate to check it.',
+      'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
     )
-    expect(uncheckedNote(base(HARD, THIN))).toContain('too few days with heart rate')
+    expect(uncheckedNote(base(HARD, THIN))).toContain('Too few days with heart rate')
     expect(uncheckedNote(base(HARD, HARD))).toBeNull()
     // A sport with no 20 minute effort at all has nothing to check: the note is of a comparison that is shown.
     expect(uncheckedNote(base(UNKNOWN, HARD))).toBeNull()
@@ -75,7 +75,7 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
   it('says both when one best was not hard and the other was not checked', () => {
     const result = base(gate(), NO_HEART_RATE)
     expect(basisLine(result)).toBe("Your run best wasn't all-out, so running could be higher.")
-    expect(uncheckedNote(result)).toContain('no heart rate on your best 20 min ride')
+    expect(uncheckedNote(result)).toContain('No heart rate on your best 20 min ride')
   })
 
   it('leaves a sport with no 20 minute effort to the need, which an effort of that length mends', () => {

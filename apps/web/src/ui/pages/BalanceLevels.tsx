@@ -7,11 +7,12 @@ import './BalanceLevels.css'
 
 /**
  * Each sport's level on one plain line under the meter, named as the meter's ends are: its name, its age grade, then the level that grade
- * names. The sport colour marks the sport's glyph only. A sport with no grade says what it is missing.
+ * names, or the range of a ride that could be in either of two. The sport colour marks the sport's glyph only. A sport with no grade says what
+ * it is missing.
  */
 export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
   if (model.rows.length === 0 && model.note === null) return null
-  const firstGraded = model.rows.findIndex((row) => row.grade !== null)
+  const firstNamed = model.rows.findIndex((row) => row.level !== null)
   return (
     <section className="balance-levels" aria-label="Level in each sport">
       {model.note === null ? (
@@ -28,14 +29,15 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
                 <>
                   <span className="balance-levels__grade">{row.grade}</span>{' '}
                   <span className="balance-levels__level">
-                    {/* The level is defined once, on the first row that has one. */}
-                    {index === firstGraded ? (
+                    {/* The level is defined once, on the first row that names one. */}
+                    {row.level === null ? (
+                      `(${row.range})`
+                    ) : index === firstNamed ? (
                       <Definition meaning={DEFINITIONS.level}>{row.level}</Definition>
                     ) : (
                       row.level
                     )}
                   </span>
-                  {row.basis ? <span className="balance-levels__basis">{row.basis}</span> : null}
                 </>
               )}
             </li>

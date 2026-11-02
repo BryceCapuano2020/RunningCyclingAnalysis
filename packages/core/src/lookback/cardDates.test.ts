@@ -205,9 +205,9 @@ describe('the card and the look-back on a library that dipped and came back', ()
     const marks = [186, 192, 198].map((week) => lib.firstMs + week * WEEK)
     const months = marks.map((asOfMs) => {
       const digests = lib.digests.filter((d) => d.startMs <= asOfMs)
-      const raw = fitnessStatuses(digests, NONE, { asOfMs })
-      const look = lookBackOf(digests, settings, NONE, asOfMs)
-      const card = datedByLookBack(raw, look, fitnessHistories(digests, NONE, { asOfMs })).run
+      const raw = fitnessStatuses(digests, NONE)
+      const look = lookBackOf(digests, settings, NONE)
+      const card = datedByLookBack(raw, look, fitnessHistories(digests, NONE)).run
       const listed = look.sports.run.fitness
       expect(listed.kind).toBe('ok')
       expect(card.state).toBe('recovering')
@@ -220,7 +220,7 @@ describe('the card and the look-back on a library that dipped and came back', ()
       // The runs the level before is counted over are the weeks before the onset it names.
       const onsetDay = (card.onsetMs! - WEEK_ORIGIN_MS) / DAY_MS
       const weeks = FITNESS.monitor.onsetBaseWeeks
-      const history = fitnessHistories(digests, NONE, { asOfMs }).run.runs
+      const history = fitnessHistories(digests, NONE).run.runs
       const counted = history.filter((r) => r.t >= onsetDay - weeks * 7 && r.t < onsetDay).length
       expect(card.evidence!.baseline!.runs).toBe(counted)
       return [month(raw.run.onsetMs!), month(card.onsetMs!)]

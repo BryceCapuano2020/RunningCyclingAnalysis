@@ -29,12 +29,13 @@ export function profileCurve(
   )
 }
 
-/** The activities a profile curve is set in, of one sport, with the power source a ride's watts came from. */
+/** The activities a profile curve is set in, of one sport, with the power source a ride's watts came from; 40 unless `count` says. */
 export function profileActivities(
   sport: Sport,
   powerSource: ActivitySummary['powerSource'] = 'none',
+  count: number = SESSIONS,
 ): ActivitySummary[] {
-  return Array.from({ length: SESSIONS }, (_, i) =>
+  return Array.from({ length: count }, (_, i) =>
     makeActivity({
       id: `profile-${i}`,
       name: `Session ${i}`,

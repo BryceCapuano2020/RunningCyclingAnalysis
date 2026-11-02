@@ -99,6 +99,19 @@ export interface FitnessPoint {
   weeks: number
 }
 
+/**
+ * Where the output stands at the reference heart rate when the status cannot call a trend: its value and 90% range in the
+ * status's unit, and the steady activities (and the stretch) it is read from.
+ */
+export interface FitnessLevel {
+  value: number
+  low: number
+  high: number
+  runs: number
+  fromMs: number
+  toMs: number
+}
+
 export interface FitnessStatus {
   sport: Sport
   state: FitnessState
@@ -125,6 +138,8 @@ export interface FitnessStatus {
    */
   series: FitnessPoint[]
   shortfall: Shortfall | null
+  /** Only with a `shortfall` and 3 or more steady activities: the level now, with no slip or rise in it. Absent otherwise. */
+  level?: FitnessLevel
   /** When the state began and with what test; null for holding that was never interrupted and for no state. */
   entered: FitnessEntry | null
   /** Steady runs (or rides) in the whole library, whatever the state. */

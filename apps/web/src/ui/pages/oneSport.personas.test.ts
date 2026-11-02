@@ -25,8 +25,7 @@ function homeOf(name: PersonaName) {
   const result = combine(digests, { massKg: 75, bikeMassKg: 9 })
   const sole = soleSportOf(result.activities)!
   const held = missingText(result, result.activities, ALL_TIME, { run: null, ride: null })
-  const nowMs = Date.UTC(2025, 5, 16)
-  const fitness = fitnessStatuses(digests, new Set(), { nowMs })
+  const fitness = fitnessStatuses(digests, new Set())
   return {
     sole,
     title: held.title,
@@ -34,7 +33,7 @@ function homeOf(name: PersonaName) {
     threshold: hasThreshold(result, sole),
     needs: hasThreshold(result, sole) ? null : thresholdNeedsLine(result, sole),
     split: indoorSplitLine(result.activities, sole),
-    fitnessCards: fitnessViews(fitness, 'metric').length,
+    fitnessCards: fitnessViews(fitness, 'metric', Date.UTC(2025, 5, 16)).length,
   }
 }
 

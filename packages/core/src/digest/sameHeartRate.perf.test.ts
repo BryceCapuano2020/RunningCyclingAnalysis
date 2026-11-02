@@ -7,13 +7,14 @@ import { sameHeartRate } from './sameHeartRate'
 import { BASE, MONDAY, heartRatesOf, withBlocks } from './test/sameHeartRateFixture'
 
 /**
- * The work is capped by the blocks in a fit and the weeks reported, not by the library. It took about
- * 16 ms of CPU for the default 12 weeks of a 3,000-activity library and about 66 ms for all time, which
- * reports the newest 52 weeks of each sport. The budgets leave room for a loaded runner while work
- * that grows with the library, or fits more blocks a week, fails them.
+ * The work is capped by the blocks in a fit, and grows with the weeks reported. It took about 16 ms of
+ * CPU for the default 12 weeks of a 3,000-activity library. All time reports every week of both sports
+ * (about 740 here, six years of eight activities a week) and took about 290 ms, near 0.4 ms a week. The
+ * budgets leave room for a loaded runner while work that fits more blocks a week, or more than once a
+ * week, fails them.
  */
 const PERIOD_BUDGET_MS = 100
-const ALL_TIME_BUDGET_MS = 400
+const ALL_TIME_BUDGET_MS = 1000
 
 /** 3,000 activities, alternating sport, with 15 steady blocks each, eight a week for years. */
 function library(count: number): ActivityDigest[] {
@@ -48,13 +49,14 @@ describe('output at the same heart rate performance', () => {
     expect(ms).toBeLessThan(PERIOD_BUDGET_MS)
   })
 
-  it(`reads the newest year of weeks of the same library in under ${ALL_TIME_BUDGET_MS} ms`, () => {
+  it(`reads every week of the same library in under ${ALL_TIME_BUDGET_MS} ms`, () => {
     let weeks = 0
     const ms = fastestMs(() => {
       const result = sameHeartRate(digests, new Set(), {})
       weeks = result.run.weeks.length + result.ride.weeks.length
     })
-    expect(weeks).toBe(2 * SAME_HEART_RATE.maxWeeks)
+    // Every week of both sports, far over the newest year a period reports.
+    expect(weeks).toBeGreaterThan(4 * SAME_HEART_RATE.maxWeeks)
     expect(ms).toBeLessThan(ALL_TIME_BUDGET_MS)
   })
 })

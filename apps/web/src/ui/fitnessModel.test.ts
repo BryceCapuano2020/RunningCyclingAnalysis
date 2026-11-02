@@ -11,14 +11,7 @@ import {
   fitnessStatus,
   waitingStatus,
 } from './fitnessFixtures'
-import {
-  FITNESS_STATE,
-  fitnessViews,
-  progressOf,
-  trackOf,
-  viewOf,
-  worthShowing,
-} from './fitnessModel'
+import { FITNESS_STATE, fitnessViews, lineOf, trackOf, viewOf, worthShowing } from './fitnessModel'
 import { fitnessDefinitions } from './fitnessText'
 
 const DAY_MS = 86_400_000
@@ -38,7 +31,7 @@ describe('what each state is called, and the shape that says it', () => {
         back: 'Back',
         improving: 'Improving',
         improved: 'Improved',
-        'not-enough-evidence': 'Not enough evidence yet',
+        'not-enough-evidence': 'No trend yet',
       },
     )
   })
@@ -55,7 +48,7 @@ describe('what each state is called, and the shape that says it', () => {
 
 describe('viewOf', () => {
   it('carries the analysis’s own sentence and support line, with the units kept on their line', () => {
-    const view = viewOf(SLIPPING, 'metric')
+    const view = viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS)
     const lines = fitnessLines(SLIPPING, 'metric')
     expect(view.headline.replace(/ /g, ' ')).toBe(lines.headline)
     expect(view.support).toBe(lines.support)
@@ -64,30 +57,88 @@ describe('viewOf', () => {
   })
 
   it('marks a state that began to be shown in the last six weeks with the week it began, and no other', () => {
-    expect(viewOf(SLIPPING, 'metric').fresh).toBe('the week of 12 Oct')
-    expect(viewOf(RECOVERING, 'metric').fresh).toBe('the week of 28 Sep')
+    expect(viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS).fresh).toBe('the week of 12 Oct')
+    expect(viewOf(RECOVERING, 'metric', FITNESS_AS_OF_MS).fresh).toBe('the week of 28 Sep')
     const old = fitnessStatus('slipping', () => 0, {
       entered: { atMs: FITNESS_AS_OF_MS - 7 * 7 * DAY_MS, z: -4 },
     })
-    expect(viewOf(old, 'metric').fresh).toBeNull()
-    expect(viewOf(HOLDING, 'metric').fresh).toBeNull()
-    expect(viewOf(IMPROVING, 'metric').fresh).toBeNull()
+    expect(viewOf(old, 'metric', FITNESS_AS_OF_MS).fresh).toBeNull()
+    expect(viewOf(HOLDING, 'metric', FITNESS_AS_OF_MS).fresh).toBeNull()
+    expect(viewOf(IMPROVING, 'metric', FITNESS_AS_OF_MS).fresh).toBeNull()
   })
 
-  it('says a waiting status once: its label, then the sentence without the same words', () => {
+  it('reads how new a state is, and how old the status is, from the clock: the status stays as of its newest activity', () => {
+    const week = 7 * DAY_MS
+    // Days after the status, the state is new and the status is current.
+    const current = viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS + 2 * week)
+    expect(current.fresh).toBe('the week of 12 Oct')
+    expect(current.age).toBeNull()
+    // A library whose newest activity is 40 weeks old is not new, and says how old it is.
+    const stopped = viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS + 40 * week)
+    expect(stopped.fresh).toBeNull()
+    expect(stopped.age).toBe('Latest activity 9 months ago.')
+    expect(stopped.state).toBe('slipping')
+    expect(stopped.headline).toBe(current.headline)
+    expect(lineOf(stopped)).toMatch(/ Latest activity 9 months ago\.$/)
+    // A status that cannot call a trend says it too.
+    expect(
+      viewOf(
+        waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
+        'metric',
+        FITNESS_AS_OF_MS + 40 * week,
+      ).age,
+    ).toBe('Latest activity 9 months ago.')
+  })
+
+  it('tells a waiting status as its level, then what a trend needs, under a label that claims no trend', () => {
     const history = viewOf(
       waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
       'metric',
+      FITNESS_AS_OF_MS,
     )
-    expect(history.label).toBe('Not enough evidence yet')
-    expect(history.headline).not.toMatch(/^Not enough/)
-    expect(history.headline).toMatch(/^Pace at the same heart rate is read from 12 steady runs/)
-    const recent = viewOf(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), 'metric')
-    expect(recent.label).toBe('Not enough recent evidence yet')
-    expect(recent.headline).toMatch(/^There are 2 steady runs in the last 8 weeks/)
-    const gap = viewOf(waitingStatus({ kind: 'break', weeksSince: 9 }), 'metric')
-    expect(gap.label).toBe('Not enough recent evidence yet')
-    expect(gap.headline).toBe('The last steady run was 9 weeks ago.')
+    expect(history.label).toBe('No trend yet')
+    expect(history.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13).')
+    expect(history.support).toBe('From 7 steady runs.')
+    expect(history.needs).toBe('5 more earlier runs to see a trend.')
+    const recent = viewOf(
+      waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }),
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
+    expect(recent.label).toBe('No trend yet')
+    expect(recent.needs).toBe('2 more runs in the last 8 weeks to see a trend.')
+    const gap = viewOf(waitingStatus({ kind: 'break', weeksSince: 9 }), 'metric', FITNESS_AS_OF_MS)
+    expect(gap.label).toBe('No trend yet')
+    expect(gap.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13) in October.')
+    const wide = viewOf(
+      waitingStatus({ kind: 'imprecise', within: 0.07 }, 33),
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
+    expect(wide.support).toBe('From 33 steady runs.')
+    expect(wide.needs).toBe('More steady runs narrow the range to see a trend.')
+    // A state that is called has no such line.
+    expect(viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS).needs).toBe('')
+  })
+
+  it('gives a status with fewer than 3 steady activities only the one line', () => {
+    const few = viewOf(
+      waitingStatus({ kind: 'history', have: 2, need: 12, weeks: 2, needWeeks: 8 }, 2, 'ride'),
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
+    expect(few.headline).toBe('2 steady rides with a power meter so far.')
+    expect(few.support + few.needs).toBe('')
+    expect(lineOf(few)).toBe('2 steady rides with a power meter so far.')
+  })
+
+  it('makes a line of the headline and its support', () => {
+    const level = viewOf(
+      waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride'),
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
+    expect(lineOf(level)).toBe('200 W at 140 bpm (194 to 206). From 33 steady rides.')
   })
 })
 
@@ -128,21 +179,7 @@ describe('trackOf', () => {
   })
 })
 
-describe('progressOf and worthShowing', () => {
-  it('counts the steady runs a status is waiting on, and only for the shortfalls that are counts', () => {
-    expect(
-      progressOf(waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 })),
-    ).toEqual({ have: 7, need: 12, of: 'steady runs before the last 8 weeks' })
-    expect(progressOf(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }))).toEqual({
-      have: 2,
-      need: 4,
-      of: 'steady runs in the last 8 weeks',
-    })
-    expect(progressOf(waitingStatus({ kind: 'break', weeksSince: 6 }))).toBeNull()
-    expect(progressOf(waitingStatus({ kind: 'imprecise', within: 0.07 }))).toBeNull()
-    expect(progressOf(SLIPPING)).toBeNull()
-  })
-
+describe('worthShowing', () => {
   it('shows every state, and a waiting status only when it has runs to count', () => {
     expect(worthShowing(SLIPPING)).toBe(true)
     expect(worthShowing(waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }))).toBe(true)
@@ -156,18 +193,21 @@ describe('progressOf and worthShowing', () => {
   })
 
   it('draws a card for each sport that has a status, run first, and none for a sport that is switched off or has no steady ride', () => {
-    const both = fitnessViews({ run: SLIPPING, ride: RIDE_SLIPPING }, 'metric')
+    const both = fitnessViews({ run: SLIPPING, ride: RIDE_SLIPPING }, 'metric', FITNESS_AS_OF_MS)
     expect(both.map((view) => view.sport)).toEqual(['run', 'ride'])
     expect(both[1]!.headline).toMatch(/^At 140 bpm you now ride at \d+ W, \d+% /)
     const off = fitnessViews(
       { run: SLIPPING, ride: { ...NO_FITNESS.ride, shortfall: { kind: 'unavailable' } } },
       'metric',
+      FITNESS_AS_OF_MS,
     )
     expect(off.map((view) => view.sport)).toEqual(['run'])
     // A library of runs has no steady ride: nothing to count, so no card; a library of rides shows the ride alone.
     expect(
-      fitnessViews({ run: NO_FITNESS.run, ride: RIDE_SLIPPING }, 'metric').map((v) => v.sport),
+      fitnessViews({ run: NO_FITNESS.run, ride: RIDE_SLIPPING }, 'metric', FITNESS_AS_OF_MS).map(
+        (v) => v.sport,
+      ),
     ).toEqual(['ride'])
-    expect(fitnessViews(NO_FITNESS, 'metric')).toEqual([])
+    expect(fitnessViews(NO_FITNESS, 'metric', FITNESS_AS_OF_MS)).toEqual([])
   })
 })

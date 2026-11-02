@@ -30,8 +30,9 @@ const RESULT = makeResult({
 })
 
 // Measured on this fixture (one run and one ride, graded, a profile) before and after D4.10's trim: Run 278 then 272 words,
-// Ride 278 then 273, with no defined term on either. A budget is a ratchet: a sentence added takes another out.
-const WORD_BUDGET = { run: 272, ride: 273 } as const
+// Ride 278 then 273, with no defined term on either. Sections the fixture cannot fill are one line each in their own place
+// (the "Not enough yet" list is gone), which took Run to 263 and Ride to 261. A budget is a ratchet: a sentence added takes another out.
+const WORD_BUDGET = { run: 263, ride: 261 } as const
 
 describe('a sport page’s first screen', () => {
   it.each(['run', 'ride'] as const)('keeps the %s page within its word budget', (sport) => {

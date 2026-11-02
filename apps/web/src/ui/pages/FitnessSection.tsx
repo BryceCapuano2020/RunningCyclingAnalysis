@@ -1,35 +1,27 @@
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { SPORTS } from '@rca/core/types'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useHoldInputs } from '../holdContext'
-import { fitnessViews } from '../fitnessModel'
+import { fitnessViews, lineOf } from '../fitnessModel'
 import { FITNESS_LACK_INDOOR_LINE, FITNESS_LACK_LINE } from '../fitnessWords'
 import { indoorCount } from '../indoorCopy'
 import type { FitnessView } from '../fitnessModel'
+import { hrefFor } from '../route'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
 import './FitnessSection.css'
 
-const isWaitingRide = (view: FitnessView) =>
-  view.sport === 'ride' && view.state === 'not-enough-evidence'
+const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
 
 /**
- * What a waiting ride says on the home page, by what it waits for: a count it is short of ("not enough steady rides yet,
- * 7 of 12"), or, with enough rides, a level too uncertain to call ("too uncertain to call yet").
+ * A sport with no level to tell (fewer than 3 steady activities) is one line, not a card. So is a sport after the first
+ * (the ride) that cannot call a trend yet on the home page, which tells its level there and holds its full card on its own page.
  */
-function waitingLine({ progress, status }: FitnessView): string {
-  const shortfall = status.shortfall
-  const kind = shortfall?.kind
-  if (kind === 'imprecise') return 'Ride fitness: too uncertain to call yet'
-  if (shortfall?.kind === 'break') {
-    return `Ride fitness: no steady ride for ${shortfall.weeksSince} weeks`
-  }
-  const recent = kind === 'recent' ? 'recent ' : ''
-  const count = progress === null ? '' : `, ${progress.have} of ${progress.need}`
-  return `Ride fitness: not enough ${recent}steady rides yet${count}`
-}
+const isLine = (view: FitnessView, home: boolean) =>
+  isWaiting(view) && (view.status.level === undefined || (home && SPORTS.indexOf(view.sport) > 0))
 
 export interface FitnessSectionProps {
   fitness: FitnessBySport
@@ -39,12 +31,15 @@ export interface FitnessSectionProps {
   sport?: Sport
   /** The one sport a library holds: with no status for it, one quiet line says what would give one. */
   soleSport?: Sport | null
+  /** Today, which the section reads once when it opens: the statuses are as of the newest activity, and this dates how new and how old they read. Given by tests. */
+  nowMs?: number
 }
 
 /**
  * "Your fitness": each sport's status at the same heart rate, as cards, run first. A sport with nothing to say
  * has none (a library with no steady run, or no ride with a power meter), and with no card the section is not
- * drawn. While an import is known partial, the section says so and shows no card (the same hold as the headline's).
+ * drawn. A sport with fewer than 3 steady activities is a line. While an import is known partial, the section says so
+ * and shows no card (the same hold as the headline's).
  */
 export function FitnessSection({
   fitness,
@@ -52,20 +47,26 @@ export function FitnessSection({
   library,
   sport,
   soleSport = null,
+  nowMs,
 }: FitnessSectionProps) {
   const id = useId()
+  // Read once, so a later render does not move what is new.
+  const [openedAt] = useState(() => Date.now())
+  const today = nowMs ?? openedAt
   // A library known to be only part of what was added says nothing of fitness: the runs that were not read are the ones it would rest on.
   const partial = useHoldInputs().partialImport
   // Made once for a status: the library-wide status does not move with the period, so a period switch repeats nothing.
   const views = useMemo(
     () =>
-      fitnessViews(fitness, units).filter((view) => sport === undefined || view.sport === sport),
-    [fitness, units, sport],
+      fitnessViews(fitness, units, today).filter(
+        (view) => sport === undefined || view.sport === sport,
+      ),
+    [fitness, units, sport, today],
   )
-  // On the home page a ride that is still waiting on its count is one line, not a card of its own: the full card is on the Ride page.
-  const waitingRide = sport === undefined ? views.find(isWaitingRide) : undefined
-  const cards = views.filter((view) => view !== waitingRide)
-  if (cards.length === 0 && waitingRide === undefined) {
+  const home = sport === undefined
+  const lines = views.filter((view) => isLine(view, home))
+  const cards = views.filter((view) => !lines.includes(view))
+  if (cards.length === 0 && lines.length === 0) {
     // A line, not a card: it says what would produce a status, and is gone once there is one.
     if (soleSport === null) return null
     // Every activity of the sport indoors: heart rate is not what is missing.
@@ -110,11 +111,15 @@ export function FitnessSection({
           ))}
         </div>
       )}
-      {waitingRide === undefined ? null : (
-        <p className="fitness-section__line" data-testid="ride-fitness-line">
-          <a href="#/ride">{waitingLine(waitingRide)}</a>
+      {lines.map((view) => (
+        <p
+          key={view.sport}
+          className="fitness-section__line"
+          data-testid={`${view.sport}-fitness-line`}
+        >
+          {home ? <a href={hrefFor({ page: view.sport })}>{lineOf(view)}</a> : lineOf(view)}
         </p>
-      )}
+      ))}
     </section>
   )
 }

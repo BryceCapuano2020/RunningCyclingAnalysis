@@ -65,6 +65,23 @@ test('names each part that is over its budget, and nothing when all fit', () => 
   assert.match(problems[3], /assets\/Page-a\.css.*stylesheet/)
 })
 
+test('holds the History chunk to its own budget, which is smaller than a page chunk', () => {
+  assert.ok(BUDGETS.history < BUDGETS.chunk)
+  const chunk = (file, size) => ({ file, size })
+  const base = { initial: 1000, worker: 1000, styles: [] }
+  // Between the two budgets: a page chunk fits, the History chunk does not.
+  const between = BUDGETS.history + 1
+  assert.deepEqual(overBudget({ ...base, chunks: [chunk('assets/ResultPage-a.js', between)] }), [])
+  const problems = overBudget({ ...base, chunks: [chunk('assets/HistoryPage-a.js', between)] })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /assets\/HistoryPage-a\.js.*History chunk/)
+  // A page chunk is still held to its own budget, as a History chunk is to the smaller one.
+  assert.equal(
+    overBudget({ ...base, chunks: [chunk('assets/ResultPage-a.js', BUDGETS.chunk + 1)] }).length,
+    1,
+  )
+})
+
 test('refuses a build it cannot read', async () => {
   const empty = await mkdtemp(join(tmpdir(), 'bundle-'))
   await assert.rejects(measureBundle(empty), /index\.html is missing/)

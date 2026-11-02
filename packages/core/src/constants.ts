@@ -306,7 +306,7 @@ export const RACE_LOG_SD: Record<(typeof RUN_RACE_DISTANCES_M)[number], number> 
 /** The share of outcomes the range shows: from the 10th to the 90th percentile. */
 export const RACE_RANGE_Z = 1.2816
 
-export { SAME_HEART_RATE } from './digest/sameHeartRateParams'
+export { SAME_HEART_RATE } from './sameHeartRateConstants'
 
 /**
  * The moving-time distributions a digest keeps, one per measure: bin width in the measure's unit

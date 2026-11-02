@@ -45,7 +45,7 @@ export function removalCopy(kept: number, onScreen: boolean) {
       lead: 'Clears the analysis on screen. No activities or detailed recordings are kept in this browser.',
       title: 'Clear the analysis on this page?',
       description:
-        'No activities or detailed recordings are kept in this browser, so only the analysis on screen is cleared.',
+        'Only the analysis on screen is cleared. No activities or detailed recordings are kept in this browser.',
       confirmLabel: 'Clear',
     }
   }

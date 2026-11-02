@@ -37,6 +37,14 @@ export interface MeasureTime {
    * estimate follows the athlete's fitness, so two periods are compared in zones relative to it.
    */
   enteredReferences: number[]
+  /** Present when counted activities' heart-rate zones were cut from the highest heart rate on file, for want of a maximum. */
+  fromHighest?: true
+  /**
+   * Present when counted activities' pace or power zones were cut from a floor, no fit standing for their dates: the length
+   * of the best, s, and the day it was set, ms, of the newest floor used (each activity's is the best of the 12 months up to
+   * its week), and how many counted activities were cut from one.
+   */
+  floor?: { durationS: number; asOfMs: number; activities: number }
 }
 
 /** Each sport's measures, in the order ZONE_MEASURES gives. A measure with nothing counted is still there. */
@@ -104,7 +112,16 @@ function anyIn(instants: readonly number[], from: number, to: number): boolean {
  * of one day in one week share one lookup. With no dated setting nothing changes during the week, so a week shares one,
  * unless a threshold goes stale inside it, when each activity has its own lookup.
  */
-function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) {
+function zonesByDay(
+  settings: AthleteSettings,
+  estimates: ZoneEstimates | null,
+  at: number | null,
+): (digest: ActivityDigest) => ZoneSet[] {
+  if (at !== null) {
+    // One set of zones for every activity: the ones in effect at that instant, whatever each activity's date.
+    const sets = zonesAt(at, settings, estimates)
+    return () => sets
+  }
   const days = new Map<number | string, ZoneSet[]>()
   const dated = (settings.measurements ?? []).length > 0
   const stale = staleInstants(estimates)
@@ -135,15 +152,18 @@ function zonesByDay(settings: AthleteSettings, estimates: ZoneEstimates | null) 
  * library's maximum, so an activity has the same zones under every period, and the period before this one is
  * cut by the athlete's fitness then, not by this period's.
  * `heartRateSetAside` names the activities whose heart rate the analysis does not trust.
+ * `at`, when given, cuts every activity by the zones in effect at that instant rather than on its own date, so a
+ * reading of the whole library does not move when a setting entered for an earlier date changes.
  */
 export function periodTimeInZones(
   digests: readonly ActivityDigest[],
   settings: AthleteSettings,
   estimates: ZoneEstimates | null,
   heartRateSetAside: ReadonlySet<string> = new Set(),
+  at: number | null = null,
 ): TimeInZones {
   const out = noTimeInZones()
-  const setsOn = zonesByDay(settings, estimates)
+  const setsOn = zonesByDay(settings, estimates, at)
   const bySportMeasure = new Map<string, MeasureTime>()
   const entered = new Map<MeasureTime, Set<number>>()
   for (const sport of Object.keys(out) as Sport[]) {
@@ -153,7 +173,8 @@ export function periodTimeInZones(
     }
   }
   for (const digest of digests) {
-    const times = activityTimeInZones(digest, setsOn(digest), heartRateSetAside.has(digest.id))
+    const sets = setsOn(digest)
+    const times = activityTimeInZones(digest, sets, heartRateSetAside.has(digest.id))
     for (const measure of ZONE_MEASURES[digest.sport]) {
       const time = times[measure]
       const row = bySportMeasure.get(`${digest.sport}.${measure}`)
@@ -163,6 +184,17 @@ export function periodTimeInZones(
       else if (time.kind === 'noZones') row.noZones++
       else {
         row.counted++
+        const set = sets.find((each) => each.sport === digest.sport && each.measure === measure)
+        if (set?.fromHighest === true) row.fromHighest = true
+        if (set?.floorS != null && set.asOfMs !== null) {
+          const newest =
+            row.floor !== undefined && row.floor.asOfMs >= set.asOfMs ? row.floor : null
+          row.floor = {
+            durationS: newest?.durationS ?? set.floorS,
+            asOfMs: newest?.asOfMs ?? set.asOfMs,
+            activities: (row.floor?.activities ?? 0) + 1,
+          }
+        }
         if (time.source === 'entered') {
           row.entered++
           entered.get(row)!.add(Math.round(time.reference * 1000) / 1000)

@@ -298,21 +298,8 @@ describe('a no-clear-change title whose band is too wide to name a size', () => 
   })
 })
 
-describe('a best held for its effort', () => {
-  const HELD = 'No comparable hard 20 min of running in the previous 12 weeks.'
+describe('a second chart of the finding', () => {
   const input = { ...unchanged, sport: 'run', rows: [row(1200, 4.0, 3.9)] } as const
-
-  it('gives the gate’s reason, the one the Balance strip gives, and not that the efforts vary', () => {
-    expect(curveTakeaway({ ...input, held: HELD })).toBe(HELD)
-    expect(curveTakeaway(input)).toContain('No clear change')
-  })
-
-  it('speaks for the 20 min even where the change test did not judge it, as the Balance strip does', () => {
-    const untested = { ...input, change: changeOf('untested') }
-    expect(curveTakeaway(untested)).toBe('Best 20 min: 4:10 /km')
-    expect(curveTakeaway({ ...untested, held: HELD })).toBe(HELD)
-    expect(takeawayAt({ ...untested, held: HELD }, 1200)).toBe(HELD)
-  })
 
   it('leaves a second chart of the finding to cite only a change, so the page says no change once', () => {
     expect(takeawayAt(input, 1200)).toContain('No clear change')

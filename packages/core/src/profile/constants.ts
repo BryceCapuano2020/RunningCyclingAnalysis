@@ -52,11 +52,11 @@ export const PROFILE_MEASUREMENT_ERROR = 0.03
  */
 export const PROFILE_ALPHA = 0.05
 /**
- * The fewest activities of the sport that a profile needs before it says the bests are in line with each other. With
- * fewer, a curve through a handful of efforts can match them by chance and each duration's best rests on a few
- * efforts, so agreement is no finding; the sentence says how many are needed instead.
+ * The activities of a sport from which a profile is judged at the full PROFILE_ALPHA. With fewer, each duration's best rests
+ * on a few efforts, whose spread the fit's few points and the meter's floor understate, so the level is cut in proportion
+ * (see durationProfile) and a page short of this many in its period reads the bests of all time instead.
  */
-export const PROFILE_IN_LINE_MIN_ACTIVITIES = 40
+export const PROFILE_FULL_LEVEL_ACTIVITIES = 40
 /** The most durations the sentence names, the ones that stand out most. */
 export const PROFILE_MAX_NAMED = 3
 /**

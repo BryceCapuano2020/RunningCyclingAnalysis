@@ -176,14 +176,12 @@ describe('the fitness-status detector', () => {
     for (const mark of result.marks) {
       for (const finding of mark.spoken) {
         const digests = dip.digests.filter((d) => d.startMs <= mark.asOfMs)
-        const raw = fitnessStatuses(digests, new Set(), { asOfMs: mark.asOfMs }).run
-        const look = lookBackOf(digests, { massKg: 70, bikeMassKg: 9 }, new Set(), mark.asOfMs)
-        const histories = fitnessHistories(digests, new Set(), { nowMs: mark.asOfMs })
-        const card = datedByLookBack(
-          fitnessStatuses(digests, new Set(), { nowMs: mark.asOfMs }),
-          look,
-          histories,
-        ).run
+        const statuses = fitnessStatuses(digests, new Set(), { asOfMs: mark.asOfMs })
+        const raw = statuses.run
+        const look = lookBackOf(digests, { massKg: 70, bikeMassKg: 9 }, new Set())
+        const histories = fitnessHistories(digests, new Set())
+        // The finding's own status is as of the mark, dated by the look-back of the same digests, as the card is.
+        const card = datedByLookBack(statuses, look, histories).run
         spoken++
         expect(finding.headline).toBe(fitnessFindingHeadline(card))
         if (fitnessFindingHeadline(raw) !== finding.headline) differs++

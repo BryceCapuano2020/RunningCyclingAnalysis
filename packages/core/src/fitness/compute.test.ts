@@ -284,17 +284,9 @@ describe('the session', () => {
 
   it("reads the library's own set-aside judgement, not a period's", () => {
     const state = sessionOn().loadDigests(planted.digests, settings)
-    const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside), {
-      nowMs: Math.floor(last / DAY_MS) * DAY_MS,
-    })
+    const direct = fitnessStatuses(planted.digests, new Set(state.heartRateJudgement.setAside))
     // The card names its episode by the look-back's dates (lookback/cardDates.ts); nothing else of the status moves.
-    const histories = fitnessHistories(
-      planted.digests,
-      new Set(state.heartRateJudgement.setAside),
-      {
-        nowMs: Math.floor(last / DAY_MS) * DAY_MS,
-      },
-    )
+    const histories = fitnessHistories(planted.digests, new Set(state.heartRateJudgement.setAside))
     expect(state.fitness).toEqual(datedByLookBack(direct, state.lookBack, histories))
     for (const sport of ['run', 'ride'] as const) {
       const { onsetMs, lowMs, evidence, ...rest } = state.fitness[sport]
@@ -314,21 +306,32 @@ describe('the session', () => {
     expect(session.clear().fitness).toEqual(NO_FITNESS)
   })
 
-  it('takes today from the clock, not from the newest activity: a runner who stopped is told so', () => {
-    const stopped = sessionOn(last + 6 * WEEK).loadDigests(planted.digests, settings)
-    expect(stopped.fitness.run.state).toBe('not-enough-evidence')
-    // Today is cut to the day, so the six weeks read as five or six.
-    expect(stopped.fitness.run.shortfall).toMatchObject({ kind: 'break' })
-    expect(
-      (stopped.fitness.run.shortfall as { weeksSince: number }).weeksSince,
-    ).toBeGreaterThanOrEqual(5)
-    // A clock before the newest activity, or the same day, changes nothing.
+  it('takes the date from the newest activity, not the clock: an export that ended months ago is not a break', () => {
+    const stale = sessionOn(last + 40 * WEEK).loadDigests(planted.digests, settings)
+    // Forty weeks on, the status is still the one the library ended on, as of its newest activity.
+    expect(stale.fitness.run.state).toBe('slipping')
+    expect(stale.fitness.run.shortfall).toBeNull()
+    expect(stale.fitness.run.asOfMs).toBe(last)
+    expect(stale.fitness).toEqual(sessionOn(last).loadDigests(planted.digests, settings).fitness)
+    // A clock before the newest activity changes nothing either.
     expect(
       sessionOn(last - 30 * DAY_MS).loadDigests(planted.digests, settings).fitness.run.state,
     ).toBe('slipping')
   })
 
-  it('keeps the work when the clock moves within a day, and redoes it on the next day', () => {
+  it('still names a break of a sport whose own newest steady run is 4 weeks or more before the newest activity', () => {
+    const planted = library({ weeks: 60, perWeek: 8, sports: ['run', 'ride'] })
+    // The runner stops running for the last ten weeks and keeps riding.
+    const digests = planted.digests.filter(
+      (d) => d.sport !== 'run' || d.startMs < planted.firstMs + 50 * WEEK,
+    )
+    const status = fitnessStatuses(digests, NONE).run
+    expect(status.shortfall).toMatchObject({ kind: 'break' })
+    expect(status.asOfMs).toBe(digests.at(-1)!.startMs)
+    expect(status.level).toBeDefined()
+  })
+
+  it('keeps the work whatever the clock says, since the status is as of the newest activity', () => {
     const session = sessionOn()
     session.choosePeriod('all')
     session.clock = () => last + 3 * WEEK + 1_000
@@ -336,7 +339,7 @@ describe('the session', () => {
     session.clock = () => last + 3 * WEEK + 3_000_000
     expect(session.setRange(42, settings).fitness).toBe(first)
     session.clock = () => last + 3 * WEEK + 2 * DAY_MS
-    expect(session.setRange('all', settings).fitness).not.toBe(first)
+    expect(session.setRange('all', settings).fitness).toBe(first)
   })
 
   it("gives the sample athlete the sample season's own day, whatever the clock says", () => {
