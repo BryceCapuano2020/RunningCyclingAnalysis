@@ -1,5 +1,6 @@
 import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import { metabolicToRidePower } from '@rca/core/metabolic'
+import type { EffortGate } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
 import { formatDuration, formatWkg } from '@rca/core/units'
@@ -52,16 +53,26 @@ function longestBest(curve: Curve): ThresholdFloor | null {
 }
 
 /**
+ * The floor of a sport whose gate says its best 20 min was not hard, or null otherwise. Such a best can sit above a
+ * threshold, so an uneven fit's lower floor gives way to this one, the best 30 min where the curve has one.
+ */
+export function gatedFloor(result: AnalysisResult, sport: Sport): EffortGate['floor'] {
+  const gate = result.effortGate[sport]
+  return gate.verdict === 'notHard' ? gate.floor : null
+}
+
+/**
  * What a sport's threshold stands on when it has none, so a refusal changes the label and never blanks the number. With
- * an uneven fit, the lowest of the bests it left out. Otherwise the effort gate's floor, the best 30 min where the curve
- * has one, else the best 20: real ability is at least this. A sport with no best of 20 min or longer gives its longest
- * best of 5 min or more, as a best. Null when the threshold is there, or the sport holds no best of 5 min.
+ * an uneven fit and a best 20 min not shown easy, the lowest of the bests it left out. Otherwise the effort gate's floor,
+ * the best 30 min where the curve has one, else the best 20: real ability is at least this. A sport with no best of 20 min
+ * or longer gives its longest best of 5 min or more, as a best. Null when the threshold is there, or the sport holds no
+ * best of 5 min.
  */
 export function floorOf(result: AnalysisResult, sport: Sport): ThresholdFloor | null {
   if (hasThreshold(result, sport)) return null
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
-  if (uneven && uneven.fit.cp > uneven.floor) {
+  if (gatedFloor(result, sport) === null && uneven && uneven.fit.cp > uneven.floor) {
     return { durationS: Math.max(...uneven.leftOutS), value: uneven.floor, atLeast: true }
   }
   const held = result.effortGate[sport].floor
