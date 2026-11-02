@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
-import { AccountMenu, Header, PrivacyNote } from './ui/components'
+import { AccountMenu, Header } from './ui/components'
+import { AppFooter } from './ui/components/AppFooter'
+import { privacyText } from './ui/components/privacyText'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
 import { WALKING_NOTE_PAGES } from './ui/analysis/walkingPaceCopy'
@@ -208,6 +210,13 @@ export function App() {
   const runThenFocus = useRunThenFocus()
 
   const accountsAvailable = account.status !== 'unavailable'
+  // What the footer says of where the library is kept, which the landing page's subtitle ends on too.
+  const privacyNote = {
+    signedIn,
+    keepFiles,
+    fileRetentionAvailable,
+    issues: analysis.state.syncIssues,
+  }
   // The landing page's drop zone has its own Add files, so the header leaves its button out there.
   const onLanding = key === 'landing'
 
@@ -344,6 +353,7 @@ export function App() {
               <LandingPage
                 analysis={analysis}
                 signedIn={signedIn}
+                privacy={privacyText(privacyNote)}
                 units={units}
                 onFiles={setup.requestImport}
               />
@@ -351,19 +361,7 @@ export function App() {
           </PageFrame>
         </main>
 
-        <footer className="app__footer muted">
-          <PrivacyNote
-            signedIn={signedIn}
-            keepFiles={keepFiles}
-            fileRetentionAvailable={fileRetentionAvailable}
-            issues={analysis.state.syncIssues}
-          />
-          <p>
-            <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
-            {' · '}
-            <a href="/privacy">Privacy</a>
-          </p>
-        </footer>
+        <AppFooter {...privacyNote} />
         {setup.open && (
           <SetupDialog
             initial={athleteValues}

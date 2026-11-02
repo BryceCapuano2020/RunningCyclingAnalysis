@@ -21,8 +21,10 @@ import {
 import { hardEffortsOnFile } from '../effortCaveat'
 import { HEADLINE_LABEL } from '../grades'
 import { CheckIcon, WarningIcon } from '../components/icons'
-import { Methodology, TopicBody } from '../components/Methodology'
-import { HOW_THIS_WORKS, SECTION_ID } from '../components/methodTopics'
+import { MethodLines } from '../components/MethodLines'
+import { MethodText } from '../components/MethodText'
+import { TopicBody } from '../components/TopicBody'
+import { SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { periodDates } from '../components/rangeOptions'
@@ -36,6 +38,7 @@ import {
   ENERGY_BRIDGE,
   ENERGY_CROSS_CHECK,
   ENERGY_FALLBACK,
+  ENERGY_RANGE,
   HELD_COMPARISON,
   HELD_ENERGY,
   HELD_NOTE,
@@ -48,7 +51,7 @@ import {
 import { SECTION_NAME, contentsOf, focusSection } from './methodContents'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
-import { CalculatedSection } from './CalculatedSection'
+import { HowThisWorks } from './HowThisWorks'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
@@ -220,58 +223,46 @@ export function MethodPage({
           The energy view
         </h2>
         {!hasResult ? (
-          <>
-            {NO_FILES_ENERGY.map((line) => (
-              <p key={line} className="secondary">
-                {line}
-              </p>
-            ))}
+          <MethodText>
+            <MethodLines lines={NO_FILES_ENERGY} />
             <TopicBody id="unit" />
             <TopicBody id="range" />
             <p className="secondary">{noResultLine}</p>
-          </>
+          </MethodText>
         ) : !weightKnown ? (
           <p className="secondary">{rides > 0 ? HELD_ENERGY : NEEDS_RIDE}</p>
         ) : runs === 0 || rides === 0 ? (
-          <>
+          <MethodText>
             <p className="secondary">{rides === 0 ? NEEDS_RIDE : NEEDS_RUN}</p>
             <TopicBody id="unit" />
             <TopicBody id="range" />
-          </>
+          </MethodText>
         ) : pick === null ? (
-          <>
+          <MethodText>
             <p className="secondary">{`${HELD_COMPARISON} ${reason}`}</p>
             <TopicBody id="unit" />
             <TopicBody id="range" />
-          </>
+          </MethodText>
         ) : (
           <>
-            {(gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK).map((line) => (
-              <p key={line} className="secondary">
-                {line}
-              </p>
-            ))}
-            {gradeGapShown &&
-              ENERGY_BRIDGE.map((line) => (
-                <p key={line} className="secondary">
-                  {line}
-                </p>
-              ))}
-            <p className="secondary">
-              The 90% range is the spread the model gives for its assumptions.
-            </p>
-            <p className="secondary">
-              If those assumptions hold, the true value falls inside it nine times in ten.
-            </p>
-            <ul className="method__facts">
-              <li>{headlineText(pick.point).range}</li>
-              {headlineBasis(result.comparison, pick.calibrated).map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-              <li>The range does not include every source of error.</li>
-            </ul>
-            <TopicBody id="unit" />
-            <TopicBody id="range" />
+            <MethodText>
+              <MethodLines
+                lines={[
+                  ...(gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK),
+                  ...(gradeGapShown ? ENERGY_BRIDGE : []),
+                  ...ENERGY_RANGE,
+                ]}
+              />
+              <ul className="method__facts">
+                <li>{headlineText(pick.point).range}</li>
+                {headlineBasis(result.comparison, pick.calibrated).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                <li>The range does not include every source of error.</li>
+              </ul>
+              <TopicBody id="unit" />
+              <TopicBody id="range" />
+            </MethodText>
             <EvidenceDisclosure section="the energy view">
               <RatioChart comparison={result.comparison} />
               <h3>Energy rate by effort length</h3>
@@ -294,44 +285,43 @@ export function MethodPage({
         <h2 id={SECTION_ID.heart} tabIndex={-1}>
           Heart-rate check
         </h2>
-        <TopicBody id="heart" />
-        <ul className="method__facts">
-          {referenceDefinition().map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-          {reference && <li>{reference}</li>}
-          {setAside && <li>{setAside}</li>}
-          {hardEfforts && (
-            <>
-              <li>
-                Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-                sport&rsquo;s max heart rate.
-              </li>
-              <li>Heart rate cannot tell a hard {HEADLINE_LABEL} from an all-out one.</li>
-            </>
+        <MethodText>
+          <TopicBody id="heart" />
+          <ul className="method__facts">
+            {referenceDefinition().map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+            {reference && <li>{reference}</li>}
+            {setAside && <li>{setAside}</li>}
+            {hardEfforts && (
+              <>
+                <li>
+                  Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
+                  sport&rsquo;s max heart rate.
+                </li>
+                <li>Heart rate cannot tell a hard {HEADLINE_LABEL} from an all-out one.</li>
+              </>
+            )}
+          </ul>
+          <TwentyMinuteEffort />
+          {hasResult && !weightKnown && rides > 0 && (
+            <p className="secondary">
+              <WeightPrompt />
+            </p>
           )}
-        </ul>
-        <TwentyMinuteEffort />
+        </MethodText>
         {hasResult && (
           <>
-            {!weightKnown && rides > 0 && (
-              <p className="secondary">
-                <WeightPrompt />
-              </p>
-            )}
             <EvidenceDisclosure section="the heart-rate check">
-              <p className="secondary">
-                Each dot is a {formatDuration(HR_BLOCK_S)} block of steady effort from this period’s
-                files.
-              </p>
-              <p className="secondary">
-                Each block is taken after the first {formatDuration(HR_SKIP_S)} of each activity.
-              </p>
-              <p className="secondary">
-                {weightKnown
-                  ? 'The two lines show how fast heart rate rises with energy rate in each sport.'
-                  : 'The line shows how fast heart rate rises with energy rate in running.'}
-              </p>
+              <MethodLines
+                lines={[
+                  `Each dot is a ${formatDuration(HR_BLOCK_S)} block of steady effort from this period’s files.`,
+                  `Each block is taken after the first ${formatDuration(HR_SKIP_S)} of each activity.`,
+                  weightKnown
+                    ? 'The two lines show how fast heart rate rises with energy rate in each sport.'
+                    : 'The line shows how fast heart rate rises with energy rate in running.',
+                ]}
+              />
               <HrScatter hr={result.hr} includeRides={weightKnown} />
             </EvidenceDisclosure>
           </>
@@ -343,28 +333,28 @@ export function MethodPage({
           <h2 id={SECTION_ID.accuracy} tabIndex={-1}>
             Virtual power meter accuracy
           </h2>
-          <TopicBody id="virtual" />
-          {accuracy !== null &&
-            (weightKnown ? (
-              <>
-                {accuracy.nSegments > 0 && (
+          <MethodText>
+            <TopicBody id="virtual" />
+            {accuracy !== null &&
+              (weightKnown ? (
+                accuracy.nSegments > 0 && (
                   <p>
                     {`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
                   </p>
-                )}
-                <EvidenceDisclosure section="the virtual power meter">
-                  <AccuracyScatter accuracy={accuracy} />
-                </EvidenceDisclosure>
-              </>
-            ) : (
-              <p className="secondary">{HELD_NOTE}</p>
-            ))}
+                )
+              ) : (
+                <p className="secondary">{HELD_NOTE}</p>
+              ))}
+          </MethodText>
+          {accuracy !== null && weightKnown && (
+            <EvidenceDisclosure section="the virtual power meter">
+              <AccuracyScatter accuracy={accuracy} />
+            </EvidenceDisclosure>
+          )}
         </section>
       )}
 
-      <CalculatedSection />
-
-      <Methodology topics={HOW_THIS_WORKS} open />
+      <HowThisWorks />
     </div>
   )
 }

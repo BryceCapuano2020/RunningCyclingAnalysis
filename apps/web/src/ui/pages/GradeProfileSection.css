@@ -1,11 +1,11 @@
-/* The finding, and the chart behind a disclosure when no duration separates the sports. */
+/* The title and the finding, and the chart behind a disclosure when no duration separates the sports. */
 .grade-profile {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
 }
 
-/* The sentence the chart would have as its lede, on the page's reading measure. */
+/* The sentence the chart would have as its takeaway, on the page's reading measure. */
 .grade-profile__finding {
   max-width: var(--measure);
   margin: 0;
@@ -23,12 +23,17 @@
   margin-bottom: var(--space-1);
 }
 
-/* The finding is the chart's title, at the lead size in ink, so the chart is named by what it found. */
-.grade-profile .chart-frame__title {
-  max-width: var(--measure);
-  font-size: var(--text-lead);
-  font-weight: 600;
-  line-height: 1.3;
+/*
+ * The folded chart's own title is the card's title above it, which is shown once: this one stays as the
+ * figure's name for a screen reader, as .sr-only keeps a heading.
+ */
+.grade-profile__details .chart-frame__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /*

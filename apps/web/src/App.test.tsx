@@ -297,8 +297,11 @@ describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    // The footer carries the one privacy statement; the drop zone no longer repeats it.
-    expect(screen.getByText(/stored in your private library/)).toBeInTheDocument()
+    // The subtitle and the footer say the one privacy sentence, in the same words, and the drop zone does not repeat it.
+    const [subtitle, footer] = screen.getAllByText(/stored in your private library/)
+    expect(subtitle).toHaveClass('lede')
+    expect(footer).toHaveClass('privacy-note')
+    expect(subtitle!.textContent!.endsWith(footer!.textContent!)).toBe(true)
   })
 
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {

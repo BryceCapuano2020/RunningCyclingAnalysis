@@ -17,9 +17,9 @@ const PROSE_SHEETS = [
   'GradeProfileSection.css',
   'ExportGuides.css',
   'FitnessCard.css',
-  'CalculatedSection.css',
+  'HowThisWorks.css',
   'MethodPage.css',
-  'Methodology.css',
+  'TopicBody.css',
   'ProfilePage.css',
   'privacy.css',
 ]

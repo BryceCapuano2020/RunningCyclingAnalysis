@@ -242,20 +242,28 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })
 
-test('the landing page’s example shows the same finding as a second panel under the balance headline', async ({
+test('the landing page’s one sample card holds the finding under the balance, with no size to differ from the sample’s', async ({
   page,
 }) => {
   await page.goto('/')
   const example = page.locator('.landing-example')
+  await expect(example).toHaveCount(1)
+  await expect(example.locator('figcaption .eyebrow')).toHaveText('Sample athlete')
   await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
   await expect(example.locator('.landing-example__sentence')).toHaveText(
-    /^\d+% \(\d+ to \d+\) off your old level at 120 bpm\.$/,
+    /^Slower than your old level at 120 bpm\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
-  // The balance comes first; the fitness finding is the panel under it.
-  const headline = await edgesOf(example.locator('.landing-example__title'))
+  // The balance comes first; the finding is under it, in the same card.
+  const levels = await edgesOf(example.locator('.balance-levels'))
   const panel = await edgesOf(example.locator('.landing-example__fitness'))
-  expect(headline.bottom).toBeLessThanOrEqual(panel.top)
+  expect(levels.bottom).toBeLessThanOrEqual(panel.top)
+  const frame = await edgesOf(example)
+  expect(panel.bottom).toBeLessThanOrEqual(frame.bottom)
+  // The sample's own Balance page says the same state at the same heart rate.
+  await openSample(page)
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
+  expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(/ at 120 bpm\.$/)
 })
 
 test('a forced-colours reader still sees the card’s edge and the track’s outline', async ({

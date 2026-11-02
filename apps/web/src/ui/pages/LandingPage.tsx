@@ -1,26 +1,24 @@
 import type { UnitSystem } from '@rca/core/units'
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
+import { privacyText } from '../components/privacyText'
 import { ExportGuides } from '../components/ExportGuides'
 import { HEADLINE_LABEL } from '../grades'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
-import { LandingExample, LandingFitnessExample } from './LandingExample'
+import { LandingExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 const METHOD_HEADING_ID = 'landing-method-heading'
 
-/**
- * The privacy promise that ends the hero's subline. Signed out, nothing is uploaded. Signed in, the
- * summaries are stored in the private library, so it says the analysis stays on the device and no more.
- */
-function privacyLine(signedIn: boolean): string {
-  return signedIn ? 'Your files are analysed on your device.' : 'Your files stay on your device.'
-}
-
 export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
+  /**
+   * The footer's privacy sentence for the visitor's state, which the subtitle ends on, so the page says it once in
+   * one phrase. Left out, it is the sentence of a signed-out visitor, or of a signed-in one who keeps files.
+   */
+  privacy?: string
   /** The units the example's weight is told in. Metric without one. */
   units?: UnitSystem
   /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
@@ -28,7 +26,13 @@ export interface LandingPageProps {
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
-export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
+export function LandingPage({
+  analysis,
+  signedIn,
+  privacy = privacyText({ signedIn, keepFiles: true }),
+  units,
+  onFiles,
+}: LandingPageProps) {
   const guidesHeading = useRef<HTMLHeadingElement>(null)
   // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
   const touch = useTouchFirst()
@@ -55,7 +59,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
           <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
             Are you a better runner or a better cyclist?
           </h1>
-          <p className="lede secondary">{`Add your Strava or Garmin export. See your level in each sport for your age. ${privacyLine(signedIn)}`}</p>
+          <p className="lede secondary">{`Add your Strava or Garmin export. See your level in each sport for your age. ${privacy}`}</p>
         </section>
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
@@ -63,8 +67,6 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
           <LandingExample units={units} />
           {!touch && dropzone}
         </div>
-        {/* The second panel follows the actions, so Add files stays on the first screen. */}
-        <LandingFitnessExample />
       </div>
       <ol className="app__steps">
         <li>

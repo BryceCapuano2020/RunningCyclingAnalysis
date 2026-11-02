@@ -1,0 +1,5 @@
+/* The technical detail of some lines, one level below their plain words. */
+.more-detail > p {
+  margin-top: var(--space-2);
+  max-width: var(--measure);
+}

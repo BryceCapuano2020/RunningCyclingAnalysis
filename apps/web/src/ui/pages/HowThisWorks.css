@@ -1,0 +1,43 @@
+/* The one list of what is calculated and what it assumes: each group's entries in columns, each column the reading measure. */
+.how__group {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.how__group > p {
+  max-width: var(--measure);
+}
+
+/* Entries in columns at the reading measure, two at most, so a wide page uses its width and a phone has one column. */
+.how__entries {
+  max-width: calc(var(--measure) * 2 + var(--space-6));
+  margin: var(--space-2) 0 0;
+  columns: var(--measure) 2;
+  column-gap: var(--space-6);
+}
+
+/* An entry stays whole in one column, so its name never parts from its lines. */
+.how__entry {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  break-inside: avoid;
+}
+
+/* The name leads and its lines sit under it, so a narrow page never sets them side by side. */
+.how__entry dt {
+  font-weight: 600;
+}
+
+.how__entry dd {
+  display: grid;
+  gap: var(--space-2);
+  max-width: var(--measure);
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.how__entry dd > p {
+  margin: 0;
+}

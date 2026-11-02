@@ -52,9 +52,23 @@ describe('yearViews', () => {
 
 describe('titleOf', () => {
   it('names who led every year, or that they were level', () => {
-    expect(titled('run', 'run', 'run')).toBe('Running led every year')
-    expect(titled('ride', 'ride')).toBe('Cycling led every year')
-    expect(titled('even', 'even')).toBe('Running and cycling were level every year')
+    expect(titled('run', 'run', 'run')).toBe('Running led every year you did both')
+    expect(titled('ride', 'ride')).toBe('Cycling led every year you did both')
+    expect(titled('even', 'even')).toBe('Running and cycling were level every year you did both')
+  })
+
+  it('says "you did both", so a year of one sport is not claimed, and stays true when the lead flips', () => {
+    // The ride exists in two of the four years, as the run's lead in them does.
+    const rows = [
+      rowOf(2018, 3.6, null),
+      rowOf(2019, 3.6, null),
+      rowOf(2020, 3.6, 2.8),
+      rowOf(2021, 3.6, 2.8),
+    ]
+    expect(titleOf(yearViews(rows, PROFILE, true))).toBe('Running led every year you did both')
+    // The same years with the ride ahead say the same of the ride, in the same words.
+    const flipped = rows.map((row, i) => (i < 2 ? row : rowOf(row.year, 3.6, 4.4)))
+    expect(titleOf(yearViews(flipped, PROFILE, true))).toBe('Cycling led every year you did both')
   })
 
   it('names the year that ended a lead of two years or more', () => {

@@ -102,8 +102,12 @@ describe('the sample gives one result on every day of a week, and in every week'
     const result = state.result!
     const newest = state.library[0]!.startMs
     const grades = headlineGrades(result, sampleProfileAt(newest))
+    const run = state.fitness.run
     return {
       newestYear: new Date(newest).getUTCFullYear(),
+      // What the landing example's fitness finding says: the state and the heart rate, which hold on every day.
+      // The size of the slip does not (it moves by a point over a 12 week cycle), so the landing says none.
+      fitness: { state: run.state, referenceHr: run.referenceHr },
       gap: gapOfHeadline(grades),
       run: grades.run,
       ride: grades.ride,
@@ -127,6 +131,12 @@ describe('the sample gives one result on every day of a week, and in every week'
 
   it('is the result the landing example shows', () => {
     expect(reference.gap).toMatchObject(LANDING_EXAMPLE.gap)
+    // The slip the example describes is the one the sample shows, at the heart rate it says.
+    expect(reference.fitness).toEqual({
+      state: 'slipping',
+      referenceHr: LANDING_EXAMPLE.fitness.referenceHr,
+    })
+    expect(january.fitness).toEqual(reference.fitness)
     // The headline and the card say which sport leads, so the lead's range keeps clear of zero (it reads "in balance" else).
     const { low, high } = reference.gap!
     expect(low > 0 || high < 0).toBe(true)

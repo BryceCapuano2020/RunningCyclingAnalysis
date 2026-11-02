@@ -1,4 +1,3 @@
-import { fitnessLines } from '@rca/core/fitness'
 import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from '../src/ui/balanceGap.ts'
 import { headlineGrades } from '../src/ui/grades.ts'
@@ -34,17 +33,12 @@ export function computeLandingFigures(): LandingFigures {
       `The sample's run shows "${run.state}", not the slip the landing example describes: ${FIX}.`,
     )
   }
-  // The line's own size and range, so the example says what the sample's card says.
-  const said = /^(\d+%) \((\d+ to \d+)\) off /.exec(fitnessLines(run, 'metric').changes[0] ?? '')
-  if (said === null)
-    throw new Error(`The sample run’s fitness change no longer names a size and range: ${FIX}.`)
   return {
     gap: { centre: gap.centre, low: gap.low, high: gap.high, lean: gap.lean },
     grades: { run: headline.run.grade, ride: headline.ride.grade },
     fitness: {
       referenceHr: run.referenceHr,
       change: run.change,
-      shown: { size: said[1]!, range: said[2]! },
     },
   }
 }

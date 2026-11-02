@@ -48,7 +48,7 @@ function resultAt(durations: readonly number[], level = false): AnalysisResult {
 }
 
 describe('GradeProfileSection', () => {
-  it('shows the finding and the chart in a section named by the chart’s title', () => {
+  it('shows the chart in a section named Grade by duration, with the finding under the title', () => {
     render(
       <GradeProfileSection
         result={resultAt([600, 1200, 3600])}
@@ -56,16 +56,49 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="run"
       />,
     )
     const section = screen.getByRole('region', { name: 'Grade by duration' })
-    // The finding is the chart's title: the figure is named by it, and no second copy sits above it.
-    const finding = /^Running grades higher at every length$/
-    expect(within(section).getByRole('figure', { name: finding })).toBeInTheDocument()
+    // The figure is named by the title, and the finding is its description, said once.
+    const finding = 'Running grades higher at every length'
+    const figure = within(section).getByRole('figure', { name: 'Grade by duration' })
+    expect(figure).toHaveAccessibleDescription(finding)
     expect(within(section).getAllByText(finding)).toHaveLength(1)
   })
 
   it('keeps its heading for screen readers only, so the chart title is the one visible name', () => {
+    const { container } = render(
+      <GradeProfileSection
+        result={resultAt([600, 1200, 3600])}
+        profile={MAN_BORN_1986}
+        massKg={75}
+        weightKnown
+        calibration={null}
+        lean="run"
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Grade by duration' })).toHaveClass('sr-only')
+    expect(container.querySelector('.chart-frame__title')).toHaveTextContent('Grade by duration')
+  })
+
+  it('leaves out a finding that names the other sport than the hero’s lean, and keeps the chart and its title', () => {
+    const { container } = render(
+      <GradeProfileSection
+        result={resultAt([600, 1200, 3600])}
+        profile={MAN_BORN_1986}
+        massKg={75}
+        weightKnown
+        calibration={null}
+        lean="ride"
+      />,
+    )
+    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
+    expect(screen.queryByText(/grades higher/)).toBeNull()
+    expect(container.querySelector('.chart-frame__takeaway')).toBeNull()
+  })
+
+  it('says no finding while the hero states no balance, since there is none to agree with', () => {
     render(
       <GradeProfileSection
         result={resultAt([600, 1200, 3600])}
@@ -73,9 +106,11 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean={null}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Grade by duration' })).toHaveClass('sr-only')
+    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
+    expect(screen.queryByText(/grades higher/)).toBeNull()
   })
 
   it('shows nothing without a year of birth and sex', () => {
@@ -86,6 +121,7 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="run"
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -99,6 +135,7 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown={false}
         calibration={null}
+        lean="run"
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -112,6 +149,7 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="run"
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -128,6 +166,7 @@ describe('GradeProfileSection', () => {
       massKg: 75,
       weightKnown: true,
       calibration: null,
+      lean: 'run' as const,
     }
     const { rerender } = render(<GradeProfileSection {...props} />)
     expect(pipeline.equivalenceFor).toHaveBeenCalledTimes(1)
@@ -149,6 +188,7 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="run"
       />,
     )
     cleanup()
@@ -159,12 +199,13 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown={false}
         calibration={null}
+        lean="run"
       />,
     )
     expect(pipeline.equivalenceFor).not.toHaveBeenCalled()
   })
 
-  it('shows the chart open, with the finding as its title, when a duration separates the sports', () => {
+  it('shows the chart open, with the finding under its title, when a duration separates the sports', () => {
     const { container } = render(
       <GradeProfileSection
         result={resultAt([600, 1200, 3600])}
@@ -172,17 +213,18 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="run"
       />,
     )
     expect(container.querySelector('.grade-profile__details')).toBeNull()
-    expect(screen.getByRole('figure', { name: /^Running grades higher / })).toBeInTheDocument()
-    expect(container.querySelector('.chart-frame__title')).toHaveTextContent(
+    expect(container.querySelector('.chart-frame__title')).toHaveTextContent('Grade by duration')
+    expect(container.querySelector('.chart-frame__takeaway')).toHaveTextContent(
       /^Running grades higher /,
     )
     expect(container.querySelector('.chart-frame__lede')).toBeNull()
   })
 
-  it('keeps the sentence and folds the chart behind Show by duration when no duration separates them', async () => {
+  it('folds the chart behind Show by duration when no duration separates the sports, under the title and the finding', async () => {
     const { container } = render(
       <GradeProfileSection
         result={resultAt([600, 1200, 3600], true)}
@@ -190,11 +232,14 @@ describe('GradeProfileSection', () => {
         massKg={75}
         weightKnown
         calibration={null}
+        lean="even"
       />,
     )
     const sentence = screen.getByText(/^Running and cycling grade alike$/)
     expect(sentence).toBeVisible()
-    // The chart is not mounted while it is folded, and its lede is not said twice.
+    // The title is the card's, shown once, and the chart is not mounted while it is folded.
+    expect(screen.getAllByText('Grade by duration')).toHaveLength(2)
+    expect(container.querySelector('.eyebrow')).toHaveTextContent('Grade by duration')
     expect(screen.queryByRole('figure')).toBeNull()
     const details = container.querySelector<HTMLDetailsElement>('.grade-profile__details')!
     expect(details).not.toHaveAttribute('open')
@@ -205,8 +250,29 @@ describe('GradeProfileSection', () => {
     await waitFor(() =>
       expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument(),
     )
-    // The sentence is said once: the open chart does not repeat it as its own title.
+    // The sentence is said once: the open chart does not repeat it.
     expect(screen.getAllByText('Running and cycling grade alike')).toHaveLength(1)
     expect(within(details).getByText('Hide by duration')).toBeInTheDocument()
+  })
+
+  it('does not say the sports grade alike under a hero that leans, whichever way', async () => {
+    for (const lean of ['run', 'ride'] as const) {
+      const { container, unmount } = render(
+        <GradeProfileSection
+          result={resultAt([600, 1200, 3600], true)}
+          profile={MAN_BORN_1986}
+          massKg={75}
+          weightKnown
+          calibration={null}
+          lean={lean}
+        />,
+      )
+      // The card keeps its title and its folded chart, and says nothing that contradicts the hero.
+      expect(container.querySelector('.eyebrow')).toHaveTextContent('Grade by duration')
+      expect(container.querySelector('.grade-profile__finding')).toBeNull()
+      expect(screen.queryByText(/grade alike/)).toBeNull()
+      expect(within(container).getByText('Show by duration')).toBeInTheDocument()
+      unmount()
+    }
   })
 })

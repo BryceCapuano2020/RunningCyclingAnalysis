@@ -52,6 +52,11 @@
     padding: var(--space-4);
   }
 
+  /* One card to a row, so a phone's cards are not squeezed two across at the narrowest column. */
+  .balance-changes__list {
+    grid-template-columns: 1fr;
+  }
+
   .balance-changes__item + .balance-changes__item::before {
     display: none;
   }

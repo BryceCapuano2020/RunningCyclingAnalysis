@@ -27,12 +27,12 @@ import './ChartSeries.css'
 
 export interface GradeProfileChartProps {
   profile: GradeProfile
-  /** The sentence the chart supports, set under its title; left out where the page says it above the chart. */
+  /** The sentence the chart supports, set large under its title; left out where it does not agree with the balance or the page says it above the chart. */
   finding?: string
 }
 
 /**
- * Each sport's age grade at every duration from 3 min to 3 h, on one scale, titled by its finding. A recorded
+ * Each sport's age grade at every duration from 3 min to 3 h, on one scale, titled "Grade by duration". A recorded
  * grade is a solid line with dots. An estimate, as a ride's is, is a line with a ring at each duration and a
  * band for its range, drawn under the run. The 20 minute grade, the one the balance is taken at, is the larger
  * mark, and is labelled directly.
@@ -51,7 +51,8 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
 
   return (
     <ChartFrame
-      title={finding ?? GRADE_PROFILE_TITLE}
+      title={GRADE_PROFILE_TITLE}
+      takeaway={finding}
       description={descriptionOf(profile)}
       legend={hasData ? legendOf(profile) : undefined}
       note={hasData && anyRange ? GRADE_PROFILE_NOTE : undefined}
