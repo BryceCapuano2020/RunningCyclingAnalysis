@@ -189,6 +189,14 @@ describe('a reference the other sport set', () => {
     rideReferenceFrom: 'run' as const,
   }
 
+  it('names an effort close to the best when the best itself was not the one judged', () => {
+    const near = { ...ride, rideNearBest: true as const }
+    const line =
+      'A 20 min effort within 5% of your best reached 82% of your cycling max heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.'
+    expect(effortCaveat(near)?.text).toBe(line)
+    expect(effortShare('ride', near)?.line).toBe(line)
+  })
+
   it('says the cycling reference is the running max less 6 bpm, on the card and in the sport line', () => {
     expect(effortCaveat(ride)?.text).toBe(
       'Your best 20 min on the bike reached 82% of your cycling max heart rate (your running max less 6 bpm). That is under the 90% that marks a hard effort.',

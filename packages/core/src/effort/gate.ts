@@ -27,6 +27,8 @@ export interface EffortGate {
   unchecked: Unchecked | null
   /** The judged 20 minutes' heart rate over the reference; null when it cannot be worked out. */
   share: number | null
+  /** Set when the judged 20 minutes is one close to the best and not the best itself. Absent otherwise. */
+  nearBest?: true
   /** What the reference can certify; null without one. */
   reference: ReferenceReading | null
   /** The reference heart rate the share is of, bpm; null without one. */
@@ -84,14 +86,17 @@ export function judgedTwentyMinutes(points: readonly TwentyMinutePoint[]): {
   heartRate: number | null
   /** Whether the judged effort is a measurement; where none has a heart rate, whether the best is. */
   measured: boolean
+  /** Whether the judged effort is one close to the best and not the best itself. */
+  nearBest: boolean
 } {
   let best: number | null = null
   for (const { value } of points) {
     if (Number.isFinite(value) && (best === null || value > best)) best = value
   }
-  if (best === null) return { best: null, heartRate: null, measured: false }
+  if (best === null) return { best: null, heartRate: null, measured: false, nearBest: false }
   let heartRate: number | null = null
   let measured = false
+  let nearBest = false
   let bestMeasured = false
   for (const point of points) {
     const near = Number.isFinite(point.value) && point.value >= best * (1 - CP_FIT_REACH_TOLERANCE)
@@ -99,9 +104,10 @@ export function judgedTwentyMinutes(points: readonly TwentyMinutePoint[]): {
     if (near && point.heartRate !== null && (heartRate === null || point.heartRate > heartRate)) {
       heartRate = point.heartRate
       measured = point.measured
+      nearBest = point.value !== best
     }
   }
-  return { best, heartRate, measured: heartRate === null ? bestMeasured : measured }
+  return { best, heartRate, measured: heartRate === null ? bestMeasured : measured, nearBest }
 }
 
 /** What a gate reads of a sport's reference. */
@@ -122,7 +128,7 @@ export function effortGateOf(
   reference: GateReference,
   sessions: EffortGate['sessions'],
 ): EffortGate {
-  const { best, heartRate } = judgedTwentyMinutes(points)
+  const { best, heartRate, nearBest } = judgedTwentyMinutes(points)
   const base = {
     reference: reference.reading,
     referenceBpm: reference.bpm,
@@ -151,6 +157,7 @@ export function effortGateOf(
     verdict: trusted && isHardShare(share) ? 'hard' : 'notHard',
     unchecked: null,
     share,
+    ...(nearBest ? { nearBest: true as const } : {}),
     neededS: trusted ? HEADLINE_DURATION_S : null,
     sessions,
   }

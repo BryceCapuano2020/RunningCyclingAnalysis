@@ -6,6 +6,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { isEstimatedRecord, paceFigure, powerFigure } from './records'
 import type { Figure } from './records'
+import { gatedFloor } from './thresholdFloor'
 
 /**
  * The share of the reference that sets the band's allowance: the judged effort's, where the gate judged it hard. Where it could
@@ -75,7 +76,8 @@ interface RangeCps {
 /**
  * The critical powers a threshold's range spans, or null where it has none. When the sport has an uneven
  * fit, the range runs from the main threshold to the uneven one, since the bests that were left out only
- * set a floor. With the main threshold refused, its low end is that floor, the lowest bests left out.
+ * set a floor. With the main threshold refused, its low end is that floor, the lowest bests left out, or the gate's
+ * floor where the gate says the best 20 min was not hard.
  * Otherwise it is the fit's band (`cpBand`): down by the regression error, up by an allowance for how hard the effort
  * behind the fit was, a rough spread of the fit rather than a confidence interval. Null without a fit or a floor; when the low end is
  * not above resting metabolic rate, since a work rate that low is no estimate of a threshold; and, for a
@@ -85,7 +87,7 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
   const fit = { run: result.runCp, ride: result.rideCp }[sport]
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   if (uneven) {
-    const low = fit ? fit.cp : uneven.floor
+    const low = fit ? fit.cp : (gatedFloor(result, sport)?.value ?? uneven.floor)
     if (!(low > RESTING_W_PER_KG) || !(uneven.fit.cp > low)) return null
     return { low, centre: low, high: uneven.fit.cp, spread: false }
   }
@@ -93,6 +95,11 @@ function rangeCps(result: AnalysisResult, sport: Sport): RangeCps | null {
   const { low, high } = cpBand(fit, bandShareOf(result, sport))
   if (!(low > RESTING_W_PER_KG)) return null
   return { low, centre: fit.cp, high, spread: true }
+}
+
+/** Whether a sport's threshold has a range to show. */
+export function hasThresholdRange(result: AnalysisResult, sport: Sport): boolean {
+  return rangeCps(result, sport) !== null
 }
 
 /**

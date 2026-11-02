@@ -1,12 +1,6 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import {
-  DURATIONS_S,
-  EQUIVALENCE_DURATIONS_S,
-  FLAT_RUN_COST,
-  HEADLINE_DURATION_S,
-  RESTING_W_PER_KG,
-} from '../constants'
+import { DURATIONS_S, EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
 import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
@@ -30,7 +24,7 @@ import type {
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThreshold } from './effortGating'
-import { effortGatesOf } from './twentyMinute'
+import { effortGatesOf, judgeHeadline } from './twentyMinute'
 import { equivalentsOf } from './equivalents'
 import type { Equivalence } from './equivalents'
 import { activitySummaries } from './activitySummaries'
@@ -324,12 +318,7 @@ export function combine(
     judged,
     heart.setAside,
   )
-  // The chip and the gate judge the same effort: the one with the highest heart rate among the 20 minute bests.
-  const headline = effort.find((e) => e.durationS === HEADLINE_DURATION_S)
-  if (headline !== undefined) {
-    if (effortGate.run.share !== null) headline.runHrFraction = effortGate.run.share
-    if (effortGate.ride.share !== null) headline.rideHrFraction = effortGate.ride.share
-  }
+  judgeHeadline(effort, effortGate)
   const run = gatedThreshold(effortGate.run, runOutcome, runCpUneven)
   const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
 

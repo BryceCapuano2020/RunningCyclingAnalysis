@@ -1,3 +1,4 @@
+import { HEADLINE_DURATION_S } from '../constants'
 import type { UnevenFit } from '../cp'
 import type { EffortGate } from '../effort'
 import type { CriticalPowerOutcome } from '../cp'
@@ -12,9 +13,10 @@ export interface GatedThreshold {
 
 /**
  * The threshold a sport reports. A best that was not hard is a floor, not a capability, so a fit that passed
- * its own rules is withheld when the gate says the best 20 minutes was not hard ('effort'), and so is the uneven
- * fit, which only widens it. A fit already refused keeps its refusal: that is the first thing missing. A gate
- * that cannot judge ('unknown', as without a heart rate) withholds nothing.
+ * its own rules is withheld when the gate says the best 20 minutes was not hard ('effort'). An uneven fit that leaves
+ * out the 20 minute best stays, since the gate's verdict does not reach it and it is only ever the top of a range that
+ * starts at the floor. One that still holds that best goes with the fit. A fit already refused keeps its refusal: that is
+ * the first thing missing. A gate that cannot judge ('unknown', as without a heart rate) withholds nothing.
  */
 export function gatedThreshold(
   gate: EffortGate,
@@ -22,5 +24,9 @@ export function gatedThreshold(
   uneven: UnevenFit | null,
 ): GatedThreshold {
   if (gate.verdict !== 'notHard') return { fit: outcome.fit, refusal: outcome.refusal, uneven }
-  return { fit: null, refusal: outcome.fit === null ? outcome.refusal : 'effort', uneven: null }
+  return {
+    fit: null,
+    refusal: outcome.fit === null ? outcome.refusal : 'effort',
+    uneven: uneven?.leftOutS.includes(HEADLINE_DURATION_S) ? uneven : null,
+  }
 }
