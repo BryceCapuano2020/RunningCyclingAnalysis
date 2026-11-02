@@ -29,6 +29,7 @@ export function SportPage(props: SportPageProps) {
     units,
     fitness,
     library,
+    onFile,
   } = props
   const count = countSport(result.activities, sport)
   // The time the page was opened at, read once so a later render does not move a record's age.
@@ -37,7 +38,7 @@ export function SportPage(props: SportPageProps) {
   const held = sport === 'ride' && !weighted
   const { rows, nav } =
     held || count === 0 ? { rows: [], nav: [] } : layoutOf(sport, { ...props, count, openedAt })
-  const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt)
+  const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt, onFile)
   return (
     <div className="page-stack sport-page" data-sport={sport}>
       <div className="page-head">

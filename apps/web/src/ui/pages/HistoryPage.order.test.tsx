@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, within } from '@testing-library/react'
 import { historyOf } from '@rca/core/history'
+import { NO_LOOKBACK } from '@rca/core/lookback'
 import {
   balanceLibrary,
   REFERENCE,
@@ -35,7 +36,9 @@ function everyChart() {
     effortReference: REFERENCE,
   })
   chartWidth(800)
-  const { container } = render(<HistoryPage history={history} units="metric" grading={GRADING} />)
+  const { container } = render(
+    <HistoryPage history={history} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
+  )
   return [...container.querySelectorAll<HTMLElement>('[data-section]')]
 }
 

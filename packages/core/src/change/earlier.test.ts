@@ -170,6 +170,46 @@ describe('the window the What changed strip falls back to', () => {
   })
 })
 
+describe('how far back the walk goes', () => {
+  // 180 weeks, the period the last 12, its windows 12 weeks each; the 13th window back starts 156 weeks (just under 3 years) before it.
+  const recent: [number, number] = [170, 180]
+  const dated = (ranges: [number, number][]) => weeks('run', ranges)
+  const THREE_YEARS_WEEKS = 156
+
+  it('takes a window that starts within 3 years of the period', () => {
+    const near = dated([[14, 24], recent])
+    const { period } = splitPeriods(near, PERIOD_DAYS)
+    const found = earlier(near)
+    expect(found).not.toBeNull()
+    expect(found!.startMs).toBe(windowStart(period.startMs!, PERIOD_DAYS, THREE_YEARS_WEEKS / 12))
+    expect(period.startMs! - found!.startMs).toBeLessThanOrEqual(3 * 366 * DAY_MS)
+    expect(verdictAt(found!.change, 'run', HEADLINE_DURATION_S)).not.toBe('untested')
+  })
+
+  it('has none when the only window that tests starts further back than 3 years', () => {
+    const far = dated([[0, 10], recent])
+    const { period } = splitPeriods(far, PERIOD_DAYS)
+    // The window holds enough to test against: it is the reach that leaves it out.
+    expect(readingsOfWindow(far, windowStart(period.startMs!, PERIOD_DAYS, 14))).toBeGreaterThan(7)
+    expect(earlier(far)).toBeNull()
+    expect(earlier(far, true)).toBeNull()
+  })
+
+  it('takes the near window when a far one holds efforts too', () => {
+    const both = dated([[0, 10], [14, 24], recent])
+    const { period } = splitPeriods(both, PERIOD_DAYS)
+    expect(earlier(both)!.startMs).toBe(windowStart(period.startMs!, PERIOD_DAYS, 13))
+  })
+
+  it('leaves the strip out of a session with nothing inside the reach', () => {
+    const session = new AnalysisSession()
+    session.loadDigests(dated([[0, 10], recent]), SETTINGS)
+    const state = session.setRange(PERIOD_DAYS, SETTINGS)
+    expect(state.previous).toBeNull()
+    expect(state.earlier).toBeNull()
+  })
+})
+
 describe('a library that fails the hard-effort check', () => {
   // Every session's peak heart rate is 70% of the reference, so the rule counts none of them as hard.
   const REFERENCE = {

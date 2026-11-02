@@ -8,14 +8,7 @@ import type { Ranged } from '../fitness/types'
 import type { Sport } from '../types'
 import type { LookBack, SportLookBack } from './compute'
 import type { Lead } from './lead'
-import type {
-  EffortMilestones,
-  HindsightEpisode,
-  HindsightFitness,
-  QuietStretch,
-  Span,
-  TooShort,
-} from './types'
+import type { EffortMilestones, HindsightEpisode, HindsightFitness, Span } from './types'
 
 /**
  * The words of the look-back. Every date carries its year, every claim about the level that the look-back cannot see
@@ -104,13 +97,10 @@ function amount(sport: Sport, change: Ranged): string {
   return `${sized(sport, change)} ${shown.value < 0 ? SAY[sport].down : SAY[sport].up}`
 }
 
-/** How long, in whole years and months: "3 years 4 months". */
-export function standing(fromMs: number, toMs: number): string {
-  const months = Math.max(0, Math.round((toMs - fromMs) / (30.4375 * 86_400_000)))
-  const [y, m] = [Math.floor(months / 12), months % 12]
-  const part = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
-  if (y === 0) return part(m, 'month')
-  return m === 0 ? part(y, 'year') : `${part(y, 'year')} ${part(m, 'month')}`
+/** How long a best has stood, in whole years: "Stood 8 years." Nothing under a year, which is no news. */
+export function stoodText(fromMs: number, toMs: number): string {
+  const years = Math.floor(Math.max(0, toMs - fromMs) / (365.25 * 86_400_000))
+  return years === 0 ? '' : `Stood ${years} ${years === 1 ? 'year' : 'years'}.`
 }
 
 /** The break that an after-break step sits beside, from the breaks the sport had. */
@@ -192,15 +182,6 @@ export function episodeRow(
   }
 }
 
-export function quietRow(q: QuietStretch, sport: Sport): string {
-  return `${monthsBetween(q.fromMs, q.toMs)}. Stayed within ${withinText(sport, q.within)}. ${q.runs} ${SAY[sport].steady}.`
-}
-
-export const thinRow = (s: Span, sport: Sport = 'run'): string =>
-  `No ${SAY[sport].steady} from ${monthsBetween(s.fromMs, s.toMs)}.`
-export const breakRow = (s: Span, sport: Sport = 'run'): string =>
-  `No ${SAY[sport].all} from ${monthsBetween(s.fromMs, s.toMs)}.`
-
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
 export function effortName(effort: EffortMilestones['effort']): string {
   if (effort.kind === 'duration') return `${effort.durationS / 60} min`
@@ -221,31 +202,9 @@ export function bestValue(
   return formatDuration(value)
 }
 
-/** The bests rows of one effort: the best and how long it has stood, and the best of each year. */
-export function bestRows(m: EffortMilestones, asOfMs: number, system: UnitSystem): string[] {
-  const name = effortName(m.effort)
-  const rows = [
-    `Best ${name}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. It has stood ${standing(m.best.atMs, asOfMs)} as of ${dayMonthYear(asOfMs)}.`,
-  ]
-  if (m.years.length >= 2) {
-    rows.push(
-      `By year: ${m.years.map((y) => `${y.year}${y.partial ? ' (so far)' : ''} ${bestValue(m, y.value, system)}`).join(', ')}.`,
-    )
-  }
-  // A pace is faster or slower; a power, in watts or watts per kilogram, is higher or lower.
-  const [up, down] = m.unit === 'm/s' ? ['Faster', 'Slower'] : ['Higher', 'Lower']
-  for (const v of m.verdicts) {
-    if (v.verdict === 'higher') rows.push(`${up} in ${v.year} than in ${v.year - 1}.`)
-    if (v.verdict === 'lower') rows.push(`${down} in ${v.year} than in ${v.year - 1}.`)
-    if (v.verdict === 'none') rows.push(`No clear change from ${v.year - 1} to ${v.year}.`)
-  }
-  return rows
-}
-
-/** What a sport needs before its years can be told, and how far it is. */
-export function tooShortText(t: TooShort, sport: Sport = 'run'): string {
-  const say = SAY[sport]
-  return `Needs ${t.needSteady} ${say.steady} over ${t.needWeeks} weeks. You have ${t.steady} over ${t.weeks}.`
+/** What a sport's years lack, as one line with no counts: a library with none would otherwise read "You have 0 over 0". */
+export function tooShortText(sport: Sport = 'run'): string {
+  return `Not enough ${SAY[sport].steady} for a fitness history.`
 }
 
 /** The lead of the look-back as one sentence, in the reader's units. */
@@ -259,5 +218,7 @@ export function leadSentence(lead: Lead, lookBack: LookBack, system: UnitSystem)
     return `${upper(level(sport))} stayed within ${withinText(lead.sport, q.within)} from ${monthYear(q.fromMs)} to ${monthYear(q.toMs)}.`
   }
   const m = lead.best
-  return `Best ${effortName(m.effort)}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. It has stood ${standing(m.best.atMs, lookBack.asOfMs)} as of ${dayMonthYear(lookBack.asOfMs)}.`
+  const set = `Best ${effortName(m.effort)}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}.`
+  const stood = stoodText(m.best.atMs, lookBack.asOfMs)
+  return stood === '' ? set : `${set} ${stood}`
 }

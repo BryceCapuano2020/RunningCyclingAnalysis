@@ -46,11 +46,21 @@ function Tag({ tag }: { tag: ChangeTag }) {
   )
 }
 
+/** The one chip an item carries: "Not all-out" where its call read every effort, else whether it is a recording or an estimate. */
+function Chip({ item }: { item: ChangeItem }) {
+  if (item.label === undefined) return <Tag tag={item.tag} />
+  return (
+    <span className="tag tag--ink balance-changes__tag balance-changes__tag--note">
+      {item.label}
+    </span>
+  )
+}
+
 /**
  * What changed against the previous period, or against the latest earlier window that held enough to compare: at most
- * four items, each with an arrow, a title, a line and a tag that says whether it is a recording or an estimate. An item
- * is listed only where the change test calls it. With nothing called, the strip says so in one line; with nothing to
- * compare, and under all time, it is left out.
+ * four items, each with an arrow, a title, a line and one chip: "Not all-out" where its call read every effort, else a
+ * tag that says whether it is a recording or an estimate. An item is listed only where the change test calls it. With
+ * nothing called, the strip says so in one line; with nothing to compare, and under all time, it is left out.
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
   if (changes === null || previousLabel === null) return null
@@ -71,12 +81,7 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
                 <p className="balance-changes__head">{item.title}</p>
                 <p className="balance-changes__body">{item.body}</p>
                 <div className="balance-changes__tags">
-                  <Tag tag={item.tag} />
-                  {item.label === undefined ? null : (
-                    <span className="tag tag--ink balance-changes__tag balance-changes__tag--note">
-                      {item.label}
-                    </span>
-                  )}
+                  <Chip item={item} />
                 </div>
               </div>
             </li>

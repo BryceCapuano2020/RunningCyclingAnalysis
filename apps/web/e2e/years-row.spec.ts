@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { AxeBuilder } from '@axe-core/playwright'
 import {
   appSettled,
   BALANCE_TITLE,
@@ -8,10 +9,12 @@ import {
   goTo,
   horizontalOverflow,
   trackErrors,
+  WCAG_TAGS,
 } from './helpers.js'
 
 /**
- * "Your years" (D9): the row under the fitness card on Balance and the section on the Run page. The first-screen
+ * History (D9): the row under the fitness card on Balance, the row on the Run page that links to the History tab, and the
+ * episodes the tab lists under its fitness chart. The first-screen
  * contracts of analysis.spec.ts run on the sample, which has too few weeks for a row; this runs them with one. The library
  * is generated here (96 steady runs nine days apart, a slower stretch in the middle), so it is a slip that came back.
  */
@@ -94,7 +97,7 @@ for (const size of SIZES) {
     expect(errors).toEqual([])
   })
 
-  test(`at ${size.width} by ${size.height} the Run page's years section shows the episodes from the start, within the window`, async ({
+  test(`at ${size.width} by ${size.height} the Run page's History row says its finding and links to the History tab, which lists the episodes under its chart`, async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -104,20 +107,24 @@ for (const size of SIZES) {
     await goTo(page, 'Run')
     const section = page.getByRole('region', { name: 'History' })
     await expect(section).toBeVisible()
-    // Its row says what it found, and the section is open to start with: nothing waits on a press.
-    const row = section.locator('.sport-disclosure__summary')
-    await expect(row).toContainText(/Slipped in 2023, then came back/)
-    await expect(section.locator('.sport-disclosure__details')).toHaveAttribute('open', '')
-    await expect(section.getByRole('region', { name: 'Episodes' })).toContainText(
-      /Slipped \d+% \(\d+ to \d+\), then back/,
-    )
-    // The picture of the years is the History tab's: the section holds words, and the episode it names is shaded there.
+    // One line: the finding and a link. The list and the picture of the years are the History tab's.
+    await expect(section).toContainText(/Slipped in 2023, then came back/)
+    await expect(section.locator('details')).toHaveCount(0)
+    await expect(section.getByRole('region', { name: 'Episodes' })).toHaveCount(0)
     await expect(section.getByRole('figure')).toHaveCount(0)
-    await goTo(page, 'History')
+    const link = section.getByRole('link', { name: 'See History' })
+    await expect(link).toHaveAttribute('href', '#/history')
+    expect((await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations).toEqual([])
+    await link.click()
+    await expect(page.getByRole('heading', { level: 1, name: 'History' })).toBeVisible()
     const chart = page.getByRole('figure', { name: 'Fitness over the years' })
     await expect(chart.getByTestId('fitness-dots')).toBeAttached()
     await expect(chart.getByTestId('fitness-span').first()).toBeAttached()
-    await goTo(page, 'Run')
+    // The episodes are listed under the chart, each with its size.
+    const episodes = page.getByRole('region', { name: 'Episodes' })
+    await expect(episodes).toContainText(/Slipped \d+% \(\d+ to \d+\), then back/)
+    expect((await edgesOf(episodes)).top).toBeGreaterThanOrEqual((await edgesOf(chart)).bottom)
+    expect((await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations).toEqual([])
     const overflow = await horizontalOverflow(page)
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth)
     expect(errors).toEqual([])
@@ -135,7 +142,7 @@ test('opening the row shows the whole sentence, and Hide takes the row away for 
   await expect(row.locator('.checkin-row__full')).toBeVisible()
   await row.getByRole('button', { name: 'Hide' }).click()
   await expect(row).toHaveCount(0)
-  // Opened and hidden is seen: a reload brings no row back, and the section is still on the Run page.
+  // Opened and hidden is seen: a reload brings no row back, and the History row is still on the Run page.
   await page.reload()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.locator(ROW)).toHaveCount(0)

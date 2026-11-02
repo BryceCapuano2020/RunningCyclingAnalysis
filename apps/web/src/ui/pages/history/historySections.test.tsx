@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { NO_LOOKBACK } from '@rca/core/lookback'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../../test/deviceZone'
 import { chartWidth } from '../../charts/chartSizeStub'
@@ -99,6 +100,7 @@ describe('the History page', () => {
         history={{ ...historyWithBests(), years: THREE_YEARS }}
         units="metric"
         grading={GRADING}
+        lookBack={NO_LOOKBACK}
       />,
     )
     const names = screen

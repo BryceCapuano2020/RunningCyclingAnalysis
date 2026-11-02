@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { NO_HISTORY } from '@rca/core/history'
+import { NO_LOOKBACK } from '@rca/core/lookback'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GRADING } from '../balanceFixtures'
 import { libraryOf } from '../calendarFixtures'
@@ -29,7 +30,9 @@ describe('HistoryPage with the training calendar', () => {
   }
 
   it('draws the calendar before the hours per year, and names the streak and the biggest week', () => {
-    render(<HistoryPage history={history} units="metric" grading={GRADING} />)
+    render(
+      <HistoryPage history={history} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
+    )
     const figures = screen.getAllByRole('figure')
     const hours = screen.getByRole('figure', { name: 'Run hours per year' })
     const calendar = screen.getByRole('figure', { name: 'Run training calendar' })
@@ -38,7 +41,9 @@ describe('HistoryPage with the training calendar', () => {
   })
 
   it('gives each year the same hours in the calendar as in Hours per year', () => {
-    render(<HistoryPage history={history} units="metric" grading={GRADING} />)
+    render(
+      <HistoryPage history={history} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
+    )
     const hours = screen.getByRole('table', { name: 'Hours per year, by sport' })
     const training = screen.getByRole('table', { name: 'Training by year' })
     for (const [year, run] of [
