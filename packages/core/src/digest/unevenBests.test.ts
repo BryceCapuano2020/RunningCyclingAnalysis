@@ -71,6 +71,32 @@ const STEADY = rideWith(
   ) as Record<number, Best>,
 )
 
+/** A ride with a 20 minute best close to the climb's, held at 150 bpm, which is under the hard line of a 190 bpm maximum. */
+const TEMPO: ActivityDigest = {
+  ...rideWith('tempo', { 1200: [285, 0, 1200] }),
+  hasHeartRate: true,
+  maxHeartRate: 165,
+}
+TEMPO.curve = TEMPO.curve.map((point) =>
+  point.durationS === 1200 ? { ...point, heartRate: 150 } : point,
+)
+
+const REFERENCE_HR = { run: 190, ride: 190 }
+/** A trusted maximum for both sports, with the climb's heart rate set aside as faulty. */
+const CLIMB_HEART_RATE_FAULTY = {
+  heartRateSetAside: new Set(['climb']),
+  references: {
+    referenceHr: REFERENCE_HR,
+    observedMaxHr: REFERENCE_HR,
+    effortReference: {
+      referenceHr: REFERENCE_HR,
+      reading: { run: 'trusted', ride: 'trusted' },
+      source: { run: 'data', ride: 'data' },
+      from: { run: null, ride: null },
+    },
+  },
+} as const
+
 describe('uneven bests in the combined analysis', () => {
   it('leaves the 15 and 20 minute bests of a climbing ride out of a second threshold', () => {
     const result = combine([CLIMB], SETTINGS)
@@ -95,5 +121,28 @@ describe('uneven bests in the combined analysis', () => {
   it('has no uneven threshold for runs when there are none', () => {
     const result = combine([CLIMB], SETTINGS)
     expect(result.runCpUneven).toBeNull()
+  })
+
+  it('keeps the uneven threshold when another ride fails the effort gate', () => {
+    const result = combine([CLIMB, TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
+    expect(result.effortGate.ride.verdict).toBe('notHard')
+    expect(result.rideCp).toBeNull()
+    expect(result.rideCpUneven).not.toBeNull()
+    expect(result.rideCpUneven!.leftOutS).toEqual([900, 1200])
+  })
+
+  it('says the effort it judged is not the best itself', () => {
+    const result = combine([CLIMB, TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
+    expect(result.effortGate.ride.nearBest).toBe(true)
+    const headline = result.effort.find((check) => check.durationS === 1200)
+    expect(headline?.rideNearBest).toBe(true)
+  })
+
+  it('says nothing of the sort when the best itself is judged', () => {
+    const result = combine([CLIMB, TEMPO], SETTINGS, {
+      ...CLIMB_HEART_RATE_FAULTY,
+      heartRateSetAside: new Set(['tempo']),
+    })
+    expect(result.effortGate.ride.nearBest).toBeUndefined()
   })
 })

@@ -19,7 +19,14 @@ describe('judgedTwentyMinutes', () => {
       { value: 9, heartRate: 190, measured: true },
     ]
     // 9.6 is within 5% of 10; 9 is not. Of the two the higher heart rate is judged.
-    expect(judgedTwentyMinutes(points)).toEqual({ best: 10, heartRate: 172, measured: true })
+    expect(judgedTwentyMinutes(points)).toEqual({
+      best: 10,
+      heartRate: 172,
+      measured: true,
+      nearBest: true,
+    })
+    // With no effort near it that went harder, the best itself is the one judged.
+    expect(judgedTwentyMinutes([points[0]!, points[2]!]).nearBest).toBe(false)
   })
 
   it('says whether the judged effort is a measurement, or the best where none has a heart rate', () => {
@@ -45,7 +52,7 @@ describe('judgedTwentyMinutes', () => {
       heartRate: null,
       measured: true,
     })
-    expect(judgedTwentyMinutes([])).toEqual({ best: null, heartRate: null, measured: false })
+    expect(judgedTwentyMinutes([])).toEqual({ best: null, heartRate: null, measured: false, nearBest: false })
     expect(
       judgedTwentyMinutes([{ value: Number.NaN, heartRate: 150, measured: true }]).best,
     ).toBeNull()

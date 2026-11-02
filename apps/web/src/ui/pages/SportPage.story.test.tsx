@@ -356,6 +356,30 @@ describe('the threshold when only a floor is shown', () => {
     expect(screen.queryByText('Estimated', { selector: '.stat-tile__basis' })).toBeNull()
   })
 
+  it('runs its range up to the uneven fit when the best 20 min was not hard', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const notHard = {
+      ...UNKNOWN,
+      verdict: 'notHard' as const,
+      unchecked: null,
+      floor: { durationS: 1800, value: 3 },
+    }
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCp: null,
+        rideCpRefusal: 'shape',
+        rideCpUneven: uneven,
+        effortGate: { run: UNKNOWN, ride: notHard },
+      }),
+    )
+    const section = screen.getByRole('region', { name: 'Threshold power, at least' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('52')
+    expect(within(section).getByText('From your best 20 min.')).toBeInTheDocument()
+    expect(section.querySelector('.sport-hero__track')).toBeInTheDocument()
+  })
+
   it('is labelled "at least" on a run', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(

@@ -186,6 +186,9 @@ export interface EffortCheck {
   runHrFraction: number | null
   /** Same for the best cycling window, divided by rideMaxHeartRate. */
   rideHrFraction: number | null
+  /** Set when the effort judged here is one close to the sport's best and not the best itself. Absent otherwise. */
+  runNearBest?: true
+  rideNearBest?: true
   /**
    * What each sport's reference can certify (see ReferenceReading): a share of a reference that is `low` or
    * `habitual` does not show an effort was hard. Null without a reference. The analysis always sets them; absent reads

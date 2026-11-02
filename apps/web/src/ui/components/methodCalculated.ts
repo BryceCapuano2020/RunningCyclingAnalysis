@@ -53,6 +53,8 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     ],
     detail: [
       `A best under ${HEADLINE} is labelled with its length and is not a floor.`,
+      'A best that mixed hard and easy is left out of the fit.',
+      'The floor is then that best, and the range runs up to a fit without it.',
       'A threshold’s own range is drawn lighter.',
       'It runs down by one standard error of the fit.',
       'It runs up by an allowance for how hard the effort behind it was.',

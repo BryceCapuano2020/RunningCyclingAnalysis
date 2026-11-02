@@ -2,7 +2,7 @@ import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
 import { sessionsOf } from '../effort'
 import type { EffortGate, EffortReference, GateReference } from '../effort'
 import { effortGateOf } from '../effort'
-import type { ActivityDigest, BikeModel, Curve, Sport } from '../types'
+import type { ActivityDigest, BikeModel, Curve, EffortCheck, Sport } from '../types'
 import { effortsCount } from './effortTrust'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
@@ -44,4 +44,17 @@ export function effortGatesOf(
     return effortGateOf(points[sport], held ?? null, own, sessions)
   }
   return { run: gateOf('run'), ride: gateOf('ride') }
+}
+
+/**
+ * Puts the gates' verdicts on the headline effort check, so the chip and the gate judge the same effort: the one with the
+ * highest heart rate among the 20 minute bests.
+ */
+export function judgeHeadline(effort: EffortCheck[], gates: Record<Sport, EffortGate>): void {
+  const headline = effort.find((check) => check.durationS === HEADLINE_DURATION_S)
+  if (headline === undefined) return
+  if (gates.run.share !== null) headline.runHrFraction = gates.run.share
+  if (gates.ride.share !== null) headline.rideHrFraction = gates.ride.share
+  if (gates.run.nearBest) headline.runNearBest = true
+  if (gates.ride.nearBest) headline.rideNearBest = true
 }

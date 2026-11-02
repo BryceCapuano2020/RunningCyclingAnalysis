@@ -1,3 +1,4 @@
+import { CP_FIT_REACH_TOLERANCE } from '@rca/core/constants'
 import { isHardShare } from '@rca/core/effort'
 import type { ReferenceReading, ReferenceSource } from '@rca/core/effort'
 import type { EffortCheck, Sport } from '@rca/core/types'
@@ -100,9 +101,21 @@ function bothSources(effort: EffortCheck): string {
 }
 
 /** A best effort's heart rate as a share of its sport's max heart rate, in words, without its ending. */
-function reachedText(sport: Sport, duration: string, fraction: number, source: string): string {
-  return REACHED[sport](duration, percentOf(fraction), source)
+function reachedText(
+  effort: EffortCheck,
+  sport: Sport,
+  duration: string,
+  fraction: number,
+): string {
+  const source = sourceNote(effort, sport)
+  const near = { run: effort.runNearBest, ride: effort.rideNearBest }[sport]
+  return near
+    ? `A ${duration} effort within ${NEAR_BEST_PERCENT}% of your best reached ${percentOf(fraction)}% of your ${SPORT_NOUN[sport]} max heart rate (${source})`
+    : REACHED[sport](duration, percentOf(fraction), source)
 }
+
+/** How close to a best an effort may be and still be the one judged, as a percent. */
+const NEAR_BEST_PERCENT = Math.round(CP_FIT_REACH_TOLERANCE * 100)
 
 const REACHED: Record<Sport, (duration: string, share: number, source: string) => string> = {
   run: (duration, share, source) =>
@@ -149,14 +162,14 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   if (ride !== null && !isHard(ride)) {
     return {
       title: 'Your best ride did not reach a hard heart rate',
-      text: `${reachedText('ride', duration, ride, sourceNote(effort, 'ride'))}${verdictAfter(ride, duration, TOP[sourceOf(effort, 'ride')])}`,
+      text: `${reachedText(effort, 'ride', duration, ride)}${verdictAfter(ride, duration, TOP[sourceOf(effort, 'ride')])}`,
       short: `Best cycling effort over ${duration} did not reach a hard heart rate.`,
     }
   }
   if (run !== null && !isHard(run)) {
     return {
       title: 'Your best run did not reach a hard heart rate',
-      text: `${reachedText('run', duration, run, sourceNote(effort, 'run'))}${verdictAfter(run, duration, TOP[sourceOf(effort, 'run')])}`,
+      text: `${reachedText(effort, 'run', duration, run)}${verdictAfter(run, duration, TOP[sourceOf(effort, 'run')])}`,
       short: `Best running effort over ${duration} did not reach a hard heart rate.`,
     }
   }
@@ -199,7 +212,7 @@ export function effortShare(
   const source = sourceOf(effort, sport)
   const hard = isHard(fraction)
   return {
-    line: `${reachedText(sport, duration, fraction, sourceNote(effort, sport))}${verdictAfter(fraction, duration, TOP[source])}`,
+    line: `${reachedText(effort, sport, duration, fraction)}${verdictAfter(fraction, duration, TOP[source])}`,
     hard,
     confirmed: true,
     checked: true,

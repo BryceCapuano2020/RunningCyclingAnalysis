@@ -60,10 +60,11 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 ## Where it applies, and what each shows when it fails
 
-- **Threshold** (`combine`): the fit is null with refusal `effort`; the uneven fit goes with it. Panel and tile keep their title, show
-  that best as "At least" with no spread, and name it in one line, "From your best 30 min." (see above). The share card and anything that needs both
+- **Threshold** (`combine`): the fit is null with refusal `effort`. Panel and tile keep their title, show
+  that best as "At least" with no spread, and name it in one line, "From your best 30 min." (see above). An uneven fit stays, since it leaves out
+  the 15 and 20 minute bests the gate judges: the floor is then the lowest of those, and the range runs up to the uneven fit. The share card and anything that needs both
   fits waits for them. An unchecked threshold is shown with "No heart rate on your best 20 min run, so the effort was not checked." (on the sport page; Balance says it once, under the lede)
-- **Chip**: "Hard effort", its detail giving the share, with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
+- **Chip**: when the judged effort is one close to the best and not the best itself, the detail says "A 20 min effort within 5% of your best". "Hard effort", its detail giving the share, with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
   "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not all-out" with no share,
   "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
   (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
