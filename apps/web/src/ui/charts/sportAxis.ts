@@ -36,9 +36,12 @@ export function nativeLabel(sport: Sport): string {
   return SPORT_FORMAT[sport].nativeLabel
 }
 
-/** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
-export function axisTitle(sport: Sport, units: UnitSystem): string {
-  return SPORT_FORMAT[sport].axisTitle(units)
+/**
+ * The vertical axis's title. Pace says which way is faster, since its axis runs the other way. `full` spells GAP
+ * out, for the first chart a page draws.
+ */
+export function axisTitle(sport: Sport, units: UnitSystem, full = false): string {
+  return SPORT_FORMAT[sport].axisTitle(units, full)
 }
 
 /** The pace unit spelt out, for a chart's name: "per kilometre" or "per mile". */

@@ -107,7 +107,7 @@ describe('estimated bests', () => {
     expect(model).toMatchObject({ anyHollow: true, anySolid: true, hollowKey: 'Estimated' })
   })
 
-  it('names why a mark is hollow in the key: estimated, not confirmed hard, or both', () => {
+  it('names why a mark is hollow in the key: estimated, not all-out, or both', () => {
     const both = bestsModel(
       'ride',
       [
@@ -121,8 +121,8 @@ describe('estimated bests', () => {
       ],
       'metric',
     )!
-    expect(both.hollowKey).toBe('Estimated or not confirmed hard')
-    expect(bestsModel('run', RUN_BESTS, 'metric')!.hollowKey).toBe('Not confirmed hard')
+    expect(both.hollowKey).toBe('Estimated or not all-out')
+    expect(bestsModel('run', RUN_BESTS, 'metric')!.hollowKey).toBe('Not all-out')
   })
 
   it('tags an estimate in a note and last in a table cell, as the records do', () => {
@@ -147,7 +147,7 @@ describe('what a mark says', () => {
   it('adds the time, the all-time best and a floor to a note, and says nothing of a plain mark', () => {
     expect(markNote(fiveK!.marks[0]!, false)).toBe('25:00')
     expect(markNote(fiveK!.marks[3]!, true)).toBe('24:00, All-time best')
-    expect(markNote(fiveK!.marks[1]!, false)).toBe('24:10, Not confirmed hard')
+    expect(markNote(fiveK!.marks[1]!, false)).toBe('24:10, Not all-out')
     expect(markNote(mile!.marks[0]!, false)).toBeUndefined()
   })
 

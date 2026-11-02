@@ -157,7 +157,7 @@ export function labelledYears(model: YearCurvesModel): number[] {
   return [...named, ...others].sort((a, b) => a - b)
 }
 
-/** A value as a table cell: a 20 minute best not confirmed hard says so first, and an estimate says so last. */
+/** A value as a table cell: a 20 minute best that was not all-out says so first, and an estimate says so last. */
 export function curveCell(
   model: YearCurvesModel,
   line: YearLine,

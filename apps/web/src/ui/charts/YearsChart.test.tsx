@@ -11,7 +11,7 @@ describe('YearsChart', () => {
     render(<YearsChart sport="run" years={RUN_YEARS} referenceHr={148} units="metric" />)
     const figure = screen.getByRole('figure', { name: 'Pace at 148 bpm over the years' })
     expect(within(figure).getByRole('img').getAttribute('aria-label')).toMatch(
-      /^Flat pace at 148 bpm as plateaus from January 2020 to August 2024, each with its 90% range, and the slips and rises between them\.$/,
+      /^GAP at 148 bpm as plateaus from January 2020 to August 2024, each with its 90% range, and the slips and rises between them\.$/,
     )
   })
 

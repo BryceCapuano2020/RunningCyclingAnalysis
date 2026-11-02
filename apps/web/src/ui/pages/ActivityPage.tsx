@@ -177,7 +177,7 @@ export function ActivityPage({
         : missingZonesOf(activity, settings, zoneEstimates, weightKnown),
     [activity, settings, zoneEstimates, weightKnown],
   )
-  // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
+  // Only a run's splits are asked for; the page keeps the answer, so the bests can word their timing note.
   const runId = activity?.sport === 'run' ? activity.id : null
   const splitsLoad = useRunSplits(runId, loadSplits)
   // The workbench reads the trace; the splits borrow its laps, so the device's own laps can be their view.

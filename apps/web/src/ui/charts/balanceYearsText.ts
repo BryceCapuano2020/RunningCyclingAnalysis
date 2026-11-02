@@ -9,11 +9,11 @@ import type { ChartLegendEntry } from './ChartLegend'
 import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 
 const NONE = 'None'
-const NOT_ALL_OUT = 'not all out'
+const NOT_ALL_OUT = 'not all-out'
 
 /** What the chart says to a screen reader: the scale, what the band is and what a hollow dot is. */
 export const DESCRIPTION =
-  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range. A hollow dot is a best that was not all out.'
+  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range. A hollow dot is a best that was not all-out.'
 
 /** A ride's range as "58 to 66%". */
 export function rangeText(range: NonNullable<SportGrade['range']>): string {
@@ -42,11 +42,11 @@ export function legendOf(views: readonly YearView[]): ChartLegendEntry[] {
     entries.push({ label: rangeLabel(sport), kind: sport, swatch: 'band' })
   }
   const anyHollow = views.some((view) => Object.values(view.grades).some(isHollow))
-  if (anyHollow) entries.push({ label: 'Best not all out', kind: 'neutral', swatch: 'ring' })
+  if (anyHollow) entries.push({ label: 'Not all-out', kind: 'neutral', swatch: 'ring' })
   return entries
 }
 
-/** A grade as the table writes it: the whole percent, a ride's range in brackets, and a best that was not all out. */
+/** A grade as the table writes it: the whole percent, a ride's range in brackets, and a best that was not all-out. */
 function cellOf(each: YearGrade | undefined, atTop: boolean): string {
   if (each === undefined) return atTop ? TOP_OF_SCALE_SHORT : NONE
   const { centre, range } = each.grade

@@ -30,7 +30,7 @@ export const RUN_BESTS: BestEffort[] = [
   { length: 10_000, years: [[2022, 3100, true, false]] },
 ]
 
-/** A synthetic rider's 5 and 20 minute power over two years, the 20 minute best of the second not confirmed hard. */
+/** A synthetic rider's 5 and 20 minute power over two years, the 20 minute best of the second not all-out. */
 export const RIDE_BESTS: BestEffort[] = [
   {
     length: 300,

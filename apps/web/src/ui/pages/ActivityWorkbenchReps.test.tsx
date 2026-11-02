@@ -85,7 +85,7 @@ describe('RepFadeTable', () => {
     expect(screen.getByText('300 W')).toBeInTheDocument()
   })
 
-  it('names and writes a run read on hills as a flat pace', () => {
+  it('names and writes a run read on hills as a GAP', () => {
     const climbing = repsTrace(
       'run',
       [3.5, 3.5, 3.5].flatMap((speed) => [
@@ -95,7 +95,7 @@ describe('RepFadeTable', () => {
       [0, 1, 2].map((i) => [i * 720, i * 720 + 600] as const),
     )
     renderTable(climbing)
-    expect(screen.getByRole('columnheader', { name: 'Flat pace' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'GAP' })).toBeInTheDocument()
     expect(screen.getAllByText('4:46 /km')).toHaveLength(3)
   })
 

@@ -148,18 +148,3 @@ export function rowsOf(splits: DigestSplits, units: UnitSystem): DigestSplit[] {
 export function splitsListed(load: SplitsLoad, units: UnitSystem): boolean {
   return load.status === 'loaded' && load.splits !== null && rowsOf(load.splits, units).length > 0
 }
-
-/**
- * Whether the splits show the flat pace note, which they do with their flat pace column: they have rows,
- * the whole units are the view open (laps have no flat pace), and some split's flat pace differs from
- * its pace. Otherwise the note belongs under the best efforts.
- */
-export function splitsShowFlatNote(
-  load: SplitsLoad,
-  units: UnitSystem,
-  view: SplitsViewName = 'units',
-): boolean {
-  if (view !== 'units' || load.status !== 'loaded' || load.splits === null) return false
-  const rows = rowsOf(load.splits, units)
-  return rows.length > 0 && columnsOf(rows, cellsOf(rows, units)).flat
-}

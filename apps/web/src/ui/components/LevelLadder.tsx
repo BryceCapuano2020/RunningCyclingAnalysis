@@ -20,12 +20,6 @@ export interface LevelLadderProps {
 const SCALE_MIN = 0.3
 const SCALE_MAX = 1
 
-/** What each sport's shape means, in words beside the drawing: the key a colour-blind reader needs. */
-const KEY: Record<Sport, string> = {
-  run: 'Solid dot: the grade of one recorded effort.',
-  ride: 'Ring: estimated, with its 90% range in brackets.',
-}
-
 interface Band {
   name: string
   low: number
@@ -110,12 +104,11 @@ function ladderLabel(sport: Sport, grade: SportGrade): string {
   return `${name} ${formatGrade(centre.grade)}${named}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
 }
 
-/** The key under the drawing: what its shape means, and whether the grade lies off the scale. */
-function keyText(sport: Sport, grade: SportGrade): string {
+/** The line under the drawing when the grade lies off the scale; null when it is on it. */
+function offScaleText(grade: SportGrade): string | null {
   const side = beyondScale(grade)
-  const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
-  const beyond = side === null ? '' : ` ${side === 'below' ? 'Below' : 'Above'} the ${scale}.`
-  return `${KEY[sport]}${beyond}`
+  if (side === null) return null
+  return `${side === 'below' ? 'Below' : 'Above'} the ${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale.`
 }
 
 /**
@@ -191,6 +184,7 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)
+  const off = offScaleText(grade)
   return (
     <figure className={`scale-figure level-ladder level-ladder--${sport}`} data-sport={sport}>
       <div className="level-ladder__scale" aria-hidden="true">
@@ -220,7 +214,7 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
           </span>
         ))}
       </div>
-      <p className="level-ladder__key">{keyText(sport, grade)}</p>
+      {off !== null && <p className="level-ladder__key">{off}</p>}
     </figure>
   )
 }

@@ -3,7 +3,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { callAt, directionOf, verdictAt, verdictOfCall } from '@rca/core/change/types'
 import type { ChangeEvidence } from '@rca/core/change/types'
-import { perKilogramWords, resolutionClause, shownDirection } from '../changeWords'
+import { perKilogramWords, shownDirection } from '../changeWords'
 import { lowerFirst } from '../format/firstLetter'
 import { NO_CLEAR_CHANGE } from '../recordChange'
 import { effortLabel } from '../records'
@@ -92,7 +92,7 @@ interface Comparison {
 
 /**
  * What the change test says of one row, as a sentence, and the effort length the sentence cites (null for no clear
- * change, which still says which length it speaks of, since the title is about one). The title is a headline, so it is
+ * change, which names no length). The title is a headline, so it is
  * held to the stricter band. Which way a move went is the call's (the compared unit), never the displayed watts; where
  * they disagree the sentence is in watts per kilogram.
  */
@@ -108,9 +108,7 @@ function comparisonOf(
   const against = `the ${lowerFirst(previousLabel)}`
   const length = effortLabel(row.durationS)
   if (verdict !== 'higher' && verdict !== 'lower') {
-    const clause = resolutionClause(call, 'headline')
-    const tail = clause === '' ? '' : `; ${clause}`
-    return { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}${tail}`, durationS: null }
+    return { text: `${NO_CLEAR_CHANGE} from ${against}`, durationS: null }
   }
   const direction = directionOf(call, 'headline')
   // Better is lower for a pace (a smaller number of seconds): the displayed figure and the call must agree on it.
@@ -118,7 +116,7 @@ function comparisonOf(
   if (shownBetter !== direction || amount === 0) {
     const perKilo = perKilogramWords(sport, call, 'headline')
     return perKilo === null
-      ? { text: `${NO_CLEAR_CHANGE} in ${length} from ${against}`, durationS: null }
+      ? { text: `${NO_CLEAR_CHANGE} from ${against}`, durationS: null }
       : { text: `${length} is ${perKilo} than ${against}`, durationS: row.durationS }
   }
   const { unit } = splitValue(formatNative(sport, row.value, units))

@@ -286,8 +286,8 @@ describe('recordRow', () => {
     covered: null,
   }
 
-  it('tags a run’s pace Flat, since it is a flat pace', () => {
-    expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['Flat'])
+  it('tags a run’s pace GAP, since it is a grade-adjusted pace', () => {
+    expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['GAP'])
   })
 
   it('tags a ride’s watts estimated when they did not come from a power meter', () => {

@@ -1,8 +1,5 @@
 import { formatDuration } from '../units'
 import {
-  PROFILE_ANCHOR_S,
-  PROFILE_FLOOR_S,
-  PROFILE_FULL_LEVEL_ACTIVITIES,
   PROFILE_LONG_S,
   PROFILE_MAX_NAMED,
   PROFILE_NAMED_MARGIN,
@@ -34,31 +31,21 @@ function namedRows(rows: readonly ProfileRow[]): ProfileRow[] {
 }
 
 /**
- * One sentence on what stands out, or that nothing does. It names only the durations whose interval
- * clears zero by a margin, and says a low best may be relatively low or untested, since a best is a lower
- * bound. A duration that stands out by less is left to the chart, and the sentence says so. With none standing out, the
- * bests are said to be in line with each other only from PROFILE_FULL_LEVEL_ACTIVITIES activities: a smaller library is
- * judged at a level cut to its size, so little stands out in it, and the sentence says only that nothing does. Durations
+ * One sentence on what stands out, or that nothing does. It names only the durations whose interval clears zero by a
+ * margin, and says a low best may be relatively low or untested, since a best is a lower bound. A duration that
+ * stands out by less is left to the chart, and with only those the sentence says nothing stands out clearly. Durations
  * are named by `name`. `allTime` says the bests are the whole library's ("Your all-time 5 min best").
  */
 export function profileSentence(
-  { rows, activities }: ReadyProfile,
+  { rows }: ReadyProfile,
   name: DurationName,
   { allTime = false }: { allTime?: boolean } = {},
 ): string {
   const named = namedRows(rows)
-  const bests = allTime ? 'all-time bests' : 'bests'
   if (named.length === 0) {
-    const first = rows[0]!.durationS
-    const last = rows.at(-1)!.durationS
-    // The rows' own first and last, so a chart that starts later never makes the sentence claim a span it lacks.
-    const span = `compared from ${name(first)} to ${name(last)}`
-    const apart = rows.some((row) => row.standsOut !== null)
-      ? ', apart from small differences on the chart'
-      : ''
-    return activities < PROFILE_FULL_LEVEL_ACTIVITIES
-      ? `Nothing stands out in your ${bests}, ${span}${apart}.`
-      : `Your ${bests} are in line with each other, ${span}${apart}.`
+    return rows.some((row) => row.standsOut !== null)
+      ? 'Nothing stands out clearly.'
+      : 'Nothing stands out.'
   }
   const lows = named.filter((row) => row.standsOut === 'below').length
   const sentences = named.map((row, i) => {
@@ -95,21 +82,6 @@ export function profileNeeds(
   ].filter((item) => item !== null)
   const last = items.pop() ?? ''
   return `Needs ${items.length === 0 ? last : `${items.join(', ')} and ${last}`}`
-}
-
-/**
- * Why the short end is left out, or null when it is shown or the sport's curve starts after it. Without
- * a best at 15 s or under, Morton's maximal power is not inferred, so only the durations from 2 min are
- * compared.
- */
-export function profileShortNote(
-  { anchored, startS }: ReadyProfile,
-  name: DurationName,
-): string | null {
-  // A curve that starts after the anchor, as a run's does, never has one, so it has nothing to explain.
-  return anchored || startS > PROFILE_ANCHOR_S
-    ? null
-    : `Shown from ${name(PROFILE_FLOOR_S)}: there is no best at ${name(PROFILE_ANCHOR_S)} or under to anchor the short end.`
 }
 
 /** What to say when the bests are all there but no curve could be fitted to them. */

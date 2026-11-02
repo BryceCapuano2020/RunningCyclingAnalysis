@@ -171,7 +171,7 @@ describe('TimeInZonesSection', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 50%/)
   })
 
-  it('says heart rate zones were cut from the highest on file, and pace from the best 30 min, dated', () => {
+  it('says nothing of which effort the zones were cut from: one line says they are estimated', () => {
     const highest = { ...hr, entered: 0, fromHighest: true as const }
     const floored = {
       ...pace,
@@ -185,11 +185,7 @@ describe('TimeInZonesSection', () => {
         previousLabel={null}
       />,
     )
-    expect(
-      screen.getByText('Heart rate zones are cut from your highest heart rate on file.'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Zones estimated. Set your own on Profile.')).toBeInTheDocument()
+    expect(screen.queryByText(/are cut from/)).not.toBeInTheDocument()
   })
 })

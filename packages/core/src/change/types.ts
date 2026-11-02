@@ -102,36 +102,6 @@ export function verdictAt(
 }
 
 /**
- * The smallest change, as a fraction of the earlier best, that would have been called at a level: the wider side of
- * its band. Null when the length is untested. A "none" says changes under this cannot be told apart here.
- */
-export function detectableAt(
-  call: ChangeCall | undefined,
-  level: ChangeLevel = 'record',
-): number | null {
-  if (call === undefined) return null
-  const [low, high] =
-    level === 'headline' ? [call.strongLow, call.strongHigh] : [call.low, call.high]
-  return low === null || high === null ? null : Math.max(Math.expm1(high), -Math.expm1(low))
-}
-
-/**
- * The widest smallest-detectable change a sentence may state, as a fraction of the earlier best. A band wider than this
- * (efforts that vary by half or more, as easy runs among hard ones do) tells the athlete nothing by its size, so the
- * sentence says the efforts vary too much instead of naming a number.
- */
-export const MAX_STATED_RESOLUTION = 0.25
-
-/** `detectableAt`, or null where the length is untested or the band is too wide to state (see MAX_STATED_RESOLUTION). */
-export function statedResolutionAt(
-  call: ChangeCall | undefined,
-  level: ChangeLevel = 'record',
-): number | null {
-  const detectable = detectableAt(call, level)
-  return detectable === null || detectable > MAX_STATED_RESOLUTION ? null : detectable
-}
-
-/**
  * Which way a call moved, from the compared unit and never from a displayed figure (watts at a changed weight can move
  * the other way): 1 for a higher best, -1 for a lower one, 0 for none or untested.
  */

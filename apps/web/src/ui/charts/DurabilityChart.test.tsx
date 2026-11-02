@@ -5,15 +5,11 @@ import { lateEvidenceFor } from '../lateFixtures'
 import { lateInEffort } from '../lateInEffort'
 import { DurabilityChart } from './DurabilityChart'
 
-const NOTE = 'How a level is supported.'
-
 const TAKEAWAY = 'Held 95% of output after 90 min'
 
 function renderChart(sport: 'run' | 'ride', units: 'metric' | 'imperial' = 'metric') {
   const { groups } = lateInEffort(sport, lateEvidenceFor(sport)).durability!
-  return render(
-    <DurabilityChart sport={sport} groups={groups} units={units} takeaway={TAKEAWAY} note={NOTE} />,
-  )
+  return render(<DurabilityChart sport={sport} groups={groups} units={units} takeaway={TAKEAWAY} />)
 }
 
 /** The x of a mark, a circle's centre or the first point of a diamond's path. */
@@ -47,18 +43,18 @@ afterEach(() => {
 })
 
 describe('DurabilityChart', () => {
-  it('is titled with the sport’s own unit', () => {
-    renderChart('run')
+  it('is titled by what it draws, and gives each figure in the sport’s own unit', () => {
+    const { container } = renderChart('run')
     expect(
-      screen.getByRole('figure', {
-        name: 'Your best efforts overall and late, flat pace per kilometre',
-      }),
+      screen.getByRole('figure', { name: 'Best efforts overall and late' }),
     ).toBeInTheDocument()
+    expect(container.querySelector('.late-chart__value')?.textContent).toMatch(/\/km/)
     cleanup()
-    renderChart('ride')
+    const ride = renderChart('ride')
     expect(
-      screen.getByRole('figure', { name: 'Your best efforts overall and late, power in watts' }),
+      screen.getByRole('figure', { name: 'Best efforts overall and late' }),
     ).toBeInTheDocument()
+    expect(ride.container.querySelector('.late-chart__value')?.textContent).toMatch(/\d W/)
   })
 
   it('draws one dumbbell for each late best, named by the effort and the time into it', () => {
@@ -130,13 +126,7 @@ describe('DurabilityChart', () => {
     const nearlyHeld = structuredClone(groups)
     for (const cell of nearlyHeld.flatMap((group) => group.cells)) cell.retention = 0.99
     const { container } = render(
-      <DurabilityChart
-        sport="ride"
-        groups={nearlyHeld}
-        units="metric"
-        takeaway={TAKEAWAY}
-        note={NOTE}
-      />,
+      <DurabilityChart sport="ride" groups={nearlyHeld} units="metric" takeaway={TAKEAWAY} />,
     )
     const stem = container.querySelector('.late-chart__stem')!
     const track = container.querySelector('.late-chart__track')!
@@ -181,7 +171,8 @@ describe('DurabilityChart', () => {
       rows.map((r) => Array.from(r.querySelectorAll('th, td')).map((c) => c.textContent))[2],
     ).toEqual(['5 min, after 90 min', '285 W', '8% below', '5'])
     expect(screen.getByText('View as table')).toBeInTheDocument()
-    expect(screen.getByText(NOTE)).toBeInTheDocument()
+    // No sentence under the chart says how a level is supported.
+    expect(document.querySelector('.chart-frame__note')).toBeNull()
   })
 
   it('fits 320 px: every label and value sits inside the drawing', () => {

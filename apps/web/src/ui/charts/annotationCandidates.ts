@@ -17,7 +17,6 @@ import {
 import type {
   Annotation,
   AnnotationSpace,
-  Bracket,
   Callout,
   EndLabel,
   PlacedAnnotation,
@@ -31,15 +30,11 @@ export interface Candidate {
   leader?: PlacedAnnotation['leader']
 }
 
-/**
- * Whether a box lies in the plot. A loose box may stand a few pixels past the sides, never past the top or the floor:
- * the x axis's labels sit under the floor, and text taller than its room must not run into them.
- */
-export function inside(box: Box, plot: PlotBox, loose = false): boolean {
-  const slack = loose ? 6 : 0
+/** Whether a box lies in the plot. */
+export function inside(box: Box, plot: PlotBox): boolean {
   return (
-    box.left >= plot.left - slack &&
-    box.right <= plot.right + slack &&
+    box.left >= plot.left &&
+    box.right <= plot.right &&
     box.top >= plot.top &&
     box.bottom <= plot.bottom
   )
@@ -205,23 +200,6 @@ function referenceCandidates(r: ReferenceLine, space: AnnotationSpace): Candidat
   return out
 }
 
-function bracketCandidates(b: Bracket, space: AnnotationSpace): Candidate[] {
-  const { plot, rootPx } = space
-  const line = LABEL_LINE * scaleOf(rootPx)
-  const w = smallWidth(b.label, rootPx)
-  const mid = (b.x1 + b.x2) / 2
-  const left = clamp(mid - w / 2, plot.left, plot.right - w)
-  return (['above', 'below'] as const).map((side) => {
-    const top = side === 'above' ? b.y - 7 - line : b.y + 4
-    return {
-      box: { left, right: left + w, top, bottom: top + line },
-      texts: [
-        { role: 'label', text: b.label, x: left + w / 2, y: top + line - 3, anchor: 'middle' },
-      ],
-    }
-  })
-}
-
 export const CANDIDATES: {
   [K in Annotation['kind']]: (
     a: Extract<Annotation, { kind: K }>,
@@ -231,5 +209,4 @@ export const CANDIDATES: {
   callout: calloutCandidates,
   end: endCandidates,
   reference: referenceCandidates,
-  bracket: bracketCandidates,
 }

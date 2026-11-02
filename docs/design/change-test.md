@@ -30,7 +30,7 @@ the two periods were drawn from one pool?
    2.5th to 97.5th (the **headline** band: Balance's strip and a curve's title, which surface several claims at once). Above
    a band is `higher`, below `lower`, inside `none`. A call inside the record band only is no clear change at the headline.
 5. Each side needs 4 readings and the pool 12, else the length is `untested`. The smallest change that could have been
-   called (the wider side of the band) is stored, and a "none" says so: "changes under 7% can't be told apart here". Past 25% (`MAX_STATED_RESOLUTION`: efforts that vary by that much, as easy runs mixed with hard ones do before the hard-effort gate) no size is stated and the line says "the efforts vary too much to show a change".
+   called (the wider side of the band) is stored, and a "none" is said as "No clear change from the previous 12 weeks", with no size and no reason; the stored size is not shown.
 6. Power source (a ride): the power-meter readings alone when both periods have enough of them; failing that, all readings
    only when neither period has a power-meter reading at all (estimated against estimated). Any other mix, or a mix that
    differs between the periods, is `untested`: a change of source reads as a change of power. Virtual power is never
@@ -115,5 +115,5 @@ The owner's export: a multi-year library of about 2,000 activities, mostly runs,
 | Sport curve title (`curveTakeaway`)             | the 20 minute call at the headline level, else the longest length both periods hold that the test could judge                                                                 |
 | Best-effort list change column (`recordChange`) | the call at the record's length, record level                                                                                                                                 |
 | Balance "What changed" (`balanceChanges`)       | the 20 minute call of each sport, headline level, against the previous period or a window back that holds enough; the lean needs a called best that moves it the way it moved |
-| Best efforts over time title (`takeawayAt`)     | the call at the chosen length, headline level                                                                                                                                 |
+| Best efforts by day title (`takeawayAt`)        | the call at the chosen length, headline level                                                                                                                                 |
 | Import summary                                  | no call: it lists figures only when the period was one regime before and after (`sameRegime`)                                                                                 |

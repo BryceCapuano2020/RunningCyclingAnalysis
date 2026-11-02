@@ -45,11 +45,9 @@ describe('the stand-out finding', () => {
     )
   })
 
-  it('says the bests are in line when nothing stands out, naming the span in whole minutes', () => {
+  it('says only that nothing stands out when nothing does, naming no span', () => {
     const result = makeResult({ activities: profileActivities('run'), runCurve: profileCurve() })
-    expect(standOutFinding(standOutOf(result, 'run')!)).toBe(
-      'Your bests are in line with each other, compared from 3 min to 60 min.',
-    )
+    expect(standOutFinding(standOutOf(result, 'run')!)).toBe('Nothing stands out.')
   })
 
   it('says a low best may be relatively low or untested', () => {
@@ -98,17 +96,13 @@ describe('StandOutSection', () => {
     expect(screen.queryByRole('figure')).toBeNull()
   })
 
-  it('says why the short end is missing without a best at 15 s or under', () => {
+  it('says nothing of why the short end is missing without a best at 15 s or under', () => {
     const result = makeResult({
       activities: profileActivities('ride', 'measured'),
       rideMeasuredCurve: profileCurve((_, value) => value, [5, 10, 15]),
     })
-    renderSection('ride', result)
-    expect(
-      screen.getByText(
-        'Shown from 2 min: there is no best at 15 s or under to anchor the short end.',
-      ),
-    ).toBeInTheDocument()
+    const { container } = renderSection('ride', result)
+    expect(container).not.toHaveTextContent(/Shown from|anchor the short end/)
   })
 
   it('gives a run no short-end note and names no duration under 3 minutes, however short its curve goes', () => {

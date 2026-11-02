@@ -57,11 +57,9 @@ describe('SameHeartRateChart', () => {
     vi.restoreAllMocks()
   })
 
-  it('puts the reference heart rate and the sport’s unit in its title', () => {
+  it('puts the heart rate it reads at in its title, with the sport’s own measure', () => {
     render(<SameHeartRateChart sport="run" data={RUN} units="metric" note={NOTE} />)
-    expect(
-      screen.getByRole('figure', { name: 'Your output at 145 bpm, flat pace per kilometre' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Pace at 145 bpm, by week' })).toBeInTheDocument()
   })
 
   it('draws a light dot for each reporting week, and a mark where a week is missing, and no fitted line', () => {
@@ -95,7 +93,7 @@ describe('SameHeartRateChart', () => {
     const { container } = render(
       <SameHeartRateChart sport="ride" data={RIDE} units="metric" note={NOTE} />,
     )
-    screen.getByRole('figure', { name: 'Your output at 145 bpm, power in watts' })
+    screen.getByRole('figure', { name: 'Power at 145 bpm, by week' })
     expect(container.textContent).not.toMatch(
       /no clear change|at the same heart rate|more than|less than/i,
     )
@@ -117,7 +115,7 @@ describe('SameHeartRateChart', () => {
   it('labels the pace axis faster up, and a power axis in watts that does not start at zero', () => {
     const run = render(<SameHeartRateChart sport="run" data={RUN} units="metric" note={NOTE} />)
     expect(run.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Flat pace (/km), faster up',
+      'GAP (/km), faster up',
     )
     run.unmount()
     const ride = render(<SameHeartRateChart sport="ride" data={RIDE} units="metric" note={NOTE} />)
@@ -164,7 +162,7 @@ describe('SameHeartRateChart', () => {
       <SameHeartRateChart sport="run" data={RUN} units="metric" note={NOTE} />,
     )
     const { headers, rows } = tableOf(container)
-    expect(headers).toEqual(['Week ending', 'Flat pace', '90% range', 'Stretches'])
+    expect(headers).toEqual(['Week ending', 'GAP', '90% range', 'Stretches'])
     expect(rows).toHaveLength(5)
     expect(rows[0]).toEqual(['Sun 12 Jan 2025', '5:33 /km', '5:24 /km to 5:44 /km', '14'])
     expect(rows[2]).toEqual(['Sun 26 Jan 2025', '—', '—', '14'])
@@ -186,9 +184,9 @@ describe('SameHeartRateChart', () => {
       />,
     )
     expect(container.querySelector('.chart-frame__empty')).not.toBeNull()
-    // It names the gate that failed, with its numbers.
-    expect(container.querySelector('.chart-frame__empty')?.textContent).toContain(
-      'a week needs 8 steady 5-minute stretches from 6 activities in 2 different weeks, and the chart needs 4 weeks with a reading',
+    // It says what the chart wants, with its number.
+    expect(container.querySelector('.chart-frame__empty')?.textContent).toBe(
+      'Needs 4 weeks of steady stretches at one heart rate',
     )
     expect(container.querySelectorAll('[data-testid="same-hr-marker"]')).toHaveLength(0)
   })

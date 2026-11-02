@@ -175,10 +175,11 @@ describe('RacePredictions', () => {
       screen.getByText(/^From your best runs: 2[01]:\d\d, mostly from your best 5 km$/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(
-        /a VO2max of 50 would run, from your heart rate against pace on 4 hard runs/,
-      ),
-    ).toBeInTheDocument()
+      screen.getAllByText(/^From heart rate: \d+:\d\d, at a VO2max of 50$/).length,
+    ).toBeGreaterThan(0)
+    // How the two estimates are combined is the method page's: the note says only what the times are for.
+    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
+    expect(screen.queryByText(/middle of two estimates/)).not.toBeInTheDocument()
   })
 
   it('says under the title the run the times were carried from, and nothing about the method', () => {
@@ -203,71 +204,53 @@ describe('RacePredictions', () => {
     expect(racePredictionsOf('run', makeResult({ activities: [treadmill] }))).toBeNull()
   })
 
-  it('says it rests on the runs alone without heart rate', () => {
-    const result = makeResult({ activities: [withBests] })
-    renderPredictions(result)
+  it('says what the times are for, with or without heart rate behind them', () => {
+    renderPredictions(makeResult({ activities: [withBests] }))
     openAbout()
-    expect(screen.getByText(/^From your best times in this period alone/)).toBeInTheDocument()
+    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
+    expect(screen.queryByText(/alone/)).not.toBeInTheDocument()
   })
 
-  it('says All time reflects your best period, and a dated period does not', () => {
+  it('says All time uses your best period, and a dated period does not', () => {
     const result = makeResult({
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
     })
     const view = renderPredictions(result, 'all')
     openAbout()
-    expect(screen.getByText(/your best times on file, carried to the distance/)).toBeInTheDocument()
     expect(
-      screen.getByText(
-        /In All time they reflect your best period\. A shorter period shows your recent form\.$/,
-      ),
+      screen.getByText('For a flat course on a good day. All time uses your best period.'),
     ).toBeInTheDocument()
     view.unmount()
 
     renderPredictions(result)
     openAbout()
     expect(screen.queryByText(/best period/)).not.toBeInTheDocument()
-    expect(screen.getByText(/your best times in this period, carried/)).toBeInTheDocument()
+    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
   })
 
-  it('names the best period for runs alone in All time too', () => {
+  it('says the same of All time with no heart rate behind the times', () => {
     renderPredictions(makeResult({ activities: [withBests] }), 'all')
     openAbout()
     expect(
-      screen.getByText(
-        /^From your best times on file alone, for a flat course on a good day\. In All time they reflect your best period/,
-      ),
+      screen.getByText('For a flat course on a good day. All time uses your best period.'),
     ).toBeInTheDocument()
   })
 
-  it('says when heart rate points to more than the runs show', () => {
+  it('says nothing of how far the runs and the heart rate disagree: the key shows both', () => {
     const result = makeResult({
       activities: [withBests],
-      runVo2max: { vo2max: 62, runs: 5, hillCapped: 0 },
+      runVo2max: { vo2max: 62, runs: 5, hillCapped: 3 },
     })
     renderPredictions(result)
+    expect(screen.getByText('From heart rate (VO2max 62)')).toBeInTheDocument()
     openAbout()
-    expect(
-      screen.getByText(
-        /Your heart rate points to more than your best runs show \(about 62 against \d\d in VO2max terms\)/,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/points to more|hilly runs|wide/)).not.toBeInTheDocument()
   })
 
   it('finds none for a sport without a predictor, or without evidence', () => {
     expect(racePredictionsOf('ride', makeResult({ activities: [withBests] }))).toBeNull()
     expect(racePredictionsOf('run', makeResult())).toBeNull()
-  })
-
-  it('says how many hilly runs were left out of the heart-rate side', () => {
-    const result = makeResult({
-      activities: [withBests],
-      runVo2max: { vo2max: 50, runs: 4, hillCapped: 3 },
-    })
-    renderPredictions(result)
-    openAbout()
-    expect(screen.getByText(/3 hilly runs left out of the heart-rate side/)).toBeInTheDocument()
   })
 
   describe('a recorded best off the prediction', () => {
@@ -298,7 +281,7 @@ describe('RacePredictions', () => {
       expect(ten.floored).toBe(true)
     })
 
-    it('labels a floored row Your best, and the method note says a time run is the limit', () => {
+    it('labels a floored row Your best, with no note about holding the prediction at it', () => {
       const view = renderPredictions(slowHeartRate)
       const row = Array.from(view.container.querySelectorAll('.race-row')).find(
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
@@ -306,7 +289,7 @@ describe('RacePredictions', () => {
       expect(row.querySelector('.race-row__ran')?.textContent).toBe('Your best')
       expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(/Your best\.$/)
       openAbout()
-      expect(screen.getByText(/the prediction is held at that time/)).toBeInTheDocument()
+      expect(screen.queryByText(/held at that time/)).not.toBeInTheDocument()
     })
 
     it('says what was run and when on the row, and marks it as a dot labelled Run on the bar', () => {

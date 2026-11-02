@@ -47,7 +47,6 @@ function textElement(placed: PlacedAnnotation, text: PlacedText, phone: boolean,
 
 function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
   const { rule, band, leader } = placed
-  const bracket = placed.kind === 'bracket' && rule !== null
   return (
     <g
       className={`annot annot--${placed.kind} annot--${placed.tone}`}
@@ -63,7 +62,7 @@ function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
           height={Math.max(1, band.bottom - band.top)}
         />
       ) : null}
-      {rule !== null && !bracket ? (
+      {rule !== null ? (
         <line
           className={placed.estimated ? 'annot__rule annot__rule--estimated' : 'annot__rule'}
           x1={rule.x1}
@@ -74,12 +73,6 @@ function Mark({ placed, phone }: { placed: PlacedAnnotation; phone: boolean }) {
       ) : null}
       {rule !== null && placed.estimated ? (
         <circle className="annot__ring" cx={rule.x2} cy={rule.y} r={RING_R} />
-      ) : null}
-      {bracket ? (
-        <path
-          className="annot__bracket"
-          d={`M${rule.x1} ${rule.y - 5}V${rule.y}H${rule.x2}V${rule.y - 5}`}
-        />
       ) : null}
       {leader !== null ? (
         <line

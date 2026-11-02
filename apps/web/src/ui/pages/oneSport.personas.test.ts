@@ -45,16 +45,13 @@ const EXPECTED = {
     sole: 'run',
     title: 'Your running so far',
     detail: '',
-    split:
-      '20 of your 33 runs were on a treadmill; their pace is not used for bests or thresholds.',
+    split: '20 treadmill runs not counted.',
     cards: 1,
   },
   treadmillOnly: {
     sole: 'run',
     title: 'Your running so far',
-    detail: expect.stringMatching(
-      /^All 33 of your runs were on a treadmill\. Their time, distance/,
-    ),
+    detail: 'All 33 of your runs were on a treadmill. Add an outdoor run of 3 min or more.',
     split: null,
     cards: 0,
   },

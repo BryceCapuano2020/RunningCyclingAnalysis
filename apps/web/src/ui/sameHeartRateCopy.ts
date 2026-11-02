@@ -1,9 +1,9 @@
 import { SAME_HEART_RATE } from '@rca/core/constants'
 import type { Lack, SameHeartRate } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
 import { plural } from './components/plural'
-import { SPORT_FORMAT, SPORT_PLURAL } from './sports'
+import { FITNESS_WORDS } from './fitnessWords'
+import { SPORT_PLURAL } from './sports'
 
 const { windowDays, wideWindowDays, minBlocks, minActivities, minWeeks, minSpreadBpm } =
   SAME_HEART_RATE
@@ -28,9 +28,14 @@ export const LACK_TEXT: Record<Lack, (sport: Sport, referenceHr?: number | null)
   period: () => `Needs ${WINDOW} of steady efforts with heart rate.`,
 }
 
-/** The chart's title: the heart rate it reads at, and the sport's own unit. It names no change: the fitness status is the sport's voice on that. */
-export function sameHeartRateTitle(sport: Sport, referenceHr: number, units: UnitSystem): string {
-  return `Your output at ${referenceHr} bpm, ${SPORT_FORMAT[sport].titleUnit(units)}`
+/** The section's name, in its heading: "Pace at heart rate", "Power at heart rate". */
+export function sameHeartRateName(sport: Sport): string {
+  return `${FITNESS_WORDS[sport].output} at heart rate`
+}
+
+/** The chart's title: "Pace at 150 bpm, by week". It names no change: the fitness status is the sport's voice on that. */
+export function sameHeartRateTitle(sport: Sport, referenceHr: number | null): string {
+  return `${FITNESS_WORDS[sport].output} at ${referenceHr === null ? 'one heart rate' : `${referenceHr} bpm`}, by week`
 }
 
 /**

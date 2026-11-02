@@ -44,13 +44,12 @@ function renderPage(sport: Sport, lateEvidence: LateEvidence) {
 
 describe('durability on a sport page', () => {
   it.each(['run', 'ride'] as const)(
-    'is open on a %s page, and its row says what it found: the stat and what efficiency did',
+    'is open on a %s page, and its row says what it found: durability and heart rate drift',
     (sport) => {
       renderPage(sport, lateEvidenceFor(sport))
       const row = closedRow('Durability')
-      expect(row).toMatch(/^Durability/)
       expect(row).toMatch(
-        /Best 20 min held \d+% after 90 min\. Efficiency fell 3% from the first half to the second\./,
+        /^DurabilityDurability: \d+% of your best 20 min after 90 min\. Heart rate drift: efficiency fell 3%\.$/,
       )
       const region = screen.getByRole('region', { name: 'Durability' })
       expect(region.querySelector('details')).toHaveAttribute('open')
@@ -65,29 +64,31 @@ describe('durability on a sport page', () => {
     const section = screen.getByRole('region', { name: 'Durability' })
     const figures = within(section).getAllByRole('figure')
     expect(figures).toHaveLength(2)
-    expect(figures[0]).toHaveAccessibleDescription(/^Best 20 min held \d+% after 90 min$/)
-    expect(figures[1]).toHaveAccessibleDescription(/over an hour, efficiency fell 3%/)
-    expect(
-      within(section).getByText(
-        /After 90 min your best 20 min is \d+% below your best 20 min overall\./,
-      ),
-    ).toBeInTheDocument()
+    expect(figures[0]).toHaveAccessibleDescription(/^\d+% of your best 20 min after 90 min$/)
+    expect(figures[1]).toHaveAccessibleDescription(
+      'Efficiency fell 3% from the first half to the second.',
+    )
+    // The charts say their finding once and no sentence under them says it again or says how it is made.
+    expect(within(section).queryByText(/overall\./)).toBeNull()
+    expect(within(section).queryByText(/warm-up|Heat, hydration|peaked at/)).toBeNull()
+    expect(section.querySelector('p.muted')).toBeNull()
   })
 
   it('says "at least" where no session behind the late bests was shown hard', () => {
     renderPage('run', { ...lateEvidenceFor('run'), ruler: null })
-    expect(closedRow('Durability')).toMatch(/Best 20 min held at least \d+% after 90 min\./)
+    expect(closedRow('Durability')).toMatch(
+      /Durability: at least \d+% of your best 20 min after 90 min\./,
+    )
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')[0]).toHaveAccessibleDescription(
-      /^Best 20 min held at least \d+% after 90 min$/,
+      /^at least \d+% of your best 20 min after 90 min$/,
     )
   })
 
-  it('names the window in the row when the whole library is read, and dates the drift', () => {
+  it('names the window in the row when the whole library is read, for each half', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durabilityPooled: true, driftPooled: true })
-    expect(closedRow('Durability')).toMatch(/Best 20 min held 94% after 90 min, all time\./)
     expect(closedRow('Durability')).toMatch(
-      /Efficiency fell 3% from the first half to the second, January 2025 to March 2025\./,
+      /Durability: 94% of your best 20 min after 90 min, all time\. Heart rate drift: efficiency fell 3%, all time\.$/,
     )
   })
 
@@ -96,30 +97,13 @@ describe('durability on a sport page', () => {
     expect(closedRow('Durability')).not.toMatch(/\d+ rides/)
   })
 
-  it('says which window it read when the period held too few, in each half’s note', () => {
-    renderPage('ride', {
-      ...lateEvidenceFor('ride'),
-      durabilityPooled: true,
-      driftPooled: true,
-    })
-    const section = screen.getByRole('region', { name: 'Durability' })
-    expect(
-      within(section).getByText(/This period has too few long rides, so this uses all of yours\./),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        /This period has too few steady rides, so this uses all of yours\./,
-      ),
-    ).toBeInTheDocument()
-  })
-
   it('shows the durability alone, and says what drift needs under it, when drift is short', () => {
     renderPage('run', {
       ...lateEvidenceFor('run'),
       drift: lateEvidenceFor('run').drift.slice(0, 2),
     })
-    expect(closedRow('Durability')).toMatch(/Best 20 min held \d+% after 90 min\.$/)
-    expect(closedRow('Durability')).not.toMatch(/fficiency/)
+    expect(closedRow('Durability')).toMatch(/Durability: \d+% of your best 20 min after 90 min\.$/)
+    expect(closedRow('Durability')).not.toMatch(/drift/i)
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
@@ -131,7 +115,7 @@ describe('durability on a sport page', () => {
 
   it('shows the drift alone when no late best has enough activities behind it', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durability: NO_LATE_EVIDENCE.ride.durability })
-    expect(closedRow('Durability')).toMatch(/^Durability\s*Efficiency fell 3%/)
+    expect(closedRow('Durability')).toBe('DurabilityHeart rate drift: efficiency fell 3%.')
     const section = screen.getByRole('region', { name: 'Durability' })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()

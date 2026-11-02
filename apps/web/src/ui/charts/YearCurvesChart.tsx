@@ -24,7 +24,6 @@ import {
   curvesAxisTitle,
   curvesDescription,
   curvesTitle,
-  isCrowded,
   labelledYears,
   yearCurvesModel,
 } from './yearCurvesModel'
@@ -85,11 +84,11 @@ const TEST_ID: Record<LineKind, string> = {
 const LAYER: Record<LineKind, number> = { grey: 0, faint: 1, coloured: 1, named: 2 }
 const layerOf = (line: LineLayout): number => LAYER[kindOf(line)]
 
-/** What a value says beside it: that it is estimated, and that the 20 minute best was not confirmed hard. */
+/** What a value says beside it: that it is estimated, and that the 20 minute best was not all-out. */
 function noteOf(model: YearCurvesModel, line: YearLine, i: number): string | undefined {
   const parts = [
     line.estimated[i] ? 'Estimated' : null,
-    model.durations[i] === HEADLINE_DURATION_S && !line.hard ? 'Not confirmed hard' : null,
+    model.durations[i] === HEADLINE_DURATION_S && !line.hard ? 'Not all-out' : null,
   ].filter((part) => part !== null)
   return parts.length === 0 ? undefined : parts.join(', ')
 }
@@ -131,11 +130,9 @@ export function YearCurvesChart({ sport, curves, units, controls }: YearCurvesCh
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       plotRightMargin={endLabelRoom}
-      legend={[]}
-      keyNote={isCrowded(model) ? 'Other years are grey' : 'Older years are fainter'}
       idleReadout={idleFrom(tooltipFor(model, units, idle, 0, 0), 'Best')}
       table={{
-        caption: `${SPORT_LABEL[sport]} best at each duration, by year. At least marks a 20 minute best not confirmed hard.`,
+        caption: `${SPORT_LABEL[sport]} best at each duration, by year. At least marks a 20 minute best that was not all-out.`,
         columns: ['Year', ...model.durations.map(formatDuration)],
         rows: [...model.lines]
           .reverse()

@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SPORT_FORMAT, SPORT_PLURAL } from '../sports'
 import { sharedSourceOf } from './activityText'
-import { carriedSpans, strokeSplit } from './carriedStretches'
+import { strokeSplit } from './carriedStretches'
 import { ChartAnnotations } from './ChartAnnotations'
 import { ChartFrame } from './ChartFrame'
 import { idleFrom } from './idleReadout'
@@ -18,16 +18,16 @@ import { captionOf, columnsOf, tableRow } from './curveTable'
 import type { View } from './curveTable'
 import { areaPath, linePath } from './paths'
 import { axisTitle } from './sportAxis'
-import { curveMarks, noEffortLabel } from './sportCurveAnnotations'
+import { curveMarks } from './sportCurveAnnotations'
 import { keyOf } from './sportCurveKey'
 import { curveTakeaway } from './sportCurveTakeaway'
 import {
+  CURVE_TITLE,
   buildRows,
   emphasisIndex,
   isRecordDuration,
   layout,
   startText,
-  titleOf,
   tooltipFor,
 } from './sportCurveModel'
 import type { ThresholdLine } from './sportCurveModel'
@@ -129,19 +129,11 @@ export function SportCurveChart({
     previous && !shown && hasData
       ? `No ${SPORT_PLURAL[sport]} in the ${previous.label.toLowerCase()}`
       : undefined
-  // The table says the stretch too, whether or not the width leaves room to draw its bracket.
-  const noEffort = noEffortLabel(
-    rows,
-    carriedSpans(
-      rows.map((row) => row.carried === true),
-      rows.map((row) => Number.isFinite(row.value)),
-    ),
-  )
   const caption = captionOf(view)
 
   return (
     <ChartFrame
-      title={titleOf(sport, units)}
+      title={CURVE_TITLE}
       takeaway={
         hasData
           ? (curveTakeaway({
@@ -160,7 +152,7 @@ export function SportCurveChart({
       idleReadout={idle}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
       table={{
-        caption: noEffort === '' ? caption : `${caption} ${noEffort}.`,
+        caption,
         columns: columnsOf(view),
         rows: rows.map((row) => tableRow(row, view)),
         // The From column holds words, so it is set on the left.
@@ -210,7 +202,7 @@ export function SportCurveChart({
             <ChartYAxis
               ticks={m.yTicks}
               plot={size.plot}
-              title={axisTitle(sport, units)}
+              title={axisTitle(sport, units, true)}
               fontSize={axisFontSize(size.width)}
             />
             {activeX !== undefined ? <Crosshair x={activeX} plot={size.plot} /> : null}

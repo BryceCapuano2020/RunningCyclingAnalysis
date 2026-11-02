@@ -34,7 +34,7 @@ describe('splitValue', () => {
 
 describe('a callout', () => {
   it('sits above its point with a leader line, its value at display size between its eyebrow and caption', () => {
-    const [placed] = layoutAnnotations([callout('best', 400, 200, { caption: 'flat pace' })], SPACE)
+    const [placed] = layoutAnnotations([callout('best', 400, 200, { caption: '3.4 W/kg' })], SPACE)
     expect(placed?.preferred).toBe(true)
     expect(placed?.box.bottom).toBeLessThan(200)
     expect(placed?.texts.map((text) => text.role)).toEqual(['eyebrow', 'value', 'caption'])
@@ -230,36 +230,6 @@ describe('an end label', () => {
   })
 })
 
-describe('a bracket', () => {
-  const bracket: Annotation = {
-    kind: 'bracket',
-    id: 'span',
-    x1: 300,
-    x2: 500,
-    y: 280,
-    label: 'No effort of 20 to 60 min on file',
-  }
-
-  it('labels its span above the bar, centred on it', () => {
-    const [placed] = layoutAnnotations([bracket], SPACE)
-    expect(placed?.rule).toEqual({ x1: 300, x2: 500, y: 280 })
-    expect(placed?.box.bottom).toBeLessThan(280)
-    const mid = ((placed?.box.left ?? 0) + (placed?.box.right ?? 0)) / 2
-    expect(mid).toBeCloseTo(400, 0)
-  })
-
-  it('keeps its label inside the plot where the span is at an edge', () => {
-    const [placed] = layoutAnnotations([{ ...bracket, x1: 60, x2: 90 }], SPACE)
-    expect(placed?.box.left).toBeGreaterThanOrEqual(PLOT.left - 6)
-  })
-
-  it('goes under its bar where the data is above it', () => {
-    const data = [{ left: 0, right: 2000, top: 230, bottom: 255 }]
-    const [placed] = layoutAnnotations([{ ...bracket, y: 250 }], { ...SPACE, obstacles: data })
-    expect(placed?.box.top).toBeGreaterThan(250)
-  })
-})
-
 describe('layoutAnnotations on the marks of a real curve', () => {
   // A pace curve's points, as a chart lays them out: the line falls from left to right.
   const points = [
@@ -274,9 +244,9 @@ describe('layoutAnnotations on the marks of a real curve', () => {
 
   it('puts every text clear of every other and of the line, and inside the plot', () => {
     const list: Annotation[] = [
-      callout('best-1200', 300, 150, { caption: 'flat pace' }),
-      callout('best-300', 180, 110, { optional: true, caption: 'flat pace' }),
-      callout('best-3600', 520, 190, { optional: true, caption: 'flat pace' }),
+      callout('best-1200', 300, 150, { caption: '3.4 W/kg' }),
+      callout('best-300', 180, 110, { optional: true, caption: '3.4 W/kg' }),
+      callout('best-3600', 520, 190, { optional: true, caption: '3.4 W/kg' }),
       { kind: 'reference', id: 'threshold', y: 196, label: 'Threshold', value: '7:12 /mi' },
       {
         kind: 'end',
@@ -286,23 +256,15 @@ describe('layoutAnnotations on the marks of a real curve', () => {
         text: '8:51 /mi',
         sub: 'at 90 min',
       },
-      {
-        kind: 'bracket',
-        id: 'span',
-        x1: 300,
-        x2: 520,
-        y: 280,
-        label: 'No separate 20–45 min effort: this stretch uses your 45 min best',
-      },
     ]
     const placed = layoutAnnotations(list, { ...SPACE, obstacles })
-    expect(placed.length).toBeGreaterThanOrEqual(5)
+    expect(placed.length).toBeGreaterThanOrEqual(4)
     for (const [i, each] of placed.entries()) {
       expect(each.crowded, each.id).toBe(false)
       // Callouts stay inside the plot; the margin labels sit beside it, not above or below.
       expect(each.box.top, each.id).toBeGreaterThanOrEqual(PLOT.top - 6)
       expect(each.box.bottom, each.id).toBeLessThanOrEqual(PLOT.bottom + 6)
-      if (each.kind === 'callout' || each.kind === 'bracket') {
+      if (each.kind === 'callout') {
         expect(each.box.left, each.id).toBeGreaterThanOrEqual(PLOT.left - 6)
         expect(each.box.right, each.id).toBeLessThanOrEqual(PLOT.right + 6)
       }

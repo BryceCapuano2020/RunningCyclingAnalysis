@@ -116,27 +116,22 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, years, best efforts, race predictions, time in zones and best efforts over time, in that order', () => {
+  it('reads answer, history, best efforts, race predictions, time in zones and best efforts by day, in that order', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     // The page is given no look-back here, so the years are one line in their place.
     expect(headings()).toEqual([
       'Threshold pace, estimated',
-      'Your years',
+      'History',
       'Best efforts',
       'Race predictions',
       'Time in zones',
-      'Best efforts over time',
+      'Best efforts by day',
     ])
   })
 
-  it('follows with the same heart rate, durability, best durations and the full list, each open', () => {
+  it('follows with pace at heart rate, durability, best durations and the full list, each open', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const sections = [
-      'Same heart rate, week by week',
-      'Durability',
-      'Best durations',
-      'All best efforts',
-    ]
+    const sections = ['Pace at heart rate', 'Durability', 'Best durations', 'All best efforts']
     const order = regions().filter((name) => sections.includes(name ?? ''))
     expect(order).toEqual(sections)
     for (const name of sections) {
@@ -148,17 +143,14 @@ describe('a sport page with everything to show', () => {
 
   it('says its finding on every row, so a section the reader folds still tells the athlete something', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    // The row says what is drawn and names the heart rate, so "the same" is a number. It claims no change.
-    expect(closedRow('Same heart rate, week by week')).toBe(
-      'Same heart rate, week by weekYour pace each week at 145 bpm.',
-    )
+    // The row names the heart rate, so "the same" is a number. It claims no change.
+    expect(closedRow('Pace at heart rate')).toBe('Pace at heart ratePace at 145 bpm, by week.')
     expect(closedRow('Durability')).toMatch(
-      /Best 20 min held \d+% after 90 min\. Efficiency fell 3%/,
+      /Durability: \d+% of your best 20 min after 90 min\. Heart rate drift: efficiency fell 3%/,
     )
     expect(closedRow('Best durations')).toMatch(/Your 5 min best is [23]\d% above/)
-    expect(closedRow('All best efforts')).toMatch(
-      /^All best efforts\d+ best efforts and the activity each was set in$/,
-    )
+    // The full list is its name alone: a count of its rows says nothing the list does not.
+    expect(closedRow('All best efforts')).toBe('All best efforts')
   })
 
   it('has no heading of its own for the curve’s title, the closed sections or the stand-out finding', () => {
@@ -171,7 +163,7 @@ describe('a sport page with everything to show', () => {
   it('puts the record tiles under the curve, and the stand-out finding in its own closed section, not as a caption', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
-    const curve = within(section).getByRole('figure', { name: /^Run flat pace .* by duration$/ })
+    const curve = within(section).getByRole('figure', { name: 'Best efforts' })
     const tiles = within(section).getByRole('list', { name: 'Best efforts' })
     expect(follows(curve, tiles)).toBe(true)
     expect(within(section).queryByText(/^Your 5 min best is/)).toBeNull()
@@ -191,13 +183,13 @@ describe('a sport page with everything to show', () => {
     expect(within(region).getByRole('figure')).toBeInTheDocument()
   })
 
-  it('says the bests are in line when nothing stands out, and draws no strip', () => {
+  it('says nothing stands out, and draws no strip', () => {
     const result = makeResult({
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    expect(closedRow('Best durations')).toMatch(/Your bests are in line with each other/)
+    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
     expect(
       within(screen.getByRole('region', { name: 'Best durations' })).queryByRole('figure'),
     ).toBeNull()
@@ -211,7 +203,7 @@ describe('a sport page with everything to show', () => {
       lateEvidenceFor('run'),
       RUN_ZONES,
     )
-    const section = screen.getByRole('region', { name: 'Best efforts over time' })
+    const section = screen.getByRole('region', { name: 'Best efforts by day' })
     expect(
       section.querySelector('[data-testid="trend-line"], [data-testid="trend-wash"]'),
     ).toBeNull()
@@ -264,23 +256,21 @@ describe('a sport page with sections that have nothing to show', () => {
     renderPage('run', newRun())
     expect(headings()).toEqual([
       'Threshold pace, estimated',
-      'Your years',
+      'History',
       'Best efforts',
       'Race predictions',
       'Time in zones',
-      'Best efforts over time',
-      'Same heart rate, week by week',
+      'Best efforts by day',
+      'Pace at heart rate',
       'Durability',
       'Best durations',
     ])
-    expect(lineIn('Your years')).toBe('Needs a year of runs.')
+    expect(lineIn('History')).toBe('Needs a year of runs.')
     expect(lineIn('Race predictions')).toBe('Needs a run of a mile or more.')
     expect(lineIn('Time in zones')).toBe(
       'Needs an activity with heart rate, or a threshold pace entered on Profile.',
     )
-    expect(lineIn('Same heart rate, week by week')).toMatch(
-      /^Needs at least \d+ steady 5-minute stretches/,
-    )
+    expect(lineIn('Pace at heart rate')).toMatch(/^Needs at least \d+ steady 5-minute stretches/)
     expect(lineIn('Durability')).toBe('Add 3 steady runs over an hour with heart rate.')
     expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations/)
   })
@@ -289,12 +279,12 @@ describe('a sport page with sections that have nothing to show', () => {
     renderPage('run', newRun())
     expect(screen.queryByText('Not enough yet')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
-    for (const name of ['Your years', 'Durability', 'Best durations']) {
+    for (const name of ['History', 'Durability', 'Best durations']) {
       expect(screen.getByRole('region', { name }).closest('details')).toBeNull()
     }
     const nav = screen.getByRole('navigation', { name: 'On this page' })
     expect(within(nav).queryByRole('button', { name: 'Durability' })).toBeNull()
-    expect(within(nav).getByRole('button', { name: 'Best efforts over time' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Best efforts by day' })).toBeInTheDocument()
   })
 
   it('keeps the lines in the sections’ own order, before the footnote', () => {
@@ -437,29 +427,26 @@ describe('a sport page’s fitness', () => {
     expect(fitness.textContent).not.toMatch(/you now run/)
   })
 
-  it('claims no change in the weekly same-heart-rate section, and points to the status above it', () => {
+  it('claims no change in the weekly pace-at-heart-rate section, whatever the status above it says', () => {
     // The weekly data rise 13% while the status says slipping: the section must not say so beside the card.
     withFitness('run', fullRun(), { run: SLIPPING, ride: NO_FITNESS.ride }, RUN_SAME_HEART_RATE)
     expect(screen.queryByRole('region', { name: 'At the same heart rate' })).not.toBeInTheDocument()
-    const row = closedRow('Same heart rate, week by week')
-    expect(row).toContain('Your pace each week at 145 bpm.')
-    expect(row).toContain('Your fitness status above')
-    expect(row).not.toMatch(/faster|slower|quicker|no clear change|since/i)
-    const region = openSection('Same heart rate, week by week')
+    const row = closedRow('Pace at heart rate')
+    expect(row).toBe('Pace at heart ratePace at 145 bpm, by week.')
+    expect(row).not.toMatch(/faster|slower|quicker|no clear change|since|status/i)
+    const region = openSection('Pace at heart rate')
     // The chart is still there, named by what it plots, without a headline of its own.
     expect(within(region).getByRole('figure')).toBeInTheDocument()
     expect(region.querySelector('.chart-frame__takeaway')).toBeNull()
   })
 
-  it('claims no change in the weekly section where the status has no state to give either, and points nowhere', () => {
+  it('claims no change in the weekly section where the status has no state to give either', () => {
     withFitness(
       'run',
       fullRun(),
       { run: waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), ride: NO_FITNESS.ride },
       RUN_SAME_HEART_RATE,
     )
-    expect(closedRow('Same heart rate, week by week')).toBe(
-      'Same heart rate, week by weekYour pace each week at 145 bpm.',
-    )
+    expect(closedRow('Pace at heart rate')).toBe('Pace at heart ratePace at 145 bpm, by week.')
   })
 })

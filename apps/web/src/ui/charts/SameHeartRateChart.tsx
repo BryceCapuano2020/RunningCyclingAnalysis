@@ -67,18 +67,15 @@ function tooltipFor(
         value: formatNative(sport, week.fit?.output ?? Number.NaN, units),
         note:
           lacks === null
-            ? `90% range ${rangeText(week, sport, units)}; ${plural(week.blocks, 'stretch', 'stretches')} from ${plural(week.activities, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])}`
+            ? `90% range ${rangeText(week, sport, units)}, ${plural(week.blocks, 'stretch', 'stretches')} from ${plural(week.activities, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])}`
             : LACK_TEXT[lacks](sport, referenceHr),
       },
     ],
   }
 }
 
-/**
- * What the empty chart says when no week has a reading: the gate that failed, with its numbers. A week reads from
- * steady 5-minute stretches in enough activities over enough of its weeks, and the chart wants several such weeks.
- */
-const NO_WEEKS_TEXT = `No week has a reading yet: a week needs ${SAME_HEART_RATE.minBlocks} steady 5-minute stretches from ${SAME_HEART_RATE.minActivities} activities in ${SAME_HEART_RATE.minWeeks} different weeks, and the chart needs ${SAME_HEART_RATE.minReportedWeeks} weeks with a reading`
+/** What the empty chart says when no week has a reading: what the chart wants, with its number. */
+const NO_WEEKS_TEXT = `Needs ${SAME_HEART_RATE.minReportedWeeks} weeks of steady stretches at one heart rate`
 
 /**
  * One sport's output at one heart rate: a light dot for each week that reports, with its 90% interval in the tooltip
@@ -92,13 +89,13 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
   const hasData = reference !== null && weeks.filter(weekHasFit).length >= 2
   const layoutOf = sizedOnce((size: ChartSize) => sameHeartRateLayout(weeks, sport, units, size))
   const diamond = SPORT_FORMAT[sport].glyph === 'diamond'
-  const title = sameHeartRateTitle(sport, reference ?? 0, units)
+  const title = sameHeartRateTitle(sport, reference)
 
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
-      description={`Output at ${reference} bpm in each week, fitted to the steady stretches of the 4 weeks to that Sunday, or 8 weeks in a quiet stretch, as ${SPORT_FORMAT[sport].titleUnit(units)}.`}
+      description={`${title}. One dot for each week with enough steady stretches.`}
       note={note}
       table={{
         columns: ['Week ending', nativeLabel(sport), '90% range', 'Stretches'],
@@ -108,7 +105,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
           rangeText(week, sport, units),
           String(week.blocks),
         ]),
-        caption: `Output at ${reference} bpm, fitted to the steady 5-minute stretches of the 4 weeks to each Sunday, or 8 weeks in a quiet stretch. A week with too little data has no value.`,
+        caption: `${title}. A week with too little data has no value.`,
         phoneHidden: [3],
       }}
       empty={hasData ? undefined : NO_WEEKS_TEXT}

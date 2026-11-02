@@ -2,7 +2,6 @@ import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
-import { PER } from './format/units'
 
 /**
  * The sports in the order they sit in lists and charts, running first. A list that totals or draws
@@ -17,23 +16,24 @@ export const SPORT_ORDER = ['run', 'ride'] as const
 export const BALANCE_PAIR = ['run', 'ride'] as const
 
 /**
- * What differs between the sports, in one place. A sport's own number is its flat pace for running,
- * a speed read as a pace, and its power for cycling, in watts. Keyed by Sport, so a sport added to
+ * What differs between the sports, in one place. A sport's own number is its grade-adjusted pace (GAP) for
+ * running, a speed read as a pace, and its power for cycling, in watts. Keyed by Sport, so a sport added to
  * SPORT_ORDER must say each of these.
  */
 export interface SportFormat {
-  /** The own number in a heading, legend or tooltip: "Flat pace" or "Power". */
+  /** The own number in a heading, legend or tooltip: "GAP" or "Power". */
   nativeLabel: string
-  /** The own number's unit spelt out after a chart's name: "flat pace per kilometre", "power in watts". */
-  titleUnit: (units: UnitSystem) => string
   /** Whether the values also state their mechanical W/kg. Running names only its activity. */
   showsWkg: boolean
   /** The shape a chart marks the sport's points with. Rides are diamonds, so the sports differ in shape. */
   glyph: 'dot' | 'diamond'
   /** The grade's name on a ladder. A ride's grade is estimated through its running equivalent. */
   gradeName: string
-  /** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
-  axisTitle: (units: UnitSystem) => string
+  /**
+   * The vertical axis's title. Pace says which way is faster, since its axis runs the other way. A page spells
+   * GAP out on its first chart (`full`) and writes it short on the rest.
+   */
+  axisTitle: (units: UnitSystem, full?: boolean) => string
   /** The own number on a vertical axis: seconds per unit for running, so a faster pace is smaller. */
   plotted: (value: number, units: UnitSystem) => number
   /** The own number as text, with its unit. */
@@ -44,19 +44,18 @@ export interface SportFormat {
 
 export const SPORT_FORMAT: Record<Sport, SportFormat> = {
   run: {
-    nativeLabel: 'Flat pace',
-    titleUnit: (units) => `flat pace ${PER[units]}`,
+    nativeLabel: 'GAP',
     showsWkg: false,
     glyph: 'dot',
     gradeName: 'Age grade',
-    axisTitle: (units) => `Flat pace (${PACE_UNIT[units]}), faster up`,
+    axisTitle: (units, full = false) =>
+      `${full ? 'Grade-adjusted pace' : 'GAP'} (${PACE_UNIT[units]}), faster up`,
     plotted: (speedMs, units) => paceSeconds(speedMs, units),
     formatted: (speedMs, units) => formatPace(speedMs, units),
     fillsArea: false,
   },
   ride: {
     nativeLabel: 'Power',
-    titleUnit: () => 'power in watts',
     showsWkg: true,
     glyph: 'diamond',
     gradeName: 'Estimated age grade',

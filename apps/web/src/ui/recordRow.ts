@@ -4,12 +4,12 @@ import type { Sport } from '@rca/core/types'
 import { isEstimatedRecord } from './records'
 import type { SportRecord } from './records'
 
-/** The mark a run's pace carries, as a flat pace: its word on a row, and the note that explains it. */
-export const FLAT_MARK = 'Flat'
+/** The mark a run's pace carries, as a GAP: its word on a row, with its meaning one press away. */
+export const GAP_MARK = 'GAP'
 
-/** The marks a record's figure carries: a run's is flat, and a ride's is estimated when its watts are. */
+/** The marks a record's figure carries: a run's is GAP, and a ride's is estimated when its watts are. */
 const MARKS: Record<Sport, (activity: ActivitySummary | null) => string[]> = {
-  run: () => [FLAT_MARK],
+  run: () => [GAP_MARK],
   ride: (activity) => (isEstimatedRecord('ride', activity) ? ['Estimated'] : []),
 }
 
@@ -25,7 +25,7 @@ export interface RecordRow {
   /** The grade beside the figure, or a short gap line in its place; null when neither applies. */
   grade: ReactNode
   /**
-   * Short marks beside the figure, each with its meaning in words elsewhere: "Flat", "Estimated".
+   * Short marks beside the figure: "GAP" with its meaning one press away, "Estimated".
    */
   tags: string[]
   /** How the record moved on the period before, in words, or null without one. */
@@ -37,7 +37,7 @@ export interface RecordRow {
 }
 
 /**
- * One best-effort record as a row. A run's pace is a flat pace, so it is marked Flat; a ride's
+ * One best-effort record as a row. A run's pace is a GAP, so it is marked GAP; a ride's
  * watts are marked estimated unless they were measured by a power meter.
  */
 export function recordRow(

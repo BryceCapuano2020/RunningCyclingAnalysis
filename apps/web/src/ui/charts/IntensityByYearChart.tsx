@@ -32,7 +32,6 @@ export interface IntensityByYearChartProps {
 
 const DESCRIPTION =
   'One bar a year, split into the share of heart-rate time in easy, moderate and hard zones.'
-const NOTE = "Heart rate in today's zones, with set-aside readings left out."
 
 /**
  * Each year's heart-rate time for one sport, as one bar of 100%, split into easy, moderate and hard. The title is the
@@ -51,7 +50,6 @@ export function IntensityByYearChart({ years, sport, controls }: IntensityByYear
       controls={controls}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      note={NOTE}
       empty={timed ? undefined : emptyTextOf(years, sport)}
       idleReadout={idleFrom(tooltipFor(years.length - 1, 0, 0))}
       table={intensityTable(years, sport)}

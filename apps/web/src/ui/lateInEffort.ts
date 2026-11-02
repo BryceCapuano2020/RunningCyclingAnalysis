@@ -1,18 +1,9 @@
-import { DRIFT, LATE_IN_EFFORT, PRIORS } from '@rca/core/constants'
+import { LATE_IN_EFFORT, PRIORS } from '@rca/core/constants'
 import type { DriftPoint, LateEvidence, PeriodDurabilityRow } from '@rca/core/digest'
-import type { EffortRuler } from '@rca/core/digest/lateEvidenceTypes'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
-import { monthYear } from '@rca/core/lookback'
-import {
-  afterLabel,
-  durabilityLede,
-  durabilityStat,
-  driftChange,
-  driftLede,
-} from './lateInEffortCopy'
-import { effortLabel } from './records'
+import { durabilityStat, driftFinding, driftLede } from './lateInEffortCopy'
 import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
 
 export {
@@ -21,8 +12,8 @@ export {
   afterWords,
   driftChange,
   driftDescription,
+  driftFinding,
   driftLede,
-  durabilityLede,
   durabilityStat,
   fadePercent,
 } from './lateInEffortCopy'
@@ -31,23 +22,6 @@ export {
 export const LATE_IN_EFFORT_NAME = 'Durability'
 
 const { minActivities } = LATE_IN_EFFORT
-
-/** A range of shares of the maximum heart rate in whole percent, "92% to 99%", or one figure when they print the same. */
-function shareRange(low: number, high: number): string {
-  const [a, b] = [Math.round(low * 100), Math.round(high * 100)]
-  return a === b ? `${a}%` : `${a}% to ${b}%`
-}
-
-/** The ruler of the sessions behind a late best as a short label: how near the maximum their peak heart rate got. */
-function rulerLabel(sport: Sport, ruler: EffortRuler | null | undefined): string {
-  if (ruler === null || ruler === undefined) return ''
-  return `${plural(ruler.sessions, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} peaked at ${shareRange(ruler.lowShare, ruler.highShare)} of max heart rate.`
-}
-
-/** Said when the period held too few and the reading is the whole library's, so the window is never a guess. */
-function pooledLine(sport: Sport, kind: 'long' | 'steady'): string {
-  return `This period has too few ${kind} ${SPORT_PLURAL[sport]}, so this uses all of yours.`
-}
 
 /** A late best in the sport's own number: speed in m/s for a run, watts for a ride. */
 export interface LateCell {
@@ -67,22 +41,19 @@ export interface LateGroup {
 }
 
 export interface DurabilityReading {
-  lede: string
-  /** The one figure the section opens with: "Best 20 min held 99% after an hour". */
+  /** The one figure the section opens with: "99% of your best 20 min after an hour". */
   stat: string
   groups: LateGroup[]
-  /** How the lede's figure is supported, and what it does not say. */
-  note: string
 }
 
 export interface DriftReading {
+  /** What the middle steady effort's efficiency did, as the chart's headline. */
   lede: string
-  /** The dates of the steady efforts when the whole library is read, such as "May 2021 to October 2026"; null for the period. */
-  window: string | null
+  /** Whether the whole library is read, as the period held too few steady efforts. */
+  allTime: boolean
   /** The middle steady effort's decoupling in percent: a fall is positive. */
   medianPct: number
   points: DriftPoint[]
-  note: string
 }
 
 /** What the section says: each half is null while its evidence is short of minActivities. */
@@ -100,12 +71,6 @@ export interface LateInEffort {
 const NATIVE: Record<Sport, (value: number) => number> = {
   run: (wkg) => metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean),
   ride: (watts) => watts,
-}
-
-/** What a sport's late bests count, where it is less than everything. */
-const COUNTS: Record<Sport, string> = {
-  run: '',
-  ride: 'Counts rides with a power meter.',
 }
 
 /** What a sport's late bests need of a file besides its length. */
@@ -164,28 +129,15 @@ function durabilityReading(sport: Sport, evidence: LateEvidence): DurabilityRead
   const groups = groupsOf(sport, evidence.durability)
   if (groups.length === 0) return null
   const { group, cell } = ledeCell(groups)
-  const activity = SPORT_ACTIVITY[sport]
-  const support = `Your best ${effortLabel(group.durationS)} after ${afterLabel(cell.afterS)} rests on ${plural(cell.supporters, activity, SPORT_PLURAL[sport])}.`
-  const limit = `A lower figure late on can also mean the ${activity} never asked for more.`
   // With no session behind it that a heart rate shows was hard, the share is a floor.
   const floor =
     evidence.ruler === null || evidence.ruler === undefined || evidence.ruler.sessions < 1
   return {
-    lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
     stat: durabilityStat(group.durationS, cell.afterS, cell.retention, {
       floor,
       allTime: evidence.durabilityPooled === true,
     }),
     groups,
-    note: [
-      evidence.durabilityPooled ? pooledLine(sport, 'long') : '',
-      support,
-      rulerLabel(sport, evidence.ruler),
-      limit,
-      COUNTS[sport],
-    ]
-      .filter((part) => part !== '')
-      .join(' '),
   }
 }
 
@@ -196,40 +148,15 @@ export function medianOf(values: readonly number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
 }
 
-/** How hard the steady efforts were, as the share of the maximum heart rate their average reached; '' without one. */
-function driftRuler(points: readonly DriftPoint[]): string {
-  const shares = points.flatMap((p) => (p.share === null || p.share === undefined ? [] : [p.share]))
-  if (shares.length === 0) return ''
-  return `Their average heart rate was ${shareRange(Math.min(...shares), Math.max(...shares))} of max heart rate.`
-}
-
-/** The dates the steady efforts span, "May 2021 to October 2026", or one month when they share it. */
-function windowOf(points: readonly DriftPoint[]): string {
-  const first = monthYear(Math.min(...points.map((p) => p.startMs)))
-  const last = monthYear(Math.max(...points.map((p) => p.startMs)))
-  return first === last ? first : `${first} to ${last}`
-}
-
-function driftReading(sport: Sport, evidence: LateEvidence): DriftReading | null {
+function driftReading(evidence: LateEvidence): DriftReading | null {
   const points = evidence.drift
   if (points.length < minActivities) return null
   const median = medianOf(points.map((p) => p.decouplingPct))
-  const warmup = DRIFT.warmupS / 60
-  const window = evidence.driftPooled === true ? windowOf(points) : null
   return {
-    lede: driftLede(sport, median, points.length, window),
-    window,
+    lede: driftLede(median, evidence.driftPooled === true),
+    allTime: evidence.driftPooled === true,
     medianPct: median,
     points: [...points],
-    note: [
-      `Each dot is one steady ${SPORT_ACTIVITY[sport]}. Efficiency is output per heartbeat in the first half of its moving time against the second, after a ${warmup}-minute warm-up.`,
-      `Only ${SPORT_PLURAL[sport]} that stayed even count.`,
-      driftRuler(points),
-      evidence.driftPooled ? pooledLine(sport, 'steady') : '',
-      'Heat, hydration and tiredness also move heart rate, so a change is not fitness.',
-    ]
-      .filter((part) => part !== '')
-      .join(' '),
   }
 }
 
@@ -261,7 +188,7 @@ function bothNeed(sport: Sport): string {
  */
 export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort {
   const durability = durabilityReading(sport, evidence)
-  const drift = driftReading(sport, evidence)
+  const drift = driftReading(evidence)
   return {
     durability,
     drift,
@@ -276,15 +203,15 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
 }
 
 /**
- * What the section's row says of it: the durability stat and what efficiency did, each only when it is there, so
- * a section with one half still tells its finding. Null when neither half has evidence.
+ * What the section's row says of it: the durability stat and what heart rate drift did, each only when it is there,
+ * so a section with one half still tells its finding. Null when neither half has evidence.
  */
 export function lateFinding(reading: LateInEffort): string | null {
   const parts = [
-    reading.durability?.stat ?? null,
+    reading.durability === null ? null : `Durability: ${reading.durability.stat}`,
     reading.drift === null
       ? null
-      : `Efficiency ${driftChange(reading.drift.medianPct)} from the first half to the second${reading.drift.window === null ? '' : `, ${reading.drift.window}`}`,
+      : `Heart rate drift: ${driftFinding(reading.drift.medianPct, reading.drift.allTime)}`,
   ].filter((part) => part !== null)
   return parts.length === 0 ? null : parts.map((part) => `${part}.`).join(' ')
 }

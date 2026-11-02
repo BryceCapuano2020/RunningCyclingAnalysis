@@ -8,7 +8,6 @@ import type { ActivityTrace } from '@rca/core/workbench'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { runCurveFixture, rideCurveFixture } from '../charts/fixtures'
 import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
-import { FLAT_PACE_NOTE } from '../grades'
 import type { RouteReply } from '../routeReply'
 import { SETTLE_MS } from '../useSplitsView'
 import { ActivityPage } from './ActivityPage'
@@ -19,11 +18,11 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** The library's bests are set by the activity whose id is 'activity-1', and carry a Flat mark. */
+/** The library's bests are set by the activity whose id is 'activity-1', and carry a GAP mark. */
 const run = makeActivity({ id: 'activity-1', name: 'Reps', sport: 'run', distanceM: 1200 })
 const other = makeActivity({ id: 'activity-2', name: 'Strides', sport: 'run', distanceM: 1200 })
 
-/** A kilometre whose flat pace differs from its pace, so the splits show a flat pace column. */
+/** A kilometre whose GAP differs from its pace, so the splits show a GAP column. */
 const splits: DigestSplits = {
   km: [
     {
@@ -140,16 +139,18 @@ describe('ActivityPage: laps as splits', () => {
   })
 })
 
-describe('ActivityPage: the flat pace note with laps open', () => {
-  it('sits under the best efforts while the laps are open, and moves under the splits with the kilometres', async () => {
+describe('ActivityPage: the GAP term with laps open', () => {
+  it('sits on the best efforts while the laps are open, and joins the splits’ header with the kilometres', async () => {
     renderPage(withTrace(UNEVEN))
     await screen.findByRole('button', { name: 'Laps', pressed: true })
 
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+    expect(
+      (await within(bestsSection()).findAllByRole('button', { name: 'GAP' })).length,
+    ).toBeGreaterThan(0)
+    expect(within(splitsSection()).queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Kilometres' }))
-    expect(within(splitsSection()).getByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(bestsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    expect(within(bestsSection()).getAllByRole('button', { name: 'GAP' }).length).toBeGreaterThan(0)
   })
 })
 

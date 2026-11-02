@@ -96,7 +96,7 @@ export function yearCurvesLayout(
       : lines.flatMap((line) => {
           const point = line.points[model.focus!]
           const source = model.lines.find((l) => l.year === line.year)
-          // A floor (not confirmed hard) or an estimate is drawn hollow.
+          // A floor (not all-out) or an estimate is drawn hollow.
           const hollow =
             source === undefined || !source.hard || source.estimated[model.focus!] === true
           return line.named && point !== null && point !== undefined

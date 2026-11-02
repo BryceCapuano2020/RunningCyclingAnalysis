@@ -73,16 +73,16 @@ describe('BestsOverTimeSection', () => {
 
   it('leaves "no clear change" to the curve above, which says it once, and only names what is drawn', () => {
     const { container } = renderSection(finding('none'))
-    expect(screen.getByRole('figure', { name: 'Best 20 min runs by day' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best 20 min' })).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/No clear change/)
   })
 
   it('names what is drawn, and compares nothing, where the test could not judge the length or there is no period before', () => {
     const { unmount } = renderSection(finding('untested'))
-    expect(screen.getByRole('figure', { name: 'Best 20 min runs by day' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best 20 min' })).toBeInTheDocument()
     unmount()
     renderSection(null)
-    expect(screen.getByRole('figure', { name: 'Best 20 min runs by day' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best 20 min' })).toBeInTheDocument()
   })
 
   it('says no line and no window: nothing about a dip leaving a window', () => {

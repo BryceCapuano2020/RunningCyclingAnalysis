@@ -33,7 +33,7 @@ describe('BestsByYearChart', () => {
     expect(marks(container)).toHaveLength(7)
   })
 
-  it('draws a best not confirmed hard hollow, and keys the two', () => {
+  it('draws a best not all-out hollow, and keys the two', () => {
     chartWidth(800)
     const { container } = render(
       <BestsByYearChart sport="run" efforts={RUN_BESTS} units="imperial" />,
@@ -43,7 +43,7 @@ describe('BestsByYearChart', () => {
     expect(hollow).toHaveLength(2)
     const key = within(screen.getByRole('list', { name: 'Legend' }))
     expect(key.getByText('Hard effort')).toBeInTheDocument()
-    expect(key.getByText('Not confirmed hard')).toBeInTheDocument()
+    expect(key.getByText('Not all-out')).toBeInTheDocument()
   })
 
   it('labels the all-time best of each panel, and only that', () => {
@@ -60,11 +60,11 @@ describe('BestsByYearChart', () => {
     expect(container.querySelectorAll('[data-testid="best-mark-top"]')).toHaveLength(3)
   })
 
-  it('reads a year with the keyboard: each length that has a best, the clock time, and what is not confirmed hard', () => {
+  it('reads a year with the keyboard: each length that has a best, the clock time, and what is not all-out', () => {
     chartWidth(800)
     render(<BestsByYearChart sport="run" efforts={RUN_BESTS} units="imperial" />)
     const surface = screen.getByTestId('plot-surface')
-    // The second year: a mile that is the all-time best, a 5 km not confirmed hard, and a 10 km.
+    // The second year: a mile that is the all-time best, a 5 km not all-out, and a 10 km.
     fireEvent.keyDown(surface, { key: 'Home' })
     fireEvent.keyDown(surface, { key: 'ArrowRight' })
     const status = screen.getByRole('status')
@@ -73,7 +73,7 @@ describe('BestsByYearChart', () => {
       '6:20 /mi',
       'All-time best',
       '7:47 /mi',
-      '24:10, Not confirmed hard',
+      '24:10, Not all-out',
       '8:19 /mi',
     ]) {
       expect(status).toHaveTextContent(text)
@@ -84,7 +84,7 @@ describe('BestsByYearChart', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent('5 km')
   })
 
-  it('has a table twin of every year, with at least for what is not confirmed hard', () => {
+  it('has a table twin of every year, with at least for what is not all-out', () => {
     chartWidth(800)
     render(<BestsByYearChart sport="run" efforts={RUN_BESTS} units="metric" />)
     const table = screen.getByRole('table')
@@ -121,7 +121,7 @@ describe('BestsByYearChart', () => {
     expect(screen.getByText('Pace (/mi), faster up')).toBeInTheDocument()
   })
 
-  it('draws a ride’s power with diamonds, hollow where the 20 minute best is not confirmed hard', () => {
+  it('draws a ride’s power with diamonds, hollow where the 20 minute best is not all-out', () => {
     chartWidth(800)
     const { container } = render(
       <BestsByYearChart sport="ride" efforts={RIDE_BESTS} units="metric" />,
@@ -151,7 +151,7 @@ describe('BestsByYearChart', () => {
     ]
     const { rerender } = render(<BestsByYearChart sport="run" efforts={floors} units="metric" />)
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
-    expect(screen.getByText('Hollow marks are not confirmed hard')).toBeInTheDocument()
+    expect(screen.getByText('Hollow marks are not all-out')).toBeInTheDocument()
     const hard: BestEffort[] = [
       {
         length: 5000,
@@ -163,7 +163,7 @@ describe('BestsByYearChart', () => {
     ]
     rerender(<BestsByYearChart sport="run" efforts={hard} units="metric" />)
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
-    expect(screen.queryByText('Hollow marks are not confirmed hard')).toBeNull()
+    expect(screen.queryByText('Hollow marks are not all-out')).toBeNull()
   })
 
   it('says what to add when the sport has no best', () => {

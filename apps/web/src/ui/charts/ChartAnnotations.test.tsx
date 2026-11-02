@@ -27,7 +27,7 @@ const ALL: Annotation[] = [
     at: { x: 300, y: 200 },
     value: '6:37 /mi',
     label: '20 min',
-    caption: 'flat pace',
+    caption: '3.4 W/kg',
   },
   {
     kind: 'end',
@@ -44,14 +44,6 @@ const ALL: Annotation[] = [
     label: 'Threshold',
     value: '7:12 /mi',
     band: { top: 144, bottom: 156 },
-  },
-  {
-    kind: 'bracket',
-    id: 'span',
-    x1: 400,
-    x2: 600,
-    y: 258,
-    label: 'No effort of 20 to 60 min on file',
   },
 ]
 
@@ -70,7 +62,6 @@ describe('ChartAnnotations', () => {
       ['best', 'callout'],
       ['end', 'end'],
       ['threshold', 'reference'],
-      ['span', 'bracket'],
     ]) {
       expect(container.querySelector(`[data-annotation="${id}"]`)).toHaveClass(`annot--${kind}`)
     }
@@ -82,7 +73,7 @@ describe('ChartAnnotations', () => {
     expect([...(callout?.querySelectorAll('text') ?? [])].map((text) => text.textContent)).toEqual([
       '20 min',
       '6:37 /mi',
-      'flat pace',
+      '3.4 W/kg',
     ])
     expect(callout?.querySelector('.annot__unit')?.textContent).toBe(' /mi')
     expect(callout?.querySelector('.annot__leader')).not.toBeNull()
@@ -101,12 +92,6 @@ describe('ChartAnnotations', () => {
     const band = container.querySelector('[data-annotation="threshold"] .annot__band')
     expect(band?.getAttribute('y')).toBe('144')
     expect(band?.getAttribute('height')).toBe('12')
-  })
-
-  it('draws a bracket with its two ends turned up', () => {
-    const { container } = draw()
-    const bracket = container.querySelector('[data-annotation="span"] .annot__bracket')
-    expect(bracket?.getAttribute('d')).toBe('M400 253V258H600V253')
   })
 
   it('sets a phone’s values a step smaller', () => {

@@ -42,7 +42,7 @@ export interface BestsModel {
   /** Whether any mark is hollow, and whether any is solid: the key names the two when both are there. */
   anyHollow: boolean
   anySolid: boolean
-  /** What a hollow mark is, for the key: "Estimated", "Not confirmed hard" or both. */
+  /** What a hollow mark is, for the key: "Estimated", "Not all-out" or both. */
   hollowKey: string
 }
 
@@ -138,7 +138,7 @@ export function bestsModel(
   const marks = panels.flatMap((panel) => panel.marks).filter((mark) => mark !== null)
   const reasons = [
     marks.some((mark) => mark.estimated) ? 'Estimated' : null,
-    marks.some((mark) => !mark.hard) ? 'not confirmed hard' : null,
+    marks.some((mark) => !mark.hard) ? 'not all-out' : null,
   ].filter((reason) => reason !== null)
   return {
     sport,
@@ -166,7 +166,7 @@ export function markNote(mark: BestMark, isBest: boolean): string | undefined {
     mark.time,
     isBest ? 'All-time best' : null,
     mark.estimated ? 'Estimated' : null,
-    mark.hard ? null : 'Not confirmed hard',
+    mark.hard ? null : 'Not all-out',
   ].filter((part) => part !== null)
   return parts.length === 0 ? undefined : parts.join(', ')
 }

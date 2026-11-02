@@ -5,7 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { periodName } from '../components/rangeOptions'
 import { effortChipText } from '../effortCaveat'
 import { threshold } from '../records'
-import { THRESHOLD_HEADING, THRESHOLD_MEANING } from '../sports'
+import { THRESHOLD_HEADING } from '../sports'
 import { bestLabel, floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
@@ -17,8 +17,8 @@ import { BasisChip } from './StatTile'
 
 /**
  * The threshold, as the page's answer: its name with a chip that says whether it is an estimate, the figure at
- * display size, its range drawn as a track with the two ends printed under it, what it means, and whether the
- * best 20 minutes was a hard effort. With the fit refused, the sport's floor is shown in its place as "at least"
+ * display size, its range drawn as a track with the two ends printed under it, and whether the best 20 minutes
+ * was a hard effort. With the fit refused, the sport's floor is shown in its place as "at least"
  * with the best it rests on, and the refusal is not said; with no best of 20 min, the longest as "Best 12 min"; with
  * no best of 5 min, the line says what to add.
  */
@@ -104,7 +104,6 @@ export function ThresholdPanel({
       {hero && floorNote && <p className="muted">{floorNote}</p>}
       {basis && <p className="muted">{basis}</p>}
       {unchecked && <p className="muted">{unchecked}</p>}
-      {fitted && <p className="sport-hero__meaning">{THRESHOLD_MEANING[sport]}</p>}
     </section>
   )
 }
