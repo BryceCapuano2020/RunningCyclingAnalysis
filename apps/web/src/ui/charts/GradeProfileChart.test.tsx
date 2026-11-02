@@ -75,19 +75,24 @@ function renderChart(overrides: Partial<GradeProfileChartProps> = {}) {
 }
 
 describe('GradeProfileChart', () => {
-  it('is titled by its finding, which is the one sentence it says, and has no lede under it', () => {
+  it('is titled Grade by duration, with its finding as the one sentence it says under the title', () => {
     const { container } = renderChart()
-    expect(screen.getByRole('figure', { name: FINDING })).toBeInTheDocument()
-    expect(screen.getByText(FINDING)).toHaveClass('chart-frame__title')
+    const figure = screen.getByRole('figure', { name: 'Grade by duration' })
+    expect(figure).toHaveAccessibleDescription(FINDING)
+    expect(screen.getByText(FINDING)).toHaveClass('chart-frame__takeaway')
+    expect(container.querySelector('.chart-frame__title')).toHaveTextContent('Grade by duration')
     expect(container.querySelector('.chart-frame__lede')).toBeNull()
     expect(screen.getByRole('img', { name: /age grades/i })).toHaveAccessibleName(
       /Duration is on a log scale/,
     )
   })
 
-  it('is titled Grade by duration without a finding to say', () => {
-    renderChart({ finding: undefined })
-    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
+  it('is titled Grade by duration alone, with nothing under the title, without a finding to say', () => {
+    const { container } = renderChart({ finding: undefined })
+    expect(
+      screen.getByRole('figure', { name: 'Grade by duration' }),
+    ).not.toHaveAccessibleDescription()
+    expect(container.querySelector('.chart-frame__takeaway')).toBeNull()
   })
 
   it('labels the duration axis 3, 5, 10, 20, 30 and 60, in minutes, and the grade axis in per cent', () => {

@@ -52,7 +52,9 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
  * level its best 20 minutes grades at. A threshold the fit refused shows the sport's floor under the chip "At least",
  * with the one best it rests on, or, with no best of 20 min, its longest as "Best 12 min"; only a sport that holds no
  * best of 5 min says what it needs. A ride's figures wait for the
- * weight, which the tile says in its place.
+ * weight, which the tile says in its place. A tile carries at most one status: a fitted threshold, which is an
+ * estimate by its name and its range, says how hard the effort was, and a floor or a best is the chip that names it,
+ * with no effort chip beside it.
  */
 export function ThresholdTile({
   sport,
@@ -90,7 +92,8 @@ export function ThresholdTile({
   const effort = headlineEffort(sport, records)
   const basis = fitted === null ? floorBasisLine(result, sport) : null
   const best = fitted === null ? bestLabel(result, sport) : null
-  const chip = effortChipText(sport, effortCheck)
+  // The one status: a fitted threshold's effort, or, with no fit, the chip that names the floor or the best.
+  const chip = fitted === null ? null : effortChipText(sport, effortCheck)
   // Where the best 20 minutes has its own line, the grade line leaves its figure out rather than say it twice.
   const bestLine = fitted === null ? null : bestBeyondThresholdLine(result, sport, effort)
   const line = gradeLine(sport, grade, bestLine === null ? effort : null, levelShown)
@@ -121,7 +124,7 @@ export function ThresholdTile({
       sport={sport}
       heading={NAME[sport]}
       definition={definition}
-      basis={fitted === null ? (best === null ? 'floor' : 'recorded') : 'estimated'}
+      basis={fitted === null ? (best === null ? 'floor' : 'recorded') : undefined}
       basisLabel={best ?? undefined}
       figure={{
         number: hero.number,

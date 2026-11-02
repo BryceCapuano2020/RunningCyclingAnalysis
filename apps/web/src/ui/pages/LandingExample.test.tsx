@@ -2,7 +2,6 @@
 import '../../test/warmSample'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { fitnessLines } from '@rca/core/fitness'
 import { AnalysisSession } from '@rca/core/session'
 import { landingText } from '../../test/landingText'
 import { gapReading } from '../components/balanceScale'
@@ -10,7 +9,7 @@ import { balanceTitle } from '../components/headlineText'
 import { gapOfHeadline } from '../balanceGap'
 import { headlineGrades } from '../grades'
 import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
-import { LandingExample, LandingFitnessExample } from './LandingExample'
+import { LandingExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
 
 /** A row's words as read, without the notes its defined terms keep in the markup. */
@@ -46,7 +45,7 @@ describe('LandingExample', () => {
     }
   })
 
-  it('carries the sample’s fitness finding as its analysis gives it: the state, the change, its range and the heart rate', () => {
+  it('carries the sample’s fitness finding as its analysis gives it: the state, the heart rate and the change it draws', () => {
     const { fitness } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
     const run = fitness.run
     expect(run.state).toBe('slipping')
@@ -55,43 +54,46 @@ describe('LandingExample', () => {
     for (const end of ['value', 'low', 'high'] as const) {
       expect(example.change[end]).toBeCloseTo(run.change![end], 3)
     }
-    // The card's line says the same size and range in pace, which the example repeats as written.
-    const { changes } = fitnessLines(run, 'metric')
-    expect(changes[0]).toContain(`${example.shown.size} (${example.shown.range}) off`)
   })
 
-  it('gives the finding as a second panel of its own: its state, one sentence and the change as a track', () => {
-    const { fitness } = LANDING_EXAMPLE
-    const { container } = render(<LandingFitnessExample />)
-    expect(container.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
-    expect(
-      screen.getByText(
-        `${fitness.shown.size} (${fitness.shown.range}) off your old level at ${fitness.referenceHr} bpm.`,
-      ),
-    ).toBeInTheDocument()
-    expect(container.querySelector('.fitness-track__band')).not.toBeNull()
-    expect(screen.getByText('Fitness at the same heart rate')).toBeInTheDocument()
-  })
-
-  it('keeps the finding out of the answer’s panel, which holds the headline, meter and levels alone', () => {
+  it('gives the finding inside the sample’s own card: its state, one sentence with the heart rate and the change as a track', () => {
     const { container } = render(<LandingExample />)
-    expect(container.querySelector('.landing-example__fitness')).toBeNull()
-    expect(screen.queryByText('Slipping')).not.toBeInTheDocument()
+    const card = container.querySelector('figure.landing-example')!
+    const finding = card.querySelector('.landing-example__fitness')!
+    expect(finding.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
+    expect(finding.querySelector('.landing-example__sentence')?.textContent).toBe(
+      `Slower than your old level at ${LANDING_EXAMPLE.fitness.referenceHr} bpm.`,
+    )
+    expect(finding.querySelector('.fitness-track__band')).not.toBeNull()
+    // One card: the finding is not a figure of its own, and it follows the balance and the levels.
+    expect(container.querySelectorAll('figure.landing-example')).toHaveLength(1)
+    expect(finding.closest('figure')).toBe(card)
+    const levels = card.querySelector('.balance-levels')!
+    expect(levels.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('is labelled illustrative, names the sample, and gives the answer’s headline', () => {
-    render(<LandingExample />)
-    expect(
-      screen.getByText(`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`),
-    ).toBeInTheDocument()
+  it('says no size for the slip, which reads a point either way as the visit day moves', () => {
+    const { container } = render(<LandingExample />)
+    const sentence = container.querySelector('.landing-example__sentence')?.textContent ?? ''
+    expect(sentence).not.toMatch(/%|\d+ to \d+/)
+    expect(sentence).toMatch(/\d+ bpm\.$/)
+  })
+
+  it('is labelled once, Sample athlete, names the persona beside it, and gives the answer’s headline', () => {
+    const { container } = render(<LandingExample />)
+    expect(screen.getByText('Sample athlete')).toBeInTheDocument()
+    expect(container.querySelector('figcaption')).toHaveTextContent(
+      `Sample athlete${SAMPLE_DESCRIPTION}`,
+    )
+    expect(container.querySelectorAll('figcaption')).toHaveLength(1)
     expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()
+    // The old label chain is gone: nothing says illustrative, and the fitness finding has no label of its own.
+    expect(container.textContent).not.toMatch(/illustrative|Fitness at the same heart rate/i)
   })
 
   it('names the sample’s weight in the visitor’s units', () => {
     render(<LandingExample units="imperial" />)
-    expect(
-      screen.getByText('Illustrative: the sample athlete, a 37-year-old man at 165.3 lb'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('a 37-year-old man at 165.3 lb')).toBeInTheDocument()
   })
 
   it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
@@ -107,12 +109,7 @@ describe('LandingExample', () => {
   })
 
   it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {
-    const { container } = render(
-      <>
-        <LandingExample />
-        <LandingFitnessExample />
-      </>,
-    )
+    const { container } = render(<LandingExample />)
     expect(container.querySelector('svg:not(.icon):not(.fitness-glyph)')).toBeNull()
     expect(container.querySelector('details')).toBeNull()
   })

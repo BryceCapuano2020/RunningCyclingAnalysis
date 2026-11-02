@@ -16,8 +16,8 @@ describe('the landing page’s first screens', () => {
     const { container } = render(
       <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
     )
-    // Measured on a visitor with no files: 447 words and 3 defined terms before D4.10's trim, 403 and 2 after.
-    expect(wordsOf(container).length).toBeLessThanOrEqual(403)
+    // Measured on a visitor with no files: 447 words and 3 defined terms before D4.10's trim, 403 and 2 after, and 345 once the sample card holds the fitness finding under one label.
+    expect(wordsOf(container).length).toBeLessThanOrEqual(345)
     expect(container.querySelectorAll('.definition__term').length).toBeLessThanOrEqual(2)
   })
 })

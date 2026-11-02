@@ -678,7 +678,7 @@ describe('ResultPage period', () => {
         passed,
       })
       expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-        'Last 12 weeks had too few rides, so this uses all time · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
+        'Last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
       )
       // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
@@ -701,7 +701,7 @@ describe('ResultPage period', () => {
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-      'Last 12 weeks had no hard runs, so this uses 12 months',
+      'Last 12 weeks had no hard runs',
     )
   })
 

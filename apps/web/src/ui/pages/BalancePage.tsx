@@ -330,6 +330,7 @@ export function BalancePage({
         massKg={settings.massKg}
         weightKnown={weightKnown}
         calibration={calibration}
+        lean={reading?.lean ?? null}
       />
 
       {volume === null ? null : (

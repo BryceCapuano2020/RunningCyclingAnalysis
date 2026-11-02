@@ -1,7 +1,21 @@
 /*
- * The example's own parts: its headline over Balance's meter and levels line, then the fitness finding as a
- * second panel. The meter and the levels bring their own layout, and the card gives them the width they need.
+ * The example's own parts: its label, its headline over Balance's meter and levels line, then the fitness finding
+ * under a hairline, all in the one card. The meter and the levels bring their own layout, and the card gives them
+ * the width they need.
  */
+.landing-example__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+}
+
+/* Who the sample is, beside the label: a muted line, so the label stays the one name of the card. */
+.landing-example__who {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 .landing-example__title {
   margin: 0;
   font-family: var(--font-display);
@@ -22,14 +36,13 @@
   margin-top: var(--space-3);
 }
 
-/* The fitness finding is the example's second panel, below the actions: its state, one sentence and the change as a track. */
-.landing-example--fitness {
-  grid-column: 1 / -1;
-}
-
+/* The fitness finding closes the card, under a hairline: its state, one sentence and the change as a track. */
 .landing-example__fitness {
   display: grid;
   gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .landing-example__state {

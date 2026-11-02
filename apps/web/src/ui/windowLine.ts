@@ -21,13 +21,12 @@ const LACK_WORDS: Record<Lack, (what: string) => string> = {
 
 /**
  * The line under the period control when the default is not the 12 weeks it starts from: why the shortest window was
- * passed over, then the window the page is on. "Last 12 weeks had no hard runs, so this uses 12 months." Null when the
- * athlete picked the period, or the first window was taken.
+ * passed over. "Last 12 weeks had no hard runs." The window the page is on is the lit segment of the control, so the line
+ * does not name it. Null when the athlete picked the period, or the first window was taken.
  */
 export function windowLine({ choice, passed }: AnswerWindow): string | null {
   const [shortest] = passed
   if (shortest === undefined || typeof choice === 'object') return null
-  const uses = choice === 'all' ? 'all time' : lengthOf(choice)
   // Sports that lacked the same thing share a clause, so the line stays one short sentence.
   const kinds = [...new Set(shortest.lacks.map(({ lack }) => lack))]
   const lacked = kinds
@@ -38,5 +37,5 @@ export function windowLine({ choice, passed }: AnswerWindow): string | null {
       )
     })
     .join(' and ')
-  return `Last ${lengthOf(shortest.days)} had ${lacked}, so this uses ${uses}.`
+  return `Last ${lengthOf(shortest.days)} had ${lacked}.`
 }

@@ -1,9 +1,14 @@
-import { EQUIVALENCE_DURATIONS_S, PROFILE_DURATIONS_S } from '@rca/core/constants'
+import {
+  EQUIVALENCE_DURATIONS_S,
+  HEADLINE_DURATION_S,
+  PROFILE_DURATIONS_S,
+} from '@rca/core/constants'
 import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { HrCalibration, Sport } from '@rca/core/types'
 import { activityMasses } from './activityMasses'
 import { leanOfRange } from '../domain/lean'
+import type { Lean as BalanceLean } from '../domain/lean'
 import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
@@ -176,6 +181,54 @@ function subject(sport: Sport): string {
   return SPORT_TITLE[sport]
 }
 
+/** What the profile says: its clause, the sports it calls higher, and what it says of the headline length. */
+interface ProfileClaim {
+  text: string
+  /** The sports it names as higher at some length, in the order it names them; none when it says they grade alike. */
+  higher: Sport[]
+  /** The sport it calls higher at the headline length; null when it names no stretch there, or says they grade alike. */
+  atHeadline: Sport | null
+}
+
+/** The sport a named stretch calls higher at the headline length, or null when the headline is outside it or an exception in it. */
+function higherAtHeadline(stretches: readonly Stretch[]): Sport | null {
+  const holds = stretches.find(
+    ({ fromS, toS, apart }) =>
+      fromS <= HEADLINE_DURATION_S &&
+      HEADLINE_DURATION_S <= toS &&
+      !apart.includes(HEADLINE_DURATION_S),
+  )
+  return holds?.sport ?? null
+}
+
+/** The clause `profileFinding` words and what it claims, or null with fewer than two durations graded in both sports. */
+function claimOf(profile: GradeProfile): ProfileClaim | null {
+  const pairings = profileLeans(profile)
+  const firstS = pairings[0]?.durationS
+  const lastS = pairings.at(-1)?.durationS
+  if (pairings.length < 2 || firstS === undefined || lastS === undefined) return null
+  const named = namedStretches(pairings)
+  const [first, ...rest] = named
+  if (first === undefined) {
+    const anyLead = pairings.some((pairing) => pairing.lean !== 'even')
+    const [one, other] = BALANCE_PAIR
+    return {
+      text: `${SPORT_TITLE[one]} and ${SPORT_NOUN[other]} grade alike${anyLead ? ' at most lengths' : ''}`,
+      higher: [],
+      atHeadline: null,
+    }
+  }
+  const later = rest.map(
+    (stretch) => `${SPORT_NOUN[stretch.sport]} at ${whereText(stretch, firstS, lastS)}`,
+  )
+  const lead = `${subject(first.sport)} grades higher at ${whereText(first, firstS, lastS)}`
+  return {
+    text: [lead, ...later].join(', '),
+    higher: [...new Set(named.map((stretch) => stretch.sport))],
+    atHeadline: higherAtHeadline(named),
+  }
+}
+
 /**
  * One plain clause on how the sports compare across durations, from the grades the headline uses at the
  * durations both have, or null when fewer than two are graded in both, which is too few to say anything the
@@ -186,20 +239,24 @@ function subject(sport: Sport): string {
  * higher at two durations too: "Running grades higher at 15 to 45 min".
  */
 export function profileFinding(profile: GradeProfile): string | null {
-  const pairings = profileLeans(profile)
-  const firstS = pairings[0]?.durationS
-  const lastS = pairings.at(-1)?.durationS
-  if (pairings.length < 2 || firstS === undefined || lastS === undefined) return null
-  const named = namedStretches(pairings)
-  const [first, ...rest] = named
-  if (first === undefined) {
-    const anyLead = pairings.some((pairing) => pairing.lean !== 'even')
-    const [one, other] = BALANCE_PAIR
-    return `${SPORT_TITLE[one]} and ${SPORT_NOUN[other]} grade alike${anyLead ? ' at most lengths' : ''}`
-  }
-  const later = rest.map(
-    (stretch) => `${SPORT_NOUN[stretch.sport]} at ${whereText(stretch, firstS, lastS)}`,
-  )
-  const lead = `${subject(first.sport)} grades higher at ${whereText(first, firstS, lastS)}`
-  return [lead, ...later].join(', ')
+  return claimOf(profile)?.text ?? null
+}
+
+/** Whether two or more durations are graded in both sports, so the profile has something to compare. */
+export function profileComparable(profile: GradeProfile): boolean {
+  return profileLeans(profile).length >= 2
+}
+
+/**
+ * The finding, kept only where it agrees with the balance the hero states: "grade alike" for a level balance, and for
+ * a lean a clause that names the sport the hero names, and does not call the other higher at the headline length.
+ * The hero's lean is by the best estimate and the clause's by the range, so a lean of a few points can sit with sports
+ * that grade alike by range; the card then says nothing rather than contradict the hero. Null without a hero lean.
+ */
+export function findingAgreeing(profile: GradeProfile, lean: BalanceLean | null): string | null {
+  const claim = claimOf(profile)
+  if (claim === null || lean === null) return null
+  if (claim.higher.length === 0) return lean === 'even' ? claim.text : null
+  if (lean === 'even' || !claim.higher.includes(lean)) return null
+  return claim.atHeadline === null || claim.atHeadline === lean ? claim.text : null
 }

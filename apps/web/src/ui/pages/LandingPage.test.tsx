@@ -6,10 +6,10 @@ import { landingText } from '../../test/landingText'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { privacyText } from '../components/privacyText'
 import { balanceTitle } from '../components/headlineText'
 import { gapReading } from '../components/balanceScale'
 import { LANDING_EXAMPLE } from '../landingExample'
-import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { LandingPage } from './LandingPage'
 
 /** A row's words as read, without the notes its defined terms keep in the markup. */
@@ -24,11 +24,9 @@ afterEach(() => {
   noMatchMedia()
 })
 
-/** The example result's figure, found by its caption. */
+/** The example result's figure, found by its one label. */
 function exampleFigure(): HTMLElement {
-  const figure = screen
-    .getByText(`Illustrative: the sample athlete, ${SAMPLE_DESCRIPTION}`)
-    .closest('figure')
+  const figure = screen.getByText('Sample athlete').closest('figure')
   if (!figure) throw new Error('No example figure')
   return figure
 }
@@ -92,23 +90,45 @@ describe('LandingPage', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
-  it('says what to add and what it shows, ending on the privacy promise', () => {
+  it('says what to add and what it shows, ending on the footer’s own privacy sentence', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(
       screen.getByText(
-        'Add your Strava or Garmin export. See your level in each sport for your age. Your files stay on your device.',
+        'Add your Strava or Garmin export. See your level in each sport for your age. Your activities stay in this browser, where anyone using it can see them.',
       ),
     ).toBeInTheDocument()
   })
 
   it('does not promise that nothing leaves the device to a signed-in visitor, whose summaries are stored', () => {
     render(<LandingPage analysis={analysisStub()} signedIn onFiles={vi.fn()} />)
-    expect(screen.queryByText(/stay on your device/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/stay (on your device|in this browser)/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'Add your Strava or Garmin export. See your level in each sport for your age. Your files are analysed on your device.',
+        'Add your Strava or Garmin export. See your level in each sport for your age. Summaries and original files are stored in your private library.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('ends on the sentence it is given, which is the footer’s for the visitor’s state', () => {
+    for (const state of [
+      { signedIn: true, keepFiles: false },
+      { signedIn: true, keepFiles: true, issues: [{ code: 'read-only' as const }] },
+      { signedIn: false, keepFiles: false },
+    ]) {
+      const privacy = privacyText(state)
+      const { unmount } = render(
+        <LandingPage
+          analysis={analysisStub()}
+          signedIn={state.signedIn}
+          privacy={privacy}
+          onFiles={vi.fn()}
+        />,
+      )
+      expect(document.querySelector('.app__pitch .lede')?.textContent).toBe(
+        `Add your Strava or Garmin export. See your level in each sport for your age. ${privacy}`,
+      )
+      unmount()
+    }
   })
 
   it('puts the example before the drop zone on a pointer, where they sit side by side', () => {

@@ -25,11 +25,17 @@ const SLIP = FITNESS_STATE.slipping
 const SLIP_TRACK = trackModel('run', fitness.change, null, { before: '', now: '' })
 
 /**
+ * What the sample's run says, with no size: the size reads a point either way as the visit day moves (see
+ * LandingFigures), so the card says the direction and the heart rate, which hold on every day.
+ */
+const FITNESS_SENTENCE = `Slower than your old level at ${fitness.referenceHr} bpm.`
+
+/**
  * An example of the home screen, drawn from the sample athlete: the answer's headline over the real meter and
  * the real levels line, made from the sample's own figures with the same components Balance uses, so the
- * example cannot drift from the screen it stands for. It is the landing page's hero visual, labelled
- * illustrative, and names the sample. The fitness finding is the second panel (LandingFitnessExample), set
- * below the actions so the first screen keeps Add files.
+ * example cannot drift from the screen it stands for, and under them the sample's fitness finding, its state, one
+ * sentence and the change as a track. It is the landing page's hero visual and one card under one label, the
+ * sample athlete, so nothing in it reads as the visitor's own.
  */
 export function LandingExample({ units = 'metric' }: { units?: UnitSystem }) {
   const reading = gapReading(LANDING_EXAMPLE.gap)
@@ -41,30 +47,19 @@ export function LandingExample({ units = 'metric' }: { units?: UnitSystem }) {
   })
   return (
     <figure className="landing-example">
-      <figcaption className="eyebrow">{`Illustrative: the sample athlete, ${sampleDescription(units)}`}</figcaption>
+      <figcaption className="landing-example__label">
+        <span className="eyebrow">Sample athlete</span>
+        <span className="landing-example__who">{sampleDescription(units)}</span>
+      </figcaption>
       <p className="landing-example__title">{balanceTitle(reading)}</p>
       <BalanceMeter reading={reading} />
       <BalanceLevels model={levels} />
-    </figure>
-  )
-}
-
-/**
- * The example's second panel: the sample athlete's fitness finding, the state, one sentence and the change as
- * a track, from the same figures the sample's own analysis gives. It follows the actions on the landing page.
- */
-export function LandingFitnessExample() {
-  return (
-    <figure className="landing-example landing-example--fitness">
-      <figcaption className="eyebrow">Fitness at the same heart rate</figcaption>
       <div className="landing-example__fitness" data-sport="run" data-state="slipping">
         <p className="landing-example__state">
           <FitnessGlyph glyph={SLIP.glyph} />
           <span>{SLIP.label}</span>
         </p>
-        <p className="landing-example__sentence">
-          {`${fitness.shown.size} (${fitness.shown.range}) off your old level at ${fitness.referenceHr} bpm.`}
-        </p>
+        <p className="landing-example__sentence">{FITNESS_SENTENCE}</p>
         <FitnessTrack track={SLIP_TRACK} />
       </div>
     </figure>
