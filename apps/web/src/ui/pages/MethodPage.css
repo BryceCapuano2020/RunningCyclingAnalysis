@@ -23,6 +23,11 @@
   }
 }
 
+/* The lean and its range stand on their own line, and the estimates sentence under it. */
+.method__answer-text > span {
+  display: block;
+}
+
 /* A chip that is a button moves focus to its section. It keeps the chip's type and is a full control. */
 .method__answer button.method__chip {
   min-height: var(--control-height);
@@ -62,7 +67,7 @@
   color: var(--text-secondary);
 }
 
-/* The paragraphs of each section are held to a readable measure, as the lists are. */
+/* A section's paragraphs outside its columns (the one line that stands in for a chart) keep the reading measure. */
 .method > .section > p {
   max-width: var(--measure);
 }

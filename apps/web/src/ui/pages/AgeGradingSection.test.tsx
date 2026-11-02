@@ -193,16 +193,41 @@ describe('AgeGradingSection', () => {
 })
 
 describe('AgeGradingSection level target', () => {
-  it('says how the level target is worked out, in two lines: the ride equivalence and its range', () => {
+  it('says what the level target is, its unit, how a ride’s is worked out and its range', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    for (const line of [
+      'The level target on Balance is what the lower sport’s best effort would need to be to match the other.',
+      'It is in that sport’s own unit.',
+      'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
+      'Its range is the 5th to 95th percentile of the equivalence.',
+    ]) {
+      expect(within(section()).getByText(line)).toBeInTheDocument()
+    }
+  })
+})
+
+describe('AgeGradingSection balance', () => {
+  it('says the grades of each sport’s best effort at the headline length give the balance', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText(
-        'The level target on Balance is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
-      ),
+      within(section()).getByText('The grades of each sport’s best 20 min give the balance.'),
     ).toBeInTheDocument()
-    expect(
-      within(section()).getByText('Its range is the 5th to 95th percentile of the equivalence.'),
-    ).toBeInTheDocument()
+  })
+})
+
+describe('AgeGradingSection reading', () => {
+  it('sets its lines as a few paragraphs in columns, and keeps every sentence to 25 words or fewer', () => {
+    const { container } = render(<AgeGradingSection gradedSex="female" />)
+
+    expect(container.querySelector('.method__text')).not.toBeNull()
+    const lines = Array.from(container.querySelectorAll('.method__line')).map(
+      (line) => line.textContent ?? '',
+    )
+    expect(lines.length).toBeGreaterThan(25)
+    for (const line of lines) expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(25)
+    // Thirty lines as a handful of paragraphs, not thirty blocks.
+    expect(container.querySelectorAll('.method__text > p.secondary').length).toBeLessThan(14)
   })
 })

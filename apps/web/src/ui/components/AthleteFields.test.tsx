@@ -10,8 +10,7 @@ afterEach(() => {
   cleanup()
 })
 
-const HINT =
-  'Used only to grade your results by age. Standards differ for women and men, so without sex no level is shown.'
+const HINT = 'Without both, no level is shown.'
 
 /** Holds the year and sex in state, as the callers do, so a choice is shown back. */
 function Harness({
@@ -51,9 +50,12 @@ describe('AthleteFields', () => {
     expect(year).toHaveAttribute('inputmode', 'numeric')
   })
 
-  it('says what the optional level is for, once, under the sex choice', () => {
-    render(<Harness />)
+  it('gives the two fields one short line, under the sex choice, with no method text', () => {
+    const { container } = render(<Harness />)
     expect(screen.getByText(HINT)).toBeInTheDocument()
+    // The legend already names the use, so the line says only what is missing without them.
+    expect(container.querySelectorAll('.athlete-fields__hint')).toHaveLength(1)
+    expect(container.textContent).not.toMatch(/Used only|Standards differ|grade your results/)
     expect(screen.getByLabelText('Year of birth')).toHaveAccessibleDescription(HINT)
   })
 

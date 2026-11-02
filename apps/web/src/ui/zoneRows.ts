@@ -137,6 +137,11 @@ const REFERENCE_NAME: Record<ZoneMeasure, string> = {
   pace: 'Threshold pace',
 }
 
+/** Whether a set's power or pace is a floor: the best 30 min or 20 min, which the real threshold is at least. */
+function isFloor(set: ZoneSet): boolean {
+  return set.floorS !== null && set.asOfMs !== null
+}
+
 /**
  * Where a power or pace reference came from, after its figure: a fit is dated by the month it was set, an
  * estimate names the sports it is from, and an entered one says so.
@@ -162,7 +167,7 @@ export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
     detail:
       basis !== null
         ? `${REFERENCE_NAME[set.measure]}: ${basis}`
-        : `${REFERENCE_NAME[set.measure]}: ${reference}, ${referenceSourceText(set)}`,
+        : `${REFERENCE_NAME[set.measure]}: ${isFloor(set) ? 'at least ' : ''}${reference}, ${referenceSourceText(set)}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [

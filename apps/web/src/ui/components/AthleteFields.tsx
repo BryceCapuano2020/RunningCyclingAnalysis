@@ -80,8 +80,7 @@ export function AthleteFields({
         }}
       />
       <p id={hintId} className="athlete-fields__hint muted">
-        Used only to grade your results by age. Standards differ for women and men, so without sex
-        no level is shown.
+        Without both, no level is shown.
       </p>
     </fieldset>
   )

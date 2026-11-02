@@ -4,54 +4,27 @@ import { TOPICS } from './methodTopics'
 /** Every line a topic holds: its plain lines, then its detail lines. */
 const linesOf = (topic: (typeof TOPICS)[number]) => [...topic.plain, ...(topic.detail ?? [])]
 
-describe('How sure is this? copy', () => {
-  it('calls sensor readings implausible, never impossible', () => {
-    const copy = TOPICS.flatMap(linesOf).join(' ')
-    expect(copy).not.toMatch(/impossible/)
-    expect(copy).toMatch(/implausible readings/)
+describe('the topics that sit beside a chart', () => {
+  it('are the four with a section of their own: the unit, the range, the heart-rate check and virtual power', () => {
+    expect(TOPICS.map((topic) => topic.id)).toEqual(['unit', 'range', 'heart', 'virtual'])
   })
 
-  it('says running bests start at 5 minutes and the running curve at 3, and why', () => {
-    const lines = TOPICS.flatMap(linesOf)
-    expect(lines).toContain('Running bests by time start at 5 min and the running curve at 3 min.')
-    expect(lines).toContain(
-      'Shorter slope-adjusted windows mostly measure the slope reading, so they say little about the runner.',
-    )
-  })
-
-  it('gives every line one sentence, so each line holds one fact', () => {
+  it('gives every line one sentence of 25 words or fewer, so each line holds one fact', () => {
     for (const topic of TOPICS) {
       for (const line of linesOf(topic)) {
         // A sentence ends at a full stop followed by a space; a line may hold a decimal point or an initial.
         expect(line.split(/(?<=[a-z)%\]])\. (?=[A-Z])/).length, line).toBe(1)
+        expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(25)
       }
     }
   })
 
-  it('writes the default period as the shortest window every sport qualifies in, with the picked period never searched', () => {
-    const period = TOPICS.find((topic) => topic.id === 'period')
-    expect(period?.plain).toContain(
-      'The default period is the shortest window where every sport qualifies.',
-    )
-    expect(period?.plain).toContain('A period you pick yourself is always used.')
-  })
-
-  it('says in the detail that a fitness status takes the seasonal swing out, and where its size is', () => {
-    const trend = TOPICS.find((topic) => topic.id === 'trend')
-    expect(trend?.detail).toContain(
-      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
-    )
-    expect(trend?.detail).toContain('The size taken out is under See the evidence on the card.')
-    // The card no longer says it, and the main page holds none of it.
-    expect(trend?.plain.join(' ')).not.toMatch(/seasonal/)
-  })
-
-  it('says “at least” on a threshold marks a floor, and a best that was not hard is treated as one', () => {
-    const threshold = TOPICS.find((topic) => topic.id === 'threshold')
-    expect(threshold?.plain).toContain('“At least” before a threshold marks a floor.')
-    expect(threshold?.plain).toContain('A 20 min best that was not hard does not set a threshold.')
-    expect(threshold?.plain).toContain(
-      'A best that was not hard is a floor, so real ability is at least that.',
+  it('does not say again what How this works says: the threshold’s range and the race ranges', () => {
+    const range = TOPICS.find((topic) => topic.id === 'range')
+    const copy = linesOf(range!).join(' ')
+    expect(copy).not.toMatch(/standard error|allowance|marathon|drawn lighter/)
+    expect(range?.detail).toContain(
+      'A threshold and a race prediction each have a range of their own.',
     )
   })
 })

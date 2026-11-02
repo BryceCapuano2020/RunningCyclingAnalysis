@@ -25,11 +25,6 @@
   white-space: nowrap;
 }
 
-.activities__period-note {
-  margin: 0;
-  font-size: var(--text-sm);
-}
-
 .activities__empty p {
   margin: 0;
 }
