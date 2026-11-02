@@ -1,11 +1,6 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import {
-  DURATIONS_S,
-  EQUIVALENCE_DURATIONS_S,
-  FLAT_RUN_COST,
-  RESTING_W_PER_KG,
-} from '../constants'
+import { DURATIONS_S, EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
 import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'

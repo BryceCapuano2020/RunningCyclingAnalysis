@@ -51,8 +51,14 @@ describe('judgedTwentyMinutes', () => {
       best: 10,
       heartRate: null,
       measured: true,
+      nearBest: false,
     })
-    expect(judgedTwentyMinutes([])).toEqual({ best: null, heartRate: null, measured: false, nearBest: false })
+    expect(judgedTwentyMinutes([])).toEqual({
+      best: null,
+      heartRate: null,
+      measured: false,
+      nearBest: false,
+    })
     expect(
       judgedTwentyMinutes([{ value: Number.NaN, heartRate: 150, measured: true }]).best,
     ).toBeNull()
