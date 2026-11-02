@@ -16,7 +16,11 @@ export function TopicBody({ id }: { id: TopicId }) {
           <summary>
             More detail<span className="sr-only">: {topic.title}</span>
           </summary>
-          <p className="secondary">{topic.detail}</p>
+          {topic.detail.map((line) => (
+            <p key={line} className="secondary">
+              {line}
+            </p>
+          ))}
         </details>
       )}
     </>

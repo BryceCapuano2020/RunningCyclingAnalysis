@@ -19,26 +19,57 @@ describe('AgeGradingSection', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Age grades and levels' }),
     ).toHaveAttribute('tabindex', '-1')
-    expect(section()).toHaveTextContent(
-      'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time: 70% means 70% of standard pace. Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%. Below 60% is Recreational.',
-    )
+    expect(
+      within(section()).getByText(
+        'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section()).getByText('70% means 70% of standard pace.')).toBeInTheDocument()
+    expect(
+      within(section()).getByText(
+        'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section()).getByText('Below 60% is Recreational.')).toBeInTheDocument()
   })
 
-  it('reads a run’s grade as recorded, from its flat pace, which the cards call flat pace', () => {
+  it('says a level name shows only when the whole range sits in one band, and the number alone otherwise', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
-      'A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for hills.',
-    )
-    expect(section()).not.toHaveTextContent(/a fact from the file/)
+    expect(
+      within(section()).getByText('A level name shows only when the whole range sits in one band.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText(
+        'Otherwise the number and its range show alone, with no level name.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('reads a run’s grade from its grade-adjusted pace, and names GAP as the recorded pace corrected for hills', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(
+      within(section()).getByText('A run’s grade uses its grade-adjusted pace (GAP).'),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText('GAP is the recorded pace, corrected for hills.'),
+    ).toBeInTheDocument()
+    expect(section()).not.toHaveTextContent(/flat pace|a fact from the file/)
   })
 
   it('says a ride grade is an estimate through its running equivalent', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
-      'A ride has no published cycling standard. Its best effort is converted to the flat running speed that costs the same energy over the same time, the running equivalent, and graded like a run, so a ride grade is an estimate.',
-    )
+    for (const line of [
+      'A ride has no published cycling standard.',
+      'Its best effort is converted to a running equivalent.',
+      'That is the flat running speed that costs the same energy over the same time.',
+      'The equivalent is graded like a run.',
+      'So a ride grade is an estimate.',
+    ]) {
+      expect(within(section()).getByText(line)).toBeInTheDocument()
+    }
     // The 90% range is explained once, in the energy view, so this paragraph does not repeat it.
     expect(section()).not.toHaveTextContent('Its range is the model’s 90% range')
   })
@@ -46,20 +77,31 @@ describe('AgeGradingSection', () => {
   it('says how Grade by duration is read: the best at each duration, the ride’s range, and where a sport is higher', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
-      'Grade by duration on Balance grades each sport’s best effort at each duration, the ride with its range, and a sport is higher at a duration only where the run’s grade leaves the ride’s range; inside it, the two are level.',
-    )
+    for (const line of [
+      'Grade by duration on Balance grades each sport’s best effort at each duration.',
+      'A ride comes with its range.',
+      'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
+      'Inside that range, the two are level.',
+    ]) {
+      expect(within(section()).getByText(line)).toBeInTheDocument()
+    }
   })
 
   it('explains why each effort is graded at its own date, and which date a ride takes', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
-      'Each effort is graded at the age on its own date, not the newest activity’s',
-    )
-    expect(section()).toHaveTextContent(
-      'A ride takes the date of its own best ride at that duration, because its running equivalent comes from that ride.',
-    )
+    expect(
+      within(section()).getByText('Each effort is graded at your age on its own date.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText('It is not graded at the newest activity’s date.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText('A ride takes the date of its own best ride at that duration.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText('Its running equivalent comes from that ride.'),
+    ).toBeInTheDocument()
   })
 
   it('cites the standards, with their authors and licence, and links the repository', () => {
@@ -101,21 +143,23 @@ describe('AgeGradingSection', () => {
     )
   })
 
-  it('lists four limits in plain words, the age one with its direction either way', () => {
+  it('lists the limits in plain words, one fact a line, the age one with its direction either way', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     const limits = within(section()).getAllByRole('listitem')
-    expect(limits).toHaveLength(4)
-    expect(limits[0]).toHaveTextContent(
-      'Only the birth year is used, so until the birthday the age can be one year too high. That moves the grade by about a year’s change in the standard: up for adults, down for young athletes.',
-    )
-    expect(limits[1]).toHaveTextContent('The standards are for road races at sea level.')
-    expect(limits[2]).toHaveTextContent(
-      'Hilly courses and GPS error affect the pace and the measured distance, so a run’s grade is only as exact as its file.',
-    )
-    expect(limits[3]).toHaveTextContent(
-      'A training effort is not a race. A grade shows how a training effort compares with the standard; it is not a race result or a ranking.',
-    )
+    expect(limits.map((limit) => limit.textContent)).toEqual([
+      'Only the birth year is used.',
+      'Until the birthday, the age can be one year too high.',
+      'That moves the grade by about a year’s change in the standard.',
+      'Up for adults, down for young athletes.',
+      'The standards are for road races at sea level.',
+      'Altitude, trail, track and cross-country are not adjusted for.',
+      'Hilly courses and GPS error affect pace and measured distance.',
+      'So a run’s grade is only as exact as its file.',
+      'A training effort is not a race.',
+      'A grade shows how a training effort compares with the standard.',
+      'It is not a race result or a ranking.',
+    ])
   })
 
   it('names the sex the grades are for when a grade is shown', () => {
@@ -149,11 +193,16 @@ describe('AgeGradingSection', () => {
 })
 
 describe('AgeGradingSection level target', () => {
-  it('says in one sentence how the level target is worked out, from the ride equivalence range', () => {
+  it('says how the level target is worked out, in two lines: the ride equivalence and its range', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
-      'The level target on Balance is the watts whose running equivalent grades to the other sport’s whole-percent grade, with the range from the equivalence’s 5th to 95th percentile.',
-    )
+    expect(
+      within(section()).getByText(
+        'The level target on Balance is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(section()).getByText('Its range is the 5th to 95th percentile of the equivalence.'),
+    ).toBeInTheDocument()
   })
 })

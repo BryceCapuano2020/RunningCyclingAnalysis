@@ -20,7 +20,7 @@ describe('the Method page', () => {
         restoring={false}
       />,
     )
-    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after; the Your years topic (#311) has since added 15, so 2,025.
-    expect(wordsOf(container).length).toBeLessThanOrEqual(2025)
+    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after; the Your years topic (#311) has since added 15, so 2,025. V2e writes one fact a line and moves the zone schemes, the curve starts and the tie-break into More detail, which leaves 2,024.
+    expect(wordsOf(container).length).toBeLessThanOrEqual(2024)
   })
 })

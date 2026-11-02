@@ -26,3 +26,11 @@
   margin: 0;
   color: var(--text-secondary);
 }
+
+.calculated__item dd > p {
+  margin: 0;
+}
+
+.calculated__item dd > p + p {
+  margin-top: var(--space-1);
+}
