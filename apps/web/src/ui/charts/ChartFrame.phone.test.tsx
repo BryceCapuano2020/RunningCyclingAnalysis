@@ -185,7 +185,7 @@ describe('the phone readout row at rest', () => {
     )
   })
 
-  it('is one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
+  it('is at least one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
     const rest = css.slice(
       css.indexOf('.chart-frame__readout--compact {'),
       css.indexOf('}', css.indexOf('.chart-frame__readout--compact {')),
@@ -193,6 +193,15 @@ describe('the phone readout row at rest', () => {
     expect(rest).toMatch(/min-height: 2rem/)
     expect(css).toContain('content: attr(data-idle)')
     expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
+  })
+
+  it('wraps a long sentence at rest and never cuts it short', () => {
+    const idle = css.slice(
+      css.indexOf('.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {'),
+    )
+    const rule = idle.slice(0, idle.indexOf('}'))
+    expect(rule).toContain('content: attr(data-idle)')
+    expect(rule).not.toMatch(/white-space:\s*nowrap|text-overflow|overflow:\s*hidden/)
   })
 
   it('animates its growth only where motion is welcome', () => {

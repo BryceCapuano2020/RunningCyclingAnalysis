@@ -293,7 +293,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   A chart narrower than 480 px takes phone geometry (`PHONE_CHART_WIDTH`): a 40 px y gutter and a 44 px x band, a chart
   height of 262 px so the plot is about 190 px tall (where the chart sets no height of its own), y tick labels set inside the plot
   above their gridlines where the widest would not fit the gutter, and a readout row above the plot in place of
-  a floating tooltip, which a finger would cover. ChartFrame's row is one 2 rem line at rest, saying the chart's latest or headline value
+  a floating tooltip, which a finger would cover. ChartFrame's row is at least one 2 rem line at rest (a longer sentence wraps and is never cut), saying the chart's latest or headline value
   (`idleReadout`, such as "Latest · Week ending 25 Oct: Run 64%, Ride 58%") or, without one, "Select a point to read its value"; a point's
   full reading (a title, a value with its note and the previous period's row) draws over the row, growing upward over the lines above the plot, so
   the plot never moves under a finger, and the height eases open only where motion is welcome. The tooltip draws into that row and a screen
@@ -1507,7 +1507,7 @@ library, 10 KB of it the fitness dots (`history.perf.test.ts`).
 
 **The page.** The title, one row of totals (years on file, total hours, each sport's distance in the units setting; a
 sport with no activity has none), then one chart for each section, each on `ChartFrame` with its table, tooltip and
-keyboard reading. A library with no run or ride gets one line saying what to add. A chart's title is its finding when the library holds one, such as "2025 was your hardest year for running" (Intensity by year), else its measure ("Hours per year", or "Run hours per year" for one sport). A finding is one clause and never repeats the bars. One axis, sport
+keyboard reading. A library with no run or ride gets one line saying what to add. A chart's title is its finding when the library holds one, such as "2025 had your highest share of hard running" (Intensity by year), else its measure ("Hours per year", or "Run hours per year" for one sport). A finding is one clause and never repeats the bars. One axis, sport
 colours from the tokens, a label on the tallest bar only, no gridline through a bar.
 
 The sections sit in this order: Balance over the years, Training calendar, Hours per year, Year to date, Bests by year,
@@ -1523,15 +1523,28 @@ a file `ui/pages/history/<name>.ts` that exports a `HistorySection` (`id`, `orde
 never summed with lifting load.
 
 **Training calendar.** A heatmap with a row for each year and a column for each week of the year, tinted by that week's
-hours on one five-step ramp (the sport's colour, neutral for All; its first tint keeps 2:1 against a week of rest). A
+hours on one five-step ramp (the sport's colour, neutral for All). Its first step keeps 2:1 against a week of rest and
+each step is at least 1.25:1 (neutral) or 1.15:1 (a sport) from the one before, in both themes; a sport's last two steps
+deepen its colour toward the text colour, since the colour alone is too close to its neighbours in lightness
+(`TrainingCalendarChart.css.test.ts` checks both from the stylesheet). A
 week with no training is a plain cell, so a gap reads at a glance. The key writes the hours a week where each tint
-ends, and the darkest is "over" the last edge. A week belongs to the year and month of its Thursday (ISO 8601), so the week that spans New Year is
+ends, the last with a plus ("3 6 9 12+") for the darkest, which holds every week above it. A week belongs to the year and month of its Thursday (ISO 8601), so the week that spans New Year is
 one cell. A sport filter (All, Run, Ride) and the key for the ramp sit in the chart's control row (`ChartFrame`'s
 `controls`); one line above it gives the longest streak of weeks with training and the biggest week, for the sports the
 filter keeps. Below 560 px the columns are months, each tinted by its average week. The arrow keys step through the
 cells by date, and the table has a row for each year; its summary gives each calendar year's hours and activities, as
 Hours per year does. The core part keeps each week and sport in three characters
 (`history/weekCells.ts`), about 4 KB for thirteen years.
+
+**Hours per year.** The year still going (this year, when the library has it) is a paler bar with a dashed edge, keyed
+"2026 so far" and called that in the tooltip, the readout and the table, since its hours are not a year's. Every bar has its
+year under it: written in full where each has room, then as ’19, then as 19 (a phone with a dozen years), and thinned
+only when even those collide.
+
+**Year to date.** Three years are named at the end of their lines: this year, the best past year by today's date and the year
+before this one (once, where they are the same); the phone's resting line reads out the same three. Pointing at any line
+(a pointer within 14 px of it, or a tap) draws that year bold, names it and leads the tooltip with it, so any of the grey lines
+can be told. The title compares this year with the best past year, "2027 is 54 km above 2025" when ahead as "2027 is 18 km behind 2025" when behind.
 
 **Bests by year.** Small charts of a sport's best at each length in each calendar year, one panel for each length on one
 run of years, each panel with its own axis: a run's mile, 5 km, 10 km, half marathon and marathon as pace (faster up, in
@@ -1550,7 +1563,9 @@ their ends and marked at the 20 minute best (hollow for a floor or an estimate);
 are, on one ramp. Past six years only four are in colour (the newest, the best and the two newest of the others, each
 labelled) and the rest are thin grey lines with no label. The title is the finding about the 20 minute best ("Your 20 min
 power peaked in 2024"), or "is fastest in" for a pace and "is highest in" for a power when the newest year holds it. An
-estimate is never the best year while a year has a measured value. A sport needs two years to be compared. The table twin
+estimate is never the best year while a year has a measured value. A sport needs two years to be compared. A pace axis is
+fitted to the lines (their range with a little room, its ticks the round minutes inside it), so a wide range does not leave a
+third of the plot empty above the fastest pace; a power axis starts at zero. The table twin
 lists every year at every duration, tagging an estimated value ", estimated".
 
 **Fitness over the years.** Every steady run or ride of the library as one dot, its pace or power at the fitness card's heart
@@ -1564,4 +1579,12 @@ the card, the look-back and this chart. It posts compact arrays: the first dot's
 gap breaks the line), the middle 80% of each calendar year, and the spans. About 7 bytes a dot: 1,750 steady activities of
 2,000 post in 12 KB. The dots are one path (a point of zero length with a round cap for a run, a closed diamond for a ride),
 not a node each, so 2,000 stay smooth. The keyboard reads one calendar year at a time (median, middle 80%, count, and any
-slip or rise in it), and the table twin lists the same years, with the slips and rises in a second table.
+slip or rise in it), and the table twin lists the same years, with the slips and rises in a second table. The pointer reads the
+year whose room it is in (rooms are in proportion to their days, so the nearest middle is not always that year) and, when it is
+over a slip or rise, the band goes firmer and that band's months lead the reading. Each band is drawn from the pixel of its first
+day to the pixel of its last on the dots' own time scale, so its edges sit on the same days the look-back's dates name.
+
+**Intensity by year.** Each year's heart-rate time for one sport as one bar split into easy, moderate and hard. The title
+is "2025 had your highest share of hard running" when one year leads the next by 5 points with 20 hours of the sport, else its
+measure; it says what the bar shows (a share), not how hard the year was. A phone's table leaves out the activity count, which
+the tooltip gives.

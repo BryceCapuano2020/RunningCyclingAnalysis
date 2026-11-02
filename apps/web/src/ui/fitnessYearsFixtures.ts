@@ -9,7 +9,7 @@ const SHAPE: Record<Sport, { step: number; base: number }> = {
   ride: { step: 1, base: 200 },
 }
 
-const startOf = (year: number): number => (Date.UTC(year, 0, 1) - WEEK_ORIGIN_MS) / DAY_MS
+export const startOf = (year: number): number => (Date.UTC(year, 0, 1) - WEEK_ORIGIN_MS) / DAY_MS
 const middle = (sorted: number[], q: number): number => sorted[Math.floor((sorted.length - 1) * q)]!
 
 export interface DotsOptions {

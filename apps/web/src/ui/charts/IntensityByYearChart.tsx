@@ -35,7 +35,7 @@ const DESCRIPTION =
 
 /**
  * Each year's heart-rate time for one sport, as one bar of 100%, split into easy, moderate and hard. The title is the
- * finding (the hardest year), or the measure when there is none. The table gives each year's shares, time and count.
+ * finding (the year with the highest hard share), or the measure when there is none. The table gives each year's shares, time and count.
  */
 export function IntensityByYearChart({ years, sport, controls }: IntensityByYearChartProps) {
   const [active, setActive] = useState<number | null>(null)

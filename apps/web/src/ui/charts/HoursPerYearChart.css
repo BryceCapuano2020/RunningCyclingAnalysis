@@ -8,6 +8,14 @@
   fill: var(--sport-colour);
 }
 
+/* The year still going is pale with a dashed edge, so it does not read as a year that fell short. */
+.year-bar[data-partial] {
+  fill-opacity: 0.35;
+  stroke: var(--sport-colour);
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 2;
+}
+
 /* Forced colours: running is the text colour and the other sports the highlight, with an edge between parts. */
 @media (forced-colors: active) {
   .year-bar {
@@ -17,5 +25,13 @@
 
   .year-bar[data-sport='run'] {
     fill: CanvasText;
+  }
+
+  .year-bar[data-partial] {
+    stroke: Highlight;
+  }
+
+  .year-bar[data-partial][data-sport='run'] {
+    stroke: CanvasText;
   }
 }

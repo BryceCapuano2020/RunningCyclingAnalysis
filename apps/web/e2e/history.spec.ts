@@ -93,3 +93,88 @@ test('the History tab draws the fitness dots in one node, toggles the sport, and
   await expect(chart.getByRole('table').first().getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })
+
+/** The part of an element that a phone would cut off: text the box clips, or a row that runs past its container. */
+const CUT_OFF = `
+  [...document.querySelectorAll('.history *')]
+    .filter((el) => !el.closest('svg, .table-scroll, .sr-only'))
+    .flatMap((el) => {
+      const style = getComputedStyle(el)
+      const clipped = style.overflowX !== 'visible' && el.scrollWidth > el.clientWidth + 1
+      const ellipsis = style.textOverflow === 'ellipsis' || getComputedStyle(el, '::before').textOverflow === 'ellipsis'
+      return clipped || ellipsis ? [el.className.toString() || el.tagName] : []
+    })
+`
+
+test('on a 390 px phone the History tab labels every bar, wraps its toggles and readouts, and cuts nothing off', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  await goTo(page, 'History')
+  await expect(page.getByText('Years on file')).toBeVisible()
+
+  // Every year has its bar and its label under it.
+  const years = Number(await page.locator('.history-summary dd').first().textContent())
+  expect(years).toBeGreaterThan(1)
+  const hours = page.locator('[data-section="hours-per-year"]')
+  await expect(hours.locator('.chart-x-axis__tick')).toHaveCount(years)
+
+  // No sentence is cut with an ellipsis, in a readout row or anywhere else, and no row runs past the page.
+  for (const section of SECTIONS)
+    await page.locator(`[data-section="${section}"]`).scrollIntoViewIfNeeded()
+  expect(await page.evaluate(CUT_OFF)).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+
+  // A toggle sits inside its chart's control row, whether it shares the row with a key or wraps below it.
+  const rows = page.locator('[data-section] .chart-frame__controls')
+  const count = await rows.count()
+  expect(count).toBeGreaterThan(3)
+  for (let i = 0; i < count; i++) {
+    const fits = await rows.nth(i).evaluate((row) => row.scrollWidth <= row.clientWidth + 1)
+    expect(fits).toBe(true)
+  }
+  expect(errors).toEqual([])
+})
+
+test('the History tab marks the year still going, tells the calendar’s tints apart, and names three years at most', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await openSample(page)
+  await goTo(page, 'History')
+  await expect(page.getByText('Years on file')).toBeVisible()
+
+  // A year that is going is drawn lighter and keyed, and is the same year the bars call "so far" when read.
+  const hours = page.locator('[data-section="hours-per-year"]')
+  const partial = await hours.locator('[data-partial]').count()
+  const keyed = await hours
+    .getByRole('list', { name: 'Legend' })
+    .getByText(/ so far$/)
+    .count()
+  expect(keyed).toBe(partial > 0 ? 1 : 0)
+  if (partial > 0) {
+    await hours.getByTestId('plot-surface').focus()
+    await page.keyboard.press('End')
+    await expect(hours.getByRole('status')).toContainText('so far')
+  }
+
+  // The calendar's steps each take a fill of their own, and the key ends with an open edge.
+  const calendar = page.locator('[data-section="training-calendar"]')
+  const painted = await calendar
+    .getByTestId('calendar-cell')
+    .evaluateAll((cells) =>
+      cells.map((cell) => [cell.getAttribute('data-step'), getComputedStyle(cell).fill]),
+    )
+  const steps = new Set(painted.map(([step]) => step))
+  expect(steps.size).toBeGreaterThanOrEqual(3)
+  expect(new Set(painted.map(([, fill]) => fill)).size).toBe(steps.size)
+  await expect(calendar.getByTestId('calendar-ramp-edge').last()).toHaveText(/\+$/)
+
+  // At most the current year, the best past year and the one before are named on the year-to-date chart.
+  const names = page.locator('[data-section="year-to-date"] text.chart-series__label')
+  expect(await names.count()).toBeLessThanOrEqual(3)
+  expect(await names.count()).toBeGreaterThan(0)
+  expect(errors).toEqual([])
+})

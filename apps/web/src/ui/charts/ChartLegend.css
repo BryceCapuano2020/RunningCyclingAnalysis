@@ -101,6 +101,16 @@
   background: var(--neutral-mark);
 }
 
+/*
+ * A stretch still going: the series colour in a pale fill with a dashed edge, as the bar of a year so far is drawn
+ * (HoursPerYearChart.css). The sport's colour comes from data-sport, as a hollow point's does.
+ */
+.chart-legend__key--partial {
+  box-sizing: border-box;
+  border: 1.5px dashed var(--sport-colour, var(--neutral-mark));
+  background: color-mix(in srgb, var(--sport-colour, var(--neutral-mark)) 35%, transparent);
+}
+
 /* A hollow point's key: the page colour inside, and an outline in the sport's colour. */
 .chart-legend__key--ring,
 .chart-legend__key--ring-diamond {
@@ -174,5 +184,11 @@
     height: 0;
     background: none;
     border-top: 2px solid CanvasText;
+  }
+
+  /* A year so far stays a dashed outline, its fill left to the page. */
+  .chart-legend__key--partial {
+    background: none;
+    border-color: CanvasText;
   }
 }

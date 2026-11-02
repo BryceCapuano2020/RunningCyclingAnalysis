@@ -14,8 +14,9 @@ import type { ChartSize, TooltipContent } from './chartTypes'
 import { useChartHeight } from './chartHeight'
 import { idleFrom } from './idleReadout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
-import { yearToDateLayout } from './yearToDateLayout'
-import { defaultSport, hasDistance } from './yearToDateModel'
+import { endLabelOf, nearestYear, yearToDateLayout } from './yearToDateLayout'
+import type { LabelRole } from './yearToDateLayout'
+import { defaultSport, hasDistance, namedYears } from './yearToDateModel'
 import { yearToDateTable, yearToDateTitle, yearToDateTooltip } from './yearToDateText'
 import { axisFontSize } from './ticks'
 import './ChartSeries.css'
@@ -24,6 +25,13 @@ import './YearToDateChart.css'
 export interface YearToDateChartProps {
   data: YearToDate
   units: UnitSystem
+}
+
+const LABEL_TEST_ID: Record<LabelRole, string> = {
+  current: 'year-label-this',
+  best: 'year-label-best',
+  previous: 'year-label-previous',
+  read: 'year-label-read',
 }
 
 const SPORT_OPTIONS = SPORT_ORDER.map((sport) => ({ value: sport, label: SPORT_LABEL[sport] }))
@@ -36,6 +44,8 @@ const SPORT_OPTIONS = SPORT_ORDER.map((sport) => ({ value: sport, label: SPORT_L
 export function YearToDateChart({ data, units }: YearToDateChartProps) {
   const [picked, setPicked] = useState<Sport | null>(null)
   const [active, setActive] = useState<number | null>(null)
+  // The year whose line the pointer is on: drawn bold and named, and first in the tooltip.
+  const [read, setRead] = useState<number | null>(null)
   const sport = picked ?? defaultSport(data, SPORT_ORDER)
   const hasData = hasDistance(data, sport)
   const height = useChartHeight()
@@ -43,9 +53,12 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
   const tooltipFor = (index: number, x: number, y: number): TooltipContent => ({
     x,
     y,
-    ...yearToDateTooltip(data, sport, units, index),
+    ...yearToDateTooltip(data, sport, units, index, read),
   })
   const lastPoint = data.days.indexOf(data.today.day)
+  // At rest the phone reads out the years the chart names, not every year of a long library.
+  const idle = tooltipFor(lastPoint, 0, 0)
+  const named = namedYears(data, sport).map(String)
 
   return (
     <ChartFrame
@@ -59,6 +72,7 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
           onSelect={(next) => {
             setPicked(next)
             setActive(null)
+            setRead(null)
           }}
         />
       }
@@ -66,9 +80,18 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       empty={hasData ? undefined : `Add ${SPORT_PLURAL[sport]} to see this chart`}
-      idleReadout={hasData ? idleFrom(tooltipFor(lastPoint, 0, 0)) : undefined}
+      idleReadout={
+        hasData
+          ? idleFrom({ ...idle, rows: idle.rows.filter((row) => named.includes(row.label)) })
+          : undefined
+      }
       table={yearToDateTable(data, sport, units)}
-      surface={(size) => plotSurface(size, layoutOf(size)?.pointXs ?? null, active, setActive)}
+      surface={(size) => {
+        const layout = layoutOf(size)
+        return plotSurface(size, layout?.pointXs ?? null, active, setActive, undefined, (point) =>
+          setRead(point === null || layout === null ? null : nearestYear(layout.lines, point)),
+        )
+      }}
       overlay={(size) => {
         const layout = layoutOf(size)
         return tooltipOverlay(
@@ -88,6 +111,12 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
         if (m === null) return null
         const fontSize = axisFontSize(size.width)
         const activeX = active === null ? undefined : m.dayXs[active]
+        // A year the pointer is on that carries no name of its own is named while it is read.
+        const readLine = m.lines.find((line) => line.year === read)
+        const labelsShown =
+          readLine === undefined || m.labels.some((label) => label.year === read)
+            ? m.labels
+            : [...m.labels, endLabelOf(readLine, 'read')]
         return (
           <>
             <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
@@ -98,23 +127,26 @@ export function YearToDateChart({ data, units }: YearToDateChartProps) {
               fontSize={fontSize}
             />
             {activeX === undefined ? null : <Crosshair x={activeX} plot={size.plot} />}
-            {m.lines.map((line) => (
-              <path
-                key={line.year}
-                data-testid="year-line"
-                data-year={line.year}
-                className={
-                  line.current
-                    ? `chart-series__line chart-series__line--${sport}`
-                    : 'year-to-date__line'
-                }
-                d={line.d}
-              />
-            ))}
-            {m.labels.map((label) => (
+            {/* The year the pointer is on is drawn last, so its line is whole above the others. */}
+            {[...m.lines]
+              .sort((p, q) => Number(p.year === read) - Number(q.year === read))
+              .map((line) => (
+                <path
+                  key={line.year}
+                  data-testid="year-line"
+                  data-year={line.year}
+                  className={
+                    line.current
+                      ? `chart-series__line chart-series__line--${sport}`
+                      : `year-to-date__line${line.year === read ? ' year-to-date__line--read' : ''}`
+                  }
+                  d={line.d}
+                />
+              ))}
+            {labelsShown.map((label) => (
               <text
-                key={`${label.year}-${label.current ? 'this' : 'best'}`}
-                data-testid={label.current ? 'year-label-this' : 'year-label-best'}
+                key={`${label.year}-${label.role}`}
+                data-testid={LABEL_TEST_ID[label.role]}
                 className="chart-series__label"
                 x={label.x}
                 y={label.y}

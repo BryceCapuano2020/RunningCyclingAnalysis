@@ -256,8 +256,9 @@
 }
 
 /*
- * ChartFrame's own readout is one line at rest, 2 rem tall, saying the chart's latest or headline value (or how to
- * read one): a phone's plot keeps the room the fullest reading would take. A point's full reading draws over the
+ * ChartFrame's own readout is at least one line at rest, 2 rem tall, saying the chart's latest or headline value (or
+ * how to read one). A longer sentence wraps to a second line and is never cut; it is the same sentence however a point is
+ * read, so the plot stays where it is while the row is read over. A point's full reading draws over the
  * row, growing upward from its foot over the lines above the plot, so the plot is never pushed down under a finger.
  * Another chart's readout row (the activity timeline's) keeps the base rules above.
  */
@@ -272,9 +273,7 @@
 .chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
   content: attr(data-idle);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .chart-frame__readout--compact .chart-tooltip {

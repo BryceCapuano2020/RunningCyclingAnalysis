@@ -11,7 +11,8 @@ import { ChartYAxis } from './ChartYAxis'
 import { plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize } from './chartTypes'
 import { useChartHeight } from './chartHeight'
-import { fitnessYearsLayout } from './fitnessYearsLayout'
+import { fitnessYearsLayout, yearAtX } from './fitnessYearsLayout'
+import type { SpanBox } from './fitnessYearsLayout'
 import { atText, axisTitleOf, spansTable, yearTooltip, yearsTable } from './fitnessYearsText'
 import { idleFrom } from './idleReadout'
 import { linePath } from './paths'
@@ -47,6 +48,8 @@ export function FitnessYearsChart({ sport, dots, units, controls }: FitnessYears
   const [read, setRead] = useState<{ sport: Sport; year: number | null }>({ sport, year: null })
   const active = read.sport === sport ? read.year : null
   const setActive = (year: number | null) => setRead({ sport, year })
+  // Where the pointer is across the plot, so the slip or rise under it can lead the reading.
+  const [pointerX, setPointerX] = useState<number | null>(null)
   const height = useChartHeight()
   // The layout is kept between renders, so reading a year does not lay the dots out again.
   const layoutOf = useMemo(
@@ -55,6 +58,8 @@ export function FitnessYearsChart({ sport, dots, units, controls }: FitnessYears
   )
   const words = FITNESS_WORDS[sport]
   const last = dots.years.length - 1
+  const under = (spans: readonly SpanBox[]) =>
+    pointerX === null ? [] : spans.filter((s) => pointerX >= s.x0 && pointerX <= s.x1)
   return (
     <ChartFrame
       title="Fitness over the years"
@@ -70,25 +75,38 @@ export function FitnessYearsChart({ sport, dots, units, controls }: FitnessYears
       idleReadout={idleFrom(yearTooltip(dots, sport, units, last, 0, 0))}
       table={yearsTable(dots, sport, units)}
       summary={spansTable(dots)}
-      surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
-      overlay={(size) =>
-        tooltipOverlay(
+      surface={(size) => {
+        const layout = layoutOf(size)
+        return plotSurface(
+          size,
+          layout?.xs ?? null,
+          active,
+          setActive,
+          (_xs, x) => (layout === null ? null : yearAtX(layout.rooms, x)),
+          (point) => setPointerX(point === null ? null : point.x),
+        )
+      }}
+      overlay={(size) => {
+        const layout = layoutOf(size)
+        const bands = under(layout?.spans ?? []).map((s) => s.index)
+        return tooltipOverlay(
           size,
           tooltipAt(
             size,
-            layoutOf(size)?.xs ?? null,
+            layout?.xs ?? null,
             active,
-            (i, x, y) => yearTooltip(dots, sport, units, i, x, y),
-            layoutOf(size)?.ys,
+            (i, x, y) => yearTooltip(dots, sport, units, i, x, y, bands),
+            layout?.ys,
           ),
         )
-      }
+      }}
     >
       {(size) => {
         const m = layoutOf(size)
         if (m === null) return null
         const { plot } = size
         const room = active === null ? undefined : m.rooms[active]
+        const reading = new Set(under(m.spans).map((s) => s.index))
         return (
           <g data-sport={sport}>
             <g className="fitness-years__x">
@@ -112,7 +130,7 @@ export function FitnessYearsChart({ sport, dots, units, controls }: FitnessYears
             {m.spans.map((span) => (
               <g key={`${span.kind}-${span.x0}`} data-testid="fitness-span">
                 <rect
-                  className={`fitness-years__span fitness-years__span--${span.kind}`}
+                  className={`fitness-years__span fitness-years__span--${span.kind}${reading.has(span.index) ? ' fitness-years__span--read' : ''}`}
                   x={span.x0}
                   y={plot.top}
                   width={Math.max(2, span.x1 - span.x0)}

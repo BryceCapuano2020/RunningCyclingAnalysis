@@ -77,3 +77,45 @@ describe('the end labels of the year curves', () => {
     expect(xOf(2025)).toBeLessThan(xOf(2024))
   })
 })
+
+/** Two years of a run from a one minute best to a three hour one: from 3:50 a mile to 12:00, a span the old axis rounded out to 0:00. */
+function wide(): SportYearCurves {
+  const paces = [230, 260, 300, 380, 440, 720]
+  return {
+    durations: [60, 180, 300, 1200, 3600, 10_800],
+    years: [2021, 2022].map((year, i) => ({
+      year,
+      values: paces.map((seconds) => overMile(seconds + i * 5)),
+      hard: true,
+      estimated: [],
+    })),
+  }
+}
+
+describe('the pace axis of the year curves', () => {
+  for (const width of [360, 768, 1280]) {
+    it(`is fitted to the lines, faster up, with no tick at 0:00 and little room to spare at ${width} px`, () => {
+      const model = yearCurvesModel('run', wide())!
+      const size = sizeAt(width)
+      const { plot } = size
+      const layout = yearCurvesLayout(model, 'imperial', size)!
+      const ticks = layout.yTicks
+      expect(ticks.map((tick) => tick.label)).not.toContain('0:00')
+      expect(ticks.length).toBeGreaterThanOrEqual(3)
+      for (const tick of ticks) {
+        expect(tick.position).toBeGreaterThanOrEqual(plot.top)
+        expect(tick.position).toBeLessThanOrEqual(plot.bottom)
+      }
+      // The fastest point of any line is near the top of the plot, the slowest near the foot.
+      const ys = layout.lines.flatMap((line) =>
+        line.points.flatMap((p) => (p === null ? [] : [p.y])),
+      )
+      const room = 0.12 * (plot.bottom - plot.top)
+      expect(Math.min(...ys) - plot.top).toBeLessThan(room)
+      expect(plot.bottom - Math.max(...ys)).toBeLessThan(room)
+      // Faster is up: the one minute pace sits above the three hour pace.
+      const line = layout.lines[0]!
+      expect(line.points[0]!.y).toBeLessThan(line.points.at(-1)!.y)
+    })
+  }
+})

@@ -174,3 +174,50 @@ export function fittedYAxis(
   const padded = [lo - pad, hi + pad]
   return sportYAxis(sport, padded, plot, true, FITTED_MIN_PACE_SPAN_S)
 }
+
+/** The most ticks a pace axis fitted to its values draws. */
+const CURVE_MAX_TICKS = 6
+/** The room above and below the values on that axis, as a fraction of their range. */
+const CURVE_PAD = 0.06
+
+/**
+ * A pace axis fitted to its values: the domain is their range with a little room, not stretched out to the round
+ * numbers around it, and the ticks are the round numbers inside it. A wide range, such as a one minute best against
+ * a three hour one, cannot then leave a third of the plot empty above the fastest pace. Faster is up.
+ */
+function curvePaceAxis(values: number[], plot: PlotBox): { y: Scale; ticks: AxisTick[] } {
+  const fat = widened(values, FITTED_MIN_PACE_SPAN_S)
+  const [lo, hi] = [Math.min(...fat), Math.max(...fat)]
+  const pad = (hi - lo) * CURVE_PAD
+  const domain: [number, number] = [lo - pad, hi + pad]
+  const count = (step: number) => Math.floor(domain[1] / step) - Math.ceil(domain[0] / step) + 1
+  const step =
+    PACE_STEPS_S.find((candidate) => count(candidate) <= CURVE_MAX_TICKS) ?? PACE_STEPS_S.at(-1)!
+  const y = linearScale(domain, [plot.top, plot.bottom])
+  const ticks: AxisTick[] = []
+  for (let k = Math.ceil(domain[0] / step); k <= Math.floor(domain[1] / step); k++) {
+    ticks.push({ position: y(k * step), label: formatClock(k * step) })
+  }
+  return { y, ticks }
+}
+
+/** The axis of a best curve, by sport: pace fitted to its values, power from zero as the sport page draws it. */
+const CURVE_AXIS: Record<
+  Sport,
+  (values: number[], plot: PlotBox) => { y: Scale; ticks: AxisTick[] }
+> = {
+  run: curvePaceAxis,
+  ride: (values, plot) => sportYAxis('ride', values, plot),
+}
+
+/**
+ * The vertical scale of a chart of best curves, one for each year: a pace axis fitted to the lines so no tick pulls
+ * it out to a round number it does not need, and a power axis from zero. `values` are plotted values, not empty.
+ */
+export function curveYAxis(
+  sport: Sport,
+  values: number[],
+  plot: PlotBox,
+): { y: Scale; ticks: AxisTick[] } {
+  return CURVE_AXIS[sport](values, plot)
+}

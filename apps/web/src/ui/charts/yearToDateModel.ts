@@ -54,3 +54,15 @@ export function todayIndex(data: YearToDate): number {
 export function dayLabel(data: YearToDate, day: number): string {
   return shortDate(Date.UTC(data.today.year, 0, day))
 }
+
+/**
+ * The years the chart names and the phone's resting line reads out: this year, the best past year by today's date and
+ * the year before this one when it has a line. The others are told by pointing at them, or in the table.
+ */
+export function namedYears(data: YearToDate, sport: Sport): number[] {
+  const before = data.years.find(
+    (row) => row.year === data.today.year - 1 && lastOf(row, sport) > 0,
+  )
+  const years = [data.today.year, bestPastYear(data, sport)?.year, before?.year]
+  return [...new Set(years.filter((year): year is number => year !== undefined))]
+}

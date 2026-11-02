@@ -4,9 +4,12 @@ import { RAMP_STEPS } from './calendarRamp'
 const edgeText = (hours: number): string =>
   Number.isInteger(hours) ? String(hours) : hours.toFixed(1)
 
+/** The last edge opens the darkest tint, which holds every week above it, so it ends in a plus. */
+const OPEN_END = '+'
+
 /**
  * The key of the ramp: none, then the five tints with the hours a week where one ends and the next begins written
- * under the joins, so the darkest is "over" the last edge and each cell can be read against it.
+ * under the joins, the last one with a plus: the darkest tint is every week from there up.
  */
 export function CalendarRampKey({ edges }: { edges: readonly number[] }) {
   return (
@@ -34,6 +37,7 @@ export function CalendarRampKey({ edges }: { edges: readonly number[] }) {
             data-edge={i + 1}
           >
             {edgeText(hours)}
+            {i === edges.length - 1 ? OPEN_END : null}
           </span>
         ))}
       </span>
