@@ -7,7 +7,7 @@ import { YearsSection } from './YearsSection'
 
 afterEach(cleanup)
 
-describe('the "Your years" section', () => {
+describe('the History section', () => {
   it('has the episodes, the quiet stretches and nothing said of now, and leaves the picture to the History tab', () => {
     render(<YearsSection sport="run" lookBack={YEARS_LOOKBACK} units="metric" />)
     expect(screen.queryByRole('figure')).toBeNull()
@@ -17,8 +17,8 @@ describe('the "Your years" section', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      expect.stringMatching(/^May 2021 to January 2022\. Slipped about 8\.7%/),
-      expect.stringMatching(/^From June 2023\. Slipped about 6\.4%.*still lower in August 2024/),
+      expect.stringMatching(/^May 2021 to January 2022\. Slipped 9% \(6 to 11\), then back\./),
+      expect.stringMatching(/^From June 2023\. Slipped 6% .*still lower in August 2024/),
     ])
     const quiet = screen.getByRole('region', { name: 'Quiet stretches' })
     expect(quiet).toHaveTextContent(

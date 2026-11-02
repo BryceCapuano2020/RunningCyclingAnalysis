@@ -18,7 +18,7 @@ export interface YearsRowProps {
 }
 
 /**
- * "Your years": the look-back's lead in one line under the fitness card, and behind the disclosure the other episodes.
+ * "History": the look-back's lead in one line under the fitness card, and behind the disclosure the other episodes.
  * It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
  * the line is cut after two lines and the panel gives it whole. Opening or hiding it, or being shown it on two page
  * loads, is seeing its lead, and a seen lead gives up the place until the look-back has a new one; its content stays on
@@ -34,7 +34,7 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
     <section
       ref={row}
       className="checkin-row years-row"
-      aria-label="Your years"
+      aria-label="History"
       data-testid="years-row"
     >
       <details
@@ -44,7 +44,7 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
         }}
       >
         <summary className="checkin-row__summary">
-          <span className="sr-only">Show your years. </span>
+          <span className="sr-only">Show history. </span>
           <span className="checkin-row__line">{words.lead}</span>
           <span className="checkin-row__toggle" aria-hidden="true" />
         </summary>

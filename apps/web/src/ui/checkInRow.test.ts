@@ -30,7 +30,7 @@ describe('the words of the row', () => {
   it('say what was added and what was checked, with every date in its year', () => {
     const words = checkInWords(view(QUIET_CHECK_IN), 'metric')!
     expect(words.headline).toBe(
-      '14 runs and 3 rides added since 2 October 2025. Nothing moved: no new bests, and run fitness shows no clear change, within 2% of before.',
+      '14 runs and 3 rides added since 2 October 2025. Nothing moved. Run fitness shows no clear change, within 2%.',
     )
     expect(words.lines).toEqual([])
   })

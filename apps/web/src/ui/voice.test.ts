@@ -37,17 +37,17 @@ const BUDGET: Record<Rule, number> = {
   'em dash': 18,
   ', not a': 0,
   honest: 0,
-  'read from': 6,
+  'read from': 4,
   comparable: 0,
   'reference heart rate': 1,
   'flat pace': 3,
   'Ride on foot': 0,
   'Output per heartbeat': 0,
   'Late in long sessions': 0,
-  'Your years': 3,
+  'Your years': 0,
   'Stand-out': 0,
   'It takes': 1,
-  '; ': 35,
+  '; ': 32,
 }
 
 /** The core's modules that write the athlete's sentences, relative to packages/core/src. */

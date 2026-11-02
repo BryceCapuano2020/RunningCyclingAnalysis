@@ -272,9 +272,14 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
   await openSample(page)
   await goTo(page, 'Run')
 
+  // The records are listed once, in All best efforts; the curve's card above holds no strip of them.
+  await expect(page.getByRole('region', { name: 'Best efforts' })).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Best efforts' }).locator('.record-tiles'),
+  ).toHaveCount(0)
   await page
-    .getByRole('region', { name: 'Best efforts' })
-    .locator('a.record-tiles__link, .record-tiles__shared a')
+    .getByRole('region', { name: 'All best efforts' })
+    .locator('a.records__link, .records__shared a')
     .first()
     .click()
 

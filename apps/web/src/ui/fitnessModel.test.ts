@@ -97,8 +97,9 @@ describe('viewOf', () => {
       FITNESS_AS_OF_MS,
     )
     expect(history.label).toBe('No trend yet')
-    expect(history.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13).')
+    expect(history.headline).toBe('5:03\u00a0/km (4:54 to 5:13) at 150 bpm.')
     expect(history.support).toBe('From 7 steady runs.')
+    expect(history.changes).toEqual([])
     expect(history.needs).toBe('5 more earlier runs to see a trend.')
     const recent = viewOf(
       waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }),
@@ -109,7 +110,7 @@ describe('viewOf', () => {
     expect(recent.needs).toBe('2 more runs in the last 8 weeks to see a trend.')
     const gap = viewOf(waitingStatus({ kind: 'break', weeksSince: 9 }), 'metric', FITNESS_AS_OF_MS)
     expect(gap.label).toBe('No trend yet')
-    expect(gap.headline).toBe('5:03\u00a0/km at 150 bpm (4:54 to 5:13) in October.')
+    expect(gap.headline).toBe('5:03\u00a0/km (4:54 to 5:13) at 150 bpm in October.')
     const wide = viewOf(
       waitingStatus({ kind: 'imprecise', within: 0.07 }, 33),
       'metric',
@@ -132,13 +133,28 @@ describe('viewOf', () => {
     expect(lineOf(few)).toBe('2 steady rides with a power meter so far.')
   })
 
-  it('makes a line of the headline and its support', () => {
+  it('makes a line of the headline, its changes and its support', () => {
     const level = viewOf(
       waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride'),
       'metric',
       FITNESS_AS_OF_MS,
     )
-    expect(lineOf(level)).toBe('200 W at 140 bpm (194 to 206). From 33 steady rides.')
+    expect(lineOf(level)).toBe('200 W (194 to 206) at 140 bpm. From 33 steady rides.')
+  })
+})
+
+describe('the lines of a view', () => {
+  it('leads with the level, has a line for each change and keeps a pace and its unit on one line', () => {
+    const slip = viewOf(SLIPPING, 'metric', FITNESS_AS_OF_MS)
+    expect(slip.headline).toBe('5:37\u00a0/km at 150 bpm.')
+    expect(slip.changes).toHaveLength(1)
+    expect(slip.changes[0]).toMatch(/^\d+% \(\d+ to \d+\) off your level before 15 Feb\.$/)
+    const recovery = viewOf(RECOVERING, 'metric', FITNESS_AS_OF_MS)
+    expect(recovery.changes).toHaveLength(2)
+    expect(recovery.changes[0]).toMatch(/^Up \d+% \(\d+ to \d+\) from your \w+ low\.$/)
+    expect(lineOf(recovery)).toBe(
+      [recovery.headline, ...recovery.changes, recovery.support].join(' '),
+    )
   })
 })
 
@@ -195,7 +211,9 @@ describe('worthShowing', () => {
   it('draws a card for each sport that has a status, run first, and none for a sport that is switched off or has no steady ride', () => {
     const both = fitnessViews({ run: SLIPPING, ride: RIDE_SLIPPING }, 'metric', FITNESS_AS_OF_MS)
     expect(both.map((view) => view.sport)).toEqual(['run', 'ride'])
-    expect(both[1]!.headline).toMatch(/^At 140 bpm you now ride at \d+ W, \d+% /)
+    expect(both[1]!.headline).toMatch(/^\d+ W at 140 bpm\.$/)
+    expect(both[1]!.changes).toHaveLength(1)
+    expect(both[1]!.changes[0]).toMatch(/^\d+% \(\d+ to \d+\) off your level before /)
     const off = fitnessViews(
       { run: SLIPPING, ride: { ...NO_FITNESS.ride, shortfall: { kind: 'unavailable' } } },
       'metric',

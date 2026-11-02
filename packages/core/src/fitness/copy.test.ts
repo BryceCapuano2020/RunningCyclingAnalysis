@@ -68,35 +68,35 @@ const STATES: FitnessState[] = [
 ]
 
 describe('the lines of a status', () => {
-  it('says a slip in pace terms, with its range, the level before and the day it began', () => {
+  it('says a slip with the level first, then one line for the change with its range and the level before', () => {
     const lines = fitnessLines(status('run', 'slipping'), 'metric')
-    // 5:00 to 5:30 is 10% slower in pace, though speed fell by 9.1%; the range is mapped the same way.
-    expect(lines.headline).toBe(
-      'At 150 bpm you now run 5:30 /km, 10% (5 to 15%) slower than the 5:00 /km before 28 Feb.',
-    )
-    expect(lines.support).toBe(
-      '14 steady runs, 14 Apr to 8 Jun, against 22 in the 32 weeks before 28 Feb.',
-    )
+    expect(lines).toEqual({
+      headline: '5:30 /km at 150 bpm.',
+      // 5:00 to 5:30 is 10% slower in pace, though speed fell by 9.1%; the range is mapped the same way.
+      changes: ['10% (5 to 15) off your level before 28 Feb.'],
+      support: 'From 14 steady runs, 14 Apr to 8 Jun.',
+      needs: '',
+    })
   })
 
   it('writes pace per mile when the athlete counts in miles', () => {
     const lines = fitnessLines(status('run', 'slipping'), 'imperial')
-    expect(lines.headline).toContain('/mi')
-    expect(lines.headline).not.toContain('/km')
-    expect(lines.headline).toMatch(/slower than the 8:\d\d \/mi before 28 Feb/)
+    expect(lines.headline).toMatch(/^8:\d\d \/mi at 150 bpm\.$/)
+    expect([lines.headline, ...lines.changes].join(' ')).not.toContain('/km')
   })
 
   it('says rides in watts and in power terms', () => {
-    const lines = fitnessLines(
+    const slip = fitnessLines(
       status('ride', 'slipping', {
         referenceHr: 140,
         change: { value: -0.06, low: -0.09, high: -0.03 },
       }),
       'imperial',
     )
-    expect(lines.headline).toBe(
-      'At 140 bpm you now ride at 172 W, 6% (3 to 9%) less than the 183 W before 28 Feb.',
-    )
+    expect(slip.headline).toBe('172 W at 140 bpm.')
+    expect(slip.changes).toEqual(['6% (3 to 9) off your level before 28 Feb.'])
+    const rise = fitnessLines(status('ride', 'improving', { change: GAIN }), 'imperial')
+    expect(rise.changes).toEqual(['10% (4 to 16) more power than your level before 28 Feb.'])
   })
 
   it('says holding with how far from level the runs allow, a distance and never under the floor of the range', () => {
@@ -104,21 +104,35 @@ describe('the lines of a status', () => {
       status('run', 'holding', { change: { value: 0.002, low: -0.03, high: 0.03 }, within: 0.045 }),
       'metric',
     )
-    expect(lines.headline).toBe(
-      'At 150 bpm you run 5:30 /km, level with the 36 weeks before (within 4.6%).',
-    )
+    expect(lines.headline).toBe('5:30 /km at 150 bpm.')
+    expect(lines.changes).toEqual(['Level with the 36 weeks before, within 4.6%.'])
   })
 
-  it('says holding below, recovering with "still", and recovering above the old level without it', () => {
-    expect(fitnessLines(status('run', 'holding-below'), 'metric').headline).toContain(
-      'holding 10% (5 to 15%) slower than the 5:00 /km before 28 Feb',
-    )
-    const recovering = fitnessLines(status('run', 'recovering'), 'metric').headline
-    expect(recovering).toContain('regained 4.8% (3 to 7%) since your low in July')
-    expect(recovering).toContain('still 10% (5 to 15%) slower')
-    const above = fitnessLines(status('run', 'recovering', { change: GAIN }), 'metric').headline
-    expect(above).toContain(', now 9.1% (4 to 14%) faster than the')
-    expect(above).not.toContain('still')
+  it('says holding below as the size off the old level, and a settled rise as the size above it', () => {
+    expect(fitnessLines(status('run', 'holding-below'), 'metric').changes).toEqual([
+      '10% (5 to 15) off your level before 28 Feb.',
+    ])
+    expect(fitnessLines(status('run', 'improved', { change: GAIN }), 'metric').changes).toEqual([
+      '9% (4 to 14) faster than your level before 28 Feb.',
+    ])
+  })
+
+  it('says a recovery in two lines, one for the rise from the low and one for the level against the old one', () => {
+    const below = fitnessLines(status('run', 'recovering'), 'metric')
+    expect(below.headline).toBe('5:30 /km at 150 bpm.')
+    expect(below.changes).toEqual([
+      'Up 5% (3 to 7) from your July low.',
+      '10% (5 to 15) off your level before 28 Feb.',
+    ])
+    const above = fitnessLines(status('run', 'recovering', { change: GAIN }), 'metric').changes
+    expect(above).toEqual([
+      'Up 5% (3 to 7) from your July low.',
+      '9% (4 to 14) faster than your level before 28 Feb.',
+    ])
+    // No line holds two ranges.
+    for (const line of [...below.changes, ...above]) {
+      expect(line.match(/\(/g)).toHaveLength(1)
+    }
   })
 
   it('says back within a tolerance, and back and faster when the whole range is above the old level', () => {
@@ -126,44 +140,43 @@ describe('the lines of a status', () => {
       change: { value: 0.004, low: -0.02, high: 0.03 },
       within: 0.034,
     })
-    expect(fitnessLines(level, 'metric').headline).toBe(
-      'At 150 bpm you are back: 5:30 /km against 5:00 /km before 28 Feb, within 3.5%.',
-    )
-    const faster = fitnessLines(status('run', 'back', { change: GAIN }), 'metric').headline
-    expect(faster).toBe(
-      'At 150 bpm you are back and faster: 5:30 /km against 5:00 /km before 28 Feb, 9.1% (4 to 14%) faster.',
-    )
-    expect(faster).not.toContain('within')
+    expect(fitnessLines(level, 'metric').changes).toEqual([
+      'At your level before 28 Feb, within 3.5%.',
+    ])
+    const faster = fitnessLines(status('run', 'back', { change: GAIN }), 'metric')
+    expect(faster.headline).toBe('5:30 /km at 150 bpm.')
+    expect(faster.changes).toEqual(['9% (4 to 14) faster than your level before 28 Feb.'])
+    expect(faster.changes.join(' ')).not.toContain('within')
   })
 
-  it('says a rise as a rise, dated, and a settled one as holding at the new level', () => {
+  it('says a rise as a rise and a settled one as the size above the old level', () => {
     const rising = fitnessLines(status('run', 'improving', { change: GAIN }), 'metric')
-    expect(rising.headline).toBe(
-      'At 150 bpm you now run 5:30 /km, 9.1% (4 to 14%) faster than the 5:00 /km before 28 Feb.',
-    )
-    const settled = fitnessLines(status('run', 'improved', { change: GAIN }), 'metric')
-    expect(settled.headline).toBe(
-      'At 150 bpm you run 5:30 /km, holding 9.1% (4 to 14%) faster than the 5:00 /km before 28 Feb.',
-    )
+    expect(rising.changes).toEqual(['9% (4 to 14) faster than your level before 28 Feb.'])
     expect(fitnessFindingHeadline(status('run', 'improved', { change: GAIN }))).toBe(
-      'At 150 bpm you now run 9.1% (4 to 14%) faster than before 28 Feb.',
+      '9% (4 to 14) faster than your level before 28 Feb at 150 bpm.',
     )
+  })
+
+  it('names the old level by its year when it ended in an earlier year, and as "old" when it is undated', () => {
+    const later = { asOfMs: Date.UTC(2026, 3, 12) }
+    expect(fitnessLines(status('run', 'slipping', later), 'metric').changes).toEqual([
+      '10% (5 to 15) off your 2025 level.',
+    ])
+    expect(fitnessLines(status('run', 'slipping', { onsetMs: null }), 'metric').changes).toEqual([
+      '10% (5 to 15) off your old level.',
+    ])
   })
 
   it('says level, not a direction, when the range of the change reaches both sides of level', () => {
     const across: Ranged = { value: 0.006, low: -0.03, high: 0.04 }
-    const slipping = fitnessLines(
-      status('run', 'slipping', { change: across, within: 0.045 }),
-      'metric',
-    )
-    expect(slipping.headline).toBe(
-      'At 150 bpm you now run 5:30 /km, level with the 5:00 /km before 28 Feb (within 4.6%).',
-    )
-    const below = fitnessLines(
-      status('run', 'holding-below', { change: across, within: 0.045 }),
-      'metric',
-    )
-    expect(below.headline).toContain('level with the 5:00 /km before 28 Feb (within 4.6%)')
+    const at = ['At your level before 28 Feb, within 4.6%.']
+    expect(
+      fitnessLines(status('run', 'slipping', { change: across, within: 0.045 }), 'metric').changes,
+    ).toEqual(at)
+    expect(
+      fitnessLines(status('run', 'holding-below', { change: across, within: 0.045 }), 'metric')
+        .changes,
+    ).toEqual(at)
     const recovering = fitnessLines(
       status('run', 'recovering', {
         change: across,
@@ -171,30 +184,34 @@ describe('the lines of a status', () => {
         gain: { value: 0.01, low: -0.02, high: 0.04 },
       }),
       'metric',
-    ).headline
-    expect(recovering).toContain('regained ground since your low in July')
-    expect(recovering).toContain('level with the 5:00 /km before 28 Feb (within 4.6%)')
-    for (const text of [slipping.headline, below.headline, recovering]) {
-      expect(text).not.toMatch(/slower|faster|still/)
-    }
+    ).changes
+    expect(recovering).toEqual(['Up from your July low.', ...at])
+    for (const text of recovering) expect(text).not.toMatch(/slower|faster|off|still|%\s\(/)
   })
 
   it('says "within" as a distance in the athlete\'s terms, the larger side, for a run and a ride', () => {
-    const run = fitnessLines(status('run', 'holding', { within: 0.1 }), 'metric').headline
-    const ride = fitnessLines(status('ride', 'holding', { within: 0.1 }), 'metric').headline
+    const run = fitnessLines(status('run', 'holding', { within: 0.1 }), 'metric').changes
+    const ride = fitnessLines(status('ride', 'holding', { within: 0.1 }), 'metric').changes
     // exp(0.1) - 1: a pace 10.5% slower is as far as a speed 9.5% faster, and the larger is said.
-    expect(run).toContain('within 11%')
-    expect(ride).toContain('within 11%')
+    expect(run).toEqual(['Level with the 36 weeks before, within 11%.'])
+    expect(ride).toEqual(['Level with the 36 weeks before, within 11%.'])
   })
 
-  it('passes the copy lint in every state, sport and unit', () => {
+  it('leads every state with the level and keeps each line to one fact', () => {
     for (const sport of ['run', 'ride'] as const) {
       for (const system of ['metric', 'imperial'] as const) {
         for (const state of STATES) {
           for (const change of [LOSS, GAIN]) {
             const lines = fitnessLines(status(sport, state, { change }), system)
-            expect(lines.headline.length).toBeGreaterThan(0)
-            expect([...lintCopy(lines.headline), ...lintCopy(lines.support)]).toEqual([])
+            expect(lines.headline).toMatch(/^\d+(?::\d{2} \/(?:km|mi)| W) at 150 bpm\.$/)
+            expect(lines.changes.length).toBeGreaterThan(0)
+            for (const line of lines.changes) {
+              // One range at most in a line, and no clause joined by a semicolon or a colon.
+              expect(line.match(/\(/g)?.length ?? 0).toBeLessThanOrEqual(1)
+              expect(line).not.toMatch(/[;:]/)
+            }
+            const text = [lines.headline, ...lines.changes, lines.support].join(' ')
+            expect(lintCopy(text)).toEqual([])
           }
         }
       }
@@ -205,23 +222,26 @@ describe('the lines of a status', () => {
 describe('the headline of a finding', () => {
   it('carries sizes and dates but no pace or power, which the unit setting would change', () => {
     expect(fitnessFindingHeadline(status('run', 'slipping'))).toBe(
-      'At 150 bpm you now run 10% (5 to 15%) slower than before 28 Feb.',
+      '10% (5 to 15) off your level before 28 Feb at 150 bpm.',
     )
     expect(
       fitnessFindingHeadline(
         status('ride', 'slipping', { change: { value: -0.06, low: -0.09, high: -0.03 } }),
       ),
-    ).toBe('At 150 bpm you now ride at 6% (3 to 9%) less power than before 28 Feb.')
+    ).toBe('6% (3 to 9) off your level before 28 Feb at 150 bpm.')
+    expect(fitnessFindingHeadline(status('ride', 'improved', { change: GAIN }))).toBe(
+      '10% (4 to 16) more power than your level before 28 Feb at 150 bpm.',
+    )
     expect(fitnessFindingHeadline(status('run', 'recovering'))).toBe(
-      'At 150 bpm you have regained 4.8% (3 to 7%) since your low in July.',
+      'Up 5% (3 to 7) from your low in July at 150 bpm.',
     )
     expect(
       fitnessFindingHeadline(
         status('run', 'back', { change: { value: 0.004, low: -0.02, high: 0.03 }, within: 0.034 }),
       ),
-    ).toBe('At 150 bpm you are back to your level before 28 Feb, within 3.5%.')
+    ).toBe('Back at your level before 28 Feb at 150 bpm, within 3.5%.')
     expect(fitnessFindingHeadline(status('run', 'back', { change: GAIN }))).toBe(
-      'At 150 bpm you are back and 9.1% (4 to 14%) faster than before 28 Feb.',
+      'Back and 9% (4 to 14) faster than your level before 28 Feb at 150 bpm.',
     )
     for (const state of ['slipping', 'recovering', 'back'] as const) {
       expect(lintCopy(fitnessFindingHeadline(status('run', state)))).toEqual([])
@@ -236,35 +256,48 @@ describe('the headline of a finding', () => {
 })
 
 describe('the year of a date', () => {
-  it('is named when the change began or the low fell in an earlier year than the status is as of, in the sentence and the finding', () => {
+  it('is named when the change began or the low fell in an earlier year than the status is as of, in the lines and the finding', () => {
     const later = status('run', 'recovering', { asOfMs: Date.UTC(2026, 3, 12) })
-    const { headline } = fitnessLines(later, 'metric')
-    expect(headline).toContain('since your low in July 2025')
-    expect(headline).toContain('before 28 Feb 2025')
-    expect(fitnessFindingHeadline(later)).toContain('since your low in July 2025')
-    const slip = fitnessLines(
-      status('run', 'slipping', { asOfMs: Date.UTC(2026, 3, 12) }),
-      'metric',
+    expect(fitnessLines(later, 'metric').changes).toEqual([
+      'Up 5% (3 to 7) from your 2025 low.',
+      '10% (5 to 15) off your 2025 level.',
+    ])
+    // A finding is kept, so it names the day and the month with their year.
+    expect(fitnessFindingHeadline(later)).toBe(
+      'Up 5% (3 to 7) from your low in July 2025 at 150 bpm.',
     )
-    expect(slip.headline).toMatch(/before 28 Feb 2025\.$/)
+    expect(fitnessFindingHeadline({ ...later, state: 'slipping' })).toBe(
+      '10% (5 to 15) off your level before 28 Feb 2025 at 150 bpm.',
+    )
   })
 
   it('is left out in the status’s own year, so a recent date stays short', () => {
-    const { headline } = fitnessLines(status('run', 'recovering'), 'metric')
-    expect(headline).toContain('since your low in July:')
-    expect(headline).toMatch(/before 28 Feb\.$/)
-    expect(headline).not.toMatch(/2025/)
+    const { changes } = fitnessLines(status('run', 'recovering'), 'metric')
+    expect(changes).toEqual([
+      'Up 5% (3 to 7) from your July low.',
+      '10% (5 to 15) off your level before 28 Feb.',
+    ])
+    expect(changes.join(' ')).not.toMatch(/2025/)
   })
 })
 
 describe('sized', () => {
   it('writes a one-sided range as sizes, the direction left to the words beside it', () => {
-    expect(sized('ride', { value: 0.06, low: 0.03, high: 0.09 })).toBe('6% (3 to 9%)')
-    expect(sized('ride', { value: -0.06, low: -0.09, high: -0.03 })).toBe('6% (3 to 9%)')
+    expect(sized('ride', { value: 0.06, low: 0.03, high: 0.09 })).toBe('6% (3 to 9)')
+    expect(sized('ride', { value: -0.06, low: -0.09, high: -0.03 })).toBe('6% (3 to 9)')
+  })
+
+  it('rounds the size to a whole percentage, with a tenth only under 1%', () => {
+    expect(sized('ride', { value: 0.0914, low: 0.05, high: 0.13 })).toBe('9% (5 to 13)')
+    expect(sized('ride', { value: 0.004, low: 0.001, high: 0.008 })).toBe('0.4% (0 to 1)')
+  })
+
+  it('leaves the range out when it rounds to the size', () => {
+    expect(sized('ride', { value: 0.05, low: 0.048, high: 0.052 })).toBe('5%')
   })
 
   it('keeps the signs of a range that crosses level', () => {
-    expect(sized('ride', { value: 0.004, low: -0.03, high: 0.04 })).toBe('0.4% (-3 to +4%)')
-    expect(sized('ride', { value: -0.01, low: -0.05, high: 0.02 })).toBe('1% (-5 to +2%)')
+    expect(sized('ride', { value: 0.004, low: -0.03, high: 0.04 })).toBe('0.4% (-3 to +4)')
+    expect(sized('ride', { value: -0.01, low: -0.05, high: 0.02 })).toBe('1% (-5 to +2)')
   })
 })

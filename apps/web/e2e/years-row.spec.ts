@@ -106,9 +106,11 @@ for (const size of SIZES) {
     await expect(section).toBeVisible()
     // Its row says what it found, and the section is open to start with: nothing waits on a press.
     const row = section.locator('.sport-disclosure__summary')
-    await expect(row).toContainText(/slipped in 2023 and came back/)
+    await expect(row).toContainText(/Slipped in 2023, then came back/)
     await expect(section.locator('.sport-disclosure__details')).toHaveAttribute('open', '')
-    await expect(section.getByRole('region', { name: 'Episodes' })).toContainText(/Slipped about/)
+    await expect(section.getByRole('region', { name: 'Episodes' })).toContainText(
+      /Slipped \d+% \(\d+ to \d+\), then back/,
+    )
     // The picture of the years is the History tab's: the section holds words, and the episode it names is shaded there.
     await expect(section.getByRole('figure')).toHaveCount(0)
     await goTo(page, 'History')

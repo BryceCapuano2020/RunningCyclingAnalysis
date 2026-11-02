@@ -139,7 +139,7 @@ describe('SportPage: history', () => {
 
   it('is the first section, open, named by its own finding', () => {
     page(YEARS_LOOKBACK)
-    expect(closedRow('History')).toBe('HistoryYour pace at 148 bpm slipped in 2021 and came back')
+    expect(closedRow('History')).toBe('HistorySlipped in 2021, then came back')
     expect(document.querySelector('[data-section="years"], #years, details')).not.toBeNull()
   })
 
@@ -148,6 +148,25 @@ describe('SportPage: history', () => {
     const years = openSection('History')
     expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
     expect(within(years).queryByRole('figure')).toBeNull()
+  })
+
+  it('says what a sport too short for its years needs in the section, and puts no finding on its row', () => {
+    const run = YEARS_LOOKBACK.sports.run
+    page({
+      ...YEARS_LOOKBACK,
+      sports: {
+        ...YEARS_LOOKBACK.sports,
+        run: {
+          ...run,
+          milestones: [],
+          fitness: { kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 },
+        },
+      },
+    })
+    expect(closedRow('History')).toBe('History')
+    expect(openSection('History')).toHaveTextContent(
+      'Needs 40 steady runs over 52 weeks. You have 23 over 19.',
+    )
   })
 
   it('says what it needs, in its own place, when there are no years to tell', () => {
@@ -657,10 +676,7 @@ describe('SportPage', () => {
         runCurve: [curvePoint(300, 4.1, 'run-1'), curvePoint(1200, 3.6, 'run-1')],
       }),
     )
-    const marks = within(screen.getByRole('region', { name: 'Best efforts' })).getAllByRole(
-      'button',
-      { name: 'GAP' },
-    )
+    const marks = within(openSection('All best efforts')).getAllByRole('button', { name: 'GAP' })
     expect(marks).toHaveLength(2)
     expect(marks[0]!.parentElement).toHaveTextContent(
       /GAP.*Grade-adjusted pace: your pace allowing for hills, as if on level ground\./,
@@ -676,7 +692,7 @@ describe('SportPage', () => {
       }),
     )
 
-    const records = screen.getByRole('region', { name: 'Best efforts' })
+    const records = openSection('All best efforts')
     expect(within(records).getByText('400 W')).toBeInTheDocument()
     expect(within(records).getByText('5.3 W/kg')).toBeInTheDocument()
   })
@@ -998,11 +1014,9 @@ describe('SportPage distance records', () => {
     ],
   })
 
-  /** The run page's Best efforts section, where the distance records sit as tiles under the curve. */
+  /** The run page's All best efforts section, where the distance records are listed. */
   function bestEfforts(): HTMLElement {
-    const section = screen.getByRole('heading', { name: 'Best efforts' }).closest('section')
-    if (!section) throw new Error('No Best efforts section')
-    return section
+    return openSection('All best efforts')
   }
 
   it('shows no pace on the 1 mi row in miles, where the pace is the time itself', () => {
@@ -1147,9 +1161,7 @@ describe('SportPage cycling figures without a weight', () => {
 
   it('tags a cycling record estimated when its watts came from virtual power, and not when measured', () => {
     const { unmount } = renderPage('ride', rideResult())
-    expect(
-      within(screen.getByRole('region', { name: 'Best efforts' })).getByText('Estimated'),
-    ).toBeInTheDocument()
+    expect(within(openSection('All best efforts')).getByText('Estimated')).toBeInTheDocument()
     unmount()
 
     renderPage(
@@ -1159,9 +1171,7 @@ describe('SportPage cycling figures without a weight', () => {
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
       }),
     )
-    expect(
-      within(screen.getByRole('region', { name: 'Best efforts' })).queryByText('Estimated'),
-    ).toBeNull()
+    expect(within(openSection('All best efforts')).queryByText('Estimated')).toBeNull()
   })
 
   it('shows the profile footnote at the foot of the page', () => {
