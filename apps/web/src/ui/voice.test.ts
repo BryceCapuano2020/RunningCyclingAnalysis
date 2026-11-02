@@ -35,19 +35,19 @@ const RULES = Object.keys(PATTERN) as Rule[]
 /** The most matches of each pattern the source may hold. Lower a budget when a rewrite clears matches. */
 const BUDGET: Record<Rule, number> = {
   'em dash': 18,
-  ', not a': 4,
+  ', not a': 2,
   honest: 0,
-  'read from': 8,
+  'read from': 6,
   comparable: 0,
-  'reference heart rate': 4,
-  'flat pace': 14,
+  'reference heart rate': 1,
+  'flat pace': 11,
   'Ride on foot': 0,
   'Output per heartbeat': 2,
   'Late in long sessions': 0,
-  'Your years': 6,
+  'Your years': 5,
   'Stand-out': 0,
   'It takes': 1,
-  '; ': 47,
+  '; ': 39,
 }
 
 /** The core's modules that write the athlete's sentences, relative to packages/core/src. */

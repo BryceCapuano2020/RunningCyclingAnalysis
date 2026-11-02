@@ -60,14 +60,14 @@ describe('leadSentence', () => {
 describe('headlineText', () => {
   it('states the energy range the Method page quotes, named from the leading sport', () => {
     expect(headlineText(comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) })).range).toBe(
-      'Run against Ride, 90% range: 5% to 20%.',
+      'The 90% range for Run against Ride is 5% to 20%.',
     )
   })
 
   it('names cycling first when cycling leads, in the same figures the Balance sentence and meter give', () => {
     const point = comparisonPoint({ ratio: interval(0.75, 0.8, 0.9) })
     const reading = energyReading(point.ratio)
-    expect(headlineText(point).range).toBe('Ride against Run, 90% range: 11% to 33%.')
+    expect(headlineText(point).range).toBe('The 90% range for Ride against Run is 11% to 33%.')
     expect(balanceSentence(reading)).toBe(
       'Cycling 25% higher, as energy per kilogram (range 11% to 33%)',
     )
@@ -76,19 +76,20 @@ describe('headlineText', () => {
 
   it('keeps the signed running-against-cycling range when the two are even', () => {
     expect(headlineText(comparisonPoint({ ratio: interval(0.98, 1.01, 1.04) })).range).toBe(
-      'Run against Ride, 90% range: -2% to +4%.',
+      'The 90% range for Run against Ride is -2% to +4%.',
     )
   })
 })
 
 describe('headlineBasis', () => {
-  it('says the population range is shown when the heart-rate check was rejected', () => {
+  it('says the population range is used when the heart-rate check was rejected', () => {
     const rejected = comparison({
       calibration: { effectiveSamples: 1, draws: 4000, accepted: false },
     })
-    expect(headlineBasis(rejected, false)).toBe(
-      'The heart-rate check could not support a reliable adjustment; showing the population-based model range.',
-    )
+    expect(headlineBasis(rejected, false)).toEqual([
+      'The heart-rate check could not support a reliable adjustment.',
+      'The range is the population-based model range.',
+    ])
   })
 
   it('names the levels a held comparison can still show, and nothing when there are none', () => {
@@ -104,13 +105,15 @@ describe('headlineBasis', () => {
     const accepted = comparison({
       calibration: { effectiveSamples: 900, draws: 4000, accepted: true },
     })
-    expect(headlineBasis(accepted, true)).toBe(
+    expect(headlineBasis(accepted, true)).toEqual([
       'Model range informed by the heart-rate data across all your activities.',
-    )
+    ])
   })
 
   it('says the range uses population assumptions otherwise', () => {
-    expect(headlineBasis(comparison(), false)).toBe('Model range based on population assumptions.')
+    expect(headlineBasis(comparison(), false)).toEqual([
+      'Model range based on population assumptions.',
+    ])
   })
 })
 
@@ -127,7 +130,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 182,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 188 bpm; cycling 182 bpm.',
+      'Best efforts are judged against running 188 bpm and cycling 182 bpm.',
     )
   })
 
@@ -139,7 +142,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: null,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 188 bpm; cycling 182 bpm (6 bpm below your running maximum).',
+      'Best efforts are judged against running 188 bpm and cycling 182 bpm (6 bpm below your running maximum).',
     )
   })
 
@@ -151,7 +154,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 182,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 182 bpm (your cycling maximum); cycling 182 bpm.',
+      'Best efforts are judged against running 182 bpm (your cycling maximum) and cycling 182 bpm.',
     )
   })
 
@@ -163,7 +166,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 185,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 185 bpm (your cycling maximum); cycling 185 bpm.',
+      'Best efforts are judged against running 185 bpm (your cycling maximum) and cycling 185 bpm.',
     )
   })
 
