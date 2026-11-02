@@ -9,10 +9,7 @@ const uneven = {
   floor: 3.2,
 }
 
-const RUN_NOTE =
-  'Your best 15 min and 20 min were uneven: each held a hard burst inside easier running, so the range stays wide. A steady all-out 20 min would narrow it.'
-const RIDE_NOTE =
-  'Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so the range stays wide. A steady all-out 20 min would narrow it.'
+const NOTE = 'Best 15 min and 20 min mixed hard and easy.'
 
 describe('unevenNote', () => {
   it('is null without an uneven fit for the sport', () => {
@@ -20,18 +17,21 @@ describe('unevenNote', () => {
     expect(unevenNote(makeResult(), 'ride')).toBeNull()
   })
 
-  it('names the durations that were left out, and says running for a run', () => {
-    expect(unevenNote(makeResult({ runCpUneven: uneven }), 'run')).toBe(RUN_NOTE)
+  it('names the durations that were left out, and no more', () => {
+    expect(unevenNote(makeResult({ runCpUneven: uneven }), 'run')).toBe(NOTE)
+    expect(unevenNote(makeResult({ runCpUneven: { ...uneven, leftOutS: [1200] } }), 'run')).toBe(
+      'Best 20 min mixed hard and easy.',
+    )
   })
 
-  it('says riding for a ride, and names no estimate while its watts are measured', () => {
+  it('says the same for a ride, and names no estimate while its watts are measured', () => {
     const activities = [makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'measured' })]
     const result = makeResult({
       activities,
       rideCurve: [curvePoint(1200, 3.0, 'ride-1')],
       rideCpUneven: uneven,
     })
-    expect(unevenNote(result, 'ride')).toBe(RIDE_NOTE)
+    expect(unevenNote(result, 'ride')).toBe(NOTE)
   })
 
   it('adds that the top end uses estimated watts when the ride fit draws on them', () => {
@@ -41,6 +41,6 @@ describe('unevenNote', () => {
       rideCurve: [curvePoint(1200, 3.0, 'ride-1')],
       rideCpUneven: uneven,
     })
-    expect(unevenNote(result, 'ride')).toBe(`${RIDE_NOTE} The top end uses estimated watts.`)
+    expect(unevenNote(result, 'ride')).toBe(`${NOTE} The top end uses estimated watts.`)
   })
 })

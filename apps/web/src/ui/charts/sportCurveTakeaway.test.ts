@@ -18,9 +18,8 @@ const base = {
   change: changeOf('higher'),
 } as const
 const unchanged = { ...base, change: changeOf('none') } as const
-/** What a 20 minute row with no clear change reads, with the smallest change the headline band could have called. */
-const NONE =
-  "No clear change in 20 min from the previous 12 weeks; changes under 7% can't be told apart here"
+/** What a 20 minute row with no clear change reads: no length, and no size or reason beside it. */
+const NONE = 'No clear change from the previous 12 weeks'
 const lower = { ...base, change: changeOf('lower') } as const
 
 describe('curveTakeaway with a period before', () => {
@@ -96,9 +95,7 @@ describe('curveTakeaway with a period before', () => {
     })
 
     it('does not word a run’s call as a move when its pace rounds to the same, and says no more than no clear change', () => {
-      expect(curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0001, 4.0)] })).toBe(
-        'No clear change in 20 min from the previous 12 weeks',
-      )
+      expect(curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0001, 4.0)] })).toBe(NONE)
     })
 
     it('holds the title to the stricter band: a call that leaves only the record band is no clear change', () => {
@@ -268,8 +265,8 @@ describe('citedDurationS', () => {
   })
 })
 
-describe('a no-clear-change title whose band is too wide to name a size', () => {
-  /** A 20 minute call whose headline band is +-60% (a band of 83% either way), as easy runs mixed with hard ones make. */
+describe('a no-clear-change title whatever the width of its band', () => {
+  /** A 20 minute call whose headline band is as wide as the strength says, as easy runs mixed with hard ones make. */
   const widened = (strong: number): ChangeEvidence => {
     const evidence = changeOf('none')
     for (const sport of ['run', 'ride'] as const) {
@@ -285,17 +282,12 @@ describe('a no-clear-change title whose band is too wide to name a size', () => 
   const title = (strong: number) =>
     curveTakeaway({ ...base, sport: 'run', rows: [row(1200, 4.0, 3.9)], change: widened(strong) })
 
-  it('names no size, and says the efforts vary too much', () => {
-    expect(title(0.6)).toBe(
-      'No clear change in 20 min from the previous 12 weeks; the efforts vary too much to show a change',
-    )
-  })
-
-  it('names the size up to a quarter, and not beyond it', () => {
-    expect(title(0.2)).toContain("changes under 23% can't be told apart here")
-    expect(title(0.25)).toContain('vary too much')
-    expect(title(0.22)).not.toContain('vary too much')
-  })
+  it.each([0.05, 0.2, 0.22, 0.25, 0.6])(
+    'says no clear change and names neither a size nor a reason, at a band of %s',
+    (strong) => {
+      expect(title(strong)).toBe(NONE)
+    },
+  )
 })
 
 describe('a second chart of the finding', () => {

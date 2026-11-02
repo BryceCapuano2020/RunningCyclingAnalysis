@@ -108,7 +108,7 @@ export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYea
       keyNote={model.anySolid ? undefined : `Hollow marks are ${model.hollowKey.toLowerCase()}`}
       idleReadout={idleFrom(tooltipFor(model, latest, 0, 0))}
       table={{
-        caption: `${title}, ${lede.toLowerCase()}. At least marks a best not confirmed hard.`,
+        caption: `${title}, ${lede.toLowerCase()}. At least marks a best that was not all-out.`,
         columns: ['Year', ...model.panels.map((panel) => panel.label)],
         rows: model.years.map((year, i) => [
           String(year),

@@ -302,7 +302,7 @@ export function RacePredictions({
         ))}
       </ul>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
-        <p className="muted">{methodNote(found, window, bound)}</p>
+        <p className="muted">{methodNote(window, bound)}</p>
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">
           {found.races.map((prediction) => (

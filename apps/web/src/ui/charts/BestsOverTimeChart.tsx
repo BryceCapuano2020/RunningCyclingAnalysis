@@ -37,15 +37,6 @@ export interface BestsOverTimeChartProps {
   effortS: number
   /** The finding the change test makes about this length against the period before, or null where it makes none. */
   takeaway: string | null
-  /** The period the finding compares with, such as "Previous 12 weeks", which the line under the title names; null where none. */
-  comparedWith: string | null
-}
-
-/** The line under a finding: what the dots are, and what the finding compares them with. */
-function ledeOf(described: string, comparedWith: string | null): string {
-  return comparedWith === null
-    ? described
-    : `${described}. The finding compares this period's best with the ${comparedWith.toLowerCase()}.`
 }
 
 /** A dot's tooltip: the day, the value, and for a ride its W/kg. */
@@ -88,7 +79,6 @@ export function BestsOverTimeChart({
   units,
   effortS,
   takeaway,
-  comparedWith,
 }: BestsOverTimeChartProps) {
   const dots = useMemo(() => bestDots(points, sport, massKg), [points, sport, massKg])
   const hasData = dots.length >= 2
@@ -101,27 +91,21 @@ export function BestsOverTimeChart({
     <ChartFrame
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={hasData && takeaway !== null ? takeaway : described}
-      lede={hasData && takeaway !== null ? ledeOf(described, comparedWith) : undefined}
-      description={`${described}. Each dot is an effort of ${effort} or longer that was the best of its stretch, as ${nativeLabel(sport).toLowerCase()}. Older dots are fainter.${comparedWith === null ? '' : ` The finding compares this period's best with the ${comparedWith.toLowerCase()}.`}`}
+      title={hasData && takeaway !== null ? takeaway : `Best ${effort}`}
+      description={`${described}: one dot for each day that held a best, as ${nativeLabel(sport)}.`}
       idleReadout={
         hasData ? idleFrom(tooltipFor(dots, dots.length - 1, 0, 0, sport, units)) : undefined
-      }
-      note={
-        hasData
-          ? 'Each dot is a best, not a typical effort: a day with no dot has no best, not a poor one. Efforts your heart rate shows were not hard are left out.'
-          : undefined
       }
       table={{
         columns: ['Day', nativeLabel(sport)],
         rows: dots.map((dot) => [activityDate(dot.atMs), formatNative(sport, dot.value, units)]),
-        caption: `The efforts of ${effort} or longer that were the best of their stretch, oldest first.`,
+        caption: `${described}, oldest first.`,
       }}
       empty={
         hasData
           ? undefined
           : gateWithheld
-            ? `No dots to show: efforts your heart rate shows were not hard are left out`
+            ? 'No dots to show: none of these efforts was all-out'
             : `Add ${SPORT_PLURAL[sport]} on more than one day to see them here`
       }
       surface={(size) =>

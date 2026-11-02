@@ -7,7 +7,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { recordGradeCell } from '../components/recordGrade'
 import { distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile, GradeOutcome } from '../grades'
-import { recordChange } from '../recordChange'
+import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
@@ -72,7 +72,7 @@ function rowLabel(name: string): string {
 const WEIGHT_MATTERS: Record<Sport, boolean> = { run: false, ride: true }
 
 /**
- * How a record moved on the period before, or null. A change is named only between two demonstrated
+ * How a record moved on the period before, or null for a record that has not clearly moved. A change is named only between two demonstrated
  * figures: a ride's estimated watts on either side leave it out, since two estimates moving is not a
  * change in the rider. With dated weights the two rides were ridden at different weights, so the earlier
  * figure is first brought to the weight of the newer ride, and the change is one in watts per kilogram.
@@ -96,7 +96,7 @@ function changeOf(
     WEIGHT_MATTERS[sport] && newerKg !== undefined && olderKg !== undefined && newerKg !== olderKg
       ? newerKg / olderKg
       : 1
-  return recordChange(
+  const words = recordChange(
     sport,
     valueAt(current, record.durationS),
     valueAt(earlier, record.durationS) * atNewerWeight,
@@ -104,6 +104,8 @@ function changeOf(
     previousLabel,
     callAt(input.change, sport, record.durationS),
   )
+  // No clear change is the curve's title, said once: a record's own line is for a change.
+  return words === null || words.startsWith(NO_CLEAR_CHANGE) ? null : words
 }
 
 /** The rows of a run's distance bests, each graded at the age on the day it was run. */
@@ -145,8 +147,6 @@ function distanceRowsOf(input: BestEffortInput): {
 export interface BestEffortRows {
   /** The duration rows, then the distance rows. */
   rows: RecordRow[]
-  /** How many of the rows are distance bests, which a note under the list explains. */
-  distanceCount: number
   listNotes: string[]
   /** Whether some record's watts are estimated, which a ride's note says. */
   someEstimated: boolean
@@ -176,7 +176,6 @@ export function bestEffortRows(input: BestEffortInput): BestEffortRows {
   )
   return {
     rows: [...durationRows, ...distance.rows],
-    distanceCount: distance.rows.length,
     listNotes: listedGradeNotes(
       sport,
       [...graded.map(({ outcome }) => outcome), ...distance.outcomes],

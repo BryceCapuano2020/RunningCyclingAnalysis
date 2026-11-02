@@ -91,11 +91,10 @@ describe('the sport pages’ charts on a phone', () => {
         units="metric"
         effortS={1200}
         takeaway={null}
-        comparedWith={null}
       />,
     )
     const idle = screen.getByTestId('chart-readout').getAttribute('data-idle')
-    expect(idle).toMatch(/^Latest · 26 Jan 2025: Flat pace 3:58/)
+    expect(idle).toMatch(/^Latest · 26 Jan 2025: GAP 3:58/)
   })
 
   it('has no readout row for a chart with no points', () => {
@@ -108,7 +107,6 @@ describe('the sport pages’ charts on a phone', () => {
         units="metric"
         effortS={1200}
         takeaway={null}
-        comparedWith={null}
       />,
     )
     expect(screen.queryByTestId('chart-readout')).toBeNull()

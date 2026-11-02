@@ -1,9 +1,8 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Curve, Sport } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
-import { SPORT_FORMAT, SPORT_LABEL } from '../sports'
+import { SPORT_FORMAT } from '../sports'
 import { sourceNote } from './activityText'
 import { carriedNote, carriedSpans, isCarried } from './carriedStretches'
 import type { CarriedSpan } from './carriedStretches'
@@ -185,7 +184,5 @@ export function tooltipFor(row: CurveRow, x: number, y: number, view: View): Too
   return { x, y, title: formatDuration(row.durationS), rows }
 }
 
-/** The name of the chart, with the unit spelt out: "per kilometre", "in watts". */
-export function titleOf(sport: Sport, units: UnitSystem): string {
-  return `${SPORT_LABEL[sport]} ${SPORT_FORMAT[sport].titleUnit(units)} by duration`
-}
+/** The name of the chart. The axis says the unit, and the finding is its headline. */
+export const CURVE_TITLE = 'Best efforts'

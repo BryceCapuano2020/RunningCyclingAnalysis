@@ -56,23 +56,20 @@ describe('LevelLadder', () => {
     expect(names).toEqual(['Local', 'Regional'])
   })
 
-  it('explains the solid dot for a run and the ring for a ride, in words beside the drawing', () => {
+  it('draws a dot for a run and a ring for a ride, with no key in words beside the drawing', () => {
     const run = render(<LevelLadder sport="run" grade={RUN} />)
-    expect(run.getByText('Solid dot: the grade of one recorded effort.')).toBeInTheDocument()
+    expect(run.container.querySelector('.level-ladder__dot')).not.toBeNull()
+    expect(run.container.querySelector('.level-ladder__key')).toBeNull()
+    expect(run.container).not.toHaveTextContent(/Solid dot|Ring:/)
     run.unmount()
 
-    render(<LevelLadder sport="ride" grade={RIDE} />)
-    expect(screen.getByText('Ring: estimated, with its 90% range in brackets.')).toBeInTheDocument()
+    const ride = render(<LevelLadder sport="ride" grade={RIDE} />)
+    expect(ride.container.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(ride.container.querySelector('.level-ladder__key')).toBeNull()
+    expect(ride.container).not.toHaveTextContent(/Solid dot|Ring:/)
   })
 
-  it('sets the key as a paragraph under the drawing', () => {
-    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
-    expect(container.querySelector('p.level-ladder__key')).toHaveTextContent(
-      'Solid dot: the grade of one recorded effort.',
-    )
-  })
-
-  it('says in its key when a grade sits below the scale', () => {
+  it('says under the drawing when a grade sits below the scale', () => {
     render(<LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />)
     expect(screen.getByText(/Below the 30% to 100% scale\./)).toBeInTheDocument()
   })

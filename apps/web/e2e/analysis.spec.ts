@@ -24,17 +24,15 @@ const BALANCE_METER =
  * The Balance page's last chart: the hours trained each week, found by its title.
  */
 const BALANCE_HOURS = /Training hours/
-const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
-const RIDE_CURVE = /^Ride power in watts by duration$/
+const BEST_EFFORTS_CURVE = 'Best efforts'
 /** The sport page's section of dated bests, which needs a season of activities. */
-const OPEN_SEASON_SECTION = 'Best efforts over time'
-/** The sections that need a season: each row says its finding, and the section is open to its chart. */
-/** The same-heart-rate row is the weekly view: it says what is drawn and claims no change. */
-const SEASON_SECTIONS = ['Same heart rate, week by week', 'Durability']
+const OPEN_SEASON_SECTION = 'Best efforts by day'
+/** The pace-at-heart-rate row is the weekly view: it says what is drawn and claims no change. */
+const SAME_HEART_RATE_SECTION = { Run: 'Pace at heart rate', Ride: 'Power at heart rate' } as const
 /** The section of the finding that compares each best with the athlete's other bests. */
 const STAND_OUT_SECTION = 'Best durations'
 const STANDS_OUT_LINE =
-  /^(?:Your (?:all-time )?bests are in line with each other|Nothing stands out|.*stand out)/
+  /^(?:Nothing stands out|Your (?:all-time )?\d+ (?:min|s) best is \d+% (?:above|below))/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -57,13 +55,11 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.locator('figure').filter({ hasText: BALANCE_HOURS })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page: stand-out, best efforts over
-  // time, same heart rate, durability. Every long session counts toward a late best, so durability has both its charts.
+  // The sample's season is long and varied enough to fill every section of a sport page: best durations, best efforts
+  // by day, pace at heart rate, durability. Every long session counts toward a late best, so durability has both its charts.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
-    await expect(
-      page.getByRole('figure', { name: sport === 'Run' ? RUN_CURVE : RIDE_CURVE }),
-    ).toBeVisible()
+    await expect(page.getByRole('figure', { name: BEST_EFFORTS_CURVE, exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
     // The dated bests are drawn: a figure named for the effort, with at least two dots in its plot.
     const dated = page.locator('section').filter({
@@ -74,7 +70,8 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
     // A section with content is open to start with, and its row says what it found.
     const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
     await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)
-    for (const section of SEASON_SECTIONS) {
+    // The sections that need a season: each row says its finding, and the section is open to its chart.
+    for (const section of [SAME_HEART_RATE_SECTION[sport], 'Durability']) {
       const region = page.getByRole('region', { name: section })
       await expect(region.locator('.sport-disclosure__details')).toHaveAttribute('open', '')
       await expect(region.getByRole('figure').first()).toBeVisible()
@@ -297,15 +294,15 @@ test('the sport page opens a section the reader folded from "On this page", and 
   await goTo(page, 'Run')
   const nav = page.getByRole('navigation', { name: 'On this page' })
   await expect(nav).toBeVisible()
-  // A section with content is open to start with, and its row says its name and finding.
+  // A section with content is open to start with, and its row says its name alone.
   const all = page.getByRole('region', { name: 'All best efforts' })
-  await expect(all.locator('summary')).toContainText(/\d+ best efforts with their levels/)
+  await expect(all.locator('summary')).toHaveText('All best efforts')
   await expect(all.locator('details')).toHaveAttribute('open', '')
   await expect(all.locator('ul.records')).toBeVisible()
-  // Folded, the row still says what it found, and "On this page" opens it again.
+  // Folded, the row is still its name, and "On this page" opens it again.
   await all.locator('summary').click()
   await expect(all.locator('details')).not.toHaveAttribute('open', '')
-  await expect(all.locator('summary')).toContainText(/\d+ best efforts with their levels/)
+  await expect(all.locator('summary')).toHaveText('All best efforts')
   await expect(all.locator('ul.records')).toBeHidden()
   await nav.getByRole('button', { name: 'All best efforts' }).click()
   await expect(all.locator('details')).toHaveAttribute('open', '')

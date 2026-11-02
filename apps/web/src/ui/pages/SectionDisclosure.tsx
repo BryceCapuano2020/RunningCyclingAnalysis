@@ -7,8 +7,8 @@ export interface SectionDisclosureProps {
   id: string
   /** The section's name, in small capitals: what a collapsed row is called. */
   title: string
-  /** What the section found, one sentence: the row says it while it is closed, so closed still tells something. */
-  finding: string
+  /** What the section found, one sentence: the row says it while it is closed, so closed still tells something. A section with nothing to add to its name has none. */
+  finding?: string
   /** Set when the body says the finding already, so the row says it only while the section is closed. */
   restated?: boolean
   children: ReactNode
@@ -42,7 +42,7 @@ export function SectionDisclosure({
       >
         <summary className="sport-disclosure__summary">
           <span className="sport-disclosure__title">{title}</span>
-          <span className="sport-disclosure__finding">{finding}</span>
+          {finding !== undefined && <span className="sport-disclosure__finding">{finding}</span>}
         </summary>
         <div className="sport-disclosure__body">{children}</div>
       </details>

@@ -4,7 +4,7 @@ import { SportCurveChart } from '../charts'
 import { ArrowRightIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { formatCount } from '../format/count'
-import { SPORT_NOTE, gradeLevelText, sportGrade } from '../grades'
+import { gradeLevelText, sportGrade } from '../grades'
 import { activityMasses } from '../activityMasses'
 import { activityNames } from '../records'
 import { hrefFor } from '../route'
@@ -49,7 +49,6 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
         change={context.change}
       />
       <RecordTiles tiles={tileRows(sport, list.rows)} />
-      {SPORT_NOTE[sport] && <p className="muted">{SPORT_NOTE[sport]}</p>}
       {sport === 'ride' && list.someEstimated && (
         <p className="muted">
           {`Power meters measured ${formatCount(measuredRides)} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}

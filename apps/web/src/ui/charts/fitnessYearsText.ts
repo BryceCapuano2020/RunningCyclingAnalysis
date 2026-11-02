@@ -3,7 +3,6 @@ import { DAY_MS } from '@rca/core/constants'
 import type { DotsSpan, DotsYear, FitnessDots } from '@rca/core/history'
 import { monthYear, monthsBetween } from '@rca/core/lookback'
 import type { Sport } from '@rca/core/types'
-import { PACE_UNIT } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { FITNESS_WORDS } from '../fitnessWords'
 import { formatCount } from '../format/count'
@@ -14,13 +13,9 @@ import { plottedValue } from './sportAxis'
 
 const NONE = 'None'
 
-/** The vertical axis's title: a pace says which way is faster, since its axis runs the other way. */
-const AXIS_TITLE: Record<Sport, (units: UnitSystem) => string> = {
-  run: (units) => `Pace (${PACE_UNIT[units]}), faster up`,
-  ride: () => 'Power (W)',
-}
-
-export const axisTitleOf = (sport: Sport, units: UnitSystem): string => AXIS_TITLE[sport](units)
+/** The vertical axis's title, as every sport page's chart writes it: GAP says which way is faster, power is in watts. */
+export const axisTitleOf = (sport: Sport, units: UnitSystem): string =>
+  SPORT_FORMAT[sport].axisTitle(units)
 
 const upper = (text: string): string => `${text[0]!.toUpperCase()}${text.slice(1)}`
 
@@ -48,9 +43,9 @@ function rangeText(
   return a!.text === b!.text ? a!.text : `${first} to ${b!.text}`
 }
 
-/** The heart rate the dots are read at, as a phrase: "140 bpm", or the plain words when the card names none. */
+/** The heart rate the dots are read at, as a phrase: "140 bpm", or "one heart rate" when the card names none. */
 export const atText = (dots: FitnessDots): string =>
-  dots.referenceHr === null ? 'the same heart rate' : `${dots.referenceHr} bpm`
+  dots.referenceHr === null ? 'one heart rate' : `${dots.referenceHr} bpm`
 
 /** A slip or a rise as a period: "March to October 2022", or "From March 2022" while it lasts. */
 function periodText(span: DotsSpan): string {

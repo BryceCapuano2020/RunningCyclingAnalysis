@@ -10,7 +10,7 @@ import { changeEvidence } from './evidence'
 import { dealRatios, nullBand } from './null'
 import { readingsOf } from './readings'
 import { effortLibrary, MONDAY, SETTINGS } from './test/library'
-import { callAt, detectableAt, directionOf, verdictAt, verdictOfCall } from './types'
+import { callAt, directionOf, verdictAt, verdictOfCall } from './types'
 
 const WEEKS = 12
 const CUT = MONDAY + WEEKS * 7 * DAY_MS
@@ -191,13 +191,6 @@ describe('levels, direction and what cannot be told apart', () => {
     expect(directionOf({ ...call, verdict: 'none' })).toBe(0)
     expect(directionOf(call, 'headline')).toBe(0)
     expect(directionOf(undefined)).toBe(0)
-  })
-
-  it('says the smallest change it could have called, from the band, wider at the headline level', () => {
-    expect(detectableAt(call)).toBeCloseTo(Math.expm1(0.05), 9)
-    expect(detectableAt(call, 'headline')).toBeCloseTo(Math.expm1(0.07), 9)
-    expect(detectableAt({ ...call, low: -0.2, high: 0.1 })).toBeCloseTo(-Math.expm1(-0.2), 9)
-    expect(detectableAt({ ...call, low: null, high: null })).toBeNull()
   })
 
   it('has the headline band at least as wide as the record band for a real call', () => {

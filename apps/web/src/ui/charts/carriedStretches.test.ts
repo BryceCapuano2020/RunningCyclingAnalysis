@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  carriedNote,
-  carriedSpans,
-  isCarried,
-  spanLabel,
-  strokeSplit,
-  widestSpan,
-} from './carriedStretches'
+import { carriedNote, carriedSpans, isCarried, strokeSplit } from './carriedStretches'
 import { linePath } from './paths'
 
 const at = (x: number, y = 10) => ({ x, y })
@@ -60,19 +53,6 @@ describe('carriedSpans', () => {
   })
 })
 
-describe('widestSpan', () => {
-  it('is the stretch covering the widest range of durations, since the chart labels one', () => {
-    const durations = [60, 300, 1200, 3600, 5400, 7200]
-    const spans = [
-      { from: 0, to: 1 },
-      { from: 2, to: 3 },
-      { from: 3, to: 5 },
-    ]
-    expect(widestSpan(spans, durations)).toEqual({ from: 0, to: 1 })
-    expect(widestSpan([], durations)).toBeNull()
-  })
-})
-
 describe('strokeSplit', () => {
   const points = [at(0), at(10), at(20), at(30), at(40)]
 
@@ -94,31 +74,6 @@ describe('strokeSplit', () => {
     )
     expect(linePath(measured)).toBe('M0 10L10 10M30 10L40 10')
     expect(carried).toEqual([])
-  })
-})
-
-describe('spanLabel', () => {
-  it('says there is no separate effort in the stretch and which best it uses, with the unit said once when both ends are whole minutes', () => {
-    expect(spanLabel(1200, 3600)).toBe(
-      'No separate 20–60 min effort: this stretch uses your 60 min best',
-    )
-  })
-
-  it('never says an effort is missing from the file, which a longer window always contains', () => {
-    expect(spanLabel(1200, 3600)).not.toMatch(/no effort|on file/i)
-  })
-
-  it('names the effort the carried points came from, which need not be the far end of the stretch', () => {
-    // The 30 and 45 minute points carry a 90 minute effort across a stretch that ends at 60 minutes.
-    expect(spanLabel(1200, 3600, 5400)).toBe(
-      'No separate 20–60 min effort: this stretch uses your 90 min best',
-    )
-  })
-
-  it('names each end in full when they are not both minutes', () => {
-    expect(spanLabel(30, 300)).toBe(
-      'No separate 30 s–5 min effort: this stretch uses your 5 min best',
-    )
   })
 })
 

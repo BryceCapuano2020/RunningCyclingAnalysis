@@ -8,23 +8,17 @@ import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
-import {
-  splitsListed,
-  splitsShowFlatNote,
-  type SplitsLoad,
-  type SplitsViewName,
-} from '../components/splitRows'
+import { splitsListed, type SplitsLoad, type SplitsViewName } from '../components/splitRows'
 import {
   TIMING_NOTE,
   TIMING_NOTE_LAPS,
-  FLAT_PACE_NOTE,
   distanceGrade,
   listedGradeNotes,
   sportGrade,
 } from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
-import { FLAT_MARK, recordRow } from '../recordRow'
+import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   chipLabels,
@@ -52,9 +46,9 @@ export interface ActivityBestsProps {
   period?: Period
   /** The records the activity holds across the whole library, which the record chips above show. */
   earned: readonly EarnedRecord[]
-  /** The run's splits as the page holds them, which say where the flat pace note goes. */
+  /** The run's splits as the page holds them, which say whether the timing note is on the page. */
   splitsLoad: SplitsLoad
-  /** The view of the splits that is open, which says whether their flat pace column is on the page. */
+  /** The view of the splits that is open, which says what their timing note claims. */
   splitsView: SplitsViewName
 }
 
@@ -62,25 +56,6 @@ export interface ActivityBestsProps {
 const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
   virtual: 'No power curve: an estimate is made only on climbs.',
   none: 'No power curve: this ride has no power data.',
-}
-
-/**
- * Whether the best efforts carry the flat pace note. The splits carry it when they show a flat pace
- * column, so it sits there and not here. Otherwise, when a best carries a Flat mark it explains, it sits
- * here. It waits for the splits to settle, so it is never placed in two places at once.
- */
-function flatNoteHere(
-  sport: ActivitySummary['sport'],
-  splitsLoad: SplitsLoad,
-  splitsView: SplitsViewName,
-  units: UnitSystem,
-  rows: readonly RecordRow[],
-): boolean {
-  if (sport !== 'run' || splitsLoad.status === 'loading') return false
-  return (
-    !splitsShowFlatNote(splitsLoad, units, splitsView) &&
-    rows.some((row) => row.tags.includes(FLAT_MARK))
-  )
 }
 
 /** The mark an all-time record carries, in the same chip as the marks of the figure. */
@@ -217,9 +192,6 @@ export function ActivityBests({
       ))}
       {distances.length > 0 && splitsListed(splitsLoad, units) && (
         <p className="muted">{splitsView === 'laps' ? TIMING_NOTE_LAPS : TIMING_NOTE}</p>
-      )}
-      {flatNoteHere(sport, splitsLoad, splitsView, units, rows) && (
-        <p className="muted">{FLAT_PACE_NOTE}</p>
       )}
       {!counts && <p className="muted">{INDOOR_NOTE}</p>}
       {anyGraded && <GradingLink />}

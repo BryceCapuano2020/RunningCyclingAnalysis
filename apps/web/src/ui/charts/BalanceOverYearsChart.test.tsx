@@ -37,7 +37,7 @@ const legend = () =>
     .map((item) => item.textContent)
 
 describe('BalanceOverYearsChart', () => {
-  it('is titled by who led, with a dot for each graded year, hollow where the best was not all out', () => {
+  it('is titled by who led, with a dot for each graded year, hollow where the best was not all-out', () => {
     chartWidth(800)
     const { container } = render(<BalanceOverYearsChart views={twelve} />)
     expect(
@@ -48,7 +48,7 @@ describe('BalanceOverYearsChart', () => {
     expect(all.filter((dot) => dot.getAttribute('data-sport') === 'ride')).toHaveLength(10)
     const hollow = all.filter((dot) => dot.getAttribute('data-hollow') === 'true')
     expect(hollow.map((dot) => dot.getAttribute('data-sport'))).toEqual(['ride', 'ride', 'ride'])
-    expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range', 'Best not all out'])
+    expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range', 'Not all-out'])
   })
 
   it('breaks the line at a year with no best, and draws the ride’s range as a band', () => {
@@ -85,7 +85,7 @@ describe('BalanceOverYearsChart', () => {
     expect(dots(container)).toHaveLength(2)
   })
 
-  it('gives the leader of every year in a table, with the effort of a best that was not all out', () => {
+  it('gives the leader of every year in a table, with the effort of a best that was not all-out', () => {
     chartWidth(800)
     render(<BalanceOverYearsChart views={twelve} />)
     const table = screen.getByRole('table', {
@@ -114,11 +114,11 @@ describe('BalanceOverYearsChart', () => {
     expect(byYear.get('2019')![3]).toBe('Level')
     expect(byYear.get('2024')![3]).toBe('Ride')
     // 2019's ride best was held at 120 bpm against a reference of 190.
-    expect(byYear.get('2019')![2]).toMatch(/^\d+% \(\d+ to \d+%\), not all out$/)
-    expect(byYear.get('2020')![2]).not.toMatch(/not all out/)
+    expect(byYear.get('2019')![2]).toMatch(/^\d+% \(\d+ to \d+%\), not all-out$/)
+    expect(byYear.get('2020')![2]).not.toMatch(/not all-out/)
   })
 
-  it('reads a year with the keyboard: each sport’s grade and level, the ride’s range, and a best not all out', () => {
+  it('reads a year with the keyboard: each sport’s grade and level, the ride’s range, and a best not all-out', () => {
     chartWidth(800)
     render(<BalanceOverYearsChart views={twelve} />)
     const surface = screen.getByTestId('plot-surface')
@@ -126,7 +126,7 @@ describe('BalanceOverYearsChart', () => {
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('2013')
     expect(status).toHaveTextContent('Ride range')
-    expect(status).toHaveTextContent('not all out')
+    expect(status).toHaveTextContent('not all-out')
   })
 
   it('fits a phone: the same dots, and a readout row that says the latest year', () => {

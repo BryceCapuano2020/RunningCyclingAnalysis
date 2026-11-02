@@ -150,7 +150,7 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Level of your best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.level-ladder__dot')).not.toBeNull()
@@ -174,7 +174,7 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Level of your best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).getByText('Estimated')).toHaveClass('stat-tile__basis--estimated')
@@ -183,14 +183,14 @@ describe('the answer: threshold and level in one card', () => {
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: 'year of birth' })
-    const level = screen.getByRole('region', { name: 'Level of your best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
     expect(within(level).getByText('Age grades need your year of birth.')).toBeInTheDocument()
     expect(level.querySelector('.level-ladder')).toBeNull()
   })
 
   it('leaves the level out, and the threshold alone in the card, with nothing to ask for', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: null })
-    expect(screen.queryByRole('region', { name: 'Level of your best 20 min' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Age grade, best 20 min' })).toBeNull()
   })
 
   it('puts the period control directly under the answer', () => {
@@ -302,16 +302,14 @@ describe('the records under the curve', () => {
     expect(items[0]!.querySelector('.record-tiles__sub')).toHaveTextContent('6.0 W/kg')
   })
 
-  it('says the full list has levels only when the page has a profile to grade them with', () => {
+  it('names the full list on its row and says no count or finding there, with a profile or without', () => {
     renderPage('run', makeResult({ activities: [withDistances] }), { profile: MAN_BORN_1986 })
     const row = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
-    expect(row.textContent).toMatch(
-      /\d+ best efforts with their levels, and the activity each was set in$/,
-    )
+    expect(row.textContent).toBe('All best efforts')
     cleanup()
     renderPage('run', makeResult({ activities: [withDistances] }), { missingAge: 'sex' })
     const bare = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
-    expect(bare.textContent).toMatch(/\d+ best efforts and the activity each was set in$/)
+    expect(bare.textContent).toBe('All best efforts')
   })
 
   it('has no strip, and no empty list, without a record', () => {
@@ -357,8 +355,8 @@ describe('"On this page" and the layout', () => {
       'Best efforts',
       'Race predictions',
       'Time in zones',
-      'Best efforts over time',
-      'Same heart rate, week by week',
+      'Best efforts by day',
+      'Pace at heart rate',
       'All best efforts',
     ])
   })
@@ -370,19 +368,19 @@ describe('"On this page" and the layout', () => {
       within(nav)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Best efforts', 'Best efforts over time', 'All best efforts'])
+    ).toEqual(['Best efforts', 'Best efforts by day', 'All best efforts'])
   })
 
   it('opens a section the reader folded when its button is pressed, and scrolls to it', () => {
     renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    const region = screen.getByRole('region', { name: 'Same heart rate, week by week' })
+    const region = screen.getByRole('region', { name: 'Pace at heart rate' })
     const details = region.querySelector('details')!
     // A section with content is open to start with.
     expect(details.open).toBe(true)
     expect(within(region).getByRole('figure')).toBeInTheDocument()
     details.open = false
     fireEvent(details, new Event('toggle'))
-    fireEvent.click(screen.getByRole('button', { name: 'Same heart rate, week by week' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pace at heart rate' }))
     expect(details.open).toBe(true)
     expect(within(region).getByRole('figure')).toBeInTheDocument()
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
@@ -409,15 +407,26 @@ describe('"On this page" and the layout', () => {
     expect(screen.getByRole('region', { name: 'Time in zones' })).toBeInTheDocument()
   })
 
-  it('gives every closed section a summary that says its finding, never an empty row', () => {
+  it('gives every closed section a summary with its name, and a finding wherever it has one to add', () => {
     renderPage('run', full(), {
       zoneTimes: ZONES,
       sameHeartRate,
       lateEvidence: NO_LATE_EVIDENCE.run,
     })
-    for (const summary of Array.from(document.querySelectorAll('.sport-disclosure__summary'))) {
-      const finding = summary.querySelector('.sport-disclosure__finding')?.textContent ?? ''
-      expect(finding.length).toBeGreaterThan(10)
+    const summaries = Array.from(document.querySelectorAll('.sport-disclosure__summary'))
+    expect(summaries.length).toBeGreaterThan(1)
+    for (const summary of summaries) {
+      expect(
+        summary.querySelector('.sport-disclosure__title')?.textContent?.length,
+      ).toBeGreaterThan(0)
+      const finding = summary.querySelector('.sport-disclosure__finding')
+      if (finding !== null) expect(finding.textContent!.length).toBeGreaterThan(10)
     }
+    // Only the full list is its name alone: a count of its rows would say nothing the list does not.
+    expect(
+      summaries
+        .filter((summary) => summary.querySelector('.sport-disclosure__finding') === null)
+        .map((summary) => summary.textContent),
+    ).toEqual(['All best efforts'])
   })
 })

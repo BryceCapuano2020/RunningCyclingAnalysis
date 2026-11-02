@@ -45,8 +45,7 @@
   font-weight: 600;
 }
 
-.annot__leader,
-.annot__bracket {
+.annot__leader {
   fill: none;
   stroke: var(--text-secondary);
   stroke-width: 1.5px;
@@ -91,7 +90,6 @@
   }
 
   .annot__leader,
-  .annot__bracket,
   .annot__rule {
     stroke: CanvasText;
   }

@@ -9,32 +9,28 @@ describe('what a small library can say', () => {
       const profile = durationProfile(modelCurve(), 5, activities)
       if (profile.status !== 'ready') throw new Error('not ready')
       const text = profileSentence(profile, formatDuration)
-      expect(text).toBe('Nothing stands out in your bests, compared from 5 s to 1 h.')
+      expect(text).toBe('Nothing stands out.')
       expect(text).not.toContain('in line')
       expect(text).not.toMatch(/takes \d+ activities/)
     }
   })
 
-  it('says the bests are in line with each other from 40 activities', () => {
+  it('says the same from 40 activities, and still never that the bests are in line', () => {
     for (const activities of [40, 400]) {
       const profile = durationProfile(modelCurve(), 5, activities)
       if (profile.status !== 'ready') throw new Error('not ready')
-      expect(profileSentence(profile, formatDuration)).toBe(
-        'Your bests are in line with each other, compared from 5 s to 1 h.',
-      )
+      const text = profileSentence(profile, formatDuration)
+      expect(text).toBe('Nothing stands out.')
+      expect(text).not.toContain('in line')
     }
   })
 
-  it('names the window of the whole library as all-time bests, in either sentence', () => {
+  it('names the window of the whole library as all-time bests where it names a best, and leaves it out of nothing standing out', () => {
     const small = durationProfile(modelCurve(), 5, 12)
     const full = durationProfile(modelCurve(), 5, 40)
     if (small.status !== 'ready' || full.status !== 'ready') throw new Error('not ready')
-    expect(profileSentence(small, formatDuration, { allTime: true })).toBe(
-      'Nothing stands out in your all-time bests, compared from 5 s to 1 h.',
-    )
-    expect(profileSentence(full, formatDuration, { allTime: true })).toBe(
-      'Your all-time bests are in line with each other, compared from 5 s to 1 h.',
-    )
+    expect(profileSentence(small, formatDuration, { allTime: true })).toBe('Nothing stands out.')
+    expect(profileSentence(full, formatDuration, { allTime: true })).toBe('Nothing stands out.')
     const standing = durationProfile(scaled(1200, 1.4), 5, 40)
     if (standing.status !== 'ready') throw new Error('not ready')
     expect(profileSentence(standing, formatDuration, { allTime: true })).toMatch(

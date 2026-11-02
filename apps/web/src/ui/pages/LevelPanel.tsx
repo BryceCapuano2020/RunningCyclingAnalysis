@@ -1,20 +1,10 @@
-import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
-import { GradesLink, GradingLink } from '../components/GradingLink'
+import { GradingLink } from '../components/GradingLink'
 import { LevelLadder } from '../components/LevelLadder'
 import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { BasisChip } from './StatTile'
-
-/**
- * How a sport's grade was reached, as the line under the level says it: a ride's is its run equivalent. The panel's
- * heading already names the best 20 minutes, so the line gives the figure, then the age and the standard.
- */
-const GRADED: Record<Sport, (age: number) => string> = {
-  run: (age) => `graded at age ${age} on the `,
-  ride: (age) => `graded as its run equivalent at age ${age} on the `,
-}
 
 /** A level longer than this is set a step smaller so it holds two lines. */
 const LONG_LEVEL = 12
@@ -23,10 +13,6 @@ const LONG_LEVEL = 12
 function effortPhrase(effort: string): string {
   const suffix = ', estimated'
   return effort.endsWith(suffix) ? `${effort.slice(0, -suffix.length)} (estimated)` : effort
-}
-
-function capitalised(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 export interface LevelPanelProps {
@@ -75,9 +61,9 @@ function LevelFigure({
 }
 
 /**
- * The level of the best 20 minutes: the age grade at display size with its percent, one line of what it
- * grades and on which standard, and the level ladder on neutral bands, a dot for a recorded effort and a ring
- * for an estimated one. Without a year of birth and sex it asks for them; with a gap it says why.
+ * The age grade of the best 20 minutes at display size with its percent, one line of the effort and the age it
+ * was graded at, and the level ladder on neutral bands, a dot for a recorded effort and a ring for an estimated
+ * one. Without a year of birth and sex it asks for them; with a gap it says why.
  */
 export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelProps) {
   if (outcome === null && missingAge === null) return null
@@ -87,7 +73,7 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
       aria-labelledby={`${sport}-level`}
     >
       <h2 id={`${sport}-level`} className="eyebrow sport-hero__eyebrow">
-        {`Level of your best ${HEADLINE_LABEL}`}
+        {`Age grade, best ${HEADLINE_LABEL}`}
       </h2>
       {outcome === null ? (
         <p className="secondary">
@@ -100,12 +86,7 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
         <>
           <LevelFigure sport={sport} outcome={outcome} />
           <p className="sport-hero__grades">
-            {effort ? `${effortPhrase(effort)}, ` : ''}
-            {effort ? GRADED[sport](outcome.age) : capitalised(GRADED[sport](outcome.age))}
-            <GradesLink className="age-grade__standards">
-              {ROAD_STANDARDS_SOURCE.shortName}
-            </GradesLink>
-            {'.'}
+            {effort ? `${effortPhrase(effort)} at age ${outcome.age}.` : `At age ${outcome.age}.`}
           </p>
           <LevelLadder sport={sport} grade={outcome.grade} />
           <GradingLink />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FLAT_PACE_NOTE, STEEP_DESCENT_NOTE } from '../grades'
+import { STEEP_DESCENT_NOTE } from '../grades'
+import { GapTerm } from './GapTerm'
 import type { Columns, SplitCells } from './splitRows'
 
 /** More rows than this are folded behind a button, so a fifty-kilometre run does not push the page's bests out of sight. */
@@ -15,7 +16,7 @@ function Missing({ words }: { words: string }) {
   )
 }
 
-/** A flat pace the split has none of: left out for a steep descent, or not known. */
+/** A GAP the split has none of: left out for a steep descent, or not known. */
 function FlatMissing({ cell }: { cell: SplitCells }) {
   return <Missing words={cell.flatWithheld ? 'Left out on a steep descent' : 'Not available'} />
 }
@@ -99,7 +100,7 @@ function SplitTable({
             )}
             {columns.flat && (
               <th scope="col" className="num">
-                Flat pace
+                <GapTerm />
               </th>
             )}
             {columns.elevation && (
@@ -122,8 +123,19 @@ function SplitTable({
   )
 }
 
-/** One split as an item of the list, below 480 px. Its values are the row's. */
-function SplitItem({ cell, columns }: { cell: SplitCells; columns: Columns }) {
+/**
+ * One split as an item of the list, below 480 px. Its values are the row's. The first item's GAP carries the term's
+ * meaning, so a long run is not a column of buttons.
+ */
+function SplitItem({
+  cell,
+  columns,
+  first,
+}: {
+  cell: SplitCells
+  columns: Columns
+  first: boolean
+}) {
   return (
     <li className="splits-list__item">
       <dl>
@@ -152,7 +164,7 @@ function SplitItem({ cell, columns }: { cell: SplitCells; columns: Columns }) {
         )}
         {columns.flat && (
           <div>
-            <dt>Flat pace</dt>
+            <dt>{first ? <GapTerm /> : 'GAP'}</dt>
             <dd>{cell.gradeAdjustedPace ?? <FlatMissing cell={cell} />}</dd>
           </div>
         )}
@@ -183,8 +195,8 @@ function SplitList({
 }) {
   return (
     <ol className="splits-list" aria-label={caption}>
-      {cells.map((cell) => (
-        <SplitItem key={cell.label} cell={cell} columns={columns} />
+      {cells.map((cell, index) => (
+        <SplitItem key={cell.label} cell={cell} columns={columns} first={index === 0} />
       ))}
     </ol>
   )
@@ -218,7 +230,6 @@ export function Rows({
           {all ? `Show the first ${COLLAPSED_ROWS} ${noun}` : `Show all ${cells.length} ${noun}`}
         </button>
       )}
-      {columns.flat && <p className="muted">{FLAT_PACE_NOTE}</p>}
       {columns.steepDescent && <p className="muted">{STEEP_DESCENT_NOTE}</p>}
     </>
   )

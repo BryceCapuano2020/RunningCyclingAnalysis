@@ -5,7 +5,6 @@ import { SPORT_FORMAT } from '../sports'
 import { lineObstacles, markerObstacle } from './annotations'
 import type { Annotation } from './annotations'
 import { insideTickBoxes } from './directLabelFit'
-import { spanLabel, widestSpan } from './carriedStretches'
 import type { Box } from './chartBoxes'
 import type { ChartSize } from './chartTypes'
 import { wkgOf } from './curveTable'
@@ -13,17 +12,13 @@ import type { CurveRow, View } from './curveTable'
 import { citedDurationS } from './sportCurveTakeaway'
 import { isRecordDuration } from './sportCurveModel'
 import type { Layout, ThresholdLine } from './sportCurveModel'
-import { formatNative, nativeLabel } from './sportAxis'
+import { formatNative } from './sportAxis'
 import { rootFontPx } from './rootFont'
 import { NARROW_WIDTH } from './ticks'
 
 /** The efforts a curve calls out with their value: the 5, 20 and 60 minute bests. */
 export const CALLOUT_DURATIONS_S = [300, HEADLINE_DURATION_S, 3600]
 
-/** A stretch narrower than this, px, is too short to bracket and label. */
-const MIN_SPAN_LABEL_PX = 60
-/** How far above the plot's floor the bracket sits, px. */
-const BRACKET_LIFT = 10
 /** A best this close to the threshold line, px, goes above it without a caption, clear of the threshold's label. */
 export const NEAR_THRESHOLD_PX = 20
 /**
@@ -42,7 +37,7 @@ export interface CurveMarks {
   ticks: Box[]
 }
 
-/** What the curve says outright: its bests with their values, its end, its threshold and its stretch with no effort. */
+/** What the curve says outright: its bests with their values, its end and its threshold. */
 export function curveMarks(
   rows: CurveRow[],
   m: Layout,
@@ -52,8 +47,9 @@ export function curveMarks(
 ): CurveMarks {
   const { sport, units } = view
   const annotations: Annotation[] = []
+  // A ride's callout gives its W/kg; a pace needs no caption, since the axis names it.
   const caption = (row: CurveRow) =>
-    SPORT_FORMAT[sport].showsWkg ? formatWkg(wkgOf(row, view)) : nativeLabel(sport).toLowerCase()
+    SPORT_FORMAT[sport].showsWkg ? formatWkg(wkgOf(row, view)) : undefined
   // The effort the title cites is marked too, when it is not one the curve calls out anyway: a 15 minute move in
   // the title needs the 15 minute point on the plot.
   const cited = citedDurationS({
@@ -126,24 +122,6 @@ export function curveMarks(
           : undefined,
     })
   }
-  const widest = widestSpan(
-    m.spans,
-    rows.map((row) => row.durationS),
-  )
-  const fromRow = widest === null ? undefined : rows[widest.from]
-  const toRow = widest === null ? undefined : rows[widest.to]
-  const x1 = widest === null ? 0 : (m.xs[widest.from] ?? 0)
-  const x2 = widest === null ? 0 : (m.xs[widest.to] ?? 0)
-  if (fromRow && toRow && x2 - x1 >= MIN_SPAN_LABEL_PX) {
-    annotations.push({
-      kind: 'bracket',
-      id: 'no-effort',
-      x1,
-      x2,
-      y: size.plot.bottom - BRACKET_LIFT,
-      label: noEffortLabel(rows, m.spans),
-    })
-  }
   const markers = m.points.flatMap((point, i) =>
     point !== null && isRecordDuration(sport, rows[i]?.durationS ?? NaN)
       ? [markerObstacle(point, MARKER_OBSTACLE_R)]
@@ -160,22 +138,4 @@ export function curveMarks(
       ...markers,
     ],
   }
-}
-
-/**
- * The one label for the widest carried stretch ("No separate 20–60 min effort: this stretch uses your 60 min best"), or an
- * empty string with none. The effort named is the one the carried points say they came from.
- */
-export function noEffortLabel(rows: readonly CurveRow[], spans: Layout['spans']): string {
-  const widest = widestSpan(
-    spans,
-    rows.map((row) => row.durationS),
-  )
-  const from = widest === null ? undefined : rows[widest.from]
-  const to = widest === null ? undefined : rows[widest.to]
-  if (widest === null || !from || !to) return ''
-  const source = rows
-    .slice(widest.from + 1, widest.to + 1)
-    .find((row) => row.carried === true && row.carriedFromS !== undefined)?.carriedFromS
-  return spanLabel(from.durationS, to.durationS, source)
 }

@@ -17,7 +17,7 @@ export interface SplitsTableProps {
   distanceM: number
   /** The activity's recorded detail, whose device laps are offered as a second view of the splits. */
   trace?: ActivityTrace | null
-  /** The view that is open, which the page holds so the flat pace note can follow it. Defaults to the units. */
+  /** The view that is open, which the page holds so the bests' timing note can follow it. Defaults to the units. */
   view?: SplitsViewName
   onViewChange?: (view: SplitsViewName) => void
 }

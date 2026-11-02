@@ -4,7 +4,7 @@ import type { SplitsLoad } from './components/splitRows'
 
 /**
  * A run's splits, asked for from the worker once the activity page shows it. The page keeps the answer,
- * so the best efforts can place the flat pace note by it. A null id asks for nothing and stays loading.
+ * so the best efforts can word their timing note by it. A null id asks for nothing and stays loading.
  */
 export function useRunSplits(
   activityId: string | null,

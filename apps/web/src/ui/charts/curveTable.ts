@@ -9,7 +9,7 @@ import { nativeLabel, formatNative, paceUnitName } from './sportAxis'
 
 /** The table's caption for each sport: what its values are, in the sport's unit. */
 const CAPTION: Record<Sport, (units: UnitSystem, dated: boolean) => string> = {
-  run: (units) => `Best flat pace at each duration, ${paceUnitName(units)}.`,
+  run: (units) => `Best GAP at each duration, ${paceUnitName(units)}.`,
   ride: (_units, dated) =>
     `Best power at each duration, in watts, with W/kg at your body mass${dated ? ' on the day of each ride' : ''}.`,
 }

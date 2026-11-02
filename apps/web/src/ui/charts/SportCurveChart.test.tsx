@@ -76,7 +76,7 @@ afterEach(() => {
 })
 
 describe('SportCurveChart', () => {
-  it('names the units in the chart name: pace per kilometre or mile, and power in watts', () => {
+  it('is named by what it draws and gives the unit on its axis: pace per kilometre or mile, and power in watts', () => {
     const metric = render(
       <SportCurveChart
         sport="run"
@@ -87,9 +87,10 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(
-      screen.getByRole('figure', { name: 'Run flat pace per kilometre by duration' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(metric.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
+      'Grade-adjusted pace (/km), faster up',
+    )
     metric.unmount()
 
     const imperial = render(
@@ -102,12 +103,13 @@ describe('SportCurveChart', () => {
         units="imperial"
       />,
     )
-    expect(
-      screen.getByRole('figure', { name: 'Run flat pace per mile by duration' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(imperial.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
+      'Grade-adjusted pace (/mi), faster up',
+    )
     imperial.unmount()
 
-    render(
+    const ride = render(
       <SportCurveChart
         sport="ride"
         curve={RIDE_WATTS}
@@ -117,9 +119,8 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(
-      screen.getByRole('figure', { name: 'Ride power in watts by duration' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(ride.container.querySelector('.chart-y-axis__title')?.textContent).toBe('Power (W)')
   })
 
   it('labels a pace axis in minutes per kilometre, with faster at the top', () => {
@@ -134,7 +135,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Flat pace (/km), faster up',
+      'Grade-adjusted pace (/km), faster up',
     )
     const labels = yTickLabels(container)
     expect(labels.every((label) => /^\d:\d{2}$/.test(label))).toBe(true)
@@ -160,7 +161,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Flat pace (/mi), faster up',
+      'Grade-adjusted pace (/mi), faster up',
     )
     // 5.0 to 3.5 m/s is 5:22 to 7:40 a mile, so the minute ticks run from 5:00 to 8:00.
     expect(yTickLabels(container)).toEqual(['5:00', '6:00', '7:00', '8:00'])
@@ -432,7 +433,7 @@ describe('SportCurveChart', () => {
       />,
     )
     const { headers, rows } = tableOf(container)
-    expect(headers).toEqual(['Duration', 'Flat pace', 'Previous 6 weeks', 'From'])
+    expect(headers).toEqual(['Duration', 'GAP', 'Previous 6 weeks', 'From'])
     // Three minutes at 4.8 m/s is 3:28 /km and 20 minutes at 3.8 m/s is 4:23 /km; five minutes has none before.
     expect(rows[0]?.[2]).toBe('3:28 /km')
     expect(rows[1]?.[2]).toBe('—')
@@ -497,7 +498,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(run.container.querySelector('caption')?.textContent).toBe(
-      'Best flat pace at each duration, per kilometre.',
+      'Best GAP at each duration, per kilometre.',
     )
     run.unmount()
     const ride = render(
@@ -679,7 +680,7 @@ describe('the curve’s key row, table and labels', () => {
       />,
     )
     const { headers, rows } = tableOf(container)
-    expect(headers).toEqual(['Duration', 'Flat pace'])
+    expect(headers).toEqual(['Duration', 'GAP'])
     expect(rows[2]).toEqual(['20 min', '4:10 /km'])
     expect(container.querySelector('caption')).toHaveTextContent('Every value is from Morning run.')
   })

@@ -29,8 +29,6 @@ export interface DriftChartProps {
   takeaway: string
   /** The middle effort's decoupling in percent, a fall being positive: drawn as a line across the dots. */
   medianPct: number
-  /** Muted text under the plot: how a dot is made, and what drift does not say. */
-  note: string
 }
 
 /** A chart at least this wide, px, keeps a right gutter for the median's label. */
@@ -103,19 +101,18 @@ function changeCell(point: DriftPoint): string {
  * second, by date, a fall below zero, with a line at the median across them and the finding as the title. A dashed line at the common 5% fall reference is named in the key. No line joins the
  * dots, since a line would claim the efforts between them.
  */
-export function DriftChart({ sport, points, names, takeaway, medianPct, note }: DriftChartProps) {
+export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const layoutOf = sizedOnce((size: ChartSize) => layout(points, medianPct, size))
   const nameOf = (point: DriftPoint) => names[point.activityId] ?? formatDay(point.startMs)
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={`Change in efficiency on steady ${SPORT_PLURAL[sport]}, first half to second`}
+      title={`Heart rate drift on steady ${SPORT_PLURAL[sport]}`}
       takeaway={takeaway}
       description={driftDescription(sport)}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}
-      note={note}
       table={{
         columns: ['Date', 'Activity', 'Change', 'Moving time'],
         rows: points.map((point) => [
@@ -124,8 +121,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct, note }: 
           changeCell(point),
           formatDuration(point.durationS),
         ]),
-        caption:
-          'Efficiency, output per heartbeat in the first half of each steady effort against the second.',
+        caption: 'Change in efficiency from the first half of each steady effort to the second.',
         textColumns: [1],
         phoneHidden: [1, 3],
       }}

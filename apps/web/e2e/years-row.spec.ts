@@ -102,7 +102,7 @@ for (const size of SIZES) {
     await page.setViewportSize(size)
     await openWithYears(page)
     await goTo(page, 'Run')
-    const section = page.getByRole('region', { name: 'Your years' })
+    const section = page.getByRole('region', { name: 'History' })
     await expect(section).toBeVisible()
     // Its row says what it found, and the section is open to start with: nothing waits on a press.
     const row = section.locator('.sport-disclosure__summary')
@@ -138,5 +138,5 @@ test('opening the row shows the whole sentence, and Hide takes the row away for 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.locator(ROW)).toHaveCount(0)
   await goTo(page, 'Run')
-  await expect(page.getByRole('region', { name: 'Your years' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'History' })).toBeVisible()
 })

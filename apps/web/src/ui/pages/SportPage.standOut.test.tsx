@@ -65,17 +65,13 @@ describe('the best durations on a sport page', () => {
 
   it('is an open section whose row says the finding, on a ride', () => {
     renderPage('ride', ride)
-    expect(closedRow('Best durations')).toMatch(
-      /^Best durationsYour bests are in line with each other/,
-    )
+    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
     const section = screen.getByRole('region', { name: 'Best durations' })
     expect(section.querySelector('details')).toHaveAttribute('open')
     expect(headings()).not.toContain('Best durations')
-    // The curve's card no longer carries it as a caption.
+    // The curve's card does not carry it as a caption.
     expect(
-      within(screen.getByRole('region', { name: 'Best efforts' })).queryByText(
-        /in line with each other/,
-      ),
+      within(screen.getByRole('region', { name: 'Best efforts' })).queryByText(/stands out/),
     ).toBeNull()
   })
 
@@ -99,7 +95,7 @@ describe('the best durations on a sport page', () => {
 
   it('is on a run page too', () => {
     renderPage('run', run)
-    expect(closedRow('Best durations')).toMatch(/Your bests are in line with each other/)
+    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
   })
 
   it('names what a ride needs when its measured bests are too few, as one line in its own place', () => {
@@ -139,7 +135,7 @@ describe('the best durations on a sport page', () => {
     expect(closedRow('Best durations')).not.toMatch(/all-time/)
   })
 
-  it('says nothing stands out, and not that the bests are in line, for a small library read as all time', () => {
+  it('says nothing stands out, and never that the bests are in line, for a small library read as all time', () => {
     const few = makeResult({
       activities: profileActivities('run', 'none', 12),
       runCurve: profileCurve(),
@@ -149,7 +145,7 @@ describe('the best durations on a sport page', () => {
       inLibrary: 20,
       library: profileActivities('run', 'none', 20),
     })
-    expect(closedRow('Best durations')).toMatch(/Nothing stands out in your all-time bests/)
+    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
     expect(closedRow('Best durations')).not.toMatch(/in line/)
   })
 

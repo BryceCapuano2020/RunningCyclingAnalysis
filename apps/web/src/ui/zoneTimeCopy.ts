@@ -1,10 +1,8 @@
 import { hasEnoughZoneTime, mainZone, sameEnteredReferences } from '@rca/core/zones'
 import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
-import { formatDuration, formatTotalTime } from '@rca/core/units'
+import { formatTotalTime } from '@rca/core/units'
 import { formatCount } from './format/count'
-import { formatDayMonth } from './format/date'
-import { upperFirst } from './format/firstLetter'
 import { SPORT_PLURAL } from './sports'
 
 /** The section's name, in its heading. */
@@ -134,33 +132,9 @@ export function zonesChangedNotes(
 export function zoneSourceNote(rows: readonly MeasureTime[]): string {
   const counted = rows.reduce((n, row) => n + row.counted, 0)
   const entered = rows.reduce((n, row) => n + row.entered, 0)
-  if (entered === 0) {
-    return 'Estimated from your activities. Set your own on Profile.'
-  }
-  if (entered === counted) return 'Zones follow the settings you entered on Profile.'
-  return 'Zones follow your Profile settings where you have them, and are estimated where you do not.'
-}
-
-/**
- * A line for each measure whose zones were cut from the highest heart rate on file (no effort reached near a maximum) or
- * from the best 30 min or 20 min of the 12 months before (no fit stands), up to the day the newest of those efforts was set.
- */
-export function zoneBasisNotes(rows: readonly MeasureTime[]): string[] {
-  return rows.flatMap((row) => {
-    if (row.fromHighest === true && row.entered === 0) {
-      return ['Heart rate zones are cut from your highest heart rate on file.']
-    }
-    if (row.floor === undefined) return []
-    const { durationS, asOfMs, activities } = row.floor
-    const name = IN_SENTENCE[row.measure]
-    const whose =
-      activities >= row.counted
-        ? `${upperFirst(name)} zones`
-        : `${upperFirst(name)} zones for ${activities} of ${row.counted} activities`
-    return [
-      `${whose} are cut from your best ${formatDuration(durationS)} ${name}, up to ${formatDayMonth(asOfMs)}.`,
-    ]
-  })
+  if (entered === 0) return 'Zones estimated. Set your own on Profile.'
+  if (entered === counted) return 'Zones set on Profile.'
+  return 'Zones set on Profile where you have them, estimated elsewhere.'
 }
 
 /** What each sport needs to show its time in zones. */

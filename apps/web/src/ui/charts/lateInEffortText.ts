@@ -15,10 +15,8 @@ export function againstOverall(retention: number): string {
   return 'Within 1%'
 }
 
-/** The chart's name: both durations, overall and late, in the sport's own unit. */
-export function durabilityTitle(sport: Sport, units: UnitSystem): string {
-  return `Your best efforts overall and late, ${SPORT_FORMAT[sport].titleUnit(units)}`
-}
+/** The chart's name: both durations, overall and late. The rows give each in the sport's own unit. */
+export const DURABILITY_TITLE = 'Best efforts overall and late'
 
 /** What a screen reader hears of the drawing: every figure in it, one sentence for each duration. */
 export function durabilityDescription(

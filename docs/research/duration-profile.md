@@ -113,8 +113,7 @@ A duration **stands out** only when its interval, put back from logs to fraction
 **Wording.** "Your 1 min best is 14% above what your other bests suggest. Your 2 min best is 9% below: it
 may be relatively low, or untested." At most the three that stand out most are named, and only those whose
 interval clears zero by 2% at its near end; one that stands out by less is on the chart and not in the
-sentence, which then ends "apart from small differences on the chart". With none standing out: "Your bests
-are in line with each other, compared from 5 s to 60 min.", and the page shows no chart. Words that rank or blame ("limiter",
+sentence, which then says "Nothing stands out clearly." With none standing out: "Nothing stands out.", and the page shows no chart. Words that rank or blame ("limiter",
 "weak", "strength", "holding you back", "ahead of") are never used, and "grade" means age grade only.
 
 ## 5. What it can and cannot find
@@ -158,8 +157,7 @@ are in line with each other, compared from 5 s to 60 min.", and the page shows n
   (`PROFILE_ALPHA`, 5% over the rows) is for a library of `PROFILE_FULL_LEVEL_ACTIVITIES` (40) activities or more and is scaled by
   activities over 40 below that. A duration that stands out is stated at a size corrected for having been picked as the largest of
   several (a conditional estimate from the truncated normal above the flag cut, `profile/winnersCurse.ts`), and the drawn bar is centred on
-  that stated size. "In line with each other"
-  is said only with 40 activities behind the bests. `profile/standOut.sim.test.ts` draws libraries of N activities that each carry one
+  that stated size. The sentence never says the bests are "in line with each other", whatever the size of the library. `profile/standOut.sim.test.ts` draws libraries of N activities that each carry one
   effort through every duration they reach, with a per-duration habit of 3%: with nothing planted the profiles that flagged a duration
   at N of 15 / 25 / 40 (efforts 10% short of the curve) went from 6.3 / 8.5 / 3.8% to 2.5 / 5.5 / 3.8%; a planted 15% rise at 20 minutes was
   found in 73% of profiles at N 40 (73% before) and 34% at N 15 (57% before). The audit's 15% at 25 activities was not reproduced by this

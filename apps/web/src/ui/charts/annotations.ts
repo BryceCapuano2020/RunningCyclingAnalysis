@@ -10,7 +10,6 @@ export type {
   Annotation,
   AnnotationSpace,
   AnnotationTone,
-  Bracket,
   Callout,
   EndLabel,
   PlacedAnnotation,
@@ -27,12 +26,11 @@ function overlapArea(a: Box, b: Box): number {
   return w > 0 && h > 0 ? w * h : 0
 }
 
-/** Reference lines and brackets claim their place first, then callouts, then end labels. */
+/** Reference lines claim their place first, then callouts, then end labels. */
 const PRIORITY: Record<Annotation['kind'], number> = {
   reference: 0,
-  bracket: 1,
-  callout: 2,
-  end: 3,
+  callout: 1,
+  end: 2,
 }
 
 /** How many of the boxes a candidate meets, and the area of their overlap: the cost of putting it there. */
@@ -76,7 +74,7 @@ export function layoutAnnotations(
       (candidate) =>
         (annotation.kind === 'reference' || annotation.kind === 'end'
           ? candidate.box.top >= space.plot.top && candidate.box.bottom <= space.plot.bottom
-          : inside(candidate.box, space.plot, annotation.kind === 'bracket')) &&
+          : inside(candidate.box, space.plot)) &&
         candidate.box.left >= 0 &&
         candidate.box.right <= space.width &&
         !meetsBoxes(candidate.box, space.ticks ?? [], 0),
@@ -117,9 +115,7 @@ export function layoutAnnotations(
       rule:
         annotation.kind === 'reference'
           ? { x1: space.plot.left, x2: space.plot.right, y: annotation.y }
-          : annotation.kind === 'bracket'
-            ? { x1: annotation.x1, x2: annotation.x2, y: annotation.y }
-            : null,
+          : null,
       band: annotation.kind === 'reference' ? (annotation.band ?? null) : null,
       estimated: annotation.kind === 'reference' && annotation.estimated === true,
       preferred: choice === 0,

@@ -107,7 +107,7 @@ describe('SplitsTable: a steep descent', () => {
     expect(within(rows[0]!).queryByText('10:00 /km')).not.toBeInTheDocument()
     expect(within(rows[0]!).getByText('Left out on a steep descent')).toBeInTheDocument()
     expect(within(rows[1]!).getByText('4:50 /km')).toBeInTheDocument()
-    expect(screen.getAllByText(/Flat pace is left out where a steep descent/)).toHaveLength(1)
+    expect(screen.getAllByText(/GAP is left out where a steep descent/)).toHaveLength(1)
   })
 
   it('keeps a flat pace at the margin, and shows no note when nothing is left out', () => {

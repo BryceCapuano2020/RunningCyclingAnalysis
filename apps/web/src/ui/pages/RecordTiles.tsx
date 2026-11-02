@@ -1,3 +1,4 @@
+import { RecordTag } from '../components/RecordTag'
 import type { RecordRow } from '../recordRow'
 import { formatDayMonth } from '../format/date'
 import { hrefFor } from '../route'
@@ -44,9 +45,7 @@ export function RecordTiles({ tiles }: { tiles: readonly RecordRow[] }) {
             {row.tags.length > 0 && (
               <span className="record-tiles__tags">
                 {row.tags.map((tag) => (
-                  <span key={tag} className="chip">
-                    {tag}
-                  </span>
+                  <RecordTag key={tag} tag={tag} />
                 ))}
               </span>
             )}

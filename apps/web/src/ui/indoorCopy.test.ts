@@ -20,10 +20,10 @@ describe('indoorCount', () => {
 })
 
 describe('indoorNeedLine', () => {
-  it('says the treadmill count, what still counts, and what to add, for a run that holds no outdoor effort', () => {
+  it('says the treadmill count and what to add, for a run that holds no outdoor effort', () => {
     const line = indoorNeedLine(some('run', 20, 14), 'run', false)
     expect(line).toBe(
-      '14 of your 20 runs were on a treadmill. Their time, distance and heart rate count; their pace is not used for bests or thresholds, because a belt’s speed is not a distance covered. Add outdoor runs of 3 minutes or more to see them.',
+      '14 of your 20 runs were on a treadmill. Add an outdoor run of 3 min or more.',
     )
   })
 
@@ -44,27 +44,22 @@ describe('indoorNeedLine', () => {
 })
 
 describe('indoorSplitLine', () => {
-  it('discloses indoor rides without excluding them: their power counts', () => {
-    expect(indoorSplitLine(some('ride', 40, 6), 'ride')).toBe(
-      '6 of your 40 rides were indoors; their power counts like any other.',
-    )
-    expect(indoorSplitLine(some('ride', 3, 3), 'ride')).toBe(
-      'All 3 of your rides were indoors; their power counts like any other.',
-    )
+  it('says nothing of indoor rides, whose power counts like any other', () => {
+    expect(indoorSplitLine(some('ride', 40, 6), 'ride')).toBeNull()
+    expect(indoorSplitLine(some('ride', 3, 3), 'ride')).toBeNull()
   })
 
   it('says the treadmill split of a mixed run library once, and leaves an all-treadmill one to the need line', () => {
-    expect(indoorSplitLine(some('run', 20, 5), 'run')).toBe(
-      '5 of your 20 runs were on a treadmill; their pace is not used for bests or thresholds.',
-    )
+    expect(indoorSplitLine(some('run', 20, 5), 'run')).toBe('5 treadmill runs not counted.')
+    expect(indoorSplitLine(some('run', 20, 1), 'run')).toBe('1 treadmill run not counted.')
     expect(indoorSplitLine(some('run', 20, 20), 'run')).toBeNull()
     expect(indoorSplitLine(some('run', 20, 0), 'run')).toBeNull()
   })
 
-  it('tells each sport what becomes of its indoor efforts as the one rule does', () => {
+  it('has a line for each sport exactly when the one rule leaves its indoor efforts out', () => {
     for (const sport of ['run', 'ride'] as const) {
-      const says = indoorSplitLine(some(sport, 10, 4), sport)!
-      expect(says.includes('not used')).toBe(!effortsCount({ sport, indoor: true }))
+      const says = indoorSplitLine(some(sport, 10, 4), sport)
+      expect(says !== null).toBe(!effortsCount({ sport, indoor: true }))
     }
   })
 })

@@ -67,7 +67,7 @@ describe('yearCurvesModel', () => {
     expect(yearCurvesModel('run', { durations: [300], years: [] })).toBeNull()
   })
 
-  it('writes a table cell with at least for a 20 minute best not confirmed hard, and none for a gap', () => {
+  it('writes a table cell with at least for a 20 minute best not all-out, and none for a gap', () => {
     const model = yearCurvesModel('run', RUN_CURVES)!
     const at = (year: number, durationS: number, units: 'metric' | 'imperial' = 'metric') =>
       curveCell(

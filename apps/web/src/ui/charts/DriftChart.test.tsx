@@ -5,7 +5,6 @@ import { driftPoints } from '../lateFixtures'
 import { DECOUPLING_REFERENCE, driftDescription } from '../lateInEffort'
 import { DriftChart } from './DriftChart'
 
-const NOTE = 'How a dot is made.'
 const TAKEAWAY = 'Efficiency fell 3% from the first half to the second.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])
 const NAMES = Object.fromEntries(POINTS.map((p, i) => [p.activityId, `Long run ${i + 1}`]))
@@ -22,28 +21,21 @@ describe('DriftChart', () => {
 
   const renderChart = (sport: 'run' | 'ride' = 'run') =>
     render(
-      <DriftChart
-        sport={sport}
-        points={POINTS}
-        names={NAMES}
-        takeaway={TAKEAWAY}
-        medianPct={3}
-        note={NOTE}
-      />,
+      <DriftChart sport={sport} points={POINTS} names={NAMES} takeaway={TAKEAWAY} medianPct={3} />,
     )
 
   it('is titled for the sport’s steady efforts', () => {
     renderChart()
     expect(
       screen.getByRole('figure', {
-        name: 'Change in efficiency on steady runs, first half to second',
+        name: 'Heart rate drift on steady runs',
       }),
     ).toBeInTheDocument()
     cleanup()
     renderChart('ride')
     expect(
       screen.getByRole('figure', {
-        name: 'Change in efficiency on steady rides, first half to second',
+        name: 'Heart rate drift on steady rides',
       }),
     ).toBeInTheDocument()
   })
@@ -58,7 +50,7 @@ describe('DriftChart', () => {
     'describes %s drift in grammatical sentences, with the reference in lower case mid-sentence',
     (sport) => {
       expect(driftDescription(sport)).toBe(
-        `One dot for each steady ${sport} over an hour: the percent its efficiency changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%: a common coaching reference line.`,
+        `One dot for each steady ${sport} over an hour: the percent its efficiency changed from the first half to the second, by date, a fall being below zero. A dashed line marks a fall of 5%.`,
       )
     },
   )
@@ -85,14 +77,7 @@ describe('DriftChart', () => {
 
   it('keeps the median on the axis when it is the furthest value, and draws no NaN', () => {
     const { container } = render(
-      <DriftChart
-        sport="run"
-        points={POINTS}
-        names={NAMES}
-        takeaway={TAKEAWAY}
-        medianPct={30}
-        note={NOTE}
-      />,
+      <DriftChart sport="run" points={POINTS} names={NAMES} takeaway={TAKEAWAY} medianPct={30} />,
     )
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
     const ticks = Array.from(container.querySelectorAll('.chart-y-axis__tick')).map((t) =>
@@ -124,14 +109,7 @@ describe('DriftChart', () => {
   it('draws a rise above zero and reads it as a rise', () => {
     const rising = driftPoints([-3, 2, 4])
     const { container } = render(
-      <DriftChart
-        sport="run"
-        points={rising}
-        names={{}}
-        takeaway={TAKEAWAY}
-        medianPct={3}
-        note={NOTE}
-      />,
+      <DriftChart sport="run" points={rising} names={{}} takeaway={TAKEAWAY} medianPct={3} />,
     )
     const [rise, fall] = Array.from(container.querySelectorAll('[data-testid="drift-dot"]')).map(
       (d) => Number(d.getAttribute('cy')),
@@ -178,20 +156,18 @@ describe('DriftChart', () => {
       'Fell 1%',
       '1 h 10 min',
     ])
-    expect(screen.getByText(NOTE)).toBeInTheDocument()
+    // The caption says what a change is, since the table has no heading of its own.
+    expect(
+      screen.getByText(
+        'Change in efficiency from the first half of each steady effort to the second.',
+      ),
+    ).toBeInTheDocument()
+    // No sentence under the chart says how a dot is made or what drift does not say.
+    expect(document.querySelector('.chart-frame__note')).toBeNull()
   })
 
   it('falls back to the date when an activity has no name', () => {
-    render(
-      <DriftChart
-        sport="run"
-        points={POINTS}
-        names={{}}
-        takeaway={TAKEAWAY}
-        medianPct={3}
-        note={NOTE}
-      />,
-    )
+    render(<DriftChart sport="run" points={POINTS} names={{}} takeaway={TAKEAWAY} medianPct={3} />)
     const first = within(screen.getByRole('table')).getAllByRole('row')[1]!
     expect(first.querySelectorAll('th, td')[1]!.textContent).toBe('Mon 6 Jan 2025')
   })
@@ -199,14 +175,7 @@ describe('DriftChart', () => {
   it('draws on one day without a repeated tick', () => {
     const same = POINTS.map((p) => Object.assign({}, p, { startMs: POINTS[0]!.startMs }))
     const { container } = render(
-      <DriftChart
-        sport="run"
-        points={same}
-        names={NAMES}
-        takeaway={TAKEAWAY}
-        medianPct={3}
-        note={NOTE}
-      />,
+      <DriftChart sport="run" points={same} names={NAMES} takeaway={TAKEAWAY} medianPct={3} />,
     )
     expect(container.querySelectorAll('.chart-x-axis__tick')).toHaveLength(1)
   })

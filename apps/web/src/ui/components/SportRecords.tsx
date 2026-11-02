@@ -3,6 +3,7 @@ import { formatDayMonth } from '../format/date'
 import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
+import { RecordTag } from './RecordTag'
 import './SportRecords.css'
 
 export interface SportRecordsProps {
@@ -83,9 +84,7 @@ export function SportRecords({ rows }: SportRecordsProps) {
               <span className="records__value">{row.value}</span>
               {row.sub && <span className="records__sub">{row.sub}</span>}
               {row.tags.map((tag) => (
-                <span key={tag} className="chip">
-                  {tag}
-                </span>
+                <RecordTag key={tag} tag={tag} />
               ))}
             </span>
             {row.grade && <span className="records__grade">{row.grade}</span>}

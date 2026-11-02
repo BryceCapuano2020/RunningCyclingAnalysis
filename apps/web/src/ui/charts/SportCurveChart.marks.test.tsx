@@ -77,7 +77,7 @@ function ride(curve: CurvePoint[], threshold?: Parameters<typeof SportCurveChart
 }
 
 describe('a stretch of the curve that carries a longer effort', () => {
-  it('is drawn lighter than the measured line, and labelled once, with the lengths it spans', () => {
+  it('is drawn lighter than the measured line, with no label over it', () => {
     chartWidth(900)
     const { container } = ride(SPARSE)
     const light = container.querySelector('[data-testid="sport-curve-carried"]')
@@ -85,10 +85,7 @@ describe('a stretch of the curve that carries a longer effort', () => {
     expect(light?.getAttribute('d')).toMatch(/^M/)
     // The measured line is a separate path, so each can be drawn in its own weight.
     expect(container.querySelector('[data-testid="sport-curve-line"]')).not.toBe(light)
-    const labels = [...container.querySelectorAll('.annot--bracket .annot__text')].map(
-      (text) => text.textContent,
-    )
-    expect(labels).toEqual(['No separate 20–60 min effort: this stretch uses your 60 min best'])
+    expect(container.textContent).not.toContain('No separate')
   })
 
   it('draws the light stretch from the last measured point to the next, and no further', () => {
@@ -106,20 +103,19 @@ describe('a stretch of the curve that carries a longer effort', () => {
     expect(startsOf(solid)).toHaveLength(1)
   })
 
-  it('is said in the table’s caption, so the twin says what the drawing does', () => {
+  it('leaves the table’s caption to say what its values are, and nothing of the stretch', () => {
     chartWidth(900)
     const { container } = ride(SPARSE)
-    // The caption ends the sentence once; the label itself carries no full stop to double it.
-    expect(container.querySelector('caption')?.textContent).toMatch(
-      /No separate 20–60 min effort: this stretch uses your 60 min best\.$/,
+    expect(container.querySelector('caption')?.textContent).toBe(
+      'Best power at each duration, in watts, with W/kg at your body mass.',
     )
   })
 
-  it('draws a curve with no carried point as one line, with no bracket and no word about it', () => {
+  it('draws a curve with no carried point as one line, with no word about it', () => {
     chartWidth(900)
     const { container } = ride([measured(60, 400), measured(300, 320), measured(1200, 250)])
     expect(container.querySelector('[data-testid="sport-curve-carried"]')).toBeNull()
-    expect(container.querySelector('.annot--bracket')).toBeNull()
+    expect(container.textContent).not.toContain('No separate')
     expect(container.querySelector('caption')?.textContent).not.toContain('this stretch uses')
   })
 
@@ -236,16 +232,14 @@ describe('a run curve that carries a longer effort', () => {
       />,
     )
 
-  it('draws the carried stretch lighter and says what the line carries', () => {
+  it('draws the carried stretch lighter, with no word about it on the plot', () => {
     chartWidth(900)
     const { container } = run()
     expect(container.querySelector('[data-testid="sport-curve-carried"]')).toHaveClass(
       'chart-series__line--run',
       'chart-series__line--carried',
     )
-    expect(container.querySelector('.annot--bracket .annot__text')?.textContent).toBe(
-      'No separate 20–60 min effort: this stretch uses your 60 min best',
-    )
+    expect(container.textContent).not.toContain('No separate')
   })
 
   it('says whose effort a carried row is, in its tooltip and in its table row', () => {

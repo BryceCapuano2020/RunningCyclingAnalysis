@@ -19,7 +19,7 @@ describe('FitnessChart', () => {
     const figure = screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })
     expect(figure).toBeInTheDocument()
     expect(within(figure).getByRole('img').getAttribute('aria-label')).toMatch(
-      /^Flat pace at 150 bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change began in February and the level now\.$/,
+      /^GAP at 150 bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change began in February and the level now\.$/,
     )
   })
 

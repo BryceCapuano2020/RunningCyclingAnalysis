@@ -2,7 +2,12 @@
 import { describe, expect, it } from 'vitest'
 import { SAME_HEART_RATE } from '@rca/core/constants'
 import type { Lack, SameHeartRate, SameHeartRateWeek } from '@rca/core/digest'
-import { LACK_TEXT, sameHeartRateLackText, sameHeartRateTitle } from './sameHeartRateCopy'
+import {
+  LACK_TEXT,
+  sameHeartRateLackText,
+  sameHeartRateName,
+  sameHeartRateTitle,
+} from './sameHeartRateCopy'
 
 const WEEK_MS = 7 * 86_400_000
 // A Sunday in April: the window of the first week is mostly April, so the finding dates itself to it.
@@ -32,12 +37,16 @@ function data(outputs: (number | null)[], drawn = true, spread = 0.02): SameHear
   }
 }
 
-describe('the title', () => {
-  it('names the reference heart rate', () => {
-    expect(sameHeartRateTitle('run', 145, 'metric')).toBe(
-      'Your output at 145 bpm, flat pace per kilometre',
-    )
-    expect(sameHeartRateTitle('ride', 150, 'metric')).toBe('Your output at 150 bpm, power in watts')
+describe('the names', () => {
+  it('names the section by the sport’s own measure, and the chart by the heart rate it reads at', () => {
+    expect(sameHeartRateName('run')).toBe('Pace at heart rate')
+    expect(sameHeartRateName('ride')).toBe('Power at heart rate')
+    expect(sameHeartRateTitle('run', 145)).toBe('Pace at 145 bpm, by week')
+    expect(sameHeartRateTitle('ride', 150)).toBe('Power at 150 bpm, by week')
+  })
+
+  it('names no heart rate rather than a wrong one when there is none', () => {
+    expect(sameHeartRateTitle('run', null)).toBe('Pace at one heart rate, by week')
   })
 })
 
@@ -45,7 +54,7 @@ describe('the weekly view’s words', () => {
   it('names no change for any data: the fitness status is the sport’s voice on that', () => {
     const rising = data([198, 200, 203, 207, 210, 212, 214, 216])
     expect(sameHeartRateLackText('ride', rising)).toBeNull()
-    expect(sameHeartRateTitle('ride', 145, 'metric')).not.toMatch(/more|less|faster|slower|change/i)
+    expect(sameHeartRateTitle('ride', 145)).not.toMatch(/more|less|faster|slower|change/i)
   })
 
   it('names what is missing, in a muted line, when there is nothing to draw', () => {

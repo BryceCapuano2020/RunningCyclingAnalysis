@@ -7,7 +7,6 @@ import {
   leftOutNotes,
   percentText,
   timeInZonesLack,
-  zoneBasisNotes,
   zoneSourceNote,
   zonesChangedNotes,
   zoneTimeText,
@@ -55,47 +54,6 @@ describe('describable', () => {
 
   it('names the stretch a wider window is of in a few words', () => {
     expect(ZONE_WINDOW_LINE).toEqual({ year: 'Last 12 months.', all: 'All time.' })
-  })
-})
-
-describe('zoneBasisNotes', () => {
-  const asOfMs = new Date(2025, 9, 3, 12).getTime()
-
-  it('says heart rate zones are cut from the highest on file where no effort reached near a maximum', () => {
-    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { fromHighest: true })
-    expect(zoneBasisNotes([row])).toEqual([
-      'Heart rate zones are cut from your highest heart rate on file.',
-    ])
-  })
-
-  it('says pace and power zones are cut from the best 30 min or 20 min, with the day it was set', () => {
-    const all = measureTime('run', 'pace', [1, 1, 1, 1, 1], {
-      counted: 8,
-      floor: { durationS: 1800, asOfMs, activities: 8 },
-    })
-    expect(zoneBasisNotes([all])).toEqual([
-      'Pace zones are cut from your best 30 min pace, up to 3 Oct 2025.',
-    ])
-    const some = measureTime('ride', 'power', [1, 1, 1, 1, 1], {
-      counted: 8,
-      floor: { durationS: 1200, asOfMs, activities: 3 },
-    })
-    expect(zoneBasisNotes([some])).toEqual([
-      'Power zones for 3 of 8 activities are cut from your best 20 min power, up to 3 Oct 2025.',
-    ])
-  })
-
-  it('says nothing of zones cut from a maximum or a fit that stands', () => {
-    expect(zoneBasisNotes([easyRun, measureTime('run', 'pace', [1, 1, 1, 1, 1])])).toEqual([])
-  })
-
-  it('never uses a banned word', () => {
-    const row = measureTime('run', 'pace', [1, 1, 1, 1, 1], {
-      floor: { durationS: 1800, asOfMs, activities: 2 },
-    })
-    for (const note of [...zoneBasisNotes([row]), ...Object.values(THRESHOLD_NEEDS)]) {
-      for (const word of BANNED) expect(note.toLowerCase()).not.toContain(word)
-    }
   })
 })
 
@@ -205,14 +163,22 @@ describe('zonesChangedNotes', () => {
 describe('zoneSourceNote', () => {
   it('says whether the zones were estimated, entered or both', () => {
     expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1])])).toBe(
-      'Estimated from your activities. Set your own on Profile.',
+      'Zones estimated. Set your own on Profile.',
     )
     expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 8 })])).toBe(
-      'Zones follow the settings you entered on Profile.',
+      'Zones set on Profile.',
     )
-    expect(
-      zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 3 })]),
-    ).toMatch(/where you have them/)
+    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 3 })])).toBe(
+      'Zones set on Profile where you have them, estimated elsewhere.',
+    )
+  })
+})
+
+describe('the words a need says', () => {
+  it('never uses a banned word', () => {
+    for (const note of Object.values(THRESHOLD_NEEDS)) {
+      for (const word of BANNED) expect(note.toLowerCase()).not.toContain(word)
+    }
   })
 })
 

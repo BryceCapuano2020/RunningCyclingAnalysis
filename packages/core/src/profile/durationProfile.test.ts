@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatDuration } from '../units'
-import {
-  CURVE_START_S,
-  durationProfile,
-  profileNeeds,
-  profileSentence,
-  profileShortNote,
-} from './index'
+import { CURVE_START_S, durationProfile, profileNeeds, profileSentence } from './index'
 import type { ProfilePoint, ProfileRow, ReadyProfile } from './index'
 
 import { DURATIONS, modelCurve, morton, ready, scaled, standing } from './test/curves'
@@ -134,27 +128,12 @@ describe('what a profile needs', () => {
   })
 })
 
-describe('profileShortNote', () => {
-  it('says why the short end is not shown', () => {
-    const profile = ready(modelCurve().filter((point) => point.durationS >= 30))
-    expect(profileShortNote(profile, formatDuration)).toBe(
-      'Shown from 2 min: there is no best at 15 s or under to anchor the short end.',
-    )
-  })
-
-  it('says nothing when the short end is anchored', () => {
-    expect(profileShortNote(ready(modelCurve()), formatDuration)).toBeNull()
-  })
-})
-
 describe('profileSentence', () => {
-  it('says the bests are in line when none stands out', () => {
-    expect(profileSentence(ready(modelCurve()), formatDuration)).toBe(
-      'Your bests are in line with each other, compared from 5 s to 1 h.',
-    )
+  it('says nothing stands out when none does', () => {
+    expect(profileSentence(ready(modelCurve()), formatDuration)).toBe('Nothing stands out.')
   })
 
-  it('names the first and last durations the rows compare, whatever the chart above it starts at', () => {
+  it('names no span of durations, whatever the chart above it starts at', () => {
     const rows: ProfileRow[] = [120, 600, 2700].map((durationS) => ({
       durationS,
       residual: 0,
@@ -167,7 +146,7 @@ describe('profileSentence', () => {
         { status: 'ready', anchored: false, startS: 5, rows, activities: 40 },
         formatDuration,
       ),
-    ).toBe('Your bests are in line with each other, compared from 2 min to 45 min.')
+    ).toBe('Nothing stands out.')
   })
 
   it('says an above duration with its size', () => {
@@ -229,9 +208,7 @@ describe('profileSentence', () => {
         base([...filler.slice(0, 2), row(300, 0.05, 0.019), ...filler.slice(2)]),
         formatDuration,
       ),
-    ).toBe(
-      'Your bests are in line with each other, compared from 5 s to 1 h, apart from small differences on the chart.',
-    )
+    ).toBe('Nothing stands out clearly.')
   })
 
   it('names at most the three that stand out most, in duration order', () => {
@@ -313,10 +290,6 @@ describe('a run’s profile, which starts at 3 minutes', () => {
       const sentence = profileSentence(runReady(points), named)
       expect(sentence).not.toMatch(/\b(5|10|15|30|45|60|90|120) s\b|\b[12] min\b/)
     }
-  })
-
-  it('has no short-end note, since a run is not meant to reach the anchor', () => {
-    expect(profileShortNote(runReady(modelCurve()), formatDuration)).toBeNull()
   })
 
   it('needs a best at 3 minutes where a ride needs one at 1 minute, and no more durations than before', () => {

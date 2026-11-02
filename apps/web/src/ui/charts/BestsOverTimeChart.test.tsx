@@ -59,7 +59,6 @@ const PROPS: BestsOverTimeChartProps = {
   units: 'metric',
   effortS: 1200,
   takeaway: null,
-  comparedWith: null,
 }
 
 describe('BestsOverTimeChart', () => {
@@ -103,19 +102,16 @@ describe('BestsOverTimeChart', () => {
       <BestsOverTimeChart
         {...PROPS}
         takeaway="20 min is 8 s/km faster than the previous 12 weeks"
-        comparedWith="Previous 12 weeks"
       />,
     )
     const figure = screen.getByRole('figure', {
       name: '20 min is 8 s/km faster than the previous 12 weeks',
     })
-    // The line under the title says what the comparison is, since the dots are this period's alone.
-    expect(figure).toHaveTextContent(
-      "The finding compares this period's best with the previous 12 weeks.",
-    )
+    // The finding names its own comparison, so no line under it says it again.
+    expect(figure).not.toHaveTextContent('The finding compares')
     found.unmount()
     render(<BestsOverTimeChart {...PROPS} />)
-    expect(screen.getByRole('figure', { name: 'Best 20 min runs by day' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best 20 min' })).toBeInTheDocument()
   })
 
   it('lists each dot by its day in the table, oldest first, in the sport’s unit', () => {
@@ -159,17 +155,16 @@ describe('BestsOverTimeChart', () => {
     chartWidth(640)
     render(<BestsOverTimeChart {...PROPS} points={[POINTS[0]!]} gateWithheld />)
     expect(
-      screen.getByText('No dots to show: efforts your heart rate shows were not hard are left out'),
+      screen.getByText('No dots to show: none of these efforts was all-out'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/on more than one day/)).toBeNull()
   })
 
-  it('says in plain words that efforts shown not hard are left out, once there are dots', () => {
+  it('says no sentence under the dots about what a dot is or what is left out', () => {
     chartWidth(640)
-    render(<BestsOverTimeChart {...PROPS} />)
-    expect(
-      screen.getByText(/Efforts your heart rate shows were not hard are left out\./),
-    ).toBeInTheDocument()
+    const { container } = render(<BestsOverTimeChart {...PROPS} />)
+    expect(container.querySelector('.chart-frame__note')).toBeNull()
+    expect(container).not.toHaveTextContent(/not a typical effort|left out/)
   })
 
   it('draws its dots and axes at 320 px, inside the plot', () => {

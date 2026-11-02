@@ -31,24 +31,6 @@ const textBoxes = (placed: ReturnType<typeof layoutAnnotations>[number]): Box[] 
   }))
 
 describe('with nothing free', () => {
-  it('keeps a bracket’s label above the plot’s floor, where the x axis’s labels begin', () => {
-    // The place above the bar is taken by data, so the label can only go under it, at every height of the bar.
-    for (let y = 196; y <= PLOT.bottom; y += 4) {
-      const bracket: Annotation = {
-        kind: 'bracket',
-        id: 'span',
-        x1: 100,
-        x2: 300,
-        y,
-        label: 'No separate 20–45 min effort: this stretch uses your 45 min best',
-      }
-      const data: Box[] = [{ left: PLOT.left, right: PLOT.right, top: PLOT.top, bottom: y - 4 }]
-      for (const placed of layoutAnnotations([bracket], { ...PHONE, obstacles: data })) {
-        expect(placed.box.bottom, `bar at ${y}`).toBeLessThanOrEqual(PLOT.bottom)
-      }
-    }
-  })
-
   it('leaves a reference line’s words off where every place meets an axis label, and keeps its rule', () => {
     const [placed] = layoutAnnotations([reference], { ...PHONE, ticks: STRIP })
     expect(placed?.rule).toEqual({ x1: PLOT.left, x2: PLOT.right, y: 120 })

@@ -11,7 +11,6 @@ import type { ActivityTrace } from '@rca/core/workbench'
 import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
 import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
-import { FLAT_PACE_NOTE } from '../grades'
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'
@@ -91,7 +90,7 @@ function bestRow(label: string): HTMLElement {
   return row
 }
 
-/** The Best efforts section, which holds the flat pace note when the splits do not. */
+/** The Best efforts section. */
 function bestsSection(): HTMLElement {
   const section = screen
     .getByRole('heading', { level: 2, name: 'Best efforts set here' })
@@ -100,7 +99,14 @@ function bestsSection(): HTMLElement {
   return section
 }
 
-/** The Splits section, which holds the flat pace note when its flat pace column shows. */
+/** The paragraphs of a section that say what a pace allowing for hills is: the term's note is not one. */
+function paragraphsAboutHills(section: HTMLElement): (string | null)[] {
+  return Array.from(section.querySelectorAll('p'))
+    .filter((paragraph) => /hills|level ground/.test(paragraph.textContent ?? ''))
+    .map((paragraph) => paragraph.textContent)
+}
+
+/** The Splits section. */
 function splitsSection(): HTMLElement {
   const section = screen.getByRole('heading', { level: 2, name: 'Splits' }).closest('section')
   if (!section) throw new Error('No Splits section')
@@ -281,10 +287,10 @@ describe('ActivityPage', () => {
     expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 60 min')).getByText('5:37 /km')).toBeInTheDocument()
-    expect(within(bestRow('Best 5 min')).getByText('Flat')).toBeInTheDocument()
-    // The splits are not kept here, so the bests explain their Flat marks.
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(screen.queryByText(/GAP/)).not.toBeInTheDocument()
+    // A best's pace is a GAP, with its meaning one press away and no sentence under the bests.
+    expect(within(bestRow('Best 5 min')).getByRole('button', { name: 'GAP' })).toBeInTheDocument()
+    expect(paragraphsAboutHills(bestsSection())).toEqual([])
+    expect(screen.queryByText(/Flat pace/)).not.toBeInTheDocument()
   })
 
   it('gives a distance best its level, with a link to How is this graded?', () => {
@@ -764,7 +770,8 @@ describe('ActivityPage', () => {
     expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
-    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
+    // One term for the table, and one for the list a narrow screen shows in its place.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
   })
 
   it('says a run whose splits were not kept has none, and shows no table', async () => {
@@ -800,8 +807,8 @@ describe('ActivityPage', () => {
   })
 })
 
-describe('the flat pace note', () => {
-  /** Splits whose flat pace equals the pace, so the splits show no flat pace column. */
+describe('GAP on the activity page', () => {
+  /** Splits whose GAP equals the pace, so the splits show no GAP column. */
   const samePace: DigestSplits = {
     km: [
       {
@@ -815,7 +822,7 @@ describe('the flat pace note', () => {
     mile: [],
   }
 
-  it('sits under the splits, and not under the bests, when the splits show a flat pace', async () => {
+  it('heads the splits’ GAP column with the term, and says nothing under the splits about it', async () => {
     renderPage(
       morningRun,
       resultWith(),
@@ -824,11 +831,12 @@ describe('the flat pace note', () => {
       vi.fn(async () => twoKilometres),
     )
     await screen.findByRole('table', { name: 'Pace for each kilometre' })
-    expect(within(splitsSection()).getByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(bestsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+    // One term for the table, and one for the list a narrow screen shows in its place.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    expect(paragraphsAboutHills(splitsSection())).toEqual([])
   })
 
-  it('moves under the bests when the splits show no flat pace, and a best carries a Flat mark', async () => {
+  it('has no GAP term in the splits when they show no GAP column, and keeps it on the bests', async () => {
     renderPage(
       morningRun,
       resultWith(),
@@ -837,32 +845,28 @@ describe('the flat pace note', () => {
       vi.fn(async () => samePace),
     )
     await screen.findByRole('table', { name: 'Pace for each kilometre' })
-    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(splitsSection()).queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
+    expect(within(bestsSection()).getAllByRole('button', { name: 'GAP' }).length).toBeGreaterThan(0)
   })
 
-  it('sits under the bests when the splits are not kept', async () => {
-    renderPage(morningRun)
-    expect(
-      await screen.findByText('Splits were not kept when this run was added.'),
-    ).toBeInTheDocument()
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
-  })
+  it.each([
+    ['not kept', vi.fn(async () => null)],
+    ['too short to split', vi.fn(async () => ({ km: [], mile: [] }))],
+    ['failed to load', vi.fn(() => Promise.reject(new Error('worker down')))],
+  ])(
+    'marks the bests GAP with no sentence under them when the splits are %s',
+    async (_name, load) => {
+      renderPage(morningRun, resultWith(), 'metric', new Map(), load)
+      await screen.findByRole('heading', { level: 2, name: 'Splits' })
+      await waitFor(() => expect(within(splitsSection()).queryByText('Loading splits.')).toBeNull())
+      expect(within(bestsSection()).getAllByRole('button', { name: 'GAP' }).length).toBeGreaterThan(
+        0,
+      )
+      expect(paragraphsAboutHills(bestsSection())).toEqual([])
+    },
+  )
 
-  it('sits under the bests when the run is too short to split', async () => {
-    renderPage(
-      morningRun,
-      resultWith(),
-      'metric',
-      new Map(),
-      vi.fn(async () => ({ km: [], mile: [] })),
-    )
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(splitsSection()).getByText('This run is too short to split.')).toBeInTheDocument()
-  })
-
-  it('is left out when no best carries a Flat mark and the splits are not kept', async () => {
+  it('is left off a run’s distance bests, which are as run, and off a ride', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
@@ -871,39 +875,9 @@ describe('the flat pace note', () => {
       }),
       resultWith({ runCurve: curveOf({}) }),
     )
-    expect(
-      await screen.findByText('Splits were not kept when this run was added.'),
-    ).toBeInTheDocument()
     expect(bestRow('Best 5 km')).toBeInTheDocument()
-    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
-  })
-
-  it('waits for the splits before it is placed, so it is never in two places at once', () => {
-    renderPage(
-      morningRun,
-      resultWith(),
-      'metric',
-      new Map(),
-      vi.fn(() => new Promise<DigestSplits | null>(() => undefined)),
-    )
-    expect(screen.getByText('Loading splits.')).toBeInTheDocument()
-    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
-  })
-
-  it('sits under the bests when the splits fail to load and a best carries a Flat mark', async () => {
-    renderPage(
-      morningRun,
-      resultWith(),
-      'metric',
-      new Map(),
-      vi.fn(() => Promise.reject(new Error('worker down'))),
-    )
-    expect(await screen.findByText(/The splits could not be loaded/)).toBeInTheDocument()
-    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
-    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
-  })
-
-  it('never sits on a ride, whose best efforts carry no Flat mark', () => {
+    expect(within(bestRow('Best 5 km')).queryByRole('button', { name: 'GAP' })).toBeNull()
+    cleanup()
     renderPage(
       powerRide,
       resultWith({ rideCurve: rideCurveFixture }),
@@ -911,10 +885,7 @@ describe('the flat pace note', () => {
       new Map(),
       undefined,
     )
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
   })
 })
 

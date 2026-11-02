@@ -4,10 +4,10 @@ import { DEFAULT_ROOT_PX, LABEL_PAD_EM, LABEL_REM, textEm } from './rootFont'
 
 /**
  * The annotation primitive: the marks that say what a chart found. An end label names a series where it
- * stops, a callout marks an extreme or a best with its value at display size and a leader line, a
- * reference line carries a label (a threshold), and a bracket spans a stretch of the x axis. This file
- * is the layout: pure maths from where the marks belong to where their text can sit without covering one
- * another or the data. ChartAnnotations draws what it places.
+ * stops, a callout marks an extreme or a best with its value at display size and a leader line, and a
+ * reference line carries a label (a threshold). This file is the layout: pure maths from where the marks
+ * belong to where their text can sit without covering one another or the data. ChartAnnotations draws what
+ * it places.
  */
 
 export type AnnotationTone = 'run' | 'ride' | 'neutral'
@@ -60,16 +60,7 @@ export interface ReferenceLine extends Mark {
   estimated?: boolean
 }
 
-/** A span of the x axis, drawn as a bracket at y with its label above it. */
-export interface Bracket extends Mark {
-  kind: 'bracket'
-  x1: number
-  x2: number
-  y: number
-  label: string
-}
-
-export type Annotation = EndLabel | Callout | ReferenceLine | Bracket
+export type Annotation = EndLabel | Callout | ReferenceLine
 
 export type TextRole = 'eyebrow' | 'value' | 'unit' | 'caption' | 'label'
 
@@ -95,7 +86,7 @@ export interface PlacedAnnotation {
   /** The box the text takes, which no other annotation's text overlaps where room allowed. */
   box: Box
   leader: { x1: number; y1: number; x2: number; y2: number } | null
-  /** A reference line's rule and range, or a bracket's span. */
+  /** A reference line's rule and range. */
   rule: { x1: number; x2: number; y: number } | null
   band: { top: number; bottom: number } | null
   /** A reference line that rests on an estimate. */

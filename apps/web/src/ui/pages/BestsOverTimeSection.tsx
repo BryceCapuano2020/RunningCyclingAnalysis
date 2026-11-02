@@ -11,6 +11,9 @@ import { namedChangeAt } from '../charts/sportCurveTakeaway'
 import type { TakeawayInput } from '../charts/sportCurveTakeaway'
 import { EFFORT_OPTIONS, effortOf } from '../records'
 
+/** The section's name, in its heading. */
+export const BESTS_BY_DAY_NAME = 'Best efforts by day'
+
 export interface BestsOverTimeSectionProps {
   sport: Sport
   /** The weekly trend of each effort length over the period: the efforts that led its windows are the dots. */
@@ -25,7 +28,7 @@ export interface BestsOverTimeSectionProps {
 
 /**
  * A sport's best efforts of one length as dated dots, with the change test's finding about that length
- * against the period before as the title. There is no line: a line through window bests measured how often the
+ * against the period before as the chart's title. There is no line: a line through window bests measured how often the
  * athlete went hard, and the fitness status above is the sport's trend.
  */
 export function BestsOverTimeSection({
@@ -43,7 +46,7 @@ export function BestsOverTimeSection({
   )
   return (
     <section className="section" aria-labelledby={`${sport}-over-time`}>
-      <h2 id={`${sport}-over-time`}>Best efforts over time</h2>
+      <h2 id={`${sport}-over-time`}>{BESTS_BY_DAY_NAME}</h2>
       <SegmentedControl
         legend="Effort length"
         options={EFFORT_OPTIONS}
@@ -61,7 +64,6 @@ export function BestsOverTimeSection({
         units={units}
         effortS={effort}
         takeaway={takeaway}
-        comparedWith={takeaway === null || finding === null ? null : finding.previousLabel}
       />
     </section>
   )

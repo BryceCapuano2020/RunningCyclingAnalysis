@@ -64,7 +64,7 @@ describe('YearCurvesChart', () => {
     expect(opacity('2022')).toBeLessThan(1)
   })
 
-  it('marks the 20 minute best of each named year, hollow where it is not confirmed hard', () => {
+  it('marks the 20 minute best of each named year, hollow where it is not all-out', () => {
     chartWidth(800)
     const { container } = render(
       <YearCurvesChart sport="run" curves={RUN_CURVES} units="imperial" />,
@@ -74,7 +74,7 @@ describe('YearCurvesChart', () => {
     expect(marks.map((mark) => mark.getAttribute('data-hollow'))).toEqual([null, 'true'])
   })
 
-  it('reads a duration with the keyboard: the named years, and what is not confirmed hard', () => {
+  it('reads a duration with the keyboard: the named years, and what is not all-out', () => {
     chartWidth(800)
     render(<YearCurvesChart sport="run" curves={RUN_CURVES} units="imperial" />)
     const surface = screen.getByTestId('plot-surface')
@@ -86,7 +86,7 @@ describe('YearCurvesChart', () => {
     expect(status).toHaveTextContent('20 min')
     expect(status).toHaveTextContent('6:23 /mi')
     expect(status).toHaveTextContent('2023')
-    expect(status).toHaveTextContent('Not confirmed hard')
+    expect(status).toHaveTextContent('Not all-out')
   })
 
   it('has a table twin of every year, newest first, in the units setting', () => {
@@ -197,7 +197,8 @@ describe('YearCurvesChart with many years', () => {
       (n) => n.textContent,
     )
     expect(labels).toEqual(['2018', '2021', '2022', '2023'])
-    expect(screen.getByText('Other years are grey')).toBeInTheDocument()
+    // The key row says nothing of the ramp: the lines and their end labels do.
+    expect(screen.queryByText(/years are (grey|fainter)/)).toBeNull()
     // Only the named years carry the 20 minute mark.
     expect(container.querySelectorAll('[data-testid="year-curve-mark"]')).toHaveLength(2)
   })

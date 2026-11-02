@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DigestSplit, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SplitsTable } from './SplitsTable'
-import { splitsShowFlatNote, type SplitsLoad } from './splitRows'
+import type { SplitsLoad } from './splitRows'
 
 afterEach(() => {
   cleanup()
@@ -40,11 +40,11 @@ function bodyRows(name?: string): HTMLElement[] {
   return within(table(name)).getAllByRole('row').slice(1)
 }
 
-/** The column headers of the table, in order. */
+/** The column headers of the table, in order: a term that carries its meaning is named by the term alone. */
 function columnHeaders(): (string | null)[] {
   return within(table())
     .getAllByRole('columnheader')
-    .map((cell) => cell.textContent)
+    .map((cell) => cell.querySelector('button')?.textContent ?? cell.textContent)
 }
 
 /** The list items of the narrow representation. */
@@ -53,21 +53,21 @@ function listItems(name = 'Pace for each kilometre'): HTMLElement[] {
 }
 
 describe('SplitsTable', () => {
-  it('says in words what a flat pace is, once under the splits', () => {
+  it('leaves what GAP means to its term, with no sentence under the splits', () => {
     renderSplits(loaded({ km: [split()], mile: [] }))
-    expect(
-      screen.getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
-    ).toBeInTheDocument()
+    const header = within(table()).getByRole('columnheader', { name: /^GAP/ })
+    expect(within(header).getByRole('button', { name: 'GAP' })).toBeInTheDocument()
+    expect(within(header).getByRole('note')).toHaveTextContent(
+      'Grade-adjusted pace: your pace allowing for hills, as if on level ground.',
+    )
+    expect(screen.queryByText(/allowing for hills/, { selector: 'p' })).toBeNull()
   })
 
-  it('lists each kilometre split with its pace, flat pace, elevation and heart rate', () => {
+  it('lists each kilometre split with its pace, GAP, elevation and heart rate', () => {
     renderSplits(
       loaded({ km: [split(), split({ seconds: 285, gradeAdjustedSeconds: 280 })], mile: [] }),
     )
-    const headers = within(table())
-      .getAllByRole('columnheader')
-      .map((cell) => cell.textContent)
-    expect(headers).toEqual(['Split', 'Pace', 'Flat pace', 'Elevation gain', 'Heart rate'])
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'GAP', 'Elevation gain', 'Heart rate'])
 
     const [first, second] = bodyRows()
     expect(within(first!).getByRole('rowheader', { name: '1' })).toBeInTheDocument()
@@ -86,7 +86,7 @@ describe('SplitsTable', () => {
         mile: [],
       }),
     )
-    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Flat pace', 'Heart rate'])
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'GAP', 'Heart rate'])
     expect(screen.queryByText('Elevation gain', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
@@ -101,7 +101,7 @@ describe('SplitsTable', () => {
       }),
     )
     expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
-    expect(screen.queryByText('Flat pace', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(screen.queryByText('GAP', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
   it('keeps the flat pace column while one split differs from its pace', () => {
@@ -114,7 +114,7 @@ describe('SplitsTable', () => {
         mile: [],
       }),
     )
-    expect(columnHeaders()).toContain('Flat pace')
+    expect(columnHeaders()).toContain('GAP')
   })
 
   it('uses mile splits in imperial, names the table after them, and shows feet', () => {
@@ -319,18 +319,14 @@ describe('SplitsTable', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
-  it('leaves the flat-pace note out when there are no split rows, under either empty line', () => {
+  it('leaves the GAP term out when there are no split rows, under either empty line', () => {
     const { unmount } = renderSplits(loaded({ km: [], mile: [] }))
     expect(screen.getByText('This run is too short to split.')).toBeInTheDocument()
-    expect(
-      screen.queryByText('Flat pace: your pace allowing for hills, as if on level ground.'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
     unmount()
     renderSplits(loaded({ km: [], mile: [] }), 'metric', 500_500)
     expect(screen.getByText('Splits are kept for runs up to 500 km.')).toBeInTheDocument()
-    expect(
-      screen.queryByText('Flat pace: your pace allowing for hills, as if on level ground.'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
   })
 
   it('says a run past the split limit is kept only up to it, which is not the too-short line', () => {
@@ -362,36 +358,5 @@ describe('SplitsTable', () => {
     expect(
       screen.getByText('The splits could not be loaded. Open this activity again to retry.'),
     ).toBeInTheDocument()
-  })
-})
-
-describe('splitsShowFlatNote', () => {
-  it('is true when the splits show a flat pace column, which is where the flat pace note goes', () => {
-    expect(splitsShowFlatNote(loaded({ km: [split()], mile: [] }), 'metric')).toBe(true)
-  })
-
-  it('is false when every split has its flat pace equal to its pace, so no flat pace column shows', () => {
-    expect(
-      splitsShowFlatNote(
-        loaded({ km: [split({ gradeAdjustedSeconds: 300 })], mile: [] }),
-        'metric',
-      ),
-    ).toBe(false)
-  })
-
-  it('is false when no split has a flat pace to show, so the column would be all dashes', () => {
-    expect(
-      splitsShowFlatNote(
-        loaded({ km: [split({ gradeAdjustedSeconds: null })], mile: [] }),
-        'metric',
-      ),
-    ).toBe(false)
-  })
-
-  it('is false when the splits have no rows in these units, or are not kept, or are still loading', () => {
-    expect(splitsShowFlatNote(loaded({ km: [], mile: [] }), 'metric')).toBe(false)
-    expect(splitsShowFlatNote(loaded(null), 'metric')).toBe(false)
-    expect(splitsShowFlatNote({ status: 'loading' }, 'metric')).toBe(false)
-    expect(splitsShowFlatNote({ status: 'failed' }, 'metric')).toBe(false)
   })
 })

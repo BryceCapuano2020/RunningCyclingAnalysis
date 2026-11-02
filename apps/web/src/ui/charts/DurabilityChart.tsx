@@ -10,7 +10,7 @@ import {
   againstOverall,
   durabilityDescription,
   durabilityTable,
-  durabilityTitle,
+  DURABILITY_TITLE,
 } from './lateInEffortText'
 import { labelSizePx, labelWidthPx, rootFontPx } from './rootFont'
 import { linearScale } from './scale'
@@ -22,10 +22,8 @@ export interface DurabilityChartProps {
   /** One group for each duration that has a late best to show, shortest first. */
   groups: readonly LateGroup[]
   units: UnitSystem
-  /** The finding, set as the chart's title: "Held 99% of output after an hour". */
+  /** The finding, set as the chart's title: "99% of your best 20 min after an hour". */
   takeaway: string
-  /** Muted text under the chart: how a level is supported, and what a lower figure does not say. */
-  note: string
 }
 
 const MARK_R = 6
@@ -68,7 +66,7 @@ function rowsOf(groups: readonly LateGroup[], sport: Sport, units: UnitSystem): 
  * extremes, so a small fall is a short bar and not an empty row. The share is of the sport's own number, a pace's
  * by its speed, with better to the right.
  */
-export function DurabilityChart({ sport, groups, units, takeaway, note }: DurabilityChartProps) {
+export function DurabilityChart({ sport, groups, units, takeaway }: DurabilityChartProps) {
   const [rootPx] = useState(rootFontPx)
   const baseRowH = Math.max(34, Math.round(labelSizePx(rootPx) * 2.4))
   const rows = rowsOf(groups, sport, units)
@@ -80,11 +78,10 @@ export function DurabilityChart({ sport, groups, units, takeaway, note }: Durabi
 
   return (
     <ChartFrame
-      title={durabilityTitle(sport, units)}
+      title={DURABILITY_TITLE}
       takeaway={takeaway}
       description={durabilityDescription(sport, groups, units)}
       height={(width) => rows.length * rowHAt(width) + 2 * EDGE}
-      note={note}
       table={durabilityTable(sport, groups, units)}
     >
       {(size) => {
