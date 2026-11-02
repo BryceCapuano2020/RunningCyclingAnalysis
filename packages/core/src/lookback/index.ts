@@ -24,9 +24,7 @@ export { leadKey, leadOf, mayStateHeld } from './lead'
 export type { Lead, LiveState } from './lead'
 export { milestonesOf } from './milestones'
 export {
-  bestRows,
   bestValue,
-  breakRow,
   dayMonthYear,
   effortName,
   episodeRow,
@@ -34,9 +32,7 @@ export {
   leadSentence,
   monthYear,
   monthsBetween,
-  quietRow,
-  standing,
-  thinRow,
+  stoodText,
   tooShortText,
 } from './copy'
 export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'

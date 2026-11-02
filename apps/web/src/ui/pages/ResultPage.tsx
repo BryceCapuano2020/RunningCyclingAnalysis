@@ -222,6 +222,7 @@ export function ResultPage({
           rangeDays={period.days}
           periodEndMs={period.endMs}
           heartRateJudgement={analysis.state.heartRateJudgement}
+          onFile={countsOf(inPeriod, route.page).onFile}
           controls={control(
             countsOf(inPeriod, route.page).onFile,
             countsOf(library, route.page),
@@ -252,6 +253,7 @@ export function ResultPage({
           history={analysis.state.history}
           units={units}
           grading={{ profile, missingAge, weightKnown }}
+          lookBack={analysis.state.lookBack}
         />
       )
     case 'activities':

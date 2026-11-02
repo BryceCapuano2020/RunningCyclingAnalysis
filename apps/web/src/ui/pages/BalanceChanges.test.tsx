@@ -87,7 +87,7 @@ describe('BalanceChanges', () => {
     expect(container.querySelector('.balance-changes__tag--recorded svg')).not.toBeNull()
   })
 
-  it('shows the label beside the tag, and a level bar in place of an arrow for a change with no direction', () => {
+  it('shows one chip an item, Not all-out first, and a level bar in place of an arrow for a change with no direction', () => {
     const labelled: ChangeItem = {
       ...LEAN,
       direction: null,
@@ -101,10 +101,14 @@ describe('BalanceChanges', () => {
       />,
     )
     const items = screen.getAllByRole('listitem')
-    expect(within(items[0]!).getByText('Not all-out')).toBeInTheDocument()
-    expect(within(items[0]!).getByText('Estimated')).toBeInTheDocument()
-    expect(within(items[1]!).getByText('Not all-out')).toBeInTheDocument()
-    expect(within(items[2]!).queryByText('Not all-out')).toBeNull()
+    const chips = (item: HTMLElement) =>
+      [...item.querySelectorAll('.balance-changes__tag')].map((chip) => chip.textContent)
+    // The label stands in for the tag: an estimated lean and a recorded run best each carry the one chip.
+    expect(chips(items[0]!)).toEqual(['Not all-out'])
+    expect(chips(items[1]!)).toEqual(['Not all-out'])
+    expect(chips(items[2]!)).toEqual(['Recorded'])
+    expect(within(items[0]!).queryByText('Estimated')).toBeNull()
+    expect(within(items[1]!).queryByText('Recorded')).toBeNull()
     const paths = [...container.querySelectorAll('.balance-changes__icon path')].map((p) =>
       p.getAttribute('d'),
     )

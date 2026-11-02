@@ -1,4 +1,5 @@
 import { sameAnalysisSettings } from '../athlete/references'
+import { civilOfDay, dayOfCivil, localDayOfInstant, startOfDayNumber } from '../calendar'
 import { DURATIONS_S, HEADLINE_DURATION_S } from '../constants'
 import { sportCurves } from '../digest/combine'
 import { rideGateKey } from '../digest/estimatedRide'
@@ -82,6 +83,12 @@ function needed(now: Pair): Sport[] {
   return SPORTS.filter((sport) => now.every[sport][HEAD]!.values.length >= CHANGE.minPerSide)
 }
 
+/** The first millisecond a compared window may start at: the period's start day, `CHANGE.earlierYears` calendar years back. */
+function earliestStart(startMs: number): number {
+  const { year, month, date } = civilOfDay(localDayOfInstant(startMs))
+  return startOfDayNumber(dayOfCivil(year - CHANGE.earlierYears, month, date))
+}
+
 function compute(library: ActivityDigest[], input: EarlierInput): EarlierComparison | null {
   const { period, immediate } = input
   const { startMs, endMs, days } = period
@@ -100,12 +107,15 @@ function compute(library: ActivityDigest[], input: EarlierInput): EarlierCompari
   if (sports.length === 0) return null
   const sorted = library.slice().sort((a, b) => a.startMs - b.startMs)
   const oldest = sorted[0]!.startMs
+  const reach = earliestStart(startMs)
   // How many of the sports each window tests; the period before is the one to beat, and the first window to test them all is the one.
   let best: { digests: ActivityDigest[]; from: number; to: number; tested: number } | null = null
   let beat = 0
   for (let back = 1; ; back++) {
     const [from, to] = [windowStart(startMs, days, back), windowStart(startMs, days, back - 1)]
     if (to <= oldest) break
+    // The period before is always weighed; a window further back is only sought within reach.
+    if (back > 1 && from < reach) break
     const digests = sorted.slice(firstFrom(sorted, from), firstFrom(sorted, to))
     // A window with fewer activities than one side of the test needs holds no sport it can test.
     if (digests.length < CHANGE.minPerSide) continue
@@ -147,8 +157,9 @@ const remembered = memoByDigests<EarlierInput, EarlierComparison | null>(
  * The window the What changed strip compares with when the period before holds too little: the latest window of the
  * same length, further back, in which the change test can be made for every sport the period has efforts for (the
  * `CHANGE` minimums of each side and together, unchanged). Failing that, the latest that tests more sports than the
- * period before does. Null when the period before already tests as many as any window, and for all time, which has no
- * window before it. A function of the digests and of what `input` reads of them, remembered for the same digests.
+ * period before does. A window must start within `CHANGE.earlierYears` of the period's start, so a library with nothing
+ * inside that reach has none. Null when the period before already tests as many as any window, and for all time, which
+ * has no window before it. A function of the digests and of what `input` reads of them, remembered for the same digests.
  */
 export function earlierComparison(
   library: ActivityDigest[],

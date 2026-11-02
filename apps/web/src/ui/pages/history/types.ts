@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { History } from '@rca/core/history'
+import type { LookBack } from '@rca/core/lookback'
 import type { UnitSystem } from '@rca/core/units'
 import type { AgeGap, AgeProfile } from '../../grades'
 
@@ -16,6 +17,8 @@ export interface HistorySectionProps {
   history: History
   units: UnitSystem
   grading: GradingInputs
+  /** The look-back, for the sections that list its episodes. */
+  lookBack: LookBack
 }
 
 /** One chart of the History page. A section is one file, listed by one line in sections.ts. */

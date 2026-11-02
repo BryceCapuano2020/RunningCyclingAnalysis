@@ -20,6 +20,12 @@ export const CHANGE = {
    * (O(small) a deal), not by walking the pool.
    */
   unbalancedShare: 0.125,
+  /**
+   * How far back the What changed strip may look for a window to compare with when the period before holds too little:
+   * the window must start within this many calendar years of the period's own start. A window older than that is no
+   * measure of what changed.
+   */
+  earlierYears: 3,
   /** The stream's seed; each sport and length adds its own offset, so a result is the same every time. */
   seed: 0x5eed,
 } as const

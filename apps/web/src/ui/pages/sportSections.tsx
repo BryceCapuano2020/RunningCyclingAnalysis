@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
-import { yearsFinding } from '@rca/core/lookback'
+import { tooShortText, yearsFinding } from '@rca/core/lookback'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
@@ -18,8 +18,8 @@ import type { SectionNavItem } from './SectionNav'
 import { StandOutSection } from './StandOutSection'
 import { standOutFinding, standOutFor } from './standOut'
 import { TimeInZonesSection } from './TimeInZonesSection'
-import { YearsSection } from './YearsSection'
 import { BESTS_BY_DAY_NAME, BestsOverTimeSection } from './BestsOverTimeSection'
+import { hrefFor } from '../route'
 import { SPORT_PLURAL } from '../sports'
 import type { SectionContext } from './sportPageProps'
 
@@ -44,7 +44,7 @@ export type SectionId =
  */
 export interface SectionOutcome {
   content: ReactNode | null
-  /** Set when `content` is the one line in a section's place: "On this page" does not list it. */
+  /** Set when `content` is one line in a section's place (what to add, or History's finding and its link): "On this page" does not list it. */
   empty?: true
   closed?: { title: string; finding?: string; restated?: true }
 }
@@ -66,8 +66,8 @@ const NAV_LABEL: Record<SectionId, (sport: Sport) => string> = {
  * The rows of each sport's page, in the order they are read. Two sections in a row sit side by side, 60 and 40, on
  * a desktop: what the best efforts predict beside how the time was spread across zones. The answer comes first
  * and these follow, the open sections before the closed ones, which say their finding on their closed row. History
- * is the one closed row that comes first, directly after the answer: it is named by its own finding. A sport
- * without race predictions leaves that section out and its zones take the whole row.
+ * is the one row that comes first, directly after the answer: its finding and a link to the History tab, which holds the
+ * chart and the episodes. A sport without race predictions leaves that section out and its zones take the whole row.
  */
 export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
   run: [
@@ -113,24 +113,27 @@ const nothingToTell = (sport: Sport) => `Needs a year of ${SPORT_PLURAL[sport]}.
 
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
-  // Named by its own finding; a sport with no years to tell, or no look-back to read, says what it needs. A sport too
-  // short for its years says so in the body, so its row has no finding.
+  // The row says the finding of the sport's years and links to the History tab, which holds the chart and the episodes.
+  // A sport with no years to tell, or no look-back to read, says what it needs; one too short for them says so.
   years: (context) => {
-    const { sport, lookBack, units, fitness } = context
+    const { sport, lookBack, fitness } = context
     const block = lookBack?.sports[sport]
-    if (lookBack === undefined || block === undefined) {
-      return emptyOf(context, 'years', nothingToTell(sport))
+    if (block === undefined) return emptyOf(context, 'years', nothingToTell(sport))
+    if (block.fitness.kind === 'too-short') return emptyOf(context, 'years', tooShortText(sport))
+    const finding = yearsFinding(block, fitness?.[sport].state ?? null)
+    if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
+    return {
+      content: (
+        <SectionLine
+          sport={sport}
+          id="years"
+          title={NAV_LABEL.years(sport)}
+          line={finding}
+          link={{ href: hrefFor({ page: 'history' }), text: 'See History' }}
+        />
+      ),
+      empty: true,
     }
-    const tooShort = block.fitness.kind === 'too-short'
-    const finding = tooShort
-      ? undefined
-      : (yearsFinding(block, fitness?.[sport].state ?? null) ?? undefined)
-    return finding === undefined && !tooShort
-      ? emptyOf(context, 'years', nothingToTell(sport))
-      : {
-          content: <YearsSection sport={sport} lookBack={lookBack} units={units} />,
-          closed: { title: NAV_LABEL.years(sport), finding },
-        }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),
   racePredictions: (context) => {

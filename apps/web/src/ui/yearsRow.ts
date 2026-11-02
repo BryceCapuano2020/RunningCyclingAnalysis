@@ -23,8 +23,8 @@ const SPORT_NAME: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
 
 /**
  * The lead of the look-back against the cards as they stand, or null when it has nothing to open on. The front door never
- * leads with a best that has stood: "your best 5 min is 8 years old" is true and tells nothing. The bests are on the Run and
- * Ride pages; the row waits for an episode, a recovery or a quiet stretch.
+ * leads with a best that has stood: "your best 5 min is 8 years old" is true and tells nothing. The bests are on the History
+ * tab; the row waits for an episode, a recovery or a quiet stretch.
  */
 export function yearsLead(lookBack: LookBack, fitness: FitnessBySport): Lead | null {
   const lead = leadOf(lookBack, { run: fitness.run.state, ride: fitness.ride.state })

@@ -10,13 +10,16 @@ import { SPORT_LABEL, SPORT_PLURAL } from './sports'
  * A sport's recent form in one line: the last activity's day, the number of activities and their
  * total distance, such as "Last run 14 Jan · 2 runs · 15.0 km". The day has no weekday, as a summary
  * line's date does not. The year shows only when the day is not in the year of `nowMs`, the time the
- * page is read at. Null when the sport has none.
+ * page is read at. Null when the sport has none. `count` is the number the period line gives for the
+ * period (the activities on file in it, counted or not), so the page says one count; absent, it is
+ * the activities given.
  */
 export function formLine(
   activities: ActivitySummary[],
   sport: Sport,
   units: UnitSystem,
   nowMs: number,
+  count?: number,
 ): string | null {
   const own = activities.filter((activity) => activity.sport === sport)
   if (own.length === 0) return null
@@ -25,7 +28,7 @@ export function formLine(
   const noun = SPORT_LABEL[sport].toLowerCase()
   return [
     `Last ${noun} ${formatDayMonth(last, nowMs)}`,
-    plural(own.length, noun, SPORT_PLURAL[sport]),
+    plural(count ?? own.length, noun, SPORT_PLURAL[sport]),
     formatDistance(metres, units),
   ].join(' · ')
 }

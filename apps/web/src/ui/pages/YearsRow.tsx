@@ -22,7 +22,7 @@ export interface YearsRowProps {
  * It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
  * the line is cut after two lines and the panel gives it whole. Opening or hiding it, or being shown it on two page
  * loads, is seeing its lead, and a seen lead gives up the place until the look-back has a new one; its content stays on
- * the Run and Ride pages.
+ * the History tab, under the fitness chart.
  */
 export function YearsRow({ words, onSeen }: YearsRowProps) {
   const row = useRef<HTMLElement>(null)

@@ -7,7 +7,7 @@ import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
-import type { LookBack } from '@rca/core/lookback'
+import type { EffortMilestones, LookBack } from '@rca/core/lookback'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import { formatPace } from '@rca/core/units'
@@ -137,20 +137,77 @@ describe('SportPage: history', () => {
       lookBack,
     )
 
-  it('is the first section, open, named by its own finding', () => {
+  it('is the first row after the answer: its finding and a link to the History tab, with no body of its own', () => {
     page(YEARS_LOOKBACK)
-    expect(closedRow('History')).toBe('HistorySlipped in 2021, then came back')
-    expect(document.querySelector('[data-section="years"], #years, details')).not.toBeNull()
-  })
-
-  it('lists the episodes once opened, and draws no chart: the dots of the years are on the History tab', () => {
-    page(YEARS_LOOKBACK)
-    const years = openSection('History')
-    expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
+    const years = screen.getByRole('region', { name: 'History' })
+    expect(years).toHaveTextContent('Slipped in 2021, then came back. See History')
+    expect(within(years).getByRole('link', { name: 'See History' })).toHaveAttribute(
+      'href',
+      '#/history',
+    )
+    // One line: no fold, no list of episodes, no picture. Those are the History tab's.
+    expect(years.closest('details')).toBeNull()
+    expect(years.querySelector('details')).toBeNull()
+    expect(within(years).queryByRole('region', { name: 'Episodes' })).toBeNull()
     expect(within(years).queryByRole('figure')).toBeNull()
+    const [first] = Array.from(document.querySelectorAll('.sport-row'))
+    expect(first).toContainElement(years)
   })
 
-  it('says what a sport too short for its years needs in the section, and puts no finding on its row', () => {
+  it('lists no bests by year, and no year against the one before it', () => {
+    const run = YEARS_LOOKBACK.sports.run
+    const best: EffortMilestones = {
+      effort: { kind: 'duration', durationS: 1200 },
+      unit: 'm/s',
+      best: { value: 3.5, atMs: Date.UTC(2021, 4, 1), id: 'a' },
+      years: [
+        { year: 2020, partial: false, value: 3.2, id: 'b', n: 30 },
+        { year: 2021, partial: false, value: 3.5, id: 'a', n: 40 },
+      ],
+      omittedYears: 0,
+      steps: [],
+      verdicts: [
+        { year: 2020, verdict: 'none' },
+        { year: 2021, verdict: 'higher' },
+      ],
+    }
+    page({
+      ...YEARS_LOOKBACK,
+      sports: { ...YEARS_LOOKBACK.sports, run: { ...run, milestones: [best] } },
+    })
+    const years = screen.getByRole('region', { name: 'History' })
+    expect(years).toHaveTextContent('Slipped in 2021, then came back.')
+    expect(years.textContent).not.toMatch(/By year|Bests by year|No clear change|Faster in|stood/i)
+    expect(screen.queryByRole('region', { name: 'Bests by year' })).toBeNull()
+  })
+
+  it('names a sport that only has bests by them, and still links to the History tab', () => {
+    const run = YEARS_LOOKBACK.sports.run
+    const best: EffortMilestones = {
+      effort: { kind: 'duration', durationS: 1200 },
+      unit: 'm/s',
+      best: { value: 3.5, atMs: Date.UTC(2021, 4, 1), id: 'a' },
+      years: [],
+      omittedYears: 0,
+      steps: [],
+      verdicts: [],
+    }
+    page({
+      ...YEARS_LOOKBACK,
+      sports: {
+        ...YEARS_LOOKBACK.sports,
+        run: { ...run, fitness: { kind: 'unavailable' }, milestones: [best] },
+      },
+    })
+    const years = screen.getByRole('region', { name: 'History' })
+    expect(years).toHaveTextContent('Best efforts by year. See History')
+    expect(within(years).getByRole('link', { name: 'See History' })).toHaveAttribute(
+      'href',
+      '#/history',
+    )
+  })
+
+  it('says a sport too short for its years lacks steady runs, in one line with no counts and no link', () => {
     const run = YEARS_LOOKBACK.sports.run
     page({
       ...YEARS_LOOKBACK,
@@ -159,14 +216,16 @@ describe('SportPage: history', () => {
         run: {
           ...run,
           milestones: [],
-          fitness: { kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 },
+          fitness: { kind: 'too-short', steady: 0, weeks: 0, needSteady: 40, needWeeks: 52 },
         },
       },
     })
-    expect(closedRow('History')).toBe('History')
-    expect(openSection('History')).toHaveTextContent(
-      'Needs 40 steady runs over 52 weeks. You have 23 over 19.',
+    const years = screen.getByRole('region', { name: 'History' })
+    expect(years.querySelector('p.muted')?.textContent).toBe(
+      'Not enough steady runs for a fitness history.',
     )
+    expect(years.textContent).not.toMatch(/\d/)
+    expect(within(years).queryByRole('link')).toBeNull()
   })
 
   it('says what it needs, in its own place, when there are no years to tell', () => {
