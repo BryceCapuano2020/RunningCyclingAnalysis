@@ -22,7 +22,7 @@ export interface DurabilityChartProps {
   /** One group for each duration that has a late best to show, shortest first. */
   groups: readonly LateGroup[]
   units: UnitSystem
-  /** The finding, set as the chart's title: "99% of your best 20 min after an hour". */
+  /** The finding, set as the chart's headline: "Durability: 99% of your best 20 min after an hour." */
   takeaway: string
 }
 

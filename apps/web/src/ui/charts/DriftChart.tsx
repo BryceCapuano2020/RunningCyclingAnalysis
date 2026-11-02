@@ -4,7 +4,12 @@ import type { DriftPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 import { formatDay, formatDayMonth } from '../format/date'
-import { DECOUPLING_REFERENCE, driftChange, driftDescription } from '../lateInEffort'
+import {
+  DECOUPLING_REFERENCE,
+  driftChange,
+  driftDescription,
+  driftMedianLabel,
+} from '../lateInEffort'
 import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
@@ -14,6 +19,7 @@ import { SportMark } from './SportMark'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
+import { labelWidthPx, rootFontPx } from './rootFont'
 import { linearScale, niceDomain } from './scale'
 import { axisFontSize, fitTicks } from './ticks'
 import './ChartSeries.css'
@@ -33,7 +39,8 @@ export interface DriftChartProps {
 
 /** A chart at least this wide, px, keeps a right gutter for the median's label. */
 const WIDE_CHART_PX = 640
-const GUTTER_PX = 96
+/** The label sits this far from the plot's right edge, and keeps this much clear of the chart's. */
+const LABEL_GAP_PX = 8
 const Y_INTERVALS = 4
 /** Dates labelled along the axis, before thinning: the first, the last, and evenly between. */
 const DATE_TICKS = 3
@@ -45,6 +52,11 @@ interface Layout {
   medianY: number
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+}
+
+/** The right gutter, px: wide enough for the median's own label at the reader's text size, so it is never cut off. */
+function gutterPx(medianPct: number): number {
+  return Math.ceil(labelWidthPx(driftMedianLabel(medianPct), rootFontPx())) + 2 * LABEL_GAP_PX
 }
 
 /** A steady effort's change in efficiency, in percent: negative when it fell, so a fall is down. */
@@ -111,7 +123,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftC
       title={`Heart rate drift on steady ${SPORT_PLURAL[sport]}`}
       takeaway={takeaway}
       description={driftDescription(sport)}
-      plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : undefined)}
+      plotRightMargin={(width) => (width >= WIDE_CHART_PX ? gutterPx(medianPct) : undefined)}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}
       table={{
         columns: ['Date', 'Activity', 'Change', 'Moving time'],
@@ -170,7 +182,7 @@ export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftC
             <ChartYAxis
               ticks={m.yTicks}
               plot={plot}
-              title="Change in efficiency (%)"
+              title="Heart rate drift (%)"
               fontSize={fontSize}
             />
             <line
@@ -193,11 +205,11 @@ export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftC
             {/* In the right margin where the chart is wide; over the line's left end where it is not. */}
             <text
               className="drift-chart__median-label"
-              x={wide ? plot.right + 8 : plot.left + 4}
+              x={wide ? plot.right + LABEL_GAP_PX : plot.left + 4}
               y={wide ? m.medianY : m.medianY - 6}
               dominantBaseline={wide ? 'central' : undefined}
             >
-              {`Median: ${driftChange(medianPct)}`}
+              {driftMedianLabel(medianPct)}
             </text>
             {activeX === undefined ? null : <Crosshair x={activeX} plot={plot} />}
             {points.map((point, i) => (

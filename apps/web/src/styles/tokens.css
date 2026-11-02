@@ -67,6 +67,27 @@
   --zone-ink-3: #ffffff;
   --zone-ink-4: #ffffff;
   --zone-ink-5: #ffffff;
+  /*
+   * The long ramp: a ride's power has seven zones, which five steps cannot tell apart, so a bar of seven reads this
+   * one (ZoneTimeChart.css). Blue runs into indigo as effort rises in light, and into azure in dark. Every step keeps
+   * 3:1 against the card and 4.5:1 for its ink. Seven steps leave less room than five, so neighbours are at least 5.5
+   * apart under every colour vision in light and 4 in dark; each step is numbered, and its percent and the table say
+   * the zone. styles/zoneRamp.test.ts checks it from these values.
+   */
+  --zone-ride-long-1: #5182f2;
+  --zone-ride-long-2: #3f67f7;
+  --zone-ride-long-3: #3c50e2;
+  --zone-ride-long-4: #3939cd;
+  --zone-ride-long-5: #361db8;
+  --zone-ride-long-6: #2f198e;
+  --zone-ride-long-7: #251566;
+  --zone-ink-long-1: #0e1116;
+  --zone-ink-long-2: #ffffff;
+  --zone-ink-long-3: #ffffff;
+  --zone-ink-long-4: #ffffff;
+  --zone-ink-long-5: #ffffff;
+  --zone-ink-long-6: #ffffff;
+  --zone-ink-long-7: #ffffff;
 
   --status-good: #17753a;
   --status-good-bg: #e3f4e8;
@@ -121,6 +142,11 @@
   --heading: 1.25rem;
   /* The display line height, set once in .display; forced colours takes 1 so a chip beside it is clear. */
   --lh-display: 0.95;
+  /*
+   * How much of its fade a faded mark keeps: a light dot, or an older best. All of it in light. In dark a third,
+   * since a blue at 40% on the dark card is under 2:1; every faded mark keeps 3:1 there (styles/markFade.test.ts).
+   */
+  --mark-fade: 1;
   /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
   --tracking-tab: 0.02em;
   /* Eyebrows, chips and the capitals of the tabs share one tracking. */
@@ -231,6 +257,21 @@
     --zone-ink-3: #0e1116;
     --zone-ink-4: #0e1116;
     --zone-ink-5: #0e1116;
+    --mark-fade: 0.33;
+    --zone-ride-long-1: #4662b9;
+    --zone-ride-long-2: #4572c6;
+    --zone-ride-long-3: #4482d3;
+    --zone-ride-long-4: #4192df;
+    --zone-ride-long-5: #3ea2ea;
+    --zone-ride-long-6: #3cb2f4;
+    --zone-ride-long-7: #3cc3fe;
+    --zone-ink-long-1: #ffffff;
+    --zone-ink-long-2: #ffffff;
+    --zone-ink-long-3: #0e1116;
+    --zone-ink-long-4: #0e1116;
+    --zone-ink-long-5: #0e1116;
+    --zone-ink-long-6: #0e1116;
+    --zone-ink-long-7: #0e1116;
     --status-good: #4ac26b;
     --status-good-bg: #10301b;
     --status-warning: #f2b544;

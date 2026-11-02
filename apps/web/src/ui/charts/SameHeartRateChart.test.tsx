@@ -152,7 +152,7 @@ describe('SameHeartRateChart', () => {
     expect(status).toHaveTextContent('90% range 194 W to 206 W')
     expect(status).toHaveTextContent('14 stretches from 5 rides')
     for (let i = 0; i < 3; i++) fireEvent.keyDown(plot, { key: 'ArrowRight' })
-    expect(status).toHaveTextContent('Needs steady stretches from at least 6 rides')
+    expect(status).toHaveTextContent('5 of 6 rides with steady stretches in 4 weeks.')
     fireEvent.keyDown(plot, { key: 'Escape' })
     expect(status).toBeEmptyDOMElement()
   })

@@ -185,7 +185,7 @@ describe('the phone readout row at rest', () => {
     )
   })
 
-  it('is at least one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
+  it('is one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
     const rest = css.slice(
       css.indexOf('.chart-frame__readout--compact {'),
       css.indexOf('}', css.indexOf('.chart-frame__readout--compact {')),
@@ -195,13 +195,17 @@ describe('the phone readout row at rest', () => {
     expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
   })
 
-  it('wraps a long sentence at rest and never cuts it short', () => {
+  it('wraps its resting line rather than end it in an ellipsis, and keeps its room while a reading is drawn', () => {
     const idle = css.slice(
       css.indexOf('.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {'),
     )
     const rule = idle.slice(0, idle.indexOf('}'))
-    expect(rule).toContain('content: attr(data-idle)')
-    expect(rule).not.toMatch(/white-space:\s*nowrap|text-overflow|overflow:\s*hidden/)
+    expect(rule).not.toMatch(/text-overflow|white-space: nowrap|overflow: hidden/)
+    expect(rule).toContain('overflow-wrap: anywhere')
+    // Hidden and not removed, so the row's height is the same whether a reading is drawn or not.
+    expect(css).toMatch(
+      /\.chart-frame__readout--compact:has\(\.chart-tooltip__title\)::before \{[^}]*visibility: hidden/,
+    )
   })
 
   it('animates its growth only where motion is welcome', () => {
