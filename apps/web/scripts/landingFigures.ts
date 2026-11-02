@@ -34,10 +34,10 @@ export function computeLandingFigures(): LandingFigures {
       `The sample's run shows "${run.state}", not the slip the landing example describes: ${FIX}.`,
     )
   }
-  // The sentence's own size and range, so the example says what the sample's headline says.
-  const said = /(\d+%) \((\d+(?: to \d+)?%)\) slower/.exec(fitnessLines(run, 'metric').headline)
+  // The line's own size and range, so the example says what the sample's card says.
+  const said = /^(\d+%) \((\d+ to \d+)\) off /.exec(fitnessLines(run, 'metric').changes[0] ?? '')
   if (said === null)
-    throw new Error(`The sample run’s fitness headline no longer names a size and range: ${FIX}.`)
+    throw new Error(`The sample run’s fitness change no longer names a size and range: ${FIX}.`)
   return {
     gap: { centre: gap.centre, low: gap.low, high: gap.high, lean: gap.lean },
     grades: { run: headline.run.grade, ride: headline.ride.grade },

@@ -35,12 +35,13 @@ describe('a status that cannot call a trend', () => {
   it('tells the level with its range and the activities it is read from, and no slip or rise', () => {
     const lines = waiting({ kind: 'history', have: 7, need: 12, weeks: 7, needWeeks: 8 })
     expect(lines).toEqual({
-      headline: '212 W at 140 bpm (205 to 219).',
+      headline: '212 W (205 to 219) at 140 bpm.',
+      changes: [],
       support: 'From 7 steady rides.',
       needs: '5 more earlier rides to see a trend.',
     })
     const run = waiting({ kind: 'history', have: 7, need: 12, weeks: 7, needWeeks: 8 }, 'run')
-    expect(run.headline).toBe('5:30 /km at 140 bpm (5:20 to 5:40).')
+    expect(run.headline).toBe('5:30 /km (5:20 to 5:40) at 140 bpm.')
     expect(run.support).toBe('From 7 steady runs.')
     for (const text of [lines.headline, run.headline])
       expect(text).not.toMatch(/slow|fast|less|more|%/)
@@ -57,7 +58,7 @@ describe('a status that cannot call a trend', () => {
       },
       'imperial',
     )
-    expect(lines.headline).toBe('8:51 /mi at 140 bpm (8:35 to 9:07).')
+    expect(lines.headline).toBe('8:51 /mi (8:35 to 9:07) at 140 bpm.')
   })
 
   it('says what a trend needs for each shortfall, in the sport’s own words', () => {
@@ -83,12 +84,12 @@ describe('a status that cannot call a trend', () => {
 
   it('dates the level of a break, with the year when it is not the status’s own', () => {
     expect(waiting({ kind: 'break', weeksSince: 20 }).headline).toBe(
-      '212 W at 140 bpm (205 to 219) in June.',
+      '212 W (205 to 219) at 140 bpm in June.',
     )
     expect(
       waiting({ kind: 'break', weeksSince: 20 }, 'ride', { asOfMs: Date.UTC(2026, 0, 12) })
         .headline,
-    ).toBe('212 W at 140 bpm (205 to 219) in June 2025.')
+    ).toBe('212 W (205 to 219) at 140 bpm in June 2025.')
     // Only a break is dated: the other shortfalls are the level now.
     expect(waiting({ kind: 'imprecise', within: 0.09 }).headline).not.toMatch(/ in /)
   })
@@ -105,6 +106,7 @@ describe('a status that cannot call a trend', () => {
       )
     expect(none('ride', 0)).toEqual({
       headline: 'No steady rides with a power meter yet.',
+      changes: [],
       support: '',
       needs: '',
     })
@@ -114,9 +116,9 @@ describe('a status that cannot call a trend', () => {
     expect(none('ride', 2).support + none('ride', 2).needs).toBe('')
   })
 
-  it('says a sport that is not compared is not compared', () => {
-    expect(waiting({ kind: 'unavailable' }, 'ride', { level: undefined }).headline).toContain(
-      'Rides are not compared',
+  it('says a sport that is not compared has not enough evidence yet', () => {
+    expect(waiting({ kind: 'unavailable' }, 'ride', { level: undefined }).headline).toBe(
+      'Not enough evidence yet.',
     )
   })
 
@@ -129,7 +131,8 @@ describe('a status that cannot call a trend', () => {
     ]
     for (const sport of ['run', 'ride'] as const) {
       for (const shortfall of shortfalls) {
-        const { headline, support, needs } = waiting(shortfall, sport)
+        const { headline, changes, support, needs } = waiting(shortfall, sport)
+        expect(changes).toEqual([])
         const text = [headline, support, needs].join(' ')
         expect(lintCopy(text)).toEqual([])
         expect(text).not.toMatch(/—|honest|read from|comparable|reference|\bto say\b|\bshown\b/i)

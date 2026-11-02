@@ -3,8 +3,7 @@ import { civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
 import type { UnitSystem } from '../units'
-import { sized, withinText } from '../fitness/copy'
-import { shownChange } from '../fitness/copy'
+import { oneSided, shownChange, sized, withinText } from '../fitness/copy'
 import type { Ranged } from '../fitness/types'
 import type { Sport } from '../types'
 import type { LookBack, SportLookBack } from './compute'
@@ -73,7 +72,6 @@ export const SAY: Record<
     down: string
     up: string
     steady: string
-    doing: string
     all: string
     /** What a break was from: "After a break from running". */
     breakFrom: string
@@ -84,7 +82,6 @@ export const SAY: Record<
     down: 'slower',
     up: 'faster',
     steady: 'steady runs',
-    doing: 'steady running',
     all: 'runs',
     breakFrom: 'running',
   },
@@ -93,7 +90,6 @@ export const SAY: Record<
     down: 'lower',
     up: 'higher',
     steady: 'steady rides',
-    doing: 'steady riding',
     all: 'rides',
     breakFrom: 'riding',
   },
@@ -125,7 +121,16 @@ function breakNear(years: HindsightFitness, episode: HindsightEpisode): Span | u
   )
 }
 
-/** An episode as one sentence, told in the reader's voice. `held` adds that a rise stayed through the horizon. */
+const upper = (text: string) => `${text[0]!.toUpperCase()}${text.slice(1)}`
+
+/** What is still missing after a partial return, as a short sentence, or nothing when it is no longer on one side of level. */
+const stillOff = (s: Sport, remaining: Ranged | null): string =>
+  remaining !== null && oneSided(remaining) ? ` Still ${sized(s, remaining)} off.` : ''
+
+/**
+ * An episode as short sentences, each with at most one range and the size first, told in the reader's voice. `held`
+ * adds that a rise stayed through the horizon.
+ */
 export function episodeSentence(
   episode: HindsightEpisode,
   sport: SportLookBack,
@@ -133,30 +138,30 @@ export function episodeSentence(
   held = false,
 ): string {
   const s = sport.sport
-  const you = level(sport)
   const from = monthYear(episode.fromMs)
   const to = episode.toMs === null ? null : monthYear(episode.toMs)
+  const slipped = `Slipped ${sized(s, episode.change)} in ${from}.`
   switch (episode.kind) {
     case 'slip-back':
-      return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it was back.`
+      return `${slipped} Back by ${to}.`
     case 'slip-partly-back':
-      return `From ${from} ${you} was about ${amount(s, episode.change)}. By ${to} it had come back about ${sized(s, episode.regained!)} and was still about ${amount(s, episode.remaining!)} than before ${from}.`
+      return `${slipped} Up ${sized(s, episode.regained!)} by ${to}.${stillOff(s, episode.remaining)}`
     case 'slip-open':
       // One that ended before the horizon was followed by a further fall, and the level had not come back when it began.
       return to === null
-        ? `From ${from} ${you} was about ${amount(s, episode.change)}, and in ${monthYear(years.toMs)} it was still lower. The last 12 weeks are on your fitness card.`
-        : `From ${from} ${you} was about ${amount(s, episode.change)}, and stayed lower until it fell again in ${to}.`
+        ? `${slipped} Still lower in ${monthYear(years.toMs)}.`
+        : `${slipped} Stayed lower until it fell again in ${to}.`
     case 'improvement': {
       const span = monthsBetween(episode.fromMs, episode.toMs ?? years.toMs)
-      return `${you[0]!.toUpperCase()}${you.slice(1)} got about ${amount(s, episode.change)} between ${span.replace(' to ', ' and ')}${held ? `, and held there through ${monthYear(years.toMs)}` : ''}.`
+      const holds = held ? ` Held through ${monthYear(years.toMs)}.` : ''
+      return `Improved ${sized(s, episode.change)} between ${span.replace(' to ', ' and ')}.${holds}`
     }
     case 'after-break': {
       const gap = breakNear(years, episode)
-      const lead =
-        gap === undefined
-          ? `After a break from ${SAY[s].breakFrom} in ${from},`
-          : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. When they resumed,`
-      return `${lead} ${you} was about ${amount(s, episode.change)}.`
+      const how = `${SAY[s].subject} was ${amount(s, episode.change)}`
+      return gap === undefined
+        ? `${upper(how)} after a break from ${SAY[s].breakFrom} in ${from}.`
+        : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. Then ${how}.`
     }
   }
 }
@@ -173,17 +178,17 @@ export function episodeRow(
   const runs = `${episode.runs} ${SAY[s].steady}.`
   switch (episode.kind) {
     case 'slip-back':
-      return `${span}. Slipped about ${sized(s, episode.change)}, then back. ${runs}`
+      return `${span}. Slipped ${sized(s, episode.change)}, then back. ${runs}`
     case 'slip-partly-back':
-      return `${span}. Slipped about ${sized(s, episode.change)}, then came back about ${sized(s, episode.regained!)}. ${runs}`
+      return `${span}. Slipped ${sized(s, episode.change)}. Then up ${sized(s, episode.regained!)}. ${runs}`
     case 'slip-open':
       return episode.toMs === null
-        ? `From ${span}. Slipped about ${sized(s, episode.change)}, and was still lower in ${monthYear(years.toMs)}. ${runs}`
-        : `${span}. Slipped about ${sized(s, episode.change)}, and stayed lower until it fell again. ${runs}`
+        ? `From ${span}. Slipped ${sized(s, episode.change)}, still lower in ${monthYear(years.toMs)}. ${runs}`
+        : `${span}. Slipped ${sized(s, episode.change)}, stayed lower until it fell again. ${runs}`
     case 'improvement':
-      return `${span}. Got about ${amount(s, episode.change)}. ${runs}`
+      return `${span}. Improved ${sized(s, episode.change)}. ${runs}`
     case 'after-break':
-      return `${episodeSentence(episode, sport, years)}`
+      return episodeSentence(episode, sport, years)
   }
 }
 
@@ -220,7 +225,7 @@ export function bestValue(
 export function bestRows(m: EffortMilestones, asOfMs: number, system: UnitSystem): string[] {
   const name = effortName(m.effort)
   const rows = [
-    `Best ${name}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}; it has stood ${standing(m.best.atMs, asOfMs)} as of ${dayMonthYear(asOfMs)}.`,
+    `Best ${name}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. It has stood ${standing(m.best.atMs, asOfMs)} as of ${dayMonthYear(asOfMs)}.`,
   ]
   if (m.years.length >= 2) {
     rows.push(
@@ -251,8 +256,8 @@ export function leadSentence(lead: Lead, lookBack: LookBack, system: UnitSystem)
   }
   if (lead.kind === 'quiet') {
     const q = lead.stretch
-    return `From ${monthYear(q.fromMs)} to ${monthYear(q.toMs)} ${level(sport)} stayed within ${withinText(lead.sport, q.within)}: ${q.runs} ${SAY[lead.sport].steady}.`
+    return `${upper(level(sport))} stayed within ${withinText(lead.sport, q.within)} from ${monthYear(q.fromMs)} to ${monthYear(q.toMs)}.`
   }
   const m = lead.best
-  return `Your best ${effortName(m.effort)} is ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. As of ${dayMonthYear(lookBack.asOfMs)} it has stood for ${standing(m.best.atMs, lookBack.asOfMs)}.`
+  return `Best ${effortName(m.effort)}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}. It has stood ${standing(m.best.atMs, lookBack.asOfMs)} as of ${dayMonthYear(lookBack.asOfMs)}.`
 }

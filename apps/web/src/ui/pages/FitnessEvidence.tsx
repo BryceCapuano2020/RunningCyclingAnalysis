@@ -33,7 +33,7 @@ function Method({ status, units }: { status: FitnessStatus; units: UnitSystem })
     <>
       <p>
         Each {steady} gives one figure: the {words.output.toLowerCase()} you {words.did} at {same},
-        read from its {words.reading(units)} and adjusted for {words.adjusted}. Your level is the
+        taken from its {words.reading(units)} and adjusted for {words.adjusted}. Your level is the
         middle of your {words.steadyPlural} over the last 4 to 16 weeks. It is set against the level
         before the change began, the line across the chart, or against the {against} while nothing
         has changed. The band round each point is its {range}.

@@ -23,13 +23,17 @@ test('the sample’s Balance shows a fitness status that is new, with its range 
   await openSample(page)
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
   await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
-  // The words: the heart rate it is read at, the size with its 90% range, and the evidence behind it.
+  // The words: the level at its heart rate, a line for the change with its 90% range, and the evidence behind it.
   expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(
-    /^At \d+ bpm you now run \d+:\d{2}\s\/(km|mi), [\d.]+% \(\d+ to \d+%\) slower than the \d+:\d{2}\s\/(km|mi) before \d{1,2} [A-Z][a-z]{2}\.$/,
+    /^\d+:\d{2}\s\/(km|mi) at \d+ bpm\.$/,
+  )
+  expect(await spoken(card(page).getByTestId('fitness-change'))).toMatch(
+    /^\d+% \(\d+ to \d+\) off your (\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
   )
   expect(await spoken(card(page).locator('.fitness-card__support'))).toMatch(
-    /steady runs, .* against \d+ in the/,
+    /^From \d+ steady runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}\.$/,
   )
+  await expect(card(page).getByTestId('fitness-season')).toHaveCount(0)
   await expect(page.getByTestId('fitness-new')).toHaveText(
     /^Newsince the week of \d{1,2} [A-Z][a-z]{2}$/,
   )
@@ -111,8 +115,8 @@ test('the terms that carry the answer are defined in place: the heart rate, the 
   // in how the figure is measured, which every phone has.
   await page.getByText('See the evidence').click()
   const terms: [Locator, RegExp][] = [
-    [card(page).getByRole('button', { name: /^At \d+ bpm$/ }), /one heart rate, \d+ bpm/],
-    [card(page).getByRole('button', { name: /^\(\d+ to \d+%\)$/ }), /nine times out of ten/],
+    [card(page).getByRole('button', { name: /^at \d+ bpm$/ }), /one heart rate, \d+ bpm/],
+    [card(page).getByRole('button', { name: /^\(\d+ to \d+\)$/ }), /nine times out of ten/],
     [
       card(page)
         .locator('.fitness-evidence')
@@ -162,7 +166,12 @@ test('a tap on the lower third of a term opens it and not the term on the line b
   await page.getByText('See the evidence').click()
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
   let pairs = 0
-  for (const scope of ['.fitness-card__headline', '.fitness-card__support', '.fitness-evidence']) {
+  for (const scope of [
+    '.fitness-card__headline',
+    '.fitness-card__change',
+    '.fitness-card__support',
+    '.fitness-evidence',
+  ]) {
     const region = page.locator(scope)
     const boxes = await termBoxes(region)
     for (const upper of boxes) {
@@ -217,7 +226,7 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await openSample(page)
   await expect(page.locator('.fitness-card')).toHaveCount(1)
   const line = page.getByTestId('ride-fitness-line')
-  await expect(line).toHaveText(/^\d+ W at \d+ bpm \(\d+ to \d+\)\. From \d+ steady rides\.$/)
+  await expect(line).toHaveText(/^\d+ W \(\d+ to \d+\) at \d+ bpm\. From \d+ steady rides\.$/)
   await line.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')
@@ -225,7 +234,7 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(ride).toHaveCount(1)
   await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
   expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(
-    /^\d+ W at \d+ bpm \(\d+ to \d+\)\.$/,
+    /^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/,
   )
   await expect(ride.getByTestId('fitness-needs')).toHaveText(
     /^\d+ more earlier rides? to see a trend\.$/,
@@ -240,7 +249,7 @@ test('the landing page’s example shows the same finding as a second panel unde
   const example = page.locator('.landing-example')
   await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
   await expect(example.locator('.landing-example__sentence')).toHaveText(
-    /^At 120 bpm you now run [\d.]+% \(\d+ to \d+%\) slower than before\.$/,
+    /^\d+% \(\d+ to \d+\) off your old level at 120 bpm\.$/,
   )
   await expect(example.locator('.fitness-track__band')).toBeVisible()
   // The balance comes first; the fitness finding is the panel under it.

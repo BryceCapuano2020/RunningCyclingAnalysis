@@ -40,16 +40,14 @@ describe('the words of the check-in', () => {
     const c = check({ bests: base.bests, fitness: { run: holding(), ride: null } })
     expect(checkInText(c, 'metric')).toEqual({
       headline:
-        '2 runs added since 1 June 2026. Nothing moved: no new bests, and run fitness shows no clear change, within 2% of before.',
+        '2 runs added since 1 June 2026. Nothing moved. Run fitness shows no clear change, within 2%.',
       lines: [],
     })
   })
 
   it('says only no new bests for a library with no fitness', () => {
     const c = check({ bests: base.bests })
-    expect(checkInText(c, 'metric').headline).toBe(
-      '2 runs added since 1 June 2026. Nothing moved: no new bests.',
-    )
+    expect(checkInText(c, 'metric').headline).toBe('2 runs added since 1 June 2026. Nothing moved.')
   })
 
   it('leads with the card moving, then the new best with its gain and date', () => {
@@ -74,7 +72,7 @@ describe('the words of the check-in', () => {
     const text = checkInText(checkInBetween(was, live)!, 'metric')
     expect(text.headline).toBe('Since 1 June 2026: 1 run added.')
     expect(text.lines).toEqual([
-      'Run fitness was holding at your last import; it is slipping now.',
+      'Run fitness is slipping now. It was holding at your last import.',
       'New best 20 min run: 4:45 /km, 5 s faster than before, set on 30 May 2026.',
     ])
   })
@@ -107,9 +105,12 @@ describe('the words of the check-in', () => {
       'metric',
     )
     expect(text.lines).toHaveLength(3)
-    expect(text.lines[0]).toBe('Run fitness was recovering at your last import; it is back now.')
+    expect(text.lines[0]).toBe('Run fitness is back now. It was recovering at your last import.')
     expect(text.lines[1]).toMatch(
-      /^Found in older files: your best 20 min run is 4:16 \/km, from 202\d\.$/,
+      /^Your best 20 min run is 4:16 \/km, found in older files from 202\d\.$/,
+    )
+    expect(text.lines[2]).toMatch(
+      /^Older files added a slip to your run history, from \w+ (20\d\d )?to \w+ 20\d\d\.$/,
     )
   })
 
@@ -159,7 +160,7 @@ describe('the words of the check-in', () => {
       ),
     )!
     expect(checkInText(staying, 'metric').headline).toContain(
-      'run fitness shows no clear change, within 2% of before',
+      'Run fitness shows no clear change, within 2%.',
     )
     const stayingNoRange = checkInBetween(
       snap(
@@ -172,7 +173,7 @@ describe('the words of the check-in', () => {
       ),
     )!
     expect(checkInText(stayingNoRange, 'metric').headline).toContain(
-      'run fitness is staying at your old level',
+      'Run fitness is staying at your old level.',
     )
     const readable = checkInBetween(
       snap(
@@ -182,7 +183,7 @@ describe('the words of the check-in', () => {
       snap({ run: [ago(60), ago(1)] }, { fitness: { run: holding(), ride: null } }),
     )!
     expect(checkInText(readable, 'metric').lines).toEqual([
-      'Run fitness could not be read at your last import; it is holding now.',
+      'Run fitness is holding now. It was showing no trend at your last import.',
     ])
   })
 
@@ -195,7 +196,7 @@ describe('the words of the check-in', () => {
       ),
     )!
     expect(checkInText(moved, 'metric').lines).toEqual([
-      'Run fitness was holding at your last import; it is improved now.',
+      'Run fitness is improved now. It was holding at your last import.',
     ])
     const same = checkInBetween(
       snap(
@@ -207,6 +208,6 @@ describe('the words of the check-in', () => {
         { fitness: { run: holding({ state: 'improved', within: null }), ride: null } },
       ),
     )!
-    expect(checkInText(same, 'metric').headline).toContain('run fitness is still improved')
+    expect(checkInText(same, 'metric').headline).toContain('Run fitness is still improved.')
   })
 })

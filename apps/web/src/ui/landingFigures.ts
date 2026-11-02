@@ -13,8 +13,8 @@ export interface LandingFigures {
   gap: { centre: number; low: number; high: number; lean: Sport }
   grades: Record<Sport, SportGrade>
   /**
-   * The run's fitness status: its change in output with its 90% range, and the same as the sentence says it in
-   * pace (the percentage and its range), since the example has no dates or units to say the levels in.
+   * The run's fitness status: its change in output with its 90% range, and the same as the card's line says it in
+   * pace (the percentage and its range, "10% (5 to 15)"), since the example has no dates or units to say the levels in.
    */
   fitness: { referenceHr: number; change: Ranged; shown: { size: string; range: string } }
 }

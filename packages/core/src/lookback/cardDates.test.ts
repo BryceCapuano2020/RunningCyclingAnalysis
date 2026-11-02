@@ -4,7 +4,8 @@ import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
 import { fitnessHistories, fitnessStatuses } from '../fitness/compute'
-import { fitnessLines } from '../fitness/copy'
+import { fitnessFindingHeadline } from '../fitness/copy'
+import { formatDay } from '../findings/copy'
 import { FITNESS } from '../fitness/params'
 import { noFitness } from '../fitness/types'
 import type { FitnessBySport, FitnessState, FitnessStatus } from '../fitness/types'
@@ -157,9 +158,7 @@ describe('the dates the card names its episode by', () => {
         },
       },
     })
-    expect(fitnessLines(card, 'metric').support).toContain(
-      `${inWeeksBefore(60)} in the ${weeks} weeks`,
-    )
+    expect(fitnessFindingHeadline(card)).toContain(`before ${formatDay(WEEKS_FROM(60))}`)
     // The look-back starts the slip at week 66, six weeks on: the weeks before it hold fewer of the runs.
     const dated = runOf(card, years(episode('slip-open', 66, null)), runs)
     expect(dated.onsetMs).toBe(WEEKS_FROM(66))
@@ -167,10 +166,9 @@ describe('the dates the card names its episode by', () => {
     expect(dated.evidence!.baseline).toMatchObject({ runs: inWeeksBefore(66) })
     expect(dated.evidence!.baseline!.toMs).toBeGreaterThan(card.evidence!.baseline!.toMs)
     expect(dated.evidence!.recent).toBe(card.evidence!.recent)
-    // The sentence counts the weeks it names.
-    expect(fitnessLines(dated, 'metric').support).toContain(
-      `${inWeeksBefore(66)} in the ${weeks} weeks before`,
-    )
+    // The finding names the day the level before ended, which moved with the onset.
+    expect(fitnessFindingHeadline(dated)).toContain(`before ${formatDay(WEEKS_FROM(66))}`)
+    expect(fitnessFindingHeadline(dated)).not.toBe(fitnessFindingHeadline(card))
     // A status whose onset does not move keeps the count it had.
     expect(runOf(card, years(episode('slip-open', 60, null)), runs)).toBe(card)
   })

@@ -50,9 +50,9 @@ function renderPage(
   )
 }
 
-/** The record list item for one duration, found by its eyebrow such as "1 min". */
+/** The record list item for one duration in All best efforts, found by its label such as "1 min". */
 function recordNamed(eyebrow: string): HTMLElement {
-  const records = screen.getByRole('region', { name: 'Best efforts' })
+  const records = screen.getByRole('region', { name: 'All best efforts' })
   const item = within(records).getByText(eyebrow).closest('li')
   if (item === null) throw new Error(`No record named ${eyebrow}`)
   return item
