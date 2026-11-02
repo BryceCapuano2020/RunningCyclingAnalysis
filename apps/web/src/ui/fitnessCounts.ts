@@ -13,7 +13,7 @@ const MEASURE: Record<Sport, { has: (activity: ActivitySummary) => boolean; phra
 }
 
 /**
- * Why a sport has too few steady activities for a fitness status, with the library's own counts: "6 of 59 rides have a
+ * Why a sport has too few steady activities for a fitness status, with the library's own counts: "4 of 31 rides have a
  * power meter. Fitness needs more." Null when none has the measure (the sport then asks for one that does) and when
  * every one has it (the count of steady ones says more), or the library holds none.
  */

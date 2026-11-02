@@ -29,11 +29,11 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: FEW }}
         units="metric"
-        library={rides(6, 59)}
+        library={rides(4, 31)}
       />,
     )
     const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent(/^6 of 59 rides have a power meter\. Fitness needs more\.$/)
+    expect(line).toHaveTextContent(/^4 of 31 rides have a power meter\. Fitness needs more\.$/)
     expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
   })
 
@@ -43,12 +43,12 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: FEW }}
         units="metric"
-        library={rides(6, 59)}
+        library={rides(4, 31)}
         sport="ride"
       />,
     )
     const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('6 of 59 rides have a power meter. Fitness needs more.')
+    expect(line).toHaveTextContent('4 of 31 rides have a power meter. Fitness needs more.')
     expect(within(line).queryByRole('link')).toBeNull()
   })
 
@@ -58,7 +58,7 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: FEW }}
         units="metric"
-        library={rides(59, 59)}
+        library={rides(31, 31)}
       />,
     )
     expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
@@ -75,7 +75,7 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: SLIPPING, ride: level }}
         units="metric"
-        library={rides(7, 59)}
+        library={rides(7, 31)}
       />,
     )
     expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
@@ -89,12 +89,12 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: NO_FITNESS.ride }}
         units="metric"
-        library={rides(6, 59)}
+        library={rides(4, 31)}
         soleSport="ride"
       />,
     )
     expect(screen.getByTestId('fitness-lack-line')).toHaveTextContent(
-      /^6 of 59 rides have a power meter\. Fitness needs more\.$/,
+      /^4 of 31 rides have a power meter\. Fitness needs more\.$/,
     )
     cleanup()
     // With no meter at all the line still asks for one.
@@ -103,7 +103,7 @@ describe('the ride’s fitness line with too few rides measured', () => {
         nowMs={FITNESS_AS_OF_MS}
         fitness={{ run: NO_FITNESS.run, ride: NO_FITNESS.ride }}
         units="metric"
-        library={rides(0, 59)}
+        library={rides(0, 31)}
         soleSport="ride"
       />,
     )

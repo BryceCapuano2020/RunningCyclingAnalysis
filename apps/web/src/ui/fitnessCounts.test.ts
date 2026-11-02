@@ -19,14 +19,14 @@ function library(sport: Sport, measured: number, total: number): ActivitySummary
 
 describe('fitnessCountLine', () => {
   it('says why a ride has no fitness yet, with how many rides have a power meter', () => {
-    expect(fitnessCountLine(library('ride', 6, 59), 'ride')).toBe(
-      '6 of 59 rides have a power meter. Fitness needs more.',
+    expect(fitnessCountLine(library('ride', 4, 31), 'ride')).toBe(
+      '4 of 31 rides have a power meter. Fitness needs more.',
     )
   })
 
   it('says it of a run by heart rate, from the same table', () => {
-    expect(fitnessCountLine(library('run', 12, 80), 'run')).toBe(
-      '12 of 80 runs have heart rate. Fitness needs more.',
+    expect(fitnessCountLine(library('run', 9, 26), 'run')).toBe(
+      '9 of 26 runs have heart rate. Fitness needs more.',
     )
   })
 
@@ -45,8 +45,8 @@ describe('fitnessCountLine', () => {
   })
 
   it('leaves the asking to the sport’s own line when none has the sensor, and the steady count when all do', () => {
-    expect(fitnessCountLine(library('ride', 0, 59), 'ride')).toBeNull()
-    expect(fitnessCountLine(library('ride', 59, 59), 'ride')).toBeNull()
+    expect(fitnessCountLine(library('ride', 0, 31), 'ride')).toBeNull()
+    expect(fitnessCountLine(library('ride', 31, 31), 'ride')).toBeNull()
     expect(fitnessCountLine([], 'ride')).toBeNull()
   })
 })
