@@ -32,7 +32,7 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   expect(errors).toEqual([])
 })
 
-/** The seven charts of the History tab, in page order, each opening on the sample. */
+/** The eight charts of the History tab, in page order, each opening on the sample. */
 const SECTIONS = [
   'balance-over-years',
   'training-calendar',
@@ -40,10 +40,11 @@ const SECTIONS = [
   'year-to-date',
   'bests-by-year',
   'best-curve-by-year',
+  'fitness-over-years',
   'intensity-by-year',
 ]
 
-test('the History tab draws all seven charts in page order, and a sport toggle redraws its chart in place', async ({
+test('the History tab draws all eight charts in page order, and a sport toggle redraws its chart in place', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -66,5 +67,29 @@ test('the History tab draws all seven charts in page order, and a sport toggle r
   await expect(
     bests.locator('.chart-frame__controls').getByRole('radio', { name: 'Ride' }),
   ).toBeChecked()
+  expect(errors).toEqual([])
+})
+
+/** The fitness dots: one drawing for every steady activity, a toggle for the sport, a reading for each year and its table. */
+test('the History tab draws the fitness dots in one node, toggles the sport, and reads a year by keyboard', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await openSample(page)
+  await goTo(page, 'History')
+  const section = page.locator('[data-section="fitness-over-years"]')
+  const chart = section.getByRole('figure', { name: 'Fitness over the years' })
+  await expect(chart.getByTestId('fitness-dots')).toHaveCount(1)
+  const dots = async () =>
+    ((await chart.getByTestId('fitness-dots').getAttribute('d')) ?? '').split(/[Mm]/).length - 1
+  expect(await dots()).toBeGreaterThan(10)
+  await expect(chart).toContainText('on steady runs')
+  await chart.locator('.chart-frame__controls').getByText('Ride', { exact: true }).click()
+  await expect(chart).toContainText('on steady rides')
+  await chart.getByTestId('plot-surface').focus()
+  await page.keyboard.press('End')
+  await expect(chart.getByRole('status')).toContainText('Steady rides')
+  await chart.getByText('View as table').click()
+  await expect(chart.getByRole('table').first().getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })

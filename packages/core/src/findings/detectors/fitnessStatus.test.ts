@@ -3,7 +3,10 @@ import { DAY_MS } from '../../constants'
 import { REGISTRY } from '../registry'
 import { episodesOf, replayDetector } from '../test/harness'
 import { plantedLibrary } from '../test/plantedLibrary'
-import { fitnessStatuses } from '../../fitness/compute'
+import { fitnessHistories, fitnessStatuses } from '../../fitness/compute'
+import { fitnessFindingHeadline } from '../../fitness/copy'
+import { datedByLookBack } from '../../lookback/cardDates'
+import { lookBackOf } from '../../lookback/compute'
 import { fitnessStatusDetector } from './fitnessStatus'
 
 const WEEK = 7 * DAY_MS
@@ -150,5 +153,42 @@ describe('the fitness-status detector', () => {
     expect(back.direction).toBe('better')
     expect(back.headline).toMatch(/^At \d+ bpm you are back/)
     expect(back.confidence).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it('names the month the card names: its headline carries the look-back’s dates, as the card does', () => {
+    const dip = plantedLibrary({
+      seed: 7,
+      weeks: 240,
+      perWeek: 3,
+      noise: 0.025,
+      noiseModel: { autocorrelation: 0.9, heavyTails: true },
+      effects: [
+        { type: 'efficiency-shift', atWeek: 70, size: -0.12 },
+        { type: 'efficiency-shift', atWeek: 110, size: 0.12 / 0.88 },
+      ],
+    })
+    const result = replayDetector(fitnessStatusDetector, dip, {
+      fromMs: dip.firstMs + 118 * WEEK,
+      toMs: dip.firstMs + 142 * WEEK,
+    })
+    let differs = 0
+    let spoken = 0
+    for (const mark of result.marks) {
+      for (const finding of mark.spoken) {
+        const digests = dip.digests.filter((d) => d.startMs <= mark.asOfMs)
+        const statuses = fitnessStatuses(digests, new Set(), { asOfMs: mark.asOfMs })
+        const raw = statuses.run
+        const look = lookBackOf(digests, { massKg: 70, bikeMassKg: 9 }, new Set())
+        const histories = fitnessHistories(digests, new Set())
+        // The finding's own status is as of the mark, dated by the look-back of the same digests, as the card is.
+        const card = datedByLookBack(statuses, look, histories).run
+        spoken++
+        expect(finding.headline).toBe(fitnessFindingHeadline(card))
+        if (fitnessFindingHeadline(raw) !== finding.headline) differs++
+      }
+    }
+    expect(spoken).toBeGreaterThanOrEqual(2)
+    // Without the look-back's dates, at least one of them would name another month.
+    expect(differs).toBeGreaterThan(0)
   })
 })

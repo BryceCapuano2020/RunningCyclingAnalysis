@@ -2,7 +2,6 @@ import { bestRows, breakRow, episodeRow, quietRow, thinRow, tooShortText } from 
 import type { LookBack } from '@rca/core/lookback'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { YearsChart } from '../charts/YearsChart'
 import './YearsSection.css'
 
 export interface YearsSectionProps {
@@ -15,9 +14,9 @@ const smaller = (count: number, one: string, many: string) =>
   `${count} smaller ${count === 1 ? one : many}`
 
 /**
- * A sport's years: the plateaus its steady efforts held and the episodes between them, the stretches that were quiet or
- * had none, and the bests over the years. Every date has its year and nothing is said of now: the last 12 weeks
- * are on the fitness card. A library too short for its years says what it needs, here and nowhere else.
+ * A sport's years in words: the episodes its steady efforts show, the stretches that were quiet or had none, and the
+ * bests over the years. The picture of them is the History tab's. Every date has its year and nothing is said of now:
+ * the last 12 weeks are on the fitness card. A library too short for its years says what it needs, here and nowhere else.
  */
 export function YearsSection({ sport, lookBack, units }: YearsSectionProps) {
   const block = lookBack.sports[sport]
@@ -26,7 +25,6 @@ export function YearsSection({ sport, lookBack, units }: YearsSectionProps) {
     <div className="years-section" data-testid="years-section">
       {years.kind === 'ok' ? (
         <>
-          <YearsChart sport={sport} years={years} referenceHr={block.referenceHr} units={units} />
           {years.episodes.length === 0 ? null : (
             <section className="years-section__group" aria-label="Episodes">
               <h3 className="years-section__head">Episodes</h3>

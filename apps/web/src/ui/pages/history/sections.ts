@@ -6,6 +6,7 @@
 export { balanceOverYears } from './balanceOverYears'
 export { calendar } from './calendar'
 export { hoursPerYear } from './hoursPerYear'
+export { fitnessYears } from './fitnessYears'
 export { yearToDate } from './yearToDate'
 export { bestsByYear } from './bestsByYear'
 export { bestCurveByYear } from './bestCurveByYear'

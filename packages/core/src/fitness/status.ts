@@ -34,6 +34,14 @@ function spanOf(rs: readonly RunPoint[]): FitnessSpan {
 
 const withoutIds = ({ ids: _ids, ...span }: FitnessSpan): Omit<FitnessSpan, 'ids'> => span
 
+/** The runs the level before a change is counted over: the `onsetBaseWeeks` before the change's onset day, as counts and a span. */
+export function baselineBefore(
+  runs: readonly RunPoint[],
+  onsetDay: number,
+): Omit<FitnessSpan, 'ids'> {
+  return withoutIds(spanOf(slice(runs, onsetDay - M.onsetBaseWeeks * 7, onsetDay)))
+}
+
 /** A change in log units with its half-width as a fractional change with its 90% range. */
 export function ranged(delta: number, half: number): Ranged {
   return { value: exp(delta) - 1, low: exp(delta - half) - 1, high: exp(delta + half) - 1 }
@@ -115,7 +123,6 @@ function episodic(
   const half = halfWidth(level.se, refSe)
   const recent = slice(runs, level.fromDay, day)
   const onsetDay = ep.onsetDay
-  const baseline = onsetDay === null ? null : slice(runs, onsetDay - M.onsetBaseWeeks * 7, onsetDay)
   const trough = ep.trough
   const gain =
     (state === 'recovering' || state === 'back') && trough !== null
@@ -137,7 +144,7 @@ function episodic(
     evidence: {
       ...base.evidence!,
       recent: spanOf(recent),
-      baseline: baseline === null ? null : withoutIds(spanOf(baseline)),
+      baseline: onsetDay === null ? null : baselineBefore(runs, onsetDay),
     },
     series: levelSeries(runs, day, ep.reference, pointOf(level, nowMs(base, day), level.weeks)),
     shortfall: null,

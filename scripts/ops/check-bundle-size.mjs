@@ -22,7 +22,7 @@ export const BUDGETS = {
   initial: 285_000,
   worker: 185_000,
   chunk: 75_000,
-  history: 13_200,
+  history: 16_500,
   style: 13_000,
 }
 

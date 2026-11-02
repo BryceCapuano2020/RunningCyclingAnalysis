@@ -5,7 +5,7 @@ import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { sameDigests } from './sameDigests'
-import type { ActivityDigest } from './types'
+import type { ActivityDigest, Sport } from './types'
 
 /** How many results of each kind are kept: the few periods the control offers, so that switching between them is free. */
 const KEPT = 4
@@ -16,12 +16,14 @@ const KEPT = 4
  */
 export class EvidenceMemo {
   private moved = calendarWatch()
-  // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
+  // Output at the same heart rate reads no mass, so its key is the digests, the period's start, the set-aside and the
+  // heart rates it is read at (the fitness card's).
   private sameEntries: {
     selected: ActivityDigest[]
     library: ActivityDigest[]
     fromMs: number | null
     setAside: string
+    reference: string
     result: SameHeartRateBySport
   }[] = []
   // Late-effort evidence reads no mass either: its key is the period's digests, the library's and the set-aside.
@@ -34,21 +36,24 @@ export class EvidenceMemo {
 
   /**
    * Each sport's output at the same heart rate over the selected period, reused while the digests, the
-   * library (which sets the reference heart rate), the period's start and the activities set aside are the same.
-   * Masses do not enter, so a change of weight does not redo it.
+   * library, the period's start, the activities set aside and the heart rates it is read at (the fitness card's) are
+   * the same. Masses do not enter, so a change of weight does not redo it.
    */
   sameHeartRate(
     selected: ActivityDigest[],
     library: ActivityDigest[],
     fromMs: number | null,
     setAside: readonly string[],
+    referenceHr: Readonly<Record<Sport, number | null>>,
   ): SameHeartRateBySport {
     if (this.moved()) this.sameEntries = []
     const key = setAside.join(',')
+    const reference = `${referenceHr.run}|${referenceHr.ride}`
     const hit = this.sameEntries.findIndex(
       (entry) =>
         entry.fromMs === fromMs &&
         entry.setAside === key &&
+        entry.reference === reference &&
         sameDigests(entry.selected, selected) &&
         sameDigests(entry.library, library),
     )
@@ -60,8 +65,9 @@ export class EvidenceMemo {
     const result = sameHeartRate(selected, new Set(setAside), {
       fromMs: fromMs ?? undefined,
       library,
+      referenceHr,
     })
-    this.sameEntries.unshift({ selected, library, fromMs, setAside: key, result })
+    this.sameEntries.unshift({ selected, library, fromMs, setAside: key, reference, result })
     this.sameEntries.length = Math.min(this.sameEntries.length, KEPT)
     return result
   }

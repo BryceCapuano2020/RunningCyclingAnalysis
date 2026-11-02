@@ -18,7 +18,7 @@ export interface SameHeartRateWeek {
   /** Blocks in the window, and the activities they come from. */
   blocks: number
   activities: number
-  /** Set when the 28 days held too few activities and the window reaches back 56. Absent otherwise. */
+  /** Set when the window reaches back 56 days: the 28 held too few activities, or none on one side of the reference heart rate. Absent otherwise. */
   wide?: true
 }
 

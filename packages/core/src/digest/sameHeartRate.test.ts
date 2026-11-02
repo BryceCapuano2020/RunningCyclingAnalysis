@@ -238,21 +238,40 @@ describe('what a week needs before it reports', () => {
     expect(sameHeartRate(steady, NONE, {}).ride.lacks).toBe('spread')
   })
 
-  it('leaves a week out when the reference heart rate is outside what it observed', () => {
-    const early = weeksOf('ride', 8, () => 1)
-    // Six in the last four weeks, so the last window holds only these.
-    const high = [0, 1, 2, 3, 4, 5].map((i) =>
+  /** Six rides in the four weeks from `week`, every block above 160 bpm, so the last 28 days hold only these. */
+  const highRides = (week: number) =>
+    [0, 1, 2, 3, 4, 5].map((i) =>
       withBlocks(
         'ride',
-        `late-${i}`,
-        MONDAY + ((8 + (i % 4)) * 7 + (i >= 4 ? 2 : 0)) * DAY_MS,
+        `late-${week}-${i}`,
+        MONDAY + ((week + (i % 4)) * 7 + (i >= 4 ? 2 : 0)) * DAY_MS,
         [165, 175, 185, 195].map((heartRate) => ({ heartRate, output: BASE.ride(heartRate) })),
       ),
     )
-    const { weeks } = sameHeartRate([...early, ...high], NONE, FROM_START).ride
+
+  it('reads a week over a longer window when the reference heart rate is outside what its 28 days observed', () => {
+    const { weeks } = sameHeartRate(
+      [...weeksOf('ride', 8, () => 1), ...highRides(8)],
+      NONE,
+      FROM_START,
+    ).ride
+    const last = weeks.at(-1)!
+    expect(last.lacks).toBeNull()
+    expect(last.fit).not.toBeNull()
+    expect(last.wide).toBe(true)
+  })
+
+  it('leaves a week out when no window reaches the reference heart rate, and says its range', () => {
+    // The high rides come 12 weeks after the last low one, past the longest window.
+    const { weeks } = sameHeartRate(
+      [...weeksOf('ride', 8, () => 1), ...highRides(20)],
+      NONE,
+      FROM_START,
+    ).ride
     const last = weeks.at(-1)!
     expect(last.fit).toBeNull()
     expect(last.lacks).toBe('range')
+    expect(last.wide).toBeUndefined()
   })
 
   it('has one reported week at most with four weeks of data, and says what is missing', () => {

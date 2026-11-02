@@ -145,13 +145,11 @@ describe('SportPage: your years', () => {
     expect(document.querySelector('[data-section="years"], #years, details')).not.toBeNull()
   })
 
-  it('draws the chart and lists the episodes once opened', () => {
+  it('lists the episodes once opened, and draws no chart: the dots of the years are on the History tab', () => {
     page(YEARS_LOOKBACK)
     const years = openSection('Your years')
-    expect(
-      within(years).getByRole('figure', { name: 'Pace at 148 bpm over the years' }),
-    ).toBeInTheDocument()
     expect(within(years).getByRole('region', { name: 'Episodes' })).toBeInTheDocument()
+    expect(within(years).queryByRole('figure')).toBeNull()
   })
 
   it('says what it needs, in its own place, when there are no years to tell', () => {

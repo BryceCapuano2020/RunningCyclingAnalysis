@@ -6,7 +6,8 @@
  * spread of at least minSpreadBpm (standard deviation). At most maxBlocks blocks from at most maxActivities
  * activities enter a fit. A period reports at most maxWeeks weeks, all time every week. The reference heart
  * rate is the median of the library's newest referenceWeeks weeks of blocks, so it does not move with the
- * period. A change is only said with minReportedWeeks reporting weeks. The 90% interval is built from the
+ * period; where the session has the fitness card's heart rate it reads at that instead, and a week whose window lies
+ * wholly above or below it reaches back to wideWindowDays too. A change is only said with minReportedWeeks reporting weeks. The 90% interval is built from the
  * spread of `draws` resamples of the activities, seeded with `seed`, and widened for few activities (see
  * theilSen.ts).
  */
