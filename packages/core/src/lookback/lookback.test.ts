@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../findings/test/plantedLibrary'
 import { AnalysisSession } from '../session'
-import type { AthleteSettings } from '../types'
+import type { AthleteSettings, Sport } from '../types'
 import { leadKey, leadOf, meetsLeadBar } from './lead'
-import type { LiveState } from './lead'
-import { bestRows, episodeRow, episodeSentence, leadSentence, tooShortText } from './copy'
+import type { Lead, LiveState } from './lead'
+import { episodeRow, episodeSentence, leadSentence, stoodText, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
 import type { LookBack, SportLookBack } from './compute'
 import { fitnessHistories } from '../fitness/compute'
@@ -452,34 +452,54 @@ describe('the words', () => {
     )
   })
 
-  it('writes a best 20 min as a pace, never a time', () => {
-    const rows = bestRows(
-      {
+  it('writes a best 20 min as a pace, never a time, and says how long it stood only from a year', () => {
+    const best = (
+      sport: Sport,
+      value: number,
+      unit: EffortMilestones['unit'],
+      atMs: number,
+    ): Lead => ({
+      kind: 'best',
+      sport,
+      best: {
         effort: { kind: 'duration', durationS: 1200 },
-        unit: 'm/s',
-        best: { value: 3.45, atMs: Date.UTC(2021, 4, 14), id: 'a' },
-        years: [
-          { year: 2020, partial: false, value: 3.2, id: 'b', n: 30 },
-          { year: 2021, partial: false, value: 3.45, id: 'a', n: 40 },
-          { year: 2022, partial: true, value: 3.3, id: 'c', n: 12 },
-        ],
+        unit,
+        best: { value, atMs, id: 'a' },
+        years: [],
         omittedYears: 0,
         steps: [],
-        verdicts: [
-          { year: 2021, verdict: 'higher' },
-          { year: 2020, verdict: 'none' },
-        ],
+        verdicts: [],
       },
-      Date.UTC(2022, 5, 1),
-      'metric',
+    })
+    const look = (asOfMs: number): LookBack => ({ ...NO_LOOKBACK, asOfMs })
+    const set = Date.UTC(2021, 4, 14)
+    // Under a year: the best and its day, and nothing of how long it has stood.
+    expect(leadSentence(best('run', 3.45, 'm/s', set), look(Date.UTC(2022, 3, 1)), 'metric')).toBe(
+      'Best 20 min: 4:50 /km, set on 14 May 2021.',
     )
-    expect(rows[0]).toBe(
-      'Best 20 min: 4:50 /km, set on 14 May 2021. It has stood 1 year 1 month as of 1 June 2022.',
+    // A year or more, in whole years, with no "as of" and no date after it.
+    expect(leadSentence(best('run', 3.45, 'm/s', set), look(Date.UTC(2022, 5, 1)), 'metric')).toBe(
+      'Best 20 min: 4:50 /km, set on 14 May 2021. Stood 1 year.',
     )
-    expect(rows[1]).toBe('By year: 2020 5:13 /km, 2021 4:50 /km, 2022 (so far) 5:03 /km.')
-    expect(rows).toContain('Faster in 2021 than in 2020.')
-    expect(rows).toContain('No clear change from 2019 to 2020.')
-    expect(rows.join(' ')).not.toMatch(/level with last time/)
+    expect(leadSentence(best('run', 3.45, 'm/s', set), look(Date.UTC(2029, 11, 1)), 'metric')).toBe(
+      'Best 20 min: 4:50 /km, set on 14 May 2021. Stood 8 years.',
+    )
+    // A ride's best is power, in watts or in watts a kilogram, never a pace.
+    expect(leadSentence(best('ride', 280, 'W', set), look(Date.UTC(2024, 5, 1)), 'metric')).toBe(
+      'Best 20 min: 280 W, set on 14 May 2021. Stood 3 years.',
+    )
+    expect(leadSentence(best('ride', 3.4, 'W/kg', set), look(Date.UTC(2024, 5, 1)), 'metric')).toBe(
+      'Best 20 min: 3.40 W/kg, set on 14 May 2021. Stood 3 years.',
+    )
+  })
+
+  it('counts how long a best has stood in whole years, none under one', () => {
+    const set = Date.UTC(2021, 4, 14)
+    expect(stoodText(set, set + 364 * DAY_MS)).toBe('')
+    expect(stoodText(set, set + 366 * DAY_MS)).toBe('Stood 1 year.')
+    expect(stoodText(set, set + 4.9 * YEAR)).toBe('Stood 4 years.')
+    expect(stoodText(set, set + 8 * YEAR)).toBe('Stood 8 years.')
+    expect(stoodText(set, set - DAY_MS)).toBe('')
   })
 
   it('tells a slip that was followed by a further fall as lower until then, not as still lower', () => {
@@ -489,45 +509,21 @@ describe('the words', () => {
     expect(said).not.toMatch(/still lower/)
   })
 
-  it('writes a ride in power: higher and lower, never faster and slower', () => {
-    const ride = (unit: 'W' | 'W/kg') =>
-      bestRows(
-        {
-          effort: { kind: 'duration', durationS: 1200 },
-          unit,
-          best: { value: 280, atMs: Date.UTC(2021, 4, 14), id: 'a' },
-          years: [],
-          omittedYears: 0,
-          steps: [],
-          verdicts: [
-            { year: 2021, verdict: 'higher' },
-            { year: 2022, verdict: 'lower' },
-          ],
-        },
-        Date.UTC(2022, 5, 1),
-        'metric',
-      ).join(' ')
-    for (const unit of ['W', 'W/kg'] as const) {
-      expect(ride(unit)).toContain('Higher in 2021 than in 2020.')
-      expect(ride(unit)).toContain('Lower in 2022 than in 2021.')
-      expect(ride(unit)).not.toMatch(/faster|slower/i)
-    }
-  })
-
   it('uses none of the words the copy rules ban, and no cause', () => {
     const everything = [
       leadSentence(leadOf(look(fit), live('holding'))!, look(fit), 'metric'),
       episodeRow(fit.episodes[0]!, sport, fit),
-      tooShortText({ kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 }),
+      tooShortText('run'),
+      tooShortText('ride'),
     ].join(' ')
     expect(everything).not.toMatch(
       /limiter|weak|strength|holding you back|ahead of|because|caused|grade/i,
     )
   })
 
-  it('says what a short library lacks, once', () => {
-    expect(
-      tooShortText({ kind: 'too-short', steady: 23, weeks: 19, needSteady: 40, needWeeks: 52 }),
-    ).toBe('Needs 40 steady runs over 52 weeks. You have 23 over 19.')
+  it('says a short library lacks steady activities in one line with no counts, for each sport', () => {
+    expect(tooShortText('run')).toBe('Not enough steady runs for a fitness history.')
+    expect(tooShortText('ride')).toBe('Not enough steady rides for a fitness history.')
+    expect(`${tooShortText('run')} ${tooShortText('ride')}`).not.toMatch(/\d/)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SportLookBack } from './compute'
-import { breakRow, episodeRow, quietRow, thinRow, tooShortText } from './copy'
+import { episodeRow, tooShortText } from './copy'
 import { episodeFinding, yearsFinding } from './sectionCopy'
 import type { EffortMilestones, HindsightEpisode, HindsightFitness } from './types'
 
@@ -125,15 +125,7 @@ describe("the finding a sport's years are named by", () => {
       needWeeks: 52,
     } as const
     expect(yearsFinding(block('ride', short))).toBeNull()
-    expect(tooShortText(short, 'ride')).toBe(
-      'Needs 40 steady rides over 52 weeks. You have 20 over 30.',
-    )
-    expect(thinRow({ fromMs: T(2021, 1), toMs: T(2021, 5) }, 'ride')).toBe(
-      'No steady rides from January to May 2021.',
-    )
-    expect(breakRow({ fromMs: T(2021, 1), toMs: T(2021, 5) }, 'ride')).toBe(
-      'No rides from January to May 2021.',
-    )
+    expect(tooShortText('ride')).toBe('Not enough steady rides for a fitness history.')
     const ride = block(
       'ride',
       years({
@@ -144,9 +136,6 @@ describe("the finding a sport's years are named by", () => {
     expect(episodeRow(episode({}), ride, ride.fitness as HindsightFitness)).toMatch(
       /60 steady rides\.$/,
     )
-    expect(
-      quietRow({ fromMs: T(2022, 1), toMs: T(2023, 1), within: 0.03, runs: 90 }, 'ride'),
-    ).toMatch(/90 steady rides\.$/)
   })
 
   it('uses none of the words the copy rules ban', () => {

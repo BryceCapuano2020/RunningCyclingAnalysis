@@ -18,6 +18,15 @@ describe('formLine', () => {
     expect(formLine(activities, 'run', 'metric', NOW)).toBe('Last run 14 Jan · 2 runs · 15.0 km')
   })
 
+  it('gives the count it is handed, which the period line gives too, over its own count of the activities', () => {
+    const activities = [
+      makeActivity({ id: 'a', sport: 'run', startMs: MON_5_JAN, distanceM: 10000 }),
+      makeActivity({ id: 'b', sport: 'run', startMs: WED_14_JAN, distanceM: 5000 }),
+    ]
+    expect(formLine(activities, 'run', 'metric', NOW, 3)).toBe('Last run 14 Jan · 3 runs · 15.0 km')
+    expect(formLine(activities, 'run', 'metric', NOW, 1)).toBe('Last run 14 Jan · 1 run · 15.0 km')
+  })
+
   it('uses the singular for one ride, in the units preference', () => {
     const activities = [
       makeActivity({ id: 'r', sport: 'ride', startMs: MON_5_JAN, distanceM: 16093.44 }),

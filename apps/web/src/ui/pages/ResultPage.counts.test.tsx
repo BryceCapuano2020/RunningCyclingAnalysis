@@ -106,6 +106,21 @@ describe('the count of a period, out of what is on file', () => {
     )
   })
 
+  it('gives the sport page header the period line’s count, not a second one', () => {
+    const { container } = renderWindow({ page: 'run' }, 42)
+    // Two of the three runs in the period are counted by the analysis: the header still says three, as the period line does.
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
+      '3 of 5 runs, 1 not counted',
+    )
+    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(/ · 3 runs · /)
+  })
+
+  it('says the same on the Ride page, for its own rides', () => {
+    const { container } = renderWindow({ page: 'ride' }, 90)
+    expect(container.querySelector('.range-picker__count')?.textContent).toBe('1 of 3 rides')
+    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(/ · 1 ride · /)
+  })
+
   it('says every activity on file, and how many are not counted, for all time', () => {
     const { container } = renderWindow({ page: 'balance' }, 'all')
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(

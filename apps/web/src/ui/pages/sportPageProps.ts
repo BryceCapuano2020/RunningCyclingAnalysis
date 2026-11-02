@@ -30,7 +30,7 @@ export interface SportPageProps {
   sameHeartRate: SameHeartRate
   /** Each sport's fitness at the same heart rate over the whole library, whatever the period: the page leads with its own sport's. */
   fitness?: FitnessBySport
-  /** Each sport's years in hindsight, whatever the period: the page's "Your years" section reads its own sport's. */
+  /** Each sport's years in hindsight, whatever the period: the page's History row reads its own sport's. */
   lookBack?: LookBack
   /** This sport's durability, and the heart rate drift of its steady efforts, over the period. */
   lateEvidence: LateEvidence
@@ -59,6 +59,11 @@ export interface SportPageProps {
   periodEndMs?: number | null
   /** The library's judgement of its runs, which the race predictions read when they widen. Absent: the period alone. */
   heartRateJudgement?: HeartRateJudgement
+  /**
+   * The sport's activities on file that started in the period, counted or not: the number the period control gives. The
+   * header's count is this one, so the page says one count. Absent: the activities the analysis counted.
+   */
+  onFile?: number
   /** The period control, shown under the answer it changes. */
   controls: ReactNode
   /** The line that says what the page is based on, at its foot. */

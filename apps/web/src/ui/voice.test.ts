@@ -25,6 +25,7 @@ const PATTERN = {
   'Your years': /\byour\s+years/gi,
   'Stand-out': /\bstand-out(?![\w-])/gi,
   'It takes': /\bit\s+takes\b/gi,
+  'as of': /\bas\s+of\b/gi,
   '; ': /;\s/g,
 } as const
 
@@ -47,6 +48,7 @@ const BUDGET: Record<Rule, number> = {
   'Your years': 0,
   'Stand-out': 0,
   'It takes': 1,
+  'as of': 0,
   '; ': 32,
 }
 

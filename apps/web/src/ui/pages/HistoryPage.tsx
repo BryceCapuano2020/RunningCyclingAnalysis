@@ -1,4 +1,5 @@
 import type { History } from '@rca/core/history'
+import type { LookBack } from '@rca/core/lookback'
 import type { UnitSystem } from '@rca/core/units'
 import { summaryOf } from '../historySummary'
 import { listedSections } from './history/sectionList'
@@ -12,12 +13,14 @@ export interface HistoryPageProps {
   units: UnitSystem
   /** The athlete's profile for the charts that grade. */
   grading: GradingInputs
+  /** The look-back, whose episodes the fitness chart lists. */
+  lookBack: LookBack
 }
 
 const EMPTY_TEXT = 'Add runs or rides to see your history.'
 
 /** The athlete's whole library, year by year: a row of totals, then one chart for each section. */
-export function HistoryPage({ history, units, grading }: HistoryPageProps) {
+export function HistoryPage({ history, units, grading, lookBack }: HistoryPageProps) {
   const stats = summaryOf(history.years, units)
   return (
     <div className="page-stack history">
@@ -44,7 +47,7 @@ export function HistoryPage({ history, units, grading }: HistoryPageProps) {
           </dl>
           {listedSections().map(({ id, render }) => (
             <div key={id} className="section" data-section={id}>
-              {render({ history, units, grading })}
+              {render({ history, units, grading, lookBack })}
             </div>
           ))}
         </>

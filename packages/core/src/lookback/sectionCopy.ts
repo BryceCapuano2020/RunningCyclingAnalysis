@@ -6,9 +6,9 @@ import type { SportLookBack } from './compute'
 import type { HindsightEpisode } from './types'
 
 /**
- * The words a sport's History section is named by: the finding of its years in one line, the way a closed section
- * says what it found. Dated by year, never "now", and nothing a card could contradict: an open slip is said as the year it
- * began, and a quiet stretch only as the stretch it was.
+ * The words a sport's History row says: the finding of its years in one line, with a link to the History tab. Dated by
+ * year, never "now", and nothing a card could contradict: an open slip is said as the year it began, and a quiet
+ * stretch only as the stretch it was.
  */
 
 const year = (ms: number) => new Date(ms).getUTCFullYear()
@@ -38,7 +38,7 @@ export function episodeFinding(episode: HindsightEpisode, sport: SportLookBack):
  * The section's finding for one sport, or null when its years have nothing to say. The most recent episode that has ended
  * leads (a slip and its return is news); else one still open; else the longest quiet stretch, only while the card allows
  * saying a level held (`live`); else, with only bests, "Best efforts by year". A sport too short for its years has none:
- * its section says what it needs.
+ * its row says what it lacks.
  */
 export function yearsFinding(sport: SportLookBack, live: LiveState = null): string | null {
   const years = sport.fitness
