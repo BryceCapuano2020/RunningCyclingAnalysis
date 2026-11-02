@@ -188,12 +188,10 @@ describe('RangePicker', () => {
     render(
       picker({
         dates: '15 Aug 2015 – 16 Feb 2019',
-        note: 'Last 12 months had too few rides, so this uses all time.',
+        note: 'Last 12 months had too few rides.',
       }),
     )
-    expect(
-      screen.getByText('Last 12 months had too few rides, so this uses all time.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Last 12 months had too few rides.')).toBeInTheDocument()
   })
 
   it('announces a count of a thousand or more with its grouping', () => {

@@ -82,7 +82,7 @@ describe('BalanceTiles', () => {
     ])
   })
 
-  it('writes each threshold exactly as the sport cards did, with its range as a track and an estimated chip', () => {
+  it('writes each threshold exactly as the sport cards did, with its range as a track and no Estimated chip', () => {
     const { result } = sample()
     renderTiles()
     for (const [name, sport] of [
@@ -93,7 +93,10 @@ describe('BalanceTiles', () => {
       const figure = threshold(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
       expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(figure?.number ?? '')
       expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent(figure?.unit ?? '')
-      expect(within(tile).getByText('Estimated')).toBeInTheDocument()
+      // The name and the range say it is an estimate, so the one status the tile carries is how hard its effort was.
+      expect(within(tile).queryByText('Estimated')).toBeNull()
+      expect(tile.querySelector('.stat-tile__basis')).toBeNull()
+      expect(within(tile).getByRole('button', { name: 'Hard effort' })).toBeInTheDocument()
       const range = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
       // A range the page states is a range the tile draws, and its ends are the numbers the line named.
       expect(tile.querySelector('.range-track') !== null).toBe(range !== null)
@@ -132,8 +135,9 @@ describe('BalanceTiles', () => {
     expect(screen.getByRole('article', { name: 'Your ride as a run' })).toHaveTextContent(
       /Add your weight on/,
     )
-    // Only the run's threshold has a figure, so it alone says what kind of evidence it is.
-    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(1)
+    // Only the run's threshold has a figure, so it alone has a status, and it is the effort, not an Estimated chip.
+    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
+    expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(1)
   })
 
   it('puts a prompt in the empty sport’s place, and leaves the ride as a run out', () => {
@@ -198,11 +202,15 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
-  it('names each threshold’s evidence with a chip, a ring for an estimate, and the ride as a run needs none', () => {
+  it('gives each threshold one status, the effort it rests on, and the ride as a run needs none', () => {
     const { container } = renderTiles()
-    expect(container.querySelectorAll('.stat-tile__basis--estimated')).toHaveLength(2)
-    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(2)
+    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
+    for (const name of ['Run threshold', 'Ride threshold']) {
+      const tile = screen.getByRole('article', { name })
+      expect(tile.querySelectorAll('.stat-tile__effort')).toHaveLength(1)
+    }
     const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
     expect(asRun.querySelector('.stat-tile__basis')).toBeNull()
+    expect(asRun.querySelector('.stat-tile__effort')).toBeNull()
   })
 })

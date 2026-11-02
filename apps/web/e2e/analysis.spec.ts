@@ -193,7 +193,12 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   )
   const run = page.getByRole('article', { name: 'Run threshold' })
   await expect(run).toBeVisible()
-  await expect(run.getByText('Estimated', { exact: true })).toBeVisible()
+  // The name and the range say the threshold is an estimate, so the tile carries no Estimated chip, and one status at most.
+  await expect(run.locator('.stat-tile__number')).toBeVisible()
+  await expect(run.locator('.range-track')).toBeVisible()
+  await expect(run.getByText('Estimated', { exact: true })).toHaveCount(0)
+  await expect(run.locator('.stat-tile__basis')).toHaveCount(0)
+  expect(await run.locator('.stat-tile__effort').count()).toBeLessThanOrEqual(1)
 })
 
 test('a one-sport library never gets a request for a headline, whichever sport it holds', async ({

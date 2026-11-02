@@ -65,4 +65,26 @@ describe('BalanceOverYears', () => {
     expect(sports()).toEqual(new Set(['run']))
     expect(screen.getByRole('figure', { name: 'Running age grade by year' })).toBeInTheDocument()
   })
+
+  it('leaves the latest year to the levels row on the home page, and says it in a phone’s readout on History', () => {
+    class Phone {
+      callback: ResizeObserverCallback
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+      }
+      observe() {
+        const entry = { contentRect: { width: 360 } } as unknown as ResizeObserverEntry
+        this.callback([entry], this as unknown as ResizeObserver)
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', Phone)
+    const { rerender } = render(<BalanceOverYears {...BASE} />)
+    expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toMatch(/^Latest: /)
+    rerender(<BalanceOverYears {...BASE} placement="home" />)
+    expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toBe(
+      'Select a point to read its value',
+    )
+  })
 })

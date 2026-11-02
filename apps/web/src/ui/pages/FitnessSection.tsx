@@ -5,6 +5,7 @@ import { SPORTS } from '@rca/core/types'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useHoldInputs } from '../holdContext'
+import { fitnessCountLine } from '../fitnessCounts'
 import { fitnessViews, lineOf } from '../fitnessModel'
 import { FITNESS_LACK_INDOOR_LINE, FITNESS_LACK_LINE } from '../fitnessWords'
 import { indoorCount } from '../indoorCopy'
@@ -22,6 +23,15 @@ const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
  */
 const isLine = (view: FitnessView, home: boolean) =>
   isWaiting(view) && (view.status.level === undefined || (home && SPORTS.indexOf(view.sport) > 0))
+
+/**
+ * A line's words. Without a level to tell, why there is none, with the library's counts, and how old the status is when
+ * it is old; else the status's own line.
+ */
+function lineText(view: FitnessView, library: readonly ActivitySummary[]): string {
+  const why = view.status.level === undefined ? fitnessCountLine(library, view.sport) : null
+  return why === null ? lineOf(view) : [why, view.age ?? ''].join(' ').trim()
+}
 
 export interface FitnessSectionProps {
   fitness: FitnessBySport
@@ -73,6 +83,7 @@ export function FitnessSection({
     const { indoor, total } = indoorCount(library, soleSport)
     const line =
       (indoor === total ? FITNESS_LACK_INDOOR_LINE[soleSport] : undefined) ??
+      fitnessCountLine(library, soleSport) ??
       FITNESS_LACK_LINE[soleSport]
     return (
       <p className="fitness-section__line" data-testid="fitness-lack-line">
@@ -117,7 +128,11 @@ export function FitnessSection({
           className="fitness-section__line"
           data-testid={`${view.sport}-fitness-line`}
         >
-          {home ? <a href={hrefFor({ page: view.sport })}>{lineOf(view)}</a> : lineOf(view)}
+          {home ? (
+            <a href={hrefFor({ page: view.sport })}>{lineText(view, library)}</a>
+          ) : (
+            lineText(view, library)
+          )}
         </p>
       ))}
     </section>

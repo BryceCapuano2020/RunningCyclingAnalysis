@@ -78,11 +78,14 @@ export const hasGrades = (views: readonly YearView[]): boolean => drawnIn(views)
 /** Whether a year's best was found not to be an all-out effort: its dot is hollow. */
 export const isHollow = (grade: YearGrade): boolean => grade.verdict === 'notHard'
 
-const LEVEL_TITLE = 'Running and cycling were level every year'
+/** Said of the years in which both sports have a grade; a year with one sport is not a year of the comparison. */
+const BOTH = 'you did both'
+
+const LEVEL_TITLE = `Running and cycling were level every year ${BOTH}`
 
 /**
- * The chart's title: the finding of the years in which both sports are graded. One sport leading every year, or
- * every year until one it did not; else how many years each led. With fewer than two such years, the metric.
+ * The chart's title: the finding of the years in which both sports are graded. One sport leading every year you did
+ * both, or every year until one it did not; else how many years each led. With fewer than two such years, the metric.
  */
 export function titleOf(views: readonly YearView[]): string {
   const compared = views.flatMap(({ year, leader }) => (leader === null ? [] : [{ year, leader }]))
@@ -93,7 +96,8 @@ export function titleOf(views: readonly YearView[]): string {
   const leaders = compared.map((view) => view.leader)
   const first = leaders[0]!
   const turn = leaders.findIndex((leader) => leader !== first)
-  if (turn === -1) return first === 'even' ? LEVEL_TITLE : `${SPORT_TITLE[first]} led every year`
+  if (turn === -1)
+    return first === 'even' ? LEVEL_TITLE : `${SPORT_TITLE[first]} led every year ${BOTH}`
   // A sport that led the first years and none after: the year that ended it is the finding.
   if (first !== 'even' && turn >= 2 && leaders.slice(turn).every((leader) => leader !== first)) {
     return `${SPORT_TITLE[first]} led every year until ${compared[turn]!.year}`

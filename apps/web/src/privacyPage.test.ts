@@ -23,6 +23,7 @@ const mainSource = await readStylesheet(import.meta.url, './main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, './styles/tokens.css')
 const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
+const footer = await readStylesheet(import.meta.url, './ui/components/AppFooter.tsx')
 const appSignOut = await readStylesheet(import.meta.url, './ui/useAppSignOut.ts')
 const device = await readStylesheet(import.meta.url, './worker/device.ts')
 const deviceLibrary = await readStylesheet(import.meta.url, './worker/deviceLibrary.ts')
@@ -80,7 +81,7 @@ const importPipeline = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/pipeline.ts',
 )
-const privacyNoteSource = await readStylesheet(import.meta.url, './ui/components/PrivacyNote.tsx')
+const privacyNoteSource = await readStylesheet(import.meta.url, './ui/components/privacyText.ts')
 const removeRoute = await readStylesheet(
   import.meta.url,
   '../../api/src/routes/activities/remove.ts',
@@ -659,7 +660,7 @@ describe('the code behind the page', () => {
   // Who sees the removal is a behaviour of the Profile page, pinned in ProfilePage.test.tsx.
 
   it('links the footer Privacy link to /privacy', () => {
-    expect(app).toContain('<a href="/privacy">Privacy</a>')
+    expect(footer).toContain('<a href="/privacy">Privacy</a>')
   })
 
   it('deletes the account row, which cascades, and sweeps its original files', () => {

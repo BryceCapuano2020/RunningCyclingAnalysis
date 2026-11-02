@@ -256,10 +256,11 @@
 }
 
 /*
- * ChartFrame's own readout is one line at rest, 2 rem tall, saying the chart's latest or headline value (or how to
- * read one): a phone's plot keeps the room the fullest reading would take. A point's full reading draws over the
- * row, growing upward from its foot over the lines above the plot, so the plot is never pushed down under a finger.
- * Another chart's readout row (the activity timeline's) keeps the base rules above.
+ * ChartFrame's own readout at rest is at least one line, 2 rem tall, saying the chart's latest or headline value (or
+ * how to read one). A longer sentence wraps and the row grows to hold it: it is never cut with an ellipsis. A point's
+ * full reading draws over the row, growing upward from its foot over the lines above the plot, so the plot is never
+ * pushed down under a finger; the resting sentence stays in the row, hidden, so the row keeps its height while a
+ * point is read. Another chart's readout row (the activity timeline's) keeps the base rules above.
  */
 .chart-frame__readout--compact {
   position: relative;
@@ -269,12 +270,22 @@
   padding-block: var(--space-1);
 }
 
-.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
+/* The resting sentence wraps in the row. A reading hides it but leaves it in the flow, so the row holds its height. */
+.chart-frame__readout--compact::before {
   content: attr(data-idle);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The base rule's hint outranks the rule above while nothing is selected, so the sentence is restated at its weight. */
+.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
+  content: attr(data-idle);
+}
+
+.chart-frame__readout--compact:has(.chart-tooltip__title)::before {
+  visibility: hidden;
 }
 
 .chart-frame__readout--compact .chart-tooltip {

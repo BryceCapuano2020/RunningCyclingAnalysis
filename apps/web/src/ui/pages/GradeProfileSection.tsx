@@ -4,7 +4,8 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { HrCalibration } from '@rca/core/types'
 import { GradeProfileChart } from '../charts'
 import { GRADE_PROFILE_TITLE } from '../charts/gradeProfileText'
-import { gradeProfile, profileFinding, profileSeparated } from '../gradeProfile'
+import type { Lean } from '../../domain/lean'
+import { findingAgreeing, gradeProfile, profileComparable, profileSeparated } from '../gradeProfile'
 import type { AgeProfile } from '../grades'
 import './GradeProfileSection.css'
 
@@ -18,6 +19,8 @@ export interface GradeProfileSectionProps {
   weightKnown: boolean
   /** The library's heart-rate calibration, which the ride's equivalents are priced with. */
   calibration: HrCalibration | null
+  /** Which way the hero leans, or null while it states no balance: the finding is said only where it agrees. */
+  lean: Lean | null
 }
 
 /**
@@ -42,11 +45,13 @@ function ByDuration({ children }: { children: ReactNode }) {
 }
 
 /**
- * How the two sports' age grades compare from 3 min to 3 h, with the finding as its lede. It is left out
- * without the year of birth and sex, without a weight, and with fewer than two durations graded in both
- * sports, since a chart that would only repeat the balance at 20 min says nothing more. The extra ride
- * equivalents it needs are priced once for a result and body mass, here, not in every combine. When no
- * duration separates the sports the sentence says so and the chart is folded; otherwise it is open.
+ * How the two sports' age grades compare from 3 min to 3 h, titled "Grade by duration". Its finding is a line
+ * under the title, and only where it agrees with the hero's lean (`findingAgreeing`), so the card never says
+ * the sports grade alike under a hero that leans. It is left out without the year of birth and sex, without a
+ * weight, and with fewer than two durations graded in both sports, since a chart that would only repeat the
+ * balance at 20 min says nothing more. The extra ride equivalents it needs are priced once for a result and
+ * body mass, here, not in every combine. When no duration separates the sports the chart is folded;
+ * otherwise it is open.
  */
 export function GradeProfileSection({
   result,
@@ -54,6 +59,7 @@ export function GradeProfileSection({
   massKg,
   weightKnown,
   calibration,
+  lean,
 }: GradeProfileSectionProps) {
   // Memoised on the two profile values, not the object, which the caller builds afresh on each render.
   const birthYear = profile?.birthYear ?? null
@@ -65,20 +71,23 @@ export function GradeProfileSection({
         : null,
     [result, birthYear, sex, massKg, weightKnown, calibration],
   )
-  const finding = graded === null ? null : profileFinding(graded)
-  if (graded === null || finding === null) return null
+  if (graded === null || !profileComparable(graded)) return null
+  const finding = findingAgreeing(graded, lean)
   const separated = profileSeparated(graded)
   return (
     <section className="balance__panel grade-profile" aria-labelledby="balance-profile">
-      {/* The chart's own title, shown once by the chart; the heading names the section the same way. */}
+      {/* The title is shown once: by the chart when it is open, else by this line over the folded chart. */}
       <h2 id="balance-profile" className="sr-only">
         {GRADE_PROFILE_TITLE}
       </h2>
       {separated ? (
-        <GradeProfileChart profile={graded} finding={finding} />
+        <GradeProfileChart profile={graded} finding={finding ?? undefined} />
       ) : (
         <>
-          <p className="grade-profile__finding">{finding}</p>
+          <p className="eyebrow" aria-hidden="true">
+            {GRADE_PROFILE_TITLE}
+          </p>
+          {finding === null ? null : <p className="grade-profile__finding">{finding}</p>}
           <ByDuration>
             <GradeProfileChart profile={graded} />
           </ByDuration>

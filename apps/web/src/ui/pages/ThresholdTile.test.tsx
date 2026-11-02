@@ -157,6 +157,58 @@ describe('ThresholdTile', () => {
     expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
   })
 
+  describe('one status to a card', () => {
+    /** The statuses a tile shows: its basis chip and its effort chip. */
+    const statuses = (container: HTMLElement) =>
+      [
+        ...container.querySelectorAll('.stat-tile__basis, .stat-tile__effort .definition__term'),
+      ].map((chip) => chip.textContent)
+    const HARD = { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.95 }
+    const EASY = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.7 }
+    const floored = (sport: 'run' | 'ride') =>
+      sport === 'run'
+        ? makeResult({
+            runCp: null,
+            runCpRefusal: 'shape',
+            runCpUneven: { fit: { ...FIT, cp: 4.4, cpSe: 0.05 }, leftOutS: [180], floor: 4.1 },
+          })
+        : makeResult({
+            rideCp: null,
+            rideCpRefusal: 'shape',
+            rideCpUneven: { fit: { ...FIT, cp: 4.4, cpSe: 0.05 }, leftOutS: [180], floor: 4.1 },
+          })
+
+    it.each(['run', 'ride'] as const)(
+      'says how hard the %s effort was, and does not also call a fitted threshold Estimated',
+      (sport) => {
+        const hard = renderTile(sport, makeResult(), null, true, HARD)
+        expect(statuses(hard.container)).toEqual(['Hard effort'])
+        cleanup()
+        const easy = renderTile(sport, makeResult(), null, true, EASY)
+        expect(statuses(easy.container)).toEqual(['Not all-out'])
+        expect(screen.queryByText('Estimated')).toBeNull()
+      },
+    )
+
+    it('has no status at all for a fitted threshold whose effort heart rate cannot judge', () => {
+      const { container } = renderTile('run', makeResult())
+      expect(container.querySelector('.stat-tile__number')).not.toBeNull()
+      expect(statuses(container)).toEqual([])
+    })
+
+    it.each(['run', 'ride'] as const)(
+      'keeps At least on a %s floor and drops Not all-out beside it, whatever the effort',
+      (sport) => {
+        for (const check of [EASY, HARD]) {
+          const { container, unmount } = renderTile(sport, floored(sport), null, true, check)
+          expect(statuses(container)).toEqual(['At least'])
+          expect(screen.queryByRole('button', { name: /effort|all-out/ })).toBeNull()
+          unmount()
+        }
+      },
+    )
+  })
+
   it('names the tile by its words alone, whatever the definition inside it says', () => {
     renderTile('ride', makeResult())
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()

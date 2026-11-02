@@ -41,7 +41,7 @@ export function BalanceOverYears({
   )
   const home = placement === 'home'
   if (hasGrades(views)) {
-    const chart = <BalanceOverYearsChart views={views} />
+    const chart = <BalanceOverYearsChart views={views} levelsShown={home} />
     return home ? <div className="balance__panel">{chart}</div> : chart
   }
   if (home) return null

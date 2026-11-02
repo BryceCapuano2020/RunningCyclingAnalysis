@@ -175,17 +175,19 @@ describe.each(SPORTS)('a %s threshold the analysis refuses', (sport) => {
     expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
   })
 
-  it('says a best that was not all-out in two words beside the floor, with no share and no sentence', () => {
+  it('says At least, as the floor’s one status, when its best was not all-out: no effort chip, share or sentence beside it', () => {
     const check: EffortCheck = {
       durationS: 1200,
       runHrFraction: sport === 'run' ? 0.82 : null,
       rideHrFraction: sport === 'ride' ? 0.82 : null,
     }
     const { container } = tile(sport, refused(sport, 'effort'), check)
-    expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
-    // The share is in the chip's definition, which opens from it; the card's own lines carry none.
+    const statuses = container.querySelectorAll('.stat-tile__basis, .stat-tile__effort')
+    expect([...statuses].map((status) => status.textContent)).toEqual(['At least'])
+    expect(screen.queryByRole('button', { name: /all-out|effort/i })).toBeNull()
+    // The share lives in the effort chip's definition, which the floor no longer carries; the card's own lines carry none.
     const lines = Array.from(container.querySelectorAll('.stat-tile__line'), (n) => n.textContent)
     expect(lines).toEqual(['From your best 30 min.'])
-    expect(screen.queryByText(/Not a hard effort|would give a threshold/)).toBeNull()
+    expect(screen.queryByText(/Not a hard effort|would give a threshold|82%/)).toBeNull()
   })
 })

@@ -25,7 +25,9 @@ describe('the landing figures', () => {
     expect(LANDING_EXAMPLE.gap.low > 0 || LANDING_EXAMPLE.gap.high < 0).toBe(true)
     expect(LANDING_EXAMPLE.grades.run.centre.level).not.toBe('')
     expect(LANDING_EXAMPLE.fitness.change.high).toBeLessThan(0)
-    expect(LANDING_EXAMPLE.fitness.shown.size).toMatch(/^\d+%$/)
+    expect(LANDING_EXAMPLE.fitness.referenceHr).toBeGreaterThan(0)
+    // The size of the slip is not a figure of the landing page: it moves by a point with the visit day.
+    expect(Object.keys(LANDING_EXAMPLE.fitness).sort()).toEqual(['change', 'referenceHr'])
   })
 })
 

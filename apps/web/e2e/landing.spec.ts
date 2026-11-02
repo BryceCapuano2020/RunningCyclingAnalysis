@@ -18,10 +18,12 @@ test('landing page shows the heading, drop zone and privacy statement without co
   await expect(
     page.getByText('Add FIT, GPX or TCX files, or a Strava or Garmin export zip'),
   ).toBeVisible()
-  // The one privacy statement is in the footer.
-  await expect(
-    page.getByText(/^Your activities stay in this browser, where anyone using it can see them\.$/),
-  ).toBeVisible()
+  // One privacy phrase: the subtitle ends on the footer's own sentence.
+  const sentence = 'Your activities stay in this browser, where anyone using it can see them.'
+  await expect(page.locator('footer .privacy-note')).toHaveText(sentence)
+  await expect(page.locator('.app__pitch .lede')).toHaveText(
+    `Add your Strava or Garmin export. See your level in each sport for your age. ${sentence}`,
+  )
   expect(errors).toEqual([])
 })
 
