@@ -33,10 +33,10 @@ export function answerVerdict(
 export function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
   if (!weightKnown || rides === 0) {
     if (runs === 0) return NO_RUN_EFFORT
-    return `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`
+    return `Run thresholds are estimates. They rest on ${plural(runs, 'run')} with a usable effort.`
   }
   if (runs === 0) {
-    return `Ride levels and ride power without a meter are estimates from ${plural(rides, 'ride')} with a usable effort.`
+    return `Ride levels and ride power without a meter are estimates. They rest on ${plural(rides, 'ride')} with a usable effort.`
   }
-  return `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
+  return `Thresholds, ride levels, the balance and ride power without a meter are estimates. They rest on ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
 }

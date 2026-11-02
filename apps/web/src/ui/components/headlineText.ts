@@ -145,7 +145,7 @@ export function energySummary(reading: BalanceReading, durationS: number): strin
 
 /**
  * The 90% range of the energy ratio, as the Method page quotes it. It names the sport that leads and
- * gives the same figures as the Balance sentence and its meter: "Ride against Run, 90% range:
+ * gives the same figures as the Balance sentence and its meter: "The 90% range for Ride against Run is
  * 11% to 33%." Even balances keep running first, with signed figures.
  */
 export function headlineText(point: ComparisonPoint): { range: string } {
@@ -153,18 +153,23 @@ export function headlineText(point: ComparisonPoint): { range: string } {
   const leading: Sport = reading.lean === 'ride' ? 'ride' : 'run'
   const other: Sport = leading === 'run' ? 'ride' : 'run'
   return {
-    range: `${SPORT_LABEL[leading]} against ${SPORT_LABEL[other]}, 90% range: ${rangeText(reading)}.`,
+    range: `The 90% range for ${SPORT_LABEL[leading]} against ${SPORT_LABEL[other]} is ${rangeText(reading)}.`,
   }
 }
 
-/** How the range was set: a rejected heart-rate check, an adjusted range, or population assumptions. */
-export function headlineBasis(comparison: Comparison, calibrated: boolean): string {
+/** How the range was set, one line each: a rejected heart-rate check, an adjusted range, or population assumptions. */
+export function headlineBasis(comparison: Comparison, calibrated: boolean): string[] {
   if (comparison.calibration?.accepted === false) {
-    return 'The heart-rate check could not support a reliable adjustment; showing the population-based model range.'
+    return [
+      'The heart-rate check could not support a reliable adjustment.',
+      'The range is the population-based model range.',
+    ]
   }
-  return calibrated
-    ? 'Model range informed by the heart-rate data across all your activities.'
-    : 'Model range based on population assumptions.'
+  return [
+    calibrated
+      ? 'Model range informed by the heart-rate data across all your activities.'
+      : 'Model range based on population assumptions.',
+  ]
 }
 
 /**
@@ -172,8 +177,13 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
  * sports' maxima, and cycling's is the higher of its own and the running max less RIDE_MAX_OFFSET_BPM, so
  * cycling is never judged against an artificially low maximum.
  */
-export function referenceDefinition(): string {
-  return `Your max heart rate is the highest sustained heart rate that several separate days reached in the last three years. Running uses the higher of your running and cycling maxima. Cycling uses the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
+export function referenceDefinition(): string[] {
+  return [
+    'Your max heart rate is the highest sustained heart rate that several separate days reached.',
+    'It counts the last three years only.',
+    'Running uses the higher of your running and cycling maxima.',
+    `Cycling uses the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`,
+  ]
 }
 
 /**
@@ -200,7 +210,7 @@ export function referenceText(result: AnalysisResult): string | null {
         : `cycling ${Math.round(ride)} bpm (${RIDE_MAX_OFFSET_BPM} bpm below your running maximum)`,
     )
   }
-  return parts.length === 0 ? null : `Best efforts are judged against ${parts.join('; ')}.`
+  return parts.length === 0 ? null : `Best efforts are judged against ${parts.join(' and ')}.`
 }
 
 /**

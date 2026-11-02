@@ -14,7 +14,7 @@ describe('What is calculated', () => {
   it('names its three states as the page lists them', () => {
     expect(STATE_ORDER.map((state) => STATE_COPY[state].title)).toEqual([
       'Calculated by this app',
-      'Read from your files',
+      'Recorded in your files',
       'Not available from activity files',
     ])
   })
@@ -28,7 +28,7 @@ describe('What is calculated', () => {
       /Race predictions/,
       /Best efforts over time/,
       /Whether a change is a change/,
-      /same heart rate/,
+      /Pace at heart rate/,
       /Level target/,
       /Grade by duration/,
       /Best durations/,
@@ -54,11 +54,11 @@ describe('What is calculated', () => {
   it('has an entry for every section a sport page can show', () => {
     // Typed by SectionId, so a new section fails to compile here until it is listed.
     const entryFor: Record<SectionId, RegExp> = {
-      years: /Your years/,
+      years: /History/,
       bestEfforts: /Best efforts and curves/,
       racePredictions: /Race predictions/,
       bestsOverTime: /Best efforts over time/,
-      sameHeartRate: /same heart rate/,
+      sameHeartRate: /Pace at heart rate/,
       lateInEffort: /Durability/,
       timeInZones: /Time in zones/,
       standOut: /Best durations/,
@@ -77,16 +77,18 @@ describe('What is calculated', () => {
       'Vendor tests such as 4DP',
       'Lab measures such as lactate',
     ])
-    expect(unavailable[0]?.line).toMatch(/sleep, heart-rate variability and resting heart rate/)
+    expect(unavailable[0]?.lines.join(' ')).toMatch(
+      /sleep, heart-rate variability and resting heart rate/,
+    )
   })
 
   it('says what the figures come from, and where a file’s own values are the device’s', () => {
-    expect(STATE_COPY.calculated.line).toMatch(/year of birth, sex and weight/)
+    expect(STATE_COPY.calculated.lines.join(' ')).toMatch(/year of birth, sex and weight/)
     const read = CALCULATION_ITEMS.find((item) => item.name.startsWith('Sport, start time'))
-    expect(read?.line).toMatch(/activity type/)
-    expect(read?.line).toMatch(/GPS positions with bad fixes dropped/)
+    expect(read?.lines.join(' ')).toMatch(/activity type/)
+    expect(read?.lines.join(' ')).toMatch(/GPS positions with bad fixes dropped/)
     const race = CALCULATION_ITEMS.find((item) => item.name === 'Race predictions')
-    expect(race?.line).toMatch(/weekly running distance/)
+    expect(race?.lines.join(' ')).toMatch(/weekly running distance/)
   })
 
   it('gives each state at least one item, and each name once', () => {
@@ -95,13 +97,15 @@ describe('What is calculated', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
-  it('keeps each line short and plain: one or two sentences, no hedge, none of the words the app avoids', () => {
+  it('keeps each line short and plain: one sentence a line, no hedge, none of the words the app avoids', () => {
     for (const item of CALCULATION_ITEMS) {
-      expect(item.line.length).toBeLessThanOrEqual(170)
-      expect(item.line.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(2)
-      expect(item.line).toMatch(/\.$/)
+      for (const line of item.lines) {
+        expect(line.length).toBeLessThanOrEqual(170)
+        expect(line.split(/(?<=\.)\s/).length).toBe(1)
+        expect(line).toMatch(/\.$/)
+      }
     }
-    const copy = CALCULATION_ITEMS.map((item) => `${item.name} ${item.line}`).join(' ')
+    const copy = CALCULATION_ITEMS.map((item) => `${item.name} ${item.lines.join(' ')}`).join(' ')
     expect(copy).not.toMatch(
       /limiter|weak|strength|holding you back|ahead of|may be|might|approximately|disclaimer/i,
     )
@@ -109,8 +113,8 @@ describe('What is calculated', () => {
 
   it('takes the figures it quotes from the code: the headline length and the threshold fit', () => {
     const balance = CALCULATION_ITEMS.find((item) => item.name === 'Balance and levels')
-    expect(balance?.line).toContain('best 20 min')
+    expect(balance?.lines.join(' ')).toContain('best 20 min')
     const threshold = CALCULATION_ITEMS.find((item) => item.name === 'Thresholds and their range')
-    expect(threshold?.line).toContain('best 3 to 20 min efforts')
+    expect(threshold?.lines.join(' ')).toContain('best 3 to 20 min efforts')
   })
 })

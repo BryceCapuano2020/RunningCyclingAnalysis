@@ -31,8 +31,8 @@ retired phrasings in the UI source and the core's copy modules, and its budgets 
 | reference heart rate  | max heart rate            |
 | Late in long sessions | durability                |
 | Ride on foot          | Your ride as a run        |
-| Your years            | Fitness history           |
-| Stand-out             | Bests against your curve  |
+| Your years            | History                   |
+| Stand-out             | Best durations            |
 | reading (a number)    | number                    |
 | comparable            | matching                  |
 
