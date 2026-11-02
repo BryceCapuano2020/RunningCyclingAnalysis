@@ -17,7 +17,7 @@ const INDOOR_PLACE: Record<Sport, string> = { run: 'on a treadmill', ride: 'indo
 
 /** The count of a sport's indoor activities that hold no best, for a sport whose indoor efforts do not count. */
 const INDOOR_UNCOUNTED: Partial<Record<Sport, (count: number) => string>> = {
-  run: (count) => `${plural(count, 'treadmill run')} not counted.`,
+  run: (count) => `${plural(count, 'treadmill run')}: pace not used.`,
 }
 
 /** What the athlete adds to see the sport's efforts: only for a sport whose indoor efforts do not count. */
@@ -66,7 +66,7 @@ export function indoorNeedLine(
 }
 
 /**
- * The split once, for a sport with both kinds whose indoor efforts do not count: "5 treadmill runs not counted."
+ * The split once, for a sport with both kinds whose indoor efforts do not count: "5 treadmill runs: pace not used."
  * Null where none or all were indoors (all is `indoorNeedLine`'s), and for a sport whose indoor efforts count, which
  * has nothing to say.
  */

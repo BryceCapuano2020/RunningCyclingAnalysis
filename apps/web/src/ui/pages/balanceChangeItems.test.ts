@@ -310,7 +310,9 @@ describe('balanceChanges', () => {
   it('says nothing changed, having compared, when the bests are the same as the page shows them', () => {
     const { input, scaled } = sample()
     expect(balanceChanges(input(scaled(1, 1), { change: changeOf('none') }))).toEqual({ items: [] })
-    expect(noChangeText('Previous 12 weeks')).toBe('No clear change from the previous 12 weeks.')
+    expect(noChangeText('Previous 12 weeks')).toBe(
+      'No clear change at 20 min from the previous 12 weeks.',
+    )
   })
 
   it('is null, so the strip is absent and says nothing, when the previous period lacks the efforts', () => {
@@ -330,7 +332,7 @@ describe('balanceChanges', () => {
     expect(items?.find((item) => item.key === 'ride-best')?.title).toBe(
       'More power over 20 min than Jan to Mar',
     )
-    expect(noChangeText('Jan to Mar')).toBe('No clear change from Jan to Mar.')
+    expect(noChangeText('Jan to Mar')).toBe('No clear change at 20 min from Jan to Mar.')
     expect(
       balanceChanges(
         input(scaled(0.95, 0.9), { previousLabel: 'Jan to Mar', change: changeOf('none') }),

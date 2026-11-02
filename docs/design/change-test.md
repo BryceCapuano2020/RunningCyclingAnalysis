@@ -30,7 +30,7 @@ the two periods were drawn from one pool?
    2.5th to 97.5th (the **headline** band: Balance's strip and a curve's title, which surface several claims at once). Above
    a band is `higher`, below `lower`, inside `none`. A call inside the record band only is no clear change at the headline.
 5. Each side needs 4 readings and the pool 12, else the length is `untested`. The smallest change that could have been
-   called (the wider side of the band) is stored, and a "none" is said as "No clear change from the previous 12 weeks", with no size and no reason; the stored size is not shown.
+   called (the wider side of the band) is stored, and a "none" is said as "No clear change at 20 min from the previous 12 weeks", with no size and no reason; the stored size is not shown.
 6. Power source (a ride): the power-meter readings alone when both periods have enough of them; failing that, all readings
    only when neither period has a power-meter reading at all (estimated against estimated). Any other mix, or a mix that
    differs between the periods, is `untested`: a change of source reads as a change of power. Virtual power is never

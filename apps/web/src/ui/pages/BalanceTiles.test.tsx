@@ -58,16 +58,24 @@ describe('RangeTrack', () => {
     )
   })
 
-  it('places the ring at its share of the band, and holds it inside the band', () => {
+  it('places the ring at its share of the band, from the first end to the second, and holds it on the band', () => {
     const at = (value: number) => {
       const { container } = render(<RangeTrack ends={['a', 'b']} at={value} label="range" />)
       return (container.firstElementChild as HTMLElement).style.getPropertyValue('--at')
     }
-    expect(at(0.5)).toBe('50%')
-    expect(at(0)).toBe('22%')
-    expect(at(1)).toBe('78%')
-    expect(at(-3)).toBe('22%')
-    expect(at(4)).toBe('78%')
+    expect(at(0.5)).toBe('0.5')
+    // A value equal to an end sits on that end, not short of it.
+    expect(at(0)).toBe('0')
+    expect(at(1)).toBe('1')
+    expect(at(-3)).toBe('0')
+    expect(at(4)).toBe('1')
+  })
+
+  it('does not inset the band from its printed ends', () => {
+    const { container } = render(<RangeTrack ends={['a', 'b']} at={1} label="range" />)
+    const style = (container.firstElementChild as HTMLElement).style
+    expect(style.getPropertyValue('--band-start')).toBe('')
+    expect(style.getPropertyValue('--band-end')).toBe('')
   })
 })
 

@@ -50,8 +50,8 @@ describe('indoorSplitLine', () => {
   })
 
   it('says the treadmill split of a mixed run library once, and leaves an all-treadmill one to the need line', () => {
-    expect(indoorSplitLine(some('run', 20, 5), 'run')).toBe('5 treadmill runs not counted.')
-    expect(indoorSplitLine(some('run', 20, 1), 'run')).toBe('1 treadmill run not counted.')
+    expect(indoorSplitLine(some('run', 20, 5), 'run')).toBe('5 treadmill runs: pace not used.')
+    expect(indoorSplitLine(some('run', 20, 1), 'run')).toBe('1 treadmill run: pace not used.')
     expect(indoorSplitLine(some('run', 20, 20), 'run')).toBeNull()
     expect(indoorSplitLine(some('run', 20, 0), 'run')).toBeNull()
   })
