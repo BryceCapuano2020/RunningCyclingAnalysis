@@ -273,12 +273,12 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
   await goTo(page, 'Run')
 
   // The records are listed once, in All best efforts; the curve's card above holds no strip of them.
-  await expect(page.getByRole('region', { name: 'Best efforts' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Best efforts', exact: true })).toBeVisible()
   await expect(
-    page.getByRole('region', { name: 'Best efforts' }).locator('.record-tiles'),
+    page.getByRole('region', { name: 'Best efforts', exact: true }).locator('.record-tiles'),
   ).toHaveCount(0)
   await page
-    .getByRole('region', { name: 'All best efforts' })
+    .getByRole('region', { name: 'All best efforts', exact: true })
     .locator('a.records__link, .records__shared a')
     .first()
     .click()
@@ -300,7 +300,7 @@ test('the sport page opens a section the reader folded from "On this page", and 
   const nav = page.getByRole('navigation', { name: 'On this page' })
   await expect(nav).toBeVisible()
   // A section with content is open to start with, and its row says its name alone.
-  const all = page.getByRole('region', { name: 'All best efforts' })
+  const all = page.getByRole('region', { name: 'All best efforts', exact: true })
   await expect(all.locator('summary')).toHaveText('All best efforts')
   await expect(all.locator('details')).toHaveAttribute('open', '')
   await expect(all.locator('ul.records')).toBeVisible()

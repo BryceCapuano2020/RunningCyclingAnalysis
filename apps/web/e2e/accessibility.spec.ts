@@ -90,7 +90,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
       // By keyboard: a term that wraps over two lines has no one point to click.
       await page
         .locator('.fitness-card')
-        .getByRole('button', { name: /^At \d+ bpm$/ })
+        .getByRole('button', { name: /^at \d+ bpm$/ })
         .focus()
       await page.keyboard.press('Enter')
       await expect(

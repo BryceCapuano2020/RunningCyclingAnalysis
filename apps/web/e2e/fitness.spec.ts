@@ -115,8 +115,8 @@ test('the terms that carry the answer are defined in place: the heart rate, the 
   // in how the figure is measured, which every phone has.
   await page.getByText('See the evidence').click()
   const terms: [Locator, RegExp][] = [
-    [card(page).getByRole('button', { name: /^At \d+ bpm$/ }), /one heart rate, \d+ bpm/],
-    [card(page).getByRole('button', { name: /^\(\d+ to \d+%\)$/ }), /nine times out of ten/],
+    [card(page).getByRole('button', { name: /^at \d+ bpm$/ }), /one heart rate, \d+ bpm/],
+    [card(page).getByRole('button', { name: /^\(\d+ to \d+\)$/ }), /nine times out of ten/],
     [
       card(page)
         .locator('.fitness-evidence')
