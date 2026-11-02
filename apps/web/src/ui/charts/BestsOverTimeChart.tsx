@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { TrendPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -143,11 +144,12 @@ export function BestsOverTimeChart({
               <circle
                 key={dots[i]!.atMs}
                 data-testid={i === dots.length - 1 ? 'bests-latest' : 'bests-dot'}
-                className={`chart-series__marker chart-series__marker--${sport}${m.opacities[i]! < OLD_BELOW ? ' bests-dot--old' : ''}`}
+                className={`chart-series__marker chart-series__marker--aged chart-series__marker--${sport}${m.opacities[i]! < OLD_BELOW ? ' bests-dot--old' : ''}`}
                 cx={point.x}
                 cy={point.y}
                 r={i === active ? markerRadii(size.width).active : dotRadius(size.width)}
                 fillOpacity={m.opacities[i]}
+                style={{ '--dot-opacity': m.opacities[i] } as CSSProperties}
               />
             ))}
           </>

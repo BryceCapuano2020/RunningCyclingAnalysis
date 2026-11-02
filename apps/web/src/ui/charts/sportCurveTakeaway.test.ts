@@ -18,8 +18,8 @@ const base = {
   change: changeOf('higher'),
 } as const
 const unchanged = { ...base, change: changeOf('none') } as const
-/** What a 20 minute row with no clear change reads: no length, and no size or reason beside it. */
-const NONE = 'No clear change from the previous 12 weeks'
+/** What a 20 minute row with no clear change reads: the length it was judged at, and no size or reason beside it. */
+const NONE = 'No clear change at 20 min from the previous 12 weeks'
 const lower = { ...base, change: changeOf('lower') } as const
 
 describe('curveTakeaway with a period before', () => {
@@ -127,6 +127,15 @@ describe('curveTakeaway with a period before', () => {
       expect(takeawayAt({ ...input, change: changeOf('untested') }, 1200)).toBeNull()
       expect(takeawayAt({ ...input, previousLabel: null }, 1200)).toBeNull()
     })
+  })
+
+  it('names the length it was judged at, as the title is about it and not about the curve', () => {
+    const rows = [row(300, 330, 330), row(1200, 263, 263), row(3600, 240, 240)]
+    expect(curveTakeaway({ ...unchanged, sport: 'ride', rows })).toBe(NONE)
+    const noTwenty = [row(300, 330, 330), row(900, 280, 280), row(3600, 240, NaN)]
+    expect(curveTakeaway({ ...unchanged, sport: 'ride', rows: noTwenty })).toBe(
+      'No clear change at 15 min from the previous 12 weeks',
+    )
   })
 
   it('reads the longest effort both periods have when there is no 20 minute one in both', () => {
@@ -248,8 +257,9 @@ describe('citedDurationS', () => {
     ).toBe(1200)
   })
 
-  it('is none when the title says no clear change, which cites no effort', () => {
-    expect(citedDurationS({ ...unchanged, sport: 'ride', rows: [row(900, 250, 250)] })).toBeNull()
+  it('is the length a no-clear-change title names, so the plot marks it', () => {
+    expect(citedDurationS({ ...unchanged, sport: 'ride', rows: [row(900, 250, 250)] })).toBe(900)
+    expect(citedDurationS({ ...unchanged, sport: 'ride', rows: [row(1200, 250, 250)] })).toBe(1200)
   })
 
   it('is none without a period before, whose title names the best 20 minutes', () => {

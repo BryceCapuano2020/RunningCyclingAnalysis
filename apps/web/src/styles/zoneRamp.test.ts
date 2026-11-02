@@ -135,3 +135,76 @@ describe('the zone ramp', () => {
     }
   })
 })
+
+/**
+ * The long ramp, which a bar of seven zones (a ride's power) reads. Seven steps leave less room between neighbours
+ * than five, so they sit at least this far apart, to every colour vision: a little under the five-step ramp's. Each
+ * step is numbered and carries its percent, and the table says the zone.
+ */
+const LONG_NEIGHBOUR: Record<string, number> = { light: 5.5, dark: 4 }
+const LONG_STEPS = [1, 2, 3, 4, 5, 6, 7] as const
+
+describe('the long zone ramp', () => {
+  for (const [name, tokens] of schemes) {
+    const steps = LONG_STEPS.map((step) => colour(tokens, `zone-ride-long-${step}`))
+    const inkOfLong = (step: number) => colour(tokens, `zone-ink-long-${step}`)
+
+    it(`has seven steps, and every one is a colour, in ${name}`, () => {
+      expect(steps).toHaveLength(7)
+      for (const step of steps) expect(step).toMatch(/^#[0-9a-f]{6}$/)
+    })
+
+    it(`keeps ${GRAPHIC}:1 against the card and the page in ${name} for every step`, () => {
+      for (const step of steps) {
+        expect(contrast(step, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
+        expect(contrast(step, colour(tokens, 'surface-0'))).toBeGreaterThanOrEqual(GRAPHIC)
+      }
+    })
+
+    it(`keeps ${TEXT}:1 for the text inside each step in ${name}, so a percent in zone 6 or 7 reads`, () => {
+      steps.forEach((step, i) => {
+        expect(contrast(inkOfLong(i + 1), step), `zone ${i + 1}`).toBeGreaterThanOrEqual(TEXT)
+      })
+    })
+
+    it(`keeps neighbouring steps ${LONG_NEIGHBOUR[name]} apart in ${name}, for every colour vision`, () => {
+      for (let i = 1; i < steps.length; i += 1) {
+        const [before, after] = [steps[i - 1]!, steps[i]!]
+        expect(deltaE(before, after), `${i} to ${i + 1}`).toBeGreaterThanOrEqual(
+          LONG_NEIGHBOUR[name]!,
+        )
+        for (const deficiency of DEFICIENCIES) {
+          expect(
+            deltaE(simulate(before, deficiency), simulate(after, deficiency)),
+            `${i} to ${i + 1} as ${deficiency}`,
+          ).toBeGreaterThanOrEqual(LONG_NEIGHBOUR[name]!)
+        }
+      }
+    })
+
+    it(`orders the steps by effort in ${name}: darker with effort in light, lighter in dark`, () => {
+      const against = steps.map((step) => contrast(step, '#000000'))
+      const sorted = [...against].sort((a, b) => (name === 'light' ? b - a : a - b))
+      expect(against).toEqual(sorted)
+    })
+
+    it(`never lets a step fall to black or fade to white in ${name}`, () => {
+      for (const [i, step] of steps.entries()) {
+        const { lightness, chroma } = oklch(step)
+        expect(lightness, `zone ${i + 1} lightness`).toBeGreaterThanOrEqual(0.25)
+        expect(lightness, `zone ${i + 1} lightness`).toBeLessThanOrEqual(DARK_MAX_LIGHTNESS)
+        expect(chroma, `zone ${i + 1} chroma`).toBeGreaterThanOrEqual(0.12)
+      }
+    })
+  }
+
+  it('is the ride ramp: every step is blue, never the run ramp’s orange', () => {
+    for (const [, tokens] of schemes) {
+      for (const step of LONG_STEPS) {
+        const { hue } = oklch(colour(tokens, `zone-ride-long-${step}`))
+        expect(hue, `zone ${step}`).toBeGreaterThanOrEqual(220)
+        expect(hue, `zone ${step}`).toBeLessThanOrEqual(295)
+      }
+    }
+  })
+})

@@ -2,9 +2,8 @@ import { LATE_IN_EFFORT, PRIORS } from '@rca/core/constants'
 import type { DriftPoint, LateEvidence, PeriodDurabilityRow } from '@rca/core/digest'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
-import { plural } from './components/plural'
-import { durabilityStat, driftFinding, driftLede } from './lateInEffortCopy'
-import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
+import { durabilityLine, durabilityStat, driftLede } from './lateInEffortCopy'
+import { lateNeeds } from './lateInEffortNeeds'
 
 export {
   DECOUPLING_REFERENCE,
@@ -14,6 +13,8 @@ export {
   driftDescription,
   driftFinding,
   driftLede,
+  driftMedianLabel,
+  durabilityLine,
   durabilityStat,
   fadePercent,
 } from './lateInEffortCopy'
@@ -43,6 +44,8 @@ export interface LateGroup {
 export interface DurabilityReading {
   /** The one figure the section opens with: "99% of your best 20 min after an hour". */
   stat: string
+  /** The chart's headline: the stat under the section's name, "Durability: 99% of your best 20 min after an hour." */
+  lede: string
   groups: LateGroup[]
 }
 
@@ -60,7 +63,7 @@ export interface DriftReading {
 export interface LateInEffort {
   durability: DurabilityReading | null
   drift: DriftReading | null
-  /** What the missing half needs, a plain sentence that names it, or one line to add for both; empty when nothing is missing. */
+  /** What the library has toward the missing half, one line with its counts, or one line for both; empty when nothing is missing. */
   needs: string[]
 }
 
@@ -71,12 +74,6 @@ export interface LateInEffort {
 const NATIVE: Record<Sport, (value: number) => number> = {
   run: (wkg) => metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean),
   ride: (watts) => watts,
-}
-
-/** What a sport's late bests need of a file besides its length. */
-const NEEDS_DEVICE: Record<Sport, string> = {
-  run: '',
-  ride: ' with a power meter',
 }
 
 /** The cell of a row's late best, or null while fewer than minActivities support it. */
@@ -132,13 +129,11 @@ function durabilityReading(sport: Sport, evidence: LateEvidence): DurabilityRead
   // With no session behind it that a heart rate shows was hard, the share is a floor.
   const floor =
     evidence.ruler === null || evidence.ruler === undefined || evidence.ruler.sessions < 1
-  return {
-    stat: durabilityStat(group.durationS, cell.afterS, cell.retention, {
-      floor,
-      allTime: evidence.durabilityPooled === true,
-    }),
-    groups,
-  }
+  const stat = durabilityStat(group.durationS, cell.afterS, cell.retention, {
+    floor,
+    allTime: evidence.durabilityPooled === true,
+  })
+  return { stat, lede: durabilityLine(stat), groups }
 }
 
 /** The middle of the values: the mean of the two middle ones for an even count. */
@@ -160,27 +155,6 @@ function driftReading(evidence: LateEvidence): DriftReading | null {
   }
 }
 
-/** What drift needs of a file besides its length: a heart rate, and for a ride a power meter. Keyed by Sport. */
-const DRIFT_NEEDS_DEVICE: Record<Sport, string> = {
-  run: 'heart rate',
-  ride: 'a power meter and heart rate',
-}
-
-/** What durability needs: long sessions, with a power meter for a ride. */
-function durabilityNeed(sport: Sport): string {
-  return `Durability needs ${plural(minActivities, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]}.`
-}
-
-/** What drift needs: steady efforts, each over an hour, with the readings it compares. */
-function driftNeed(sport: Sport): string {
-  return `Heart rate drift needs ${plural(minActivities, `steady ${SPORT_ACTIVITY[sport]}`, `steady ${SPORT_PLURAL[sport]}`)} over an hour with ${DRIFT_NEEDS_DEVICE[sport]}.`
-}
-
-/** What both halves need when neither has anything: steady efforts over an hour give each, so the line says what to add. */
-function bothNeed(sport: Sport): string {
-  return `Add ${plural(minActivities, `steady ${SPORT_ACTIVITY[sport]}`, `steady ${SPORT_PLURAL[sport]}`)} over an hour with ${DRIFT_NEEDS_DEVICE[sport]}.`
-}
-
 /**
  * What a sport's durability and heart rate drift say. Durability needs minActivities activities at a level; drift
  * needs as many steady efforts. Both read the whole library when the period holds too few (see `lateEvidence`). A
@@ -192,13 +166,7 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
   return {
     durability,
     drift,
-    needs:
-      durability === null && drift === null
-        ? [bothNeed(sport)]
-        : [
-            ...(durability === null ? [durabilityNeed(sport)] : []),
-            ...(drift === null ? [driftNeed(sport)] : []),
-          ],
+    needs: lateNeeds(sport, evidence, { durability: durability !== null, drift: drift !== null }),
   }
 }
 
@@ -207,11 +175,8 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
  * so a section with one half still tells its finding. Null when neither half has evidence.
  */
 export function lateFinding(reading: LateInEffort): string | null {
-  const parts = [
-    reading.durability === null ? null : `Durability: ${reading.durability.stat}`,
-    reading.drift === null
-      ? null
-      : `Heart rate drift: ${driftFinding(reading.drift.medianPct, reading.drift.allTime)}`,
-  ].filter((part) => part !== null)
-  return parts.length === 0 ? null : parts.map((part) => `${part}.`).join(' ')
+  const parts = [reading.durability?.lede, reading.drift?.lede].filter(
+    (part): part is string => part !== undefined,
+  )
+  return parts.length === 0 ? null : parts.join(' ')
 }
