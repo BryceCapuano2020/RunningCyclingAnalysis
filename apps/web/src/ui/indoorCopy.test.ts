@@ -23,7 +23,7 @@ describe('indoorNeedLine', () => {
   it('says the treadmill count and what to add, for a run that holds no outdoor effort', () => {
     const line = indoorNeedLine(some('run', 20, 14), 'run', false)
     expect(line).toBe(
-      '14 of your 20 runs were on a treadmill. Add an outdoor run of 3 min or more.',
+      '14 of your 20 runs were on a treadmill. Add an outdoor run of 8 min or more.',
     )
   })
 
