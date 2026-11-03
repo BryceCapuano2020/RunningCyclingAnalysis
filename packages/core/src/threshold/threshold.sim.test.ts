@@ -4,69 +4,27 @@
 // (RECORD=1 prints it).
 import { describe, expect, it } from 'vitest'
 import { rideThreshold } from './estimate'
-import { simRiders, type Scenario } from './test/simRider'
+import { RIDER, type Scenario } from './test/simRider'
+import {
+  bestAt,
+  coverage,
+  median,
+  refusedShare,
+  runCase,
+  tableLine,
+  within5,
+  type Row,
+} from './test/simRows'
 
 /** Riders per case. At 1,200 the within-5% share of the maximum-heart-rate case ranged 82% to 85% across four seeds. */
 const RIDERS = 1200
 const SEED = 11
 
-/** One answer judged against the truth, over all the riders of a case. */
-interface Arm {
-  /** Error against the true threshold, in percent, one entry per rider. */
-  errors: number[]
-  /** How many riders had their true threshold between the answer's low and high. */
-  covered: number
-}
-
-interface Row {
-  estimate: Arm
-  /** The same riders with no heart rate passed: the power estimate itself. */
-  powerOnly: Arm
-  best30: number[]
-  rule95: number[]
-  /** How many riders got no heart-rate estimate, by reason. */
-  refused: Map<string, number>
-  /** How many riders got an answer under the one without heart rate. */
-  lowered: number
-}
-
-function run(scenario: Scenario): Row {
-  const row: Row = {
-    estimate: { errors: [], covered: 0 },
-    powerOnly: { errors: [], covered: 0 },
-    best30: [],
-    rule95: [],
-    refused: new Map(),
-    lowered: 0,
-  }
-  for (const rider of simRiders(scenario, RIDERS, SEED)) {
-    const error = (value: number) => (value / rider.threshold - 1) * 100
-    const best = (s: number) =>
-      Math.max(...rider.efforts.filter((e) => e.durationS === s).map((e) => e.value))
-    const judge = (arm: Arm, result: { value: number; low: number; high: number }) => {
-      arm.errors.push(error(result.value))
-      if (result.low <= rider.threshold && rider.threshold <= result.high) arm.covered++
-    }
-    const result = rideThreshold(rider.efforts, rider.blocks, rider.thresholdHr)!
-    judge(row.estimate, result)
-    const alone = rideThreshold(rider.efforts, [], null)!
-    judge(row.powerOnly, alone)
-    if (result.value < alone.value) row.lowered++
-    row.best30.push(error(best(1800)))
-    row.rule95.push(error(0.95 * best(1200)))
-    if ('refused' in result.heartRate) {
-      const why = result.heartRate.refused
-      row.refused.set(why, (row.refused.get(why) ?? 0) + 1)
-    }
-  }
-  return row
-}
-
-const median = (errors: number[]) => [...errors].sort((a, b) => a - b)[errors.length >> 1]!
-const within5 = (errors: number[]) => errors.filter((e) => Math.abs(e) <= 5).length / errors.length
-const coverage = (arm: Arm) => arm.covered / arm.errors.length
-const refusedShare = (row: Row) =>
-  [...row.refused.values()].reduce((total, n) => total + n, 0) / RIDERS
+const run = (scenario: Scenario): Row =>
+  runCase(scenario, RIDER, RIDERS, SEED, rideThreshold, {
+    'best 30 min': (rider) => bestAt(rider, 1800),
+    '95% of best 20 min': (rider) => 0.95 * bestAt(rider, 1200),
+  })
 
 const clean: Scenario = { name: 'clean heart rate' }
 const strap: Scenario = { name: 'a bad strap on 1 ride in 4', faults: true }
@@ -86,6 +44,7 @@ const ALL = [clean, strap, maximum, optical, tempo, none, allOut, allOutNone]
 // Run on first use, inside a test, so the 180 s test timeout applies and not the hook's 10 s.
 const rows = new Map<Scenario, Row>()
 const of = (s: Scenario) => rows.get(s) ?? rows.set(s, run(s)).get(s)!
+const rule = (row: Row, name: string) => row.rules.get(name)!
 
 describe('the ride threshold on simulated riders', () => {
   it('is within 3% on the median and within 5% for most riders with a clean heart rate', () => {
@@ -105,10 +64,12 @@ describe('the ride threshold on simulated riders', () => {
     expect(within5(of(optical).estimate.errors)).toBeGreaterThanOrEqual(0.7)
   })
 
-  it('lifts a rider who never goes all out at least 7 points above the power-only answer', () => {
+  // The hour a tempo rider rode is a floor under the power-only answer, which took it from 13.5% low to 11.7%, so heart rate has
+  // less left to lift: 8.3 points before the floor, 6.6 after.
+  it('lifts a rider who never goes all out at least 6 points above the power-only answer', () => {
     const { estimate, powerOnly } = of(tempo)
     expect(median(estimate.errors)).toBeGreaterThanOrEqual(-7)
-    expect(median(estimate.errors) - median(powerOnly.errors)).toBeGreaterThanOrEqual(7)
+    expect(median(estimate.errors) - median(powerOnly.errors)).toBeGreaterThanOrEqual(6)
   })
 
   // With no heart rate the answer is what the bests show, and these riders' bests sit a few percent under all-out, so it reads
@@ -124,10 +85,12 @@ describe('the ride threshold on simulated riders', () => {
       const row = of(scenario)
       const miss = (errors: number[]) => Math.abs(median(errors))
       const { errors } = row.estimate
-      expect(miss(errors), scenario.name).toBeLessThan(miss(row.best30))
-      expect(miss(errors), scenario.name).toBeLessThan(miss(row.rule95))
-      expect(within5(errors), scenario.name).toBeGreaterThan(within5(row.best30))
-      expect(within5(errors), scenario.name).toBeGreaterThan(within5(row.rule95))
+      for (const name of row.rules.keys()) {
+        expect(miss(errors), `${scenario.name}: ${name}`).toBeLessThan(miss(rule(row, name)))
+        expect(within5(errors), `${scenario.name}: ${name}`).toBeGreaterThan(
+          within5(rule(row, name)),
+        )
+      }
     }
   })
 
@@ -179,16 +142,8 @@ const recording = (globalThis as { process?: { env: Record<string, string | unde
   ?.env.RECORD
 describe('the table of docs/design/threshold.md', () => {
   it.skipIf(recording === undefined)('prints its rows', () => {
-    const pct = (x: number) => `${Math.round(100 * x)}%`
-    const sign = (x: number) => `${x < 0 ? '-' : '+'}${Math.abs(x).toFixed(1)}%`
-    const cell = (arm: Arm) =>
-      `${sign(median(arm.errors))}, ${pct(within5(arm.errors))}, ${pct(coverage(arm))}`
-    const lines = ALL.map((scenario) => {
-      const row = of(scenario)
-      const old = (errors: number[]) => `${sign(median(errors))}, ${pct(within5(errors))}`
-      const why = [...row.refused].map(([reason, n]) => `${reason} ${n}`).join(', ')
-      return `| ${scenario.name} | ${cell(row.estimate)} | ${cell(row.powerOnly)} | ${old(row.best30)} | ${old(row.rule95)} | refused ${pct(refusedShare(row))} (${why}) |`
-    })
-    console.log(`RECORDED\n${lines.join('\n')}`)
+    console.log(
+      `RECORDED\n${ALL.map((scenario) => tableLine(scenario.name, of(scenario))).join('\n')}`,
+    )
   })
 })

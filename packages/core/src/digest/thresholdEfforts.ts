@@ -1,12 +1,18 @@
 import { CP_FIT_MIN_S, DAY_MS } from '../constants'
 import { ALL_OUT_FRACTION } from '../effort'
-import { estimateOver, fitRideLine, prepareRide, thresholdBasis } from '../threshold'
+import {
+  DURATION_TABLES,
+  estimateOver,
+  fitThresholdLine,
+  prepareRide,
+  thresholdBasis,
+} from '../threshold'
 import type {
   PreparedRide,
   RideEffort,
-  RideLine,
   ThresholdBlock,
   ThresholdEstimate,
+  ThresholdLine,
 } from '../threshold'
 import type { ActivityDigest, BikeModel } from '../types'
 import { isMeasured } from './bestCurve'
@@ -19,13 +25,14 @@ import { powerCheckOf } from './powerCheck'
 import { centralWkgFromWatts, pointWkg } from './rideCurves'
 
 /** The longest best the estimate reads: an hour, where the duration ratio reaches 1. */
-const LONGEST_EFFORT_S = 3600
+export const LONGEST_EFFORT_S = 3600
 
 /**
- * What one ride gives the ride threshold (`rideThreshold`), in gross metabolic W/kg at the ride's own body mass, the unit
- * of the ride's best curve. Its age is not known until the set it is read with is, so it is not part of this.
+ * What one activity gives its sport's threshold (`rideThreshold`, `runThreshold`), in gross metabolic W/kg, the unit of the
+ * sport's best curve (a ride at its own body mass). Its age is not known until the set it is read with is, so it is not part
+ * of this.
  */
-export interface RideEfforts {
+export interface ActivityEfforts {
   startMs: number
   efforts: RideEffort[]
   blocks: ThresholdBlock[]
@@ -45,7 +52,7 @@ export function rideEffortsOf(
   bikeModel: BikeModel,
   standing: EstimatedStanding,
   heartAside: boolean,
-): RideEfforts {
+): ActivityEfforts {
   const efforts: RideEffort[] = []
   const blocks: ThresholdBlock[] = []
   const estimated = !isMeasured(digest)
@@ -74,7 +81,7 @@ export function rideEffortsOf(
     startMs: digest.startMs,
     efforts,
     blocks,
-    prepared: prepareRide(digest.id, efforts, blocks),
+    prepared: prepareRide(digest.id, efforts, blocks, DURATION_TABLES.ride),
   }
 }
 
@@ -85,7 +92,7 @@ export function ridesOf(
   bikeModel: BikeModel,
   gate: EstimatedRideGate | null,
   heartSetAside: ReadonlySet<string>,
-): RideEfforts[] {
+): ActivityEfforts[] {
   const standing = estimatedStanding(gate)
   return ofSport(ordered, 'ride')
     .filter(effortsCount)
@@ -120,63 +127,57 @@ export function newestStart(ordered: readonly ActivityDigest[]): number {
 }
 
 /**
- * The heart-rate line of a library's rides, fitted once over all their power-meter blocks and aged from the newest activity
- * of the digests. A period and every zone window read this line, so the headline and the zones agree.
+ * The heart-rate line of a library's activities, fitted once over all their blocks and aged from the newest activity of the
+ * digests. A period and every zone window read this line, so the headline and the zones agree.
  */
-export function rideLineOf(rides: readonly RideEfforts[], newestMs: number): RideLine {
-  return fitRideLine(
-    rides.map((ride) => ride.prepared),
-    agesOf(rides, newestMs),
+export function thresholdLineOf(
+  activities: readonly ActivityEfforts[],
+  newestMs: number,
+): ThresholdLine {
+  return fitThresholdLine(
+    activities.map((each) => each.prepared),
+    agesOf(activities, newestMs),
   )
 }
 
-/** A library's rides, read once, and the line fitted over them: what its periods and its zone windows all read. */
-export interface RideLibrary {
-  rides: RideEfforts[]
-  line: RideLine
+/** A library's activities of one sport, read once, and the line fitted over them: what its periods and its zone windows all read. */
+export interface ThresholdLibrary {
+  activities: ActivityEfforts[]
+  line: ThresholdLine
 }
 
 /**
- * A library's rides read once and the line fitted over them. With no ride reference (`referenceMax` null) there is no
- * threshold heart rate to read the line against, so none is fitted.
+ * A library's activities of a sport read once and the line fitted over them. With no reference maximum (`referenceMax` null) there
+ * is no threshold heart rate to read the line against, so none is fitted.
  */
-export function rideLibraryOf(
+export function libraryOf(
+  activities: ActivityEfforts[],
   ordered: ActivityDigest[],
-  masses: Masses,
-  bikeModel: BikeModel,
-  gate: EstimatedRideGate | null,
-  heartSetAside: ReadonlySet<string>,
   referenceMax: number | null,
-): RideLibrary {
-  const rides = ridesOf(ordered, masses, bikeModel, gate, heartSetAside)
-  const line: RideLine =
+): ThresholdLibrary {
+  const line: ThresholdLine =
     thresholdHeartRate(referenceMax) === null
       ? { refused: 'no-heart-rate' }
-      : rideLineOf(rides, newestStart(ordered))
-  return { rides, line }
+      : thresholdLineOf(activities, newestStart(ordered))
+  return { activities, line }
 }
 
 /**
- * The ride threshold of a set of digests: every ride's bests, read with the ride best curve's rules, aged from the newest
- * activity of the set, with the heart rate of the rides not set aside, read against `line` (the library's; absent, one is
- * fitted over this set's rides). Null where the set has no ride effort of 3 min or more.
+ * The threshold of a set of digests of one sport: every activity's bests, read with the sport's best curve's rules, aged from the
+ * newest activity of the set (of any sport), with the heart rate of those not set aside, read against `line` (the library's;
+ * absent, one is fitted over this set's). Null where the set has no effort of 3 min or more.
  */
-export function rideThresholdOf(
+export function thresholdOf(
+  activities: readonly ActivityEfforts[],
   ordered: ActivityDigest[],
-  masses: Masses,
-  bikeModel: BikeModel,
-  gate: EstimatedRideGate | null,
-  heartSetAside: ReadonlySet<string>,
   referenceMax: number | null,
-  line?: RideLine,
+  line?: ThresholdLine,
 ): ThresholdEstimate | null {
-  const rides = ridesOf(ordered, masses, bikeModel, gate, heartSetAside)
   const newestMs = newestStart(ordered)
-  const prepared = rides.map((ride) => ride.prepared)
   const basis = thresholdBasis(
-    prepared,
-    line ?? rideLineOf(rides, newestMs),
+    activities.map((each) => each.prepared),
+    line ?? thresholdLineOf(activities, newestMs),
     thresholdHeartRate(referenceMax),
   )
-  return estimateOver(basis, agesOf(rides, newestMs))
+  return estimateOver(basis, agesOf(activities, newestMs))
 }

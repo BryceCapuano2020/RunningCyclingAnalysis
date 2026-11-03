@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { rideThreshold } from './estimate'
+import { DURATION_TABLES } from './durationTables'
+import { rideThreshold, runThreshold } from './estimate'
 import {
   RIDER,
   allOutRide,
@@ -233,5 +234,98 @@ describe('every reason the heart-rate estimate can be refused', () => {
     const refused = run(steadyLibrary({ ...RIDER, slope: 0.1 }))
     const without = run(steadyLibrary({ ...RIDER, slope: 0.1 }), null)
     expect(refused.value).toBe(without.value)
+  })
+})
+
+describe('an hour done as a floor under the answer', () => {
+  /** Eight tempo rides and one hour at `share` of threshold, so the mean of the estimates sits under the hour. */
+  const withHour = (share: number) =>
+    library(RIDER, [
+      ...rides(8, (id, over) => tempoRide(RIDER, id, over), 't'),
+      { id: 'hour', hardS: 3600, hardPower: share * RIDER.threshold, ageDays: 3 },
+    ])
+  const hourPower = (share: number) => share * RIDER.threshold
+
+  it('is never under the best hour, nor is its low', () => {
+    const result = run(withHour(0.93), null)
+    expect(result.efforts.value).toBeCloseTo(hourPower(0.93), 8)
+    expect(result.value).toBeCloseTo(hourPower(0.93), 8)
+    expect(result.low).toBeGreaterThanOrEqual(hourPower(0.93) - 1e-9)
+    expect(result.low).toBeLessThanOrEqual(result.value)
+    expect(result.high).toBeGreaterThan(result.value)
+    expect(result.efforts.strongest).toEqual({
+      activityId: 'hour',
+      durationS: 3600,
+      estimated: false,
+    })
+  })
+
+  it('is not moved by an hour that is under the mean of the estimates', () => {
+    const lib = withHour(0.5)
+    const without = run(
+      library(
+        RIDER,
+        rides(8, (id, over) => tempoRide(RIDER, id, over), 't'),
+      ),
+      null,
+    )
+    const result = run(lib, null)
+    expect(result.value).toBe(without.value)
+    expect(result.low).toBe(without.low)
+    expect(result.efforts.strongest.activityId).not.toBe('hour')
+  })
+
+  it('leaves heart rate free to lift the answer above the hour, and says it did not where it did not', () => {
+    const lib = withHour(0.93)
+    const lifted = run(lib)
+    expect(refusal(lifted)).toBeNull()
+    expect(lifted.value).toBeGreaterThan(lifted.efforts.value)
+    expect(lifted.value).toBeGreaterThan(hourPower(0.93))
+    // Where heart rate cannot be read the answer is the floor itself, so a screen that asks whether heart rate lifted it, by
+    // the answer standing over the power estimate, is told no.
+    const alone = run(lib, null)
+    expect(alone.value).toBe(alone.efforts.value)
+  })
+
+  it('floors a runner’s answer in the run curve’s unit, scaled by a runner’s table', () => {
+    const run20 = (id: string, level: number) => ({
+      activityId: id,
+      durationS: 1200,
+      value: level * DURATION_TABLES.run.ratio(1200),
+      heartRate: null,
+      ageDays: 0,
+      estimated: false,
+    })
+    const hour = { ...run20('long', 1), durationS: 3600, value: 15 }
+    const efforts = [run20('a', 14), run20('b', 14), run20('c', 14), hour]
+    const result = runThreshold(efforts, [], null)!
+    expect(result.value).toBe(15)
+    expect(result.low).toBe(15)
+    expect(runThreshold(efforts.slice(0, 3), [], null)!.value).toBeCloseTo(14, 8)
+  })
+})
+
+describe('a runner’s table', () => {
+  const at = (table: 'run' | 'ride', durationS: number, threshold: number, id = 'a') => ({
+    activityId: id,
+    durationS,
+    value: threshold * DURATION_TABLES[table].ratio(durationS),
+    heartRate: null,
+    ageDays: 0,
+    estimated: false,
+  })
+
+  it('reads a runner’s bests back to the threshold they were drawn from, and not a rider’s', () => {
+    const efforts = [300, 600, 1200].map((s, i) => at('run', s, 16, `r${i}`))
+    expect(runThreshold(efforts, [], null)!.value).toBeCloseTo(16, 8)
+    // The same bests read with a rider's table are a little over: a runner holds more of the hour's pace for 20 min.
+    const asRider = rideThreshold(efforts, [], null)!.value
+    expect(asRider).toBeGreaterThan(16.1)
+    expect(asRider).toBeLessThan(17.5)
+  })
+
+  it('reads a rider’s bests back with the rider’s table, as it always did', () => {
+    const efforts = [300, 600, 1200].map((s, i) => at('ride', s, 260, `r${i}`))
+    expect(rideThreshold(efforts, [], null)!.value).toBeCloseTo(260, 8)
   })
 })

@@ -13,7 +13,7 @@ import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { effortsCount } from './effortTrust'
 import { floorEffortsOf } from './thresholdFloor'
-import { rideLibraryOf } from './thresholdEfforts'
+import { eachSport, librariesOf } from './thresholdLibraries'
 import { thresholdTimeline } from './thresholdTimeline'
 
 /** Each sport's threshold fit of a library as the analysis reports it, null where it has none or refuses it. */
@@ -89,8 +89,12 @@ export function judgeHeartRate(
       setAside,
     )
   const { kappa, lnKappaSe } = cross
-  // The rides are read once, and the line fitted once over them: the timeline's windows and every period read it.
-  const rides = rideLibraryOf(ordered, masses, bikeModel, gate, setAside, effort.referenceHr.ride)
+  // The activities are read once, and each sport's line fitted once over them: the timeline's windows and every period read it.
+  const libraries = librariesOf(
+    ordered,
+    { masses, bikeModel, gate, heartSetAside: setAside },
+    effort.referenceHr,
+  )
   const judgement: HeartRateJudgement = {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
@@ -109,7 +113,7 @@ export function judgeHeartRate(
       bikeModel,
       gate,
       { referenceHr: effort.referenceHr, setAside },
-      rides,
+      libraries,
     ),
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },
     calibration: kappa === null ? null : { kappa, lnKappaSe },
@@ -125,7 +129,7 @@ export function judgeHeartRate(
     heart,
     gate,
     cross,
-    rideLine: rides.line,
+    lines: eachSport((sport) => libraries[sport].line),
   })
   return judgement
 }

@@ -11,18 +11,21 @@ import { thresholdTimeline } from './thresholdTimeline'
 
 /**
  * The threshold over time is worked out once per library change, beside the library's own fits: each digest is priced
- * once and the window's best moves with it as the weeks pass. On 2,000 activities, about ten a week for four years, it
- * takes about 3 ms locally; the budget is ten times that, so merging every digest of the window for every week (which
- * took 36 ms), or fitting a week per activity, fails it.
+ * once and each week costs one estimate over the window's activities. On 2,000 activities, about ten a week for four
+ * years (860 runs, 1,140 rides), it takes about 16 ms locally: 7 ms of runs and 9 ms of rides (both sports read the same
+ * estimate since the run threshold replaced the run's fit, which cost about 3 ms). The budget is nearly twice that, so
+ * pricing every activity again for every week, or preparing a window's activities afresh in each, fails it.
  */
 const BUDGET_MS = 30
 const ACTIVITIES = 2000
 /**
- * With heart rate the library's rides are read once, the heart-rate line is fitted once over their 16,000 blocks, and each of
- * the 230 weeks costs one estimate against it: about 22 ms here. Fitting the line for every week, as the first wiring did, took
- * about 3 s; the budget is twice the cost, so a line fitted per window fails it by a wide margin.
+ * With heart rate each sport's activities are read once, its heart-rate line is fitted once over their blocks (the rides'
+ * 16,000), and each of the 230 weeks costs one estimate against it: about 37 ms here, 15 of them the runs' and 20 the rides'
+ * (the rides alone took 22 ms before the run threshold used the line too; 45 ms under the suite's load). Fitting the line for
+ * every week, as the first wiring did, took about 3 s; the budget is twice the cost, so a line fitted per window fails it by a
+ * wide margin.
  */
-const HEART_RATE_BUDGET_MS = 45
+const HEART_RATE_BUDGET_MS = 90
 
 describe('thresholdTimeline performance', () => {
   const base = sampleDataset().activities.map((activity) => digestActivity(activity))

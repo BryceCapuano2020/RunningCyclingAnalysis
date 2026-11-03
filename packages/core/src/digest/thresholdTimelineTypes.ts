@@ -10,11 +10,10 @@ export const THRESHOLD_WINDOW_WEEKS = 26
 export const STALE_THRESHOLD_DAYS = 365
 
 /**
- * What the zones read of a threshold: its value, `cp`, and the standard error of it, in gross metabolic W/kg. A run's is its
- * critical-power fit, whose other fields come with it; a ride's is the ride threshold (`rideThreshold`), whose range gives
- * the error.
+ * What the zones read of a threshold: its value, `cp`, and the standard error of it, in gross metabolic W/kg. It is the sport's
+ * threshold estimate over a window (`rideThreshold`, `runThreshold`) and the power estimate's own relative error times it.
  */
-export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'> & Partial<CriticalPowerFit>
+export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'>
 
 /**
  * One sport's threshold from `fromMs` on, until the next step. A week's window holds the efforts of the
@@ -24,9 +23,9 @@ export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'> & Partial<Criti
 export interface ThresholdStep {
   /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
-  /** The threshold of the window (a run's refused fit, and a ride window with no effort, are null); gross metabolic W/kg. */
+  /** The threshold of the window (null for a window with no effort of 3 minutes or more); gross metabolic W/kg. */
   fit: ThresholdFit | null
-  /** The start of the newest activity in the window with an effort of about 20 minutes or longer, ms; null for a window with none. */
+  /** The start of the newest activity in the window with an effort of 3 minutes or longer, ms; null for a window with none. */
   asOfMs: number | null
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
   lastFit: number

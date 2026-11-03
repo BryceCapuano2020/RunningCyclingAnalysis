@@ -49,6 +49,13 @@ export interface AnalysisResult {
    * rideCp stays the critical-power fit the curve chart draws.
    */
   rideThreshold: ThresholdEstimate | null
+  /**
+   * The run threshold, built as the ride's is and meaning the same thing, the pace held for an hour (docs/design/threshold.md):
+   * every counted run's strongest effort scaled to an hour by a runner's duration table, averaged, and never under an hour the
+   * athlete ran. In the unit of runCp, gross metabolic W/kg. Null only with no run effort of 3 min or more. runCp stays the
+   * critical-power fit the curve chart draws and the race predictions read.
+   */
+  runThreshold: ThresholdEstimate | null
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null

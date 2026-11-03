@@ -16,6 +16,16 @@ export const RATIO_LONG = { atKnee: 1.053, fall: 0.053, span: 3 } as const
 /** How far the ratio varies between riders, as a share: smallest at the knee, growing with the log of the distance either side. */
 export const RATIO_SPREAD = { atKnee: 0.025, perLog: 0.02 } as const
 
+// Running duration table: Daniels and Gilbert's share of VO2max a runner holds for m minutes,
+// pct(m) = floor + slow * exp(-slow.rate * m) + fast * exp(-fast.rate * m). The ratio is pct(minutes) over pct(60).
+export const RUN_SHARE = {
+  floor: 0.8,
+  slow: { weight: 0.1894393, rate: 0.012778 },
+  fast: { weight: 0.2989558, rate: 0.1932605 },
+} as const
+/** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
+export const HOUR_S = 3600
+
 // Power estimate: one estimate per ride, a robust mean of them.
 /** A ride's weight halves every this many days back from the newest activity. */
 export const HALF_LIFE_DAYS = 42

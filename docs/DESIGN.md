@@ -1394,9 +1394,9 @@ figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%")
 period is picked: the library's judgement, taken over every visible activity once (`SessionState.zoneEstimates`, from
 `HeartRateJudgement`). A heart rate is the reference heart rate, the highest value that several separate days reached
 over the last three years; where no effort reached near a maximum (`untrustedMax` `low` or `habitual`) the zones are still cut
-from the highest on file, and say so. A pace or power is the fit over the half year before the activity's week (`thresholdTimeline`),
-so an activity is cut by the athlete's fitness then; where that half year holds no fit the newest within a year stands
-in, dated in the table ("up to Mar 2025"), unless the window's efforts have outgrown it by 10%. Where no fit stands, the zones are
+from the highest on file, and say so. A pace or power is the threshold estimate over the half year before the activity's week (`thresholdTimeline`;
+a run's and a ride's alike, docs/design/threshold.md), so an activity is cut by the athlete's fitness then; where that half year
+holds no effort of 3 min or more the newest estimate within a year stands in, dated in the table ("up to Mar 2025"). Where none stands, the zones are
 cut from a **floor**: the best 30 min, else the best 20 min, of the 12 months up to the end of the activity's week
 (`floorAt`, from `HeartRateJudgement.floor`, each activity's two bests), dated by the activity that set it. An old best does
 not cut today's zones and a later one does not cut earlier activities. With no best in those 12 months, a date in the past has no

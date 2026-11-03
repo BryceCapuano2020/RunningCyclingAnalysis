@@ -1,6 +1,10 @@
-import { HR_EFFORT_S, SHORTEST_EFFORT_S } from './constants'
-import { durationRatio, ratioSpread } from './durationRatio'
+import { HOUR_S, HR_EFFORT_S, SHORTEST_EFFORT_S } from './constants'
+import { DURATION_TABLES } from './durationTables'
+import type { DurationTable } from './durationTables'
 import type { RideEffort, ThresholdBlock, ThresholdEffort } from './types'
+
+/** The ride's table, for the helpers that read a flat list of efforts and are not told another sport's. */
+const RIDE_TABLE = DURATION_TABLES.ride
 
 /** A ride's strongest effort, scaled to the threshold it implies (its value over the duration ratio). */
 export interface RideBest {
@@ -9,6 +13,13 @@ export interface RideBest {
   estimated: boolean
   /** The variance of the duration ratio at that duration (`ratioSpread` squared): the ride's weight is over it. */
   variance: number
+}
+
+/** The highest effort of an hour or longer, as it was held: no scaling, since an hour is the threshold itself. */
+export interface HourEffort {
+  durationS: number
+  value: number
+  estimated: boolean
 }
 
 /** One steady effort the heart-rate estimate may read: measured watts, 8 to 30 min, with a heart rate. */
@@ -25,32 +36,51 @@ export interface HeartEffort {
 export interface PreparedRide {
   activityId: string
   best: RideBest | null
+  /** The highest value held for an hour or longer, or null: an hour the athlete did, which the answer is never under. */
+  hour: HourEffort | null
   heart: readonly HeartEffort[]
   blocks: readonly ThresholdBlock[]
 }
 
-/** The ride's highest scaled effort; efforts under 3 min and values that are not positive and finite are ignored. */
-export function bestOf(efforts: readonly RideEffort[]): RideBest | null {
+/** Whether an effort says anything: 3 min or longer, and a value that is positive and finite. */
+const counts = (e: RideEffort): boolean =>
+  e.durationS >= SHORTEST_EFFORT_S && e.value > 0 && Number.isFinite(e.value)
+
+/** The ride's highest effort scaled by the sport's table; efforts under 3 min and values that are not positive and finite are ignored. */
+export function bestOf(efforts: readonly RideEffort[], table: DurationTable): RideBest | null {
   let best: RideBest | null = null
   for (const e of efforts) {
-    if (!(e.durationS >= SHORTEST_EFFORT_S) || !(e.value > 0) || !Number.isFinite(e.value)) continue
-    const value = e.value / durationRatio(e.durationS)
+    if (!counts(e)) continue
+    const value = e.value / table.ratio(e.durationS)
     if (best === null || value > best.value) {
       best = {
         durationS: e.durationS,
         value,
         estimated: e.estimated,
-        variance: ratioSpread(e.durationS) ** 2,
+        variance: table.spread(e.durationS) ** 2,
       }
     }
   }
   return best
 }
 
+/** The ride's highest effort of an hour or longer. */
+export function hourOf(efforts: readonly RideEffort[]): HourEffort | null {
+  let hour: HourEffort | null = null
+  for (const e of efforts) {
+    if (!counts(e) || e.durationS < HOUR_S) continue
+    if (hour === null || e.value > hour.value) {
+      hour = { durationS: e.durationS, value: e.value, estimated: e.estimated }
+    }
+  }
+  return hour
+}
+
 export function prepareRide(
   activityId: string,
   efforts: readonly RideEffort[],
   blocks: readonly ThresholdBlock[],
+  table: DurationTable,
 ): PreparedRide {
   const heart: HeartEffort[] = []
   for (const e of efforts) {
@@ -58,7 +88,7 @@ export function prepareRide(
     if (!(e.durationS >= HR_EFFORT_S[0] && e.durationS <= HR_EFFORT_S[1])) continue
     heart.push({ value: e.value, heartRate: e.heartRate })
   }
-  return { activityId, best: bestOf(efforts), heart, blocks }
+  return { activityId, best: bestOf(efforts, table), hour: hourOf(efforts), heart, blocks }
 }
 
 /**
@@ -68,6 +98,7 @@ export function prepareRide(
 export function prepareFlat(
   efforts: readonly ThresholdEffort[],
   blocks: readonly ThresholdBlock[],
+  table: DurationTable = RIDE_TABLE,
 ): { rides: PreparedRide[]; ages: number[] } {
   const byId = new Map<string, { efforts: ThresholdEffort[]; blocks: ThresholdBlock[] }>()
   const of = (id: string) => {
@@ -80,7 +111,7 @@ export function prepareFlat(
   const rides: PreparedRide[] = []
   const ages: number[] = []
   for (const [id, own] of byId) {
-    const ride = prepareRide(id, own.efforts, own.blocks)
+    const ride = prepareRide(id, own.efforts, own.blocks, table)
     rides.push(ride)
     const strongest =
       ride.best === null
@@ -88,7 +119,7 @@ export function prepareFlat(
         : own.efforts.find(
             (e) =>
               e.durationS === ride.best!.durationS &&
-              e.value / durationRatio(e.durationS) === ride.best!.value,
+              e.value / table.ratio(e.durationS) === ride.best!.value,
           )
     ages.push(Math.max(0, strongest?.ageDays ?? 0))
   }

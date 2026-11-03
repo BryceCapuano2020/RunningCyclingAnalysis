@@ -211,14 +211,14 @@ describe('AnalysisSession analysis cache', () => {
     const state = session.setRange(21, SETTINGS)
     const { selected } = splitPeriods(SAMPLE_DIGESTS, 21)
     // The period is read with the library's calibration and reference heart rates, which it has no say in.
-    // So is the heart-rate line of the library's rides, fitted once, which the period's ride threshold reads.
+    // So are the heart-rate lines of the library's activities, fitted once, which the period's thresholds read.
     const { calibration, referenceHr, observedMaxHr, effortReference } = state.heartRateJudgement
-    const rideLine = judgedWorkOf(state.heartRateJudgement)!.rideLine
+    const { lines } = judgedWorkOf(state.heartRateJudgement)!
     expect(state.result).toEqual(
       combineDigests(selected, SETTINGS, {
         calibration,
         references: { referenceHr, observedMaxHr, effortReference },
-        rideLine,
+        lines,
       }),
     )
   })

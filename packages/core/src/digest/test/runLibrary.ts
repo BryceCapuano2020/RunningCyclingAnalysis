@@ -67,3 +67,16 @@ export function shortRun(id: string, day: number, level: number): ActivityDigest
     ),
   }
 }
+
+/** A run with no effort of 3 min or more: strides on an easy day, which hold a best only under 3 minutes and give no threshold. */
+export function strideRun(id: string, day: number, level: number): ActivityDigest {
+  const run = levelRun(id, day, level)
+  return {
+    ...run,
+    curve: run.curve.map((point) =>
+      point.durationS >= 180
+        ? Object.assign({}, point, { value: Number.NaN, startIndex: -1 })
+        : point,
+    ),
+  }
+}

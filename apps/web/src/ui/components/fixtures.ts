@@ -71,10 +71,11 @@ export function makeRejectedFile(overrides: Partial<RejectedFile> = {}): Rejecte
   }
 }
 
-/** A ride threshold estimate of `value` (gross metabolic W/kg) from three rides, with its range 5% either side and no heart rate. */
-export function makeRideThreshold(
+/** A threshold estimate of `value` (gross metabolic W/kg) from three activities, with its range 5% either side and no heart rate. */
+function makeEstimate(
   value: number,
-  overrides: Partial<ThresholdEstimate> = {},
+  strongestId: string,
+  overrides: Partial<ThresholdEstimate>,
 ): ThresholdEstimate {
   return {
     value,
@@ -84,23 +85,42 @@ export function makeRideThreshold(
       value,
       relativeError: 0.025,
       rides: 3,
-      strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },
+      strongest: { activityId: strongestId, durationS: 1200, estimated: false },
     },
     heartRate: { refused: 'no-heart-rate' },
     ...overrides,
   }
 }
 
-/** The ride fit a default result carries, and the estimate that stands for it. */
+/** A ride threshold estimate of `value` from three rides. */
+export function makeRideThreshold(
+  value: number,
+  overrides: Partial<ThresholdEstimate> = {},
+): ThresholdEstimate {
+  return makeEstimate(value, 'ride-1', overrides)
+}
+
+/** A run threshold estimate of `value` from three runs. */
+export function makeRunThreshold(
+  value: number,
+  overrides: Partial<ThresholdEstimate> = {},
+): ThresholdEstimate {
+  return makeEstimate(value, 'run-1', overrides)
+}
+
+/** The fits a default result carries, and the estimates that stand for them. */
 const DEFAULT_RIDE_CP = { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 }
+const DEFAULT_RUN_CP = { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 }
 
 /**
- * A complete result with a run and a ride and a 1200 s comparison, so every card has data. A ride fit given or left out
- * carries a matching ride threshold, since the cards read the estimate: give `rideThreshold` to set it on its own.
+ * A complete result with a run and a ride and a 1200 s comparison, so every card has data. A fit given or left out
+ * carries a matching threshold estimate, since the cards read the estimate: give `rideThreshold` or `runThreshold` to set it
+ * on its own.
  */
 export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   const comparison: Comparison = { prior: [comparisonPoint()], calibrated: null }
   const rideCp = overrides.rideCp === undefined ? DEFAULT_RIDE_CP : overrides.rideCp
+  const runCp = overrides.runCp === undefined ? DEFAULT_RUN_CP : overrides.runCp
   return {
     // Three of each, so the headline's rule of enough activities in the period is met.
     activities: [
@@ -115,8 +135,9 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     rideCurve: [],
     rideMetabolicCurve: [],
     rideMeasuredCurve: [],
-    runCp: { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 },
+    runCp: DEFAULT_RUN_CP,
     rideCp: DEFAULT_RIDE_CP,
+    runThreshold: runCp === null ? null : makeRunThreshold(runCp.cp),
     rideThreshold: rideCp === null ? null : makeRideThreshold(rideCp.cp),
     runCpRefusal: null,
     rideCpRefusal: null,

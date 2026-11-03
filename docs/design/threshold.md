@@ -1,8 +1,10 @@
-# Ride threshold from many efforts (design)
+# Threshold from many efforts (design)
 
 Status: in progress. Approved by the owner; built in packages: the estimator in core (`packages/core/src/threshold/`),
-then its wiring into the analysis, the zones and the window choice (built), then the screens that read it. The
-simulation behind the evidence table is `packages/core/src/threshold/threshold.sim.test.ts`. This note holds no owner data.
+then its wiring into the analysis, the zones and the window choice (built), then the screens that read it. It was built for
+rides and now reads runs the same way (see "Runs"); everything below is the ride unless a section says run. The
+simulations behind the evidence tables are `packages/core/src/threshold/threshold.sim.test.ts` (riders) and
+`runThreshold.sim.test.ts` (runners). This note holds no owner data.
 
 ## Why
 
@@ -12,15 +14,22 @@ got "at least <best 30 min>": a floor 10 to 15% under the truth, with chips sayi
 headline is the best estimate from every effort in the window. Heart rate is a second estimate that can lift
 the answer and never lowers it, so it is never a veto. A best effort is proof of a floor; heart rate is a hint.
 
+The run threshold was critical speed fitted to the 3 to 20 min bests. For a runner who gives it all that reads about 2% over
+the pace held for an hour (the table under "Runs"): the pace of a 40 min effort, beside a ride threshold that means an hour, so
+the two could not be set against each other. And where a window held no hard run it was a fit to easy runs, which could read
+slower than a 60 min run the athlete did in that same window. Runs now get the ride's method with a running duration table, so
+both thresholds mean an hour.
+
 ## The estimate
 
-All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean efficiency), the unit of
-`rideCp`, so the UI converts as it does today. The method is scale-free.
+All values are in the sport's curve unit: gross metabolic W/kg at the prior-mean efficiency for a ride (the unit of `rideCp`)
+and at the prior-mean economy for a run (the unit of `runCp`), so the UI converts as it does today. The method is scale-free.
+Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by `Sport`).
 
 1. **Each ride's strongest effort, scaled to an hour.** For each ride and each best from 3 to 60 min,
    `e = value(t) / r(t)`, with `r(t) = 1.015 + 0.76 / t_min` up to 20 min (the 95% rule at 20 min, the 90%
-   rule at 8 min) and `r(t) = 1.053 - 0.053 * ln(t_min / 20) / ln 3` from 20 to 60 min (1.00 at 60). The
-   ride's estimate is its highest `e`, with that duration.
+   rule at 8 min) and `r(t) = 1.053 - 0.053 * ln(t_min / 20) / ln 3` from 20 to 60 min (1.00 at 60). A run
+   uses its own table (Runs). The ride's estimate is its highest `e`, with that duration.
 2. **Power estimate.** A Tukey-biweight weighted mean of the ride estimates (start at the weighted median,
    scale `max(1.4826 * MAD, 2%)`, c = 4.685, 6 iterations). Weight =
    `recency * nearTop * estimated / spread(t)^2`, where recency halves every 42 days back from the newest
@@ -57,6 +66,14 @@ All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean 
    power estimate, so heart rate that agrees with the power estimate adds nothing. The range is the higher of each pair
    of 10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
    answer).
+7. **An hour done is a floor, for both sports.** The answer and its low are never under the best effort of 60 min or more
+   in the window, as it was held (the scaled ratio is 1.00 at an hour, so it is the effort itself; a longer effort is
+   taken at its own value, not scaled up). A threshold slower than an hour the athlete did is wrong on its face, so
+   this holds whatever the mean of the rides' estimates says. The floor is applied to the power estimate, before
+   fusion: where it is higher than the mean, `efforts.value` is the hour and `efforts.strongest` names it, so a screen's
+   "strongest effort" is the one that sets the number, and an answer above `efforts.value` still means heart rate lifted it.
+   The low is the higher of the fused low and the hour. The floor reads every ride in the window whatever its age, since
+   recency weights the mean and not the floor; it also counts an hour from estimated watts, which the best curve admits.
 
 Null when the window has no ride effort of 3 min or more, and when no ride has any weight to give (an age that is
 not a number, or so old the recency weight underflows). A single ride is enough: it is the estimate, with the
@@ -66,17 +83,21 @@ error that one ride carries.
 
 The effort gate no longer withholds a threshold. `gatedThreshold`'s veto, the best-30-min floor on the
 headline and on zones, the 3 to 10 min fit as a range top, and the per-window hard check behind zones go.
-The gate's verdict stays as a detail label. Runs keep their critical-power fit without the veto: a run
-version needs its own duration table (short running bests are often intervals or GPS noise), later.
+The gate's verdict stays as a detail label. `runCp` and `rideCp` stay the critical-power fits the curve chart draws (the
+run's also feeds the race predictions); neither is a headline any more.
+
+Runs first kept that fit without the veto, because a run version needed its own duration table. It has one now (Runs), and the
+run threshold replaces the fit everywhere a headline reads one.
 
 **The window choice keeps its hard check for now.** The default period still passes over a window in which a sport's
-best 20 min was not hard (`easy`, and `most` when no window qualifies), as before. Run thresholds are not floor-aware
-yet, and on a real library a default of 12 weeks of easy runs read a run threshold 10% slow against 6 and 12 months.
-The rule only picks which period opens first and never hides a number. It goes when runs get the floor-aware estimate.
+best 20 min was not hard (`easy`, and `most` when no window qualifies), as before. It was kept because run thresholds were
+not floor-aware, and a default window of easy runs read a run threshold well under the longer windows'. The run threshold is
+floor-aware now, which removes that reason; whether to remove the rule is a separate decision and
+is not part of this change. The rule only picks which period opens first and never hides a number.
 
 ## Evidence
 
-Simulated riders with a known threshold (1,200 per case, seeded; the harness is `threshold.sim.test.ts`, which
+Rides. Simulated riders with a known threshold (1,200 per case, seeded; the harness is `threshold.sim.test.ts`, which
 asserts the bounds below; `RECORD=1` prints these rows). Each rider's heart rate climbs 25 to 65 bpm from half to
 full threshold power, and watts per beat follow from that, so the 20 to 70 bpm guard refuses almost no one with a
 working strap (the first version drew watts per beat on its own, which put a quarter of riders over 70 bpm and
@@ -89,12 +110,16 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 | --------------------------------- | --------------- | --------------------------- |
 | Clean heart rate                  | -1.9%, 89%, 96% | -3.1%, 80%, 96%             |
 | A bad strap on 1 ride in 4        | -2.0%, 90%, 96% | -3.2%, 77%, 96%             |
-| Max heart rate off by about 8 bpm | -1.5%, 77%, 83% | -3.1%, 80%, 96%             |
+| Max heart rate off by about 8 bpm | -1.5%, 78%, 83% | -3.1%, 80%, 96%             |
 | Flat (optical) heart rate         | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
-| Never all-out (tempo only)        | -5.2%, 48%, 81% | -13.5%, 0%, 63%             |
+| Never all-out (tempo only)        | -5.0%, 49%, 88% | -11.7%, 0%, 79%             |
 | No heart rate                     | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
-| Always all-out                    | +0.3%, 96%, 81% | -0.0%, 95%, 83%             |
-| Always all-out, no heart rate     | -0.0%, 95%, 83% | -0.0%, 95%, 83%             |
+| Always all-out                    | +0.3%, 96%, 81% | -0.0%, 95%, 84%             |
+| Always all-out, no heart rate     | -0.0%, 95%, 84% | -0.0%, 95%, 84%             |
+
+The table includes the hour floor (step 7): it moved only the tempo-only row (power alone from -13.5% to -11.7%, since a
+rider who never goes all out still rode an hour; the answer from -5.2% to -5.0%, and the range's hold from 81% to 88%) and a
+point or two in the cells for a wrong maximum and for always all-out.
 
 The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
 The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
@@ -109,10 +134,10 @@ The heart-rate line is refused for 0.3% of riders in the clean case (3 of 1,200,
 and 88% with the optical strap, where the climb is a third of what it should be and the answer is the power-only one.
 Heart rate alone, before fusion, reads 3.5% under the truth in the clean case with a spread of 5.2%, where it states
 3.6%: it is biased low, so under lift-only fusion it can miss a lift but cannot cause a drop. Seeds 11 to 14 agree within 4
-points on every cell.
+points on every cell, in this table and in the runners' below.
 
 The test asserts, per case: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum
-heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 7 points
+heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 6 points
 above the power-only answer; no heart rate at most 4% low on the median and 75% within 5%; always all-out within 1% on
 the median and 85% within 5% without heart rate, at most 2% high and 85% with it; in every case nearer the truth than
 both rules of thumb, never under the answer without heart rate, and a range that holds the truth for 65% to 97% of
@@ -139,6 +164,81 @@ Rejected:
 - Removing each ride's offset from the pooled one before sliding its efforts to threshold heart rate. Heart rate
   alone got worse, not better: spread 5.4% against 5.2%, bias -4.0% against -3.5%, and no cell of the clean, strap
   or wrong-maximum cases moved by more than a point.
+
+## Runs
+
+A run's threshold is built the same way and means the same thing: the pace held for an hour. `runThreshold` is the estimator
+with a runner's table; `AnalysisResult.runThreshold: ThresholdEstimate | null` carries it, in the unit of `runCp`.
+
+**The duration table.** Daniels and Gilbert's share of VO2max a runner holds for `m` minutes,
+`pct(m) = 0.8 + 0.1894393 e^(-0.012778 m) + 0.2989558 e^(-0.1932605 m)`, over the share held for an hour:
+`r_run(t) = pct(t / 60) / pct(60)`. It is 1.229 at 5 min, 1.137 at 10, 1.073 at 20, 1.029 at 40 and 1.000 at 60, so a run of 20
+min at 1.073 times the pace of the hour is an all-out run. It is applied to the run curve's unit, gross metabolic W/kg
+(`runCentralWkg`), since a share of VO2max is a share of gross metabolic rate. The efforts are the same 3 to 60 min bests, with
+the same near-top weight, recency and Tukey mean. The spread of the ratio between runners starts as the ride's (smallest at 20
+min, growing with the log of the distance either side): the second simulation below doubles the runners' departure from the
+curve and the stated range still holds for 89% of them, so there is no evidence for a wider one.
+
+**The inputs** (`digest/runEfforts.ts`) are the run best curve's own: each curve point of a counted run from 3 to 60 min,
+priced by `runCentralWkg` (a treadmill run holds no best, and a point past the world-record ceiling for its duration is
+dropped, as the best curve drops it); the heart rate of a run set aside is none; and the 5 min blocks are the digest's
+`hrBlocks`, whose value is the run's mean gross metabolic W/kg (`possibleRunWkg`), in the same unit. Nothing in a run is
+estimated. Ages count from the newest activity of any sport in the set, as the ride's do.
+
+**Heart rate** is read as a ride's is: the same line, guards and fusion, with threshold heart rate 0.9 of the run reference
+maximum (`judged.referenceHr.run`). Run digests carry the blocks in the run's unit, so reading them took no new estimator.
+Nothing here says whether real runners' heart rate lines pass the guards (the climb from half to full threshold is asked to
+fall between 20 and 70 bpm, and a runner's gross metabolic rate at half threshold is a slow walk, so the steep guard may
+refuse more runners than riders); a refusal gives the power-only answer, never a wrong one.
+
+**The zones' timeline, the evidence rule and the headline** read `runThreshold` where they read `runCp`. A zone window is
+`runThreshold` over its runs, as a `{ cp, cpSe }` step, with the same standard error rule as a ride's. A window with any run
+effort of 3 min or more has an estimate, so a run window never falls back to an older fit for lack of a long effort; it does
+where its runs hold nothing past 3 min at all.
+
+### Evidence for runs
+
+Simulated runners with a known 1-hour pace (1,200 per case, seeded; `runThreshold.sim.test.ts`; `RECORD=1` prints these rows).
+The efforts are drawn from the Daniels curve with an endurance tilt per runner (a sprinter's or a diesel's: 4% at 3 min and 2%
+at 60, the riders' spread), 0 to 7% short of all-out in the hard runs, the same runs and heart-rate scenarios as the riders'
+(easy days at 68 to 80% of threshold, the share a gross metabolic rate that includes rest leaves). The two last cases double the
+tilt. Cells as above: the median error, the share within 5%, the share whose range holds the truth.
+
+| Case                              | This estimate   | Power alone (no heart rate) | Critical speed, 3 to 20 min | Best 30 min |
+| --------------------------------- | --------------- | --------------------------- | --------------------------- | ----------- |
+| Clean heart rate                  | -2.1%, 88%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
+| A bad strap on 1 run in 4         | -2.2%, 89%, 96% | -3.3%, 76%, 96%             | -0.5%, 70%                  | -7.6%, 16%  |
+| Max heart rate off by about 8 bpm | -1.6%, 77%, 84% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
+| Flat (optical) heart rate         | -3.2%, 79%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
+| Never all-out (tempo only)        | -5.9%, 42%, 87% | -11.7%, 0%, 78%             | -9.0%, 0%                   | -9.4%, 0%   |
+| No heart rate                     | -3.2%, 79%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
+| Always all-out                    | +0.2%, 96%, 83% | -0.1%, 95%, 85%             | +2.3%, 57%                  | -5.5%, 44%  |
+| Always all-out, no heart rate     | -0.1%, 95%, 85% | -0.1%, 95%, 85%             | +2.3%, 57%                  | -5.5%, 44%  |
+| Endurance varying twice as much   | -1.8%, 82%, 89% | -3.2%, 70%, 89%             | -0.7%, 69%                  | -7.7%, 17%  |
+| Twice as much, no heart rate      | -3.2%, 70%, 89% | -3.2%, 70%, 89%             | -0.7%, 69%                  | -7.7%, 17%  |
+
+What the table says, and does not:
+
+- The estimate reads the same as the ride's on the same cases, which is expected: the simulation draws a runner from the table the
+  estimator inverts, so it tests the method and the weights, not whether Daniels and Gilbert's curve fits real runners. That
+  is not tested here, and a runner whose curve differs from it by more than the tilt moves the answer by that much.
+- Critical speed over the 3 to 20 min bests reads +2.3% for a runner who gives it all (the pace of about 40 min, which the
+  table puts at 1.029), and sits near zero on the median for runners 0 to 7% short only because the two errors cancel. It reads
+  57% to 71% of those runners within 5%, against 77% to 96% for this estimate (70% to 82% at twice the tilt, where critical
+  speed's share is 69%). For a runner who never goes all-out it reads 9% low and none within 5%, against 42% for this estimate.
+- The best 30 min is 8 to 9% low, as a rider's is.
+- Heart rate lifts a runner who never goes all-out by 5.8 points (a rider's lift is 6.6 after the hour floor).
+- The hour floor changes nothing in these cases: the best hour of a simulated runner is a tempo or easy day, below the
+  estimate. The unit tests pin it (`powerEstimate.test.ts`, `estimate.test.ts`, `thresholdEfforts.test.ts`).
+
+The test asserts: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum heart rate off by
+about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 5 points above the power-only
+answer; no heart rate at most 4% low on the median and 75% within 5%; always all-out within 1% on the median and 85% within 5%
+without heart rate, at most 2% high and 85% with it, and nearer the hour pace than critical speed; in every usual case more
+runners within 5% than critical speed and than the best 30 min, and a median nearer the truth than the best 30 min; a range
+that holds the truth for 65% to 97% of runners in every case; twice the tilt 75% within 5% with heart rate and 65% without;
+never under the answer without heart rate; under 2% of clean-heart-rate runners refused; with a clean or partly bad heart rate
+a within-5% share at least 5 points over the power-only answer, and with an optical one no more than 3 points under it.
 
 ## Interface
 
@@ -170,24 +270,38 @@ export interface ThresholdBlock {
   heartRate: number
   value: number
 }
-export function rideThreshold(
+export interface DurationTable {
+  ratio(durationS: number): number // a best over this is the threshold it implies
+  spread(durationS: number): number // how far the ratio varies between athletes, as a share
+}
+export const DURATION_TABLES: Record<Sport, DurationTable>
+export function thresholdOver(
+  table: DurationTable,
   efforts: ThresholdEffort[],
   blocks: ThresholdBlock[],
   thresholdHr: number | null,
 ): ThresholdEstimate | null
+// thresholdOver with the sport's table:
+export function rideThreshold(efforts, blocks, thresholdHr): ThresholdEstimate | null
+export function runThreshold(efforts, blocks, thresholdHr): ThresholdEstimate | null
 ```
 
-`AnalysisResult.rideThreshold: ThresholdEstimate | null` carries it. `rideCp` stays as the critical-power fit
-(cp and W') for the curve chart, with no veto.
+`AnalysisResult.rideThreshold` and `AnalysisResult.runThreshold` (each `ThresholdEstimate | null`) carry them. `rideCp` and
+`runCp` stay as the critical-power fits (cp and W') for the curve chart, with no veto; the race predictions still read
+`runCp`. A sport added to `Sport` has to say how its bests scale (an entry in `DURATION_TABLES`) before it has a threshold.
+`efforts.value` is the mean of the rides' estimates or, where it is higher, the best hour in the window; `efforts.strongest`
+names the hour then.
 
 ## Decisions
 
 - **The caller sets threshold heart rate** (0.9 of the sport's reference maximum, as the effort gate draws its hard
   line) and passes it in; the estimator holds no share of its own, so the two cannot drift apart.
 - **Efforts under 3 min are ignored; efforts over 60 min are scaled by the same formula** (the ratio keeps falling
-  under 1), so a caller that passes a 90 min best gets a slightly higher estimate from it, never a refusal.
-- **`efforts.strongest` is the highest estimate among the rides the mean kept.** A ride the second-strongest rule
-  threw out is never named as the proof of the floor. `efforts.rides` counts every ride with an effort of 3 min or more.
+  under 1), so a caller that passes a 90 min best gets a slightly higher estimate from it, never a refusal. The same effort
+  as a floor is taken as it was held (step 7), so it is not read twice.
+- **`efforts.strongest` is the highest estimate among the rides the mean kept, or the best hour where the hour sets the
+  answer.** A ride the second-strongest rule threw out is never named as the proof of the floor, except by its own hour.
+  `efforts.rides` counts every ride with an effort of 3 min or more.
 - **`efforts.strongest.estimated`** says whether that ride's watts were estimated, so a screen can say the proof of the
   floor is a guess.
 - **`heartRate.efforts` counts the efforts that went into the mean**, not the line's own point.
@@ -218,26 +332,29 @@ export function rideThreshold(
   else the age-predicted one, else the activities'), the reference the gate judges by.
 - **`ageDays` counts from the newest activity of any sport in the set**, so a ride set read after months of running only is
   the less sure for it. In a zone window that is the newest activity up to the window's end.
-- **A zone window's ride step is `{ cp: value, cpSe }`**, with the standard error the power estimate's own relative error times
+- **A zone window's step is `{ cp: value, cpSe }`**, for a run as for a ride, with the standard error the power estimate's own relative error times
   the value (`efforts.relativeError`, never under 2.5%): the uncertainty of one window against another, which is what the
   zones' hold asks. The 10th to 90th range is not that: it allows for an athlete above their best, so it is one-sided and about
-  6.6% of the value, and settling on it ignored a real 5% rise. Run windows keep their critical-power fit and read the runs alone.
-- **A window with any ride effort has an estimate**, so the older-fit and outgrown rules apply to rides only when a window
-  holds no ride effort at all, and the best-30-min zone floor only where no window does.
+  6.6% of the value, and settling on it ignored a real 5% rise.
+- **A window with any effort of 3 min or more has an estimate**, so the older-fit rule applies to a sport only when a window
+  holds none at all (a run with nothing past 2 min, say), and the best-30-min zone floor only where no window does. The
+  "outgrown" rule, which kept an older run fit from standing in for a window whose steady effort was far above it, has nothing
+  left to do for runs: such a window has an estimate of its own, set by the hour that effort held.
 - **The window choice is as it was** (`answer/window.ts`): `easy` and `most` stay (see "What it replaces"). Its evidence test
   reads `rideThreshold` where it read `rideCp`, but counts the estimate only where its strongest effort is as long as the
   headline's (a best of 20 min counts as before): the estimate exists from a 3 min effort, and the headline compares at 20 min,
   so a ride known from 5 min efforts alone is not set against a run.
 - **The heart-rate line is fitted once per library, not once per window.** The slope within rides, each ride's offset, the
-  stuck and far-off rides and the spread come from all the library's power-meter rides (`rideLibraryOf`, kept in
-  `JudgedWork.rideLine`), and the timeline's windows and every period read that one line (`estimateOver`). Why: fitting it is the
+  stuck and far-off rides and the spread come from all the library's power-meter rides, and a run's from all its runs'
+  blocks (`librariesOf`, one line per sport, kept in `JudgedWork.lines`), and the timeline's windows and every period read
+  that one line (`estimateOver`). Why: fitting it is the
   cost of the estimate (the Theil-Sen over 300 points), so a window per week of a four-year library took about 0.8 s on the
   session loads (3 s before the estimator's own speed-up), against the 0.05 s the loads were budgeted; and a window of a few weeks has too few blocks to fit a line as well as the library does. It also makes the headline
   and the zones agree: both read one line, where each fitting its own gave two thresholds from the same rides. A window keeps what
   is its own: its power estimate (the climb from half to full threshold power is asked of it, so a window of easy rides can
   refuse a line the library accepts), its pooled offset (the median of its own rides' offsets, which a ride with no blocks is read
   at), its highest block, and its efforts. One window that is the whole set gives exactly what fitting its own line gave
-  (`rideThreshold` is that case).
+  (`thresholdOver` is that case).
 - **Each ride is prepared once** (`PreparedRide`: its strongest scaled effort, the efforts the heart rate reads, its blocks), and
   the efforts' value at threshold heart rate and their quality are worked out once against the line, so a window multiplies by
   the recency of each ride and takes the two robust means. The weighted medians inside are found by selection, not sorting.
@@ -245,3 +362,23 @@ export function rideThreshold(
   smeared by it (30,000 exponentials) and the quantiles of the posterior from power alone, which are fixed multiples of the
   power estimate for a given error. Most windows sit at the 2.5% floor. What the rounding costs, measured over errors from 2.5%
   to 25%: no quantile moves by more than one grid step (0.2% of the power estimate), and about 3% of them move at all.
+
+### Decisions for runs and the hour floor
+
+- **The table is a parameter, not a branch.** `PreparedRide` holds the scaled best and the variance of its ratio, worked out with
+  the sport's `DurationTable` when the activity is prepared, so the power estimate, the line and the fusion read no sport.
+  Rides keep `durationRatio` and `ratioSpread` exactly: their answers move only where the hour floor binds.
+- **Runs read their own sport's activities only.** The line, the threshold heart rate (the run reference), the blocks and the
+  efforts are the runs'; ages count from the newest activity of any sport, as a ride's do.
+- **The run threshold replaces the critical-power fit as the headline everywhere a headline reads one**: the zones' run steps,
+  the evidence rule (`answer/evidence.ts`, with the same 20 min condition as a ride's) and, in the screens, the card, the tile,
+  the share card, the records and the Method page. `runCp` is kept for the curve chart and the race predictions.
+- **The hour floor is on the power estimate, not on the fused answer**, so `value > efforts.value` still means exactly that
+  heart rate lifted it (a screen says so), and heart rate that reads under an hour done lifts nothing.
+- **The floor counts every hour in the window, estimated watts included.** The best curve admits an estimated point only where
+  the athlete's heart rate backs it, and the efforts are the best curve's own, so no further test is made. It does not weigh by
+  recency: a library window of all time is floored by the best hour in the library. That is the rule as asked ("an hour you
+  did"), and the one place a single odd file can set a number, since the mean's second-strongest rule does not guard the floor.
+- **What the floor does to the ride's table.** Riders who never go all out rode some hour, and the floor lifts their
+  power-only answer from 13.5% low to 11.7% low; heart rate then has less to add, and its lift over power alone falls from 8.3
+  points to 6.6 (the test's bound moves from 7 to 6). No other median moves by more than 0.2 points.

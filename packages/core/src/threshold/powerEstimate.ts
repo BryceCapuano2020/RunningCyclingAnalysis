@@ -5,10 +5,11 @@ import {
   NEAR_TOP_WIDTH,
   POWER_MIN_ERROR,
 } from './constants'
-import { ratioSpread } from './durationRatio'
+import { DURATION_TABLES } from './durationTables'
+import type { DurationTable } from './durationTables'
 import { robustMeanOf } from './robustMean'
 import { prepareFlat } from './rides'
-import type { PreparedRide } from './rides'
+import type { HourEffort, PreparedRide } from './rides'
 import type { ThresholdEffort } from './types'
 
 /** A ride's strongest effort, scaled to the threshold it implies. */
@@ -19,21 +20,33 @@ export interface RideEstimate {
   value: number
   ageDays: number
   estimated: boolean
+  /** The variance of the duration ratio at that duration (`DurationTable.spread` squared). */
+  variance: number
 }
 
 export interface PowerEstimate {
+  /** The mean of the rides' estimates, or the best hour in the window where that is higher (see `floor`). */
   value: number
   /** The relative error, never under POWER_MIN_ERROR. */
   relativeError: number
   rides: number
+  /** The ride with the highest estimate among those the mean kept; the ride of the best hour where the hour is what sets `value`. */
   strongest: { activityId: string; durationS: number; estimated: boolean }
+  /**
+   * The best effort of an hour or longer in the window, or 0 without one. An hour the athlete did is a floor under the
+   * answer, whatever the mean of the rides' estimates says: the answer and its low are never under it.
+   */
+  floor: number
 }
 
 const logistic = (x: number) => 1 / (1 + Math.exp(-x))
 
 /** The rides' strongest scaled efforts, each aged as the ride is. */
-export function rideEstimates(efforts: readonly ThresholdEffort[]): RideEstimate[] {
-  const { rides, ages } = prepareFlat(efforts, [])
+export function rideEstimates(
+  efforts: readonly ThresholdEffort[],
+  table: DurationTable = DURATION_TABLES.ride,
+): RideEstimate[] {
+  const { rides, ages } = prepareFlat(efforts, [], table)
   return rides.flatMap((ride, i) =>
     ride.best === null ? [] : [{ activityId: ride.activityId, ...ride.best, ageDays: ages[i]! }],
   )
@@ -58,7 +71,7 @@ function weightOf(
 }
 
 export function rideWeight(ride: RideEstimate, top: number): number {
-  return weightOf(ride.value, ratioSpread(ride.durationS) ** 2, ride.estimated, ride.ageDays, top)
+  return weightOf(ride.value, ride.variance, ride.estimated, ride.ageDays, top)
 }
 
 /**
@@ -102,16 +115,49 @@ export function powerOver(
   }
   if (strongest < 0) return null
   const { durationS, estimated } = rides[at[strongest]!]!.best!
+  const relativeError = Math.max(mean.relativeError, POWER_MIN_ERROR)
+  const hour = bestHour(rides, lo, hi)
+  // An hour the athlete did is a floor under the mean, and then the effort that sets the value, so it is the one named.
+  if (hour !== null && hour.effort.value > mean.value) {
+    const { value, durationS: held, estimated: guessed } = hour.effort
+    return {
+      value,
+      relativeError,
+      rides: at.length,
+      strongest: { activityId: hour.activityId, durationS: held, estimated: guessed },
+      floor: value,
+    }
+  }
   return {
     value: mean.value,
-    relativeError: Math.max(mean.relativeError, POWER_MIN_ERROR),
+    relativeError,
     rides: at.length,
     strongest: { activityId: rides[at[strongest]!]!.activityId, durationS, estimated },
+    floor: hour?.effort.value ?? 0,
   }
 }
 
+/** The best effort of an hour or longer among the rides from `lo` up to, not including, `hi`, and the ride that held it. */
+function bestHour(
+  rides: readonly PreparedRide[],
+  lo: number,
+  hi: number,
+): { activityId: string; effort: HourEffort } | null {
+  let found: { activityId: string; effort: HourEffort } | null = null
+  for (let i = lo; i < hi; i++) {
+    const effort = rides[i]!.hour
+    if (effort !== null && (found === null || effort.value > found.effort.value)) {
+      found = { activityId: rides[i]!.activityId, effort }
+    }
+  }
+  return found
+}
+
 /** The power estimate of a flat list of efforts, each with its age. */
-export function powerEstimate(efforts: readonly ThresholdEffort[]): PowerEstimate | null {
-  const { rides, ages } = prepareFlat(efforts, [])
+export function powerEstimate(
+  efforts: readonly ThresholdEffort[],
+  table: DurationTable = DURATION_TABLES.ride,
+): PowerEstimate | null {
+  const { rides, ages } = prepareFlat(efforts, [], table)
   return powerOver(rides, ages)
 }

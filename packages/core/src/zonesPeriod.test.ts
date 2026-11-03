@@ -67,11 +67,11 @@ describe('zones do not depend on the period picked', () => {
     const recent = combine(lastHalfYear, SETTINGS, {
       heartRateSetAside: new Set(states[0]!.heartRateJudgement.setAside),
     })
-    expect(recent.runCp).not.toBeNull()
+    expect(recent.runThreshold).not.toBeNull()
     const steps = states[0]!.zoneEstimates!.thresholds.run
     expect(steps.at(-1)!.fit).toBeNull()
     const last = steps.findLast((step) => step.fit !== null)!
-    // The fit over a window is the fit of a combine of the activities in it, for a run, which needs no bike model.
-    expect(last.fit).toEqual(recent.runCp)
+    // The threshold over a window is the run threshold of a combine of the activities in it, a run needing no bike model.
+    expect(last.fit!.cp).toBeCloseTo(recent.runThreshold!.value, 8)
   })
 })

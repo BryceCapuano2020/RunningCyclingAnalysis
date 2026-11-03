@@ -9,11 +9,12 @@ import type {
   HrCalibration,
   HrCrossCheck,
   Interval,
+  Sport,
 } from '../types'
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { thresholdFits } from './combineThresholds'
-import { rideThresholdOf } from './thresholdEfforts'
+import { thresholdsOf } from './thresholdLibraries'
 import { effortGatesOf, judgeHeadline } from './twentyMinute'
 import { equivalentsOf } from './equivalents'
 import type { Equivalence } from './equivalents'
@@ -32,7 +33,7 @@ import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate } from '../predict/vo2max'
-import type { RideLine } from '../threshold'
+import type { ThresholdLine } from '../threshold'
 import type { HeartRateJudgement } from './setAsideTypes'
 
 /** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
@@ -137,10 +138,10 @@ export interface CombineOptions {
    */
   rideGate?: EstimatedRideGate | null
   /**
-   * The heart-rate line of the whole library's rides (`JudgedWork.rideLine`). Given, the ride threshold reads it, so a period's
-   * headline and the zones' windows are cut by one line. Absent, a line is fitted over these digests' rides.
+   * The heart-rate line of each sport over the whole library (`JudgedWork.lines`). Given, the thresholds read them, so a period's
+   * headline and the zones' windows are cut by one line. Absent, a line is fitted over these digests' activities.
    */
-  rideLine?: RideLine
+  lines?: Record<Sport, ThresholdLine>
   /**
    * What judging the library worked out (`judgedWorkOf`). Used only when these digests are the judged ones under the
    * same masses, gate and set-aside, when the analysis is the same figures without working them out again.
@@ -237,14 +238,11 @@ export function combine(
     heart.setAside,
   )
   judgeHeadline(effort, effortGate)
-  const rideThreshold = rideThresholdOf(
+  const { run: runThreshold, ride: rideThreshold } = thresholdsOf(
     ordered,
-    masses,
-    bikeModel,
-    gate,
-    heart.setAside,
-    judged.referenceHr.ride,
-    opts.rideLine,
+    { masses, bikeModel, gate, heartSetAside: heart.setAside },
+    judged.referenceHr,
+    opts.lines,
   )
   return {
     activities: activitySummaries(digests, settings, rideReferenceOf(judged)),
@@ -254,6 +252,7 @@ export function combine(
     rideMeasuredCurve,
     runCp: thresholds.run.fit,
     rideCp: thresholds.ride.fit,
+    runThreshold,
     rideThreshold,
     runCpRefusal: thresholds.run.refusal,
     rideCpRefusal: thresholds.ride.refusal,
