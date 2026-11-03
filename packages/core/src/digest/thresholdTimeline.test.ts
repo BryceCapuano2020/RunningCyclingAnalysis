@@ -64,29 +64,28 @@ describe('thresholdTimeline', () => {
     expect(run.at(-1)).toMatchObject({ fit: null, asOfMs: null, lastFit: run.length - 2 })
   })
 
-  it('has no fit for a half year without an effort of 3 min, and then holds the last one that had it', () => {
-    // 20 weeks of runs with a hard 20 minutes, then 40 weeks of strides, which hold no effort to read a threshold from.
-    const hard = weeklyRuns(0, 20, () => 1)
-    const easy = Array.from({ length: 40 }, (_, i) => strideRun(`easy-${i}`, (20 + i) * 7 + 2, 1))
-    const { run } = timelineOf([...hard, ...easy])
-    const lastHard = FIRST_MONDAY_MS + (19 * 7 + 2) * DAY_MS
-    const during = thresholdAt(run, weekMs(25) + 2 * DAY_MS)
-    expect(during).toMatchObject({ asOfMs: null })
-    // From week 46 the half year holds only strides: the fit of week 45, dated by its newest run, stands in.
-    const after = thresholdAt(run, weekMs(50) + 2 * DAY_MS)
-    expect(after).toMatchObject({ asOfMs: lastHard })
-    // The same run, read later: as old as the strides that followed it make it, so the estimate is the less sure.
-    expect(after!.fit.cp).toBeCloseTo(during!.fit.cp, 8)
-    expect(after!.fit.cpSe).toBeGreaterThan(during!.fit.cpSe)
-  })
-
-  it('reads a window of short runs from their short efforts: they are evidence, a threshold from an hour done is not asked for', () => {
-    const hard = weeklyRuns(0, 20, () => 1)
-    const short = Array.from({ length: 40 }, (_, i) => shortRun(`short-${i}`, (20 + i) * 7 + 2, 1))
-    const { run } = timelineOf([...hard, ...short])
-    // Week 50 holds only short runs and has a fit of its own, not the older one.
-    expect(thresholdAt(run, weekMs(50) + 2 * DAY_MS)).toMatchObject({ asOfMs: null })
-  })
+  // Strides hold a best only under 3 min; a short run holds none past 5. A run is read from 8 min, so neither gives a threshold.
+  it.each([
+    ['strides', strideRun],
+    ['runs of 5 min at most', shortRun],
+  ])(
+    'has no fit for a half year of %s, and then holds the last one that had an effort',
+    (_, short) => {
+      // 20 weeks of runs with a hard 20 minutes, then 40 weeks of runs with no effort to read a threshold from.
+      const hard = weeklyRuns(0, 20, () => 1)
+      const easy = Array.from({ length: 40 }, (_, i) => short(`easy-${i}`, (20 + i) * 7 + 2, 1))
+      const { run } = timelineOf([...hard, ...easy])
+      const lastHard = FIRST_MONDAY_MS + (19 * 7 + 2) * DAY_MS
+      const during = thresholdAt(run, weekMs(25) + 2 * DAY_MS)
+      expect(during).toMatchObject({ asOfMs: null })
+      // From week 46 the half year holds only those runs: the fit of week 45, dated by its newest run, stands in.
+      const after = thresholdAt(run, weekMs(50) + 2 * DAY_MS)
+      expect(after).toMatchObject({ asOfMs: lastHard })
+      // The same run, read later: as old as the runs that followed it make it, so the estimate is the less sure.
+      expect(after!.fit.cp).toBeCloseTo(during!.fit.cp, 8)
+      expect(after!.fit.cpSe).toBeGreaterThan(during!.fit.cpSe)
+    },
+  )
 
   /** A steady run: every duration holds one value, `share` over the level-1 run's hour. */
   function steadyRun(id: string, day: number, share: number) {

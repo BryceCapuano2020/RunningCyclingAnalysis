@@ -10,6 +10,7 @@ import { estimatedStanding } from './estimatedRide'
 import { fixedMasses } from './masses'
 import { agesOf, rideEffortsOf, thresholdHeartRate } from './thresholdEfforts'
 import { librariesOf, thresholdsOf } from './thresholdLibraries'
+import { DURATION_TABLES } from '../threshold'
 import type { ThresholdLine } from '../threshold'
 import { syntheticActivity } from './test/syntheticActivity'
 
@@ -198,11 +199,10 @@ function runOf(id: string, day: number, fast: number, fastS: number, over = {}):
 describe('what a run gives the run threshold', () => {
   const hard = runOf('hard', 0, 4.2, 900)
 
-  it('gives each best from 3 to 60 min in the run curve’s own unit, gross metabolic W/kg', () => {
+  it('gives each best from 8 to 60 min in the run curve’s own unit, gross metabolic W/kg', () => {
     const { efforts } = runEffortsOf(hard, false)
-    expect(efforts.map((e) => e.durationS)).toEqual([
-      180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600,
-    ])
+    // The curve has points at 7 and 10 min: the run table’s 8 min is the 10 min point on a real library.
+    expect(efforts.map((e) => e.durationS)).toEqual([600, 900, 1200, 1800, 2700, 3600])
     const fifteen = efforts.find((e) => e.durationS === 900)!
     const point = hard.curve.find((p) => p.durationS === 900)!
     expect(fifteen.value).toBe(runCentralWkg(point))
@@ -227,11 +227,21 @@ describe('what a run gives the run threshold', () => {
   it('drops a point faster than a person can run, as the run best curve does', () => {
     const fast = {
       ...hard,
-      curve: hard.curve.map((p) => (p.durationS === 300 ? { ...p, value: 200 } : p)),
+      curve: hard.curve.map((p) => (p.durationS === 900 ? { ...p, value: 200 } : p)),
     }
     const durations = runEffortsOf(fast, false).efforts.map((e) => e.durationS)
-    expect(durations).not.toContain(300)
-    expect(durations).toContain(240)
+    expect(durations).not.toContain(900)
+    expect(durations).toContain(600)
+  })
+
+  it('gives nothing from the short bests of a run, which a ride’s threshold reads from 3 min', () => {
+    // A hard 5 min and nothing sustained: strides, a hill repeat. The same bests are a ride’s efforts.
+    const burst = runOf('burst', 2, 5, 300)
+    const shortest = Math.min(...burst.curve.map((p) => p.durationS))
+    expect(shortest).toBeLessThan(DURATION_TABLES.run.shortestS)
+    expect(runEffortsOf(burst, false).efforts.every((e) => e.durationS >= 480)).toBe(true)
+    const sprint = ride('sprint', 2, 400, 300)
+    expect(rideOf(sprint).efforts[0]!.durationS).toBe(DURATION_TABLES.ride.shortestS)
   })
 
   it('leaves out a treadmill run, whose pace is not a distance covered', () => {

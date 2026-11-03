@@ -1,4 +1,4 @@
-import { HOUR_S, HR_EFFORT_S, SHORTEST_EFFORT_S } from './constants'
+import { HOUR_S, HR_EFFORT_S } from './constants'
 import { DURATION_TABLES } from './durationTables'
 import type { DurationTable } from './durationTables'
 import type { RideEffort, ThresholdBlock, ThresholdEffort } from './types'
@@ -41,19 +41,18 @@ export interface PreparedRide {
   blocks: readonly ThresholdBlock[]
 }
 
-/** Whether an effort says anything: 3 min or longer, and a value that is positive and finite. */
-const counts = (e: RideEffort): boolean =>
-  e.durationS >= SHORTEST_EFFORT_S && e.value > 0 && Number.isFinite(e.value)
+/** Whether an effort has a value to read: positive and finite. */
+const usable = (e: RideEffort): boolean => e.value > 0 && Number.isFinite(e.value)
 
 /**
  * The ride's highest effort scaled by the sport's table, each effort on its own (a run's scaling depends on the effort's value as
- * well as its length); efforts under 3 min, values that are not positive and finite, and efforts the table cannot scale are
- * ignored.
+ * well as its length); efforts under the table's shortest (`DurationTable.shortestS`), values that are not positive and finite,
+ * and efforts the table cannot scale are ignored.
  */
 export function bestOf(efforts: readonly RideEffort[], table: DurationTable): RideBest | null {
   let best: RideBest | null = null
   for (const e of efforts) {
-    if (!counts(e)) continue
+    if (e.durationS < table.shortestS || !usable(e)) continue
     const value = table.threshold(e.value, e.durationS)
     if (!(value > 0) || !Number.isFinite(value)) continue
     if (best === null || value > best.value) {
@@ -72,7 +71,7 @@ export function bestOf(efforts: readonly RideEffort[], table: DurationTable): Ri
 export function hourOf(efforts: readonly RideEffort[]): HourEffort | null {
   let hour: HourEffort | null = null
   for (const e of efforts) {
-    if (!counts(e) || e.estimated || e.durationS < HOUR_S) continue
+    if (!usable(e) || e.estimated || e.durationS < HOUR_S) continue
     if (hour === null || e.value > hour.value) hour = { durationS: e.durationS, value: e.value }
   }
   return hour

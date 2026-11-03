@@ -147,17 +147,18 @@ describe('resolveWindow', () => {
   it.each(SPORTS)(
     'counts a %s threshold as evidence only where it rests on an effort as long as the headline’s',
     (sport) => {
-      // The estimate reads efforts from 3 min, so an athlete with only short bests has one.
+      // The estimate reads efforts from the sport's shortest (3 min for a ride, 8 for a run), so an athlete with only short bests has one.
       const estimate = (durationS: number) => ({ value: 4, efforts: { strongest: { durationS } } })
       const field = { run: 'runThreshold', ride: 'rideThreshold' }[sport]
+      const short = { run: 600, ride: 300 }[sport]
       const noBest = analysis({ [sport]: 'none' })
-      const fiveMinutes = { ...noBest, [field]: estimate(300) } as unknown as AnalysisResult
+      const shortBest = { ...noBest, [field]: estimate(short) } as unknown as AnalysisResult
       const twentyMinutes = { ...noBest, [field]: estimate(1200) } as unknown as AnalysisResult
-      expect(hasEvidence(fiveMinutes, sport)).toBe(false)
+      expect(hasEvidence(shortBest, sport)).toBe(false)
       expect(hasEvidence(twentyMinutes, sport)).toBe(true)
       // A best curve of 20 min counts with or without an estimate, as it did.
       expect(hasEvidence(analysis({}), sport)).toBe(true)
-      expect(resolveWindow(library(), 'default', () => fiveMinutes)).toMatchObject({
+      expect(resolveWindow(library(), 'default', () => shortBest)).toMatchObject({
         reason: 'all-time',
       })
       expect(resolveWindow(library(), 'default', () => twentyMinutes)).toEqual({

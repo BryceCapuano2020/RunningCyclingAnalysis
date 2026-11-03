@@ -1,7 +1,13 @@
 import { PRIORS } from '../constants'
 import { flatSpeedToMetabolic, metabolicToFlatSpeed } from '../metabolic'
 import type { Sport } from '../types'
-import { HOUR_S, RUN_SHARE, RUN_VO2 } from './constants'
+import {
+  HOUR_S,
+  RIDE_SHORTEST_EFFORT_S,
+  RUN_SHARE,
+  RUN_SHORTEST_EFFORT_S,
+  RUN_VO2,
+} from './constants'
 import { durationRatio, ratioSpread } from './durationRatio'
 
 /**
@@ -10,9 +16,11 @@ import { durationRatio, ratioSpread } from './durationRatio'
  * between athletes, as a share (`spread`; squared, the variance a best's estimate carries). All read seconds, and values in the
  * sport's curve unit. A threshold is what is held for an hour, so `threshold(value, 3600)` is `value` for every sport. A ride's
  * is a multiple of its power; a run's goes through speed (`runThresholdOf`), so what a best implies depends on its value as well
- * as its length.
+ * as its length. `shortestS` is the shortest best the sport's threshold reads: a shorter one is left out (3 min for a ride, 8 min
+ * for a run, whose short training bests are strides, hills and GPS noise).
  */
 export interface DurationTable {
+  shortestS: number
   threshold(value: number, durationS: number): number
   held(threshold: number, durationS: number): number
   spread(durationS: number): number
@@ -81,12 +89,14 @@ export function runHeldAt(threshold: number, durationS: number): number {
 }
 
 const RIDE_TABLE: DurationTable = {
+  shortestS: RIDE_SHORTEST_EFFORT_S,
   threshold: (value, durationS) => value / durationRatio(durationS),
   held: (threshold, durationS) => threshold * durationRatio(durationS),
   spread: ratioSpread,
 }
 // The runners' spread starts from the riders' and moves only on the evidence of the running simulation.
 const RUN_TABLE: DurationTable = {
+  shortestS: RUN_SHORTEST_EFFORT_S,
   threshold: runThresholdOf,
   held: runHeldAt,
   spread: ratioSpread,

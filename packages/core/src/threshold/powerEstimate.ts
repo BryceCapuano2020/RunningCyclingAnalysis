@@ -87,7 +87,7 @@ export function rideWeight(ride: RideEstimate, top: number): number {
 
 /**
  * The robust weighted mean of the strongest efforts of the rides from `lo` up to, not including, `hi`, each aged by `ages`
- * (days back from the newest activity of the set, never under 0). Null where no ride has an effort of 3 min or more, or none
+ * (days back from the newest activity of the set, never under 0). Null where no ride has an effort of the table's shortest, or none
  * has any weight. Each ride's strongest effort is worked out once (`PreparedRide`), so a window costs the mean alone.
  */
 export function powerOver(

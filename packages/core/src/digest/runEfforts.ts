@@ -1,4 +1,4 @@
-import { CP_FIT_MIN_S, HR_BLOCK_S } from '../constants'
+import { HR_BLOCK_S } from '../constants'
 import { possibleRunWkg } from '../curves'
 import { DURATION_TABLES, prepareRide } from '../threshold'
 import type { RideEffort, ThresholdBlock } from '../threshold'
@@ -9,17 +9,19 @@ import { runCentralWkg } from './rideCurves'
 import { LONGEST_EFFORT_S } from './thresholdEfforts'
 import type { ActivityEfforts } from './thresholdEfforts'
 
+const RUN_TABLE = DURATION_TABLES.run
+
 /**
- * One run's bests from 3 to 60 min and its 5 min heart-rate blocks, each as the run best curve would admit it: a point faster
- * than the ceiling for its duration is dropped (`runCentralWkg`), and the heart rate of a run set aside (`heartAside`) is none,
- * with its blocks. A run is priced from its pace alone, so none of it is estimated. Run through `effortsCount` before this: a
- * treadmill run holds no best.
+ * One run's bests from 8 min (the run table's shortest) to 60 min and its 5 min heart-rate blocks, each as the run best curve
+ * would admit it: a point faster than the ceiling for its duration is dropped (`runCentralWkg`), and the heart rate of a run set
+ * aside (`heartAside`) is none, with its blocks. A run is priced from its pace alone, so none of it is estimated. Run through
+ * `effortsCount` before this: a treadmill run holds no best.
  */
 export function runEffortsOf(digest: ActivityDigest, heartAside: boolean): ActivityEfforts {
   const efforts: RideEffort[] = []
   const blocks: ThresholdBlock[] = []
   for (const point of digest.curve) {
-    if (point.durationS < CP_FIT_MIN_S || point.durationS > LONGEST_EFFORT_S) continue
+    if (point.durationS < RUN_TABLE.shortestS || point.durationS > LONGEST_EFFORT_S) continue
     const wkg = runCentralWkg(point)
     if (!(wkg > 0) || !Number.isFinite(wkg)) continue
     efforts.push({
@@ -42,7 +44,7 @@ export function runEffortsOf(digest: ActivityDigest, heartAside: boolean): Activ
     startMs: digest.startMs,
     efforts,
     blocks,
-    prepared: prepareRide(digest.id, efforts, blocks, DURATION_TABLES.run),
+    prepared: prepareRide(digest.id, efforts, blocks, RUN_TABLE),
   }
 }
 

@@ -27,6 +27,12 @@ export interface Scenario {
   noHeartRate?: boolean
   /** How much the athletes' efforts depart from the table, as a multiple of the usual spread (1): a sprinter or a diesel. */
   enduranceSpread?: number
+  /**
+   * About half the rides carry a burst: their bests under 8 min (the 3 and 5 min ones) are 0.5 to 1 times this share over what the
+   * table holds for the athlete's threshold. Strides, a hill, GPS noise: short training bests that a race curve does not describe.
+   * Nothing else in the ride departs from the table.
+   */
+  shortBias?: number
 }
 
 /** What differs between the sports: the duration table the efforts are drawn from, and the scale of the unit. */
@@ -132,11 +138,22 @@ export function simRiders(
         if (fault?.add !== undefined) v += fault.add
         return v
       }
+      // Drawn only where the scenario has a burst, so every other scenario keeps the draws it always had.
+      const burst =
+        scenario.shortBias !== undefined && rand() < 0.5
+          ? 1 + scenario.shortBias * uni(0.5, 1)
+          : null
       const hardHr = steadyHr(hard)
       const easyHr = steadyHr(easy)
       for (const s of DURATIONS_S) {
         const inside = s <= hardS
-        const value = inside ? hard * (1 + 0.01 * gauss()) : (hard * hardS + easy * (s - hardS)) / s
+        const steady = inside
+          ? hard * (1 + 0.01 * gauss())
+          : (hard * hardS + easy * (s - hardS)) / s
+        const value =
+          burst !== null && s < 480
+            ? Math.max(steady, profile.table.held(threshold, s) * burst)
+            : steady
         const lag = inside ? (90 / s) * (1 - Math.exp(-s / 90)) : 0
         const rise = inside ? 0.12 * Math.max(0, s / 60 - 10) : 0
         const h = inside

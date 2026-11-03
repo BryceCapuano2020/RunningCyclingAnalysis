@@ -1,4 +1,4 @@
-import { CP_FIT_MIN_S, DAY_MS } from '../constants'
+import { DAY_MS } from '../constants'
 import { ALL_OUT_FRACTION } from '../effort'
 import {
   DURATION_TABLES,
@@ -23,6 +23,8 @@ import type { Masses } from './masses'
 import { ofSport } from './ordered'
 import { powerCheckOf } from './powerCheck'
 import { centralWkgFromWatts, pointWkg } from './rideCurves'
+
+const RIDE_TABLE = DURATION_TABLES.ride
 
 /** The longest best the estimate reads: an hour, where the duration ratio reaches 1. */
 export const LONGEST_EFFORT_S = 3600
@@ -57,7 +59,7 @@ export function rideEffortsOf(
   const blocks: ThresholdBlock[] = []
   const estimated = !isMeasured(digest)
   for (const point of digest.curve) {
-    if (point.durationS < CP_FIT_MIN_S || point.durationS > LONGEST_EFFORT_S) continue
+    if (point.durationS < RIDE_TABLE.shortestS || point.durationS > LONGEST_EFFORT_S) continue
     const { wkg } = pointWkg(point, digest, masses, bikeModel, standing)
     if (!(wkg > 0) || !Number.isFinite(wkg)) continue
     efforts.push({
@@ -81,7 +83,7 @@ export function rideEffortsOf(
     startMs: digest.startMs,
     efforts,
     blocks,
-    prepared: prepareRide(digest.id, efforts, blocks, DURATION_TABLES.ride),
+    prepared: prepareRide(digest.id, efforts, blocks, RIDE_TABLE),
   }
 }
 
@@ -165,7 +167,7 @@ export function libraryOf(
 /**
  * The threshold of a set of digests of one sport: every activity's bests, read with the sport's best curve's rules, aged from the
  * newest activity of the set (of any sport), with the heart rate of those not set aside, read against `line` (the library's;
- * absent, one is fitted over this set's). Null where the set has no effort of 3 min or more.
+ * absent, one is fitted over this set's). Null where the set has no effort of its sport's shortest length or more.
  */
 export function thresholdOf(
   activities: readonly ActivityEfforts[],

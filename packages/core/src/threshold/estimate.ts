@@ -53,7 +53,7 @@ export function thresholdBasis(
 /**
  * The ride threshold over the rides of a basis from `lo` up to, not including, `hi` (a window of the set, in time order, or all
  * of it), each aged by `ages` (days back from the newest activity of the window). Null where no ride in it has an effort of
- * 3 min or more, or none has any weight. The power estimate is a floor; heart rate is a second estimate that can lift the
+ * the sport's shortest length (`DurationTable.shortestS`), or none has any weight. The power estimate is a floor; heart rate is a second estimate that can lift the
  * answer and never lowers it (docs/design/threshold.md).
  */
 export function estimateOver(
@@ -84,10 +84,10 @@ export function estimateOver(
 
 /**
  * The threshold of a sport from every effort in one window (docs/design/threshold.md): the line fitted over its blocks, then
- * read. `efforts` are the bests of each activity from 3 to 60 min with `ageDays` counted back from the newest activity;
+ * read. `efforts` are the bests of each activity from the table's shortest to 60 min with `ageDays` counted back from the newest activity;
  * `blocks` are the 5 min blocks of activities with usable heart rate and the sport's output (the analysis leaves out those whose
  * heart rate it sets aside); `thresholdHr` is the heart rate at threshold, or null. All values share one unit, and `table` is the
- * sport's (`DURATION_TABLES`). Null where no activity has an effort of 3 min or more, or none has any weight. A caller with many
+ * sport's (`DURATION_TABLES`). Null where no activity has an effort of the table's shortest length or more, or none has any weight. A caller with many
  * windows of one set fits the line once instead (`fitThresholdLine`).
  */
 export function thresholdOver(

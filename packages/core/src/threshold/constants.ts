@@ -3,8 +3,14 @@
  * threshold.sim.test.ts. They live here and not in core's constants.ts, which has no room.
  */
 
-/** The shortest best that says anything about threshold; under this the sprint dominates. */
-export const SHORTEST_EFFORT_S = 180
+/** The shortest best that says anything about a ride's threshold; under this the sprint dominates. */
+export const RIDE_SHORTEST_EFFORT_S = 180
+/**
+ * The shortest best that says anything about a run's threshold. The 3 to 7 min bests of training runs are strides, hills and GPS
+ * noise, not races, and Daniels' curve describes races: scaled from them, a run's threshold reads fast (docs/design/threshold.md,
+ * "Runs"). From 8 min a best is a sustained run and the curve holds.
+ */
+export const RUN_SHORTEST_EFFORT_S = 480
 
 // Duration ratio: the best a rider can hold for a time, as a multiple of threshold, for a rider who gave it all.
 /** The ratio changes formula at this many minutes, with no step: 1.015 + 0.76 / 20 is 1.053. */
