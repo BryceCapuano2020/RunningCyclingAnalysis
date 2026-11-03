@@ -254,9 +254,10 @@ What the table says, and does not:
   zero on the median for runners 0 to 7% short only because the two errors cancel. It reads 63% to 69% of these runners within 5% (55% with
   strides), against 68% to 89% for this estimate (70% with strides).
 - The best 30 min is 7 to 9% low, as a rider's is.
-- With no heart rate to confirm a rise, a runner who never goes all out is read about 12% low and none within 5%, where critical
-  speed (9% low) is no nearer. That is the cost of leaving heart rate out for runs: the first version of this simulation, with
-  heart rate, lifted such a runner by about 6 points, and on a real library the same lift read runs far too fast.
+- With no heart rate to confirm a rise, a runner who never goes all out is read about 12% low and none within 5%. Critical speed
+  reads 9% low and none within 5% either: 3 points nearer on the median, no better on the share within 5%. That is the cost of
+  leaving heart rate out for runs: the first version of this simulation, with heart rate, lifted such a runner by about 6 points,
+  and on a real library the same lift read runs far too fast.
 - Reading from 8 min costs accuracy where the short bests are clean: 7 points of the runners within 5% for hard runs short of
   all-out, 5 for always all-out, which lose the 3 and 5 min bests of their shortest hard runs. The simulation cannot say that real
   short bests are not clean; that rests on the real library above. What it shows is the exposure. With strides in the short bests
