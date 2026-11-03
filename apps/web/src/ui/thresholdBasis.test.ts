@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { HeartRateRefusal, ThresholdEstimate } from '@rca/core/threshold'
-import { makeActivity, makeResult, makeRideThreshold } from './components/fixtures'
+import {
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from './components/fixtures'
 import { formatDayMonth } from './format/date'
 import { heartRateLifted, thresholdBasisLine, thresholdDetail } from './thresholdBasis'
 
@@ -36,6 +41,31 @@ function estimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
   })
 }
 
+/**
+ * A run estimate of 16 W/kg gross metabolic from four runs, the strongest a 40 min effort of run-2, which carries no heart rate
+ * (a run's threshold is worked out from pace alone).
+ */
+function runEstimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
+  return makeRunThreshold(16, {
+    efforts: {
+      value: 16,
+      relativeError: 0.03,
+      rides: 4,
+      strongest: { activityId: 'run-2', durationS: 2400, estimated: false },
+    },
+    ...over,
+  })
+}
+
+const runResultOf = (runThreshold: ThresholdEstimate | null) =>
+  makeResult({
+    activities: [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'run-2', sport: 'run', startMs: STRONGEST_DAY }),
+    ],
+    runThreshold,
+  })
+
 const resultOf = (rideThreshold: ThresholdEstimate | null) =>
   makeResult({
     activities: [
@@ -46,6 +76,26 @@ const resultOf = (rideThreshold: ThresholdEstimate | null) =>
   })
 
 describe('thresholdBasisLine', () => {
+  it('says how many runs the run threshold rests on and the strongest effort, with its length and day', () => {
+    expect(thresholdBasisLine(runResultOf(runEstimate()), 'run')).toBe(
+      `From 4 runs. Strongest: 40 min on ${formatDayMonth(STRONGEST_DAY)}.`,
+    )
+  })
+
+  it('says one run in the singular, and never adds the ride’s estimated-watts clause to a run', () => {
+    const one = runEstimate({
+      efforts: {
+        value: 16,
+        relativeError: 0.03,
+        rides: 1,
+        strongest: { activityId: 'run-2', durationS: 3600, estimated: true },
+      },
+    })
+    expect(thresholdBasisLine(runResultOf(one), 'run')).toBe(
+      `From 1 run. Strongest: 60 min on ${formatDayMonth(STRONGEST_DAY)}.`,
+    )
+  })
+
   it('says how many rides the ride threshold rests on and the strongest effort, with its length and day', () => {
     expect(thresholdBasisLine(resultOf(estimate()), 'ride')).toBe(
       `From 5 rides. Strongest: 12 min on ${formatDayMonth(STRONGEST_DAY)}.`,
@@ -79,9 +129,15 @@ describe('thresholdBasisLine', () => {
     )
   })
 
-  it('is null without an estimate, and for a run, whose fit rests on its curve and not on a count of runs', () => {
+  it('is null without an estimate, for a ride and for a run', () => {
     expect(thresholdBasisLine(resultOf(null), 'ride')).toBeNull()
-    expect(thresholdBasisLine(resultOf(estimate()), 'run')).toBeNull()
+    expect(thresholdBasisLine(runResultOf(null), 'run')).toBeNull()
+  })
+
+  it('reads the ride estimate for a ride and the run estimate for a run, never the other', () => {
+    // The default result's other sport rests on three activities of its own, not on the five rides or four runs given.
+    expect(thresholdBasisLine(resultOf(estimate()), 'run')).toMatch(/^From 3 runs\. /)
+    expect(thresholdBasisLine(runResultOf(runEstimate()), 'ride')).toMatch(/^From 3 rides\. /)
   })
 
   it('carries no hedge and asks for nothing', () => {
@@ -106,9 +162,9 @@ describe('heartRateLifted', () => {
 
 describe('thresholdDetail for a ride', () => {
   const detail = (rideThreshold: ThresholdEstimate | null) =>
-    thresholdDetail(resultOf(rideThreshold), 'ride', 75, 'metric', null)
+    thresholdDetail(resultOf(rideThreshold), 'ride', 75, 'metric')
   const METHOD =
-    'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top. ' +
+    'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under an hour you rode. ' +
     'Heart rate can raise the answer and never lowers it.'
 
   it('gives the range, the method, and that heart rate raised the answer where it did', () => {
@@ -147,12 +203,9 @@ describe('thresholdDetail for a ride', () => {
     expect(detail(estimate({ low: 15.5, high: 15.5 }))).toMatch(/^About 250 W\. /)
   })
 
-  it('leaves estimated watts to the basis line, and says nothing of how hard the best 20 min was', () => {
+  it('leaves estimated watts to the basis line', () => {
     const virtual = estimate({ efforts: efforts(5, { estimated: true }) })
     expect(detail(virtual)).not.toMatch(/estimated watts/)
-    const hard = { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.7 }
-    const text = thresholdDetail(resultOf(estimate()), 'ride', 75, 'metric', hard)
-    expect(text).not.toMatch(/max heart rate|all-out|hard effort/i)
   })
 
   it('is null without an estimate', () => {
@@ -161,21 +214,35 @@ describe('thresholdDetail for a ride', () => {
 })
 
 describe('thresholdDetail for a run', () => {
-  const run = makeResult()
+  const detail = (runThreshold: ThresholdEstimate | null) =>
+    thresholdDetail(runResultOf(runThreshold), 'run', 70, 'metric')
 
-  it('names the fit, and adds how hard the best 20 min was by heart rate, where the check can judge', () => {
-    const easy = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }
-    expect(thresholdDetail(run, 'run', 70, 'metric', easy)).toMatch(
-      /^Fitted to your best 3 to 20 min efforts\. Your best 20 min running reached 70% of your running max heart rate .*under the 90% that marks a hard effort\.$/,
+  it('gives the range and the method in a run’s words, never under an hour you ran', () => {
+    expect(detail(runEstimate())).toBe(
+      `Range 4:10 to 4:39 /km. Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under an hour you ran.`,
     )
   })
 
-  it('has nothing to open where heart rate says nothing of the effort: the fit is the Method page’s', () => {
-    expect(thresholdDetail(run, 'run', 70, 'metric', null)).toBeNull()
+  it('says nothing of heart rate, whether the estimate carries one or a refusal', () => {
+    const withHeartRate = runEstimate({ heartRate: { value: 17.5, efforts: 6 }, value: 17.5 })
+    const refusals: HeartRateRefusal[] = [
+      'no-heart-rate',
+      'few-blocks',
+      'stuck',
+      'flat',
+      'steep',
+      'no-efforts',
+    ]
+    const texts = [
+      detail(withHeartRate),
+      ...refusals.map((refused) => detail(runEstimate({ heartRate: { refused } }))),
+    ]
+    for (const text of texts) {
+      expect(text).not.toMatch(/heart rate|not used|raise/i)
+    }
   })
 
-  it('is null without a fit', () => {
-    const easy = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }
-    expect(thresholdDetail(makeResult({ runCp: null }), 'run', 70, 'metric', easy)).toBeNull()
+  it('is null without an estimate', () => {
+    expect(detail(null)).toBeNull()
   })
 })

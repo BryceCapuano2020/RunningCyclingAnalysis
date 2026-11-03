@@ -30,27 +30,14 @@ export function thresholdBasisLine(result: AnalysisResult, sport: Sport): string
   return `From ${plural(rides, ACTIVITY[sport].noun)}. Strongest: ${effortLabel(strongest.durationS)}${day}${guess}.`
 }
 
-/**
- * Why heart rate was not used, as the clause after "Here it was not used:", for each reason the estimator gives. The
- * `no-heart-rate` reason is a sport's own: no ride has both a power meter and heart rate, no run has heart rate.
- */
-const HEART_RATE_WHY: Record<Sport, Record<HeartRateRefusal, string>> = {
-  run: {
-    'no-heart-rate': 'no run has heart rate',
-    'few-blocks': 'too little steady running has heart rate',
-    stuck: 'your heart rate does not move with pace',
-    flat: 'your heart rate rises too little with pace to read',
-    steep: 'your heart rate rises too steeply with pace to read',
-    'no-efforts': 'no steady effort sat close to your threshold heart rate',
-  },
-  ride: {
-    'no-heart-rate': 'no ride has both a power meter and heart rate',
-    'few-blocks': 'too little steady riding has both heart rate and power',
-    stuck: 'your heart rate does not move with power',
-    flat: 'your heart rate rises too little with power to read',
-    steep: 'your heart rate rises too steeply with power to read',
-    'no-efforts': 'no steady effort sat close to your threshold heart rate',
-  },
+/** Why a ride's heart rate was not used, as the clause after "Here it was not used:", for each reason the estimator gives. */
+const RIDE_HEART_RATE_WHY: Record<HeartRateRefusal, string> = {
+  'no-heart-rate': 'no ride has both a power meter and heart rate',
+  'few-blocks': 'too little steady riding has both heart rate and power',
+  stuck: 'your heart rate does not move with power',
+  flat: 'your heart rate rises too little with power to read',
+  steep: 'your heart rate rises too steeply with power to read',
+  'no-efforts': 'no steady effort sat close to your threshold heart rate',
 }
 
 /**
@@ -61,16 +48,27 @@ export function heartRateLifted(estimate: ThresholdEstimate): boolean {
   return !('refused' in estimate.heartRate) && estimate.value > estimate.efforts.value
 }
 
-/** What heart rate did to this estimate: raised it, was read and did not raise it, or the one plain reason it was not used. */
-function heartRateSentence(estimate: ThresholdEstimate, sport: Sport): string {
+/** What heart rate did to a ride estimate: raised it, was read and did not raise it, or the one plain reason it was not used. */
+function rideHeartRateSentence(estimate: ThresholdEstimate): string {
   const { heartRate } = estimate
-  if ('refused' in heartRate) {
-    return `Here it was not used: ${HEART_RATE_WHY[sport][heartRate.refused]}.`
-  }
+  if ('refused' in heartRate)
+    return `Here it was not used: ${RIDE_HEART_RATE_WHY[heartRate.refused]}.`
   const from = plural(heartRate.efforts, 'effort')
   return heartRateLifted(estimate)
     ? `Here it raised the answer, from ${from}.`
     : `Here it did not raise the answer, from ${from}.`
+}
+
+/**
+ * What a sport's detail says of heart rate: for a ride what it can do and what it did here, for a run nothing, since a run's
+ * threshold is worked out from pace alone and heart rate is not part of how it was reached.
+ */
+const HEART_RATE_SENTENCES: Record<Sport, (estimate: ThresholdEstimate) => string[]> = {
+  run: () => [],
+  ride: (estimate) => [
+    'Heart rate can raise the answer and never lowers it.',
+    rideHeartRateSentence(estimate),
+  ],
 }
 
 /** The method in one sentence, in the sport's own words. */
@@ -85,9 +83,9 @@ function sentences(parts: readonly (string | null)[]): string {
 }
 
 /**
- * What the threshold is and how it was worked out, for the line one tap down: the range, the method in a sentence, what heart
- * rate can do and what it did here (raised the answer, did not, or why it was not used). The same for a run and a ride. Null
- * without an estimate.
+ * What the threshold is and how it was worked out, for the line one tap down: the range, the method in a sentence and, for a
+ * ride, what heart rate can do and what it did here (raised the answer, did not, or why it was not used). A run's says nothing
+ * of heart rate. Null without an estimate.
  */
 export function thresholdDetail(
   result: AnalysisResult,
@@ -101,7 +99,6 @@ export function thresholdDetail(
   return sentences([
     range === null ? null : `${range}.`,
     METHOD[sport],
-    'Heart rate can raise the answer and never lowers it.',
-    heartRateSentence(estimate, sport),
+    ...HEART_RATE_SENTENCES[sport](estimate),
   ])
 }
