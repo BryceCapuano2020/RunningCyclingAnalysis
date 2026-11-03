@@ -577,7 +577,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   words: the Estimated chip says what a ring is.
 - **A sport's page card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the age grade line, the ladder, then the best efforts. Balance no longer carries these cards: its tiles carry the threshold and the level.
-  The age grade line is the effort and the age, "6:28 /mi at age 37.", with no standard and no sentence about what a level is. A ride's grade carries the Estimated chip; the ride tile's watts line reads "250 W for 20 min." whoever measured them, since the section's single line says how many rides had estimated watts. A run's pace in a record is a GAP, a chip with its meaning one press away
+  The age grade line is the effort and the age, "6:28 /mi at age 37.", with no standard and no sentence about what a level is. A ride's grade carries the Estimated chip; the ride tile's watts line reads "250 W for 20 min." whoever measured them. How many rides had estimated watts is said on the Ride page, in its best-efforts section; on Balance it is the Estimated chips in the pace-curve table, one tap down. A run's pace in a record is a GAP, a chip with its meaning one press away
   ("Grade-adjusted pace: your pace allowing for hills, as if on level ground."), and there is no sentence about it under the records.
   On an activity page the splits' column is headed with the same term, once in the table's header and once at the first item of the narrow list.
 - **A threshold is checked before it is shown, and a refused one shows its floor.** A refusal changes the
@@ -886,9 +886,11 @@ and the tests named at the foot of that page keep the two in step. A display siz
   from, its best from the mile up with the highest VDOT, and the day it was run: "From your 10 km on 3 Oct."
   (with the year when it is not the page's year); with heart rate alone, "From your heart rate." Where no
   window holds a run shown hard (its peak never held a hard heart rate, or the reference cannot certify one), the first
-  window with a run answers from all of that window's runs, and the card is drawn as any other: each row is "Predicted" with its
-  range bar and key, held at any time already run at the distance (`predict/races.ts`). Nothing on the page says no run was
-  all-out. A run
+  window with a run answers from all of that window's runs (`kind: 'bound'`): each row is the same pace and predicted time, held
+  at any time already run at the distance (`predict/races.ts`), with no range bar, key or range column, since the range was
+  calibrated on hard anchors and a time from easy runs is one the runner can beat. One line in **About these predictions**, one
+  tap down, says "No run in this period was shown hard, so these times come from easier running. A race effort would be faster."
+  (the window named as the note names it). A run
   without a heart rate, a set-aside heart rate and a gate that could not judge still count as a hard run, as before. The
   heart-rate estimate (VO2max) is the period's own and joins only an answer from the period. A row is the race with its pace on
   the left, the predicted time at display size on the right, and between them a bar: the **range**
@@ -1588,7 +1590,7 @@ prefixed "At least" or suffixed ", estimated". An estimate is never the labelled
 
 **Best curve by year.** Every year's best curve on the sport page's own scales (duration on a log axis from a minute, or
 from where the sport's curve starts, to three hours). The newest year and the best year are in the sport colour, named at
-their ends and marked at the 20 minute best (hollow when not all-out or estimated, which the tooltip says; the table prints the plain number); the others are fainter the older they
+their ends and marked at the 20 minute best (hollow when not all-out or estimated, which the tooltip and the chart's screen-reader description say; the table prints the plain number); the others are fainter the older they
 are, on one ramp. Past six years only four are in colour (the newest, the best and the two newest of the others, each
 labelled) and the rest are thin grey lines with no label. The title is the finding about the 20 minute best ("Your 20 min
 power peaked in 2024"), or "is fastest in" for a pace and "is highest in" for a power when the newest year holds it. An

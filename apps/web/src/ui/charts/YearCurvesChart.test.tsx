@@ -149,6 +149,12 @@ describe('YearCurvesChart', () => {
     const { container } = render(<YearCurvesChart sport="ride" curves={estimated} units="metric" />)
     const marks = Array.from(container.querySelectorAll('[data-testid="year-curve-mark"]'))
     expect(marks.map((mark) => mark.getAttribute('data-hollow'))).toEqual(['true'])
+    // A screen reader is told what a hollow mark is by the chart's description; the tooltip says it per value.
+    expect(
+      screen.getByRole('img', {
+        name: /A hollow mark at the 20 minute best is a best that was not all-out or is estimated\.$/,
+      }),
+    ).toBeInTheDocument()
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'Home' })
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })

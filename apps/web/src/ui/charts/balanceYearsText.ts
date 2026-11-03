@@ -11,9 +11,12 @@ import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 const NONE = 'None'
 const NOT_ALL_OUT = 'not all-out'
 
-/** What the chart says to a screen reader: the scale and what the band is. A hollow dot is explained by the tooltip. */
+/**
+ * What the chart says to a screen reader: the scale, what the band is and what a hollow dot is. The key and the table
+ * do not say it, and a sighted reader finds it in the tooltip.
+ */
 export const DESCRIPTION =
-  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range.'
+  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range. A hollow dot is a best that was not all-out.'
 
 /** A ride's range as "58 to 66%". */
 export function rangeText(range: NonNullable<SportGrade['range']>): string {

@@ -58,8 +58,9 @@ const HEADING = 'Your ride as a run'
 /**
  * What your ride is worth as a run: the app's most relatable idea, as a tile. Its figure is the pace the best 20
  * minutes on the bike equals, with the watts under it. It names the ride that set the effort and opens to every
- * duration; how the watts were found is said once, on the ride's own tile. A file with no ride has no such idea,
- * so the slot is left out; without a weight the ride's figures wait for it.
+ * duration. It does not say how the watts were found: the Ride page's best-efforts section says how many rides had
+ * estimated watts, and the pace-curve table under this tile marks each estimated effort. A file with no ride has no
+ * such idea, so the slot is left out; without a weight the ride's figures wait for it.
  */
 export function CrossSportCard({ result, units, weighted, period }: CrossSportCardProps) {
   if (countSport(result.activities, 'ride') === 0) return null

@@ -48,8 +48,11 @@ describe('BalanceOverYearsChart', () => {
     expect(all.filter((dot) => dot.getAttribute('data-sport') === 'ride')).toHaveLength(10)
     const hollow = all.filter((dot) => dot.getAttribute('data-hollow') === 'true')
     expect(hollow.map((dot) => dot.getAttribute('data-sport'))).toEqual(['ride', 'ride', 'ride'])
-    // The ring is explained by the tooltip alone, so the key lists the sports and the band only.
+    // The key lists the sports and the band only; a screen reader is told what a hollow dot is by the chart's description.
     expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range'])
+    expect(
+      screen.getByRole('img', { name: /A hollow dot is a best that was not all-out\.$/ }),
+    ).toBeInTheDocument()
   })
 
   it('breaks the line at a year with no best, and draws the ride’s range as a band', () => {

@@ -217,7 +217,7 @@ describe('CrossSportCard', () => {
           equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
         }),
       )
-      // The ride's own tile says how the watts were found, so this line does not repeat it.
+      // How the watts were found is said on the Ride page and in the pace-curve table, not on this line.
       expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
     },
   )

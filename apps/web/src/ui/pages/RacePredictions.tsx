@@ -88,17 +88,22 @@ function RaceBar({
   )
 }
 
-/** One race: its name and pace on the left, its bar between, its time at display size on the right. */
+/**
+ * One race: its name and pace on the left, its bar between, its time at display size on the right. A time from runs none
+ * of which was shown hard is a time the athlete can beat, so its range would mislead and the bar is left out.
+ */
 function RaceRow({
   prediction,
   units,
   ran,
   scale,
+  bound,
 }: {
   prediction: RacePrediction
   units: UnitSystem
   ran: RanBest | undefined
   scale: RaceScale
+  bound: boolean
 }) {
   return (
     <li className="race-row">
@@ -110,7 +115,7 @@ function RaceRow({
         {ran && <span className="race-row__ran">{ranText(ran)}</span>}
         {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
-      <RaceBar prediction={prediction} ran={ran} scale={scale} />
+      {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}
       <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
     </li>
   )
@@ -148,10 +153,12 @@ function RaceTable({
   found,
   units,
   ran,
+  bound,
 }: {
   found: RunPredictions
   units: UnitSystem
   ran: readonly RanBest[]
+  bound: boolean
 }) {
   const ranAt = (distanceM: number) => ran.find((r) => r.distanceM === distanceM)
   // At 320 px the table is wider than its box and scrolls there, so a keyboard reader can reach it.
@@ -159,7 +166,11 @@ function RaceTable({
   return (
     <div className="table-scroll" {...region}>
       <table className="race-table">
-        <caption className="sr-only">Race predictions with their range and each estimate</caption>
+        <caption className="sr-only">
+          {bound
+            ? 'Race predictions and each estimate'
+            : 'Race predictions with their range and each estimate'}
+        </caption>
         <thead>
           <tr>
             <th scope="col">Race</th>
@@ -169,9 +180,11 @@ function RaceTable({
             <th scope="col" className="num">
               Predicted
             </th>
-            <th scope="col" className="num">
-              Range
-            </th>
+            {!bound && (
+              <th scope="col" className="num">
+                Range
+              </th>
+            )}
             {(['performances', 'heartRate'] as const).map((method) => (
               <th key={method} scope="col" className="num">
                 {METHOD_NAME[method]}
@@ -192,7 +205,7 @@ function RaceTable({
                 {formatPace(prediction.distanceM / prediction.seconds, units)}
               </td>
               <td className="num">{formatRecordTime(prediction.seconds)}</td>
-              <td className="num">{spreadText(prediction)}</td>
+              {!bound && <td className="num">{spreadText(prediction)}</td>}
               {(['performances', 'heartRate'] as const).map((method) => {
                 const own = prediction.methods.find((m) => m.method === method)
                 return (
@@ -219,15 +232,17 @@ function RaceTable({
 
 /**
  * A sport's race predictions, as raceAnswerOf found them: one line under the title names the run they were carried
- * from, and each race is a bar of its range with the prediction on it and the two estimates it sits between. How they
- * were reached, where each estimate came from and the figures as a table are in "About these predictions". A race the
- * window holds a faster recorded best for says so on its row.
+ * from, and each race is a bar of its range with the prediction on it and the two estimates it sits between. Where no
+ * run was shown hard (`bound`) each race is its time alone, with no bar or key, and a line in the disclosure says so.
+ * How they were reached, where each estimate came from and the figures as a table are in "About these predictions". A
+ * race the window holds a faster recorded best for says so on its row.
  */
 export function RacePredictions({
   sport,
   found,
   units,
   window = 'period',
+  bound = false,
   basis = null,
   openedAt,
   ran = NONE_RAN,
@@ -237,6 +252,8 @@ export function RacePredictions({
   units: UnitSystem
   /** Where the runs are from. All time says the predictions are of the best period in it. */
   window?: RaceWindow
+  /** No run was shown hard: each time is carried from easier running, so it has no range to draw. */
+  bound?: boolean
   /** The run the times were carried from, which the line under the title names. Null: heart rate alone. */
   basis?: RaceBasis | null
   /** The time the page opened at, so a date shows its year only when it is not this one. */
@@ -257,7 +274,7 @@ export function RacePredictions({
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
         <p className="secondary">{basisLine({ basis }, openedAt)}</p>
       </div>
-      <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />
+      {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
       <ul className="race-rows">
         {found.races.map((prediction) => (
           <RaceRow
@@ -266,12 +283,13 @@ export function RacePredictions({
             units={units}
             ran={ran.find((r) => r.distanceM === prediction.distanceM)}
             scale={scale}
+            bound={bound}
           />
         ))}
       </ul>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
-        <p className="muted">{methodNote(window)}</p>
-        <RaceTable found={found} units={units} ran={ran} />
+        <p className="muted">{methodNote(window, bound)}</p>
+        <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">
           {found.races.map((prediction) => (
             <li key={prediction.distanceM}>
