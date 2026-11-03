@@ -453,7 +453,7 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
 
-  it('sets the evidence line as one wrapping row with a gap between its chip, definition and link, never a card', () => {
+  it('sets the evidence line as one wrapping row, never a card', () => {
     const line = rulesWith(balancePage, '.evidence-line')
     expect(line).toMatch(/display:\s*flex/)
     expect(line).toMatch(/flex-wrap:\s*wrap/)

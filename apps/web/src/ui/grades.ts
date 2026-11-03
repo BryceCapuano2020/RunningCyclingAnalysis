@@ -163,12 +163,11 @@ import { NO_STANDARD_RECORD_TEXT } from './gradeNotes'
 export * from './gradeNotes'
 
 /**
- * The level a grade names, or null when its range crosses a band boundary: a level is named only when the
- * whole range sits in one band, so a ride that could be in either shows its number and range alone.
+ * The level a grade names: the band of its centre, the best estimate. A ride's range may reach into a neighbouring band;
+ * the ladder draws that range and the detail writes it, so it never changes the level the headline names.
  */
-export function gradeLevelText(grade: SportGrade): string | null {
-  const { centre, range } = grade
-  return range && range.low.level !== range.high.level ? null : centre.level
+export function gradeLevelText(grade: SportGrade): string {
+  return grade.centre.level
 }
 
 /** A ride's range as whole percents, low to high, such as "63 to 71". */
@@ -178,17 +177,11 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 
 /**
  * A grade on the share card's hero: its level and whole percent, and the effort it grades, such as
- * "Local · 64% on best 20 min". A grade with no level to name shows its number and range alone, as the
- * page does: "64% (63 to 71) on best 20 min". The card's threshold label already says the figure is
- * estimated, so the line does not repeat it.
+ * "Local · 64% on best 20 min". A ride's level is its centre's, as the page names it. The card's threshold
+ * label already says the figure is estimated, so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  const { centre, range } = grade
-  const level = gradeLevelText(grade)
-  const figure = formatGrade(centre.grade)
-  if (level !== null) return `${level} · ${figure} on best ${HEADLINE_LABEL}`
-  const spread = range === null ? '' : ` (${gradeRangeText(range)})`
-  return `${figure}${spread} on best ${HEADLINE_LABEL}`
+  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
 }
 
 /**
@@ -201,8 +194,8 @@ export type GradeContext = 'card' | 'row'
 export interface GradeParts {
   /** "Estimated" for a ride on a card; else null. */
   lead: string | null
-  /** The level the whole range sits in; null where a ride's range crosses a band, so the number and range stand alone. */
-  level: string | null
+  /** The level of the centre, whether or not a ride's range reaches a neighbouring band. */
+  level: string
   /** The centre as a whole percent, such as "64%". */
   value: string
   /** A ride's range as whole percents, low to high, such as "63 to 71"; null for a run. */

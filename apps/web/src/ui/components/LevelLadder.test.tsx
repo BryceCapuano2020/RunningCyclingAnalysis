@@ -28,11 +28,11 @@ describe('LevelLadder', () => {
     ).toBeInTheDocument()
   })
 
-  it('names a ride as an estimate with its range, and no level when the range crosses one', () => {
+  it('names a ride as an estimate with the level of its centre and its range, where the range crosses a level', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67%, on your best 20 min, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, on your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -46,11 +46,13 @@ describe('LevelLadder', () => {
     ).toBeInTheDocument()
   })
 
-  it('fills and names no band when a ride range crosses a band edge: the number and range stand alone', () => {
+  it('fills and names the band of the centre when a ride range crosses a band edge, and draws the range', () => {
     const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(0)
-    expect(container.querySelectorAll('.level-ladder__name--current')).toHaveLength(0)
-    // The ring and its range are still drawn, from the range's low end to its high end.
+    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(1)
+    const names = container.querySelectorAll('.level-ladder__name--current')
+    expect(names).toHaveLength(1)
+    expect(names[0]).toHaveTextContent('Local')
+    // The ring and its range are drawn too, from the range's low end to its high end.
     expect(container.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(container.querySelector('.level-ladder__range')).not.toBeNull()
   })

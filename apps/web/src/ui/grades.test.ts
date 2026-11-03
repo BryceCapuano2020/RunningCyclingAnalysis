@@ -260,7 +260,7 @@ describe('grade parts', () => {
     })
   })
 
-  it('names no level when a ride range crosses a band boundary, so the number and range stand alone', () => {
+  it('names the level of the centre when a ride range crosses a band boundary', () => {
     const grade: SportGrade = {
       centre: { grade: 0.6, level: 'Local' },
       range: {
@@ -270,7 +270,7 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', grade)).toEqual({
       lead: 'Estimated',
-      level: null,
+      level: 'Local',
       value: '60%',
       range: '55 to 64',
     })
@@ -286,7 +286,7 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', ride, 'row')).toEqual({
       lead: null,
-      level: null,
+      level: 'Local',
       value: '60%',
       range: '55 to 64',
     })
@@ -305,7 +305,7 @@ describe('grade parts', () => {
     }
     expect(gradeParts('ride', grade)).toEqual({
       lead: 'Estimated',
-      level: null,
+      level: 'Local',
       value: '60%',
       range: '55 to 64',
     })
@@ -347,10 +347,10 @@ describe('grade parts', () => {
         MAN_BORN_1986,
       ),
     )
-    // The range runs from 62% (Local) to 70% (Regional), so no level is named.
+    // The range runs from 62% (Local) to 70% (Regional); the level is the centre's.
     expect(gradeParts('ride', grade)).toMatchObject({
       lead: 'Estimated',
-      level: null,
+      level: 'Local',
       value: '66%',
       range: '62 to 70',
     })
@@ -452,7 +452,7 @@ describe('gradeLevelText', () => {
     expect(gradeLevelText({ centre: band(0.64, 'Local'), range: null })).toBe('Local')
   })
 
-  it('names the level when the whole range sits in one band, and none when it crosses two', () => {
+  it('names the level of the centre whether the range sits in one band or crosses two', () => {
     const centre = band(0.64, 'Local')
     expect(
       gradeLevelText({ centre, range: { low: band(0.62, 'Local'), high: band(0.68, 'Local') } }),
@@ -460,9 +460,9 @@ describe('gradeLevelText', () => {
     expect(
       gradeLevelText({
         centre,
-        range: { low: band(0.58, 'Recreational'), high: band(0.68, 'Local') },
+        range: { low: band(0.58, 'Recreational'), high: band(0.72, 'Regional') },
       }),
-    ).toBeNull()
+    ).toBe('Local')
   })
 })
 
@@ -476,7 +476,7 @@ describe('heroGradeLine', () => {
     expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
   })
 
-  it('gives a ride whose range crosses a level its number and range alone, as the page does', () => {
+  it('names the centre’s level for a ride whose range crosses a level, as the page does, with no range', () => {
     const ride: SportGrade = {
       centre: { grade: 0.61, level: 'Recreational' },
       range: {
@@ -484,6 +484,6 @@ describe('heroGradeLine', () => {
         high: { grade: 0.67, level: 'Local' },
       },
     }
-    expect(heroGradeLine(ride)).toBe('61% (55 to 67) on best 20 min')
+    expect(heroGradeLine(ride)).toBe('Recreational · 61% on best 20 min')
   })
 })

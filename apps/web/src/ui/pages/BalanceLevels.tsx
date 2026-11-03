@@ -6,9 +6,8 @@ import type { BalanceLevelsModel } from './levelsModel'
 import './BalanceLevels.css'
 
 /**
- * Each sport's level on one plain line under the meter, named as the meter's ends are: its name, its age grade, then the level that grade
- * names, or the range of a ride that could be in either of two. The sport colour marks the sport's glyph only. A sport with no grade says what
- * it is missing.
+ * Each sport's level on one plain line under the meter, named as the meter's ends are: its name, its age grade, then the level of
+ * that grade's centre. The sport colour marks the sport's glyph only. A sport with no grade says what it is missing.
  */
 export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
   if (model.rows.length === 0 && model.note === null) return null
@@ -30,9 +29,7 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
                   <span className="balance-levels__grade">{row.grade}</span>{' '}
                   <span className="balance-levels__level">
                     {/* The level is defined once, on the first row that names one. */}
-                    {row.level === null ? (
-                      `(${row.range})`
-                    ) : index === firstNamed ? (
+                    {index === firstNamed ? (
                       <Definition meaning={DEFINITIONS.level}>{row.level}</Definition>
                     ) : (
                       row.level

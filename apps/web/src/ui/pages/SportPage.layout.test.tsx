@@ -159,7 +159,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(within(level).queryByText('Estimated')).toBeNull()
   })
 
-  it('shows a ride’s level as an estimate: a ring, its range and an estimated chip', () => {
+  it('shows a ride’s level as its centre’s: a ring with its range on the ladder, and no chip or range beside the figure', () => {
     renderPage(
       'ride',
       makeResult({
@@ -175,10 +175,14 @@ describe('the answer: threshold and level in one card', () => {
       { profile: MAN_BORN_1986 },
     )
     const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    // The range reaches from Local into Regional, and the level is still the centre's.
+    expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
+    expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__range')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
-    expect(within(level).getByText('Estimated')).toHaveClass('stat-tile__basis--estimated')
-    expect(within(level).getByText('(63 to 71)')).toBeInTheDocument()
+    expect(within(level).queryByText('Estimated')).toBeNull()
+    expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local67%$/)
   })
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {

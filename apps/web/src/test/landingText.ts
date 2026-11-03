@@ -1,7 +1,6 @@
 import { SPORT_NOUN } from '../domain/sportNoun'
 import { formatGrade } from '../ui/gradeFormat'
-import { gradeLevelText, gradeRangeText } from '../ui/grades'
-import type { SportGrade } from '../ui/grades'
+import { gradeLevelText } from '../ui/grades'
 import type { LandingFigures } from '../ui/landingFigures'
 import { SPORT_TITLE } from '../ui/sports'
 
@@ -14,11 +13,9 @@ export function landingText({ gap, grades }: LandingFigures) {
   const other = gap.lean === 'ride' ? 'run' : 'ride'
   // The gap is signed toward running; the meter states its range from the side the balance leans to.
   const edges = gap.lean === 'ride' ? [-gap.high, -gap.low] : [gap.low, gap.high]
-  // A level is named only when the whole range sits in one band; a ride across two shows its range.
-  const level = (grade: SportGrade) =>
-    gradeLevelText(grade) ?? (grade.range === null ? '' : `(${gradeRangeText(grade.range)})`)
+  // A level is the centre's, whether or not a ride's range reaches a neighbouring band.
   const row = (sport: 'run' | 'ride') =>
-    `${SPORT_TITLE[sport]} ${formatGrade(grades[sport].centre.grade)} ${level(grades[sport])}`
+    `${SPORT_TITLE[sport]} ${formatGrade(grades[sport].centre.grade)} ${gradeLevelText(grades[sport])}`
   return {
     value: `+${lead}pts`,
     edges: `${edges[0]} to ${edges[1]}`,

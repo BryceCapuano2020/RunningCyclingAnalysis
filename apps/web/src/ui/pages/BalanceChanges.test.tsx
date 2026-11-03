@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChangeItem } from './balanceChangeItems'
 import { BalanceChanges } from './BalanceChanges'
@@ -11,23 +11,19 @@ const LEAN: ChangeItem = {
   direction: 'down',
   title: 'Lean eased 3 pts',
   body: 'Down from 9 pts toward running.',
-  tag: 'estimated',
 }
 const RIDE: ChangeItem = {
   key: 'ride-best',
   direction: 'up',
   title: 'New 20 min ride best',
   body: '246 W, 6 W more than previous 12 weeks.',
-  tag: 'recorded',
 }
 const RUN: ChangeItem = {
   key: 'run-best',
   direction: 'up',
   title: 'New 20 min run best',
   body: '0:12 /mi faster than previous 12 weeks.',
-  tag: 'recorded',
 }
-const GUESS: ChangeItem = { ...LEAN, key: 'guess', tag: 'estimated' }
 
 describe('BalanceChanges', () => {
   it('is left out with no previous period, as under all time', () => {
@@ -42,23 +38,19 @@ describe('BalanceChanges', () => {
     ).toBeInTheDocument()
   })
 
-  it('lists each change with its title, its line and its tag, in order', () => {
-    render(
+  it('lists each change as its title and its line, in order, with no chip beside them', () => {
+    const { container } = render(
       <BalanceChanges changes={{ items: [LEAN, RIDE, RUN] }} previousLabel="Previous 12 weeks" />,
     )
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(3)
-    expect(within(items[0]!).getByText('Lean eased 3 pts')).toBeInTheDocument()
-    expect(within(items[0]!).getByText('Estimated')).toBeInTheDocument()
-    expect(within(items[1]!).getByText('Recorded')).toBeInTheDocument()
-    expect(within(items[2]!).getByText('Recorded')).toBeInTheDocument()
-  })
-
-  it('words each tag as what the change rests on, and has no tag about ranges', () => {
-    render(<BalanceChanges changes={{ items: [GUESS] }} previousLabel="Previous 12 weeks" />)
-    expect(screen.getByText('Estimated')).toBeInTheDocument()
-    expect(screen.queryByText('Beyond its range')).toBeNull()
-    expect(screen.queryByText('Within its range')).toBeNull()
+    // Everything an item says is its title and its line: no "Recorded", "Estimated" or "Not all-out" with them.
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Lean eased 3 ptsDown from 9 pts toward running.',
+      'New 20 min ride best246 W, 6 W more than previous 12 weeks.',
+      'New 20 min run best0:12 /mi faster than previous 12 weeks.',
+    ])
+    expect(container.querySelector('.tag, .balance-changes__tag')).toBeNull()
   })
 
   it('draws an arrow for each change, hidden from assistive technology, up or down by its direction', () => {
@@ -82,42 +74,6 @@ describe('BalanceChanges', () => {
     expect(container.querySelector('ul')).toBeNull()
   })
 
-  it('marks a recorded best with a check, so the tag is more than a word', () => {
-    const { container } = render(
-      <BalanceChanges changes={{ items: [RIDE] }} previousLabel="Previous 12 weeks" />,
-    )
-    expect(container.querySelector('.balance-changes__tag--recorded svg')).not.toBeNull()
-  })
-
-  it('shows one chip an item, Not all-out first, and a level bar in place of an arrow for a change with no direction', () => {
-    const labelled: ChangeItem = {
-      ...LEAN,
-      direction: null,
-      title: 'Lean moved 3 pts',
-      label: 'Not all-out',
-    }
-    const { container } = render(
-      <BalanceChanges
-        changes={{ items: [labelled, { ...RUN, label: 'Not all-out' }, RIDE] }}
-        previousLabel="Previous 12 weeks"
-      />,
-    )
-    const items = screen.getAllByRole('listitem')
-    const chips = (item: HTMLElement) =>
-      [...item.querySelectorAll('.balance-changes__tag')].map((chip) => chip.textContent)
-    // The label stands in for the tag: an estimated lean and a recorded run best each carry the one chip.
-    expect(chips(items[0]!)).toEqual(['Not all-out'])
-    expect(chips(items[1]!)).toEqual(['Not all-out'])
-    expect(chips(items[2]!)).toEqual(['Recorded'])
-    expect(within(items[0]!).queryByText('Estimated')).toBeNull()
-    expect(within(items[1]!).queryByText('Recorded')).toBeNull()
-    const paths = [...container.querySelectorAll('.balance-changes__icon path')].map((p) =>
-      p.getAttribute('d'),
-    )
-    expect(paths[0]).toBe('M5 12h14')
-    expect(paths[1]).toMatch(/^M12 18V6/)
-  })
-
   it('names a window further back by its months, in the title and the no-change line', () => {
     const { container } = render(
       <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,
@@ -137,10 +93,7 @@ describe('BalanceChanges', () => {
 
   it('never says a change is not a real change', () => {
     const { container } = render(
-      <BalanceChanges
-        changes={{ items: [LEAN, RIDE, RUN, GUESS] }}
-        previousLabel="Previous 12 weeks"
-      />,
+      <BalanceChanges changes={{ items: [LEAN, RIDE, RUN] }} previousLabel="Previous 12 weeks" />,
     )
     expect(container.textContent).not.toMatch(/real change/i)
   })

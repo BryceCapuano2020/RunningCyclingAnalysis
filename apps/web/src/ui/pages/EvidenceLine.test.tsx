@@ -6,22 +6,13 @@ import { EvidenceLine } from './EvidenceLine'
 afterEach(cleanup)
 
 describe('EvidenceLine', () => {
-  it('is one line, not a card: a chip, the reason in plain words, and the link to how sure the answer is', () => {
-    const { container } = render(<EvidenceLine noHeartRate />)
+  it('is one line, not a card: the link to how sure the answer is, with no chip and no nudge', () => {
+    const { container } = render(<EvidenceLine />)
     expect(container.querySelector('.panel, .band, h2, h3')).toBeNull()
-    expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
     const link = screen.getByRole('link', { name: 'How sure is this?' })
     expect(link).toHaveAttribute('href', '#/method')
-    expect(screen.getByText('Add heart rate to sharpen this')).toBeInTheDocument()
-    expect(container.querySelector('.definition')).toBeNull()
-  })
-
-  it('is the link alone while the files have heart rate, since the tiles carry the check', () => {
-    const { container } = render(<EvidenceLine noHeartRate={false} />)
-    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
-      'href',
-      '#/method',
-    )
+    // The link is all the line says: nothing about heart rate sits beside it.
+    expect(container.textContent).toBe('How sure is this?')
     expect(container.querySelector('.chip, .definition')).toBeNull()
   })
 })

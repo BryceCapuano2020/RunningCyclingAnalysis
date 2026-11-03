@@ -1,7 +1,6 @@
-import { CheckIcon } from '../components/icons'
 import { withThe } from '../previousLabel'
-import { MAX_CHANGES, TAG_TEXT, noChangeText } from './balanceChangeItems'
-import type { BalanceChangesResult, ChangeItem, ChangeTag } from './balanceChangeItems'
+import { MAX_CHANGES, noChangeText } from './balanceChangeItems'
+import type { BalanceChangesResult, ChangeItem } from './balanceChangeItems'
 import './BalanceChanges.css'
 
 export interface BalanceChangesProps {
@@ -14,11 +13,9 @@ export interface BalanceChangesProps {
 const ARROWS = {
   up: 'M12 18V6M6 11l6-6 6 6',
   down: 'M12 6v12M6 13l6 6 6-6',
-  /** A change that states no direction: a level bar, not an arrow. */
-  none: 'M5 12h14',
 } as const
 
-/** An arrow for a change's direction, drawn on a 24 unit grid in the text's own colour; a bar where it has none. */
+/** An arrow for a change's direction, drawn on a 24 unit grid in the text's own colour. */
 function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
   return (
     <span className="balance-changes__icon" aria-hidden="true">
@@ -30,36 +27,15 @@ function Arrow({ direction }: { direction: ChangeItem['direction'] }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d={ARROWS[direction ?? 'none']} />
+        <path d={ARROWS[direction]} />
       </svg>
-    </span>
-  )
-}
-
-/** The evidence tag: a recorded best is checked, and an estimate is hollow. */
-function Tag({ tag }: { tag: ChangeTag }) {
-  return (
-    <span className={`tag tag--ink balance-changes__tag balance-changes__tag--${tag}`}>
-      {tag === 'recorded' ? <CheckIcon /> : null}
-      {TAG_TEXT[tag]}
-    </span>
-  )
-}
-
-/** The one chip an item carries: "Not all-out" where its call read every effort, else whether it is a recording or an estimate. */
-function Chip({ item }: { item: ChangeItem }) {
-  if (item.label === undefined) return <Tag tag={item.tag} />
-  return (
-    <span className="tag tag--ink balance-changes__tag balance-changes__tag--note">
-      {item.label}
     </span>
   )
 }
 
 /**
  * What changed against the previous period, or against the latest earlier window that held enough to compare: at most
- * four items, each with an arrow, a title, a line and one chip: "Not all-out" where its call read every effort, else a
- * tag that says whether it is a recording or an estimate. An item is listed only where the change test calls it. With
+ * four items, each with an arrow, a title and a line. An item is listed only where the change test calls it. With
  * nothing called, the strip says so in one line; with nothing to compare, and under all time, it is left out.
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
@@ -80,9 +56,6 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
               <div>
                 <p className="balance-changes__head">{item.title}</p>
                 <p className="balance-changes__body">{item.body}</p>
-                <div className="balance-changes__tags">
-                  <Chip item={item} />
-                </div>
               </div>
             </li>
           ))}

@@ -10,7 +10,6 @@ const TAGGED = [
   '.stat-tile__basis',
   '.sport-hero__period',
   '.balance-levels__name',
-  '.balance-changes__tag',
   '.fitness-card__sport',
   '.fitness-track__tag',
 ]
@@ -45,8 +44,6 @@ describe('the tag', () => {
   })
 
   it('beats the tag where a state sets its colour, since the tag is later in the bundle', () => {
-    const changes = sheets.find(({ path }) => path.endsWith('BalanceChanges.css'))?.css ?? ''
-    expect(changes).toMatch(/\.tag\.balance-changes__tag--recorded\s*\{/)
     const track = sheets.find(({ path }) => path.endsWith('FitnessTrack.css'))?.css ?? ''
     expect(track).toMatch(/\.tag\.fitness-track__tag--now\s*\{/)
   })

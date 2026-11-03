@@ -124,8 +124,7 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'It is wider for a length with few efforts.',
       'It is also wider when efforts vary more.',
       `With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it.`,
-      'A best is a floor on what you can do.',
-      'So a period without a hard effort can read as lower.',
+      'When either period has no hard efforts, a change compares every effort, so an easy period can read as slower.',
     ],
     detail: [
       `For each length the two periods’ efforts are dealt out ${CHANGE.draws.toLocaleString('en-US')} times.`,
@@ -139,6 +138,7 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'On a title or the strip, it was 2% to 5%.',
       'The same simulations found a 10% gain in a run’s 20 min in about two athletes in five.',
       'For a ride’s 5 min, a 10% gain was found in about one athlete in eight.',
+      'A best is a floor on what you can do.',
       'A swing in how many hard efforts a period holds is not allowed for.',
       'It reads as a change in the best.',
     ],

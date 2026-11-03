@@ -16,36 +16,18 @@ import { headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
 import { withThe } from '../previousLabel'
 import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
-import { effortLabel, isEstimatedRecord, valueAt } from '../records'
+import { effortLabel, valueAt } from '../records'
 import { BALANCE_PAIR, SPORT_NOUN } from '../sports'
 
 /**
- * How a change in the strip is known. Every item is one the change test called: a best that left the band its
- * two periods' efforts make by chance, or a lean that such a best moves. `recorded` is a best measured in both
- * periods, and `estimated` a figure that rests on estimated watts or on a grade, which is itself an estimate.
- */
-export type ChangeTag = 'recorded' | 'estimated'
-
-export const TAG_TEXT: Record<ChangeTag, string> = {
-  recorded: 'Recorded',
-  estimated: 'Estimated',
-}
-
-/** The label on a change whose call read every effort, because heart rate could not pick the hard ones of both periods. */
-export const NOT_ALL_OUT = 'Not all-out'
-
-/**
- * One thing that moved since the previous period: an arrow, its title and line, and how far to trust it. `direction` is
- * null for a lean that no all-out pair of bests stands behind, which states none. `label` says the call read every
- * effort, so a hard best may stand against an easy one.
+ * One thing that moved since the previous period: an arrow, its title and its line. Every item is one the change test
+ * called: a best that left the band its two periods' efforts make by chance, or a lean that such a best moves.
  */
 export interface ChangeItem {
   key: string
-  direction: 'up' | 'down' | null
+  direction: 'up' | 'down'
   title: string
   body: string
-  tag: ChangeTag
-  label?: typeof NOT_ALL_OUT
 }
 
 /** The most items the strip lists. */
@@ -121,17 +103,16 @@ function setOn(words: string, source: ActivitySummary | null): string {
 /**
  * A sport's best 20 minutes against the previous period's, in the figures the page shows. Listed only where the
  * change test calls the move a change; null where the periods hold too few efforts of that length for the test to
- * judge. Recorded only when both bests were measured: a ride's watts that were estimated, in either period, say
- * estimated.
+ * judge.
  */
 function bestItem(
   sport: Sport,
-  input: Pick<ChangesInput, 'result' | 'library' | 'units' | 'change'> & {
+  input: Pick<ChangesInput, 'result' | 'units' | 'change'> & {
     previous: SportCurves
     label: string
   },
 ): Compared {
-  const { result, previous, library, units, label, change } = input
+  const { result, previous, units, label, change } = input
   const now = NATIVE[sport](bestOn(result, sport))
   const before = NATIVE[sport](bestOn(previous, sport))
   if (!Number.isFinite(now) || !Number.isFinite(before)) return null
@@ -146,19 +127,12 @@ function bestItem(
   const words = recordChange(sport, now, before, units, label, call) ?? ''
   if (words === '' || words.startsWith(NO_CLEAR_CHANGE)) return { item: null }
   const source = setBy(CURVE[sport](result), result.activities)
-  const earlier = setBy(CURVE[sport](previous), library)
   return {
     item: {
       key: `${sport}-best`,
       direction: better ? 'up' : 'down',
       title: bestTitle(sport, better, label),
       body: setOn(`${SHOWN[sport](now, units)}, ${words}`, source),
-      tag:
-        isEstimatedRecord(sport, source) || isEstimatedRecord(sport, earlier)
-          ? 'estimated'
-          : 'recorded',
-      // Read from every effort in both periods: a hard best may stand against an easy one.
-      ...(call?.gated === false ? { label: NOT_ALL_OUT } : {}),
     },
   }
 }
@@ -231,15 +205,12 @@ function leanSupported(moved: number, verdicts: Record<Sport, ChangeVerdict>): b
 /**
  * The balance's lean against the previous period's. The arrow says whether the lean grew or eased, whichever
  * sport it favours. It is listed only when a best the change test called explains the move (leanSupported). Its body
- * gives only where the lean was: the range is the meter's to state, once, and the tag says it is an estimate.
- * Where a call behind the move read every effort (`allOut` false), a hard best may stand against an easy one, so the
- * lean says how far it moved and not which way: no arrow, no "grew" or "eased", and the label says why.
+ * gives only where the lean was: the range is the meter's to state, once.
  */
 export function leanItem(
   now: BalanceGap,
   before: BalanceGap,
   verdicts: Record<Sport, ChangeVerdict>,
-  allOut = true,
 ): ChangeItem | null {
   const from = Math.round(before.centre)
   const to = Math.round(now.centre)
@@ -252,25 +223,19 @@ export function leanItem(
     ? 'Still in balance'
     : crossed
       ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
-      : allOut
-        ? `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-        : `Lean moved ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-  const was = crossed || stillLevel || !allOut ? 'Was' : grew ? 'Up from' : 'Down from'
+      : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
+  const was = crossed || stillLevel ? 'Was' : grew ? 'Up from' : 'Down from'
   return {
     key: 'lean',
-    direction: allOut ? (grew ? 'up' : 'down') : null,
+    direction: grew ? 'up' : 'down',
     title,
     body: `${was} ${leanWords(before)}.`,
-    tag: 'estimated',
-    ...(allOut ? {} : { label: NOT_ALL_OUT }),
   }
 }
 
 export interface ChangesInput {
   result: AnalysisResult
   previous: SportCurves | null
-  /** Every activity in the library, which dates the efforts the previous period's bests were set in. */
-  library: readonly ActivitySummary[]
   /** What the period is compared with: "Previous 12 weeks", or the months of an earlier window ("Jan to Mar"); null when there is none (all time). */
   previousLabel: string | null
   /** Whether each best differs from that period's by more than chance; null for all time. */
@@ -295,9 +260,9 @@ export interface BalanceChangesResult {
  * and where no earlier window holds enough efforts to test: the strip is then left out.
  */
 export function balanceChanges(input: ChangesInput): BalanceChangesResult | null {
-  const { result, previous, previousLabel, units, rideShown, gap, grading, library, change } = input
+  const { result, previous, previousLabel, units, rideShown, gap, grading, change } = input
   if (previous === null || previousLabel === null) return null
-  const best = { result, previous, library, units, label: previousLabel, change }
+  const best = { result, previous, units, label: previousLabel, change }
   // A sport that is held for want of a weight explains no move of the lean.
   const shown: Record<Sport, boolean> = { run: true, ride: rideShown }
   const verdicts = Object.fromEntries(
@@ -311,13 +276,7 @@ export function balanceChanges(input: ChangesInput): BalanceChangesResult | null
     // With neither sport's best judged there is nothing to say a lean moved on.
     if (BALANCE_PAIR.every((sport) => verdicts[sport] === 'untested')) return null
     const before = previousGap(result, previous, grading)
-    // A called best that read every effort leaves the lean without a direction.
-    const allOut = !BALANCE_PAIR.some(
-      (sport) =>
-        (verdicts[sport] === 'higher' || verdicts[sport] === 'lower') &&
-        callAt(change, sport, HEADLINE_DURATION_S)?.gated === false,
-    )
-    return before === null ? null : { item: leanItem(gap, before, verdicts, allOut) }
+    return before === null ? null : { item: leanItem(gap, before, verdicts) }
   }
   // The ride's best waits for the weight, so it is named here; the run's best does not.
   const outcomes = [leanOutcome(), rideShown ? bestItem('ride', best) : null, bestItem('run', best)]

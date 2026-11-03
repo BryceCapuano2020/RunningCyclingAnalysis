@@ -91,7 +91,7 @@ export function tooltipFor(
     const each = view.grades[sport]
     const label = nameOf(sport, rangedIn(views, sport))
     if (each === undefined) return [{ kind: sport, label, value: NONE }]
-    // A ride whose range crosses a band names no level, so a year may have no note at all.
+    // The level is the centre's, then "not all-out" where the year's best was not shown hard.
     const note = [gradeLevelText(each.grade), isHollow(each) ? NOT_ALL_OUT : null]
       .filter((part) => part !== null)
       .join(', ')
@@ -99,7 +99,7 @@ export function tooltipFor(
       kind: sport,
       label,
       value: formatGrade(each.grade.centre.grade),
-      ...(note === '' ? {} : { note }),
+      note,
     }
     return each.grade.range === null
       ? [row]
