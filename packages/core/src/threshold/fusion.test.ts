@@ -114,15 +114,19 @@ describe('fusing the power estimate with heart rate', () => {
 function exactAlone(power: number, error: number) {
   const steps = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
   const gaps = Math.round(GAP_PRIOR.largeMax / FUSION_GRID.gapStep)
+  const priors = Array.from({ length: gaps }, (_, k) => {
+    const g = k * FUSION_GRID.gapStep
+    return (
+      ((1 - GAP_PRIOR.largeShare) * Math.exp(-g / GAP_PRIOR.smallMean)) / GAP_PRIOR.smallMean +
+      GAP_PRIOR.largeShare / GAP_PRIOR.largeMax
+    )
+  })
   const weights = Array.from({ length: steps }, (_, i) => {
     const x = FUSION_GRID.from + i * FUSION_GRID.step
     let total = 0
     for (let k = 0; k < gaps; k++) {
       const g = k * FUSION_GRID.gapStep
-      const prior =
-        ((1 - GAP_PRIOR.largeShare) * Math.exp(-g / GAP_PRIOR.smallMean)) / GAP_PRIOR.smallMean +
-        GAP_PRIOR.largeShare / GAP_PRIOR.largeMax
-      total += prior * Math.exp(-0.5 * ((x - g) / error) ** 2)
+      total += priors[k]! * Math.exp(-0.5 * ((x - g) / error) ** 2)
     }
     return total
   })
@@ -153,7 +157,9 @@ describe('reading the power estimate’s error to a step', () => {
     let worst = 0
     let moved = 0
     let total = 0
-    for (let error = 0.025; error <= 0.25; error += 0.0001) {
+    // A stride just under one ERROR_STEP lands 6% of a step earlier each time, so it crosses every part of a step without
+    // reading every error: the exact sum is slow enough under coverage that a stride of 0.0001 ran past the time limit.
+    for (let error = 0.025; error <= 0.25; error += 0.00047) {
       const fused = fuse(POWER, error, null)
       const exact = exactAlone(POWER, error)
       for (const key of ['value', 'low', 'high'] as const) {
