@@ -49,7 +49,10 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
     }
     const maxHr = uni(175, 200)
     const trueThresholdHr = maxHr * uni(0.87, 0.93) // the estimate assumes 0.90
-    const wattsPerBeat = uni(1.5, 3)
+    // Heart rate climbs this many bpm from half to full threshold power, whatever the rider's size (the line is refused
+    // outside 20 to 70), so a big rider gets more watts per beat than a small one.
+    const climb = uni(25, 65)
+    const wattsPerBeat = (0.5 * threshold) / climb
     const steadyHr = (p: number) =>
       Math.min(
         maxHr,

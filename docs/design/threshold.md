@@ -68,21 +68,41 @@ version needs its own duration table (short running bests are often intervals or
 ## Evidence
 
 Simulated riders with a known threshold (1,200 per case, seeded; the harness is `threshold.sim.test.ts`, which
-asserts the bounds below). Median error, and share within 5%:
+asserts the bounds below; `RECORD=1` prints these rows). Each rider's heart rate climbs 25 to 65 bpm from half to
+full threshold power, and watts per beat follow from that, so the 20 to 70 bpm guard refuses almost no one with a
+working strap (the first version drew watts per beat on its own, which put a quarter of riders over 70 bpm and
+silently switched their heart rate off). Each cell is the median error, the share within 5%, and the share of
+riders whose true threshold lies between the answer's low and high (which should be near 80%):
 
-| Case                              | This estimate | Best 30 min (the old floor) | 95% of best 20 |
-| --------------------------------- | ------------- | --------------------------- | -------------- |
-| Clean heart rate                  | -1.4%, 90%    | -11%, 0%                    | -7%, 40%       |
-| A bad strap on 1 ride in 4        | -1.6%, 88%    | -11%, 0%                    | -7%, 41%       |
-| Max heart rate off by about 8 bpm | -1.3%, 71%    | -11%, 0%                    | -7%, 40%       |
-| Flat (optical) heart rate         | -1.1%, 77%    | -11%, 0%                    | -7%, 40%       |
-| Never all-out (tempo only)        | -4.7%, 51%    | -9%, 0%                     | -14%, 0%       |
-| No heart rate                     | +0.2%, 92%    | -11%, 0%                    | -7%, 40%       |
+| Case                              | This estimate   | Power alone (no heart rate) |
+| --------------------------------- | --------------- | --------------------------- |
+| Clean heart rate                  | -2.3%, 81%, 61% | +0.2%, 92%, 96%             |
+| A bad strap on 1 ride in 4        | -2.2%, 83%, 61% | +0.1%, 92%, 96%             |
+| Max heart rate off by about 8 bpm | -2.3%, 58%, 42% | +0.2%, 92%, 96%             |
+| Flat (optical) heart rate         | -0.1%, 86%, 87% | +0.2%, 92%, 96%             |
+| Never all-out (tempo only)        | -5.2%, 48%, 48% | -10.6%, 0%, 63%             |
+| No heart rate                     | +0.2%, 92%, 96% | +0.2%, 92%, 96%             |
+
+The old rules of thumb on the same riders, median error and share within 5%: best 30 min -11% and 0% (-9% and 0%
+for tempo only), 95% of best 20 min -7% and 40% (-14% and 0% for tempo only).
+
+The heart-rate line is refused for 0.3% of riders in the clean case (3 of 1,200, all `flat`), 1% with the bad strap,
+and 88% with the optical strap, where the climb is a third of what it should be.
 
 The test asserts, per case: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum
 heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 4 points
-above the power-only answer; no heart rate within 2% on the median and 85% within 5%; and in every case nearer the truth
-than both rules of thumb.
+above the power-only answer; no heart rate within 2% on the median and 85% within 5%; in every case nearer the truth
+than both rules of thumb and a range that holds the truth for 65% to 97% of riders; under 2% of clean-heart-rate riders
+refused; and, with a clean, partly bad or optical heart rate, a within-5% share no more than 3 points under the
+power-only answer.
+
+**Open: five of those bounds fail with these riders.** Heart rate costs more than it gives where power alone is
+already right. Within 5%, the clean case reads 81% (bound 85%) against 92% for power alone, the bad strap 83% (bound
+85%) and the wrong maximum 58% (bound 65%). The cost against power alone is 11 points in the clean case, 9 with the
+bad strap and 6 with the optical one (bound 3). The range holds the truth for 61% of clean riders, 61% with the bad
+strap, 42% with the wrong maximum and 48% for tempo only (bound 65%). Heart rate alone, before fusion, reads 3.5%
+under the truth in the clean case with a spread of 5.2%, where the fusion allows 3.6%. The fusion is not changed
+here; the failing bounds are what a change has to meet.
 
 Rejected: letting heart rate judge how all-out each effort was (a strap reading high made tempo rides look
 maximal and pulled the answer down 7 to 9%), and shrinking the allowance when several strong rides agree
