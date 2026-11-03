@@ -33,10 +33,15 @@ import { fastestMs } from './test/timing'
  * zones' own time roughly doubles, 2 to 4.5 ms, and the rest was not traced to one step), and the runner took 81 ms, so the budget is 100.
  * The floors cost nothing in the judgement (each activity's two bests, 0.4 ms), and the work is not shared between masses: a
  * ride's power zones read the mass, and the zone times are kept by it.
+ *
+ * 12 weeks picked took about 37 ms here (budget 80) until the zones' threshold over time read the ride threshold
+ * (`rideThreshold`) in every week a ride enters or leaves its window, not a critical-power fit. This library has 226 such weeks,
+ * each an estimate over about 26 weeks of rides at about 50 µs, and the zones settle them in order, so none can be skipped. That
+ * is about 13 ms more here (37 to 51 ms), paid once per library whatever the period, and the runner took 93 ms, so the budget is 115.
  */
 const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 450
-const DEFAULT_BUDGET_MS = 80
+const DEFAULT_BUDGET_MS = 115
 const SEARCH_BUDGET_MS = 160
 const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
 const MASS_CHANGE_BUDGET_MS = 100
