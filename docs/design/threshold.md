@@ -73,7 +73,9 @@ asserts the bounds below; `RECORD=1` prints these rows). Each rider's heart rate
 full threshold power, and watts per beat follow from that, so the 20 to 70 bpm guard refuses almost no one with a
 working strap (the first version drew watts per beat on its own, which put a quarter of riders over 70 bpm and
 silently switched their heart rate off). Each cell is the median error, the share within 5%, and the share of
-riders whose true threshold lies between the answer's low and high (which should be near 80%):
+riders whose true threshold lies between the answer's low and high. The low and high are the 10th and 90th
+percentiles, but most cells read about 96%: the range is wider than an 80% interval, so no screen may call it an
+80% range.
 
 | Case                              | This estimate   | Power alone (no heart rate) |
 | --------------------------------- | --------------- | --------------------------- |
@@ -184,5 +186,6 @@ export function rideThreshold(
 - **The fusion grids stop one step short of their last value** (300 points from -15%, 100 gaps from 0), as the
   prototype's loops did; the estimate matches it to rounding on 3,600 simulated riders.
 - **The simulation draws from core's seeded generator**, not the prototype's, so its numbers differ from the first
-  table by a point or two. It runs 1,200 riders per case rather than 400: across six seeds the within-5% share of the
-  maximum-heart-rate case ranged from 66% to 77% at 400, and from 71% to 73% across four seeds at 1,200.
+  table by a point or two. It runs 1,200 riders per case rather than 400, which moved the within-5% share of the
+  first version's maximum-heart-rate case by up to 11 points between seeds. With the realistic riders and lift-only
+  fusion that case ranges from 82% to 85% across four seeds at 1,200.

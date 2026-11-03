@@ -1,14 +1,12 @@
 // The ride threshold on simulated riders with a known threshold (harness: test/simRider.ts): is the estimate right on
-// average, does a bad heart rate move it, and does its range hold the truth about as often as it claims? The table in
-// docs/design/threshold.md is this run (RECORD=1 prints it).
+// average, does a bad heart rate move it, and how often does its range hold the truth? The range is wider than an 80%
+// interval (most cells read about 96%), so the bound is a band, not 80%. The table in docs/design/threshold.md is this run
+// (RECORD=1 prints it).
 import { describe, expect, it } from 'vitest'
 import { rideThreshold } from './estimate'
 import { simRiders, type Scenario } from './test/simRider'
 
-/**
- * Riders per case. At 400 the within-5% share of the maximum-heart-rate case ranged 66% to 77% across six seeds; at
- * 1,200 it ranged 71% to 73% across four.
- */
+/** Riders per case. At 1,200 the within-5% share of the maximum-heart-rate case ranged 82% to 85% across four seeds. */
 const RIDERS = 1200
 const SEED = 11
 

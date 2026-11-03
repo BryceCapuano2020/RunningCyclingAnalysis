@@ -6,7 +6,12 @@ import { mean } from '../math'
  * the pooled one, the spread) were tuned on this one, and swapping moved simulated answers by up to 30%.
  */
 export function median(values: ArrayLike<number>): number {
-  return Float64Array.from(values).sort()[Math.floor(values.length / 2)]!
+  return medianElementInPlace(Float64Array.from(values))
+}
+
+/** `median` of an array the caller does not need again: sorted in place, with no copy. */
+export function medianElementInPlace(values: Float64Array): number {
+  return values.sort()[Math.floor(values.length / 2)]!
 }
 
 export function standardDeviation(values: readonly number[]): number {

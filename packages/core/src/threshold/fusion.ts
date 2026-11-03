@@ -26,7 +26,7 @@ const STEPS = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
 
 /**
  * The gap prior smeared by the power estimate's noise `powerError`, at each grid point. It depends on that error and on
- * nothing else, not the power or the heart rate, and costs a few thousand exponentials; a few errors are kept, since the
+ * nothing else, not the power or the heart rate, and costs about 30,000 exponentials; a few errors are kept, since the
  * floor of 2.5% is the error of most windows. Callers must not change the array.
  */
 const smearedPriors = new Map<number, Float64Array>()

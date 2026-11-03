@@ -32,6 +32,8 @@ describe('fusing the power estimate with heart rate', () => {
       const alone = fuse(POWER, powerError, null)
       for (const share of [0.5, 0.8, 0.95, 1, 1.02]) {
         const fused = fuse(POWER, powerError, heartRate(share))
+        expect(fused.low, `${share} at ${powerError}`).toBeLessThanOrEqual(fused.value)
+        expect(fused.value, `${share} at ${powerError}`).toBeLessThanOrEqual(fused.high)
         expect(fused.value, `${share} at ${powerError}`).toBeGreaterThanOrEqual(alone.value)
         expect(fused.low).toBeGreaterThanOrEqual(alone.low)
         expect(fused.high).toBeGreaterThanOrEqual(alone.high)
@@ -71,10 +73,20 @@ describe('fusing the power estimate with heart rate', () => {
 
   it('keeps the answer inside the grid of -15% to +45%', () => {
     for (const share of [0.3, 3]) {
-      const { low, high } = fuse(POWER, 0.025, heartRate(share))
+      const { low, value, high } = fuse(POWER, 0.025, heartRate(share))
+      expect(low).toBeLessThanOrEqual(value)
+      expect(value).toBeLessThanOrEqual(high)
       expect(low).toBeGreaterThanOrEqual(POWER * 0.85 - 1e-9)
       expect(high).toBeLessThanOrEqual(POWER * 1.45)
     }
+  })
+
+  it('reads a power estimate that is less sure as a wider range downward', () => {
+    // Each error has its own kept prior: one keyed without the error would give both the same range.
+    const sure = fuse(POWER, 0.025, null)
+    const unsure = fuse(POWER, 0.06, null)
+    expect(unsure.low).toBeLessThan(sure.low)
+    expect(fuse(POWER, 0.025, null).low).toBe(sure.low)
   })
 
   it('smears the gap prior once for each power error, whatever the power and the heart rate', () => {

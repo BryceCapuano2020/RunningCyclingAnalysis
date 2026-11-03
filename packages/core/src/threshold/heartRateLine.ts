@@ -11,7 +11,7 @@ import {
   THEIL_SEN_POINTS,
 } from './constants'
 import { EDGE_EPSILON, mean } from '../math'
-import { median, standardDeviation } from './stats'
+import { median, medianElementInPlace, standardDeviation } from './stats'
 import type { HeartRateRefusal, ThresholdBlock } from './types'
 
 export interface HeartRateLine {
@@ -51,7 +51,7 @@ function theilSen(points: readonly { x: number; y: number }[]): number | null {
       if (Math.abs(dx) > EDGE_EPSILON) slopes[count++] = (thinned[j]!.y - thinned[i]!.y) / dx
     }
   }
-  return count < THEIL_SEN_MIN_SLOPES ? null : median(slopes.subarray(0, count))
+  return count < THEIL_SEN_MIN_SLOPES ? null : medianElementInPlace(slopes.subarray(0, count))
 }
 
 /** A ride whose heart rate hardly moves while its power does: a stuck sensor, or one locked to cadence. */
