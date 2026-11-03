@@ -259,14 +259,15 @@ describe('SportRecords', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('tags an estimated figure in words', () => {
-    render(<SportRecords rows={[row({ value: '400 W', tags: ['Estimated'] })]} />)
-    expect(screen.getByText('Estimated')).toBeInTheDocument()
+  it('shows each tag a row carries, as a chip', () => {
+    render(<SportRecords rows={[row({ value: '4:00 /km', tags: ['All-time record'] })]} />)
+    expect(screen.getByText('All-time record')).toHaveClass('chip')
   })
 
-  it('tags nothing for a measured figure', () => {
-    render(<SportRecords rows={[row({ value: '400 W', tags: [] })]} />)
-    expect(screen.queryByText('Estimated')).not.toBeInTheDocument()
+  it('shows no chip for a row with no tags', () => {
+    const { container } = render(<SportRecords rows={[row({ value: '400 W', tags: [] })]} />)
+    expect(container.querySelector('.records__figure .chip')).toBeNull()
+    expect(screen.getByText('400 W')).toBeInTheDocument()
   })
 
   it('marks a run’s pace Flat, in words', () => {
@@ -290,27 +291,13 @@ describe('recordRow', () => {
     expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['GAP'])
   })
 
-  it('tags a ride’s watts estimated when they did not come from a power meter', () => {
-    const virtual = {
-      ...record,
-      value: '250 W',
-      activity: { ...morningRun, powerSource: 'virtual' as const },
-    }
-    expect(recordRow('ride', virtual, { label: '20 min', grade: null }).tags).toEqual(['Estimated'])
-  })
-
-  it('tags a ride’s watts estimated when the ride is not in the result', () => {
-    const gone = { ...record, value: '250 W', activity: null }
-    expect(recordRow('ride', gone, { label: '20 min', grade: null }).tags).toEqual(['Estimated'])
-  })
-
-  it('leaves a measured ride’s watts untagged', () => {
-    const measured = {
-      ...record,
-      value: '250 W',
-      activity: { ...morningRun, powerSource: 'measured' as const },
-    }
-    expect(recordRow('ride', measured, { label: '20 min', grade: null }).tags).toEqual([])
+  it.each([
+    ['estimated by virtual power', { ...morningRun, powerSource: 'virtual' as const }],
+    ['measured by a power meter', { ...morningRun, powerSource: 'measured' as const }],
+    ['from a ride that is not in the result', null],
+  ])('leaves a ride’s watts untagged when they are %s', (_, activity) => {
+    const ride = { ...record, value: '250 W', activity }
+    expect(recordRow('ride', ride, { label: '20 min', grade: null }).tags).toEqual([])
   })
 
   it('carries the days since each record was set, so the list can say how long ago', () => {

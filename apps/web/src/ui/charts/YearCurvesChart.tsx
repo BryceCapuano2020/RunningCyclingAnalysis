@@ -132,7 +132,7 @@ export function YearCurvesChart({ sport, curves, units, controls }: YearCurvesCh
       plotRightMargin={endLabelRoom}
       idleReadout={idleFrom(tooltipFor(model, units, idle, 0, 0), 'Best')}
       table={{
-        caption: `${SPORT_LABEL[sport]} best at each duration, by year. At least marks a 20 minute best that was not all-out.`,
+        caption: `${SPORT_LABEL[sport]} best at each duration, by year.`,
         columns: ['Year', ...model.durations.map(formatDuration)],
         rows: [...model.lines]
           .reverse()

@@ -35,7 +35,6 @@ export function racePredictionsContent({
     return { content: <RacePast sport={sport} ran={answer.ran} units={units} /> }
   }
   const { found, window, basis, activities } = answer
-  const bound = answer.kind === 'bound'
   return {
     content: (
       <RacePredictions
@@ -44,10 +43,9 @@ export function racePredictionsContent({
         units={units}
         // A page of all time is the best period in the files, as a window of all time is.
         window={rangeDays === null ? 'all' : window}
-        bound={bound}
         basis={basis}
         openedAt={openedAt}
-        ran={bound ? [] : ranBests(found, distanceRecords(activities, units).records, openedAt)}
+        ran={ranBests(found, distanceRecords(activities, units).records, openedAt)}
       />
     ),
   }

@@ -30,16 +30,6 @@ const ALL_TIME_NOTE = 'All time uses your best period.'
 /** What a row says when its time was held to a time already run at the distance. */
 export const FLOORED_TEXT = 'Your best'
 
-/** What a row says when its run was not shown hard: the time is a bound, and you can run it or faster. */
-export const BOUND_TEXT = 'No slower than'
-
-/** Where the runs of each window are, as the note says it. */
-const RUNS_IN: Record<RaceWindow, string> = {
-  period: 'this period',
-  year: 'the last 12 months',
-  all: 'your files',
-}
-
 /** The line under the title when every run is older than the year: there is nothing to forecast from. */
 export const PAST_LINE = 'No run of a mile or more in 12 months.'
 
@@ -55,8 +45,7 @@ export function basisLine(answer: Pick<RaceForecast, 'basis'>, openedAt: number)
   return `From your ${raceName(basis.distanceM).toLowerCase()} on ${formatDayMonth(basis.startMs, openedAt)}.`
 }
 
-/** What the predictions are for, and when no run was all-out or the window is all time, that. */
-export function methodNote(window: RaceWindow, bound = false): string {
-  const notAllOut = bound ? `No run in ${RUNS_IN[window]} was all-out. ` : ''
-  return `${notAllOut}${FLAT_COURSE}${window === 'all' ? ` ${ALL_TIME_NOTE}` : ''}`
+/** What the predictions are for, and when the window is all time, that. */
+export function methodNote(window: RaceWindow): string {
+  return `${FLAT_COURSE}${window === 'all' ? ` ${ALL_TIME_NOTE}` : ''}`
 }

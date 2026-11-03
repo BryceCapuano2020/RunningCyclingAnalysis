@@ -159,14 +159,13 @@ describe('CrossSportCard', () => {
       screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
     ).toBeInTheDocument()
     expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:10/km')
-    // The ride that set the effort is not in this result, so its watts count as estimated.
-    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
   })
 
   it('names an hour effort in minutes in the line under the pace, as the records list does', () => {
     renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 3600, ridePowerW: 200 })] }))
 
-    expect(screen.getByText('200 W for 60 min (estimated).')).toBeInTheDocument()
+    expect(screen.getByText('200 W for 60 min.')).toBeInTheDocument()
   })
 
   describe('a short estimated ride', () => {
@@ -208,27 +207,20 @@ describe('CrossSportCard', () => {
     })
   })
 
-  it('tags the watts estimated when the ride that set the effort had virtual power', () => {
-    renderCard(
-      makeResult({
-        activities: [rideWith('virtual')],
-        rideCurve: [curvePoint(1200, 250, 'ride-1')],
-        equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
-      }),
-    )
-    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
-  })
-
-  it('leaves the estimate tag off the watts when the ride had a power meter', () => {
-    renderCard(
-      makeResult({
-        activities: [rideWith('measured')],
-        rideCurve: [curvePoint(1200, 250, 'ride-1')],
-        equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
-      }),
-    )
-    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
-  })
+  it.each(['virtual', 'measured'] as const)(
+    'says the watts plainly when the ride that set the effort had %s power',
+    (source) => {
+      renderCard(
+        makeResult({
+          activities: [rideWith(source)],
+          rideCurve: [curvePoint(1200, 250, 'ride-1')],
+          equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
+        }),
+      )
+      // The ride's own tile says how the watts were found, so this line does not repeat it.
+      expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
+    },
+  )
 
   it('holds the ride figures without a weight, with the same prompt as the cards', () => {
     renderCard(
@@ -267,7 +259,7 @@ describe('CrossSportCard', () => {
     )
 
     expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('6:42/mi')
-    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
     expect(screen.queryByText(/6:42/, { selector: 'p' })).not.toBeInTheDocument()
   })
 
@@ -282,7 +274,7 @@ describe('CrossSportCard', () => {
       }),
     )
 
-    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
   })
 
   it('names the ride that set the effort, linked to its activity page with the day', () => {

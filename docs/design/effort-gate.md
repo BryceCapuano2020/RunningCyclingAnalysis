@@ -79,7 +79,7 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
   heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
   so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Where no run is
-  shown hard, the card is a bound ("No slower than"), from the period, then the 12 months ending with it (`raceAnswerOf`);
+  shown hard, the card is forecast from all the window's runs and drawn as any other prediction, from the period, then the 12 months ending with it (`raceAnswerOf`);
   a hard run in the year answers before an easy one in the period. Runs older than that year are told as they were run ("You ran
   19:58 in Oct 2024"), with no forecast. Nothing left only where the library has no run of a mile.
 - **Balance headline**: never held for the gate. A best 20 minutes that was not shown hard still gives a pick, so the lean, the tiles,

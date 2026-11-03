@@ -11,9 +11,9 @@ import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 const NONE = 'None'
 const NOT_ALL_OUT = 'not all-out'
 
-/** What the chart says to a screen reader: the scale, what the band is and what a hollow dot is. */
+/** What the chart says to a screen reader: the scale and what the band is. A hollow dot is explained by the tooltip. */
 export const DESCRIPTION =
-  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range. A hollow dot is a best that was not all-out.'
+  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range.'
 
 /** A ride's range as "58 to 66%". */
 export function rangeText(range: NonNullable<SportGrade['range']>): string {
@@ -29,7 +29,7 @@ const rangedIn = (views: readonly YearView[], sport: Sport): boolean =>
 
 const rangeLabel = (sport: Sport): string => `${SPORT_LABEL[sport]} range`
 
-/** The key: each drawn sport as a line, the ride's band, and a hollow dot when a year has one. */
+/** The key: each drawn sport as a line and the ride's band. A hollow dot is explained by its tooltip alone. */
 export function legendOf(views: readonly YearView[]): ChartLegendEntry[] {
   const sports = drawnIn(views)
   const entries: ChartLegendEntry[] = sports.map((sport) => ({
@@ -41,18 +41,16 @@ export function legendOf(views: readonly YearView[]): ChartLegendEntry[] {
   for (const sport of sports.filter((each) => rangedIn(views, each))) {
     entries.push({ label: rangeLabel(sport), kind: sport, swatch: 'band' })
   }
-  const anyHollow = views.some((view) => Object.values(view.grades).some(isHollow))
-  if (anyHollow) entries.push({ label: 'Not all-out', kind: 'neutral', swatch: 'ring' })
   return entries
 }
 
-/** A grade as the table writes it: the whole percent, a ride's range in brackets, and a best that was not all-out. */
+/** A grade as the table writes it: the whole percent and a ride's range in brackets. */
 function cellOf(each: YearGrade | undefined, atTop: boolean): string {
   if (each === undefined) return atTop ? TOP_OF_SCALE_SHORT : NONE
   const { centre, range } = each.grade
   const parts = [formatGrade(centre.grade)]
   if (range !== null) parts.push(`(${rangeText(range)})`)
-  return isHollow(each) ? `${parts.join(' ')}, ${NOT_ALL_OUT}` : parts.join(' ')
+  return parts.join(' ')
 }
 
 const LEADER_TEXT = { run: SPORT_LABEL.run, ride: SPORT_LABEL.ride, even: 'Level' } as const
@@ -77,7 +75,7 @@ export function tableOf(views: readonly YearView[]): ChartTableData {
   }
 }
 
-/** A year's tooltip: each drawn sport's grade and level, then a ride's range. */
+/** A year's tooltip: each drawn sport's grade and level, with "not all-out" for a hollow dot, then a ride's range. */
 export function tooltipFor(
   views: readonly YearView[],
   i: number,

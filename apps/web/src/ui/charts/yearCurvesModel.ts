@@ -157,7 +157,7 @@ export function labelledYears(model: YearCurvesModel): number[] {
   return [...named, ...others].sort((a, b) => a - b)
 }
 
-/** A value as a table cell: a 20 minute best that was not all-out says so first, and an estimate says so last. */
+/** A value as a table cell: the number as it is plotted; the tooltip says why a mark is hollow. */
 export function curveCell(
   model: YearCurvesModel,
   line: YearLine,
@@ -166,8 +166,5 @@ export function curveCell(
 ): string {
   const value = line.values[index]
   if (value === null || value === undefined) return 'None'
-  const text = formatNative(model.sport, value, units)
-  const floor = model.durations[index] === HEADLINE_DURATION_S && !line.hard
-  const cell = floor ? `At least ${text}` : text
-  return line.estimated[index] ? `${cell}, estimated` : cell
+  return formatNative(model.sport, value, units)
 }

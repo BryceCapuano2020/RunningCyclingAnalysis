@@ -464,7 +464,7 @@ describe('BalancePage age grades', () => {
       MAN_BORN_1986,
     )
     expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
-    expect(screen.getByText('250 W for 20 min (estimated).')).toBeInTheDocument()
+    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
   })
 
   it('holds the ride as a run tile without a weight, with the same prompt as the other tiles', () => {

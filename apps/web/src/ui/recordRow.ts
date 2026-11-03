@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { isEstimatedRecord } from './records'
 import type { SportRecord } from './records'
 
 /** The mark a run's pace carries, as a GAP: its word on a row, with its meaning one press away. */
 export const GAP_MARK = 'GAP'
 
-/** The marks a record's figure carries: a run's is GAP, and a ride's is estimated when its watts are. */
-const MARKS: Record<Sport, (activity: ActivitySummary | null) => string[]> = {
-  run: () => [GAP_MARK],
-  ride: (activity) => (isEstimatedRecord('ride', activity) ? ['Estimated'] : []),
+/**
+ * The marks a record's figure carries: a run's is GAP. A ride's watts carry none, even when estimated; the
+ * best-efforts section says once how many rides had estimated watts.
+ */
+const MARKS: Record<Sport, string[]> = {
+  run: [GAP_MARK],
+  ride: [],
 }
 
 /** One best effort as a row of a records list, whichever page or card lists it. */
@@ -25,7 +27,7 @@ export interface RecordRow {
   /** The grade beside the figure, or a short gap line in its place; null when neither applies. */
   grade: ReactNode
   /**
-   * Short marks beside the figure: "GAP" with its meaning one press away, "Estimated".
+   * Short marks beside the figure: "GAP" with its meaning one press away, and the scope marks a page adds.
    */
   tags: string[]
   /** How the record moved on the period before, in words, or null without one. */
@@ -36,10 +38,7 @@ export interface RecordRow {
   activity: ActivitySummary | null
 }
 
-/**
- * One best-effort record as a row. A run's pace is a GAP, so it is marked GAP; a ride's
- * watts are marked estimated unless they were measured by a power meter.
- */
+/** One best-effort record as a row. A run's pace is a GAP, so it is marked GAP. */
 export function recordRow(
   sport: Sport,
   record: SportRecord,
@@ -51,7 +50,7 @@ export function recordRow(
     setDays?: number | null
   },
 ): RecordRow {
-  const marks = MARKS[sport](record.activity)
+  const marks = MARKS[sport]
   return {
     key: String(record.durationS),
     label: options.label,

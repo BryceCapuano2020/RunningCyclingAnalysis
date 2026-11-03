@@ -84,7 +84,7 @@ describe('BestsByYearChart', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent('5 km')
   })
 
-  it('has a table twin of every year, with at least for what is not all-out', () => {
+  it('has a table twin of every year, each number plain whether or not it was all-out', () => {
     chartWidth(800)
     render(<BestsByYearChart sport="run" efforts={RUN_BESTS} units="metric" />)
     const table = screen.getByRole('table')
@@ -102,8 +102,8 @@ describe('BestsByYearChart', () => {
       ),
     ).toEqual([
       ['4:09 /km', '5:00 /km', 'None'],
-      ['3:56 /km', 'At least 4:50 /km', '5:10 /km'],
-      ['At least 4:02 /km', 'None', 'None'],
+      ['3:56 /km', '4:50 /km', '5:10 /km'],
+      ['4:02 /km', 'None', 'None'],
       ['None', '4:48 /km', 'None'],
     ])
     expect(
@@ -111,6 +111,10 @@ describe('BestsByYearChart', () => {
         .getAllByRole('rowheader')
         .map((cell) => cell.textContent),
     ).toEqual(['2021', '2022', '2023', '2024'])
+    // The caption names the measure only: it does not explain a rewritten number.
+    expect(table.querySelector('caption')?.textContent).toBe(
+      'Run bests by year, pace (/km), faster up.',
+    )
   })
 
   it('follows the units setting', () => {
@@ -206,6 +210,8 @@ describe('BestsByYearChart', () => {
     expect(key.getByText('Estimated')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'End' })
     expect(screen.getByRole('status')).toHaveTextContent('Estimated')
-    expect(within(screen.getByRole('table')).getByText('320 W, estimated')).toBeInTheDocument()
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('320 W')).toBeInTheDocument()
+    expect(screen.getByRole('table').textContent).not.toMatch(/estimated/i)
   })
 })

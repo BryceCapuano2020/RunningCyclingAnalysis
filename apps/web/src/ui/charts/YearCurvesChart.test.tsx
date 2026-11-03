@@ -153,9 +153,12 @@ describe('YearCurvesChart', () => {
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     expect(screen.getByRole('status')).toHaveTextContent('Estimated')
-    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent(
-      '290 W, estimated',
+    // The row of the first year: every cell is the plain number, with no estimate wording in it.
+    const cells = within(within(screen.getByRole('table')).getAllByRole('row')[1]!).getAllByRole(
+      'cell',
     )
+    expect(cells.map((cell) => cell.textContent)).toContain('290 W')
+    expect(screen.getByRole('table').textContent).not.toMatch(/estimated|at least/i)
   })
 
   it('says fastest for a pace when the newest year holds the best', () => {

@@ -17,11 +17,11 @@ export interface BestMark {
   text: string
   /** A run's time over the distance, "20:46"; null for a ride, and for the mile or kilometre whose pace is its time. */
   time: string | null
-  /** Whether heart rate shows the effort was hard; a best that was not is still the year's best, as a floor. */
+  /** Whether heart rate shows the effort was hard; a best that was not is still the year's best, drawn hollow. */
   hard: boolean
   /** Whether the value is a bike model's and not a power meter's. */
   estimated: boolean
-  /** Drawn as an outline: a floor, or an estimate. */
+  /** Drawn as an outline: not all-out, or an estimate. */
   hollow: boolean
 }
 
@@ -160,7 +160,7 @@ const UNIT_NOTE: Record<Sport, (units: UnitSystem) => string> = {
 
 export const bestsNote = (sport: Sport, units: UnitSystem): string => UNIT_NOTE[sport](units)
 
-/** What a mark says beside its value: the time, the all-time best, that it is estimated, and that it is a floor. */
+/** What a mark says beside its value: the time, the all-time best, and why it is hollow (estimated, not all-out). */
 export function markNote(mark: BestMark, isBest: boolean): string | undefined {
   const parts = [
     mark.time,
@@ -171,9 +171,7 @@ export function markNote(mark: BestMark, isBest: boolean): string | undefined {
   return parts.length === 0 ? undefined : parts.join(', ')
 }
 
-/** A mark as a table cell: a floor says so first, an estimate last, as the records do ("312 W, estimated"). */
+/** A mark as a table cell: the number as it is plotted, whatever its mark; the key and the tooltip say what a hollow mark is. */
 export function markCell(mark: BestMark | null): string {
-  if (mark === null) return 'None'
-  const value = mark.hard ? mark.text : `At least ${mark.text}`
-  return mark.estimated ? `${value}, estimated` : value
+  return mark === null ? 'None' : mark.text
 }

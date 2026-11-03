@@ -23,7 +23,7 @@ export interface RaceBasis {
 
 /** A forecast: times carried from a run to each race distance. */
 export interface RaceForecast {
-  /** `bound`: no run of the window was shown hard, so each time is one the athlete is no slower than. */
+  /** `bound`: no run of the window was shown hard, so the times are carried from all its runs, not only the hard ones. */
   kind: 'predicted' | 'bound'
   found: RunPredictions
   window: RaceWindow
@@ -141,7 +141,7 @@ function pastRuns(entries: readonly RunBest[]): PastRun[] {
  * The race predictions the library can give, from the narrowest window that gives them: the period, then the 12 months
  * ending with it. A window answers when a run of it was shown hard (or the period's heart rate gives a VO2max), and its
  * prediction rests on those runs. When no window holds a hard run, the first window with a run of a mile or more answers
- * with a bound: its bests carried as they are, each time one the athlete is no slower than. When neither window holds any run
+ * with a forecast from all its runs, marked `bound`; the page shows it as any other prediction. When neither window holds any run
  * of a mile or more, the runs older than 12 months before the period's end are told as they were run (`RacePast`), with no
  * forecast from them. A period of all time is its own window and widens no further. Null only when the library holds no run
  * of a mile or more and the period's heart rate gives none.
