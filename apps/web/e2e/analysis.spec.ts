@@ -203,7 +203,7 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
   await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
   const note = run.getByRole('note')
-  await expect(note).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
+  await expect(note).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /)
   await expect(note).toContainText('never under an hour you ran')
   await expect(note).not.toContainText(/heart rate/i)
 })

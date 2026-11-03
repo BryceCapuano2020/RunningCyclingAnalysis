@@ -209,7 +209,7 @@ test('How sure is this? says that both best efforts were hard efforts', async ({
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
   const run = page.getByRole('article', { name: 'Run threshold' })
   await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
-  await expect(run.getByRole('note')).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
+  await expect(run.getByRole('note')).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /)
   await expect(run.getByRole('note')).not.toContainText(/heart rate/i)
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()

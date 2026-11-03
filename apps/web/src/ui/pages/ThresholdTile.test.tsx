@@ -163,7 +163,8 @@ describe('ThresholdTile', () => {
     expect(container.querySelector('.stat-tile__source')).toHaveTextContent(
       /^From 5 rides\. Strongest: 12 min on 4 Mar/,
     )
-    expect(container.querySelector('.range-track, .stat-tile__basis, .chip')).toBeNull()
+    expect(container.querySelector('.chip')).toBeNull()
+    expect(container.textContent).not.toMatch(/Estimated|At least/)
     fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
     expect(screen.getByRole('note')).toHaveTextContent(/^Range 240 to 264 W\. /)
     expect(screen.getByRole('note')).toHaveTextContent(

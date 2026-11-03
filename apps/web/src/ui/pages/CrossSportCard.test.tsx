@@ -248,7 +248,7 @@ describe('CrossSportCard', () => {
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
     )
     expect(container.querySelector('article')).toHaveClass('stat-tile')
-    expect(container.querySelector('.stat-tile__basis')).toBeNull()
+    expect(container.querySelector('.chip')).toBeNull()
     expect(container.querySelector('.cross-sport__pair')).toBeNull()
   })
 

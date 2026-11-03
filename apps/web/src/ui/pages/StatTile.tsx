@@ -31,13 +31,7 @@ function HeadingText({ heading, definition }: Pick<StatTileProps, 'heading' | 'd
  * One headline number: a sport dot, its name, the figure at display size, and the lines that say what it rests on. It carries
  * no chip and no range shape: the name says what the figure is, and a range is said in words.
  */
-export function StatTile({
-  sport,
-  heading,
-  definition,
-  figure,
-  children,
-}: StatTileProps) {
+export function StatTile({ sport, heading, definition, figure, children }: StatTileProps) {
   return (
     <article className="stat-tile" data-sport={sport} aria-label={heading}>
       <div className="stat-tile__head">
