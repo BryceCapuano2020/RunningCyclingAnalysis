@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CHANGE } from '@rca/core/change'
 import { DEFAULT_WINDOW_DAYS, MIN_WINDOW_DAYS } from '@rca/core/digest/trendPoints'
+import { DURATION_TABLES } from '@rca/core/threshold'
 import {
   METHOD_ENTRIES,
   STATE_COPY,
@@ -144,10 +145,15 @@ describe('How this works entries', () => {
     expect(copy).toMatch(/implausible readings/)
   })
 
-  it('takes the figures it quotes from the code: the headline length and the run’s fit', () => {
-    const threshold = entryNamed('Thresholds')
-    expect(threshold.lines.join(' ')).toContain('best 3 to 20 min efforts')
-    expect(threshold.lines.join(' ')).toContain('your best 30 min or else 20 min')
+  it('takes the figures it quotes for a run from the running table, not from a hand-typed copy', () => {
+    const { detail } = entryNamed('Thresholds')
+    // Daniels and Gilbert's share of top effort held for m minutes, over the share held for an hour: 1.137, 1.073, 1.029.
+    expect(detail).toContain(
+      'It puts an all-out 10 min effort 14% above your hour’s energy rate, 20 min 7% and 40 min 3%.',
+    )
+    expect(DURATION_TABLES.run.ratio(600)).toBeCloseTo(1.137, 3)
+    expect(DURATION_TABLES.run.ratio(1200)).toBeCloseTo(1.073, 3)
+    expect(DURATION_TABLES.run.ratio(2400)).toBeCloseTo(1.029, 3)
   })
 
   it('says how a ride’s threshold is worked out: each ride’s strongest effort, averaged, with heart rate lifting it and never lowering it', () => {
@@ -176,24 +182,44 @@ describe('How this works entries', () => {
     expect([...lines, ...(detail ?? [])].join(' ')).not.toMatch(/vetoes|middle of|80%/)
   })
 
-  it('explains a run’s floor in one line: what “At least” marks, which best it is, and when it is shown', () => {
-    const threshold = entryNamed('Thresholds')
-    const floor = threshold.lines.filter((line) => line.includes('“At least”'))
-    expect(floor).toEqual([
-      'A run whose fit is refused shows a floor, marked “At least”: your best 30 min or else 20 min.',
-    ])
-    // The fit is stated as the run's own, so a floor's best 30 min is never read as the fit.
-    expect(threshold.lines.join(' ')).toMatch(/fitted to your best 3 to 20 min efforts/)
-    expect(threshold.detail?.join(' ')).not.toMatch(/short bests|second fit uses/)
+  it('says a run’s threshold the way a ride’s is said: each run’s strongest effort, scaled to an hour and averaged, never under an hour', () => {
+    const { lines, detail } = entryNamed('Thresholds')
+    expect(lines).toContain(
+      'A run’s threshold is built the same way: the strongest effort of each run, scaled to an hour and averaged.',
+    )
+    expect(lines).toContain('Neither is ever under an hour you did.')
+    expect(detail).toContain(
+      'The runs are averaged, with more weight on recent runs and on those near your top.',
+    )
+    expect(detail).toContain(
+      'An hour you ran or rode is a floor: the answer, and the low end of its range, are never under it.',
+    )
+    // The old run method, a critical-speed fit with a refused-fit floor, is gone from the page.
+    const copy = [...lines, ...(detail ?? [])].join(' ')
+    expect(copy).not.toMatch(/critical speed|“At least”|floor, marked|short bests|second fit/)
   })
 
-  it('keeps the range apart from the balance’s 90% range, and a run’s own range in the detail', () => {
+  it('says nothing about heart rate in any line about a run', () => {
+    const { lines, detail } = entryNamed('Thresholds')
+    const aboutRuns = [...lines, ...(detail ?? [])].filter((line) => /\bruns?\b|\bran\b/.test(line))
+    expect(aboutRuns.length).toBeGreaterThanOrEqual(5)
+    for (const line of aboutRuns) expect(line).not.toMatch(/heart rate|bpm|strap/i)
+    // The ride's lines about heart rate are still there.
+    expect(lines).toContain('Heart rate can raise it and never lowers it.')
+  })
+
+  it('keeps the range apart from the balance’s 90% range, and says a run’s is the estimate’s own', () => {
     const threshold = entryNamed('Thresholds')
     expect(threshold.lines).toContain(
       'Each range is the estimate’s own, not the balance’s 90% range.',
     )
-    expect(threshold.detail).toContain('It runs down by one standard error of the fit.')
-    expect(threshold.detail).toContain('The allowance is calibrated on simulated athletes.')
+    expect(threshold.detail).toContain(
+      'A run’s range is the estimate’s own 10th to 90th percentile.',
+    )
+    expect(threshold.detail).toContain(
+      'The estimates were tuned on simulated athletes with a known threshold.',
+    )
+    expect(threshold.detail?.join(' ')).not.toMatch(/standard error|drawn lighter|calibrated/)
     expect(entryNamed('Race predictions').lines).toContain(
       'The marathon’s range comes from a published validation.',
     )
