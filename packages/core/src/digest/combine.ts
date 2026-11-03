@@ -13,6 +13,7 @@ import type {
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
 import { gatedThresholds, thresholdFits } from './combineThresholds'
+import { rideThresholdOf } from './thresholdEfforts'
 import { effortGatesOf, judgeHeadline } from './twentyMinute'
 import { equivalentsOf } from './equivalents'
 import type { Equivalence } from './equivalents'
@@ -230,6 +231,14 @@ export function combine(
     heart.setAside,
   )
   judgeHeadline(effort, effortGate)
+  const rideThreshold = rideThresholdOf(
+    ordered,
+    masses,
+    bikeModel,
+    gate,
+    heart.setAside,
+    judged.referenceHr.ride,
+  )
   const { run, ride } = gatedThresholds(
     effortGate,
     thresholds,
@@ -246,6 +255,7 @@ export function combine(
     rideMeasuredCurve,
     runCp: run.fit,
     rideCp: ride.fit,
+    rideThreshold,
     runCpRefusal: run.refusal,
     rideCpRefusal: ride.refusal,
     effortGate,

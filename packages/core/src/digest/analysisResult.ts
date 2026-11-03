@@ -1,6 +1,7 @@
 import type { UnevenFit } from '../cp'
 import type { EffortGate } from '../effort'
 import type { Vo2maxEstimate } from '../predict/vo2max'
+import type { ThresholdEstimate } from '../threshold'
 import type {
   BikeModel,
   Comparison,
@@ -42,6 +43,12 @@ export interface AnalysisResult {
   rideMeasuredCurve: Curve
   runCp: CriticalPowerFit | null
   rideCp: CriticalPowerFit | null
+  /**
+   * The ride threshold from every ride's efforts in the set, with heart rate as a second estimate that can lift it
+   * (docs/design/threshold.md), in the unit of rideCp: gross metabolic W/kg. Null only with no ride effort of 3 min or more.
+   * rideCp stays the critical-power fit the curve chart draws.
+   */
+  rideThreshold: ThresholdEstimate | null
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null
