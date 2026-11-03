@@ -616,6 +616,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   replaces the standard-error range for that sport. When the main threshold is refused, the range starts
   from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
   floor, with the line "From your best 20 min." under it: a demonstrated effort the threshold sits above, not a threshold.
+  When the best 20 minutes was not hard, the second fit reads the bests of 3 to 10 minutes alone, whether or not any best was uneven, and the range starts from the
+  gate's floor, the best 30 minutes, under the line "From your best 30 min." That fit must clear the floor by 2%, or the short bests were as easy as the long ones and no range is shown. It is the top of a range and not a ceiling.
   The Balance card follows the same rule: it shows the floor as its hero under the chip "At least", with no
   meaning line and the same basis line. The share card does not:
   its threshold is an estimate it labels "estimated", so a card with only a floor is not offered.

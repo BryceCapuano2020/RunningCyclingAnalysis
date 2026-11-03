@@ -1,5 +1,6 @@
 import {
   CP_FIT_MAX_S,
+  SHORT_FIT_MAX_S,
   UNEVEN_MIN_S,
   UNEVEN_NESTED_FRACTION,
   UNEVEN_REST_FRACTION,
@@ -113,11 +114,11 @@ export function unevenFit(
 export function shortBestsFit(curve: Curve, minWPrime: number): UnevenFit | null {
   const { fit } = criticalPowerOutcome(curve, {
     minWPrime,
-    maxS: UNEVEN_MIN_S,
-    minLongestS: UNEVEN_MIN_S,
+    maxS: SHORT_FIT_MAX_S,
+    minLongestS: SHORT_FIT_MAX_S,
   })
   const leftOut = curve.filter(
-    (p) => p.durationS > UNEVEN_MIN_S && p.durationS <= CP_FIT_MAX_S && Number.isFinite(p.value),
+    (p) => p.durationS > SHORT_FIT_MAX_S && p.durationS <= CP_FIT_MAX_S && Number.isFinite(p.value),
   )
   if (fit === null || leftOut.length === 0) return null
   return {

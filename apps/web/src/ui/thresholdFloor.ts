@@ -54,7 +54,7 @@ function longestBest(curve: Curve): ThresholdFloor | null {
 
 /**
  * The floor of a sport whose gate says its best 20 min was not hard, or null otherwise. Such a best can sit above a
- * threshold, so an uneven fit's lower floor gives way to this one, the best 30 min where the curve has one.
+ * threshold, so the floor is this one, the best 30 min where the curve has one, and a range starts from it.
  */
 export function gatedFloor(result: AnalysisResult, sport: Sport): EffortGate['floor'] {
   const gate = result.effortGate[sport]

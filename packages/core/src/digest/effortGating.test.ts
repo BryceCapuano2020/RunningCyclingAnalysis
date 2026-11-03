@@ -10,7 +10,12 @@ const PASSED: CriticalPowerOutcome = { fit: FIT, refusal: null }
 const REFUSED: CriticalPowerOutcome = { fit: null, refusal: 'shape' }
 const UNEVEN: UnevenFit = { fit: { ...FIT, cp: 4 }, leftOutS: [900, 1200], floor: 3.4 }
 const SHORT: UnevenFit = { fit: { ...FIT, cp: 4.2 }, leftOutS: [900, 1200], floor: 3.4 }
-const NOT_HARD: EffortGate = { ...NO_EFFORT_GATE, verdict: 'notHard', unchecked: null }
+const NOT_HARD: EffortGate = {
+  ...NO_EFFORT_GATE,
+  verdict: 'notHard',
+  unchecked: null,
+  floor: { durationS: 1800, value: 3.5 },
+}
 
 describe('gatedThreshold', () => {
   it('withholds a fit whose best 20 minutes was not hard, and says why', () => {
@@ -37,6 +42,13 @@ describe('gatedThreshold', () => {
 
   it('has no second fit when the short one is refused, whatever the uneven fit says', () => {
     expect(gatedThreshold(NOT_HARD, REFUSED, UNEVEN, null).uneven).toBeNull()
+  })
+
+  it('drops a short fit that does not clear the floor by 2%', () => {
+    const near = { ...SHORT, fit: { ...SHORT.fit, cp: 3.5 * 1.019 } }
+    const clear = { ...SHORT, fit: { ...SHORT.fit, cp: 3.5 * 1.021 } }
+    expect(gatedThreshold(NOT_HARD, REFUSED, null, near).uneven).toBeNull()
+    expect(gatedThreshold(NOT_HARD, REFUSED, null, clear).uneven).toBe(clear)
   })
 
   it('withholds nothing when it cannot judge', () => {

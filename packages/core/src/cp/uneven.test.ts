@@ -158,14 +158,12 @@ describe('shortBestsFit', () => {
     durationS,
     value: 300 + 12000 / durationS,
     activityId: 'a',
-    start: 0,
-    length: durationS,
+    startIndex: 0,
+    windowS: durationS,
   }))
 
   it('fits the bests of 3 to 10 minutes and reads no longer one', () => {
-    const lowered = ONE_RIDE.map((best) =>
-      best.durationS > 600 ? { ...best, value: 200 } : best,
-    )
+    const lowered = ONE_RIDE.map((best) => (best.durationS > 600 ? { ...best, value: 200 } : best))
     const short = shortBestsFit(fixture(lowered), 0)
     expect(short!.fit.cp).toBeCloseTo(300, 6)
     expect(short!.fit.nPoints).toBe(5)
