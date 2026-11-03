@@ -34,7 +34,7 @@ const MULTIPLES = SHARES.map((x) => 1 + x)
  * The power estimate's relative error is read to this step, 0.05 percentage points, for the two things worked out from it:
  * the gap prior smeared by it, and the quantiles of the posterior from power alone. A window's error is `max(1 / sqrt(sum
  * of weights), 2.5%)`, so most windows sit at the floor and the rest within a few tenths of a point of each other. What the
- * rounding costs is at most a quarter of that step in the error, which moves a quantile by under one grid step (0.2% of the
+ * rounding costs is at most half of that step in the error, which moves a quantile by under one grid step (0.2% of the
  * power estimate) and usually by none: fusion.test.ts measures it over errors from 2.5% to 25%.
  */
 export const ERROR_STEP = 0.0005

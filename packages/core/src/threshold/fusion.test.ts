@@ -164,7 +164,7 @@ describe('reading the power estimate’s error to a step', () => {
       }
     }
     expect(worst).toBeLessThanOrEqual(FUSION_GRID.step + 1e-9)
-    // Usually none at all: a quantile sits on a grid point, and a quarter of a step of error rarely carries it to the next.
+    // Usually none at all: a quantile sits on a grid point, and up to half a step of error rarely carries it to the next.
     expect(moved / total).toBeLessThan(0.15)
   })
 

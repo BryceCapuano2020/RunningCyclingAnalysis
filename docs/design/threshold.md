@@ -66,6 +66,11 @@ headline and on zones, the 3 to 10 min fit as a range top, and the per-window ha
 The gate's verdict stays as a detail label. Runs keep their critical-power fit without the veto: a run
 version needs its own duration table (short running bests are often intervals or GPS noise), later.
 
+**The window choice keeps its hard check for now.** The default period still passes over a window in which a sport's
+best 20 min was not hard (`easy`, and `most` when no window qualifies), as before. Run thresholds are not floor-aware
+yet, and on a real library a default of 12 weeks of easy runs read a run threshold 10% slow against 6 and 12 months.
+The rule only picks which period opens first and never hides a number. It goes when runs get the floor-aware estimate.
+
 ## Evidence
 
 Simulated riders with a known threshold (1,200 per case, seeded; the harness is `threshold.sim.test.ts`, which
@@ -132,6 +137,7 @@ export interface ThresholdEstimate {
   high: number // 90th percentile
   efforts: {
     value: number
+    relativeError: number // of the power estimate, as a share of value; never under 2.5%
     rides: number
     strongest: { activityId: string; durationS: number; estimated: boolean }
   }
@@ -200,11 +206,16 @@ export function rideThreshold(
   else the age-predicted one, else the activities'), the reference the gate judges by.
 - **`ageDays` counts from the newest activity of any sport in the set**, so a ride set read after months of running only is
   the less sure for it. In a zone window that is the newest activity up to the window's end.
-- **A zone window's ride step is `{ cp: value, cpSe }`**, with the standard error read from the width of the 10th to 90th
-  range as a normal's (2.563 of them). Run windows keep their critical-power fit and read the runs alone.
+- **A zone window's ride step is `{ cp: value, cpSe }`**, with the standard error the power estimate's own relative error times
+  the value (`efforts.relativeError`, never under 2.5%): the uncertainty of one window against another, which is what the
+  zones' hold asks. The 10th to 90th range is not that: it allows for an athlete above their best, so it is one-sided and about
+  6.6% of the value, and settling on it ignored a real 5% rise. Run windows keep their critical-power fit and read the runs alone.
 - **A window with any ride effort has an estimate**, so the older-fit and outgrown rules apply to rides only when a window
   holds no ride effort at all, and the best-30-min zone floor only where no window does.
-- **`WindowReason` loses `most`**: with an easy 20 min no lack, a window either qualifies or the default falls to all time.
+- **The window choice is as it was** (`answer/window.ts`): `easy` and `most` stay (see "What it replaces"). Its evidence test
+  reads `rideThreshold` where it read `rideCp`, but counts the estimate only where its strongest effort is as long as the
+  headline's (a best of 20 min counts as before): the estimate exists from a 3 min effort, and the headline compares at 20 min,
+  so a ride known from 5 min efforts alone is not set against a run.
 - **The heart-rate line is fitted once per library, not once per window.** The slope within rides, each ride's offset, the
   stuck and far-off rides and the spread come from all the library's power-meter rides (`rideLibraryOf`, kept in
   `JudgedWork.rideLine`), and the timeline's windows and every period read that one line (`estimateOver`). Why: fitting it is the
