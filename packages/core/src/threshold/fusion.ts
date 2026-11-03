@@ -15,6 +15,36 @@ function gapPrior(g: number): number {
   return ((1 - largeShare) * Math.exp(-g / smallMean)) / smallMean + largeShare / largeMax
 }
 
+const GAPS = Array.from(
+  { length: Math.round(GAP_PRIOR.largeMax / FUSION_GRID.gapStep) },
+  (_, k) => {
+    const g = k * FUSION_GRID.gapStep
+    return { g, prior: gapPrior(g) }
+  },
+)
+const STEPS = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
+
+/**
+ * The gap prior smeared by the power estimate's noise `powerError`, at each grid point. It depends on that error and on
+ * nothing else, not the power or the heart rate, and costs a few thousand exponentials; a few errors are kept, since the
+ * floor of 2.5% is the error of most windows. Callers must not change the array.
+ */
+const smearedPriors = new Map<number, Float64Array>()
+const SMEARED_KEPT = 16
+
+function smearedPrior(powerError: number): Float64Array {
+  const kept = smearedPriors.get(powerError)
+  if (kept !== undefined) return kept
+  const prior = new Float64Array(STEPS)
+  for (let i = 0; i < STEPS; i++) {
+    const x = FUSION_GRID.from + i * FUSION_GRID.step
+    prior[i] = GAPS.reduce((total, q) => total + q.prior * bell(x - q.g, powerError), 0)
+  }
+  if (smearedPriors.size >= SMEARED_KEPT) smearedPriors.delete(smearedPriors.keys().next().value!)
+  smearedPriors.set(powerError, prior)
+  return prior
+}
+
 /**
  * The power estimate is a floor: a best is at most what the rider can do, and usually a few percent under. So the threshold is
  * the power estimate times (1 + g) with g at least 0, smeared by the power estimate's own relative error `powerError`.
@@ -28,23 +58,16 @@ export function fuse(
   powerError: number,
   heartRate: { value: number; relativeError: number } | null,
 ): Fused {
-  const gaps: { prior: number; g: number }[] = []
-  const gapSteps = Math.round(GAP_PRIOR.largeMax / FUSION_GRID.gapStep)
-  for (let k = 0; k < gapSteps; k++) {
-    const g = k * FUSION_GRID.gapStep
-    gaps.push({ g, prior: gapPrior(g) })
-  }
+  const prior = smearedPrior(powerError)
   const grid: { value: number; weight: number }[] = []
-  const steps = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
-  for (let i = 0; i < steps; i++) {
+  for (let i = 0; i < STEPS; i++) {
     const x = FUSION_GRID.from + i * FUSION_GRID.step
     const value = power * (1 + x)
-    const prior = gaps.reduce((total, q) => total + q.prior * bell(x - q.g, powerError), 0)
     const like =
       heartRate === null
         ? 1
         : bell(value - heartRate.value, heartRate.relativeError * heartRate.value)
-    grid.push({ value, weight: prior * like })
+    grid.push({ value, weight: prior[i]! * like })
   }
   const total = grid.reduce((sum, q) => sum + q.weight, 0)
   const at = (share: number) => {

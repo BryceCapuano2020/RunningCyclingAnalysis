@@ -10,7 +10,8 @@ import {
   THEIL_SEN_MIN_SLOPES,
   THEIL_SEN_POINTS,
 } from './constants'
-import { mean, median, standardDeviation } from './stats'
+import { EDGE_EPSILON, mean } from '../math'
+import { median, standardDeviation } from './stats'
 import type { HeartRateRefusal, ThresholdBlock } from './types'
 
 export interface HeartRateLine {
@@ -35,18 +36,22 @@ export function valueAt(line: HeartRateLine, heartRate: number, activityId?: str
   return (heartRate - (line.offsets.get(activityId ?? '') ?? line.offset)) / line.slope
 }
 
-/** Theil-Sen slope of y on x: the median of the slopes of all pairs, thinned to a few hundred points first. */
+/**
+ * Theil-Sen slope of y on x: the median of the slopes of all pairs, thinned to a few hundred points first. The slopes go in
+ * one typed array, which sorts without a comparator: sorting the 45,000 of a full window with one was most of the call.
+ */
 function theilSen(points: readonly { x: number; y: number }[]): number | null {
   const stride = Math.ceil(points.length / THEIL_SEN_POINTS)
   const thinned = points.filter((_, i) => i % stride === 0)
-  const slopes: number[] = []
+  const slopes = new Float64Array((thinned.length * (thinned.length - 1)) / 2)
+  let count = 0
   for (let i = 0; i < thinned.length; i++) {
     for (let j = i + 1; j < thinned.length; j++) {
       const dx = thinned[j]!.x - thinned[i]!.x
-      if (Math.abs(dx) > 1e-9) slopes.push((thinned[j]!.y - thinned[i]!.y) / dx)
+      if (Math.abs(dx) > EDGE_EPSILON) slopes[count++] = (thinned[j]!.y - thinned[i]!.y) / dx
     }
   }
-  return slopes.length < THEIL_SEN_MIN_SLOPES ? null : median(slopes)
+  return count < THEIL_SEN_MIN_SLOPES ? null : median(slopes.subarray(0, count))
 }
 
 /** A ride whose heart rate hardly moves while its power does: a stuck sensor, or one locked to cadence. */

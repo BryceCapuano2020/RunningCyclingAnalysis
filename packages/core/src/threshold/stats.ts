@@ -1,10 +1,12 @@
-/** The element at index floor(n / 2) of the sorted values: no interpolation, so a median of slopes is a slope that exists. */
-export function median(values: readonly number[]): number {
-  return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]!
-}
+import { mean } from '../math'
 
-export function mean(values: readonly number[]): number {
-  return values.reduce((total, x) => total + x, 0) / values.length
+/**
+ * The element at index floor(n / 2) of the sorted values: no interpolation, so a median of slopes is a slope that exists.
+ * Not core's `medianInPlace`, which averages the two middle values of an even count: the guards here (a ride's offset against
+ * the pooled one, the spread) were tuned on this one, and swapping moved simulated answers by up to 30%.
+ */
+export function median(values: ArrayLike<number>): number {
+  return Float64Array.from(values).sort()[Math.floor(values.length / 2)]!
 }
 
 export function standardDeviation(values: readonly number[]): number {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fuse } from './fusion'
 
 const POWER = 250
@@ -58,6 +58,25 @@ describe('fusing the power estimate with heart rate', () => {
       const { low, high } = fuse(POWER, 0.025, heartRate(share))
       expect(low).toBeGreaterThanOrEqual(POWER * 0.85 - 1e-9)
       expect(high).toBeLessThanOrEqual(POWER * 1.45)
+    }
+  })
+
+  it('smears the gap prior once for each power error, whatever the power and the heart rate', () => {
+    const exp = vi.spyOn(Math, 'exp')
+    try {
+      // An error no other test uses, so the first call has none kept.
+      const first = fuse(POWER, 0.0317, heartRate(1.1))
+      const firstCalls = exp.mock.calls.length
+      exp.mockClear()
+      const second = fuse(180, 0.0317, heartRate(1.2, 0.05))
+      expect(firstCalls).toBeGreaterThan(10_000)
+      // What is left is the heart-rate likelihood: one exponential for each point of the grid.
+      expect(exp.mock.calls.length).toBeLessThan(500)
+      // The kept prior is the same one: the second answer scales with the power as the first would.
+      expect(fuse(POWER, 0.0317, heartRate(1.1)).value).toBe(first.value)
+      expect(second.value / 180).toBeGreaterThan(1)
+    } finally {
+      exp.mockRestore()
     }
   })
 })
