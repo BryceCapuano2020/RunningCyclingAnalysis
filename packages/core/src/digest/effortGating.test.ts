@@ -9,11 +9,12 @@ const FIT: CriticalPowerFit = { cp: 3.6, wPrime: 200, cpSe: 0.05, r2: 0.99, nPoi
 const PASSED: CriticalPowerOutcome = { fit: FIT, refusal: null }
 const REFUSED: CriticalPowerOutcome = { fit: null, refusal: 'shape' }
 const UNEVEN: UnevenFit = { fit: { ...FIT, cp: 4 }, leftOutS: [900, 1200], floor: 3.4 }
+const SHORT: UnevenFit = { fit: { ...FIT, cp: 4.2 }, leftOutS: [900, 1200], floor: 3.4 }
 const NOT_HARD: EffortGate = { ...NO_EFFORT_GATE, verdict: 'notHard', unchecked: null }
 
 describe('gatedThreshold', () => {
   it('withholds a fit whose best 20 minutes was not hard, and says why', () => {
-    expect(gatedThreshold(NOT_HARD, PASSED, null)).toEqual({
+    expect(gatedThreshold(NOT_HARD, PASSED, null, null)).toEqual({
       fit: null,
       refusal: 'effort',
       uneven: null,
@@ -21,25 +22,25 @@ describe('gatedThreshold', () => {
   })
 
   it('keeps a fit refused for its shape under its first reason', () => {
-    expect(gatedThreshold(NOT_HARD, REFUSED, null).refusal).toBe('shape')
+    expect(gatedThreshold(NOT_HARD, REFUSED, null, null).refusal).toBe('shape')
   })
 
-  it('keeps the uneven fit: it leaves out the 20 minutes the gate judged', () => {
-    expect(gatedThreshold(NOT_HARD, REFUSED, UNEVEN).uneven).toBe(UNEVEN)
-    expect(gatedThreshold(NOT_HARD, PASSED, UNEVEN)).toEqual({
+  it('runs the range up to the short fit, with or without an uneven fit', () => {
+    expect(gatedThreshold(NOT_HARD, REFUSED, UNEVEN, SHORT).uneven).toBe(SHORT)
+    expect(gatedThreshold(NOT_HARD, REFUSED, null, SHORT).uneven).toBe(SHORT)
+    expect(gatedThreshold(NOT_HARD, PASSED, null, SHORT)).toEqual({
       fit: null,
       refusal: 'effort',
-      uneven: UNEVEN,
+      uneven: SHORT,
     })
   })
 
-  it('drops an uneven fit that still holds the 20 minutes the gate judged', () => {
-    const with20 = { ...UNEVEN, leftOutS: [600] }
-    expect(gatedThreshold(NOT_HARD, REFUSED, with20).uneven).toBeNull()
+  it('has no second fit when the short one is refused, whatever the uneven fit says', () => {
+    expect(gatedThreshold(NOT_HARD, REFUSED, UNEVEN, null).uneven).toBeNull()
   })
 
   it('withholds nothing when it cannot judge', () => {
-    expect(gatedThreshold(NO_EFFORT_GATE, PASSED, UNEVEN)).toEqual({
+    expect(gatedThreshold(NO_EFFORT_GATE, PASSED, UNEVEN, SHORT)).toEqual({
       fit: FIT,
       refusal: null,
       uneven: UNEVEN,

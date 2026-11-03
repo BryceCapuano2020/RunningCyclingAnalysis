@@ -1,4 +1,9 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, HEADLINE_DURATION_S } from '@rca/core/constants'
+import {
+  CP_FIT_MAX_S,
+  CP_FIT_MIN_S,
+  HEADLINE_DURATION_S,
+  UNEVEN_MIN_S,
+} from '@rca/core/constants'
 import { CHANGE } from '@rca/core/change'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -54,6 +59,7 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     detail: [
       `A best under ${HEADLINE} is labelled with its length and is not a floor.`,
       'A best that mixed hard and easy is left out of a second fit.',
+      `When your best ${effortLabel(HEADLINE_DURATION_S)} was not hard, that fit uses your ${CP_FIT_MIN_S / 60} to ${effortLabel(UNEVEN_MIN_S)} bests alone.`,
       'The range runs up to that fit.',
       'A threshold’s own range is drawn lighter.',
       'It runs down by one standard error of the fit.',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Curve } from '../types'
 import { criticalPowerOutcome } from './criticalPower'
-import { unevenDurations, unevenFit } from './uneven'
+import { shortBestsFit, unevenDurations, unevenFit } from './uneven'
 
 /** A best effort: its value, and the window it came from in its own activity. */
 interface Best {
@@ -150,5 +150,47 @@ describe('unevenFit', () => {
     )
     const curve = fixture(bests)
     expect(unevenFit(curve, 0, criticalPowerOutcome(curve).fit)).toBeNull()
+  })
+})
+
+describe('shortBestsFit', () => {
+  const ONE_RIDE: Best[] = [180, 240, 300, 420, 600, 900, 1200].map((durationS) => ({
+    durationS,
+    value: 300 + 12000 / durationS,
+    activityId: 'a',
+    start: 0,
+    length: durationS,
+  }))
+
+  it('fits the bests of 3 to 10 minutes and reads no longer one', () => {
+    const lowered = ONE_RIDE.map((best) =>
+      best.durationS > 600 ? { ...best, value: 200 } : best,
+    )
+    const short = shortBestsFit(fixture(lowered), 0)
+    expect(short!.fit.cp).toBeCloseTo(300, 6)
+    expect(short!.fit.nPoints).toBe(5)
+  })
+
+  it('names the bests past 10 minutes it left out, and their lowest as the floor', () => {
+    const short = shortBestsFit(fixture(ONE_RIDE), 0)
+    expect(short!.leftOutS).toEqual([900, 1200])
+    expect(short!.floor).toBeCloseTo(310, 6)
+  })
+
+  it('does not depend on a best being uneven', () => {
+    expect(unevenDurations(fixture(ONE_RIDE))).toEqual([])
+    expect(shortBestsFit(fixture(ONE_RIDE), 0)).not.toBeNull()
+  })
+
+  it('is null without a best of 10 minutes, since the fit would rest on short efforts alone', () => {
+    expect(shortBestsFit(fixture(ONE_RIDE.filter((b) => b.durationS !== 600)), 0)).toBeNull()
+  })
+
+  it('is null when its work capacity is under the floor', () => {
+    expect(shortBestsFit(fixture(ONE_RIDE), 20000)).toBeNull()
+  })
+
+  it('is null with nothing past 10 minutes to leave out', () => {
+    expect(shortBestsFit(fixture(ONE_RIDE.filter((b) => b.durationS <= 600)), 0)).toBeNull()
   })
 })

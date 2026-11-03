@@ -103,3 +103,26 @@ export function unevenFit(
   const floor = Math.min(...curve.filter((p) => leftOutS.includes(p.durationS)).map((p) => p.value))
   return { fit, leftOutS, floor }
 }
+
+/**
+ * The fit on the bests of 3 to 10 min alone, for a sport whose best 20 min was not hard. A best that was not hard is a floor,
+ * and the same goes for any best past 10 min, so this asks nothing of how they were paced or which rides they came from.
+ * Like an uneven fit it rests on short efforts and tends to set a threshold high, so it is only ever the top of a range. Null
+ * when that fit is refused, or with no best past 10 min to leave out.
+ */
+export function shortBestsFit(curve: Curve, minWPrime: number): UnevenFit | null {
+  const { fit } = criticalPowerOutcome(curve, {
+    minWPrime,
+    maxS: UNEVEN_MIN_S,
+    minLongestS: UNEVEN_MIN_S,
+  })
+  const leftOut = curve.filter(
+    (p) => p.durationS > UNEVEN_MIN_S && p.durationS <= CP_FIT_MAX_S && Number.isFinite(p.value),
+  )
+  if (fit === null || leftOut.length === 0) return null
+  return {
+    fit,
+    leftOutS: leftOut.map((p) => p.durationS),
+    floor: Math.min(...leftOut.map((p) => p.value)),
+  }
+}
