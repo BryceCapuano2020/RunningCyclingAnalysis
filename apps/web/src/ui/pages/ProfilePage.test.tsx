@@ -1009,7 +1009,7 @@ describe('ProfilePage zones and dated settings', () => {
       expect(screen.getByRole('table', { name })).toBeInTheDocument()
     }
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /Threshold pace: \d+:\d{2} \/km, from your runs/,
+      /Threshold pace: \d+:\d{2} \/km, estimated from your runs/,
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
       /Threshold power: \d+ W, estimated from your rides/,
@@ -1036,7 +1036,7 @@ describe('ProfilePage zones and dated settings', () => {
     }
     renderProfile({}, { state: { result, zoneEstimates: earlier } })
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /Threshold pace: \d+:\d{2} \/km, from your runs/,
+      /Threshold pace: \d+:\d{2} \/km, estimated from your runs/,
     )
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).not.toHaveAccessibleName(
       /keep this threshold|newest fit/,

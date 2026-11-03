@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceGap } from '../ui/balanceGap'
-import { makeActivity, makeResult, makeRideThreshold } from '../ui/components/fixtures'
+import {
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from '../ui/components/fixtures'
 import { curvePoint } from '../ui/charts/fixtures'
 import { gate } from '../ui/effortGateFixtures'
 import { heldPick } from '../ui/resultHold'
@@ -63,17 +68,23 @@ describe('hasShareableContent', () => {
     expect(hasShareableContent(makeResult({ runCp: null }), GAP, true)).toBe(false)
   })
 
-  it('stays false when the effort gate withheld a threshold, though the balance is now stated', () => {
-    // A best that was not hard no longer holds the balance back, but the card shows both thresholds, which the gate withholds.
-    const notHard = makeResult({
-      runCp: null,
-      runCpRefusal: 'shape',
+  it('reads the run’s threshold from its estimate: a critical-power fit without one does not offer a card, and an estimate without a fit does', () => {
+    const fitOnly = makeResult({ runThreshold: null })
+    expect(fitOnly.runCp).not.toBeNull()
+    expect(hasShareableContent(fitOnly, GAP, true)).toBe(false)
+    const estimateOnly = makeResult({ runCp: null, runThreshold: makeRunThreshold(16) })
+    expect(hasShareableContent(estimateOnly, GAP, true)).toBe(true)
+  })
+
+  it('stays false while the run has no estimate, though the balance is stated, and true with it whatever the gate holds', () => {
+    // The card shows both thresholds, so a run with no estimate has nothing to put on it; a best that was not hard does not take one away.
+    const noEstimate = makeResult({
+      runThreshold: null,
       runCurve: [curvePoint(1200, 5, 'a')],
       effortGate: { run: gate(), ride: gate() },
     })
-    expect(heldPick(notHard).pick).not.toBeNull()
-    expect(hasShareableContent(notHard, GAP, true)).toBe(false)
-    // With the threshold kept, the same bests that were not hard share like any other.
+    expect(heldPick(noEstimate).pick).not.toBeNull()
+    expect(hasShareableContent(noEstimate, GAP, true)).toBe(false)
     const kept = { ...makeResult(), effortGate: { run: gate(), ride: gate() } }
     expect(hasShareableContent(kept, GAP, true)).toBe(true)
   })

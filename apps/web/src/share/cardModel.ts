@@ -15,16 +15,16 @@ import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
-import { BALANCE_PAIR, THRESHOLD_EFFORT_TEXT } from '../ui/sports'
+import { BALANCE_PAIR } from '../ui/sports'
 import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
 
 /**
  * A threshold's name on the share card, with what it is estimated from. A run says "GAP" here, since the card has no page
- * note to say what the pace allows for. A ride's rests on all its rides, not on a window of bests.
+ * note to say what the pace allows for. Each rests on all its runs or rides, one estimate each, not on a window of bests.
  */
 const CARD_THRESHOLD_LABEL: Record<Sport, string> = {
-  run: `Threshold GAP, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
+  run: 'Threshold GAP, estimated from your runs',
   ride: 'Threshold power, estimated from your rides',
 }
 
@@ -37,7 +37,7 @@ export interface ShareFigure {
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
 export interface ShareHero {
   sport: Sport
-  /** The estimate's name and the efforts it rests on, such as "Threshold GAP, estimated from your best 3 to 20 min". */
+  /** The estimate's name and the efforts it rests on, such as "Threshold GAP, estimated from your runs". */
   label: string
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */

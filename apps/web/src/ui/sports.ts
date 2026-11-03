@@ -1,7 +1,7 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
+import { CP_FIT_MIN_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
+import { formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
 
 /**
  * The sports in the order they sit in lists and charts, running first. A list that totals or draws
@@ -95,28 +95,16 @@ export const THRESHOLD_HEADING: Record<Sport, string> = {
   ride: 'Threshold power',
 }
 
-/**
- * The label over a threshold the fit refused, when the lowest of the bests it left out is shown in its place.
- * That is a held best and a floor, not an estimate, so it is not called one.
- */
-export const THRESHOLD_FLOOR_LABEL: Record<Sport, string> = {
-  run: 'Threshold pace, at least',
-  ride: 'Threshold power, at least',
-}
-
-/** The shortest and longest efforts as copy: "3" and "20 min", the fit's own window. */
+/** The shortest effort a threshold is estimated from, as copy: "3". */
 const EFFORT_MIN_TEXT = `${CP_FIT_MIN_S / 60}`
-const EFFORT_MAX_TEXT = formatDuration(CP_FIT_MAX_S)
-/** The efforts a threshold is estimated from, as copy: "3 to 20 min", the fit's own window. */
-export const THRESHOLD_EFFORT_TEXT = `${EFFORT_MIN_TEXT} to ${EFFORT_MAX_TEXT}`
 
 /**
- * What a threshold's place says when the sport holds no best at all: the one thing to add. Any other sport has a
- * number there (a ride's estimate, a run's floor), so this is the only line that asks for anything. A ride's estimate
- * needs an effort as short as the fit's shortest; a run's floor is its best of 20 min or longer.
+ * What a threshold's place says when the sport holds no effort the estimate can use: the one thing to add. Any other sport has
+ * a number there, so this is the only line that asks for anything. Both sports' estimates need an effort as short as the
+ * fit's shortest.
  */
 export const THRESHOLD_NEEDS_TEXT: Record<Sport, string> = {
-  run: `Needs an effort of ${EFFORT_MAX_TEXT} or longer`,
+  run: `Needs an effort of ${EFFORT_MIN_TEXT} min or longer`,
   ride: `Needs an effort of ${EFFORT_MIN_TEXT} min or longer`,
 }
 
@@ -125,6 +113,6 @@ export const THRESHOLD_NEEDS_TEXT: Record<Sport, string> = {
  * with the efforts it rests on.
  */
 export const THRESHOLD_MEANING: Record<Sport, string> = {
-  run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
+  run: 'About the pace you could hold for a long, steady effort, estimated from your runs.',
   ride: 'About the power you could hold for a long, steady effort, estimated from your rides.',
 }

@@ -20,7 +20,7 @@ export function hasShareableContent(
 ): boolean {
   return (
     weightKnown &&
-    result.runCp !== null &&
+    result.runThreshold !== null &&
     result.rideThreshold !== null &&
     balanceOfPick(gap, heldPick(result, hold).pick) !== null
   )

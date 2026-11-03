@@ -2,7 +2,6 @@ import { energyReading } from '../ui/components/balanceScale'
 import { interval } from '../ui/components/fixtures'
 import { HEADLINE_LABEL } from '../ui/grades'
 import { effortLabel } from '../ui/records'
-import { THRESHOLD_EFFORT_TEXT } from '../ui/sports'
 import type { CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
 import { renderShareCard } from './renderCard'
@@ -179,14 +178,14 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     heroes: [
       {
         sport: 'run',
-        label: `Threshold GAP, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
+        label: 'Threshold GAP, estimated from your runs',
         figure: { number: '21:35', unit: '/km' },
         sub: null,
         grade: RUN_GRADE,
       },
       {
         sport: 'ride',
-        label: `Threshold power, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
+        label: 'Threshold power, estimated from your rides',
         figure: { number: '48', unit: 'W' },
         sub: '0.6 W/kg',
         grade: RIDE_GRADE,
