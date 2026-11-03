@@ -38,13 +38,15 @@ import { fastestMs } from './test/timing'
  * (`rideThreshold`) in every week a ride enters or leaves its window, not a critical-power fit. This library has 226 such weeks,
  * each an estimate over about 26 weeks of rides at about 50 µs, and the zones settle them in order, so none can be skipped. That
  * is about 13 ms more here (37 to 51 ms), paid once per library whatever the period, and the runner took 93 ms, so the budget is 115.
+ * A change of body mass pays the timeline again, since each ride is priced at its mass: about 12 ms more here (38 to 50 ms) and
+ * 97 to 104 ms on the runner, so its budget is 130.
  */
 const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 450
 const DEFAULT_BUDGET_MS = 115
 const SEARCH_BUDGET_MS = 160
 const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
-const MASS_CHANGE_BUDGET_MS = 100
+const MASS_CHANGE_BUDGET_MS = 130
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
  * zones' thresholds by week and reads the sessions that reached a hard heart rate. The default library has none, so its figures
