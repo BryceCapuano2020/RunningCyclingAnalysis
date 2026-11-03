@@ -49,8 +49,8 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
             '70% means 70% of standard pace.',
             `Levels are bands of the grade: ${BAND_TEXT}.`,
             `Below ${RECREATIONAL_BELOW}% is Recreational.`,
-            'A level name shows only when the whole range sits in one band.',
-            'Otherwise the number and its range show alone, with no level name.',
+            'A ride’s level is the band of its best estimate.',
+            'Its range, drawn on the ladder, can reach the next band.',
             'A run’s grade uses its grade-adjusted pace (GAP).',
             'GAP is the recorded pace, corrected for hills.',
           ]}

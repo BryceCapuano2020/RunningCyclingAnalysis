@@ -33,17 +33,16 @@ describe('AgeGradingSection', () => {
     expect(within(section()).getByText('Below 60% is Recreational.')).toBeInTheDocument()
   })
 
-  it('says a level name shows only when the whole range sits in one band, and the number alone otherwise', () => {
+  it('says a ride’s level is the band of its best estimate, and that its range can reach the next band', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText('A level name shows only when the whole range sits in one band.'),
+      within(section()).getByText('A ride’s level is the band of its best estimate.'),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText(
-        'Otherwise the number and its range show alone, with no level name.',
-      ),
+      within(section()).getByText('Its range, drawn on the ladder, can reach the next band.'),
     ).toBeInTheDocument()
+    expect(section()).not.toHaveTextContent(/whole range sits in one band|with no level name/)
   })
 
   it('reads a run’s grade from its grade-adjusted pace, and names GAP as the recorded pace corrected for hills', () => {

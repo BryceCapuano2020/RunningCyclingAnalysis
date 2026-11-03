@@ -99,9 +99,7 @@ function ladderLabel(sport: Sport, grade: SportGrade): string {
   const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
   const beyond = side === null ? '' : `, ${side} the ${scale}`
   const name = SPORT_FORMAT[sport].gradeName
-  const level = gradeLevelText(grade)
-  const named = level === null ? '' : `, ${level}`
-  return `${name} ${formatGrade(centre.grade)}${named}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+  return `${name} ${formatGrade(centre.grade)}, ${gradeLevelText(grade)}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
 }
 
 /** The line under the drawing when the grade lies off the scale; null when it is on it. */
@@ -112,13 +110,11 @@ function offScaleText(grade: SportGrade): string | null {
 }
 
 /**
- * The band the grade falls in, filled and named in bold: the band of its centre, or of a ride's range when the whole
- * range sits in one band. A range across an edge marks none, since no level is named there (`gradeLevelText`): the
- * ring and its range bar show the number and range alone.
+ * The band the grade falls in, filled and named in bold: the band of its centre (`gradeLevelText`), also where a ride's
+ * range reaches the next band. The ring and its range bar show the spread.
  */
 function currentBands(grade: SportGrade): Set<string> {
-  const level = gradeLevelText(grade)
-  return new Set(level === null ? [] : [level])
+  return new Set([gradeLevelText(grade)])
 }
 
 /**
@@ -175,8 +171,7 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
 /**
  * An age grade on the level bands, on a 30% to 100% scale. A run is read as recorded: a solid dot.
  * A ride is estimated: a ring over its model range. The band the grade falls in is filled and its name
- * is bold, unless a ride's range crosses an edge and no band is named. The names and percentages are
- * visible text beside the drawing.
+ * is bold. The names and percentages are visible text beside the drawing.
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)

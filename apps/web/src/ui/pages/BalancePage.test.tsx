@@ -15,6 +15,7 @@ import { curvePoint } from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
+  interval,
   makeActivity,
   makeEquivalence,
   makeResult,
@@ -167,7 +168,7 @@ describe('BalancePage', () => {
     expect(screen.queryByText('Your bike on foot')).not.toBeInTheDocument()
     expect(screen.queryByText('Evidence gap')).not.toBeInTheDocument()
     expect(screen.queryByText('Built on real efforts')).not.toBeInTheDocument()
-    expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
+    expect(document.querySelector('.evidence-line')).toBeNull()
   })
 
   it('offers an empty sport the file chooser as a secondary button, with the count in All time', () => {
@@ -285,29 +286,26 @@ describe('BalancePage', () => {
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
 
-  it('shows no heart-rate card with no comparison while the files have heart rate', () => {
-    renderPage(
-      makeResult({
-        comparison: { prior: [], calibrated: null },
-        effort: [],
-        maxHeartRate: 170,
-      }),
-    )
-    expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add heart rate to sharpen this')).not.toBeInTheDocument()
-  })
-
-  it('asks for heart rate with no comparison when the files have none', () => {
-    renderPage(
-      makeResult({
-        comparison: { prior: [], calibrated: null },
-        effort: [],
-        maxHeartRate: null,
-      }),
-    )
-    expect(screen.getByText(/^Add heart rate to sharpen this/)).toBeInTheDocument()
-    expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
-  })
+  it.each([
+    ['have heart rate', 170],
+    ['have none', null],
+  ])(
+    'says nothing about heart rate under the tiles when the files %s: the link to how sure it is stands alone',
+    (_name, maxHeartRate) => {
+      renderPage(
+        makeResult({
+          comparison: { prior: [], calibrated: null },
+          effort: [],
+          maxHeartRate,
+        }),
+      )
+      const line = document.querySelector('.evidence-line')
+      expect(line).not.toBeNull()
+      expect(line?.textContent).toBe('How sure is this?')
+      expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
+    },
+  )
 
   it('folds the equivalence table into the ride as a run tile, closed under its figure', () => {
     renderPage(makeResult({ equivalents: [makeEquivalence()] }))
@@ -736,6 +734,30 @@ describe('BalancePage with one sport', () => {
     expect(rows[0]).toHaveAttribute('data-sport', 'run')
     expect(rows[0]).toHaveTextContent(/^Running\s*\d+%\s*Local/)
     expect(container.querySelector('.balance-meter')).toBeNull()
+  })
+
+  it('names a ride’s level from its centre in the headline and on its line, though its range reaches the next band', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const result = makeResult({
+      activities: [ride],
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+      // The range runs from 63% (Local) to 71% (Regional) around a centre of 67%.
+      equivalents: [
+        makeEquivalence({
+          durationS: HEADLINE_DURATION_S,
+          runSpeed: interval(3.9, 5000 / HEADLINE_DURATION_S, 4.4),
+        }),
+      ],
+      comparison: { prior: [], calibrated: null },
+    })
+    const { container } = renderPage(result, { state: { library: [ride] } }, MAN_BORN_1986)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your cycling is at Local level' }),
+    ).toBeInTheDocument()
+    const rows = container.querySelectorAll('.balance-levels__row')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent(/^Cycling\s*67%\s*Local/)
+    expect(container.querySelector('.balance-levels')).not.toHaveTextContent('63 to 71')
   })
 
   it('asks for the year of birth and sex as the level’s need, not the balance’s', () => {

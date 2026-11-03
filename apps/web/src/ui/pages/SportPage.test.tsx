@@ -841,7 +841,7 @@ describe('SportPage age grades', () => {
     const records = openSection('All best efforts')
     // The row reads only its level, range and percent: no lead, and no note under the list.
     expect(recordNamed(records, '20 min').querySelector('.records__grade')?.textContent).toBe(
-      '67% (63 to 71)',
+      'Local · 67% (63 to 71)',
     )
     expect(records.textContent).not.toMatch(/running equivalent/)
   })
@@ -899,7 +899,7 @@ describe('SportPage age grades', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('says a ride’s grade is estimated, with its range beside the grade and no key under the ladder', () => {
+  it('writes a ride’s watts plain and draws its range on the ladder, with no chip beside the level and no key under it', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
     renderPage(
       'ride',
@@ -917,10 +917,10 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
     const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
-    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(
-      /^400 W \(estimated\) at age 40\.$/,
-    )
-    expect(level.querySelector('.sport-hero__level-basis')).toHaveTextContent(/Estimated/)
+    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^400 W at age 40\.$/)
+    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__range')).not.toBeNull()
+    expect(level.textContent).not.toMatch(/estimated/i)
     expect(level.querySelector('.level-ladder__key')).toBeNull()
     expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
   })

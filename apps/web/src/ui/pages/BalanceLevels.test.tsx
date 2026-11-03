@@ -55,8 +55,8 @@ describe('the level on each sport’s line', () => {
     expect(rows(RIDE_IN_ONE_BAND)).toEqual(['Running 65% Local', 'Cycling 64% Local'])
   })
 
-  it('names no level for a ride whose range crosses two bands, and gives its range instead', () => {
-    expect(rows(RIDE_ACROSS_TWO)).toEqual(['Running 65% Local', 'Cycling 61% (55 to 67)'])
+  it('names the level of the centre for a ride whose range crosses two bands, and leaves its range off', () => {
+    expect(rows(RIDE_ACROSS_TWO)).toEqual(['Running 65% Local', 'Cycling 61% Recreational'])
   })
 
   it('defines the level once, on the first line that names one', () => {
@@ -71,7 +71,9 @@ describe('the level on each sport’s line', () => {
       missingAge: null,
     })
     render(<BalanceLevels model={model} />)
-    expect(screen.queryByRole('button')).toBeNull()
+    // Alone, the ride's row is the first that names a level, so it holds the one definition.
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Recreational' })).toBeInTheDocument()
   })
 
   it('says nothing about how hard the best was, which the line under the lede does', () => {

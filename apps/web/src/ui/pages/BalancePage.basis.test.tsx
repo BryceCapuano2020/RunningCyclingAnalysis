@@ -86,15 +86,17 @@ describe('the balance when a best 20 min was not shown hard', () => {
     ).toBe(1)
   })
 
-  it('says no heart rate once: under the lede, not again in a line under the tiles', () => {
+  it('says no heart rate once: under the lede, and never in a line under the tiles', () => {
     render20(HARD, NO_HEART_RATE)
     expect(screen.getAllByText(/^No heart rate on your best 20 min ride/)).toHaveLength(1)
+    expect(document.querySelector('.evidence-line')?.textContent).toBe('How sure is this?')
+    cleanup()
+    // With nothing said under the lede, the line under the tiles is still the link alone, with no chip or nudge.
+    render20(HARD, HARD)
+    expect(screen.queryByText(/No heart rate on your best 20 min/)).not.toBeInTheDocument()
+    expect(document.querySelector('.evidence-line')?.textContent).toBe('How sure is this?')
     expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
     expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
-    cleanup()
-    // With nothing said under the lede, the line under the tiles still tells files with no heart rate.
-    render20(HARD, HARD)
-    expect(screen.getByText('No heart-rate check')).toBeInTheDocument()
   })
 
   it('keeps every other line of the answer, the level target among them', () => {

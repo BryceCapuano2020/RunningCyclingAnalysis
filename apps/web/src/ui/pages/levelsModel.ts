@@ -7,7 +7,7 @@ import {
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
 } from '../grades'
-import { gradeLevelText, gradeRangeText } from '../grades'
+import { gradeLevelText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { wholeGrade } from '../gradeFormat'
 import { BALANCE_PAIR, SPORT_PLURAL } from '../sports'
@@ -17,10 +17,8 @@ export interface LevelRow {
   sport: Sport
   /** The age grade as the tiles print it, such as "67%"; null while the sport has no grade to show. */
   grade: string | null
-  /** The level the grade names; null with the grade, and where a ride's range crosses a band, which shows `range` instead. */
+  /** The level of the grade's centre; null with the grade. */
   level: string | null
-  /** A ride's range as the number then (low to high), such as "50 to 71", where no level is named; otherwise null. */
-  range: string | null
   /** What is missing, in a few words; null when the sport is graded. */
   missing: string | null
 }
@@ -60,9 +58,8 @@ function missingFor(
 
 /**
  * The levels under the meter, from the grades the page already holds: each sport's age grade in whole percent
- * and its level, as the tiles print them. A level is named only when the grade's whole range sits in one band; a ride
- * that could be in either shows its range instead. A sport with no grade says what it is missing; when both are
- * missing the same thing, it is said once.
+ * and its level, as the tiles print them. The level is the centre's, so a ride whose range reaches the next band
+ * still names one. A sport with no grade says what it is missing; when both are missing the same thing, it is said once.
  */
 export function balanceLevels(input: {
   grades: Record<Sport, GradeOutcome | null>
@@ -75,13 +72,10 @@ export function balanceLevels(input: {
   const rows = sports.map((sport): LevelRow => {
     const outcome = grades[sport]
     if (outcome?.kind === 'graded') {
-      const { range } = outcome.grade
-      const level = gradeLevelText(outcome.grade)
       return {
         sport,
         grade: `${wholeGrade(outcome.grade.centre.grade)}%`,
-        level,
-        range: level === null && range !== null ? gradeRangeText(range) : null,
+        level: gradeLevelText(outcome.grade),
         missing: null,
       }
     }
@@ -89,7 +83,6 @@ export function balanceLevels(input: {
       sport,
       grade: null,
       level: null,
-      range: null,
       missing: missingFor(sport, outcome, { inPeriod, missingAge }),
     }
   })

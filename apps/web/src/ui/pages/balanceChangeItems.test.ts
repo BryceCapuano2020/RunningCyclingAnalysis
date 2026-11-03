@@ -11,14 +11,7 @@ import type { Sport } from '@rca/core/types'
 import { changeOf } from '../charts/changeFixtures'
 import { headlineGrades } from '../grades'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
-import {
-  NOT_ALL_OUT,
-  TAG_TEXT,
-  balanceChanges,
-  leanItem,
-  noChangeText,
-  previousGap,
-} from './balanceChangeItems'
+import { balanceChanges, leanItem, noChangeText, previousGap } from './balanceChangeItems'
 import type { ChangesInput } from './balanceChangeItems'
 
 const gap = (centre: number, low: number, high: number): BalanceGap => ({
@@ -37,16 +30,14 @@ function explaining(now: BalanceGap, before: BalanceGap): Record<Sport, ChangeVe
 const lean = (now: BalanceGap, before: BalanceGap) => leanItem(now, before, explaining(now, before))
 
 describe('leanItem', () => {
-  it('says the lean eased, tagged as an estimate, with where it was and no range', () => {
+  it('says the lean eased, with where it was and no range, and carries no chip', () => {
     const item = lean(gap(6, 1, 12), gap(20, 14, 26))
-    expect(item).toMatchObject({
+    expect(item).toEqual({
       key: 'lean',
       title: 'Lean eased 14 pts',
       direction: 'down',
-      tag: 'estimated',
+      body: 'Down from 20 pts toward running.',
     })
-    expect(item?.body).toBe('Down from 20 pts toward running.')
-    expect(Object.values(TAG_TEXT).join(' ')).not.toMatch(/range|real change/i)
   })
 
   describe('which moves the change test supports', () => {
@@ -68,31 +59,6 @@ describe('leanItem', () => {
     it('lists a move either way when both bests were called in opposite ways', () => {
       expect(leanItem(now, before, { run: 'higher', ride: 'higher' })).not.toBeNull()
       expect(leanItem(before, now, { run: 'higher', ride: 'higher' })).not.toBeNull()
-    })
-  })
-
-  it('says how far the lean moved, and not which way, when a call behind it read every effort', () => {
-    const now = gap(6, 1, 12)
-    const before = gap(20, 14, 26)
-    const item = leanItem(now, before, explaining(now, before), false)
-    expect(item).toMatchObject({
-      title: 'Lean moved 14 pts',
-      body: 'Was 20 pts toward running.',
-      direction: null,
-      label: NOT_ALL_OUT,
-    })
-    // Crossing over and still being in balance are not directions either.
-    expect(
-      leanItem(gap(-6, -12, -1), gap(8, 2, 14), { run: 'lower', ride: 'none' }, false),
-    ).toMatchObject({
-      title: 'Lean moved toward cycling',
-      direction: null,
-    })
-    expect(
-      leanItem(gap(-2, -8, 4), gap(2, -4, 8), { run: 'lower', ride: 'none' }, false),
-    ).toMatchObject({
-      title: 'Still in balance',
-      direction: null,
     })
   })
 
@@ -135,7 +101,6 @@ describe('leanItem', () => {
     const item = lean(gap(3, 3, 3), gap(9, 9, 9))
     expect(item?.body).toBe('Down from 9 pts toward running.')
     expect(item?.body).not.toMatch(/range|0 to 0|9 to 9/)
-    expect(item?.tag).toBe('estimated')
     expect(lean(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)
   })
 
@@ -160,7 +125,6 @@ function sample() {
   const input = (previous: SportCurves | null, over: Partial<ChangesInput> = {}): ChangesInput => ({
     result,
     previous,
-    library: state.library,
     previousLabel: 'Previous 12 weeks',
     change: changeOf('higher'),
     units: 'metric',
@@ -183,17 +147,16 @@ function sample() {
   return { state, result, input, scaled, grading }
 }
 
-/** A library whose rides' watts were all measured by a power meter, and the result's with them. */
+/** A result whose rides' watts were all measured by a power meter. */
 function measured(): ReturnType<typeof sample> {
   const base = sample()
   const withMeter = (activities: readonly ActivitySummary[]) =>
     activities.map((activity) => Object.assign({}, activity, { powerSource: 'measured' as const }))
   const result = { ...base.result, activities: withMeter(base.result.activities) }
-  const library = withMeter(base.state.library)
   return {
     ...base,
     result,
-    input: (previous, over = {}) => base.input(previous, { result, library, ...over }),
+    input: (previous, over = {}) => base.input(previous, { result, ...over }),
   }
 }
 
@@ -204,20 +167,18 @@ describe('balanceChanges', () => {
     expect(balanceChanges({ ...input(null), previousLabel: null })).toBeNull()
   })
 
-  it('says a faster 20 min run than the period before, recorded, with the pace and the day it was set', () => {
+  it('says a faster 20 min run than the period before, with the pace and the day it was set', () => {
     const { input, scaled } = measured()
     const items = balanceChanges(input(scaled(0.95, 1)))?.items
     const run = items?.find((item) => item.key === 'run-best')
     expect(run).toMatchObject({
       title: 'Faster 20 min run than the previous 12 weeks',
       direction: 'up',
-      tag: 'recorded',
     })
     expect(run?.body).toMatch(/faster than previous 12 weeks\. Set on /)
-    expect(TAG_TEXT.recorded).toBe('Recorded')
   })
 
-  it('says a slower 20 min run is down, and still recorded: both bests were measured', () => {
+  it('says a slower 20 min run is down', () => {
     const { input, scaled } = measured()
     const run = balanceChanges(input(scaled(1.05, 1), { change: changeOf('lower') }))?.items.find(
       (item) => item.key === 'run-best',
@@ -225,7 +186,6 @@ describe('balanceChanges', () => {
     expect(run).toMatchObject({
       title: 'Slower 20 min run than the previous 12 weeks',
       direction: 'down',
-      tag: 'recorded',
     })
   })
 
@@ -264,40 +224,14 @@ describe('balanceChanges', () => {
     expect(down?.title).toBe('Less power over 20 min than the previous 12 weeks')
   })
 
-  it('tags a ride’s best recorded only when the watts were measured in both periods', () => {
-    const { input, scaled, result, state } = measured()
-    const ride = (previous: SportCurves, over: Partial<ChangesInput> = {}) =>
-      balanceChanges(input(previous, over))?.items.find((item) => item.key === 'ride-best')
-    expect(ride(scaled(1, 0.95))?.tag).toBe('recorded')
-
-    // The previous period's best was set on a ride whose watts were virtual: only the earlier one is estimated.
-    const earlier = {
-      ...state.library.find((a) => a.sport === 'ride')!,
-      id: 'ride-before',
-      powerSource: 'virtual' as const,
-    }
-    const library = [...result.activities, earlier]
-    const before = scaled(1, 0.95)
-    const previous = {
-      ...before,
-      rideCurve: before.rideCurve.map((point) =>
-        Object.assign({}, point, { activityId: 'ride-before' }),
-      ),
-    }
-    expect(ride(previous, { library })?.tag).toBe('estimated')
-  })
-
-  it('tags it estimated where the current best’s watts were estimated', () => {
-    const { input, scaled, result, state } = sample()
+  it('lists a ride best on estimated watts as it lists a measured one: the same fields, no tag', () => {
+    const { input, scaled, result } = sample()
     const virtual = (activities: readonly ActivitySummary[]) =>
       activities.map((a) => Object.assign({}, a, { powerSource: 'virtual' as const }))
     const ride = balanceChanges(
-      input(scaled(1, 0.95), {
-        result: { ...result, activities: virtual(result.activities) },
-        library: virtual(state.library),
-      }),
+      input(scaled(1, 0.95), { result: { ...result, activities: virtual(result.activities) } }),
     )?.items.find((item) => item.key === 'ride-best')
-    expect(ride?.tag).toBe('estimated')
+    expect(Object.keys(ride ?? {}).sort()).toEqual(['body', 'direction', 'key', 'title'])
     expect(ride?.body).toMatch(/^\d+ W, \d+ W more than previous 12 weeks\./)
   })
 
@@ -375,31 +309,26 @@ describe('balanceChanges for a library that fails the hard-effort check', () => 
     const previous = { ...scaled(0.95, 0.9), headlineEffort: check(0.6, 0.6) }
     const out = balanceChanges(input(previous, { result: easy }))
     expect(keys(out)).toEqual(['ride-best', 'run-best'])
-    // A call made from the hard efforts of both periods needs no label.
-    expect(out?.items.map((item) => item.label)).toEqual([undefined, undefined])
+    expect(out?.items.map((item) => Object.keys(item).sort())).toEqual([
+      ['body', 'direction', 'key', 'title'],
+      ['body', 'direction', 'key', 'title'],
+    ])
   })
 
-  it('labels a best "not all-out" when the call read every effort, so a hard best may stand against an easy one', () => {
+  it('lists a best the call read every effort for as plainly as any other: its direction, its words, no label', () => {
     const { input, scaled, result } = measured()
     const easy = { ...result, effort: [check(0.6, 0.6)] }
     // One period hard and the other easy: too few hard efforts in both, so the call reads every effort.
     const mixed = { ...scaled(0.95, 0.9), headlineEffort: check(0.95, 0.95) }
     const change = changeOf('higher')
-    for (const sport of ['run', 'ride'] as const) {
-      change[sport] = change[sport].map((call) => Object.assign({}, call, { gated: false }))
-    }
+    change.run = change.run.map((call) => Object.assign({}, call, { gated: false }))
     const out = balanceChanges(input(mixed, { result: easy, change }))
     expect(keys(out)).toEqual(['ride-best', 'run-best'])
-    expect(out?.items.map((item) => item.label)).toEqual([NOT_ALL_OUT, NOT_ALL_OUT])
-    expect(NOT_ALL_OUT).toBe('Not all-out')
-    // Each best still says which way it went; only the sport that read every effort carries the label.
-    change.ride = changeOf('higher').ride
-    const one = balanceChanges(input(mixed, { result: easy, change }))
-    expect(one?.items.map((item) => [item.key, item.label])).toEqual([
-      ['ride-best', undefined],
-      ['run-best', NOT_ALL_OUT],
-    ])
-    expect(one?.items.find((item) => item.key === 'run-best')?.title).toMatch(/^Faster 20 min run/)
+    const run = out?.items.find((item) => item.key === 'run-best')
+    expect(run).toMatchObject({ direction: 'up' })
+    expect(run?.title).toMatch(/^Faster 20 min run/)
+    // The same fields as the best whose call was gated.
+    expect(Object.keys(run ?? {}).sort()).toEqual(['body', 'direction', 'key', 'title'])
   })
 
   it('gives only its items: no line about a best that was not hard, or an effort that was not checked', () => {
@@ -431,36 +360,32 @@ describe('balanceChanges for a library that fails the hard-effort check', () => 
     expect(keys(out)).toContain('run-best')
   })
 
-  it('states no direction for a lean that a call made from every effort stands behind', () => {
+  it('keeps the arrow and the grew or eased words of a lean that a call made from every effort stands behind', () => {
     const { input, scaled, grading, result } = sample()
     const nowGap = previousGap(result, scaled(1, 1), grading)
     const change = changeOf('lower')
     change.ride = changeOf('none').ride
     const lean = (calls: typeof change) =>
-      balanceChanges(input(scaled(1, 0.8), { gap: nowGap, grading, change: calls }))?.items.find(
+      balanceChanges(input(scaled(1, 0.93), { gap: nowGap, grading, change: calls }))?.items.find(
         (item) => item.key === 'lean',
       )
-    // All-out: the lean grew or eased, and says so with an arrow.
-    expect(['up', 'down']).toContain(lean(change)?.direction)
-    expect(lean(change)?.label).toBeUndefined()
-    // The run's call read every effort: how far it moved, labelled, with no arrow and no grew or eased.
+    const gated = lean(change)
+    expect(['up', 'down']).toContain(gated?.direction)
+    // The run's call read every effort: the lean says the same, with its arrow and its words.
     const ungated = {
       ...change,
       run: change.run.map((call) => Object.assign({}, call, { gated: false })),
     }
-    const item = lean(ungated)!
-    expect(item.direction).toBeNull()
-    expect(item.label).toBe(NOT_ALL_OUT)
-    expect(item.title).toMatch(/^Lean moved/)
-    expect(item.title).not.toMatch(/grew|eased/)
-    expect(item.body).toMatch(/^Was \d+ pts? toward (running|cycling)\.$/)
-    // A ride call that read every effort and was not called leaves the lean's direction alone.
+    const item = lean(ungated)
+    expect(item).toEqual(gated)
+    expect(item?.title).toMatch(/^Lean (grew|eased) \d+ pts?$/)
+    expect(item?.body).toMatch(/^(Up|Down) from \d+ pts? toward (running|cycling)\.$/)
+    // A ride call that read every effort and was not called leaves the lean alone.
     const ungatedNone = {
       ...change,
       ride: changeOf('none').ride.map((call) => Object.assign({}, call, { gated: false })),
     }
-    expect(lean(ungatedNone)?.direction).toBe(lean(change)?.direction)
-    expect(lean(ungatedNone)?.label).toBeUndefined()
+    expect(lean(ungatedNone)).toEqual(gated)
   })
 
   it('is absent, with no text, when neither sport could be tested', () => {

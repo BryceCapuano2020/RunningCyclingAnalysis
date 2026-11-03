@@ -695,9 +695,8 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(
-      screen.getByText('From 1 run and 2 rides. Add more runs or rides for a steadier answer.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('From 1 run and 2 rides.')).toBeInTheDocument()
+    expect(screen.queryByText(/Add more runs or rides/)).not.toBeInTheDocument()
   })
 
   it('counts only the efforts as long as the headline effort, so a short run does not count as one', () => {
@@ -715,9 +714,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(
-      screen.getByText('From 1 run and 3 rides. Add more runs or rides for a steadier answer.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('From 1 run and 3 rides.')).toBeInTheDocument()
   })
 
   it('leaves that count off once each sport has three efforts', () => {
@@ -731,7 +728,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(screen.queryByText(/steadier answer/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^From \d+ runs? and \d+ rides?\./)).not.toBeInTheDocument()
   })
 
   it('says under an energy balance’s range that heart rate informed it, when the check used it', () => {

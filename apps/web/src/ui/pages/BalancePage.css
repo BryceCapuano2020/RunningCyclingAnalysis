@@ -128,7 +128,7 @@
   align-content: start;
 }
 
-/* The one line for files with no heart rate sits under the tiles: a chip, its reason as a definition, and a link. */
+/* The link to how sure the answer is sits under the tiles as one line. */
 .evidence-line {
   display: flex;
   flex-wrap: wrap;

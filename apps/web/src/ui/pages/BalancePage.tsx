@@ -5,7 +5,6 @@ import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { Definition } from '../components/Definition'
-import { uncheckedNote } from '../components/headlineNeed'
 import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
@@ -61,7 +60,7 @@ export interface BalancePageProps {
   leftOut?: LeftOutRuns
 }
 
-/** The level a sport's grade names, or null when the grade is not shown or its range crosses two levels. */
+/** The level a sport's grade names, or null when the grade is not shown. */
 function gradedLevel(outcome: GradeOutcome | null): string | null {
   return outcome?.kind === 'graded' ? gradeLevelText(outcome.grade) : null
 }
@@ -176,7 +175,6 @@ export function BalancePage({
       balanceChanges({
         result,
         previous,
-        library,
         previousLabel,
         change,
         units,
@@ -219,9 +217,6 @@ export function BalancePage({
   const soleSport = only !== null && inPeriod[only] > 0 ? only : null
   // With one sport in the period, the comparison slots say nothing, so they are left out.
   const bothInPeriod = runCount > 0 && rideCount > 0
-  // Files with no heart rate get one line on it under the tiles, unless the hero's note has already said the effort was not checked.
-  const noHeartRateUnsaid =
-    result.maxHeartRate === null && !(hasReading && uncheckedNote(result) !== null)
   // The source line sits under the cards it grades, not under the trend beneath them, and is said once.
   const sourceLine = !gradeShown ? null : (
     <p className="muted balance__source">
@@ -314,7 +309,7 @@ export function BalancePage({
         </div>
       )}
 
-      {bothInPeriod && <EvidenceLine noHeartRate={noHeartRateUnsaid} />}
+      {bothInPeriod && <EvidenceLine />}
 
       {/* The balance leads the home page; fitness sits under it, after the period's tiles and before the grades. */}
       <FitnessAndCheckIn
