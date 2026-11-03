@@ -30,6 +30,12 @@ export const RUN_SHARE = {
 export const RUN_VO2 = { constant: -4.6, linear: 0.182258, square: 0.000104 } as const
 /** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
 export const HOUR_S = 3600
+/**
+ * The best measured hour sets the floor when a second hour in the window is within this share of it, or when it is no higher than
+ * the power estimate's own 90th percentile. A lone hour above that is one file nothing backs, and the second-best hour (or none)
+ * is the floor instead.
+ */
+export const HOUR_AGREEMENT = 0.04
 
 // Power estimate: one estimate per ride, a robust mean of them.
 /** A ride's weight halves every this many days back from the newest activity. */

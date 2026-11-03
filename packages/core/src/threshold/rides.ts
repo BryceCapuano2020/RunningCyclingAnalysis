@@ -15,11 +15,10 @@ export interface RideBest {
   variance: number
 }
 
-/** The highest effort of an hour or longer, as it was held: no scaling, since an hour is the threshold itself. */
+/** The highest measured effort of an hour or longer, as it was held: no scaling, since an hour is the threshold itself. */
 export interface HourEffort {
   durationS: number
   value: number
-  estimated: boolean
 }
 
 /** One steady effort the heart-rate estimate may read: measured watts, 8 to 30 min, with a heart rate. */
@@ -36,7 +35,7 @@ export interface HeartEffort {
 export interface PreparedRide {
   activityId: string
   best: RideBest | null
-  /** The highest value held for an hour or longer, or null: an hour the athlete did, which the answer is never under. */
+  /** The highest measured value held for an hour or longer, or null: an hour the athlete did, which can set a floor under the answer. */
   hour: HourEffort | null
   heart: readonly HeartEffort[]
   blocks: readonly ThresholdBlock[]
@@ -69,14 +68,12 @@ export function bestOf(efforts: readonly RideEffort[], table: DurationTable): Ri
   return best
 }
 
-/** The ride's highest effort of an hour or longer. */
+/** The ride's highest measured effort of an hour or longer: watts estimated without a meter are not an hour done. */
 export function hourOf(efforts: readonly RideEffort[]): HourEffort | null {
   let hour: HourEffort | null = null
   for (const e of efforts) {
-    if (!counts(e) || e.durationS < HOUR_S) continue
-    if (hour === null || e.value > hour.value) {
-      hour = { durationS: e.durationS, value: e.value, estimated: e.estimated }
-    }
+    if (!counts(e) || e.estimated || e.durationS < HOUR_S) continue
+    if (hour === null || e.value > hour.value) hour = { durationS: e.durationS, value: e.value }
   }
   return hour
 }

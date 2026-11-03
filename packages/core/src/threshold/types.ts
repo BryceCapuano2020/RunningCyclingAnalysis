@@ -45,17 +45,21 @@ export type HeartRateRefusal =
 export interface ThresholdEstimate {
   /**
    * The answer: the power estimate (`efforts.value`) itself, or, where heart rate lifts it, the median with heart rate, no higher
-   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it. It is never under an effort of an hour
-   * or longer in the window.
+   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it. It is never under a backed hour the
+   * athlete did (see `efforts.value`).
    */
   value: number
-  /** The higher of the 10th percentiles from power alone and with heart rate, never above the answer and never under an hour done. */
+  /** The higher of the 10th percentiles from power alone and with heart rate, never above the answer and never under a backed hour. */
   low: number
   /** The higher of the 90th percentiles from power alone and with heart rate, never under the answer. */
   high: number
   /** The power-only estimate, the floor the answer is built on. */
   efforts: {
-    /** The mean of the rides' estimates, or the best effort of an hour or longer where that is higher. */
+    /**
+     * The mean of the rides' estimates, or a backed hour where that is higher: the best measured effort of an hour or longer in
+     * the window when a second hour is within 4% of it or it is no higher than the mean's own 90th percentile, else the
+     * second-best hour. A lone hour above that is not believed, and estimated watts are never an hour done.
+     */
     value: number
     /**
      * The power estimate's relative error: how far the mean of the rides' estimates may sit from the truth, as a share of `value`,
@@ -66,7 +70,7 @@ export interface ThresholdEstimate {
     rides: number
     /**
      * The ride with the highest estimate among those the mean kept, the effort that gave it, and whether its watts were
-     * estimated. Where an hour done sets `value`, that hour.
+     * estimated. Where a backed hour sets `value`, that hour (measured).
      */
     strongest: { activityId: string; durationS: number; estimated: boolean }
   }

@@ -66,14 +66,19 @@ Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by 
    power estimate, so heart rate that agrees with the power estimate adds nothing. The range is the higher of each pair
    of 10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
    answer).
-7. **An hour done is a floor, for both sports.** The answer and its low are never under the best effort of 60 min or more
-   in the window, as it was held (the scaled ratio is 1.00 at an hour, so it is the effort itself; a longer effort is
-   taken at its own value, not scaled up). A threshold slower than an hour the athlete did is wrong on its face, so
-   this holds whatever the mean of the rides' estimates says. The floor is applied to the power estimate, before
-   fusion: where it is higher than the mean, `efforts.value` is the hour and `efforts.strongest` names it, so a screen's
-   "strongest effort" is the one that sets the number, and an answer above `efforts.value` still means heart rate lifted it.
-   The low is the higher of the fused low and the hour. The floor reads every ride in the window whatever its age, since
-   recency weights the mean and not the floor; it also counts an hour from estimated watts, which the best curve admits.
+7. **A backed hour done is a floor, for both sports.** The answer and its low are never under the best measured effort of 60
+   min or more in the window, as it was held (the scaled ratio is 1.00 at an hour, so it is the effort itself; a longer effort
+   is taken at its own value, not scaled up), when something backs it. A threshold slower than an hour the athlete did is wrong
+   on its face, but one odd file with nothing else near it is not an hour done. So the best hour sets the floor when a second
+   hour in the window is within 4% of it, or when it is no higher than the 90th percentile of the mean of the rides' estimates
+   (`fuse` from power alone, about 16% over the mean at the 2.5% floor of its error). Otherwise the floor is the second-best
+   hour, or none. Only a measured hour counts: watts estimated without a meter never make an hour done. The floor is applied to
+   the power estimate, before fusion: where it is higher than the mean, `efforts.value` is the hour and `efforts.strongest`
+   names it, so a screen's "strongest effort" is the one that sets the number, and an answer above `efforts.value` still means
+   heart rate lifted it. The low is the higher of the fused low and the hour. The floor reads every ride in the window whatever
+   its age, since recency weights the mean and not the floor: a period's threshold may not deny a backed hour the period holds.
+   The heart-rate line is fitted in a band of the power estimate, so a floor that lifts the estimate lifts the band: with the
+   floor backed, only a backed hour lifts it, never one odd file (`hourFloor.test.ts`).
 
 Null when the window has no ride effort of 3 min or more, and when no ride has any weight to give (an age that is
 not a number, or so old the recency weight underflows). A single ride is enough: it is the estimate, with the
@@ -119,7 +124,8 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 
 The table includes the hour floor (step 7): it moved only the tempo-only row (power alone from -13.5% to -11.7%, since a
 rider who never goes all out still rode an hour; the answer from -5.2% to -5.0%, and the range's hold from 81% to 88%) and a
-point or two in the cells for a wrong maximum and for always all-out.
+point or two in the cells for a wrong maximum and for always all-out. Backing the floor (a second hour within 4%, or under the
+estimate's 90th percentile) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
 
 The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
 The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
@@ -239,7 +245,7 @@ What the table says, and does not:
   speed (9% low) is no nearer. That is the cost of leaving heart rate out for runs: the first version of this simulation, with
   heart rate, lifted such a runner by about 6 points, and on a real library the same lift read runs far too fast.
 - The hour floor changes nothing in these cases: the best hour of a simulated runner is a tempo or easy day, below the estimate.
-  The unit tests pin it (`powerEstimate.test.ts`, `estimate.test.ts`).
+  The unit tests pin it (`hourFloor.test.ts`).
 
 The test asserts: hard runs short of all-out at most 4% low on the median and 75% within 5%; always all-out within 1% on the median
 and 90% within 5%; in each case but never all-out more runners within 5% than critical speed and than the best 30 min, and a median
@@ -296,8 +302,8 @@ export function runThreshold(efforts, blocks, thresholdHr): ThresholdEstimate | 
 `AnalysisResult.rideThreshold` and `AnalysisResult.runThreshold` (each `ThresholdEstimate | null`) carry them. `rideCp` and
 `runCp` stay as the critical-power fits (cp and W') for the curve chart, with no veto; the race predictions still read
 `runCp`. A sport added to `Sport` has to say how its bests scale (an entry in `DURATION_TABLES`) before it has a threshold.
-`efforts.value` is the mean of the rides' estimates or, where it is higher, the best hour in the window; `efforts.strongest`
-names the hour then.
+`efforts.value` is the mean of the rides' estimates or, where it is higher, a backed hour in the window (step 7);
+`efforts.strongest` names the hour then.
 
 ## Decisions
 
@@ -306,7 +312,7 @@ names the hour then.
 - **Efforts under 3 min are ignored; efforts over 60 min are scaled by the same formula** (the ratio keeps falling
   under 1), so a caller that passes a 90 min best gets a slightly higher estimate from it, never a refusal. The same effort
   as a floor is taken as it was held (step 7), so it is not read twice.
-- **`efforts.strongest` is the highest estimate among the rides the mean kept, or the best hour where the hour sets the
+- **`efforts.strongest` is the highest estimate among the rides the mean kept, or the backed hour where the hour sets the
   answer.** A ride the second-strongest rule threw out is never named as the proof of the floor, except by its own hour.
   `efforts.rides` counts every ride with an effort of 3 min or more.
 - **`efforts.strongest.estimated`** says whether that ride's watts were estimated, so a screen can say the proof of the
@@ -384,10 +390,14 @@ names the hour then.
   the share card, the records and the Method page. `runCp` is kept for the curve chart and the race predictions.
 - **The hour floor is on the power estimate, not on the fused answer**, so `value > efforts.value` still means exactly that
   heart rate lifted it (a screen says so), and heart rate that reads under an hour done lifts nothing.
-- **The floor counts every hour in the window, estimated watts included.** The best curve admits an estimated point only where
-  the athlete's heart rate backs it, and the efforts are the best curve's own, so no further test is made. It does not weigh by
-  recency: a library window of all time is floored by the best hour in the library. That is the rule as asked ("an hour you
-  did"), and the one place a single odd file can set a number, since the mean's second-strongest rule does not guard the floor.
+- **The floor counts every measured hour in the window, and backs it.** The first version counted any hour, estimated watts
+  included, and let a single odd file set the number, since the mean's second-strongest rule does not guard the floor. Now an
+  hour from estimated watts is never an hour done, and the best hour is believed only when a second hour in the window is
+  within 4% of it or it is no higher than the 90th percentile of the mean's estimate; else the second-best hour stands in, or
+  none. It does not weigh by recency: a library window of all time is floored by a backed hour anywhere in the library. The
+  4% and the percentile are judgement, not fitted: no case of the simulations has a believable hour over the estimate.
+  A lone outlying hour that is real (a day that was far better than the others, with nothing near it) is read as the
+  estimate says until a second hour or the rides' own estimates agree; that is the cost.
 - **What the floor does to the ride's table.** Riders who never go all out rode some hour, and the floor lifts their
   power-only answer from 13.5% low to 11.7% low; heart rate then has less to add, and its lift over power alone falls from 8.3
   points to 6.6 (the test's bound moves from 7 to 6). No other median moves by more than 0.2 points.

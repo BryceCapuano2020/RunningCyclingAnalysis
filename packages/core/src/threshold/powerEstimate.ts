@@ -1,15 +1,17 @@
 import {
   ESTIMATED_WEIGHT,
   HALF_LIFE_DAYS,
+  HOUR_AGREEMENT,
   NEAR_TOP_CENTRE,
   NEAR_TOP_WIDTH,
   POWER_MIN_ERROR,
 } from './constants'
 import { DURATION_TABLES } from './durationTables'
 import type { DurationTable } from './durationTables'
+import { fuse } from './fusion'
 import { robustMeanOf } from './robustMean'
 import { prepareFlat } from './rides'
-import type { HourEffort, PreparedRide } from './rides'
+import type { PreparedRide } from './rides'
 import type { ThresholdEffort } from './types'
 
 /** A ride's strongest effort, scaled to the threshold it implies. */
@@ -25,18 +27,27 @@ export interface RideEstimate {
 }
 
 export interface PowerEstimate {
-  /** The mean of the rides' estimates, or the best hour in the window where that is higher (see `floor`). */
+  /** The mean of the rides' estimates, or the floor (a backed hour) where that is higher. */
   value: number
   /** The relative error, never under POWER_MIN_ERROR. */
   relativeError: number
   rides: number
-  /** The ride with the highest estimate among those the mean kept; the ride of the best hour where the hour is what sets `value`. */
+  /** The ride with the highest estimate among those the mean kept; the ride of the floor where the floor is what sets `value`. */
   strongest: { activityId: string; durationS: number; estimated: boolean }
   /**
-   * The best effort of an hour or longer in the window, or 0 without one. An hour the athlete did is a floor under the
-   * answer, whatever the mean of the rides' estimates says: the answer and its low are never under it.
+   * The hour the athlete did that backs a floor, or 0 for none. It is the best measured effort of an hour or longer in the
+   * window (estimated watts are not an hour done, and age does not count against one) when a second hour is within 4% of it or
+   * it is no higher than the 90th percentile of the mean of the rides' estimates; a lone hour above that is not believed, and the
+   * second-best hour stands in (none without one). The answer and its low are never under it.
    */
   floor: number
+}
+
+/** A ride's hour, with the ride that held it. */
+export interface Hour {
+  activityId: string
+  durationS: number
+  value: number
 }
 
 const logistic = (x: number) => 1 / (1 + Math.exp(-x))
@@ -116,16 +127,15 @@ export function powerOver(
   if (strongest < 0) return null
   const { durationS, estimated } = rides[at[strongest]!]!.best!
   const relativeError = Math.max(mean.relativeError, POWER_MIN_ERROR)
-  const hour = bestHour(rides, lo, hi)
-  // An hour the athlete did is a floor under the mean, and then the effort that sets the value, so it is the one named.
-  if (hour !== null && hour.effort.value > mean.value) {
-    const { value, durationS: held, estimated: guessed } = hour.effort
+  const hour = backedHour(rides, lo, hi, mean.value, relativeError)
+  // A backed hour is a floor under the mean, and then the effort that sets the value, so it is the one named. It was measured.
+  if (hour !== null && hour.value > mean.value) {
     return {
-      value,
+      value: hour.value,
       relativeError,
       rides: at.length,
-      strongest: { activityId: hour.activityId, durationS: held, estimated: guessed },
-      floor: value,
+      strongest: { activityId: hour.activityId, durationS: hour.durationS, estimated: false },
+      floor: hour.value,
     }
   }
   return {
@@ -133,24 +143,40 @@ export function powerOver(
     relativeError,
     rides: at.length,
     strongest: { activityId: rides[at[strongest]!]!.activityId, durationS, estimated },
-    floor: hour?.effort.value ?? 0,
+    floor: hour?.value ?? 0,
   }
 }
 
-/** The best effort of an hour or longer among the rides from `lo` up to, not including, `hi`, and the ride that held it. */
-function bestHour(
+/**
+ * The hour that backs a floor among the rides from `lo` up to, not including, `hi`: the best measured hour when a second hour is
+ * within `HOUR_AGREEMENT` of it or it is no higher than the 90th percentile of the mean of the rides' estimates (`mean`, with
+ * `relativeError`, which `fuse` reads the range from); else the second-best hour, or null with no hour to stand on. Every ride in
+ * the window counts whatever its age: recency weights the mean and not the floor.
+ */
+export function backedHour(
   rides: readonly PreparedRide[],
   lo: number,
   hi: number,
-): { activityId: string; effort: HourEffort } | null {
-  let found: { activityId: string; effort: HourEffort } | null = null
+  mean: number,
+  relativeError: number,
+): Hour | null {
+  // The rides of the best and second-best hour, by index: a library's windows go through this for every week.
+  let best = -1
+  let second = -1
+  const value = (i: number) => rides[i]!.hour!.value
   for (let i = lo; i < hi; i++) {
     const effort = rides[i]!.hour
-    if (effort !== null && (found === null || effort.value > found.effort.value)) {
-      found = { activityId: rides[i]!.activityId, effort }
-    }
+    if (effort === null) continue
+    if (best < 0 || effort.value > value(best)) {
+      second = best
+      best = i
+    } else if (second < 0 || effort.value > value(second)) second = i
   }
-  return found
+  if (best < 0) return null
+  const hourOfRide = (i: number): Hour => ({ activityId: rides[i]!.activityId, ...rides[i]!.hour! })
+  if (second >= 0 && value(second) >= value(best) * (1 - HOUR_AGREEMENT)) return hourOfRide(best)
+  if (value(best) <= fuse(mean, relativeError, null).high) return hourOfRide(best)
+  return second < 0 ? null : hourOfRide(second)
 }
 
 /** The power estimate of a flat list of efforts, each with its age. */
