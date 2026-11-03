@@ -95,6 +95,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
       high: 3.2,
       efforts: {
         value: 2.9,
+        relativeError: 0.025,
         rides: 3,
         strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },
       },

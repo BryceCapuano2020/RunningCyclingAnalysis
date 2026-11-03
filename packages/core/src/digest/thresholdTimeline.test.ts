@@ -216,7 +216,7 @@ describe('thresholdTimeline against the library', () => {
       if (expected === null) expect(step.fit).toBeNull()
       else {
         expect(step.fit!.cp).toBeCloseTo(expected.value, 8)
-        expect(step.fit!.cpSe).toBeCloseTo((expected.high - expected.low) / 2.5631, 8)
+        expect(step.fit!.cpSe).toBeCloseTo(expected.value * expected.efforts.relativeError, 8)
         if ('value' in expected.heartRate) withHeartRate++
       }
       compared++

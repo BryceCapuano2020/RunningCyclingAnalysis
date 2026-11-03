@@ -157,13 +157,11 @@ function runReader(entries: readonly RunEntry[]): WindowReader {
   }
 }
 
-/** How many standard errors a 10th to 90th percentile range spans, for a normal: 2 x 1.2816. */
-const RANGE_SPAN_SE = 2.5631
-
 /**
  * The reader of the rides: the ride threshold over the window's rides, read against the library's line (fitted once, not per
  * window) as the analysis reads a period: each ride's efforts, aged from the newest activity of any sport up to the
- * window's end. Its standard error is the width of its range read as a normal's.
+ * window's end. Its standard error is the power estimate's own relative error times the value: the uncertainty of one window
+ * against another. The 10th to 90th range is not that, since it allows for an athlete above their best and is one-sided.
  */
 function rideReader(
   library: RideLibrary,
@@ -181,7 +179,7 @@ function rideReader(
       const estimate = estimateOver(basis, ages, lo, hi)
       return estimate === null
         ? null
-        : { cp: estimate.value, cpSe: (estimate.high - estimate.low) / RANGE_SPAN_SE }
+        : { cp: estimate.value, cpSe: estimate.value * estimate.efforts.relativeError }
     },
     // A window with rides has an estimate, so no older one is left standing for it.
     outgrown: () => false,

@@ -66,7 +66,12 @@ export function estimateOver(
     value: fused.value,
     low: fused.low,
     high: fused.high,
-    efforts: { value: power.value, rides: power.rides, strongest: power.strongest },
+    efforts: {
+      value: power.value,
+      relativeError: power.relativeError,
+      rides: power.rides,
+      strongest: power.strongest,
+    },
     heartRate: 'refused' in heart ? heart : { value: heart.value, efforts: heart.efforts },
   }
 }
