@@ -16,7 +16,12 @@ export interface ThresholdEffort {
   estimated: boolean
 }
 
-/** One 5 min block of a power-meter ride with usable heart rate. */
+/**
+ * One 5 min block of a power-meter ride with usable heart rate. It counts toward the heart-rate line when its value is between
+ * 45% and 105% of the power estimate. The slope is read within rides, so a ride needs three such blocks to add to it or to the
+ * 20 blocks the line needs. A ride with one or two still gives an offset to check against the others, so its efforts are used
+ * and its blocks count toward the spread; a ride with four or more whose heart rate does not move is left out as stuck.
+ */
 export interface ThresholdBlock {
   activityId: string
   heartRate: number
@@ -43,8 +48,8 @@ export interface ThresholdEstimate {
   efforts: {
     value: number
     rides: number
-    /** The ride with the highest estimate among those the mean kept, and the effort that gave it. */
-    strongest: { activityId: string; durationS: number }
+    /** The ride with the highest estimate among those the mean kept, the effort that gave it, and whether its watts were estimated. */
+    strongest: { activityId: string; durationS: number; estimated: boolean }
   }
   /** What heart rate said, before fusion, from this many efforts; or why it said nothing. */
   heartRate: { value: number; efforts: number } | { refused: HeartRateRefusal }

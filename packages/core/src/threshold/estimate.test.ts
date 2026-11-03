@@ -60,10 +60,32 @@ describe('the ride threshold', () => {
     expect(refusal(result)).toBe('no-heart-rate')
   })
 
+  it('answers for a single ride: its estimate, and about 3% over it, inside its range', () => {
+    const lib = library(RIDER, [allOutRide(RIDER, 'only')])
+    const result = run(lib, null)
+    expect(result.efforts.rides).toBe(1)
+    expect(result.efforts.value).toBeCloseTo(RIDER.threshold, 6)
+    expect(result.value / RIDER.threshold).toBeGreaterThan(1.02)
+    expect(result.value / RIDER.threshold).toBeLessThan(1.045)
+    expect(result.low).toBeLessThan(result.value)
+    expect(result.high).toBeGreaterThan(result.value)
+    // Two blocks of a hard ride and eight easy ones are too few for a line.
+    expect(refusal(run(lib))).toBe('few-blocks')
+  })
+
+  it('is null when no ride has any weight to give', () => {
+    const lib = allOutLibrary()
+    const aged = (ageDays: number) => lib.efforts.map((e) => Object.assign({}, e, { ageDays }))
+    expect(rideThreshold(aged(NaN), lib.blocks, THRESHOLD_HR)).toBeNull()
+    expect(rideThreshold(aged(1e6), [], null)).toBeNull()
+    expect(rideThreshold(aged(0), [], null)).not.toBeNull()
+  })
+
   it('names the rides behind the power estimate and its strongest effort', () => {
     const { efforts } = run(allOutLibrary(), null)
     expect(efforts.rides).toBe(8)
     expect(efforts.strongest.durationS).toBe(600)
+    expect(efforts.strongest.estimated).toBe(false)
     expect(efforts.strongest.activityId).toMatch(/^a\d$/)
   })
 

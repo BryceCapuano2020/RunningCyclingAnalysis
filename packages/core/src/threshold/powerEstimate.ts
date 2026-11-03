@@ -25,7 +25,7 @@ export interface PowerEstimate {
   /** The relative error, never under POWER_MIN_ERROR. */
   relativeError: number
   rides: number
-  strongest: { activityId: string; durationS: number }
+  strongest: { activityId: string; durationS: number; estimated: boolean }
 }
 
 const logistic = (x: number) => 1 / (1 + Math.exp(-x))
@@ -71,11 +71,11 @@ export function powerEstimate(efforts: readonly ThresholdEffort[]): PowerEstimat
   const mean = robustMean(rides.map((r) => ({ value: r.value, weight: rideWeight(r, top) })))
   if (mean === null) return null
   const kept = rides.filter((_, i) => mean.weights[i]! > 0)
-  const { activityId, durationS } = kept.reduce((a, b) => (b.value > a.value ? b : a))
+  const { activityId, durationS, estimated } = kept.reduce((a, b) => (b.value > a.value ? b : a))
   return {
     value: mean.value,
     relativeError: Math.max(mean.relativeError, POWER_MIN_ERROR),
     rides: rides.length,
-    strongest: { activityId, durationS },
+    strongest: { activityId, durationS, estimated },
   }
 }

@@ -132,4 +132,48 @@ describe('the heart-rate line', () => {
     // The median miss is 2 bpm, and 1.4826 of that is a standard deviation.
     expect(line.spread).toBeCloseTo(1.4826 * 2, 6)
   })
+
+  it('counts only rides with three blocks in the band toward the 20 the line needs', () => {
+    const twoBlocks = ['x', 'y', 'z', 'w'].flatMap((id) => blocksOf(id, 0.4, 0, undefined, 2))
+    // 19 blocks from rides with three or more, and 8 more from rides with two: 27 in all, 19 that count.
+    expect(fitHeartRateLine([...rides(0.4).slice(0, 19), ...twoBlocks], POWER)).toEqual({
+      refused: 'few-blocks',
+    })
+    expect('refused' in fitHeartRateLine([...rides(0.4).slice(0, 20), ...twoBlocks], POWER)).toBe(
+      false,
+    )
+  })
+})
+
+describe('the heart-rate line: where a ride counts as stuck', () => {
+  /**
+   * Seven blocks of one ride around 200 W and 180 bpm (on the line of 0.4 bpm per watt through 100 bpm, so the ride is level
+   * with the others): heart rate has a standard deviation of `sd` bpm and value of `cv` of its median, exactly.
+   */
+  function wobble(id: string, sd: number, cv: number): ThresholdBlock[] {
+    const unit = 1 / Math.sqrt(6 / 7)
+    return [0, 1, -1, 1, -1, 1, -1].map((x) => ({
+      activityId: id,
+      value: 200 * (1 + cv * unit * x),
+      heartRate: 180 + sd * unit * x,
+    }))
+  }
+  const stuckIn = (sd: number, cv: number) =>
+    lineOf([...rides(0.4), ...wobble('s', sd, cv)]).excluded.has('s')
+
+  it('leaves out a ride whose heart rate moves under 1.5 bpm while its power moves over 3%', () => {
+    expect(stuckIn(1.49, 0.04)).toBe(true)
+    expect(stuckIn(1.51, 0.04)).toBe(false)
+  })
+
+  it('reads the 3% as the standard deviation of power over its median', () => {
+    expect(stuckIn(1, 0.031)).toBe(true)
+    expect(stuckIn(1, 0.029)).toBe(false)
+  })
+
+  it('judges a ride from its fourth block and not its third', () => {
+    const flat = (id: string, count: number) => blocksOf(id, 0, 0, () => 176, count)
+    expect(lineOf([...rides(0.4), ...flat('s', 4)]).excluded.has('s')).toBe(true)
+    expect(lineOf([...rides(0.4), ...flat('s', 3)]).excluded.has('s')).toBe(false)
+  })
 })

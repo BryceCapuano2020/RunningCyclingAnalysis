@@ -1,3 +1,5 @@
+import { RATIO_KNEE_MIN, RATIO_LONG, RATIO_SHORT, RATIO_SPREAD } from './constants'
+
 /**
  * The best average power over `durationS` as a multiple of threshold power, for a rider who gave it all: the 95% rule at
  * 20 min (1.053, so 20 min power is 95% of threshold), the 90% rule at 8 min (1.11), and a log fade to 1.00 at 60 min.
@@ -5,8 +7,11 @@
  */
 export function durationRatio(durationS: number): number {
   const minutes = durationS / 60
-  if (minutes <= 20) return 1.015 + 0.76 / minutes
-  return 1.053 - (0.053 * Math.log(minutes / 20)) / Math.log(3)
+  if (minutes <= RATIO_KNEE_MIN) return RATIO_SHORT.base + RATIO_SHORT.perMinute / minutes
+  return (
+    RATIO_LONG.atKnee -
+    (RATIO_LONG.fall * Math.log(minutes / RATIO_KNEE_MIN)) / Math.log(RATIO_LONG.span)
+  )
 }
 
 /**
@@ -14,5 +19,8 @@ export function durationRatio(durationS: number): number {
  * log of the distance either side. Squared, it is the variance a ride's estimate carries.
  */
 export function ratioSpread(durationS: number): number {
-  return 0.025 + 0.02 * Math.abs(Math.log(durationS / 1200))
+  return (
+    RATIO_SPREAD.atKnee +
+    RATIO_SPREAD.perLog * Math.abs(Math.log(durationS / (60 * RATIO_KNEE_MIN)))
+  )
 }

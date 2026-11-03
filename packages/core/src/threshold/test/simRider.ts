@@ -20,10 +20,6 @@ export interface Scenario {
   /** Every ride is easy or tempo; none goes all out. */
   tempoOnly?: boolean
   noHeartRate?: boolean
-  /** The strap reads this many bpm off everywhere, reference maximum included. */
-  strapOffset?: number
-  /** Mostly easy and tempo days, with the odd hard one. */
-  fewHard?: boolean
 }
 
 export interface SimRider {
@@ -67,9 +63,7 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
       const ageDays = uni(0, 42)
       const kinds = scenario.tempoOnly
         ? ['easy', 'tempo', 'tempo']
-        : scenario.fewHard
-          ? ['easy', 'easy', 'tempo', 'tempo', 'tempo', 'hard']
-          : ['easy', 'easy', 'tempo', 'hard', 'hard']
+        : ['easy', 'easy', 'tempo', 'hard', 'hard']
       const kind = pick(kinds)
       const easy = threshold * uni(0.55, 0.68)
       let hardS = 3600
@@ -94,7 +88,7 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
           : null
       const read = (h: number): number | null => {
         if (scenario.noHeartRate || fault?.drop) return null
-        let v = h + dayHr + drift + (scenario.strapOffset ?? 0)
+        let v = h + dayHr + drift
         if (fault?.fixed !== undefined) v = fault.fixed
         if (fault?.add !== undefined) v += fault.add
         return v
@@ -131,11 +125,7 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
         for (let k = 0; k < Math.floor(hardS / 300); k++) block(hard * (1 + 0.02 * gauss()), hard)
       }
     }
-    const referenceMax =
-      maxHr +
-      (scenario.referenceError ?? 0) * gauss() -
-      Math.abs(2 * gauss()) +
-      (scenario.strapOffset ?? 0)
+    const referenceMax = maxHr + (scenario.referenceError ?? 0) * gauss() - Math.abs(2 * gauss())
     return {
       threshold,
       efforts,

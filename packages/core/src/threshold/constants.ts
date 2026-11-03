@@ -6,6 +6,16 @@
 /** The shortest best that says anything about threshold; under this the sprint dominates. */
 export const SHORTEST_EFFORT_S = 180
 
+// Duration ratio: the best a rider can hold for a time, as a multiple of threshold, for a rider who gave it all.
+/** The ratio changes formula at this many minutes, with no step: 1.015 + 0.76 / 20 is 1.053. */
+export const RATIO_KNEE_MIN = 20
+/** Up to the knee: base + perMinute / minutes, the 95% rule at 20 min (1.053) and the 90% rule at 8 min (1.11). */
+export const RATIO_SHORT = { base: 1.015, perMinute: 0.76 } as const
+/** Past the knee: atKnee - fall * ln(minutes / knee) / ln(span), which is 1.00 at span * knee = 60 min and falls on after. */
+export const RATIO_LONG = { atKnee: 1.053, fall: 0.053, span: 3 } as const
+/** How far the ratio varies between riders, as a share: smallest at the knee, growing with the log of the distance either side. */
+export const RATIO_SPREAD = { atKnee: 0.025, perLog: 0.02 } as const
+
 // Power estimate: one estimate per ride, a robust mean of them.
 /** A ride's weight halves every this many days back from the newest activity. */
 export const HALF_LIFE_DAYS = 42

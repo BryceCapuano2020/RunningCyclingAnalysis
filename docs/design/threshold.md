@@ -30,13 +30,15 @@ All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean 
 3. **Heart-rate line.** From the 5 min `hrBlocks` of power-meter rides with usable heart rate, with power
    between 45% and 105% of the power estimate: heart rate on power (heart rate is the noisy reading; fitting
    power on heart rate flattens the slope). The slope is Theil-Sen over values demeaned within each ride, so
-   day-to-day offsets (heat, fatigue, strap placement) do not flatten it. Each ride's offset is the median of
-   `h - slope * p`; the pooled offset is their median.
+   day-to-day offsets (heat, fatigue, strap placement) do not flatten it. A ride needs 3 such blocks to add to
+   the slope; one with 1 or 2 still gives an offset. Each ride's offset is the median of `h - slope * p`; the
+   pooled offset is their median.
 4. **Heart-rate guards.** A ride with 4+ blocks whose heart rate varies under 1.5 bpm while power varies over
    3% is out (stuck or cadence-locked). A ride whose offset is more than 10 bpm from the pooled one is out
    (strap reading high or low that day). The line is refused when `slope * 0.5 * powerEstimate` (the climb
    from half to full threshold power) is under 20 or over 70 bpm: no working strap does that. Fewer than 20
-   blocks: no line. Rides whose heart rate the analysis already sets aside are out.
+   blocks (counting only rides with 3 or more): no line. Rides whose heart rate the analysis already sets aside
+   are out.
 5. **Heart-rate estimate.** Efforts of 8 to 30 min (shorter lag, longer drift) on power-meter rides that
    passed, with heart rate 85 to 102% of threshold heart rate (`0.9 * the sport's reference max`), and within
    12 bpm of their own ride's line (`u = residual / min(4 * max(spread, 3), 12)`, weight `(1 - u^2)^2`):
@@ -52,7 +54,9 @@ All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean 
    percentiles. So heart rate can lift the answer a long way and can pull it under the power estimate only
    within the power estimate's own noise. With no heart rate the answer is the power estimate plus about 3%.
 
-Null only when the window has no ride effort of 3 min or more.
+Null when the window has no ride effort of 3 min or more, and when no ride has any weight to give (an age that is
+not a number, or so old the recency weight underflows). A single ride is enough: it is the estimate, with the
+error that one ride carries.
 
 ## What it replaces
 
@@ -91,7 +95,11 @@ export interface ThresholdEstimate {
   value: number // gross metabolic W/kg
   low: number // 10th percentile
   high: number // 90th percentile
-  efforts: { value: number; rides: number; strongest: { activityId: string; durationS: number } }
+  efforts: {
+    value: number
+    rides: number
+    strongest: { activityId: string; durationS: number; estimated: boolean }
+  }
   heartRate: { value: number; efforts: number } | { refused: HeartRateRefusal }
 }
 export type HeartRateRefusal =
@@ -127,12 +135,17 @@ export function rideThreshold(
   under 1), so a caller that passes a 90 min best gets a slightly higher estimate from it, never a refusal.
 - **`efforts.strongest` is the highest estimate among the rides the mean kept.** A ride the second-strongest rule
   threw out is never named as the proof of the floor. `efforts.rides` counts every ride with an effort of 3 min or more.
+- **`efforts.strongest.estimated`** says whether that ride's watts were estimated, so a screen can say the proof of the
+  floor is a guess.
 - **`heartRate.efforts` counts the efforts that went into the mean**, not the line's own point.
 - **Refusals** are the first guard to stop the line: `no-heart-rate` (no threshold heart rate or no blocks),
   `few-blocks` (under 20 blocks between 45% and 105% of the power estimate, from rides with 3 or more), `stuck` (20 or
   more such blocks before stuck rides were left out, fewer after), `flat` and `steep` (the climb from half to full
   threshold power; `flat` also where power never moved within a ride, so no slope can be read), `no-efforts` (a sound
   line, but no steady 8 to 30 min effort near it). An excluded ride is not a refusal: it only lowers `efforts`.
+- **Medians keep the element at index `floor(n / 2)`, not core's `medianInPlace`**, which averages the two middle values
+  of an even count. The ride-offset guard and the spread were tuned on the element, and the average moved simulated
+  answers by up to 30%.
 - **The fusion grids stop one step short of their last value** (300 points from -15%, 100 gaps from 0), as the
   prototype's loops did; the estimate matches it to rounding on 3,600 simulated riders.
 - **The simulation draws from core's seeded generator**, not the prototype's, so its numbers differ from the first

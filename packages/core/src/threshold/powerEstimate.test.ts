@@ -87,4 +87,47 @@ describe('the power estimate', () => {
     const many = Array.from({ length: 40 }, (_, i) => ride(`r${i}`, 200))
     expect(powerEstimate(many)!.relativeError).toBe(0.025)
   })
+
+  it('scales an effort over 60 min by the same formula: a 90 min best lifts the estimate, and is not refused', () => {
+    const ninety = ride('a', 200, { durationS: 5400 })
+    const hour = rideEstimates([ride('a', 200, { durationS: 3600 })])[0]!.value
+    const longer = rideEstimates([ninety])[0]!.value
+    // The ratio is 1 at 60 min and keeps falling: 1.053 - 0.053 * ln(4.5) / ln(3) at 90 min.
+    expect(hour).toBeCloseTo(200, 8)
+    expect(longer).toBeCloseTo(200 / (1.053 - (0.053 * Math.log(4.5)) / Math.log(3)), 8)
+    expect(longer).toBeGreaterThan(hour)
+    expect(powerEstimate([ninety])!.value).toBeCloseTo(longer, 8)
+  })
+
+  it('takes a single ride at its own estimate, a little unsure', () => {
+    const only = powerEstimate([ride('a', 200)])!
+    expect(only.value).toBeCloseTo(estimate(200), 8)
+    expect(only.rides).toBe(1)
+    expect(only.strongest).toEqual({ activityId: 'a', durationS: 1200, estimated: false })
+    // One ride at the top weighs 1 / 2.5% squared, less the logistic's 0.93: just over the floor of 2.5%.
+    expect(only.relativeError).toBeGreaterThan(0.025)
+    expect(only.relativeError).toBeLessThan(0.03)
+  })
+
+  it('is null where no ride has any weight: an age that is not a number, or too old for any weight to be left', () => {
+    expect(powerEstimate([ride('a', 200, { ageDays: NaN })])).toBeNull()
+    expect(
+      powerEstimate([ride('a', 200, { ageDays: 1e6 }), ride('b', 200, { ageDays: 2e6 })]),
+    ).toBeNull()
+    // One ride with weight is enough: the others count as rides but not toward the mean.
+    const mixed = powerEstimate([ride('a', 200, { ageDays: NaN }), ride('b', 210)])!
+    expect(mixed.value).toBeCloseTo(estimate(210), 8)
+    expect(mixed.rides).toBe(2)
+    expect(mixed.strongest.activityId).toBe('b')
+  })
+
+  it('says whether the strongest ride’s watts were estimated', () => {
+    const others = [ride('b', 200), ride('c', 200)]
+    expect(powerEstimate([ride('a', 205, { estimated: true }), ...others])!.strongest).toEqual({
+      activityId: 'a',
+      durationS: 1200,
+      estimated: true,
+    })
+    expect(powerEstimate([ride('a', 205), ...others])!.strongest.estimated).toBe(false)
+  })
 })

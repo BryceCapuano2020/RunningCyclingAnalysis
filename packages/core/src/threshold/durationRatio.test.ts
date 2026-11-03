@@ -20,6 +20,11 @@ describe('the duration ratio', () => {
     }
   })
 
+  it('keeps falling past 60 min, so a longer best implies a higher threshold', () => {
+    expect(durationRatio(90 * 60)).toBeLessThan(1)
+    expect(durationRatio(180 * 60)).toBeLessThan(durationRatio(90 * 60))
+  })
+
   it('has no step where the two formulas meet at 20 min', () => {
     expect(Math.abs(durationRatio(1200.001) - durationRatio(1199.999))).toBeLessThan(1e-6)
   })
