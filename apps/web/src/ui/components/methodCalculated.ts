@@ -1,4 +1,4 @@
-import { DURATION_TABLES } from '@rca/core/threshold'
+import { runDurationRatio } from '@rca/core/threshold'
 import { CHANGE } from '@rca/core/change'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -34,10 +34,9 @@ const WINDOW_EXAMPLES = listWords(
 
 /**
  * How much above an hour's energy rate the running table puts an all-out effort of `minutes`, as a whole percent. Read from
- * the table the estimate uses, so the copy cannot drift from it.
+ * the ratio the estimate uses, so the copy cannot drift from it.
  */
-const runExcess = (minutes: number) =>
-  Math.round((DURATION_TABLES.run.ratio(minutes * 60) - 1) * 100)
+const runExcess = (minutes: number) => Math.round((runDurationRatio(minutes * 60) - 1) * 100)
 
 /** The entries about the efforts and what is drawn from them, calculated by the app, in page order. */
 export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
@@ -46,8 +45,8 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     state: 'calculated',
     lines: [
       'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
-      'Heart rate can raise it and never lowers it.',
-      'A run’s threshold is built the same way: the strongest effort of each run, scaled to an hour and averaged.',
+      'A ride’s threshold can be raised by heart rate and never lowered.',
+      'A run’s threshold is the strongest effort of each run, scaled to an hour and averaged.',
       'Neither is ever under an hour you did.',
       'Each range is the estimate’s own, not the balance’s 90% range.',
     ],

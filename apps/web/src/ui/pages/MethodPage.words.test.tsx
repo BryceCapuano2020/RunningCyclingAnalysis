@@ -29,7 +29,7 @@ const BUDGET = 2000
 describe('the Method page', () => {
   it('stays within its word budget', () => {
     const { container } = render(page(makeResult(), MAN_BORN_1986))
-    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after; the Your years topic (#311) has since added 15, so 2,025. V2e writes one fact a line and moves the zone schemes, the curve starts and the tie-break into More detail, which leaves 2,024. One How this works list says each idea once, and its small details are plain lines, which leaves 2,017. The threshold entry says a ride’s method and drops the rule that a best that was not hard set a floor, which leaves 2,007. The run threshold is said as the ride's is, one line for each in place of the critical-speed fit and its floor, which leaves 2,000.
+    // Measured with every disclosure closed: 2,046 words before D4.10's trim, 2,010 after; the Your years topic (#311) has since added 15, so 2,025. V2e writes one fact a line and moves the zone schemes, the curve starts and the tie-break into More detail, which leaves 2,024. One How this works list says each idea once, and its small details are plain lines, which leaves 2,017. The threshold entry says a ride’s method and drops the rule that a best that was not hard set a floor, which leaves 2,007. The run threshold is said as the ride's is, one line for each in place of the critical-speed fit and its floor, which leaves 2,000. The heart-rate line names the ride and the run line drops "built the same way", which leaves 1,999.
     expect(wordsOf(container).length).toBeLessThanOrEqual(BUDGET)
   })
 })

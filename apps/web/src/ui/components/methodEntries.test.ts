@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CHANGE } from '@rca/core/change'
 import { DEFAULT_WINDOW_DAYS, MIN_WINDOW_DAYS } from '@rca/core/digest/trendPoints'
-import { DURATION_TABLES } from '@rca/core/threshold'
+import { runDurationRatio } from '@rca/core/threshold'
 import {
   METHOD_ENTRIES,
   STATE_COPY,
@@ -151,9 +151,9 @@ describe('How this works entries', () => {
     expect(detail).toContain(
       'It puts an all-out 10 min effort 14% above your hour’s energy rate, 20 min 7% and 40 min 3%.',
     )
-    expect(DURATION_TABLES.run.ratio(600)).toBeCloseTo(1.137, 3)
-    expect(DURATION_TABLES.run.ratio(1200)).toBeCloseTo(1.073, 3)
-    expect(DURATION_TABLES.run.ratio(2400)).toBeCloseTo(1.029, 3)
+    expect(runDurationRatio(600)).toBeCloseTo(1.137, 3)
+    expect(runDurationRatio(1200)).toBeCloseTo(1.073, 3)
+    expect(runDurationRatio(2400)).toBeCloseTo(1.029, 3)
   })
 
   it('says how a ride’s threshold is worked out: each ride’s strongest effort, averaged, with heart rate lifting it and never lowering it', () => {
@@ -161,7 +161,7 @@ describe('How this works entries', () => {
     expect(lines).toContain(
       'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
     )
-    expect(lines).toContain('Heart rate can raise it and never lowers it.')
+    expect(lines).toContain('A ride’s threshold can be raised by heart rate and never lowered.')
     expect(detail).toContain(
       'The answer is the estimate from power alone, unless heart rate shows you had more in you.',
     )
@@ -185,7 +185,7 @@ describe('How this works entries', () => {
   it('says a run’s threshold the way a ride’s is said: each run’s strongest effort, scaled to an hour and averaged, never under an hour', () => {
     const { lines, detail } = entryNamed('Thresholds')
     expect(lines).toContain(
-      'A run’s threshold is built the same way: the strongest effort of each run, scaled to an hour and averaged.',
+      'A run’s threshold is the strongest effort of each run, scaled to an hour and averaged.',
     )
     expect(lines).toContain('Neither is ever under an hour you did.')
     expect(detail).toContain(
@@ -199,13 +199,27 @@ describe('How this works entries', () => {
     expect(copy).not.toMatch(/critical speed|“At least”|floor, marked|short bests|second fit/)
   })
 
-  it('says nothing about heart rate in any line about a run', () => {
+  it('says nothing about heart rate in any line about a run, and names the ride where it says what heart rate does', () => {
     const { lines, detail } = entryNamed('Thresholds')
-    const aboutRuns = [...lines, ...(detail ?? [])].filter((line) => /\bruns?\b|\bran\b/.test(line))
+    const all = [...lines, ...(detail ?? [])]
+    const aboutRuns = all.filter((line) => /\bruns?\b|\bran\b/.test(line))
     expect(aboutRuns.length).toBeGreaterThanOrEqual(5)
     for (const line of aboutRuns) expect(line).not.toMatch(/heart rate|bpm|strap/i)
-    // The ride's lines about heart rate are still there.
-    expect(lines).toContain('Heart rate can raise it and never lowers it.')
+    // The summary's line on heart rate stands between the ride's line and the run's, so it names the ride: a bare "it" would
+    // read as if heart rate raised a run too.
+    const summaryHeartRate = lines.filter((line) => /heart rate/i.test(line))
+    expect(summaryHeartRate).toEqual([
+      'A ride’s threshold can be raised by heart rate and never lowered.',
+    ])
+    // The detail takes heart rate in the ride's block, before its first line on runs.
+    const detailLines = detail ?? []
+    const firstRun = detailLines.findIndex((line) => /^Each run\b/.test(line))
+    expect(firstRun).toBeGreaterThan(0)
+    const lastHeartRate = detailLines.findLastIndex((line) => /heart rate/i.test(line))
+    expect(lastHeartRate).toBeGreaterThan(0)
+    expect(lastHeartRate).toBeLessThan(firstRun)
+    // Nowhere does the page say heart rate raises, lifts or sets a run.
+    expect(all.join(' ')).not.toMatch(/heart rate[^.]*\bruns?\b|\bruns?\b[^.]*heart rate/i)
   })
 
   it('keeps the range apart from the balance’s 90% range, and says a run’s is the estimate’s own', () => {
