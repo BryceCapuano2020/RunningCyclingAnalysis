@@ -5,9 +5,14 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { activityMasses } from './activityMasses'
 import { curvePoint } from './charts/fixtures'
-import { makeActivity, makeEquivalence, makeResult, makeRideThreshold } from './components/fixtures'
+import {
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from './components/fixtures'
 import { thresholdRange } from './thresholdRange'
-import { floorThreshold } from './thresholdFloor'
 import { countEfforts, hasThreshold, latestStartOf } from './records'
 import {
   RECORD_DURATIONS_S,
@@ -38,8 +43,8 @@ describe('threshold', () => {
     expect(ride?.sub).toMatch(/W\/kg$/)
   })
 
-  it('is null for a run without a critical-power fit and a ride without an estimate', () => {
-    const result = makeResult({ runCp: null, rideThreshold: null })
+  it('is null for a sport without an estimate', () => {
+    const result = makeResult({ runThreshold: null, rideThreshold: null })
     expect(threshold(result, 'run', 70, 'metric')).toBeNull()
     expect(threshold(result, 'ride', 70, 'metric')).toBeNull()
     expect(hasThreshold(result, 'run')).toBe(false)
@@ -55,6 +60,17 @@ describe('threshold', () => {
     const result = makeResult({ rideThreshold })
     expect(threshold(result, 'ride', massKg, 'metric')?.value).toBe('225 W')
     expect(threshold(result, 'ride', massKg, 'metric')?.sub).toBe('3.2 W/kg')
+  })
+
+  it('reads a run from its estimate, not from its critical-power fit', () => {
+    // The fit says 4.0 W/kg (23:23 /km); the estimate says 16, a different pace.
+    const result = makeResult({ runThreshold: makeRunThreshold(16) })
+    expect(threshold(result, 'run', 70, 'metric')?.value).toBe('4:24 /km')
+    const fitless = makeResult({ runCp: null, runThreshold: makeRunThreshold(16) })
+    expect(threshold(fitless, 'run', 70, 'metric')?.value).toBe('4:24 /km')
+    expect(hasThreshold(fitless, 'run')).toBe(true)
+    // A fit without an estimate is no threshold.
+    expect(threshold(makeResult({ runThreshold: null }), 'run', 70, 'metric')).toBeNull()
   })
 
   it('reads a ride from its estimate, not from its critical-power fit', () => {
@@ -75,10 +91,12 @@ describe('threshold', () => {
 })
 
 describe('thresholdRange', () => {
-  it('gives a running threshold’s range from the faster pace to the slower', () => {
-    // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg, and the model error floor widens it.
-    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Range 20:54 to 23:49 /km')
-    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('Range 33:38 to 38:19 /mi')
+  it('gives a running threshold’s range from the faster pace to the slower, from the estimate’s low and high', () => {
+    // The fixture’s estimate is 4.0 W/kg with its range 5% either side: 21:49 /km at 4.2 and 25:12 /km at 3.8.
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('Range 21:49 to 25:12 /km')
+    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('Range 35:06 to 40:33 /mi')
+    const wide = makeResult({ runThreshold: makeRunThreshold(16, { low: 15.2, high: 16.8 }) })
+    expect(thresholdRange(wide, 'run', 70, 'metric')).toBe('Range 4:10 to 4:39 /km')
   })
 
   it('gives a cycling threshold’s range in watts, from the estimate’s low to its high', () => {
@@ -88,19 +106,11 @@ describe('thresholdRange', () => {
     expect(thresholdRange(wide, 'ride', 75, 'metric')).toBe('Range 240 to 264 W')
   })
 
-  it('is null without a fit or an estimate, and when a run’s low end would not be a positive work rate', () => {
-    expect(thresholdRange(makeResult({ runCp: null }), 'run', 70, 'metric')).toBeNull()
-    expect(thresholdRange(makeResult({ rideCp: null }), 'ride', 70, 'metric')).toBeNull()
-    const loose = makeResult({ runCp: { cp: 0.1, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 } })
-    expect(thresholdRange(loose, 'run', 70, 'metric')).toBeNull()
-  })
-
-  it('is null when a run’s low end would not be above resting metabolic rate, 1.22 W/kg', () => {
-    // The low end is 1.2 W/kg, under the resting rate, so no range is said; 1.4 gives one above it.
-    const below = { cp: 1.4, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 }
-    expect(thresholdRange(makeResult({ runCp: below }), 'run', 70, 'metric')).toBeNull()
-    const above = { cp: 1.6, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 }
-    expect(thresholdRange(makeResult({ runCp: above }), 'run', 70, 'metric')).not.toBeNull()
+  it('is null without an estimate, whatever fit a sport holds', () => {
+    const fitOnly = makeResult({ runThreshold: null, rideThreshold: null })
+    expect(fitOnly.runCp).not.toBeNull()
+    expect(thresholdRange(fitOnly, 'run', 70, 'metric')).toBeNull()
+    expect(thresholdRange(fitOnly, 'ride', 70, 'metric')).toBeNull()
   })
 
   it('gives a ride its range whatever its watts rest on: estimated watts do not take it away', () => {
@@ -117,82 +127,35 @@ describe('thresholdRange', () => {
 
 describe('thresholdRange when both ends print the same', () => {
   it('says "About" and the one figure rather than "A to A", on either sport', () => {
-    // A run’s range always carries a model error floor, so only a range between two fits can collapse: here the
-    // second fit sits a hair above the main one, and neither end moves a displayed second.
-    const hair = (cp: number) => ({
-      fit: { cp: cp + 1e-6, wPrime: 20, cpSe: 0.01, r2: 0.99, nPoints: 6 },
-      leftOutS: [900],
-      floor: cp - 0.5,
-    })
-    expect(thresholdRange(makeResult({ runCpUneven: hair(4.0) }), 'run', 70, 'metric')).toBe(
-      'About 23:23 /km',
-    )
-    // A ride’s estimate has the same range when its 10th and 90th percentiles meet.
+    // The estimate’s 10th and 90th percentiles meet, or sit a hair apart: neither end moves a displayed second.
+    const run = makeResult({ runThreshold: makeRunThreshold(4.0, { low: 4.0, high: 4.0 + 1e-6 }) })
+    expect(thresholdRange(run, 'run', 70, 'metric')).toBe('About 23:23 /km')
     const point = makeResult({ rideThreshold: makeRideThreshold(3.0, { low: 3.0, high: 3.0 }) })
     expect(thresholdRange(point, 'ride', 75, 'metric')).toBe('About 48 W')
   })
 })
 
-describe('thresholdRange with an uneven fit', () => {
-  // The floor is the lowest of the bests left out, 3.2 W/kg, which is 7:48 /km on the flat for a run.
+describe('thresholdRange beside a fit that disagrees', () => {
   const uneven = (cp: number, floor = 3.2) => ({
     fit: { cp, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
     leftOutS: [900, 1200],
     floor,
   })
 
-  it('runs from the main threshold to the uneven one, from its faster end', () => {
-    // The main fit is 4.0 W/kg and the uneven one 4.2, which is the faster pace, so it reads first.
-    const result = makeResult({ runCpUneven: uneven(4.2) })
-    expect(thresholdRange(result, 'run', 70, 'metric')).toBe('Range 21:49 to 23:23 /km')
-  })
-
-  it('starts from the floor when a run’s main threshold is refused, so the range still shows', () => {
-    const result = makeResult({ runCp: null, runCpRefusal: 'shape', runCpUneven: uneven(4.2) })
-    expect(thresholdRange(result, 'run', 70, 'metric')).toMatch(
-      /^Range \d+:\d{2} to \d+:\d{2} \/km$/,
-    )
-  })
-
-  it('is null when the uneven threshold does not sit above its floor', () => {
-    const result = makeResult({ runCp: null, runCpUneven: uneven(3.0, 3.2) })
-    expect(thresholdRange(result, 'run', 70, 'metric')).toBeNull()
+  it('leaves a run’s uneven or refused fit out: its range is its estimate’s', () => {
+    // The uneven fit is 4.2 W/kg, the faster pace; the range does not run up to it.
+    const whole = makeResult({ runCpUneven: uneven(4.2) })
+    expect(thresholdRange(whole, 'run', 70, 'metric')).toBe('Range 21:49 to 25:12 /km')
+    const refused = makeResult({ runCp: null, runCpRefusal: 'shape', runCpUneven: uneven(4.4) })
+    expect(refused.runThreshold).toBeNull()
+    expect(
+      thresholdRange({ ...refused, runThreshold: makeRunThreshold(4.0) }, 'run', 70, 'metric'),
+    ).toBe('Range 21:49 to 25:12 /km')
   })
 
   it('leaves a ride’s uneven fit out: its range is its estimate’s', () => {
     const result = makeResult({ rideCpUneven: uneven(3.6) })
     expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('Range 46 to 51 W')
-  })
-})
-
-describe('floorThreshold', () => {
-  const uneven = {
-    fit: { cp: 4.4, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
-    leftOutS: [900, 1200],
-    floor: 3.2,
-  }
-
-  it('is the floor in the run’s figure, when the main threshold is refused', () => {
-    const result = makeResult({ runCp: null, runCpRefusal: 'shape', runCpUneven: uneven })
-    const figure = floorThreshold(result, 'run', 75, 'metric')
-    expect(figure?.value).toMatch(/^\d+:\d{2} \/km$/)
-    expect(figure?.sub).toBeNull()
-  })
-
-  it('is null while the main threshold is there, or when no uneven fit set a floor', () => {
-    expect(floorThreshold(makeResult({ runCpUneven: uneven }), 'run', 75, 'metric')).toBeNull()
-    expect(floorThreshold(makeResult({ runCp: null }), 'run', 75, 'metric')).toBeNull()
-  })
-
-  it('is null when the floor is not below the fit, so a figure never stands without its range', () => {
-    const level = { ...uneven, floor: uneven.fit.cp }
-    const result = makeResult({ runCp: null, runCpRefusal: 'shape', runCpUneven: level })
-    expect(floorThreshold(result, 'run', 75, 'metric')).toBeNull()
-  })
-
-  it('is null for a ride, which has an estimate or nothing, whatever fit was refused', () => {
-    const result = makeResult({ rideCp: null, rideThreshold: null, rideCpUneven: uneven })
-    expect(floorThreshold(result, 'ride', 75, 'metric')).toBeNull()
   })
 })
 

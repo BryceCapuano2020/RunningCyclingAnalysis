@@ -1,8 +1,7 @@
-import { cpBand } from '@rca/core/cp'
 import { describe, expect, it } from 'vitest'
-import { PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import { PRIORS } from '@rca/core/constants'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
-import { makeResult, makeRideThreshold } from './components/fixtures'
+import { makeResult, makeRideThreshold, makeRunThreshold } from './components/fixtures'
 import { thresholdLine } from './thresholdLine'
 import { thresholdRange } from './thresholdRange'
 
@@ -13,16 +12,28 @@ const uneven = (cp: number) => ({
 })
 
 describe('thresholdLine', () => {
-  it('is a run’s critical power as the flat speed the curve is drawn in, with its range as a band', () => {
-    const result = makeResult()
+  it('is a run’s estimate as the flat speed the curve is drawn in, with its 10th to 90th percentile as the band', () => {
+    const runThreshold = makeRunThreshold(16, { low: 14.9, high: 16.4 })
+    const result = makeResult({ runThreshold })
     const line = thresholdLine(result, 'run', 70, 'metric')
-    expect(line?.value).toBeCloseTo(metabolicToFlatSpeed(4.0), 9)
-    // The fixture's standard error is 0.05, and its effort was not checked, so the band goes up by the allowance for the hard line.
-    const band = cpBand({ cp: 4.0, cpSe: 0.05 }, null)
-    expect(band.high - 4.0).toBeGreaterThan(4.0 - band.low)
-    expect(line?.low).toBeCloseTo(metabolicToFlatSpeed(band.low), 9)
-    expect(line?.high).toBeCloseTo(metabolicToFlatSpeed(band.high), 9)
+    expect(line?.value).toBeCloseTo(metabolicToFlatSpeed(16), 9)
+    expect(line?.low).toBeCloseTo(metabolicToFlatSpeed(14.9), 9)
+    expect(line?.high).toBeCloseTo(metabolicToFlatSpeed(16.4), 9)
+    expect(line?.detail).toBe('Range 4:17 to 4:45 /km')
     expect(line?.detail).toBe(thresholdRange(result, 'run', 70, 'metric'))
+    expect(line?.estimated).toBe(false)
+  })
+
+  it('reads a run’s line from its estimate, not from its critical-power fit', () => {
+    // The fit says 4.0 W/kg, which is 23:23 /km; the line is drawn where the estimate says.
+    const line = thresholdLine(
+      makeResult({ runThreshold: makeRunThreshold(16) }),
+      'run',
+      70,
+      'metric',
+    )
+    expect(line?.value).toBeCloseTo(metabolicToFlatSpeed(16), 9)
+    expect(line?.value).not.toBeCloseTo(metabolicToFlatSpeed(4.0), 3)
   })
 
   it('is a ride’s critical power in watts at the body mass, as the threshold figure reads it', () => {
@@ -58,22 +69,18 @@ describe('thresholdLine', () => {
     ).toBe(true)
   })
 
-  it('is null without a fit, and for a run with only a floor', () => {
-    expect(thresholdLine(makeResult({ runCp: null }), 'run', 70, 'metric')).toBeNull()
-    expect(thresholdLine(makeResult({ rideCp: null }), 'ride', 75, 'metric')).toBeNull()
+  it('is null without an estimate, whatever fit the sport holds', () => {
+    const fitOnly = makeResult({ runThreshold: null, rideThreshold: null })
+    expect(fitOnly.runCp).not.toBeNull()
+    expect(thresholdLine(fitOnly, 'run', 70, 'metric')).toBeNull()
+    expect(thresholdLine(fitOnly, 'ride', 75, 'metric')).toBeNull()
   })
 
-  it('gives only the range’s words, and no band, with an uneven fit, whose range is not round the line', () => {
+  it('leaves a run’s uneven fit out: the band and the words are the estimate’s', () => {
     const line = thresholdLine(makeResult({ runCpUneven: uneven(4.2) }), 'run', 70, 'metric')
-    expect(line?.low).toBeUndefined()
-    expect(line?.high).toBeUndefined()
-    expect(line?.detail).toBe('Range 21:49 to 23:23 /km')
-  })
-
-  it('has no band or words where the range is below resting metabolic rate and is not shown', () => {
-    const loose = { cp: RESTING_W_PER_KG, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 }
-    const line = thresholdLine(makeResult({ runCp: loose }), 'run', 70, 'metric')
-    expect(line?.detail).toBeUndefined()
-    expect(line?.low).toBeUndefined()
+    // The default estimate is 4.0 W/kg with its range 5% either side, not a run up to the uneven fit's 4.2.
+    expect(line?.low).toBeCloseTo(metabolicToFlatSpeed(4.0 * 0.95), 9)
+    expect(line?.high).toBeCloseTo(metabolicToFlatSpeed(4.0 * 1.05), 9)
+    expect(line?.detail).toBe('Range 21:49 to 25:12 /km')
   })
 })
