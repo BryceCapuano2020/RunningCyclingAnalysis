@@ -4,6 +4,10 @@ Status: built (`packages/core/src/effort/`), applied to thresholds, zones from t
 late-in-sessions views, and, for race predictions, to whether a range is drawn (a time is always shown). Calibrated on the
 synthetic harness; no real figures are in this note.
 
+Superseded in part by [threshold.md](threshold.md): the gate no longer withholds a threshold or cuts a zone window, and a best
+20 minutes shown not hard is no lack for the default window. The verdict stays as a label and as the check behind the change
+test, and the text below that describes the withholding is the earlier behaviour.
+
 ## What it says
 
 A best effort is a lower bound on what an athlete can do. It becomes a capability (a threshold, a zone, a level to set against

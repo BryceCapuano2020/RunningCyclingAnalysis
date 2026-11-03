@@ -1,8 +1,8 @@
 # Ride threshold from many efforts (design)
 
-Status: in progress. Approved by the owner; built in two packages: the estimator in core
-(`packages/core/src/threshold/`, no wiring), then the analysis, zones and screens that read it. The simulation behind
-the evidence table is `packages/core/src/threshold/threshold.sim.test.ts`. This note holds no owner data.
+Status: in progress. Approved by the owner; built in packages: the estimator in core (`packages/core/src/threshold/`),
+then its wiring into the analysis, the zones and the window choice (built), then the screens that read it. The
+simulation behind the evidence table is `packages/core/src/threshold/threshold.sim.test.ts`. This note holds no owner data.
 
 ## Why
 
@@ -189,3 +189,19 @@ export function rideThreshold(
   table by a point or two. It runs 1,200 riders per case rather than 400, which moved the within-5% share of the
   first version's maximum-heart-rate case by up to 11 points between seeds. With the realistic riders and lift-only
   fusion that case ranges from 82% to 85% across four seeds at 1,200.
+
+### Wiring decisions
+
+- **Inputs** (`digest/thresholdEfforts.ts`) are the ride best curve's own: each ride point from 3 to 60 min priced by
+  `pointWkg` at the ride's body mass (a ride whose power is set aside, and an estimated point the athlete's heart rate
+  does not back, give nothing), the heart rate of a ride set aside is none, and the 5 min blocks come from power-meter
+  rides whose power and heart rate are both trusted.
+- **Threshold heart rate is 0.9 of the ride effort reference** (`judged.referenceHr.ride`: the maximum the athlete entered,
+  else the age-predicted one, else the activities'), the reference the gate judges by.
+- **`ageDays` counts from the newest activity of any sport in the set**, so a ride set read after months of running only is
+  the less sure for it. In a zone window that is the newest activity up to the window's end.
+- **A zone window's ride step is `{ cp: value, cpSe }`**, with the standard error read from the width of the 10th to 90th
+  range as a normal's (2.563 of them). Run windows keep their critical-power fit and read the runs alone.
+- **A window with any ride effort has an estimate**, so the older-fit and outgrown rules apply to rides only when a window
+  holds no ride effort at all, and the best-30-min zone floor only where no window does.
+- **`WindowReason` loses `most`**: with an easy 20 min no lack, a window either qualifies or the default falls to all time.
