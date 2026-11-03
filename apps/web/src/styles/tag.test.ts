@@ -7,7 +7,6 @@ const sheets = await readStylesheetsUnder(import.meta.url, '../')
 /** The label classes that were seven rules of their own and now take the one `.tag` (D10: fewer boxes). */
 const TAGGED = [
   '.stat-tile__name',
-  '.stat-tile__basis',
   '.sport-hero__period',
   '.balance-levels__name',
   '.fitness-card__sport',

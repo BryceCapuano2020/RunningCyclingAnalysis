@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
 import '../../test/warmSample'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult, makeRunThreshold } from '../components/fixtures'
 import { headlineGrades } from '../grades'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdRange } from '../thresholdRange'
 import { BalanceTiles } from './BalanceTiles'
-import { RangeTrack } from './RangeTrack'
 
 afterEach(cleanup)
 
@@ -41,44 +40,6 @@ function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
   )
 }
 
-describe('RangeTrack', () => {
-  it('draws the range as a shape, with its ends printed and a ring where the estimate sits', () => {
-    const { container } = render(<RangeTrack ends={['7:07', '7:18']} at={0.5} label="range" />)
-    expect(container.querySelector('.range-track__bar')).toHaveAttribute('aria-hidden', 'true')
-    expect(container.querySelector('.range-track__band')).not.toBeNull()
-    expect(container.querySelectorAll('.range-track__cap')).toHaveLength(2)
-    const printed = container.querySelectorAll('.range-track__ends > [aria-hidden="true"]')
-    expect([...printed].map((node) => node.textContent)).toEqual(['7:07', 'range', '7:18'])
-  })
-
-  it('reads the range as one phrase, not as three loose figures', () => {
-    const { container } = render(<RangeTrack ends={['6', '16']} at={0.5} label="90% range" />)
-    expect(container.querySelector('.range-track__ends .sr-only')?.textContent).toBe(
-      '90% range 6 to 16',
-    )
-  })
-
-  it('places the ring at its share of the band, from the first end to the second, and holds it on the band', () => {
-    const at = (value: number) => {
-      const { container } = render(<RangeTrack ends={['a', 'b']} at={value} label="range" />)
-      return (container.firstElementChild as HTMLElement).style.getPropertyValue('--at')
-    }
-    expect(at(0.5)).toBe('0.5')
-    // A value equal to an end sits on that end, not short of it.
-    expect(at(0)).toBe('0')
-    expect(at(1)).toBe('1')
-    expect(at(-3)).toBe('0')
-    expect(at(4)).toBe('1')
-  })
-
-  it('does not inset the band from its printed ends', () => {
-    const { container } = render(<RangeTrack ends={['a', 'b']} at={1} label="range" />)
-    const style = (container.firstElementChild as HTMLElement).style
-    expect(style.getPropertyValue('--band-start')).toBe('')
-    expect(style.getPropertyValue('--band-end')).toBe('')
-  })
-})
-
 describe('BalanceTiles', () => {
   it('shows three tiles with both sports, each threshold and the ride as a run, and none for the lean', () => {
     const { container } = renderTiles()
@@ -90,7 +51,7 @@ describe('BalanceTiles', () => {
     ])
   })
 
-  it('writes each threshold exactly as the sport cards do: no chip, a run’s range as a track, a ride’s in words', () => {
+  it('writes each threshold exactly as the sport cards do: no chip, the range in words one tap down, for a run as for a ride', () => {
     const { result } = sample()
     renderTiles()
     for (const [name, sport] of [
@@ -102,37 +63,35 @@ describe('BalanceTiles', () => {
       expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(figure?.number ?? '')
       expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent(figure?.unit ?? '')
       // The name says it is an estimate, and how it was worked out is one tap down: the tile carries no chip.
-      expect(within(tile).queryByText('Estimated')).toBeNull()
-      expect(tile.querySelector('.stat-tile__basis')).toBeNull()
-      expect(within(tile).queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
-      expect(
-        within(tile).getByRole('button', { name: /^How this was worked out/ }),
-      ).toBeInTheDocument()
+      expect(tile).not.toHaveTextContent(/Estimated|At least|Not all-out|Hard effort/)
+      const range = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
+      expect(range).toMatch(/^Range /)
+      fireEvent.click(within(tile).getByRole('button', { name: /^How this was worked out/ }))
+      // A range the page states is the range the tile's detail opens with, in the sport's own unit.
+      expect(within(tile).getByRole('note')).toHaveTextContent(new RegExp(`^${range}\\. `))
     }
-    const range = thresholdRange(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
-    // A range the page states is a range the run's tile draws, and its ends are the numbers the line named.
-    const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(range).not.toBeNull()
-    const ends = Array.from(run.querySelectorAll('.range-track__ends span')).map(
-      (span) => span.textContent,
-    )
-    expect(range).toContain(ends[0])
-    expect(range).toContain(ends[2])
-    expect(
-      screen.getByRole('article', { name: 'Ride threshold' }).querySelector('.range-track'),
-    ).toBeNull()
   })
 
-  it('says what a ride’s threshold rests on, in one line under its figure', () => {
+  it('reads the run’s figure from its threshold estimate, not from its critical-power fit', () => {
+    // The fit says 4.0 W/kg (23:23 /km); the estimate says 16, a different pace.
+    const result = makeResult({ runThreshold: makeRunThreshold(16) })
+    const { container } = renderTiles({ result, library: result.activities })
+    const tile = screen.getByRole('article', { name: 'Run threshold' })
+    expect(tile.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
+    expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent('/km')
+    expect(container.textContent).not.toMatch(/23:23/)
+  })
+
+  it('says what a threshold rests on, in one line under its figure, for a ride and for a run', () => {
     renderTiles()
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
     expect(ride.querySelector('.stat-tile__source')).toHaveTextContent(
       /^From \d+ rides\. Strongest: \d+ min on \d+ \w+( \d{4})?\. How this was worked out/,
     )
-    // A run's fit rests on its curve, not on a count of runs, so its tile has no such line.
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run.querySelector('.stat-tile__source')).toHaveTextContent(/^How this was worked out/)
-    expect(run.querySelector('.stat-tile__source')).not.toHaveTextContent(/From \d+ runs/)
+    expect(run.querySelector('.stat-tile__source')).toHaveTextContent(
+      /^From \d+ runs\. Strongest: \d+ min on \d+ \w+( \d{4})?\. How this was worked out/,
+    )
   })
 
   it('gives the ride’s threshold its watts per kilogram beside the figure', () => {
@@ -163,7 +122,7 @@ describe('BalanceTiles', () => {
       /Add your weight on/,
     )
     // Only the run's threshold has a figure, so it alone has a detail to open, and no tile has a chip.
-    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
+    expect(container.textContent).not.toMatch(/Estimated|At least/)
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
     expect(screen.getAllByRole('button', { name: /^How this was worked out/ })).toHaveLength(1)
   })
@@ -207,7 +166,7 @@ describe('BalanceTiles', () => {
     expect(container.querySelector('.balance-tiles')).toBeNull()
   })
 
-  it('says what a missing threshold needs, in the tile, with no range shape', () => {
+  it('says what a missing threshold needs, in the tile, and draws no figure', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const { container } = render(
@@ -223,16 +182,15 @@ describe('BalanceTiles', () => {
       />,
     )
     const tile = screen.getByRole('article', { name: 'Run threshold' })
-    expect(tile.querySelector('.stat-tile__line')).toHaveTextContent(/^Needs /)
-    expect(tile.querySelector('.range-track')).toBeNull()
-    // With no figure there is nothing for a chip to say the evidence of.
-    expect(tile.querySelector('.stat-tile__basis')).toBeNull()
+    expect(tile.querySelector('.stat-tile__line')).toHaveTextContent(
+      'Needs an effort of 3 min or longer',
+    )
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
   it('gives each threshold no chip, one detail one tap down, and the ride as a run needs none', () => {
     const { container } = renderTiles()
-    expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
+    expect(container.textContent).not.toMatch(/Estimated|At least/)
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
     for (const name of ['Run threshold', 'Ride threshold']) {
       const tile = screen.getByRole('article', { name })
@@ -240,7 +198,7 @@ describe('BalanceTiles', () => {
       expect(tile.querySelector('.definition__term')).toHaveTextContent('How this was worked out')
     }
     const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
-    expect(asRun.querySelector('.stat-tile__basis')).toBeNull()
+    expect(asRun).not.toHaveTextContent(/Estimated|At least/)
     expect(asRun.querySelector('.stat-tile__effort')).toBeNull()
   })
 })
