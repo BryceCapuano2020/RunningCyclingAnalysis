@@ -27,6 +27,11 @@ tool limits, so a reviewer really cannot write. A session loads agent types when
 - No turn ends on "waiting for checks". After setting auto-merge, move to the next unblocked item.
   The app's CI monitor wakes the session when a check fails, a conflict appears or a review comment
   arrives.
+- The monitor wakes a session only for a pull request with Auto-fix on, and nothing wakes it when a
+  pull request merges. A turn that leaves a ready pull request without Auto-fix says so in its last
+  message, with that pull request's state, so the owner can turn it on.
+- Start every turn with one `npm run pr:queue`, so a red run that no monitor reported is found the
+  next time anyone writes.
 - Never poll CI (`gh pr checks`, `gh run watch`, sleep loops). Each poll re-reads the whole context.
   To see the queue, run `npm run pr:queue` once: one line per open pull request with what it needs
   next (a run that saw a draft, failing checks, a conflict, auto-merge off, running, merging, draft)
@@ -40,7 +45,9 @@ tool limits, so a reviewer really cannot write. A session loads agent types when
 Why: the coordinator was idle about two thirds of its active time, mostly between a pull request
 going green and the next instruction, and CI polling was 14% of its calls. A day later polling was
 40% of its shell calls, and with 14 pull requests open and none merging for three hours the weekly
-usage limit ran out.
+usage limit ran out. In November #398 failed a performance budget with auto-merge on and no
+monitor, and sat red for seven hours until the owner looked. The pull request stacked on it waited
+for a merge that would have woken no one.
 
 ## Sessions and context
 
@@ -67,8 +74,11 @@ subagent reports were most of it.
   merge it before the next one starts. Two at once re-pin against each other until one is held.
 - Builders open drafts and never mark one ready or set auto-merge. The coordinator does both once
   review has no blockers.
-- A stacked pull request waits for its base to merge, then retargets to `main` and gets auto-merge.
-  One merged into its base branch (#285 into #286's) reaches `main` only with that base.
+- A stacked pull request does not wait for its base to merge, since a merge wakes no one. When the
+  base is marked ready, rebase the stacked one onto the base's tip, retarget it to `main`, mark it
+  ready and set auto-merge. `main` does not require branches to be up to date, so either may land
+  first. If the stacked one lands first it carries the base, which is then closed as included. One
+  merged into its base branch (#285 into #286's) reaches `main` only with that base.
 - Push ordinary commits and never squash locally: GitHub squashes on merge. Two local squashes
   reverted merged work (#41 undid #39, and #158 undid #155).
 - Never rebase a green pull request. `main` does not require branches to be up to date. Rebase
@@ -104,6 +114,11 @@ timeout at random.
 - A flaky Playwright test fails CI by design (`failOnFlakyTests`). Fix it the same day, or move it
   out of the required run with an issue that names it. Rerun a failed job at most once.
 - A failed performance budget is a regression until shown otherwise.
+- A failed run gets one complete fix. Read every failed job, not just the first. For a performance
+  budget, read every budget's figure in that run and fix or loosen each one under 15% headroom in
+  the same push. For a timeout, list the tests over half the limit. #398 took three rounds of one
+  push and one run each: the 12-week load, then a test timing out under coverage, then the body mass
+  change.
 - While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
   before the next change to it. Two ready pull requests never both grow one: each passes alone and
@@ -132,3 +147,5 @@ These are owner settings in GitHub, not files in the repository.
 - Required checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
   `Dependency audit`, `Performance budgets`, `Statistical simulations` and
   `Unit tests in shuffled order`.
+- Head branches deleted on merge (Settings, General), so GitHub retargets a stacked pull request to
+  `main` when its base merges.
