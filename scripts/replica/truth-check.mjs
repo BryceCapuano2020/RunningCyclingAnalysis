@@ -191,9 +191,12 @@ const ROUNDING = { pace: 1, power: 0.5 }
 /**
  * Checks that need no truth file, on every page the replica wrote: what one page says must not contradict itself.
  * - A threshold is never slower than a sustained effort in its window: a sport page's threshold is at least its best
- *   60 min (a pace no slower, a power no lower).
+ *   60 min (a pace no slower, a power no lower). This holds for long windows too, where a recency-weighted estimate
+ *   could sit under an hour ridden months ago: the period's threshold may not deny an hour the period holds.
  * - Cards on one page agree on direction: where Balance leans toward running, "Your ride as a run" is slower than the
- *   run threshold, and where it leans toward cycling, faster.
+ *   run threshold, and where it leans toward cycling, faster. These are the two pace cards a reader puts side by side,
+ *   so the check reads them as printed, whatever each is computed from: a page whose ride-as-a-run card is a 20 min
+ *   equivalent beside a threshold can be right in its own terms and still fail here, and that is the case it is for.
  * A page without the cards a check needs is skipped. One result per check that ran, as `runChecks` gives them.
  */
 export function runInvariants(outdir) {
@@ -260,8 +263,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.error(error instanceof SyntaxError ? `${truthArg} is not valid JSON` : error.message)
     process.exit(2)
   }
-  const results = [...runChecks(resolve(outdirArg), truth), ...runInvariants(resolve(outdirArg))]
+  const invariants = runInvariants(resolve(outdirArg))
+  const results = [...runChecks(resolve(outdirArg), truth), ...invariants]
   for (const { line } of results) console.log(line)
+  // So that "all checks pass" never hides that no page had the cards to check.
+  console.log(`${invariants.length} contradiction checks ran`)
   const failed = results.filter(({ verdict }) => verdict !== 'PASS').length
   console.log(failed === 0 ? 'all checks pass' : `${failed} failing`)
   process.exit(failed === 0 ? 0 : 1)

@@ -184,12 +184,18 @@ test('the command exits 0 when every check passes, 1 when one fails, 2 on bad us
       const truth = join(dir, 'truth.json')
       const pass = check(dir, truth)
       assert.equal(pass.status, 0)
-      assert.match(pass.stdout, /PASS run-threshold default[^\n]*\nall checks pass\n$/)
+      assert.match(
+        pass.stdout,
+        /PASS run-threshold default[^\n]*\n0 contradiction checks ran\nall checks pass\n$/,
+      )
 
       writeFileSync(truth, JSON.stringify({ checks: [{ ...goodCheck, expect: 300 }] }))
       const fail = check(dir, truth)
       assert.equal(fail.status, 1)
-      assert.match(fail.stdout, /FAIL run-threshold default: 250 W, want 300 ± 5\n1 failing\n$/)
+      assert.match(
+        fail.stdout,
+        /FAIL run-threshold default: 250 W, want 300 ± 5\n0 contradiction checks ran\n1 failing\n$/,
+      )
 
       assert.equal(check(dir).status, 2)
       writeFileSync(truth, '{ "secret": 41')
@@ -262,7 +268,7 @@ test('the command fails on a contradiction even when every truth check passes', 
       assert.equal(run.status, 1)
       assert.match(
         run.stdout,
-        /PASS run-threshold default[^\n]*\nFAIL threshold-vs-hour run-6-weeks[^\n]*\n1 failing\n$/,
+        /PASS run-threshold default[^\n]*\nFAIL threshold-vs-hour run-6-weeks[^\n]*\n1 contradiction checks ran\n1 failing\n$/,
       )
     },
   )
