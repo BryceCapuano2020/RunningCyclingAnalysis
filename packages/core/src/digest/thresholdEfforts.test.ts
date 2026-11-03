@@ -7,10 +7,11 @@ import { digestActivity } from './digestActivity'
 import { estimatedStanding } from './estimatedRide'
 import { fixedMasses } from './masses'
 import {
+  agesOf,
   rideEffortsOf,
+  rideLibraryOf,
   rideThresholdOf,
   thresholdHeartRate,
-  thresholdInputs,
 } from './thresholdEfforts'
 import { syntheticActivity } from './test/syntheticActivity'
 
@@ -83,16 +84,19 @@ describe('what a ride gives the ride threshold', () => {
     expect(blocks).toEqual([])
   })
 
-  it('ages each effort from the newest activity in the set', () => {
+  it('ages each ride from the newest activity in the set, never under 0', () => {
     const old = rideOf(ride('old', 0, 280, 600))
     const recent = rideOf(ride('recent', 10, 280, 600))
-    const { efforts } = thresholdInputs([old, recent], recent.startMs)
-    expect(new Set(efforts.filter((e) => e.activityId === 'recent').map((e) => e.ageDays))).toEqual(
-      new Set([0]),
-    )
-    expect(new Set(efforts.filter((e) => e.activityId === 'old').map((e) => e.ageDays))).toEqual(
-      new Set([10]),
-    )
+    expect([...agesOf([old, recent], recent.startMs)]).toEqual([10, 0])
+    // An activity newer than the anchor, as a window ending before it reads one, is not given a negative age.
+    expect([...agesOf([old, recent], old.startMs)]).toEqual([0, 0])
+  })
+
+  it('ages only the rides of a window, into the array it is given', () => {
+    const rides = [0, 5, 10].map((day) => rideOf(ride(`d${day}`, day, 280, 600)))
+    const into = new Float64Array(3).fill(-1)
+    agesOf(rides, rides[2]!.startMs, into, 1, 3)
+    expect([...into]).toEqual([-1, 5, 0])
   })
 
   it('takes threshold heart rate as 90% of the reference maximum, null without one', () => {
@@ -128,6 +132,27 @@ describe('the ride threshold of a set of digests', () => {
       190,
     )!
     expect(result.heartRate).toEqual({ refused: 'no-heart-rate' })
+  })
+
+  it('reads the line it is given, not one of its own', () => {
+    const own = rideThresholdOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, 190)!
+    const library = rideLibraryOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, 190)
+    // The library's line over these same rides is the line a set of them fits for itself.
+    expect(
+      rideThresholdOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, 190, library.line),
+    ).toEqual(own)
+    // A line that is refused is read as refused, whatever these rides' blocks would have said.
+    const refused = rideThresholdOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, 190, {
+      refused: 'stuck',
+    })!
+    expect(refused.heartRate).toEqual({ refused: 'stuck' })
+    expect(refused.efforts).toEqual(own.efforts)
+  })
+
+  it('fits no line where there is no ride reference to read it against', () => {
+    const library = rideLibraryOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, null)
+    expect(library.line).toEqual({ refused: 'no-heart-rate' })
+    expect(library.rides).toHaveLength(6)
   })
 
   it('is the analysis’s ride threshold', () => {

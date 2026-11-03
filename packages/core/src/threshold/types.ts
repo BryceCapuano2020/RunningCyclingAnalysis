@@ -16,6 +16,9 @@ export interface ThresholdEffort {
   estimated: boolean
 }
 
+/** One best of one ride before its age is known: a window gives the age, the ride's, when it reads the ride. */
+export type RideEffort = Omit<ThresholdEffort, 'ageDays'>
+
 /**
  * One 5 min block of a power-meter ride with usable heart rate. It counts toward the heart-rate line when its value is between
  * 45% and 105% of the power estimate. The slope is read within rides, so a ride needs three such blocks to add to it or to the

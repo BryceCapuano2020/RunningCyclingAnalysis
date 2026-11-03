@@ -11,7 +11,7 @@ import { bestCurves } from './rideCurves'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
-import { rideThresholdOf } from './thresholdEfforts'
+import { rideLibraryOf, rideThresholdOf } from './thresholdEfforts'
 import {
   STALE_THRESHOLD_DAYS,
   THRESHOLD_WINDOW_WEEKS,
@@ -196,13 +196,23 @@ describe('thresholdTimeline against the library', () => {
   it('has, for every week, the ride threshold of the rides of its half year, as the analysis reads them', () => {
     const setAside = new Set(ordered.filter((_, i) => i % 7 === 0).map((digest) => digest.id))
     const effort = { referenceHr: { run: 182, ride: 176 }, setAside }
-    const timeline = thresholdTimeline(ordered, masses, bikeModel, judged.rideGate, effort)
+    // The line is the library's, fitted once; a window reads it, as a period does.
+    const library = rideLibraryOf(ordered, masses, bikeModel, judged.rideGate, setAside, 176)
+    const timeline = thresholdTimeline(ordered, masses, bikeModel, judged.rideGate, effort, library)
     let compared = 0
     let withHeartRate = 0
     timeline.ride.forEach((step, i) => {
       if (i % 4 !== 0) return
       const window = windowOf(step.fromMs)
-      const expected = rideThresholdOf(window, masses, bikeModel, judged.rideGate, setAside, 176)
+      const expected = rideThresholdOf(
+        window,
+        masses,
+        bikeModel,
+        judged.rideGate,
+        setAside,
+        176,
+        library.line,
+      )
       if (expected === null) expect(step.fit).toBeNull()
       else {
         expect(step.fit!.cp).toBeCloseTo(expected.value, 8)

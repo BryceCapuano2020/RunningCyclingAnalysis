@@ -54,3 +54,65 @@ describe('the robust mean', () => {
     expect(robustMean([{ value: 100, weight: 0 }])).toBeNull()
   })
 })
+
+/** The mean the plain way: a sort for each median, objects for each point. What the selection and the buffers must not change. */
+function reference(points: { value: number; weight: number }[]): number {
+  const live = points.filter((p) => p.weight > 0 && Number.isFinite(p.value) && p.value > 0)
+  const median = (list: { value: number; weight: number }[]) => {
+    const sorted = [...list].sort((a, b) => a.value - b.value)
+    const total = sorted.reduce((sum, p) => sum + p.weight, 0)
+    let seen = 0
+    for (const p of sorted) if ((seen += p.weight) >= total / 2) return p.value
+    return NaN
+  }
+  let centre = median(live)
+  const deviation = median(
+    live.map((p) => ({ value: Math.abs(p.value - centre), weight: p.weight })),
+  )
+  const scale = Math.max(1.4826 * deviation, 0.02 * centre)
+  for (let pass = 0; pass < 6; pass++) {
+    const next = live.map((p) => {
+      const u = (p.value - centre) / (4.685 * scale)
+      return Math.abs(u) >= 1 ? 0 : p.weight * (1 - u * u) ** 2
+    })
+    const total = next.reduce((sum, w) => sum + w, 0)
+    if (!(total > 0)) break
+    centre = live.reduce((sum, p, i) => sum + p.value * next[i]!, 0) / total
+  }
+  return centre
+}
+
+describe('the robust mean against the plain algorithm', () => {
+  it('gives the same value on seeded sets, with ties, a wild value and uneven weights', () => {
+    let seed = 7
+    const next = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32
+    let sets = 0
+    for (let n = 1; n <= 60; n++) {
+      const points = Array.from({ length: n }, () => ({
+        // Rounded values tie; a few are far off.
+        value: Math.round((10 + 4 * next()) * 4) / 4 + (next() < 0.05 ? 20 : 0),
+        weight: Math.round(1 + 9 * next()) * (next() < 0.1 ? 0 : 1),
+      }))
+      const plain = points.some((p) => p.weight > 0) ? reference(points) : null
+      const got = robustMean(points)
+      if (plain === null) expect(got).toBeNull()
+      else expect(got!.value).toBeCloseTo(plain, 9)
+      sets++
+    }
+    expect(sets).toBe(60)
+  })
+
+  it('is unmoved by the buffers of an earlier, larger call', () => {
+    const big = Array.from({ length: 400 }, (_, i) => ({
+      value: 10 + (i % 7),
+      weight: 1 + (i % 3),
+    }))
+    robustMean(big)
+    const small = [
+      { value: 100, weight: 1 },
+      { value: 101, weight: 1 },
+      { value: 99, weight: 1 },
+    ]
+    expect(robustMean(small)!.value).toBeCloseTo(reference(small), 9)
+  })
+})

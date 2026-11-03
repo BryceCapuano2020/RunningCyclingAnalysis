@@ -1,7 +1,13 @@
 import { CP_FIT_MIN_S, DAY_MS } from '../constants'
 import { ALL_OUT_FRACTION } from '../effort'
-import { rideThreshold } from '../threshold'
-import type { ThresholdBlock, ThresholdEffort, ThresholdEstimate } from '../threshold'
+import { estimateOver, fitRideLine, prepareRide, thresholdBasis } from '../threshold'
+import type {
+  PreparedRide,
+  RideEffort,
+  RideLine,
+  ThresholdBlock,
+  ThresholdEstimate,
+} from '../threshold'
 import type { ActivityDigest, BikeModel } from '../types'
 import { isMeasured } from './bestCurve'
 import { effortsCount } from './effortTrust'
@@ -21,8 +27,10 @@ const LONGEST_EFFORT_S = 3600
  */
 export interface RideEfforts {
   startMs: number
-  efforts: Omit<ThresholdEffort, 'ageDays'>[]
+  efforts: RideEffort[]
   blocks: ThresholdBlock[]
+  /** The same, worked out once for the estimate to read (`prepareRide`). */
+  prepared: PreparedRide
 }
 
 /**
@@ -38,7 +46,7 @@ export function rideEffortsOf(
   standing: EstimatedStanding,
   heartAside: boolean,
 ): RideEfforts {
-  const efforts: RideEfforts['efforts'] = []
+  const efforts: RideEffort[] = []
   const blocks: ThresholdBlock[] = []
   const estimated = !isMeasured(digest)
   for (const point of digest.curve) {
@@ -62,22 +70,43 @@ export function rideEffortsOf(
       }
     }
   }
-  return { startMs: digest.startMs, efforts, blocks }
+  return {
+    startMs: digest.startMs,
+    efforts,
+    blocks,
+    prepared: prepareRide(digest.id, efforts, blocks),
+  }
 }
 
-/** The efforts and blocks of rides read together, each effort aged from `newestMs`, the newest activity of the set. */
-export function thresholdInputs(
-  rides: readonly RideEfforts[],
+/** Every counted ride of the digests, read once: what each gives the estimate, in the order given. */
+export function ridesOf(
+  ordered: ActivityDigest[],
+  masses: Masses,
+  bikeModel: BikeModel,
+  gate: EstimatedRideGate | null,
+  heartSetAside: ReadonlySet<string>,
+): RideEfforts[] {
+  const standing = estimatedStanding(gate)
+  return ofSport(ordered, 'ride')
+    .filter(effortsCount)
+    .map((digest) =>
+      rideEffortsOf(digest, masses, bikeModel, standing, heartSetAside.has(digest.id)),
+    )
+}
+
+/**
+ * Days back from `newestMs` of each ride, never under 0: the age a window gives its rides. `into` is reused where given, so a
+ * library's windows allocate nothing.
+ */
+export function agesOf(
+  rides: readonly { startMs: number }[],
   newestMs: number,
-): { efforts: ThresholdEffort[]; blocks: ThresholdBlock[] } {
-  const efforts: ThresholdEffort[] = []
-  const blocks: ThresholdBlock[] = []
-  for (const ride of rides) {
-    const ageDays = Math.max(0, (newestMs - ride.startMs) / DAY_MS)
-    for (const effort of ride.efforts) efforts.push(Object.assign({ ageDays }, effort))
-    for (const block of ride.blocks) blocks.push(block)
-  }
-  return { efforts, blocks }
+  into: Float64Array = new Float64Array(rides.length),
+  lo = 0,
+  hi = rides.length,
+): Float64Array {
+  for (let i = lo; i < hi; i++) into[i] = Math.max(0, (newestMs - rides[i]!.startMs) / DAY_MS)
+  return into
 }
 
 /** Threshold heart rate: the share of the reference maximum at which an effort is close to all-out. */
@@ -85,9 +114,52 @@ export function thresholdHeartRate(referenceMax: number | null): number | null {
   return referenceMax !== null && referenceMax > 0 ? ALL_OUT_FRACTION * referenceMax : null
 }
 
+/** The newest start among the digests, ms: the activity the rides of a set are aged from. */
+export function newestStart(ordered: readonly ActivityDigest[]): number {
+  return ordered.reduce((newest, digest) => Math.max(newest, digest.startMs), -Infinity)
+}
+
+/**
+ * The heart-rate line of a library's rides, fitted once over all their power-meter blocks and aged from the newest activity
+ * of the digests. A period and every zone window read this line, so the headline and the zones agree.
+ */
+export function rideLineOf(rides: readonly RideEfforts[], newestMs: number): RideLine {
+  return fitRideLine(
+    rides.map((ride) => ride.prepared),
+    agesOf(rides, newestMs),
+  )
+}
+
+/** A library's rides, read once, and the line fitted over them: what its periods and its zone windows all read. */
+export interface RideLibrary {
+  rides: RideEfforts[]
+  line: RideLine
+}
+
+/**
+ * A library's rides read once and the line fitted over them. With no ride reference (`referenceMax` null) there is no
+ * threshold heart rate to read the line against, so none is fitted.
+ */
+export function rideLibraryOf(
+  ordered: ActivityDigest[],
+  masses: Masses,
+  bikeModel: BikeModel,
+  gate: EstimatedRideGate | null,
+  heartSetAside: ReadonlySet<string>,
+  referenceMax: number | null,
+): RideLibrary {
+  const rides = ridesOf(ordered, masses, bikeModel, gate, heartSetAside)
+  const line: RideLine =
+    thresholdHeartRate(referenceMax) === null
+      ? { refused: 'no-heart-rate' }
+      : rideLineOf(rides, newestStart(ordered))
+  return { rides, line }
+}
+
 /**
  * The ride threshold of a set of digests: every ride's bests, read with the ride best curve's rules, aged from the newest
- * activity of the set, with the heart rate of the rides not set aside. Null where the set has no ride effort of 3 min or more.
+ * activity of the set, with the heart rate of the rides not set aside, read against `line` (the library's; absent, one is
+ * fitted over this set's rides). Null where the set has no ride effort of 3 min or more.
  */
 export function rideThresholdOf(
   ordered: ActivityDigest[],
@@ -96,14 +168,15 @@ export function rideThresholdOf(
   gate: EstimatedRideGate | null,
   heartSetAside: ReadonlySet<string>,
   referenceMax: number | null,
+  line?: RideLine,
 ): ThresholdEstimate | null {
-  const standing = estimatedStanding(gate)
-  const newestMs = ordered.reduce((newest, digest) => Math.max(newest, digest.startMs), -Infinity)
-  const rides = ofSport(ordered, 'ride')
-    .filter(effortsCount)
-    .map((digest) =>
-      rideEffortsOf(digest, masses, bikeModel, standing, heartSetAside.has(digest.id)),
-    )
-  const { efforts, blocks } = thresholdInputs(rides, newestMs)
-  return rideThreshold(efforts, blocks, thresholdHeartRate(referenceMax))
+  const rides = ridesOf(ordered, masses, bikeModel, gate, heartSetAside)
+  const newestMs = newestStart(ordered)
+  const prepared = rides.map((ride) => ride.prepared)
+  const basis = thresholdBasis(
+    prepared,
+    line ?? rideLineOf(rides, newestMs),
+    thresholdHeartRate(referenceMax),
+  )
+  return estimateOver(basis, agesOf(rides, newestMs))
 }

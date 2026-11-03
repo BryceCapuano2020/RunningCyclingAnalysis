@@ -7,17 +7,17 @@ import {
 } from '../constants'
 import { criticalPowerOutcome, predictCritical, wPrimeFloor } from '../cp'
 import type { MaxHeartRates } from '../effort'
-import { rideThreshold } from '../threshold'
+import { estimateOver, thresholdBasis } from '../threshold'
+import type { ThresholdBasis } from '../threshold'
 import type { ActivityDigest, BikeModel, CriticalPowerFit } from '../types'
 import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
-import { estimatedStanding } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
 import { ofSport } from './ordered'
 import { runCentralWkg } from './rideCurves'
-import { rideEffortsOf, thresholdHeartRate, thresholdInputs } from './thresholdEfforts'
-import type { RideEfforts } from './thresholdEfforts'
+import { agesOf, rideLibraryOf, thresholdHeartRate } from './thresholdEfforts'
+import type { RideLibrary } from './thresholdEfforts'
 import { NONE, WindowMax, fitCurve, windowCurve } from './thresholdWindow'
 import { THRESHOLD_WINDOW_WEEKS } from './thresholdTimelineTypes'
 import type { ThresholdFit, ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
@@ -39,11 +39,6 @@ interface Placed {
  */
 interface RunEntry extends Placed {
   values: Float64Array
-}
-
-/** One ride: what it gives the ride threshold. It has an effort when it gives any. */
-interface RideEntry extends Placed {
-  efforts: RideEfforts
 }
 
 /** What a window's efforts are judged by: the library's reference heart rates, and whose heart rate is set aside. */
@@ -166,26 +161,24 @@ function runReader(entries: readonly RunEntry[]): WindowReader {
 const RANGE_SPAN_SE = 2.5631
 
 /**
- * The reader of the rides: the ride threshold over the window's rides, with the same inputs the analysis gives it (each ride's
- * efforts and blocks, aged from the newest activity of any sport up to the window's end). Its standard error is the width of its
- * range read as a normal's.
+ * The reader of the rides: the ride threshold over the window's rides, read against the library's line (fitted once, not per
+ * window) as the analysis reads a period: each ride's efforts, aged from the newest activity of any sport up to the
+ * window's end. Its standard error is the width of its range read as a normal's.
  */
 function rideReader(
-  rides: readonly RideEntry[],
+  library: RideLibrary,
   all: readonly ActivityDigest[],
-  thresholdHr: number | null,
+  basis: ThresholdBasis,
 ): WindowReader {
   const ends = all.map((digest) => weekEndFor(digest))
+  const ages = new Float64Array(library.rides.length)
   let seen = 0
   return {
     fit(lo, hi, untilMs) {
       while (seen < all.length && ends[seen]! <= untilMs) seen++
       if (lo >= hi || seen === 0) return null
-      const { efforts, blocks } = thresholdInputs(
-        rides.slice(lo, hi).map((ride) => ride.efforts),
-        all[seen - 1]!.startMs,
-      )
-      const estimate = rideThreshold(efforts, blocks, thresholdHr)
+      agesOf(library.rides, all[seen - 1]!.startMs, ages, lo, hi)
+      const estimate = estimateOver(basis, ages, lo, hi)
       return estimate === null
         ? null
         : { cp: estimate.value, cpSe: (estimate.high - estimate.low) / RANGE_SPAN_SE }
@@ -219,7 +212,8 @@ const NOT_JUDGED: TimelineEffort = {
  * weeks that end with it (see `ThresholdStep`). A run's is the critical-power fit, as the analysis reports it. A ride's is the
  * ride threshold (`rideThreshold`) over the window's rides, read as the analysis reads them: priced as the library's best curves
  * are (its bike model and estimated-ride gate, each ride at its own day's body mass), with the heart rate of the rides not set
- * aside in `effort` and the threshold heart rate of its ride reference. Each ride is read once, and a week costs one estimate.
+ * aside in `effort` and the threshold heart rate of its ride reference. Each ride is read once, the heart-rate line is fitted once
+ * over the library's rides (`library`, which the caller may have made already), and a week costs one estimate against it.
  */
 export function thresholdTimeline(
   ordered: readonly ActivityDigest[],
@@ -227,23 +221,23 @@ export function thresholdTimeline(
   bikeModel: BikeModel,
   gate: EstimatedRideGate | null,
   effort: TimelineEffort = NOT_JUDGED,
+  library?: RideLibrary,
 ): ThresholdTimeline {
-  const standing = estimatedStanding(gate)
   const all = [...ordered]
-  const rides = ofSport(all, 'ride')
-    .filter(effortsCount)
-    .map((ride): RideEntry => {
-      const efforts = rideEffortsOf(ride, masses, bikeModel, standing, effort.setAside.has(ride.id))
-      return {
-        weekEnd: weekEndFor(ride),
-        startMs: ride.startMs,
-        efforts,
-        effort: efforts.efforts.length > 0,
-      }
-    })
-  const thresholdHr = thresholdHeartRate(effort.referenceHr.ride)
+  const own =
+    library ?? rideLibraryOf(all, masses, bikeModel, gate, effort.setAside, effort.referenceHr.ride)
+  const placed = own.rides.map((ride): Placed => ({
+    weekEnd: weekEndFor(ride),
+    startMs: ride.startMs,
+    effort: ride.efforts.length > 0,
+  }))
+  const basis = thresholdBasis(
+    own.rides.map((ride) => ride.prepared),
+    own.line,
+    thresholdHeartRate(effort.referenceHr.ride),
+  )
   return {
     run: runSteps(ofSport(all, 'run').filter(effortsCount), null),
-    ride: stepsOf(rides, rideReader(rides, all, thresholdHr)),
+    ride: stepsOf(placed, rideReader(own, all, basis)),
   }
 }

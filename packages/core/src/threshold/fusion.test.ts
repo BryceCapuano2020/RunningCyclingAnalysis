@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fuse } from './fusion'
+import { FUSION_GRID, GAP_PRIOR } from './constants'
+import { ERROR_STEP, fuse } from './fusion'
 
 const POWER = 250
 const heartRate = (share: number, relativeError = 0.04) => ({
@@ -106,5 +107,69 @@ describe('fusing the power estimate with heart rate', () => {
     } finally {
       exp.mockRestore()
     }
+  })
+})
+
+/** The posterior from power alone at exactly `error`, by the plain sum over the gap grid, without the rounding or the cache. */
+function exactAlone(power: number, error: number) {
+  const steps = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
+  const gaps = Math.round(GAP_PRIOR.largeMax / FUSION_GRID.gapStep)
+  const weights = Array.from({ length: steps }, (_, i) => {
+    const x = FUSION_GRID.from + i * FUSION_GRID.step
+    let total = 0
+    for (let k = 0; k < gaps; k++) {
+      const g = k * FUSION_GRID.gapStep
+      const prior =
+        ((1 - GAP_PRIOR.largeShare) * Math.exp(-g / GAP_PRIOR.smallMean)) / GAP_PRIOR.smallMean +
+        GAP_PRIOR.largeShare / GAP_PRIOR.largeMax
+      total += prior * Math.exp(-0.5 * ((x - g) / error) ** 2)
+    }
+    return total
+  })
+  const sum = weights.reduce((a, b) => a + b, 0)
+  const at = (share: number) => {
+    let seen = 0
+    for (let i = 0; i < steps; i++) {
+      if ((seen += weights[i]!) >= share * sum)
+        return power * (1 + FUSION_GRID.from + i * FUSION_GRID.step)
+    }
+    return power * (1 + FUSION_GRID.to)
+  }
+  return { value: at(0.5), low: at(0.1), high: at(0.9) }
+}
+
+describe('reading the power estimate’s error to a step', () => {
+  it('is the exact answer at a multiple of the step', () => {
+    for (const error of [0.025, 0.03, 0.0605, 0.125]) {
+      const fused = fuse(POWER, error, null)
+      const exact = exactAlone(POWER, error)
+      expect(fused.value).toBeCloseTo(exact.value, 9)
+      expect(fused.low).toBeCloseTo(exact.low, 9)
+      expect(fused.high).toBeCloseTo(exact.high, 9)
+    }
+  })
+
+  it('moves no quantile by more than one grid step of the power estimate, over errors from 2.5% to 25%', () => {
+    let worst = 0
+    let moved = 0
+    let total = 0
+    for (let error = 0.025; error <= 0.25; error += 0.0001) {
+      const fused = fuse(POWER, error, null)
+      const exact = exactAlone(POWER, error)
+      for (const key of ['value', 'low', 'high'] as const) {
+        const miss = Math.abs(fused[key] - exact[key]) / POWER
+        worst = Math.max(worst, miss)
+        if (miss > 1e-9) moved++
+        total++
+      }
+    }
+    expect(worst).toBeLessThanOrEqual(FUSION_GRID.step + 1e-9)
+    // Usually none at all: a quantile sits on a grid point, and a quarter of a step of error rarely carries it to the next.
+    expect(moved / total).toBeLessThan(0.15)
+  })
+
+  it('gives errors in the same step the same answer, and a different step another', () => {
+    expect(fuse(POWER, 0.025, null)).toEqual(fuse(POWER, 0.025 + ERROR_STEP / 4, null))
+    expect(fuse(POWER, 0.025, null)).not.toEqual(fuse(POWER, 0.2, null))
   })
 })

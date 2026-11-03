@@ -32,6 +32,7 @@ import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate } from '../predict/vo2max'
+import type { RideLine } from '../threshold'
 import type { HeartRateJudgement } from './setAsideTypes'
 
 /** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
@@ -136,6 +137,11 @@ export interface CombineOptions {
    */
   rideGate?: EstimatedRideGate | null
   /**
+   * The heart-rate line of the whole library's rides (`JudgedWork.rideLine`). Given, the ride threshold reads it, so a period's
+   * headline and the zones' windows are cut by one line. Absent, a line is fitted over these digests' rides.
+   */
+  rideLine?: RideLine
+  /**
    * What judging the library worked out (`judgedWorkOf`). Used only when these digests are the judged ones under the
    * same masses, gate and set-aside, when the analysis is the same figures without working them out again.
    */
@@ -238,6 +244,7 @@ export function combine(
     gate,
     heart.setAside,
     judged.referenceHr.ride,
+    opts.rideLine,
   )
   return {
     activities: activitySummaries(digests, settings, rideReferenceOf(judged)),

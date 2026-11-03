@@ -1,4 +1,4 @@
-import { mean } from '../math'
+import { mean, selectInPlace } from '../math'
 
 /**
  * The element at index floor(n / 2) of the sorted values: no interpolation, so a median of slopes is a slope that exists.
@@ -9,9 +9,9 @@ export function median(values: ArrayLike<number>): number {
   return medianElementInPlace(Float64Array.from(values))
 }
 
-/** `median` of an array the caller does not need again: sorted in place, with no copy. */
+/** `median` of an array the caller does not need again: partly ordered in place by selection, with no copy and no full sort. */
 export function medianElementInPlace(values: Float64Array): number {
-  return values.sort()[Math.floor(values.length / 2)]!
+  return selectInPlace(values, Math.floor(values.length / 2))
 }
 
 export function standardDeviation(values: readonly number[]): number {
@@ -22,13 +22,4 @@ export function standardDeviation(values: readonly number[]): number {
 export interface Weighted {
   value: number
   weight: number
-}
-
-/** The first value, in order, at which the weights add up to half of their total; NaN where no weight is positive. */
-export function weightedMedian(points: readonly Weighted[]): number {
-  const live = points.filter((p) => p.weight > 0).sort((a, b) => a.value - b.value)
-  const total = live.reduce((sum, p) => sum + p.weight, 0)
-  let seen = 0
-  for (const p of live) if ((seen += p.weight) >= total / 2) return p.value
-  return NaN
 }

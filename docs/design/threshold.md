@@ -205,3 +205,20 @@ export function rideThreshold(
 - **A window with any ride effort has an estimate**, so the older-fit and outgrown rules apply to rides only when a window
   holds no ride effort at all, and the best-30-min zone floor only where no window does.
 - **`WindowReason` loses `most`**: with an easy 20 min no lack, a window either qualifies or the default falls to all time.
+- **The heart-rate line is fitted once per library, not once per window.** The slope within rides, each ride's offset, the
+  stuck and far-off rides and the spread come from all the library's power-meter rides (`rideLibraryOf`, kept in
+  `JudgedWork.rideLine`), and the timeline's windows and every period read that one line (`estimateOver`). Why: fitting it is the
+  cost of the estimate (the Theil-Sen over 300 points), so a window per week of a four-year library took about 0.8 s on the
+  session loads (3 s before the estimator's own speed-up), against the 0.05 s the loads were budgeted; and a window of a few weeks has too few blocks to fit a line as well as the library does. It also makes the headline
+  and the zones agree: both read one line, where each fitting its own gave two thresholds from the same rides. A window keeps what
+  is its own: its power estimate (the climb from half to full threshold power is asked of it, so a window of easy rides can
+  refuse a line the library accepts), its pooled offset (the median of its own rides' offsets, which a ride with no blocks is read
+  at), its highest block, and its efforts. One window that is the whole set gives exactly what fitting its own line gave
+  (`rideThreshold` is that case).
+- **Each ride is prepared once** (`PreparedRide`: its strongest scaled effort, the efforts the heart rate reads, its blocks), and
+  the efforts' value at threshold heart rate and their quality are worked out once against the line, so a window multiplies by
+  the recency of each ride and takes the two robust means. The weighted medians inside are found by selection, not sorting.
+- **The power estimate's error is read to 0.05 points** (`ERROR_STEP`) for the two things worked out from it: the gap prior
+  smeared by it (30,000 exponentials) and the quantiles of the posterior from power alone, which are fixed multiples of the
+  power estimate for a given error. Most windows sit at the 2.5% floor. What the rounding costs, measured over errors from 2.5%
+  to 25%: no quantile moves by more than one grid step (0.2% of the power estimate), and about 3% of them move at all.
