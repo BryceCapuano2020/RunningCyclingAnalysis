@@ -248,7 +248,8 @@ describe('CrossSportCard', () => {
       makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
     )
     expect(container.querySelector('article')).toHaveClass('stat-tile')
-    expect(container.querySelector('.chip')).toBeNull()
+    // The head holds the sport dot and the name, and nothing else: no chip beside the heading.
+    expect(container.querySelectorAll('.stat-tile__head > *')).toHaveLength(2)
     expect(container.querySelector('.cross-sport__pair')).toBeNull()
   })
 
