@@ -4,7 +4,7 @@ Status: built (`packages/core/src/effort/`), applied to the labels of the Balanc
 late-in-sessions views, and, for race predictions, to whether a range is drawn (a time is always shown). It no longer
 withholds a threshold or cuts a zone window ([threshold.md](threshold.md)): a threshold is the best estimate from all the
 data. The verdict stays as a label: the note under the Balance headline, the bound on a race prediction, the check behind the
-change test, and one line in a run threshold's detail. One use stays for now: a best 20 minutes shown not hard is still a lack
+change test, the share card's caveat and the ride on foot card's chip. One use stays for now: a best 20 minutes shown not hard is still a lack
 for the default window, which only picks the period that opens first (threshold.md, "What it replaces"). Calibrated on the
 synthetic harness; no real figures are in this note.
 
@@ -13,9 +13,9 @@ synthetic harness; no real figures are in this note.
 A best effort is a lower bound on what an athlete can do. It becomes a capability (a level to set against the other sport, a
 race time with a range) only when it was a hard effort, and heart rate is the evidence the app has. A threshold is not held to
 that: a ride's is estimated from every ride's strongest effort with heart rate as a second estimate that can lift it and never
-lowers it, and a run's is its critical-power fit, so a best that was not hard changes no threshold and no zone. The gate asks one
-question per sport and period: **was the best 20 minutes a hard effort?** The best 20 minutes is the effort every fit has to
-reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the run threshold's detail names. Of the 20 minute
+lowers it, and a run's is built the same way from pace alone, so a best that was not hard changes no threshold and no zone. The gate asks one
+question per sport and period: **was the best 20 minutes a hard effort?** The best 20 minutes is the effort every critical-power fit has to
+reach (`CP_FIT_REACH_TOLERANCE`) and the one the Balance headline grades. Of the 20 minute
 efforts within 5% of the best (a headwind or a hill moves a best by that), the one held at the highest heart rate is judged, in
 the gate, the chip, the previous-period check and the threshold timeline alike.
 
@@ -24,9 +24,8 @@ heart rate to set a reference (`thin`), or no 20 minute best. An unknown verdict
 "Effort not checked" with the reason and what would let it be checked: a note sits beside the Balance headline, which is shown (a rider with a power
 meter and no strap would otherwise never have one). Only a best that was not shown hard holds the headline. The line is the existing one: 90% of the reference heart rate, judged on the percent shown (`isHardShare`).
 
-A failed gate withholds no threshold. A ride's threshold card shows its estimate with no chip and no floor, and does not
-read the verdict at all; a run's shows its fit, and its detail ("How this was worked out", one tap down) says how hard the best
-20 minutes was, with the share. The surfaces that hold a comparison or a prediction say what is missing, and that depends on why
+A failed gate withholds no threshold. A threshold card, a ride's or a run's, shows its estimate with no chip and no floor, and does
+not read the verdict at all. The surfaces that hold a comparison or a prediction say what is missing, and that depends on why
 it failed (`EffortGate.neededS`):
 
 - the reference can be trusted and the best was under the line: the words say what is true, that it reached (say) 82% of the reference, under the 90% that marks a hard
@@ -67,14 +66,15 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 ## Where it applies, and what each shows when it fails
 
-- **Threshold** (`combine`): never withheld for the verdict. A ride's is `rideThreshold`, with heart rate as a second estimate that can
-  lift it and never a veto. A run's is `runCp`, the critical-power fit; its refusals are the shape of the curve and a work capacity under
-  the floor, and a run whose fit is refused still shows its best 30 min as "At least" with the line "From your best 30 min.". The verdict
-  reaches a threshold card only as a line in the run's detail: the share of the reference the best 20 minutes reached, what that share
-  shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%: "within 10% of your highest heart rate. Heart rate
-  cannot tell a hard 20 min from an all-out one"; under the line, that it is under the 90% that marks a hard effort), or that the effort was not checked,
-  with the reason, or not confirmed for an untrusted reference. The reference is named by its source (the activities, the maximum
-  entered, the age). The Balance headline says an unchecked best once, under the lede; no threshold card asks for heart rate.
+- **Threshold** (`combine`): never withheld for the verdict, and no threshold card shows it. A ride's is `rideThreshold`, with heart rate
+  as a second estimate that can lift it and never a veto. A run's is `runThreshold`, built the ride's way from pace alone
+  (docs/design/threshold.md), so a refused critical-power fit, an uneven one or a best that was not hard changes nothing on a run's card, and no
+  run shows its best 30 min as "At least". The verdict's wording (the share of the reference the best 20 minutes reached and what that
+  share shows: 95% and over, "close to your highest heart rate"; 90 to 94%, "within 10% of your highest heart rate. Heart rate cannot tell
+  a hard 20 min from an all-out one"; under the line, that it is under the 90% that marks a hard effort; or that the effort was not checked,
+  with the reason, or not confirmed for an untrusted reference) is the detail of the ride on foot card's chip, and the share card keeps a short caveat of its own. The
+  reference is named by its source (the activities, the maximum entered, the age). The Balance headline says an unchecked best once,
+  under the lede; no threshold card asks for heart rate.
 - **Effort chip**: gone from the threshold cards, where it was the headline's second status. The ride on foot card keeps it: it says the
   ride behind its pace was not hard or not checked, and nothing of one that was. When the judged effort is one close to the best and not the
   best itself, the reading says "A 20 min effort within 5% of your best".
@@ -117,29 +117,24 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   3 long sessions reads the library and says so. Each steady effort of the drift carries its average share of the maximum, and the note
   gives its range. Drift is not filtered: it is defined on submaximal steady efforts.
 
-## The fit spread
+## The fit spread (gone)
 
-A run's range, one-sided (`cpBand`): down by the regression error, up by an allowance that falls with the share of the reference the judged effort
-reached, `0.044 + 0.386 x (1 - share)` of the threshold (a share of 0.9 allows 8.3%, an unchecked effort is read as 0.9). A best that
-was not quite all-out puts the fit under the truth, so the truth lies above it. Both ends are in gross metabolic W/kg, the fit's unit.
-
-Fitted to the 1,085 gate-passing fits of 11 arms: the truth's distance above the fit regressed on 1 - share gives 0.037 + 0.386 x (1 -
-share), and the 67th percentile of what is left, 0.0074, is added. The band held the truth in 67% of those fits, **in-sample**: the
-allowance was fitted to the same fits, so this is the fit's own coverage over 100 athletes an arm and no interval or out-of-sample claim is made for it (with the
-regression error alone and no allowance it is 58%). Where the gate could not judge, the band takes the allowance of an effort at the hard line. **That is synthetic coverage**: the harness's efforts are not quite
-all-out by construction (a test at 94% to 100% of critical power), and a real athlete's miss may be larger or smaller; field fits
-against a laboratory threshold show a standard error of estimate of 5.2% (Karsten et al. 2015), the same size as the allowance at the
-hard line. Leave-one-out on the 9 curves of the public corpus (`cp.corpus.test.ts`): the jackknife error of the threshold is 0.7 to 1.4 times
-the regression error (median 1.2), so the curve is described about as well as the regression says; it measures curve misfit, not whether
-the efforts were maximal, and these are single sessions.
+A run's range was once the critical-power fit's, one-sided: down by the regression error, up by an allowance that fell with the share of
+the reference the judged effort reached (`cpBand`, fitted to the gate-passing fits of the synthetic harness, in-sample). A run's threshold is
+now the estimate in docs/design/threshold.md, whose range is its own and is checked against simulated runners there, so the band, its
+allowance and its coverage test are removed. The fit's own jackknife error on the public corpus (`packages/core/src/corpus/cp.corpus.test.ts`) is the one figure kept:
+0.7 to 1.4 times the regression error (median 1.2), so a curve is described about as well as the regression says. It measures curve
+misfit, not whether the efforts were maximal, and these are single sessions.
 
 ## The duration a threshold is held for
 
-The fit rests on efforts of 3 to 20 minutes, and "about an hour" is not what that supports; the tile says "about 30 min"
-(`THRESHOLD_HOLD_S`). Poole et al. 2016 (Med Sci Sports Exerc 48:2320, PMC5070974) report riders completing 24 minutes at critical power
-without difficulty, and exercise just above it sustained for "perhaps 30 minutes"; on noise-free curves that fall with duration the fit sat
-at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between those, is a convention
-stated in the constant. A published 20 to 40 minute range for time to exhaustion at critical power could not be verified and is not cited.
+A threshold is the pace or power held for an hour, for a run as for a ride (docs/design/threshold.md), and a card says "threshold" with no
+duration of its own. The 30 minutes of `THRESHOLD_HOLD_S` belongs to the gate's floor, the best 30 minutes, and to the critical-power fit: that
+fit rests on efforts of 3 to 20 minutes, and Poole et al. 2016 (Med Sci Sports Exerc 48:2320, PMC5070974) report riders completing 24
+minutes at critical power without difficulty, and exercise just above it sustained for "perhaps 30 minutes"; on noise-free curves that fall
+with duration the fit sat at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between
+those, is a convention stated in the constant. A published 20 to 40 minute range for time to exhaustion at critical power could not be verified
+and is not cited.
 
 ## Calibration (synthetic harness, `effort/gate.*.sim.test.ts` (harness: `effort/test/gateSim.ts`))
 

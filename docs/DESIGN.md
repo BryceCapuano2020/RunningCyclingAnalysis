@@ -579,9 +579,10 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **A ride's threshold is one best estimate, from every ride** (docs/design/threshold.md). It is the strongest effort of each ride scaled to an hour and averaged, with heart rate as a second estimate that can raise it and never lowers it (the answer is the estimate from power alone unless heart rate lifts it, and then no higher than heart rate reads), so no effort check withholds it, floors it or labels it. It is null only where no ride has an effort of 3 min or more, and then its place reads "Needs an effort of 3 min or longer". The figure is watts at today's mass with W/kg beside it, on the sport page's panel, Balance's tile, the share card, the curve chart's threshold line and the import summary alike. It has no chip ("At least", "Estimated", "Not all-out", "Hard effort"), no track and no "Best 20 min" line. One basis line sits under it, "From 5 rides. Strongest: 12 min on 4 Mar.", from `rideThreshold.efforts`: the rides it rests on and the effort that scales highest, with its length and day, and ", on estimated watts" where that effort had no power meter. One tap down, "How this was worked out" opens, in a definition: the range ("Range 258 to 316 W", the estimate's 10th to 90th percentile, or "About 258 W" where the ends print the same), the method in one sentence, that heart rate can raise the answer and never lowers it, and what it did here: raised the answer, did not raise it, or was not used, with one plain clause why (`HeartRateRefusal`: "your heart rate rises too little with power to read"). Heart rate is never said to have set an answer it did not raise. The range is not called an 80% range: it held the true threshold for more riders than that in the simulations. The best 20 min's share of the max heart rate is not said for a ride, since the estimate does not read the effort's hardness; the share card's caveat line is the gate's, unchanged.
 - **A run's threshold is one best estimate, from every run** (docs/design/threshold.md, "Runs"), built as a ride's is and shown the
   same way. It is the strongest effort of each run scaled to an hour with the running table and averaged, with more weight on recent
-  runs and on those near the athlete's top, and never under an hour the athlete ran. It is worked out from pace alone: a run's card
-  and the Method page say nothing of heart rate, with no "can raise the answer" sentence and no "Here it was not used" one (heart
-  rate was tried for runs on a real library and lifted the estimate too far). It is null only where no run has an effort of 3 min
+  runs and on those near the athlete's top, and never under an hour the athlete ran. It is worked out from pace alone, for now: a run's
+  card and the Method page's run lines say nothing of heart rate, with no "can raise the answer" sentence and no "Here it was not used"
+  one, and the Method page's heart-rate line names the ride (heart rate was tried for runs on a real library and lifted the estimate
+  too far). It is null only where no run has an effort of 3 min
   or more, and then its place reads "Needs an effort of 3 min or longer". The figure is pace (GAP, on the page's units) on the sport page's
   panel, Balance's tile, the curve chart's threshold line, the zones' source line and the share card alike, all read through
   `thresholdEstimate(result, sport)`. It has no chip ("At least", "Estimated", "Best 12 min", "Not all-out", "Hard effort"), no range
@@ -589,7 +590,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   Strongest: 40 min on 4 Mar.", from `runThreshold.efforts`: the runs it rests on and the effort that scales highest, with its length and
   day (a run's effort is never estimated, so the line never says "on estimated watts"). One tap down, "How this was worked out" opens the range
   ("Range 4:10 to 4:39 /km", the estimate's 10th to 90th percentile, or "About 4:24 /km" where the ends print the same) and the method in
-  one sentence. The critical-speed fit stays for the curve chart and the race predictions only: a refused fit, an uneven one, a best that
+  one sentence. The critical-speed fit (`runCp`) stays on the result and no screen reads it: the curve chart draws the bests and the
+  estimate's threshold line, and the race predictions read the bests and the heart-rate VO2max. A refused fit, an uneven one, a best that
   was not hard and the effort gate's floor reach none of these cards. The zones table says where its pace came from as a ride's power
   is said, "Threshold pace: 7:30 /mi, estimated from your runs" (and "up to Mar 2025" for an older one). The share card labels it "Threshold GAP,
   estimated from your runs", since the card has no note to say what GAP allows for, and a card is offered once both sports have an estimate.
@@ -1095,9 +1097,10 @@ and the tests named at the foot of that page keep the two in step. A display siz
   check and the accuracy section, with their charts outside the columns at the full width. The page is about 5,600 px
   tall at 1280 px, where it was 11,900 px.
 - **A threshold entry says how each sport's threshold is worked out, in one line each**: a ride's is the strongest effort of each
-  ride scaled to an hour and averaged, with heart rate as a second estimate that can raise it and never lowers it; a run's is built
-  the same way from each run, scaled with Daniels and Gilbert's table (its figures are read from the code), and says nothing of heart
-  rate; neither is ever under an hour the athlete did. The run's critical-speed fit, its range and its "At least" floor are not on the page.
+  ride scaled to an hour and averaged, and its next line says heart rate, naming the ride ("A ride's threshold can be raised by heart
+  rate and never lowered"); a run's is the strongest effort of each run scaled to an hour and averaged, with Daniels and
+  Gilbert's table (its figures are read from the code), and says nothing of heart rate, since runs read pace only for now; neither is
+  ever under an hour the athlete did. The run's critical-speed fit, its range and its "At least" floor are not on the page.
   A zone table's reference line on Profile says a run's pace as a ride's power is said: "Threshold pace: 4:46 /km, estimated from your
   runs". A ride's reads "Threshold power: 240 W, estimated from your rides". A pace cut from a floor (the zones' own fallback, below) still
   reads "Threshold pace: at least 4:46 /km, from your best 30 min on 4 Sep".

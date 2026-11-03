@@ -88,8 +88,10 @@ error that one ride carries.
 
 The effort gate no longer withholds a threshold. `gatedThreshold`'s veto, the best-30-min floor on the
 headline and on zones, the 3 to 10 min fit as a range top, and the per-window hard check behind zones go.
-The gate's verdict stays as a detail label. `runCp` and `rideCp` stay the critical-power fits the curve chart draws (the
-run's also feeds the race predictions); neither is a headline any more.
+The gate's verdict stays as a detail label. `runCp` and `rideCp` stay on the result as the critical-power fits (cp and W'),
+with `runCpRefusal` and `runCpUneven`. Nothing reads them now: no screen does (the curve chart draws the bests and the estimate's
+threshold line, and the race predictions read the bests and the heart-rate VO2max, not the fit), and neither is a headline. The tests and simulations read them,
+and the heart-rate set-aside fits its own (`digest/setAside.ts`).
 
 Runs first kept that fit without the veto, because a run version needed its own duration table. It has one now (Runs), and the
 run threshold replaces the fit everywhere a headline reads one.
@@ -232,7 +234,8 @@ the range, the records and the share card show one number.
   4:24 /km" where the ends print the same) and the method in one sentence: the strongest effort of each run, scaled to an hour and
   averaged, with more weight on recent runs and on those near the athlete's top, and never under an hour the athlete ran.
 - **Nothing about heart rate.** A run's threshold is worked out from pace alone, so its detail has no "Heart rate can raise the
-  answer" sentence and no "Here it was not used" one, and the Method page's run lines say nothing of it. The estimator accepts a
+  answer" sentence and no "Here it was not used" one, and the Method page's run lines say nothing of it (its heart-rate line
+  names the ride: "A ride's threshold can be raised by heart rate and never lowered"). The estimator accepts a
   threshold heart rate and the run reading was built (above), but trying it on a real library lifted the estimate too far while pace
   alone was right, so the caller passes none and `runThreshold.heartRate` is `{ refused: 'no-heart-rate' }` for every run. A test
   holds the run detail to that: it carries no heart-rate sentence whether the estimate holds a reading or a refusal.
@@ -240,8 +243,8 @@ the range, the records and the share card show one number.
   older estimate, as a ride's). The share card says "Threshold GAP, estimated from your runs", and a card needs an estimate on both
   sports. The Method page's Thresholds entry says the run's method beside the ride's and quotes the table's percentages from the
   code (`DURATION_TABLES.run`): an all-out 10 min effort is 14% above an hour's energy rate, 20 min 7%, 40 min 3%.
-- **What stays on the fit.** `runCp` keeps the curve chart's critical-power fit and the race predictions. Its refusal, its uneven
-  fit and the effort gate's floor no longer reach a threshold card.
+- **What stays on the fit.** `runCp` stays on the result as the critical-power fit, read by no screen (see "What it replaces").
+  Its refusal, its uneven fit and the effort gate's floor no longer reach a threshold card.
 
 ### Evidence for runs
 
@@ -329,8 +332,8 @@ export function runThreshold(efforts, blocks, thresholdHr): ThresholdEstimate | 
 ```
 
 `AnalysisResult.rideThreshold` and `AnalysisResult.runThreshold` (each `ThresholdEstimate | null`) carry them. `rideCp` and
-`runCp` stay as the critical-power fits (cp and W') for the curve chart, with no veto; the race predictions still read
-`runCp`. A sport added to `Sport` has to say how its bests scale (an entry in `DURATION_TABLES`) before it has a threshold.
+`runCp` stay as the critical-power fits (cp and W') with no veto, and nothing reads them: the curve chart and the race predictions
+do not (see "What it replaces"). A sport added to `Sport` has to say how its bests scale (an entry in `DURATION_TABLES`) before it has a threshold.
 `efforts.value` is the mean of the rides' estimates or, where it is higher, a backed hour in the window (step 7);
 `efforts.strongest` names the hour then.
 
@@ -416,9 +419,10 @@ export function runThreshold(efforts, blocks, thresholdHr): ThresholdEstimate | 
   sport's entry in `thresholdReferenceOf` turns heart rate on.
 - **The run threshold replaces the critical-power fit as the headline everywhere a headline reads one**: the zones' run steps,
   the evidence rule (`answer/evidence.ts`, with the same 20 min condition as a ride's) and, in the screens, the card, the tile,
-  the share card, the records and the Method page. `runCp` is kept for the curve chart and the race predictions.
+  the share card, the records and the Method page. `runCp` stays on the result and nothing reads it.
 - **Runs use no heart rate.** The run card and the Method page's run lines say nothing of it, and the run estimate is from pace
-  alone (the coordinator's decision of 3 Nov, after trying heart rate for runs on a real library).
+  alone (decided after trying heart rate for runs on a real library). The Method page's heart-rate lines name the ride, so a
+  reader does not take them for the run's.
 - **The hour floor is on the power estimate, not on the fused answer**, so `value > efforts.value` still means exactly that
   heart rate lifted it (a screen says so), and heart rate that reads under an hour done lifts nothing.
 - **The floor counts every measured hour in the window, and backs it.** The first version counted any hour, estimated watts

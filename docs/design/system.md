@@ -128,7 +128,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   zone step is within 10 of it (`runColour.test.ts`, `zoneRamp.test.ts`).
 - **Context** (`--previous-mark`, `--grid`, `--neutral-mark`, `--neutral-band`, the level bands) is what is neither sport
   nor status: the previous period, gridlines, reference marks.
-- **Honesty shapes** are shapes, not colours: a dot is a recorded effort, a ring an estimate, a floor says "At least". They
+- **Honesty shapes** are shapes, not colours: a dot is a recorded effort, a ring an estimate, a floor in a zone table says "at least". They
   hold in both schemes and in forced colours.
 
 **Zone ramps.** Five steps for each sport, lowest effort first, with one ink per step (`--zone-ink-n`) for both. Ride is blue
@@ -198,8 +198,8 @@ Two surfaces, and a page is mostly the second.
   under it. The sport page's sections, its answer and the fitness card are bands, with a 4 px sport rule beside the fitness
   card's heading.
 - **Labels.** `.tag` is the small condensed capitals that name a thing: condensed 700, upper case, `--tracking-caps`, muted
-  by default, `tag--ink` for the supporting ink and `tag--small` for 12 px. `.eyebrow` is the same rule. A tile's name and
-  basis, the sport page's period, the levels' name, a change's evidence tag, the fitness card's sport and the track's
+  by default, `tag--ink` for the supporting ink and `tag--small` for 12 px. `.eyebrow` is the same rule. A tile's name, the sport
+  page's period, the levels' name, a change's evidence tag, the fitness card's sport and the track's
   markers take it and keep only their layout, shape and state (`styles/tag.test.ts`). A state that sets its own colour
   compounds with `.tag` (`.tag.balance-changes__tag--recorded`), since the tag is later in the bundle. `.chip` is the
   boxed form for a small status or a record's level.
@@ -235,7 +235,7 @@ hold what a rule engine cannot see:
 | `styles/zoneRamp.test.ts`, `styles/runColour.test.ts`             | The ramps and the run coral, by contrast and CIEDE2000.                                                                                                                                    |
 | `styles/typeScale.test.ts`                                        | The display scale, sizes above the body, one line height, no clamp outside the tokens, no 700 or 800 on the sans face, and the count of sizes that bypass the tokens only falls.           |
 | `styles/layoutTokens.test.ts`                                     | One shell width, one measure, two gaps, the radius and shadow names, the band rule, and the ratchets on `ch` caps and raw radii.                                                           |
-| `styles/tag.test.ts`                                              | One rule for the tag, and the seven classes that take it set no face of their own.                                                                                                         |
+| `styles/tag.test.ts`                                              | One rule for the tag, and the classes that take it set no face of their own.                                                                                                               |
 | `e2e/box-census.spec.ts`                                          | The box ratchet.                                                                                                                                                                           |
 | `e2e/focus-not-obscured`, `reflow`, `forced-colours`, `text-zoom` | The four checks above.                                                                                                                                                                     |
 | `src/shareMetadata.test.ts`                                       | The social card's stamp: `make-social-card.ts` reads its colours from `tokens.css` and its figures from the sample, so the image moves only when they do.                                  |
