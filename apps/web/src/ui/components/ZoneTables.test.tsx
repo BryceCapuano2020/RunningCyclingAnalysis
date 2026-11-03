@@ -68,35 +68,22 @@ describe('ZoneTables, the max heart rate and its source', () => {
       />,
     )
 
-  it('names where the figure comes from and asks if it is right, with a Set control that says which figure', () => {
-    const onSet = vi.fn()
-    zones(onSet)
+  it('names where the figure comes from and asks nothing of it: no question, no Set control', () => {
+    zones(vi.fn())
     expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
-    expect(screen.getAllByText(/^Is that right\?/)).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Set it for your run max heart rate' }))
-    expect(onSet).toHaveBeenCalledWith('run', 186)
-    // The ride's is worked out from the run's, and can be corrected too.
+    // The ride's is worked out from the run's, and says so.
     expect(
       screen.getByText('Max heart rate: 180 bpm, 6 bpm below your running maximum.'),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Set it for your ride max heart rate' }))
-    expect(onSet).toHaveBeenLastCalledWith('ride', 180)
-  })
-
-  it('names each Set control by words that include its visible text, for speech input', () => {
-    zones(vi.fn())
-    for (const sport of ['run', 'ride']) {
-      const button = screen.getByRole('button', { name: `Set it for your ${sport} max heart rate` })
-      expect(button).toHaveTextContent('Set it')
-      expect(button.getAttribute('aria-label')!.startsWith(button.textContent!)).toBe(true)
-    }
+    expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Is that right/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Set it/ })).toBeNull()
   })
 
   it('states the source without the question when it cannot be set from here', () => {
     zones()
     expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Set your/ })).toBeNull()
-    expect(screen.queryByText(/Is that right/)).toBeNull()
   })
 })
 
@@ -192,10 +179,19 @@ describe('ZoneTables, a max heart rate that cannot be one', () => {
     expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeTruthy()
   })
 
-  it('leaves the small offer alone for a max that can be one', () => {
+  it('asks nothing of a max that can be one: no note, no question, no Set control', () => {
     zones(base(), vi.fn())
+    expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeTruthy()
     expect(screen.queryByRole('note')).toBeNull()
-    expect(screen.getByText(/Is that right\?/)).toBeTruthy()
+    expect(screen.queryByText(/Is that right/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Set it/ })).toBeNull()
+  })
+
+  it('names each Set control by words that include its visible text, for speech input', () => {
+    zones({ ...base(), untrustedMax: { run: 'high' } }, vi.fn())
+    const button = screen.getByRole('button', { name: 'Set it for your run max heart rate' })
+    expect(button).toHaveTextContent('Set it')
+    expect(button.getAttribute('aria-label')!.startsWith(button.textContent!)).toBe(true)
   })
 
   it('cuts heart rate zones from the highest on file where no effort reached near the max, and says so', () => {
@@ -203,6 +199,6 @@ describe('ZoneTables, a max heart rate that cannot be one', () => {
     const table = screen.getByRole('table', { name: /^Run heart rate zones/ })
     expect(table).toHaveAccessibleName(/Max heart rate: 205 bpm, your highest on file/)
     expect(screen.queryByText(/^No run heart rate zones today/)).toBeNull()
-    expect(screen.getByText(/Is that right\?/)).toBeTruthy()
+    expect(screen.queryByText(/Is that right/)).toBeNull()
   })
 })

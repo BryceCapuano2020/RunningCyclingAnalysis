@@ -1012,7 +1012,7 @@ describe('ProfilePage zones and dated settings', () => {
       /Threshold pace: \d+:\d{2} \/km, from your runs/,
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
-      /Threshold power: \d+ W, from your rides/,
+      /Threshold power: \d+ W, estimated from your rides/,
     )
   })
 
@@ -1047,12 +1047,13 @@ describe('ProfilePage zones and dated settings', () => {
     )
   })
 
-  it('opens the dated max heart rate form to the figure when Set it is pressed beside an estimate', () => {
+  it('opens the dated max heart rate form to the figure when Set it is pressed beside a max far over what one is', () => {
     const result = makeResult({ runMaxHeartRate: 186, rideMaxHeartRate: 180 })
     const estimates = {
       ...estimatesFrom(result),
       runObservedMaxHeartRate: 186,
       observedMaxSource: { run: { bpm: 186, days: 4, sinceMs: Date.UTC(2021, 8, 15) }, ride: null },
+      untrustedMax: { run: 'high' as const, ride: 'high' as const },
     }
     renderProfile({}, { state: { result, zoneEstimates: estimates } })
     const setting = screen.getByLabelText('Setting') as HTMLSelectElement
@@ -1072,7 +1073,11 @@ describe('ProfilePage zones and dated settings', () => {
 
   it('shows the form with the figure while the dated settings load, and focuses it once they are ready', () => {
     const result = makeResult({ runMaxHeartRate: 186, rideMaxHeartRate: 180 })
-    const estimates = { ...estimatesFrom(result), runObservedMaxHeartRate: 186 }
+    const estimates = {
+      ...estimatesFrom(result),
+      runObservedMaxHeartRate: 186,
+      untrustedMax: { run: 'high' as const },
+    }
     const loading = { entries: [], state: 'loading' as const, elsewhere: 0, retry: vi.fn() }
     const { rerenderWith } = renderProfile(
       { dated: loading },

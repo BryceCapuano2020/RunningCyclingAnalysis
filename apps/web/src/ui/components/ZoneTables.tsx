@@ -134,19 +134,6 @@ export function ZoneTables({
                       )}
                     </p>
                   )}
-                  {table.askable && !suspect(set) && onSetMaxHeartRate !== undefined && (
-                    <p className="secondary zone-tables__detail">
-                      {'Is that right? '}
-                      <button
-                        type="button"
-                        className="btn zone-tables__set"
-                        aria-label={`Set it for your ${SPORT_LABEL[set.sport].toLowerCase()} max heart rate`}
-                        onClick={() => onSetMaxHeartRate(set.sport, Math.round(set.reference))}
-                      >
-                        Set it
-                      </button>
-                    </p>
-                  )}
                   <ZoneTable id={id} columns={table.columns} rows={table.rows} />
                   <p className="zone-tables__citation muted">{table.citation}</p>
                 </div>

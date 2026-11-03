@@ -1,9 +1,4 @@
-import {
-  CP_FIT_MAX_S,
-  CP_FIT_MIN_S,
-  HEADLINE_DURATION_S,
-  SHORT_FIT_MAX_S,
-} from '@rca/core/constants'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S, HEADLINE_DURATION_S } from '@rca/core/constants'
 import { CHANGE } from '@rca/core/change'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -37,10 +32,10 @@ const WINDOW_EXAMPLES = listWords(
   ),
 )
 
-/** The shortest and longest efforts a threshold is fitted to, as copy: "3 to 20 min". */
+/** The shortest and longest efforts a run's threshold is fitted to, as copy: "3 to 20 min". */
 const THRESHOLD_EFFORTS = `${CP_FIT_MIN_S / 60} to ${effortLabel(CP_FIT_MAX_S)}`
 
-/** The longer best a threshold's floor is taken from, s: the best 30 min where the curve holds one. */
+/** The longer best a run's floor is taken from, s: the best 30 min where the curve holds one. */
 const FLOOR_LONG_S = 30 * 60
 
 const HEADLINE = effortLabel(HEADLINE_DURATION_S)
@@ -48,30 +43,41 @@ const HEADLINE = effortLabel(HEADLINE_DURATION_S)
 /** The entries about the efforts and what is drawn from them, calculated by the app, in page order. */
 export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
   {
-    name: 'Thresholds and floors',
+    name: 'Thresholds',
     state: 'calculated',
     lines: [
-      `A threshold is critical speed for a run and critical power for a ride, fitted to your best ${THRESHOLD_EFFORTS} efforts.`,
-      'Its range is the fit’s own range, which is not the balance’s 90% range.',
-      `A floor, marked “At least”, is your best ${effortLabel(FLOOR_LONG_S)} or else ${HEADLINE}, and your real threshold is at least that.`,
-      `A ${HEADLINE} best that was not hard sets a floor instead of a threshold.`,
+      'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
+      'Heart rate can raise it and never lowers it.',
+      `A run’s threshold is critical speed, fitted to your best ${THRESHOLD_EFFORTS} efforts.`,
+      'Each range is the estimate’s own, not the balance’s 90% range.',
+      `A run whose fit is refused shows a floor, marked “At least”: your best ${effortLabel(FLOOR_LONG_S)} or else ${HEADLINE}.`,
     ],
     detail: [
-      `A best under ${HEADLINE} is labelled with its length and is not a floor.`,
-      'A best that mixed hard and easy is left out of a second fit.',
-      `When your best ${HEADLINE} was not hard, the second fit uses your ${CP_FIT_MIN_S / 60} to ${effortLabel(SHORT_FIT_MAX_S)} bests alone and leaves out every longer one.`,
-      'The range runs up to that fit.',
-      'That fit reads your short bests, so it is not a ceiling.',
-      'A threshold’s own range is drawn lighter.',
+      'Each ride gives one estimate, from the effort that scales highest.',
+      'A shorter effort is scaled down more than a longer one.',
+      'The rides are averaged, with more weight on recent rides and on those near your top.',
+      'Rides with estimated watts, from no power meter, weigh less than rides with one.',
+      'Heart rate is a second estimate, fitted against power across your rides with each ride’s own offset taken out.',
+      'So a hot day or a strap that sits differently does not flatten the line.',
+      'Heart rate is left out of a ride where the strap sticks or reads far from your other rides.',
+      'It is left out of every ride where it barely rises with power.',
+      'Steady efforts of moderate length near your threshold heart rate give the second estimate.',
+      'The answer is the higher of the estimate from power alone and the one with heart rate.',
+      'A ride’s range takes the higher 10th and the higher 90th percentile of the two.',
+      'On simulated riders, across the cases tested, it held the true threshold for 65% to 97% of them.',
+      'The estimate was tuned on simulated riders with a known threshold.',
+      'It is not measured on people.',
+      'A run’s own range is drawn lighter.',
       'It runs down by one standard error of the fit.',
       'It runs up by an allowance for how hard the effort behind it was.',
       'A best that was not quite all-out puts the fit under the truth.',
       'So the spread reaches further above the threshold than below it.',
       'It reaches further the less clearly hard the effort was.',
       'The allowance is calibrated on simulated athletes.',
-      'It is not measured on people.',
       'The spread shows how loosely the fit was pinned down.',
       'It does not show where your capability lies.',
+      'A best that mixed hard and easy is left out of a second fit.',
+      'The run’s range then runs up to that fit.',
     ],
   },
   {

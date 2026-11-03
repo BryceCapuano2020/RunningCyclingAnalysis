@@ -143,9 +143,6 @@ export const UNEVEN_MIN_S = 600
 export const UNEVEN_NESTED_FRACTION = 0.4
 export const UNEVEN_REST_FRACTION = 0.85
 
-/** The longest best, s, in the fit used when the best 20 min was not hard: nothing past it can be trusted to be hard. */
-export const SHORT_FIT_MAX_S = 600
-
 /**
  * The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. The
  * analysis prices these in every combine, so each added here costs one sort of the 4,000 draws there.

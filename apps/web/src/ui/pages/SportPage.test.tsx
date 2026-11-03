@@ -21,9 +21,11 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
+  makeRideThreshold,
 } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
-import { THRESHOLD_FLOOR_LABEL, THRESHOLD_LABEL } from '../sports'
+import { formatDayMonth } from '../format/date'
+import { THRESHOLD_FLOOR_LABEL, THRESHOLD_HEADING } from '../sports'
 import { RangePicker } from '../components/RangePicker'
 import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
@@ -375,15 +377,32 @@ describe('SportPage', () => {
     expect(rangeTrack(section)).toEqual({ ends: ['20:54', '23:49'], label: 'range, /km' })
   })
 
-  it('shows the cycling threshold’s range in watts under its figure', () => {
+  it('says the cycling threshold’s range in watts one tap down, with no track beside the figure', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     renderPage('ride', makeResult({ activities: [ride] }))
 
-    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(rangeTrack(section)).toEqual({ ends: ['48', '52'], label: 'range, W' })
+    const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
+    expect(section.querySelector('.range-track')).toBeNull()
+    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    expect(within(section).getByRole('note')).toHaveTextContent(/^Range 46 to 51 W\. /)
   })
 
-  it('draws the uneven fit as a range and writes no caption about the bests it left out', () => {
+  it('draws a run’s uneven fit as a range and writes no caption about the bests it left out', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const uneven = {
+      fit: { cp: 4.4, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+      leftOutS: [900, 1200],
+      floor: 3.2,
+    }
+    renderPage('run', makeResult({ activities: [run], runCpUneven: uneven }))
+
+    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    // Between two fits, not one fit's spread, so it is a range.
+    expect(rangeTrack(section)).toEqual({ ends: ['20:26', '23:23'], label: 'range, /km' })
+    expect(within(section).queryByText(/mixed hard and easy/)).not.toBeInTheDocument()
+  })
+
+  it('leaves a ride’s uneven fit out: its figure and range are the estimate’s', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const uneven = {
       fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
@@ -392,32 +411,32 @@ describe('SportPage', () => {
     }
     renderPage('ride', makeResult({ activities: [ride], rideCpUneven: uneven }))
 
-    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    // Between two fits, not one fit's spread, so it is a range.
-    expect(rangeTrack(section)).toEqual({ ends: ['48', '58'], label: 'range, W' })
-    expect(within(section).queryByText(/mixed hard and easy/)).not.toBeInTheDocument()
+    const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
+    expect(heroFigure(section)).toEqual({ number: '48', unit: 'W' })
+    expect(section.querySelector('.range-track')).toBeNull()
+    expect(within(section).queryByText(/uneven|The top end uses estimated watts/)).toBeNull()
   })
 
-  it('shows the floor as the figure, with its range and note, when the threshold is refused', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+  it('shows a run’s floor as the figure, with its range and note, when the threshold is refused', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
     const uneven = {
-      fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+      fit: { cp: 4.4, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
       leftOutS: [900, 1200],
       floor: 3.2,
     }
     renderPage(
-      'ride',
+      'run',
       makeResult({
-        activities: [ride],
-        rideCp: null,
-        rideCpRefusal: 'shape',
-        rideCpUneven: uneven,
+        activities: [run],
+        runCp: null,
+        runCpRefusal: 'shape',
+        runCpUneven: uneven,
       }),
     )
 
-    const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.ride })
-    expect(heroFigure(section)).toEqual({ number: '52', unit: 'W' })
-    expect(rangeTrack(section)).toEqual({ ends: ['52', '58'], label: 'range, W' })
+    const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.run })
+    expect(heroFigure(section).number).toMatch(/^\d+:\d{2}$/)
+    expect(rangeTrack(section).label).toBe('range, /km')
     expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(within(section).getByText('From your best 20 min.')).toBeInTheDocument()
     expect(within(section).queryByText(/mixed hard and easy/)).not.toBeInTheDocument()
@@ -451,7 +470,7 @@ describe('SportPage', () => {
     )
 
     expect(screen.queryByText(/Based on/)).not.toBeInTheDocument()
-    expect(heroFigure(screen.getByRole('region', { name: THRESHOLD_LABEL.ride }))).toEqual({
+    expect(heroFigure(screen.getByRole('region', { name: THRESHOLD_HEADING.ride }))).toEqual({
       number: '48',
       unit: 'W',
     })
@@ -635,12 +654,35 @@ describe('SportPage', () => {
   it('shows the cycling threshold in watts with its W/kg', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
 
-    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
     expect(heroFigure(section)).toEqual({ number: '48', unit: 'W' })
     expect(within(section).getByText('0.6 W/kg')).toBeInTheDocument()
-    // The estimate is a chip with a ring, as well as in the heading's words.
-    expect(within(section).getByText('Estimated', { selector: '.stat-tile__basis' })).toHaveClass(
-      'stat-tile__basis--estimated',
+    // A ride’s threshold is one best estimate: the name says so, and no chip does.
+    expect(section.querySelector('.stat-tile__basis')).toBeNull()
+    expect(section.querySelector('.chip')).toBeNull()
+    expect(within(section).queryByText(/Estimated|At least/)).toBeNull()
+  })
+
+  it('says what the cycling threshold rests on in one line, from the rides and the strongest effort', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      startMs: new Date(2026, 2, 4, 12).getTime(),
+    })
+    const rideThreshold = makeRideThreshold(15.5, {
+      efforts: {
+        value: 15,
+        relativeError: 0.025,
+        rides: 5,
+        strongest: { activityId: 'ride-1', durationS: 720, estimated: false },
+      },
+    })
+    renderPage('ride', makeResult({ activities: [ride], rideThreshold }))
+
+    const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
+    expect(heroFigure(section)).toEqual({ number: '250', unit: 'W' })
+    expect(within(section).getByText(/^From 5 rides\. Strongest: 12 min on /)).toHaveTextContent(
+      `From 5 rides. Strongest: 12 min on ${formatDayMonth(ride.startMs)}.`,
     )
   })
 
@@ -1197,7 +1239,7 @@ describe('SportPage cycling figures without a weight', () => {
   it('shows the cycling records once a weight is entered', () => {
     renderPage('ride', rideResult(), 'metric', MAN_BORN_1986, null, null, NO_TRENDS, true)
 
-    expect(screen.getByRole('region', { name: 'Threshold power, estimated' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: THRESHOLD_HEADING.ride })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Best efforts' })).toBeInTheDocument()
     expect(screen.queryByText(/Add your weight on/)).not.toBeInTheDocument()
   })
@@ -1442,7 +1484,7 @@ describe('SportPage depth', () => {
     ).toBeInTheDocument()
   })
 
-  it('puts a ride’s heart-rate line in its threshold section, apart from its watts', () => {
+  it('says nothing of the best 20 min’s heart rate in a ride’s threshold: the estimate does not read it', () => {
     const ride = makeActivity({
       id: 'ride-1',
       sport: 'ride',
@@ -1458,26 +1500,17 @@ describe('SportPage depth', () => {
       }),
     )
 
-    const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    // 80% is not a hard effort: a warning chip with the share, and the sentence one press away in its definition.
-    const chip = within(threshold).getByRole('button', {
-      name: 'Not all-out',
-    })
-    expect(chip.closest('.chip')).toHaveClass('chip--warning')
-    expect(chip.closest('.chip')?.querySelector('svg')).not.toBeNull()
-    expect(
-      within(threshold).getByRole('note', {
-        name: '',
-      }),
-    ).toHaveTextContent(
-      'Your best 20 min on the bike reached 80% of your cycling max heart rate (set from your highest heart rates on file). That is under the 90% that marks a hard effort.',
-    )
+    const threshold = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
+    expect(within(threshold).queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
+    expect(threshold.querySelector('.chip')).toBeNull()
+    fireEvent.click(within(threshold).getByRole('button', { name: /^How this was worked out/ }))
+    expect(within(threshold).getByRole('note')).not.toHaveTextContent(/max heart rate|all-out/)
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
     ).toBeInTheDocument()
   })
 
-  it('puts a run’s heart-rate check in one chip beside the threshold, with no line under it', () => {
+  it('puts a run’s heart-rate reading in its threshold detail, one tap down, with no chip', () => {
     renderPage(
       'run',
       makeResult({
@@ -1486,13 +1519,13 @@ describe('SportPage depth', () => {
       }),
     )
 
-    // One chip beside the threshold, in the heading's row, and no card or line after the figure and its range.
     const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    const chip = within(threshold).getByRole('button', {
-      name: 'Not all-out',
-    })
-    expect(chip.closest('.sport-hero__head')).not.toBeNull()
-    expect(threshold.querySelector('.sport-hero__track')?.nextElementSibling).toBeNull()
+    expect(within(threshold).queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
+    expect(threshold.querySelector('.chip')).toBeNull()
+    fireEvent.click(within(threshold).getByRole('button', { name: /^How this was worked out/ }))
+    expect(within(threshold).getByRole('note')).toHaveTextContent(
+      /reached 70% of your running max heart rate.*under the 90% that marks a hard effort/,
+    )
     expect(screen.getAllByText(/reached 70% of your running max heart rate/)).toHaveLength(1)
   })
 

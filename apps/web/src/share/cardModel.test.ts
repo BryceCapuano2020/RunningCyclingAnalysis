@@ -129,18 +129,18 @@ describe('buildShareCard', () => {
     expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('names each threshold as estimated from the best 3 to 20 min efforts, a run as GAP', () => {
+  it('names a run’s threshold as estimated from its best 3 to 20 min efforts, as GAP, and a ride’s from its rides', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.label)).toEqual([
       'Threshold GAP, estimated from your best 3 to 20 min',
-      'Threshold power, estimated from your best 3 to 20 min',
+      'Threshold power, estimated from your rides',
     ])
   })
 
   it('shows the cycling threshold power in watts, with W/kg for the body mass in the settings', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes[1]).toMatchObject({
-      label: 'Threshold power, estimated from your best 3 to 20 min',
+      label: 'Threshold power, estimated from your rides',
       figure: { number: '48', unit: 'W' },
       sub: '0.6 W/kg',
     })

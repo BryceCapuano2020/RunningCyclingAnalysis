@@ -34,7 +34,7 @@ describe('How this works entries', () => {
   it('lists every feature the app shows today in the state it belongs to', () => {
     const calculated = namesIn('calculated').join(' | ')
     for (const feature of [
-      /Thresholds and floors/,
+      /Thresholds/,
       /Best efforts and curves/,
       /Race predictions/,
       /Best efforts over time/,
@@ -144,32 +144,52 @@ describe('How this works entries', () => {
     expect(copy).toMatch(/implausible readings/)
   })
 
-  it('takes the figures it quotes from the code: the headline length and the threshold fit', () => {
-    const threshold = entryNamed('Thresholds and floors')
+  it('takes the figures it quotes from the code: the headline length and the run’s fit', () => {
+    const threshold = entryNamed('Thresholds')
     expect(threshold.lines.join(' ')).toContain('best 3 to 20 min efforts')
     expect(threshold.lines.join(' ')).toContain('your best 30 min or else 20 min')
   })
 
-  it('explains a floor in one line: what “At least” marks, which best it is, and what that means for the threshold', () => {
-    const threshold = entryNamed('Thresholds and floors')
-    const floor = threshold.lines.filter((line) => line.includes('“At least”'))
-    expect(floor).toEqual([
-      'A floor, marked “At least”, is your best 30 min or else 20 min, and your real threshold is at least that.',
-    ])
-    expect(threshold.lines).toContain(
-      'A 20 min best that was not hard sets a floor instead of a threshold.',
+  it('says how a ride’s threshold is worked out: each ride’s strongest effort, averaged, with heart rate lifting it and never lowering it', () => {
+    const { lines, detail } = entryNamed('Thresholds')
+    expect(lines).toContain(
+      'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
     )
-    // The fit is stated as the threshold's, so the figure on Profile is not read as a fit of the best 30 min.
-    expect(threshold.lines[0]).toMatch(/fitted to your best 3 to 20 min efforts/)
-    expect(threshold.detail).toContain(
-      'A best under 20 min is labelled with its length and is not a floor.',
+    expect(lines).toContain('Heart rate can raise it and never lowers it.')
+    expect(detail).toContain(
+      'The answer is the higher of the estimate from power alone and the one with heart rate.',
     )
+    expect(detail).toContain(
+      'The rides are averaged, with more weight on recent rides and on those near your top.',
+    )
+    expect(detail).toContain(
+      'Heart rate is left out of a ride where the strap sticks or reads far from your other rides.',
+    )
+    expect(detail).toContain(
+      'A ride’s range takes the higher 10th and the higher 90th percentile of the two.',
+    )
+    // The old rule, that a best that was not hard set a floor instead of a threshold, no longer holds for either sport.
+    expect([...lines, ...(detail ?? [])].join(' ')).not.toMatch(
+      /was not hard|instead of a threshold/,
+    ) // Heart rate never lowers it, and the range is never called an 80% range: it held the truth for more riders than that.
+    expect([...lines, ...(detail ?? [])].join(' ')).not.toMatch(/vetoes|middle of|80%/)
   })
 
-  it('keeps the threshold’s own range in the threshold entry, apart from the 90% range', () => {
-    const threshold = entryNamed('Thresholds and floors')
+  it('explains a run’s floor in one line: what “At least” marks, which best it is, and when it is shown', () => {
+    const threshold = entryNamed('Thresholds')
+    const floor = threshold.lines.filter((line) => line.includes('“At least”'))
+    expect(floor).toEqual([
+      'A run whose fit is refused shows a floor, marked “At least”: your best 30 min or else 20 min.',
+    ])
+    // The fit is stated as the run's own, so a floor's best 30 min is never read as the fit.
+    expect(threshold.lines.join(' ')).toMatch(/fitted to your best 3 to 20 min efforts/)
+    expect(threshold.detail?.join(' ')).not.toMatch(/short bests|second fit uses/)
+  })
+
+  it('keeps the range apart from the balance’s 90% range, and a run’s own range in the detail', () => {
+    const threshold = entryNamed('Thresholds')
     expect(threshold.lines).toContain(
-      'Its range is the fit’s own range, which is not the balance’s 90% range.',
+      'Each range is the estimate’s own, not the balance’s 90% range.',
     )
     expect(threshold.detail).toContain('It runs down by one standard error of the fit.')
     expect(threshold.detail).toContain('The allowance is calibrated on simulated athletes.')
@@ -192,6 +212,8 @@ describe('How this works entries', () => {
       'The default period is the shortest window where every sport qualifies.',
     )
     expect(lines).toContain('A period you pick yourself is always used.')
+    // For now the default still passes over a window whose best 20 min was shown not hard (threshold.md, "What it replaces").
+    expect(lines).toContain('Each sport also needs a 20 min best that is hard, or not checked.')
     expect(lines).toContain('If two windows tie, the shorter one is used.')
   })
 

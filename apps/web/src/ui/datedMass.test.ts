@@ -12,7 +12,6 @@ import { bestEffortRows } from './pages/bestEffortRows'
 import type { BestEffortInput } from './pages/bestEffortRows'
 import { sportGrade } from './grades'
 import { sportRecords } from './records'
-import { fitRestsOnEstimate } from './thresholdRange'
 import { changeOf } from './charts/changeFixtures'
 
 const baseRide = digestActivity(
@@ -78,19 +77,6 @@ describe('a result whose best watts and best power-to-weight are different rides
     const equivalent = result.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
     expect(equivalent?.ridePowerW).toBeCloseTo(290, 9)
     expect(result.rideCurve[atHeadline(result.rideCurve)]?.activityId).toBe('light')
-  })
-
-  it('asks whether the threshold rests on an estimate of the ride it was fitted to', () => {
-    // The fitted efforts are those of the best power-to-weight ride, which has a virtual power source.
-    const estimated = result.activities.find((a) => a.id === 'light')
-    expect(estimated?.powerSource).toBe('virtual')
-    expect(fitRestsOnEstimate({ ...result, rideCurve: [curvePoint(1200, 290, 'light')] })).toBe(
-      true,
-    )
-    expect(fitRestsOnEstimate({ ...result, rideCurve: [curvePoint(1200, 300, 'heavy')] })).toBe(
-      false,
-    )
-    expect(fitRestsOnEstimate(result)).toBe(true)
   })
 })
 

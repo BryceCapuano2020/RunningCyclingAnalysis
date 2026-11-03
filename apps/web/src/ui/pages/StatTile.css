@@ -92,7 +92,8 @@
   margin: 0;
 }
 
-.stat-tile__line {
+.stat-tile__line,
+.stat-tile__source {
   color: var(--text-secondary);
   font-size: var(--text-md);
   line-height: 1.4;

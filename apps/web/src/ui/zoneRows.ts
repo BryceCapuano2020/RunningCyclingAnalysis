@@ -20,13 +20,27 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
   pace: 'pace',
 }
 
+/**
+ * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where its fit is refused.
+ * A ride's threshold is the estimate from all its efforts, which has no floor, so a ride's zones are never cut from one.
+ */
+const FLOOR_ZONES: Record<Sport, boolean> = { run: true, ride: false }
+
+/** The floor a set's power or pace is cut from: the best 30 min or 20 min and the day it was set, which the real threshold is at least. */
+function floorOf(set: ZoneSet): { durationS: number; asOfMs: number } | null {
+  return FLOOR_ZONES[set.sport] && set.floorS !== null && set.asOfMs !== null
+    ? { durationS: set.floorS, asOfMs: set.asOfMs }
+    : null
+}
+
 /** Where a zone set's reference came from, in the words under its title. */
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
-    // A pace or power no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
-    if (set.floorS !== null && set.asOfMs !== null) {
-      return `From your best ${formatDuration(set.floorS)} on ${formatDayMonth(set.asOfMs)}`
+    // A pace no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
+    const floor = floorOf(set)
+    if (floor !== null) {
+      return `From your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
     }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
     // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
@@ -122,9 +136,7 @@ const REFERENCE_TEXT: Record<ZoneMeasure, (reference: number, units: UnitSystem)
 export interface ZoneTable {
   /** "Ride power zones". */
   title: string
-  /** Whether the figure is an estimated max heart rate, which the athlete can be asked to confirm or correct. */
-  askable: boolean
-  /** The reference and where it came from: "Threshold power: 250 W, from your rides". */
+  /** The reference and where it came from: "Threshold power: 250 W, estimated from your rides". */
   detail: string
   citation: string
   columns: string[]
@@ -137,23 +149,31 @@ const REFERENCE_NAME: Record<ZoneMeasure, string> = {
   pace: 'Threshold pace',
 }
 
-/** Whether a set's power or pace is a floor: the best 30 min or 20 min, which the real threshold is at least. */
-function isFloor(set: ZoneSet): boolean {
-  return set.floorS !== null && set.asOfMs !== null
-}
-
 /**
- * Where a power or pace reference came from, after its figure: a fit is dated by the month it was set, an
- * estimate names the sports it is from, and an entered one says so.
+ * Where a power or pace reference came from, after its figure: a run's fit is dated by the month it was set, a ride's is an
+ * estimate from its rides (up to the month of an older one), a floor names its effort, and an entered one says so.
  */
 function referenceSourceText(set: ZoneSet): string {
   if (set.source === 'entered') return 'entered by you'
   // A floor is the best 30 min or 20 min of the 12 months up to the date, named with the day it was set.
-  if (set.floorS !== null && set.asOfMs !== null) {
-    return `from your best ${formatDuration(set.floorS)} on ${formatDayMonth(set.asOfMs)}`
+  const floor = floorOf(set)
+  if (floor !== null) {
+    return `from your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
   }
-  if (set.asOfMs !== null) return `set in ${formatMonth(set.asOfMs, true)}`
-  return `from your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
+  return ESTIMATED_SOURCE[set.sport](set)
+}
+
+/** The sports a set was estimated from, as a phrase: "your rides". */
+function fromSports(set: ZoneSet): string {
+  return `your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
+}
+
+/** An estimated pace or power's source: a run's fit is dated by its month; a ride's is an estimate from its rides. */
+const ESTIMATED_SOURCE: Record<Sport, (set: ZoneSet) => string> = {
+  run: (set) =>
+    set.asOfMs === null ? `from ${fromSports(set)}` : `set in ${formatMonth(set.asOfMs, true)}`,
+  ride: (set) =>
+    `estimated from ${fromSports(set)}${set.asOfMs === null ? '' : ` up to ${formatMonth(set.asOfMs, true)}`}`,
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */
@@ -162,12 +182,11 @@ export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
   const reference = REFERENCE_TEXT[set.measure](set.reference, units)
   return {
     title: `${SPORT_LABEL[set.sport]} ${MEASURE_TITLE[set.measure]} zones`,
-    askable: basis !== null,
     // An estimated max heart rate says where it came from in place of the figure alone.
     detail:
       basis !== null
         ? `${REFERENCE_NAME[set.measure]}: ${basis}`
-        : `${REFERENCE_NAME[set.measure]}: ${isFloor(set) ? 'at least ' : ''}${reference}, ${referenceSourceText(set)}`,
+        : `${REFERENCE_NAME[set.measure]}: ${floorOf(set) === null ? '' : 'at least '}${reference}, ${referenceSourceText(set)}`,
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [

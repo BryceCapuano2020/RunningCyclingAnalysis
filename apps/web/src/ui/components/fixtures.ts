@@ -3,6 +3,7 @@ import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pip
 import type { RejectedFile } from '@rca/core/session'
 import { countFlags } from '@rca/core/digest'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
+import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
@@ -70,9 +71,36 @@ export function makeRejectedFile(overrides: Partial<RejectedFile> = {}): Rejecte
   }
 }
 
-/** A complete result with a run and a ride and a 1200 s comparison, so every card has data. */
+/** A ride threshold estimate of `value` (gross metabolic W/kg) from three rides, with its range 5% either side and no heart rate. */
+export function makeRideThreshold(
+  value: number,
+  overrides: Partial<ThresholdEstimate> = {},
+): ThresholdEstimate {
+  return {
+    value,
+    low: value * 0.95,
+    high: value * 1.05,
+    efforts: {
+      value: value * 0.97,
+      relativeError: 0.025,
+      rides: 3,
+      strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },
+    },
+    heartRate: { refused: 'no-heart-rate' },
+    ...overrides,
+  }
+}
+
+/** The ride fit a default result carries, and the estimate that stands for it. */
+const DEFAULT_RIDE_CP = { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 }
+
+/**
+ * A complete result with a run and a ride and a 1200 s comparison, so every card has data. A ride fit given or left out
+ * carries a matching ride threshold, since the cards read the estimate: give `rideThreshold` to set it on its own.
+ */
 export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   const comparison: Comparison = { prior: [comparisonPoint()], calibrated: null }
+  const rideCp = overrides.rideCp === undefined ? DEFAULT_RIDE_CP : overrides.rideCp
   return {
     // Three of each, so the headline's rule of enough activities in the period is met.
     activities: [
@@ -88,19 +116,8 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     rideMetabolicCurve: [],
     rideMeasuredCurve: [],
     runCp: { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 },
-    rideCp: { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 },
-    rideThreshold: {
-      value: 3.0,
-      low: 2.9,
-      high: 3.2,
-      efforts: {
-        value: 2.9,
-        relativeError: 0.025,
-        rides: 3,
-        strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },
-      },
-      heartRate: { refused: 'no-heart-rate' },
-    },
+    rideCp: DEFAULT_RIDE_CP,
+    rideThreshold: rideCp === null ? null : makeRideThreshold(rideCp.cp),
     runCpRefusal: null,
     rideCpRefusal: null,
     runCpUneven: null,

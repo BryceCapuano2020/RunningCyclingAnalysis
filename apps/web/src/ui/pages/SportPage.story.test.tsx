@@ -8,10 +8,11 @@ import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
 import { NO_HEART_RATE, UNKNOWN } from '../effortGateFixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
+import { paceFigure } from '../records'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
@@ -229,15 +230,13 @@ describe('a sport page with everything to show', () => {
 })
 
 describe('race predictions where the effort could not be checked', () => {
-  it('says so once, under the threshold, and carries every run’s bests as a prediction', () => {
+  it('asks for no heart rate under the threshold, and carries every run’s bests as a prediction', () => {
     const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     openSection('Race predictions')
-    expect(
-      screen.getAllByText(
-        'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
-      ),
-    ).toHaveLength(1)
+    const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(threshold.querySelector('.sport-hero__number')).not.toBeNull()
+    expect(screen.queryByText(/so the effort was not checked/)).toBeNull()
     expect(screen.queryByText('No slower than')).toBeNull()
   })
 
@@ -332,24 +331,25 @@ describe('a sport page with sections that have nothing to show', () => {
 
 describe('the threshold when only a floor is shown', () => {
   const uneven = {
-    fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+    fit: { cp: 4.4, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
     leftOutS: [900, 1200],
     floor: 3.2,
   }
+  const pace = (wkg: number) => paceFigure(wkg, 'metric').number
 
-  it('is labelled "at least", not "estimated", on a ride', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+  it('is labelled "at least", not "estimated", on a run', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(
-      'ride',
+      'run',
       makeResult({
-        activities: [ride],
-        rideCp: null,
-        rideCpRefusal: 'shape',
-        rideCpUneven: uneven,
+        activities: [run],
+        runCp: null,
+        runCpRefusal: 'shape',
+        runCpUneven: uneven,
       }),
     )
-    const section = screen.getByRole('region', { name: 'Threshold power, at least' })
-    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('52')
+    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(3.2))
     expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toHaveClass(
       'stat-tile__basis--floor',
     )
@@ -357,7 +357,7 @@ describe('the threshold when only a floor is shown', () => {
   })
 
   it('runs its range up to the uneven fit when the best 20 min was not hard', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
     const notHard = {
       ...UNKNOWN,
       verdict: 'notHard' as const,
@@ -365,59 +365,68 @@ describe('the threshold when only a floor is shown', () => {
       floor: { durationS: 1800, value: 3 },
     }
     renderPage(
-      'ride',
+      'run',
       makeResult({
-        activities: [ride],
-        rideCp: null,
-        rideCpRefusal: 'shape',
-        rideCpUneven: uneven,
-        effortGate: { run: UNKNOWN, ride: notHard },
+        activities: [run],
+        runCp: null,
+        runCpRefusal: 'shape',
+        runCpUneven: uneven,
+        effortGate: { run: notHard, ride: UNKNOWN },
       }),
     )
-    const section = screen.getByRole('region', { name: 'Threshold power, at least' })
+    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
     // The gate's floor stands: a 20 min best that was not hard can sit above a threshold, so it does not raise it.
-    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('48')
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(3))
     expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(section.querySelector('.sport-hero__track')).toHaveTextContent('48')
-    expect(section.querySelector('.sport-hero__track')).toHaveTextContent('58')
+    expect(section.querySelector('.sport-hero__track')).toHaveTextContent(pace(3))
+    expect(section.querySelector('.sport-hero__track')).toHaveTextContent(pace(4.4))
   })
 
   it('shows no range when the gate’s floor is already at the uneven fit', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
     const notHard = {
       ...UNKNOWN,
       verdict: 'notHard' as const,
       unchecked: null,
-      floor: { durationS: 1800, value: 3.7 },
+      floor: { durationS: 1800, value: 4.6 },
     }
+    renderPage(
+      'run',
+      makeResult({
+        activities: [run],
+        runCp: null,
+        runCpRefusal: 'shape',
+        runCpUneven: uneven,
+        effortGate: { run: notHard, ride: UNKNOWN },
+      }),
+    )
+    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
+    expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
+    expect(section.querySelector('.sport-hero__track')).toBeNull()
+  })
+
+  it('has no floor on a ride: the estimate stands, whatever a refused fit left out', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     renderPage(
       'ride',
       makeResult({
         activities: [ride],
         rideCp: null,
         rideCpRefusal: 'shape',
-        rideCpUneven: uneven,
-        effortGate: { run: UNKNOWN, ride: notHard },
+        rideCpUneven: { ...uneven, fit: { ...uneven.fit, cp: 3.6 } },
+        rideThreshold: makeRideThreshold(15.5),
       }),
     )
-    const section = screen.getByRole('region', { name: 'Threshold power, at least' })
-    expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(section.querySelector('.sport-hero__track')).toBeNull()
+    const section = screen.getByRole('region', { name: 'Threshold power' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('250')
+    expect(section.querySelector('.stat-tile__basis')).toBeNull()
+    expect(within(section).queryByText(/At least|From your best/)).toBeNull()
   })
 
-  it('is labelled "at least" on a run', () => {
+  it('stays "estimated" while a run’s threshold is fitted, even with an uneven fit beside it', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
-    renderPage(
-      'run',
-      makeResult({ activities: [run], runCp: null, runCpRefusal: 'shape', runCpUneven: uneven }),
-    )
-    expect(screen.getByRole('region', { name: 'Threshold pace, at least' })).toBeInTheDocument()
-  })
-
-  it('stays "estimated" while the threshold is fitted, even with an uneven fit beside it', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
-    renderPage('ride', makeResult({ activities: [ride], rideCpUneven: uneven }))
-    expect(screen.getByRole('region', { name: 'Threshold power, estimated' })).toBeInTheDocument()
+    renderPage('run', makeResult({ activities: [run], runCpUneven: uneven }))
+    expect(screen.getByRole('region', { name: 'Threshold pace, estimated' })).toBeInTheDocument()
   })
 })
 

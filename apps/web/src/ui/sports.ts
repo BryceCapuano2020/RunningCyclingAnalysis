@@ -89,13 +89,7 @@ export const SPORT_DOING: Record<Sport, string> = { run: 'running', ride: 'ridin
 /** One activity of the sport as the noun in a sentence, lower case: "this run", "this ride". */
 export const SPORT_ACTIVITY: Record<Sport, string> = { run: 'run', ride: 'ride' }
 
-/** The label over a sport's estimated threshold, on its card and its page. */
-export const THRESHOLD_LABEL: Record<Sport, string> = {
-  run: 'Threshold pace, estimated',
-  ride: 'Threshold power, estimated',
-}
-
-/** A sport's threshold as the name over its figure; the chip beside it says whether it is estimated. */
+/** A sport's threshold as the name over its figure. The name says it is an estimate, so no chip does. */
 export const THRESHOLD_HEADING: Record<Sport, string> = {
   run: 'Threshold pace',
   ride: 'Threshold power',
@@ -118,9 +112,13 @@ export const THRESHOLD_EFFORT_TEXT = `${EFFORT_MIN_TEXT} to ${EFFORT_MAX_TEXT}`
 
 /**
  * What a threshold's place says when the sport holds no best at all: the one thing to add. Any other sport has a
- * number there (a floor), so this is the only line that asks for anything.
+ * number there (a ride's estimate, a run's floor), so this is the only line that asks for anything. A ride's estimate
+ * needs an effort as short as the fit's shortest; a run's floor is its best of 20 min or longer.
  */
-export const THRESHOLD_NEEDS_TEXT = `Needs an effort of ${EFFORT_MAX_TEXT} or longer`
+export const THRESHOLD_NEEDS_TEXT: Record<Sport, string> = {
+  run: `Needs an effort of ${EFFORT_MAX_TEXT} or longer`,
+  ride: `Needs an effort of ${EFFORT_MIN_TEXT} min or longer`,
+}
 
 /**
  * A threshold in plain words, shown under its number: what the number is, as an estimate ("About")
@@ -128,5 +126,5 @@ export const THRESHOLD_NEEDS_TEXT = `Needs an effort of ${EFFORT_MAX_TEXT} or lo
  */
 export const THRESHOLD_MEANING: Record<Sport, string> = {
   run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
-  ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
+  ride: 'About the power you could hold for a long, steady effort, estimated from your rides.',
 }

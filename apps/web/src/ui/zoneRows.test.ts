@@ -93,7 +93,7 @@ describe('zoneTable', () => {
   it('titles a table by sport and measure, with its source and reference', () => {
     const table = zoneTable(setOf({ measure: 'power', reference: 250 }), 'metric')
     expect(table.title).toBe('Ride power zones')
-    expect(table.detail).toBe('Threshold power: 250 W, from your rides')
+    expect(table.detail).toBe('Threshold power: 250 W, estimated from your rides')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
@@ -154,7 +154,7 @@ describe('the source and basis of an estimated zone set', () => {
     expect(sourceText({ ...set, floorS: 1200 })).toBe('From your best 20 min on 15 Mar 2025')
   })
 
-  it('says “at least” for a power floor and for none of the figures that are not floors', () => {
+  it('says a ride’s power is estimated from the rides, with no floor and no “at least”, even where a floor is held', () => {
     const asOfMs = new Date(2025, 2, 15, 12).getTime()
     const power = setOf({
       sport: 'ride',
@@ -164,15 +164,16 @@ describe('the source and basis of an estimated zone set', () => {
       asOfMs,
       floorS: 1800,
     })
+    // The ride's threshold is the estimate from all its efforts, so no ride zone is said to rest on the best 30 min.
     expect(zoneTable(power, 'metric').detail).toBe(
-      'Threshold power: at least 240 W, from your best 30 min on 15 Mar 2025',
+      'Threshold power: 240 W, estimated from your rides up to Mar 2025',
     )
-    // A fit dated by its month, an estimate from the rides and an entered figure are not floors.
+    expect(sourceText(power)).toBe('From your rides up to Mar 2025')
     expect(zoneTable({ ...power, floorS: null }, 'metric').detail).toBe(
-      'Threshold power: 240 W, set in Mar 2025',
+      'Threshold power: 240 W, estimated from your rides up to Mar 2025',
     )
     expect(zoneTable({ ...power, floorS: null, asOfMs: null }, 'metric').detail).toBe(
-      'Threshold power: 240 W, from your rides',
+      'Threshold power: 240 W, estimated from your rides',
     )
     expect(
       zoneTable({ ...power, source: 'entered', floorS: null, asOfMs: null }, 'metric').detail,
@@ -191,7 +192,6 @@ describe('the source and basis of an estimated zone set', () => {
     expect(maxHeartRateBasis(set)).toBe('176 bpm, your highest on file')
     const table = zoneTable(set, 'metric')
     expect(table.detail).toBe('Max heart rate: 176 bpm, your highest on file')
-    expect(table.askable).toBe(true)
   })
 
   it('gives an estimated max heart rate as its figure alone, whatever days reached it', () => {
@@ -203,10 +203,7 @@ describe('the source and basis of an estimated zone set', () => {
       maxHeartRateFrom: { bpm: 185.6, days: 4, sinceMs: SEPTEMBER_2021 },
     })
     expect(maxHeartRateBasis(own)).toBe('186 bpm')
-    expect(zoneTable(own, 'metric')).toMatchObject({
-      detail: 'Max heart rate: 186 bpm',
-      askable: true,
-    })
+    expect(zoneTable(own, 'metric').detail).toBe('Max heart rate: 186 bpm')
     const thin = { ...own, maxHeartRateFrom: { bpm: 185.6, days: 1, sinceMs: SEPTEMBER_2021 } }
     expect(maxHeartRateBasis(thin)).toBe('186 bpm')
   })

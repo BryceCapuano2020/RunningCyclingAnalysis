@@ -2,19 +2,27 @@ import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { SAMPLE_SETTINGS } from './sampleAthlete'
-import { bandShareOf, thresholdRange, thresholdSpan } from './thresholdRange'
+import { runBandShare, thresholdRange, thresholdSpan } from './thresholdRange'
 import { makeResult } from './components/fixtures'
 
 const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
 const result = state.result!
 
 describe('thresholdSpan', () => {
-  it('has the range the page states, and no other: a span exactly where thresholdRange has a line', () => {
-    for (const sport of ['run', 'ride'] as const) {
-      const line = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
-      const span = thresholdSpan(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
+  it('has the range the page states, and no other: a run’s span exactly where thresholdRange has a line', () => {
+    const mass = SAMPLE_SETTINGS.massKg
+    expect(thresholdRange(result, 'run', mass, 'metric')).not.toBeNull()
+    for (const run of [result, makeResult({ runCp: null })]) {
+      const line = thresholdRange(run, 'run', mass, 'metric')
+      const span = thresholdSpan(run, 'run', mass, 'metric')
       expect(span === null).toBe(line === null)
     }
+  })
+
+  it('draws no track for a ride, whose range is said in words one tap down', () => {
+    expect(result.rideThreshold).not.toBeNull()
+    expect(thresholdRange(result, 'ride', SAMPLE_SETTINGS.massKg, 'metric')).toMatch(/^Range /)
+    expect(thresholdSpan(result, 'ride', SAMPLE_SETTINGS.massKg, 'metric')).toBeNull()
   })
 
   it('prints the two ends the line prints, in the order it prints them', () => {
@@ -48,7 +56,7 @@ describe('the band’s allowance', () => {
       runCp: fit,
       effortGate: { ...makeResult().effortGate, run: gate({ verdict: 'hard', share: 0.99 }) },
     })
-    expect(bandShareOf(hard, 'run')).toBe(0.99)
+    expect(runBandShare(hard)).toBe(0.99)
     // A gate that could not judge has worked out a share only by chance, with no heart rate on the best or a thin reference.
     for (const unchecked of ['noHeartRate', 'thin'] as const) {
       const unknown = makeResult({
@@ -58,7 +66,7 @@ describe('the band’s allowance', () => {
           run: gate({ verdict: 'unknown', unchecked, share: 0.99 }),
         },
       })
-      expect(bandShareOf(unknown, 'run')).toBeNull()
+      expect(runBandShare(unknown)).toBeNull()
     }
   })
 

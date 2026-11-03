@@ -1,20 +1,21 @@
 # The effort gate: a best is a capability only when it was a hard effort
 
-Status: built (`packages/core/src/effort/`), applied to thresholds, zones from threshold, the Balance headline and the
-late-in-sessions views, and, for race predictions, to whether a range is drawn (a time is always shown). Calibrated on the
+Status: built (`packages/core/src/effort/`), applied to the labels of the Balance headline, the change test and the
+late-in-sessions views, and, for race predictions, to whether a range is drawn (a time is always shown). It no longer
+withholds a threshold or cuts a zone window ([threshold.md](threshold.md)): a threshold is the best estimate from all the
+data. The verdict stays as a label: the note under the Balance headline, the bound on a race prediction, the check behind the
+change test, and one line in a run threshold's detail. One use stays for now: a best 20 minutes shown not hard is still a lack
+for the default window, which only picks the period that opens first (threshold.md, "What it replaces"). Calibrated on the
 synthetic harness; no real figures are in this note.
-
-Superseded in part by [threshold.md](threshold.md): the gate no longer withholds a threshold or cuts a zone window. The
-verdict stays as a label and as the check behind the change test, and the text below that describes the withholding is the
-earlier behaviour. One use stays for now: a best 20 minutes shown not hard is still a lack for the default window, which
-only picks the period that opens first (threshold.md, "What it replaces").
 
 ## What it says
 
-A best effort is a lower bound on what an athlete can do. It becomes a capability (a threshold, a zone, a level to set against
-the other sport, a race time with a range) only when it was a hard effort, and heart rate is the evidence the app has. The gate asks one
+A best effort is a lower bound on what an athlete can do. It becomes a capability (a level to set against the other sport, a
+race time with a range) only when it was a hard effort, and heart rate is the evidence the app has. A threshold is not held to
+that: a ride's is estimated from every ride's strongest effort with heart rate as a second estimate that can lift it and never
+lowers it, and a run's is its critical-power fit, so a best that was not hard changes no threshold and no zone. The gate asks one
 question per sport and period: **was the best 20 minutes a hard effort?** The best 20 minutes is the effort every fit has to
-reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the chip has always named. Of the 20 minute
+reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the run threshold's detail names. Of the 20 minute
 efforts within 5% of the best (a headwind or a hill moves a best by that), the one held at the highest heart rate is judged, in
 the gate, the chip, the previous-period check and the threshold timeline alike.
 
@@ -23,10 +24,10 @@ heart rate to set a reference (`thin`), or no 20 minute best. An unknown verdict
 "Effort not checked" with the reason and what would let it be checked: a note sits beside the Balance headline, which is shown (a rider with a power
 meter and no strap would otherwise never have one). Only a best that was not shown hard holds the headline. The line is the existing one: 90% of the reference heart rate, judged on the percent shown (`isHardShare`).
 
-A failed gate withholds the estimate and shows the demonstrated best in its place: the best 30 minutes where the curve has one
-(what a threshold is said to be held for), else the best 20, under the card's own title with the chip "At least" and one line,
-"From your best 30 min." The threshold card says no more and asks for nothing; the surfaces that hold a comparison or a
-prediction say what it asks for, and that depends on why it failed (`EffortGate.neededS`):
+A failed gate withholds no threshold. A ride's threshold card shows its estimate with no chip and no floor, and does not
+read the verdict at all; a run's shows its fit, and its detail ("How this was worked out", one tap down) says how hard the best
+20 minutes was, with the share. The surfaces that hold a comparison or a prediction say what is missing, and that depends on why
+it failed (`EffortGate.neededS`):
 
 - the reference can be trusted and the best was under the line: the words say what is true, that it reached (say) 82% of the reference, under the 90% that marks a hard
   effort, and that a 20 min effort at 90% or more would give the threshold. They do not promise such an effort is possible: an athlete whose heart rate at an
@@ -66,20 +67,21 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 ## Where it applies, and what each shows when it fails
 
-- **Threshold** (`combine`): the fit is null with refusal `effort`. Panel and tile keep their title, show
-  that best as "At least", and name it in one line, "From your best 30 min." (see above). A second fit on the bests of 3 to 10 minutes takes the place of any uneven fit, since it reads none of
-  the efforts the verdict is about: the floor is unchanged, because a 20 minute best that was not hard can sit above a threshold, and a range runs from it up to that fit, if that fit clears the floor by 2%. The share card and anything that needs both
-  fits waits for them. An unchecked threshold is shown with "No heart rate on your best 20 min run, so the effort was not checked." (on the sport page; Balance says it once, under the lede)
-- **Chip**: when the judged effort is one close to the best and not the best itself, the detail says "A 20 min effort within 5% of your best". "Hard effort", its detail giving the share, with what the share shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%:
-  "within 10% of your highest heart rate. Heart rate cannot tell a hard 20 min from an all-out one"), "Not all-out" with no share,
-  "Effort not confirmed" with no share for an untrusted reference, "Effort not checked". The reference is named by its source
-  (the activities, the maximum entered, the age). `result.effort` has an entry for every curve duration, so a one-sport library
-  has its chip. The ride on foot card says the ride behind its pace was not hard or not checked, and nothing of one that was.
-- **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window whose judged 20 minutes was not hard has no fit. The
-  activity page then reads an older fit within 12 months, else a floor (the best 30 minutes, else the best 20, of the 12 months up
-  to the activity's week, dated; for today's zones alone, the newest effort older than that): for an athlete who is persistently
-  not hard the pace and power zones are cut from the floor. Heart-rate zones are cut from the
-  highest heart rate on file where no effort reached near a maximum, and say so.
+- **Threshold** (`combine`): never withheld for the verdict. A ride's is `rideThreshold`, with heart rate as a second estimate that can
+  lift it and never a veto. A run's is `runCp`, the critical-power fit; its refusals are the shape of the curve and a work capacity under
+  the floor, and a run whose fit is refused still shows its best 30 min as "At least" with the line "From your best 30 min.". The verdict
+  reaches a threshold card only as a line in the run's detail: the share of the reference the best 20 minutes reached, what that share
+  shows and no more (95% and over: "close to your highest heart rate"; 90 to 94%: "within 10% of your highest heart rate. Heart rate
+  cannot tell a hard 20 min from an all-out one"; under the line, that it is under the 90% that marks a hard effort), or that the effort was not checked,
+  with the reason, or not confirmed for an untrusted reference. The reference is named by its source (the activities, the maximum
+  entered, the age). The Balance headline says an unchecked best once, under the lede; no threshold card asks for heart rate.
+- **Effort chip**: gone from the threshold cards, where it was the headline's second status. The ride on foot card keeps it: it says the
+  ride behind its pace was not hard or not checked, and nothing of one that was. When the judged effort is one close to the best and not the
+  best itself, the reading says "A 20 min effort within 5% of your best".
+- **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window's pace and power are its threshold, whatever the
+  judged 20 minutes was. A ride's is the estimate over that window's rides, with no floor; a run's is its fit, and a floor (the best 30 minutes,
+  else the best 20, of the 12 months up to the activity's week, dated; for today's zones alone, the newest effort older than that) stands in only where the
+  fit is refused. Heart-rate zones are cut from the highest heart rate on file where no effort reached near a maximum, and say so.
 - **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
   for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
@@ -98,8 +100,7 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable. The level
   rows say nothing of it; the line under the lede does. What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
   'updating', 'partial-import', 'implausible-ride'; a ride at the top of the age tables leaves the pick out with no fault to name.
-  The share card still waits for both thresholds, which the gate withholds, so a library whose bests were not hard shows the balance
-  and offers no card.
+  The share card waits for both thresholds, which the gate no longer withholds, so a library whose bests were not hard offers the card too.
 - **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the
   session's peak, beyond it by the session's average, a sprint of a minute or less always), so a swing in how many hard efforts a period
   holds is not read as a change. Both periods are read alike: the call is made from the hard readings when both hold enough, else from every
@@ -118,7 +119,7 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
 
 ## The fit spread
 
-One-sided (`cpBand`): down by the regression error, up by an allowance that falls with the share of the reference the judged effort
+A run's range, one-sided (`cpBand`): down by the regression error, up by an allowance that falls with the share of the reference the judged effort
 reached, `0.044 + 0.386 x (1 - share)` of the threshold (a share of 0.9 allows 8.3%, an unchecked effort is read as 0.9). A best that
 was not quite all-out puts the fit under the truth, so the truth lies above it. Both ends are in gross metabolic W/kg, the fit's unit.
 

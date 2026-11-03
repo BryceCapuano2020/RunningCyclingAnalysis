@@ -15,17 +15,17 @@ import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
-import { BALANCE_PAIR, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
+import { BALANCE_PAIR, THRESHOLD_EFFORT_TEXT } from '../ui/sports'
 import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
 
 /**
- * A threshold's name on the share card. A run says "GAP" here, since the card has no page note to say what the
- * pace allows for; the app's own cards and pages keep THRESHOLD_LABEL.
+ * A threshold's name on the share card, with what it is estimated from. A run says "GAP" here, since the card has no page
+ * note to say what the pace allows for. A ride's rests on all its rides, not on a window of bests.
  */
 const CARD_THRESHOLD_LABEL: Record<Sport, string> = {
-  run: 'Threshold GAP, estimated',
-  ride: THRESHOLD_LABEL.ride,
+  run: `Threshold GAP, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
+  ride: 'Threshold power, estimated from your rides',
 }
 
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
@@ -147,8 +147,8 @@ function heroFor(
   if (estimate === null) return null
   return {
     sport,
-    // Says "estimated" and the efforts it rests on, in the words the card's threshold label uses.
-    label: `${CARD_THRESHOLD_LABEL[sport]} from your best ${THRESHOLD_EFFORT_TEXT}`,
+    // Says "estimated" and what it rests on, in the words the card's threshold label uses.
+    label: CARD_THRESHOLD_LABEL[sport],
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
     grade: outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,

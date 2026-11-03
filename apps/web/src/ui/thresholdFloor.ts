@@ -1,26 +1,34 @@
-import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
-import { metabolicToRidePower } from '@rca/core/metabolic'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { EffortGate } from '@rca/core/effort'
+import type { UnevenFit } from '@rca/core/cp'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
-import { formatDuration, formatWkg } from '@rca/core/units'
+import { formatDuration } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { hasThreshold, paceFigure, powerFigure } from './records'
+import { hasThreshold, paceFigure } from './records'
 import type { SportNumber } from './records'
 
-/** A critical power as the sport's figure, the same way the threshold's own figure is made. */
-const FIGURE_AT: Record<Sport, (cp: number, massKg: number, units: UnitSystem) => SportNumber> = {
-  run: (cp, _massKg, units) => ({ ...paceFigure(cp, units), sub: null }),
-  ride: (cp, massKg) => {
-    const watts = metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean)
-    return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+/**
+ * What a sport shows in place of a refused threshold, or null for a sport that has none. A run's critical-power fit can be
+ * refused, and then its best efforts stand in. A ride's threshold is the estimate from all its efforts, which is null only
+ * with no effort of 3 min, and then there is no best to show either.
+ */
+const FLOOR_FOR: Record<
+  Sport,
+  {
+    /** The sport's best-effort curve in the fit's unit (gross metabolic W/kg), which the effort gate's floor is in. */
+    curve: (result: AnalysisResult) => Curve
+    uneven: (result: AnalysisResult) => UnevenFit | null
+    /** A critical power as the sport's figure, the same way the threshold's own figure is made. */
+    figure: (cp: number, units: UnitSystem) => SportNumber
+  } | null
+> = {
+  run: {
+    curve: (result) => result.runCurve,
+    uneven: (result) => result.runCpUneven,
+    figure: (cp, units) => ({ ...paceFigure(cp, units), sub: null }),
   },
-}
-
-/** A sport's best-effort curve in the fit's unit (gross metabolic W/kg), which the effort gate's floor is in. */
-const FIT_CURVE: Record<Sport, (result: AnalysisResult) => Curve> = {
-  run: (result) => result.runCurve,
-  ride: (result) => result.rideMetabolicCurve,
+  ride: null,
 }
 
 /**
@@ -65,18 +73,19 @@ export function gatedFloor(result: AnalysisResult, sport: Sport): EffortGate['fl
  * What a sport's threshold stands on when it has none, so a refusal changes the label and never blanks the number. With
  * an uneven fit and a best 20 min not shown easy, the lowest of the bests it left out. Otherwise the effort gate's floor,
  * the best 30 min where the curve has one, else the best 20: real ability is at least this. A sport with no best of 20 min
- * or longer gives its longest best of 5 min or more, as a best. Null when the threshold is there, or the sport holds no
- * best of 5 min.
+ * or longer gives its longest best of 5 min or more, as a best. Null when the threshold is there, the sport holds no
+ * best of 5 min, or the sport has no floor (a ride's threshold is not refused for its efforts).
  */
 export function floorOf(result: AnalysisResult, sport: Sport): ThresholdFloor | null {
-  if (hasThreshold(result, sport)) return null
-  const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
+  const source = FLOOR_FOR[sport]
+  if (source === null || hasThreshold(result, sport)) return null
+  const uneven = source.uneven(result)
   // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
   if (gatedFloor(result, sport) === null && uneven && uneven.fit.cp > uneven.floor) {
     return { durationS: Math.max(...uneven.leftOutS), value: uneven.floor, atLeast: true }
   }
   const held = result.effortGate[sport].floor
-  return held === null ? longestBest(FIT_CURVE[sport](result)) : { ...held, atLeast: true }
+  return held === null ? longestBest(source.curve(result)) : { ...held, atLeast: true }
 }
 
 /**
@@ -86,11 +95,12 @@ export function floorOf(result: AnalysisResult, sport: Sport): ThresholdFloor | 
 export function floorThreshold(
   result: AnalysisResult,
   sport: Sport,
-  massKg: number,
+  _massKg: number,
   units: UnitSystem,
 ): SportNumber | null {
   const floor = floorOf(result, sport)
-  return floor === null ? null : FIGURE_AT[sport](floor.value, massKg, units)
+  const source = FLOOR_FOR[sport]
+  return floor === null || source === null ? null : source.figure(floor.value, units)
 }
 
 /** The one line under a floor that says what it rests on: "From your best 30 min." Null for a best, and without a figure. */
