@@ -222,11 +222,10 @@ function heartRate(
 
 /**
  * A threshold reference from the sport's fit over the half year that ends with the date, or, when that window
- * holds no fit, the newest earlier one within a year (marked with when its efforts end). Where no fit stands, and also where
- * the window's efforts have outgrown the older one, the sport's floor stands in: its best 30 minutes in the 12 months up to
- * the end of the date's week, else its best 20 (marked with the length and the day it was set). With none in those months,
- * only zones for this week or later take the newest effort before them, as `floorAt` has it. `convert` takes the fit's gross
- * metabolic W/kg to the measure's unit.
+ * holds no fit, the newest earlier one within a year (marked with when its efforts end). Where no fit stands, the sport's
+ * floor stands in: its best 30 minutes in the 12 months up to the end of the date's week, else its best 20 (marked with the
+ * length and the day it was set). With none in those months, only zones for this week or later take the newest effort before
+ * them, as `floorAt` has it. `convert` takes the fit's gross metabolic W/kg to the measure's unit.
  */
 function threshold(
   sport: Sport,

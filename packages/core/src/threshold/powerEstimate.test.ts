@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DURATION_TABLES } from './durationTables'
 import { powerEstimate, rideEstimates, rideWeight } from './powerEstimate'
 import type { ThresholdEffort } from './types'
 
@@ -130,61 +129,5 @@ describe('the power estimate', () => {
       estimated: true,
     })
     expect(powerEstimate([ride('a', 205), ...others])!.strongest.estimated).toBe(false)
-  })
-})
-
-describe('an hour done as a floor', () => {
-  const hour = (id: string, value: number, over: Partial<ThresholdEffort> = {}) =>
-    ride(id, value, { durationS: 3600, ...over })
-  // Six rides whose 20 min bests imply 190.
-  const others = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ride(id, 190 * 1.053))
-
-  it('puts the answer at the hour when the mean of the estimates is under it, and names that hour', () => {
-    const result = powerEstimate([...others, hour('long', 200)])!
-    expect(result.value).toBe(200)
-    expect(result.floor).toBe(200)
-    expect(result.strongest).toEqual({ activityId: 'long', durationS: 3600, estimated: false })
-    // The hour is a ride like the others in the count.
-    expect(result.rides).toBe(7)
-  })
-
-  it('leaves the mean alone when the hour is under it, and still says what the hour was', () => {
-    const result = powerEstimate([...others, hour('long', 150)])!
-    expect(result.value).toBeCloseTo(190, 6)
-    expect(result.floor).toBe(150)
-    expect(result.strongest.durationS).toBe(1200)
-  })
-
-  it('has no floor without an effort of an hour or longer', () => {
-    expect(powerEstimate(others)!.floor).toBe(0)
-  })
-
-  it('takes the best hour in the window, from any ride and at its own value', () => {
-    const result = powerEstimate([...others, hour('x', 198), hour('y', 205), hour('z', 201)])!
-    expect(result.value).toBe(205)
-    expect(result.strongest.activityId).toBe('y')
-  })
-
-  it('reads a longer effort at what was held, not scaled up', () => {
-    const result = powerEstimate([...others, ride('long', 200, { durationS: 5400 })])!
-    expect(result.floor).toBe(200)
-    expect(result.value).toBeCloseTo(200, 6)
-    expect(result.strongest).toMatchObject({ activityId: 'long', durationS: 5400 })
-  })
-
-  it('counts an hour from an old ride: the window is the limit, not the recency weight', () => {
-    const result = powerEstimate([...others, hour('old', 200, { ageDays: 400 })])!
-    expect(result.value).toBe(200)
-  })
-
-  it('says the hour was estimated where its watts were', () => {
-    const result = powerEstimate([...others, hour('long', 200, { estimated: true })])!
-    expect(result.strongest.estimated).toBe(true)
-  })
-
-  it('floors a runner’s answer as well, with the runner’s table for the rest', () => {
-    const runs = ['a', 'b', 'c'].map((id) => ride(id, 14 * DURATION_TABLES.run.ratio(1200)))
-    const result = powerEstimate([...runs, hour('long', 15)], DURATION_TABLES.run)!
-    expect(result.value).toBe(15)
   })
 })

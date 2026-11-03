@@ -41,7 +41,7 @@ describe('a floor is a best up to the activity and within 12 months of it', () =
     expect(pace(noon(2020, 6, 1))).toBeUndefined()
     expect(pace(noon(2023, 1, 10))).toBeUndefined()
     expect(missingThresholdZones(noon(2020, 6, 1), SETTINGS, estimates)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 

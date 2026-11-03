@@ -69,7 +69,7 @@ export function estimateOver(
   const fused = fuse(power.value, power.relativeError, 'refused' in heart ? null : heart)
   return {
     value: fused.value,
-    // An hour the athlete did is a floor under the low as well; `power.value` is never under it, so neither is the answer.
+    // A backed hour the athlete did is a floor under the low as well; `power.value` is never under it, so neither is the answer.
     low: Math.max(fused.low, power.floor),
     high: fused.high,
     efforts: {

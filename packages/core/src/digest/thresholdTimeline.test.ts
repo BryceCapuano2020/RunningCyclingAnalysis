@@ -9,12 +9,7 @@ import { digestActivity } from './digestActivity'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
 import { librariesOf, thresholdsOf } from './thresholdLibraries'
-import {
-  STALE_THRESHOLD_DAYS,
-  THRESHOLD_WINDOW_WEEKS,
-  outgrownAt,
-  thresholdAt,
-} from './thresholdTimelineTypes'
+import { STALE_THRESHOLD_DAYS, THRESHOLD_WINDOW_WEEKS, thresholdAt } from './thresholdTimelineTypes'
 import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, strideRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -93,18 +88,35 @@ describe('thresholdTimeline', () => {
     expect(thresholdAt(run, weekMs(50) + 2 * DAY_MS)).toMatchObject({ asOfMs: null })
   })
 
-  it('follows a steady run far above the older level at once, by the hour it held', () => {
-    // 20 weeks at one level, then a steady run: every duration holds one value, 50% over the older level's hour. Its short
-    // efforts read nothing like the others', and the hour is the one thing it proves, so the threshold stands at it.
-    const steady = levelRun('steady', 20 * 7 + 2, 1)
-    const flat = (14 + 900 / 1200) * 1.5
+  /** A steady run: every duration holds one value, `share` over the level-1 run's hour. */
+  function steadyRun(id: string, day: number, share: number) {
+    const steady = levelRun(id, day, 1)
+    const flat = (14 + 900 / 3600) * share
     steady.curve = steady.curve.map((point) => ({ ...point, value: flat }))
+    return { steady, flat }
+  }
+
+  it('does not follow one steady run far above the older level: a lone hour nothing backs is not believed', () => {
+    // 20 weeks at one level, then one steady run 50% over the older level's hour. Its hour proves nothing a second hour or the
+    // runs' own estimates confirm, so the threshold stays where the 20 weeks put it.
+    const { steady, flat } = steadyRun('steady', 20 * 7 + 2, 1.5)
     const { run } = timelineOf([...weeklyRuns(0, 20, () => 1), steady])
     const older = thresholdAt(run, weekMs(19) + 2 * DAY_MS)!.fit.cp
-    expect(thresholdAt(run, steady.startMs)!.fit.cp).toBeCloseTo(flat, 8)
-    expect(thresholdAt(run, steady.startMs)!.fit.cp).toBeGreaterThan(older * 1.3)
-    // No window is left without an estimate by it, so none is called outgrown.
-    expect(outgrownAt(run, steady.startMs)).toBe(false)
+    const after = thresholdAt(run, steady.startMs)!.fit.cp
+    expect(after).toBeLessThan(flat * 0.8)
+    expect(after).toBeLessThan(older * 1.05)
+  })
+
+  it('follows two steady runs far above the older level at once, by the hour they agree on', () => {
+    // The same, with a second steady run a week later at about the same hour: two hours agree, so the higher stands as the floor.
+    const first = steadyRun('steady-a', 20 * 7 + 2, 1.5)
+    const second = steadyRun('steady-b', 21 * 7 + 2, 1.48)
+    const { run } = timelineOf([...weeklyRuns(0, 20, () => 1), first.steady, second.steady])
+    const older = thresholdAt(run, weekMs(19) + 2 * DAY_MS)!.fit.cp
+    // The first alone is not believed; with the second in the window it is.
+    expect(thresholdAt(run, first.steady.startMs)!.fit.cp).toBeLessThan(older * 1.05)
+    expect(thresholdAt(run, second.steady.startMs)!.fit.cp).toBeCloseTo(first.flat, 8)
+    expect(thresholdAt(run, second.steady.startMs)!.fit.cp).toBeGreaterThan(older * 1.3)
   })
 
   it('has nothing for a sport with no efforts, and none from an indoor run', () => {
@@ -179,8 +191,9 @@ describe('thresholdTimeline against the library', () => {
       libraries,
     )
     const lines = { run: libraries.run.line, ride: libraries.ride.line }
+    // A run's threshold reads pace alone, so its line is refused whatever the run reference heart rate is.
+    expect(lines.run).toEqual({ refused: 'no-heart-rate' })
     let compared = 0
-    let withHeartRate = 0
     timeline.run.forEach((step, i) => {
       if (i % 4 !== 0) return
       const expected = thresholdsOf(windowOf(step.fromMs), inputs, effort.referenceHr, lines).run
@@ -188,13 +201,13 @@ describe('thresholdTimeline against the library', () => {
       else {
         expect(step.fit!.cp).toBeCloseTo(expected.value, 8)
         expect(step.fit!.cpSe).toBeCloseTo(expected.value * expected.efforts.relativeError, 8)
-        if ('value' in expected.heartRate) withHeartRate++
+        expect(expected.heartRate).toEqual({ refused: 'no-heart-rate' })
+        expect(expected.value).toBe(expected.efforts.value)
       }
       compared++
     })
     expect(compared).toBeGreaterThan(20)
     expect(judged.rideGate).not.toBeNull()
-    expect(withHeartRate).toBeGreaterThan(0)
   })
 
   it('has, for every week, the ride threshold of the rides of its half year, as the analysis reads them', () => {

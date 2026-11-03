@@ -37,7 +37,8 @@ describe('zones from current fitness', () => {
     const early = pace(zonesAt(at(50), SETTINGS, estimates))!
     const late = pace(zonesAt(at(125), SETTINGS, estimates))!
     expect(late.reference).toBeLessThan(early.reference * 0.95)
-    // All of time's threshold is the early one, which cut the late runs as if the athlete were still at their best.
+    // All of time's threshold is set by the early runs (their hour is the floor under it, as the recent runs would pull the mean
+    // down), which cut the late runs as if the athlete were still near their best.
     const whole = combine(library, SETTINGS).runThreshold!
     const held: ThresholdStep = {
       fromMs: 0,
@@ -51,7 +52,6 @@ describe('zones from current fitness', () => {
         thresholds: { run: [held], ride: [] },
       }),
     )!
-    expect(wholeLibrary.reference).toBeGreaterThan(early.reference * 0.95)
     expect(wholeLibrary.reference).toBeGreaterThan(late.reference * 1.05)
     expect(late.asOfMs).toBeNull()
   })
@@ -135,7 +135,7 @@ describe('when the half year cannot support a threshold', () => {
     expect(estimates.floor!.run.length).toBeGreaterThan(0)
     expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 
@@ -143,7 +143,7 @@ describe('when the half year cannot support a threshold', () => {
     const bare = { ...estimatesFor([...hard, ...easy], at(19 + 56)), floor: { run: [], ride: [] } }
     expect(pace(zonesAt(at(19 + 56), SETTINGS, bare))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, bare)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 

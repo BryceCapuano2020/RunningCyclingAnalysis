@@ -6,20 +6,19 @@ import type { RideEffort, ThresholdBlock, ThresholdEffort } from './types'
 /** The ride's table, for the helpers that read a flat list of efforts and are not told another sport's. */
 const RIDE_TABLE = DURATION_TABLES.ride
 
-/** A ride's strongest effort, scaled to the threshold it implies (its value over the duration ratio). */
+/** A ride's strongest effort, scaled to the threshold it implies (`DurationTable.threshold`). */
 export interface RideBest {
   durationS: number
   value: number
   estimated: boolean
-  /** The variance of the duration ratio at that duration (`ratioSpread` squared): the ride's weight is over it. */
+  /** The variance of the duration ratio at that duration (`DurationTable.spread` squared): the ride's weight is over it. */
   variance: number
 }
 
-/** The highest effort of an hour or longer, as it was held: no scaling, since an hour is the threshold itself. */
+/** The highest measured effort of an hour or longer, as it was held: no scaling, since an hour is the threshold itself. */
 export interface HourEffort {
   durationS: number
   value: number
-  estimated: boolean
 }
 
 /** One steady effort the heart-rate estimate may read: measured watts, 8 to 30 min, with a heart rate. */
@@ -36,7 +35,7 @@ export interface HeartEffort {
 export interface PreparedRide {
   activityId: string
   best: RideBest | null
-  /** The highest value held for an hour or longer, or null: an hour the athlete did, which the answer is never under. */
+  /** The highest measured value held for an hour or longer, or null: an hour the athlete did, which can set a floor under the answer. */
   hour: HourEffort | null
   heart: readonly HeartEffort[]
   blocks: readonly ThresholdBlock[]
@@ -46,12 +45,17 @@ export interface PreparedRide {
 const counts = (e: RideEffort): boolean =>
   e.durationS >= SHORTEST_EFFORT_S && e.value > 0 && Number.isFinite(e.value)
 
-/** The ride's highest effort scaled by the sport's table; efforts under 3 min and values that are not positive and finite are ignored. */
+/**
+ * The ride's highest effort scaled by the sport's table, each effort on its own (a run's scaling depends on the effort's value as
+ * well as its length); efforts under 3 min, values that are not positive and finite, and efforts the table cannot scale are
+ * ignored.
+ */
 export function bestOf(efforts: readonly RideEffort[], table: DurationTable): RideBest | null {
   let best: RideBest | null = null
   for (const e of efforts) {
     if (!counts(e)) continue
-    const value = e.value / table.ratio(e.durationS)
+    const value = table.threshold(e.value, e.durationS)
+    if (!(value > 0) || !Number.isFinite(value)) continue
     if (best === null || value > best.value) {
       best = {
         durationS: e.durationS,
@@ -64,14 +68,12 @@ export function bestOf(efforts: readonly RideEffort[], table: DurationTable): Ri
   return best
 }
 
-/** The ride's highest effort of an hour or longer. */
+/** The ride's highest measured effort of an hour or longer: watts estimated without a meter are not an hour done. */
 export function hourOf(efforts: readonly RideEffort[]): HourEffort | null {
   let hour: HourEffort | null = null
   for (const e of efforts) {
-    if (!counts(e) || e.durationS < HOUR_S) continue
-    if (hour === null || e.value > hour.value) {
-      hour = { durationS: e.durationS, value: e.value, estimated: e.estimated }
-    }
+    if (!counts(e) || e.estimated || e.durationS < HOUR_S) continue
+    if (hour === null || e.value > hour.value) hour = { durationS: e.durationS, value: e.value }
   }
   return hour
 }
@@ -119,7 +121,7 @@ export function prepareFlat(
         : own.efforts.find(
             (e) =>
               e.durationS === ride.best!.durationS &&
-              e.value / table.ratio(e.durationS) === ride.best!.value,
+              table.threshold(e.value, e.durationS) === ride.best!.value,
           )
     ages.push(Math.max(0, strongest?.ageDays ?? 0))
   }

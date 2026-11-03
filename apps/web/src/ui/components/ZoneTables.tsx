@@ -142,11 +142,9 @@ export function ZoneTables({
           </div>
         </>
       )}
-      {missing.map(({ sport, measure, outgrown }) => (
+      {missing.map(({ sport, measure }) => (
         <p key={`${sport}.${measure}`} className="secondary zone-tables__missing">
-          {outgrown
-            ? `No ${SPORT_LABEL[sport].toLowerCase()} ${measure} zones today: your threshold around this date is not settled.`
-            : `No ${SPORT_LABEL[sport].toLowerCase()} ${measure === 'heartRate' ? 'heart rate' : measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
+          {`No ${SPORT_LABEL[sport].toLowerCase()} ${measure === 'heartRate' ? 'heart rate' : measure} zones today. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </section>
