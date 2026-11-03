@@ -71,6 +71,16 @@ describe('headlinePick', () => {
     expect(headlinePick(fitted)).not.toBeNull()
   })
 
+  it('is null for a ride whose threshold rests on shorter efforts alone: the headline compares at 20 min', () => {
+    const base = makeResult().rideThreshold!
+    const fiveMin = {
+      ...base,
+      efforts: { ...base.efforts, strongest: { ...base.efforts.strongest, durationS: 300 } },
+    }
+    expect(headlinePick(result({ rideCurve: short, rideThreshold: fiveMin }))).toBeNull()
+    expect(headlinePick(result({ rideCurve: short, rideThreshold: base }))).not.toBeNull()
+  })
+
   it('is null when one sport is known only from shorter efforts, however the comparison reads', () => {
     const thin = result({ rideCurve: short })
     expect(pickHeadline(thin.comparison)).not.toBeNull()

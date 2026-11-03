@@ -6,6 +6,7 @@ import { NO_EFFORT_GATE } from '../effort'
 import type { EffortGate } from '../effort'
 import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
+import { hasEvidence } from './evidence'
 import type { Lack } from './window'
 import { WINDOW_DAYS, resolveWindow } from './window'
 
@@ -26,15 +27,15 @@ function library(days = YEAR_AND_A_HALF): ActivityDigest[] {
 
 type Lacks = Partial<Record<Sport, Lack>>
 
-/**
- * An analysis in which each sport lacks what `lacks` says, and qualifies where it is not named. With `easy`, every best 20 min
- * was shown not to be a hard effort, which is a label beside the threshold and no lack.
- */
-function analysis(lacks: Lacks, easy = false): AnalysisResult {
+/** An analysis in which each sport lacks what `lacks` says, and qualifies where it is not named. */
+function analysis(lacks: Lacks): AnalysisResult {
   const activities = SPORTS.flatMap((sport) =>
     Array.from({ length: lacks[sport] === 'few' ? 2 : 3 }, () => ({ sport, indoor: false })),
   )
-  const gate: EffortGate = { ...NO_EFFORT_GATE, verdict: easy ? 'notHard' : 'hard' }
+  const gate = (sport: Sport): EffortGate => ({
+    ...NO_EFFORT_GATE,
+    verdict: lacks[sport] === 'easy' ? 'notHard' : 'hard',
+  })
   const curve = (sport: Sport) =>
     lacks[sport] === 'none' ? [] : [{ durationS: 1200, value: 4, startIndex: 0, windowS: 1200 }]
   return {
@@ -43,21 +44,22 @@ function analysis(lacks: Lacks, easy = false): AnalysisResult {
     rideCurve: curve('ride'),
     runCp: null,
     rideThreshold: null,
-    effortGate: { run: gate, ride: gate },
+    effortGate: { run: gate('run'), ride: gate('ride') },
   } as unknown as AnalysisResult
 }
 
 /** The search over a library of `days`, where the nth window analysed lacks `outcomes[n]`; returns the answer and the digests each analysis was given. */
-function search(outcomes: Lacks[], days = YEAR_AND_A_HALF, easy = false) {
+function search(outcomes: Lacks[], days = YEAR_AND_A_HALF) {
   const asked: number[] = []
   const answer = resolveWindow(library(days), 'default', (selected) => {
     asked.push(selected.length)
-    return analysis(outcomes[asked.length - 1] ?? {}, easy)
+    return analysis(outcomes[asked.length - 1] ?? {})
   })
   return { answer, asked }
 }
 
-const RUN_FEW: Lacks = { run: 'few' }
+const RUN_EASY: Lacks = { run: 'easy' }
+const BOTH_EASY: Lacks = { run: 'easy', ride: 'easy' }
 
 describe('resolveWindow', () => {
   it('tries 12 weeks, 26 weeks and 12 months', () => {
@@ -84,16 +86,16 @@ describe('resolveWindow', () => {
   })
 
   it('takes the shortest window where every sport qualifies, and says what the shorter ones lacked', () => {
-    const { answer, asked } = search([RUN_FEW, { ride: 'few', run: 'none' }, {}])
+    const { answer, asked } = search([RUN_EASY, { ride: 'few', run: 'easy' }, {}])
     expect(answer).toEqual({
       choice: 365,
       reason: 'qualified',
       passed: [
-        { days: 84, lacks: [{ sport: 'run', lack: 'few' }] },
+        { days: 84, lacks: [{ sport: 'run', lack: 'easy' }] },
         {
           days: 182,
           lacks: [
-            { sport: 'run', lack: 'none' },
+            { sport: 'run', lack: 'easy' },
             { sport: 'ride', lack: 'few' },
           ],
         },
@@ -102,27 +104,68 @@ describe('resolveWindow', () => {
     expect(asked).toEqual([18, 38, 74])
   })
 
-  it('names each lack: too few activities, no best of 20 min', () => {
-    const { answer } = search([{ run: 'few', ride: 'none' }, {}])
-    expect(answer).toMatchObject({ choice: 182, reason: 'qualified' })
+  it('names each lack: too few activities, no best of 20 min, a best shown easy', () => {
+    const { answer } = search([{ run: 'few', ride: 'none' }, RUN_EASY, {}])
+    expect(answer).toMatchObject({ choice: 365, reason: 'qualified' })
     expect(answer.passed[0]!.lacks).toEqual([
       { sport: 'run', lack: 'few' },
       { sport: 'ride', lack: 'none' },
     ])
+    expect(answer.passed[1]!.lacks).toEqual([{ sport: 'run', lack: 'easy' }])
   })
 
-  it('does not pass over a window for a best 20 min shown easy: that is a label, not a lack', () => {
-    const { answer, asked } = search([{}], YEAR_AND_A_HALF, true)
-    expect(answer).toEqual({ choice: 84, reason: 'qualified', passed: [] })
-    expect(asked).toEqual([18])
+  it('without a window that qualifies, takes the shortest with evidence for every sport and the most sports qualifying', () => {
+    const { answer } = search([BOTH_EASY, RUN_EASY, RUN_EASY])
+    // 26 weeks has a sport qualifying where 12 weeks has none; 12 months only ties it, so the shorter stays.
+    expect(answer).toEqual({
+      choice: 182,
+      reason: 'most',
+      passed: [
+        {
+          days: 84,
+          lacks: [
+            { sport: 'run', lack: 'easy' },
+            { sport: 'ride', lack: 'easy' },
+          ],
+        },
+      ],
+    })
   })
 
-  it('counts a ride threshold as the ride’s evidence where its best curve has no 20 min', () => {
+  it('keeps 12 weeks when no window does better, after looking at all three', () => {
+    const { answer, asked } = search([RUN_EASY, RUN_EASY, RUN_EASY])
+    expect(answer).toEqual({ choice: 84, reason: 'most', passed: [] })
+    expect(asked).toEqual([18, 38, 74])
+  })
+
+  it('never takes a window short of evidence for a sport over one that has it, however many qualify', () => {
+    const { answer } = search([{ run: 'few' }, BOTH_EASY, { run: 'none' }])
+    expect(answer).toMatchObject({ choice: 182, reason: 'most' })
+    expect(answer.passed).toEqual([{ days: 84, lacks: [{ sport: 'run', lack: 'few' }] }])
+  })
+
+  it('counts a ride threshold as evidence only where it rests on an effort as long as the headline’s', () => {
+    // The ride estimate reads efforts from 3 min, so a rider with only short bests has one.
+    const estimate = (durationS: number) =>
+      ({
+        value: 4,
+        efforts: { strongest: { durationS } },
+      }) as unknown as AnalysisResult['rideThreshold']
     const noBest = analysis({ ride: 'none' })
-    const withEstimate = { ...noBest, rideThreshold: { value: 4 } } as unknown as AnalysisResult
-    const answer = resolveWindow(library(), 'default', () => withEstimate)
-    expect(answer).toEqual({ choice: 84, reason: 'qualified', passed: [] })
-    expect(resolveWindow(library(), 'default', () => noBest)).toMatchObject({ reason: 'all-time' })
+    const fiveMinutes = { ...noBest, rideThreshold: estimate(300) }
+    const twentyMinutes = { ...noBest, rideThreshold: estimate(1200) }
+    expect(hasEvidence(fiveMinutes, 'ride')).toBe(false)
+    expect(hasEvidence(twentyMinutes, 'ride')).toBe(true)
+    // A best curve of 20 min counts with or without an estimate, as it did.
+    expect(hasEvidence(analysis({}), 'ride')).toBe(true)
+    expect(resolveWindow(library(), 'default', () => fiveMinutes)).toMatchObject({
+      reason: 'all-time',
+    })
+    expect(resolveWindow(library(), 'default', () => twentyMinutes)).toEqual({
+      choice: 84,
+      reason: 'qualified',
+      passed: [],
+    })
   })
 
   it('uses all time when no window has evidence for every sport', () => {
@@ -134,13 +177,13 @@ describe('resolveWindow', () => {
 
   it('treats a window longer than the library as all time, and ends the search there', () => {
     // 200 days: 12 weeks and 26 weeks are dated, and 12 months would be the whole library.
-    const { answer, asked } = search([RUN_FEW, RUN_FEW, {}], 200)
+    const { answer, asked } = search([RUN_EASY, RUN_EASY, {}], 200)
     expect(answer).toEqual({
       choice: 'all',
       reason: 'qualified',
       passed: [
-        { days: 84, lacks: [{ sport: 'run', lack: 'few' }] },
-        { days: 182, lacks: [{ sport: 'run', lack: 'few' }] },
+        { days: 84, lacks: [{ sport: 'run', lack: 'easy' }] },
+        { days: 182, lacks: [{ sport: 'run', lack: 'easy' }] },
       ],
     })
     expect(asked).toEqual([18, 38, library(200).length])
@@ -166,11 +209,7 @@ describe('resolveWindow', () => {
       answer: { choice: 'all', reason: 'qualified', passed: [] },
       asked: [library(50).length],
     })
-    expect(search([{}], 50, true).answer).toEqual({
-      choice: 'all',
-      reason: 'qualified',
-      passed: [],
-    })
+    expect(search([RUN_EASY], 50).answer).toEqual({ choice: 'all', reason: 'most', passed: [] })
     expect(search([{ run: 'few' }], 50).answer).toEqual({
       choice: 'all',
       reason: 'all-time',

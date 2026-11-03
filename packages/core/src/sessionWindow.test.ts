@@ -32,34 +32,24 @@ describe('the default period through a session', () => {
     })
   })
 
-  it('stays on 12 weeks when the only hard run is 8 months ago: an easy best 20 min is no lack', () => {
-    const library = athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(240, 8) })
-    const state = load(library)
-    expect(state.answerWindow).toEqual({ choice: 84, reason: 'qualified', passed: [] })
-    expect(state.period).toMatchObject({ choice: 'default', days: 84, fellBack: false })
-    // The gate still says what the 12 weeks held, as a label beside the numbers.
-    expect(state.result?.effortGate.run.verdict).toBe('notHard')
-  })
-
-  it('widens to 12 months when a sport has too few activities in the shorter windows, and says so', () => {
-    // Rides to the present, and runs only 7 to 9 months back.
-    const library = [
-      ...athlete({ spanDays: SPAN, sports: ['ride'] }),
-      ...athlete({ spanDays: 60, from: 220, sports: ['run'] }),
-    ]
-    const state = load(library)
+  it('widens to 12 months for a hard run 8 months ago, and says what the shorter windows lacked', () => {
+    const state = load(athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(240, 8) }))
     expect(state.answerWindow).toEqual({
       choice: 365,
       reason: 'qualified',
       passed: [
-        { days: 84, lacks: [{ sport: 'run', lack: 'few' }] },
-        { days: 182, lacks: [{ sport: 'run', lack: 'few' }] },
+        { days: 84, lacks: [{ sport: 'run', lack: 'easy' }] },
+        { days: 182, lacks: [{ sport: 'run', lack: 'easy' }] },
       ],
     })
     // The page is the 12 months: the choice stays the default, and every number is that window's.
     expect(state.period).toMatchObject({ choice: 'default', days: 365, fellBack: false })
+    expect(state.result?.effortGate.run.verdict).toBe('hard')
     expect(state.previous).not.toBeNull()
-    expect(state.result?.activities.length).toBe(load(library, 365).result?.activities.length)
+    expect(state.result?.activities.length).toBe(
+      load(athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(240, 8) }), 365).result?.activities
+        .length,
+    )
   })
 
   it('honours an explicit pick exactly, with no search', () => {
@@ -76,10 +66,10 @@ describe('the default period through a session', () => {
     expect(six.result?.effortGate.run.verdict).toBe('notHard')
   })
 
-  it('stays on 12 weeks when the only hard runs are older than every window', () => {
-    // The hard runs are 13 months back, outside every window but all time; the 12 weeks hold easy runs, which qualify.
+  it('takes the shortest window with evidence for every sport when none qualifies', () => {
+    // The only hard runs are 13 months back, outside every window but all time.
     const state = load(athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(380, 8) }))
-    expect(state.answerWindow).toEqual({ choice: 84, reason: 'qualified', passed: [] })
+    expect(state.answerWindow).toEqual({ choice: 84, reason: 'most', passed: [] })
     expect(state.period).toMatchObject({ choice: 'default', days: 84, fellBack: false })
     expect(state.result?.effortGate.run.verdict).toBe('notHard')
   })
@@ -101,14 +91,9 @@ describe('the default period through a session', () => {
 
   it('asks a one-sport athlete about that sport alone', () => {
     const easy = load(athlete({ spanDays: SPAN, sports: ['run'] }))
-    // No ride is asked for; the easy runs qualify in 12 weeks.
-    expect(easy.answerWindow).toEqual({ choice: 84, reason: 'qualified', passed: [] })
-    // Two runs lately and a spell of them a year ago: the shorter windows lack runs, and no ride is asked about.
-    const sparse = [
-      ...athlete({ spanDays: 6, sports: ['run'] }),
-      ...athlete({ spanDays: 90, from: 300, sports: ['run'] }),
-    ]
-    const old = load(sparse)
+    // No ride is asked for; the easy runs keep 12 weeks with nothing better in reach.
+    expect(easy.answerWindow).toEqual({ choice: 84, reason: 'most', passed: [] })
+    const old = load(athlete({ spanDays: SPAN, sports: ['run'], hardRuns: hardRunsFrom(240, 8) }))
     expect(old.answerWindow).toMatchObject({ choice: 365, reason: 'qualified' })
     expect(old.answerWindow.passed.flatMap(({ lacks }) => lacks.map(({ sport }) => sport))).toEqual(
       ['run', 'run'],

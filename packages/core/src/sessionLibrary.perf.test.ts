@@ -22,10 +22,10 @@ import { fastestMs } from './test/timing'
  * The search that ends on all time pays the same weekly fits (308 ms on the runner against 300), so its budget is 450 for the same reason.
  *
  * The default period is a search over 12 weeks, 26 weeks and 12 months (answer/window.ts), each analysed through the period
- * cache and the search stopping at the first window where every sport qualifies. A best 20 minutes that was not hard is no
- * lack, so this library qualifies in 12 weeks; the search test leaves out its recent runs, so the default analyses all three
- * windows before it takes the third. Where a sport has too few activities in all three the search ends on all time, which costs
- * three small windows more than the all-time load itself (about 90 ms against 90): the same library with its rides older than a year.
+ * cache and the search stopping at the first window where every sport qualifies. The library here has no hard effort, so
+ * none qualifies and the default analyses all three before it takes the shortest: about 60 ms against about 45 for 12 weeks
+ * picked by hand. Where a sport has too few activities in all three the search ends on all time, which costs three small
+ * windows more than the all-time load itself (about 90 ms against 90): the same library with its rides older than a year.
  *
  * A change of body mass took about 42 ms here (budget 80) until pace and power zones were cut from a floor
  * where no fit stands (zones.ts, `floorAt`). This library has no hard effort, so no fit ever stood and its 2,000 activities had no
@@ -76,17 +76,13 @@ describe('session performance on a large library', () => {
   })
 
   it(`searches all three windows for the default of ${ACTIVITIES} activities in under ${SEARCH_BUDGET_MS} ms`, () => {
-    // The runs of the last 200 days are left out, so 12 weeks and 26 weeks lack runs and the third window is the one taken.
-    const newest = Math.max(...digests.map((digest) => digest.startMs))
-    const runsOld = digests.filter(
-      (digest) => digest.sport !== 'run' || digest.startMs < newest - 200 * DAY_MS,
-    )
     let answer = ''
     const ms = fastestMs(() => {
-      const state = new AnalysisSession().loadDigests(runsOld, SETTINGS)
+      const state = new AnalysisSession().loadDigests(digests, SETTINGS)
       answer = `${state.answerWindow.reason}/${state.period.days}`
     }, 5)
-    expect(answer).toBe('qualified/365')
+    // No window qualifies, so the shortest with evidence for both sports is taken after the three are analysed.
+    expect(answer).toBe('most/84')
     expect(ms).toBeLessThan(SEARCH_BUDGET_MS)
   })
 

@@ -31,7 +31,7 @@ function session(): AnalysisSession {
 }
 
 describe('the default period and the period cache', () => {
-  it('analyses 12 weeks once, and no other window, when every sport qualifies there', () => {
+  it('analyses 12 weeks once, and no other window, when a hard effort is in them', () => {
     const library = athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(10, 8) })
     const { weeks12, weeks26, months12 } = sizes(library)
     expect(new Set([weeks12, weeks26, months12]).size).toBe(3)
@@ -44,11 +44,7 @@ describe('the default period and the period cache', () => {
   })
 
   it('analyses each window it passes over once, and the window it settles on is not analysed again', () => {
-    // Rides to the present, runs only 7 to 9 months back: the two shorter windows lack runs and are passed over.
-    const library = [
-      ...athlete({ spanDays: SPAN, sports: ['ride'] }),
-      ...athlete({ spanDays: 60, from: 220, sports: ['run'] }),
-    ]
+    const library = athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(240, 8) })
     const { weeks12, weeks26, months12 } = sizes(library)
     vi.mocked(combine).mockClear()
     const made = session()
@@ -64,7 +60,7 @@ describe('the default period and the period cache', () => {
   })
 
   it('is read from the cache by a later state on the same digests', () => {
-    const library = athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(10, 8) })
+    const library = athlete({ spanDays: SPAN, hardRuns: hardRunsFrom(240, 8) })
     const made = session()
     made.loadDigests(library, SETTINGS)
     vi.mocked(combine).mockClear()
