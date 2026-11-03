@@ -58,7 +58,8 @@ export interface ThresholdEstimate {
     /**
      * The mean of the rides' estimates, or a backed hour where that is higher: the best measured effort of an hour or longer in
      * the window when a second hour is within 4% of it or it is no higher than the mean's own 90th percentile, else the
-     * second-best hour. A lone hour above that is not believed, and estimated watts are never an hour done.
+     * second-best hour if a third is within 4% of it or it is no higher than that percentile, else none. A lone hour above that
+     * is not believed, and estimated watts are never an hour done.
      */
     value: number
     /**

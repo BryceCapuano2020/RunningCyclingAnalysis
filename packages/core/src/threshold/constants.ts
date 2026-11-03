@@ -3,8 +3,14 @@
  * threshold.sim.test.ts. They live here and not in core's constants.ts, which has no room.
  */
 
-/** The shortest best that says anything about threshold; under this the sprint dominates. */
-export const SHORTEST_EFFORT_S = 180
+/** The shortest best that says anything about a ride's threshold; under this the sprint dominates. */
+export const RIDE_SHORTEST_EFFORT_S = 180
+/**
+ * The shortest best that says anything about a run's threshold. The 3 to 7 min bests of training runs are strides, hills and GPS
+ * noise, not races, and Daniels' curve describes races: scaled from them, a run's threshold reads fast (docs/design/threshold.md,
+ * "Runs"). From 8 min a best is a sustained run and the curve holds.
+ */
+export const RUN_SHORTEST_EFFORT_S = 480
 
 // Duration ratio: the best a rider can hold for a time, as a multiple of threshold, for a rider who gave it all.
 /** The ratio changes formula at this many minutes, with no step: 1.015 + 0.76 / 20 is 1.053. */
@@ -31,9 +37,9 @@ export const RUN_VO2 = { constant: -4.6, linear: 0.182258, square: 0.000104 } as
 /** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
 export const HOUR_S = 3600
 /**
- * The best measured hour sets the floor when a second hour in the window is within this share of it, or when it is no higher than
- * the power estimate's own 90th percentile. A lone hour above that is one file nothing backs, and the second-best hour (or none)
- * is the floor instead.
+ * An hour backs a floor when the next hour down in the window is within this share of it, or when it is no higher than the power
+ * estimate's own 90th percentile. The best hour is the floor if backed; a lone hour above that is one file nothing backs, and the
+ * second-best hour is the floor instead if the third (or the estimate) backs it the same way, else there is none.
  */
 export const HOUR_AGREEMENT = 0.04
 

@@ -37,8 +37,9 @@ export interface PowerEstimate {
   /**
    * The hour the athlete did that backs a floor, or 0 for none. It is the best measured effort of an hour or longer in the
    * window (estimated watts are not an hour done, and age does not count against one) when a second hour is within 4% of it or
-   * it is no higher than the 90th percentile of the mean of the rides' estimates; a lone hour above that is not believed, and the
-   * second-best hour stands in (none without one). The answer and its low are never under it.
+   * it is no higher than the 90th percentile of the mean of the rides' estimates. A lone hour above that is not believed, and the
+   * second-best hour stands in under the same test (a third within 4% of it, or no higher than the 90th percentile); with neither
+   * backed there is no floor. The answer and its low are never under it.
    */
   floor: number
 }
@@ -87,7 +88,7 @@ export function rideWeight(ride: RideEstimate, top: number): number {
 
 /**
  * The robust weighted mean of the strongest efforts of the rides from `lo` up to, not including, `hi`, each aged by `ages`
- * (days back from the newest activity of the set, never under 0). Null where no ride has an effort of 3 min or more, or none
+ * (days back from the newest activity of the set, never under 0). Null where no ride has an effort of the table's shortest, or none
  * has any weight. Each ride's strongest effort is worked out once (`PreparedRide`), so a window costs the mean alone.
  */
 export function powerOver(
@@ -148,10 +149,11 @@ export function powerOver(
 }
 
 /**
- * The hour that backs a floor among the rides from `lo` up to, not including, `hi`: the best measured hour when a second hour is
+ * The hour that backs a floor among the rides from `lo` up to, not including, `hi`. An hour is backed when the next hour down is
  * within `HOUR_AGREEMENT` of it or it is no higher than the 90th percentile of the mean of the rides' estimates (`mean`, with
- * `relativeError`, which `fuse` reads the range from); else the second-best hour, or null with no hour to stand on. Every ride in
- * the window counts whatever its age: recency weights the mean and not the floor.
+ * `relativeError`, which `fuse` reads the range from). The best hour is the floor if it is backed; else the second-best hour, if
+ * that is backed the same way (by the third, or by the estimate); else none, since an hour nothing confirms is one odd file. Every
+ * ride in the window counts whatever its age: recency weights the mean and not the floor.
  */
 export function backedHour(
   rides: readonly PreparedRide[],
@@ -160,23 +162,31 @@ export function backedHour(
   mean: number,
   relativeError: number,
 ): Hour | null {
-  // The rides of the best and second-best hour, by index: a library's windows go through this for every week.
+  // The rides of the three best hours, by index: a library's windows go through this for every week.
   let best = -1
   let second = -1
+  let third = -1
   const value = (i: number) => rides[i]!.hour!.value
   for (let i = lo; i < hi; i++) {
     const effort = rides[i]!.hour
     if (effort === null) continue
     if (best < 0 || effort.value > value(best)) {
+      third = second
       second = best
       best = i
-    } else if (second < 0 || effort.value > value(second)) second = i
+    } else if (second < 0 || effort.value > value(second)) {
+      third = second
+      second = i
+    } else if (third < 0 || effort.value > value(third)) third = i
   }
   if (best < 0) return null
+  let high: number | null = null
+  const backed = (i: number, next: number) =>
+    (next >= 0 && value(next) >= value(i) * (1 - HOUR_AGREEMENT)) ||
+    value(i) <= (high ??= fuse(mean, relativeError, null).high)
   const hourOfRide = (i: number): Hour => ({ activityId: rides[i]!.activityId, ...rides[i]!.hour! })
-  if (second >= 0 && value(second) >= value(best) * (1 - HOUR_AGREEMENT)) return hourOfRide(best)
-  if (value(best) <= fuse(mean, relativeError, null).high) return hourOfRide(best)
-  return second < 0 ? null : hourOfRide(second)
+  if (backed(best, second)) return hourOfRide(best)
+  return second >= 0 && backed(second, third) ? hourOfRide(second) : null
 }
 
 /** The power estimate of a flat list of efforts, each with its age. */

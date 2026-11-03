@@ -132,7 +132,7 @@ export function thresholdTimeline(
     const placed = activities.map((each): Placed => ({
       weekEnd: weekEndFor(each),
       startMs: each.startMs,
-      effort: each.efforts.length > 0,
+      effort: each.prepared.best !== null,
     }))
     const basis = thresholdBasis(
       activities.map((each) => each.prepared),

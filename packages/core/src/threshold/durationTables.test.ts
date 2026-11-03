@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { flatSpeedToMetabolic, metabolicToFlatSpeed } from '../metabolic'
 import { SPORTS } from '../types'
+import type { Sport } from '../types'
 import { durationRatio, ratioSpread } from './durationRatio'
 import {
   DURATION_TABLES,
@@ -10,6 +11,8 @@ import {
   runThresholdOf,
   runVo2,
 } from './durationTables'
+import { thresholdOver } from './estimate'
+import type { ThresholdEffort } from './types'
 
 describe('the running duration table', () => {
   it('is Daniels and Gilbert’s share of VO2max over the share held for an hour', () => {
@@ -124,4 +127,58 @@ describe('the tables by sport', () => {
     expect(DURATION_TABLES.run.spread(1200)).toBeCloseTo(0.025, 12)
     expect(DURATION_TABLES.run.spread(480)).toBeGreaterThan(DURATION_TABLES.run.spread(1200))
   })
+})
+
+describe('the shortest effort of each sport', () => {
+  const effort = (sport: Sport, id: string, durationS: number, level: number, over = 1) =>
+    ({
+      activityId: id,
+      durationS,
+      value: DURATION_TABLES[sport].held(level, durationS) * over,
+      heartRate: null,
+      ageDays: 0,
+      estimated: false,
+    }) satisfies ThresholdEffort
+
+  it('is 3 min for a ride and 8 min for a run, whose short training bests are strides, hills and GPS noise', () => {
+    expect(DURATION_TABLES.ride.shortestS).toBe(180)
+    expect(DURATION_TABLES.run.shortestS).toBe(480)
+  })
+
+  it.each(SPORTS)(
+    'reads a %s from its shortest effort and says nothing from a second under it',
+    (sport) => {
+      const { shortestS } = DURATION_TABLES[sport]
+      expect(
+        thresholdOver(DURATION_TABLES[sport], [effort(sport, 'a', shortestS - 1, 15)], [], null),
+      ).toBeNull()
+      const at = thresholdOver(
+        DURATION_TABLES[sport],
+        [effort(sport, 'a', shortestS, 15)],
+        [],
+        null,
+      )
+      expect(at!.value).toBeCloseTo(15, 6)
+      expect(at!.efforts.strongest.durationS).toBe(shortestS)
+    },
+  )
+
+  // The fast short bests of a runner (strides, a hill) are 15% over what the table holds for them. Whether they move the answer
+  // is the sport's table: a ride reads from 3 min and is lifted, a run from 8 min and is not.
+  const MOVED_BY_SHORT_BESTS: Record<Sport, boolean> = { run: false, ride: true }
+  it.each(SPORTS)(
+    '%s: fast bests of 3 and 5 min move the threshold only where the table reads them',
+    (sport) => {
+      const sustained = ['a', 'b', 'c', 'd'].map((id) => effort(sport, id, 1200, 15))
+      const fast = [180, 300].flatMap((s) =>
+        ['a', 'b', 'c', 'd'].map((id) => effort(sport, id, s, 15, 1.15)),
+      )
+      const table = DURATION_TABLES[sport]
+      const plain = thresholdOver(table, sustained, [], null)!
+      const withFast = thresholdOver(table, [...sustained, ...fast], [], null)!
+      expect(plain.value).toBeCloseTo(15, 6)
+      if (MOVED_BY_SHORT_BESTS[sport]) expect(withFast.value).toBeGreaterThan(plain.value * 1.05)
+      else expect(withFast.value).toBe(plain.value)
+    },
+  )
 })

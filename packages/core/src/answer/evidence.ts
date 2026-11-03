@@ -23,8 +23,8 @@ function reachesHeadline(curve: Curve): boolean {
 }
 
 /**
- * A threshold estimate where it rests on an effort as long as the headline's. The estimate exists from a 3 min effort, so an
- * athlete with only short bests has one, and the headline compares at 20 min. The fit it replaced as the evidence needed such an
+ * A threshold estimate where it rests on an effort as long as the headline's. The estimate exists from its sport's shortest
+ * effort (3 min for a ride, 8 for a run), so an athlete with only short bests has one, and the headline compares at 20 min. The fit it replaced as the evidence needed such an
  * effort, and so does this.
  */
 function reachingHeadline(estimate: ThresholdEstimate | null): ThresholdEstimate | null {

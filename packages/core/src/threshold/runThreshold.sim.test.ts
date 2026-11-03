@@ -4,7 +4,8 @@
 // "Runs"), so no case has heart rate. The table in that note is this run (RECORD=1 prints it).
 import { describe, expect, it } from 'vitest'
 import { fitCriticalPower } from '../cp'
-import { runThreshold } from './estimate'
+import { DURATION_TABLES } from './durationTables'
+import { runThreshold, thresholdOver } from './estimate'
 import { RUNNER, type Scenario, type SimRider } from './test/simRider'
 import { bestAt, coverage, median, runCase, tableLine, within5, type Row } from './test/simRows'
 
@@ -23,11 +24,15 @@ function criticalSpeed(rider: SimRider): number {
   return fitCriticalPower(curve)?.cp ?? bestAt(rider, 1200)
 }
 
+/** The run table as it was, reading bests from 3 min: what the estimate would say if short training bests counted. */
+const FROM_3_MIN = { ...DURATION_TABLES.run, shortestS: 180 }
+
 // The estimate as the analysis calls it for runs: efforts alone, no heart rate.
 const run = (scenario: Scenario): Row =>
   runCase(scenario, RUNNER, RUNNERS, SEED, (efforts) => runThreshold(efforts, [], null), {
     'critical speed': criticalSpeed,
     'best 30 min': (rider) => bestAt(rider, 1800),
+    'from 3 min': (rider) => thresholdOver(FROM_3_MIN, rider.efforts, [], null)!.value,
   })
 
 const usual: Scenario = { name: 'hard runs 0 to 7% short of all out', noHeartRate: true }
@@ -46,7 +51,14 @@ const wideAllOut: Scenario = {
   noHeartRate: true,
 }
 
-const ALL = [usual, allOut, tempo, wide, wideAllOut]
+// Bursts in the short bests of training runs (strides, hills, GPS noise): 3% to 6% over the curve on about half the runs.
+const fastShort: Scenario = {
+  name: 'strides: short bests 3% to 6% over',
+  shortBias: 0.06,
+  noHeartRate: true,
+}
+
+const ALL = [usual, allOut, tempo, wide, wideAllOut, fastShort]
 
 // Run on first use, inside a test, so the test timeout applies and not the hook's.
 const rows = new Map<Scenario, Row>()
@@ -55,16 +67,17 @@ const of = (s: Scenario) => rows.get(s) ?? rows.set(s, run(s)).get(s)!
 const rule = (row: Row, name: string) => row.rules.get(name)!
 
 describe('the run threshold on simulated runners', () => {
-  // The bests of these runners sit a few percent under all-out, so the answer reads a little low.
+  // The bests of these runners sit a few percent under all-out, so the answer reads a little low. Runs read from 8 min: the 3 and
+  // 5 min bests of a hard run are left out, which costs the runners whose only hard runs are that short a few points of this share.
   it('reads at most 4% low on the median and within 5% for most runners whose hard runs fall short', () => {
     expect(median(of(usual).estimate.errors)).toBeGreaterThan(-4)
     expect(median(of(usual).estimate.errors)).toBeLessThanOrEqual(0)
-    expect(within5(of(usual).estimate.errors)).toBeGreaterThanOrEqual(0.75)
+    expect(within5(of(usual).estimate.errors)).toBeGreaterThanOrEqual(0.65)
   })
 
-  it('reads a runner who always goes all out within 1% on the median and 90% of them within 5%', () => {
+  it('reads a runner who always goes all out within 1% on the median and 85% of them within 5%', () => {
     expect(Math.abs(median(of(allOut).estimate.errors))).toBeLessThan(1)
-    expect(within5(of(allOut).estimate.errors)).toBeGreaterThanOrEqual(0.9)
+    expect(within5(of(allOut).estimate.errors)).toBeGreaterThanOrEqual(0.85)
   })
 
   // Critical speed over the 3 to 20 min bests reads the pace of about 40 min, so a runner who gives it all is read a little fast and
@@ -95,10 +108,23 @@ describe('the run threshold on simulated runners', () => {
 
   // The ratio's spread between runners is the riders'. Runners twice as far from the curve widen the error, not the range's hold.
   it('stays within 5% for most runners whose endurance varies twice as much', () => {
-    expect(within5(of(wide).estimate.errors)).toBeGreaterThanOrEqual(0.65)
+    expect(within5(of(wide).estimate.errors)).toBeGreaterThanOrEqual(0.6)
     expect(Math.abs(median(of(wide).estimate.errors))).toBeLessThan(4)
     expect(within5(of(wideAllOut).estimate.errors)).toBeGreaterThanOrEqual(0.8)
     expect(Math.abs(median(of(wideAllOut).estimate.errors))).toBeLessThan(1)
+  })
+
+  // The reason runs read from 8 min: a burst in the short bests of training runs (strides, hills, GPS noise) does not describe the
+  // hour. The answer does not move for them; read from 3 min, the same runners would be read well over their threshold.
+  it('is not moved by strides in the short bests of training runs, which would lift the answer from 3 min', () => {
+    const strides = of(fastShort)
+    expect(
+      Math.abs(median(strides.estimate.errors) - median(of(usual).estimate.errors)),
+    ).toBeLessThan(1)
+    expect(within5(strides.estimate.errors)).toBeGreaterThanOrEqual(0.6)
+    const from3 = rule(strides, 'from 3 min')
+    expect(median(from3) - median(rule(of(usual), 'from 3 min'))).toBeGreaterThan(5)
+    expect(median(from3)).toBeGreaterThan(3)
   })
 
   // With no heart rate to confirm a rise, a runner who never goes all out is read from bests well under what they can do. Heart rate

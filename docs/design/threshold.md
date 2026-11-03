@@ -72,7 +72,7 @@ Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by 
    on its face, but one odd file with nothing else near it is not an hour done. So the best hour sets the floor when a second
    hour in the window is within 4% of it, or when it is no higher than the 90th percentile of the mean of the rides' estimates
    (`fuse` from power alone, about 16% over the mean at the 2.5% floor of its error). Otherwise the floor is the second-best
-   hour, or none. Only a measured hour counts: watts estimated without a meter never make an hour done. The floor is applied to
+   hour, which has to pass the same test (a third hour within 4% of it, or no higher than that percentile), or none. Only a measured hour counts: watts estimated without a meter never make an hour done. The floor is applied to
    the power estimate, before fusion: where it is higher than the mean, `efforts.value` is the hour and `efforts.strongest`
    names it, so a screen's "strongest effort" is the one that sets the number, and an answer above `efforts.value` still means
    heart rate lifted it. The low is the higher of the fused low and the hour. The floor reads every ride in the window whatever
@@ -127,7 +127,7 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 The table includes the hour floor (step 7): it moved only the tempo-only row (power alone from -13.5% to -11.7%, since a
 rider who never goes all out still rode an hour; the answer from -5.2% to -5.0%, and the range's hold from 81% to 88%) and a
 point or two in the cells for a wrong maximum and for always all-out. Backing the floor (a second hour within 4%, or under the
-estimate's 90th percentile) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
+estimate's 90th percentile, for the best hour and the second-best alike) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
 
 The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
 The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
@@ -190,13 +190,23 @@ for 40, nearly whatever the speed. So each run effort is taken through speed: th
 quadratic) and back to W/kg (`runThresholdOf`, `threshold/durationTables.ts`). A scaled value depends on the effort's value as
 well as its length, so the run's best is chosen effort by effort (`bestOf`, through `DurationTable.threshold(value,
 durationS)`); a ride's is still its effort over a ratio of its length alone, and its answers do not move. The efforts are the
-same 3 to 60 min bests, with the same near-top weight, recency and Tukey mean. The spread of the ratio between runners starts as
+same bests from 8 to 60 min (below), with the same near-top weight, recency and Tukey mean. The spread of the ratio between runners starts as
 the ride's (smallest at 20 min, growing with the log of the distance either side): the second simulation below doubles the
 runners' departure from the curve and the stated range still holds for most of them, so there is no evidence for a wider one.
 Check (`durationTables.test.ts`): an effort at the speed Daniels gives for `t` minutes at a VO2max scales to the speed he gives
 for 60 min at that VO2max within 0.5%, and the 5 km and 10 km of one runner in his published tables read the same hour speed.
 
-**The inputs** (`digest/runEfforts.ts`) are the run best curve's own: each curve point of a counted run from 3 to 60 min,
+**Runs read bests of 8 min and longer.** The shortest effort is part of the sport's table (`DurationTable.shortestS`): 3 min for a
+ride, 8 min for a run. Daniels and Gilbert's curve describes races, efforts held as long as the runner could. The 3 to 7 min bests
+of a training library are not that: they are strides, a hill repeat, a fast downhill or a burst of GPS noise, and they sit well over
+the curve's share for their length. On a real library, the curve applied to those bests set a run threshold clearly faster than the
+athlete's own estimate of their hour, and from 8 min it agreed with it. The best curve has points at 7 and 10 min, so on a real
+library the shortest effort read is the 10 min point; 8 min is the table's, and the length the simulation draws. A run with no
+effort of 8 min gives no best, and a window of such runs has no estimate of its own, so an older one stands in. Check
+(`durationTables.test.ts`, for each sport): an effort a second under the sport's shortest says nothing, one at it is read, and fast
+3 and 5 min bests lift a ride's threshold and leave a run's where it was.
+
+**The inputs** (`digest/runEfforts.ts`) are the run best curve's own: each curve point of a counted run from 8 to 60 min,
 priced by `runCentralWkg` (a treadmill run holds no best, and a point past the world-record ceiling for its duration is
 dropped, as the best curve drops it); the heart rate of a run set aside is none; and the 5 min blocks are the digest's
 `hrBlocks`, whose value is the run's mean gross metabolic W/kg (`possibleRunWkg`), in the same unit. Nothing in a run is
@@ -213,8 +223,8 @@ simulation below therefore runs without heart rate.
 
 **The zones' timeline, the evidence rule and the headline** read `runThreshold` where they read `runCp`. A zone window is
 `runThreshold` over its runs, as a `{ cp, cpSe }` step, with the same standard error rule as a ride's. A window with any run
-effort of 3 min or more has an estimate, so a run window never falls back to an older fit for lack of a long effort; it does
-where its runs hold nothing past 3 min at all.
+effort of 8 min or more has an estimate, so a run window never falls back to an older fit for lack of a long effort; it does
+where its runs hold nothing past 7 min at all (strides, short easy runs).
 
 ### The run card
 
@@ -252,17 +262,20 @@ Simulated runners with a known 1-hour pace (1,200 per case, seeded; `runThreshol
 The efforts are drawn from the Daniels curve as the estimate reads it (the inverse of `runThresholdOf`: the hour's cost times
 `r_run(t)`, back to speed and W/kg), with an endurance tilt per runner (a sprinter's or a diesel's: 4% at 3 min and 2% at 60, the
 riders' spread), 0 to 7% short of all-out in the hard runs, the same runs as the riders' (easy days at 68 to 80% of threshold, the
-share a gross metabolic rate that includes rest leaves). No case has heart rate, since runs read none. The two last cases double
-the tilt. Cells: the median error, the share within 5%, the share whose range holds the truth; then the median error and the share
-within 5% of the rules of thumb the estimate replaces.
+share a gross metabolic rate that includes rest leaves). No case has heart rate, since runs read none. The two cases after the
+first three double the tilt; the last gives about half of each runner's runs a stride, a 3 and 5 min best 3% to 6% over what the
+curve holds for that runner (`shortBias`), and nothing else off the curve. The estimate reads from 8 min; the last column is the
+same estimate reading from 3 min, to show what the short bests do. Cells: the median error, the share within 5%, the share
+whose range holds the truth; then the median error and the share within 5% of the rules of thumb the estimate replaces.
 
-| Case                               | This estimate   | Critical speed, 3 to 20 min | Best 30 min |
-| ---------------------------------- | --------------- | --------------------------- | ----------- |
-| Hard runs 0 to 7% short of all-out | -3.1%, 79%, 96% | -1.9%, 69%                  | -8.6%, 6%   |
-| Always all-out                     | -0.1%, 94%, 84% | +1.1%, 66%                  | -6.7%, 28%  |
-| Never all-out (tempo only)         | -11.7%, 0%, 82% | -9.0%, 0%                   | -9.4%, 0%   |
-| Endurance varying twice as much    | -3.2%, 71%, 88% | -2.0%, 68%                  | -8.5%, 6%   |
-| Twice as much, always all-out      | -0.0%, 86%, 73% | +1.1%, 63%                  | -6.7%, 28%  |
+| Case                               | This estimate   | Critical speed, 3 to 20 min | Best 30 min | This estimate from 3 min |
+| ---------------------------------- | --------------- | --------------------------- | ----------- | ------------------------ |
+| Hard runs 0 to 7% short of all-out | -3.5%, 72%, 95% | -1.9%, 69%                  | -8.6%, 6%   | -3.1%, 79%               |
+| Always all-out                     | -0.2%, 89%, 89% | +1.1%, 66%                  | -6.7%, 28%  | -0.1%, 94%               |
+| Never all-out (tempo only)         | -11.7%, 0%, 82% | -9.0%, 0%                   | -9.4%, 0%   | -11.7%, 0%               |
+| Endurance varying twice as much    | -3.6%, 68%, 92% | -2.0%, 68%                  | -8.5%, 6%   | -3.2%, 71%               |
+| Twice as much, always all-out      | -0.2%, 87%, 80% | +1.1%, 63%                  | -6.7%, 28%  | -0.0%, 86%               |
+| Strides: short bests 3% to 6% over | -3.7%, 70%, 96% | -4.4%, 55%                  | -8.6%, 5%   | +4.3%, 95%               |
 
 What the table says, and does not:
 
@@ -270,19 +283,28 @@ What the table says, and does not:
   and Gilbert's curve fits real runners. That is not tested here, and a runner whose curve differs from it by more than the tilt
   moves the answer by that much.
 - Critical speed over the 3 to 20 min bests reads +1.1% for a runner who gives it all (near the pace of about 40 min), and close to
-  zero on the median for runners 0 to 7% short only because the two errors cancel. It reads 63% to 69% of these runners within 5%,
-  against 71% to 94% for this estimate.
+  zero on the median for runners 0 to 7% short only because the two errors cancel. It reads 63% to 69% of these runners within 5% (55% with
+  strides), against 68% to 89% for this estimate (70% with strides).
 - The best 30 min is 7 to 9% low, as a rider's is.
-- With no heart rate to confirm a rise, a runner who never goes all out is read about 12% low and none within 5%, where critical
-  speed (9% low) is no nearer. That is the cost of leaving heart rate out for runs: the first version of this simulation, with
-  heart rate, lifted such a runner by about 6 points, and on a real library the same lift read runs far too fast.
+- With no heart rate to confirm a rise, a runner who never goes all out is read about 12% low and none within 5%. Critical speed
+  reads 9% low and none within 5% either: 3 points nearer on the median, no better on the share within 5%. That is the cost of
+  leaving heart rate out for runs: the first version of this simulation, with heart rate, lifted such a runner by about 6 points,
+  and on a real library the same lift read runs far too fast.
+- Reading from 8 min costs accuracy where the short bests are clean: 7 points of the runners within 5% for hard runs short of
+  all-out, 5 for always all-out, which lose the 3 and 5 min bests of their shortest hard runs. The simulation cannot say that real
+  short bests are not clean; that rests on the real library above. What it shows is the exposure. With strides in the short bests
+  the estimate stays where it was (-3.7% against -3.5%), while the same estimate from 3 min reads 4.3% high, 7 points above where it
+  reads the same runners without strides. Its 95% within 5% is the strides cancelling the 3.5% low of runs short of all-out, not
+  accuracy. Critical speed over the 3 to 20 min bests falls to 55% within 5% with strides, as it reads the 3 to 5 min bests too.
 - The hour floor changes nothing in these cases: the best hour of a simulated runner is a tempo or easy day, below the estimate.
   The unit tests pin it (`hourFloor.test.ts`).
 
-The test asserts: hard runs short of all-out at most 4% low on the median and 75% within 5%; always all-out within 1% on the median
-and 90% within 5%; in each case but never all-out more runners within 5% than critical speed and than the best 30 min, and a median
-nearer the truth than the best 30 min; a range that holds the truth for 65% to 97% of runners in every case; twice the tilt 65%
-within 5% (80% when always all-out); and never all-out between 8% and 14% low with under 2% within 5%.
+The test asserts: hard runs short of all-out at most 4% low on the median and 65% within 5%; always all-out within 1% on the median
+and 85% within 5%; in each case but never all-out and strides more runners within 5% than critical speed and than the best 30 min,
+and a median nearer the truth than the best 30 min; a range that holds the truth for 65% to 97% of runners in every case; twice the
+tilt 60% within 5% (80% when always all-out); strides moving the median by under a point from the case without them, 60% within 5%,
+and the estimate from 3 min at least 5 points higher with them and over 3% high; and never all-out between 8% and 14% low with
+under 2% within 5%. Seeds 11 to 14 agree within 3 points on every cell.
 
 ## Interface
 
@@ -315,6 +337,7 @@ export interface ThresholdBlock {
   value: number
 }
 export interface DurationTable {
+  shortestS: number // the shortest best this sport's threshold reads: 3 min for a ride, 8 min for a run
   threshold(value: number, durationS: number): number // the threshold a best implies: a ride's value over a ratio, a run's through speed
   held(threshold: number, durationS: number): number // the inverse: the best an all-out athlete holds for this long
   spread(durationS: number): number // how far the ratio varies between athletes, as a share
@@ -341,12 +364,12 @@ do not (see "What it replaces"). A sport added to `Sport` has to say how its bes
 
 - **The caller sets threshold heart rate** (0.9 of the sport's reference maximum, as the effort gate draws its hard
   line) and passes it in; the estimator holds no share of its own, so the two cannot drift apart.
-- **Efforts under 3 min are ignored; efforts over 60 min are scaled by the same formula** (the ratio keeps falling
+- **Efforts under the sport's shortest (3 min for a ride, 8 min for a run) are ignored; efforts over 60 min are scaled by the same formula** (the ratio keeps falling
   under 1), so a caller that passes a 90 min best gets a slightly higher estimate from it, never a refusal. The same effort
   as a floor is taken as it was held (step 7), so it is not read twice.
 - **`efforts.strongest` is the highest estimate among the rides the mean kept, or the backed hour where the hour sets the
   answer.** A ride the second-strongest rule threw out is never named as the proof of the floor, except by its own hour.
-  `efforts.rides` counts every ride with an effort of 3 min or more.
+  `efforts.rides` counts every ride with an effort of its sport's shortest length or more.
 - **`efforts.strongest.estimated`** says whether that ride's watts were estimated, so a screen can say the proof of the
   floor is a guess.
 - **`heartRate.efforts` counts the efforts that went into the mean**, not the line's own point.
@@ -381,14 +404,14 @@ do not (see "What it replaces"). A sport added to `Sport` has to say how its bes
   the value (`efforts.relativeError`, never under 2.5%): the uncertainty of one window against another, which is what the
   zones' hold asks. The 10th to 90th range is not that: it allows for an athlete above their best, so it is one-sided and about
   6.6% of the value, and settling on it ignored a real 5% rise.
-- **A window with any effort of 3 min or more has an estimate**, so the older-fit rule applies to a sport only when a window
-  holds none at all (a run with nothing past 2 min, say), and the best-30-min zone floor only where no window does. The
+- **A window with any effort of its sport's shortest length or more has an estimate**, so the older-fit rule applies to a sport only
+  when a window holds none at all (a ride with nothing past 2 min, a run with nothing past 7 min, say), and the best-30-min zone floor only where no window does. The
   "outgrown" rule, which kept an older fit from standing in for a window whose steady effort was far above it, had nothing
   left to do for either sport once every window with an effort had an estimate of its own, and is removed (with the
   "your threshold around this date is not settled" line it fed).
 - **The window choice is as it was** (`answer/window.ts`): `easy` and `most` stay (see "What it replaces"). Its evidence test
   reads `rideThreshold` where it read `rideCp`, but counts the estimate only where its strongest effort is as long as the
-  headline's (a best of 20 min counts as before): the estimate exists from a 3 min effort, and the headline compares at 20 min,
+  headline's (a best of 20 min counts as before): the estimate exists from its sport's shortest effort (3 min for a ride, 8 for a run), and the headline compares at 20 min,
   so a ride known from 5 min efforts alone is not set against a run.
 - **The heart-rate line is fitted once per library, not once per window.** The slope within rides, each ride's offset, the
   stuck and far-off rides and the spread come from all the library's power-meter rides, and a run's from all its runs'
@@ -428,8 +451,8 @@ do not (see "What it replaces"). A sport added to `Sport` has to say how its bes
 - **The floor counts every measured hour in the window, and backs it.** The first version counted any hour, estimated watts
   included, and let a single odd file set the number, since the mean's second-strongest rule does not guard the floor. Now an
   hour from estimated watts is never an hour done, and the best hour is believed only when a second hour in the window is
-  within 4% of it or it is no higher than the 90th percentile of the mean's estimate; else the second-best hour stands in, or
-  none. It does not weigh by recency: a library window of all time is floored by a backed hour anywhere in the library. The
+  within 4% of it or it is no higher than the 90th percentile of the mean's estimate; else the second-best hour stands in if it
+  passes the same test (a third within 4% of it, or under the percentile), or there is no floor. It does not weigh by recency: a library window of all time is floored by a backed hour anywhere in the library. The
   4% and the percentile are judgement, not fitted: no case of the simulations has a believable hour over the estimate.
   A lone outlying hour that is real (a day that was far better than the others, with nothing near it) is read as the
   estimate says until a second hour or the rides' own estimates agree; that is the cost.

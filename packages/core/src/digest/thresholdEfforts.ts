@@ -1,4 +1,4 @@
-import { CP_FIT_MIN_S, DAY_MS } from '../constants'
+import { DAY_MS } from '../constants'
 import { ALL_OUT_FRACTION } from '../effort'
 import {
   DURATION_TABLES,
@@ -23,6 +23,8 @@ import type { Masses } from './masses'
 import { ofSport } from './ordered'
 import { powerCheckOf } from './powerCheck'
 import { centralWkgFromWatts, pointWkg } from './rideCurves'
+
+const RIDE_TABLE = DURATION_TABLES.ride
 
 /** The longest best the estimate reads: an hour, where the duration ratio reaches 1. */
 export const LONGEST_EFFORT_S = 3600
@@ -57,7 +59,7 @@ export function rideEffortsOf(
   const blocks: ThresholdBlock[] = []
   const estimated = !isMeasured(digest)
   for (const point of digest.curve) {
-    if (point.durationS < CP_FIT_MIN_S || point.durationS > LONGEST_EFFORT_S) continue
+    if (point.durationS < RIDE_TABLE.shortestS || point.durationS > LONGEST_EFFORT_S) continue
     const { wkg } = pointWkg(point, digest, masses, bikeModel, standing)
     if (!(wkg > 0) || !Number.isFinite(wkg)) continue
     efforts.push({
@@ -81,7 +83,7 @@ export function rideEffortsOf(
     startMs: digest.startMs,
     efforts,
     blocks,
-    prepared: prepareRide(digest.id, efforts, blocks, DURATION_TABLES.ride),
+    prepared: prepareRide(digest.id, efforts, blocks, RIDE_TABLE),
   }
 }
 
@@ -140,6 +142,20 @@ export function thresholdLineOf(
   )
 }
 
+/**
+ * The line a set of activities is read against: fitted over their blocks, or none where there is no threshold heart rate to read
+ * it against (`referenceMax` null: a sport whose threshold reads no heart rate), which fits nothing.
+ */
+function lineFor(
+  activities: readonly ActivityEfforts[],
+  newestMs: number,
+  referenceMax: number | null,
+): ThresholdLine {
+  return thresholdHeartRate(referenceMax) === null
+    ? { refused: 'no-heart-rate' }
+    : thresholdLineOf(activities, newestMs)
+}
+
 /** A library's activities of one sport, read once, and the line fitted over them: what its periods and its zone windows all read. */
 export interface ThresholdLibrary {
   activities: ActivityEfforts[]
@@ -155,17 +171,14 @@ export function libraryOf(
   ordered: ActivityDigest[],
   referenceMax: number | null,
 ): ThresholdLibrary {
-  const line: ThresholdLine =
-    thresholdHeartRate(referenceMax) === null
-      ? { refused: 'no-heart-rate' }
-      : thresholdLineOf(activities, newestStart(ordered))
-  return { activities, line }
+  return { activities, line: lineFor(activities, newestStart(ordered), referenceMax) }
 }
 
 /**
  * The threshold of a set of digests of one sport: every activity's bests, read with the sport's best curve's rules, aged from the
  * newest activity of the set (of any sport), with the heart rate of those not set aside, read against `line` (the library's;
- * absent, one is fitted over this set's). Null where the set has no effort of 3 min or more.
+ * absent, one is fitted over this set's, or none where `referenceMax` is null). Null where the set has no effort of its sport's
+ * shortest length or more.
  */
 export function thresholdOf(
   activities: readonly ActivityEfforts[],
@@ -176,7 +189,7 @@ export function thresholdOf(
   const newestMs = newestStart(ordered)
   const basis = thresholdBasis(
     activities.map((each) => each.prepared),
-    line ?? thresholdLineOf(activities, newestMs),
+    line ?? lineFor(activities, newestMs, referenceMax),
     thresholdHeartRate(referenceMax),
   )
   return estimateOver(basis, agesOf(activities, newestMs))

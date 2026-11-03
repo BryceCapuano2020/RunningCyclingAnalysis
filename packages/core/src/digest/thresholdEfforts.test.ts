@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DAY_MS, DEFAULT_BIKE_MODEL, PRIORS } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -10,8 +10,16 @@ import { estimatedStanding } from './estimatedRide'
 import { fixedMasses } from './masses'
 import { agesOf, rideEffortsOf, thresholdHeartRate } from './thresholdEfforts'
 import { librariesOf, thresholdsOf } from './thresholdLibraries'
+import * as thresholdModule from '../threshold'
+import { DURATION_TABLES } from '../threshold'
 import type { ThresholdLine } from '../threshold'
 import { syntheticActivity } from './test/syntheticActivity'
+
+vi.mock('../threshold', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../threshold')>()
+  return { ...actual, fitThresholdLine: vi.fn(actual.fitThresholdLine) }
+})
+const fitted = vi.mocked(thresholdModule.fitThresholdLine)
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const masses = fixedMasses(SETTINGS.massKg, SETTINGS.bikeMassKg)
@@ -198,11 +206,10 @@ function runOf(id: string, day: number, fast: number, fastS: number, over = {}):
 describe('what a run gives the run threshold', () => {
   const hard = runOf('hard', 0, 4.2, 900)
 
-  it('gives each best from 3 to 60 min in the run curve’s own unit, gross metabolic W/kg', () => {
+  it('gives each best from 8 to 60 min in the run curve’s own unit, gross metabolic W/kg', () => {
     const { efforts } = runEffortsOf(hard, false)
-    expect(efforts.map((e) => e.durationS)).toEqual([
-      180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600,
-    ])
+    // The curve has points at 7 and 10 min: the run table’s 8 min is the 10 min point on a real library.
+    expect(efforts.map((e) => e.durationS)).toEqual([600, 900, 1200, 1800, 2700, 3600])
     const fifteen = efforts.find((e) => e.durationS === 900)!
     const point = hard.curve.find((p) => p.durationS === 900)!
     expect(fifteen.value).toBe(runCentralWkg(point))
@@ -227,11 +234,21 @@ describe('what a run gives the run threshold', () => {
   it('drops a point faster than a person can run, as the run best curve does', () => {
     const fast = {
       ...hard,
-      curve: hard.curve.map((p) => (p.durationS === 300 ? { ...p, value: 200 } : p)),
+      curve: hard.curve.map((p) => (p.durationS === 900 ? { ...p, value: 200 } : p)),
     }
     const durations = runEffortsOf(fast, false).efforts.map((e) => e.durationS)
-    expect(durations).not.toContain(300)
-    expect(durations).toContain(240)
+    expect(durations).not.toContain(900)
+    expect(durations).toContain(600)
+  })
+
+  it('gives nothing from the short bests of a run, which a ride’s threshold reads from 3 min', () => {
+    // A hard 5 min and nothing sustained: strides, a hill repeat. The same bests are a ride’s efforts.
+    const burst = runOf('burst', 2, 5, 300)
+    const shortest = Math.min(...burst.curve.map((p) => p.durationS))
+    expect(shortest).toBeLessThan(DURATION_TABLES.run.shortestS)
+    expect(runEffortsOf(burst, false).efforts.every((e) => e.durationS >= 480)).toBe(true)
+    const sprint = ride('sprint', 2, 400, 300)
+    expect(rideOf(sprint).efforts[0]!.durationS).toBe(DURATION_TABLES.ride.shortestS)
   })
 
   it('leaves out a treadmill run, whose pace is not a distance covered', () => {
@@ -291,6 +308,26 @@ describe('the run threshold of a set of digests', () => {
     // A run's threshold ignores the rides' blocks and a ride's the runs'.
     expect(thresholds.run!.efforts.rides).toBe(6)
     expect(thresholds.run!.efforts.value).toBeCloseTo(runThresholdOf(runs, 190)!.efforts.value, 8)
+  })
+
+  it('fits no run line at all, whether the library’s lines are given or left to be fitted over the set', () => {
+    const rides = [0, 3, 6, 9, 12, 15].map((day, i) => ride(`r${i}`, day, 270 + i, 900))
+    const mixed = [...runs, ...rides]
+    const fittedOver = () =>
+      fitted.mock.calls.map(([prepared]) => prepared.map((r) => r.activityId))
+    // Lines absent: each sport's is fitted over the set, and a sport that reads no heart rate has none to fit.
+    fitted.mockClear()
+    thresholdsOf(mixed, inputsOf(none), { run: 190, ride: 190 })
+    expect(fittedOver()).toHaveLength(1)
+    expect(fittedOver()[0]!.every((id) => id.startsWith('r'))).toBe(true)
+    fitted.mockClear()
+    thresholdsOf(runs, inputsOf(none), { run: 190, ride: null })
+    expect(fitted).not.toHaveBeenCalled()
+    // The library's lines: the same one fit, over the rides.
+    fitted.mockClear()
+    librariesOf(mixed, inputsOf(none), { run: 190, ride: 190 })
+    expect(fittedOver()).toHaveLength(1)
+    expect(fittedOver()[0]!.every((id) => id.startsWith('r'))).toBe(true)
   })
 
   it('is the analysis’s run threshold, with the fit still reported for the curve chart', () => {
