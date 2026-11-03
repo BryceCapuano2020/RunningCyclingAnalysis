@@ -11,7 +11,7 @@ export interface GradeSentenceProps {
 
 /**
  * A grade's sentence: its level, then its percent and its range. The level is the centre's, even where a ride's
- * range reaches the next band. The percent and the range each stay whole on one line, the lead's dot stays with
+ * range reaches a neighbouring band. The percent and the range each stay whole on one line, the lead's dot stays with
  * the level's first word, and the line may break before the dot, so a long level at a large text size wraps
  * instead of widening the page.
  */

@@ -50,7 +50,7 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
             `Levels are bands of the grade: ${BAND_TEXT}.`,
             `Below ${RECREATIONAL_BELOW}% is Recreational.`,
             'A ride’s level is the band of its best estimate.',
-            'Its range, drawn on the ladder, can reach the next band.',
+            'Its range, drawn on the ladder, can reach a neighbouring band.',
             'A run’s grade uses its grade-adjusted pace (GAP).',
             'GAP is the recorded pace, corrected for hills.',
           ]}

@@ -111,7 +111,7 @@ function offScaleText(grade: SportGrade): string | null {
 
 /**
  * The band the grade falls in, filled and named in bold: the band of its centre (`gradeLevelText`), also where a ride's
- * range reaches the next band. The ring and its range bar show the spread.
+ * range reaches a neighbouring band. The ring and its range bar show the spread.
  */
 function currentBands(grade: SportGrade): Set<string> {
   return new Set([gradeLevelText(grade)])

@@ -736,7 +736,7 @@ describe('BalancePage with one sport', () => {
     expect(container.querySelector('.balance-meter')).toBeNull()
   })
 
-  it('names a ride’s level from its centre in the headline and on its line, though its range reaches the next band', () => {
+  it('names a ride’s level from its centre in the headline and on its line, though its range reaches a neighbouring band', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const result = makeResult({
       activities: [ride],

@@ -163,7 +163,7 @@ import { NO_STANDARD_RECORD_TEXT } from './gradeNotes'
 export * from './gradeNotes'
 
 /**
- * The level a grade names: the band of its centre, the best estimate. A ride's range may reach into the next band;
+ * The level a grade names: the band of its centre, the best estimate. A ride's range may reach into a neighbouring band;
  * the ladder draws that range and the detail writes it, so it never changes the level the headline names.
  */
 export function gradeLevelText(grade: SportGrade): string {
@@ -194,7 +194,7 @@ export type GradeContext = 'card' | 'row'
 export interface GradeParts {
   /** "Estimated" for a ride on a card; else null. */
   lead: string | null
-  /** The level of the centre, whether or not a ride's range reaches the next band. */
+  /** The level of the centre, whether or not a ride's range reaches a neighbouring band. */
   level: string
   /** The centre as a whole percent, such as "64%". */
   value: string

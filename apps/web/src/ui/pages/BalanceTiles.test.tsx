@@ -130,9 +130,11 @@ describe('BalanceTiles', () => {
     const run = screen.getByRole('article', { name: 'Run threshold' })
     expect(run).toHaveTextContent(/Best 20 min: \d+:\d{2} \/km/)
     expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min\./)
-    expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
-      /Best 20 min: \d+ W.*\d+% \(\d+ to \d+\) on your best 20 min\./,
-    )
+    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(ride).toHaveTextContent(/Best 20 min: \d+ W.*\w+ · \d+% on your best 20 min\./)
+    // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
+    const lines = [...ride.querySelectorAll('.stat-tile__line')].map((line) => line.textContent)
+    expect(lines.at(-1)).toMatch(/^\w+ · \d+% on your best 20 min\.$/)
   })
 
   it('holds the ride’s tiles for the weight', () => {

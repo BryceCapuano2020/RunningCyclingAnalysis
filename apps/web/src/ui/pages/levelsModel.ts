@@ -58,7 +58,7 @@ function missingFor(
 
 /**
  * The levels under the meter, from the grades the page already holds: each sport's age grade in whole percent
- * and its level, as the tiles print them. The level is the centre's, so a ride whose range reaches the next band
+ * and its level, as the tiles print them. The level is the centre's, so a ride whose range reaches a neighbouring band
  * still names one. A sport with no grade says what it is missing; when both are missing the same thing, it is said once.
  */
 export function balanceLevels(input: {

@@ -13,7 +13,7 @@ export function landingText({ gap, grades }: LandingFigures) {
   const other = gap.lean === 'ride' ? 'run' : 'ride'
   // The gap is signed toward running; the meter states its range from the side the balance leans to.
   const edges = gap.lean === 'ride' ? [-gap.high, -gap.low] : [gap.low, gap.high]
-  // A level is the centre's, whether or not a ride's range reaches the next band.
+  // A level is the centre's, whether or not a ride's range reaches a neighbouring band.
   const row = (sport: 'run' | 'ride') =>
     `${SPORT_TITLE[sport]} ${formatGrade(grades[sport].centre.grade)} ${gradeLevelText(grades[sport])}`
   return {

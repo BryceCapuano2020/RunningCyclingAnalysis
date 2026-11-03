@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { energyReading } from '../ui/components/balanceScale'
+import { heroGradeLine } from '../ui/grades'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
 import { BAND_HEIGHT, DOT_RADIUS } from './cardMeter'
 import type { ShareCardModel } from './cardModel'
@@ -156,7 +157,14 @@ describe('a caveat or footnote longer than two lines', () => {
 })
 
 describe('a ride whose range crosses a level', () => {
-  const CROSSING = '61% (55 to 70) on best 20 min'
+  // The card names the centre's level, the longest one here, and leaves the range off the line.
+  const CROSSING = heroGradeLine({
+    centre: { grade: 0.61, level: 'Recreational' },
+    range: {
+      low: { grade: 0.55, level: 'Recreational' },
+      high: { grade: 0.7, level: 'Local' },
+    },
+  })
   const crossing = (): ShareCardModel => {
     const base = cardModel()
     const [run, ride] = base.heroes
@@ -165,13 +173,14 @@ describe('a ride whose range crosses a level', () => {
   }
 
   it.each(FORMATS)(
-    'keeps the number and range whole and inside the margins on the %s card',
+    'keeps the level and number whole and inside the margins on the %s card',
     (format) => {
       const { width, marginX } = CARD_FORMATS[format]
       const { ok, ctx } = render(crossing(), format)
       expect(ok).toBe(true)
       const lines = ctx.texts.filter((text) => CROSSING.includes(text.text) && text.text !== '')
-      expect(lines.map((line) => line.text).join(' ')).toContain('(55 to 70)')
+      expect(CROSSING).toBe('Recreational · 61% on best 20 min')
+      expect(lines.map((line) => line.text).join(' ')).toContain('Recreational · 61%')
       expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
       for (const text of ctx.texts) {
         expect(text.x).toBeGreaterThanOrEqual(marginX)

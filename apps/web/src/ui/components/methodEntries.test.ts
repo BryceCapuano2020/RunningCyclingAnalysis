@@ -234,6 +234,10 @@ describe('How this works entries', () => {
   it('says how a change is called, with the numbers from the test’s own constants', () => {
     const change = entryNamed('How a change is called')
     expect(change.lines).toContain('The app calls a change only when it is bigger than chance.')
+    // The strip lists a change plainly, so the page says what a call that read every effort can mean.
+    expect(change.lines).toContain(
+      'When either period has no hard efforts, a change compares every effort, so an easy period can read as slower.',
+    )
     expect(change.lines).toContain(
       `With fewer than ${CHANGE.minPerSide} efforts of a length in either period, the app says nothing about it.`,
     )

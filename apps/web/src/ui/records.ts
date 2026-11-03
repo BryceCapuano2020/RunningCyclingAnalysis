@@ -239,6 +239,16 @@ export function sportRecords(
   return records
 }
 
+/** What follows a headline effort's figure when a ride's watts did not come from a power meter: "250 W, estimated". */
+export const ESTIMATED_EFFORT_SUFFIX = ', estimated'
+
+/** A headline effort's figure without its estimate word, for a line that leaves the estimate to the ring. */
+export function plainEffort(effort: string): string {
+  return effort.endsWith(ESTIMATED_EFFORT_SUFFIX)
+    ? effort.slice(0, -ESTIMATED_EFFORT_SUFFIX.length)
+    : effort
+}
+
 /**
  * The headline effort's figure as the grade line names it, such as "6:37 /mi", with "estimated" when
  * a ride's watts did not come from a power meter. Null when there is no headline effort.
@@ -247,7 +257,7 @@ export function headlineEffort(sport: Sport, records: readonly SportRecord[]): s
   const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
   if (headline === undefined) return null
   return isEstimatedRecord(sport, headline.activity)
-    ? `${headline.value}, estimated`
+    ? `${headline.value}${ESTIMATED_EFFORT_SUFFIX}`
     : headline.value
 }
 

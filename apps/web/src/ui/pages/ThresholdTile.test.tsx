@@ -323,25 +323,25 @@ describe('ThresholdTile', () => {
       }
     })
 
-    it('marks estimated watts on the ride’s grade line, with its range', () => {
+    it('writes the ride’s grade line as its level and percent with plain watts, and keeps the range and the estimate off it', () => {
       const result = makeResult({
         activities,
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
-      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        '58% (52 to 63) on your best 20 min, 246 W, estimated.',
+      expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
+        'Recreational · 58% on your best 20 min, 246 W.',
       )
     })
 
-    it('leaves “estimated” off watts a power meter measured', () => {
+    it('writes watts a power meter measured the same way: the grade line does not say which they were', () => {
       const result = makeResult({
         activities: [activities[0]!, { ...activities[1]!, powerSource: 'measured' }],
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
-      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        /on your best 20 min, 246 W\.$/,
+      expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
+        'Recreational · 58% on your best 20 min, 246 W.',
       )
     })
 

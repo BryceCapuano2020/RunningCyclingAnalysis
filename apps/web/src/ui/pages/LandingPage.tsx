@@ -84,8 +84,7 @@ export function LandingPage({
         <li>
           <h2>3. See your balance</h2>
           <p className="secondary">
-            Your level in each sport, which way your balance leans, and what to add for a steadier
-            answer.
+            Your level in each sport, which way your balance leans, and what has changed lately.
           </p>
         </li>
       </ol>

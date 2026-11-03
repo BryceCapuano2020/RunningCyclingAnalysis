@@ -3,7 +3,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { GradeOutcome } from '../grades'
-import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
+import { CHIP_DURATIONS_S, headlineEffort, plainEffort, sportRecords, threshold } from '../records'
 import { floorThreshold } from '../thresholdFloor'
 
 /**
@@ -19,10 +19,9 @@ export function gradeLine(
   if (grade === null) return null
   if (grade.kind !== 'graded') return notGradedText(grade)
   if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}`
-  const { level, value, range } = gradeParts(sport, grade.grade, 'row')
-  const figure = `${value}${range === null ? '' : ` (${range})`}`
-  const grades = level === null ? figure : `${level} · ${figure}`
-  return `${grades} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${effort}`}.`
+  // The range and the estimate are one tap down, on the sport page's ladder, so the line keeps the level and the percent.
+  const { level, value } = gradeParts(sport, grade.grade, 'row')
+  return `${level} · ${value} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${plainEffort(effort)}`}.`
 }
 
 /** A ride's figures wait for the weight. */

@@ -4,22 +4,17 @@ import { LevelLadder } from '../components/LevelLadder'
 import { formatGrade } from '../gradeFormat'
 import { HEADLINE_LABEL, gradeLevelText, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
+import { plainEffort } from '../records'
 import { hrefFor } from '../route'
 
 /** A level longer than this is set a step smaller so it holds two lines. */
 const LONG_LEVEL = 12
 
-/** The effort's figure plain: a ride's watts carry ", estimated" from the records, which the level line leaves off. */
-function plainEffort(effort: string): string {
-  const suffix = ', estimated'
-  return effort.endsWith(suffix) ? effort.slice(0, -suffix.length) : effort
-}
-
 export interface LevelPanelProps {
   sport: Sport
   /** The grade of the best 20 minutes, or the reason there is none; null while the profile is missing. */
   outcome: GradeOutcome | null
-  /** The headline effort's figure such as "6:37 /mi", with ", estimated" after a ride's watts that are, which the panel drops. */
+  /** The headline effort's figure such as "6:37 /mi", with ", estimated" after a ride's watts that are, which the panel drops (`plainEffort`). */
   effort: string | null
   /** The year of birth or sex the grades still need, named in the prompt; null when both are given. */
   missingAge: AgeGap | null

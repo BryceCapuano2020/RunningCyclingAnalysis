@@ -33,14 +33,14 @@ describe('AgeGradingSection', () => {
     expect(within(section()).getByText('Below 60% is Recreational.')).toBeInTheDocument()
   })
 
-  it('says a ride’s level is the band of its best estimate, and that its range can reach the next band', () => {
+  it('says a ride’s level is the band of its best estimate, and that its range can reach a neighbouring band', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
       within(section()).getByText('A ride’s level is the band of its best estimate.'),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText('Its range, drawn on the ladder, can reach the next band.'),
+      within(section()).getByText('Its range, drawn on the ladder, can reach a neighbouring band.'),
     ).toBeInTheDocument()
     expect(section()).not.toHaveTextContent(/whole range sits in one band|with no level name/)
   })
