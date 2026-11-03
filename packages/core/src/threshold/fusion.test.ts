@@ -9,12 +9,19 @@ const heartRate = (share: number, relativeError = 0.04) => ({
 })
 
 describe('fusing the power estimate with heart rate', () => {
-  it('with no heart rate puts the answer about 3% over the power estimate', () => {
+  it('with no heart rate answers the power estimate itself, with the range round it', () => {
     const { value, low, high } = fuse(POWER, 0.025, null)
-    expect(value / POWER).toBeGreaterThan(1.02)
-    expect(value / POWER).toBeLessThan(1.045)
+    expect(value).toBe(POWER)
     expect(low).toBeLessThan(value)
     expect(high).toBeGreaterThan(value)
+  })
+
+  it('never answers above what heart rate reads', () => {
+    for (const share of [1.01, 1.03, 1.06, 1.1]) {
+      const { value } = fuse(POWER, 0.025, heartRate(share))
+      expect(value, `${share}`).toBeGreaterThan(POWER)
+      expect(value, `${share}`).toBeLessThanOrEqual(POWER * share)
+    }
   })
 
   it('draws the range wide upward, where a rider who never went hard would be, and tight downward', () => {
@@ -46,9 +53,9 @@ describe('fusing the power estimate with heart rate', () => {
 
   it('keeps the upper end power alone allows when heart rate lifts the answer', () => {
     const alone = fuse(POWER, 0.025, null)
-    // Heart rate 6% over the power estimate, closely read: the answer rises 1.6 points.
+    // Heart rate 6% over the power estimate, closely read: the answer rises most of the way to it.
     const lifted = fuse(POWER, 0.025, heartRate(1.06, 0.02))
-    expect(lifted.value).toBeGreaterThan(alone.value + 0.01 * POWER)
+    expect(lifted.value).toBeGreaterThan(alone.value + 0.04 * POWER)
     expect(lifted.low).toBeGreaterThan(alone.low)
     // A range drawn round the heart-rate reading alone would end 7 points lower.
     expect(lifted.high).toBeGreaterThanOrEqual(alone.high)
@@ -110,7 +117,10 @@ describe('fusing the power estimate with heart rate', () => {
   })
 })
 
-/** The posterior from power alone at exactly `error`, by the plain sum over the gap grid, without the rounding or the cache. */
+/**
+ * The range from power alone at exactly `error`: the 10th and 90th percentiles of its posterior, by the plain sum over the gap
+ * grid, without the rounding or the cache.
+ */
 function exactAlone(power: number, error: number) {
   const steps = Math.round((FUSION_GRID.to - FUSION_GRID.from) / FUSION_GRID.step)
   const gaps = Math.round(GAP_PRIOR.largeMax / FUSION_GRID.gapStep)
@@ -139,21 +149,20 @@ function exactAlone(power: number, error: number) {
     }
     return power * (1 + FUSION_GRID.to)
   }
-  return { value: at(0.5), low: at(0.1), high: at(0.9) }
+  return { low: at(0.1), high: at(0.9) }
 }
 
 describe('reading the power estimate’s error to a step', () => {
-  it('is the exact answer at a multiple of the step', () => {
+  it('is the exact range at a multiple of the step', () => {
     for (const error of [0.025, 0.03, 0.0605, 0.125]) {
       const fused = fuse(POWER, error, null)
       const exact = exactAlone(POWER, error)
-      expect(fused.value).toBeCloseTo(exact.value, 9)
       expect(fused.low).toBeCloseTo(exact.low, 9)
       expect(fused.high).toBeCloseTo(exact.high, 9)
     }
   })
 
-  it('moves no quantile by more than one grid step of the power estimate, over errors from 2.5% to 25%', () => {
+  it('moves no end of the range by more than one grid step of the power estimate, over errors from 2.5% to 25%', () => {
     let worst = 0
     let moved = 0
     let total = 0
@@ -162,7 +171,7 @@ describe('reading the power estimate’s error to a step', () => {
     for (let error = 0.025; error <= 0.25; error += 0.00047) {
       const fused = fuse(POWER, error, null)
       const exact = exactAlone(POWER, error)
-      for (const key of ['value', 'low', 'high'] as const) {
+      for (const key of ['low', 'high'] as const) {
         const miss = Math.abs(fused[key] - exact[key]) / POWER
         worst = Math.max(worst, miss)
         if (miss > 1e-9) moved++
@@ -170,7 +179,7 @@ describe('reading the power estimate’s error to a step', () => {
       }
     }
     expect(worst).toBeLessThanOrEqual(FUSION_GRID.step + 1e-9)
-    // Usually none at all: a quantile sits on a grid point, and up to half a step of error rarely carries it to the next.
+    // Usually none at all: a percentile sits on a grid point, and up to half a step of error rarely carries it to the next.
     expect(moved / total).toBeLessThan(0.15)
   })
 

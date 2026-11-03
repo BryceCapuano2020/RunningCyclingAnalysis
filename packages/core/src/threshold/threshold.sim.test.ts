@@ -20,7 +20,7 @@ interface Arm {
 
 interface Row {
   estimate: Arm
-  /** The same riders with no heart rate passed: the power estimate and about 3%. */
+  /** The same riders with no heart rate passed: the power estimate itself. */
   powerOnly: Arm
   best30: number[]
   rule95: number[]
@@ -105,9 +105,12 @@ describe('the ride threshold on simulated riders', () => {
     expect(median(estimate.errors) - median(powerOnly.errors)).toBeGreaterThanOrEqual(4)
   })
 
-  it('is within 2% on the median and within 5% for most riders with no heart rate', () => {
-    expect(Math.abs(median(of(none).estimate.errors))).toBeLessThan(2)
-    expect(within5(of(none).estimate.errors)).toBeGreaterThanOrEqual(0.85)
+  // With no heart rate the answer is what the bests show, and these riders' bests sit a few percent under all-out, so it reads
+  // low by about that: an allowance for it (the median from power alone, about 3% up) was dropped as unconfirmed.
+  it('reads at most 4% low on the median and within 5% for most riders with no heart rate', () => {
+    expect(median(of(none).estimate.errors)).toBeGreaterThan(-4)
+    expect(median(of(none).estimate.errors)).toBeLessThanOrEqual(0)
+    expect(within5(of(none).estimate.errors)).toBeGreaterThanOrEqual(0.75)
   })
 
   it('is nearer the truth than the old floor (best 30 min) and 95% of the best 20 min in every case', () => {

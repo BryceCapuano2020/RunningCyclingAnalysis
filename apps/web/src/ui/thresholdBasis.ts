@@ -46,13 +46,11 @@ const HEART_RATE_WHY: Record<HeartRateRefusal, string> = {
 }
 
 /**
- * Whether heart rate raised the answer. The answer is the higher of two medians, one from power alone and one with heart rate,
- * and the second sits between the first and the heart-rate estimate. So the estimate is above the answer exactly when heart
- * rate lifted it, and at or under it when it did not. False where heart rate was refused.
+ * Whether heart rate raised the answer. The answer is the power estimate itself unless heart rate raised it, so it is above
+ * the power estimate exactly when heart rate lifted it. False where heart rate was refused.
  */
 export function heartRateLifted(estimate: ThresholdEstimate): boolean {
-  const { heartRate } = estimate
-  return !('refused' in heartRate) && heartRate.value > estimate.value
+  return !('refused' in estimate.heartRate) && estimate.value > estimate.efforts.value
 }
 
 /** What heart rate did to this estimate: raised it, was read and did not raise it, or the one plain reason it was not used. */

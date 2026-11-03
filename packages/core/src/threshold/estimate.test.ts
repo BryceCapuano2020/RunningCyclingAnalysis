@@ -50,23 +50,21 @@ describe('the ride threshold', () => {
     expect(rideThreshold(efforts.slice(0, 1), [], null)).not.toBeNull()
   })
 
-  it('with no heart rate is about 3% over the power estimate, inside its range', () => {
+  it('with no heart rate is the power estimate itself, inside its range', () => {
     const result = run(allOutLibrary(), null)
     expect(result.efforts.value).toBeCloseTo(RIDER.threshold, 6)
-    expect(result.value / result.efforts.value).toBeGreaterThan(1.02)
-    expect(result.value / result.efforts.value).toBeLessThan(1.045)
+    expect(result.value).toBe(result.efforts.value)
     expect(result.low).toBeLessThan(result.value)
     expect(result.high).toBeGreaterThan(result.value)
     expect(refusal(result)).toBe('no-heart-rate')
   })
 
-  it('answers for a single ride: its estimate, and about 3% over it, inside its range', () => {
+  it('answers for a single ride: its estimate, inside its range', () => {
     const lib = library(RIDER, [allOutRide(RIDER, 'only')])
     const result = run(lib, null)
     expect(result.efforts.rides).toBe(1)
     expect(result.efforts.value).toBeCloseTo(RIDER.threshold, 6)
-    expect(result.value / RIDER.threshold).toBeGreaterThan(1.02)
-    expect(result.value / RIDER.threshold).toBeLessThan(1.045)
+    expect(result.value).toBe(result.efforts.value)
     expect(result.low).toBeLessThan(result.value)
     expect(result.high).toBeGreaterThan(result.value)
     // Two blocks of a hard ride and eight easy ones are too few for a line.
@@ -115,7 +113,7 @@ describe('the ride threshold', () => {
     // Heart rate alone says 20% under the power estimate; it may lift the answer and never lowers it.
     expect(result.heartRate).toMatchObject({ value: expect.closeTo(0.8 * RIDER.threshold, 0) })
     expect(result.value).toBe(alone.value)
-    expect(result.value).toBeGreaterThan(result.efforts.value)
+    expect(result.value).toBe(result.efforts.value)
   })
 
   it('is the same in any unit of power', () => {

@@ -84,11 +84,15 @@ function spreadAt(step: number): Spread {
 /**
  * The power estimate is a floor: a best is at most what the rider can do, and usually a few percent under. So the threshold is
  * the power estimate times (1 + g) with g at least 0, smeared by the power estimate's own relative error `powerError`. On a
- * grid of -15% to +45% around the power estimate that gives a posterior from power alone. Heart rate, where there is an
- * estimate, makes a second: a Gaussian likelihood around it with its own relative error. Heart rate may raise the answer and
- * never lowers it: the answer is the higher of the two medians, and the range the higher of each pair of 10th and 90th
- * percentiles, so the upper end that power alone allows stays (heart rate reads under the truth often enough that a range
- * narrowed round it missed the rider who never went all out). With no heart rate the answer is the power estimate plus about 3%.
+ * grid of -15% to +45% around the power estimate that gives a posterior from power alone, whose 10th and 90th percentiles are
+ * the range. Its median, about 3% over the power estimate, is an allowance for bests short of all-out that nothing in the
+ * rides confirms, so the answer is the power estimate itself.
+ *
+ * Heart rate, where there is an estimate, is what can confirm a rise: a Gaussian likelihood around it with its own relative
+ * error. The answer is the median of that posterior, never above what heart rate reads (heart rate that agrees with the power
+ * estimate confirms no rise) and never under the power estimate: heart rate may raise the answer and never lowers it. The range
+ * is the higher of each pair of 10th and 90th percentiles, so the upper end that power alone allows stays (heart rate reads
+ * under the truth often enough that a range narrowed round it missed the rider who never went all out).
  *
  * The quantiles from power alone are fixed multiples of the power estimate for a given error, so they are worked out once per
  * error (to `ERROR_STEP`) and a window with no heart rate costs a multiplication. With heart rate only the likelihood pass over
@@ -100,7 +104,7 @@ export function fuse(
   heartRate: { value: number; relativeError: number } | null,
 ): Fused {
   const { prior, alone } = spreadAt(Math.max(1, Math.round(powerError / ERROR_STEP)))
-  const floor = { value: power * alone.value, low: power * alone.low, high: power * alone.high }
+  const floor = { value: power, low: power * alone.low, high: power * alone.high }
   if (heartRate === null) return floor
   const sd = heartRate.relativeError * heartRate.value
   const weights = new Float64Array(STEPS)
@@ -108,9 +112,10 @@ export function fuse(
     weights[i] = prior[i]! * bell(power * MULTIPLES[i]! - heartRate.value, sd)
   }
   const lifted = quantiles(weights)
+  const value = Math.max(power, Math.min(heartRate.value, power * lifted.value))
   return {
-    value: Math.max(floor.value, power * lifted.value),
-    low: Math.max(floor.low, power * lifted.low),
-    high: Math.max(floor.high, power * lifted.high),
+    value,
+    low: Math.min(value, Math.max(floor.low, power * lifted.low)),
+    high: Math.max(value, floor.high, power * lifted.high),
   }
 }
