@@ -135,7 +135,7 @@ describe('when the half year cannot support a threshold', () => {
     expect(estimates.floor!.run.length).toBeGreaterThan(0)
     expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 
@@ -143,7 +143,7 @@ describe('when the half year cannot support a threshold', () => {
     const bare = { ...estimatesFor([...hard, ...easy], at(19 + 56)), floor: { run: [], ride: [] } }
     expect(pace(zonesAt(at(19 + 56), SETTINGS, bare))).toBeUndefined()
     expect(missingThresholdZones(at(19 + 56), SETTINGS, bare)).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 

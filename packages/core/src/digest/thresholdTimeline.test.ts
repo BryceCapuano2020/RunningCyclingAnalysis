@@ -9,12 +9,7 @@ import { digestActivity } from './digestActivity'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
 import { librariesOf, thresholdsOf } from './thresholdLibraries'
-import {
-  STALE_THRESHOLD_DAYS,
-  THRESHOLD_WINDOW_WEEKS,
-  outgrownAt,
-  thresholdAt,
-} from './thresholdTimelineTypes'
+import { STALE_THRESHOLD_DAYS, THRESHOLD_WINDOW_WEEKS, thresholdAt } from './thresholdTimelineTypes'
 import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, strideRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -103,8 +98,6 @@ describe('thresholdTimeline', () => {
     const older = thresholdAt(run, weekMs(19) + 2 * DAY_MS)!.fit.cp
     expect(thresholdAt(run, steady.startMs)!.fit.cp).toBeCloseTo(flat, 8)
     expect(thresholdAt(run, steady.startMs)!.fit.cp).toBeGreaterThan(older * 1.3)
-    // No window is left without an estimate by it, so none is called outgrown.
-    expect(outgrownAt(run, steady.startMs)).toBe(false)
   })
 
   it('has nothing for a sport with no efforts, and none from an indoor run', () => {

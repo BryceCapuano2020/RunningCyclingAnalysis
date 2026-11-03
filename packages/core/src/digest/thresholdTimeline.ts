@@ -42,18 +42,15 @@ function changeWeeks(entries: readonly Placed[]): number[] {
 
 /**
  * How a sport reads a window of its entries. `fit` is asked for every week the threshold can change in, in order, with the
- * window's first and one-past-last entry (both only move forward) and the end of the week it ends with; `outgrown` only
- * right after a `fit` of a window with entries that gave none.
+ * window's first and one-past-last entry (both only move forward) and the end of the week it ends with.
  */
 interface WindowReader {
   fit(lo: number, hi: number, untilMs: number): ThresholdFit | null
-  /** Whether the window's efforts have outgrown the newest earlier fit, which then stands for no window after it. */
-  outgrown(): boolean
 }
 
 /**
- * The steps of one sport. A window with no fit of its own leaves the older fit to stand in for it, unless its efforts have
- * outgrown that fit (`lastFit`); `asOfMs` is the start of the newest activity of the window with an effort.
+ * The steps of one sport. A window with no fit of its own leaves the older fit to stand in for it (`lastFit`); `asOfMs` is the
+ * start of the newest activity of the window with an effort.
  */
 function stepsOf(entries: readonly Placed[], reader: WindowReader): ThresholdStep[] {
   const steps: ThresholdStep[] = []
@@ -67,7 +64,6 @@ function stepsOf(entries: readonly Placed[], reader: WindowReader): ThresholdSte
     while (lo < hi && entries[lo]!.weekEnd <= fromMs - windowMs) lo++
     const fit = reader.fit(lo, hi, fromMs)
     if (fit !== null) lastFit = steps.length
-    else if (lo < hi && lastFit >= 0 && reader.outgrown()) lastFit = -1
     let newest = hi - 1
     while (newest >= lo && !entries[newest]!.effort) newest--
     steps.push({ fromMs, fit, asOfMs: newest >= lo ? entries[newest]!.startMs : null, lastFit })
@@ -99,8 +95,6 @@ function windowReader(
         ? null
         : { cp: estimate.value, cpSe: estimate.value * estimate.efforts.relativeError }
     },
-    // A window with activities has an estimate, so no older one is left standing for it.
-    outgrown: () => false,
   }
 }
 

@@ -86,8 +86,7 @@ function stepIndexAt(steps: readonly ThresholdStep[], at: number | Dated): numbe
 
 /**
  * The threshold in effect at an instant: the fit over the window that ends with the instant's week, or, when
- * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`, unless the
- * window's efforts have outgrown that fit. Null when none exists.
+ * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`. Null when none exists.
  */
 export function thresholdAt(
   steps: readonly ThresholdStep[],
@@ -102,19 +101,4 @@ export function thresholdAt(
   return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
     ? { fit: older.fit, asOfMs: older.asOfMs }
     : null
-}
-
-/**
- * Whether the window at an instant has no fit and has outgrown the fits before it: its best 20 minutes is far above what
- * the newest of them predicts, so none stands in (`lastFit` -1, though an earlier step had a fit).
- */
-export function outgrownAt(steps: readonly ThresholdStep[], at: number | Dated): boolean {
-  const i = stepIndexAt(steps, at)
-  const step = steps[i]
-  return (
-    step !== undefined &&
-    step.fit === null &&
-    step.lastFit < 0 &&
-    steps.slice(0, i).some((each) => each.fit !== null)
-  )
 }

@@ -62,7 +62,7 @@ describe('the zones of a library whose own threshold is refused', () => {
     const bare = { ...noWindowFits, floor: { run: [], ride: [] } }
     expect(paceSets(bare)).toHaveLength(0)
     expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(bare, NOW))).toEqual([
-      { sport: 'run', measure: 'pace', outgrown: false },
+      { sport: 'run', measure: 'pace' },
     ])
   })
 })

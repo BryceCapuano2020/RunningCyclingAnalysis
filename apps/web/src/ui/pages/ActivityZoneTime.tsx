@@ -45,10 +45,9 @@ function rowsOf(
   })
 }
 
-/** A pace or power with no zones on the activity's date, and whether the window's efforts are above the older fit. */
+/** A pace or power with no zones on the activity's date. */
 export interface MissingMeasure {
   measure: ZoneMeasure
-  outgrown: boolean
 }
 
 /** No pace or power is missing: one array, so the default does not change between renders. */
@@ -74,11 +73,9 @@ const OTHER_ZONES: Record<Sport, { zones: string; threshold: string }> = {
 function MissingNote({ sport, measures }: { sport: Sport; measures: readonly MissingMeasure[] }) {
   return (
     <>
-      {measures.map(({ measure, outgrown }) => (
+      {measures.map(({ measure }) => (
         <p key={measure} className="muted">
-          {outgrown
-            ? `No ${measure} zones: your threshold around this date is not settled.`
-            : `No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
+          {`No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
         </p>
       ))}
     </>

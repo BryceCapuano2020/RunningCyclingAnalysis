@@ -338,8 +338,9 @@ names the hour then.
   6.6% of the value, and settling on it ignored a real 5% rise.
 - **A window with any effort of 3 min or more has an estimate**, so the older-fit rule applies to a sport only when a window
   holds none at all (a run with nothing past 2 min, say), and the best-30-min zone floor only where no window does. The
-  "outgrown" rule, which kept an older run fit from standing in for a window whose steady effort was far above it, has nothing
-  left to do for runs: such a window has an estimate of its own, set by the hour that effort held.
+  "outgrown" rule, which kept an older fit from standing in for a window whose steady effort was far above it, had nothing
+  left to do for either sport once every window with an effort had an estimate of its own, and is removed (with the
+  "your threshold around this date is not settled" line it fed).
 - **The window choice is as it was** (`answer/window.ts`): `easy` and `most` stay (see "What it replaces"). Its evidence test
   reads `rideThreshold` where it read `rideCp`, but counts the estimate only where its strongest effort is as long as the
   headline's (a best of 20 min counts as before): the estimate exists from a 3 min effort, and the headline compares at 20 min,

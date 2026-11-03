@@ -1,6 +1,5 @@
 import type { Dated } from '../calendar'
 import type { AthleteSettings } from '../athlete/settings'
-import { outgrownAt } from '../digest/thresholdTimelineTypes'
 import type { Sport } from '../types'
 import { ZONE_MEASURES } from './schemes'
 import type { ZoneMeasure } from './schemes'
@@ -11,8 +10,6 @@ import type { ZoneEstimates } from './zones'
 export interface MissingZones {
   sport: Sport
   measure: ZoneMeasure
-  /** A pace or power whose efforts on the date are above the threshold on file: the older fit is left out as too low. */
-  outgrown: boolean
 }
 
 /** The measures whose estimate is a threshold: with no efforts to fit one, they have no zones. */
@@ -38,10 +35,6 @@ export function missingThresholdZones(
       .filter((measure) => THRESHOLD_MEASURES.includes(measure))
       .filter((measure) => !present.has(`${sport}.${measure}`))
       .filter(() => estimates.thresholds[sport].length > 0)
-      .map((measure) => ({
-        sport,
-        measure,
-        outgrown: outgrownAt(estimates.thresholds[sport], at),
-      })),
+      .map((measure) => ({ sport, measure })),
   )
 }
