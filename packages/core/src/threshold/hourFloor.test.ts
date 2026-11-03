@@ -4,6 +4,7 @@ import { rideThreshold, runThreshold, fitThresholdLine } from './estimate'
 import { fuse } from './fusion'
 import { backedHour, powerEstimate, powerOver } from './powerEstimate'
 import { hourOf, prepareFlat } from './rides'
+import type { PreparedRide } from './rides'
 import { RIDER, library, rides, tempoRide } from './test/rides'
 import type { ThresholdBlock, ThresholdEffort } from './types'
 
@@ -23,6 +24,25 @@ const hour = (id: string, value: number, over: Partial<ThresholdEffort> = {}) =>
 const others = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ride(id, 190 * 1.053))
 /** The 90th percentile of an estimate of 190 at the floor of its error: what a lone hour is judged against. */
 const P90 = 190 * fuse(1, 0.025, null).high
+/** Rides that held one measured hour each and no best, so they weigh nothing in the mean of the estimates. */
+const hourOnly = (...values: number[]): PreparedRide[] =>
+  values.map((value, i) => ({
+    activityId: `h${i}`,
+    best: null,
+    hour: { durationS: 3600, value },
+    heart: [],
+    blocks: [],
+  }))
+/** `others` (an estimate of 190) and the hours, as one window. */
+const windowWith = (...hours: number[]) => {
+  const prepared = prepareFlat(others, [], DURATION_TABLES.ride)
+  const rides = [...prepared.rides, ...hourOnly(...hours)]
+  return { rides, ages: [...prepared.ages, ...hours.map(() => 0)] }
+}
+const powerWithHours = (...hours: number[]) => {
+  const { rides, ages } = windowWith(...hours)
+  return powerOver(rides, ages)!
+}
 
 describe('an hour done as a floor', () => {
   it('puts the answer at the hour when the mean of the estimates is under it, and names that hour', () => {
@@ -104,18 +124,27 @@ describe('an hour nothing backs', () => {
     expect(result.value).toBe(195)
     expect(result.strongest.activityId).toBe('second')
   })
+
+  // An hour is also its own ride's best, so two hours far over the rest become the strongest rides and the mean follows them. To
+  // test the floor against a mean that stays low, the hours here belong to rides with no best of their own (`hourOnly`).
+  it('gives no floor when the two best hours are far over the estimate and no hour agrees with either', () => {
+    // 300 and 260 are over the 90th percentile and 13% apart; the third hour is 14% under the second.
+    const result = powerWithHours(300, 260, 225)
+    expect(result.floor).toBe(0)
+    expect(result.value).toBeCloseTo(190, 0)
+    expect(result.strongest.durationS).toBe(1200)
+  })
+
+  it('floors at the second-best hour when a third is within 4% of it, though the best is a lone outlier', () => {
+    const result = powerWithHours(300, 260, 260 * 0.97)
+    expect(result.floor).toBe(260)
+    expect(result.value).toBe(260)
+    expect(result.strongest.durationS).toBe(3600)
+  })
 })
 
 describe('which hour backs the floor', () => {
-  /** Prepared rides that each held one measured hour of the given values, and nothing else. */
-  const held = (...values: number[]) =>
-    values.map((value, i) => ({
-      activityId: `h${i}`,
-      best: null,
-      hour: { durationS: 3600, value },
-      heart: [],
-      blocks: [],
-    }))
+  const held = hourOnly
   const backed = (...values: number[]) => {
     const rides = held(...values)
     return backedHour(rides, 0, rides.length, 190, 0.025)?.value ?? null
@@ -130,14 +159,29 @@ describe('which hour backs the floor', () => {
     expect(backed(260, 260 * 0.97)).toBe(260)
     expect(backed(260 * 0.97, 260)).toBe(260)
     expect(backed(260, 260)).toBe(260)
-    // Over 4% under, the second is the floor.
-    expect(backed(260, 260 * 0.95)).toBeCloseTo(260 * 0.95, 10)
+    // Over 4% under, the second has to stand on its own: over the 90th percentile it does not, and there is no floor.
+    expect(backed(260, 260 * 0.95)).toBeNull()
+    expect(backed(260, 0.99 * P90)).toBeCloseTo(0.99 * P90, 10)
   })
 
   it('is the second-best hour for a lone hour over the 90th percentile, and none without one', () => {
     expect(backed(260, 195, 150)).toBe(195)
     expect(backed(260)).toBeNull()
     expect(backed()).toBeNull()
+  })
+
+  it('is none when the best two hours are over the 90th percentile and nothing near either', () => {
+    // The third is not within 4% of the second, and the second is over the percentile: the second-best hour is not backed either.
+    expect(backed(300, 260, 200)).toBeNull()
+    expect(backed(300, 260)).toBeNull()
+    expect(backed(300, 260, 260 * 0.95)).toBeNull()
+  })
+
+  it('is the second-best hour, over the 90th percentile, when a third is within 4% of it', () => {
+    expect(backed(300, 260, 260 * 0.97)).toBe(260)
+    expect(backed(260 * 0.97, 300, 260)).toBe(260)
+    // The third counts only for the second: the best is not backed by an hour 13% under it.
+    expect(backed(300, 260, 260)).toBe(260)
   })
 
   it('reads only the rides of the window', () => {
@@ -216,6 +260,20 @@ describe('the answer and its low under a backed hour', () => {
     expect(result.value).toBeLessThan(without.value * 1.05)
   })
 
+  it('leaves heart rate free to lift the answer above a backed hour, and says it did not where it did not', () => {
+    const lib = withHour(0.93)
+    const lifted = rideThreshold(lib.efforts, lib.blocks, RIDER.thresholdHr)!
+    expect('refused' in lifted.heartRate).toBe(false)
+    expect(lifted.efforts.value).toBeCloseTo(hourPower(0.93), 8)
+    expect(lifted.value).toBeGreaterThan(lifted.efforts.value)
+    expect(lifted.value).toBeGreaterThan(hourPower(0.93))
+    expect(lifted.low).toBeGreaterThanOrEqual(hourPower(0.93) - 1e-9)
+    // Where heart rate cannot be read the answer is the floor itself, so a screen that asks whether heart rate lifted it, by
+    // the answer standing over the power estimate, is told no.
+    const alone = run(lib)
+    expect(alone.value).toBe(alone.efforts.value)
+  })
+
   it('is lifted to two hours that agree, and its low is not under them', () => {
     const result = run(withHour(1.4, [1.37]))
     expect(result.value).toBeCloseTo(hourPower(1.4), 8)
@@ -272,6 +330,15 @@ describe('the band the heart-rate line is fitted in', () => {
     const lone = lineOf([hour('lone', 270)])
     expect(lone.power.floor).toBe(0)
     expect(lone.line).toEqual(plain.line)
+  })
+
+  it('is not lifted by two hours far over the estimate that do not agree', () => {
+    // Hours whose rides have no best of their own, so the estimate stays the tempo's.
+    const { rides: prepared, ages } = prepareFlat(efforts, blocks, DURATION_TABLES.ride)
+    const rides = [...prepared, ...hourOnly(300, 265)]
+    const all = [...ages, 0, 0]
+    expect(powerOver(rides, all)!.floor).toBe(0)
+    expect(fitThresholdLine(rides, all)).toEqual(plain.line)
   })
 
   it('is lifted by a backed hour, to what that hour gives and no further', () => {

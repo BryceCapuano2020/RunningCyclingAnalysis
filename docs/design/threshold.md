@@ -72,7 +72,7 @@ Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by 
    on its face, but one odd file with nothing else near it is not an hour done. So the best hour sets the floor when a second
    hour in the window is within 4% of it, or when it is no higher than the 90th percentile of the mean of the rides' estimates
    (`fuse` from power alone, about 16% over the mean at the 2.5% floor of its error). Otherwise the floor is the second-best
-   hour, or none. Only a measured hour counts: watts estimated without a meter never make an hour done. The floor is applied to
+   hour, which has to pass the same test (a third hour within 4% of it, or no higher than that percentile), or none. Only a measured hour counts: watts estimated without a meter never make an hour done. The floor is applied to
    the power estimate, before fusion: where it is higher than the mean, `efforts.value` is the hour and `efforts.strongest`
    names it, so a screen's "strongest effort" is the one that sets the number, and an answer above `efforts.value` still means
    heart rate lifted it. The low is the higher of the fused low and the hour. The floor reads every ride in the window whatever
@@ -125,7 +125,7 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 The table includes the hour floor (step 7): it moved only the tempo-only row (power alone from -13.5% to -11.7%, since a
 rider who never goes all out still rode an hour; the answer from -5.2% to -5.0%, and the range's hold from 81% to 88%) and a
 point or two in the cells for a wrong maximum and for always all-out. Backing the floor (a second hour within 4%, or under the
-estimate's 90th percentile) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
+estimate's 90th percentile, for the best hour and the second-best alike) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
 
 The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
 The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
@@ -415,8 +415,8 @@ each run's distance bests, not the fit. A sport added to `Sport` has to say how 
 - **The floor counts every measured hour in the window, and backs it.** The first version counted any hour, estimated watts
   included, and let a single odd file set the number, since the mean's second-strongest rule does not guard the floor. Now an
   hour from estimated watts is never an hour done, and the best hour is believed only when a second hour in the window is
-  within 4% of it or it is no higher than the 90th percentile of the mean's estimate; else the second-best hour stands in, or
-  none. It does not weigh by recency: a library window of all time is floored by a backed hour anywhere in the library. The
+  within 4% of it or it is no higher than the 90th percentile of the mean's estimate; else the second-best hour stands in if it
+  passes the same test (a third within 4% of it, or under the percentile), or there is no floor. It does not weigh by recency: a library window of all time is floored by a backed hour anywhere in the library. The
   4% and the percentile are judgement, not fitted: no case of the simulations has a believable hour over the estimate.
   A lone outlying hour that is real (a day that was far better than the others, with nothing near it) is read as the
   estimate says until a second hour or the rides' own estimates agree; that is the cost.

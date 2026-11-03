@@ -37,9 +37,9 @@ export const RUN_VO2 = { constant: -4.6, linear: 0.182258, square: 0.000104 } as
 /** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
 export const HOUR_S = 3600
 /**
- * The best measured hour sets the floor when a second hour in the window is within this share of it, or when it is no higher than
- * the power estimate's own 90th percentile. A lone hour above that is one file nothing backs, and the second-best hour (or none)
- * is the floor instead.
+ * An hour backs a floor when the next hour down in the window is within this share of it, or when it is no higher than the power
+ * estimate's own 90th percentile. The best hour is the floor if backed; a lone hour above that is one file nothing backs, and the
+ * second-best hour is the floor instead if the third (or the estimate) backs it the same way, else there is none.
  */
 export const HOUR_AGREEMENT = 0.04
 
