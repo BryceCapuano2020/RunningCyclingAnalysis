@@ -11,6 +11,7 @@ import { bestCurves } from './rideCurves'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { sampleDataset } from '../synthetic'
 import { thresholdTimeline } from './thresholdTimeline'
+import { rideThresholdOf } from './thresholdEfforts'
 import {
   STALE_THRESHOLD_DAYS,
   THRESHOLD_WINDOW_WEEKS,
@@ -20,6 +21,7 @@ import {
 import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
+import type { ThresholdStep } from './thresholdTimelineTypes'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const WEEK_MS = 7 * DAY_MS
@@ -27,7 +29,7 @@ const WEEK_MS = 7 * DAY_MS
 function timelineOf(digests: ActivityDigest[]) {
   const ordered = orderedCurrent(digests)
   const masses = massesOf(SETTINGS)
-  return thresholdTimeline(ordered, masses, fitBikeModelOver(ordered, masses).model, 70, null)
+  return thresholdTimeline(ordered, masses, fitBikeModelOver(ordered, masses).model, null)
 }
 
 const weekMs = (week: number) => FIRST_MONDAY_MS + week * WEEK_MS
@@ -141,9 +143,9 @@ describe('thresholdAt', () => {
   })
 })
 
-describe('thresholdTimeline against the best curves of the library', () => {
+describe('thresholdTimeline against the library', () => {
   // The sample's runs and rides (power-meter and virtual), copied every 9 days over two years, so a window holds
-  // some of them and the weeks change which: the fit of each window must be the fit of the best curves of its digests.
+  // some of them and the weeks change which.
   const base = sampleDataset().activities.map((activity) => digestActivity(activity))
   const library: ActivityDigest[] = Array.from({ length: base.length * 80 }, (_, i) => {
     const source = base[i % base.length]!
@@ -152,41 +154,81 @@ describe('thresholdTimeline against the best curves of the library', () => {
       startMs: source.startMs + Math.floor(i / base.length) * 9 * DAY_MS,
     })
   })
+  const judged = judgeHeartRate(library, SETTINGS)
+  const ordered = orderedCurrent(library)
+  const masses = massesOf(SETTINGS)
+  const bikeModel = fitBikeModelOver(ordered, masses).model
+  const windowOf = (fromMs: number) =>
+    ordered.filter(
+      (digest) =>
+        weekEndMs(digest.startMs) <= fromMs &&
+        weekEndMs(digest.startMs) > fromMs - THRESHOLD_WINDOW_WEEKS * WEEK_MS,
+    )
 
-  it('is, for every week, the fit the analysis would report for the digests of its half year', () => {
-    const judged = judgeHeartRate(library, SETTINGS)
-    const ordered = orderedCurrent(library)
-    const masses = massesOf(SETTINGS)
-    const bikeModel = fitBikeModelOver(ordered, masses).model
+  it('has, for every week, the run fit the analysis would report for the digests of its half year', () => {
     let compared = 0
-    // Ungated, as the best curves are: the effort gate has its own test below.
-    const timeline = thresholdTimeline(ordered, masses, bikeModel, SETTINGS.massKg, judged.rideGate)
-    for (const sport of ['run', 'ride'] as const) {
-      const steps = timeline[sport]
-      steps.forEach((step, i) => {
-        if (i % 4 !== 0) return
-        const window = ordered.filter(
-          (digest) =>
-            weekEndMs(digest.startMs) <= step.fromMs &&
-            weekEndMs(digest.startMs) > step.fromMs - THRESHOLD_WINDOW_WEEKS * WEEK_MS,
-        )
-        const curves = bestCurves(window, masses, bikeModel, SETTINGS.massKg, judged.rideGate)
-        const curve = sport === 'run' ? plainCurve(curves.runBest) : curves.rideMetabolic
-        const expected = criticalPowerOutcome(curve, {
-          minWPrime: wPrimeFloor(sport, SETTINGS.massKg),
-        }).fit
-        if (expected === null) expect(step.fit).toBeNull()
-        else {
-          expect(step.fit).not.toBeNull()
-          expect(step.fit!.cp).toBeCloseTo(expected.cp, 8)
-          expect(step.fit!.wPrime).toBeCloseTo(expected.wPrime, 6)
-          expect(step.fit!.nPoints).toBe(expected.nPoints)
-        }
-        compared++
-      })
-    }
-    expect(compared).toBeGreaterThan(40)
+    const timeline = thresholdTimeline(ordered, masses, bikeModel, judged.rideGate)
+    timeline.run.forEach((step, i) => {
+      if (i % 4 !== 0) return
+      const curves = bestCurves(
+        windowOf(step.fromMs),
+        masses,
+        bikeModel,
+        SETTINGS.massKg,
+        judged.rideGate,
+      )
+      const expected = criticalPowerOutcome(plainCurve(curves.runBest), {
+        minWPrime: wPrimeFloor('run', SETTINGS.massKg),
+      }).fit
+      if (expected === null) expect(step.fit).toBeNull()
+      else {
+        expect(step.fit).not.toBeNull()
+        expect(step.fit!.cp).toBeCloseTo(expected.cp, 8)
+        expect(step.fit!.wPrime).toBeCloseTo(expected.wPrime, 6)
+        expect(step.fit!.nPoints).toBe(expected.nPoints)
+      }
+      compared++
+    })
+    expect(compared).toBeGreaterThan(20)
     expect(judged.rideGate).not.toBeNull()
+  })
+
+  it('has, for every week, the ride threshold of the rides of its half year, as the analysis reads them', () => {
+    const setAside = new Set(ordered.filter((_, i) => i % 7 === 0).map((digest) => digest.id))
+    const effort = { referenceHr: { run: 182, ride: 176 }, setAside }
+    const timeline = thresholdTimeline(ordered, masses, bikeModel, judged.rideGate, effort)
+    let compared = 0
+    let withHeartRate = 0
+    timeline.ride.forEach((step, i) => {
+      if (i % 4 !== 0) return
+      const window = windowOf(step.fromMs)
+      const expected = rideThresholdOf(window, masses, bikeModel, judged.rideGate, setAside, 176)
+      if (expected === null) expect(step.fit).toBeNull()
+      else {
+        expect(step.fit!.cp).toBeCloseTo(expected.value, 8)
+        expect(step.fit!.cpSe).toBeCloseTo((expected.high - expected.low) / 2.5631, 8)
+        if ('value' in expected.heartRate) withHeartRate++
+      }
+      compared++
+    })
+    expect(compared).toBeGreaterThan(20)
+    expect(withHeartRate).toBeGreaterThan(0)
+  })
+
+  it('fits a window of rides whatever its heart rate said of the effort: the gate is a label', () => {
+    const rides = ordered.filter((digest) => digest.sport === 'ride')
+    const easy = rides.map((ride) =>
+      Object.assign({}, ride, {
+        curve: ride.curve.map((point) => Object.assign({}, point, { heartRate: 120 })),
+      }),
+    )
+    const effort = { referenceHr: { run: 182, ride: 176 }, setAside: new Set<string>() }
+    const hard = thresholdTimeline(rides, masses, bikeModel, judged.rideGate, effort).ride
+    const soft = thresholdTimeline(easy, masses, bikeModel, judged.rideGate, effort).ride
+    expect(soft.filter((step) => step.fit !== null).length).toBe(
+      hard.filter((step) => step.fit !== null).length,
+    )
+    expect(hard.filter((step) => step.fit !== null).length).toBeGreaterThan(20)
   })
 })
 
@@ -201,56 +243,31 @@ describe('thresholdTimeline and the effort gate', () => {
       }),
     )
   }
-  const effortOf = (
-    reading: 'trusted' | 'low' | 'habitual' | null,
-    setAside = new Set<string>(),
-  ) => ({
-    referenceHr: { run: 180, ride: 174 },
-    referenceReading: { run: reading, ride: null },
-    setAside,
-  })
-  const timelineWith = (digests: ActivityDigest[], effort?: ReturnType<typeof effortOf>) => {
-    const ordered = orderedCurrent(digests)
-    const masses = massesOf(SETTINGS)
-    return thresholdTimeline(
-      ordered,
-      masses,
-      fitBikeModelOver(ordered, masses).model,
-      70,
-      null,
-      effort,
-    ).run
-  }
-  const fits = (steps: ReturnType<typeof timelineWith>) =>
-    steps.filter((step) => step.fit !== null).length
+  const fits = (steps: ThresholdStep[]) => steps.filter((step) => step.fit !== null).length
 
-  it('fits the windows whose best 20 minutes was hard, and none whose was not', () => {
-    expect(fits(timelineWith(runsAt(172), effortOf('trusted')))).toBeGreaterThan(10)
-    expect(fits(timelineWith(runsAt(140), effortOf('trusted')))).toBe(0)
+  it('fits every window whatever its heart rate says: a window that was not hard is not held back', () => {
+    const hard = fits(timelineOf(runsAt(172)).run)
+    expect(hard).toBeGreaterThan(10)
+    expect(fits(timelineOf(runsAt(140)).run)).toBe(hard)
   })
 
-  it('has no fit where the reference cannot be trusted, and every fit where there is no judge', () => {
+  it('reads a run window from the runs alone: a change of heart-rate judgement takes the same steps', () => {
     const library = runsAt(176)
-    expect(fits(timelineWith(library, effortOf('low')))).toBe(0)
-    expect(fits(timelineWith(library, effortOf('habitual')))).toBe(0)
-    expect(fits(timelineWith(library))).toBeGreaterThan(10)
-  })
-
-  it('does not judge a window by a run whose heart rate is set aside, or has none', () => {
-    const library = runsAt(140)
-    expect(
-      fits(timelineWith(library, effortOf('trusted', new Set(library.map((r) => r.id))))),
-    ).toBeGreaterThan(10)
-    expect(fits(timelineWith(library, effortOf(null)))).toBeGreaterThan(10)
+    const ordered = orderedCurrent(library)
+    const masses = massesOf(SETTINGS)
+    const bikeModel = fitBikeModelOver(ordered, masses).model
+    const judged = (setAside: Set<string>) =>
+      thresholdTimeline(ordered, masses, bikeModel, null, {
+        referenceHr: { run: 180, ride: 174 },
+        setAside,
+      }).run
+    expect(judged(new Set(library.map((run) => run.id)))).toEqual(judged(new Set()))
   })
 
   it('moves with the window: easy weeks after hard ones leave the older fit to answer', () => {
-    // 20 hard weeks, then 20 weeks of runs at an easy heart rate. Once the hard weeks leave the window the steps have no fit,
-    // where the ungated timeline would go on fitting the easy runs.
-    const library = [...runsAt(172, 0, 20), ...runsAt(140, 20, 20)]
-    const gated = timelineWith(library, effortOf('trusted'))
-    const ungated = timelineWith(library)
-    expect(fits(gated)).toBeLessThan(fits(ungated))
-    expect(gated.at(-1)!.fit).toBeNull()
+    // 20 hard weeks, then 20 weeks of runs at an easy heart rate: the windows go on fitting the runs they hold.
+    const run = timelineOf([...runsAt(172, 0, 20), ...runsAt(140, 20, 20)]).run
+    expect(run.slice(20, 40).every((step) => step.fit !== null)).toBe(true)
+    expect(run.at(-1)!.fit).toBeNull()
   })
 })

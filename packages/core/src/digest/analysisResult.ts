@@ -53,9 +53,9 @@ export interface AnalysisResult {
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null
   /**
-   * Whether each sport's best 20 minutes was a hard effort, which every threshold, zone, prediction and level
-   * built on its bests waits for (the effort gate). A failed gate withholds the fit (`runCpRefusal` is 'effort') and
-   * carries the demonstrated best as its floor.
+   * Whether each sport's best 20 minutes was a hard effort, by heart rate (the effort gate). It is a label beside the
+   * threshold and the check behind the change test, not a veto: the fits above are the curve's, and the ride threshold
+   * takes heart rate as a hint.
    */
   effortGate: Record<Sport, EffortGate>
   /** The threshold without the uneven bests, which set only a floor on it; null without one. See cp/uneven. */

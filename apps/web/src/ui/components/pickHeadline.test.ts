@@ -53,14 +53,21 @@ describe('headlinePick', () => {
   const short = [{ durationS: 300, value: 6, activityId: 'a', startIndex: 0 }]
   const long = [...short, { durationS: 1200, value: 5, activityId: 'a', startIndex: 0 }]
   const result = (overrides: Parameters<typeof makeResult>[0]) =>
-    makeResult({ runCp: null, rideCp: null, runCurve: long, rideCurve: long, ...overrides })
+    makeResult({
+      runCp: null,
+      rideCp: null,
+      rideThreshold: null,
+      runCurve: long,
+      rideCurve: long,
+      ...overrides,
+    })
 
   it('picks the headline when each sport has a 20 min effort', () => {
     expect(headlinePick(result({}))?.point.durationS).toBe(1200)
   })
 
   it('picks the headline when a sport has a fitted threshold and no 20 min effort', () => {
-    const fitted = result({ rideCurve: short, rideCp: makeResult().rideCp })
+    const fitted = result({ rideCurve: short, rideThreshold: makeResult().rideThreshold })
     expect(headlinePick(fitted)).not.toBeNull()
   })
 

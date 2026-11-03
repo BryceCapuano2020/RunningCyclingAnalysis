@@ -30,11 +30,10 @@ function stepsOf(points: [number, number | null][]): ThresholdStep[] {
   })
 }
 
-const BOTH = { run: fitOf(15), ride: fitOf(15) }
 /** Long after the last step, so every step has had its time unless a test says otherwise. */
 const LATER = START + 1000 * WEEK_MS
 const settledRun = (points: [number, number | null][], nowMs = LATER) =>
-  settledThresholds({ run: stepsOf(points), ride: [] }, BOTH, nowMs).run
+  settledThresholds({ run: stepsOf(points), ride: [] }, nowMs).run
 const cps = (steps: ThresholdStep[]) => steps.map((step) => step.fit?.cp ?? null)
 
 describe('settledThresholds', () => {
@@ -48,7 +47,7 @@ describe('settledThresholds', () => {
     ])
     steps[2] = { ...steps[2]!, lastFit: -1 }
     steps[3] = { ...steps[3]!, lastFit: -1 }
-    const settled = settledThresholds({ run: steps, ride: [] }, BOTH, LATER).run
+    const settled = settledThresholds({ run: steps, ride: [] }, LATER).run
     expect(settled.map((step) => step.lastFit)).toEqual([0, 1, -1, -1])
     expect(thresholdAt(settled, START + 9 * WEEK_MS)).toBeNull()
     expect(thresholdAt(settled, START + 1 * WEEK_MS)).not.toBeNull()
@@ -123,12 +122,12 @@ describe('settledThresholds', () => {
       [30, 15],
     ])
     steps[1] = { ...steps[1]!, fit: two(20) }
-    const run = settledThresholds({ run: steps, ride: [] }, BOTH, LATER).run
+    const run = settledThresholds({ run: steps, ride: [] }, LATER).run
     expect(cps(run)).toEqual([15, 15, 15])
     // As the first fit it is taken: there is nothing held to keep.
     const first = stepsOf([[0, 20]])
     first[0] = { ...first[0]!, fit: two(20) }
-    expect(settledThresholds({ run: first, ride: [] }, BOTH, LATER).run[0]!.fit!.cp).toBe(20)
+    expect(settledThresholds({ run: first, ride: [] }, LATER).run[0]!.fit!.cp).toBe(20)
   })
 
   it('leaves a window without a fit without one, and keeps where the last fit stood', () => {
@@ -156,7 +155,7 @@ describe('settledThresholds', () => {
     expect(thresholdAt(run, START + 32 * WEEK_MS)!.asOfMs).toBe(run[2]!.asOfMs)
   })
 
-  it('has no fit in a sport whose whole-library fit is refused, and still has its steps', () => {
+  it('keeps the windows of a sport whatever the whole library gives, settling each sport on its own steps', () => {
     const timeline: ThresholdTimeline = {
       run: stepsOf([
         [0, 15],
@@ -167,11 +166,11 @@ describe('settledThresholds', () => {
         [4, 3.2],
       ]),
     }
-    const settled = settledThresholds(timeline, { run: fitOf(15), ride: null }, LATER)
+    const settled = settledThresholds(timeline, LATER)
     expect(settled.run.map((step) => step.fit?.cp)).toEqual([15, 16])
     expect(settled.ride).toHaveLength(2)
-    expect(settled.ride.every((step) => step.fit === null && step.lastFit === -1)).toBe(true)
-    expect(thresholdAt(settled.ride, START + 5 * WEEK_MS)).toBeNull()
+    expect(settled.ride.map((step) => step.fit?.cp)).toEqual([3, 3.2])
+    expect(thresholdAt(settled.ride, START + 5 * WEEK_MS)!.fit.cp).toBe(3.2)
   })
 
   it('changes nothing for a timeline that already holds still', () => {
@@ -180,6 +179,6 @@ describe('settledThresholds', () => {
       [4, 15],
       [8, 15],
     ])
-    expect(settledThresholds({ run: flat, ride: [] }, BOTH, LATER).run).toEqual(flat)
+    expect(settledThresholds({ run: flat, ride: [] }, LATER).run).toEqual(flat)
   })
 })

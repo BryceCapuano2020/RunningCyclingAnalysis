@@ -11,7 +11,6 @@ describe('windowLine', () => {
       windowLine({ choice: { from: '2026-01-01', to: '2026-02-01' }, reason: 'asked', passed: [] }),
     ).toBeNull()
     expect(windowLine({ choice: 84, reason: 'qualified', passed: [] })).toBeNull()
-    expect(windowLine({ choice: 84, reason: 'most', passed: [] })).toBeNull()
     expect(windowLine({ choice: 'all', reason: 'qualified', passed: [] })).toBeNull()
   })
 
@@ -20,28 +19,28 @@ describe('windowLine', () => {
       choice: 365,
       reason: 'qualified',
       passed: [
-        passed(84, { sport: 'run', lack: 'easy' }),
-        passed(182, { sport: 'run', lack: 'easy' }),
+        passed(84, { sport: 'run', lack: 'none' }),
+        passed(182, { sport: 'run', lack: 'none' }),
       ],
     }
-    expect(windowLine(window)).toBe('Last 12 weeks had no hard runs.')
+    expect(windowLine(window)).toBe('Last 12 weeks had no 20 min runs.')
     // The window the page uses is the lit segment of the control, so the line is the same for any window.
     expect(windowLine({ ...window, choice: 182, passed: [window.passed[0]!] })).toBe(
-      'Last 12 weeks had no hard runs.',
+      'Last 12 weeks had no 20 min runs.',
     )
   })
 
-  it('names what each sport lacked: activities, a 20 min best, a hard best', () => {
+  it('names what each sport lacked: activities, a 20 min best', () => {
     const line = (...lacks: PassedWindow['lacks']) =>
       windowLine({ choice: 182, reason: 'qualified', passed: [passed(84, ...lacks)] })
     expect(line({ sport: 'ride', lack: 'few' })).toBe('Last 12 weeks had too few rides.')
     expect(line({ sport: 'run', lack: 'none' })).toBe('Last 12 weeks had no 20 min runs.')
-    expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'few' })).toBe(
-      'Last 12 weeks had no hard runs and too few rides.',
+    expect(line({ sport: 'run', lack: 'none' }, { sport: 'ride', lack: 'few' })).toBe(
+      'Last 12 weeks had no 20 min runs and too few rides.',
     )
     // Sports that lacked the same thing share a clause, and every sport lacking it needs no list of them.
-    expect(line({ sport: 'run', lack: 'easy' }, { sport: 'ride', lack: 'easy' })).toBe(
-      'Last 12 weeks had no hard efforts.',
+    expect(line({ sport: 'run', lack: 'none' }, { sport: 'ride', lack: 'none' })).toBe(
+      'Last 12 weeks had no 20 min efforts.',
     )
     expect(line({ sport: 'run', lack: 'few' }, { sport: 'ride', lack: 'few' })).toBe(
       'Last 12 weeks had too few activities.',
@@ -59,7 +58,7 @@ describe('windowLine', () => {
   })
 
   it('keeps every sentence short, and free of the words the voice rules ban', () => {
-    const lines = (['few', 'none', 'easy'] as const).map((lack) =>
+    const lines = (['few', 'none'] as const).map((lack) =>
       windowLine({
         choice: 365,
         reason: 'qualified',

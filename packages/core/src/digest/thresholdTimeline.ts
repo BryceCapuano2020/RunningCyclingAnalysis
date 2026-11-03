@@ -6,125 +6,80 @@ import {
   HEADLINE_DURATION_S,
 } from '../constants'
 import { criticalPowerOutcome, predictCritical, wPrimeFloor } from '../cp'
-import { isHardShare } from '../effort'
-import type { MaxHeartRates, ReferenceReading } from '../effort'
-import type { ActivityDigest, BikeModel, CriticalPowerFit, Sport } from '../types'
+import type { MaxHeartRates } from '../effort'
+import { rideThreshold } from '../threshold'
+import type { ActivityDigest, BikeModel, CriticalPowerFit } from '../types'
 import { memoByDigests } from '../digestMemo'
 import { effortsCount } from './effortTrust'
 import { estimatedStanding } from './estimatedRide'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
-import { centralWkgFromWatts, ridePriced, runCentralWkg } from './rideCurves'
+import { ofSport } from './ordered'
+import { runCentralWkg } from './rideCurves'
+import { rideEffortsOf, thresholdHeartRate, thresholdInputs } from './thresholdEfforts'
+import type { RideEfforts } from './thresholdEfforts'
 import { NONE, WindowMax, fitCurve, windowCurve } from './thresholdWindow'
 import { THRESHOLD_WINDOW_WEEKS } from './thresholdTimelineTypes'
-import type { ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
+import type { ThresholdFit, ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
 import { weekEndFor } from '../calendar'
 
 const WEEK_MS = 7 * DAY_MS
 const DURATIONS = DURATIONS_S.length
 
-/**
- * One digest of a sport: the end of its week and its start; its points priced in the sport's fit unit, by duration
- * (`backed` counts at every duration, `standing` at its own only, as `bestOfEach` has it); and whether it has an effort as
- * long as a fit reaches. A duration with no value holds `NONE`.
- */
-interface Entry {
+/** Where a digest falls in the weeks, and whether it has an effort that dates the threshold of its window. */
+interface Placed {
   weekEnd: number
   startMs: number
-  backed: Float64Array
-  standing: Float64Array | null
   effort: boolean
-  /** Its best 20 minutes' heart rate over the sport's reference: null without a heart rate, or with it set aside. */
-  share: number | null
 }
 
-/** What a window's efforts are judged by: the library's reference, what it can certify, and whose heart rate is set aside. */
+/**
+ * One run: its points priced in gross metabolic W/kg, by duration, as the library's best curve prices them; and whether it has
+ * an effort as long as a fit reaches. A duration with no value holds `NONE`.
+ */
+interface RunEntry extends Placed {
+  values: Float64Array
+}
+
+/** One ride: what it gives the ride threshold. It has an effort when it gives any. */
+interface RideEntry extends Placed {
+  efforts: RideEfforts
+}
+
+/** What a window's efforts are judged by: the library's reference heart rates, and whose heart rate is set aside. */
 export interface TimelineEffort {
   referenceHr: MaxHeartRates
-  referenceReading: Record<Sport, ReferenceReading | null>
   setAside: ReadonlySet<string>
 }
 
 /** The index of the best 20 minutes among the durations. */
 const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
 
-/** A digest's points priced in gross metabolic W/kg, as the library's best curves price them. */
-function entryOf(
-  digest: ActivityDigest,
-  price: (digest: ActivityDigest, index: number) => { wkg: number; alone: boolean },
-  referenceBpm: number | null,
-  setAside: ReadonlySet<string>,
-): Entry {
-  const backed = new Float64Array(DURATIONS).fill(NONE)
-  let standing: Float64Array | null = null
+/** A run's points priced in gross metabolic W/kg; a run is priced from its pace alone. */
+function runEntryOf(digest: ActivityDigest): RunEntry {
+  const values = new Float64Array(DURATIONS).fill(NONE)
   const reach = CP_FIT_MAX_S * (1 - CP_FIT_REACH_TOLERANCE)
   let effort = false
   digest.curve.forEach((point, i) => {
-    const { wkg, alone } = price(digest, i)
+    const wkg = runCentralWkg(point)
     if (Number.isNaN(wkg)) return
     if (point.durationS >= reach) effort = true
-    if (alone) (standing ??= new Float64Array(DURATIONS).fill(NONE))[i] = wkg
-    else backed[i] = wkg
+    values[i] = wkg
   })
-  const heartRate = setAside.has(digest.id) ? null : digest.curve[HEADLINE_INDEX]?.heartRate
-  const share =
-    referenceBpm !== null && referenceBpm > 0 && typeof heartRate === 'number'
-      ? heartRate / referenceBpm
-      : null
-  return {
-    weekEnd: weekEndFor(digest),
-    startMs: digest.startMs,
-    backed,
-    standing,
-    effort,
-    share,
-  }
+  return { weekEnd: weekEndFor(digest), startMs: digest.startMs, values, effort }
 }
 
 /**
  * The weeks a sport's threshold can change in: the end of each week an activity falls in, where it enters the
  * window, and the end of the week it leaves it. Ascending and without repeats.
  */
-function changeWeeks(entries: readonly Entry[]): number[] {
+function changeWeeks(entries: readonly Placed[]): number[] {
   const weeks = new Set<number>()
   for (const { weekEnd } of entries) {
     weeks.add(weekEnd)
     weeks.add(weekEnd + THRESHOLD_WINDOW_WEEKS * WEEK_MS)
   }
   return [...weeks].sort((a, b) => a - b)
-}
-
-/**
- * Whether a window's best 20 minutes was a hard effort, as the analysis's gate judges its own: of the entries whose 20 minute
- * value is within the fit's reach tolerance of the window's best, the one with the highest heart rate over the reference.
- * A window with no heart rate there, or a reference too thin to read, cannot be judged and is not held back.
- */
-function windowHard(
-  entries: readonly Entry[],
-  lo: number,
-  hi: number,
-  reading: ReferenceReading | null,
-): boolean {
-  if (reading === null || reading === 'thin') return true
-  const values = entries.slice(lo, hi).map(twentyMinuteValue)
-  const best = Math.max(NONE, ...values)
-  if (best === NONE) return true
-  let share: number | null = null
-  values.forEach((value, i) => {
-    const entry = entries[lo + i]!
-    const near = value >= best * (1 - CP_FIT_REACH_TOLERANCE)
-    if (near && entry.share !== null && (share === null || entry.share > share)) share = entry.share
-  })
-  if (share === null) return true
-  return reading === 'trusted' && isHardShare(share)
-}
-
-/**
- * An entry's 20 minute value as the gate counts it: the best of the points that count at every duration and the one that
- * stands at its own duration alone (an estimated ride's unbacked point), since the gate takes every ride's 20 minutes.
- */
-function twentyMinuteValue(entry: Entry): number {
-  return Math.max(entry.backed[HEADLINE_INDEX]!, entry.standing?.[HEADLINE_INDEX] ?? NONE)
 }
 
 /**
@@ -144,17 +99,22 @@ function outgrown(held: CriticalPowerFit, curve: Float64Array): boolean {
 }
 
 /**
- * The steps of one sport. `fitOf` fits a window's curve the way the analysis reports a fit; a window whose best
- * 20 minutes was not hard (`windowHard`, with the sport's reference `reading`) has none, as the analysis has none.
+ * How a sport reads a window of its entries. `fit` is asked for every week the threshold can change in, in order, with the
+ * window's first and one-past-last entry (both only move forward) and the end of the week it ends with; `outgrown` only
+ * right after a `fit` of a window with entries that gave none.
  */
-function stepsOf(
-  entries: readonly Entry[],
-  fitOf: (values: Float64Array) => CriticalPowerFit | null,
-  reading: ReferenceReading | null,
-): ThresholdStep[] {
+interface WindowReader {
+  fit(lo: number, hi: number, untilMs: number): ThresholdFit | null
+  /** Whether the window's efforts have outgrown the newest earlier fit, which then stands for no window after it. */
+  outgrown(): boolean
+}
+
+/**
+ * The steps of one sport. A window with no fit of its own leaves the older fit to stand in for it, unless its efforts have
+ * outgrown that fit (`lastFit`); `asOfMs` is the start of the newest activity of the window with an effort.
+ */
+function stepsOf(entries: readonly Placed[], reader: WindowReader): ThresholdStep[] {
   const steps: ThresholdStep[] = []
-  const window = new WindowMax(entries.map((entry) => entry.backed))
-  const standingAt = entries.flatMap((entry, i) => (entry.standing === null ? [] : [i]))
   const windowMs = THRESHOLD_WINDOW_WEEKS * WEEK_MS
   // The window's first and one-past-last entry: both only move forward as the weeks do.
   let lo = 0
@@ -163,14 +123,9 @@ function stepsOf(
   for (const fromMs of changeWeeks(entries)) {
     while (hi < entries.length && entries[hi]!.weekEnd <= fromMs) hi++
     while (lo < hi && entries[lo]!.weekEnd <= fromMs - windowMs) lo++
-    window.pushTo(hi)
-    window.popTo(lo)
-    const alone = standingAt.filter((i) => i >= lo && i < hi).map((i) => entries[i]!.standing!)
-    const curve = lo < hi ? windowCurve(window, alone) : null
-    const fit = curve !== null && windowHard(entries, lo, hi, reading) ? fitOf(curve) : null
+    const fit = reader.fit(lo, hi, fromMs)
     if (fit !== null) lastFit = steps.length
-    // A window with no fit of its own leaves the older fit to stand in for it, unless its efforts have outgrown that fit.
-    else if (curve !== null && lastFit >= 0 && outgrown(steps[lastFit]!.fit!, curve)) lastFit = -1
+    else if (lo < hi && lastFit >= 0 && reader.outgrown()) lastFit = -1
     let newest = hi - 1
     while (newest >= lo && !entries[newest]!.effort) newest--
     steps.push({ fromMs, fit, asOfMs: newest >= lo ? entries[newest]!.startMs : null, lastFit })
@@ -178,87 +133,117 @@ function stepsOf(
   return steps
 }
 
-/** What a window's curve gives as a threshold fit, as the analysis reports a fit. */
-const fitterOf = (minWPrime: number) => (values: Float64Array) =>
-  criticalPowerOutcome(fitCurve(values), { minWPrime }).fit
-
-/** A run's efforts are priced from its pace alone, and its work-capacity floor does not read mass. */
-const priceRun = (digest: ActivityDigest, i: number) => ({
-  wkg: runCentralWkg(digest.curve[i]!),
-  alone: false,
-})
-const RUN_FIT = fitterOf(wPrimeFloor('run', 1))
+/** The work-capacity floor of a run's fit does not read mass. */
+const RUN_MIN_W_PRIME = wPrimeFloor('run', 1)
 
 /**
- * A run's steps, kept for the last runs asked for: they read nothing but the runs and what judges their efforts, so a
- * change of body mass, bike model or estimated-ride gate takes the steps already worked out for the same runs.
+ * The reader of the runs: the fit of the window's best curve, as the analysis reports a fit. The best of the window moves
+ * with the weeks (`WindowMax`), so the cost is the pricing plus a fit a week.
+ */
+function runReader(entries: readonly RunEntry[]): WindowReader {
+  const window = new WindowMax(entries.map((entry) => entry.values))
+  let curve: Float64Array = new Float64Array(DURATIONS)
+  let held: CriticalPowerFit | null = null
+  return {
+    fit(lo, hi) {
+      window.pushTo(hi)
+      window.popTo(lo)
+      if (lo >= hi) return null
+      curve = windowCurve(window, [])
+      const fit = criticalPowerOutcome(fitCurve(curve), { minWPrime: RUN_MIN_W_PRIME }).fit
+      if (fit !== null) held = fit
+      return fit
+    },
+    outgrown() {
+      const out = held !== null && outgrown(held, curve)
+      if (out) held = null
+      return out
+    },
+  }
+}
+
+/** How many standard errors a 10th to 90th percentile range spans, for a normal: 2 x 1.2816. */
+const RANGE_SPAN_SE = 2.5631
+
+/**
+ * The reader of the rides: the ride threshold over the window's rides, with the same inputs the analysis gives it (each ride's
+ * efforts and blocks, aged from the newest activity of any sport up to the window's end). Its standard error is the width of its
+ * range read as a normal's.
+ */
+function rideReader(
+  rides: readonly RideEntry[],
+  all: readonly ActivityDigest[],
+  thresholdHr: number | null,
+): WindowReader {
+  const ends = all.map((digest) => weekEndFor(digest))
+  let seen = 0
+  return {
+    fit(lo, hi, untilMs) {
+      while (seen < all.length && ends[seen]! <= untilMs) seen++
+      if (lo >= hi || seen === 0) return null
+      const { efforts, blocks } = thresholdInputs(
+        rides.slice(lo, hi).map((ride) => ride.efforts),
+        all[seen - 1]!.startMs,
+      )
+      const estimate = rideThreshold(efforts, blocks, thresholdHr)
+      return estimate === null
+        ? null
+        : { cp: estimate.value, cpSe: (estimate.high - estimate.low) / RANGE_SPAN_SE }
+    },
+    // A window with rides has an estimate, so no older one is left standing for it.
+    outgrown: () => false,
+  }
+}
+
+/**
+ * A run's steps, kept for the last runs asked for: they read nothing but the runs, so a change of body mass, bike model,
+ * estimated-ride gate or heart-rate judgement takes the steps already worked out for the same runs.
  */
 const runSteps = memoByDigests(
-  (runs: ActivityDigest[], effort: RunEffort) =>
-    stepsOf(
-      runs.map((run) => entryOf(run, priceRun, effort.referenceBpm, effort.setAside)),
-      RUN_FIT,
-      effort.reading,
-    ),
-  (a, b) =>
-    a.referenceBpm === b.referenceBpm && a.reading === b.reading && sameIds(a.setAside, b.setAside),
+  (runs: ActivityDigest[], _input: null) => {
+    const entries = runs.map(runEntryOf)
+    return stepsOf(entries, runReader(entries))
+  },
+  () => true,
   undefined,
   2,
 )
 
-/** What judges a run's window: the run reference, what it can certify, and whose heart rate is set aside. */
-interface RunEffort {
-  referenceBpm: number | null
-  reading: ReferenceReading | null
-  setAside: ReadonlySet<string>
-}
-
-function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
-  if (a.size !== b.size) return false
-  for (const id of a) if (!b.has(id)) return false
-  return true
-}
-
 const NOT_JUDGED: TimelineEffort = {
   referenceHr: { run: null, ride: null },
-  referenceReading: { run: null, ride: null },
   setAside: new Set(),
 }
 
 /**
- * Each sport's threshold over time: for every week, the fit over the efforts of the trailing
- * `THRESHOLD_WINDOW_WEEKS` weeks that end with it (see `ThresholdStep`). The points are priced as the library's best
- * curves are (the library's bike model and estimated-ride gate, each ride at its own day's body mass), so the
- * fit over a window that holds the whole library is the library's `fit`, to float noise. Each digest is priced once
- * and the window's best moves with it as the weeks pass, so the cost is the library's pricing plus a fit a week.
- * With `effort`, a window whose best 20 minutes was not a hard effort has no fit, as the analysis's has none.
+ * Each sport's threshold over time: for every week, the threshold over the efforts of the trailing `THRESHOLD_WINDOW_WEEKS`
+ * weeks that end with it (see `ThresholdStep`). A run's is the critical-power fit, as the analysis reports it. A ride's is the
+ * ride threshold (`rideThreshold`) over the window's rides, read as the analysis reads them: priced as the library's best curves
+ * are (its bike model and estimated-ride gate, each ride at its own day's body mass), with the heart rate of the rides not set
+ * aside in `effort` and the threshold heart rate of its ride reference. Each ride is read once, and a week costs one estimate.
  */
 export function thresholdTimeline(
   ordered: readonly ActivityDigest[],
   masses: Masses,
   bikeModel: BikeModel,
-  todayKg: number,
   gate: EstimatedRideGate | null,
   effort: TimelineEffort = NOT_JUDGED,
 ): ThresholdTimeline {
   const standing = estimatedStanding(gate)
-  const priceRide = (digest: ActivityDigest, i: number) => {
-    const { watts, alone } = ridePriced(digest.curve[i]!, digest, masses, bikeModel, standing)
-    return {
-      wkg: centralWkgFromWatts(watts, masses.bodyKg(digest)),
-      alone: gate !== null && alone,
-    }
-  }
-  const counted = (sport: Sport) =>
-    ordered.filter((digest) => digest.sport === sport && effortsCount(digest))
-  const { referenceHr, referenceReading, setAside } = effort
-  const rides = counted('ride').map((ride) => entryOf(ride, priceRide, referenceHr.ride, setAside))
+  const all = [...ordered]
+  const rides = ofSport(all, 'ride')
+    .filter(effortsCount)
+    .map((ride): RideEntry => {
+      const efforts = rideEffortsOf(ride, masses, bikeModel, standing, effort.setAside.has(ride.id))
+      return {
+        weekEnd: weekEndFor(ride),
+        startMs: ride.startMs,
+        efforts,
+        effort: efforts.efforts.length > 0,
+      }
+    })
+  const thresholdHr = thresholdHeartRate(effort.referenceHr.ride)
   return {
-    run: runSteps(counted('run'), {
-      referenceBpm: referenceHr.run,
-      reading: referenceReading.run,
-      setAside,
-    }),
-    ride: stepsOf(rides, fitterOf(wPrimeFloor('ride', todayKg)), referenceReading.ride),
+    run: runSteps(ofSport(all, 'run').filter(effortsCount), null),
+    ride: stepsOf(rides, rideReader(rides, all, thresholdHr)),
   }
 }

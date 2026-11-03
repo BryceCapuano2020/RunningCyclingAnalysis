@@ -81,19 +81,6 @@ TEMPO.curve = TEMPO.curve.map((point) =>
   point.durationS === 1200 ? { ...point, heartRate: 150 } : point,
 )
 
-/** The same kind of ride, whose evenly paced 20 minutes beats the climb's, so the 20 minute best is not uneven. */
-const EVEN_TEMPO: ActivityDigest = {
-  ...rideWith('even-tempo', { 1200: [295, 0, 1200] }),
-  hasHeartRate: true,
-  maxHeartRate: 165,
-}
-EVEN_TEMPO.curve = EVEN_TEMPO.curve.map((point) =>
-  point.durationS === 1200 ? { ...point, heartRate: 150 } : point,
-)
-
-/** A ride whose 10 minute best beats the climb's, so nothing long in the climb holds the 10 minute best. */
-const TEN_MINUTES = rideWith('ten-minutes', { 600: [330, 0, 600] })
-
 const REFERENCE_HR = { run: 190, ride: 190 }
 /** A trusted maximum for both sports, with the climb's heart rate set aside as faulty. */
 const CLIMB_HEART_RATE_FAULTY = {
@@ -136,31 +123,13 @@ describe('uneven bests in the combined analysis', () => {
     expect(result.runCpUneven).toBeNull()
   })
 
-  it('keeps the uneven threshold when another ride fails the effort gate', () => {
+  it('keeps the uneven threshold and the fit when another ride fails the effort gate', () => {
     const result = combine([CLIMB, TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
     expect(result.effortGate.ride.verdict).toBe('notHard')
-    expect(result.rideCp).toBeNull()
+    // The gate is a label: it does not take the fit, and the second threshold is the uneven fit as it was.
+    expect(result.rideCp).not.toBeNull()
     expect(result.rideCpUneven).not.toBeNull()
     expect(result.rideCpUneven!.leftOutS).toEqual([900, 1200])
-  })
-
-  it('keeps a second threshold when a steady ride takes the 20 minute best', () => {
-    const result = combine([CLIMB, EVEN_TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
-    expect(result.effortGate.ride.verdict).toBe('notHard')
-    expect(result.rideCp).toBeNull()
-    expect(result.rideCpUneven!.leftOutS).toEqual([900, 1200])
-  })
-
-  it('keeps a second threshold when another ride takes the 10 minute best', () => {
-    const result = combine([CLIMB, TEMPO, TEN_MINUTES], SETTINGS, CLIMB_HEART_RATE_FAULTY)
-    expect(result.effortGate.ride.verdict).toBe('notHard')
-    expect(result.rideCpUneven).not.toBeNull()
-  })
-
-  it('reads the second threshold from the same bests, whatever takes the longer ones', () => {
-    const first = combine([CLIMB, TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
-    const second = combine([CLIMB, EVEN_TEMPO], SETTINGS, CLIMB_HEART_RATE_FAULTY)
-    expect(second.rideCpUneven!.fit.cp).toBeCloseTo(first.rideCpUneven!.fit.cp, 9)
   })
 
   it('says the effort it judged is not the best itself', () => {

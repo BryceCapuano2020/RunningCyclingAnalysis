@@ -89,7 +89,17 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     rideMeasuredCurve: [],
     runCp: { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 },
     rideCp: { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 },
-    rideThreshold: null,
+    rideThreshold: {
+      value: 3.0,
+      low: 2.9,
+      high: 3.2,
+      efforts: {
+        value: 2.9,
+        rides: 3,
+        strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },
+      },
+      heartRate: { refused: 'no-heart-rate' },
+    },
     runCpRefusal: null,
     rideCpRefusal: null,
     runCpUneven: null,

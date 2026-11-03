@@ -12,7 +12,7 @@ import type {
 } from '../types'
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
-import { gatedThresholds, thresholdFits } from './combineThresholds'
+import { thresholdFits } from './combineThresholds'
 import { rideThresholdOf } from './thresholdEfforts'
 import { effortGatesOf, judgeHeadline } from './twentyMinute'
 import { equivalentsOf } from './equivalents'
@@ -239,28 +239,20 @@ export function combine(
     heart.setAside,
     judged.referenceHr.ride,
   )
-  const { run, ride } = gatedThresholds(
-    effortGate,
-    thresholds,
-    runCurve,
-    rideMetabolicCurve,
-    massKg,
-  )
-
   return {
     activities: activitySummaries(digests, settings, rideReferenceOf(judged)),
     runCurve,
     rideCurve,
     rideMetabolicCurve,
     rideMeasuredCurve,
-    runCp: run.fit,
-    rideCp: ride.fit,
+    runCp: thresholds.run.fit,
+    rideCp: thresholds.ride.fit,
     rideThreshold,
-    runCpRefusal: run.refusal,
-    rideCpRefusal: ride.refusal,
+    runCpRefusal: thresholds.run.refusal,
+    rideCpRefusal: thresholds.ride.refusal,
     effortGate,
-    runCpUneven: run.uneven,
-    rideCpUneven: ride.uneven,
+    runCpUneven: thresholds.run.uneven,
+    rideCpUneven: thresholds.ride.uneven,
     hr,
     comparison,
     equivalents,

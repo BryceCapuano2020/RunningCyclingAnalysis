@@ -14,11 +14,11 @@ import type { Curve, Sport } from '../types'
 /** The analysed activities each sport needs in the window before the headline sets one against the other. */
 export const HEADLINE_MIN_ACTIVITIES = 3
 
-/** Each sport's best curve and fitted threshold in a result. */
+/** Each sport's best curve and threshold in a result: a run's fit, a ride's estimate from every ride (`rideThreshold`). */
 const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
   {
     run: (result) => ({ curve: result.runCurve, threshold: result.runCp }),
-    ride: (result) => ({ curve: result.rideCurve, threshold: result.rideCp }),
+    ride: (result) => ({ curve: result.rideCurve, threshold: result.rideThreshold }),
   }
 
 /** Whether a best curve holds an effort of at least the headline duration. */

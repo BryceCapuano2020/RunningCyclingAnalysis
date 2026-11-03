@@ -165,8 +165,8 @@ const estimatesOfJudgement = new WeakMap<
 
 /**
  * The references of a whole library's judgement as zone estimates: its maxima, as an analysis of it reports
- * them, and its thresholds over time, settled so a hard effort passing through a window does not move the zones, and
- * off in a sport whose whole-library threshold is refused (`settledThresholds`), as of `nowMs`: a threshold that began
+ * them, and its thresholds over time, settled so a hard effort passing through a window does not move the zones
+ * (`settledThresholds`), as of `nowMs`: a threshold that began
  * to hold this week is not yet followed. The same judgement on the same `nowMs` gives the same object, so what is cached
  * by the estimates is found again.
  */
@@ -179,7 +179,7 @@ export function zoneEstimatesOf(judgement: HeartRateJudgement, nowMs: number): Z
     runObservedMaxHeartRate: judgement.observedMaxHr.run,
     rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
     observedMaxSource: judgement.observedMaxSource,
-    thresholds: settledThresholds(judgement.thresholdTimeline, judgement.fit, nowMs),
+    thresholds: settledThresholds(judgement.thresholdTimeline, nowMs),
     floor: judgement.floor,
     nowMs,
     ...untrustedMaxOf(judgement),

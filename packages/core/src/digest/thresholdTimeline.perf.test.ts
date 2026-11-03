@@ -32,7 +32,7 @@ describe('thresholdTimeline performance', () => {
     const ordered = orderedCurrent(library)
     const masses = massesOf(settings)
     const bikeModel = fitBikeModelOver(ordered, masses).model
-    const ms = fastestMs(() => thresholdTimeline(ordered, masses, bikeModel, 75, null), 3)
+    const ms = fastestMs(() => thresholdTimeline(ordered, masses, bikeModel, null), 3)
 
     expect(ms).toBeLessThan(BUDGET_MS)
   })

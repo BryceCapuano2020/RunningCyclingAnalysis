@@ -62,10 +62,6 @@ describe('what the gate cannot do, recorded', () => {
         found.every((d) => d.result.effortGate.run.unchecked === 'thin'),
         name,
       ).toBe(true)
-      expect(
-        found.every((d) => d.result.runCp !== null || d.result.runCpRefusal !== 'effort'),
-        name,
-      ).toBe(true)
     }
   })
 

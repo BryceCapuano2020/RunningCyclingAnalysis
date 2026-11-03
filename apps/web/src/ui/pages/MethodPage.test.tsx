@@ -488,6 +488,7 @@ describe('MethodPage energy view', () => {
         activities: metered,
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: short,
         rideCurve: [curvePoint(300, 250, 'ride-1')],
       }),
@@ -512,6 +513,7 @@ describe('MethodPage energy view', () => {
       makeResult({
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: [curvePoint(1200, 4, 'run-1')],
         rideCurve: [curvePoint(300, 250, 'ride-1')],
       }),

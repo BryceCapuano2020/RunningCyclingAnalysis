@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { athleteFor, birthYearFor, libraryOf } from '../effort/test/libraries'
 import type { LibraryKind } from '../effort/test/libraries'
 import type { Sport } from '../types'
@@ -24,12 +25,15 @@ function withoutHeartRate(kind: LibraryKind) {
 }
 
 describe('the effort gate through the analysis', () => {
-  it('withholds a runner-only easy library’s threshold, and says the best 20 minutes as a floor', () => {
+  it('keeps a runner-only easy library’s fit as the curve gives it, and says the best 30 minutes as a floor', () => {
     const result = combine(digestsOf('easy'), SETTINGS)
     expect(result.effortGate.run.verdict).toBe('notHard')
-    expect(result.runCp).toBeNull()
-    expect(result.runCpRefusal).toBe('effort')
-    expect(result.runCpUneven).toBeNull()
+    // The gate is a label: the fit and its refusal are the curve's own, whatever the heart rate says of the effort.
+    const outcome = criticalPowerOutcome(result.runCurve, {
+      minWPrime: wPrimeFloor('run', SETTINGS.massKg),
+    })
+    expect(result.runCp).toEqual(outcome.fit)
+    expect(result.runCpRefusal).toEqual(outcome.refusal)
     // The floor is the best 30 minutes where the curve has one: the time a threshold is said to be held for.
     const best = result.runCurve.find((p) => p.durationS === THRESHOLD_HOLD_S)!.value
     expect(result.effortGate.run.floor).toEqual({ durationS: THRESHOLD_HOLD_S, value: best })
@@ -95,7 +99,10 @@ describe('the effort gate through the analysis', () => {
     expect(result.effortGate.run.reference).toBe('trusted')
     expect(result.effortGate.run.share).toBeLessThan(0.9)
     expect(result.effortGate.run.verdict).toBe('notHard')
-    expect(result.runCpRefusal).toBe('effort')
+    // Not hard against that maximum, and the fit is still the curve's own.
+    expect(result.runCp).toEqual(
+      criticalPowerOutcome(result.runCurve, { minWPrime: wPrimeFloor('run', SETTINGS.massKg) }).fit,
+    )
   })
 
   it('withholds nothing where there is no heart rate to judge by', () => {

@@ -5,23 +5,22 @@ import { HEADLINE_LABEL } from './grades'
 import { BALANCE_PAIR, SPORT_PLURAL } from './sports'
 
 /** What every sport lacked, as one word, where naming each sport would only lengthen the line. */
-const EVERY_SPORT: Record<Lack, string> = { few: 'activities', none: 'efforts', easy: 'efforts' }
+const EVERY_SPORT: Record<Lack, string> = { few: 'activities', none: 'efforts' }
 
 /** The sports' activities as one phrase: "runs", "runs or rides". */
 function nouns(sports: readonly Sport[]): string {
   return sports.map((sport) => SPORT_PLURAL[sport]).join(' or ')
 }
 
-/** What sports lacked in a window the default passed over, as it follows "had": "too few rides", "no hard efforts". */
+/** What sports lacked in a window the default passed over, as it follows "had": "too few rides", "no 20 min efforts". */
 const LACK_WORDS: Record<Lack, (what: string) => string> = {
   few: (what) => `too few ${what}`,
   none: (what) => `no ${HEADLINE_LABEL} ${what}`,
-  easy: (what) => `no hard ${what}`,
 }
 
 /**
  * The line under the period control when the default is not the 12 weeks it starts from: why the shortest window was
- * passed over. "Last 12 weeks had no hard runs." The window the page is on is the lit segment of the control, so the line
+ * passed over. "Last 12 weeks had no 20 min runs." The window the page is on is the lit segment of the control, so the line
  * does not name it. Null when the athlete picked the period, or the first window was taken.
  */
 export function windowLine({ choice, passed }: AnswerWindow): string | null {
