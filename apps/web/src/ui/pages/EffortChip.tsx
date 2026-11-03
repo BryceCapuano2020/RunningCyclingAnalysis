@@ -10,9 +10,9 @@ export interface EffortChipProps {
 }
 
 /**
- * How hard the best 20 minutes behind a grade were, by heart rate, as one chip: "Not all-out" or "Hard effort". The
- * whole reading, the share of the max heart rate and what would change it, opens from the chip as a definition.
- * Balance's tiles and the sport pages' threshold panels share it.
+ * How hard an effort was, by heart rate, as one chip: "Not all-out" or "Hard effort". The whole reading, the share of the
+ * max heart rate and what would change it, opens from the chip as a definition. The ride on foot card draws it, for a
+ * length other than the best 20 minutes.
  */
 export function EffortChip({ chip, className }: EffortChipProps) {
   return (

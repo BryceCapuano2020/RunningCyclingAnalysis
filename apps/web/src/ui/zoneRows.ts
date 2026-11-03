@@ -21,7 +21,8 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 }
 
 /**
- * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where its fit is refused.
+ * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where no threshold estimate
+ * stands for the date: no run effort of 3 min or more in its window, nor in the year before.
  * A ride's threshold is the estimate from all its efforts, which has no floor, so a ride's zones are never cut from one.
  */
 const FLOOR_ZONES: Record<Sport, boolean> = { run: true, ride: false }
@@ -37,13 +38,13 @@ function floorOf(set: ZoneSet): { durationS: number; asOfMs: number } | null {
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
-    // A pace no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
+    // A pace no estimate stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
     const floor = floorOf(set)
     if (floor !== null) {
       return `From your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
     }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
-    // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
+    // A pace or power from an older estimate, because the half year before the date holds no effort of 3 min or more.
     return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
   },
 }

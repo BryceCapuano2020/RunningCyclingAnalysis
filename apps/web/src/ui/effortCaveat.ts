@@ -234,8 +234,8 @@ export interface EffortChipText {
 }
 
 /**
- * The chip for a sport's best effort at the headline duration, or null where heart rate does not say. Balance's
- * tiles and the sport pages' threshold panels both say the check with it, so the two read the same.
+ * The chip for a sport's effort at a duration, or null where heart rate does not say. The ride on foot card says its check
+ * with it; a threshold card says none, since a threshold does not rest on one effort's hardness.
  */
 export function effortChipText(
   sport: Sport,
