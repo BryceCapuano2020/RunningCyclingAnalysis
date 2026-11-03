@@ -17,6 +17,10 @@
  * number is within the tolerance. It also fails a card when a hedge word sits between its title and its
  * number. A clock value such as 5:30 or 1:05:30 reads as seconds. Prints one line per check.
  *
+ * The search for a card's number stops at the next card, so a card that shows no number cannot borrow the
+ * next one's: at a line that starts with another check's card title, and at an all-caps line that follows
+ * ordinary text. All-caps lines straight after the title (badges such as ESTIMATED) do not stop it.
+ *
  *   {
  *     "hedges": { "words": ["ABOUT", "ROUGHLY"] },
  *     "checks": [
@@ -49,16 +53,26 @@ export function parseNumber(raw) {
   return Number.isFinite(value) ? value : null
 }
 
+/** A line that reads as a card title or badge: it has capitals and no lowercase letters. */
+const isCaps = (line) => /[A-Z]/.test(line) && !/[a-z]/.test(line)
+
 /**
  * The card's headline number and the hedge words between its title and that number. Null when no line starts
- * with the title; a null value when the title is there but no number with the unit follows it.
+ * with the title; a null value when the title is there but no number with the unit follows it before the
+ * next card begins. `otherCards` are the titles of the other cards being checked.
  */
-export function readCard(text, card, unit, hedgeWords = []) {
+export function readCard(text, card, unit, hedgeWords = [], otherCards = []) {
   const hedges = hedgeWords.map((word) => word.toUpperCase())
+  const title = card.toUpperCase()
+  // A title that is a prefix of this one (a check for "Run" beside "Run threshold") is not another card.
+  const others = otherCards
+    .map((other) => other.toUpperCase())
+    .filter((other) => other !== '' && !title.startsWith(other))
   const lines = text.split('\n').map((line) => line.trim())
-  const start = lines.findIndex((line) => line.toUpperCase().startsWith(card.toUpperCase()))
+  const start = lines.findIndex((line) => line.toUpperCase().startsWith(title))
   if (start === -1) return null
   const inlineNumber = new RegExp(`^([\\d.,:]+)\\s*${escapeRegExp(unit)}(?![\\w/])`)
+  let sawText = false
   for (let i = start + 1; i < Math.min(lines.length, start + CARD_LINES + 1); i++) {
     const inline = lines[i].match(inlineNumber)
     const split = /^[\d.,:]+$/.test(lines[i]) && lines[i + 1] === unit
@@ -70,6 +84,9 @@ export function readCard(text, card, unit, hedgeWords = []) {
         hedged: between.filter((line) => hedges.some((word) => line.toUpperCase().includes(word))),
       }
     }
+    if (others.some((other) => lines[i].toUpperCase().startsWith(other))) break
+    if (!isCaps(lines[i])) sawText = true
+    else if (sawText) break
   }
   return { value: null, hedged: [] }
 }
@@ -115,6 +132,7 @@ export function validateTruth(truth) {
  */
 export function runChecks(outdir, truth) {
   const hedgeWords = truth.hedges?.words ?? []
+  const cards = truth.checks.map((check) => check.card)
   const results = []
   for (const check of truth.checks) {
     for (const period of check.periods) {
@@ -123,7 +141,8 @@ export function runChecks(outdir, truth) {
         results.push({ verdict: 'MISSING', line: `MISSING ${check.id} ${period}: no ${file}` })
         continue
       }
-      const card = readCard(readFileSync(file, 'utf8'), check.card, check.unit, hedgeWords)
+      const text = readFileSync(file, 'utf8')
+      const card = readCard(text, check.card, check.unit, hedgeWords, cards)
       const value = card?.value ?? null
       const near = value !== null && Math.abs(value - check.expect) <= check.tolerance
       const verdict = near && card.hedged.length === 0 ? 'PASS' : 'FAIL'

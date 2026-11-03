@@ -12,17 +12,20 @@
  *   node scripts/replica/replica.mjs <download.json> [--out <dir>] [--checkout <dir>]
  *
  *   <download.json>   the account download (JSON, format "rca-export").
- *   --out <dir>       where the output goes. Default: .replica-out/ in the checkout, which git ignores.
+ *   --out <dir>       where the output goes. Default: .replica-out/ in the checkout this script lives in,
+ *                     which git ignores. A folder inside any git work tree is refused unless git ignores it.
  *   --checkout <dir>  a checkout whose apps/web/dist is built (`npm ci && npm run build` there).
  *                     Default: the checkout this script lives in.
  *   -h, --help        this text.
  *
  * Environment:
- *   RCA_TESTSLOT      optional path of an executable that runs its arguments once a machine-wide test slot is
- *                     free. When set, this script re-runs under it.
+ *   RCA_TESTSLOT      optional path of any wrapper script that runs its arguments once a machine-wide test
+ *                     slot is free. When set, this script re-runs under it. None ships in the repository.
  *
- * Exit codes: 0 the run finished; 1 the run failed (whatever was written is still in the output folder);
- * 2 bad usage or a missing input (no build, no download, not an RCA download).
+ * Exit codes: 0 the run finished; 1 the run failed, or the API refused any activity or loaded none
+ * (whatever was written is still in the output folder); 2 bad usage or a missing input (no build, no
+ * download, not an RCA download, an output folder git would track); 128 plus the signal number when
+ * stopped by SIGINT, SIGTERM or SIGHUP, after the browser and the Worker have been stopped.
  *
  * What it does:
  *   1. starts `wrangler dev` from <checkout>/apps/api on a free port, with a fresh local D1 in <out>/.state,
@@ -36,34 +39,25 @@
  *
  * Compare the text with scripts/replica/truth-check.mjs.
  */
-import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { PAGES, PERIODS, goToPage, mainText, pickPeriod, settle } from './drive.mjs'
-import { freePort, seedAccount, startWorker } from './worker.mjs'
+import { createReport, refusalCounts, seedProblem } from './report.mjs'
+import { SIGNALS, outDirProblem, runInGroup, signalExitCode } from './run.mjs'
+import { freePort, seedAccount, startWorker, stopWorker } from './worker.mjs'
 
 const USAGE = `usage: node scripts/replica/replica.mjs <download.json> [--out <dir>] [--checkout <dir>]
 Loads an RCA account download into a local Worker and writes what every page says, signed in.
 The download and the output hold real data: keep both outside git. See scripts/replica/README.md.`
 
+const OWN_CHECKOUT = fileURLToPath(new URL('../../', import.meta.url))
 const ACCOUNT = { email: 'replica@example.test', name: 'Replica' }
 const VIEWPORT = { width: 1280, height: 900 }
-/** Lines holding one of these (case-insensitive) are collected in withheld.txt: the app saying it holds a figure back. */
-const WITHHOLD_PATTERNS = [
-  'not enough',
-  'needs',
-  'not a hard effort',
-  'No comparable',
-  'It takes',
-  'add ',
-  'at least',
-  'not all-out',
-  'set aside',
-  'left out',
-]
+/** How long Chromium gets to close before this process exits, which kills it. */
+const BROWSER_CLOSE_TIMEOUT_MS = 10_000
 
 function usageError(message) {
   if (message) console.error(message)
@@ -95,18 +89,17 @@ if (args.values.help) {
 }
 if (args.positionals.length !== 1) usageError('expected exactly one argument: the account download')
 
-// Under a test slot wrapper, when one is configured: the script runs again inside it, once.
+// Under a wrapper script (a test slot), when one is configured: the script runs again inside it, once.
 if (process.env.RCA_TESTSLOT && process.env.RCA_REPLICA_SLOTTED !== '1') {
   const rerun = [process.execPath, fileURLToPath(import.meta.url), ...process.argv.slice(2)]
-  const wrapped = spawnSync(process.env.RCA_TESTSLOT, rerun, {
-    stdio: 'inherit',
-    env: { ...process.env, RCA_REPLICA_SLOTTED: '1' },
-  })
-  process.exit(wrapped.status ?? 1)
+  process.exit(
+    await runInGroup(process.env.RCA_TESTSLOT, rerun, { ...process.env, RCA_REPLICA_SLOTTED: '1' }),
+  )
 }
 
-const CHECKOUT = resolve(args.values.checkout ?? fileURLToPath(new URL('../../', import.meta.url)))
-const OUT = resolve(args.values.out ?? join(CHECKOUT, '.replica-out'))
+const CHECKOUT = resolve(args.values.checkout ?? OWN_CHECKOUT)
+// The default output is next to this script, not in --checkout: an older checkout may not ignore it.
+const OUT = resolve(args.values.out ?? join(OWN_CHECKOUT, '.replica-out'))
 const DOWNLOAD = resolve(args.positionals[0])
 const WEB = join(CHECKOUT, 'apps', 'web')
 
@@ -114,6 +107,8 @@ if (!existsSync(join(WEB, 'dist', 'index.html'))) {
   inputError(`no build at ${join(WEB, 'dist')}: run "npm ci && npm run build" in ${CHECKOUT} first`)
 }
 if (!existsSync(DOWNLOAD)) inputError(`account download not found: ${DOWNLOAD}`)
+const unsafe = outDirProblem(OUT)
+if (unsafe !== null) inputError(unsafe)
 
 let download
 try {
@@ -144,34 +139,63 @@ const { chromium } = createRequire(join(WEB, 'package.json'))('@playwright/test'
 const startedAt = Date.now()
 const seconds = (from = startedAt) => Math.round((Date.now() - from) / 100) / 10
 const log = (message) => console.log(`[${seconds()}s] ${message}`)
-const consoleLines = []
-const note = (kind, text) =>
-  consoleLines.push(`${kind}\t${String(text).replace(/\s+/g, ' ').slice(0, 400)}`)
+const { note, record, write } = createReport(OUT)
 
-const rows = []
-const withheld = []
-/** Writes one page's text and counts the lines where the app holds a figure back. */
-function record(pageName, periodFile, text) {
-  writeFileSync(join(OUT, `${pageName}-${periodFile}.txt`), `${text}\n`)
-  const lines = text.split('\n')
-  const hits = lines.filter((line) =>
-    WITHHOLD_PATTERNS.some((p) => line.toLowerCase().includes(p.toLowerCase())),
-  )
-  rows.push({ page: pageName, period: periodFile, lines: lines.length, withheld: hits.length })
-  if (hits.length > 0)
-    withheld.push(`## ${pageName} / ${periodFile}`, ...hits.map((line) => `  ${line}`), '')
+/** What is running, so a signal or a failure can stop it. */
+const running = { worker: null, browser: null }
+let cleaning = null
+let seeded = null
+
+/** Closes Chromium and stops the Worker, once. A browser that will not close is killed when this process exits. */
+function cleanup() {
+  cleaning ??= (async () => {
+    const closing = running.browser?.close().catch(() => undefined)
+    await Promise.race([closing, new Promise((r) => setTimeout(r, BROWSER_CLOSE_TIMEOUT_MS))])
+    if (running.worker !== null) await stopWorker(running.worker)
+  })()
+  return cleaning
+}
+
+/** Writes the run's summary files and returns the line printed at the end. */
+function finish(failure) {
+  const { commit, errors } = write({
+    checkout: CHECKOUT,
+    seeded,
+    failure,
+    totalSeconds: seconds(),
+  })
+  return `commit ${commit}, ${seconds()}s total, console errors ${errors}, out ${OUT}`
+}
+
+let stoppedBy = null
+for (const signal of SIGNALS) {
+  process.on(signal, () => {
+    // A second signal stops waiting; the exit handlers still kill what is left.
+    if (stoppedBy !== null) process.exit(signalExitCode(signal))
+    stoppedBy = signal
+    note('stopped', signal)
+    cleanup().finally(() => {
+      console.error(`stopped by ${signal}`)
+      console.log(finish(new Error(`stopped by ${signal}`)))
+      process.exit(signalExitCode(signal))
+    })
+  })
 }
 
 async function main() {
   const port = await freePort()
   const origin = `http://localhost:${port}`
-  const worker = await startWorker({ checkout: CHECKOUT, state: join(OUT, '.state'), port })
+  running.worker = await startWorker({ checkout: CHECKOUT, state: join(OUT, '.state'), port })
   log(`worker on ${origin}`)
-  let browser
-  let seeded = null
   try {
-    browser = await chromium.launch({ headless: true })
-    const context = await browser.newContext({
+    // The signal handlers above do the stopping, so Playwright's own would race them.
+    running.browser = await chromium.launch({
+      headless: true,
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    })
+    const context = await running.browser.newContext({
       viewport: VIEWPORT,
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -231,54 +255,38 @@ async function main() {
       }
       log(`${period.label} written`)
     }
-    await context.close()
+    await running.browser.close()
   } finally {
-    await browser?.close().catch(() => undefined)
-    worker.kill()
+    await cleanup()
   }
-  return seeded
 }
 
 let failure = null
-let seeded = null
 try {
-  seeded = await main()
+  await main()
 } catch (error) {
   failure = error
-  note('script', String(error?.stack ?? error))
+  // A failure caused by a signal closing the browser is not worth a line of its own.
+  if (stoppedBy === null) note('script', String(error?.stack ?? error))
 }
-
-writeFileSync(join(OUT, 'console.txt'), `${consoleLines.join('\n')}\n`)
-writeFileSync(join(OUT, 'withheld.txt'), `${withheld.join('\n')}\n`)
-writeFileSync(
-  join(OUT, 'counts.tsv'),
-  [
-    'page\tperiod\tlines\twithheld',
-    ...rows.map((r) => `${r.page}\t${r.period}\t${r.lines}\t${r.withheld}`),
-  ].join('\n') + '\n',
-)
-const commit =
-  spawnSync('git', ['-C', CHECKOUT, 'rev-parse', '--short=8', 'HEAD'], {
-    encoding: 'utf8',
-  }).stdout?.trim() ?? ''
-const errors = consoleLines.filter((l) => /^(console\.error|pageerror|script)\t/.test(l)).length
-writeFileSync(
-  join(OUT, 'run.json'),
-  `${JSON.stringify(
-    {
-      commit,
-      totalSeconds: seconds(),
-      activities: seeded?.activities?.loaded ?? null,
-      refused: seeded?.activities?.refused?.length ?? null,
-      consoleErrors: errors,
-      failed: failure === null ? null : String(failure?.message ?? failure),
-    },
-    null,
-    2,
-  )}\n`,
-)
-console.log(`commit ${commit}, ${seconds()}s total, console errors ${errors}, out ${OUT}`)
-if (failure !== null) {
-  console.error(failure)
-  process.exit(1)
+// When a signal stopped the run, its handler writes the summary and exits.
+if (stoppedBy === null) {
+  let problem = null
+  if (seeded !== null) {
+    const measurementsRefused = seeded.measurements.refused
+    if (measurementsRefused.length > 0) {
+      console.error(
+        `${measurementsRefused.length} measurements refused (${refusalCounts(measurementsRefused)})`,
+      )
+    }
+    problem = seedProblem(seeded)
+    if (problem !== null) {
+      console.error(problem)
+      failure ??= new Error(problem)
+    }
+  }
+  console.log(finish(failure))
+  // A seed problem was printed above; any other failure is printed with its trace.
+  if (failure !== null && failure.message !== problem) console.error(failure)
+  process.exit(failure === null ? 0 : 1)
 }

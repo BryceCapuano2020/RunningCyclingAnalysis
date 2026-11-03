@@ -62,6 +62,23 @@ test('a card with no title is null, and one with no number within reach has a nu
   assert.equal(readCard(near, 'Threshold power', 'W').value, 250)
 })
 
+test('a card that shows no number does not read the number of the card after it', () => {
+  const both = ['Ride threshold', 'Run threshold']
+  // The next card is another check's title.
+  const text = 'Ride threshold\nNot enough hard efforts yet\nRun threshold\n250 W'
+  assert.deepEqual(readCard(text, 'Ride threshold', 'W', [], both), { value: null, hedged: [] })
+  assert.equal(readCard(text, 'Run threshold', 'W', [], both).value, 250)
+  // The next card is a title no check names: an all-caps line after ordinary text.
+  const caps =
+    'THRESHOLD POWER\nNot enough hard efforts yet\nAGE GRADE, BEST 20 MIN\n246 W at age 35.'
+  assert.equal(readCard(caps, 'Threshold power', 'W').value, null)
+  // All-caps badges straight after the title belong to the card.
+  const badges = 'THRESHOLD POWER\n· ALL TIME\nESTIMATED\nHARD EFFORT\n225\nW'
+  assert.equal(readCard(badges, 'Threshold power', 'W').value, 225)
+  // A title that is only the start of this card's title is not another card.
+  assert.equal(readCard('Run threshold\n250 W', 'Run threshold', 'W', [], ['Run']).value, 250)
+})
+
 const goodCheck = {
   id: 'run-threshold',
   page: 'run',
@@ -128,6 +145,23 @@ test('each check and period passes, fails or is missing on its own', () => {
   )
   assert.match(results[3].line, /^MISSING run-threshold 12-weeks: no .*run-12-weeks\.txt$/)
   assert.equal(results[4].line, 'FAIL ride-threshold default: no number W, want 250 ± 5')
+})
+
+test('a check whose card shows no number fails even when the next card has one', () => {
+  const truth = {
+    checks: [
+      { ...goodCheck, id: 'ride-threshold', card: 'Ride threshold' },
+      { ...goodCheck, id: 'run-threshold', card: 'Run threshold' },
+    ],
+  }
+  const files = {
+    'run-default.txt': 'Ride threshold\nNot enough hard efforts yet\nRun threshold\n250 W\n',
+  }
+  const lines = withOutput(files, (dir) => runChecks(dir, truth).map(({ line }) => line))
+  assert.deepEqual(lines, [
+    'FAIL ride-threshold default: no number W, want 250 ± 5',
+    'PASS run-threshold default: 250 W, want 250 ± 5',
+  ])
 })
 
 const script = fileURLToPath(new URL('./truth-check.mjs', import.meta.url))

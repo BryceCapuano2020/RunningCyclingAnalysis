@@ -3,12 +3,28 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
+import { signalGroup } from './run.mjs'
 
 /** The header every request from the web app carries; the API refuses writes without it. */
 const CLIENT = { 'X-RCA-Client': 'web' }
 /** How many activity uploads run at once while seeding. */
 const SEED_CONCURRENCY = 6
 const START_TIMEOUT_MS = 120_000
+/** How long wrangler gets to stop after SIGTERM before its whole process group is killed. */
+const STOP_TIMEOUT_MS = 5_000
+
+/**
+ * Stops the Worker: SIGTERM to its process group, then SIGKILL to whatever is left after a timeout.
+ * Waits until wrangler has exited, so nothing is orphaned when the script ends.
+ */
+export async function stopWorker(child, timeoutMs = STOP_TIMEOUT_MS) {
+  if (child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise((resolveExit) => child.once('exit', resolveExit))
+    signalGroup(child, 'SIGTERM')
+    await Promise.race([exited, new Promise((resolveWait) => setTimeout(resolveWait, timeoutMs))])
+  }
+  signalGroup(child, 'SIGKILL')
+}
 
 /** An unused local port, found by listening on port 0 and letting go of it. */
 export function freePort() {
@@ -66,15 +82,23 @@ export async function startWorker({ checkout, state, port }) {
       state,
       '--var',
       `APP_URL:http://localhost:${port}`,
+      '--var',
+      'ENVIRONMENT:development',
       '--show-interactive-dev-session=false',
     ],
-    { cwd: api, stdio: ['ignore', 'pipe', 'pipe'], env },
+    // Its own process group, so one signal reaches workerd too.
+    { cwd: api, stdio: ['ignore', 'pipe', 'pipe'], env, detached: true },
   )
+  // However this script ends, the group goes with it. Exit handlers run synchronously, so SIGKILL.
+  process.once('exit', () => signalGroup(child, 'SIGKILL'))
   let output = ''
   child.stdout.on('data', (chunk) => (output += chunk))
   child.stderr.on('data', (chunk) => (output += chunk))
   for (let waited = 0; waited < START_TIMEOUT_MS; waited += 500) {
-    if (child.exitCode !== null) throw new Error(`wrangler dev exited:\n${output}`)
+    if (child.exitCode !== null) {
+      await stopWorker(child)
+      throw new Error(`wrangler dev exited:\n${output}`)
+    }
     try {
       if ((await fetch(`http://localhost:${port}/api/health`)).ok) return child
     } catch {
@@ -82,13 +106,30 @@ export async function startWorker({ checkout, state, port }) {
     }
     await new Promise((resolveWait) => setTimeout(resolveWait, 500))
   }
-  child.kill()
+  await stopWorker(child)
   throw new Error(`wrangler dev did not start:\n${output}`)
 }
 
 async function expectOk(response, what) {
   if (response.ok()) return response
   throw new Error(`${what}: ${response.status()} ${(await response.text()).slice(0, 300)}`)
+}
+
+/** A refused write: the status, the API's error code (`{ error: { code } }`) and a short body, for seed.json. */
+async function refusal(response, fields) {
+  const text = await response.text()
+  let code = null
+  try {
+    code = JSON.parse(text)?.error?.code ?? null
+  } catch {
+    // not JSON: the status and body say enough
+  }
+  return {
+    ...fields,
+    status: response.status(),
+    code: typeof code === 'string' ? code : null,
+    body: text.slice(0, 200),
+  }
 }
 
 /**
@@ -127,13 +168,7 @@ export async function seedAccount({ request, download, account, log }) {
     // The API takes a measurement as a PUT; a POST to this path is a 404.
     const response = await request.put('/api/measurements', { headers: CLIENT, data })
     if (response.ok()) measurements.loaded++
-    else {
-      measurements.refused.push({
-        kind: m.kind,
-        status: response.status(),
-        body: (await response.text()).slice(0, 200),
-      })
-    }
+    else measurements.refused.push(await refusal(response, { kind: m.kind }))
   }
   const activities = { total: download.activities.length, loaded: 0, refused: [] }
   const queue = [...download.activities].sort((a, b) => a.startMs - b.startMs)
@@ -145,13 +180,7 @@ export async function seedAccount({ request, download, account, log }) {
         data: { digest: next.digest, fileName: next.fileName || `${next.id}.fit`, fileHash },
       })
       if (response.ok()) activities.loaded++
-      else {
-        activities.refused.push({
-          sport: next.sport,
-          status: response.status(),
-          body: (await response.text()).slice(0, 200),
-        })
-      }
+      else activities.refused.push(await refusal(response, { sport: next.sport }))
       const done = activities.loaded + activities.refused.length
       if (done % 250 === 0) log(`seeded ${done} of ${activities.total}`)
     }

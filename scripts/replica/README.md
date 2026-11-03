@@ -41,12 +41,22 @@ download. A large library takes longer.
 node scripts/replica/replica.mjs <download.json> [--out <dir>] [--checkout <dir>]
 ```
 
-- `--out` is where the output goes. The default is `.replica-out/` in the checkout.
+- `--out` is where the output goes. The default is `.replica-out/` in the checkout the script lives in,
+  not in `--checkout`, which may be an older checkout with no ignore rule. The script refuses an `--out`
+  inside a git work tree unless `git check-ignore` says git ignores it.
 - `--checkout` is the checkout whose `apps/web/dist` is built. The default is the one the script is in.
-- `RCA_TESTSLOT` is optional. Set it to an executable that runs its arguments once a machine-wide test
-  slot is free, and the script re-runs under it. Use it on a shared machine.
-- Exit codes: 0 the run finished, 1 the run failed (partial output stays in the folder), 2 bad usage or a
-  missing input.
+- `RCA_TESTSLOT` is optional. Set it to any wrapper script that runs its arguments once a machine-wide
+  test slot is free, and this script re-runs under it. No such script ships in the repository. Leave it
+  unset on a machine of your own.
+- Exit codes: 0 the run finished, 1 the run failed or the seed was incomplete (partial output stays in
+  the folder), 2 bad usage or a missing input, and 128 plus the signal number (130 for Ctrl-C) when a
+  signal stopped it. A signal stops Chromium and the Worker before the script exits.
+
+A run whose activities were refused would write pages for a different account than the download, so it
+fails. When the API refuses any activity, or loads none, the script prints the refusal counts by status
+and error code (for example `409 app_outdated x3`) and exits 1. The pages are still written, and
+`seed.json` lists each refusal. A refusal of every activity usually means the checkout's model revision
+differs from the one that produced the download.
 
 What the script does:
 
@@ -85,8 +95,11 @@ For each check and period it reads `<page>-<period>.txt`, finds the line that st
 title (any case), and takes the first number followed by the unit within the next 11 lines. The number
 may sit on the unit's line or on the line before it. It passes when the number is within `tolerance` of
 `expect`. A clock value such as `4:08` or `1:05:30` reads as seconds, so write a pace as seconds. It
-fails when a hedge word appears between the title and the number. Exit codes: 0 every check passes, 1 a
-check fails or its file is missing, 2 bad usage or a truth file in the wrong format.
+fails when a hedge word appears between the title and the number. The search stops at the next card, so a
+card that shows no number fails instead of reading the next card's: it stops at a line that starts with
+another check's card title, and at an all-caps line that follows ordinary text. All-caps lines straight
+after the title, such as `ESTIMATED`, belong to the card. Exit codes: 0 every check passes, 1 a check
+fails or its file is missing, 2 bad usage or a truth file in the wrong format.
 
 This example fits the synthetic download above:
 
@@ -131,6 +144,7 @@ account holds real figures: keep it outside git.
 
 ## Tests
 
-`scripts/replica/truth-check.test.mjs` runs the card reader on synthetic text, and
-`scripts/replica/privacy.test.mjs` checks the ignore rules. Both run in `npm run test:ops`. The replica
+`scripts/replica/truth-check.test.mjs` runs the card reader on synthetic text,
+`scripts/replica/run.test.mjs` checks the output-folder guard and the seed check, and
+`scripts/replica/privacy.test.mjs` checks the ignore rules. All run in `npm run test:ops`. The replica
 run itself takes minutes and a browser, so CI does not run it.
