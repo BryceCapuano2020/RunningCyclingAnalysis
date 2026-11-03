@@ -1,34 +1,22 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import { DURATIONS_S, EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
-import { criticalPowerOutcome, shortBestsFit, unevenFit, wPrimeFloor } from '../cp'
-import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
-import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
-  BikeModel,
-  Comparison,
-  CriticalPowerFit,
-  CriticalPowerRefusal,
-  Curve,
-  EffortCheck,
   HrCalibration,
   HrCrossCheck,
   Interval,
-  Sport,
-  VirtualPowerAccuracy,
 } from '../types'
 import { plainCurve } from './bestCurve'
 import { calibratedOf } from './calibration'
-import { gatedThreshold } from './effortGating'
+import { gatedThresholds, thresholdFits } from './combineThresholds'
 import { effortGatesOf, judgeHeadline } from './twentyMinute'
 import { equivalentsOf } from './equivalents'
 import type { Equivalence } from './equivalents'
 import { activitySummaries } from './activitySummaries'
-import type { ActivitySummary } from './summary'
 import type { BikeModelSource } from '../virtualPower'
 import { leaveOneOutAccuracy } from './accuracy'
 import { massesOf } from './masses'
@@ -42,7 +30,7 @@ import { fitBikeModelOver, measuredRideBest, runCentralWkg } from './rideCurves'
 import type { EstimatedRideGate } from './estimatedRide'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { withoutSetAside } from './trustedHeartRate'
-import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
+import { vo2maxFromHeartRate } from '../predict/vo2max'
 import type { HeartRateJudgement } from './setAsideTypes'
 
 /** A heart-rate check with points and fits of its own, for a result that must not share them with the judgement. */
@@ -62,78 +50,12 @@ function copyOfCheck(check: HrCrossCheck): HrCrossCheck {
   }
 }
 
+import type { AnalysisResult } from './analysisResult'
+
+export type { AnalysisResult }
 export type { Equivalence }
 
 export type { BikeModelSource }
-
-/**
- * Analysis of a set of digests. Best values follow one rule. Measured values (runs, and rides
- * with a power meter) are fixed per activity, so adding an activity never lowers a measured best.
- * Values for rides without a power meter are priced with `bikeModel`, which is refitted from every
- * power-meter ride in the same set. Adding a power-meter ride can therefore move those values in
- * either direction. `bikeModelSource` says whether the fit or the default model was used.
- */
-export interface AnalysisResult {
-  activities: ActivitySummary[]
-  /** Best gross metabolic power while running, W/kg, at the prior-mean economy. */
-  runCurve: Curve
-  /**
-   * Best mechanical power while riding, W. See the note above on rides without a power meter. With dated
-   * body masses each value is the watts of the best power-to-weight ride at that duration, so it comes
-   * from the same ride as rideMetabolicCurve.
-   */
-  rideCurve: Curve
-  /** rideCurve expressed as gross metabolic W/kg at the prior-mean efficiency. */
-  rideMetabolicCurve: Curve
-  /**
-   * Best mechanical power while riding, W, from the rides with a power meter alone. Estimated watts are
-   * left out, so each value is a measurement, as the duration profile needs.
-   */
-  rideMeasuredCurve: Curve
-  runCp: CriticalPowerFit | null
-  rideCp: CriticalPowerFit | null
-  /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
-  runCpRefusal: CriticalPowerRefusal | null
-  rideCpRefusal: CriticalPowerRefusal | null
-  /**
-   * Whether each sport's best 20 minutes was a hard effort, which every threshold, zone, prediction and level
-   * built on its bests waits for (the effort gate). A failed gate withholds the fit (`runCpRefusal` is 'effort') and
-   * carries the demonstrated best as its floor.
-   */
-  effortGate: Record<Sport, EffortGate>
-  /** The threshold without the uneven bests, which set only a floor on it; null without one. See cp/uneven. */
-  runCpUneven: UnevenFit | null
-  rideCpUneven: UnevenFit | null
-  /** This period's own heart-rate check. The comparison and the equivalents read the library's (`CombineOptions.calibration`). */
-  hr: HrCrossCheck
-  comparison: Comparison
-  equivalents: Equivalence[]
-  /** Highest sustained heart rate on file, bpm; null without heart-rate data. */
-  maxHeartRate: number | null
-  /** Heart rate that running efforts are judged against, bpm; null without heart-rate data. */
-  runMaxHeartRate: number | null
-  /** Heart rate that cycling efforts are judged against, bpm; null without heart-rate data. */
-  rideMaxHeartRate: number | null
-  /** Highest running heart rate on file, bpm; null without running heart-rate data. */
-  runObservedMaxHeartRate: number | null
-  /** Highest cycling heart rate on file, bpm; null without cycling heart-rate data. */
-  rideObservedMaxHeartRate: number | null
-  /**
-   * Ids of the activities whose heart rate is set aside, sorted: a best effort of theirs held at or
-   * above threshold shows heart rate a working sensor would not. Their heart rate is left out of the
-   * heart-rate check, the effort checks and the reference heart rates.
-   */
-  heartRateSetAside: string[]
-  /** VO2max from heart rate against pace on hard runs, for the race predictions; null without one. */
-  runVo2max: Vo2maxEstimate | null
-  /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
-  effort: EffortCheck[]
-  bikeModel: BikeModel
-  /** 'calibrated' when bikeModel was fitted to power-meter rides, else 'default'. */
-  bikeModelSource: BikeModelSource
-  /** Leave-one-ride-out accuracy of the virtual power meter; null with no power-meter rides. */
-  virtualAccuracy: VirtualPowerAccuracy | null
-}
 
 const DRAWS = 4000
 const SEED = 1
@@ -271,18 +193,7 @@ export function combine(
   const runFit = fits.run
   const rideFit = fits.ride
 
-  // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
-  // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
-  // truncating the dependent variable would bias the slopes. The cut uses the fit before refusal, so
-  // a threshold refused for display leaves the heart-rate check as it was.
-  const runOutcome = criticalPowerOutcome(runCurve, { minWPrime: wPrimeFloor('run', massKg) })
-  const rideOutcome = criticalPowerOutcome(rideMetabolicCurve, {
-    minWPrime: wPrimeFloor('ride', massKg),
-  })
-  const runCp = runOutcome.fit
-  const rideCp = rideOutcome.fit
-  const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
-  const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
+  const thresholds = thresholdFits(runCurve, rideMetabolicCurve, massKg)
   const hr =
     (reused === null ? null : copyOfCheck(reused.cross)) ??
     heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
@@ -319,17 +230,12 @@ export function combine(
     heart.setAside,
   )
   judgeHeadline(effort, effortGate)
-  const run = gatedThreshold(
-    effortGate.run,
-    runOutcome,
-    runCpUneven,
-    shortBestsFit(runCurve, wPrimeFloor('run', massKg)),
-  )
-  const ride = gatedThreshold(
-    effortGate.ride,
-    rideOutcome,
-    rideCpUneven,
-    shortBestsFit(rideMetabolicCurve, wPrimeFloor('ride', massKg)),
+  const { run, ride } = gatedThresholds(
+    effortGate,
+    thresholds,
+    runCurve,
+    rideMetabolicCurve,
+    massKg,
   )
 
   return {
