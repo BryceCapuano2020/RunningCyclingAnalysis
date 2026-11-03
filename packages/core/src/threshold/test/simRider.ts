@@ -6,7 +6,8 @@ import type { ThresholdBlock, ThresholdEffort } from '../types'
  * Simulated riders with a known threshold, for threshold.sim.test.ts: each has a few weeks of rides (easy, tempo or hard), the
  * bests and 5 min blocks those rides give, and a heart rate that follows power through a line of its own. A scenario spoils
  * one thing at a time: a strap that reads wrong on some rides, a wrong maximum heart rate, an optical sensor that barely moves,
- * a rider who never goes all out, no heart rate at all.
+ * a rider who never goes all out, no heart rate at all. One more makes every hard ride all out, the rider whose bests are a
+ * ceiling.
  */
 
 export interface Scenario {
@@ -19,6 +20,8 @@ export interface Scenario {
   referenceError?: number
   /** Every ride is easy or tempo; none goes all out. */
   tempoOnly?: boolean
+  /** Every hard ride is all out: its best is what the rider can do, not 0 to 7% under it. */
+  allOut?: boolean
   noHeartRate?: boolean
 }
 
@@ -76,7 +79,9 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
         hard = threshold * uni(0.8, 0.92)
       } else if (kind === 'hard') {
         hardS = pick([3, 5, 8, 10, 12, 15, 20]) * 60
-        hard = allOut(hardS) * uni(0.93, 1.0)
+        // Drawn whatever the scenario, so an all-out rider is the same rider as in every other case.
+        const short = uni(0.93, 1.0)
+        hard = allOut(hardS) * (scenario.allOut ? 1 : short)
       }
       const dayHr = 3 * gauss()
       const drift = uni(0, 5) // the ride's own drift, shared by its blocks and efforts

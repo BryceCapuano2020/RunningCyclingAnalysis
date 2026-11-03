@@ -41,11 +41,14 @@ export type HeartRateRefusal =
   | 'no-efforts' // the line is sound, but no steady 8 to 30 min effort sat near the rider's own line
 
 export interface ThresholdEstimate {
-  /** The answer: the higher of the median from power alone and the median with heart rate. */
+  /**
+   * The answer: the power estimate (`efforts.value`) itself, or, where heart rate lifts it, the median with heart rate, no higher
+   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it.
+   */
   value: number
-  /** The higher of the 10th percentiles of the two. */
+  /** The higher of the 10th percentiles from power alone and with heart rate, never above the answer. */
   low: number
-  /** The higher of the 90th percentiles of the two. */
+  /** The higher of the 90th percentiles from power alone and with heart rate, never under the answer. */
   high: number
   /** The power-only estimate, the floor the answer is built on. */
   efforts: {

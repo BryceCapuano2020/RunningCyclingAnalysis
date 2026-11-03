@@ -74,8 +74,14 @@ const maximum: Scenario = { name: 'maximum heart rate off by about 8 bpm', refer
 const optical: Scenario = { name: 'flat optical heart rate', flat: true }
 const tempo: Scenario = { name: 'never all out (tempo only)', tempoOnly: true }
 const none: Scenario = { name: 'no heart rate', noHeartRate: true }
+const allOut: Scenario = { name: 'always all out', allOut: true }
+const allOutNone: Scenario = {
+  name: 'always all out, no heart rate',
+  allOut: true,
+  noHeartRate: true,
+}
 
-const ALL = [clean, strap, maximum, optical, tempo, none]
+const ALL = [clean, strap, maximum, optical, tempo, none, allOut, allOutNone]
 
 // Run on first use, inside a test, so the 180 s test timeout applies and not the hook's 10 s.
 const rows = new Map<Scenario, Row>()
@@ -99,10 +105,10 @@ describe('the ride threshold on simulated riders', () => {
     expect(within5(of(optical).estimate.errors)).toBeGreaterThanOrEqual(0.7)
   })
 
-  it('lifts a rider who never goes all out at least 4 points above the power-only answer', () => {
+  it('lifts a rider who never goes all out at least 7 points above the power-only answer', () => {
     const { estimate, powerOnly } = of(tempo)
     expect(median(estimate.errors)).toBeGreaterThanOrEqual(-7)
-    expect(median(estimate.errors) - median(powerOnly.errors)).toBeGreaterThanOrEqual(4)
+    expect(median(estimate.errors) - median(powerOnly.errors)).toBeGreaterThanOrEqual(7)
   })
 
   // With no heart rate the answer is what the bests show, and these riders' bests sit a few percent under all-out, so it reads
@@ -133,6 +139,15 @@ describe('the ride threshold on simulated riders', () => {
     }
   })
 
+  // The rider the allowance read high: bests that are a ceiling. Without heart rate the answer is what they show; heart rate
+  // reads with noise and can only lift, so with it the answer may sit a little over.
+  it('reads a rider who always goes all out within 1% on the median, and at most 2% high with heart rate', () => {
+    expect(Math.abs(median(of(allOutNone).estimate.errors))).toBeLessThan(1)
+    expect(within5(of(allOutNone).estimate.errors)).toBeGreaterThanOrEqual(0.85)
+    expect(median(of(allOut).estimate.errors)).toBeLessThanOrEqual(2)
+    expect(within5(of(allOut).estimate.errors)).toBeGreaterThanOrEqual(0.85)
+  })
+
   it('never answers under the answer without heart rate', () => {
     for (const scenario of ALL) expect(of(scenario).lowered, scenario.name).toBe(0)
   })
@@ -142,13 +157,19 @@ describe('the ride threshold on simulated riders', () => {
   })
 
   // A wrong maximum heart rate shifts every heart-rate estimate at once and has a bound of its own above. These three are the
-  // cases where the reference is right and heart rate is sound, wrong on some rides, or flat.
-  it('costs at most 3 points of within-5% against power alone with a clean, partly bad or optical heart rate', () => {
-    for (const scenario of [clean, strap, optical]) {
+  // cases where the reference is right and heart rate is sound, wrong on some rides, or flat. Power alone reads these riders a
+  // few percent low, so a sound heart rate should gain them a clear share, and a flat one, mostly refused, cost nothing much.
+  it('gains at least 5 points of within-5% over power alone with a clean or partly bad heart rate', () => {
+    for (const scenario of [clean, strap]) {
       const row = of(scenario)
-      const cost = within5(row.powerOnly.errors) - within5(row.estimate.errors)
-      expect.soft(cost, scenario.name).toBeLessThanOrEqual(0.03)
+      const gain = within5(row.estimate.errors) - within5(row.powerOnly.errors)
+      expect.soft(gain, scenario.name).toBeGreaterThanOrEqual(0.05)
     }
+  })
+
+  it('costs at most 3 points of within-5% against power alone with an optical heart rate', () => {
+    const row = of(optical)
+    expect(within5(row.powerOnly.errors) - within5(row.estimate.errors)).toBeLessThanOrEqual(0.03)
   })
 })
 
