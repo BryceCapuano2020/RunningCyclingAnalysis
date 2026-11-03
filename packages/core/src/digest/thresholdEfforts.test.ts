@@ -117,7 +117,7 @@ describe('the ride threshold of a set of digests', () => {
   it('reads every ride, and names its heart rate refusal where it has too little', () => {
     const result = rideThresholdOf(rides, masses, DEFAULT_BIKE_MODEL, null, reference, 190)!
     expect(result.efforts.rides).toBe(6)
-    expect(result.value).toBeGreaterThan(result.efforts.value)
+    expect(result.value).toBe(result.efforts.value)
     expect(result.low).toBeLessThan(result.value)
     expect(result.high).toBeGreaterThan(result.value)
   })

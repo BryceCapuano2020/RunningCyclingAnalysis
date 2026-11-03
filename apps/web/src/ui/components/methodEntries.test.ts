@@ -157,8 +157,9 @@ describe('How this works entries', () => {
     )
     expect(lines).toContain('Heart rate can raise it and never lowers it.')
     expect(detail).toContain(
-      'The answer is the higher of the estimate from power alone and the one with heart rate.',
+      'The answer is the estimate from power alone, unless heart rate shows you had more in you.',
     )
+    expect(detail).toContain('Then it rises toward what heart rate reads, and no further.')
     expect(detail).toContain(
       'The rides are averaged, with more weight on recent rides and on those near your top.',
     )
@@ -166,7 +167,7 @@ describe('How this works entries', () => {
       'Heart rate is left out of a ride where the strap sticks or reads far from your other rides.',
     )
     expect(detail).toContain(
-      'A ride’s range takes the higher 10th and the higher 90th percentile of the two.',
+      'A ride’s range takes the higher 10th and the higher 90th percentile of the two estimates.',
     )
     // The old rule, that a best that was not hard set a floor instead of a threshold, no longer holds for either sport.
     expect([...lines, ...(detail ?? [])].join(' ')).not.toMatch(

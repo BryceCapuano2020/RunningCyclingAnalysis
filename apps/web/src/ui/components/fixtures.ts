@@ -81,7 +81,7 @@ export function makeRideThreshold(
     low: value * 0.95,
     high: value * 1.05,
     efforts: {
-      value: value * 0.97,
+      value,
       relativeError: 0.025,
       rides: 3,
       strongest: { activityId: 'ride-1', durationS: 1200, estimated: false },

@@ -51,9 +51,12 @@ All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean 
    `0.7 * Exponential(mean 2.5%) + 0.3 * Uniform(0, 25%)`, smeared by the power estimate's relative error. On a
    grid from -15% to +45% in 0.2% steps (g in 0.25% steps) that gives a posterior from power alone. If there is a
    heart-rate estimate, a second posterior takes it as a Gaussian likelihood around it. **Heart rate may raise the
-   answer and never lowers it.** The answer is the higher of the two medians, and the range the higher of each pair of
-   10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
-   answer). With no heart rate the answer is the power estimate plus about 3%.
+   answer and never lowers it.** With no heart rate the answer is the power estimate itself: the median from power
+   alone, about 3% over it, is an allowance for bests short of all-out that nothing in the rides confirms. With a
+   heart-rate estimate the answer is the median of its posterior, no higher than heart rate reads and no lower than the
+   power estimate, so heart rate that agrees with the power estimate adds nothing. The range is the higher of each pair
+   of 10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
+   answer).
 
 Null when the window has no ride effort of 3 min or more, and when no ride has any weight to give (an age that is
 not a number, or so old the recency weight underflows). A single ride is enough: it is the estimate, with the
@@ -84,12 +87,20 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 
 | Case                              | This estimate   | Power alone (no heart rate) |
 | --------------------------------- | --------------- | --------------------------- |
-| Clean heart rate                  | +0.4%, 94%, 96% | +0.2%, 92%, 96%             |
-| A bad strap on 1 ride in 4        | +0.4%, 94%, 96% | +0.1%, 92%, 96%             |
-| Max heart rate off by about 8 bpm | +0.9%, 82%, 83% | +0.2%, 92%, 96%             |
-| Flat (optical) heart rate         | +0.2%, 92%, 96% | +0.2%, 92%, 96%             |
-| Never all-out (tempo only)        | -5.2%, 49%, 81% | -10.6%, 0%, 63%             |
-| No heart rate                     | +0.2%, 92%, 96% | +0.2%, 92%, 96%             |
+| Clean heart rate                  | -1.9%, 89%, 96% | -3.1%, 80%, 96%             |
+| A bad strap on 1 ride in 4        | -2.0%, 90%, 96% | -3.2%, 77%, 96%             |
+| Max heart rate off by about 8 bpm | -1.5%, 77%, 83% | -3.1%, 80%, 96%             |
+| Flat (optical) heart rate         | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
+| Never all-out (tempo only)        | -5.2%, 48%, 81% | -13.5%, 0%, 63%             |
+| No heart rate                     | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
+| Always all-out                    | +0.3%, 96%, 81% | -0.0%, 95%, 83%             |
+| Always all-out, no heart rate     | -0.0%, 95%, 83% | -0.0%, 95%, 83%             |
+
+The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
+The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
+always-all-out rider +3.4% high (83% and 84%). It was dropped on the owner's call, from a real library whose strongest
+rides keep reaching the same ceiling: the duration ratio already takes a best as all-out, so on a rider whose bests are,
+the allowance counts the same doubt twice. Heart rate still lifts the riders whose bests fall short.
 
 The old rules of thumb on the same riders, median error and share within 5%: best 30 min -11% and 0% (-9% and 0%
 for tempo only), 95% of best 20 min -7% and 40% (-14% and 0% for tempo only).
@@ -101,11 +112,12 @@ Heart rate alone, before fusion, reads 3.5% under the truth in the clean case wi
 points on every cell.
 
 The test asserts, per case: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum
-heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 4 points
-above the power-only answer; no heart rate within 2% on the median and 85% within 5%; in every case nearer the truth
-than both rules of thumb, never under the answer without heart rate, and a range that holds the truth for 65% to 97%
-of riders; under 2% of clean-heart-rate riders refused; and, with a clean, partly bad or optical heart rate, a
-within-5% share no more than 3 points under the power-only answer.
+heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 7 points
+above the power-only answer; no heart rate at most 4% low on the median and 75% within 5%; always all-out within 1% on
+the median and 85% within 5% without heart rate, at most 2% high and 85% with it; in every case nearer the truth than
+both rules of thumb, never under the answer without heart rate, and a range that holds the truth for 65% to 97% of
+riders; under 2% of clean-heart-rate riders refused; with a clean or partly bad heart rate a within-5% share at least 5
+points over the power-only answer, and with an optical one no more than 3 points under it.
 
 Rejected:
 

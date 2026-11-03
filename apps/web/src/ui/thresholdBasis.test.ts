@@ -7,20 +7,24 @@ import { heartRateLifted, thresholdBasisLine, thresholdDetail } from './threshol
 /** 4 March, local noon, so the day is the same in any zone the suite runs in. */
 const STRONGEST_DAY = new Date(2026, 2, 4, 12).getTime()
 
-/** The efforts a ride estimate rests on: `rides` rides, the strongest a 12 min effort of ride-2. */
+/**
+ * The efforts a ride estimate rests on: `rides` rides, the strongest a 12 min effort of ride-2, and a power estimate of 15.5,
+ * the answer of `estimate` where heart rate did not raise it.
+ */
 const efforts = (
   rides: number,
   over: Partial<ThresholdEstimate['efforts']['strongest']> = {},
+  value = 15.5,
 ): ThresholdEstimate['efforts'] => ({
-  value: 15,
+  value,
   relativeError: 0.025,
   rides,
   strongest: { activityId: 'ride-2', durationS: 720, estimated: false, ...over },
 })
 
 /**
- * A ride estimate of 250 W at 75 kg (15.5 W/kg metabolic) from five rides, with heart rate from six efforts that sits under the
- * answer, so it did not raise it.
+ * A ride estimate of 250 W at 75 kg (15.5 W/kg metabolic) from five rides, the power estimate itself, with heart rate from six
+ * efforts that sits under it, so it did not raise it.
  */
 function estimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
   return makeRideThreshold(15.5, {
@@ -87,14 +91,16 @@ describe('thresholdBasisLine', () => {
 })
 
 describe('heartRateLifted', () => {
-  it('is true when the heart-rate estimate sits above the answer, which only a lift leaves it', () => {
-    expect(heartRateLifted(estimate({ heartRate: { value: 16.1, efforts: 6 } }))).toBe(true)
+  it('is true when the answer sits above the power estimate, which only a lift leaves it', () => {
+    const lifted = { efforts: efforts(5, {}, 15), heartRate: { value: 16.1, efforts: 6 } }
+    expect(heartRateLifted(estimate(lifted))).toBe(true)
   })
 
-  it('is false when the heart-rate estimate is at or under the answer, and when heart rate was refused', () => {
+  it('is false when the answer is the power estimate, and when heart rate was refused', () => {
     expect(heartRateLifted(estimate({ heartRate: { value: 15.5, efforts: 6 } }))).toBe(false)
     expect(heartRateLifted(estimate({ heartRate: { value: 14.9, efforts: 6 } }))).toBe(false)
-    expect(heartRateLifted(estimate({ heartRate: { refused: 'flat' } }))).toBe(false)
+    const refused = { efforts: efforts(5, {}, 15), heartRate: { refused: 'flat' as const } }
+    expect(heartRateLifted(estimate(refused))).toBe(false)
   })
 })
 
@@ -106,7 +112,8 @@ describe('thresholdDetail for a ride', () => {
     'Heart rate can raise the answer and never lowers it.'
 
   it('gives the range, the method, and that heart rate raised the answer where it did', () => {
-    expect(detail(estimate({ heartRate: { value: 16.1, efforts: 6 } }))).toBe(
+    const lifted = estimate({ efforts: efforts(5, {}, 15), heartRate: { value: 16.1, efforts: 6 } })
+    expect(detail(lifted)).toBe(
       `Range 240 to 264 W. ${METHOD} Here it raised the answer, from 6 efforts.`,
     )
   })
