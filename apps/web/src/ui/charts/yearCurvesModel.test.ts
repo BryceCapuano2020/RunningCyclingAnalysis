@@ -67,7 +67,7 @@ describe('yearCurvesModel', () => {
     expect(yearCurvesModel('run', { durations: [300], years: [] })).toBeNull()
   })
 
-  it('writes a table cell with at least for a 20 minute best not all-out, and none for a gap', () => {
+  it('writes a table cell as the plain number, even for a 20 minute best not all-out, and none for a gap', () => {
     const model = yearCurvesModel('run', RUN_CURVES)!
     const at = (year: number, durationS: number, units: 'metric' | 'imperial' = 'metric') =>
       curveCell(
@@ -77,8 +77,8 @@ describe('yearCurvesModel', () => {
         units,
       )
     expect(at(2021, 1200)).toBe('3:58 /km')
-    expect(at(2023, 1200)).toBe('At least 4:16 /km')
-    // The pace over an hour is not a 20 minute best, so no floor is named for it.
+    expect(model.lines.find((line) => line.year === 2023)!.hard).toBe(false)
+    expect(at(2023, 1200)).toBe('4:16 /km')
     expect(at(2023, 3600)).toBe('4:46 /km')
     expect(at(2022, 3600)).toBe('None')
     expect(at(2021, 1200, 'imperial')).toBe('6:23 /mi')
@@ -122,16 +122,18 @@ describe('estimated values in the year curves', () => {
     expect(yearCurvesModel('ride', curves([[1], [1], [1]]))!.bestYear).toBe(2022)
   })
 
-  it('tags an estimated value in a table cell, after a floor’s at least', () => {
+  it('prints an estimated value in a table cell as the plain number', () => {
     const model = yearCurvesModel('ride', curves([[], [1], []]))!
     const [, estimate] = model.lines
-    expect(curveCell(model, estimate!, 1, 'metric')).toBe('260 W, estimated')
+    expect(curveCell(model, estimate!, 1, 'metric')).toBe('260 W')
     expect(curveCell(model, estimate!, 0, 'metric')).toBe('310 W')
     const floor = yearCurvesModel('ride', {
       ...curves([[1], [], []]),
       years: curves([[1], [], []]).years.map((year) => Object.assign({}, year, { hard: false })),
     })!
-    expect(curveCell(floor, floor.lines[0]!, 1, 'metric')).toBe('At least 250 W, estimated')
+    expect(floor.lines[0]!.estimated[1]).toBe(true)
+    expect(floor.lines[0]!.hard).toBe(false)
+    expect(curveCell(floor, floor.lines[0]!, 1, 'metric')).toBe('250 W')
   })
 })
 

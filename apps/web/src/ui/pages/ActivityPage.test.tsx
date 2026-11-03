@@ -341,7 +341,7 @@ describe('ActivityPage', () => {
     expect(bestRow('Best 1 km').querySelector('.records__grade')).toBeNull()
   })
 
-  it('says a ride’s estimated grade once under the bests, and not on each row', () => {
+  it('puts no estimate note under the bests and no lead on each ride row', () => {
     renderPage(
       powerRide,
       resultWith({
@@ -349,9 +349,7 @@ describe('ActivityPage', () => {
         equivalents: [makeEquivalence({ durationS: 300 }), makeEquivalence({ durationS: 1200 })],
       }),
     )
-    expect(
-      within(bestsSection()).getAllByText(/Estimated through its running equivalent/),
-    ).toHaveLength(1)
+    expect(within(bestsSection()).queryByText(/running equivalent/)).not.toBeInTheDocument()
     expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).toMatch(
       /Recreational|Local|Regional|National|World/,
     )
@@ -398,19 +396,19 @@ describe('ActivityPage', () => {
     )
   })
 
-  it('lists the ride best efforts in watts, marked estimated only when no power meter measured them', () => {
+  it('lists the ride best efforts in watts', () => {
     renderPage(powerRide, resultWith({ rideCurve: rideCurveFixture }))
     expect(within(bestRow('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
     expect(within(bestRow('Best 20 min')).getByText('1,050 W')).toBeInTheDocument()
-    expect(within(bestRow('Best 1 min')).queryByText('Estimated')).not.toBeInTheDocument()
   })
 
-  it('marks a ride best as estimated when its power is estimated', () => {
+  it('shows a ride best the same when its power is estimated: the watts, with no Estimated chip', () => {
     renderPage(
       { ...powerRide, powerSource: 'virtual' },
       resultWith({ rideCurve: rideCurveFixture }),
     )
-    expect(within(bestRow('Best 1 min')).getByText('Estimated')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).queryByText('Estimated')).not.toBeInTheDocument()
   })
 
   it("holds a ride's best efforts until the weight is entered, with the prompt to add it", () => {

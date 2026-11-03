@@ -135,7 +135,7 @@ export function ActivityBests({
   }))
   const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
   const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
-  // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
+  // The list says the no-standard gap once under it, so each row leaves it off.
   const listNotes = listedGradeNotes(sport, outcomes, [
     ...durationItems.map(({ record }) => effortLabel(record.durationS)),
     ...distanceItems.map(({ record }) => record.label),

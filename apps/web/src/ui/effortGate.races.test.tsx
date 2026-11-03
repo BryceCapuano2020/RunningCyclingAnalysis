@@ -50,7 +50,7 @@ describe('race predictions and the effort gate', () => {
     expect(racePredictionsOf('run', result([run('easy', 140)]))).toBeNull()
   })
 
-  it('answers from an easy run with a bound: every race is no slower than a time carried from it', () => {
+  it('answers from an easy run with a forecast marked bound: every race is carried from it', () => {
     const answer = forecastOf(raceAnswerOf('run', result([run('easy', 140)]), null))
     expect(answer.kind).toBe('bound')
     expect(answer.window).toBe('period')
@@ -62,7 +62,7 @@ describe('race predictions and the effort gate', () => {
     expect(answer.basis).toEqual({ distanceM: 5000, startMs: run('easy', 140).startMs })
   })
 
-  it('answers with a bound where the reference cannot show a run hard, however hard the run', () => {
+  it('answers with a bound forecast where the reference cannot show a run hard, however hard the run', () => {
     const habitual = result([run('a', 190)], {
       reference: 'habitual',
       neededS: null,

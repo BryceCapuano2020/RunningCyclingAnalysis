@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
@@ -82,7 +82,7 @@ function renderPage(library: ActivitySummary[], hardIds: string[]) {
 }
 
 describe('the race predictions on a sport page whose period holds no run of a mile', () => {
-  it('answers from the last 12 months with the run named by its date, and no bar for a run not shown hard', () => {
+  it('answers from the last 12 months with the run named by its date, and a predicted time with no range bar', () => {
     const run = earlier(false)
     const view = renderPage([SHORT, run], [])
     const section = screen.getByRole('region', { name: 'Race predictions' })
@@ -90,21 +90,38 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     const rows = Array.from(section.querySelectorAll('.race-row'))
     expect(rows).toHaveLength(4)
     for (const row of rows) {
-      expect(row.querySelector('.race-row__bound')?.textContent).toBe('No slower than')
+      expect(row.querySelector('.race-row__time')?.textContent).toMatch(/^\d+:\d\d(:\d\d)?$/)
+      // A time from easy runs is one the athlete can beat, so its range would mislead: no bar.
       expect(row.querySelector('.race-bar')).toBeNull()
     }
     expect(within(section).queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+    // One tap down: the table labels the time Predicted, has no range, and one line says the runs were not shown hard.
+    const details = within(section).getByText('About these predictions').closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(within(section).getByRole('columnheader', { name: 'Predicted' })).toBeInTheDocument()
+    expect(within(section).queryByRole('columnheader', { name: 'Range' })).not.toBeInTheDocument()
+    expect(
+      within(section).getByText(
+        /^No run in the last 12 months was shown hard, so these times come from easier running\. A race effort would be faster\. For a flat course on a good day\.$/,
+      ),
+    ).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/No slower than|was all-out/)
     expect(screen.queryByText('Needs a run of a mile or more.')).not.toBeInTheDocument()
     expect(view.container.textContent).not.toMatch(/Needs a hard run|reference heart rate/)
   })
 
-  it('draws the bar and its range once that run reached a hard heart rate', () => {
+  it('draws the same bar and key for a run that reached a hard heart rate', () => {
     const run = earlier(true)
     renderPage([SHORT, run], [run.id])
     const section = screen.getByRole('region', { name: 'Race predictions' })
     expect(section.querySelectorAll('.race-bar')).toHaveLength(4)
-    expect(section.querySelector('.race-row__bound')).toBeNull()
     expect(within(section).getByRole('list', { name: 'Key' })).toBeInTheDocument()
+    const details = within(section).getByText('About these predictions').closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(within(section).getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/was shown hard|easier running/)
   })
 
   it('tells a run older than 12 months as it was run, with no range, no forecast and no claim of now', () => {
@@ -117,7 +134,7 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     ).toBeInTheDocument()
     expect(within(section).getByText('No run of a mile or more in 12 months.')).toBeInTheDocument()
     expect(section.querySelectorAll('.race-row')).toHaveLength(1)
-    expect(section.querySelector('.race-bar, .race-row__time, .race-row__bound')).toBeNull()
+    expect(section.querySelector('.race-bar, .race-row__time')).toBeNull()
     expect(within(section).queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
     expect(within(section).queryByText('About these predictions')).not.toBeInTheDocument()
     expect(section.textContent).not.toMatch(/No slower than|predicted|can run/i)

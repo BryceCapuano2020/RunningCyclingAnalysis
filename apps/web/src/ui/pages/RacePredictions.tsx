@@ -8,14 +8,7 @@ import type { RaceBasis, RaceWindow } from '../raceAnswer'
 import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import {
-  BOUND_TEXT,
-  FLOORED_TEXT,
-  basisLine,
-  methodNote,
-  originText,
-  spreadText,
-} from './racePredictionCopy'
+import { FLOORED_TEXT, basisLine, methodNote, originText, spreadText } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
@@ -96,8 +89,8 @@ function RaceBar({
 }
 
 /**
- * One race: its name and pace on the left, its bar between, its time at display size on the right. A race whose run was
- * not shown hard has no range to draw: its time says what it is, "No slower than", and the bar is left out.
+ * One race: its name and pace on the left, its bar between, its time at display size on the right. A time from runs none
+ * of which was shown hard is a time the athlete can beat, so its range would mislead and the bar is left out.
  */
 function RaceRow({
   prediction,
@@ -119,16 +112,11 @@ function RaceRow({
         <span className="race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
-        {!bound && ran && <span className="race-row__ran">{ranText(ran)}</span>}
-        {!bound && prediction.floored && !ran && (
-          <span className="race-row__ran">{FLOORED_TEXT}</span>
-        )}
+        {ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
       {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}
-      <p className="race-row__time">
-        {bound && <span className="race-row__bound">{BOUND_TEXT}</span>}
-        {formatRecordTime(prediction.seconds)}
-      </p>
+      <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
     </li>
   )
 }
@@ -180,7 +168,7 @@ function RaceTable({
       <table className="race-table">
         <caption className="sr-only">
           {bound
-            ? 'Race predictions as times you are no slower than'
+            ? 'Race predictions and each estimate'
             : 'Race predictions with their range and each estimate'}
         </caption>
         <thead>
@@ -190,20 +178,19 @@ function RaceTable({
               Pace
             </th>
             <th scope="col" className="num">
-              {bound ? BOUND_TEXT : 'Predicted'}
+              Predicted
             </th>
             {!bound && (
               <th scope="col" className="num">
                 Range
               </th>
             )}
-            {!bound &&
-              (['performances', 'heartRate'] as const).map((method) => (
-                <th key={method} scope="col" className="num">
-                  {METHOD_NAME[method]}
-                </th>
-              ))}
-            {!bound && ran.length > 0 && (
+            {(['performances', 'heartRate'] as const).map((method) => (
+              <th key={method} scope="col" className="num">
+                {METHOD_NAME[method]}
+              </th>
+            ))}
+            {ran.length > 0 && (
               <th scope="col" className="num">
                 Recorded best, off the prediction
               </th>
@@ -219,17 +206,16 @@ function RaceTable({
               </td>
               <td className="num">{formatRecordTime(prediction.seconds)}</td>
               {!bound && <td className="num">{spreadText(prediction)}</td>}
-              {!bound &&
-                (['performances', 'heartRate'] as const).map((method) => {
-                  const own = prediction.methods.find((m) => m.method === method)
-                  return (
-                    <td key={method} className="num">
-                      {own ? formatRecordTime(own.seconds) : '—'}
-                      <span className="sr-only">{` ${METHOD_SHORT[method]}`}</span>
-                    </td>
-                  )
-                })}
-              {!bound && ran.length > 0 && (
+              {(['performances', 'heartRate'] as const).map((method) => {
+                const own = prediction.methods.find((m) => m.method === method)
+                return (
+                  <td key={method} className="num">
+                    {own ? formatRecordTime(own.seconds) : '—'}
+                    <span className="sr-only">{` ${METHOD_SHORT[method]}`}</span>
+                  </td>
+                )
+              })}
+              {ran.length > 0 && (
                 <td className="num">
                   {ranAt(prediction.distanceM)
                     ? `${formatRecordTime(ranAt(prediction.distanceM)!.seconds)} on ${ranAt(prediction.distanceM)!.when}`
@@ -247,9 +233,9 @@ function RaceTable({
 /**
  * A sport's race predictions, as raceAnswerOf found them: one line under the title names the run they were carried
  * from, and each race is a bar of its range with the prediction on it and the two estimates it sits between. Where no
- * run was shown hard each race is a time the athlete is no slower than, with no bar. How they were reached, where each
- * estimate came from and the figures as a table are in "About these predictions". A race the window holds a faster
- * recorded best for says so on its row.
+ * run was shown hard (`bound`) each race is its time alone, with no bar or key, and a line in the disclosure says so.
+ * How they were reached, where each estimate came from and the figures as a table are in "About these predictions". A
+ * race the window holds a faster recorded best for says so on its row.
  */
 export function RacePredictions({
   sport,
@@ -266,7 +252,7 @@ export function RacePredictions({
   units: UnitSystem
   /** Where the runs are from. All time says the predictions are of the best period in it. */
   window?: RaceWindow
-  /** No run was shown hard: each time is one the athlete is no slower than, and there is no range to draw. */
+  /** No run was shown hard: each time is carried from easier running, so it has no range to draw. */
   bound?: boolean
   /** The run the times were carried from, which the line under the title names. Null: heart rate alone. */
   basis?: RaceBasis | null

@@ -46,9 +46,9 @@ export const MANY_YEARS = 6
 /** How many years are in colour once there are many: the newest, the best, and the newest of the others. */
 const COLOURED_YEARS = 4
 
-/** What the figure is, for a screen reader. */
+/** What the figure is, for a screen reader, with what a hollow mark is, which only the tooltip says otherwise. */
 export const curvesDescription = (sport: Sport): string =>
-  `Best ${METRIC[sport]} at each duration, one line for each year. Duration is on a log scale. The newest year and the best year are named, and the other years are fainter or grey.`
+  `Best ${METRIC[sport]} at each duration, one line for each year. Duration is on a log scale. The newest year and the best year are named, and the other years are fainter or grey. A hollow mark at the 20 minute best is a best that was not all-out or is estimated.`
 
 /** The vertical axis's title. A run's curve is graded for the ground it covered. */
 const AXIS_TITLE: Record<Sport, (units: UnitSystem) => string> = {
@@ -157,7 +157,7 @@ export function labelledYears(model: YearCurvesModel): number[] {
   return [...named, ...others].sort((a, b) => a - b)
 }
 
-/** A value as a table cell: a 20 minute best that was not all-out says so first, and an estimate says so last. */
+/** A value as a table cell: the number as it is plotted; the tooltip says why a mark is hollow. */
 export function curveCell(
   model: YearCurvesModel,
   line: YearLine,
@@ -166,8 +166,5 @@ export function curveCell(
 ): string {
   const value = line.values[index]
   if (value === null || value === undefined) return 'None'
-  const text = formatNative(model.sport, value, units)
-  const floor = model.durations[index] === HEADLINE_DURATION_S && !line.hard
-  const cell = floor ? `At least ${text}` : text
-  return line.estimated[index] ? `${cell}, estimated` : cell
+  return formatNative(model.sport, value, units)
 }

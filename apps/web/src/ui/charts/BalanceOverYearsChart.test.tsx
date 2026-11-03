@@ -48,7 +48,11 @@ describe('BalanceOverYearsChart', () => {
     expect(all.filter((dot) => dot.getAttribute('data-sport') === 'ride')).toHaveLength(10)
     const hollow = all.filter((dot) => dot.getAttribute('data-hollow') === 'true')
     expect(hollow.map((dot) => dot.getAttribute('data-sport'))).toEqual(['ride', 'ride', 'ride'])
-    expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range', 'Not all-out'])
+    // The key lists the sports and the band only; a screen reader is told what a hollow dot is by the chart's description.
+    expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range'])
+    expect(
+      screen.getByRole('img', { name: /A hollow dot is a best that was not all-out\.$/ }),
+    ).toBeInTheDocument()
   })
 
   it('breaks the line at a year with no best, and draws the ride’s range as a band', () => {
@@ -85,7 +89,7 @@ describe('BalanceOverYearsChart', () => {
     expect(dots(container)).toHaveLength(2)
   })
 
-  it('gives the leader of every year in a table, with the effort of a best that was not all-out', () => {
+  it('gives the leader of every year in a table, each grade plain whether or not the best was all-out', () => {
     chartWidth(800)
     render(<BalanceOverYearsChart views={twelve} />)
     const table = screen.getByRole('table', {
@@ -113,9 +117,9 @@ describe('BalanceOverYearsChart', () => {
     expect(byYear.get('2014')![3]).toBe('Run')
     expect(byYear.get('2019')![3]).toBe('Level')
     expect(byYear.get('2024')![3]).toBe('Ride')
-    // 2019's ride best was held at 120 bpm against a reference of 190.
-    expect(byYear.get('2019')![2]).toMatch(/^\d+% \(\d+ to \d+%\), not all-out$/)
-    expect(byYear.get('2020')![2]).not.toMatch(/not all-out/)
+    // 2019's ride best was held at 120 bpm against a reference of 190: its dot is hollow, its cell is the number.
+    expect(byYear.get('2019')![2]).toMatch(/^\d+% \(\d+ to \d+%\)$/)
+    expect(byYear.get('2020')![2]).toMatch(/^\d+% \(\d+ to \d+%\)$/)
   })
 
   it('reads a year with the keyboard: each sport’s grade and level, the ride’s range, and a best not all-out', () => {

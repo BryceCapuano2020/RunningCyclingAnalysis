@@ -192,15 +192,14 @@ export function heroGradeLine(grade: SportGrade): string {
 }
 
 /**
- * Where a grade sentence is written. A card says a ride is estimated; a record says it is graded
- * through its running equivalent, so a row on its own still says how the grade was reached. A row in a
- * list that says that once under the list reads only its level, so the lead is left off the row.
+ * Where a grade sentence is written. A card says a ride is estimated; a row in a list of records reads
+ * only its level, range and percent, and the list says no-standard gaps once under it.
  */
-export type GradeContext = 'card' | 'record' | 'row'
+export type GradeContext = 'card' | 'row'
 
 /** A grade sentence in parts, so each can be set apart: the level and percent stay on one line. */
 export interface GradeParts {
-  /** "Estimated" for a ride, or "Estimated through its running equivalent" on a record; else null. */
+  /** "Estimated" for a ride on a card; else null. */
   lead: string | null
   /** The level the whole range sits in; null where a ride's range crosses a band, so the number and range stand alone. */
   level: string | null
@@ -210,16 +209,17 @@ export interface GradeParts {
   range: string | null
 }
 
-/** The lead a ride's grade carries in a context, or null where the context leaves it off. */
+/** The lead a sport's grade carries on a card: a ride is read through its running equivalent. */
+const CARD_LEAD: Record<Sport, string | null> = { run: null, ride: 'Estimated' }
+
+/** The lead a grade carries in a context, or null where the context leaves it off. */
 function leadOf(sport: Sport, where: GradeContext): string | null {
-  if (sport !== 'ride') return null
-  if (where === 'card') return 'Estimated'
-  return where === 'record' ? 'Estimated through its running equivalent' : null
+  return where === 'card' ? CARD_LEAD[sport] : null
 }
 
 /**
  * A grade as the cards and records write it, in parts. A run is read as recorded: "Local · 67%". A
- * ride is estimated through its running equivalent: "Estimated · Local · 67% (63 to 71)".
+ * ride on a card says "Estimated · Local · 67% (63 to 71)"; in a records row it is "Local · 67% (63 to 71)".
  */
 export function gradeParts(
   sport: Sport,
@@ -267,10 +267,9 @@ export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | nul
 }
 
 /**
- * The notes a list of records says once under it, rather than on each row: a ride's lead when a record
- * is graded through its running equivalent, and the no-standard gap when a record has none, which names the
- * records it is for (`labels`, one for each outcome) since it sits apart from their rows. Each is named once,
- * whatever the number of rows it would have repeated on.
+ * The note a list of records says once under it, rather than on each row: the no-standard gap when a record
+ * has none, which names the records it is for (`labels`, one for each outcome) since it sits apart from their
+ * rows. It is named once, whatever the number of rows it would have repeated on.
  */
 export function listedGradeNotes(
   sport: Sport,
@@ -278,8 +277,6 @@ export function listedGradeNotes(
   labels: readonly string[],
 ): string[] {
   const notes: string[] = []
-  const lead = leadOf(sport, 'record')
-  if (lead !== null && outcomes.some((outcome) => outcome?.kind === 'graded')) notes.push(lead)
   const ungraded = labels.filter((_, i) => isNoStandardGap(outcomes[i] ?? null))
   if (ungraded.length > 0) notes.push(NO_STANDARD_RECORD_TEXT[sport](ungraded))
   return notes

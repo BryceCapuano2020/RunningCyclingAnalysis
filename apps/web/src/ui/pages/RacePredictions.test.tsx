@@ -237,6 +237,69 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
   })
 
+  describe('a forecast from runs none of which was shown hard', () => {
+    const found = forecastOf(raceAnswerOf('run', makeResult({ activities: [withBests] }), 84)).found
+
+    const renderBound = (window: RaceWindow = 'period') =>
+      render(
+        <RacePredictions
+          sport="run"
+          found={found}
+          units="metric"
+          window={window}
+          bound
+          openedAt={RAN_OPENED_AT}
+        />,
+      )
+
+    it('prints each time as the row’s figure with no bar, no key and no range column', () => {
+      const view = renderBound()
+      const rows = Array.from(view.container.querySelectorAll('.race-row'))
+      expect(rows).toHaveLength(found.races.length)
+      for (const row of rows) {
+        expect(row.querySelector('.race-row__time')?.textContent).toMatch(/^\d+:\d\d(:\d\d)?$/)
+        expect(row.querySelector('.race-bar')).toBeNull()
+      }
+      expect(screen.queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+      openAbout()
+      const table = screen.getByRole('table', { name: 'Race predictions and each estimate' })
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((th) => th.textContent),
+      ).toEqual(['Race', 'Pace', 'Predicted', 'From your best runs', 'From heart rate'])
+    })
+
+    it.each([
+      ['period', 'No run in this period was shown hard'],
+      ['year', 'No run in the last 12 months was shown hard'],
+      ['all', 'No run in your files was shown hard'],
+    ] as const)(
+      'says in the disclosure, for %s, that the runs were not shown hard',
+      (window, start) => {
+        renderBound(window)
+        expect(screen.queryByText(/was shown hard/)).not.toBeInTheDocument()
+        openAbout()
+        expect(
+          screen.getByText(
+            new RegExp(
+              `^${start}, so these times come from easier running\\. A race effort would be faster\\. For a flat course on a good day\\.`,
+            ),
+          ),
+        ).toBeInTheDocument()
+      },
+    )
+
+    it('says nothing of it for a forecast from hard runs, which keeps its bar and key', () => {
+      const view = renderPredictions(makeResult({ activities: [withBests] }))
+      expect(view.container.querySelectorAll('.race-bar')).toHaveLength(found.races.length)
+      expect(screen.getByRole('list', { name: 'Key' })).toBeInTheDocument()
+      openAbout()
+      expect(screen.queryByText(/was shown hard/)).not.toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
+    })
+  })
+
   it('says nothing of how far the runs and the heart rate disagree: the key shows both', () => {
     const result = makeResult({
       activities: [withBests],

@@ -577,8 +577,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   words: the Estimated chip says what a ring is.
 - **A sport's page card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the age grade line, the ladder, then the best efforts. Balance no longer carries these cards: its tiles carry the threshold and the level.
-  The age grade line is the effort and the age, "6:28 /mi at age 37.", with no standard and no sentence about what a level is. A ride's grade carries the Estimated chip, and its watts carry "(estimated)" when
-  they did not come from a power meter. A run's pace in a record is a GAP, a chip with its meaning one press away
+  The age grade line is the effort and the age, "6:28 /mi at age 37.", with no standard and no sentence about what a level is. A ride's grade carries the Estimated chip; the ride tile's watts line reads "250 W for 20 min." whoever measured them. How many rides had estimated watts is said on the Ride page, in its best-efforts section; on Balance it is the Estimated chips in the pace-curve table, one tap down. A run's pace in a record is a GAP, a chip with its meaning one press away
   ("Grade-adjusted pace: your pace allowing for hills, as if on level ground."), and there is no sentence about it under the records.
   On an activity page the splits' column is headed with the same term, once in the table's header and once at the first item of the narrow list.
 - **A threshold is checked before it is shown, and a refused one shows its floor.** A refusal changes the
@@ -626,9 +625,10 @@ and the tests named at the foot of that page keep the two in step. A display siz
   move is not one the change test calls (the same verdict the curve's title reads); a sport page's list leaves that line out, since the curve's title says it once. A length the test could not judge, with too few efforts in either period, shows no change at all. It is absent for All time, and for a ride when either best's watts are
   estimated, since two estimates moving is not a change in the rider. A record with no grade leaves
   its grade out, so every row keeps the same columns. A sport page's and an activity page's list
-  says a ride's "Estimated through its running equivalent" and its no-standard note, such as a run's
-  "No age standard under 1 mile" or a ride's "No age standard for this duration", once, under the
-  list, and each row then reads only its level.
+  says its no-standard note, such as a run's "No age standard under 1 mile" or a ride's "No age
+  standard for this duration", once, under the list, and each row then reads only its level. A ride's
+  row carries no Estimated chip and the list no note about the running equivalent; the line above says
+  how many rides had estimated watts, and How is this graded? says how a ride is graded.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
@@ -728,8 +728,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   page: one row per record with one source size, built by `recordRow`. A run's own distance times, such
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
   this graded?. A run's pace is marked GAP, which carries its meaning one press away, and a run's own distance times are as run and
-  unmarked; a ride's watts are marked
-  Estimated unless a power meter measured them. A run held indoors (on a treadmill, an indoor track, or a virtual or GPS-off run) sets no
+  unmarked; a ride's watts carry no
+  mark, measured or not. A run held indoors (on a treadmill, an indoor track, or a virtual or GPS-off run) sets no
   record and holds no best: its belt or footpod pace is left out of the run curves, the records, the
   distance bests, the thresholds, the race predictions, the late-in-session bests and drift, and the
   Balance comparison (`packages/core/src/digest/effortTrust.ts`, a table keyed by sport so a trainer ride's meter still
@@ -881,13 +881,16 @@ and the tests named at the foot of that page keep the two in step. A display siz
   run and forecast from nothing**: where neither window holds a run of a mile or more, each race distance the athlete ran
   reads "You ran 19:58 in Oct 2024" (the fastest at the distance, with its month and year; with no race distance run, the
   run of the best VDOT), under the line "No run of a mile or more in 12 months.", with no range, bar, key or claim of now.
-  A recent easy run's bound answers before an old hard run's past. A period of all time is its own window and widens no
+  A recent easy run's forecast answers before an old hard run's past. A period of all time is its own window and widens no
   further. **One basis line** under the title names the run the times were carried
   from, its best from the mile up with the highest VDOT, and the day it was run: "From your 10 km on 3 Oct."
   (with the year when it is not the page's year); with heart rate alone, "From your heart rate." Where no
   window holds a run shown hard (its peak never held a hard heart rate, or the reference cannot certify one), the first
-  window with a run answers with a **bound**: each row prints "No slower than" above its time, carried from the best run and held
-  at any time already run at the distance (`predict/races.ts`), with no bar, range or key, since a bound has no spread. A run
+  window with a run answers from all of that window's runs (`kind: 'bound'`): each row is the same pace and predicted time, held
+  at any time already run at the distance (`predict/races.ts`), with no range bar, key or range column, since the range was
+  calibrated on hard anchors and a time from easy runs is one the runner can beat. One line in **About these predictions**, one
+  tap down, says "No run in this period was shown hard, so these times come from easier running. A race effort would be faster."
+  (the window named as the note names it). A run
   without a heart rate, a set-aside heart rate and a gate that could not judge still count as a hard run, as before. The
   heart-rate estimate (VO2max) is the period's own and joins only an answer from the period. A row is the race with its pace on
   the left, the predicted time at display size on the right, and between them a bar: the **range**
@@ -1092,8 +1095,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   marked GAP, a term whose note says what it means. A ride's grade
   is estimated through its running equivalent, so its line starts "Estimated", it shows its 90% range in
   brackets, and a range that crosses a band names no level, so the number and range stand alone ("67% (63 to 71)"). The card's caption
-  says the bracketed range is the 90% range. A ride's record list names "Estimated through its running
-  equivalent" once, under the list, not on each row. Thresholds are always estimated. The Method page is
+  says the bracketed range is the 90% range. A ride's record rows read the level, percent and range without the lead.
+  Thresholds are always estimated. The Method page is
   the one place that explains the estimates.
 - **Every grade names its standard.** Sport pages' captions and the ladder's label say "on the USATF road
   standards", and that name links to the age grades on How sure is this?. A sport page's caption then
@@ -1580,21 +1583,21 @@ the units setting), a ride's 5, 20 and 60 minutes as power. The all-time best is
 and Ride toggle is in its control row when both sports have a best. Runs come from `distanceBests` and rides from the year's best
 curve (`history/yearlyCurves.ts` calls `sportCurves` once for each year, so no second best-effort logic stands beside the
 sport pages'). An indoor run and a ride whose power is set aside hold no best. A best that heart rate does not show was
-hard (`effortVerdict`, the effort gate's own test) is drawn hollow and keyed, never dropped, and its table cell starts
-with "At least". A ride's best from a bike model and not a power meter (`isEstimatedRecord`'s rule, from the activity's power
-source) is hollow too, tagged "Estimated", and ends its table cell with ", estimated". An estimate is never the labelled
-all-time best while a measured value exists in the panel.
+hard (`effortVerdict`, the effort gate's own test) is drawn hollow and keyed, never dropped. A ride's best from a bike model and
+not a power meter (`isEstimatedRecord`'s rule, from the activity's power source) is hollow too. The key and the tooltip say
+"Estimated" or "Not all-out" once; the number, in the plot, the tooltip and the table, is printed plain ("312 W"), never
+prefixed "At least" or suffixed ", estimated". An estimate is never the labelled all-time best while a measured value exists in the panel.
 
 **Best curve by year.** Every year's best curve on the sport page's own scales (duration on a log axis from a minute, or
 from where the sport's curve starts, to three hours). The newest year and the best year are in the sport colour, named at
-their ends and marked at the 20 minute best (hollow for a floor or an estimate); the others are fainter the older they
+their ends and marked at the 20 minute best (hollow when not all-out or estimated, which the tooltip and the chart's screen-reader description say; the table prints the plain number); the others are fainter the older they
 are, on one ramp. Past six years only four are in colour (the newest, the best and the two newest of the others, each
 labelled) and the rest are thin grey lines with no label. The title is the finding about the 20 minute best ("Your 20 min
 power peaked in 2024"), or "is fastest in" for a pace and "is highest in" for a power when the newest year holds it. An
 estimate is never the best year while a year has a measured value. A sport needs two years to be compared. A pace axis is
 fitted to the lines (their range with a little room, its ticks the round minutes inside it), so a wide range does not leave a
 third of the plot empty above the fastest pace; a power axis starts at zero. The table twin
-lists every year at every duration, tagging an estimated value ", estimated".
+lists every year at every duration, each value plain.
 
 **Fitness over the years.** Every steady run or ride of the library as one dot, its pace or power at the fitness card's heart
 rate, with a line through their median and the look-back's slips and rises shaded behind (a slip has a dashed edge; each

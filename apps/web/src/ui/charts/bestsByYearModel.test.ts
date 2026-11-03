@@ -125,18 +125,19 @@ describe('estimated bests', () => {
     expect(bestsModel('run', RUN_BESTS, 'metric')!.hollowKey).toBe('Not all-out')
   })
 
-  it('tags an estimate in a note and last in a table cell, as the records do', () => {
+  it('tags an estimate in a note, and prints its table cell as the plain number', () => {
     const model = bestsModel('ride', ride([2020, 290, true], [2021, 300, false]), 'metric')!
     const [estimate] = model.panels[0]!.marks
     expect(markNote(estimate!, false)).toBe('Estimated')
     expect(markNote(estimate!, true)).toBe('All-time best, Estimated')
-    expect(markCell(estimate!)).toBe('290 W, estimated')
+    expect(markCell(estimate!)).toBe('290 W')
     const floor = bestsModel(
       'ride',
       [{ length: 1200, years: [[2021, 300, false, true]] }],
       'metric',
     )!
-    expect(markCell(floor.panels[0]!.marks[0]!)).toBe('At least 300 W, estimated')
+    expect(markNote(floor.panels[0]!.marks[0]!, false)).toBe('Estimated, Not all-out')
+    expect(markCell(floor.panels[0]!.marks[0]!)).toBe('300 W')
   })
 })
 
@@ -151,9 +152,10 @@ describe('what a mark says', () => {
     expect(markNote(mile!.marks[0]!, false)).toBeUndefined()
   })
 
-  it('is a table cell that starts with at least for a floor, and says none for a year with no best', () => {
+  it('is a table cell of the plain number, hard or not, and says none for a year with no best', () => {
     expect(markCell(fiveK!.marks[0]!)).toBe('8:03 /mi')
-    expect(markCell(fiveK!.marks[1]!)).toBe('At least 7:47 /mi')
+    expect(fiveK!.marks[1]!.hard).toBe(false)
+    expect(markCell(fiveK!.marks[1]!)).toBe('7:47 /mi')
     expect(markCell(fiveK!.marks[2]!)).toBe('None')
   })
 

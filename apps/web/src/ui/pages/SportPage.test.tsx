@@ -839,13 +839,11 @@ describe('SportPage age grades', () => {
     )
 
     const records = openSection('All best efforts')
-    // The lead is said once under the list, so the row reads only its level, range and percent.
+    // The row reads only its level, range and percent: no lead, and no note under the list.
     expect(recordNamed(records, '20 min').querySelector('.records__grade')?.textContent).toBe(
       '67% (63 to 71)',
     )
-    expect(
-      within(records).getByText('Estimated through its running equivalent'),
-    ).toBeInTheDocument()
+    expect(records.textContent).not.toMatch(/running equivalent/)
   })
 
   it('gives the effort and the age the grade is taken at, with a link to how it is graded', () => {
@@ -1224,9 +1222,15 @@ describe('SportPage cycling figures without a weight', () => {
     expect(screen.queryByText(/Add your weight on/)).not.toBeInTheDocument()
   })
 
-  it('tags a cycling record estimated when its watts came from virtual power, and not when measured', () => {
+  it('shows a cycling record’s watts plainly: no Estimated chip on the row, virtual power or measured', () => {
     const { unmount } = renderPage('ride', rideResult())
-    expect(within(openSection('All best efforts')).getByText('Estimated')).toBeInTheDocument()
+    const virtual = openSection('All best efforts')
+    expect(within(virtual).getByText('400 W')).toBeInTheDocument()
+    expect(within(virtual).queryByText('Estimated')).toBeNull()
+    // The section says once that the watts are estimated.
+    expect(
+      screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
+    ).toBeInTheDocument()
     unmount()
 
     renderPage(
@@ -1236,7 +1240,10 @@ describe('SportPage cycling figures without a weight', () => {
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
       }),
     )
-    expect(within(openSection('All best efforts')).queryByText('Estimated')).toBeNull()
+    const measured = openSection('All best efforts')
+    expect(within(measured).getByText('400 W')).toBeInTheDocument()
+    expect(within(measured).queryByText('Estimated')).toBeNull()
+    expect(screen.queryByText(/Power meters measured/)).toBeNull()
   })
 
   it('shows the profile footnote at the foot of the page', () => {

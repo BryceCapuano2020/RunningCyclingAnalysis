@@ -8,7 +8,7 @@ import { GradeSentence } from './GradeSentence'
  * A record's grade cell: its level as a sentence, or the short words that say why it has none. A
  * duration's grade also says the distance it is taken at, such as "5.0 km in 20 min". Shared by every
  * list of records, so a record reads the same on the sport page and the activity page. A list that says
- * its lead and its no-standard gap once under it passes 'row', and each row drops them.
+ * its no-standard gap once under it passes 'row', and each row drops it.
  */
 export function recordGradeCell(
   sport: Sport,

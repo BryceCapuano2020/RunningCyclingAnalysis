@@ -47,7 +47,7 @@ export function racePredictionsContent({
         bound={bound}
         basis={basis}
         openedAt={openedAt}
-        ran={bound ? [] : ranBests(found, distanceRecords(activities, units).records, openedAt)}
+        ran={ranBests(found, distanceRecords(activities, units).records, openedAt)}
       />
     ),
   }

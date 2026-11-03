@@ -57,9 +57,10 @@ const HEADING = 'Your ride as a run'
 
 /**
  * What your ride is worth as a run: the app's most relatable idea, as a tile. Its figure is the pace the best 20
- * minutes on the bike equals, with the watts under it. It names the ride that set the effort, tags its watts
- * estimated when no power meter measured them, and opens to every duration. A file with no ride has no such idea,
- * so the slot is left out; without a weight the ride's figures wait for it.
+ * minutes on the bike equals, with the watts under it. It names the ride that set the effort and opens to every
+ * duration. It does not say how the watts were found: the Ride page's best-efforts section says how many rides had
+ * estimated watts, and the pace-curve table under this tile marks each estimated effort. A file with no ride has no
+ * such idea, so the slot is left out; without a weight the ride's figures wait for it.
  */
 export function CrossSportCard({ result, units, weighted, period }: CrossSportCardProps) {
   if (countSport(result.activities, 'ride') === 0) return null
@@ -109,9 +110,7 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       heading={HEADING}
       figure={{ number: paceNumber, unit: PACE_UNIT[units] }}
     >
-      <p className="stat-tile__line">
-        {`${formatPower(featured.ridePowerW)} for ${duration}${estimated ? ' (estimated)' : ''}.`}
-      </p>
+      <p className="stat-tile__line">{`${formatPower(featured.ridePowerW)} for ${duration}.`}</p>
       {chip === null ? null : (
         <p className="stat-tile__effort">
           <EffortChip chip={chip} />

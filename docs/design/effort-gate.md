@@ -1,12 +1,13 @@
 # The effort gate: a best is a capability only when it was a hard effort
 
-Status: built (`packages/core/src/effort/`), applied to thresholds, zones from threshold, race predictions, the Balance
-headline and the late-in-sessions views. Calibrated on the synthetic harness; no real figures are in this note.
+Status: built (`packages/core/src/effort/`), applied to thresholds, zones from threshold, the Balance headline and the
+late-in-sessions views, and, for race predictions, to whether a range is drawn (a time is always shown). Calibrated on the
+synthetic harness; no real figures are in this note.
 
 ## What it says
 
-A best effort is a lower bound on what an athlete can do. It becomes a capability (a threshold, a zone, a race time, a level
-to set against the other sport) only when it was a hard effort, and heart rate is the evidence the app has. The gate asks one
+A best effort is a lower bound on what an athlete can do. It becomes a capability (a threshold, a zone, a level to set against
+the other sport, a race time with a range) only when it was a hard effort, and heart rate is the evidence the app has. The gate asks one
 question per sport and period: **was the best 20 minutes a hard effort?** The best 20 minutes is the effort every fit has to
 reach (`CP_FIT_REACH_TOLERANCE`), the one the Balance headline grades, and the one the chip has always named. Of the 20 minute
 efforts within 5% of the best (a headwind or a hill moves a best by that), the one held at the highest heart rate is judged, in
@@ -79,7 +80,9 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
   heart rate was 80% of the reference or more, since a long effort's average sits well under its peak. Runs without a heart rate count, and
   so does every run where the gate could not judge. The heart-rate VO2max uses the same reference and reading. Where no run is
-  shown hard, the card is a bound ("No slower than"), from the period, then the 12 months ending with it (`raceAnswerOf`);
+  shown hard, the card is still forecast, from all the window's runs: each time is labelled Predicted as usual, with no range bar
+  (the range was calibrated on hard anchors, and a time from easy runs is one the runner can beat) and one line in "About these
+  predictions" saying the runs were not shown hard. It comes from the period, then the 12 months ending with it (`raceAnswerOf`);
   a hard run in the year answers before an easy one in the period. Runs older than that year are told as they were run ("You ran
   19:58 in Oct 2024"), with no forecast. Nothing left only where the library has no run of a mile.
 - **Balance headline**: never held for the gate. A best 20 minutes that was not shown hard still gives a pick, so the lean, the tiles,

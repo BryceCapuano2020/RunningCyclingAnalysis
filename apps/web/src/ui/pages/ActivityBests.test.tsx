@@ -254,15 +254,15 @@ describe('a ride’s best efforts', () => {
     { kind: 'duration', durationS: 300 },
   ]
 
-  it('marks an all-time record beside Estimated, and names the period for the rest', () => {
+  it('marks an all-time record, and names the period for the rest, with no Estimated chip', () => {
     renderFor(ride, rideResult, { period: TWELVE_MONTHS, earned })
-    expect(marksOf('Best 5 min')).toEqual(['Estimated', 'All-time record'])
-    expect(marksOf('Best 20 min')).toEqual(['Estimated', 'Best in the last 12 months'])
+    expect(marksOf('Best 5 min')).toEqual(['All-time record'])
+    expect(marksOf('Best 20 min')).toEqual(['Best in the last 12 months'])
   })
 
   it('marks only the records that have a chip, so the one-minute best is the period’s', () => {
     renderFor(ride, rideResult, { period: TWELVE_MONTHS, earned })
-    expect(marksOf('Best 1 min')).toEqual(['Estimated', 'Best in the last 12 months'])
+    expect(marksOf('Best 1 min')).toEqual(['Best in the last 12 months'])
   })
 
   it('names all-time records outside the period with a link to the Ride page', () => {

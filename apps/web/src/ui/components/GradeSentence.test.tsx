@@ -17,11 +17,9 @@ const RIDE: SportGrade = {
 }
 
 describe('GradeSentence', () => {
-  it('reads as the sentence the records and the grade line are written as', () => {
-    const { container } = render(<GradeSentence sport="ride" grade={RIDE} where="record" />)
-    expect(container.textContent).toBe(
-      'Estimated through its running equivalent ·\u00A0Local · 66% (63 to 69)',
-    )
+  it('reads a records row as its level, percent and range, with no lead', () => {
+    const { container } = render(<GradeSentence sport="ride" grade={RIDE} where="row" />)
+    expect(container.textContent).toBe('Local · 66% (63 to 69)')
   })
 
   it('keeps the lead’s dot with the level, so a line cannot end on "Estimated ·"', () => {

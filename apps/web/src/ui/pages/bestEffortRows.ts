@@ -168,7 +168,7 @@ export function bestEffortRows(input: BestEffortInput): BestEffortRows {
   }))
   const distance = distanceRowsOf(input)
   const curves = curvesOf(input)
-  // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
+  // The list says the no-standard gap once under it, so each row leaves it off.
   const durationRows = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
       label: effortLabel(record.durationS),

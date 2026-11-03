@@ -276,7 +276,7 @@ describe('grade parts', () => {
     })
   })
 
-  it('says a ride record is graded through its running equivalent, and a run record is not', () => {
+  it('leaves the estimate lead off a records row: a ride reads its level, range and percent, as a run does', () => {
     const ride: SportGrade = {
       centre: { grade: 0.6, level: 'Local' },
       range: {
@@ -284,12 +284,14 @@ describe('grade parts', () => {
         high: { grade: 0.64, level: 'Local' },
       },
     }
-    expect(gradeParts('ride', ride, 'record')).toMatchObject({
-      lead: 'Estimated through its running equivalent',
+    expect(gradeParts('ride', ride, 'row')).toEqual({
+      lead: null,
       level: null,
+      value: '60%',
+      range: '55 to 64',
     })
     expect(
-      gradeParts('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'record').lead,
+      gradeParts('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'row').lead,
     ).toBeNull()
   })
 
@@ -307,9 +309,6 @@ describe('grade parts', () => {
       value: '60%',
       range: '55 to 64',
     })
-    expect(gradeParts('ride', grade, 'record').lead).toBe(
-      'Estimated through its running equivalent',
-    )
   })
 
   it('has no lead and no range for a run, which is read as recorded', () => {
@@ -363,15 +362,13 @@ describe('grade parts', () => {
     expect(gapRecordText('ride', gap)).toBe('No age standard for this duration')
   })
 
-  it('says a list’s lead and no-standard gap once under it, so a row in that list drops both', () => {
+  it('says a list’s no-standard gap once under it, and no estimate note for a graded ride', () => {
     const ride: SportGrade = { centre: { grade: 0.6, level: 'Local' }, range: null }
     const graded: GradeOutcome = { kind: 'graded', age: 40, grade: ride }
     const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
     expect(gradeParts('ride', ride, 'row').lead).toBeNull()
     expect(gradeParts('ride', ride, 'row').level).toBe('Local')
-    expect(listedGradeNotes('ride', [graded, null], ['20 min', '60 min'])).toEqual([
-      'Estimated through its running equivalent',
-    ])
+    expect(listedGradeNotes('ride', [graded, null], ['20 min', '60 min'])).toEqual([])
     expect(listedGradeNotes('run', [graded, gap], ['5 km', '1 km'])).toEqual([
       'No age standard under 1 mile, for the 1 km',
     ])
