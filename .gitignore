@@ -50,6 +50,10 @@ __pycache__/
 # TypeScript incremental build state
 *.tsbuildinfo
 
+# Signed-in replica tool (scripts/replica): its default output folder and any account download hold real data.
+.replica-out/
+*rca-export*.json
+
 # Local audit notes and evidence (they can quote real-data aggregates).
 docs/audits/
 .vitest/
