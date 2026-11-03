@@ -1,4 +1,3 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { ActivitySummary } from '@rca/core/pipeline'
@@ -52,8 +51,6 @@ export function BalanceTiles({
   levelShown = false,
 }: BalanceTilesProps) {
   const both = BALANCE_PAIR.every((sport) => countSport(result.activities, sport) > 0)
-  // The heart-rate check of the headline effort, which each threshold tile says for its own sport.
-  const effortCheck = result.effort.find((check) => check.durationS === HEADLINE_DURATION_S) ?? null
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
   const firstThreshold = BALANCE_PAIR.find((sport) => countSport(result.activities, sport) > 0)
   const thresholdProps = (sport: Sport) => ({
@@ -63,7 +60,6 @@ export function BalanceTiles({
     massKg,
     grade: grades[sport],
     weighted,
-    effort: effortCheck,
     needInHeadline: soleSport !== null,
     levelShown,
     defineTerm: sport === firstThreshold,
