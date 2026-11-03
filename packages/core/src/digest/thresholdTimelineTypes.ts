@@ -23,9 +23,12 @@ export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'>
 export interface ThresholdStep {
   /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
-  /** The threshold of the window (null for a window with no effort of 3 minutes or more); gross metabolic W/kg. */
+  /**
+   * The threshold of the window (null for a window with no effort its sport reads: 3 min or more for a ride, 8 for a run);
+   * gross metabolic W/kg.
+   */
   fit: ThresholdFit | null
-  /** The start of the newest activity in the window with an effort of 3 minutes or longer, ms; null for a window with none. */
+  /** The start of the newest activity in the window with an effort its sport reads, ms; null for a window with none. */
   asOfMs: number | null
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
   lastFit: number

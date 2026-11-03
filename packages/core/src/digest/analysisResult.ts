@@ -44,7 +44,8 @@ export interface AnalysisResult {
   /**
    * Each sport's critical-power fit of its best 3 to 20 min, in gross metabolic W/kg, with its refusal and uneven reading below.
    * It is no sport's threshold: `runThreshold` and `rideThreshold` are, and the zones and the evidence rule read them. The race
-   * predictions do not read the fit (they read each run's distance bests), and nothing in core does.
+   * predictions do not read the fit (they read each run's distance bests). The heart-rate judgement still fits the same curves
+   * for its own checks (`trustedHeartRate.ts`, `heartRateCrossCheck.ts`), so the fit stays in core; it is no headline.
    */
   runCp: CriticalPowerFit | null
   rideCp: CriticalPowerFit | null
