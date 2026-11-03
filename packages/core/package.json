@@ -66,6 +66,7 @@
     "./synthetic/odd": "./src/synthetic/odd.ts",
     "./tcx": "./src/tcx/index.ts",
     "./tcx/encode": "./src/tcx/encode.ts",
+    "./threshold": "./src/threshold/index.ts",
     "./units": "./src/units/index.ts",
     "./virtualPower": "./src/virtualPower/index.ts",
     "./xml": "./src/xml/index.ts",

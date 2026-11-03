@@ -13,6 +13,9 @@ Decisions section. Status is one of designed, in progress or built.
   against itself. Status: built.
 - [change-test.md](change-test.md): the one rule that decides whether the app says a best effort changed, from the
   two periods' efforts against what one pool would give. Status: built (stage D).
+- [threshold.md](threshold.md): the ride threshold from every effort in the window, with heart rate as a second
+  estimate that can lift the answer and never vetoes it. Status: in progress (the estimator in core is built; the
+  analysis, zones and screens that read it come next).
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
