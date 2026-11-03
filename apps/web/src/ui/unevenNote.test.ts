@@ -45,6 +45,33 @@ describe('unevenNote', () => {
     expect(unevenNote(result, 'ride')).toBe(ESTIMATE)
   })
 
+  it('counts only the short bests when the best 20 min was not hard', () => {
+    const activities = [
+      makeActivity({ id: 'metered', sport: 'ride', powerSource: 'measured' }),
+      makeActivity({ id: 'virtual', sport: 'ride', powerSource: 'virtual' }),
+    ]
+    const notHard = {
+      activities,
+      rideCp: null,
+      rideCpRefusal: 'shape',
+      rideCpUneven: uneven,
+      effortGate: {
+        run: UNKNOWN,
+        ride: { ...UNKNOWN, verdict: 'notHard', floor: { durationS: 1800, value: 3.0 } },
+      },
+    } as const
+    const longEstimated = makeResult({
+      ...notHard,
+      rideCurve: [curvePoint(600, 3.4, 'metered'), curvePoint(1200, 3.1, 'virtual')],
+    })
+    const shortEstimated = makeResult({
+      ...notHard,
+      rideCurve: [curvePoint(600, 3.4, 'virtual'), curvePoint(1200, 3.1, 'metered')],
+    })
+    expect(unevenNote(longEstimated, 'ride')).toBeNull()
+    expect(unevenNote(shortEstimated, 'ride')).toBe(ESTIMATE)
+  })
+
   it('says nothing when there is no range for the line to sit under', () => {
     const activities = [makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' })]
     const result = makeResult({

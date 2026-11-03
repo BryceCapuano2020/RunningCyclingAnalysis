@@ -71,8 +71,7 @@ function EmptySport({
 /**
  * The sport page's answer, in one slot: the threshold with its range and what it means beside the level of
  * the best 20 minutes; or the prompt for an empty sport, or the note that a ride waits for a body weight.
- * With the threshold refused, an uneven fit's floor is shown in its place under its own label, so the
- * refusal is not said.
+ * With the threshold refused, its floor is shown in its place under its own label, so the refusal is not said.
  */
 export function SportAnswer(props: SportAnswerProps) {
   const { sport, result, massKg, units, profile, missingAge, count, held, rangeDays } = props

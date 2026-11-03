@@ -1,7 +1,7 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import { DURATIONS_S, EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
-import { criticalPowerOutcome, unevenFit, wPrimeFloor } from '../cp'
+import { criticalPowerOutcome, shortBestsFit, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
 import type { EffortGate } from '../effort'
@@ -319,8 +319,18 @@ export function combine(
     heart.setAside,
   )
   judgeHeadline(effort, effortGate)
-  const run = gatedThreshold(effortGate.run, runOutcome, runCpUneven)
-  const ride = gatedThreshold(effortGate.ride, rideOutcome, rideCpUneven)
+  const run = gatedThreshold(
+    effortGate.run,
+    runOutcome,
+    runCpUneven,
+    shortBestsFit(runCurve, wPrimeFloor('run', massKg)),
+  )
+  const ride = gatedThreshold(
+    effortGate.ride,
+    rideOutcome,
+    rideCpUneven,
+    shortBestsFit(rideMetabolicCurve, wPrimeFloor('ride', massKg)),
+  )
 
   return {
     activities: activitySummaries(digests, settings, rideReferenceOf(judged)),

@@ -1,4 +1,10 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import {
+  CP_FIT_MAX_S,
+  CP_FIT_MIN_S,
+  PRIORS,
+  RESTING_W_PER_KG,
+  SHORT_FIT_MAX_S,
+} from '@rca/core/constants'
 import { cpBand } from '@rca/core/cp'
 import { metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -18,11 +24,15 @@ export function bandShareOf(result: AnalysisResult, sport: Sport): number | null
   return gate.verdict === 'hard' ? gate.share : null
 }
 
-/** Whether a ride's fit draws on an effort in its window whose watts are estimated, from virtual power. */
+/**
+ * Whether a ride's fit draws on an effort in its window whose watts are estimated, from virtual power. With the best 20 min
+ * not hard, the fit in play reads only the short bests, so a longer one does not count.
+ */
 export function fitRestsOnEstimate(result: AnalysisResult): boolean {
+  const longest = result.effortGate.ride.verdict === 'notHard' ? SHORT_FIT_MAX_S : CP_FIT_MAX_S
   const byId = new Map(result.activities.map((activity) => [activity.id, activity]))
   return result.rideCurve.some((point) => {
-    if (point.durationS < CP_FIT_MIN_S || point.durationS > CP_FIT_MAX_S) return false
+    if (point.durationS < CP_FIT_MIN_S || point.durationS > longest) return false
     const activity = point.activityId === null ? null : (byId.get(point.activityId) ?? null)
     return isEstimatedRecord('ride', activity)
   })
@@ -31,8 +41,8 @@ export function fitRestsOnEstimate(result: AnalysisResult): boolean {
 /**
  * What the line calls its two ends: a range, whether it is one fit's standard error (how loosely the fit was
  * pinned down) or the uneven case, where the ends are two thresholds, the main one (or, with that refused, the
- * floor the held bests set) and a second fitted without the uneven bests. The page tells them apart by how the
- * range is drawn (the fit's is the lighter track), not by a second word.
+ * floor the held bests set) and a second fitted without the uneven bests, or to the short bests alone where the best
+ * 20 min was not hard. The page tells them apart by how the range is drawn (the fit's is the lighter track), not by a second word.
  */
 const RANGE = 'Range'
 

@@ -30,8 +30,8 @@ function reportedFits(
   const run = criticalPowerOutcome(plainCurve(runBest), { minWPrime: wPrimeFloor('run', massKg) })
   const ride = criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) })
   return {
-    run: gates === undefined ? run.fit : gatedThreshold(gates.run, run, null).fit,
-    ride: gates === undefined ? ride.fit : gatedThreshold(gates.ride, ride, null).fit,
+    run: gates === undefined ? run.fit : gatedThreshold(gates.run, run, null, null).fit,
+    ride: gates === undefined ? ride.fit : gatedThreshold(gates.ride, ride, null, null).fit,
   }
 }
 
