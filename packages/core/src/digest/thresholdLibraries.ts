@@ -65,7 +65,8 @@ export function librariesOf(
 
 /**
  * Each sport's threshold over a set of digests (`thresholdOf`), read against `lines` (the library's, one per sport; absent, a
- * sport's is fitted over this set's activities), with the heart rate of the sports that read it.
+ * sport's is fitted over this set's activities, and none for a sport that reads no heart rate), with the heart rate of the sports
+ * that read it.
  */
 export function thresholdsOf(
   ordered: ActivityDigest[],

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DAY_MS, DEFAULT_BIKE_MODEL, PRIORS } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
@@ -10,9 +10,16 @@ import { estimatedStanding } from './estimatedRide'
 import { fixedMasses } from './masses'
 import { agesOf, rideEffortsOf, thresholdHeartRate } from './thresholdEfforts'
 import { librariesOf, thresholdsOf } from './thresholdLibraries'
+import * as thresholdModule from '../threshold'
 import { DURATION_TABLES } from '../threshold'
 import type { ThresholdLine } from '../threshold'
 import { syntheticActivity } from './test/syntheticActivity'
+
+vi.mock('../threshold', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../threshold')>()
+  return { ...actual, fitThresholdLine: vi.fn(actual.fitThresholdLine) }
+})
+const fitted = vi.mocked(thresholdModule.fitThresholdLine)
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
 const masses = fixedMasses(SETTINGS.massKg, SETTINGS.bikeMassKg)
@@ -301,6 +308,26 @@ describe('the run threshold of a set of digests', () => {
     // A run's threshold ignores the rides' blocks and a ride's the runs'.
     expect(thresholds.run!.efforts.rides).toBe(6)
     expect(thresholds.run!.efforts.value).toBeCloseTo(runThresholdOf(runs, 190)!.efforts.value, 8)
+  })
+
+  it('fits no run line at all, whether the library’s lines are given or left to be fitted over the set', () => {
+    const rides = [0, 3, 6, 9, 12, 15].map((day, i) => ride(`r${i}`, day, 270 + i, 900))
+    const mixed = [...runs, ...rides]
+    const fittedOver = () =>
+      fitted.mock.calls.map(([prepared]) => prepared.map((r) => r.activityId))
+    // Lines absent: each sport's is fitted over the set, and a sport that reads no heart rate has none to fit.
+    fitted.mockClear()
+    thresholdsOf(mixed, inputsOf(none), { run: 190, ride: 190 })
+    expect(fittedOver()).toHaveLength(1)
+    expect(fittedOver()[0]!.every((id) => id.startsWith('r'))).toBe(true)
+    fitted.mockClear()
+    thresholdsOf(runs, inputsOf(none), { run: 190, ride: null })
+    expect(fitted).not.toHaveBeenCalled()
+    // The library's lines: the same one fit, over the rides.
+    fitted.mockClear()
+    librariesOf(mixed, inputsOf(none), { run: 190, ride: 190 })
+    expect(fittedOver()).toHaveLength(1)
+    expect(fittedOver()[0]!.every((id) => id.startsWith('r'))).toBe(true)
   })
 
   it('is the analysis’s run threshold, with the fit still reported for the curve chart', () => {

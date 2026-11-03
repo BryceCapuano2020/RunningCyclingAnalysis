@@ -142,6 +142,20 @@ export function thresholdLineOf(
   )
 }
 
+/**
+ * The line a set of activities is read against: fitted over their blocks, or none where there is no threshold heart rate to read
+ * it against (`referenceMax` null: a sport whose threshold reads no heart rate), which fits nothing.
+ */
+function lineFor(
+  activities: readonly ActivityEfforts[],
+  newestMs: number,
+  referenceMax: number | null,
+): ThresholdLine {
+  return thresholdHeartRate(referenceMax) === null
+    ? { refused: 'no-heart-rate' }
+    : thresholdLineOf(activities, newestMs)
+}
+
 /** A library's activities of one sport, read once, and the line fitted over them: what its periods and its zone windows all read. */
 export interface ThresholdLibrary {
   activities: ActivityEfforts[]
@@ -157,17 +171,14 @@ export function libraryOf(
   ordered: ActivityDigest[],
   referenceMax: number | null,
 ): ThresholdLibrary {
-  const line: ThresholdLine =
-    thresholdHeartRate(referenceMax) === null
-      ? { refused: 'no-heart-rate' }
-      : thresholdLineOf(activities, newestStart(ordered))
-  return { activities, line }
+  return { activities, line: lineFor(activities, newestStart(ordered), referenceMax) }
 }
 
 /**
  * The threshold of a set of digests of one sport: every activity's bests, read with the sport's best curve's rules, aged from the
  * newest activity of the set (of any sport), with the heart rate of those not set aside, read against `line` (the library's;
- * absent, one is fitted over this set's). Null where the set has no effort of its sport's shortest length or more.
+ * absent, one is fitted over this set's, or none where `referenceMax` is null). Null where the set has no effort of its sport's
+ * shortest length or more.
  */
 export function thresholdOf(
   activities: readonly ActivityEfforts[],
@@ -178,7 +189,7 @@ export function thresholdOf(
   const newestMs = newestStart(ordered)
   const basis = thresholdBasis(
     activities.map((each) => each.prepared),
-    line ?? thresholdLineOf(activities, newestMs),
+    line ?? lineFor(activities, newestMs, referenceMax),
     thresholdHeartRate(referenceMax),
   )
   return estimateOver(basis, agesOf(activities, newestMs))
