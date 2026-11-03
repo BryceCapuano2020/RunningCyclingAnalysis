@@ -5,7 +5,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { parseNumber, readCard, runChecks, validateTruth } from './truth-check.mjs'
+import {
+  parseNumber,
+  readBest60,
+  readCard,
+  runChecks,
+  runInvariants,
+  validateTruth,
+} from './truth-check.mjs'
 
 /* Synthetic page text only: the made-up cards and figures below are not from any account. */
 
@@ -191,6 +198,72 @@ test('the command exits 0 when every check passes, 1 when one fails, 2 on bad us
       assert.doesNotMatch(broken.stderr, /secret|41/)
       writeFileSync(truth, '{}')
       assert.match(check(dir, truth).stderr, /"checks" list/)
+    },
+  )
+})
+
+test('reads the best 60 min a sport page labels, the current period first', () => {
+  assert.equal(readBest60('20 MIN\n7:40 /mi\n60 MIN\n8:05 /mi\n9:10 /mi', '/mi'), 485)
+  assert.equal(readBest60('60 MIN\n220 W\n2.9 W/kg', 'W'), 220)
+  assert.equal(readBest60('20 MIN\n250 W', 'W'), null)
+})
+
+test('fails a threshold slower than the best 60 min on its own page, for either sport', () => {
+  withOutput(
+    {
+      'run-6-weeks.txt': 'THRESHOLD PACE\n8:10\n/mi\nrange\n60 MIN\n8:05 /mi\n',
+      'run-12-months.txt': 'THRESHOLD PACE\n7:30\n/mi\n60 MIN\n7:45 /mi\n',
+      'ride-6-weeks.txt': 'THRESHOLD POWER\n200\nW\n60 MIN\n210 W\n',
+      'ride-12-months.txt': 'THRESHOLD POWER\n250\nW\n60 MIN\n220 W\n',
+      'run-all-time.txt': 'THRESHOLD PACE\n7:00\n/mi\n',
+    },
+    (dir) => {
+      const lines = runInvariants(dir).map(({ line }) => line)
+      assert.deepEqual(lines, [
+        'PASS threshold-vs-hour ride-12-months: threshold 250 W, best 60 min 220 W',
+        'FAIL threshold-vs-hour ride-6-weeks: threshold 200 W, best 60 min 210 W',
+        'PASS threshold-vs-hour run-12-months: threshold 450 s, best 60 min 465 s /mi',
+        'FAIL threshold-vs-hour run-6-weeks: threshold 490 s, best 60 min 485 s /mi',
+      ])
+    },
+  )
+})
+
+test('fails a Balance page whose ride-as-a-run card contradicts its lean', () => {
+  const page = (lean, run, ride) =>
+    `YOUR BALANCE LEANS TOWARD ${lean}\nRUN THRESHOLD\n${run}\n/mi\nRIDE THRESHOLD\n250\nW\nYOUR RIDE AS A RUN\n${ride}\n/mi\n`
+  withOutput(
+    {
+      'balance-6-weeks.txt': page('RUNNING', '8:00', '7:50'),
+      'balance-12-months.txt': page('RUNNING', '7:30', '8:20'),
+      'balance-all-time.txt': page('CYCLING', '7:30', '7:10'),
+      'balance-default.txt': 'YOUR BALANCE LEANS TOWARD RUNNING\nRUN THRESHOLD\n7:30\n/mi\n',
+    },
+    (dir) => {
+      const verdicts = runInvariants(dir).map(({ line }) => line.split(':')[0])
+      assert.deepEqual(verdicts, [
+        'PASS lean-vs-cards balance-12-months',
+        'FAIL lean-vs-cards balance-6-weeks',
+        'PASS lean-vs-cards balance-all-time',
+      ])
+    },
+  )
+})
+
+test('the command fails on a contradiction even when every truth check passes', () => {
+  withOutput(
+    {
+      'run-default.txt': 'Threshold power\n250 W\n',
+      'run-6-weeks.txt': 'THRESHOLD PACE\n8:10\n/mi\n60 MIN\n8:05 /mi\n',
+      'truth.json': JSON.stringify({ checks: [goodCheck] }),
+    },
+    (dir) => {
+      const run = check(dir, join(dir, 'truth.json'))
+      assert.equal(run.status, 1)
+      assert.match(
+        run.stdout,
+        /PASS run-threshold default[^\n]*\nFAIL threshold-vs-hour run-6-weeks[^\n]*\n1 failing\n$/,
+      )
     },
   )
 })
