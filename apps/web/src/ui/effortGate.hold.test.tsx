@@ -80,7 +80,7 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
 
   it('leaves a sport with no 20 minute effort to the need, which an effort of that length mends', () => {
     // No ride best of 20 minutes: the pick waits for one, whether the run's best was hard or not.
-    const result = { ...base(gate(), UNKNOWN), rideCurve: [], rideCp: null }
+    const result = { ...base(gate(), UNKNOWN), rideCurve: [], rideCp: null, rideThreshold: null }
     expect(headlinePick(result)).toBeNull()
     expect(heldAction(result, undefined)).toBe('Add one ride of 20 min or more to compare them.')
   })

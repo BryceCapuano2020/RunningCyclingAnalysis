@@ -1,19 +1,19 @@
 import { DAY_MS } from '../constants'
-import type { ThresholdStep, ThresholdTimeline } from '../digest/thresholdTimelineTypes'
-import type { CriticalPowerFit, Sport } from '../types'
+import type {
+  ThresholdFit,
+  ThresholdStep,
+  ThresholdTimeline,
+} from '../digest/thresholdTimelineTypes'
 
 /** A new threshold has to hold this long, in days, before the zones follow it: about two weeks. */
 export const SETTLE_DAYS = 14
 
-/** The per-sport fits of the whole library: null where the library's own fit is refused. */
-export type LibraryFits = Record<Sport, CriticalPowerFit | null>
-
 /** The standard error of a fit. A fit with none (two points, so no error to speak of) counts as infinitely uncertain, so it never moves a held threshold. */
-const seOf = (fit: CriticalPowerFit): number =>
+const seOf = (fit: ThresholdFit): number =>
   Number.isFinite(fit.cpSe) ? fit.cpSe : Number.POSITIVE_INFINITY
 
 /** Whether `fit` moved off `held` by more than its own standard error. */
-const beyondError = (fit: CriticalPowerFit, held: CriticalPowerFit): boolean =>
+const beyondError = (fit: ThresholdFit, held: ThresholdFit): boolean =>
   Math.abs(fit.cp - held.cp) > seOf(fit)
 
 /** The day a step's window began to hold its efforts: a step is dated by the end of its first week. */
@@ -28,8 +28,8 @@ const startOf = (step: ThresholdStep): number => step.fromMs - 7 * DAY_MS
 function stands(
   steps: readonly ThresholdStep[],
   i: number,
-  fit: CriticalPowerFit,
-  held: CriticalPowerFit,
+  fit: ThresholdFit,
+  held: ThresholdFit,
   nowMs: number,
 ): boolean {
   const next = steps[i + 1]
@@ -49,19 +49,14 @@ function stands(
  * or leaving that window moves the fit in one step, and a zone edge would follow the window and not the athlete. The zones
  * hold the fit they had until a window's fit differs from it by more than its own standard error and stands (see
  * `stands`, about two weeks). A step the window gave no fit for stays without one, and one whose efforts outgrew the older fit
- * (its `lastFit` is -1) leaves no older fit to stand in for it. Where the whole library's fit is
- * refused (`library` null) no step has a fit: a window cannot be trusted where the library cannot.
+ * (its `lastFit` is -1) leaves no older fit to stand in for it.
  */
-function settledSteps(
-  steps: readonly ThresholdStep[],
-  library: CriticalPowerFit | null,
-  nowMs: number,
-): ThresholdStep[] {
-  let held: CriticalPowerFit | null = null
+function settledSteps(steps: readonly ThresholdStep[], nowMs: number): ThresholdStep[] {
+  let held: ThresholdFit | null = null
   let heldAsOf: number | null = null
   let lastFit = -1
   return steps.map((step, i) => {
-    const raw = library === null ? null : step.fit
+    const raw = step.fit
     if (raw === null) {
       // A step whose efforts outgrew the older fit has none to stand in for it (`lastFit` -1): the held fit does not either.
       if (step.lastFit < 0) lastFit = -1
@@ -78,16 +73,9 @@ function settledSteps(
 }
 
 /**
- * The thresholds the zones are cut from: each sport's timeline settled (see `settledSteps`) and switched off where the
- * library's own fit is refused, as of `nowMs`. Plain data, as the timeline is.
+ * The thresholds the zones are cut from: each sport's timeline settled (see `settledSteps`) as of `nowMs`. Plain data, as the
+ * timeline is.
  */
-export function settledThresholds(
-  timeline: ThresholdTimeline,
-  library: LibraryFits,
-  nowMs: number,
-): ThresholdTimeline {
-  return {
-    run: settledSteps(timeline.run, library.run, nowMs),
-    ride: settledSteps(timeline.ride, library.ride, nowMs),
-  }
+export function settledThresholds(timeline: ThresholdTimeline, nowMs: number): ThresholdTimeline {
+  return { run: settledSteps(timeline.run, nowMs), ride: settledSteps(timeline.ride, nowMs) }
 }

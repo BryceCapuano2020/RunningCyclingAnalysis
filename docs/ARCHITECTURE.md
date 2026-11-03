@@ -213,11 +213,12 @@ has been seen; `ui/checkInRow.ts` shows one of the two rows, never both, and nei
 
 **The effort gate**
 
-A best effort is a capability (a threshold, a zone, a race time, a level) only when heart rate shows it was hard.
+A best effort is a capability (a race time, a level) only when heart rate shows it was hard. A threshold treats a best as a floor.
 `packages/core/src/effort` judges the best 20 minutes per sport and period against a reference heart rate
 (`reference.ts` reads and checks the reference, `gate.ts` gives the verdict `hard`, `notHard` or `unknown`, with why),
-and `combine` puts the answer on the result (`effortGate` per sport). A failed gate withholds the estimate and shows the demonstrated best in its
-place; an unknown one withholds nothing and the screens say the effort was not checked. The UI reads it in one place
+and `combine` puts the answer on the result (`effortGate` per sport). The verdict is a label beside the estimate and withholds none: the ride
+threshold reads every effort and takes heart rate as a hint ([design/threshold.md](design/threshold.md)), and a run threshold is
+a fit that no verdict vetoes. The screens say when the effort was not hard or not checked. The UI reads it in one place
 for the Balance hold (`ui/resultHold.ts`) and in the chips and notes of `ui/effortCaveat.ts`. The calibration and every
 place it applies are in [design/effort-gate.md](design/effort-gate.md).
 

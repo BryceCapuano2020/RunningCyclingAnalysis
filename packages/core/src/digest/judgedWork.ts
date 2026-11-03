@@ -11,6 +11,7 @@ import type { EstimatedRideGate } from './estimatedRide'
 import type { HeartRateJudgement } from './setAsideTypes'
 import type { BestCurves } from './rideCurves'
 import type { TrustedHeartRate } from './trustedHeartRate'
+import type { RideLine } from '../threshold'
 import type { BikeModelSource } from '../virtualPower'
 
 /**
@@ -31,6 +32,11 @@ export interface JudgedWork {
   heart: TrustedHeartRate
   gate: EstimatedRideGate | null
   cross: HrCrossCheck
+  /**
+   * The heart-rate line of the library's rides, fitted once over all their power-meter blocks. Every zone window and every
+   * period reads it (`CombineOptions.rideLine`), so the headline threshold and the zones agree.
+   */
+  rideLine: RideLine
 }
 
 const workOfJudgement = new WeakMap<HeartRateJudgement, JudgedWork>()

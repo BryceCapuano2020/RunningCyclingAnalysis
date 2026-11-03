@@ -13,6 +13,10 @@ import { hasEvidence, headlineShortfall } from './evidence'
  * athlete does qualifies is the one. Where none does, the shortest of those with evidence for every sport and the most
  * sports qualifying; where none has evidence for every sport, all time. An explicit pick is never searched.
  *
+ * The 'not hard' test stays for now because run thresholds are not floor-aware yet: on a real library, a default of 12
+ * weeks of easy runs read a run threshold 10% slow against 6 and 12 months. It only picks which period opens first and
+ * never hides a number. It goes when runs get the floor-aware estimate the ride threshold already has.
+ *
  * It stays cheap: the windows are analysed in order through the session's period cache, and the search stops at the
  * first that qualifies, so a library whose last 12 weeks hold a hard effort costs the analysis it always did. The
  * window it settles on is in the cache when the state asks for it.

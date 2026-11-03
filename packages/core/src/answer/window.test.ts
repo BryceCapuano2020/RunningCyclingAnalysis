@@ -6,6 +6,7 @@ import { NO_EFFORT_GATE } from '../effort'
 import type { EffortGate } from '../effort'
 import { SPORTS } from '../types'
 import type { ActivityDigest, Sport } from '../types'
+import { hasEvidence } from './evidence'
 import type { Lack } from './window'
 import { WINDOW_DAYS, resolveWindow } from './window'
 
@@ -42,7 +43,7 @@ function analysis(lacks: Lacks): AnalysisResult {
     runCurve: curve('run'),
     rideCurve: curve('ride'),
     runCp: null,
-    rideCp: null,
+    rideThreshold: null,
     effortGate: { run: gate('run'), ride: gate('ride') },
   } as unknown as AnalysisResult
 }
@@ -141,6 +142,30 @@ describe('resolveWindow', () => {
     const { answer } = search([{ run: 'few' }, BOTH_EASY, { run: 'none' }])
     expect(answer).toMatchObject({ choice: 182, reason: 'most' })
     expect(answer.passed).toEqual([{ days: 84, lacks: [{ sport: 'run', lack: 'few' }] }])
+  })
+
+  it('counts a ride threshold as evidence only where it rests on an effort as long as the headline’s', () => {
+    // The ride estimate reads efforts from 3 min, so a rider with only short bests has one.
+    const estimate = (durationS: number) =>
+      ({
+        value: 4,
+        efforts: { strongest: { durationS } },
+      }) as unknown as AnalysisResult['rideThreshold']
+    const noBest = analysis({ ride: 'none' })
+    const fiveMinutes = { ...noBest, rideThreshold: estimate(300) }
+    const twentyMinutes = { ...noBest, rideThreshold: estimate(1200) }
+    expect(hasEvidence(fiveMinutes, 'ride')).toBe(false)
+    expect(hasEvidence(twentyMinutes, 'ride')).toBe(true)
+    // A best curve of 20 min counts with or without an estimate, as it did.
+    expect(hasEvidence(analysis({}), 'ride')).toBe(true)
+    expect(resolveWindow(library(), 'default', () => fiveMinutes)).toMatchObject({
+      reason: 'all-time',
+    })
+    expect(resolveWindow(library(), 'default', () => twentyMinutes)).toEqual({
+      choice: 84,
+      reason: 'qualified',
+      passed: [],
+    })
   })
 
   it('uses all time when no window has evidence for every sport', () => {

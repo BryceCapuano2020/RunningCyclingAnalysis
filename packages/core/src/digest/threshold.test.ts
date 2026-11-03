@@ -69,11 +69,13 @@ describe('the threshold on the sample', () => {
     // the fit is the rules', it is shown, and the effort is said not to have been checked.
     expect(result.runCp).not.toBeNull()
     expect(result.effortGate.run).toMatchObject({ verdict: 'unknown', unchecked: 'thin' })
-    // With the age the reference is the age-predicted maximum, and an easy run is not a hard effort against it.
+    // With the age the reference is the age-predicted maximum, and an easy run is not a hard effort against it. The fit is
+    // the same: the gate is a label beside it, not a veto.
     const aged = combine([digestNamed('Morning Run')], { ...SETTINGS, birthYear: 1985 })
     expect(aged.effortGate.run.reference).toBe('trusted')
-    expect(aged.runCp).toBeNull()
-    expect(aged.runCpRefusal).toBe('effort')
+    expect(aged.effortGate.run.verdict).toBe('notHard')
+    expect(aged.runCp).toEqual(result.runCp)
+    expect(aged.runCpRefusal).toBeNull()
   })
 
   it('refuses the sample’s Saturday Long Ride alone by the ride floor and by nothing else', () => {

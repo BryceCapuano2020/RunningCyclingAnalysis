@@ -14,19 +14,30 @@ import type { Curve, Sport } from '../types'
 /** The analysed activities each sport needs in the window before the headline sets one against the other. */
 export const HEADLINE_MIN_ACTIVITIES = 3
 
-/** Each sport's best curve and fitted threshold in a result. */
-const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
-  {
-    run: (result) => ({ curve: result.runCurve, threshold: result.runCp }),
-    ride: (result) => ({ curve: result.rideCurve, threshold: result.rideCp }),
-  }
-
 /** Whether a best curve holds an effort of at least the headline duration. */
 function reachesHeadline(curve: Curve): boolean {
   return curve.some(
     (point) => point.durationS >= HEADLINE_DURATION_S && Number.isFinite(point.value),
   )
 }
+
+/**
+ * Each sport's best curve and threshold in a result: a run's fit, a ride's estimate (`rideThreshold`) where it rests on an
+ * effort as long as the headline's. The ride estimate exists from a 3 min effort, so a rider with only short bests has one,
+ * and the headline compares at 20 min. The fit it replaced as the ride's evidence needed such an effort, and so does this.
+ */
+const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
+  {
+    run: (result) => ({ curve: result.runCurve, threshold: result.runCp }),
+    ride: (result) => ({
+      curve: result.rideCurve,
+      threshold:
+        result.rideThreshold !== null &&
+        result.rideThreshold.efforts.strongest.durationS >= HEADLINE_DURATION_S
+          ? result.rideThreshold
+          : null,
+    }),
+  }
 
 /**
  * Whether a sport has the evidence the headline needs: an effort as long as the headline's, or a fitted

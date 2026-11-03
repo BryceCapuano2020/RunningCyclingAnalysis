@@ -13,6 +13,7 @@ import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
+import type { RideLine } from './threshold'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
@@ -62,6 +63,25 @@ function calibrationKey(calibration: HrCalibration | null | undefined): string {
   return calibration === null ? 'none' : `${calibration.kappa}|${calibration.lnKappaSe}`
 }
 
+/**
+ * A ride line as a key for the analysis of `selected`: what the period reads of it, which is the line's slope, spread and
+ * pooled offset and highest block, and the offset, highest block and exclusion of each of the period's own rides. A line
+ * fitted again over the same rides (a change of mass and back) is the same key, and an activity added outside the period
+ * that leaves these as they were does not redo the period.
+ */
+function lineKey(line: RideLine | undefined, selected: readonly ActivityDigest[]): string {
+  if (line === undefined) return 'own'
+  if ('refused' in line) return line.refused
+  const rides = selected.flatMap(({ id }) => {
+    const offset = line.offsets.get(id)
+    const excluded = line.excluded.has(id)
+    return offset === undefined && !excluded
+      ? []
+      : [[id, offset ?? null, line.rideHighest.get(id) ?? null, excluded]]
+  })
+  return JSON.stringify([line.slope, line.spread, line.offset, line.highest, rides])
+}
+
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
 const ANALYSES_KEPT = 4
 
@@ -93,6 +113,7 @@ export class PeriodCache {
     calibration: string
     references: string
     gate: string
+    line: string
     analysis: AnalysisResult
   })[] = []
 
@@ -120,12 +141,15 @@ export class PeriodCache {
     const calibrationId = calibrationKey(calibration)
     const referencesId = JSON.stringify(references ?? null)
     const gateId = rideGateKey(rideGate)
+    const rideLine = judged?.rideLine
+    const lineId = lineKey(rideLine, selected)
     const hit = this.analysisEntries.findIndex(
       (entry) =>
         entry.setAside === key &&
         entry.calibration === calibrationId &&
         entry.references === referencesId &&
         entry.gate === gateId &&
+        entry.line === lineId &&
         sameInputs(entry, selected, settings),
     )
     if (hit >= 0) {
@@ -138,6 +162,7 @@ export class PeriodCache {
       calibration,
       references,
       rideGate,
+      rideLine,
       judged,
     })
     this.analysisEntries.unshift({
@@ -147,6 +172,7 @@ export class PeriodCache {
       calibration: calibrationId,
       references: referencesId,
       gate: gateId,
+      line: lineId,
       analysis,
     })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)

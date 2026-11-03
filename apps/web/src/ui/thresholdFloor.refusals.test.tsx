@@ -21,9 +21,14 @@ const THIRTY = { durationS: 1800, value: 3.4 }
 const TWENTY = { durationS: 1200, value: 3.7 }
 const MASS_KG = 70
 
-/** A sport whose threshold is refused for `refusal`, with the gate it would have: not hard for an effort refusal. */
-function refused(sport: Sport, refusal: CriticalPowerRefusal, over: Partial<AnalysisResult> = {}) {
-  const verdict = refusal === 'effort' ? gate({ share: 0.8 }) : HARD
+/** A sport whose threshold is refused for `refusal`, with the gate it would have: hard, or not hard where `notHard`. */
+function refused(
+  sport: Sport,
+  refusal: CriticalPowerRefusal,
+  over: Partial<AnalysisResult> = {},
+  notHard = false,
+) {
+  const verdict = notHard ? gate({ share: 0.8 }) : HARD
   const gates = { run: UNKNOWN, ride: UNKNOWN, [sport]: { ...verdict, floor: THIRTY } }
   return makeResult({
     runCp: null,
@@ -35,7 +40,7 @@ function refused(sport: Sport, refusal: CriticalPowerRefusal, over: Partial<Anal
   })
 }
 
-const REFUSALS = ['effort', 'shape', 'missing'] as const
+const REFUSALS = ['shape', 'missing'] as const
 const SPORTS = ['run', 'ride'] as const
 
 /** The sport's own number for a metabolic value, as the card prints it. */
@@ -181,7 +186,7 @@ describe.each(SPORTS)('a %s threshold the analysis refuses', (sport) => {
       runHrFraction: sport === 'run' ? 0.82 : null,
       rideHrFraction: sport === 'ride' ? 0.82 : null,
     }
-    const { container } = tile(sport, refused(sport, 'effort'), check)
+    const { container } = tile(sport, refused(sport, 'shape', {}, true), check)
     const statuses = container.querySelectorAll('.stat-tile__basis, .stat-tile__effort')
     expect([...statuses].map((status) => status.textContent)).toEqual(['At least'])
     expect(screen.queryByRole('button', { name: /all-out|effort/i })).toBeNull()

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from './constants'
 import { combine as combineDigests, digestActivity } from './digest'
 import * as combineModule from './digest/combine'
+import { judgedWorkOf } from './digest/judgedWork'
 import { encodeFit } from './fit'
 import { splitPeriods } from './period'
 import { AnalysisSession } from './session'
@@ -210,11 +211,14 @@ describe('AnalysisSession analysis cache', () => {
     const state = session.setRange(21, SETTINGS)
     const { selected } = splitPeriods(SAMPLE_DIGESTS, 21)
     // The period is read with the library's calibration and reference heart rates, which it has no say in.
+    // So is the heart-rate line of the library's rides, fitted once, which the period's ride threshold reads.
     const { calibration, referenceHr, observedMaxHr, effortReference } = state.heartRateJudgement
+    const rideLine = judgedWorkOf(state.heartRateJudgement)!.rideLine
     expect(state.result).toEqual(
       combineDigests(selected, SETTINGS, {
         calibration,
         references: { referenceHr, observedMaxHr, effortReference },
+        rideLine,
       }),
     )
   })

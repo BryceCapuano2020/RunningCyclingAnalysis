@@ -39,7 +39,7 @@ export const HARD = gate({ verdict: 'hard', share: 0.95 })
 export const withheld = (over: Partial<EffortGate> = {}, refs: Partial<AnalysisResult> = {}) =>
   makeResult({
     runCp: null,
-    runCpRefusal: 'effort',
+    runCpRefusal: 'shape',
     runMaxHeartRate: 186,
     effortGate: { run: gate(over), ride: UNKNOWN },
     ...refs,

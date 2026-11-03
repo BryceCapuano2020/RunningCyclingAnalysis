@@ -58,7 +58,7 @@ describe('hasShareableContent', () => {
     // A best that was not hard no longer holds the balance back, but the card shows both thresholds, which the gate withholds.
     const notHard = makeResult({
       runCp: null,
-      runCpRefusal: 'effort',
+      runCpRefusal: 'shape',
       runCurve: [curvePoint(1200, 5, 'a')],
       effortGate: { run: gate(), ride: gate() },
     })

@@ -16,6 +16,9 @@ export interface ThresholdEffort {
   estimated: boolean
 }
 
+/** One best of one ride before its age is known: a window gives the age, the ride's, when it reads the ride. */
+export type RideEffort = Omit<ThresholdEffort, 'ageDays'>
+
 /**
  * One 5 min block of a power-meter ride with usable heart rate. It counts toward the heart-rate line when its value is between
  * 45% and 105% of the power estimate. The slope is read within rides, so a ride needs three such blocks to add to it or to the
@@ -47,6 +50,12 @@ export interface ThresholdEstimate {
   /** The power-only estimate, the floor the answer is built on. */
   efforts: {
     value: number
+    /**
+     * The power estimate's relative error: how far the mean of the rides' estimates may sit from the truth, as a share of `value`,
+     * never under 2.5%. It is the uncertainty between windows of the same rider, where `low` and `high` are the allowance for the
+     * floor (the athlete may be above their best), so a caller asking whether one window differs from another reads this.
+     */
+    relativeError: number
     rides: number
     /** The ride with the highest estimate among those the mean kept, the effort that gave it, and whether its watts were estimated. */
     strongest: { activityId: string; durationS: number; estimated: boolean }

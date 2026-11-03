@@ -21,16 +21,31 @@ describe('the zones of a library whose own threshold is refused', () => {
     zonesAt(AT, SETTINGS, zoneEstimatesOf(judgement, NOW)).filter(
       (set) => set.sport === 'run' && set.measure === 'pace',
     )
+  /** The same library with no window holding a fit, as when its efforts are too few for any. */
+  const noWindowFits = {
+    ...judged,
+    thresholdTimeline: {
+      ...judged.thresholdTimeline,
+      run: judged.thresholdTimeline.run.map((step) => ({ ...step, fit: null, lastFit: -1 })),
+    },
+  }
 
   it('are cut from a window while the library has a fit', () => {
     expect(judged.fit.run).not.toBeNull()
     expect(paceSets(judged)).toHaveLength(1)
   })
 
-  it('are cut from the best of the year up to their week, dated, once the library fit is refused', () => {
+  it('are cut from the window all the same once the library fit is refused: it blanks no window', () => {
     const refused = { ...judged, fit: { run: null, ride: null } }
     expect(refused.thresholdTimeline.run.some((step) => step.fit !== null)).toBe(true)
     const [set] = paceSets(refused)
+    expect(set).toMatchObject({ source: 'estimated', floorS: null })
+    expect(set!.reference).toBe(paceSets(judged)[0]!.reference)
+    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([])
+  })
+
+  it('are cut from the best of the year up to their week, dated, where no window has a fit', () => {
+    const [set] = paceSets(noWindowFits)
     const floor = floorAt(judged.floor.run, weekEndFor({ startMs: AT }), false)!
     expect(set).toMatchObject({
       source: 'estimated',
@@ -40,13 +55,13 @@ describe('the zones of a library whose own threshold is refused', () => {
     // The runs after that week are not in it: the efforts of the whole library reach further.
     expect(floor.asOfMs).toBeLessThanOrEqual(weekEndFor({ startMs: AT }))
     expect(set!.reference).not.toBe(paceSets(judged)[0]!.reference)
-    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([])
+    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(noWindowFits, NOW))).toEqual([])
   })
 
-  it('have none where the library holds no effort of 20 minutes to stand as a floor', () => {
-    const refused = { ...judged, fit: { run: null, ride: null }, floor: { run: [], ride: [] } }
-    expect(paceSets(refused)).toHaveLength(0)
-    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([
+  it('have none where no window has a fit and the library holds no effort of 20 minutes to stand as a floor', () => {
+    const bare = { ...noWindowFits, floor: { run: [], ride: [] } }
+    expect(paceSets(bare)).toHaveLength(0)
+    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(bare, NOW))).toEqual([
       { sport: 'run', measure: 'pace', outgrown: false },
     ])
   })

@@ -84,7 +84,7 @@ export function medianInPlace(values: Float64Array): number {
 }
 
 /** Rearranges `values` so index k holds its k-th smallest, smaller ones before it and larger after. */
-function selectInPlace(values: Float64Array, k: number): number {
+export function selectInPlace(values: Float64Array, k: number): number {
   let left = 0
   let right = values.length - 1
   while (left < right) {

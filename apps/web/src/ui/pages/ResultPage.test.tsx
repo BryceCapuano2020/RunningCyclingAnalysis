@@ -543,7 +543,7 @@ describe('ResultPage period', () => {
     const window: AnswerWindow = {
       choice: 365,
       reason: 'qualified',
-      passed: [{ days: 84, lacks: [{ sport: 'run', lack: 'easy' }] }],
+      passed: [{ days: 84, lacks: [{ sport: 'run', lack: 'none' }] }],
     }
     render(
       <ResultPage
@@ -693,15 +693,15 @@ describe('ResultPage period', () => {
       choice: 365,
       reason: 'qualified',
       passed: [
-        { days: 84, lacks: [{ sport: 'run', lack: 'easy' }] },
-        { days: 182, lacks: [{ sport: 'run', lack: 'easy' }] },
+        { days: 84, lacks: [{ sport: 'run', lack: 'none' }] },
+        { days: 182, lacks: [{ sport: 'run', lack: 'none' }] },
       ],
     }
     const { container } = renderOldLibrary(false, true, window)
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
     expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
-      'Last 12 weeks had no hard runs',
+      'Last 12 weeks had no 20 min runs',
     )
   })
 

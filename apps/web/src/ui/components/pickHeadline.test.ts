@@ -53,15 +53,32 @@ describe('headlinePick', () => {
   const short = [{ durationS: 300, value: 6, activityId: 'a', startIndex: 0 }]
   const long = [...short, { durationS: 1200, value: 5, activityId: 'a', startIndex: 0 }]
   const result = (overrides: Parameters<typeof makeResult>[0]) =>
-    makeResult({ runCp: null, rideCp: null, runCurve: long, rideCurve: long, ...overrides })
+    makeResult({
+      runCp: null,
+      rideCp: null,
+      rideThreshold: null,
+      runCurve: long,
+      rideCurve: long,
+      ...overrides,
+    })
 
   it('picks the headline when each sport has a 20 min effort', () => {
     expect(headlinePick(result({}))?.point.durationS).toBe(1200)
   })
 
   it('picks the headline when a sport has a fitted threshold and no 20 min effort', () => {
-    const fitted = result({ rideCurve: short, rideCp: makeResult().rideCp })
+    const fitted = result({ rideCurve: short, rideThreshold: makeResult().rideThreshold })
     expect(headlinePick(fitted)).not.toBeNull()
+  })
+
+  it('is null for a ride whose threshold rests on shorter efforts alone: the headline compares at 20 min', () => {
+    const base = makeResult().rideThreshold!
+    const fiveMin = {
+      ...base,
+      efforts: { ...base.efforts, strongest: { ...base.efforts.strongest, durationS: 300 } },
+    }
+    expect(headlinePick(result({ rideCurve: short, rideThreshold: fiveMin }))).toBeNull()
+    expect(headlinePick(result({ rideCurve: short, rideThreshold: base }))).not.toBeNull()
   })
 
   it('is null when one sport is known only from shorter efforts, however the comparison reads', () => {

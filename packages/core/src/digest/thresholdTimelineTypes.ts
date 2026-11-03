@@ -10,6 +10,13 @@ export const THRESHOLD_WINDOW_WEEKS = 26
 export const STALE_THRESHOLD_DAYS = 365
 
 /**
+ * What the zones read of a threshold: its value, `cp`, and the standard error of it, in gross metabolic W/kg. A run's is its
+ * critical-power fit, whose other fields come with it; a ride's is the ride threshold (`rideThreshold`), whose range gives
+ * the error.
+ */
+export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'> & Partial<CriticalPowerFit>
+
+/**
  * One sport's threshold from `fromMs` on, until the next step. A week's window holds the efforts of the
  * `THRESHOLD_WINDOW_WEEKS` weeks that end with it, and its fit changes only in a week an activity enters or
  * leaves the window, so a step is kept for those weeks alone. Plain data, so the session can post it.
@@ -17,8 +24,8 @@ export const STALE_THRESHOLD_DAYS = 365
 export interface ThresholdStep {
   /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
-  /** The threshold of the window, as the analysis reports a fit (a refused fit is null); gross metabolic W/kg. */
-  fit: CriticalPowerFit | null
+  /** The threshold of the window (a run's refused fit, and a ride window with no effort, are null); gross metabolic W/kg. */
+  fit: ThresholdFit | null
   /** The start of the newest activity in the window with an effort of about 20 minutes or longer, ms; null for a window with none. */
   asOfMs: number | null
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
@@ -57,7 +64,7 @@ export const NO_THRESHOLD_FLOORS: ThresholdFloors = { run: [], ride: [] }
 
 /** The threshold in effect on a date, and when it is from if it is not the date's own window's. */
 export interface ThresholdAt {
-  fit: CriticalPowerFit
+  fit: ThresholdFit
   /** Null for a fit over the window ending at the date. Otherwise the start of the newest activity of the older fit. */
   asOfMs: number | null
 }

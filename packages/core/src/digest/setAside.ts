@@ -1,6 +1,5 @@
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { sessionsOf } from '../effort'
-import type { EffortGate } from '../effort'
 import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, CriticalPowerFit, Sport } from '../types'
 import { plainCurve } from './bestCurve'
@@ -12,26 +11,19 @@ import { keepWork } from './judgedWork'
 import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
-import { gatedThreshold } from './effortGating'
 import { effortsCount } from './effortTrust'
 import { floorEffortsOf } from './thresholdFloor'
+import { rideLibraryOf } from './thresholdEfforts'
 import { thresholdTimeline } from './thresholdTimeline'
-import { effortGatesOf } from './twentyMinute'
 
-/**
- * Each sport's threshold fit of a library as the analysis reports it, null where it has none, refuses it, or the
- * effort gate (when given) says its best 20 minutes was not hard.
- */
+/** Each sport's threshold fit of a library as the analysis reports it, null where it has none or refuses it. */
 function reportedFits(
   { runBest, rideMetabolic }: BestCurves,
   massKg: number,
-  gates?: Record<Sport, EffortGate>,
 ): Record<Sport, CriticalPowerFit | null> {
-  const run = criticalPowerOutcome(plainCurve(runBest), { minWPrime: wPrimeFloor('run', massKg) })
-  const ride = criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) })
   return {
-    run: gates === undefined ? run.fit : gatedThreshold(gates.run, run, null, null).fit,
-    ride: gates === undefined ? ride.fit : gatedThreshold(gates.ride, ride, null, null).fit,
+    run: criticalPowerOutcome(plainCurve(runBest), { minWPrime: wPrimeFloor('run', massKg) }).fit,
+    ride: criticalPowerOutcome(rideMetabolic, { minWPrime: wPrimeFloor('ride', massKg) }).fit,
   }
 }
 
@@ -53,7 +45,7 @@ export function libraryThresholds(
   return {
     fit: reportedFits(curves, settings.massKg),
     floor: floorEffortsOf(ordered, masses, bikeModel, null),
-    thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, null),
+    thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, null),
   }
 }
 
@@ -97,35 +89,28 @@ export function judgeHeartRate(
       setAside,
     )
   const { kappa, lnKappaSe } = cross
+  // The rides are read once, and the line fitted once over them: the timeline's windows and every period read it.
+  const rides = rideLibraryOf(ordered, masses, bikeModel, gate, setAside, effort.referenceHr.ride)
   const judgement: HeartRateJudgement = {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
     observedMaxHr: { run: observedMax.run, ride: observedMax.ride },
     observedMaxSource: { run: observedSource.run, ride: observedSource.ride },
     effortReference: effort,
-    fit: reportedFits(
-      curves,
-      settings.massKg,
-      effortGatesOf(
-        ordered,
-        masses,
-        bikeModel,
-        gate,
-        { run: plainCurve(curves.runBest), ride: curves.rideMetabolic },
-        effort,
-        setAside,
-      ),
-    ),
+    fit: reportedFits(curves, settings.massKg),
     floor: floorEffortsOf(ordered, masses, bikeModel, gate),
     sessions: {
       run: sessionsOfSport('run'),
       ride: sessionsOfSport('ride'),
     },
-    thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, settings.massKg, gate, {
-      referenceHr: effort.referenceHr,
-      referenceReading: effort.reading,
-      setAside,
-    }),
+    thresholdTimeline: thresholdTimeline(
+      ordered,
+      masses,
+      bikeModel,
+      gate,
+      { referenceHr: effort.referenceHr, setAside },
+      rides,
+    ),
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },
     calibration: kappa === null ? null : { kappa, lnKappaSe },
     rideGate: gate,
@@ -140,6 +125,7 @@ export function judgeHeartRate(
     heart,
     gate,
     cross,
+    rideLine: rides.line,
   })
   return judgement
 }

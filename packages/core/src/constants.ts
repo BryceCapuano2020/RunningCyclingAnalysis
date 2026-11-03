@@ -147,12 +147,6 @@ export const UNEVEN_REST_FRACTION = 0.85
 export const SHORT_FIT_MAX_S = 600
 
 /**
- * How far above a floor, as a fraction, the fit on the bests of 3 to 10 min must sit to be the top of a range. Any closer and
- * the short bests were as easy as the long ones, so a range would look exact while saying nothing the floor does not. A judgement.
- */
-export const SHORT_FIT_MIN_MARGIN = 0.02
-
-/**
  * The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. The
  * analysis prices these in every combine, so each added here costs one sort of the 4,000 draws there.
  */

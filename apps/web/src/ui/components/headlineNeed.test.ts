@@ -15,7 +15,13 @@ const SHORT = [{ durationS: 300, value: 6, activityId: 'a', startIndex: 0 }]
 const EASY_20_MIN = [...SHORT, { durationS: 1200, value: 3, activityId: 'a', startIndex: 0 }]
 
 function held(overrides: Parameters<typeof makeResult>[0]) {
-  return makeResult({ activities: THREE_EACH, runCp: null, rideCp: null, ...overrides })
+  return makeResult({
+    activities: THREE_EACH,
+    runCp: null,
+    rideCp: null,
+    rideThreshold: null,
+    ...overrides,
+  })
 }
 
 describe('heldAction', () => {
@@ -47,7 +53,13 @@ const ASK = `one ride of 20 min or more with a power meter, or with ${CLIMB_NEED
 
 describe('heldAction for rides known by the model’s watts', () => {
   const noMeter = (overrides: Parameters<typeof makeResult>[0]) =>
-    makeResult({ activities: THREE_EACH_NO_METER, runCp: null, rideCp: null, ...overrides })
+    makeResult({
+      activities: THREE_EACH_NO_METER,
+      runCp: null,
+      rideCp: null,
+      rideThreshold: null,
+      ...overrides,
+    })
 
   it('names the power meter and the climb, not just a longer ride, since the rides on file are long already', () => {
     const action = heldAction(noMeter({ runCurve: EASY_20_MIN, rideCurve: SHORT }), undefined)
@@ -71,6 +83,7 @@ describe('heldAction for rides known by the model’s watts', () => {
         activities: mixed,
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: EASY_20_MIN,
         rideCurve: SHORT,
       }),
@@ -93,6 +106,7 @@ describe('heldAction for rides known by the model’s watts', () => {
         activities: flat,
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: EASY_20_MIN,
         rideCurve: SHORT,
       }),
@@ -110,6 +124,7 @@ describe('heldAction for rides known by the model’s watts', () => {
         activities: flat,
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: EASY_20_MIN,
         rideCurve: SHORT,
       }),
@@ -131,6 +146,7 @@ describe('heldReason for rides known by the model’s watts', () => {
         activities,
         runCp: null,
         rideCp: null,
+        rideThreshold: null,
         runCurve: EASY_20_MIN,
         rideCurve: SHORT,
       }),

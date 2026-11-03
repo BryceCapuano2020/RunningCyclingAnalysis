@@ -6,10 +6,10 @@
 /**
  * Why a critical-power fit is refused. 'missing': the efforts are not there, under four in the window
  * or none reaching 20 minutes. 'shape': the efforts are there but show no threshold, being flat, below
- * the least work capacity, or with an intercept above their lowest effort. 'effort': a fit that passed
- * both, withheld because the best 20 minutes was not a hard effort (the effort gate, set by the analysis).
+ * the least work capacity, or with an intercept above their lowest effort. A fit that passed both is not withheld
+ * for the effort behind it: the effort gate is a label, not a veto.
  */
-export type CriticalPowerRefusal = 'missing' | 'shape' | 'effort'
+export type CriticalPowerRefusal = 'missing' | 'shape'
 
 export interface CriticalPowerFit {
   /** Asymptote, in the unit of the fitted curve. */
