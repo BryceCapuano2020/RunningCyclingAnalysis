@@ -27,22 +27,38 @@ describe('fusing the power estimate with heart rate', () => {
     expect(fuse(POWER, 0.025, heartRate(1.2)).value / POWER).toBeGreaterThan(1.17)
   })
 
-  it('follows heart rate less than half the way down', () => {
-    // Heart rate says 20% under the power estimate; the power estimate is a floor, so the answer moves under it only a little.
-    const down = fuse(POWER, 0.025, heartRate(0.8)).value / POWER
-    expect(down).toBeGreaterThan(0.9)
-    expect(down).toBeLessThan(1)
+  it('never goes under the answer without heart rate, however low heart rate reads', () => {
+    for (const powerError of [0.025, 0.06]) {
+      const alone = fuse(POWER, powerError, null)
+      for (const share of [0.5, 0.8, 0.95, 1, 1.02]) {
+        const fused = fuse(POWER, powerError, heartRate(share))
+        expect(fused.value, `${share} at ${powerError}`).toBeGreaterThanOrEqual(alone.value)
+        expect(fused.low).toBeGreaterThanOrEqual(alone.low)
+        expect(fused.high).toBeGreaterThanOrEqual(alone.high)
+      }
+    }
+    // Heart rate 20% under the power estimate changes nothing at all.
+    expect(fuse(POWER, 0.025, heartRate(0.8))).toEqual(fuse(POWER, 0.025, null))
   })
 
-  it('gives way further when the power estimate is the less sure', () => {
-    const sure = fuse(POWER, 0.025, heartRate(0.8)).value
-    const unsure = fuse(POWER, 0.06, heartRate(0.8)).value
-    expect(unsure).toBeLessThan(sure - 5)
+  it('keeps the upper end power alone allows when heart rate lifts the answer', () => {
+    const alone = fuse(POWER, 0.025, null)
+    // Heart rate 6% over the power estimate, closely read: the answer rises 1.6 points.
+    const lifted = fuse(POWER, 0.025, heartRate(1.06, 0.02))
+    expect(lifted.value).toBeGreaterThan(alone.value + 0.01 * POWER)
+    expect(lifted.low).toBeGreaterThan(alone.low)
+    // A range drawn round the heart-rate reading alone would end 7 points lower.
+    expect(lifted.high).toBeGreaterThanOrEqual(alone.high)
+    // And a large lift still carries its range up with it.
+    const far = fuse(POWER, 0.025, heartRate(1.2, 0.03))
+    expect(far.value).toBeGreaterThan(1.15 * POWER)
+    expect(far.high).toBeGreaterThan(alone.high)
+    expect(far.low).toBeLessThan(far.value)
   })
 
-  it('stays near the power estimate where heart rate agrees', () => {
+  it('stays at the answer without heart rate where heart rate agrees with the power estimate', () => {
     const { value, low, high } = fuse(POWER, 0.025, heartRate(1))
-    expect(Math.abs(value / POWER - 1)).toBeLessThan(0.02)
+    expect(value).toBe(fuse(POWER, 0.025, null).value)
     expect(low).toBeLessThan(value)
     expect(high).toBeGreaterThan(value)
   })

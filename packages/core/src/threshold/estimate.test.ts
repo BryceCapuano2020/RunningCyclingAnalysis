@@ -100,7 +100,7 @@ describe('the ride threshold', () => {
     expect(withHeartRate.heartRate).toMatchObject({ value: expect.closeTo(RIDER.threshold, 3) })
   })
 
-  it('does not let a strap reading 20 bpm high on every ride pull it far under the power estimate', () => {
+  it('does not let a strap reading 20 bpm high on every ride pull the answer under the power-only one', () => {
     const lib = library(RIDER, [
       ...rides(4, (id, over) => allOutRide(RIDER, id, { ...over, offsetBpm: 20 }), 'a'),
       ...rides(
@@ -111,10 +111,11 @@ describe('the ride threshold', () => {
       ),
     ])
     const result = run(lib)
-    // Heart rate alone says 20% under the power estimate.
+    const alone = run(lib, null)
+    // Heart rate alone says 20% under the power estimate; it may lift the answer and never lowers it.
     expect(result.heartRate).toMatchObject({ value: expect.closeTo(0.8 * RIDER.threshold, 0) })
-    expect(result.value).toBeLessThan(result.efforts.value)
-    expect(result.value).toBeGreaterThan(0.9 * result.efforts.value)
+    expect(result.value).toBe(alone.value)
+    expect(result.value).toBeGreaterThan(result.efforts.value)
   })
 
   it('is the same in any unit of power', () => {

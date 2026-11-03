@@ -10,7 +10,7 @@ The ride threshold was a critical-power fit over the 3 to 20 min bests, vetoed w
 best 20 min was not hard. A rider whose hard efforts are short climbs and whose 20 and 30 min bests are tempo
 got "at least <best 30 min>": a floor 10 to 15% under the truth, with chips saying so. The new rule: the
 headline is the best estimate from every effort in the window. Heart rate is a second estimate that can lift
-the answer, never a veto. A best effort is proof of a floor; heart rate is a hint.
+the answer and never lowers it, so it is never a veto. A best effort is proof of a floor; heart rate is a hint.
 
 ## The estimate
 
@@ -48,11 +48,12 @@ All values are in the ride curve's unit (gross metabolic W/kg at the prior-mean 
    highest block. Tukey-biweight mean as in step 2. Its relative error is `hypot(1 / sqrt(sum w), 3.5%)`: a
    wrong max heart rate shifts every heart-rate estimate at once, so that part never averages away.
 6. **Fusion.** The power estimate is a floor: threshold = power * (1 + g), g >= 0, prior
-   `0.7 * Exponential(mean 2.5%) + 0.3 * Uniform(0, 25%)`, smeared by the power estimate's relative error.
-   Heart rate, if there is a heart-rate estimate, is a Gaussian likelihood around it. On a grid from -15% to
-   +45% in 0.2% steps (g in 0.25% steps), the answer is the posterior median, the range its 10th and 90th
-   percentiles. So heart rate can lift the answer a long way and can pull it under the power estimate only
-   within the power estimate's own noise. With no heart rate the answer is the power estimate plus about 3%.
+   `0.7 * Exponential(mean 2.5%) + 0.3 * Uniform(0, 25%)`, smeared by the power estimate's relative error. On a
+   grid from -15% to +45% in 0.2% steps (g in 0.25% steps) that gives a posterior from power alone. If there is a
+   heart-rate estimate, a second posterior takes it as a Gaussian likelihood around it. **Heart rate may raise the
+   answer and never lowers it.** The answer is the higher of the two medians, and the range the higher of each pair of
+   10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
+   answer). With no heart rate the answer is the power estimate plus about 3%.
 
 Null when the window has no ride effort of 3 min or more, and when no ride has any weight to give (an age that is
 not a number, or so old the recency weight underflows). A single ride is enough: it is the estimate, with the
@@ -76,37 +77,49 @@ riders whose true threshold lies between the answer's low and high (which should
 
 | Case                              | This estimate   | Power alone (no heart rate) |
 | --------------------------------- | --------------- | --------------------------- |
-| Clean heart rate                  | -2.3%, 81%, 61% | +0.2%, 92%, 96%             |
-| A bad strap on 1 ride in 4        | -2.2%, 83%, 61% | +0.1%, 92%, 96%             |
-| Max heart rate off by about 8 bpm | -2.3%, 58%, 42% | +0.2%, 92%, 96%             |
-| Flat (optical) heart rate         | -0.1%, 86%, 87% | +0.2%, 92%, 96%             |
-| Never all-out (tempo only)        | -5.2%, 48%, 48% | -10.6%, 0%, 63%             |
+| Clean heart rate                  | +0.4%, 94%, 96% | +0.2%, 92%, 96%             |
+| A bad strap on 1 ride in 4        | +0.4%, 94%, 96% | +0.1%, 92%, 96%             |
+| Max heart rate off by about 8 bpm | +0.9%, 82%, 83% | +0.2%, 92%, 96%             |
+| Flat (optical) heart rate         | +0.2%, 92%, 96% | +0.2%, 92%, 96%             |
+| Never all-out (tempo only)        | -5.2%, 49%, 81% | -10.6%, 0%, 63%             |
 | No heart rate                     | +0.2%, 92%, 96% | +0.2%, 92%, 96%             |
 
 The old rules of thumb on the same riders, median error and share within 5%: best 30 min -11% and 0% (-9% and 0%
 for tempo only), 95% of best 20 min -7% and 40% (-14% and 0% for tempo only).
 
 The heart-rate line is refused for 0.3% of riders in the clean case (3 of 1,200, all `flat`), 1% with the bad strap,
-and 88% with the optical strap, where the climb is a third of what it should be.
+and 88% with the optical strap, where the climb is a third of what it should be and the answer is the power-only one.
+Heart rate alone, before fusion, reads 3.5% under the truth in the clean case with a spread of 5.2%, where it states
+3.6%: it is biased low, so under lift-only fusion it can miss a lift but cannot cause a drop. Seeds 11 to 14 agree within 4
+points on every cell.
 
 The test asserts, per case: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum
 heart rate off by about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 4 points
 above the power-only answer; no heart rate within 2% on the median and 85% within 5%; in every case nearer the truth
-than both rules of thumb and a range that holds the truth for 65% to 97% of riders; under 2% of clean-heart-rate riders
-refused; and, with a clean, partly bad or optical heart rate, a within-5% share no more than 3 points under the
-power-only answer.
+than both rules of thumb, never under the answer without heart rate, and a range that holds the truth for 65% to 97%
+of riders; under 2% of clean-heart-rate riders refused; and, with a clean, partly bad or optical heart rate, a
+within-5% share no more than 3 points under the power-only answer.
 
-**Open: five of those bounds fail with these riders.** Heart rate costs more than it gives where power alone is
-already right. Within 5%, the clean case reads 81% (bound 85%) against 92% for power alone, the bad strap 83% (bound
-85%) and the wrong maximum 58% (bound 65%). The cost against power alone is 11 points in the clean case, 9 with the
-bad strap and 6 with the optical one (bound 3). The range holds the truth for 61% of clean riders, 61% with the bad
-strap, 42% with the wrong maximum and 48% for tempo only (bound 65%). Heart rate alone, before fusion, reads 3.5%
-under the truth in the clean case with a spread of 5.2%, where the fusion allows 3.6%. The fusion is not changed
-here; the failing bounds are what a change has to meet.
+Rejected:
 
-Rejected: letting heart rate judge how all-out each effort was (a strap reading high made tempo rides look
-maximal and pulled the answer down 7 to 9%), and shrinking the allowance when several strong rides agree
-(tempo riders cluster near their top too, so it cut the lift they need).
+- Letting heart rate judge how all-out each effort was (a strap reading high made tempo rides look maximal and
+  pulled the answer down 7 to 9%).
+- Shrinking the allowance when several strong rides agree (tempo riders cluster near their top too, so it cut the
+  lift they need).
+- **Two-sided fusion**, where heart rate is a likelihood that can also pull the answer under the power-only one
+  (within the power estimate's noise). On the realistic riders heart rate alone reads 3.5% under the truth with a
+  spread of 5.2% against a stated 3.6%, so it dragged good answers down. Clean: -2.3% median, 81% within 5% against
+  92% for power alone, range holding the truth for 61%; bad strap 83%; wrong maximum 58% and 42%; tempo only 48%.
+  Five bounds failed. Lift-only meets all of them.
+- Lift-only with the range taken from whichever posterior gives the answer, not elementwise: the heart-rate
+  posterior is narrow round a reading that sits 3% low, so the tempo-only range held the truth for 57% of riders
+  (bound 65%). Elementwise holds 81%.
+- Lift-only with the heart-rate error set to its observed spread (stated 5.2% instead of 3.6%). Wrong maximum
+  improves (85% within 5% against 82%), but tempo only falls to -6.8% (lift 3.7 points against power alone, bound 4)
+  and 34% within 5%.
+- Removing each ride's offset from the pooled one before sliding its efforts to threshold heart rate. Heart rate
+  alone got worse, not better: spread 5.4% against 5.2%, bias -4.0% against -3.5%, and no cell of the clean, strap
+  or wrong-maximum cases moved by more than a point.
 
 ## Interface
 
@@ -163,6 +176,8 @@ export function rideThreshold(
   more such blocks before stuck rides were left out, fewer after), `flat` and `steep` (the climb from half to full
   threshold power; `flat` also where power never moved within a ride, so no slope can be read), `no-efforts` (a sound
   line, but no steady 8 to 30 min effort near it). An excluded ride is not a refusal: it only lowers `efforts`.
+- **Heart rate lifts and never lowers.** The range is the elementwise higher of the two posteriors' percentiles,
+  which keeps the upper end power alone allows. `low <= value <= high` still holds (each is a max of pairs that satisfy it).
 - **Medians keep the element at index `floor(n / 2)`, not core's `medianInPlace`**, which averages the two middle values
   of an even count. The ride-offset guard and the spread were tuned on the element, and the average moved simulated
   answers by up to 30%.

@@ -45,15 +45,8 @@ function smearedPrior(powerError: number): Float64Array {
   return prior
 }
 
-/**
- * The power estimate is a floor: a best is at most what the rider can do, and usually a few percent under. So the threshold is
- * the power estimate times (1 + g) with g at least 0, smeared by the power estimate's own relative error `powerError`.
- * Heart rate, where there is an estimate, is a Gaussian likelihood around it with relative error `heartRateError`. The
- * answer is the median of what both allow on a grid of -15% to +45% around the power estimate, the range its 10th and 90th
- * percentiles. Heart rate can lift it a long way, and pull it under the power estimate only within the power estimate's own
- * noise. With no heart rate the answer is the power estimate plus about 3%.
- */
-export function fuse(
+/** The posterior of power * (1 + x) on the grid, and its median and 10th and 90th percentiles. */
+function posterior(
   power: number,
   powerError: number,
   heartRate: { value: number; relativeError: number } | null,
@@ -76,4 +69,28 @@ export function fuse(
     return grid[grid.length - 1]!.value
   }
   return { value: at(0.5), low: at(0.1), high: at(0.9) }
+}
+
+/**
+ * The power estimate is a floor: a best is at most what the rider can do, and usually a few percent under. So the threshold is
+ * the power estimate times (1 + g) with g at least 0, smeared by the power estimate's own relative error `powerError`. On a
+ * grid of -15% to +45% around the power estimate that gives a posterior from power alone. Heart rate, where there is an
+ * estimate, makes a second: a Gaussian likelihood around it with its own relative error. Heart rate may raise the answer and
+ * never lowers it: the answer is the higher of the two medians, and the range the higher of each pair of 10th and 90th
+ * percentiles, so the upper end that power alone allows stays (heart rate reads under the truth often enough that a range
+ * narrowed round it missed the rider who never went all out). With no heart rate the answer is the power estimate plus about 3%.
+ */
+export function fuse(
+  power: number,
+  powerError: number,
+  heartRate: { value: number; relativeError: number } | null,
+): Fused {
+  const alone = posterior(power, powerError, null)
+  if (heartRate === null) return alone
+  const lifted = posterior(power, powerError, heartRate)
+  return {
+    value: Math.max(alone.value, lifted.value),
+    low: Math.max(alone.low, lifted.low),
+    high: Math.max(alone.high, lifted.high),
+  }
 }

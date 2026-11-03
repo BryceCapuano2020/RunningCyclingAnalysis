@@ -28,6 +28,8 @@ interface Row {
   rule95: number[]
   /** How many riders got no heart-rate estimate, by reason. */
   refused: Map<string, number>
+  /** How many riders got an answer under the one without heart rate. */
+  lowered: number
 }
 
 function run(scenario: Scenario): Row {
@@ -37,6 +39,7 @@ function run(scenario: Scenario): Row {
     best30: [],
     rule95: [],
     refused: new Map(),
+    lowered: 0,
   }
   for (const rider of simRiders(scenario, RIDERS, SEED)) {
     const error = (value: number) => (value / rider.threshold - 1) * 100
@@ -48,7 +51,9 @@ function run(scenario: Scenario): Row {
     }
     const result = rideThreshold(rider.efforts, rider.blocks, rider.thresholdHr)!
     judge(row.estimate, result)
-    judge(row.powerOnly, rideThreshold(rider.efforts, [], null)!)
+    const alone = rideThreshold(rider.efforts, [], null)!
+    judge(row.powerOnly, alone)
+    if (result.value < alone.value) row.lowered++
     row.best30.push(error(best(1800)))
     row.rule95.push(error(0.95 * best(1200)))
     if ('refused' in result.heartRate) {
@@ -125,6 +130,10 @@ describe('the ride threshold on simulated riders', () => {
       expect.soft(share, scenario.name).toBeGreaterThanOrEqual(0.65)
       expect.soft(share, scenario.name).toBeLessThanOrEqual(0.97)
     }
+  })
+
+  it('never answers under the answer without heart rate', () => {
+    for (const scenario of ALL) expect(of(scenario).lowered, scenario.name).toBe(0)
   })
 
   it('refuses the heart-rate line for few riders whose strap works', () => {
