@@ -1,5 +1,5 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { EffortCheck, Sport } from '@rca/core/types'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
@@ -7,11 +7,8 @@ import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_MEANING } from '../sports'
 import { thresholdBasisLine, thresholdDetail } from '../thresholdBasis'
-import { bestLabel, floorBasisLine, floorThreshold } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
-import { thresholdSpan } from '../thresholdRange'
 import { gradeLine, needsWeight } from './thresholdTileBare'
-import { RangeTrack } from './RangeTrack'
 import { StatTile } from './StatTile'
 import { ThresholdBasis } from './ThresholdBasis'
 
@@ -24,8 +21,6 @@ export interface ThresholdTileProps {
   grade: GradeOutcome | null
   /** False while no body weight is entered; a ride's figures then wait for it. */
   weighted: boolean
-  /** The heart-rate check of the headline effort, which a run's fit is read against in the tile's detail; null or absent says nothing of effort. */
-  effort?: EffortCheck | null
   /** True where the page's headline already says what the threshold needs (a library of one sport), so the tile does not repeat it. */
   needInHeadline?: boolean
   /** True where the levels row under the meter already gives each sport's level and grade: the tile then keeps only the effort. */
@@ -48,11 +43,9 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 
 /**
  * A sport's threshold as a tile: the figure at display size, the line that says what it rests on, and how it was worked out
- * one tap down; a run's fit also draws its error range as a shape, and the tile gives the level its best 20 minutes grades
- * at. A run's threshold the fit refused shows the sport's floor under the chip "At least", with the one best it rests on,
- * or, with no best of 20 min, its longest as "Best 12 min"; only a sport that holds no best to show says what it needs. A ride's
- * figures wait for the weight, which the tile says in its place. A tile carries a chip only for a floor or a best: a threshold
- * is an estimate by its name, and how hard the effort was is in its detail.
+ * one tap down; the tile gives the level its best 20 minutes grades at. It is one number for a run as for a ride, with no chip
+ * and no range shape: a threshold is an estimate by its name, and its range is in the detail. A sport with no effort of 3 min or
+ * more says what it needs. A ride's figures wait for the weight, which the tile says in its place.
  */
 export function ThresholdTile({
   sport,
@@ -61,7 +54,6 @@ export function ThresholdTile({
   massKg,
   grade,
   weighted,
-  effort: effortCheck = null,
   needInHeadline = false,
   levelShown = false,
   defineTerm = true,
@@ -81,21 +73,15 @@ export function ThresholdTile({
       </StatTile>
     )
   }
-  const fitted = threshold(result, sport, massKg, units)
-  const hero = fitted ?? floorThreshold(result, sport, massKg, units)
-  const definition = fitted === null ? defined : undefined
+  const hero = threshold(result, sport, massKg, units)
   const records = sportRecords(result, sport, massKg, units).filter((record) =>
     CHIP_DURATIONS_S.includes(record.durationS),
   )
-  const effort = headlineEffort(sport, records)
-  const basis = fitted === null ? floorBasisLine(result, sport) : thresholdBasisLine(result, sport)
-  const detail = fitted === null ? null : thresholdDetail(result, sport, massKg, units, effortCheck)
-  const best = fitted === null ? bestLabel(result, sport) : null
-  const line = gradeLine(sport, grade, effort, levelShown)
+  const line = gradeLine(sport, grade, headlineEffort(sport, records), levelShown)
   if (hero === null) {
     if (needInHeadline && line === null) return null
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={definition}>
+      <StatTile sport={sport} heading={NAME[sport]} definition={defined}>
         {needInHeadline ? null : (
           <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
         )}
@@ -103,41 +89,22 @@ export function ThresholdTile({
       </StatTile>
     )
   }
-  const found = fitted === null ? null : thresholdSpan(result, sport, massKg, units)
-  // A range whose ends are one number, as when the fit has no spread, has nothing to draw and nowhere to put the ring.
-  const span =
-    found === null ||
-    found.ends[0].text === found.ends[1].text ||
-    found.ends[0].cp === found.ends[1].cp
-      ? null
-      : found
-  // Where the threshold sits between the two ends: the middle of a fit's spread, an end for the run to an uneven fit.
-  const at =
-    span === null ? 0.5 : (span.centreCp - span.ends[0].cp) / (span.ends[1].cp - span.ends[0].cp)
   return (
     <StatTile
       sport={sport}
       heading={NAME[sport]}
-      definition={definition}
-      basis={fitted === null ? (best === null ? 'floor' : 'recorded') : undefined}
-      basisLabel={best ?? undefined}
       figure={{
         number: hero.number,
         unit: hero.unit,
         ...(hero.sub === null ? {} : { side: hero.sub }),
       }}
-      track={
-        span === null ? null : (
-          <RangeTrack
-            ends={[span.ends[0].text, span.ends[1].text]}
-            at={at}
-            label="range"
-            spread={span.spread}
-          />
-        )
-      }
     >
-      <ThresholdBasis sport={sport} basis={basis} detail={detail} className="stat-tile__source" />
+      <ThresholdBasis
+        sport={sport}
+        basis={thresholdBasisLine(result, sport)}
+        detail={thresholdDetail(result, sport, massKg, units)}
+        className="stat-tile__source"
+      />
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
     </StatTile>
   )

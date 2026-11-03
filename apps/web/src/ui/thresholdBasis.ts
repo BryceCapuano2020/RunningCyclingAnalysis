@@ -1,48 +1,56 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { EffortCheck, Sport } from '@rca/core/types'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { HeartRateRefusal, ThresholdEstimate } from '@rca/core/threshold'
 import { plural } from './components/plural'
-import { effortChipText } from './effortCaveat'
 import { formatDayMonth } from './format/date'
 import { effortLabel } from './records'
-import { THRESHOLD_EFFORT_TEXT } from './sports'
 import { thresholdRange } from './thresholdRange'
+import { thresholdEstimate } from './thresholdEstimate'
+
+/** The word for one of the activities a threshold rests on, and what an estimated effort of that sport is on. */
+const ACTIVITY: Record<Sport, { noun: string; estimated: string }> = {
+  run: { noun: 'run', estimated: '' },
+  ride: { noun: 'ride', estimated: ', on estimated watts' },
+}
 
 /**
- * The line under a ride's threshold that says what it rests on: how many rides, and the strongest effort among them with its
- * length and day, such as "From 5 rides. Strongest: 12 min on 4 Mar.", and where its watts are estimated, without a power
- * meter, "Strongest: 12 min on 4 Mar, on estimated watts." A run's fit rests on its curve, not on a count of runs, so it has
- * no such line. Null without an estimate.
+ * The line under a threshold's figure that says what it rests on: how many rides or runs, and the strongest effort among them
+ * with its length and day, such as "From 5 runs. Strongest: 12 min on 4 Mar.", and where a ride's watts are estimated, without a
+ * power meter, "Strongest: 12 min on 4 Mar, on estimated watts." Where an hour the athlete did sets the figure, that hour is the
+ * strongest effort. Null without an estimate.
  */
-function rideBasis(result: AnalysisResult): string | null {
-  const estimate = result.rideThreshold
+export function thresholdBasisLine(result: AnalysisResult, sport: Sport): string | null {
+  const estimate = thresholdEstimate(result, sport)
   if (!estimate) return null
   const { rides, strongest } = estimate.efforts
   const activity = result.activities.find((candidate) => candidate.id === strongest.activityId)
   const day = activity === undefined ? '' : ` on ${formatDayMonth(activity.startMs)}`
-  const watts = strongest.estimated ? ', on estimated watts' : ''
-  return `From ${plural(rides, 'ride')}. Strongest: ${effortLabel(strongest.durationS)}${day}${watts}.`
+  const guess = strongest.estimated ? ACTIVITY[sport].estimated : ''
+  return `From ${plural(rides, ACTIVITY[sport].noun)}. Strongest: ${effortLabel(strongest.durationS)}${day}${guess}.`
 }
 
-/** The line under a threshold's figure, or null where the sport's figure needs none. Keyed by Sport. */
-const BASIS_OF: Record<Sport, (result: AnalysisResult) => string | null> = {
-  run: () => null,
-  ride: rideBasis,
-}
-
-export function thresholdBasisLine(result: AnalysisResult, sport: Sport): string | null {
-  return BASIS_OF[sport](result)
-}
-
-/** Why heart rate was not used, as the clause after "Here it was not used:", for each reason the estimator gives. */
-const HEART_RATE_WHY: Record<HeartRateRefusal, string> = {
-  'no-heart-rate': 'no ride has both a power meter and heart rate',
-  'few-blocks': 'too little steady riding has both heart rate and power',
-  stuck: 'your heart rate does not move with power',
-  flat: 'your heart rate rises too little with power to read',
-  steep: 'your heart rate rises too steeply with power to read',
-  'no-efforts': 'no steady effort sat close to your threshold heart rate',
+/**
+ * Why heart rate was not used, as the clause after "Here it was not used:", for each reason the estimator gives. The
+ * `no-heart-rate` reason is a sport's own: no ride has both a power meter and heart rate, no run has heart rate.
+ */
+const HEART_RATE_WHY: Record<Sport, Record<HeartRateRefusal, string>> = {
+  run: {
+    'no-heart-rate': 'no run has heart rate',
+    'few-blocks': 'too little steady running has heart rate',
+    stuck: 'your heart rate does not move with pace',
+    flat: 'your heart rate rises too little with pace to read',
+    steep: 'your heart rate rises too steeply with pace to read',
+    'no-efforts': 'no steady effort sat close to your threshold heart rate',
+  },
+  ride: {
+    'no-heart-rate': 'no ride has both a power meter and heart rate',
+    'few-blocks': 'too little steady riding has both heart rate and power',
+    stuck: 'your heart rate does not move with power',
+    flat: 'your heart rate rises too little with power to read',
+    steep: 'your heart rate rises too steeply with power to read',
+    'no-efforts': 'no steady effort sat close to your threshold heart rate',
+  },
 }
 
 /**
@@ -54,21 +62,21 @@ export function heartRateLifted(estimate: ThresholdEstimate): boolean {
 }
 
 /** What heart rate did to this estimate: raised it, was read and did not raise it, or the one plain reason it was not used. */
-function heartRateSentence(estimate: ThresholdEstimate): string {
+function heartRateSentence(estimate: ThresholdEstimate, sport: Sport): string {
   const { heartRate } = estimate
-  if ('refused' in heartRate) return `Here it was not used: ${HEART_RATE_WHY[heartRate.refused]}.`
+  if ('refused' in heartRate) {
+    return `Here it was not used: ${HEART_RATE_WHY[sport][heartRate.refused]}.`
+  }
   const from = plural(heartRate.efforts, 'effort')
   return heartRateLifted(estimate)
     ? `Here it raised the answer, from ${from}.`
     : `Here it did not raise the answer, from ${from}.`
 }
 
-/** What a detail is made from: the result, and the sport page's body weight, units and the headline effort's heart-rate check. */
-interface DetailInput {
-  result: AnalysisResult
-  massKg: number
-  units: UnitSystem
-  effort: EffortCheck | null | undefined
+/** The method in one sentence, in the sport's own words. */
+const METHOD: Record<Sport, string> = {
+  run: 'Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under an hour you ran.',
+  ride: 'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under an hour you rode.',
 }
 
 /** A sentence per fact, left out where there is none, as one text. */
@@ -77,46 +85,23 @@ function sentences(parts: readonly (string | null)[]): string {
 }
 
 /**
- * What the ride estimate is and how it was worked out, for the line one tap down: the range, the method in a sentence, what
- * heart rate can do and what it did here (raised the answer, did not, or why it was not used).
- */
-function rideDetail({ result, massKg, units }: DetailInput): string | null {
-  const estimate = result.rideThreshold
-  if (!estimate) return null
-  const range = thresholdRange(result, 'ride', massKg, units)
-  return sentences([
-    range === null ? null : `${range}.`,
-    'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top.',
-    'Heart rate can raise the answer and never lowers it.',
-    heartRateSentence(estimate),
-  ])
-}
-
-/**
- * How hard a run's best 20 min was, by heart rate: the reading the headline chip used to carry, behind the fit it qualifies.
- * Null where heart rate says nothing of it, since the fit alone is said by the Method page and the term's definition.
- */
-function runDetail({ result, effort }: DetailInput): string | null {
-  const reading = effortChipText('run', effort)
-  if (!result.runCp || reading === null) return null
-  return sentences([`Fitted to your best ${THRESHOLD_EFFORT_TEXT} efforts.`, reading.detail])
-}
-
-const DETAIL_OF: Record<Sport, (input: DetailInput) => string | null> = {
-  run: runDetail,
-  ride: rideDetail,
-}
-
-/**
- * The text a threshold's detail opens: a ride's range, method and what heart rate did; a run's fit and how hard its best
- * 20 min was. Null where the sport has no threshold, or nothing to say beyond what the figure and the Method page say.
+ * What the threshold is and how it was worked out, for the line one tap down: the range, the method in a sentence, what heart
+ * rate can do and what it did here (raised the answer, did not, or why it was not used). The same for a run and a ride. Null
+ * without an estimate.
  */
 export function thresholdDetail(
   result: AnalysisResult,
   sport: Sport,
   massKg: number,
   units: UnitSystem,
-  effort: EffortCheck | null | undefined,
 ): string | null {
-  return DETAIL_OF[sport]({ result, massKg, units, effort })
+  const estimate = thresholdEstimate(result, sport)
+  if (!estimate) return null
+  const range = thresholdRange(result, sport, massKg, units)
+  return sentences([
+    range === null ? null : `${range}.`,
+    METHOD[sport],
+    'Heart rate can raise the answer and never lowers it.',
+    heartRateSentence(estimate, sport),
+  ])
 }
