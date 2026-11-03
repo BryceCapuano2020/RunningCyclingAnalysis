@@ -4,7 +4,7 @@ import { indoorNeedLine } from './indoorCopy'
 import { THRESHOLD_NEEDS_TEXT } from './sports'
 
 /**
- * The line in a threshold's place when the sport holds no effort of 3 min or more: what to add. A sport whose only
+ * The line in a threshold's place when the sport holds no effort its estimate reads (3 min or more for a ride, 8 for a run): what to add. A sport whose only
  * activities were indoors, where an indoor effort holds no best, says so with the count instead of asking for an effort.
  * A sport with an effort never reaches this line: its threshold is the number.
  */

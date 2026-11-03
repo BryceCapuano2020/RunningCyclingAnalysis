@@ -181,7 +181,7 @@ describe('ThresholdPanel for a run', () => {
     expect(note).not.toHaveTextContent(/heart rate|not used|raise/i)
   })
 
-  it('shows the estimate whatever the critical-power fit, and asks for a 3 min effort with no estimate', () => {
+  it('shows the estimate whatever the critical-power fit, and asks for an 8 min effort with no estimate', () => {
     const fitless = makeResult({
       activities: [makeActivity({ id: 'run-1', sport: 'run' })],
       runCp: null,
@@ -193,7 +193,7 @@ describe('ThresholdPanel for a run', () => {
     unmount()
     const empty = panel('run', ran(null))
     expect(empty.container.querySelector('.sport-hero__number')).toBeNull()
-    expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^How this was worked out/ })).toBeNull()
   })
 })

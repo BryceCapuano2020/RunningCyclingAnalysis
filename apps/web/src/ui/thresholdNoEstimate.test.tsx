@@ -18,7 +18,14 @@ afterEach(cleanup)
 /** A best the gate once handed a card as its floor: in the fit's unit, a 30 min effort. */
 const THIRTY = { durationS: 1800, value: 3.4 }
 const MASS_KG = 70
-const NEEDS = 'Needs an effort of 3 min or longer'
+/** The bests each sport holds when it has no estimate: a run's longest is 7 min, under its 8; a ride's are 20 and 30 min. */
+const BESTS: Record<Sport, { durationS: number; value: number }[]> = {
+  run: [
+    { durationS: 300, value: 3.9 },
+    { durationS: 420, value: 3.7 },
+  ],
+  ride: [{ durationS: 1200, value: 3.7 }, THIRTY],
+}
 
 /** The sport's own number for a metabolic value, as the card prints it. */
 function numberOf(sport: Sport, value: number): string {
@@ -52,9 +59,9 @@ function panel(sport: Sport, result: AnalysisResult) {
   )
 }
 
-/** A sport with bests of 20 and 30 min and a gate that holds a floor, but no threshold estimate: it still shows no number. */
+/** A sport with bests that give no threshold estimate and a gate that holds a 30 min floor: it still shows no number. */
 function noEstimate(sport: Sport) {
-  const curve = [curvePoint(1200, 3.7, 'a'), curvePoint(1800, THIRTY.value, 'a')]
+  const curve = BESTS[sport].map(({ durationS, value }) => curvePoint(durationS, value, 'a'))
   return makeResult({
     runCp: null,
     rideCp: null,
@@ -68,28 +75,33 @@ function noEstimate(sport: Sport) {
   })
 }
 
-describe.each(['run', 'ride'] as const)('a %s with no threshold estimate', (sport) => {
+/** Each sport with the shortest effort, in minutes, that its estimate reads: a run's from 8 min, a ride's from 3. */
+describe.each([
+  ['run', 8],
+  ['ride', 3],
+] as const)('a %s with no threshold estimate', (sport, minutes) => {
+  const needs = `Needs an effort of ${minutes} min or longer`
   const heading = `Threshold ${sport === 'run' ? 'pace' : 'power'}`
 
   it('has no figure, floor or best label to show, whatever the gate holds', () => {
     const result = noEstimate(sport)
     expect(hasThreshold(result, sport)).toBe(false)
     expect(threshold(result, sport, MASS_KG, 'metric')).toBeNull()
-    expect(thresholdNeedsLine(result, sport)).toBe(NEEDS)
+    expect(thresholdNeedsLine(result, sport)).toBe(needs)
   })
 
-  it('asks for the one 3 min effort on the tile and the page, with no chip', () => {
+  it(`asks for the one ${minutes} min effort on the tile and the page, with no chip`, () => {
     const { container } = tile(sport, noEstimate(sport))
     expect(container.querySelector('.stat-tile__number')).toBeNull()
     expect(container.textContent).not.toMatch(/At least|Best \d+ min|From your best/)
-    expect(screen.getByText(NEEDS)).toBeInTheDocument()
+    expect(screen.getByText(needs)).toBeInTheDocument()
     cleanup()
     const page = panel(sport, noEstimate(sport))
     expect(page.container.querySelector('.sport-hero__number')).toBeNull()
     // The heading is plain: not "at least", and not "best 30 min".
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
     expect(page.container.textContent).not.toMatch(/At least|Best \d+ min|From your best/)
-    expect(screen.getByText(NEEDS)).toBeInTheDocument()
+    expect(screen.getByText(needs)).toBeInTheDocument()
   })
 })
 

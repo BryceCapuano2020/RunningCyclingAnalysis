@@ -154,7 +154,7 @@ export function activityNames(activities: ActivitySummary[]): Record<string, str
 /**
  * Estimated threshold in the sport's own unit; null without one. Each sport's is the best estimate from every one of its
  * activities' efforts (`runThreshold`, `rideThreshold`: the strongest effort of each, scaled to an hour and averaged), which
- * is null only where the sport has no effort of 3 min or more.
+ * is null only where the sport has no effort its table reads (3 min for a ride, 8 for a run).
  *
  * A ride's threshold is shown in watts, and the estimate works in metabolic W/kg at the prior-mean
  * efficiency. Converting back with that same efficiency returns the estimated watts exactly, since the
@@ -190,7 +190,7 @@ const THRESHOLD_OF: Record<Sport, Threshold> = {
   },
 }
 
-/** Whether a sport has a threshold: it has an effort of 3 min or more. */
+/** Whether a sport has a threshold: it has an effort its table reads (3 min or more for a ride, 8 for a run). */
 export function hasThreshold(result: AnalysisResult, sport: Sport): boolean {
   return thresholdEstimate(result, sport) !== null
 }

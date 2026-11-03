@@ -11,8 +11,8 @@ import { ThresholdBasis } from './ThresholdBasis'
 /**
  * The threshold, as the page's answer: its name, the figure at display size, and under it the line that says what it rests
  * on, with how it was worked out one tap down. It is one number for a run as for a ride, with no chip and no range beside it,
- * since the name says it is a threshold; its range, the method and what heart rate did are in the detail. With no effort of
- * 3 min or more, the place says what to add.
+ * since the name says it is a threshold; its range, the method and what heart rate did are in the detail. With no effort its
+ * estimate reads (3 min for a ride, 8 for a run), the place says what to add.
  */
 export function ThresholdPanel({
   sport,

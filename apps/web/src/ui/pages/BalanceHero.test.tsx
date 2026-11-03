@@ -533,7 +533,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={null}
       />,
     )
-    expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
   })
 
   it('leaves the file chooser to the empty sport card, so the answer offers none', () => {

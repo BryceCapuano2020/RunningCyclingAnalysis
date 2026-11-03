@@ -252,11 +252,11 @@ describe('ThresholdTile', () => {
       )
     })
 
-    it('asks a run with no estimate for the same 3 min effort, not a longer one', () => {
+    it('asks a run with no estimate for an 8 min effort, not the 3 min a ride needs', () => {
       const { container } = renderTile('run', makeResult({ runCp: null, runCpRefusal: 'missing' }))
       expect(container.querySelector('.stat-tile__number')).toBeNull()
       expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        'Needs an effort of 3 min or longer',
+        'Needs an effort of 8 min or longer',
       )
     })
   })

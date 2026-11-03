@@ -183,6 +183,10 @@ describe('BalanceTiles', () => {
     )
     const tile = screen.getByRole('article', { name: 'Run threshold' })
     expect(tile.querySelector('.stat-tile__line')).toHaveTextContent(
+      'Needs an effort of 8 min or longer',
+    )
+    const rideTile = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(rideTile.querySelector('.stat-tile__line')).toHaveTextContent(
       'Needs an effort of 3 min or longer',
     )
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)

@@ -1,4 +1,4 @@
-import { CP_FIT_MIN_S } from '@rca/core/constants'
+import { DURATION_TABLES } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
@@ -95,17 +95,17 @@ export const THRESHOLD_HEADING: Record<Sport, string> = {
   ride: 'Threshold power',
 }
 
-/** The shortest effort a threshold is estimated from, as copy: "3". */
-const EFFORT_MIN_TEXT = `${CP_FIT_MIN_S / 60}`
+/** The shortest effort a sport's threshold is estimated from, as copy: "3" for a ride, "8" for a run. */
+const effortMinText = (sport: Sport) => `${DURATION_TABLES[sport].shortestS / 60}`
 
 /**
  * What a threshold's place says when the sport holds no effort the estimate can use: the one thing to add. Any other sport has
- * a number there, so this is the only line that asks for anything. Both sports' estimates need an effort as short as the
- * fit's shortest.
+ * a number there, so this is the only line that asks for anything. Each sport needs an effort as long as the shortest its
+ * duration table reads (`DURATION_TABLES`).
  */
 export const THRESHOLD_NEEDS_TEXT: Record<Sport, string> = {
-  run: `Needs an effort of ${EFFORT_MIN_TEXT} min or longer`,
-  ride: `Needs an effort of ${EFFORT_MIN_TEXT} min or longer`,
+  run: `Needs an effort of ${effortMinText('run')} min or longer`,
+  ride: `Needs an effort of ${effortMinText('ride')} min or longer`,
 }
 
 /**

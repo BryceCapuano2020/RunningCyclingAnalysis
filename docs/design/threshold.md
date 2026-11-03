@@ -235,8 +235,8 @@ the range, the records and the share card show one number.
 - **One pace, no chip, no shape.** The figure is the estimate as a flat pace in the page's units. There is no "Estimated" or "At
   least" chip and no range track; the name, "Threshold pace", says it is an estimate. `RangeTrack`, `StatTile`'s basis chip and
   track, the gate's floor (`thresholdFloor.ts`), the uneven-fit range and the "Best 12 min" heading are gone, because a run with an
-  effort of 3 min or more has an estimate and no fit refusal can take it away. With no such effort the place reads "Needs an
-  effort of 3 min or longer", as a ride's does.
+  effort of 8 min or more has an estimate and no fit refusal can take it away. With no such effort, including a run whose
+  longest best is between 3 and 8 min, the place reads "Needs an effort of 8 min or longer"; a ride's reads 3 min.
 - **The basis line** is "From 4 runs. Strongest: 40 min on 4 Mar.", from `efforts.rides` (the activity count; the field keeps the
   ride's name) and `efforts.strongest`. Where an hour the athlete ran sets the figure, that hour is the strongest effort. A run's
   efforts are never estimated, so the line never adds ", on estimated watts".

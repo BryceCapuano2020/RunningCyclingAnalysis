@@ -44,8 +44,8 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 /**
  * A sport's threshold as a tile: the figure at display size, the line that says what it rests on, and how it was worked out
  * one tap down; the tile gives the level its best 20 minutes grades at. It is one number for a run as for a ride, with no chip
- * and no range shape: a threshold is an estimate by its name, and its range is in the detail. A sport with no effort of 3 min or
- * more says what it needs. A ride's figures wait for the weight, which the tile says in its place.
+ * and no range shape: a threshold is an estimate by its name, and its range is in the detail. A sport with no effort its
+ * estimate reads (3 min for a ride, 8 for a run) says what it needs. A ride's figures wait for the weight, which the tile says in its place.
  */
 export function ThresholdTile({
   sport,

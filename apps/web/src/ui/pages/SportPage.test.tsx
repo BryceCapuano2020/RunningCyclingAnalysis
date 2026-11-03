@@ -705,10 +705,10 @@ describe('SportPage', () => {
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
   })
 
-  it('asks for one effort of 3 min or longer, with no number, when the sport holds no effort', () => {
+  it('asks for one effort of 8 min or longer, with no number, when the sport holds no effort', () => {
     renderPage('run', makeResult({ activities: [morningRun], runCp: null }))
 
-    expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
@@ -736,11 +736,11 @@ describe('SportPage', () => {
     expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
   })
 
-  it('asks for an effort of 3 min or longer, with no number, when the longest best is under 3 min', () => {
-    const brief = [{ durationS: 120, value: 6, activityId: morningRun.id, startIndex: 0 }]
+  it('asks for an effort of 8 min or longer, with no number, when the longest best is under 8 min', () => {
+    const brief = [{ durationS: 420, value: 6, activityId: morningRun.id, startIndex: 0 }]
     renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: brief }))
 
-    expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
