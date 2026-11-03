@@ -172,8 +172,9 @@ describe('thresholdTimeline against the library', () => {
       libraries,
     )
     const lines = { run: libraries.run.line, ride: libraries.ride.line }
+    // A run's threshold reads pace alone, so its line is refused whatever the run reference heart rate is.
+    expect(lines.run).toEqual({ refused: 'no-heart-rate' })
     let compared = 0
-    let withHeartRate = 0
     timeline.run.forEach((step, i) => {
       if (i % 4 !== 0) return
       const expected = thresholdsOf(windowOf(step.fromMs), inputs, effort.referenceHr, lines).run
@@ -181,13 +182,13 @@ describe('thresholdTimeline against the library', () => {
       else {
         expect(step.fit!.cp).toBeCloseTo(expected.value, 8)
         expect(step.fit!.cpSe).toBeCloseTo(expected.value * expected.efforts.relativeError, 8)
-        if ('value' in expected.heartRate) withHeartRate++
+        expect(expected.heartRate).toEqual({ refused: 'no-heart-rate' })
+        expect(expected.value).toBe(expected.efforts.value)
       }
       compared++
     })
     expect(compared).toBeGreaterThan(20)
     expect(judged.rideGate).not.toBeNull()
-    expect(withHeartRate).toBeGreaterThan(0)
   })
 
   it('has, for every week, the ride threshold of the rides of its half year, as the analysis reads them', () => {

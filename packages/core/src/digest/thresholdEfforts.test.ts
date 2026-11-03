@@ -270,26 +270,34 @@ describe('the run threshold of a set of digests', () => {
     expect(result.high).toBeGreaterThan(result.value)
   })
 
-  it('reads the line of its own sport: a run’s threshold ignores the rides’ blocks', () => {
-    const rides = [0, 3, 6, 9, 12, 15].map((day, i) => ride(`r${i}`, day, 270 + i, 900))
-    const alone = runThresholdOf(runs, 190)!
-    const mixed = runThresholdOf([...runs, ...rides], 190)!
-    expect(mixed.efforts.rides).toBe(6)
-    expect(mixed.efforts.value).toBeCloseTo(alone.efforts.value, 8)
+  it('reads pace alone: heart rate is refused for a run whatever its reference maximum, so the answer is the power estimate', () => {
+    const result = runThresholdOf(runs, 190)!
+    expect(result.heartRate).toEqual({ refused: 'no-heart-rate' })
+    expect(result.value).toBe(result.efforts.value)
+    // The same runs with no reference maximum at all read the same.
+    expect(runThresholdOf(runs, null)).toEqual(result)
   })
 
-  it('has a line fitted over the runs’ blocks, and none where there is no reference heart rate', () => {
-    const libraries = librariesOf(runs, inputsOf(none), { run: 190, ride: 190 })
-    expect(libraries.run.activities).toHaveLength(6)
-    expect(libraries.ride.activities).toHaveLength(0)
-    const without = librariesOf(runs, inputsOf(none), { run: null, ride: null })
-    expect(without.run.line).toEqual({ refused: 'no-heart-rate' })
+  it('fits a heart-rate line over the rides’ blocks and none over the runs’, with both references given', () => {
+    const rides = [0, 3, 6, 9, 12, 15].map((day, i) => ride(`r${i}`, day, 270 + i, 900))
+    const both = librariesOf([...runs, ...rides], inputsOf(none), { run: 190, ride: 190 })
+    expect(both.run.activities).toHaveLength(6)
+    expect(both.run.line).toEqual({ refused: 'no-heart-rate' })
+    expect(both.ride.line).not.toEqual({ refused: 'no-heart-rate' })
+    // Rides are still read against their line: a reference lets their heart rate be asked of.
+    const thresholds = thresholdsOf([...runs, ...rides], inputsOf(none), { run: 190, ride: 190 })
+    expect(thresholds.run!.heartRate).toEqual({ refused: 'no-heart-rate' })
+    expect(thresholds.ride!.heartRate).not.toEqual({ refused: 'no-heart-rate' })
+    // A run's threshold ignores the rides' blocks and a ride's the runs'.
+    expect(thresholds.run!.efforts.rides).toBe(6)
+    expect(thresholds.run!.efforts.value).toBeCloseTo(runThresholdOf(runs, 190)!.efforts.value, 8)
   })
 
   it('is the analysis’s run threshold, with the fit still reported for the curve chart', () => {
     const analysed = combine(runs, SETTINGS)
     expect(analysed.runThreshold).not.toBeNull()
     expect(analysed.runThreshold!.efforts.rides).toBe(6)
+    expect(analysed.runThreshold!.heartRate).toEqual({ refused: 'no-heart-rate' })
     expect(analysed.runCp).toBeDefined()
     expect(analysed.rideThreshold).toBeNull()
   })

@@ -185,11 +185,14 @@ dropped, as the best curve drops it); the heart rate of a run set aside is none;
 `hrBlocks`, whose value is the run's mean gross metabolic W/kg (`possibleRunWkg`), in the same unit. Nothing in a run is
 estimated. Ages count from the newest activity of any sport in the set, as the ride's do.
 
-**Heart rate** is read as a ride's is: the same line, guards and fusion, with threshold heart rate 0.9 of the run reference
-maximum (`judged.referenceHr.run`). Run digests carry the blocks in the run's unit, so reading them took no new estimator.
-Nothing here says whether real runners' heart rate lines pass the guards (the climb from half to full threshold is asked to
-fall between 20 and 70 bpm, and a runner's gross metabolic rate at half threshold is a slow walk, so the steep guard may
-refuse more runners than riders); a refusal gives the power-only answer, never a wrong one.
+**Runs read pace only, for now.** The estimator can read heart rate for a run as it does for a ride: run digests carry the 5 min
+blocks in the run's unit, so the same line, guards and fusion took no new code. It was built that way first, and on a real
+library the lift it gave read a run threshold well over the pace-only answer, which was right. So `thresholdReferenceOf`
+(`digest/thresholdLibraries.ts`, a table keyed by `Sport`) gives a run no threshold heart rate: `runThreshold.heartRate` is
+`{ refused: 'no-heart-rate' }`, no run line is fitted (which saves its cost too), and the answer is the power estimate, the
+pace-only one. A run's heart rate still gates and labels what it did before (the effort gate, set-aside); it just no longer
+raises the number. Turning heart rate on for runs is one entry in that table, once a line is found that holds for runners. The
+simulation below therefore runs without heart rate.
 
 **The zones' timeline, the evidence rule and the headline** read `runThreshold` where they read `runCp`. A zone window is
 `runThreshold` over its runs, as a `{ cp, cpSe }` step, with the same standard error rule as a ride's. A window with any run
@@ -369,8 +372,9 @@ names the hour then.
 - **The table is a parameter, not a branch.** `PreparedRide` holds the scaled best and the variance of its ratio, worked out with
   the sport's `DurationTable` when the activity is prepared, so the power estimate, the line and the fusion read no sport.
   Rides keep `durationRatio` and `ratioSpread` exactly: their answers move only where the hour floor binds.
-- **Runs read their own sport's activities only.** The line, the threshold heart rate (the run reference), the blocks and the
-  efforts are the runs'; ages count from the newest activity of any sport, as a ride's do.
+- **Runs read their own sport's activities only.** The efforts are the runs'; ages count from the newest activity of any
+  sport, as a ride's do. A run's heart-rate blocks and its reference are still prepared the ride's way, and read only if a
+  sport's entry in `thresholdReferenceOf` turns heart rate on.
 - **The run threshold replaces the critical-power fit as the headline everywhere a headline reads one**: the zones' run steps,
   the evidence rule (`answer/evidence.ts`, with the same 20 min condition as a ride's) and, in the screens, the card, the tile,
   the share card, the records and the Method page. `runCp` is kept for the curve chart and the race predictions.

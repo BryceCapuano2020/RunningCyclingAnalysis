@@ -7,7 +7,7 @@ import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
 import { agesOf, thresholdHeartRate } from './thresholdEfforts'
 import type { ActivityEfforts, ThresholdLibrary } from './thresholdEfforts'
-import { eachSport, librariesOf } from './thresholdLibraries'
+import { eachSport, librariesOf, thresholdReferenceOf } from './thresholdLibraries'
 import { THRESHOLD_WINDOW_WEEKS } from './thresholdTimelineTypes'
 import type { ThresholdFit, ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
 import { weekEndFor } from '../calendar'
@@ -137,7 +137,7 @@ export function thresholdTimeline(
     const basis = thresholdBasis(
       activities.map((each) => each.prepared),
       line,
-      thresholdHeartRate(effort.referenceHr[sport]),
+      thresholdHeartRate(thresholdReferenceOf(sport, effort.referenceHr)),
     )
     return stepsOf(placed, windowReader(activities, all, basis))
   })
