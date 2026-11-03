@@ -23,6 +23,11 @@ export const RUN_SHARE = {
   slow: { weight: 0.1894393, rate: 0.012778 },
   fast: { weight: 0.2989558, rate: 0.1932605 },
 } as const
+/**
+ * Daniels and Gilbert's oxygen cost of running at v metres a minute, ml/kg/min: constant + linear * v + square * v^2. It is
+ * convex in speed, where the run curve's gross metabolic W/kg is linear in it, so a share of VO2max is not a share of W/kg.
+ */
+export const RUN_VO2 = { constant: -4.6, linear: 0.182258, square: 0.000104 } as const
 /** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
 export const HOUR_S = 3600
 

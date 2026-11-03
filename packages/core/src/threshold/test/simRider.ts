@@ -79,7 +79,7 @@ export function simRiders(
     const allOut = (s: number) => {
       const shortness = s <= 1200 ? Math.log(1200 / s) / Math.log(1200 / 180) : 0
       const longness = s > 1200 ? Math.log(s / 1200) / Math.log(3) : 0
-      return threshold * profile.table.ratio(s) * (1 + tilt * shortness) * (1 - fade * longness)
+      return profile.table.held(threshold, s) * (1 + tilt * shortness) * (1 - fade * longness)
     }
     const maxHr = uni(175, 200)
     const trueThresholdHr = maxHr * uni(0.87, 0.93) // the estimate assumes 0.90

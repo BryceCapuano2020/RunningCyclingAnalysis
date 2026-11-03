@@ -291,7 +291,7 @@ describe('an hour done as a floor under the answer', () => {
     const run20 = (id: string, level: number) => ({
       activityId: id,
       durationS: 1200,
-      value: level * DURATION_TABLES.run.ratio(1200),
+      value: DURATION_TABLES.run.held(level, 1200),
       heartRate: null,
       ageDays: 0,
       estimated: false,
@@ -309,7 +309,7 @@ describe('a runner’s table', () => {
   const at = (table: 'run' | 'ride', durationS: number, threshold: number, id = 'a') => ({
     activityId: id,
     durationS,
-    value: threshold * DURATION_TABLES[table].ratio(durationS),
+    value: DURATION_TABLES[table].held(threshold, durationS),
     heartRate: null,
     ageDays: 0,
     estimated: false,
@@ -318,10 +318,9 @@ describe('a runner’s table', () => {
   it('reads a runner’s bests back to the threshold they were drawn from, and not a rider’s', () => {
     const efforts = [300, 600, 1200].map((s, i) => at('run', s, 16, `r${i}`))
     expect(runThreshold(efforts, [], null)!.value).toBeCloseTo(16, 8)
-    // The same bests read with a rider's table are a little over: a runner holds more of the hour's pace for 20 min.
+    // The same bests read with a rider's table are not read back: a runner's scale is Daniels' cost of speed, not a multiple.
     const asRider = rideThreshold(efforts, [], null)!.value
-    expect(asRider).toBeGreaterThan(16.1)
-    expect(asRider).toBeLessThan(17.5)
+    expect(Math.abs(asRider - 16)).toBeGreaterThan(0.02)
   })
 
   it('reads a rider’s bests back with the rider’s table, as it always did', () => {

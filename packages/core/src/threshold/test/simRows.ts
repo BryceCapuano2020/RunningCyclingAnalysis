@@ -84,8 +84,11 @@ export const coverage = (arm: Arm) => arm.covered / arm.errors.length
 export const refusedShare = (row: Row) =>
   [...row.refused.values()].reduce((total, n) => total + n, 0) / row.riders
 
-/** The rows of a table, as docs/design/threshold.md prints them: the answer and power alone, then each rule of thumb. */
-export function tableLine(name: string, row: Row): string {
+/**
+ * The rows of a table, as docs/design/threshold.md prints them: the answer and, unless `powerAlone` is off (a sport that reads no
+ * heart rate, where it is the answer), power alone, then each rule of thumb.
+ */
+export function tableLine(name: string, row: Row, powerAlone = true): string {
   const pct = (x: number) => `${Math.round(100 * x)}%`
   const sign = (x: number) => `${x < 0 ? '-' : '+'}${Math.abs(x).toFixed(1)}%`
   const cell = (arm: Arm) =>
@@ -94,5 +97,6 @@ export function tableLine(name: string, row: Row): string {
     ([rule, errors]) => `${rule} ${sign(median(errors))}, ${pct(within5(errors))}`,
   )
   const why = [...row.refused].map(([reason, n]) => `${reason} ${n}`).join(', ')
+  if (!powerAlone) return `| ${name} | ${cell(row.estimate)} | ${old.join(' | ')} |`
   return `| ${name} | ${cell(row.estimate)} | ${cell(row.powerOnly)} | ${old.join('; ')} | refused ${pct(refusedShare(row))} (${why}) |`
 }

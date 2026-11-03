@@ -14,9 +14,9 @@ got "at least <best 30 min>": a floor 10 to 15% under the truth, with chips sayi
 headline is the best estimate from every effort in the window. Heart rate is a second estimate that can lift
 the answer and never lowers it, so it is never a veto. A best effort is proof of a floor; heart rate is a hint.
 
-The run threshold was critical speed fitted to the 3 to 20 min bests. For a runner who gives it all that reads about 2% over
-the pace held for an hour (the table under "Runs"): the pace of a 40 min effort, beside a ride threshold that means an hour, so
-the two could not be set against each other. And where a window held no hard run it was a fit to easy runs, which could read
+The run threshold was critical speed fitted to the 3 to 20 min bests. For a runner who gives it all that reads over the pace
+held for an hour (about 1% on the simulated runners under "Runs", and the more the better the runner's endurance): near the
+pace of a 40 min effort, beside a ride threshold that means an hour, so the two could not be set against each other. And where a window held no hard run it was a fit to easy runs, which could read
 slower than a 60 min run the athlete did in that same window. Runs now get the ride's method with a running duration table, so
 both thresholds mean an hour.
 
@@ -173,11 +173,20 @@ with a runner's table; `AnalysisResult.runThreshold: ThresholdEstimate | null` c
 **The duration table.** Daniels and Gilbert's share of VO2max a runner holds for `m` minutes,
 `pct(m) = 0.8 + 0.1894393 e^(-0.012778 m) + 0.2989558 e^(-0.1932605 m)`, over the share held for an hour:
 `r_run(t) = pct(t / 60) / pct(60)`. It is 1.229 at 5 min, 1.137 at 10, 1.073 at 20, 1.029 at 40 and 1.000 at 60, so a run of 20
-min at 1.073 times the pace of the hour is an all-out run. It is applied to the run curve's unit, gross metabolic W/kg
-(`runCentralWkg`), since a share of VO2max is a share of gross metabolic rate. The efforts are the same 3 to 60 min bests, with
-the same near-top weight, recency and Tukey mean. The spread of the ratio between runners starts as the ride's (smallest at 20
-min, growing with the log of the distance either side): the second simulation below doubles the runners' departure from the
-curve and the stated range still holds for 89% of them, so there is no evidence for a wider one.
+min at 1.073 times the oxygen cost of the hour's pace is an all-out run. It is a ratio of oxygen cost, and it is applied to
+the cost of a speed, not to the run curve's gross metabolic W/kg. Daniels' cost, `VO2(v) = -4.60 + 0.182258 v + 0.000104 v^2`
+(`v` in m/min), is convex in speed, where the curve's W/kg is linear in it (a resting part plus a cost per metre); dividing
+W/kg by `r_run` reads the hour's pace too slow, by about 7% for a 3 min best, 5% for 5 min, 3% for 10, 2% for 20 and under 1%
+for 40, nearly whatever the speed. So each run effort is taken through speed: the flat speed of its W/kg
+(`metabolicToFlatSpeed`), Daniels' cost of that speed, that cost over `r_run(t)`, back to speed (the positive root of the
+quadratic) and back to W/kg (`runThresholdOf`, `threshold/durationTables.ts`). A scaled value depends on the effort's value as
+well as its length, so the run's best is chosen effort by effort (`bestOf`, through `DurationTable.threshold(value,
+durationS)`); a ride's is still its effort over a ratio of its length alone, and its answers do not move. The efforts are the
+same 3 to 60 min bests, with the same near-top weight, recency and Tukey mean. The spread of the ratio between runners starts as
+the ride's (smallest at 20 min, growing with the log of the distance either side): the second simulation below doubles the
+runners' departure from the curve and the stated range still holds for most of them, so there is no evidence for a wider one.
+Check (`durationTables.test.ts`): an effort at the speed Daniels gives for `t` minutes at a VO2max scales to the speed he gives
+for 60 min at that VO2max within 0.5%, and the 5 km and 10 km of one runner in his published tables read the same hour speed.
 
 **The inputs** (`digest/runEfforts.ts`) are the run best curve's own: each curve point of a counted run from 3 to 60 min,
 priced by `runCentralWkg` (a treadmill run holds no best, and a point past the world-record ceiling for its duration is
@@ -202,46 +211,40 @@ where its runs hold nothing past 3 min at all.
 ### Evidence for runs
 
 Simulated runners with a known 1-hour pace (1,200 per case, seeded; `runThreshold.sim.test.ts`; `RECORD=1` prints these rows).
-The efforts are drawn from the Daniels curve with an endurance tilt per runner (a sprinter's or a diesel's: 4% at 3 min and 2%
-at 60, the riders' spread), 0 to 7% short of all-out in the hard runs, the same runs and heart-rate scenarios as the riders'
-(easy days at 68 to 80% of threshold, the share a gross metabolic rate that includes rest leaves). The two last cases double the
-tilt. Cells as above: the median error, the share within 5%, the share whose range holds the truth.
+The efforts are drawn from the Daniels curve as the estimate reads it (the inverse of `runThresholdOf`: the hour's cost times
+`r_run(t)`, back to speed and W/kg), with an endurance tilt per runner (a sprinter's or a diesel's: 4% at 3 min and 2% at 60, the
+riders' spread), 0 to 7% short of all-out in the hard runs, the same runs as the riders' (easy days at 68 to 80% of threshold, the
+share a gross metabolic rate that includes rest leaves). No case has heart rate, since runs read none. The two last cases double
+the tilt. Cells: the median error, the share within 5%, the share whose range holds the truth; then the median error and the share
+within 5% of the rules of thumb the estimate replaces.
 
-| Case                              | This estimate   | Power alone (no heart rate) | Critical speed, 3 to 20 min | Best 30 min |
-| --------------------------------- | --------------- | --------------------------- | --------------------------- | ----------- |
-| Clean heart rate                  | -2.1%, 88%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
-| A bad strap on 1 run in 4         | -2.2%, 89%, 96% | -3.3%, 76%, 96%             | -0.5%, 70%                  | -7.6%, 16%  |
-| Max heart rate off by about 8 bpm | -1.6%, 77%, 84% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
-| Flat (optical) heart rate         | -3.2%, 79%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
-| Never all-out (tempo only)        | -5.9%, 42%, 87% | -11.7%, 0%, 78%             | -9.0%, 0%                   | -9.4%, 0%   |
-| No heart rate                     | -3.2%, 79%, 96% | -3.2%, 79%, 96%             | -0.5%, 71%                  | -7.8%, 17%  |
-| Always all-out                    | +0.2%, 96%, 83% | -0.1%, 95%, 85%             | +2.3%, 57%                  | -5.5%, 44%  |
-| Always all-out, no heart rate     | -0.1%, 95%, 85% | -0.1%, 95%, 85%             | +2.3%, 57%                  | -5.5%, 44%  |
-| Endurance varying twice as much   | -1.8%, 82%, 89% | -3.2%, 70%, 89%             | -0.7%, 69%                  | -7.7%, 17%  |
-| Twice as much, no heart rate      | -3.2%, 70%, 89% | -3.2%, 70%, 89%             | -0.7%, 69%                  | -7.7%, 17%  |
+| Case                               | This estimate   | Critical speed, 3 to 20 min | Best 30 min |
+| ---------------------------------- | --------------- | --------------------------- | ----------- |
+| Hard runs 0 to 7% short of all-out | -3.1%, 79%, 96% | -1.9%, 69%                  | -8.6%, 6%   |
+| Always all-out                     | -0.1%, 94%, 84% | +1.1%, 66%                  | -6.7%, 28%  |
+| Never all-out (tempo only)         | -11.7%, 0%, 82% | -9.0%, 0%                   | -9.4%, 0%   |
+| Endurance varying twice as much    | -3.2%, 71%, 88% | -2.0%, 68%                  | -8.5%, 6%   |
+| Twice as much, always all-out      | -0.0%, 86%, 73% | +1.1%, 63%                  | -6.7%, 28%  |
 
 What the table says, and does not:
 
-- The estimate reads the same as the ride's on the same cases, which is expected: the simulation draws a runner from the table the
-  estimator inverts, so it tests the method and the weights, not whether Daniels and Gilbert's curve fits real runners. That
-  is not tested here, and a runner whose curve differs from it by more than the tilt moves the answer by that much.
-- Critical speed over the 3 to 20 min bests reads +2.3% for a runner who gives it all (the pace of about 40 min, which the
-  table puts at 1.029), and sits near zero on the median for runners 0 to 7% short only because the two errors cancel. It reads
-  57% to 71% of those runners within 5%, against 77% to 96% for this estimate (70% to 82% at twice the tilt, where critical
-  speed's share is 69%). For a runner who never goes all-out it reads 9% low and none within 5%, against 42% for this estimate.
-- The best 30 min is 8 to 9% low, as a rider's is.
-- Heart rate lifts a runner who never goes all-out by 5.8 points (a rider's lift is 6.6 after the hour floor).
-- The hour floor changes nothing in these cases: the best hour of a simulated runner is a tempo or easy day, below the
-  estimate. The unit tests pin it (`powerEstimate.test.ts`, `estimate.test.ts`, `thresholdEfforts.test.ts`).
+- The simulation draws a runner from the curve the estimator inverts, so it tests the method and the weights, not whether Daniels
+  and Gilbert's curve fits real runners. That is not tested here, and a runner whose curve differs from it by more than the tilt
+  moves the answer by that much.
+- Critical speed over the 3 to 20 min bests reads +1.1% for a runner who gives it all (near the pace of about 40 min), and close to
+  zero on the median for runners 0 to 7% short only because the two errors cancel. It reads 63% to 69% of these runners within 5%,
+  against 71% to 94% for this estimate.
+- The best 30 min is 7 to 9% low, as a rider's is.
+- With no heart rate to confirm a rise, a runner who never goes all out is read about 12% low and none within 5%, where critical
+  speed (9% low) is no nearer. That is the cost of leaving heart rate out for runs: the first version of this simulation, with
+  heart rate, lifted such a runner by about 6 points, and on a real library the same lift read runs far too fast.
+- The hour floor changes nothing in these cases: the best hour of a simulated runner is a tempo or easy day, below the estimate.
+  The unit tests pin it (`powerEstimate.test.ts`, `estimate.test.ts`).
 
-The test asserts: clean heart rate within 3% on the median and 85% within 5%; a bad strap 85%; a maximum heart rate off by
-about 8 bpm 65%; optical heart rate 70%; tempo only a median no lower than -7% and at least 5 points above the power-only
-answer; no heart rate at most 4% low on the median and 75% within 5%; always all-out within 1% on the median and 85% within 5%
-without heart rate, at most 2% high and 85% with it, and nearer the hour pace than critical speed; in every usual case more
-runners within 5% than critical speed and than the best 30 min, and a median nearer the truth than the best 30 min; a range
-that holds the truth for 65% to 97% of runners in every case; twice the tilt 75% within 5% with heart rate and 65% without;
-never under the answer without heart rate; under 2% of clean-heart-rate runners refused; with a clean or partly bad heart rate
-a within-5% share at least 5 points over the power-only answer, and with an optical one no more than 3 points under it.
+The test asserts: hard runs short of all-out at most 4% low on the median and 75% within 5%; always all-out within 1% on the median
+and 90% within 5%; in each case but never all-out more runners within 5% than critical speed and than the best 30 min, and a median
+nearer the truth than the best 30 min; a range that holds the truth for 65% to 97% of runners in every case; twice the tilt 65%
+within 5% (80% when always all-out); and never all-out between 8% and 14% low with under 2% within 5%.
 
 ## Interface
 
@@ -274,7 +277,8 @@ export interface ThresholdBlock {
   value: number
 }
 export interface DurationTable {
-  ratio(durationS: number): number // a best over this is the threshold it implies
+  threshold(value: number, durationS: number): number // the threshold a best implies: a ride's value over a ratio, a run's through speed
+  held(threshold: number, durationS: number): number // the inverse: the best an all-out athlete holds for this long
   spread(durationS: number): number // how far the ratio varies between athletes, as a share
 }
 export const DURATION_TABLES: Record<Sport, DurationTable>

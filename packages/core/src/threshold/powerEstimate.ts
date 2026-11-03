@@ -16,7 +16,7 @@ import type { ThresholdEffort } from './types'
 export interface RideEstimate {
   activityId: string
   durationS: number
-  /** The threshold this effort implies: its value over the duration ratio. */
+  /** The threshold this effort implies (`DurationTable.threshold`): for a ride its value over the duration ratio. */
   value: number
   ageDays: number
   estimated: boolean

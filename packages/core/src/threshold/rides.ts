@@ -6,12 +6,12 @@ import type { RideEffort, ThresholdBlock, ThresholdEffort } from './types'
 /** The ride's table, for the helpers that read a flat list of efforts and are not told another sport's. */
 const RIDE_TABLE = DURATION_TABLES.ride
 
-/** A ride's strongest effort, scaled to the threshold it implies (its value over the duration ratio). */
+/** A ride's strongest effort, scaled to the threshold it implies (`DurationTable.threshold`). */
 export interface RideBest {
   durationS: number
   value: number
   estimated: boolean
-  /** The variance of the duration ratio at that duration (`ratioSpread` squared): the ride's weight is over it. */
+  /** The variance of the duration ratio at that duration (`DurationTable.spread` squared): the ride's weight is over it. */
   variance: number
 }
 
@@ -46,12 +46,17 @@ export interface PreparedRide {
 const counts = (e: RideEffort): boolean =>
   e.durationS >= SHORTEST_EFFORT_S && e.value > 0 && Number.isFinite(e.value)
 
-/** The ride's highest effort scaled by the sport's table; efforts under 3 min and values that are not positive and finite are ignored. */
+/**
+ * The ride's highest effort scaled by the sport's table, each effort on its own (a run's scaling depends on the effort's value as
+ * well as its length); efforts under 3 min, values that are not positive and finite, and efforts the table cannot scale are
+ * ignored.
+ */
 export function bestOf(efforts: readonly RideEffort[], table: DurationTable): RideBest | null {
   let best: RideBest | null = null
   for (const e of efforts) {
     if (!counts(e)) continue
-    const value = e.value / table.ratio(e.durationS)
+    const value = table.threshold(e.value, e.durationS)
+    if (!(value > 0) || !Number.isFinite(value)) continue
     if (best === null || value > best.value) {
       best = {
         durationS: e.durationS,
@@ -119,7 +124,7 @@ export function prepareFlat(
         : own.efforts.find(
             (e) =>
               e.durationS === ride.best!.durationS &&
-              e.value / table.ratio(e.durationS) === ride.best!.value,
+              table.threshold(e.value, e.durationS) === ride.best!.value,
           )
     ages.push(Math.max(0, strongest?.ageDays ?? 0))
   }

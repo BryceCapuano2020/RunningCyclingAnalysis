@@ -183,7 +183,7 @@ describe('an hour done as a floor', () => {
   })
 
   it('floors a runner’s answer as well, with the runner’s table for the rest', () => {
-    const runs = ['a', 'b', 'c'].map((id) => ride(id, 14 * DURATION_TABLES.run.ratio(1200)))
+    const runs = ['a', 'b', 'c'].map((id) => ride(id, DURATION_TABLES.run.held(14, 1200)))
     const result = powerEstimate([...runs, hour('long', 15)], DURATION_TABLES.run)!
     expect(result.value).toBe(15)
   })
