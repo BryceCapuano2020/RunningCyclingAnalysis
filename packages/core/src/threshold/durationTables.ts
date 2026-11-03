@@ -28,6 +28,8 @@ function shareOfVo2max(minutes: number): number {
   )
 }
 
+const HOUR_SHARE = shareOfVo2max(HOUR_S / 60)
+
 /**
  * A runner's ratio of VO2: the share of VO2max held for the time over the share held for an hour, 1.229 at 5 min, 1.137 at 10,
  * 1.073 at 20, 1.029 at 40 and 1.000 at 60. It is a ratio of oxygen cost, not of the run curve's gross metabolic W/kg (which is
@@ -35,7 +37,7 @@ function shareOfVo2max(minutes: number): number {
  * an hour, as a ride's does.
  */
 export function runDurationRatio(durationS: number): number {
-  return shareOfVo2max(durationS / 60) / shareOfVo2max(HOUR_S / 60)
+  return shareOfVo2max(durationS / 60) / HOUR_SHARE
 }
 
 const economy = PRIORS.runEconomyScale.mean
