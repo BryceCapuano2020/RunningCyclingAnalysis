@@ -11,5 +11,5 @@ import { floorOf } from './thresholdFloor'
  */
 export function thresholdNeedsLine(result: AnalysisResult, sport: Sport): string {
   const indoor = indoorNeedLine(result.activities, sport, floorOf(result, sport) !== null)
-  return indoor ?? THRESHOLD_NEEDS_TEXT
+  return indoor ?? THRESHOLD_NEEDS_TEXT[sport]
 }

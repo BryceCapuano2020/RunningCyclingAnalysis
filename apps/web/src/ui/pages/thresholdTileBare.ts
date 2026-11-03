@@ -8,7 +8,7 @@ import { floorThreshold } from '../thresholdFloor'
 
 /**
  * The grade line under the figure: the level and grade, and the best effort it rests on. Where the levels row
- * already says the level and grade, it keeps only the effort, so a level is said once on the screen.
+ * already says the level and grade, the tile has no line, so a level is said once on the screen.
  */
 export function gradeLine(
   sport: Sport,
@@ -18,7 +18,7 @@ export function gradeLine(
 ): string | null {
   if (grade === null) return null
   if (grade.kind !== 'graded') return notGradedText(grade)
-  if (levelShown) return effort === null ? null : `Best ${HEADLINE_LABEL}: ${effort}`
+  if (levelShown) return null
   // The range and the estimate are one tap down, on the sport page's ladder, so the line keeps the level and the percent.
   const { level, value } = gradeParts(sport, grade.grade, 'row')
   return `${level} · ${value} on your best ${HEADLINE_LABEL}${effort === null ? '' : `, ${plainEffort(effort)}`}.`

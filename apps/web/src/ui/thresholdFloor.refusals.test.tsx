@@ -41,7 +41,8 @@ function refused(
 }
 
 const REFUSALS = ['shape', 'missing'] as const
-const SPORTS = ['run', 'ride'] as const
+/** Only a run has a floor: a ride's threshold is the estimate from all its efforts, and is not refused for them. */
+const SPORTS = ['run'] as const
 
 /** The sport's own number for a metabolic value, as the card prints it. */
 function numberOf(sport: Sport, value: number): string {
@@ -183,16 +184,57 @@ describe.each(SPORTS)('a %s threshold the analysis refuses', (sport) => {
   it('says At least, as the floor’s one status, when its best was not all-out: no effort chip, share or sentence beside it', () => {
     const check: EffortCheck = {
       durationS: 1200,
-      runHrFraction: sport === 'run' ? 0.82 : null,
-      rideHrFraction: sport === 'ride' ? 0.82 : null,
+      runHrFraction: 0.82,
+      rideHrFraction: null,
     }
     const { container } = tile(sport, refused(sport, 'shape', {}, true), check)
     const statuses = container.querySelectorAll('.stat-tile__basis, .stat-tile__effort')
     expect([...statuses].map((status) => status.textContent)).toEqual(['At least'])
     expect(screen.queryByRole('button', { name: /all-out|effort/i })).toBeNull()
     // The share lives in the effort chip's definition, which the floor no longer carries; the card's own lines carry none.
-    const lines = Array.from(container.querySelectorAll('.stat-tile__line'), (n) => n.textContent)
+    const lines = Array.from(
+      container.querySelectorAll('.stat-tile__line, .stat-tile__source'),
+      (n) => n.textContent,
+    )
     expect(lines).toEqual(['From your best 30 min.'])
     expect(screen.queryByText(/Not a hard effort|would give a threshold|82%/)).toBeNull()
+  })
+})
+
+describe('a ride with no threshold estimate', () => {
+  const NEEDS = 'Needs an effort of 3 min or longer'
+
+  /** A ride the gate holds a floor and a long best for, but with no estimate: it still shows no number. */
+  function noEstimate() {
+    return makeResult({
+      rideCp: null,
+      rideThreshold: null,
+      rideCpRefusal: 'shape',
+      rideMetabolicCurve: [curvePoint(1200, 3.7, 'a'), curvePoint(1800, THIRTY.value, 'a')],
+      effortGate: { run: UNKNOWN, ride: { ...HARD, floor: THIRTY } },
+    })
+  }
+
+  it('has no floor to show, whatever the gate holds', () => {
+    const result = noEstimate()
+    expect(floorThreshold(result, 'ride', MASS_KG, 'metric')).toBeNull()
+    expect(floorBasisLine(result, 'ride')).toBeNull()
+    expect(bestLabel(result, 'ride')).toBeNull()
+    expect(hasThreshold(result, 'ride')).toBe(false)
+    expect(threshold(result, 'ride', MASS_KG, 'metric')).toBeNull()
+    expect(thresholdNeedsLine(result, 'ride')).toBe(NEEDS)
+  })
+
+  it('asks for one effort on the tile and the page, with no chip', () => {
+    const { container } = tile('ride', noEstimate())
+    expect(container.querySelector('.stat-tile__number')).toBeNull()
+    expect(container.querySelector('.stat-tile__basis')).toBeNull()
+    expect(screen.getByText(NEEDS)).toBeInTheDocument()
+    cleanup()
+    const page = panel('ride', noEstimate())
+    expect(page.container.querySelector('.sport-hero__number')).toBeNull()
+    expect(page.container.querySelector('.stat-tile__basis')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Threshold power' })).toBeInTheDocument()
+    expect(screen.getByText(NEEDS)).toBeInTheDocument()
   })
 })

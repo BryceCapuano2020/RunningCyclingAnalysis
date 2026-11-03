@@ -2,7 +2,7 @@ import { cpBand } from '@rca/core/cp'
 import { describe, expect, it } from 'vitest'
 import { PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
-import { makeResult } from './components/fixtures'
+import { makeResult, makeRideThreshold } from './components/fixtures'
 import { thresholdLine } from './thresholdLine'
 import { thresholdRange } from './thresholdRange'
 
@@ -30,6 +30,32 @@ describe('thresholdLine', () => {
     expect(line?.value).toBeCloseTo(metabolicToRidePower(3.0, 75, PRIORS.grossEfficiency.mean), 9)
     expect(line?.low).toBeLessThan(line?.value ?? 0)
     expect(line?.high).toBeGreaterThan(line?.value ?? 0)
+  })
+
+  it('is a ride’s estimate with its 10th to 90th percentile as the band, whatever its critical-power fit says', () => {
+    const rideThreshold = makeRideThreshold(15.5, { low: 14.9, high: 16.4 })
+    const result = makeResult({
+      rideCp: { cp: 9.9, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 },
+      rideThreshold,
+    })
+    const line = thresholdLine(result, 'ride', 75, 'metric')
+    const watts = (wkg: number) => metabolicToRidePower(wkg, 75, PRIORS.grossEfficiency.mean)
+    expect(line?.value).toBeCloseTo(watts(15.5), 9)
+    expect(line?.low).toBeCloseTo(watts(14.9), 9)
+    expect(line?.high).toBeCloseTo(watts(16.4), 9)
+    expect(line?.detail).toBe('Range 240 to 264 W')
+    expect(line?.estimated).toBe(false)
+  })
+
+  it('names a ride’s line as an estimate where its strongest effort has estimated watts', () => {
+    const base = makeRideThreshold(15.5)
+    const estimated = {
+      ...base,
+      efforts: { ...base.efforts, strongest: { ...base.efforts.strongest, estimated: true } },
+    }
+    expect(
+      thresholdLine(makeResult({ rideThreshold: estimated }), 'ride', 75, 'metric')?.estimated,
+    ).toBe(true)
   })
 
   it('is null without a fit, and for a run with only a floor', () => {

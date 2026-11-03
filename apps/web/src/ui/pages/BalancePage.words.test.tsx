@@ -76,7 +76,8 @@ describe('the Balance page’s first screen', () => {
     )
     // Measured on this fixture (both sports graded, a profile, three weeks of training): 155 words and 7 defined terms
     // before D4.10's trim, 135 and 3 after (age grade, range, level). Main has since added a three-word heading, so 138. A budget is a ratchet: a sentence added to the first screen takes another out.
+    // The ride tile has one more defined term, "How this was worked out", which takes the place of its effort chip's note. A run's tile has one only where heart rate says how hard its best 20 min was, which this fixture does not.
     expect(wordsOf(container).length).toBeLessThanOrEqual(138)
-    expect(container.querySelectorAll('.definition__term').length).toBeLessThanOrEqual(3)
+    expect(container.querySelectorAll('.definition__term').length).toBeLessThanOrEqual(4)
   })
 })

@@ -204,13 +204,44 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
 
 test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {
   await openSample(page)
-  // The sample's best 20 minute efforts both reach 90% of their max heart rate, so the
-  // tiles say so in a chip, one line each, and the method page says they reached the hard line.
-  await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(2)
+  // The sample's best 20 minute efforts both reach 90% of their max heart rate. The run's tile says so one tap down, in
+  // its detail, with no chip on either tile, and the method page says they reached the hard line.
+  await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
+  const run = page.getByRole('article', { name: 'Run threshold' })
+  await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
+  await expect(run.getByRole('note')).toContainText(/reached \d+% of your running max heart rate/)
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
   await expect(page.getByText(/Both best efforts reached at least 90% of each sport/)).toBeVisible()
+})
+
+test('the ride threshold says what it rests on, and opens its range and method one tap down', async ({
+  page,
+}) => {
+  await openSample(page)
+  const ride = page.getByRole('article', { name: 'Ride threshold' })
+  await expect(ride.locator('.stat-tile__number')).toBeVisible()
+  // One number, named by its words: no chip and no track beside it.
+  await expect(ride.locator('.stat-tile__basis, .range-track')).toHaveCount(0)
+  await expect(ride.locator('.stat-tile__source')).toContainText(
+    /^From \d+ rides\. Strongest: \d+ min on /,
+  )
+  // The two tiles' terms are told apart by the threshold each opens.
+  const term = ride.getByRole('button', { name: 'How this was worked out for threshold power' })
+  await term.click()
+  const note = ride.getByRole('note')
+  await expect(note).toBeVisible()
+  await expect(note).toContainText(/^Range \d+ to \d+ W\./)
+  await expect(note).toContainText('Heart rate can raise the answer and never lowers it.')
+  await expect(note).toContainText(
+    /Here it (raised|did not raise) the answer|Here it was not used:/,
+  )
+  await expect(
+    page
+      .getByRole('article', { name: 'Run threshold' })
+      .getByRole('button', { name: 'How this was worked out for threshold pace' }),
+  ).toBeVisible()
 })
 
 test('focus moves to the Balance heading after sample data, and to the landing heading after removing all activities', async ({

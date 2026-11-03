@@ -21,7 +21,7 @@ export function hasShareableContent(
   return (
     weightKnown &&
     result.runCp !== null &&
-    result.rideCp !== null &&
+    result.rideThreshold !== null &&
     balanceOfPick(gap, heldPick(result, hold).pick) !== null
   )
 }

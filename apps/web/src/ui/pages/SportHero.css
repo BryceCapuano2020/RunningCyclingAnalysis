@@ -82,15 +82,6 @@
   font-size: var(--text-md);
 }
 
-/*
- * The hard-effort check is the shared chip, in a status colour with its icon and its words, never colour alone. It
- * keeps to one line where there is room and wraps where there is not, with its definition under it.
- */
-.sport-hero__check {
-  max-width: 100%;
-  white-space: normal;
-}
-
 .sport-hero__level {
   display: flex;
   flex-wrap: wrap;

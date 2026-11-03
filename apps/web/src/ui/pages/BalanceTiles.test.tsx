@@ -90,7 +90,7 @@ describe('BalanceTiles', () => {
     ])
   })
 
-  it('writes each threshold exactly as the sport cards did, with its range as a track and no Estimated chip', () => {
+  it('writes each threshold exactly as the sport cards do: no chip, a run’s range as a track, a ride’s in words', () => {
     const { result } = sample()
     renderTiles()
     for (const [name, sport] of [
@@ -101,21 +101,38 @@ describe('BalanceTiles', () => {
       const figure = threshold(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
       expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(figure?.number ?? '')
       expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent(figure?.unit ?? '')
-      // The name and the range say it is an estimate, so the one status the tile carries is how hard its effort was.
+      // The name says it is an estimate, and how it was worked out is one tap down: the tile carries no chip.
       expect(within(tile).queryByText('Estimated')).toBeNull()
       expect(tile.querySelector('.stat-tile__basis')).toBeNull()
-      expect(within(tile).getByRole('button', { name: 'Hard effort' })).toBeInTheDocument()
-      const range = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
-      // A range the page states is a range the tile draws, and its ends are the numbers the line named.
-      expect(tile.querySelector('.range-track') !== null).toBe(range !== null)
-      if (range !== null) {
-        const ends = Array.from(tile.querySelectorAll('.range-track__ends span')).map(
-          (span) => span.textContent,
-        )
-        expect(range).toContain(ends[0])
-        expect(range).toContain(ends[2])
-      }
+      expect(within(tile).queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
+      expect(
+        within(tile).getByRole('button', { name: /^How this was worked out/ }),
+      ).toBeInTheDocument()
     }
+    const range = thresholdRange(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
+    // A range the page states is a range the run's tile draws, and its ends are the numbers the line named.
+    const run = screen.getByRole('article', { name: 'Run threshold' })
+    expect(range).not.toBeNull()
+    const ends = Array.from(run.querySelectorAll('.range-track__ends span')).map(
+      (span) => span.textContent,
+    )
+    expect(range).toContain(ends[0])
+    expect(range).toContain(ends[2])
+    expect(
+      screen.getByRole('article', { name: 'Ride threshold' }).querySelector('.range-track'),
+    ).toBeNull()
+  })
+
+  it('says what a ride’s threshold rests on, in one line under its figure', () => {
+    renderTiles()
+    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(ride.querySelector('.stat-tile__source')).toHaveTextContent(
+      /^From \d+ rides\. Strongest: \d+ min on \d+ \w+( \d{4})?\. How this was worked out/,
+    )
+    // A run's fit rests on its curve, not on a count of runs, so its tile has no such line.
+    const run = screen.getByRole('article', { name: 'Run threshold' })
+    expect(run.querySelector('.stat-tile__source')).toHaveTextContent(/^How this was worked out/)
+    expect(run.querySelector('.stat-tile__source')).not.toHaveTextContent(/From \d+ runs/)
   })
 
   it('gives the ride’s threshold its watts per kilogram beside the figure', () => {
@@ -124,17 +141,17 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.stat-tile__side')?.textContent).toMatch(/W\/kg$/)
   })
 
-  it('says each sport’s level and grade on its tile, with the effort it rests on', () => {
+  it('says each sport’s level and grade on its tile, with the effort it rests on, and no line of the best 20 min of its own', () => {
     renderTiles()
-    // The run's best 20 min is faster than its threshold, so its figure has its own line, said once.
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run).toHaveTextContent(/Best 20 min: \d+:\d{2} \/km/)
-    expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min\./)
+    expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min, \d+:\d{2} \/km\./)
+    expect(run).not.toHaveTextContent(/Best 20 min:/)
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(ride).toHaveTextContent(/Best 20 min: \d+ W.*\w+ · \d+% on your best 20 min\./)
+    expect(ride).toHaveTextContent(/\w+ · \d+% on your best 20 min, \d+ W/)
+    expect(ride).not.toHaveTextContent(/Best 20 min:/)
     // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
     const lines = [...ride.querySelectorAll('.stat-tile__line')].map((line) => line.textContent)
-    expect(lines.at(-1)).toMatch(/^\w+ · \d+% on your best 20 min\.$/)
+    expect(lines.at(-1)).toMatch(/^\w+ · \d+% on your best 20 min, /)
   })
 
   it('holds the ride’s tiles for the weight', () => {
@@ -145,9 +162,10 @@ describe('BalanceTiles', () => {
     expect(screen.getByRole('article', { name: 'Your ride as a run' })).toHaveTextContent(
       /Add your weight on/,
     )
-    // Only the run's threshold has a figure, so it alone has a status, and it is the effort, not an Estimated chip.
+    // Only the run's threshold has a figure, so it alone has a detail to open, and no tile has a chip.
     expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
-    expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(1)
+    expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: /^How this was worked out/ })).toHaveLength(1)
   })
 
   it('puts a prompt in the empty sport’s place, and leaves the ride as a run out', () => {
@@ -212,12 +230,14 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
-  it('gives each threshold one status, the effort it rests on, and the ride as a run needs none', () => {
+  it('gives each threshold no chip, one detail one tap down, and the ride as a run needs none', () => {
     const { container } = renderTiles()
     expect(container.querySelectorAll('.stat-tile__basis')).toHaveLength(0)
+    expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
     for (const name of ['Run threshold', 'Ride threshold']) {
       const tile = screen.getByRole('article', { name })
-      expect(tile.querySelectorAll('.stat-tile__effort')).toHaveLength(1)
+      expect(tile.querySelectorAll('.definition__term')).toHaveLength(1)
+      expect(tile.querySelector('.definition__term')).toHaveTextContent('How this was worked out')
     }
     const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
     expect(asRun.querySelector('.stat-tile__basis')).toBeNull()

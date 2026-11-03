@@ -168,12 +168,13 @@ export function activityNames(activities: ActivitySummary[]): Record<string, str
 }
 
 /**
- * Estimated threshold in the sport's own unit, from the critical-power fit; null without one. The fit
- * refuses any that does not show a threshold, so the figure is shown as it was fitted.
+ * Estimated threshold in the sport's own unit; null without one. A run's is the critical-power fit, shown as it was
+ * fitted. A ride's is the best estimate from every ride's efforts (`rideThreshold`), which is null only where no ride
+ * has an effort of 3 min or more.
  *
- * A ride's threshold is shown in watts, and the fit works in metabolic W/kg at the prior-mean
- * efficiency. Converting back with that same efficiency returns the fitted watts exactly, since the
- * fit is linear. Running equivalents of a ride are not worked out here: every one comes from the
+ * A ride's threshold is shown in watts, and the estimate works in metabolic W/kg at the prior-mean
+ * efficiency. Converting back with that same efficiency returns the estimated watts exactly, since the
+ * conversion is linear. Running equivalents of a ride are not worked out here: every one comes from the
  * analysis's equivalents, with their heart-rate weights and 90% range, so a ride has one running
  * equivalent on screen.
  */
@@ -186,21 +187,24 @@ export function threshold(
   return THRESHOLD_OF[sport](result, massKg, units)
 }
 
-/** A sport's threshold as its own figure, from its fit: null when the sport has no fit. */
+/** A ride's threshold value (gross metabolic W/kg) as the watts it is shown in, with W/kg beside it. */
+export function rideThresholdFigure(metabolicWkg: number, massKg: number): SportNumber {
+  const watts = metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean)
+  return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+}
+
+/** A sport's threshold as its own figure: null when the sport has none. */
 type Threshold = (result: AnalysisResult, massKg: number, units: UnitSystem) => SportNumber | null
 const THRESHOLD_OF: Record<Sport, Threshold> = {
   run: (result, _massKg, units) =>
     result.runCp ? { ...paceFigure(result.runCp.cp, units), sub: null } : null,
-  ride: (result, massKg) => {
-    if (!result.rideCp) return null
-    const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
-    return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
-  },
+  ride: (result, massKg) =>
+    result.rideThreshold ? rideThresholdFigure(result.rideThreshold.value, massKg) : null,
 }
 
-/** Whether a sport's threshold was fitted: false when its fit is missing or refused. */
+/** Whether a sport has a threshold: a run's fit is missing or refused, a ride has no effort of 3 min or more. */
 export function hasThreshold(result: AnalysisResult, sport: Sport): boolean {
-  return { run: result.runCp, ride: result.rideCp }[sport] !== null
+  return { run: result.runCp, ride: result.rideThreshold }[sport] !== null
 }
 
 /** The best effort at each record duration, with the activity that set it. */

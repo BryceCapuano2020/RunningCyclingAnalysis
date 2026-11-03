@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceGap } from '../ui/balanceGap'
-import { makeActivity, makeResult } from '../ui/components/fixtures'
+import { makeActivity, makeResult, makeRideThreshold } from '../ui/components/fixtures'
 import { curvePoint } from '../ui/charts/fixtures'
 import { gate } from '../ui/effortGateFixtures'
 import { heldPick } from '../ui/resultHold'
@@ -48,6 +48,15 @@ describe('hasShareableContent', () => {
   it('is false when the ride has no threshold, even with a comparison, so no image asks for more', () => {
     expect(hasShareableContent(makeResult({ rideCp: null }), null, true)).toBe(false)
     expect(hasShareableContent(makeResult({ rideCp: null }), GAP, true)).toBe(false)
+  })
+
+  it('reads the ride’s threshold from its estimate: a critical-power fit without one does not offer a card', () => {
+    const fitOnly = makeResult({ rideThreshold: null })
+    expect(fitOnly.rideCp).not.toBeNull()
+    expect(hasShareableContent(fitOnly, GAP, true)).toBe(false)
+    expect(
+      hasShareableContent(makeResult({ rideThreshold: makeRideThreshold(3) }), GAP, true),
+    ).toBe(true)
   })
 
   it('is false when the run has no threshold, even with a comparison', () => {

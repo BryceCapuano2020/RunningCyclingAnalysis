@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
-import { curvePoint } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
 import { missingText } from './balanceMissing'
 
 const ALL_TIME: Period = { choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }
@@ -81,9 +80,9 @@ describe('missingText for a library of one sport', () => {
       expect(missing.detail).not.toContain('Needs')
     })
 
-    it('asks for nothing while the sport has no level to show but has a best: its tile shows a floor', () => {
+    it('asks for nothing while the sport has no level to show but has a threshold: its tile shows the estimate', () => {
       const { result, library } = withRefusedFit()
-      const withBest = { ...result, rideMetabolicCurve: [curvePoint(1200, 3.0, 'ride-1')] }
+      const withBest = { ...result, rideThreshold: makeRideThreshold(3.0) }
       const missing = missingText(withBest, library, ALL_TIME, { run: null, ride: null })
       expect(missing.title).toBe('Your cycling so far')
       expect(missing.detail).toBe('')
@@ -93,7 +92,7 @@ describe('missingText for a library of one sport', () => {
       const { result, library } = withRefusedFit()
       const missing = missingText(result, library, ALL_TIME, { run: null, ride: null })
       expect(missing.title).toBe('Your cycling so far')
-      expect(missing.detail).toBe('Needs an effort of 20 min or longer')
+      expect(missing.detail).toBe('Needs an effort of 3 min or longer')
     })
   })
 })

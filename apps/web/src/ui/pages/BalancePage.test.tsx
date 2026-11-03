@@ -271,18 +271,20 @@ describe('BalancePage', () => {
     ])
   })
 
-  it('shows the evidence for the duration the answer is about', () => {
+  it('keeps the evidence for the duration the answer is about in the run tile’s detail, with no chip and no card', () => {
     renderPage(
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
-    // The check sits on the tile it qualifies, as a one-line chip: no card of its own.
-    const tile = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(within(tile).getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
-    expect(
-      within(screen.getByRole('article', { name: 'Run threshold' })).getByRole('button', {
-        name: 'Hard effort',
-      }),
-    ).toBeInTheDocument()
+    const run = screen.getByRole('article', { name: 'Run threshold' })
+    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
+    fireEvent.click(within(run).getByRole('button', { name: /^How this was worked out/ }))
+    expect(within(run).getByRole('note')).toHaveTextContent(
+      /reached 95% of your running max heart rate.*close to your/,
+    )
+    // A ride's estimate does not read how hard its best 20 min was, so its detail does not say.
+    fireEvent.click(within(ride).getByRole('button', { name: /^How this was worked out/ }))
+    expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate/)
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
 
@@ -403,8 +405,8 @@ describe('BalancePage age grades', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
     const tile = screen.getByRole('article', { name: 'Run threshold' })
-    expect(tile).toHaveTextContent(/Best 20 min: \d+:\d{2} \/(mi|km)/)
-    // The levels row says the level and grade; the tile does not say them again.
+    // The levels row says the level and grade; the tile does not say them again, nor the best 20 min they rest on.
+    expect(tile).not.toHaveTextContent(/Best 20 min/)
     expect(tile).not.toHaveTextContent(/Local|67%/)
     expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*67%\s*Local/,

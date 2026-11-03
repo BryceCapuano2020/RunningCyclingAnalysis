@@ -325,7 +325,7 @@ describe('MethodPage how this works', () => {
     expect(within(unavailable).getByText('Vendor tests such as 4DP')).toBeInTheDocument()
     const calculated = screen.getByRole('region', { name: 'Calculated by this app' })
     expect(within(calculated).getByText('Race predictions')).toBeInTheDocument()
-    expect(within(calculated).getByText('Thresholds and floors')).toBeInTheDocument()
+    expect(within(calculated).getByText('Thresholds')).toBeInTheDocument()
     const recorded = screen.getByRole('region', { name: 'Recorded in your files' })
     expect(within(recorded).getByText('Data checks')).toBeInTheDocument()
   })
@@ -370,7 +370,7 @@ describe('MethodPage how this works', () => {
     // The ideas the old two lists each said: one entry apiece, and no second section for them.
     for (const name of [
       'Best efforts over time',
-      'Thresholds and floors',
+      'Thresholds',
       'How a change is called',
       'Dated settings and zones',
     ]) {
@@ -390,10 +390,8 @@ describe('MethodPage how this works', () => {
     const details = Array.from(section.querySelectorAll('details.more-detail'))
     expect(details.length).toBeGreaterThan(0)
     for (const detail of details) expect(detail).not.toHaveAttribute('open')
-    const thresholds = within(section).getByText('Thresholds and floors').closest('.how__entry')
-    expect(thresholds?.querySelector('summary')).toHaveTextContent(
-      'More detail: Thresholds and floors',
-    )
+    const thresholds = within(section).getByText('Thresholds').closest('.how__entry')
+    expect(thresholds?.querySelector('summary')).toHaveTextContent('More detail: Thresholds')
   })
 
   it('has far fewer More detail disclosures than the page had', () => {

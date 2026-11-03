@@ -5,7 +5,12 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { EffortCheck } from '@rca/core/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { curvePoint } from '../charts/fixtures'
-import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+} from '../components/fixtures'
 import type { GradeOutcome } from '../grades'
 import { THRESHOLD_MEANING } from '../sports'
 import { ThresholdTile } from './ThresholdTile'
@@ -145,68 +150,123 @@ describe('ThresholdTile', () => {
     expect(screen.queryByRole('button', { name: 'threshold' })).toBeNull()
   })
 
-  it('carries the effort chip of its own sport, beside the figure it qualifies', () => {
+  it('gives a ride one number with its W/kg, a line of what it rests on, and its range one tap down', () => {
+    const rideThreshold = makeRideThreshold(15.5, {
+      low: 14.9,
+      high: 16.4,
+      efforts: {
+        value: 15,
+        relativeError: 0.025,
+        rides: 5,
+        strongest: { activityId: 'ride-1', durationS: 720, estimated: false },
+      },
+      heartRate: { refused: 'stuck' },
+    })
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      startMs: new Date(2026, 2, 4, 12).getTime(),
+    })
+    const { container } = renderTile('ride', makeResult({ activities: [ride], rideThreshold }))
+    expect(container.querySelector('.stat-tile__number')).toHaveTextContent('250')
+    expect(container.querySelector('.stat-tile__side')).toHaveTextContent('3.3 W/kg')
+    expect(container.querySelector('.stat-tile__source')).toHaveTextContent(
+      /^From 5 rides\. Strongest: 12 min on 4 Mar/,
+    )
+    expect(container.querySelector('.range-track, .stat-tile__basis, .chip')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    expect(screen.getByRole('note')).toHaveTextContent(/^Range 240 to 264 W\. /)
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Here it was not used: your heart rate does not move with power.',
+    )
+  })
+
+  it('carries no effort chip: a run’s heart-rate reading is in its detail, and a ride’s estimate does not read it', () => {
     const check = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }
     renderTile('run', makeResult(), null, true, check)
-    expect(screen.getByRole('button', { name: 'Not all-out' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    expect(screen.getByRole('note')).toHaveTextContent(
+      /^Fitted to your best 3 to 20 min efforts\. Your best 20 min running reached 70% of your running max heart rate/,
+    )
     cleanup()
     renderTile('ride', makeResult(), null, true, check)
-    expect(screen.getByRole('button', { name: 'Hard effort' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    expect(screen.getByRole('note')).not.toHaveTextContent(/max heart rate/)
+  })
+
+  it('has no detail on a run’s tile when heart rate cannot judge its effort: the fit alone is the Method page’s', () => {
+    const { container } = renderTile('run', makeResult())
+    expect(container.querySelector('.stat-tile__number')).not.toBeNull()
+    expect(container.querySelector('.stat-tile__source')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^How this was worked out/ })).toBeNull()
+  })
+
+  it('names each tile’s detail for its threshold, so two on a page are told apart', () => {
+    const check = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 }
+    renderTile('run', makeResult(), null, true, check)
+    expect(
+      screen.getByRole('button', { name: 'How this was worked out for threshold pace' }),
+    ).toHaveTextContent('How this was worked out')
     cleanup()
-    renderTile('run', makeResult())
-    expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
+    renderTile('ride', makeResult())
+    expect(
+      screen.getByRole('button', { name: 'How this was worked out for threshold power' }),
+    ).toHaveTextContent('How this was worked out')
   })
 
   describe('one status to a card', () => {
-    /** The statuses a tile shows: its basis chip and its effort chip. */
+    /** The statuses a tile shows: its basis chip, and any effort chip. */
     const statuses = (container: HTMLElement) =>
       [
         ...container.querySelectorAll('.stat-tile__basis, .stat-tile__effort .definition__term'),
       ].map((chip) => chip.textContent)
     const HARD = { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.95 }
     const EASY = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.7 }
-    const floored = (sport: 'run' | 'ride') =>
-      sport === 'run'
-        ? makeResult({
-            runCp: null,
-            runCpRefusal: 'shape',
-            runCpUneven: { fit: { ...FIT, cp: 4.4, cpSe: 0.05 }, leftOutS: [180], floor: 4.1 },
-          })
-        : makeResult({
-            rideCp: null,
-            rideCpRefusal: 'shape',
-            rideCpUneven: { fit: { ...FIT, cp: 4.4, cpSe: 0.05 }, leftOutS: [180], floor: 4.1 },
-          })
-
-    it.each(['run', 'ride'] as const)(
-      'says how hard the %s effort was, and does not also call a fitted threshold Estimated',
-      (sport) => {
-        const hard = renderTile(sport, makeResult(), null, true, HARD)
-        expect(statuses(hard.container)).toEqual(['Hard effort'])
-        cleanup()
-        const easy = renderTile(sport, makeResult(), null, true, EASY)
-        expect(statuses(easy.container)).toEqual(['Not all-out'])
-        expect(screen.queryByText('Estimated')).toBeNull()
-      },
-    )
-
-    it('has no status at all for a fitted threshold whose effort heart rate cannot judge', () => {
-      const { container } = renderTile('run', makeResult())
-      expect(container.querySelector('.stat-tile__number')).not.toBeNull()
-      expect(statuses(container)).toEqual([])
+    const floored = makeResult({
+      runCp: null,
+      runCpRefusal: 'shape',
+      runCpUneven: { fit: { ...FIT, cp: 4.4, cpSe: 0.05 }, leftOutS: [180], floor: 4.1 },
     })
 
     it.each(['run', 'ride'] as const)(
-      'keeps At least on a %s floor and drops Not all-out beside it, whatever the effort',
+      'gives a fitted %s threshold no status at all, whatever its effort was',
       (sport) => {
-        for (const check of [EASY, HARD]) {
-          const { container, unmount } = renderTile(sport, floored(sport), null, true, check)
-          expect(statuses(container)).toEqual(['At least'])
-          expect(screen.queryByRole('button', { name: /effort|all-out/ })).toBeNull()
+        for (const check of [null, EASY, HARD]) {
+          const { container, unmount } = renderTile(sport, makeResult(), null, true, check)
+          expect(container.querySelector('.stat-tile__number')).not.toBeNull()
+          expect(statuses(container)).toEqual([])
           unmount()
         }
       },
     )
+
+    it('keeps At least on a run floor and drops the effort beside it, whatever the effort', () => {
+      for (const check of [EASY, HARD]) {
+        const { container, unmount } = renderTile('run', floored, null, true, check)
+        expect(statuses(container)).toEqual(['At least'])
+        expect(screen.queryByRole('button', { name: /effort|all-out|worked out/ })).toBeNull()
+        unmount()
+      }
+    })
+
+    it('gives a ride no floor: with no estimate it asks for an effort, whatever the gate holds', () => {
+      const held = makeResult({
+        rideCp: null,
+        rideCpRefusal: 'shape',
+        effortGate: {
+          ...makeResult().effortGate,
+          ride: { ...makeResult().effortGate.ride, floor: { durationS: 1800, value: 3.9 } },
+        },
+      })
+      const { container } = renderTile('ride', held)
+      expect(container.querySelector('.stat-tile__number')).toBeNull()
+      expect(statuses(container)).toEqual([])
+      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
+        'Needs an effort of 3 min or longer',
+      )
+    })
   })
 
   it('names the tile by its words alone, whatever the definition inside it says', () => {
@@ -256,7 +316,6 @@ describe('ThresholdTile', () => {
     ]
 
     it('gives the level, the grade and the effort it rests on, for a run read as recorded', () => {
-      // A threshold above the best 20 min has no line of its own for it, so the grade line names the effort.
       const result = makeResult({
         activities,
         runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG + 1 },
@@ -268,47 +327,40 @@ describe('ThresholdTile', () => {
       )
     })
 
-    it('sets the best 20 min beside the threshold, once, and keeps its figure off the grade line', () => {
-      const result = makeResult({
-        activities,
-        runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG - 1 },
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      })
-      const { container } = renderTile('run', result, RUN_GRADED)
-      const lines = [...container.querySelectorAll('.stat-tile__line')].map((l) => l.textContent)
-      expect(lines).toEqual([
-        expect.stringMatching(/^Best 20 min: \d+:\d{2} \/km$/),
-        'Local · 64% on your best 20 min.',
-      ])
+    it('has no “Best 20 min” line of its own, whether the best sits above the threshold or below it', () => {
+      for (const cp of [FIVE_K_IN_20_MIN_WKG - 1, FIVE_K_IN_20_MIN_WKG + 1]) {
+        const result = makeResult({
+          activities,
+          runCp: { ...FIT, cpSe: 0.05, cp },
+          runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+        })
+        const { container } = renderTile('run', result, RUN_GRADED)
+        const lines = [...container.querySelectorAll('.stat-tile__line')].map((l) => l.textContent)
+        expect(lines).toEqual([expect.stringMatching(/^Local · 64% on your best 20 min, /)])
+        expect(container.textContent).not.toMatch(/Best 20 min:/)
+        cleanup()
+      }
     })
 
-    it('gives a ride’s best 20 min with its watts marked where they were estimated', () => {
+    it('keeps no line under a tile whose levels row already gives the level and grade', () => {
       const result = makeResult({
         activities,
-        rideCp: { ...FIT, cpSe: 0.04, cp: 3 },
-        rideMetabolicCurve: [curvePoint(HEADLINE_DURATION_S, 5, 'ride-1')],
-        rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
       })
-      const { container } = renderTile('ride', result, RIDE_GRADED)
-      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        'Best 20 min: 246 W (estimated)',
+      const { container } = render(
+        <ThresholdTile
+          sport="run"
+          result={result}
+          units="metric"
+          massKg={75}
+          grade={RUN_GRADED}
+          weighted
+          levelShown
+        />,
       )
-    })
-
-    it('says nothing of the best 20 min when it is not above the threshold, or the fit has none', () => {
-      const below = makeResult({
-        activities,
-        runCp: { ...FIT, cpSe: 0.05, cp: FIVE_K_IN_20_MIN_WKG + 1 },
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      })
-      expect(renderTile('run', below, RUN_GRADED).container.textContent).not.toMatch(/Best 20 min:/)
-      cleanup()
-      const none = makeResult({
-        activities,
-        runCp: null,
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      })
-      expect(renderTile('run', none, RUN_GRADED).container.textContent).not.toMatch(/Best 20 min:/)
+      expect(container.querySelector('.stat-tile__number')).not.toBeNull()
+      expect(container.querySelector('.stat-tile__line')).toBeNull()
+      expect(container.textContent).not.toMatch(/Best 20 min/)
     })
 
     it('leaves what a threshold is to its title, with no line under the name', () => {
