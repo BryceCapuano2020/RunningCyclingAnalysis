@@ -1,10 +1,8 @@
-import { EQUIVALENCE_DURATIONS_S, PROFILE_DURATIONS_S } from '@rca/core/constants'
-import { equivalenceFor } from '@rca/core/pipeline'
-import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { Sex } from '@rca/core/grade'
+import { PROFILE_DURATIONS_S } from '@rca/core/constants'
+import { profileEquivalents } from '@rca/core/pipeline'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import { HOUR_S } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
-import { activityMasses } from './activityMasses'
 import { leanOfRange } from '../domain/lean'
 import type { Lean as BalanceLean } from '../domain/lean'
 import { balanceGap } from './balanceGap'
@@ -21,36 +19,6 @@ export interface ProfilePoint {
 
 /** Each sport's graded points, shortest duration first. A duration with no grade has no point. */
 export type GradeProfile = Record<Sport, ProfilePoint[]>
-
-/**
- * The ride's running equivalents at the profile durations that a combine does not price, from the ride curve's best at each.
- * They are priced here, for the chart that draws them, rather than in every combine, by the equivalence the result's own
- * equivalents were priced with (anchored at each sport's world class, for the athlete's sex), at the body mass the ride was
- * ridden at (massKg without dated masses).
- */
-export function profileEquivalents(
-  result: AnalysisResult,
-  massKg: number,
-  sex: Sex,
-): Equivalence[] {
-  const held = new Set(result.equivalents.map((equivalent) => equivalent.durationS))
-  const masses = activityMasses(result.activities)
-  const powers = PROFILE_DURATIONS_S.filter(
-    (durationS) => !EQUIVALENCE_DURATIONS_S.includes(durationS) && !held.has(durationS),
-  ).flatMap((durationS) => {
-    const point = result.rideCurve.find((candidate) => candidate.durationS === durationS)
-    return point !== undefined && Number.isFinite(point.value)
-      ? [{ durationS, ridePowerW: point.value, rideKg: masses[point.activityId ?? ''] ?? massKg }]
-      : []
-  })
-  if (powers.length === 0) return []
-  const equivalence = equivalenceFor(sex)
-  return powers.map(({ durationS, ridePowerW, rideKg }) => ({
-    durationS,
-    ridePowerW,
-    runSpeed: equivalence(ridePowerW, rideKg),
-  }))
-}
 
 /**
  * Each sport's age grade at every duration from 3 min to 3 h that its best-effort curve and the age

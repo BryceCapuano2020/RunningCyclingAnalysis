@@ -1,4 +1,4 @@
-import { PRIORS } from '../constants'
+import { FLAT_RUN_COST, PRIORS } from '../constants'
 import { CYCLING_WORLD_CLASS_HOUR_WKG } from '../digest/rideAnchor'
 import { HOUR_AGREEMENT } from '../threshold/constants'
 import { runDurationRatio } from '../threshold/durationTables'
@@ -19,6 +19,9 @@ export const EFFICIENCY_SPREAD_PERCENT = spreadPercent(PRIORS.grossEfficiency)
 
 /** How far running economy varies between people, as a whole percent of its mean. */
 export const ECONOMY_SPREAD_PERCENT = spreadPercent(PRIORS.runEconomyScale)
+
+/** The cost of running on the flat, J/kg/m, as the model prices it (`FLAT_RUN_COST`), for the Method page to quote and not to work with. */
+export const FLAT_RUN_COST_J_PER_KG_M = FLAT_RUN_COST
 
 /** The share of an hour that a second hour must be within to back it as a floor, as a whole percent (`HOUR_AGREEMENT`). */
 export const HOUR_AGREEMENT_PERCENT = Math.round(HOUR_AGREEMENT * 100)

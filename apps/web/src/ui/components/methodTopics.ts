@@ -1,12 +1,12 @@
 import {
   ESTIMATED_RIDE_MIN_RIDES,
   ESTIMATED_RIDE_MIN_SHARE,
-  FLAT_RUN_COST,
   RUN_COST_CORRECTION,
 } from '@rca/core/constants'
 import {
   ECONOMY_SPREAD_PERCENT,
   EFFICIENCY_SPREAD_PERCENT,
+  FLAT_RUN_COST_J_PER_KG_M,
   GROSS_EFFICIENCY_PERCENT,
 } from '@rca/core/display'
 import { REFERENCE_FLOOR_BPM, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
@@ -42,7 +42,7 @@ const TOPIC_LIST = [
     detail: [
       `Gross efficiency averages about ${EFFICIENCY_PERCENT}%.`,
       'Running uses the energy cost of running from Minetti et al. (2002).',
-      `That is raised by ${RUN_COST_CORRECTION} J/kg/m, so flat running costs ${FLAT_RUN_COST.toFixed(1)} J/kg/m.`,
+      `That is raised by ${RUN_COST_CORRECTION} J/kg/m, so flat running costs ${FLAT_RUN_COST_J_PER_KG_M.toFixed(1)} J/kg/m.`,
       'J/kg/m is joules of energy per kilogram of body weight, per metre travelled.',
     ],
   },
