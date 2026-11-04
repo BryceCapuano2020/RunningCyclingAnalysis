@@ -930,10 +930,15 @@ describe('whatMoved: the balance line states the figures the Balance page shows'
     const b = gapOf(after)
     expect(a.centre).toBe(b.centre)
     expect([a.low, a.high]).not.toEqual([b.low, b.high])
+    // A range that reaches zero is written with signs ("0 to +12"), one wholly on the lean's side without ("1 to 11").
+    const written = (low: number, high: number) =>
+      low > 0 ? `${low} to ${high}` : `${low < 0 ? `−${-low}` : '0'} to +${high}`
+    expect(a.low).toBeGreaterThan(0)
+    expect(b.low).toBeLessThanOrEqual(0)
     expect(
       whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map((item) => item.text),
     ).toEqual([
-      `Your balance's range was ${a.low} to ${a.high} points and is now ${b.low} to ${b.high} points`,
+      `Your balance's range was ${written(a.low, a.high)} points and is now ${written(b.low, b.high)} points`,
     ])
   })
 

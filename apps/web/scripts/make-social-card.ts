@@ -77,8 +77,12 @@ function card(): string {
   const ride = FIGURES.grades.ride
   const lead = FIGURES.gap
   // The range is signed toward running; the card states it from the side the balance leans to.
-  const leanRange =
+  const side =
     lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
+  // A range that reaches zero is written with signs and a true minus, as Balance writes it ("−1 to +28").
+  const sign = (count: number) => (count < 0 ? `−${-count}` : count > 0 ? `+${count}` : '0')
+  const leanRange =
+    side.from <= 0 ? { from: sign(side.from), to: sign(side.to) } : { from: side.from, to: side.to }
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${font('barlow-condensed', 'barlow-condensed-latin-800-normal.woff2', 800)}
 ${font('barlow', 'barlow-latin-500-normal.woff2', 500)}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeLandingFigures } from '../../scripts/landingFigures'
+import { LANDING_MIN_LEAD_POINTS, computeLandingFigures } from '../../scripts/landingFigures'
 import { LANDING_EXAMPLE } from './landingExample'
 import { cardStamp, fillLandingOg, ogAlt, type CardInk } from './landingFigures'
 
@@ -22,7 +22,8 @@ describe('the landing figures', () => {
 
   it('say which sport leads and name a level for each, with the slip the example describes', () => {
     expect(LANDING_EXAMPLE.gap.lean).toMatch(/^(run|ride)$/)
-    expect(LANDING_EXAMPLE.gap.low > 0 || LANDING_EXAMPLE.gap.high < 0).toBe(true)
+    // The centre leans clearly; the range beside it may cross zero, as any athlete's may.
+    expect(Math.abs(LANDING_EXAMPLE.gap.centre)).toBeGreaterThanOrEqual(LANDING_MIN_LEAD_POINTS)
     expect(LANDING_EXAMPLE.grades.run.centre.level).not.toBe('')
     expect(LANDING_EXAMPLE.fitness.change.high).toBeLessThan(0)
     expect(LANDING_EXAMPLE.fitness.referenceHr).toBeGreaterThan(0)

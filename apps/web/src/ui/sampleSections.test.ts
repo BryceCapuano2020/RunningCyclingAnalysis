@@ -3,6 +3,7 @@ import { AnalysisSession } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 import { SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
+import { LANDING_MIN_LEAD_POINTS } from '../../scripts/landingFigures'
 import { gapOfHeadline } from './balanceGap'
 import { profileOf } from './durationProfile'
 import { thresholdGrades } from './thresholdGrade'
@@ -137,9 +138,8 @@ describe('the sample gives one result on every day of a week, and in every week'
       referenceHr: LANDING_EXAMPLE.fitness.referenceHr,
     })
     expect(january.fitness).toEqual(reference.fitness)
-    // The headline and the card say which sport leads, so the lead's range keeps clear of zero (it reads "in balance" else).
-    const { low, high } = reference.gap!
-    expect(low > 0 || high < 0).toBe(true)
+    // The headline and the card say which sport leads, and Balance decides that by the centre: it leans clearly (the range beside it may cross zero).
+    expect(Math.abs(reference.gap!.centre)).toBeGreaterThanOrEqual(LANDING_MIN_LEAD_POINTS)
     for (const sport of ['run', 'ride'] as const) {
       const outcome = reference[sport]
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)
