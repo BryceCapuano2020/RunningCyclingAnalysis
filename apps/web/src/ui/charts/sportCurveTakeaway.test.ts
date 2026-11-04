@@ -184,13 +184,12 @@ describe('curveTakeaway with a period before', () => {
       expect(text).toBe('Best 60 min: 250 W')
     })
 
-    it('does not name a carried 20 minute value as the best, or give it the level', () => {
+    it('does not name a carried 20 minute value as the best', () => {
       const none = { units: 'metric', previousLabel: null, change: null } as const
       const text = curveTakeaway({
         ...none,
         sport: 'ride',
         rows: [row(1200, 250, NaN, { carried: true }), row(3600, 250)],
-        level: 'Local',
       })
       expect(text).toBe('Best 60 min: 250 W')
     })
@@ -212,22 +211,18 @@ describe('curveTakeaway with a period before', () => {
 describe('curveTakeaway with no period before', () => {
   const none = { units: 'metric', previousLabel: null, change: null } as const
 
-  it('names the best 20 minutes, with its level when there is one', () => {
-    expect(curveTakeaway({ ...none, sport: 'run', rows: [row(1200, 4.0)], level: 'Local' })).toBe(
-      'Best 20 min: 4:10 /km, Local',
-    )
+  it('names the best 20 minutes by its figure alone: the level of a sport is its threshold’s', () => {
     expect(curveTakeaway({ ...none, sport: 'run', rows: [row(1200, 4.0)] })).toBe(
       'Best 20 min: 4:10 /km',
     )
   })
 
-  it('names the longest effort instead, without the level, when there is no 20 minute one', () => {
+  it('names the longest effort instead when there is no 20 minute one', () => {
     expect(
       curveTakeaway({
         ...none,
         sport: 'ride',
         rows: [row(60, 400), row(300, 320)],
-        level: 'Local',
       }),
     ).toBe('Best 5 min: 320 W')
   })

@@ -61,8 +61,6 @@ export interface SportCurveChartProps {
   activityMasses?: Record<string, number>
   /** The sport's threshold in its own number, drawn as a labelled line with its range as a band. */
   threshold?: ThresholdLine | null
-  /** The level the best 20 minutes grades to, such as "Local", for the finding when there is no period before. */
-  bestLevel?: string
   /** The change test for the period before, which the finding reads; null where there is no period before. */
   change: ChangeEvidence | null
 }
@@ -82,7 +80,6 @@ export function SportCurveChart({
   activityNames,
   activityMasses,
   threshold = null,
-  bestLevel,
   change,
 }: SportCurveChartProps) {
   // Each is kept while its inputs are, so reading a point (which re-renders the chart) does not rebuild the layout.
@@ -141,7 +138,6 @@ export function SportCurveChart({
               units,
               rows,
               previousLabel: shown?.label ?? null,
-              level: bestLevel,
               change,
             }) ?? undefined)
           : undefined
