@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest'
+import { analyze } from '../pipeline'
+import type { AnalysisResult } from '../pipeline'
+import { thresholdRunSpeed } from '../digest/equivalents'
+import { CYCLING_WORLD_CLASS_HOUR_WKG } from '../digest/rideAnchor'
+import { ageAndSexAt, gradeAtSpeed } from '../grade'
+import type { AgeProfile } from '../grade'
+import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
+import { PRIORS } from '../constants'
+import { sampleDataset } from '../synthetic'
+import { HOUR_S } from '../threshold/constants'
+import { sportStanding } from './standing'
+import { balanceLead } from './lead'
+
+const { athlete, activities } = sampleDataset()
+const result = analyze(activities, { massKg: athlete.massKg, bikeMassKg: athlete.bikeMassKg })
+const LAST_YEAR = new Date(Math.max(...result.activities.map((a) => a.startMs))).getFullYear()
+const MAN: AgeProfile = { birthYear: LAST_YEAR - 35, sex: 'male' }
+const CONTEXT = { massKg: athlete.massKg, units: 'metric' } as const
+
+/** The day of the effort behind each sport's threshold. */
+function strongestDay(r: AnalysisResult, sport: 'run' | 'ride') {
+  const estimate = sport === 'run' ? r.runThreshold! : r.rideThreshold!
+  return r.activities.find((a) => a.id === estimate.efforts.strongest.activityId)!
+}
+
+describe('sportStanding', () => {
+  const standing = sportStanding(result, MAN, CONTEXT)
+
+  it('grades a run threshold as an hour at the age on the day of its strongest effort', () => {
+    const grade = standing.grades.run
+    expect(grade.kind).toBe('graded')
+    if (grade.kind !== 'graded') return
+    const who = ageAndSexAt(MAN, strongestDay(result, 'run'))!
+    expect(grade.age).toBe(who.age)
+    const speed = metabolicToFlatSpeed(result.runThreshold!.value)
+    expect(grade.grade.centre.grade).toBe(gradeAtSpeed(speed, HOUR_S, who)!.grade)
+    // The run carries its threshold's range.
+    expect(grade.grade.range!.low.grade).toBeLessThanOrEqual(grade.grade.centre.grade)
+    expect(grade.grade.range!.high.grade).toBeGreaterThanOrEqual(grade.grade.centre.grade)
+  })
+
+  it('takes each sport’s age on its own strongest day', () => {
+    const [run, ride] = [strongestDay(result, 'run'), strongestDay(result, 'ride')]
+    expect(run.startMs).not.toBe(ride.startMs)
+    // Born so that the two days fall in different years: the ages differ by the years between the days.
+    const spread = sportStanding(result, {
+      birthYear: new Date(run.startMs).getFullYear() - 30,
+      sex: 'male',
+    })
+    const [a, b] = [spread.grades.run, spread.grades.ride]
+    if (a.kind === 'graded' && (b.kind === 'graded' || b.kind === 'top-of-scale')) {
+      expect(b.age - a.age).toBe(
+        new Date(ride.startMs).getFullYear() - new Date(run.startMs).getFullYear(),
+      )
+    }
+  })
+
+  it('grades the ride through the anchored running equivalent of its threshold', () => {
+    expect(standing.rideAsRun).toEqual(result.rideThresholdRunSpeed)
+    expect(standing.rideAsRun).toEqual(thresholdRunSpeed(result.rideThreshold, undefined))
+    const ride = standing.grades.ride
+    expect(['graded', 'top-of-scale']).toContain(ride.kind)
+  })
+
+  it('leads by the two grades, to whole points, with a range the two combine in quadrature', () => {
+    const [run, ride] = [standing.grades.run, standing.grades.ride]
+    if (run.kind !== 'graded' || ride.kind !== 'graded') throw new Error('the sample grades both')
+    expect(standing.lead).toEqual(balanceLead(run.grade, ride.grade))
+    const lead = standing.lead!
+    expect(lead.low).toBeLessThanOrEqual(lead.centre)
+    expect(lead.high).toBeGreaterThanOrEqual(lead.centre)
+  })
+
+  it('says why there is no grade', () => {
+    expect(sportStanding(result, null).grades.run).toEqual({ kind: 'gap', why: 'no-profile' })
+    const bare = { ...result, runThreshold: null }
+    expect(sportStanding(bare, MAN).grades.run).toEqual({ kind: 'gap', why: 'no-threshold' })
+    expect(sportStanding(bare, MAN).lead).toBeNull()
+    const undated = { ...result, activities: [] }
+    expect(sportStanding(undated, MAN).grades.run).toEqual({ kind: 'gap', why: 'no-date' })
+    expect(sportStanding({ ...result }, { birthYear: 3000, sex: 'male' }).grades.run).toEqual({
+      kind: 'gap',
+      why: 'age-range',
+    })
+  })
+
+  it('puts a ride at the cycling world-class hour at the top of the scale', () => {
+    const wkg = CYCLING_WORLD_CLASS_HOUR_WKG.male / PRIORS.grossEfficiency.mean
+    const top = { ...result.rideThreshold!, value: wkg, low: wkg, high: wkg }
+    const strong = {
+      ...result,
+      rideThreshold: top,
+      rideThresholdRunSpeed: thresholdRunSpeed(top, 'male'),
+    }
+    expect(sportStanding(strong, MAN).grades.ride.kind).toBe('top-of-scale')
+  })
+})
+
+describe('what the lower sport needs to match the higher', () => {
+  it('is the figure the equivalence grades back at the target, named on a 5 W step for a ride', () => {
+    // Raise the run until the balance leans toward it, so the ride is the lower sport.
+    const fast = { ...result.runThreshold!, value: result.runThreshold!.value * 1.15 }
+    const leaning = {
+      ...result,
+      runThreshold: { ...fast, low: fast.value * 0.97, high: fast.value * 1.03 },
+    }
+    const standing = sportStanding(leaning, MAN, CONTEXT)
+    const need = standing.match.ride
+    expect(standing.lead!.lean).toBe('run')
+    expect(standing.match.run).toBeNull()
+    if (need === null) throw new Error('the ride has a match figure')
+    expect(need.centre % 5).toBe(0)
+    expect(need.low).toBeLessThanOrEqual(need.centre)
+    expect(need.high).toBeGreaterThanOrEqual(need.centre)
+    const now = metabolicToRidePower(
+      leaning.rideThreshold!.value,
+      CONTEXT.massKg,
+      PRIORS.grossEfficiency.mean,
+    )
+    expect(need.now).toBeCloseTo(now, 9)
+    expect(need.centre).toBeGreaterThan(now)
+    // The watts grade at least the run's whole percent.
+    const run = standing.grades.run
+    if (run.kind !== 'graded') throw new Error('graded')
+    const atNeed = {
+      ...leaning.rideThreshold!,
+      value: need.centre / (CONTEXT.massKg * PRIORS.grossEfficiency.mean),
+      low: need.centre / (CONTEXT.massKg * PRIORS.grossEfficiency.mean),
+      high: need.centre / (CONTEXT.massKg * PRIORS.grossEfficiency.mean),
+    }
+    const equal = sportStanding(
+      {
+        ...leaning,
+        rideThreshold: atNeed,
+        rideThresholdRunSpeed: thresholdRunSpeed(atNeed, undefined),
+      },
+      MAN,
+    )
+    const ride = equal.grades.ride
+    if (ride.kind !== 'graded') throw new Error('graded')
+    expect(Math.floor(ride.grade.centre.grade * 100)).toBeGreaterThanOrEqual(
+      Math.floor(run.grade.centre.grade * 100),
+    )
+  })
+
+  it('is absent without a context, for an even lead, and for the higher sport', () => {
+    expect(sportStanding(result, MAN).match).toEqual({ run: null, ride: null })
+  })
+})

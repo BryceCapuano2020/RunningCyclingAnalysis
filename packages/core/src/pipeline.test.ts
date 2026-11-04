@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DURATIONS_S, PRIORS, RESTING_W_PER_KG } from './constants'
 import type { AnalysisResult } from './pipeline'
-import { combine, digestActivity } from './digest'
+import { CYCLING_ANCHOR_LOG_SD, anchorFactor, combine, digestActivity } from './digest'
 import { analyze, equivalentRunSpeed } from './pipeline'
 import { generateActivity, sampleDataset } from './synthetic'
 import type { ComparisonPoint } from './types'
@@ -114,12 +114,15 @@ describe('analyze on simulated ground truth', () => {
     expect(flagged[0]!.flags.map((f) => f.kind)).toContain('hr-implausible-for-power')
   })
 
-  it('gives equivalents whose range brackets the true equal-cost running speed', () => {
+  it("gives equivalents anchored at each sport's world class, with the anchor's range", () => {
     for (const eq of result.equivalents) {
-      const metabolic = eq.ridePowerW / (athlete.grossEfficiency * athlete.massKg)
-      const trueSpeed = (metabolic - RESTING_W_PER_KG) / (athlete.runEconomyScale * 3.9)
-      expect(eq.runSpeed.p05).toBeLessThan(trueSpeed)
-      expect(eq.runSpeed.p95).toBeGreaterThan(trueSpeed)
+      const wkg = eq.ridePowerW / (PRIORS.grossEfficiency.mean * athlete.massKg)
+      const speedAt = (energy: number) =>
+        (anchorFactor(undefined) * energy - RESTING_W_PER_KG) / 3.9
+      const z = 1.645 * CYCLING_ANCHOR_LOG_SD
+      expect(eq.runSpeed.p50).toBeCloseTo(speedAt(wkg), 9)
+      expect(eq.runSpeed.p05).toBeCloseTo(speedAt(wkg * Math.exp(-z)), 9)
+      expect(eq.runSpeed.p95).toBeCloseTo(speedAt(wkg * Math.exp(z)), 9)
     }
     expect(result.equivalents.map((e) => e.durationS)).toEqual([180, 300, 600, 1200, 1800, 3600])
   })
@@ -208,23 +211,14 @@ describe('analyze with partial data', () => {
 })
 
 describe('equivalentRunSpeed', () => {
-  it('matches the closed form at the prior means', () => {
-    const { p50 } = equivalentRunSpeed(250, 75, null)
-    const expected = (250 / (PRIORS.grossEfficiency.mean * 75) - RESTING_W_PER_KG) / 3.9
-    expect(p50 / expected).toBeGreaterThan(0.99)
-    expect(p50 / expected).toBeLessThan(1.01)
+  it('is the anchored closed form: the ride priced at the prior mean, scaled by the anchor factor', () => {
+    const { p50 } = equivalentRunSpeed(250, 75, 'male')
+    const metabolic = anchorFactor('male') * (250 / (PRIORS.grossEfficiency.mean * 75))
+    expect(p50).toBeCloseTo((metabolic - RESTING_W_PER_KG) / 3.9, 9)
   })
 
   it('never returns a negative speed', () => {
-    expect(equivalentRunSpeed(0, 75, null).p05).toBe(0)
-  })
-
-  it('moves and narrows with a heart-rate cross-check', () => {
-    const prior = equivalentRunSpeed(250, 75, null)
-    const hr = { run: null, ride: null, kappa: 1.1, lnKappaSe: 0.03 }
-    const calibrated = equivalentRunSpeed(250, 75, hr)
-    expect(calibrated.p50).toBeGreaterThan(prior.p50)
-    expect(calibrated.p95 - calibrated.p05).toBeLessThan(prior.p95 - prior.p05)
+    expect(equivalentRunSpeed(0, 75, 'female').p05).toBe(0)
   })
 })
 

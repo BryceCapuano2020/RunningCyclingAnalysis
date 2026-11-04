@@ -5,8 +5,9 @@ import { PeriodCache } from '../periodCache'
 import { recordHolders } from '../records'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { centralWkgFromWatts, combine, equivalentRunSpeed, sportCurves } from './combine'
+import { centralWkgFromWatts, combine, sportCurves } from './combine'
 import { digestActivity } from './digestActivity'
+import { equivalentRunSpeed } from './rideAnchor'
 import { fitnessTrend } from './trend'
 
 const samples = sampleDataset().activities.map((activity) => digestActivity(activity))
@@ -146,7 +147,7 @@ describe('when the best watts and the best power-to-weight are different rides',
     const equivalent = result.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
     expect(equivalent?.ridePowerW).toBeCloseTo(290, 9)
     // Its running equivalent is the 290 W at 80 kg, not 290 W at another mass.
-    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(290, 80, result.hr).p50, 9)
+    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(290, 80, settings.sex).p50, 9)
   })
 
   it('agrees for every duration that has a ride', () => {

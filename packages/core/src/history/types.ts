@@ -1,6 +1,6 @@
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import type { EffortReference } from '../effort'
-import type { ActivityDigest, AthleteSettings, HrCalibration } from '../types'
+import type { ActivityDigest, AthleteSettings } from '../types'
 import type { ZoneEstimates } from '../zones'
 
 /** What a part may read besides the digests, which are the look-back's inputs. */
@@ -15,8 +15,6 @@ export interface HistoryInput {
   /** The wall clock, cut to the day by the caller so the memory still hits. */
   nowMs: number
   gate: EstimatedRideGate | null | undefined
-  /** The library's heart-rate calibration of a ride against a run (`HeartRateJudgement.calibration`); absent reads none. */
-  calibration?: HrCalibration | null
   /** The references the effort gate judges a best against (`HeartRateJudgement.effortReference`); absent judges nothing. */
   effortReference?: EffortReference
 }

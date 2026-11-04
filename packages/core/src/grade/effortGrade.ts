@@ -34,8 +34,8 @@ export interface Grade {
 }
 
 /**
- * A sport's age grade at one duration. A run is one activity's estimate and has no range.
- * A ride is estimated through its running equivalent, so it carries the model's range.
+ * A sport's age grade at one duration. A run's best is one activity's effort and has no range; a run's threshold, and a ride's
+ * best or threshold through its running equivalent, carry the range of what they are estimated from.
  */
 export interface SportGrade {
   centre: Grade
@@ -116,8 +116,8 @@ export type EffortGrade =
   | { kind: 'gap'; why: GapKind }
 
 /**
- * A best effort as the grade reads it: the flat running speed that costs the same (a run's pace as recorded, a
- * ride's running equivalent, null when a ride has none) and the day it was set, which the age is taken on.
+ * An effort as the grade reads it: the flat running speed it stands for (a run's pace as recorded, a ride's running
+ * equivalent, null when a ride has none) and the day it was set, which the age is taken on.
  */
 export interface GradedEffort {
   speed: Interval | null
@@ -128,13 +128,21 @@ type Grader = (speed: Interval | null, durationS: number, who: AgeAndSex) => Eff
 
 const noStandard: EffortGrade = { kind: 'gap', why: 'no-standard' }
 
-/** How each sport's speed becomes a grade: a run's is its centre alone, a ride's carries its range through its equivalent. */
+/**
+ * How each sport's speed becomes a grade. A run's speed is as recorded, so its grade has a range only where its speed has one
+ * (a threshold's low and high), and none for a best effort, whose three ends are one value. A ride's carries its range through its
+ * equivalent, held at the ceiling.
+ */
 const GRADER: Record<Sport, Grader> = {
   run: (speed, durationS, who) => {
-    const centre = speed === null ? null : gradeAtSpeed(speed.p50, durationS, who)
-    return centre === null
-      ? noStandard
-      : { kind: 'graded', age: who.age, grade: { centre, range: null } }
+    if (speed === null) return noStandard
+    const centre = gradeAtSpeed(speed.p50, durationS, who)
+    if (centre === null) return noStandard
+    const ranged = speed.p05 < speed.p50 || speed.p95 > speed.p50
+    const low = ranged ? gradeAtSpeed(speed.p05, durationS, who) : null
+    const high = ranged ? gradeAtSpeed(speed.p95, durationS, who) : null
+    const range = low !== null && high !== null ? { low, high } : null
+    return { kind: 'graded', age: who.age, grade: { centre, range } }
   },
   ride: (speed, durationS, who) => {
     const ride = speed === null ? null : rideGradeFromSpeeds(speed, durationS, who)

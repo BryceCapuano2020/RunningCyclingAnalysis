@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { PRIORS } from '../constants'
-import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
+import { metabolicToFlatSpeed } from '../metabolic'
 import type { ThresholdEstimate } from '../threshold'
-import { equivalenceFor } from './combine'
 import { thresholdRunSpeed } from './equivalents'
+import { CYCLING_ANCHOR_LOG_SD, anchorFactor, rideRunSpeed } from './rideAnchor'
 
 /** A synthetic ride threshold: `value` gross metabolic W/kg, with its range a share either side. */
 function estimate(value: number, spread = 0.06): ThresholdEstimate {
@@ -22,43 +21,45 @@ function estimate(value: number, spread = 0.06): ThresholdEstimate {
 }
 
 describe('thresholdRunSpeed', () => {
-  const equivalence = equivalenceFor(null)
-
-  it('is the equivalence of the threshold in watts, at the centre', () => {
-    const threshold = estimate(3.4)
-    const watts = metabolicToRidePower(3.4, 72, PRIORS.grossEfficiency.mean)
-    expect(thresholdRunSpeed(equivalence, threshold, 72)?.p50).toBeCloseTo(
-      equivalence(watts, 72).p50,
+  it('is the anchored running speed of the threshold at the centre', () => {
+    expect(thresholdRunSpeed(estimate(22), 'male')?.p50).toBeCloseTo(
+      metabolicToFlatSpeed(anchorFactor('male') * 22),
       9,
     )
   })
 
-  it('is the same pace whatever the body mass, since mass cancels in the equivalence', () => {
-    const threshold = estimate(3.4)
-    const light = thresholdRunSpeed(equivalence, threshold, 55)
-    const heavy = thresholdRunSpeed(equivalence, threshold, 90)
-    expect(light?.p50).toBeCloseTo(heavy?.p50 ?? Number.NaN, 6)
+  it("is the anchor's own range alone for a threshold with no range of its own", () => {
+    const alone = thresholdRunSpeed(estimate(22, 0), 'female')!
+    expect(alone).toEqual(rideRunSpeed({ value: 22 }, 'female'))
+    expect(alone.p05).toBeLessThan(alone.p50)
+    expect(alone.p95).toBeGreaterThan(alone.p50)
   })
 
-  it('orders its ends and widens them past the equivalence alone', () => {
-    const threshold = estimate(3.4)
-    const speed = thresholdRunSpeed(equivalence, threshold, 72)!
-    const alone = thresholdRunSpeed(equivalence, estimate(3.4, 0), 72)!
-    expect(speed.p05).toBeLessThan(alone.p05)
-    expect(alone.p05).toBeLessThan(speed.p50)
-    expect(speed.p50).toBeLessThan(alone.p95)
-    expect(alone.p95).toBeLessThan(speed.p95)
+  it("widens the threshold's own low and high by the anchor, in quadrature on the log scale", () => {
+    const threshold = estimate(22, 0.06)
+    const speed = thresholdRunSpeed(threshold, 'male')!
+    const energy = (v: number) => (v * 3.9 + 1.22) / anchorFactor('male')
+    const anchor = 1.645 * CYCLING_ANCHOR_LOG_SD
+    expect(Math.log(energy(speed.p05) / 22)).toBeCloseTo(
+      -Math.hypot(Math.log(22 / threshold.low), anchor),
+      9,
+    )
+    expect(Math.log(energy(speed.p95) / 22)).toBeCloseTo(
+      Math.hypot(Math.log(threshold.high / 22), anchor),
+      9,
+    )
+    // Wider than either alone.
+    const narrow = thresholdRunSpeed(estimate(22, 0), 'male')!
+    expect(speed.p95 - speed.p05).toBeGreaterThan(narrow.p95 - narrow.p05)
   })
 
-  it('is a speed a runner costs the same energy for: near the flat speed of the same W/kg', () => {
-    const speed = thresholdRunSpeed(equivalence, estimate(3.4), 72)!
-    const flat = metabolicToFlatSpeed(3.4)
-    // The equivalence is the central draw of the efficiency and economy priors, so it sits near the plain conversion.
-    expect(speed.p50 / flat).toBeGreaterThan(0.9)
-    expect(speed.p50 / flat).toBeLessThan(1.1)
+  it('moves the same way with a threshold as with a ride of that energy, and with sex', () => {
+    const woman = thresholdRunSpeed(estimate(22), 'female')!
+    const man = thresholdRunSpeed(estimate(22), 'male')!
+    expect(woman.p50).not.toBeCloseTo(man.p50, 3)
   })
 
   it('is null without a threshold', () => {
-    expect(thresholdRunSpeed(equivalence, null, 72)).toBeNull()
+    expect(thresholdRunSpeed(null, 'male')).toBeNull()
   })
 })

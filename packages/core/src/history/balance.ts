@@ -1,10 +1,10 @@
 import { civilOfDay, localDayOf } from '../calendar'
 import { HEADLINE_DURATION_S } from '../constants'
 import { plainCurve } from '../digest/bestCurve'
-import { equivalenceFor } from '../digest/combine'
 import { equivalentsOf } from '../digest/equivalents'
 import { ownRideGate } from '../digest/estimatedRide'
 import { massesOf } from '../digest/masses'
+import { equivalenceFor } from '../digest/rideAnchor'
 import { trustedPower } from '../digest/powerCheck'
 import { bestCurves, fitBikeModelOver } from '../digest/rideCurves'
 import { effortGatesOf } from '../digest/twentyMinute'
@@ -57,13 +57,13 @@ const headlineOf = (curve: Curve) => curve.find((point) => point.durationS === H
 
 /**
  * A year's curves, as an analysis of that year alone makes them: the bike model fitted over its rides, the library's
- * ride gate, set-aside list, calibration and references. The hero reads a window the same way, so an equal window
+ * ride gate, set-aside list and references. The hero reads a window the same way, so an equal window
  * grades to the same number.
  */
 function readYear(
   own: ActivityDigest[],
   input: HistoryInput,
-  equivalence: () => ReturnType<typeof equivalenceFor>,
+  equivalence: ReturnType<typeof equivalenceFor>,
 ): YearReads {
   const { settings } = input
   const masses = massesOf(settings)
@@ -81,7 +81,7 @@ function readYear(
     input.effortReference ?? NO_EFFORT_REFERENCE,
     input.setAside,
   )
-  const equivalent = equivalentsOf(equivalence(), ride, curves.bodyKgById, settings.massKg, [
+  const equivalent = equivalentsOf(equivalence, ride, curves.bodyKgById, settings.massKg, [
     HEADLINE_DURATION_S,
   ])[0]
   const runPoint = headlineOf(run)
@@ -103,9 +103,8 @@ function build(digests: ActivityDigest[], input: HistoryInput): BalanceYear[] {
     const year = civilOfDay(localDayOf(digest)).year
     byYear.set(year, [...(byYear.get(year) ?? []), digest])
   }
-  // The draws behind the equivalents are the same for every year, so they are built once, and only for a library with a ride.
-  let made: ReturnType<typeof equivalenceFor> | null = null
-  const equivalence = () => (made ??= equivalenceFor(input.calibration ?? null))
+  // A ride's equivalent is anchored at the sport's world class for the athlete's sex, the same for every year.
+  const equivalence = equivalenceFor(input.settings.sex)
   const rows: BalanceYear[] = []
   for (const [year, own] of [...byYear].sort(([a], [b]) => a - b)) {
     const reads = readYear(own, input, equivalence)
@@ -127,9 +126,6 @@ function build(digests: ActivityDigest[], input: HistoryInput): BalanceYear[] {
   return rows
 }
 
-const sameCalibration = (a: HistoryInput['calibration'], b: HistoryInput['calibration']) =>
-  a === b || (a != null && b != null && a.kappa === b.kappa && a.lnKappaSe === b.lnKappaSe)
-
 /** The references are small, and a judgement made again holds equal ones, so they are compared by value. */
 const sameReference = (a: HistoryInput['effortReference'], b: HistoryInput['effortReference']) =>
   a === b || JSON.stringify(a) === JSON.stringify(b)
@@ -137,7 +133,7 @@ const sameReference = (a: HistoryInput['effortReference'], b: HistoryInput['effo
 /**
  * Each calendar year's best 20 minutes for run and ride, for the age grades of the Balance over the years: the speed it
  * stands for and the day it was set, with whether it was a hard effort. It reads the whole library by the judgement the
- * hero reads (set-aside, ride gate, calibration, references), so the same window gives the same grade.
+ * hero reads (set-aside, ride gate, references), so the same window gives the same grade.
  */
 export const balance: HistoryPart<BalanceYear[]> = {
   empty: [],
@@ -146,6 +142,5 @@ export const balance: HistoryPart<BalanceYear[]> = {
     sameSet(a.setAside, b.setAside) &&
     a.gate === b.gate &&
     sameAnalysisSettings(a.settings, b.settings) &&
-    sameCalibration(a.calibration, b.calibration) &&
     sameReference(a.effortReference, b.effortReference),
 }
