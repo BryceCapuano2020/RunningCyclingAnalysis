@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimateOver, fitRideLine, rideThreshold, thresholdBasis } from './estimate'
+import { estimateOver, fitThresholdLine, rideThreshold, thresholdBasis } from './estimate'
 import { windowFrame } from './heartRateEstimate'
 import { prepareFlat } from './rides'
 import { RIDER, library, rides, steadyRide } from './test/rides'
@@ -16,7 +16,7 @@ const THRESHOLD_HR = RIDER.thresholdHr
 function setOf(specs: readonly RideSpec[]) {
   const { efforts, blocks } = library(RIDER, specs)
   const { rides: prepared, ages } = prepareFlat(efforts, blocks)
-  const line = fitRideLine(prepared, ages)
+  const line = fitThresholdLine(prepared, ages)
   return {
     efforts,
     blocks,

@@ -1,6 +1,8 @@
 /*
- * The ride threshold from many efforts (docs/design/threshold.md). Values are in whatever unit the caller passes, the ride
- * curve's gross metabolic W/kg in the app; every effort and block of one call must use the same unit.
+ * The threshold from many efforts (docs/design/threshold.md), for a ride or a run. Values are in whatever unit the caller passes,
+ * gross metabolic W/kg in the app (the unit of the sport's best curve); every effort and block of one call must use the same
+ * unit and the sport's duration table (`DURATION_TABLES`). In this module a "ride" is one activity of the sport the estimate is
+ * for, a run included.
  */
 
 /** One best of one ride: its highest average value over `durationS`. */
@@ -43,15 +45,22 @@ export type HeartRateRefusal =
 export interface ThresholdEstimate {
   /**
    * The answer: the power estimate (`efforts.value`) itself, or, where heart rate lifts it, the median with heart rate, no higher
-   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it.
+   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it. It is never under a backed hour the
+   * athlete did (see `efforts.value`).
    */
   value: number
-  /** The higher of the 10th percentiles from power alone and with heart rate, never above the answer. */
+  /** The higher of the 10th percentiles from power alone and with heart rate, never above the answer and never under a backed hour. */
   low: number
   /** The higher of the 90th percentiles from power alone and with heart rate, never under the answer. */
   high: number
   /** The power-only estimate, the floor the answer is built on. */
   efforts: {
+    /**
+     * The mean of the rides' estimates, or a backed hour where that is higher: the best measured effort of an hour or longer in
+     * the window when a second hour is within 4% of it or it is no higher than the mean's own 90th percentile, else the
+     * second-best hour if a third is within 4% of it or it is no higher than that percentile, else none. A lone hour above that
+     * is not believed, and estimated watts are never an hour done.
+     */
     value: number
     /**
      * The power estimate's relative error: how far the mean of the rides' estimates may sit from the truth, as a share of `value`,
@@ -60,7 +69,10 @@ export interface ThresholdEstimate {
      */
     relativeError: number
     rides: number
-    /** The ride with the highest estimate among those the mean kept, the effort that gave it, and whether its watts were estimated. */
+    /**
+     * The ride with the highest estimate among those the mean kept, the effort that gave it, and whether its watts were
+     * estimated. Where a backed hour sets `value`, that hour (measured).
+     */
     strongest: { activityId: string; durationS: number; estimated: boolean }
   }
   /** What heart rate said, before fusion, from this many efforts; or why it said nothing. */

@@ -40,6 +40,14 @@ import { fastestMs } from './test/timing'
  * is about 13 ms more here (37 to 51 ms), paid once per library whatever the period, and the runner took 93 ms, so the budget is 115.
  * A change of body mass pays the timeline again, since each ride is priced at its mass: about 12 ms more here (38 to 50 ms) and
  * 97 to 104 ms on the runner, so its budget is 130.
+ *
+ * The run threshold (U1) puts the runs through the same estimate in every week, reading bests from 8 min, and leaves heart rate
+ * out of it: a run reads pace alone, so no run line is fitted. Measured on this machine with other test runs going (load about
+ * 3), the fastest of two runs of five, with the headroom each budget keeps (budget less figure, over budget): all time 296 ms
+ * (budget 450, 34%), 12 weeks picked 76 (115, 34%), the default search 90 (160, 44%), the search that ends on all time 251 (450,
+ * 44%) and a change of body mass 80 (130, 38%); the same libraries took 313, 88, 103, 265 and 96 ms with the runs' line. With
+ * hard efforts all time takes 600 ms (1200, 50%) and the default 12 weeks 371 (1000, 63%). The tightest, all time and 12 weeks,
+ * keep 34%: none is near the 15% under which a budget is loosened or the work split.
  */
 const ACTIVITIES = 2000
 const ALL_TIME_BUDGET_MS = 450

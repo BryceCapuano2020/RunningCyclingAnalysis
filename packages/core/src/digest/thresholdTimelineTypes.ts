@@ -10,11 +10,10 @@ export const THRESHOLD_WINDOW_WEEKS = 26
 export const STALE_THRESHOLD_DAYS = 365
 
 /**
- * What the zones read of a threshold: its value, `cp`, and the standard error of it, in gross metabolic W/kg. A run's is its
- * critical-power fit, whose other fields come with it; a ride's is the ride threshold (`rideThreshold`), whose range gives
- * the error.
+ * What the zones read of a threshold: its value, `cp`, and the standard error of it, in gross metabolic W/kg. It is the sport's
+ * threshold estimate over a window (`rideThreshold`, `runThreshold`) and the power estimate's own relative error times it.
  */
-export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'> & Partial<CriticalPowerFit>
+export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'>
 
 /**
  * One sport's threshold from `fromMs` on, until the next step. A week's window holds the efforts of the
@@ -24,9 +23,12 @@ export type ThresholdFit = Pick<CriticalPowerFit, 'cp' | 'cpSe'> & Partial<Criti
 export interface ThresholdStep {
   /** The end of the first week this step holds for (`weekEndFor`), ms. */
   fromMs: number
-  /** The threshold of the window (a run's refused fit, and a ride window with no effort, are null); gross metabolic W/kg. */
+  /**
+   * The threshold of the window (null for a window with no effort its sport reads: 3 min or more for a ride, 8 for a run);
+   * gross metabolic W/kg.
+   */
   fit: ThresholdFit | null
-  /** The start of the newest activity in the window with an effort of about 20 minutes or longer, ms; null for a window with none. */
+  /** The start of the newest activity in the window with an effort its sport reads, ms; null for a window with none. */
   asOfMs: number | null
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
   lastFit: number
@@ -87,8 +89,7 @@ function stepIndexAt(steps: readonly ThresholdStep[], at: number | Dated): numbe
 
 /**
  * The threshold in effect at an instant: the fit over the window that ends with the instant's week, or, when
- * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`, unless the
- * window's efforts have outgrown that fit. Null when none exists.
+ * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`. Null when none exists.
  */
 export function thresholdAt(
   steps: readonly ThresholdStep[],
@@ -103,19 +104,4 @@ export function thresholdAt(
   return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
     ? { fit: older.fit, asOfMs: older.asOfMs }
     : null
-}
-
-/**
- * Whether the window at an instant has no fit and has outgrown the fits before it: its best 20 minutes is far above what
- * the newest of them predicts, so none stands in (`lastFit` -1, though an earlier step had a fit).
- */
-export function outgrownAt(steps: readonly ThresholdStep[], at: number | Dated): boolean {
-  const i = stepIndexAt(steps, at)
-  const step = steps[i]
-  return (
-    step !== undefined &&
-    step.fit === null &&
-    step.lastFit < 0 &&
-    steps.slice(0, i).some((each) => each.fit !== null)
-  )
 }

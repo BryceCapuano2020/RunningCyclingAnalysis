@@ -1,6 +1,15 @@
-export { estimateOver, fitRideLine, rideThreshold, thresholdBasis } from './estimate'
-export type { RideLine, ThresholdBasis } from './estimate'
-export type { HeartEffort, PreparedRide, RideBest } from './rides'
+export {
+  estimateOver,
+  fitThresholdLine,
+  rideThreshold,
+  runThreshold,
+  thresholdBasis,
+  thresholdOver,
+} from './estimate'
+export type { ThresholdBasis, ThresholdLine } from './estimate'
+export { DURATION_TABLES, runDurationRatio } from './durationTables'
+export type { DurationTable } from './durationTables'
+export type { HeartEffort, HourEffort, PreparedRide, RideBest } from './rides'
 export { prepareRide } from './rides'
 export type {
   HeartRateRefusal,

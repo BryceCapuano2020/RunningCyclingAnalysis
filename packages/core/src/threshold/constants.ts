@@ -3,8 +3,14 @@
  * threshold.sim.test.ts. They live here and not in core's constants.ts, which has no room.
  */
 
-/** The shortest best that says anything about threshold; under this the sprint dominates. */
-export const SHORTEST_EFFORT_S = 180
+/** The shortest best that says anything about a ride's threshold; under this the sprint dominates. */
+export const RIDE_SHORTEST_EFFORT_S = 180
+/**
+ * The shortest best that says anything about a run's threshold. The 3 to 7 min bests of training runs are strides, hills and GPS
+ * noise, not races, and Daniels' curve describes races: scaled from them, a run's threshold reads fast (docs/design/threshold.md,
+ * "Runs"). From 8 min a best is a sustained run and the curve holds.
+ */
+export const RUN_SHORTEST_EFFORT_S = 480
 
 // Duration ratio: the best a rider can hold for a time, as a multiple of threshold, for a rider who gave it all.
 /** The ratio changes formula at this many minutes, with no step: 1.015 + 0.76 / 20 is 1.053. */
@@ -15,6 +21,27 @@ export const RATIO_SHORT = { base: 1.015, perMinute: 0.76 } as const
 export const RATIO_LONG = { atKnee: 1.053, fall: 0.053, span: 3 } as const
 /** How far the ratio varies between riders, as a share: smallest at the knee, growing with the log of the distance either side. */
 export const RATIO_SPREAD = { atKnee: 0.025, perLog: 0.02 } as const
+
+// Running duration table: Daniels and Gilbert's share of VO2max a runner holds for m minutes,
+// pct(m) = floor + slow * exp(-slow.rate * m) + fast * exp(-fast.rate * m). The ratio is pct(minutes) over pct(60).
+export const RUN_SHARE = {
+  floor: 0.8,
+  slow: { weight: 0.1894393, rate: 0.012778 },
+  fast: { weight: 0.2989558, rate: 0.1932605 },
+} as const
+/**
+ * Daniels and Gilbert's oxygen cost of running at v metres a minute, ml/kg/min: constant + linear * v + square * v^2. It is
+ * convex in speed, where the run curve's gross metabolic W/kg is linear in it, so a share of VO2max is not a share of W/kg.
+ */
+export const RUN_VO2 = { constant: -4.6, linear: 0.182258, square: 0.000104 } as const
+/** The hour: the length at which the ratio is 1 for both sports, and from which an effort sets a floor under the answer. */
+export const HOUR_S = 3600
+/**
+ * An hour backs a floor when the next hour down in the window is within this share of it, or when it is no higher than the power
+ * estimate's own 90th percentile. The best hour is the floor if backed; a lone hour above that is one file nothing backs, and the
+ * second-best hour is the floor instead if the third (or the estimate) backs it the same way, else there is none.
+ */
+export const HOUR_AGREEMENT = 0.04
 
 // Power estimate: one estimate per ride, a robust mean of them.
 /** A ride's weight halves every this many days back from the newest activity. */

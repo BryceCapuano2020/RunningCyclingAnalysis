@@ -2,6 +2,7 @@ import { HEADLINE_DURATION_S } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
 import { effortsCount } from '../digest/effortTrust'
 import type { ActivitySummary } from '../digest/summary'
+import type { ThresholdEstimate } from '../threshold'
 import { SPORTS } from '../types'
 import type { Curve, Sport } from '../types'
 
@@ -22,20 +23,23 @@ function reachesHeadline(curve: Curve): boolean {
 }
 
 /**
- * Each sport's best curve and threshold in a result: a run's fit, a ride's estimate (`rideThreshold`) where it rests on an
- * effort as long as the headline's. The ride estimate exists from a 3 min effort, so a rider with only short bests has one,
- * and the headline compares at 20 min. The fit it replaced as the ride's evidence needed such an effort, and so does this.
+ * A threshold estimate where it rests on an effort as long as the headline's. The estimate exists from its sport's shortest
+ * effort (3 min for a ride, 8 for a run), so an athlete with only short bests has one, and the headline compares at 20 min. The fit it replaced as the evidence needed such an
+ * effort, and so does this.
  */
+function reachingHeadline(estimate: ThresholdEstimate | null): ThresholdEstimate | null {
+  return estimate !== null && estimate.efforts.strongest.durationS >= HEADLINE_DURATION_S
+    ? estimate
+    : null
+}
+
+/** Each sport's best curve and threshold in a result: the estimate (`runThreshold`, `rideThreshold`) where it rests on such an effort. */
 const EVIDENCE_OF: Record<Sport, (result: AnalysisResult) => { curve: Curve; threshold: unknown }> =
   {
-    run: (result) => ({ curve: result.runCurve, threshold: result.runCp }),
+    run: (result) => ({ curve: result.runCurve, threshold: reachingHeadline(result.runThreshold) }),
     ride: (result) => ({
       curve: result.rideCurve,
-      threshold:
-        result.rideThreshold !== null &&
-        result.rideThreshold.efforts.strongest.durationS >= HEADLINE_DURATION_S
-          ? result.rideThreshold
-          : null,
+      threshold: reachingHeadline(result.rideThreshold),
     }),
   }
 

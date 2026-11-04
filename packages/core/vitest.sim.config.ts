@@ -29,6 +29,7 @@ const SECONDS: Record<string, number> = {
   'src/digest/referenceMax.cadenceLock.sim.test.ts': 11,
   'src/profile/standOut.sim.test.ts': 10,
   'src/threshold/threshold.sim.test.ts': 10,
+  'src/threshold/runThreshold.sim.test.ts': 10,
   'src/synthetic/sampleSeason.sim.test.ts': 9,
   'src/synthetic/noise/presets.sim.test.ts': 5,
 }

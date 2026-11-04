@@ -126,7 +126,7 @@ function missingZonesOf(
   if (activity === null) return []
   return missingThresholdZones(activity.startMs, settings, estimates)
     .filter((gap) => gap.sport === activity.sport && !(!weightKnown && NEEDS_WEIGHT[gap.measure]))
-    .map(({ measure, outgrown }) => ({ measure, outgrown }))
+    .map(({ measure }) => ({ measure }))
 }
 
 /**

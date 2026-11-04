@@ -55,13 +55,26 @@ export function weeklyRuns(
   )
 }
 
-/** A run with no effort longer than 5 minutes: an easy or short run that holds a best only at its short durations. */
+/** A run with no effort longer than 5 minutes: an easy or short run that holds a best only at its short durations, under a run's 8 min. */
 export function shortRun(id: string, day: number, level: number): ActivityDigest {
   const run = levelRun(id, day, level)
   return {
     ...run,
     curve: run.curve.map((point) =>
       point.durationS > 300
+        ? Object.assign({}, point, { value: Number.NaN, startIndex: -1 })
+        : point,
+    ),
+  }
+}
+
+/** A run with no effort of 3 min or more: strides on an easy day, which hold a best only under 3 minutes. */
+export function strideRun(id: string, day: number, level: number): ActivityDigest {
+  const run = levelRun(id, day, level)
+  return {
+    ...run,
+    curve: run.curve.map((point) =>
+      point.durationS >= 180
         ? Object.assign({}, point, { value: Number.NaN, startIndex: -1 })
         : point,
     ),

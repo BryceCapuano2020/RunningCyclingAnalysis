@@ -41,14 +41,26 @@ export interface AnalysisResult {
    * left out, so each value is a measurement, as the duration profile needs.
    */
   rideMeasuredCurve: Curve
+  /**
+   * Each sport's critical-power fit of its best 3 to 20 min, in gross metabolic W/kg, with its refusal and uneven reading below.
+   * It is no sport's threshold: `runThreshold` and `rideThreshold` are, and the zones and the evidence rule read them. The race
+   * predictions do not read the fit (they read each run's distance bests). The heart-rate judgement still fits the same curves
+   * for its own checks (`trustedHeartRate.ts`, `heartRateCrossCheck.ts`), so the fit stays in core; it is no headline.
+   */
   runCp: CriticalPowerFit | null
   rideCp: CriticalPowerFit | null
   /**
    * The ride threshold from every ride's efforts in the set, with heart rate as a second estimate that can lift it
    * (docs/design/threshold.md), in the unit of rideCp: gross metabolic W/kg. Null only with no ride effort of 3 min or more.
-   * rideCp stays the critical-power fit the curve chart draws.
    */
   rideThreshold: ThresholdEstimate | null
+  /**
+   * The run threshold, built as the ride's is and meaning the same thing, the pace held for an hour (docs/design/threshold.md):
+   * every counted run's strongest effort scaled to an hour by a runner's duration table, averaged, and never under an hour the
+   * athlete ran. In the unit of runCp, gross metabolic W/kg. Null only with no run effort of 8 min or more: a run's shorter
+   * bests are strides, hills and GPS noise, which a run's table does not read.
+   */
+  runThreshold: ThresholdEstimate | null
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null

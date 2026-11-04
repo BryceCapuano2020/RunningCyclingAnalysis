@@ -1,9 +1,11 @@
 import { mulberry32, normal } from '../../math'
-import { durationRatio } from '../durationRatio'
+import { DURATION_TABLES } from '../durationTables'
+import type { DurationTable } from '../durationTables'
 import type { ThresholdBlock, ThresholdEffort } from '../types'
 
 /*
- * Simulated riders with a known threshold, for threshold.sim.test.ts: each has a few weeks of rides (easy, tempo or hard), the
+ * Simulated riders with a known threshold, for threshold.sim.test.ts, and runners in the same mould for runThreshold.sim.test.ts:
+ * each has a few weeks of rides (easy, tempo or hard), the
  * bests and 5 min blocks those rides give, and a heart rate that follows power through a line of its own. A scenario spoils
  * one thing at a time: a strap that reads wrong on some rides, a wrong maximum heart rate, an optical sensor that barely moves,
  * a rider who never goes all out, no heart rate at all. One more makes every hard ride all out, the rider whose bests are a
@@ -23,10 +25,39 @@ export interface Scenario {
   /** Every hard ride is all out: its best is what the rider can do, not 0 to 7% under it. */
   allOut?: boolean
   noHeartRate?: boolean
+  /** How much the athletes' efforts depart from the table, as a multiple of the usual spread (1): a sprinter or a diesel. */
+  enduranceSpread?: number
+  /**
+   * About half the rides carry a burst: their bests under 8 min (the 3 and 5 min ones) are 0.5 to 1 times this share over what the
+   * table holds for the athlete's threshold. Strides, a hill, GPS noise: short training bests that a race curve does not describe.
+   * Nothing else in the ride departs from the table.
+   */
+  shortBias?: number
+}
+
+/** What differs between the sports: the duration table the efforts are drawn from, and the scale of the unit. */
+export interface Profile {
+  table: DurationTable
+  /** The true threshold is drawn between these, in the unit of the efforts (watts; gross metabolic W/kg). */
+  threshold: readonly [number, number]
+  /** An easy day is this share of threshold. */
+  easy: readonly [number, number]
+}
+
+export const RIDER: Profile = {
+  table: DURATION_TABLES.ride,
+  threshold: [180, 330],
+  easy: [0.55, 0.68],
+}
+/** A runner's easy day is a larger share of threshold: the gross metabolic rate holds a resting part that does not scale. */
+export const RUNNER: Profile = {
+  table: DURATION_TABLES.run,
+  threshold: [13, 19],
+  easy: [0.68, 0.8],
 }
 
 export interface SimRider {
-  /** The true threshold, in watts. */
+  /** The true threshold, in the unit of the profile. */
   threshold: number
   efforts: ThresholdEffort[]
   blocks: ThresholdBlock[]
@@ -36,19 +67,25 @@ export interface SimRider {
 const DURATIONS_S = [3, 5, 8, 10, 15, 20, 30, 45, 60].map((m) => m * 60)
 type Fault = { add?: number; fixed?: number; drop?: boolean }
 
-export function simRiders(scenario: Scenario, count: number, seed: number): SimRider[] {
+export function simRiders(
+  scenario: Scenario,
+  count: number,
+  seed: number,
+  profile: Profile = RIDER,
+): SimRider[] {
   const rand = mulberry32(seed)
   const uni = (a: number, b: number) => a + (b - a) * rand()
   const gauss = () => normal(rand)
   const pick = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)]!
   return Array.from({ length: count }, () => {
-    const threshold = uni(180, 330)
-    const tilt = 0.04 * gauss() // a sprinter (+) or a diesel (-)
-    const fade = 0.02 * gauss()
+    const threshold = uni(...profile.threshold)
+    const wide = scenario.enduranceSpread ?? 1
+    const tilt = 0.04 * wide * gauss() // a sprinter (+) or a diesel (-)
+    const fade = 0.02 * wide * gauss()
     const allOut = (s: number) => {
       const shortness = s <= 1200 ? Math.log(1200 / s) / Math.log(1200 / 180) : 0
       const longness = s > 1200 ? Math.log(s / 1200) / Math.log(3) : 0
-      return threshold * durationRatio(s) * (1 + tilt * shortness) * (1 - fade * longness)
+      return profile.table.held(threshold, s) * (1 + tilt * shortness) * (1 - fade * longness)
     }
     const maxHr = uni(175, 200)
     const trueThresholdHr = maxHr * uni(0.87, 0.93) // the estimate assumes 0.90
@@ -71,7 +108,7 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
         ? ['easy', 'tempo', 'tempo']
         : ['easy', 'easy', 'tempo', 'hard', 'hard']
       const kind = pick(kinds)
-      const easy = threshold * uni(0.55, 0.68)
+      const easy = threshold * uni(...profile.easy)
       let hardS = 3600
       let hard = easy
       if (kind === 'tempo') {
@@ -101,11 +138,22 @@ export function simRiders(scenario: Scenario, count: number, seed: number): SimR
         if (fault?.add !== undefined) v += fault.add
         return v
       }
+      // Drawn only where the scenario has a burst, so every other scenario keeps the draws it always had.
+      const burst =
+        scenario.shortBias !== undefined && rand() < 0.5
+          ? 1 + scenario.shortBias * uni(0.5, 1)
+          : null
       const hardHr = steadyHr(hard)
       const easyHr = steadyHr(easy)
       for (const s of DURATIONS_S) {
         const inside = s <= hardS
-        const value = inside ? hard * (1 + 0.01 * gauss()) : (hard * hardS + easy * (s - hardS)) / s
+        const steady = inside
+          ? hard * (1 + 0.01 * gauss())
+          : (hard * hardS + easy * (s - hardS)) / s
+        const value =
+          burst !== null && s < 480
+            ? Math.max(steady, profile.table.held(threshold, s) * burst)
+            : steady
         const lag = inside ? (90 / s) * (1 - Math.exp(-s / 90)) : 0
         const rise = inside ? 0.12 * Math.max(0, s / 60 - 10) : 0
         const h = inside

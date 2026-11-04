@@ -13,13 +13,14 @@ import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
-import type { RideLine } from './threshold'
+import type { ThresholdLine } from './threshold'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { EvidenceMemo } from './evidenceMemo'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
+import { SPORTS } from './types'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -64,13 +65,12 @@ function calibrationKey(calibration: HrCalibration | null | undefined): string {
 }
 
 /**
- * A ride line as a key for the analysis of `selected`: what the period reads of it, which is the line's slope, spread and
- * pooled offset and highest block, and the offset, highest block and exclusion of each of the period's own rides. A line
- * fitted again over the same rides (a change of mass and back) is the same key, and an activity added outside the period
- * that leaves these as they were does not redo the period.
+ * A sport's heart-rate line as a key for the analysis of `selected`: what the period reads of it, which is the line's slope,
+ * spread and pooled offset and highest block, and the offset, highest block and exclusion of each of the period's own
+ * activities. A line fitted again over the same activities (a change of mass and back) is the same key, and an activity added
+ * outside the period that leaves these as they were does not redo the period.
  */
-function lineKey(line: RideLine | undefined, selected: readonly ActivityDigest[]): string {
-  if (line === undefined) return 'own'
+function lineKey(line: ThresholdLine, selected: readonly ActivityDigest[]): string {
   if ('refused' in line) return line.refused
   const rides = selected.flatMap(({ id }) => {
     const offset = line.offsets.get(id)
@@ -80,6 +80,15 @@ function lineKey(line: RideLine | undefined, selected: readonly ActivityDigest[]
       : [[id, offset ?? null, line.rideHighest.get(id) ?? null, excluded]]
   })
   return JSON.stringify([line.slope, line.spread, line.offset, line.highest, rides])
+}
+
+/** The lines of every sport as one key (`lineKey`); 'own' where the period fits its own. */
+function linesKey(
+  lines: Record<Sport, ThresholdLine> | undefined,
+  selected: readonly ActivityDigest[],
+): string {
+  if (lines === undefined) return 'own'
+  return SPORTS.map((sport) => lineKey(lines[sport], selected)).join('|')
 }
 
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
@@ -141,8 +150,8 @@ export class PeriodCache {
     const calibrationId = calibrationKey(calibration)
     const referencesId = JSON.stringify(references ?? null)
     const gateId = rideGateKey(rideGate)
-    const rideLine = judged?.rideLine
-    const lineId = lineKey(rideLine, selected)
+    const lines = judged?.lines
+    const lineId = linesKey(lines, selected)
     const hit = this.analysisEntries.findIndex(
       (entry) =>
         entry.setAside === key &&
@@ -162,7 +171,7 @@ export class PeriodCache {
       calibration,
       references,
       rideGate,
-      rideLine,
+      lines,
       judged,
     })
     this.analysisEntries.unshift({

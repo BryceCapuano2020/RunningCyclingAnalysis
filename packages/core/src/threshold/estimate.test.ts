@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { rideThreshold } from './estimate'
+import { DURATION_TABLES } from './durationTables'
+import { rideThreshold, runThreshold } from './estimate'
 import {
   RIDER,
   allOutRide,
@@ -233,5 +234,29 @@ describe('every reason the heart-rate estimate can be refused', () => {
     const refused = run(steadyLibrary({ ...RIDER, slope: 0.1 }))
     const without = run(steadyLibrary({ ...RIDER, slope: 0.1 }), null)
     expect(refused.value).toBe(without.value)
+  })
+})
+
+describe('a runner’s table', () => {
+  const at = (table: 'run' | 'ride', durationS: number, threshold: number, id = 'a') => ({
+    activityId: id,
+    durationS,
+    value: DURATION_TABLES[table].held(threshold, durationS),
+    heartRate: null,
+    ageDays: 0,
+    estimated: false,
+  })
+
+  it('reads a runner’s bests back to the threshold they were drawn from, and not a rider’s', () => {
+    const efforts = [300, 600, 1200].map((s, i) => at('run', s, 16, `r${i}`))
+    expect(runThreshold(efforts, [], null)!.value).toBeCloseTo(16, 8)
+    // The same bests read with a rider's table are not read back: a runner's scale is Daniels' cost of speed, not a multiple.
+    const asRider = rideThreshold(efforts, [], null)!.value
+    expect(Math.abs(asRider - 16)).toBeGreaterThan(0.02)
+  })
+
+  it('reads a rider’s bests back with the rider’s table, as it always did', () => {
+    const efforts = [300, 600, 1200].map((s, i) => at('ride', s, 260, `r${i}`))
+    expect(rideThreshold(efforts, [], null)!.value).toBeCloseTo(260, 8)
   })
 })

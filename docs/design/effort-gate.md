@@ -79,9 +79,9 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   ride behind its pace was not hard or not checked, and nothing of one that was. When the judged effort is one close to the best and not the
   best itself, the reading says "A 20 min effort within 5% of your best".
 - **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window's pace and power are its threshold, whatever the
-  judged 20 minutes was. A ride's is the estimate over that window's rides, with no floor; a run's is its fit, and a floor (the best 30 minutes,
-  else the best 20, of the 12 months up to the activity's week, dated; for today's zones alone, the newest effort older than that) stands in only where the
-  fit is refused. Heart-rate zones are cut from the highest heart rate on file where no effort reached near a maximum, and say so.
+  judged 20 minutes was. A ride's is the estimate over that window's rides, and a run's the estimate over its runs (docs/design/threshold.md), each with no floor
+  of its own; a floor (the best 30 minutes, else the best 20, of the 12 months up to the activity's week, dated; for today's zones alone, the newest
+  effort older than that) stands in only where a window holds no effort of 3 minutes or more. Heart-rate zones are cut from the highest heart rate on file where no effort reached near a maximum, and say so.
 - **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
   for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
