@@ -1,4 +1,5 @@
 import type { ChangeEvidence } from '@rca/core/change/types'
+import { wattsPerKg } from '@rca/core/display'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
@@ -48,7 +49,7 @@ export interface View {
 /** A row's mechanical W/kg, at the body mass on the date of the activity the value is from. */
 export function wkgOf(row: CurveRow, view: View): number {
   const dated = row.activityId === null ? undefined : view.masses?.[row.activityId]
-  return row.value / (dated ?? view.massKg)
+  return wattsPerKg(row.value, dated ?? view.massKg)
 }
 
 /** The table's caption, saying what its values are, and which activity they all come from, if one did. */
