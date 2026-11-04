@@ -26,7 +26,7 @@ describe('every surface writes a balance from the same side', () => {
     expect(reading.lean).toBe('even')
     expect(rangeText(reading)).toBe(RANGE)
     const lede = render(<BalanceLede reading={reading} durationS={1200} />)
-    expect(lede.container.textContent).toBe('Cycling grades 2 points higher over 20\u00a0min.')
+    expect(lede.container.textContent).toBe('Cycling grades 2 points higher at\u00a0threshold.')
     cleanup()
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
     const { container } = render(<BalanceMeter reading={reading} />)
@@ -45,7 +45,7 @@ describe('every surface writes a balance from the same side', () => {
     const { container } = render(
       <BalanceLede reading={gapReading(gap(0, 0, 0))} durationS={1200} />,
     )
-    expect(container.textContent).toBe('Running and cycling grade the same over 20\u00a0min.')
+    expect(container.textContent).toBe('Running and cycling grade the same at\u00a0threshold.')
   })
 
   it('signs a range that touches zero', () => {

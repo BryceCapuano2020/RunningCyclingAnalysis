@@ -9,7 +9,7 @@ vi.mock('../compare/sampling', async (importOriginal) => {
   return { ...actual, drawPriors: vi.fn(actual.drawPriors) }
 })
 
-it('draws the priors once for the comparison and once for all the equivalents', () => {
+it('draws the priors once, for the comparison alone: the anchored equivalents draw nothing', () => {
   const { athlete, activities } = sampleDataset()
   const digests = activities.map((a) => digestActivity(a))
   vi.mocked(sampling.drawPriors).mockClear()
@@ -18,5 +18,5 @@ it('draws the priors once for the comparison and once for all the equivalents', 
     bikeMassKg: athlete.bikeMassKg,
   })
   expect(equivalents.length).toBeGreaterThan(1)
-  expect(sampling.drawPriors).toHaveBeenCalledTimes(2)
+  expect(sampling.drawPriors).toHaveBeenCalledTimes(1)
 })

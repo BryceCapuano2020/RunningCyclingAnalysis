@@ -7,7 +7,7 @@ import { landingText } from '../../test/landingText'
 import { gapReading } from '../components/balanceScale'
 import { balanceTitle } from '../components/headlineText'
 import { gapOfHeadline } from '../balanceGap'
-import { headlineGrades } from '../grades'
+import { thresholdGrades } from '../thresholdGrade'
 import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { LandingExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
@@ -33,11 +33,13 @@ function sampleResult() {
 describe('LandingExample', () => {
   it('matches the gap the sample athlete itself shows', () => {
     const result = sampleResult()
-    expect(gapOfHeadline(headlineGrades(result, SAMPLE_PROFILE))).toMatchObject(LANDING_EXAMPLE.gap)
+    expect(gapOfHeadline(thresholdGrades(result, SAMPLE_PROFILE))).toMatchObject(
+      LANDING_EXAMPLE.gap,
+    )
   })
 
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {
-    const headline = headlineGrades(sampleResult(), SAMPLE_PROFILE)
+    const headline = thresholdGrades(sampleResult(), SAMPLE_PROFILE)
     for (const sport of ['run', 'ride'] as const) {
       const outcome = headline[sport]
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)

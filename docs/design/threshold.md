@@ -306,6 +306,24 @@ tilt 60% within 5% (80% when always all-out); strides moving the median by under
 and the estimate from 3 min at least 5 points higher with them and over 3% high; and never all-out between 8% and 14% low with
 under 2% within 5%. Seeds 11 to 14 agree within 3 points on every cell.
 
+## Grading a threshold
+
+Each sport's age grade on the current-period surfaces (Balance's lean, levels, tiles and level target, the sport pages' level panel, the share
+card, the import notice and the Method page) is its threshold graded as an effort of an hour. `sportStanding` (`packages/core/src/standing`)
+works it out once and every surface reads that object, so the lean, the cards and "Your ride as a run" agree (`apps/web/src/ui/thresholdGrade.ts`
+words the gaps). A run's threshold pace, the flat speed of `runThreshold.value`, goes through `gradeAtSpeed` at 3600 s; its `low` and `high`
+(10th and 90th percentiles) are moved out to the 5th and 95th on the log scale of energy, by 1.645 / 1.2816 (`threshold/coverage.ts`), and go
+through the same grade as the ends of the run's range. A ride's goes through its running equivalent at 3600 s,
+`AnalysisResult.rideThresholdRunSpeed` (`thresholdRunSpeed`, the anchored equivalence of `docs/design/cross-sport.md`): `p50` is the estimate;
+`p05` and `p95` are its `low` and `high` moved out to the 5th and 95th by the same factor, then widened by the anchor's spread in quadrature. The
+ride's range holds what the efforts leave open and what the anchor leaves open, and both sports' ranges, and so the lead's, are 5th to 95th; the
+equivalence has no efficiency, economy or heart-rate prior. `rideGradeFromSpeeds` reads it as it reads a ride best, with
+the same ceiling. The age is the age on the day of `efforts.strongest.activityId`, taken for each sport on its own strongest effort. "Your ride as
+a run" prints the same `p50` as a pace, so where the grades lean toward running it is slower than the run threshold, and where they lean toward
+cycling, faster (the replica's `lean-vs-cards` rule).
+A sport with no threshold has the threshold's own needs text in place of a grade. Still read from a best 20 min: grade by duration, the
+best-effort rows and records, History's years, "What changed" and the findings.
+
 ## Interface
 
 ```ts

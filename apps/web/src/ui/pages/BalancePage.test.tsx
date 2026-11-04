@@ -464,7 +464,7 @@ describe('BalancePage age grades', () => {
       MAN_BORN_1986,
     )
     expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
-    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
+    expect(screen.getByText(/^From your \d+ W threshold\.$/)).toBeInTheDocument()
   })
 
   it('holds the ride as a run tile without a weight, with the same prompt as the other tiles', () => {
@@ -477,6 +477,7 @@ describe('BalancePage age grades', () => {
   it('names no ride grade and no standards line without a weight, though the ride is graded', () => {
     renderPage(
       makeResult({
+        runThreshold: null,
         equivalents: [makeEquivalence()],
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
       }),
@@ -489,7 +490,11 @@ describe('BalancePage age grades', () => {
   })
 
   it('shows the standards line only when a grade is shown', () => {
-    const { unmount } = renderPage(makeResult(), {}, MAN_BORN_1986)
+    const { unmount } = renderPage(
+      makeResult({ runThreshold: null, rideThreshold: null }),
+      {},
+      MAN_BORN_1986,
+    )
     expect(sourceText()).toBeNull()
     unmount()
 
@@ -538,7 +543,7 @@ describe('BalancePage with no weight entered', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
     await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
     const card = vi.mocked(renderShareCard).mock.calls.at(-1)?.[0]
-    expect(card?.heroes[1]?.grade).toMatch(/^[A-Za-z]+ · \d+% on best 20 min$/)
+    expect(card?.heroes[1]?.grade).toMatch(/^[A-Za-z]+ · \d+% at threshold$/)
     cleanup()
 
     renderPage(withRide, {}, MAN_BORN_1986, false)
@@ -681,9 +686,9 @@ describe('BalancePage concept budget', () => {
     const { container } = full()
     const lede = container.querySelector('.balance-hero__lede')?.cloneNode(true) as HTMLElement
     lede.querySelectorAll('.definition__note').forEach((note) => note.remove())
-    expect(lede.textContent).toMatch(/^Running grades \d+ points? higher over 20.min\.$/)
+    expect(lede.textContent).toMatch(/^Running grades \d+ points? higher at.threshold\.$/)
     // Once in the lede; the description of the drawing words it with "than", not as the lede does.
-    const sentences = (container.textContent ?? '').match(/points? higher over/g) ?? []
+    const sentences = (container.textContent ?? '').match(/points? higher at/g) ?? []
     expect(sentences).toHaveLength(1)
   })
 })

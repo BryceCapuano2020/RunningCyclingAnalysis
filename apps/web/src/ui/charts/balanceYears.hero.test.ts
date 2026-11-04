@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { headlineGrades } from '../balanceFixtures'
 import { balanceLibrary } from '@rca/core/history/test/balanceLibrary'
 import type { PeriodChoice } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
 import { PROFILE, SETTINGS, TWELVE_YEARS } from '../balanceFixtures'
-import { headlineGrades } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { yearViews } from './balanceYears'
 

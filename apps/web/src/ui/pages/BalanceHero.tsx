@@ -6,7 +6,6 @@ import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
-import { basisLine } from '../components/basisLine'
 import { uncheckedNote } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
@@ -135,10 +134,9 @@ export function BalanceHero({
   }
   const { lead, sport, noun } = titleParts(reading)
   const few = fewEffortsText(result)
-  // A best that was not all-out is a floor, said under the balance. One nothing could check (no heart rate on it) is shown,
-  // with that said beside it.
-  const basis = basisLine(result)
-  const unchecked = uncheckedNote(result)
+  // The points rest on each sport's threshold, so no line says a best was not all-out. An energy balance still rests on the best
+  // 20 min, and one nothing could check (no heart rate on it) is shown, with that said beside it.
+  const unchecked = reading.unit === 'percent' ? uncheckedNote(result) : null
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
@@ -163,7 +161,6 @@ export function BalanceHero({
           </p>
           {target !== null && <p className="secondary">{target}</p>}
           {few !== null && <p className="secondary">{few}</p>}
-          {basis !== null && <p className="secondary">{basis}</p>}
           {unchecked !== null && <p className="secondary">{unchecked}</p>}
         </div>
       </section>

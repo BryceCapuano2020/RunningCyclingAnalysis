@@ -10,6 +10,7 @@ import type {
   Curve,
   EffortCheck,
   HrCrossCheck,
+  Interval,
   Sport,
   VirtualPowerAccuracy,
 } from '../types'
@@ -61,6 +62,13 @@ export interface AnalysisResult {
    * bests are strides, hills and GPS noise, which a run's table does not read.
    */
   runThreshold: ThresholdEstimate | null
+  /**
+   * The ride threshold as the flat running speed, m/s, that costs a runner the same energy for the same hour: `rideThreshold`
+   * through the ride equivalence the result's `equivalents` use (`thresholdRunSpeed`). `p50` is the estimate, `p05` and `p95` its
+   * low and high with the equivalence's own range. It is what a ride is graded by, and shown as a pace, beside the run threshold.
+   * Null without a ride threshold.
+   */
+  rideThresholdRunSpeed: Interval | null
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null

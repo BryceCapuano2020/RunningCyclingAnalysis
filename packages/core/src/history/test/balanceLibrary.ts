@@ -93,11 +93,15 @@ export function balanceLibrary(years: readonly YearSpec[]): ActivityDigest[] {
   ])
 }
 
-/** Twelve years from 2013: run ahead until 2020, ride from 2021; 2016 has a run only and 2018 nothing at all. */
+/**
+ * Twelve years from 2013: run ahead until 2019, level in 2019, ride ahead from 2020; 2016 has a run only and 2018 nothing at all.
+ * The ride's scale starts at 0.875 because a ride's equivalent is anchored at the best riders' hour: the same ride sits lower
+ * against the best runners than under the energy-for-energy rule these years were first written for.
+ */
 export const TWELVE_YEARS: readonly YearSpec[] = Array.from({ length: 12 }, (_, i): YearSpec => {
   const year = 2013 + i
   const run = { scale: 1 + i * 0.01, heartRate: 175 }
-  const ride = { scale: 0.7 + i * 0.05, heartRate: i % 3 === 0 ? 120 : 175 }
+  const ride = { scale: 0.875 + i * 0.0625, heartRate: i % 3 === 0 ? 120 : 175 }
   return { year, run, ride }
 })
   .filter(({ year }) => year !== 2018)

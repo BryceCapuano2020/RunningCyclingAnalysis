@@ -7,7 +7,7 @@ import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
-import { gapOfHeadline } from '../balanceGap'
+import { standingOf } from '../standing'
 import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
 import { rideHoldInputs } from '../rideLeftOut'
@@ -28,7 +28,8 @@ import { SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { periodDates } from '../components/rangeOptions'
-import { gradedSexOf, headlineGrades } from '../grades'
+import { gradedSexOf } from '../grades'
+import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
 import { activityNames } from '../records'
@@ -103,7 +104,8 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const holdInputs = useHoldInputs()
-  const headline = profile === null || result === null ? null : headlineGrades(result, profile)
+  const standing = profile === null || result === null ? null : standingOf(result, profile)
+  const headline = standing === null || result === null ? null : gradesOfStanding(result, standing)
   // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
   const rideHold =
     result === null || headline === null || !weightKnown
@@ -123,7 +125,7 @@ export function MethodPage({
   // Without a weight a ride's grade is worked out on the placeholder body mass, so only a run's grade
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)
-  const gap = headline === null ? null : gapOfHeadline(headline)
+  const gap = standing?.lead ?? null
   const gradeGapShown = gap !== null
   // The balance is the one Balance states, so the answer and the headline cannot disagree.
   const balance = weightKnown ? balanceOfPick(gap, pick) : null

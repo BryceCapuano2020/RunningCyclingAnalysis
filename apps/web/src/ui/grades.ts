@@ -55,8 +55,15 @@ export const NO_STANDARD_TEXT =
   'This best effort has no age standard or running equivalent to grade it.'
 /** The activity behind the best effort is not in the library, so the age on its date is unknown. */
 export const NO_DATE_TEXT = 'This best effort cannot be dated, so it is not graded.'
+/** The effort behind a threshold, its strongest, is not in the library, so the age on its day is unknown. */
+export const THRESHOLD_NO_DATE_TEXT =
+  'The strongest effort behind this threshold cannot be dated, so it is not graded.'
+/** The threshold's hour has no age standard or running equivalent to grade it. */
+export const THRESHOLD_NO_STANDARD_TEXT =
+  'This threshold has no age standard or running equivalent to grade it.'
 /** A ride's best effort is at or above the top of the age tables: said plainly, with no prompt to check anything. */
-export const TOP_OF_SCALE_TEXT = `Your best ${HEADLINE_LABEL} ride power is at the top of what the age tables cover, so it is capped at 100% and left out of the comparison with your running.`
+export const TOP_OF_SCALE_TEXT =
+  'Your ride power is at the top of what the age tables cover, so it is capped at 100% and left out of the comparison with your running.'
 /** The same in a few words, for a row or a line under the meter. */
 export const TOP_OF_SCALE_SHORT = 'At the top of the age tables'
 export const AGE_RANGE_TEXT = `Age grades cover ages ${FIRST_GRADED_AGE} to ${LAST_GRADED_AGE}.`
@@ -80,7 +87,7 @@ const GAP_TEXT: Record<GapKind, string> = {
 }
 
 /** The start (with its day shift) of the activity with this id, or null when it is not among the result's activities. */
-function startOf(result: AnalysisResult, activityId: string | null): Dated | null {
+export function startOf(result: AnalysisResult, activityId: string | null): Dated | null {
   if (activityId === null) return null
   return result.activities.find((activity) => activity.id === activityId) ?? null
 }
@@ -119,8 +126,27 @@ export function sportGrade(
     speed: SPEED_OF[sport](result, durationS, point.value),
     started: startOf(result, point.activityId),
   }
-  const graded = gradeEffort(sport, effort, durationS, profile)
-  return graded.kind === 'gap' ? gap(GAP_TEXT[graded.why]) : graded
+  return outcomeOf(gradeEffort(sport, effort, durationS, profile))
+}
+
+/** The words for why a threshold has no grade: the same reasons, said of the threshold and the effort behind it. */
+export const THRESHOLD_GAP_TEXT: Record<GapKind, string> = {
+  'no-date': THRESHOLD_NO_DATE_TEXT,
+  'age-range': AGE_RANGE_TEXT,
+  'no-standard': THRESHOLD_NO_STANDARD_TEXT,
+}
+
+/** A grade as the page holds it: a gap carries the words for why there is no grade, in `words` (a best effort's by default). */
+export function outcomeOf(
+  graded: EffortGrade,
+  words: Record<GapKind, string> = GAP_TEXT,
+): GradeOutcome {
+  return graded.kind === 'gap' ? gap(words[graded.why]) : graded
+}
+
+/** An outcome that is no grade, with the words for it: see `GradeOutcome`. */
+export function gapOutcome(reason: string): GradeOutcome {
+  return gap(reason)
 }
 
 /** Whether a ride's outcome is the top of the scale, which the balance leaves out. */
@@ -132,14 +158,6 @@ export function isTopOfScale(outcome: GradeOutcome | null): boolean {
 export function notGradedText(outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
   return outcome.kind === 'top-of-scale' ? TOP_OF_SCALE_TEXT : outcome.reason
-}
-
-/** Both sports' grades at the headline duration, each at its own date. */
-export function headlineGrades(result: AnalysisResult, profile: AgeProfile): HeadlineGrades {
-  return {
-    run: sportGrade(result, 'run', HEADLINE_DURATION_S, profile),
-    ride: sportGrade(result, 'ride', HEADLINE_DURATION_S, profile),
-  }
 }
 
 /**
@@ -176,12 +194,12 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 }
 
 /**
- * A grade on the share card's hero: its level and whole percent, and the effort it grades, such as
- * "Local · 64% on best 20 min". A ride's level is its centre's, as the page names it. The card's threshold
- * label already says the figure is estimated, so the line does not repeat it.
+ * A grade on the share card's hero: its level and whole percent, and what it grades, such as "Local · 64% at threshold".
+ * A ride's level is its centre's, as the page names it. The card's threshold label already says the figure is estimated,
+ * so the line does not repeat it.
  */
 export function heroGradeLine(grade: SportGrade): string {
-  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} at threshold`
 }
 
 /**

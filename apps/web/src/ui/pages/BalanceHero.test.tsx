@@ -341,7 +341,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 6 points higher over 20 min.')
+    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
   })
 
   it('shows the level target under the lede when there is one, and no line when there is none', () => {
@@ -405,7 +405,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 9 points higher over 20 min.')
+    expect(ledeOf(container)).toBe('Running grades 9 points higher at threshold.')
     expect(screen.queryByText(/in balance/)).toBeNull()
     expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
       /range −4 to \+18\u00a0points/,
@@ -424,7 +424,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your running and cycling are in balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 2 points higher over 20 min.')
+    expect(ledeOf(container)).toBe('Running grades 2 points higher at threshold.')
   })
 
   it('never says ahead of, limiter, weak or strength', () => {
@@ -963,7 +963,7 @@ describe('BalanceHero sentence on a phone', () => {
     }))
     try {
       const { container } = render(<Hero {...GAPPED} />)
-      expect(ledeOf(container)).toBe('Running grades 6 points higher over 20 min.')
+      expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
       expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
       expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
     } finally {

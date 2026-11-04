@@ -5,7 +5,8 @@ import {
 } from '@rca/core/constants'
 import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { HrCalibration, Sport } from '@rca/core/types'
+import type { Sex } from '@rca/core/grade'
+import type { Sport } from '@rca/core/types'
 import { activityMasses } from './activityMasses'
 import { leanOfRange } from '../domain/lean'
 import type { Lean as BalanceLean } from '../domain/lean'
@@ -25,17 +26,15 @@ export interface ProfilePoint {
 export type GradeProfile = Record<Sport, ProfilePoint[]>
 
 /**
- * The ride's running equivalents at the profile durations that a combine does not price, from the ride
- * curve's best at each. Each costs one pass over the draws, so they are priced here, for the chart that
- * draws them, rather than in every combine. They are priced as a combine prices its own: under the library's
- * heart-rate calibration (`HeartRateJudgement.calibration`, which the result's own equivalents were priced
- * with, not the period's own check), at the body mass the ride was ridden at (massKg without dated masses),
- * with the draws built once for all of them.
+ * The ride's running equivalents at the profile durations that a combine does not price, from the ride curve's best at each.
+ * They are priced here, for the chart that draws them, rather than in every combine, by the equivalence the result's own
+ * equivalents were priced with (anchored at each sport's world class, for the athlete's sex), at the body mass the ride was
+ * ridden at (massKg without dated masses).
  */
 export function profileEquivalents(
   result: AnalysisResult,
   massKg: number,
-  calibration: HrCalibration | null,
+  sex: Sex,
 ): Equivalence[] {
   const held = new Set(result.equivalents.map((equivalent) => equivalent.durationS))
   const masses = activityMasses(result.activities)
@@ -48,7 +47,7 @@ export function profileEquivalents(
       : []
   })
   if (powers.length === 0) return []
-  const equivalence = equivalenceFor(calibration)
+  const equivalence = equivalenceFor(sex)
   return powers.map(({ durationS, ridePowerW, rideKg }) => ({
     durationS,
     ridePowerW,
@@ -59,18 +58,16 @@ export function profileEquivalents(
 /**
  * Each sport's age grade at every duration from 3 min to 3 h that its best-effort curve and the age
  * standards grade. A duration without a best, or without a standard, is left out, never filled in. The
- * ride's equivalents beyond the result's own are priced at massKg, the body mass the result was made for, and
- * under the same calibration.
+ * ride's equivalents beyond the result's own are priced at massKg, the body mass the result was made for.
  */
 export function gradeProfile(
   result: AnalysisResult,
   profile: AgeProfile,
   massKg: number,
-  calibration: HrCalibration | null,
 ): GradeProfile {
   const priced = {
     ...result,
-    equivalents: [...result.equivalents, ...profileEquivalents(result, massKg, calibration)],
+    equivalents: [...result.equivalents, ...profileEquivalents(result, massKg, profile.sex)],
   }
   const pointsOf = (sport: Sport): ProfilePoint[] =>
     PROFILE_DURATIONS_S.flatMap((durationS) => {

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
+import { headlineGrades } from '../balanceFixtures'
 import '../../test/warmSample'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
 import { makeActivity, makeResult, makeRunThreshold } from '../components/fixtures'
-import { headlineGrades } from '../grades'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdRange } from '../thresholdRange'
@@ -100,17 +100,17 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.stat-tile__side')?.textContent).toMatch(/W\/kg$/)
   })
 
-  it('says each sport’s level and grade on its tile, with the effort it rests on, and no line of the best 20 min of its own', () => {
+  it('says each sport’s level and grade on its tile, at threshold, and no line of the best 20 min of its own', () => {
     renderTiles()
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run).toHaveTextContent(/\w+ · \d+% on your best 20 min, \d+:\d{2} \/km\./)
+    expect(run).toHaveTextContent(/\w+ · \d+% at threshold\./)
     expect(run).not.toHaveTextContent(/Best 20 min:/)
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(ride).toHaveTextContent(/\w+ · \d+% on your best 20 min, \d+ W/)
+    expect(ride).toHaveTextContent(/\w+ · \d+% at threshold\./)
     expect(ride).not.toHaveTextContent(/Best 20 min:/)
     // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
     const lines = [...ride.querySelectorAll('.stat-tile__line')].map((line) => line.textContent)
-    expect(lines.at(-1)).toMatch(/^\w+ · \d+% on your best 20 min, /)
+    expect(lines.at(-1)).toMatch(/^\w+ · \d+% at threshold\./)
   })
 
   it('holds the ride’s tiles for the weight', () => {

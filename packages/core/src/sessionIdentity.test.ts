@@ -297,6 +297,22 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * third settled step's `asOfMs` of the 400-activity library moves a week earlier in every period (the run that dated it has no effort of
  * 8 min, so the window's newest run with an effort is the one before). No ride step moves. `timeInZones`: the run pace rows, current and previous, cut from those steps. Nothing else moves.
  *
+ * Re-pinned for grading each sport from its threshold, each against its own world class (stage U, U2). `AnalysisResult` gains
+ * `rideThresholdRunSpeed`, the ride threshold as a flat running speed, and a ride's running equivalent (`equivalents`, and that speed)
+ * is now anchored at the cycling world-class hour instead of priced at an assumed efficiency (`digest/rideAnchor`). 32 hashes move,
+ * all of them `result` (16 per library, every period under all four settings). Checked by hashing `result` without `equivalents`
+ * and `rideThresholdRunSpeed` under the code before and after, for both periods tried: each hash is the same, so those two keys are
+ * the only change to `result`. Every other field, and every other key of `result`, is as it was.
+ *
+ * Re-pinned for the range of the ride threshold's running equivalent (stage U, U2 fix round 3). A threshold's `low` and `high` are its
+ * 10th and 90th percentiles, and the anchor's spread is a 5th to 95th one, so `rideRunSpeed` now scales the threshold's distances
+ * by 1.645 / 1.2816 before combining them with the anchor's in quadrature; the ends were about 18% too narrow. 32 hashes move, all of
+ * them `result` (16 per library, every period under all four settings). Checked by hashing `result` without `rideThresholdRunSpeed`
+ * under the code before and after, for the periods the two libraries use under the fixed setting: each hash is the same. In
+ * `rideThresholdRunSpeed` the centre (`p50`) is the same in every period; `p95` moves out by 4.6% of the speed in the 400-activity
+ * library and 4.7% in the set-aside library, and `p05` by under 1%, or not at all where the estimate's `low` is its value (only
+ * the anchor widens that end). Every other field is as it was.
+ *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
  * and in Auckland. The masses change inside the library's span, and both zones change clocks inside it,
@@ -335,7 +351,7 @@ const SETTINGS: Setting[] = [
 
 const PINNED: Record<string, Record<string, string>> = {
   'fixed in UTC': {
-    '"default"/result': '8abb866c156d6c6d',
+    '"default"/result': '2b3045ecab98707c',
     '"default"/trend': '73c68a09a291025d',
     '"default"/effortTrends': '2069e4bc012733e2',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -350,7 +366,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': 'e230de84b581960a',
     '"default"/library': '574d46370edbd9ae',
     '"default"/period': '6f360d1647ca0139',
-    '"all"/result': '85d18bd16a850c56',
+    '"all"/result': '2adc98388765f474',
     '"all"/trend': '3e4a0e16536cfa74',
     '"all"/effortTrends': '8ace7b8bb19a28c3',
     '"all"/sameHeartRate': '9b1187fdeee130f6',
@@ -365,7 +381,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': 'e230de84b581960a',
     '"all"/library': '574d46370edbd9ae',
     '"all"/period': '47579e1a1fbdd02b',
-    '42/result': '12cb1d7099b9312b',
+    '42/result': '8226343a21d401b4',
     '42/trend': '7c995925729427f7',
     '42/effortTrends': '35e9638e18ad68e2',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -380,7 +396,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': 'e230de84b581960a',
     '42/library': '574d46370edbd9ae',
     '42/period': 'f52586cd25d95522',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': 'cf4f33633e5ffe74',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': 'f6ba03f192646d7e',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': 'e8f310f4afc0e52a',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': '54b7e8676ce637da',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '7835ab99d9228a8f',
@@ -397,7 +413,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
   },
   'dated in UTC': {
-    '"default"/result': 'd62d012cdca9e9a8',
+    '"default"/result': 'dff162444513ccc7',
     '"default"/trend': '5ca381ef25c48d71',
     '"default"/effortTrends': 'bb18550103421240',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -412,7 +428,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '6f360d1647ca0139',
-    '"all"/result': '0680d58793872125',
+    '"all"/result': '1d39f8b70d273117',
     '"all"/trend': 'fbc97920f1b7704a',
     '"all"/effortTrends': 'dab76535f66d312c',
     '"all"/sameHeartRate': '6c17b634cd6cfb32',
@@ -427,7 +443,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '4915398ed45b1efd',
     '"all"/period': '47579e1a1fbdd02b',
-    '42/result': '814385ba88816b86',
+    '42/result': 'c5caade95357dfb9',
     '42/trend': '4836106d74c8038a',
     '42/effortTrends': 'c148c8941aba2904',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -442,7 +458,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'f52586cd25d95522',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': 'd510810039095524',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '1c46a397a42d67b3',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': 'b88fa9d3e44b6695',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': 'a40bc36685636630',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'f11b6a0deb274ebc',
@@ -459,7 +475,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
   },
   'dated in Los Angeles': {
-    '"default"/result': 'd62d012cdca9e9a8',
+    '"default"/result': 'dff162444513ccc7',
     '"default"/trend': '5ca381ef25c48d71',
     '"default"/effortTrends': 'bb18550103421240',
     '"default"/sameHeartRate': '70e621421815d33b',
@@ -474,7 +490,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '4915398ed45b1efd',
     '"default"/period': '7cbdf77a690f6297',
-    '"all"/result': '0680d58793872125',
+    '"all"/result': '1d39f8b70d273117',
     '"all"/trend': '1bfdce975e38b0c7',
     '"all"/effortTrends': 'f9eb8e8208735469',
     '"all"/sameHeartRate': 'f2fa1fd74d3f1fab',
@@ -489,7 +505,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '4915398ed45b1efd',
     '"all"/period': 'b4022d2b20f6cb24',
-    '42/result': '814385ba88816b86',
+    '42/result': 'c5caade95357dfb9',
     '42/trend': '4836106d74c8038a',
     '42/effortTrends': 'c148c8941aba2904',
     '42/sameHeartRate': '1646cd607789eeb4',
@@ -504,7 +520,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '4915398ed45b1efd',
     '42/period': 'ee8d1f6b756898a2',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': 'f60737c4f6eca42a',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '865853ed67687105',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': 'b88fa9d3e44b6695',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': 'a40bc36685636630',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': 'd77f6c00b5a0edcc',
@@ -521,7 +537,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '7de40011ebc2b6a9',
   },
   'dated in Auckland': {
-    '"default"/result': 'e5f3003258ac64c6',
+    '"default"/result': '7f591f204ce13480',
     '"default"/trend': '5ca381ef25c48d71',
     '"default"/effortTrends': 'bb18550103421240',
     '"default"/sameHeartRate': '97c42fb24d83ac3f',
@@ -536,7 +552,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"default"/records': '45d6f3b6516eb072',
     '"default"/library': '1038bb267703371b',
     '"default"/period': 'c102373861471840',
-    '"all"/result': 'af5e9fe0afcd4d39',
+    '"all"/result': 'adf2b50d849d7f17',
     '"all"/trend': 'fbc97920f1b7704a',
     '"all"/effortTrends': 'dab76535f66d312c',
     '"all"/sameHeartRate': 'a0318d07ffb489d1',
@@ -551,7 +567,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '"all"/records': '45d6f3b6516eb072',
     '"all"/library': '1038bb267703371b',
     '"all"/period': '4e2b3f99b79165f0',
-    '42/result': '1305fbaf438fa687',
+    '42/result': 'a943828b489dd280',
     '42/trend': '4836106d74c8038a',
     '42/effortTrends': 'c148c8941aba2904',
     '42/sameHeartRate': '4c49e2c4363a0e14',
@@ -566,7 +582,7 @@ const PINNED: Record<string, Record<string, string>> = {
     '42/records': '45d6f3b6516eb072',
     '42/library': '1038bb267703371b',
     '42/period': '8f564f063b3bbb04',
-    '{"from":"2021-03-10","to":"2021-03-20"}/result': '06c0d9c82a463ea5',
+    '{"from":"2021-03-10","to":"2021-03-20"}/result': '1acdf17163da1fab',
     '{"from":"2021-03-10","to":"2021-03-20"}/trend': 'b88fa9d3e44b6695',
     '{"from":"2021-03-10","to":"2021-03-20"}/effortTrends': 'a40bc36685636630',
     '{"from":"2021-03-10","to":"2021-03-20"}/sameHeartRate': '5a5fa64a93bc9aff',
@@ -595,7 +611,7 @@ const PINNED: Record<string, Record<string, string>> = {
  */
 const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
   'fixed in UTC': {
-    '"default"/result': '0f2e545c19ffcc99',
+    '"default"/result': '240a2462b2426559',
     '"default"/trend': '17f6c339a76cf6f4',
     '"default"/effortTrends': 'a2a46e9bb614a550',
     '"default"/sameHeartRate': '435dbd0f677ef9a1',
@@ -610,7 +626,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"default"/records': 'e210f2b0ab4e6347',
     '"default"/library': '9efa37e8bfb8c3d9',
     '"default"/period': '1ea974b302f40ab7',
-    '"all"/result': '0f2e545c19ffcc99',
+    '"all"/result': '240a2462b2426559',
     '"all"/trend': '17f6c339a76cf6f4',
     '"all"/effortTrends': 'a2a46e9bb614a550',
     '"all"/sameHeartRate': '435dbd0f677ef9a1',
@@ -625,7 +641,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"all"/records': 'e210f2b0ab4e6347',
     '"all"/library': '9efa37e8bfb8c3d9',
     '"all"/period': '908d810a6805c001',
-    '42/result': 'e5fbdea2b5c4efd8',
+    '42/result': 'fb56e5df0904e885',
     '42/trend': '8e9171f6508ccab9',
     '42/effortTrends': 'af62014c28c1452e',
     '42/sameHeartRate': '2cdb59cf7d381a18',
@@ -640,7 +656,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '42/records': 'e210f2b0ab4e6347',
     '42/library': '9efa37e8bfb8c3d9',
     '42/period': '9c5c63cd365ca2ab',
-    '{"from":"2025-04-20","to":"2025-06-03"}/result': 'dc032e89b2b797c3',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '027c5876cf5133d5',
     '{"from":"2025-04-20","to":"2025-06-03"}/trend': 'c4124cae0c6ec46f',
     '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': '1f552e4ad0f24c5f',
     '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': '25c037acb374ef02',
@@ -657,7 +673,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '{"from":"2025-04-20","to":"2025-06-03"}/period': '040ccc203beb436c',
   },
   'dated in UTC': {
-    '"default"/result': '065b52f616a146ec',
+    '"default"/result': 'c006a18da94091c7',
     '"default"/trend': 'efdc06a6f31390f8',
     '"default"/effortTrends': 'd67d90b50e0b0a1c',
     '"default"/sameHeartRate': '435dbd0f677ef9a1',
@@ -672,7 +688,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"default"/records': 'e210f2b0ab4e6347',
     '"default"/library': '8090803740e0053c',
     '"default"/period': '1ea974b302f40ab7',
-    '"all"/result': '065b52f616a146ec',
+    '"all"/result': 'c006a18da94091c7',
     '"all"/trend': 'efdc06a6f31390f8',
     '"all"/effortTrends': 'd67d90b50e0b0a1c',
     '"all"/sameHeartRate': '435dbd0f677ef9a1',
@@ -687,7 +703,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"all"/records': 'e210f2b0ab4e6347',
     '"all"/library': '8090803740e0053c',
     '"all"/period': '908d810a6805c001',
-    '42/result': 'f93bc03e13d6f7e0',
+    '42/result': '118b50b2afad8abb',
     '42/trend': '3631a41c96a19f5f',
     '42/effortTrends': 'e4f95c6f8ec82d9a',
     '42/sameHeartRate': '2cdb59cf7d381a18',
@@ -702,7 +718,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '42/records': 'e210f2b0ab4e6347',
     '42/library': '8090803740e0053c',
     '42/period': '9c5c63cd365ca2ab',
-    '{"from":"2025-04-20","to":"2025-06-03"}/result': '3b85b10b1a168464',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '7a3c01e783eb9916',
     '{"from":"2025-04-20","to":"2025-06-03"}/trend': '7806d696dcfffdc9',
     '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': 'fb852c4a8e89752a',
     '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': '25c037acb374ef02',
@@ -719,7 +735,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '{"from":"2025-04-20","to":"2025-06-03"}/period': '040ccc203beb436c',
   },
   'dated in Los Angeles': {
-    '"default"/result': '065b52f616a146ec',
+    '"default"/result': 'c006a18da94091c7',
     '"default"/trend': 'efdc06a6f31390f8',
     '"default"/effortTrends': 'd67d90b50e0b0a1c',
     '"default"/sameHeartRate': '435dbd0f677ef9a1',
@@ -734,7 +750,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"default"/records': 'e210f2b0ab4e6347',
     '"default"/library': '8090803740e0053c',
     '"default"/period': '15560ef12cf99461',
-    '"all"/result': '065b52f616a146ec',
+    '"all"/result': 'c006a18da94091c7',
     '"all"/trend': 'efdc06a6f31390f8',
     '"all"/effortTrends': 'd67d90b50e0b0a1c',
     '"all"/sameHeartRate': '435dbd0f677ef9a1',
@@ -749,7 +765,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"all"/records': 'e210f2b0ab4e6347',
     '"all"/library': '8090803740e0053c',
     '"all"/period': '6183491011d5d5b5',
-    '42/result': 'f93bc03e13d6f7e0',
+    '42/result': '118b50b2afad8abb',
     '42/trend': '3631a41c96a19f5f',
     '42/effortTrends': 'e4f95c6f8ec82d9a',
     '42/sameHeartRate': '2cdb59cf7d381a18',
@@ -764,7 +780,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '42/records': 'e210f2b0ab4e6347',
     '42/library': '8090803740e0053c',
     '42/period': '4115668a63751e03',
-    '{"from":"2025-04-20","to":"2025-06-03"}/result': '3b85b10b1a168464',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': '7a3c01e783eb9916',
     '{"from":"2025-04-20","to":"2025-06-03"}/trend': '7806d696dcfffdc9',
     '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': 'fb852c4a8e89752a',
     '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': '25c037acb374ef02',
@@ -781,7 +797,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '{"from":"2025-04-20","to":"2025-06-03"}/period': '8d270473f6fc81d0',
   },
   'dated in Auckland': {
-    '"default"/result': '065b52f616a146ec',
+    '"default"/result': 'c006a18da94091c7',
     '"default"/trend': '90ec69a878fd69f8',
     '"default"/effortTrends': '0b84c54a450efc1e',
     '"default"/sameHeartRate': 'cdd315f6b2fc5e0e',
@@ -796,7 +812,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"default"/records': 'e210f2b0ab4e6347',
     '"default"/library': '8090803740e0053c',
     '"default"/period': 'aeb4df8a38f78a46',
-    '"all"/result': '065b52f616a146ec',
+    '"all"/result': 'c006a18da94091c7',
     '"all"/trend': '90ec69a878fd69f8',
     '"all"/effortTrends': '0b84c54a450efc1e',
     '"all"/sameHeartRate': 'cdd315f6b2fc5e0e',
@@ -811,7 +827,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '"all"/records': 'e210f2b0ab4e6347',
     '"all"/library': '8090803740e0053c',
     '"all"/period': 'c8bcf9bb00b45238',
-    '42/result': 'f93bc03e13d6f7e0',
+    '42/result': '118b50b2afad8abb',
     '42/trend': 'dc220b54db6a84fe',
     '42/effortTrends': '8191bcc42bc0d8fc',
     '42/sameHeartRate': '2cdb59cf7d381a18',
@@ -826,7 +842,7 @@ const PINNED_SET_ASIDE: Record<string, Record<string, string>> = {
     '42/records': 'e210f2b0ab4e6347',
     '42/library': '8090803740e0053c',
     '42/period': '380732de5220fc6a',
-    '{"from":"2025-04-20","to":"2025-06-03"}/result': '5e67c50dcf17162f',
+    '{"from":"2025-04-20","to":"2025-06-03"}/result': 'c3235aacb873d8d9',
     '{"from":"2025-04-20","to":"2025-06-03"}/trend': 'd938f565492e352c',
     '{"from":"2025-04-20","to":"2025-06-03"}/effortTrends': '168a172aa297f675',
     '{"from":"2025-04-20","to":"2025-06-03"}/sameHeartRate': 'e1898a6819acce5e',

@@ -2,7 +2,18 @@ export { countFlags, digestActivity, DIGEST_VERSION } from './digestActivity'
 export { traceQualityOf } from './traceQuality'
 export { MODEL_REVISION } from './modelRevision'
 export { activitySummaries } from './activitySummaries'
-export { combine, equivalenceFor, equivalentRunSpeed, sportCurves } from './combine'
+export { combine, sportCurves } from './combine'
+export { thresholdRunSpeed } from './equivalents'
+export {
+  CYCLING_ANCHOR_LOG_SD,
+  CYCLING_WORLD_CLASS_HOUR_WKG,
+  OPEN_AGE,
+  anchorFactor,
+  equivalenceFor,
+  equivalentRunSpeed,
+  rideRunSpeed,
+  worldClassRunHourSpeed,
+} from './rideAnchor'
 export { fitnessTrend } from './trend'
 export { effortsCount } from './effortTrust'
 export { weeksWithValue } from './trendPoints'

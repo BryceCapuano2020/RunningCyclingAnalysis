@@ -110,10 +110,10 @@ The owner's export: a multi-year library of about 2,000 activities, mostly runs,
 
 ## Where it is used
 
-| Surface                                         | Reads                                                                                                                                                                         |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sport curve title (`curveTakeaway`)             | the 20 minute call at the headline level, else the longest length both periods hold that the test could judge                                                                 |
-| Best-effort list change column (`recordChange`) | the call at the record's length, record level                                                                                                                                 |
-| Balance "What changed" (`balanceChanges`)       | the 20 minute call of each sport, headline level, against the previous period or a window back that holds enough; the lean needs a called best that moves it the way it moved |
-| Best efforts by day title (`takeawayAt`)        | the call at the chosen length, headline level                                                                                                                                 |
-| Import summary                                  | no call: it lists figures only when the period was one regime before and after (`sameRegime`)                                                                                 |
+| Surface                                         | Reads                                                                                                                                                                 |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sport curve title (`curveTakeaway`)             | the 20 minute call at the headline level, else the longest length both periods hold that the test could judge                                                         |
+| Best-effort list change column (`recordChange`) | the call at the record's length, record level                                                                                                                         |
+| Balance "What changed" (`balanceChanges`)       | the 20 minute call of each sport, headline level, against the previous period or a window back that holds enough; it lists no lean, which is read from the thresholds |
+| Best efforts by day title (`takeawayAt`)        | the call at the chosen length, headline level                                                                                                                         |
+| Import summary                                  | no call: it lists figures only when the period was one regime before and after (`sameRegime`)                                                                         |

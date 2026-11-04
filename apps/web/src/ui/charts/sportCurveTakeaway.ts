@@ -47,8 +47,6 @@ export interface TakeawayInput {
   rows: readonly CurveRow[]
   /** The period before, such as "Previous 12 weeks", when it has something to compare. */
   previousLabel: string | null
-  /** The level the best 20 minutes grades to, such as "Local", when it can be graded. */
-  level?: string
   /** The change test for the two periods (see changeEvidence); null where there is no period before. */
   change: ChangeEvidence | null
 }
@@ -190,15 +188,14 @@ export function citedDurationS(input: TakeawayInput): number | null {
 /**
  * The curve's finding, as the sentence its title carries. With a period before, it says how far the 20 minute
  * effort (or the longest effort both periods have measured) moved, when the move clears the floor above, or that
- * there is no clear change at that length. Without one, it names the best, with its level. A carried value is never read
+ * there is no clear change at that length. Without one, it names the best. A carried value is never read
  * as a finding. Null when the curve has no measured effort to name.
  */
 export function curveTakeaway(input: TakeawayInput): string | null {
-  const { sport, units, rows, level } = input
+  const { sport, units, rows } = input
   const compared = comparison(input)
   if (compared !== null) return compared.text
   const best = bestRow(rows)
   if (best === undefined) return null
-  const graded = best.durationS === HEADLINE_DURATION_S && level !== undefined ? `, ${level}` : ''
-  return `Best ${effortLabel(best.durationS)}: ${formatNative(sport, best.value, units)}${graded}`
+  return `Best ${effortLabel(best.durationS)}: ${formatNative(sport, best.value, units)}`
 }

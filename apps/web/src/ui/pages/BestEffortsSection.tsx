@@ -1,10 +1,8 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { queryFromView, DEFAULT_VIEW } from '../activitiesView'
 import { SportCurveChart } from '../charts'
 import { ArrowRightIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { formatCount } from '../format/count'
-import { gradeLevelText, sportGrade } from '../grades'
 import { activityMasses } from '../activityMasses'
 import { activityNames } from '../records'
 import { hrefFor } from '../route'
@@ -17,15 +15,15 @@ import type { SectionContext } from './sportPageProps'
 /**
  * A sport's best efforts: the curve they make with its findings written on it. The records themselves are in "All best
  * efforts" below, once: a strip of tiles under the curve would list the same rows again. The heading names the card for
- * a screen reader; the chart's own title and finding are the visible ones.
+ * a screen reader; the chart's own title and finding are the visible ones. The finding names no level: the level of a sport
+ * is its threshold's, stated once beside the threshold.
  */
 export function BestEffortsSection(context: SectionContext & { list: BestEffortRows }) {
-  const { sport, result, previousLabel, massKg, units, count, profile, list } = context
+  const { sport, result, previousLabel, massKg, units, count, list } = context
   const { current, earlier } = curvesOf(context)
   const measuredRides = result.activities.filter(
     (activity) => activity.sport === 'ride' && activity.powerSource === 'measured',
   ).length
-  const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   return (
     <section className="section" aria-labelledby={`${sport}-records`}>
       <h2 id={`${sport}-records`} className="sr-only">
@@ -40,7 +38,6 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
         activityNames={activityNames(result.activities)}
         activityMasses={activityMasses(result.activities)}
         threshold={thresholdLine(result, sport, massKg, units)}
-        bestLevel={headline?.kind === 'graded' ? gradeLevelText(headline.grade) : undefined}
         change={context.change}
       />
       {sport === 'ride' && list.someEstimated && (

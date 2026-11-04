@@ -3,7 +3,6 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { EffortGate } from '@rca/core/effort'
 import { curvePoint } from './charts/fixtures'
-import { basisLine } from './components/basisLine'
 import { makeActivity, makeResult } from './components/fixtures'
 import { heldAction, heldReason, uncheckedNote } from './components/headlineNeed'
 import { headlinePick } from './components/pickHeadline'
@@ -29,10 +28,9 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
     expect(holdOf(result)).toBeNull()
     expect(heldPick(result).pick).toEqual(headlinePick(result))
     expect(heldPick(result).pick).not.toBeNull()
-    expect(basisLine(result)).toBeNull()
   })
 
-  it('holds nothing for a best that was not hard: the pick stands, and the line says what it rests on', () => {
+  it('holds nothing for a best that was not hard: the pick stands', () => {
     for (const result of [base(gate(), HARD), base(gate(), gate()), base(HARD, gate())]) {
       expect(holdOf(result)).toBeNull()
       expect(heldPick(result)).toEqual({ hold: null, pick: headlinePick(result) })
@@ -40,28 +38,10 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
     }
   })
 
-  it('says which sport’s best was not all-out, or that neither was', () => {
-    expect(basisLine(base(gate(), HARD))).toBe(
-      "Your run best wasn't all-out, so running could be higher.",
-    )
-    expect(basisLine(base(HARD, gate()))).toBe(
-      "Your ride best wasn't all-out, so cycling could be higher.",
-    )
-    expect(basisLine(base(gate(), gate()))).toBe('Neither best was all-out.')
-  })
-
-  it('says it of a reference that cannot confirm a hard effort as of one that can', () => {
-    const habitual = gate({ reference: 'habitual', neededS: null })
-    expect(basisLine(base(habitual, HARD))).toBe(
-      "Your run best wasn't all-out, so running could be higher.",
-    )
-  })
-
-  it('says nothing of a best that was only not checked: the comparison is shown with a note beside it', () => {
+  it('holds nothing for a best that was only not checked: the comparison is shown, and the note says so', () => {
     for (const result of [base(NO_HEART_RATE, HARD), base(HARD, THIN), base(UNKNOWN, HARD)]) {
       expect(holdOf(result)).toBeNull()
       expect(heldPick(result).pick).not.toBeNull()
-      expect(basisLine(result)).toBeNull()
     }
     expect(uncheckedNote(base(NO_HEART_RATE, HARD))).toBe(
       'No heart rate on your best 20 min run, so the effort was not checked. Add a run with heart rate to check it.',
@@ -72,9 +52,8 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
     expect(uncheckedNote(base(UNKNOWN, HARD))).toBeNull()
   })
 
-  it('says both when one best was not hard and the other was not checked', () => {
+  it('names the sport whose best was not checked, whatever the other’s best was', () => {
     const result = base(gate(), NO_HEART_RATE)
-    expect(basisLine(result)).toBe("Your run best wasn't all-out, so running could be higher.")
     expect(uncheckedNote(result)).toContain('No heart rate on your best 20 min ride')
   })
 

@@ -7,7 +7,12 @@ import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { curvePoint } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  makeActivity,
+  makeResult,
+} from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
 import { changeOf } from '../charts/changeFixtures'
@@ -178,5 +183,33 @@ describe('an indoor run on the sport page', () => {
     renderPage('run', makeResult({ activities: [indoor] }))
 
     expect(screen.queryByText('10 km')).toBeNull()
+  })
+})
+
+describe('the level on the sport page', () => {
+  it('is the threshold’s alone: the curve names its best 20 min by its figure, with no level beside it', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    renderPage(
+      'run',
+      makeResult({
+        activities: [run],
+        runCurve: [
+          curvePoint(300, FIVE_K_IN_20_MIN_WKG * 1.05, 'run-1'),
+          curvePoint(1200, FIVE_K_IN_20_MIN_WKG, 'run-1'),
+        ],
+      }),
+      null,
+      [run],
+      MAN_BORN_1986,
+    )
+
+    // The level panel states the grade at the threshold, with its level.
+    const panel = screen.getByRole('region', { name: 'Age grade at threshold' })
+    expect(panel).toHaveTextContent(/Recreational|Local|Regional|National|World/)
+    const figure = screen.getByRole('figure', { name: 'Best efforts' })
+    expect(figure).toHaveTextContent(/Best 20 min: \d+:\d{2} \/km/)
+    expect(figure).not.toHaveTextContent(
+      /Best 20 min: [^A-Z]*(Recreational|Local|Regional|National|World)/,
+    )
   })
 })

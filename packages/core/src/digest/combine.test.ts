@@ -9,7 +9,6 @@ import {
 import { smoothGrade, travelledDistance } from '../metabolic'
 import { mulberry32 } from '../math'
 import { airDensityStream } from '../physics/air'
-import { crossCheck } from '../hr'
 import { assessQuality } from '../quality'
 import { generateActivity, sampleDataset } from '../synthetic'
 import type {
@@ -21,7 +20,8 @@ import type {
   HrPoint,
 } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import { combine, equivalenceFor, equivalentRunSpeed, sportCurves } from './combine'
+import { combine, sportCurves } from './combine'
+import { equivalenceFor, equivalentRunSpeed } from './rideAnchor'
 import { digestActivity } from './digestActivity'
 import { atOrBelowCriticalPower } from './heartRateCrossCheck'
 import { powerAt } from './terms'
@@ -34,19 +34,6 @@ const digests = activities.map((a) => digestActivity(a))
 const result = combine(digests, settings)
 
 const constant = (n: number, value: number) => new Float64Array(n).fill(value)
-
-it('uses the same finite prior fallback for equivalent pace when heart-rate evidence conflicts', () => {
-  const prior = equivalentRunSpeed(240, 75, null)
-  for (const kappa of [3, 10]) {
-    expect(equivalentRunSpeed(240, 75, { kappa, lnKappaSe: 0.05 })).toEqual(prior)
-  }
-})
-
-it('prices equivalent run speed from 4000 draws by default', () => {
-  expect(equivalentRunSpeed(240, 75, null)).toEqual(
-    equivalentRunSpeed(240, 75, null, { draws: 4000 }),
-  )
-})
 
 it('never mixes stored digests from an older model revision into current results', () => {
   const current = digests[0]!
@@ -640,25 +627,18 @@ describe('sportCurves', () => {
 })
 
 describe('equivalenceFor', () => {
-  const hrPoints = (slope: number) =>
-    Array.from({ length: 40 }, (_, i) => ({
-      metabolicPower: 6 + i * 0.1,
-      heartRate: 120 + slope * i * 0.1 + (i % 3),
-      activityId: `a${i}`,
-    }))
-
-  it('gives the same interval as equivalentRunSpeed for each power, under one model', () => {
-    for (const hr of [null, crossCheck(hrPoints(2), hrPoints(2.4))]) {
-      const equivalence = equivalenceFor(hr)
+  it('gives the same interval as equivalentRunSpeed for each power', () => {
+    for (const sex of [undefined, 'female', 'male'] as const) {
+      const equivalence = equivalenceFor(sex)
       for (const watts of [180, 250, 320]) {
-        expect(equivalence(watts, 75)).toEqual(equivalentRunSpeed(watts, 75, hr))
+        expect(equivalence(watts, 75)).toEqual(equivalentRunSpeed(watts, 75, sex))
       }
     }
   })
 
-  it("prices a result's own equivalents again from the result's heart-rate check and the athlete's mass", () => {
+  it("prices a result's own equivalents again from the athlete's sex and mass", () => {
     // The grade by duration prices the durations a combine leaves out this way, so it must agree with it.
-    const equivalence = equivalenceFor(result.hr)
+    const equivalence = equivalenceFor(settings.sex)
     expect(result.equivalents.length).toBeGreaterThan(0)
     for (const { ridePowerW, runSpeed } of result.equivalents) {
       expect(equivalence(ridePowerW, settings.massKg)).toEqual(runSpeed)

@@ -1,121 +1,12 @@
 import '../../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { equivalenceFor } from '@rca/core/pipeline'
 import type { SportCurves } from '@rca/core/types'
 import { AnalysisSession } from '@rca/core/session'
-import type { BalanceGap } from '../balanceGap'
-import { gapOfHeadline } from '../balanceGap'
-import type { ChangeVerdict } from '@rca/core/change/types'
-import type { Sport } from '@rca/core/types'
 import { changeOf } from '../charts/changeFixtures'
-import { headlineGrades } from '../grades'
-import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
-import { balanceChanges, leanItem, noChangeText, previousGap } from './balanceChangeItems'
+import { SAMPLE_SETTINGS } from '../sampleAthlete'
+import { balanceChanges, noChangeText } from './balanceChangeItems'
 import type { ChangesInput } from './balanceChangeItems'
-
-const gap = (centre: number, low: number, high: number): BalanceGap => ({
-  centre,
-  low,
-  high,
-  lean: centre > 2 ? 'run' : centre < -2 ? 'ride' : 'even',
-})
-
-/** The verdicts of a run and a ride best that explain a lean moving from `before` to `now`: the run higher, or lower, alone. */
-function explaining(now: BalanceGap, before: BalanceGap): Record<Sport, ChangeVerdict> {
-  return { run: now.centre > before.centre ? 'higher' : 'lower', ride: 'none' }
-}
-
-/** The lean item for a move that a called best explains. */
-const lean = (now: BalanceGap, before: BalanceGap) => leanItem(now, before, explaining(now, before))
-
-describe('leanItem', () => {
-  it('says the lean eased, with where it was and no range, and carries no chip', () => {
-    const item = lean(gap(6, 1, 12), gap(20, 14, 26))
-    expect(item).toEqual({
-      key: 'lean',
-      title: 'Lean eased 14 pts',
-      direction: 'down',
-      body: 'Down from 20 pts toward running.',
-    })
-  })
-
-  describe('which moves the change test supports', () => {
-    const now = gap(6, 1, 12)
-    const before = gap(20, 14, 26)
-    // Easing from 20 to 6 points toward running is a move toward cycling.
-    it('lists a move toward cycling when the run’s best was called lower or the ride’s higher', () => {
-      expect(leanItem(now, before, { run: 'lower', ride: 'none' })).not.toBeNull()
-      expect(leanItem(now, before, { run: 'none', ride: 'higher' })).not.toBeNull()
-    })
-
-    it('lists nothing when no best was called, or the called best moves the lean the other way', () => {
-      expect(leanItem(now, before, { run: 'none', ride: 'none' })).toBeNull()
-      expect(leanItem(now, before, { run: 'untested', ride: 'untested' })).toBeNull()
-      expect(leanItem(now, before, { run: 'higher', ride: 'none' })).toBeNull()
-      expect(leanItem(now, before, { run: 'none', ride: 'lower' })).toBeNull()
-    })
-
-    it('lists a move either way when both bests were called in opposite ways', () => {
-      expect(leanItem(now, before, { run: 'higher', ride: 'higher' })).not.toBeNull()
-      expect(leanItem(before, now, { run: 'higher', ride: 'higher' })).not.toBeNull()
-    })
-  })
-
-  it('says the lean grew, with an arrow up, when the gap widened', () => {
-    expect(lean(gap(12, 5, 19), gap(6, 1, 11))).toMatchObject({
-      title: 'Lean grew 6 pts',
-      direction: 'up',
-    })
-  })
-
-  describe('for a lean toward cycling', () => {
-    it('says where it was, toward cycling, and leaves the range to the meter', () => {
-      const item = lean(gap(-6, -12, -1), gap(-9, -14, -3))
-      expect(item?.body).toBe('Down from 9 pts toward cycling.')
-      expect(item?.body).not.toMatch(/range|−/)
-    })
-
-    it('points the arrow down when the lean eased and up when it grew, whichever sport it favours', () => {
-      expect(lean(gap(-6, -12, -1), gap(-9, -14, -3))).toMatchObject({
-        title: 'Lean eased 3 pts',
-        direction: 'down',
-      })
-      expect(lean(gap(-12, -18, -6), gap(-6, -12, -1))).toMatchObject({
-        title: 'Lean grew 6 pts',
-        direction: 'up',
-      })
-      // The same easing for running reads the same way.
-      expect(lean(gap(6, 1, 12), gap(9, 3, 15))?.direction).toBe('down')
-    })
-  })
-
-  it('names the new side when the lean crossed over, with the arrow for how far it moved', () => {
-    const item = lean(gap(-6, -12, -1), gap(8, 2, 14))
-    expect(item?.title).toBe('Lean moved toward cycling')
-    expect(item?.body).toBe('Was 8 pts toward running.')
-    expect(item?.direction).toBe('down')
-  })
-
-  it('says where the lean was, with no range, whether or not the range is one value', () => {
-    const item = lean(gap(3, 3, 3), gap(9, 9, 9))
-    expect(item?.body).toBe('Down from 9 pts toward running.')
-    expect(item?.body).not.toMatch(/range|0 to 0|9 to 9/)
-    expect(lean(gap(-6, -6, -6), gap(1, 1, 1))?.body).not.toMatch(/range/)
-  })
-
-  it('says still in balance, not that the lean moved, between two readings both inside the level band', () => {
-    // +2 and -2 both read as level, though they round to opposite sides.
-    const item = lean(gap(-2, -8, 4), gap(2, -4, 8))
-    expect(item?.title).toBe('Still in balance')
-    // A reading outside the band is a move.
-    expect(lean(gap(-6, -9, -3), gap(2, -4, 8))?.title).toBe('Lean moved toward cycling')
-  })
-
-  it('lists nothing when the gap is the same in whole points', () => {
-    expect(lean(gap(6.2, 1, 12), gap(5.8, 2, 11))).toBeNull()
-  })
-})
 
 /** The sample athlete's analysis, with the curves of a previous period made from it. */
 function sample() {
@@ -129,8 +20,6 @@ function sample() {
     change: changeOf('higher'),
     units: 'metric',
     rideShown: true,
-    gap: null,
-    grading: null,
     ...over,
   })
   /** The previous period: each curve scaled, so its 20 minute best is that much lower or higher. */
@@ -138,13 +27,7 @@ function sample() {
     runCurve: result.runCurve.map((p) => Object.assign({}, p, { value: p.value * run })),
     rideCurve: result.rideCurve.map((p) => Object.assign({}, p, { value: p.value * ride })),
   })
-  const grading = {
-    library: state.library,
-    profile: SAMPLE_PROFILE,
-    massKg: SAMPLE_SETTINGS.massKg,
-    calibration: state.heartRateJudgement.calibration,
-  }
-  return { state, result, input, scaled, grading }
+  return { state, result, input, scaled }
 }
 
 /** A result whose rides' watts were all measured by a power meter. */
@@ -281,13 +164,12 @@ describe('balanceChanges', () => {
     expect(result?.items.map((item) => item.key)).toEqual(['run-best'])
   })
 
-  it('lists the lean first, then the ride’s best, then the run’s, and never more than four', () => {
-    const { input, scaled, grading, result } = sample()
-    const now = previousGap(result, scaled(1, 1), grading)
-    expect(now).not.toBeNull()
-    const out = balanceChanges(input(scaled(0.9, 0.8), { gap: now, grading }))
-    expect(out?.items.map((item) => item.key)).toEqual(['lean', 'ride-best', 'run-best'])
+  it('lists the ride’s best, then the run’s, and never the lean: the lead of the page states that once', () => {
+    const { input, scaled } = sample()
+    const out = balanceChanges(input(scaled(0.9, 0.8)))
+    expect(out?.items.map((item) => item.key)).toEqual(['ride-best', 'run-best'])
     expect(out?.items.length).toBeLessThanOrEqual(4)
+    expect(JSON.stringify(out)).not.toMatch(/lean|toward (running|cycling)/i)
   })
 })
 
@@ -344,114 +226,13 @@ describe('balanceChanges for a library that fails the hard-effort check', () => 
     expect(JSON.stringify(out)).not.toMatch(/hard effort|comparable|not checked|every effort/i)
   })
 
-  it('lists a called best that moves the lean, and the lean with it, from an easy previous best', () => {
-    const { input, scaled, grading, result } = sample()
-    const nowGap = previousGap(result, scaled(1, 1), grading)
-    // The ride was weaker the period before, so the lean has eased toward cycling; the run's lower call explains that.
-    const change = changeOf('lower')
-    change.ride = changeOf('none').ride
-    const easyBefore = {
-      ...scaled(1.05, 0.8),
-      headlineEffort: { durationS: 1200, runHrFraction: 0.6, rideHrFraction: 0.6 },
-    }
-    const easy = { ...result, effort: [check(0.6, 0.6)] }
-    const out = balanceChanges(input(easyBefore, { result: easy, gap: nowGap, grading, change }))
-    expect(keys(out)).toContain('lean')
-    expect(keys(out)).toContain('run-best')
-  })
-
-  it('keeps the arrow and the grew or eased words of a lean that a call made from every effort stands behind', () => {
-    const { input, scaled, grading, result } = sample()
-    const nowGap = previousGap(result, scaled(1, 1), grading)
-    const change = changeOf('lower')
-    change.ride = changeOf('none').ride
-    const lean = (calls: typeof change) =>
-      balanceChanges(input(scaled(1, 0.93), { gap: nowGap, grading, change: calls }))?.items.find(
-        (item) => item.key === 'lean',
-      )
-    const gated = lean(change)
-    expect(['up', 'down']).toContain(gated?.direction)
-    // The run's call read every effort: the lean says the same, with its arrow and its words.
-    const ungated = {
-      ...change,
-      run: change.run.map((call) => Object.assign({}, call, { gated: false })),
-    }
-    const item = lean(ungated)
-    expect(item).toEqual(gated)
-    expect(item?.title).toMatch(/^Lean (grew|eased) \d+ pts?$/)
-    expect(item?.body).toMatch(/^(Up|Down) from \d+ pts? toward (running|cycling)\.$/)
-    // A ride call that read every effort and was not called leaves the lean alone.
-    const ungatedNone = {
-      ...change,
-      ride: changeOf('none').ride.map((call) => Object.assign({}, call, { gated: false })),
-    }
-    expect(lean(ungatedNone)).toEqual(gated)
-  })
-
   it('is absent, with no text, when neither sport could be tested', () => {
     const { input, scaled } = measured()
     expect(balanceChanges(input(scaled(0.9, 0.9), { change: changeOf('untested') }))).toBeNull()
   })
 })
 
-describe('previousGap', () => {
-  it('is the page’s own gap when the previous curves are this period’s: centre, low and high', () => {
-    const { result, scaled, grading } = sample()
-    const same = previousGap(result, scaled(1, 1), grading)
-    const page = gapOfHeadline(headlineGrades(result, SAMPLE_PROFILE))
-    expect(same).not.toBeNull()
-    expect(same?.centre).toBe(page?.centre)
-    expect(same?.low).toBe(page?.low)
-    expect(same?.high).toBe(page?.high)
-  })
-
-  it('widens the run’s lead when the ride was weaker the period before', () => {
-    const { result, scaled, grading } = sample()
-    const same = previousGap(result, scaled(1, 1), grading)
-    const slower = previousGap(result, scaled(1, 0.85), grading)
-    expect((slower?.centre ?? 0) > (same?.centre ?? 0)).toBe(true)
-  })
-
-  it('prices the ride at the mass it was ridden at, not the body mass today', () => {
-    const { result, state, scaled, grading } = sample()
-    const previous = scaled(1, 1)
-    const rideId = previous.rideCurve.find((p) => p.durationS === 1200)?.activityId
-    const heavier = state.library.map((a) =>
-      a.id === rideId ? Object.assign({}, a, { massKg: 95 }) : a,
-    )
-    const atHeavier = previousGap(result, previous, { ...grading, library: heavier })
-    const watts = previous.rideCurve.find((p) => p.durationS === 1200)?.value ?? 0
-    const expected = gapOfHeadline(
-      headlineGrades(
-        {
-          ...result,
-          activities: heavier,
-          equivalents: [
-            {
-              durationS: 1200,
-              ridePowerW: watts,
-              runSpeed: equivalenceFor(grading.calibration)(watts, 95),
-            },
-          ],
-        },
-        SAMPLE_PROFILE,
-      ),
-    )
-    expect(atHeavier?.centre).toBe(expected?.centre)
-    expect(atHeavier?.low).toBe(expected?.low)
-    expect(atHeavier?.high).toBe(expected?.high)
-    // At the heavier mass the same watts are worth a slower run, so the lead differs from the body mass's.
-    const atBody = previousGap(result, previous, grading)
-    expect(atHeavier?.centre).not.toBe(atBody?.centre)
-  })
-
-  it('is null when a sport has no best at the headline duration in the previous period', () => {
-    const { result, grading } = sample()
-    expect(previousGap(result, { runCurve: [], rideCurve: result.rideCurve }, grading)).toBeNull()
-  })
-})
-
-describe('balanceChanges: direction, level and the lean', () => {
+describe('balanceChanges: direction and the strip’s band', () => {
   it('takes a best’s direction from the call, not the shown watts: the same watts at a lower weight is up', () => {
     const { input, scaled } = measured()
     // The previous ride is the same watts as now; the call, in watts per kilogram, says higher.

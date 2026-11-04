@@ -54,7 +54,7 @@ export const SAMPLE_CLOCK: SampleClock = { nowMs: SAMPLE_REFERENCE_NOW_MS }
  * The seeds, of the first 150, whose season tells the sample's whole story on every clock tried: the shipped detector
  * finds the planted easy slip with a range clear of zero, the ride's fitness card says it has too few steady rides to
  * compare, both sports' best efforts pass the effort gate with a margin, every threshold and stand-out profile has
- * what it needs, the last 12 weeks hold 40 rides, the balance's lead has a range clear of zero, and easy running is
+ * what it needs, the last 12 weeks hold 40 rides, the balance's lead leans clearly (the list was found when its range also had to clear zero; the landing guard now asks for the centre alone), and easy running is
  * mostly in the heart-rate zones it is in the pace zones. A seed is another draw of the same athlete: the detector
  * fires on nine in ten, and the whole story on seven in 150. The sample uses the first. `sampleSeason.sim.test.ts`
  * replays the list.

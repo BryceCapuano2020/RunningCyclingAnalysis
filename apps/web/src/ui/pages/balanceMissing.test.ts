@@ -58,26 +58,17 @@ describe('missingText for a library of one sport', () => {
       expect(missing.detail).toBe('')
     })
 
-    it('asks only for what the effort gate asks when the level rests on a best that was not shown hard', () => {
+    it('asks for nothing under a level, whatever the effort gate says of the best 20 min', () => {
       const { result, library } = withRefusedFit()
       const gated = {
         ...result,
         effortGate: {
           ...result.effortGate,
-          ride: {
-            ...NO_EFFORT_GATE,
-            verdict: 'notHard' as const,
-            unchecked: null,
-            share: 0.8,
-            reference: 'trusted' as const,
-          },
+          ride: { ...NO_EFFORT_GATE, verdict: 'notHard' as const, unchecked: null, share: 0.8 },
         },
       }
       const missing = missingText(gated, library, ALL_TIME, { run: null, ride: 'Recreational' })
-      expect(missing.detail).toMatch(
-        /^A 20 min effort at 90% or more of it would confirm the level\.$/,
-      )
-      expect(missing.detail).not.toContain('Needs')
+      expect(missing.detail).toBe('')
     })
 
     it('asks for nothing while the sport has no level to show but has a threshold: its tile shows the estimate', () => {

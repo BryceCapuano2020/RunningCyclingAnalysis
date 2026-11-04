@@ -1,27 +1,19 @@
-import type { ChangeEvidence, ChangeVerdict } from '@rca/core/change/types'
-import { callAt, directionOf, verdictAt, verdictOfCall } from '@rca/core/change/types'
+import type { ChangeEvidence } from '@rca/core/change/types'
+import { callAt, directionOf, verdictOfCall } from '@rca/core/change/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
-import { equivalenceFor } from '@rca/core/pipeline'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import type { HrCalibration, Sport, SportCurves } from '@rca/core/types'
+import type { Sport, SportCurves } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatPower } from '@rca/core/units'
-import { activityMasses } from '../activityMasses'
-import { gapOfHeadline } from '../balanceGap'
-import type { BalanceGap } from '../balanceGap'
-import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
-import { headlineGrades } from '../grades'
-import type { AgeProfile } from '../grades'
 import { withThe } from '../previousLabel'
 import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { effortLabel, valueAt } from '../records'
-import { BALANCE_PAIR, SPORT_NOUN } from '../sports'
 
 /**
  * One thing that moved since the previous period: an arrow, its title and its line. Every item is one the change test
- * called: a best that left the band its two periods' efforts make by chance, or a lean that such a best moves.
+ * called: a best that left the band its two periods' efforts make by chance.
  */
 export interface ChangeItem {
   key: string
@@ -35,14 +27,6 @@ export const MAX_CHANGES = 4
 
 /** What one comparison gave: null where it could not be made, else its item, or none when the figures are the same. */
 type Compared = { item: ChangeItem | null } | null
-
-/** The sports in the order a positive lead favours them: running first, as every scale in the app does. */
-const [FIRST, SECOND] = BALANCE_PAIR
-
-/** The sport a lead's sign favours. */
-function favoured(lead: number): Sport {
-  return lead > 0 ? FIRST : SECOND
-}
 
 /** The activity that set a curve's best at the headline duration, from the activities given. */
 function setBy(
@@ -137,102 +121,6 @@ function bestItem(
   }
 }
 
-/** What the previous period's grades need that its curves do not hold: the library, the profile, the ride's mass. */
-export interface PreviousGrading {
-  library: readonly ActivitySummary[]
-  profile: AgeProfile
-  massKg: number
-  calibration: HrCalibration | null
-}
-
-/**
- * The balance gap the previous period had, from its own best 20 minutes graded the way the page grades this
- * period's: each effort at the age on its day, a ride through its running equivalent at the mass it was
- * ridden at, under the library's calibration. Null when either sport has no graded best then.
- */
-export function previousGap(
-  result: AnalysisResult,
-  previous: SportCurves,
-  grading: PreviousGrading,
-): BalanceGap | null {
-  const watts = bestOn(previous, 'ride')
-  if (!Number.isFinite(watts) || !Number.isFinite(bestOn(previous, 'run'))) return null
-  const activities = [...grading.library]
-  const rideId = previous.rideCurve.find((p) => p.durationS === HEADLINE_DURATION_S)?.activityId
-  const rideKg = activityMasses(activities)[rideId ?? ''] ?? grading.massKg
-  // The previous period's efforts, graded by the same rule as this period's, from the same shape of result.
-  const earlier = {
-    ...result,
-    activities,
-    runCurve: previous.runCurve,
-    rideCurve: previous.rideCurve,
-    equivalents: [
-      {
-        durationS: HEADLINE_DURATION_S,
-        ridePowerW: watts,
-        runSpeed: equivalenceFor(grading.calibration)(watts, rideKg),
-      },
-    ],
-  }
-  return gapOfHeadline(headlineGrades(earlier, grading.profile))
-}
-
-/** A points figure, signed toward the sport the gap favours: "9 pts toward running". */
-function leanWords(gap: BalanceGap): string {
-  const size = Math.abs(Math.round(gap.centre))
-  return size === 0 ? '0 pts' : `${plural(size, 'pt')} toward ${SPORT_NOUN[favoured(gap.centre)]}`
-}
-
-/** Which way a sport's higher best moves the lean: toward running (+1) or toward cycling (-1). */
-const FAVOURS: Record<Sport, 1 | -1> = { run: 1, ride: -1 }
-
-/**
- * Whether the change test supports a move of the lean: some sport's best 20 minutes was called a change that moves
- * the lean the way it moved (a higher run best or a lower ride best toward running, and the other two toward
- * cycling). The lean is made of the two bests, so a move that no called best explains is the grades' rounding and
- * the periods' mix of efforts, not a change. A best called the other way does not count for the move; when both are
- * called, and push opposite ways, each way has a best behind it.
- */
-function leanSupported(moved: number, verdicts: Record<Sport, ChangeVerdict>): boolean {
-  const pushes = BALANCE_PAIR.flatMap((sport) => {
-    const verdict = verdicts[sport]
-    if (verdict !== 'higher' && verdict !== 'lower') return []
-    return [FAVOURS[sport] * (verdict === 'higher' ? 1 : -1)]
-  })
-  return pushes.includes(Math.sign(moved))
-}
-
-/**
- * The balance's lean against the previous period's. The arrow says whether the lean grew or eased, whichever
- * sport it favours. It is listed only when a best the change test called explains the move (leanSupported). Its body
- * gives only where the lean was: the range is the meter's to state, once.
- */
-export function leanItem(
-  now: BalanceGap,
-  before: BalanceGap,
-  verdicts: Record<Sport, ChangeVerdict>,
-): ChangeItem | null {
-  const from = Math.round(before.centre)
-  const to = Math.round(now.centre)
-  if (from === to || !leanSupported(now.centre - before.centre, verdicts)) return null
-  const crossed = Math.sign(from) !== Math.sign(to) && from !== 0 && to !== 0
-  const grew = Math.abs(to) > Math.abs(from)
-  // Two readings both inside the band that counts as level have not moved sides, whichever way each rounds.
-  const stillLevel = now.lean === 'even' && before.lean === 'even'
-  const title = stillLevel
-    ? 'Still in balance'
-    : crossed
-      ? `Lean moved toward ${SPORT_NOUN[favoured(to)]}`
-      : `Lean ${grew ? 'grew' : 'eased'} ${plural(Math.abs(Math.abs(to) - Math.abs(from)), 'pt')}`
-  const was = crossed || stillLevel ? 'Was' : grew ? 'Up from' : 'Down from'
-  return {
-    key: 'lean',
-    direction: grew ? 'up' : 'down',
-    title,
-    body: `${was} ${leanWords(before)}.`,
-  }
-}
-
 export interface ChangesInput {
   result: AnalysisResult
   previous: SportCurves | null
@@ -243,9 +131,6 @@ export interface ChangesInput {
   units: UnitSystem
   /** False while no body weight is entered: a ride's figures wait for it, so its changes do too. */
   rideShown: boolean
-  /** This period's balance gap, and what the previous period's grades need; null while the balance waits. */
-  gap: BalanceGap | null
-  grading: PreviousGrading | null
 }
 
 /** What the strip says: what moved, at most four. None means the periods were compared and no best left what chance puts between them. */
@@ -254,32 +139,18 @@ export interface BalanceChangesResult {
 }
 
 /**
- * What moved against the period compared with, at most four, the balance first: the lean, then the rides' best
- * 20 minutes, then the runs'. A change is listed only where the change test calls it (and its figures differ as the
- * page shows them), and only what could be compared is listed. Null when nothing could be compared, as under All time
- * and where no earlier window holds enough efforts to test: the strip is then left out.
+ * What moved against the period compared with, at most four: the rides' best 20 minutes, then the runs'. A change is listed
+ * only where the change test calls it (and its figures differ as the page shows them), and only what could be compared is
+ * listed. The balance's lean is not listed: it is read from each sport's threshold, which the period before holds no estimate
+ * of, and the lead of the page states it once. Null when nothing could be compared, as under All time and where no earlier
+ * window holds enough efforts to test: the strip is then left out.
  */
 export function balanceChanges(input: ChangesInput): BalanceChangesResult | null {
-  const { result, previous, previousLabel, units, rideShown, gap, grading, change } = input
+  const { result, previous, previousLabel, units, rideShown, change } = input
   if (previous === null || previousLabel === null) return null
   const best = { result, previous, units, label: previousLabel, change }
-  // A sport that is held for want of a weight explains no move of the lean.
-  const shown: Record<Sport, boolean> = { run: true, ride: rideShown }
-  const verdicts = Object.fromEntries(
-    BALANCE_PAIR.map((sport) => [
-      sport,
-      shown[sport] ? verdictAt(change, sport, HEADLINE_DURATION_S, 'headline') : 'untested',
-    ]),
-  ) as Record<Sport, ChangeVerdict>
-  const leanOutcome = (): Compared => {
-    if (gap === null || grading === null) return null
-    // With neither sport's best judged there is nothing to say a lean moved on.
-    if (BALANCE_PAIR.every((sport) => verdicts[sport] === 'untested')) return null
-    const before = previousGap(result, previous, grading)
-    return before === null ? null : { item: leanItem(gap, before, verdicts) }
-  }
   // The ride's best waits for the weight, so it is named here; the run's best does not.
-  const outcomes = [leanOutcome(), rideShown ? bestItem('ride', best) : null, bestItem('run', best)]
+  const outcomes = [rideShown ? bestItem('ride', best) : null, bestItem('run', best)]
   if (outcomes.every((outcome) => outcome === null)) return null
   const items = outcomes.flatMap((outcome) => (outcome?.item ? [outcome.item] : []))
   return { items: items.slice(0, MAX_CHANGES) }

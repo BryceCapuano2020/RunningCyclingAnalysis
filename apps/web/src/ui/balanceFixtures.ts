@@ -2,7 +2,10 @@ import { historyOf } from '@rca/core/history'
 import type { BalanceYear, YearBest } from '@rca/core/history'
 import { balanceLibrary, REFERENCE, SETTINGS } from '@rca/core/history/test/balanceLibrary'
 import type { YearSpec } from '@rca/core/history/test/balanceLibrary'
-import type { AgeProfile } from './grades'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import type { AnalysisResult } from '@rca/core/pipeline'
+import { sportGrade } from './grades'
+import type { AgeProfile, HeadlineGrades } from './grades'
 import type { GradingInputs } from './pages/history/types'
 
 export { SETTINGS, TWELVE_YEARS } from '@rca/core/history/test/balanceLibrary'
@@ -37,5 +40,13 @@ export function rowOf(year: number, run: number | null, ride: number | null): Ba
       run: run === null ? null : bestAt(year, run),
       ride: ride === null ? null : bestAt(year, ride, { range: [ride - 0.1, ride + 0.1] }),
     },
+  }
+}
+
+/** Both sports' grades of their best 20 min, each at its own date: the grades by duration at the headline length, which a test of that path reads. */
+export function headlineGrades(result: AnalysisResult, profile: AgeProfile): HeadlineGrades {
+  return {
+    run: sportGrade(result, 'run', HEADLINE_DURATION_S, profile),
+    ride: sportGrade(result, 'ride', HEADLINE_DURATION_S, profile),
   }
 }

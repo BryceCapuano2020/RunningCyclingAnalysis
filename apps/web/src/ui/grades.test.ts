@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { headlineGrades } from './balanceFixtures'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import {
@@ -22,7 +23,6 @@ import {
   gapRecordText,
   gradeParts,
   gradedSexOf,
-  headlineGrades,
   listedGradeNotes,
   notGradedText,
   sportGrade,
@@ -473,7 +473,7 @@ describe('heroGradeLine', () => {
   })
 
   it('names the level, the whole percent and the effort it grades, as the share card reads it', () => {
-    expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
+    expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% at threshold')
   })
 
   it('names the centre’s level for a ride whose range crosses a level, as the page does, with no range', () => {
@@ -484,6 +484,6 @@ describe('heroGradeLine', () => {
         high: { grade: 0.67, level: 'Local' },
       },
     }
-    expect(heroGradeLine(ride)).toBe('Recreational · 61% on best 20 min')
+    expect(heroGradeLine(ride)).toBe('Recreational · 61% at threshold')
   })
 })

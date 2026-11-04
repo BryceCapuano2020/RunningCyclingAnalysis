@@ -73,15 +73,14 @@ describe('balance', () => {
     expect(rowsOf([noTwenty])).toEqual([])
   })
 
-  it('is remembered for the same digests, and made again when the references or the calibration change', () => {
+  it('is remembered for the same digests, and made again when the references or the sex change', () => {
     const library = balanceLibrary(TWELVE_YEARS)
     const first = historyOf(library, INPUT)
     expect(historyOf([...library], { ...INPUT, nowMs: INPUT.nowMs + 1 }).balance).toBe(
       first.balance,
     )
     expect(
-      historyOf(library, { ...INPUT, calibration: { kappa: 1.1, lnKappaSe: 0.2 } as never })
-        .balance,
+      historyOf(library, { ...INPUT, settings: { ...INPUT.settings, sex: 'female' } }).balance,
     ).not.toBe(first.balance)
     const lower = { ...REFERENCE, referenceHr: { run: 175, ride: 175 } }
     expect(historyOf(library, { ...INPUT, effortReference: lower }).balance).not.toBe(first.balance)

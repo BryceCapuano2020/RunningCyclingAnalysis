@@ -107,14 +107,15 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('the ride as a run tile names the ride behind its effort and opens to every duration', async ({
+test('the ride as a run tile names the ride threshold behind its pace and opens to every duration', async ({
   page,
   isMobile,
 }) => {
   await openSample(page)
 
   const card = page.getByRole('article', { name: 'Your ride as a run' })
-  await expect(card.getByRole('link', { name: /^Set on / })).toBeVisible()
+  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
+  await expect(card.getByRole('link')).toHaveCount(0)
 
   const details = card.locator('details')
   await expect(details).not.toHaveAttribute('open')

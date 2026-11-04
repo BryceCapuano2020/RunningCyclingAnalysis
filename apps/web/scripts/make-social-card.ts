@@ -59,8 +59,8 @@ function ladder(top: number, label: string, colour: string, draw: string): strin
 }
 
 /**
- * A sport's mark on its ladder: a solid dot when the grade is recorded (no range), and a ring on a band of its
- * 90% range when it is estimated.
+ * A sport's mark on its ladder: a ring on a band of the range of its threshold's grade, and a solid dot where a grade carries
+ * no range.
  */
 function mark(top: number, colour: string, { centre, range }: SportGrade): string {
   const cy = top + 56
@@ -77,8 +77,12 @@ function card(): string {
   const ride = FIGURES.grades.ride
   const lead = FIGURES.gap
   // The range is signed toward running; the card states it from the side the balance leans to.
-  const leanRange =
+  const side =
     lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
+  // A range that reaches zero is written with signs and a true minus, as Balance writes it ("−1 to +28").
+  const sign = (count: number) => (count < 0 ? `−${-count}` : count > 0 ? `+${count}` : '0')
+  const leanRange =
+    side.from <= 0 ? { from: sign(side.from), to: sign(side.to) } : { from: side.from, to: side.to }
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${font('barlow-condensed', 'barlow-condensed-latin-800-normal.woff2', 800)}
 ${font('barlow', 'barlow-latin-500-normal.woff2', 500)}
@@ -110,8 +114,8 @@ svg{display:block}
   ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, mark(RUN_TOP, INK.run, run))}
   ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, mark(RIDE_TOP, INK.ride, ride))}
   <g fill="${INK.muted}" font-size="17" font-weight="500">
-    <text x="${LADDER.x}" y="${PANEL.y + 462}">Solid dot: recorded.</text>
-    <text x="${LADDER.x}" y="${PANEL.y + 486}">Ring and band: estimated, with its 90% range.</text>
+    <text x="${LADDER.x}" y="${PANEL.y + 462}">Ring: the grade at your threshold.</text>
+    <text x="${LADDER.x}" y="${PANEL.y + 486}">Band: the range of that grade.</text>
   </g>
 </svg></body></html>`
 }

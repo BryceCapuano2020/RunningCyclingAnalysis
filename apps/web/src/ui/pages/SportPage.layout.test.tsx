@@ -133,7 +133,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(threshold.querySelector('.sport-hero__period')).toHaveTextContent('· 6 weeks')
   })
 
-  it('shows a recorded run’s level as a dot, with its percent at display size', () => {
+  it('shows a run’s level as a ring on its threshold’s range, with its percent at display size', () => {
     renderPage(
       'run',
       makeResult({
@@ -142,12 +142,12 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__dot')).not.toBeNull()
-    expect(level.querySelector('.level-ladder__ring')).toBeNull()
-    // A recorded effort has no estimated chip.
+    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__dot')).toBeNull()
+    // A run is read as recorded, so it has no estimated chip.
     expect(within(level).queryByText('Estimated')).toBeNull()
   })
 
@@ -155,8 +155,8 @@ describe('the answer: threshold and level in one card', () => {
     renderPage(
       'ride',
       makeResult({
-        activities: [makeActivity({ id: 'r', sport: 'ride', name: 'Hill ride' })],
-        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'r')],
+        activities: [makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
         equivalents: [
           makeEquivalence({
             durationS: HEADLINE_DURATION_S,
@@ -166,7 +166,7 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     // The range reaches from Local into Regional, and the level is still the centre's.
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
@@ -179,14 +179,14 @@ describe('the answer: threshold and level in one card', () => {
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: 'year of birth' })
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(within(level).getByText('Age grades need your year of birth.')).toBeInTheDocument()
     expect(level.querySelector('.level-ladder')).toBeNull()
   })
 
   it('leaves the level out, and the threshold alone in the card, with nothing to ask for', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: null })
-    expect(screen.queryByRole('region', { name: 'Age grade, best 20 min' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Age grade at threshold' })).toBeNull()
   })
 
   it('puts the period control directly under the answer', () => {

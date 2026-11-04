@@ -32,9 +32,8 @@ const INPUT: HistoryInput = {
   heartRateSetAside: new Set(),
   estimates: null,
   nowMs: Date.UTC(2034, 0, 1),
-  // As a session passes them: the library's judged ride gate (none), its calibration and its heart-rate references.
+  // As a session passes them: the library's judged ride gate (none) and its heart-rate references.
   gate: null,
-  calibration: { kappa: 1.1, lnKappaSe: 0.1 },
   effortReference: {
     referenceHr: { run: 185, ride: 180 },
     reading: { run: 'trusted', ride: 'trusted' },

@@ -57,18 +57,19 @@ describe('AgeGradingSection', () => {
     expect(section()).not.toHaveTextContent(/flat pace|a fact from the file/)
   })
 
-  it('says a ride grade is an estimate through its running equivalent', () => {
+  it('grades each sport against its own best, and a ride through its running equivalent at the same share', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     for (const line of [
-      'A ride has no published cycling standard.',
-      'Its best effort is converted to a running equivalent.',
-      'That is the flat running speed that costs the same energy over the same time.',
-      'The equivalent is graded like a run.',
+      'Each sport is graded against its own best: a ride against the best riders’ hour, a run against the best runners’.',
+      'Your grade in each is your share of world class at your age.',
+      'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
       'So a ride grade is an estimate.',
     ]) {
       expect(within(section()).getByText(line)).toBeInTheDocument()
     }
+    // The old rule priced a ride's energy and read the run that costs the same; it is gone from the page.
+    expect(section()).not.toHaveTextContent(/costs the same energy/)
     // The 90% range is explained once, in the energy view, so this paragraph does not repeat it.
     expect(section()).not.toHaveTextContent('Its range is the model’s 90% range')
   })
@@ -86,20 +87,21 @@ describe('AgeGradingSection', () => {
     }
   })
 
-  it('explains why each effort is graded at its own date, and which date a ride takes', () => {
+  it('grades a threshold as an hour at the age on its strongest effort’s day, and a best at a duration on its own date', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText('Each effort is graded at your age on its own date.'),
+      within(section()).getByText(
+        'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
+      ),
     ).toBeInTheDocument()
     expect(
       within(section()).getByText('It is not graded at the newest activity’s date.'),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText('A ride takes the date of its own best ride at that duration.'),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText('Its running equivalent comes from that ride.'),
+      within(section()).getByText(
+        'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -196,7 +198,7 @@ describe('AgeGradingSection level target', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     for (const line of [
-      'The level target on Balance is what the lower sport’s best effort would need to be to match the other.',
+      'The level target on Balance is what the lower sport’s threshold would need to be to match the other.',
       'It is in that sport’s own unit.',
       'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
       'Its range is the 5th to 95th percentile of the equivalence.',
@@ -207,12 +209,11 @@ describe('AgeGradingSection level target', () => {
 })
 
 describe('AgeGradingSection balance', () => {
-  it('says the grades of each sport’s best effort at the headline length give the balance', () => {
+  it('says the balance grades each sport at its threshold, as an hour', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(
-      within(section()).getByText('The grades of each sport’s best 20 min give the balance.'),
-    ).toBeInTheDocument()
+    expect(within(section()).getByText(/^Each threshold is graded as an hour,/)).toBeInTheDocument()
+    expect(section()).not.toHaveTextContent(/best effort at the headline length/)
   })
 })
 
@@ -224,9 +225,9 @@ describe('AgeGradingSection reading', () => {
     const lines = Array.from(container.querySelectorAll('.method__line')).map(
       (line) => line.textContent ?? '',
     )
-    expect(lines.length).toBeGreaterThan(25)
+    expect(lines.length).toBeGreaterThan(20)
     for (const line of lines) expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(25)
-    // Thirty lines as a handful of paragraphs, not thirty blocks.
+    // Over twenty lines as a handful of paragraphs, not a block each.
     expect(container.querySelectorAll('.method__text > p.secondary').length).toBeLessThan(14)
   })
 })

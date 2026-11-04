@@ -2,7 +2,7 @@ import type { Sport } from '@rca/core/types'
 import { GradingLink } from '../components/GradingLink'
 import { LevelLadder } from '../components/LevelLadder'
 import { formatGrade } from '../gradeFormat'
-import { HEADLINE_LABEL, gradeLevelText, notGradedText } from '../grades'
+import { gradeLevelText, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
 import { plainEffort } from '../records'
 import { hrefFor } from '../route'
@@ -12,9 +12,9 @@ const LONG_LEVEL = 12
 
 export interface LevelPanelProps {
   sport: Sport
-  /** The grade of the best 20 minutes, or the reason there is none; null while the profile is missing. */
+  /** The grade at the sport's threshold, or the reason there is none; null while the profile is missing. */
   outcome: GradeOutcome | null
-  /** The headline effort's figure such as "6:37 /mi", with ", estimated" after a ride's watts that are, which the panel drops (`plainEffort`). */
+  /** The threshold's figure such as "6:37 /mi" or "250 W", which the grade is of. */
   effort: string | null
   /** The year of birth or sex the grades still need, named in the prompt; null when both are given. */
   missingAge: AgeGap | null
@@ -40,7 +40,7 @@ function LevelFigure({ outcome }: { outcome: GradeOutcome & { kind: 'graded' } }
 }
 
 /**
- * The age grade of the best 20 minutes at display size with its percent, one line of the effort and the age it
+ * The age grade at threshold at display size with its percent, one line of the effort and the age it
  * was graded at, and the level ladder on neutral bands, a dot for a recorded effort and a ring with its range for
  * an estimated one. Without a year of birth and sex it asks for them; with a gap it says why.
  */
@@ -52,7 +52,7 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
       aria-labelledby={`${sport}-level`}
     >
       <h2 id={`${sport}-level`} className="eyebrow sport-hero__eyebrow">
-        {`Age grade, best ${HEADLINE_LABEL}`}
+        Age grade at threshold
       </h2>
       {outcome === null ? (
         <p className="secondary">

@@ -1,8 +1,8 @@
-import { gradePercent } from '@rca/core/grade'
+import { wholePercent } from '@rca/core/standing'
 
 /** A grade as the whole percent every surface shows, floored so it never reads above its level band. */
 export function wholeGrade(grade: number): number {
-  return Math.floor(gradePercent(grade) ?? 0)
+  return wholePercent(grade)
 }
 
 /** A grade for display, such as "64%". */
