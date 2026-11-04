@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { latestChecks, queue, verdict } from './pr-queue.mjs'
+import { actionText, latestChecks, queue, verdict } from './pr-queue.mjs'
 
 const AT = '2026-10-31T01:00:00Z'
 const LATER = '2026-10-31T01:10:00Z'
@@ -145,4 +145,23 @@ test('the queue puts pull requests that need someone first and drafts last', () 
       [1, 'draft'],
     ],
   )
+})
+
+test('--action names only what needs someone, and is silent when nothing does', () => {
+  const rows = queue([
+    pr({ number: 1, isDraft: true }),
+    pr({ number: 2, autoMergeRequest: { enabledAt: AT } }),
+    pr({ number: 3, autoMergeRequest: null }),
+    pr({ number: 4, statusCheckRollup: checks({ 'Performance budgets': 'FAILURE' }) }),
+  ])
+  const text = actionText('main abc: green', 'green', rows)
+  assert.match(text, /^PR queue, needs action/)
+  assert.match(text, /#3 {2}no-auto-merge/)
+  assert.match(text, /#4 {2}failing/)
+  assert.doesNotMatch(text, /#1 |#2 |main abc/)
+  assert.equal(
+    actionText('main abc: green', 'green', queue([pr({ number: 1, isDraft: true })])),
+    '',
+  )
+  assert.match(actionText('main abc: RED (failure)', 'RED (failure)', []), /main abc: RED/)
 })
