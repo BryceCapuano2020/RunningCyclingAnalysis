@@ -408,7 +408,9 @@ jobs:
   # A pull request over 800 changed lines (package-lock.json aside) fails unless it carries the
   # `integration` label, which marks a merge of pull requests already reviewed on their own
   # (docs/PROCESS.md). The label is read when the job runs, so re-running this job after adding it is
-  # enough. Pushes to main skip it.
+  # enough. The same job fails a pull request that changes evals/owner-caught unless it carries the
+  # `owner-evals` label, which only the owner applies, by hand (evals/owner-caught/README.md). Pushes to
+  # main skip it.
   size:
     name: Pull request size
     needs: changes
@@ -439,6 +441,26 @@ jobs:
             exit 0
           fi
           echo "::error::$lines changed lines is over 800. Split the pull request, or add the integration label to a merge of reviewed pull requests and re-run this job."
+          exit 1
+      - name: Owner evals change only with the owner-evals label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # The cases, and the two files that run them in CI. Dropping the evals project from the root config counts too.
+          changed=$(git diff --name-only --no-renames HEAD^1 HEAD -- evals/owner-caught evals/vitest.config.ts evals/tsconfig.json)
+          # Once the owner's evals exist, CI must keep running them.
+          if [ -d evals/owner-caught ] && ! grep -E "projects:.*'evals'" vitest.config.ts > /dev/null; then
+            changed=$(printf '%s\nvitest.config.ts no longer lists the evals project' "$changed")
+          fi
+          if [ -z "$changed" ]; then exit 0; fi
+          printf '%s\n' "$changed"
+          labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name')
+          if printf '%s\n' "$labels" | grep -x owner-evals > /dev/null; then
+            echo "Owner evals changed, with the owner-evals label."
+            exit 0
+          fi
+          echo "::error::This pull request changes the owner's evals (evals/owner-caught, how CI runs them). Only the owner adds the owner-evals label, by hand, and re-runs this job."
           exit 1
 
   audit:

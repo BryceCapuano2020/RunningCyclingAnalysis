@@ -89,6 +89,23 @@ test('a pull request over 800 lines needs the integration label, read when the j
   assert.doesNotMatch(size, /grep -q/, 'grep -q can exit early and trip pipefail')
 })
 
+test('a change to the owner’s evals, or to how CI runs them, needs the owner-evals label', () => {
+  const size = blocks.get('size').join('\n')
+  assert.match(
+    size,
+    /git diff --name-only --no-renames HEAD\^1 HEAD -- evals\/owner-caught evals\/vitest\.config\.ts evals\/tsconfig\.json/,
+  )
+  assert.match(
+    size,
+    /if \[ -d evals\/owner-caught \] && ! grep -E "projects:\.\*'evals'" vitest\.config\.ts/,
+  )
+  assert.match(size, /grep -x owner-evals > \/dev\/null/)
+  assert.match(size, /if \[ -z "\$changed" \]; then exit 0; fi/)
+  // The check sits in the job the result job already needs, so a missing label fails the required check.
+  assert.match(blocks.get('result').join('\n'), /needs: \[.*\bsize\b.*\]/)
+  assert.doesNotMatch(size, /grep -q/, 'grep -q can exit early and trip pipefail')
+})
+
 test('pull requests audit production dependencies; the weekly run audits them all', async () => {
   assert.match(blocks.get('audit').join('\n'), /npm audit --omit=dev --audit-level=moderate/)
   const weekly = await readFile(

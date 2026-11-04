@@ -1,6 +1,7 @@
 // Splits a shell command line into its simple commands, each an array of words, closely enough for
 // agent-guard.mjs to tell which programs a command starts. It honours quotes, backslashes, comments
-// and here-documents (whose bodies are data, not commands); it does not expand anything.
+// and here-documents (whose bodies are data, not commands); it does not expand anything. An output
+// redirection appears as a `>` or `>>` word before its target.
 
 const SEPARATORS = new Set([';', '&', '|', '\n', '(', ')', '`'])
 
@@ -75,6 +76,12 @@ export function simpleCommands(text) {
       const { word: delimiter, end } = heredocDelimiter(text, i + 2)
       if (delimiter) heredocs.push(delimiter)
       i = end - 1
+    } else if (c === '>' && text[i + 1] !== '&') {
+      // An output redirection keeps its operator as a word of its own, so the word after it is known to be a target.
+      endWord()
+      const op = text[i + 1] === '>' ? '>>' : '>'
+      words.push(op)
+      i += op.length - 1
     } else if (c === ' ' || c === '\t' || c === '<' || c === '>') {
       endWord()
     } else if (SEPARATORS.has(c)) {

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { deniedLabel, deniedPath, deniedRedirect, deniedWrite } from './owner-evals-guard.mjs'
 import { simpleCommands } from './shell-words.mjs'
 
 // PreToolUse guard for Claude Code sessions in this repository (.claude/settings.json). It turns the
@@ -160,6 +161,8 @@ function pollsCi(words, { loop, callsGh }) {
 /** One refusal for one simple command, or undefined. */
 function judge(words, { agent, loop, callsGh }) {
   const verbs = ghVerbs(words)
+  const ownerEvals = deniedWrite(words) ?? deniedLabel(words, verbs)
+  if (ownerEvals) return { deny: ownerEvals }
   if (verbs[0] === 'pr' && verbs[1] === 'checks') return { deny: NO_POLL }
   if (verbs[0] === 'run' && verbs[1] === 'watch') return { deny: NO_POLL }
   if (pollsCi(words, { loop, callsGh })) return { deny: `No sleep loops on CI. ${NO_POLL}` }
@@ -201,6 +204,8 @@ export function decide(command, agent) {
     return basename(cmd[0] ?? '') === 'gh' || npmScript(cmd) === 'pr:queue'
   })
   for (const words of commands) {
+    const redirect = deniedRedirect(words)
+    if (redirect) return { deny: redirect }
     const cmd = core(words)
     if (!cmd.length || basename(cmd[0]) === 'testslot.sh') continue
     const shell = ['bash', 'sh', 'zsh'].includes(basename(cmd[0]))
@@ -214,10 +219,22 @@ export function decide(command, agent) {
   return undefined
 }
 
+/** The guard's answer for an Edit, Write or NotebookEdit: { deny } for the owner's evals, else undefined. */
+function decideEdit(input) {
+  const target = input.tool_input?.file_path ?? input.tool_input?.notebook_path
+  const reason = deniedPath(target, input.cwd)
+  return reason ? { deny: reason } : undefined
+}
+
 /** The hook's stdout for a PreToolUse input, or '' to let the call through. */
 export function hookOutput(input) {
-  if (input.tool_name !== 'Bash' || typeof input.tool_input?.command !== 'string') return ''
-  const verdict = decide(input.tool_input.command, input.agent_type)
+  const command = input.tool_input?.command
+  const verdict =
+    input.tool_name === 'Bash' && typeof command === 'string'
+      ? decide(command, input.agent_type)
+      : ['Edit', 'Write', 'NotebookEdit'].includes(input.tool_name)
+        ? decideEdit(input)
+        : undefined
   if (!verdict) return ''
   return JSON.stringify({
     hookSpecificOutput: {
