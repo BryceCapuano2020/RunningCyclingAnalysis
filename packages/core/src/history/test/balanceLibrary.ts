@@ -94,9 +94,9 @@ export function balanceLibrary(years: readonly YearSpec[]): ActivityDigest[] {
 }
 
 /**
- * Twelve years from 2013: run ahead until 2019, level in 2019, ride ahead from 2020; 2016 has a run only and 2018 nothing at all.
- * The ride's scale starts at 0.53 because each year is graded by its threshold as an hour, and a ride's threshold is anchored at
- * the best riders' hour: this template's ride sits far under the run's for the same scale, so it starts low to cross the run in 2019.
+ * Twelve years from 2013, graded by each year's threshold as an hour: the run grades ahead through 2017, level in 2019, and the
+ * ride ahead from 2020; 2016 has a run only and 2018 nothing at all (standing/years.test.ts holds the order). At an equal scale
+ * this template's ride grades above its run, so the ride's scale starts at 0.53 to begin well under the run and cross it in 2019.
  */
 export const TWELVE_YEARS: readonly YearSpec[] = Array.from({ length: 12 }, (_, i): YearSpec => {
   const year = 2013 + i
