@@ -3,6 +3,7 @@ import { PRIORS } from '../constants'
 import { ageStandardSeconds, gradeAtSpeed } from '../grade'
 import type { Sex } from '../grade'
 import { flatSpeedToMetabolic, ridePowerToMetabolic } from '../metabolic'
+import { P90_TO_P95, Z_P90, Z_P95 } from '../threshold/coverage'
 import {
   CYCLING_ANCHOR_LOG_SD,
   CYCLING_WORLD_CLASS_HOUR_WKG,
@@ -119,10 +120,10 @@ describe('the sensitivity to the men’s anchor', () => {
 describe('the range of a ride through the anchor', () => {
   const ride = { value: 24 }
 
-  it('is the anchor alone: exp(+-1.645 x its sd) on the energy', () => {
+  it('is the anchor alone: exp(+-Z_P95 x its sd) on the energy', () => {
     const speed = rideRunSpeed(ride, 'male')
     const energy = (v: number) => flatSpeedToMetabolic(v) / anchorFactor('male')
-    const z = 1.645 * CYCLING_ANCHOR_LOG_SD
+    const z = Z_P95 * CYCLING_ANCHOR_LOG_SD
     expect(energy(speed.p05) / ride.value).toBeCloseTo(Math.exp(-z), 9)
     expect(energy(speed.p95) / ride.value).toBeCloseTo(Math.exp(z), 9)
     expect(energy(speed.p50) / ride.value).toBeCloseTo(1, 9)
@@ -134,25 +135,25 @@ describe('the range of a ride through the anchor', () => {
       'male',
     )
     const energy = (v: number) => flatSpeedToMetabolic(v) / anchorFactor('male')
-    const anchor = 1.645 * CYCLING_ANCHOR_LOG_SD
-    // The 10th and 90th percentiles' distances are scaled by 1.645 / 1.2816 to the 5th and 95th before the anchor adds its own.
-    const scale = 1.645 / 1.2816
+    const anchor = Z_P95 * CYCLING_ANCHOR_LOG_SD
+    // The 10th and 90th percentiles' distances are scaled by `P90_TO_P95` to the 5th and 95th before the anchor adds its own.
+    const scale = P90_TO_P95
     expect(Math.log(energy(own.p05) / 24)).toBeCloseTo(-Math.hypot(0.08 * scale, anchor), 9)
     expect(Math.log(energy(own.p95) / 24)).toBeCloseTo(Math.hypot(0.05 * scale, anchor), 9)
   })
 
   it('is as wide as a normal’s 5th to 95th when its own 10th to 90th is a normal’s', () => {
-    // A threshold whose 10th and 90th sit 1.2816 sd either side has a 5th and 95th 1.645 sd out. Added to the anchor's sd in
+    // A threshold whose 10th and 90th sit `Z_P90` sd either side has a 5th and 95th `Z_P95` sd out. Added to the anchor's sd in
     // quadrature it must give the 5th and 95th of a normal whose sd is the root of the sum of the two squares.
     const sd = 0.05
     const own = rideRunSpeed(
-      { value: 24, low: 24 * Math.exp(-1.2816 * sd), high: 24 * Math.exp(1.2816 * sd) },
+      { value: 24, low: 24 * Math.exp(-Z_P90 * sd), high: 24 * Math.exp(Z_P90 * sd) },
       'male',
     )
     const energy = (v: number) => flatSpeedToMetabolic(v) / anchorFactor('male')
     const combined = Math.hypot(sd, CYCLING_ANCHOR_LOG_SD)
-    expect(Math.log(energy(own.p95) / 24)).toBeCloseTo(1.645 * combined, 4)
-    expect(Math.log(energy(own.p05) / 24)).toBeCloseTo(-1.645 * combined, 4)
+    expect(Math.log(energy(own.p95) / 24)).toBeCloseTo(Z_P95 * combined, 4)
+    expect(Math.log(energy(own.p05) / 24)).toBeCloseTo(-Z_P95 * combined, 4)
   })
 
   it('takes the distance of an end on the wrong side as it would on the right side', () => {
