@@ -405,6 +405,42 @@ jobs:
           if [ "$E2E" = skipped ] && [ "$CODE" = false ]; then exit 0; fi
           if [ "$E2E" != success ]; then echo "::error::End-to-end shards: $E2E"; exit 1; fi
 
+  # A pull request over 800 changed lines (package-lock.json aside) fails unless it carries the
+  # `integration` label, which marks a merge of pull requests already reviewed on their own
+  # (docs/PROCESS.md). The label is read when the job runs, so re-running this job after adding it is
+  # enough. Pushes to main skip it.
+  size:
+    name: Pull request size
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.draft != 'true' && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Count changed lines
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # Captured first, so a failing diff stops the job instead of counting as no lines.
+          numstat=$(git diff --numstat --no-renames HEAD^1 HEAD -- . ':(exclude)package-lock.json')
+          lines=$(printf '%s\n' "$numstat" | awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')
+          echo "Changed lines, package-lock.json aside: $lines"
+          if [ "$lines" -le 800 ]; then exit 0; fi
+          labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/labels" --jq '.[].name')
+          if printf '%s\n' "$labels" | grep -x integration > /dev/null; then
+            echo "Over 800 lines, with the integration label."
+            exit 0
+          fi
+          echo "::error::$lines changed lines is over 800. Split the pull request, or add the integration label to a merge of reviewed pull requests and re-run this job."
+          exit 1
+
   audit:
     name: Dependency audit
     needs: changes
@@ -419,4 +455,30 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm audit --audit-level=moderate --fetch-timeout=30000 --fetch-retries=1 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=5000
+      # Production dependencies only: what ships. The weekly supply-chain run also audits the
+      # development ones.
+      - run: npm audit --omit=dev --audit-level=moderate --fetch-timeout=30000 --fetch-retries=1 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=5000
+
+  # The one required check (docs/PROCESS.md, Repository settings). It passes only when every job above
+  # passed, except the shuffled-order run, which does not gate; scripts/ops/ci-result.mjs names the
+  # skips that count as passed. A draft fails here, like the collectors, so a draft never looks green.
+  # always(), not !cancelled(): a superseded run then reports a failure rather than a skip, and GitHub
+  # counts a skipped required check as passing.
+  result:
+    name: CI result
+    needs: [changes, static, unit, verify, perf, sim, sim-result, e2e, e2e-result, size, audit]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ops
+      - name: Require every job
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          DRAFT: ${{ needs.changes.outputs.draft }}
+          CODE: ${{ needs.changes.outputs.code }}
+          EVENT: ${{ github.event_name }}
+        run: node scripts/ops/ci-result.mjs
