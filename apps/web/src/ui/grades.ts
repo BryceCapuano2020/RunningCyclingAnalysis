@@ -55,6 +55,12 @@ export const NO_STANDARD_TEXT =
   'This best effort has no age standard or running equivalent to grade it.'
 /** The activity behind the best effort is not in the library, so the age on its date is unknown. */
 export const NO_DATE_TEXT = 'This best effort cannot be dated, so it is not graded.'
+/** The effort behind a threshold, its strongest, is not in the library, so the age on its day is unknown. */
+export const THRESHOLD_NO_DATE_TEXT =
+  'The strongest effort behind this threshold cannot be dated, so it is not graded.'
+/** The threshold's hour has no age standard or running equivalent to grade it. */
+export const THRESHOLD_NO_STANDARD_TEXT =
+  'This threshold has no age standard or running equivalent to grade it.'
 /** A ride's best effort is at or above the top of the age tables: said plainly, with no prompt to check anything. */
 export const TOP_OF_SCALE_TEXT =
   'Your ride power is at the top of what the age tables cover, so it is capped at 100% and left out of the comparison with your running.'
@@ -123,9 +129,19 @@ export function sportGrade(
   return outcomeOf(gradeEffort(sport, effort, durationS, profile))
 }
 
-/** A grade as the page holds it: a gap carries the words for why there is no grade. */
-export function outcomeOf(graded: EffortGrade): GradeOutcome {
-  return graded.kind === 'gap' ? gap(GAP_TEXT[graded.why]) : graded
+/** The words for why a threshold has no grade: the same reasons, said of the threshold and the effort behind it. */
+export const THRESHOLD_GAP_TEXT: Record<GapKind, string> = {
+  'no-date': THRESHOLD_NO_DATE_TEXT,
+  'age-range': AGE_RANGE_TEXT,
+  'no-standard': THRESHOLD_NO_STANDARD_TEXT,
+}
+
+/** A grade as the page holds it: a gap carries the words for why there is no grade, in `words` (a best effort's by default). */
+export function outcomeOf(
+  graded: EffortGrade,
+  words: Record<GapKind, string> = GAP_TEXT,
+): GradeOutcome {
+  return graded.kind === 'gap' ? gap(words[graded.why]) : graded
 }
 
 /** An outcome that is no grade, with the words for it: see `GradeOutcome`. */
@@ -142,14 +158,6 @@ export function isTopOfScale(outcome: GradeOutcome | null): boolean {
 export function notGradedText(outcome: GradeOutcome): string | null {
   if (outcome.kind === 'graded') return null
   return outcome.kind === 'top-of-scale' ? TOP_OF_SCALE_TEXT : outcome.reason
-}
-
-/** Both sports' grades at the headline duration, each at its own date. */
-export function headlineGrades(result: AnalysisResult, profile: AgeProfile): HeadlineGrades {
-  return {
-    run: sportGrade(result, 'run', HEADLINE_DURATION_S, profile),
-    ride: sportGrade(result, 'ride', HEADLINE_DURATION_S, profile),
-  }
 }
 
 /**

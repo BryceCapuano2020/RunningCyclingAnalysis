@@ -133,7 +133,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(threshold.querySelector('.sport-hero__period')).toHaveTextContent('· 6 weeks')
   })
 
-  it('shows a recorded run’s level as a dot, with its percent at display size', () => {
+  it('shows a run’s level as a ring on its threshold’s range, with its percent at display size', () => {
     renderPage(
       'run',
       makeResult({
@@ -145,9 +145,9 @@ describe('the answer: threshold and level in one card', () => {
     const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__dot')).not.toBeNull()
-    expect(level.querySelector('.level-ladder__ring')).toBeNull()
-    // A recorded effort has no estimated chip.
+    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__dot')).toBeNull()
+    // A run is read as recorded, so it has no estimated chip.
     expect(within(level).queryByText('Estimated')).toBeNull()
   })
 

@@ -1,53 +1,44 @@
-import { gradeEffort } from '@rca/core/grade'
-import type { AgeProfile } from '@rca/core/grade'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { HOUR_S } from '@rca/core/threshold'
-import type { Interval, Sport } from '@rca/core/types'
-import { gapOutcome, outcomeOf, startOf } from './grades'
-import type { GradeOutcome, HeadlineGrades } from './grades'
-import { thresholdEstimate } from './thresholdEstimate'
+import type { SportStanding, StandingGrade } from '@rca/core/standing'
+import type { Sport } from '@rca/core/types'
+import { THRESHOLD_GAP_TEXT, gapOutcome, outcomeOf } from './grades'
+import type { AgeProfile, GradeOutcome, HeadlineGrades } from './grades'
+import { standingOf } from './standing'
 import { thresholdNeedsLine } from './thresholdNeeds'
 
 /**
- * The flat running speed a sport's threshold costs, for the age grade to read: a run's pace as the threshold gives it, with no
- * range of its own (a run is graded as recorded), and a ride's running equivalent, which carries the estimate's low and high and the
- * equivalence's own range (`AnalysisResult.rideThresholdRunSpeed`). A sport added to `Sport` says here how its threshold is a speed.
+ * A grade of the standing as the page holds it: the words for why there is none. A sport with no threshold has the threshold's own
+ * words for what it needs; a ride at the top of the age tables is its own outcome. The numbers are all core's.
  */
-const SPEED_OF_THRESHOLD: Record<Sport, (result: AnalysisResult) => Interval | null> = {
-  run: (result) => {
-    const estimate = thresholdEstimate(result, 'run')
-    if (estimate === null) return null
-    const speed = metabolicToFlatSpeed(estimate.value)
-    return { p05: speed, p50: speed, p95: speed }
-  },
-  ride: (result) => result.rideThresholdRunSpeed,
+function outcomeOfStanding(
+  grade: StandingGrade,
+  result: AnalysisResult,
+  sport: Sport,
+): GradeOutcome {
+  if (grade.kind !== 'gap') return grade
+  if (grade.why === 'no-threshold') return gapOutcome(thresholdNeedsLine(result, sport))
+  if (grade.why === 'no-profile') return gapOutcome('')
+  return outcomeOf({ kind: 'gap', why: grade.why }, THRESHOLD_GAP_TEXT)
 }
 
-/**
- * A sport's age grade at its threshold: the threshold graded as the effort of an hour it stands for, by the standards a best
- * effort is graded by (a run's pace through `gradeAtSpeed`, a ride through its running equivalent), at the age on the day of the
- * threshold's strongest effort. The one number a sport has on the current-period surfaces. A sport with no threshold has the
- * threshold's own words for what it needs; a ride at the top of the age tables is its own outcome.
- */
+/** Both sports' grades at their thresholds, from a standing, each at its own date. */
+export function gradesOfStanding(result: AnalysisResult, standing: SportStanding): HeadlineGrades {
+  return {
+    run: outcomeOfStanding(standing.grades.run, result, 'run'),
+    ride: outcomeOfStanding(standing.grades.ride, result, 'ride'),
+  }
+}
+
+/** A sport's age grade at its threshold, the one number a sport has on the current-period surfaces (`sportStanding`). */
 export function thresholdGrade(
   result: AnalysisResult,
   sport: Sport,
   profile: AgeProfile,
 ): GradeOutcome {
-  const estimate = thresholdEstimate(result, sport)
-  if (estimate === null) return gapOutcome(thresholdNeedsLine(result, sport))
-  const effort = {
-    speed: SPEED_OF_THRESHOLD[sport](result),
-    started: startOf(result, estimate.efforts.strongest.activityId),
-  }
-  return outcomeOf(gradeEffort(sport, effort, HOUR_S, profile))
+  return outcomeOfStanding(standingOf(result, profile).grades[sport], result, sport)
 }
 
 /** Both sports' grades at their thresholds, each at its own date. */
 export function thresholdGrades(result: AnalysisResult, profile: AgeProfile): HeadlineGrades {
-  return {
-    run: thresholdGrade(result, 'run', profile),
-    ride: thresholdGrade(result, 'ride', profile),
-  }
+  return gradesOfStanding(result, standingOf(result, profile))
 }

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PRIORS } from '@rca/core/constants'
-import { equivalenceFor, thresholdRunSpeed } from '@rca/core/digest'
+import { thresholdRunSpeed } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { paceSeconds } from '@rca/core/units'
@@ -15,8 +15,7 @@ import {
   makeRideThreshold,
   makeRunThreshold,
 } from '../components/fixtures'
-import { gapOfHeadline } from '../balanceGap'
-import { thresholdGrades } from '../thresholdGrade'
+import { standingOf } from '../standing'
 import { CrossSportCard } from './CrossSportCard'
 import { ThresholdTile } from './ThresholdTile'
 
@@ -30,7 +29,7 @@ function resultWith(runMs: number, rideW: number): AnalysisResult {
   return makeResult({
     runThreshold: makeRunThreshold(flatWkg(runMs)),
     rideThreshold,
-    rideThresholdRunSpeed: thresholdRunSpeed(equivalenceFor(null), rideThreshold, MASS_KG),
+    rideThresholdRunSpeed: thresholdRunSpeed(rideThreshold, 'male'),
   })
 }
 
@@ -102,7 +101,7 @@ describe('the ride as a run beside the run threshold, for the lean the grades gi
   /** The pace the Run threshold tile prints, in seconds, and the lean of the grades the page states. */
   function paces(runMs: number, rideW: number) {
     const result = resultWith(runMs, rideW)
-    const lean = gapOfHeadline(thresholdGrades(result, MAN_BORN_1986))?.lean
+    const lean = standingOf(result, MAN_BORN_1986).lead?.lean
     const card = renderCard(result)
     const ride = printedSeconds(card.container)
     cleanup()

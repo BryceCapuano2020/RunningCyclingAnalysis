@@ -1,43 +1,19 @@
-import { leanOfLead, type Lead, type Lean } from '../domain/lean'
+import { balanceLead } from '@rca/core/standing'
+import type { BalanceLead } from '@rca/core/standing'
 import type { HeadlineGrades, SportGrade } from './grades'
-import { wholeGrade } from './gradeFormat'
 import { BALANCE_PAIR } from './sports'
 
-/** The first sport's age-grade lead over the second's, in whole points, with its range and the lean it gives. */
-export interface BalanceGap extends Lead {
-  lean: Lean
-}
+/** The first sport's age-grade lead over the second's, in whole points, with its range and the lean it gives (core's `balanceLead`). */
+export type BalanceGap = BalanceLead
 
-/** A sport's grade in whole percent, with the ends of its range. A grade with no range is a point. */
-function bounds(sport: SportGrade): Lead {
-  const centre = wholeGrade(sport.centre.grade)
-  if (sport.range === null) return { centre, low: centre, high: centre }
-  return {
-    centre,
-    low: wholeGrade(sport.range.low.grade),
-    high: wholeGrade(sport.range.high.grade),
-  }
-}
-
-/**
- * The first sport's age-grade lead over the second's in whole points. A run is one activity's estimate
- * and has no range; a ride is estimated through its running equivalent, and its range is the gap's
- * range. Both sides are whole percents, so the gap is the difference of the grades the cards show.
- */
+/** The gap between two sports' grades at one duration, by the one rule `sportStanding` leads by. */
 export function balanceGap(first: SportGrade, second: SportGrade): BalanceGap {
-  const firstBounds = bounds(first)
-  const secondBounds = bounds(second)
-  const lead: Lead = {
-    centre: firstBounds.centre - secondBounds.centre,
-    low: firstBounds.low - secondBounds.high,
-    high: firstBounds.high - secondBounds.low,
-  }
-  return { ...lead, lean: leanOfLead(lead) }
+  return balanceLead(first, second)
 }
 
 /**
- * The gap when both sports are graded at the headline duration, or null. Without both grades the
- * balance falls back to the energy ratio.
+ * The gap of two grades the page holds, when both sports are graded, or null. The surfaces that state the lean of a threshold read
+ * `SportStanding.lead` itself; this is for grades at another length, which the grade profile compares.
  */
 export function gapOfHeadline(headline: HeadlineGrades): BalanceGap | null {
   const [first, second] = BALANCE_PAIR

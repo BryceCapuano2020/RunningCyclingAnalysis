@@ -33,7 +33,9 @@ function sampleResult() {
 describe('LandingExample', () => {
   it('matches the gap the sample athlete itself shows', () => {
     const result = sampleResult()
-    expect(gapOfHeadline(thresholdGrades(result, SAMPLE_PROFILE))).toMatchObject(LANDING_EXAMPLE.gap)
+    expect(gapOfHeadline(thresholdGrades(result, SAMPLE_PROFILE))).toMatchObject(
+      LANDING_EXAMPLE.gap,
+    )
   })
 
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {

@@ -54,12 +54,12 @@ const PERIODS: PeriodChoice[] = ['default', 90, 365, 'all']
 
 /**
  * body mass, then per period the running lead and its lean, from each sport's threshold graded as an hour (re-pinned for U2; it was the best
- * 20 min, where the lean read run or even). The library's rides now lead by 6 to 19 points, and a 5 kg step still moves the lead by about 12.
+ * 20 min). The ride is graded as a share of the best riders' hour, so the synthetic library reads even at the middle mass and a 5 kg step moves the lead by about 4 points.
  */
 const PINNED: Record<number, Record<string, string>> = {
-  70: { default: '-19 ride', '90': '-19 ride', '365': '-18 ride', all: '-18 ride' },
-  75: { default: '-18 ride', '90': '-18 ride', '365': '-17 ride', all: '-17 ride' },
-  80: { default: '-6 ride', '90': '-6 ride', '365': '-6 ride', all: '-6 ride' },
+  70: { default: '-3 ride', '90': '-3 ride', '365': '-3 ride', all: '-3 ride' },
+  75: { default: '1 even', '90': '1 even', '365': '1 even', all: '2 even' },
+  80: { default: '5 run', '90': '5 run', '365': '5 run', all: '5 run' },
 }
 
 describe('the Balance verdict against the period chip and the typed body mass', () => {

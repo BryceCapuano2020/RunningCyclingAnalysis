@@ -4,7 +4,6 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { heldPick } from '../resultHold'
@@ -12,14 +11,15 @@ import { rideHoldInputs } from '../rideLeftOut'
 import type { HoldInputs } from '../resultHold'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
-import { headlineGrades } from '../grades'
+import { standingOf } from '../standing'
+import { gradesOfStanding } from '../thresholdGrade'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
 import { BALANCE_PAIR } from '../sports'
 import { balanceMoveItem } from './balanceMove'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
-import { addedSportOf, headlineGradeItem } from './singleImport'
+import { addedSportOf, thresholdGradeItem } from './singleImport'
 import { bestsAgreeing, distanceKey, durationKey } from './trackedBests'
 import type { KeyedBest } from './trackedBests'
 
@@ -106,7 +106,7 @@ function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: S
 }
 
 /**
- * The balance, read as the Balance page reads it: in points when both results grade both sports,
+ * The balance, read as the Balance page reads it, from the sports' grades at their thresholds: in points when both results grade both sports,
  * otherwise in energy. Energy only compares at the same duration and with the same heart-rate
  * calibration, and points never compare with energy. For an import that added one activity, the
  * balance is listed even when nothing about it moved, since the summary leads with it.
@@ -121,13 +121,15 @@ function balanceItem(
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const gradesBefore = profile === null ? null : headlineGrades(before, profile)
-  const gradesAfter = profile === null ? null : headlineGrades(after, profile)
+  const standingBefore = profile === null ? null : standingOf(before, profile)
+  const standingAfter = profile === null ? null : standingOf(after, profile)
+  const gradesBefore = standingBefore === null ? null : gradesOfStanding(before, standingBefore)
+  const gradesAfter = standingAfter === null ? null : gradesOfStanding(after, standingAfter)
   // A ride at the top of the age tables is out of the comparison, as the page leaves it out.
   const pickBefore = heldPick(before, rideHoldInputs(gradesBefore?.ride ?? null, before, hold)).pick
   const pickAfter = heldPick(after, rideHoldInputs(gradesAfter?.ride ?? null, after, hold)).pick
-  const gapBefore = gradesBefore === null ? null : gapOfHeadline(gradesBefore)
-  const gapAfter = gradesAfter === null ? null : gapOfHeadline(gradesAfter)
+  const gapBefore = standingBefore?.lead ?? null
+  const gapAfter = standingAfter?.lead ?? null
   const readingBefore = balanceOfPick(gapBefore, pickBefore)
   const readingAfter = balanceOfPick(gapAfter, pickAfter)
   if (readingBefore === null || readingAfter === null) return null
@@ -273,7 +275,7 @@ function present(items: (MovedItem | null)[]): MovedItem[] {
  * items wait for it: the ride threshold, the ride bests and the balance.
  *
  * When the import added exactly one activity (`added`, its sport), the list leads with the balance,
- * listed when both results have one and a weight is entered, then the sport's headline grade, then
+ * listed when both results have one and a weight is entered, then the sport's grade at its threshold, then
  * the rest.
  *
  * New bests are the check-in's (`tracked`) where it has one: see `bestsAgreeing`.
@@ -307,7 +309,7 @@ export function whatMoved(
     units,
   )
   if (added === null) return [...thresholds, ...present([balance]), ...bests].slice(0, MAX_ITEMS)
-  const lead = present([balance, headlineGradeItem(before, after, added, profile, weighted)])
+  const lead = present([balance, thresholdGradeItem(before, after, added, profile, weighted)])
   return [...lead, ...thresholds, ...bests].slice(0, MAX_ITEMS)
 }
 

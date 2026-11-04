@@ -10,15 +10,15 @@ import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import { formatMonths } from '../format/date'
-import { gapOfHeadline } from '../balanceGap'
 import { levelTarget } from '../levelTarget'
+import { standingOf } from '../standing'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { countSport } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import { gradeLevelText, gradedSexOf, headlineGrades } from '../grades'
+import { gradeLevelText, gradedSexOf } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
-import { thresholdGrades } from '../thresholdGrade'
+import { gradesOfStanding } from '../thresholdGrade'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
@@ -91,37 +91,29 @@ export function BalancePage({
     previous: periodBefore,
     change: changeBefore,
     earlier,
-    heartRateJudgement,
   } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
-  // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
-  const { calibration } = heartRateJudgement
   const hold = useHoldInputs()
-  // Each sport's grade is its threshold graded as an hour, worked out once here, and the cards, the balance and the
-  // share card share it. They are memoised on the analysis and the two profile values, not the profile object, which
-  // the caller builds afresh on each render. The share preview is drawn from them, so a new object each render would
-  // redraw it while the sheet is open.
+  // Where the athlete stands, worked out once by core (`sportStanding`): each sport's grade is its threshold graded as an hour, and
+  // the lead, the ride as a run and the level target come with it. The cards, the balance and the share card all read it. It is
+  // memoised on the analysis and the two profile values, not the profile object, which the caller builds afresh on each render.
+  // The share preview is drawn from it, so a new object each render would redraw it while the sheet is open.
   const birthYear = profile?.birthYear ?? null
   const sex = profile?.sex ?? null
-  const headline = useMemo(
+  const standing = useMemo(
     () =>
-      birthYear === null || sex === null ? null : thresholdGrades(result, { birthYear, sex }),
-    [result, birthYear, sex],
+      birthYear === null || sex === null
+        ? null
+        : standingOf(result, { birthYear, sex }, { massKg: settings.massKg, units }),
+    [result, birthYear, sex, settings.massKg, units],
+  )
+  const headline = useMemo(
+    () => (standing === null ? null : gradesOfStanding(result, standing)),
+    [result, standing],
   )
   // The ride's grade, and so the gap, wait for the weight; the run's grade does not.
-  const gap = useMemo(
-    () => (weightKnown && headline !== null ? gapOfHeadline(headline) : null),
-    [weightKnown, headline],
-  )
-  // What changed still reads the best 20 min, which the change test judges: its lean is made of those two bests.
-  const bestGap = useMemo(
-    () =>
-      weightKnown && birthYear !== null && sex !== null
-        ? gapOfHeadline(headlineGrades(result, { birthYear, sex }))
-        : null,
-    [weightKnown, result, birthYear, sex],
-  )
+  const gap = weightKnown ? (standing?.lead ?? null) : null
   const grades = useMemo<Record<Sport, GradeOutcome | null>>(
     () => ({
       run: headline?.run ?? null,
@@ -140,23 +132,13 @@ export function BalancePage({
     [weightKnown, gap, pick],
   )
   const heldGap = pick === null ? null : gap
-  const heldBestGap = pick === null ? null : bestGap
-  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight. Its ride
-  // search runs on each change of these inputs, not on each render, so it is memoised on them.
+  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight.
   const target = useMemo(
     () =>
-      heldGap !== null && sex !== null
-        ? levelTarget({
-            lean: heldGap.lean,
-            grades,
-            result,
-            sex,
-            massKg: settings.massKg,
-            units,
-            calibration,
-          })
-        : null,
-    [heldGap, grades, result, sex, settings.massKg, units, calibration],
+      heldGap === null || standing === null
+        ? null
+        : levelTarget(standing.match.run ?? standing.match.ride, units),
+    [heldGap, standing, units],
   )
   const runCount = countSport(result.activities, 'run')
   const rideCount = countSport(result.activities, 'ride')
@@ -190,30 +172,8 @@ export function BalancePage({
         change,
         units,
         rideShown: weightKnown,
-        gap: heldBestGap,
-        grading:
-          profile === null
-            ? null
-            : {
-                library,
-                profile: { birthYear: profile.birthYear, sex: profile.sex },
-                massKg: settings.massKg,
-                calibration,
-              },
       }),
-    [
-      result,
-      previous,
-      library,
-      previousLabel,
-      change,
-      units,
-      weightKnown,
-      heldBestGap,
-      profile,
-      settings.massKg,
-      calibration,
-    ],
+    [result, previous, previousLabel, change, units, weightKnown],
   )
   const { volume, axis } = useBalanceVolume({
     trend,
@@ -335,7 +295,6 @@ export function BalancePage({
         profile={profile}
         massKg={settings.massKg}
         weightKnown={weightKnown}
-        calibration={calibration}
         lean={reading?.lean ?? null}
       />
 

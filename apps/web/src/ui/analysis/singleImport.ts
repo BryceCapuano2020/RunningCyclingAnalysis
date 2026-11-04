@@ -3,14 +3,14 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { ImportOutcome } from '../../worker/protocol'
 import { formatGrade } from '../gradeFormat'
 import type { AgeProfile } from '../grades'
-import { HEADLINE_LABEL, headlineGrades } from '../grades'
+import { thresholdGrades } from '../thresholdGrade'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import type { MovedItem } from './whatMoved'
 
 /** The count of activities an import added, by sport. */
 const ADDED_COUNT: Record<Sport, 'runs' | 'rides'> = { run: 'runs', ride: 'rides' }
 
-/** A sport's headline grade waits for a weight, since a ride's figures are worked out from the placeholder. */
+/** A sport's grade at its threshold waits for a weight, since a ride's figures are worked out from the placeholder. */
 const GRADE_WAITS_FOR_WEIGHT: Record<Sport, boolean> = { run: false, ride: true }
 
 /** The sport of the one activity an import added, or null when it added none, or more than one. */
@@ -21,11 +21,11 @@ export function addedSportOf(outcome: Pick<ImportOutcome, 'runs' | 'rides'>): Sp
 }
 
 /**
- * The sport's headline age grade, when both results grade it and its whole percent changed, such as
- * "Ride 20 min grade: 54% → 57%". Null without a profile, without a weight for a ride, or without a
+ * The sport's age grade at its threshold, the grade the Balance page states, when both results grade it and its whole percent
+ * changed, such as "Ride threshold grade: 54% → 57%". Null without a profile, without a weight for a ride, or without a
  * grade on both sides.
  */
-export function headlineGradeItem(
+export function thresholdGradeItem(
   before: AnalysisResult,
   after: AnalysisResult,
   sport: Sport,
@@ -33,13 +33,13 @@ export function headlineGradeItem(
   weighted: boolean,
 ): MovedItem | null {
   if (profile === null || (GRADE_WAITS_FOR_WEIGHT[sport] && !weighted)) return null
-  const from = headlineGrades(before, profile)[sport]
-  const to = headlineGrades(after, profile)[sport]
+  const from = thresholdGrades(before, profile)[sport]
+  const to = thresholdGrades(after, profile)[sport]
   if (from.kind !== 'graded' || to.kind !== 'graded') return null
   const fromText = formatGrade(from.grade.centre.grade)
   const toText = formatGrade(to.grade.centre.grade)
   if (fromText === toText) return null
-  const label = `${SPORT_LABEL[sport]} ${HEADLINE_LABEL} grade`
+  const label = `${SPORT_LABEL[sport]} threshold grade`
   return {
     text: `${label}: ${fromText} → ${toText}`,
     spoken: `${label} from ${fromText} to ${toText}`,

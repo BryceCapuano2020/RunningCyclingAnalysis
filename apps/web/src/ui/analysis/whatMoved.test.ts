@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { headlineGrades } from '../balanceFixtures'
 import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Comparison, Interval } from '@rca/core/types'
@@ -14,7 +15,6 @@ import {
 } from '../components/fixtures'
 import { gapOfHeadline } from '../balanceGap'
 import { formatGrade } from '../gradeFormat'
-import { headlineGrades } from '../grades'
 import type { ImportChange } from './importState'
 import { listedMoves, whatMoved } from './whatMoved'
 

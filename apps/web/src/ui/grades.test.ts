@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { headlineGrades } from './balanceFixtures'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import {
@@ -22,7 +23,6 @@ import {
   gapRecordText,
   gradeParts,
   gradedSexOf,
-  headlineGrades,
   listedGradeNotes,
   notGradedText,
   sportGrade,

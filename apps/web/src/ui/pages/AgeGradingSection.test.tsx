@@ -211,9 +211,7 @@ describe('AgeGradingSection balance', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText(
-        'Each sport is graded at its threshold, as an hour.',
-      ),
+      within(section()).getByText('Each sport is graded at its threshold, as an hour.'),
     ).toBeInTheDocument()
   })
 })

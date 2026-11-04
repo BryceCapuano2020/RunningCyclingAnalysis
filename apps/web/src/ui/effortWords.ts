@@ -148,15 +148,3 @@ export function uncheckedWords(
       return null
   }
 }
-
-/**
- * Whether a level read from a sport's best 20 minutes rests on a best that was not shown to be a hard effort: it was
- * under the line, or it could not be checked (no heart rate on it, too few days with heart rate). False when it was
- * hard, or when the gate has nothing to say (no 20 minute best).
- */
-export function isUnconfirmed(gate: EffortGate): boolean {
-  if (gate.verdict === 'notHard') return true
-  return (
-    gate.verdict === 'unknown' && (gate.unchecked === 'noHeartRate' || gate.unchecked === 'thin')
-  )
-}

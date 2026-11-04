@@ -910,7 +910,9 @@ describe('SportPage age grades', () => {
     )
 
     const level = screen.getByRole('region', { name: 'Age grade at threshold' })
-    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^\d:\d{2} \/km at age 40\.$/)
+    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(
+      /^\d:\d{2} \/km at age 40\.$/,
+    )
     expect(within(level).getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
       'href',
       '#/method',

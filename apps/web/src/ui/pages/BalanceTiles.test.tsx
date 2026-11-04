@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
+import { headlineGrades } from '../balanceFixtures'
 import '../../test/warmSample'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
 import { makeActivity, makeResult, makeRunThreshold } from '../components/fixtures'
-import { headlineGrades } from '../grades'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdRange } from '../thresholdRange'

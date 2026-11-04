@@ -55,7 +55,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="run"
       />,
     )
@@ -74,7 +73,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="run"
       />,
     )
@@ -89,7 +87,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="ride"
       />,
     )
@@ -105,7 +102,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean={null}
       />,
     )
@@ -120,7 +116,6 @@ describe('GradeProfileSection', () => {
         profile={null}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="run"
       />,
     )
@@ -134,7 +129,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown={false}
-        calibration={null}
         lean="run"
       />,
     )
@@ -148,7 +142,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="run"
       />,
     )
@@ -165,7 +158,6 @@ describe('GradeProfileSection', () => {
       profile: MAN_BORN_1986,
       massKg: 75,
       weightKnown: true,
-      calibration: null,
       lean: 'run' as const,
     }
     const { rerender } = render(<GradeProfileSection {...props} />)
@@ -182,14 +174,7 @@ describe('GradeProfileSection', () => {
     const result = { ...base, rideCurve: [...base.rideCurve, curvePoint(900, 250, 'ride-1')] }
     vi.mocked(pipeline.equivalenceFor).mockClear()
     render(
-      <GradeProfileSection
-        result={result}
-        profile={null}
-        massKg={75}
-        weightKnown
-        calibration={null}
-        lean="run"
-      />,
+      <GradeProfileSection result={result} profile={null} massKg={75} weightKnown lean="run" />,
     )
     cleanup()
     render(
@@ -198,7 +183,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown={false}
-        calibration={null}
         lean="run"
       />,
     )
@@ -212,7 +196,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="run"
       />,
     )
@@ -231,7 +214,6 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
-        calibration={null}
         lean="even"
       />,
     )
@@ -263,7 +245,6 @@ describe('GradeProfileSection', () => {
           profile={MAN_BORN_1986}
           massKg={75}
           weightKnown
-          calibration={null}
           lean={lean}
         />,
       )

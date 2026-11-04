@@ -89,10 +89,10 @@ describe('profileEquivalents with dated body masses', () => {
       equivalents: [],
       hr,
     })
-    const [equivalent] = profileEquivalents(dated, 75, dated.hr)
+    const [equivalent] = profileEquivalents(dated, 75, 'male')
     expect(equivalent?.ridePowerW).toBe(250)
-    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(250, 90, hr).p50, 9)
-    expect(equivalent?.runSpeed.p50).not.toBeCloseTo(equivalentRunSpeed(250, 75, hr).p50, 3)
+    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(250, 90, 'male').p50, 9)
+    expect(equivalent?.runSpeed.p50).not.toBeCloseTo(equivalentRunSpeed(250, 75, 'male').p50, 3)
   })
 })
 

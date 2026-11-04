@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { headlineGrades } from './balanceFixtures'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { equivalentRunSpeed } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -10,7 +11,6 @@ import {
   TOP_OF_SCALE_SHORT,
   TOP_OF_SCALE_TEXT,
   gapRecordText,
-  headlineGrades,
   isTopOfScale,
   notGradedText,
   rideGradeFromSpeeds,
@@ -60,7 +60,7 @@ function pageResult(wkg: number, massKg: number): AnalysisResult {
       makeEquivalence({
         durationS: HEADLINE_DURATION_S,
         ridePowerW: watts,
-        runSpeed: equivalentRunSpeed(watts, massKg, base.hr),
+        runSpeed: equivalentRunSpeed(watts, massKg, 'male'),
       }),
     ],
   }
@@ -70,8 +70,8 @@ const rideOf = (wkg: number, massKg: number, profile: AgeProfile): GradeOutcome 
   sportGrade(pageResult(wkg, massKg), 'ride', HEADLINE_DURATION_S, profile)
 
 describe('a ride at the top of the age tables', () => {
-  it('reads as the top of the scale for a young man at 6.3 W/kg and above, not as a fault', () => {
-    for (const wkg of [6.3, 7, 9]) {
+  it('reads as the top of the scale for a young man at 7 W/kg for 20 min, over the best riders’ hour, and above, not as a fault', () => {
+    for (const wkg of [7, 8, 9]) {
       const outcome = rideOf(wkg, 75, athlete(25, 'male'))
       expect(outcome).toEqual({ kind: 'top-of-scale', age: 25 })
       expect(isTopOfScale(outcome)).toBe(true)
@@ -94,8 +94,8 @@ describe('a ride at the top of the age tables', () => {
 
   it('still grades a typical rider, and never above the ceiling at either end of its range', () => {
     expect(rideOf(3.5, 75, athlete(35, 'male')).kind).toBe('graded')
-    // A strong young man at 5.2 W/kg: the centre is under the ceiling, the 95th percentile is over it.
-    const strong = rideOf(5.2, 75, athlete(25, 'male'))
+    // A young man just under the top of the scale, 6.6 W/kg: the centre is under the ceiling, the 95th percentile is over it.
+    const strong = rideOf(6.6, 75, athlete(25, 'male'))
     if (strong.kind !== 'graded') throw new Error(`Expected a grade, got: ${strong.kind}`)
     const ceiling = gradeCeiling(HEADLINE_DURATION_S, strong.age, 'male')!
     expect(strong.grade.centre.grade).toBeLessThan(ceiling)

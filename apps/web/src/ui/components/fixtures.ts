@@ -10,7 +10,6 @@ import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
-import { nativeAtGrade } from '../levelSolver'
 
 export function interval(p05: number, p50: number, p95: number): Interval {
   return { p05, p50, p95 }
@@ -117,20 +116,27 @@ const DEFAULT_RIDE_CP = { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 
 const DEFAULT_RUN_CP = { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 }
 
 /**
+ * The speed that grades as an hour what a 20 min effort at speedMs grades as, for the man of 40 the fixtures use: how a fixture's
+ * best 20 min stands for a threshold, so a test that sets a graded run or ride through its 20 min bests keeps that grade. Found
+ * here by bisection over the age tables, not by the app's own inverse, so the fixtures stay independent of the code under test.
+ */
+function hourSpeedOf(speedMs: number): number {
+  const grade = ageGradeForEffort(speedMs, HEADLINE_DURATION_S, 40, 'male')
+  if (grade === null) return speedMs
+  let [slow, fast] = [0.5, 12]
+  for (let step = 0; step < 40; step++) {
+    const middle = (slow + fast) / 2
+    if ((ageGradeForEffort(middle, HOUR_S, 40, 'male') ?? 0) < grade) slow = middle
+    else fast = middle
+  }
+  return (slow + fast) / 2
+}
+
+/**
  * The ride threshold as a running speed, for a fixture: the 20 min equivalence's when the result has one (so a test that
  * sets a ride through its equivalents grades that ride), else the flat speed of the threshold's own W/kg, with the range of its
  * low and high widened a tenth either way as the equivalence widens it.
  */
-/**
- * The speed that grades as an hour what a 20 min effort at speedMs grades as, for the man of 40 the fixtures use: how a fixture's
- * best 20 min stands for a threshold, so a test that sets a graded run or ride through its 20 min bests keeps that grade.
- */
-function hourSpeedOf(speedMs: number): number {
-  const grade = ageGradeForEffort(speedMs, HEADLINE_DURATION_S, 40, 'male')
-  const athlete = { age: 40, sex: 'male', massKg: 75, calibration: null } as const
-  return (grade === null ? null : nativeAtGrade('run', grade, HOUR_S, athlete)) ?? speedMs
-}
-
 function rideSpeedOf(
   threshold: ThresholdEstimate | null,
   equivalents: readonly Equivalence[],

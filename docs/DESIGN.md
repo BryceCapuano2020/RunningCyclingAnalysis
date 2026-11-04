@@ -806,14 +806,15 @@ and the tests named at the foot of that page keep the two in step. A display siz
   dates are not grouped.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
-- **Each sport's grade is its threshold, graded as an hour.** On Balance, the sport pages' level panel, the tiles, the level target and the
-  share card, one number stands for a sport: its threshold. A run's threshold pace (the flat speed of `runThreshold.value`) goes through
-  `gradeAtSpeed` at 60 min; a ride's threshold goes through its running equivalent at 60 min (`rideGradeFromSpeeds`, the path a ride best is
-  graded by), whose ends are the estimate's low and high through the equivalence's 5th and 95th percentile. The age is the age on the day of
-  the threshold's strongest effort. The lean compares those two grades, so the lean, the level lines, the tiles and "Your ride as a run" agree.
+- **Each sport's grade is its threshold, graded as an hour, against its own world class.** On Balance, the sport pages' level panel, the tiles, the level target and the
+  share card, one number stands for a sport: its threshold. A run's threshold pace goes through `gradeAtSpeed` at 60 min. A ride's goes through its running equivalent,
+  anchored at the best riders' hour (docs/design/cross-sport.md), so a ride is graded as a share of the best riders' hour the way a run is as a share of the best runners'.
+  Both carry their threshold's range, the ride's widened by the anchor's. The age is the age on the day of the threshold's strongest effort. The lean compares those two
+  grades and its range combines the two in quadrature. One core function, `sportStanding`, works all of it out (the grades, the ride as a run, the lead and its range, and
+  what the lower sport needs to match the higher), and every surface reads that object and only formats it, so the lean, the level lines, the tiles, "Your ride as a run", the share card and the import notice cannot differ.
   A sport with no threshold has a gap with the threshold's own words ("Needs an effort of 8 min or longer"). Still read from a best 20 min,
   because they grade efforts of a stated length or are judged by the change test: grade by duration, the best-effort rows and records,
-  History's years, "What changed" (its lean item compares the two periods' best 20 min), the energy ratio that stands in for a missing grade
+  History's years, the energy ratio that stands in for a missing grade
   and holds the headline, and the findings. `thresholdGrade` is the one path (`apps/web/src/ui/thresholdGrade.ts`).
 - **The balance is stated as a grade gap, led by its best estimate.** With both grades the lede reads "Running
   grades 9 points higher at threshold." The estimate
@@ -836,8 +837,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   is this?, and "Run against Ride, 90% range: -2% to +4%." only when the two are level. The lede and the line over the headline name no
   dates: the period control's caption under the levels gives them when the period is not All time.
 - **The level target says what would level the balance.** When the balance leans, the hero's line under the lede names what the lower sport's threshold would need to match
-  the higher sport's, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To match it on the bike: 300 W threshold (275 to 325). You're at 280 W." (`levelTarget` gives the pieces and the sentence; a run reads "To match it on the run: 6:50 /mi threshold. You're at 7:02 /mi.") A threshold is stated at today's weight, so no target says "at today's weight". The target inverts the age grade at the lower sport's
-  age, and a ride's watts invert the same equivalence its page grade is read from, with its heart-rate weights, so the
+  the higher sport's, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of the anchor, rounded outward to 5 W: "To match it on the bike: 300 W threshold (275 to 325). You're at 280 W." (`levelTarget` gives the pieces and the sentence; a run reads "To match it on the run: 6:50 /mi threshold. You're at 7:02 /mi.") A threshold is stated at today's weight, so no target says "at today's weight". The target inverts the age grade at the lower sport's
+  age, and a ride's watts invert the same anchored equivalence its page grade is read from (`sportStanding`'s `match`), so the
   words give a target and where you are, never a prediction. It is left off when the
   balance is even, when either grade is not on screen (a ride's waits for the weight), and when the rounded target
   does not beat the figure the page shows for the lower sport, in whole watts or whole seconds of pace. It is not repeated elsewhere on the page. The share card does not carry it.

@@ -4,6 +4,8 @@ import {
   TOP_OF_SCALE_SHORT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
+  THRESHOLD_NO_DATE_TEXT,
+  THRESHOLD_NO_STANDARD_TEXT,
 } from '../grades'
 import { gradeLevelText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
@@ -33,6 +35,8 @@ const SHORT_REASON: Record<string, string> = {
   [NO_DATE_TEXT]: 'Best effort has no date',
   [AGE_RANGE_TEXT]: AGE_RANGE_TEXT.replace(/\.$/, ''),
   [NO_STANDARD_TEXT]: 'No age standard for this effort',
+  [THRESHOLD_NO_DATE_TEXT]: 'Threshold effort has no date',
+  [THRESHOLD_NO_STANDARD_TEXT]: 'No age standard for this threshold',
 }
 
 /** The line for a sport with no activities in the period, per sport. */

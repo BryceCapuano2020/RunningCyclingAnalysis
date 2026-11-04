@@ -6,6 +6,7 @@ import { PACE_UNIT, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
 import { StatTile } from './StatTile'
+import { standingOf } from '../standing'
 import { countSport, isEstimatedRecord } from '../records'
 import { thresholdEstimate } from '../thresholdEstimate'
 import { thresholdNeedsLine } from '../thresholdNeeds'
@@ -47,7 +48,8 @@ export function CrossSportCard({ result, units, weighted, massKg }: CrossSportCa
     )
   }
   const estimate = thresholdEstimate(result, 'ride')
-  const speed = result.rideThresholdRunSpeed?.p50
+  // The pace is core's standing of the ride threshold as a run: the same figure the lean and the grade are worked from.
+  const speed = standingOf(result, null).rideAsRun?.p50
   if (estimate === null || !(speed !== undefined && speed > 0 && Number.isFinite(speed))) {
     return (
       <StatTile heading={HEADING}>
