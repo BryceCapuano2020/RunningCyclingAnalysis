@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { PRIORS } from '../constants'
 import { DURATION_TABLES } from '../threshold/durationTables'
 import { SPORTS } from '../types'
+import { DISPLAY_ECONOMY } from './economy'
 import {
-  DISPLAY_ECONOMY,
   flatSpeedOfWkg,
   nativeOfWkg,
   ridePowerAt,

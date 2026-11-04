@@ -1,4 +1,4 @@
-import { PRIORS } from '../constants'
+import { DISPLAY_ECONOMY } from '../display/economy'
 import { flatSpeedToMetabolic, metabolicToFlatSpeed } from '../metabolic'
 import type { Sport } from '../types'
 import {
@@ -48,7 +48,7 @@ export function runDurationRatio(durationS: number): number {
   return shareOfVo2max(durationS / 60) / HOUR_SHARE
 }
 
-const economy = PRIORS.runEconomyScale.mean
+const economy = DISPLAY_ECONOMY
 
 /** Daniels and Gilbert's oxygen cost of running at `metresPerMin`, ml/kg/min. The one place the formula is written. */
 export function runVo2PerMin(metresPerMin: number): number {

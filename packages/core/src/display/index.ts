@@ -1,5 +1,5 @@
+export { DISPLAY_ECONOMY } from './economy'
 export {
-  DISPLAY_ECONOMY,
   flatSpeedOfWkg,
   nativeOfWkg,
   ridePowerAt,

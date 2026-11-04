@@ -8,6 +8,7 @@ import {
 } from '../metabolic'
 import { DURATION_TABLES } from '../threshold/durationTables'
 import type { Sport } from '../types'
+import { DISPLAY_ECONOMY } from './economy'
 
 /*
  * The one set of conversions a figure goes through to be shown: gross metabolic W/kg (the unit of the best curves and the
@@ -15,14 +16,6 @@ import type { Sport } from '../types'
  * formats what these return and does no conversion of its own, so a figure shown in two places cannot be worked out two ways
  * (docs/ENGINEERING.md, "One figure, one function"). apps/web/src is held to this by scripts/ops/figure-sources.test.mjs.
  */
-
-/**
- * The running-economy scale every conversion here is read at: 1, the cost of running on the flat as the model prices it
- * (`FLAT_RUN_COST`). It is the scale the ride anchor (`digest/rideAnchor.ts`) converts at, so a pace read from a threshold and the
- * pace the anchor gives a ride are on one scale. It is not read from the prior (`PRIORS.runEconomyScale`), which describes the
- * spread of athletes the analysis samples; display.test.ts holds the two together.
- */
-export const DISPLAY_ECONOMY = 1
 
 /** The flat running speed, m/s, that costs a gross metabolic W/kg. */
 export function flatSpeedOfWkg(metabolicWkg: number): number {
