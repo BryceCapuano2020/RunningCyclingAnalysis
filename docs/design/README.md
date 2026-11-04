@@ -23,6 +23,8 @@ Decisions section. Status is one of designed, in progress or built.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
   logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: designed
   (stage F).
+- [model-ledger.md](model-ledger.md): every change to a model whose figures the athlete sees, with
+  its pull request, its reason and its effect on synthetic athletes. Status: built (stage break).
 - [heldout-log.md](heldout-log.md): the synthetic generator's tuning and held-out configurations, and the log
   that a held-out re-pin must add a row to. Status: built (stage D, D10).
 - [system.md](system.md): the visual system as built: colour roles and table, type and display scales, shell width, gaps,

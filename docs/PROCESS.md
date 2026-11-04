@@ -127,6 +127,10 @@ timeout at random.
 ## Review
 
 - Every change gets an independent review. Fix and re-review until there are no blockers.
+- A change to a model whose figures the athlete sees adds a row to the
+  [model ledger](design/model-ledger.md): the pull request, why, and its effect on synthetic
+  athletes. A model changed in the current stage stays frozen until the owner has used it for a day,
+  unless a bug forces a fix.
 - Review reads the public text too: the PR body, commit messages and every added doc line. None may
   carry personal data, dates or figures from the owner's exports.
 - For changes to account, sync or worker-lifecycle state, write the transition table first (states
