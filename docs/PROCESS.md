@@ -61,6 +61,25 @@ for a merge that would have woken no one.
 Why: the coordinator's context averaged about 460k tokens per call and compacted 15 times, and
 subagent reports were most of it.
 
+## Formula and model changes
+
+A change to a formula, a model or one of its constants (a threshold estimator, a grade anchor, an
+economy, a zone rule) goes through these steps before code:
+
+1. A spec in `docs/design/` with the formula, every constant and the published source behind it.
+2. A prototype on synthetic athletes that shows what the change does to their numbers.
+3. A science review of the spec and the numbers only, not the code, by an Opus reviewer
+   (`rca-reviewer` run with the Opus model).
+4. One presentation to the owner: the spec, the numbers and the reviewer's verdict together.
+
+The pull request that builds it adds a calibration case on synthetic athletes: a test that pins the
+model's figures against its published source. In autonomous mode the spec and the reviewer's
+verdict stand in for the owner's "build it", and the pull request stays a draft until the owner has
+read the spec.
+
+Why: formula proposals reached the owner unreviewed, and a grade anchor shipped without
+calibration. The owner caught both on their own data.
+
 ## Branches and pull requests
 
 - One package per pull request, at about 600 changed lines or fewer, tests included. Split a large
