@@ -118,18 +118,15 @@ function pathWords(words) {
   )
 }
 
-/** Whether a git call writes files at paths that reach the folder, not merely names a branch that looks like it. */
+/** Whether a git call writes files at paths that reach the folder, not merely names a ref that looks like it. */
 function gitWrites(words, related) {
   const args = gitArgs(words)
   const verb = args.find((arg) => !arg.startsWith('-'))
   if (GIT_PATH_WRITES.has(verb)) return related.length > 0
   if (!GIT_PATH_OR_REF.has(verb)) return false
+  // Before `--` an argument is a ref, even one that looks like the folder; only what follows `--` is a path.
   const dashes = args.indexOf('--')
-  if (dashes >= 0) return args.slice(dashes + 1).some((arg) => relation(arg) !== null)
-  // Without `--`, a bare folder name could be a branch; a path below it or a glob cannot.
-  return related.some(
-    (word) => word.replace(/\/+$/, '').split('/').length > 2 || /[*?[]/.test(word),
-  )
+  return dashes >= 0 && args.slice(dashes + 1).some((arg) => relation(arg) !== null)
 }
 
 function readsOnly(words) {
