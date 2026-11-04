@@ -43,8 +43,9 @@ export function equivalentsOf(
 
 /**
  * The ride threshold as a flat running speed, m/s, the pace the same hour of riding costs a runner: the estimate through the
- * anchored ride equivalence (`rideRunSpeed`). `p50` is the estimate's; `p05` and `p95` are its low and high widened by the anchor's
- * own spread in quadrature on the log scale, so they carry both what the efforts leave open and what the anchor does. The
+ * anchored ride equivalence (`rideRunSpeed`). `p50` is the estimate's; `p05` and `p95` are its low and high (10th and 90th
+ * percentiles, scaled to the 5th and 95th) widened by the anchor's own spread in quadrature on the log scale, so they carry both
+ * what the efforts leave open and what the anchor does. The
  * threshold is in gross metabolic W/kg at the prior-mean efficiency, which the anchor factor expects, so body mass does not enter.
  * Null without a threshold.
  */

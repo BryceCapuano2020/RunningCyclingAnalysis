@@ -31,8 +31,11 @@ export const CYCLING_WORLD_CLASS_HOUR_WKG: Record<Sex, number> = { male: 6.4, fe
  */
 export const CYCLING_ANCHOR_LOG_SD = 0.03
 
-/** The z of the 5th and 95th percentiles of a normal. */
-const Z90 = 1.645
+/** The z of the 95th percentile of a normal, and so, mirrored, of the 5th: the ends of the ranges this module returns. */
+const Z_P95 = 1.645
+
+/** The z of the 90th percentile: the ends (`low`, `high`) a threshold estimate carries are its 10th and 90th percentiles. */
+const Z_P90 = 1.2816
 
 /**
  * An age at which both sexes' road standards hold the open class at an hour: nobody's age-standard time at 3600 s is faster
@@ -81,26 +84,32 @@ export function anchorFactor(sex: Sex | null | undefined): number {
 /** A ride's figure as it stands and the ends the caller gives it: gross metabolic W/kg at the prior-mean efficiency. */
 export interface RideEnergy {
   value: number
-  /** The low end of the caller's own range, at most `value`; absent, the figure has no range of its own. */
+  /** The 10th percentile of the caller's own range, at most `value`; absent, the figure has no range of its own. */
   low?: number
-  /** The high end, at least `value`. */
+  /** The 90th percentile, at least `value`. */
   high?: number
 }
 
-/** How far an end is from the value on the log scale, 0 when the end is absent or on the wrong side. */
+/**
+ * How far an end is from the value on the log scale, as a 5th or 95th percentile would be: the caller's ends are 10th and 90th
+ * percentiles, so their distance is scaled by 1.645 / 1.2816 to the same percentiles as the anchor's. An absent end, or one that
+ * is not a positive figure, is no distance. The distance is absolute, so an end on the wrong side of the value widens the range
+ * the same as one on the right side.
+ */
 function logDistance(value: number, end: number | undefined): number {
-  return end === undefined || !(end > 0) ? 0 : Math.abs(Math.log(value / end))
+  return end === undefined || !(end > 0) ? 0 : (Math.abs(Math.log(value / end)) * Z_P95) / Z_P90
 }
 
 /**
  * A ride's running equivalent: the flat running speed, m/s, of the run that is the same share of the running world-class hour
- * as the ride is of the cycling one, at any duration. The ends are the anchor's (exp(+-1.645 x CYCLING_ANCHOR_LOG_SD) on the
- * energy), widened in quadrature on the log scale by the caller's own `low` and `high` when it has them, so a threshold's range
- * and the anchor's are one range. Age is left to the running age tables, since cycling ages like running in energy terms.
+ * as the ride is of the cycling one, at any duration. The ends are the 5th and 95th percentiles: the anchor's (exp(+-1.645 x
+ * CYCLING_ANCHOR_LOG_SD) on the energy), widened in quadrature on the log scale by the caller's own `low` and `high` when it has
+ * them. Those are the 10th and 90th percentiles of a threshold estimate, so their distances from the value are first scaled by
+ * 1.645 / 1.2816 to the 5th and 95th, and a threshold's range and the anchor's are then one range. Age is left to the running age tables, since cycling ages like running in energy terms.
  */
 export function rideRunSpeed(ride: RideEnergy, sex: Sex | null | undefined): Interval {
   const factor = anchorFactor(sex)
-  const anchor = Z90 * CYCLING_ANCHOR_LOG_SD
+  const anchor = Z_P95 * CYCLING_ANCHOR_LOG_SD
   const speedAt = (energy: number) => metabolicToFlatSpeed(factor * energy)
   const down = Math.hypot(logDistance(ride.value, ride.low), anchor)
   const up = Math.hypot(logDistance(ride.value, ride.high), anchor)
@@ -146,6 +155,6 @@ export function ridePowerForRunSpeed(
 ): { low: number; centre: number; high: number } {
   const energy = flatSpeedToMetabolic(speedMs) / anchorFactor(sex)
   const watts = (wkg: number) => metabolicToRidePower(wkg, massKg, PRIORS.grossEfficiency.mean)
-  const spread = Math.exp(Z90 * CYCLING_ANCHOR_LOG_SD)
+  const spread = Math.exp(Z_P95 * CYCLING_ANCHOR_LOG_SD)
   return { low: watts(energy / spread), centre: watts(energy), high: watts(energy * spread) }
 }

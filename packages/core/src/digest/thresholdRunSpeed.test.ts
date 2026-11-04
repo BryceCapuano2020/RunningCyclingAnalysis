@@ -35,17 +35,19 @@ describe('thresholdRunSpeed', () => {
     expect(alone.p95).toBeGreaterThan(alone.p50)
   })
 
-  it("widens the threshold's own low and high by the anchor, in quadrature on the log scale", () => {
+  it("widens the threshold's own low and high (10th and 90th) by the anchor, as 5th and 95th, in quadrature", () => {
     const threshold = estimate(22, 0.06)
     const speed = thresholdRunSpeed(threshold, 'male')!
     const energy = (v: number) => (v * 3.9 + 1.22) / anchorFactor('male')
     const anchor = 1.645 * CYCLING_ANCHOR_LOG_SD
+    // The threshold's ends are 10th and 90th percentiles; scaled by 1.645 / 1.2816 they are the 5th and 95th.
+    const scale = 1.645 / 1.2816
     expect(Math.log(energy(speed.p05) / 22)).toBeCloseTo(
-      -Math.hypot(Math.log(22 / threshold.low), anchor),
+      -Math.hypot(Math.log(22 / threshold.low) * scale, anchor),
       9,
     )
     expect(Math.log(energy(speed.p95) / 22)).toBeCloseTo(
-      Math.hypot(Math.log(threshold.high / 22), anchor),
+      Math.hypot(Math.log(threshold.high / 22) * scale, anchor),
       9,
     )
     // Wider than either alone.
