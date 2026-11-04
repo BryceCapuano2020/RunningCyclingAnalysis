@@ -42,19 +42,21 @@ import { fastestMs } from './test/timing'
  * 97 to 104 ms on the runner, so its budget is 130.
  *
  * The run threshold (U1) puts the runs through the same estimate in every week, reading bests from 8 min, and leaves heart rate
- * out of it: a run reads pace alone, so no run line is fitted. Measured on this machine with other test runs going (load about
- * 3), the fastest of two runs of five, with the headroom each budget keeps (budget less figure, over budget): all time 296 ms
- * (budget 450, 34%), 12 weeks picked 76 (115, 34%), the default search 90 (160, 44%), the search that ends on all time 251 (450,
- * 44%) and a change of body mass 80 (130, 38%); the same libraries took 313, 88, 103, 265 and 96 ms with the runs' line. With
- * hard efforts all time takes 600 ms (1200, 50%) and the default 12 weeks 371 (1000, 63%). The tightest, all time and 12 weeks,
- * keep 34%: none is near the 15% under which a budget is loosened or the work split.
+ * out of it. Its first budgets were set from this machine's figures, about 34% under each; the CI runner takes 1.5 to 1.8 times as
+ * long and varies a further 5 to 8% between runs, and its figures landed on the budgets: 12 weeks picked 121 to 124 ms (budget
+ * 115), all time 459 (450) and a change of body mass 125 to 135 (130). A run's library and its weekly steps read only the
+ * digests, since a run is priced from its pace and reads no heart rate, so both are now kept across a change of body mass
+ * (`librariesOf`, `thresholdTimeline`); that took a change of body mass from 83 to about 76 ms here. Each budget is now the
+ * runner's highest figure plus at least 15%: all time 540, 12 weeks picked 145, the default search 185, the search that ends on
+ * all time 530 and a change of body mass 155. Every test prints its figure beside its budget, so a CI log shows each one's
+ * headroom, not only a failure.
  */
 const ACTIVITIES = 2000
-const ALL_TIME_BUDGET_MS = 450
-const DEFAULT_BUDGET_MS = 115
-const SEARCH_BUDGET_MS = 160
-const SEARCH_TO_ALL_TIME_BUDGET_MS = 450
-const MASS_CHANGE_BUDGET_MS = 130
+const ALL_TIME_BUDGET_MS = 540
+const DEFAULT_BUDGET_MS = 145
+const SEARCH_BUDGET_MS = 185
+const SEARCH_TO_ALL_TIME_BUDGET_MS = 530
+const MASS_CHANGE_BUDGET_MS = 155
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
  * zones' thresholds by week and reads the sessions that reached a hard heart rate. The default library has none, so its figures
@@ -63,6 +65,12 @@ const MASS_CHANGE_BUDGET_MS = 130
  */
 const HARD_ALL_TIME_BUDGET_MS = 1200
 const HARD_DEFAULT_BUDGET_MS = 1000
+/** Prints a figure beside its budget, so a CI log shows every budget's headroom, not only a failure. */
+const report = (what: string, ms: number, budget: number) =>
+  console.info(
+    `${what}: ${ms.toFixed(0)} ms of ${budget} (${Math.round((100 * (budget - ms)) / budget)}% headroom)`,
+  )
+
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
 describe('session performance on a large library', () => {
@@ -76,6 +84,7 @@ describe('session performance on a large library', () => {
       analysed = session.loadDigests(digests, SETTINGS).totalActivities
     }, 5)
     expect(analysed).toBe(ACTIVITIES)
+    report('all time', ms, ALL_TIME_BUDGET_MS)
     expect(ms).toBeLessThan(ALL_TIME_BUDGET_MS)
   })
 
@@ -87,6 +96,7 @@ describe('session performance on a large library', () => {
       period = session.loadDigests(digests, SETTINGS).period.days ?? 0
     }, 5)
     expect(period).toBe(84)
+    report('12 weeks picked', ms, DEFAULT_BUDGET_MS)
     expect(ms).toBeLessThan(DEFAULT_BUDGET_MS)
   })
 
@@ -98,6 +108,7 @@ describe('session performance on a large library', () => {
     }, 5)
     // No window qualifies, so the shortest with evidence for both sports is taken after the three are analysed.
     expect(answer).toBe('most/84')
+    report('default search', ms, SEARCH_BUDGET_MS)
     expect(ms).toBeLessThan(SEARCH_BUDGET_MS)
   })
 
@@ -112,6 +123,7 @@ describe('session performance on a large library', () => {
       answer = `${state.answerWindow.reason}/${state.answerWindow.passed.length}`
     }, 5)
     expect(answer).toBe('all-time/3')
+    report('search to all time', ms, SEARCH_TO_ALL_TIME_BUDGET_MS)
     expect(ms).toBeLessThan(SEARCH_TO_ALL_TIME_BUDGET_MS)
   })
 
@@ -126,7 +138,7 @@ describe('session performance on a large library', () => {
       kept = session.setSettings({ massKg, bikeMassKg: SETTINGS.bikeMassKg }).library.length
     }, 5)
     expect(kept).toBe(ACTIVITIES)
-    console.info(`${ACTIVITIES} activities: body mass change ${ms.toFixed(0)} ms`)
+    report('body mass change', ms, MASS_CHANGE_BUDGET_MS)
     expect(ms).toBeLessThan(MASS_CHANGE_BUDGET_MS)
   })
 
@@ -142,6 +154,7 @@ describe('session performance on a large library', () => {
       }, 5)
       // The fit is kept, so the time is of the path that fits it and not of a refusal.
       expect(fitted).not.toBeNull()
+      report('hard, all time', ms, HARD_ALL_TIME_BUDGET_MS)
       expect(ms).toBeLessThan(HARD_ALL_TIME_BUDGET_MS)
     })
 
@@ -151,6 +164,7 @@ describe('session performance on a large library', () => {
         period = new AnalysisSession().loadDigests(hard, SETTINGS).period.days ?? 0
       }, 5)
       expect(period).toBeGreaterThan(0)
+      report('hard, default 12 weeks', ms, HARD_DEFAULT_BUDGET_MS)
       expect(ms).toBeLessThan(HARD_DEFAULT_BUDGET_MS)
     })
   })
