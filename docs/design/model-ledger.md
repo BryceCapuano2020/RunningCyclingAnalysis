@@ -1,0 +1,22 @@
+# Model ledger
+
+Every change to a model or formula whose figures the athlete sees, newest first: the pull request,
+why it changed, and what it did to the synthetic athletes. Figures from the owner's account never go
+here: the repository is public.
+
+The rules for adding a row and for freezing a changed model are in
+[PROCESS.md](../PROCESS.md#review).
+
+| Pull request     | Model                | Change and why                                                                                                                                          | Effect on synthetic athletes |
+| ---------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| #411             | Zones                | Zones name the threshold and window they are cut from; the raw-best floor is deleted, so zones and the threshold card share one figure.                 | Not measured                 |
+| #410             | Running economy      | One running economy in core; the second race path is deleted, so race estimates and the run threshold agree.                                            | Not measured                 |
+| #405             | Grade                | Each sport is graded as a share of its own world-class hour anchor, so the lean, the cards and the ride as a run agree.                                 | Not measured                 |
+| #403, #404       | Run threshold        | One 1-hour best estimate from the run efforts, read through speed, without heart rate, with a backed hour as a floor.                                   | Not measured                 |
+| #401             | Ride threshold       | The power estimate is the answer unless heart rate confirms a rise; the 3% allowance is dropped.                                                        | Not measured                 |
+| #396, #398, #399 | Ride threshold       | One estimate from many efforts, weighted by recency, spread and whether the watts were measured, with heart rate as a second estimate that can lift it. | Not measured                 |
+| #392             | Ride threshold range | The top of a range from efforts that were not hard reads the 3 to 10 minute bests.                                                                      | Not measured                 |
+
+The rows above were added after the fact, and their effect on synthetic athletes was not measured
+when they merged. From here on each row gives the before and after figures of the synthetic athletes
+in the change's calibration case.
