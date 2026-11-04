@@ -50,20 +50,24 @@ import { fastestMs } from './test/timing'
  * runner's highest figure plus at least 15%: all time 540, 12 weeks picked 145, the default search 185, the search that ends on
  * all time 530 and a change of body mass 155. Every test prints its figure beside its budget, so a CI log shows each one's
  * headroom, not only a failure.
+ *
+ * Read at 1.8 times this machine's figures (the top of the runner's range; the figures here were 298 ms all time, 73 ms for 12 weeks, 91
+ * for the default search, 250 for the search to all time, 77 for a body mass, 601 and 374 hard), five of those budgets left under 15%:
+ * all time is 640, 12 weeks picked 155, the default search 195, a change of body mass 165 and hard all time 1280. The figures did not move.
  */
 const ACTIVITIES = 2000
-const ALL_TIME_BUDGET_MS = 540
-const DEFAULT_BUDGET_MS = 145
-const SEARCH_BUDGET_MS = 185
+const ALL_TIME_BUDGET_MS = 640
+const DEFAULT_BUDGET_MS = 155
+const SEARCH_BUDGET_MS = 195
 const SEARCH_TO_ALL_TIME_BUDGET_MS = 530
-const MASS_CHANGE_BUDGET_MS = 155
+const MASS_CHANGE_BUDGET_MS = 165
 /**
  * The same library with hard efforts in both sports, whose thresholds the effort gate keeps: the path that fits them, cuts the
  * zones' thresholds by week and reads the sessions that reached a hard heart rate. The default library has none, so its figures
  * above time the gate's refusals only. These efforts are longer and steadier, so the same activities cost more to digest into
  * a state (a heart-rate check of about a third more blocks), and the budgets are their own.
  */
-const HARD_ALL_TIME_BUDGET_MS = 1200
+const HARD_ALL_TIME_BUDGET_MS = 1280
 const HARD_DEFAULT_BUDGET_MS = 1000
 /** Prints a figure beside its budget, so a CI log shows every budget's headroom, not only a failure. */
 const report = (what: string, ms: number, budget: number) =>
