@@ -7,11 +7,10 @@ describe('the judgement of a library that reaches hard heart rates', () => {
     const session = new AnalysisSession()
     session.choosePeriod('all')
     const state = session.loadSample({ massKg: 75, bikeMassKg: 9 })
-    const { sessions, floor } = state.heartRateJudgement
+    const { sessions } = state.heartRateJudgement
     for (const sport of ['run', 'ride'] as const) {
       expect(sessions[sport].hard.length).toBeGreaterThan(0)
       expect(sessions[sport]).toEqual(state.result!.effortGate[sport].sessions)
-      expect(floor[sport].length).toBeGreaterThan(0)
     }
   })
 })

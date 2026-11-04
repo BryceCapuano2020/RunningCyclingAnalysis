@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
+import { HEADLINE_DURATION_S } from '../constants'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { athleteFor, birthYearFor, libraryOf } from '../effort/test/libraries'
 import type { LibraryKind } from '../effort/test/libraries'
@@ -25,7 +25,7 @@ function withoutHeartRate(kind: LibraryKind) {
 }
 
 describe('the effort gate through the analysis', () => {
-  it('keeps a runner-only easy library’s fit as the curve gives it, and says the best 30 minutes as a floor', () => {
+  it('keeps a runner-only easy library’s fit as the curve gives it, whatever the gate says', () => {
     const result = combine(digestsOf('easy'), SETTINGS)
     expect(result.effortGate.run.verdict).toBe('notHard')
     // The gate is a label: the fit and its refusal are the curve's own, whatever the heart rate says of the effort.
@@ -34,9 +34,6 @@ describe('the effort gate through the analysis', () => {
     })
     expect(result.runCp).toEqual(outcome.fit)
     expect(result.runCpRefusal).toEqual(outcome.refusal)
-    // The floor is the best 30 minutes where the curve has one: the time a threshold is said to be held for.
-    const best = result.runCurve.find((p) => p.durationS === CP_FIT_HOLD_S)!.value
-    expect(result.effortGate.run.floor).toEqual({ durationS: CP_FIT_HOLD_S, value: best })
     // The reference is too low to be a maximum, so a harder effort is not what is missing: the reference is.
     expect(result.effortGate.run.neededS).toBeNull()
     // A sport with no activities has nothing to judge.

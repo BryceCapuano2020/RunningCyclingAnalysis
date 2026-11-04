@@ -80,8 +80,8 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   best itself, the reading says "A 20 min effort within 5% of your best".
 - **Zones from threshold** (`thresholdTimeline`, `HeartRateJudgement.fit`): a window's pace and power are its threshold, whatever the
   judged 20 minutes was. A ride's is the estimate over that window's rides, and a run's the estimate over its runs (docs/design/threshold.md), each with no floor
-  of its own; a floor (the best 30 minutes, else the best 20, of the 12 months up to the activity's week, dated; for today's zones alone, the newest
-  effort older than that) stands in only where a window holds no effort its estimate reads (3 minutes for a ride, 8 for a run). Heart-rate zones are cut from the highest heart rate on file where no effort reached near a maximum, and say so.
+  of its own. A window with no effort its estimate reads (3 minutes for a ride, 8 for a run) takes the newest estimate within a year, and with none
+  there are no zones for the date: no best effort stands in for a threshold (the zone floor of earlier rounds is gone). Heart-rate zones are cut from the highest heart rate on file where no effort reached near a maximum, and say so.
 - **Race predictions**: a run's bests are carried to a race when it reached a hard heart rate (its peak at the hard line, and held there
   for two minutes where the digest has its seconds by heart rate, so a lone 30 s spike does not count; digests from before the
   distributions were kept are judged by the peak alone), or, for a best at a half marathon or longer, when its average
@@ -131,12 +131,8 @@ misfit, not whether the efforts were maximal, and these are single sessions.
 ## The duration a threshold is held for
 
 A threshold is the pace or power held for an hour, for a run as for a ride (docs/design/threshold.md), and a card says "threshold" with no
-duration of its own. The 30 minutes of `CP_FIT_HOLD_S` belongs to the gate's floor, the best 30 minutes, and to the critical-power fit: that
-fit rests on efforts of 3 to 20 minutes, and Poole et al. 2016 (Med Sci Sports Exerc 48:2320, PMC5070974) report riders completing 24
-minutes at critical power without difficulty, and exercise just above it sustained for "perhaps 30 minutes"; on noise-free curves that fall
-with duration the fit sat at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between
-those, is a convention stated in the constant. A published 20 to 40 minute range for time to exhaustion at critical power could not be verified
-and is not cited.
+duration of its own. The code states no other: the half hour a critical-power fit's pace or power was said to be held for
+went with the gate's floor, its only reader.
 
 ## Calibration (synthetic harness, `effort/gate.*.sim.test.ts` (harness: `effort/test/gateSim.ts`))
 

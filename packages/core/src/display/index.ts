@@ -1,3 +1,4 @@
+export { THRESHOLD_WINDOW_WEEKS } from '../digest/thresholdTimelineTypes'
 export { DISPLAY_ECONOMY } from './economy'
 export {
   flatSpeedOfWkg,

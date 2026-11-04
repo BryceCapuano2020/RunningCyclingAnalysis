@@ -185,15 +185,7 @@ export function combine(
   const heartRides = withoutSetAside(rideBest, heart.setAside)
   // Every duration, not the comparison's: a library of one sport has no comparison, and still has efforts to judge.
   const effort = checkEfforts(heartRuns, heartRides, judged.referenceHr, DURATIONS_S, judged)
-  const effortGate = effortGatesOf(
-    ordered,
-    masses,
-    bikeModel,
-    gate,
-    { run: runCurve, ride: rideMetabolicCurve },
-    judged,
-    heart.setAside,
-  )
+  const effortGate = effortGatesOf(ordered, masses, bikeModel, gate, judged, heart.setAside)
   judgeHeadline(effort, effortGate)
   const { run: runThreshold, ride: rideThreshold } = thresholdsOf(
     ordered,

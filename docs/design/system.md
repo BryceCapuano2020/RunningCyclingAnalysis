@@ -128,7 +128,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   zone step is within 10 of it (`runColour.test.ts`, `zoneRamp.test.ts`).
 - **Context** (`--previous-mark`, `--grid`, `--neutral-mark`, `--neutral-band`, the level bands) is what is neither sport
   nor status: the previous period, gridlines, reference marks.
-- **Honesty shapes** are shapes, not colours: a dot is a recorded effort, a ring an estimate, a floor in a zone table says "at least". They
+- **Honesty shapes** are shapes, not colours: a dot is a recorded effort, a ring an estimate. They
   hold in both schemes and in forced colours.
 
 **Zone ramps.** Five steps for each sport, lowest effort first, with one ink per step (`--zone-ink-n`) for both. Ride is blue

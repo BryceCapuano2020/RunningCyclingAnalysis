@@ -1,14 +1,8 @@
 import type { Sport } from '@rca/core/types'
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
+import { THRESHOLD_WINDOW_WEEKS } from '@rca/core/display'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
-import {
-  formatClock,
-  formatDuration,
-  formatPaceValue,
-  formatPower,
-  PACE_UNIT,
-  paceSeconds,
-} from '@rca/core/units'
+import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDayMonth, formatMonth } from './format/date'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
@@ -20,29 +14,10 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
   pace: 'pace',
 }
 
-/**
- * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where no threshold estimate
- * stands for the date: no run effort of 8 min or more in its window, nor in the year before.
- * A ride's threshold is the estimate from all its efforts, which has no floor, so a ride's zones are never cut from one.
- */
-const FLOOR_ZONES: Record<Sport, boolean> = { run: true, ride: false }
-
-/** The floor a set's power or pace is cut from: the best 30 min or 20 min and the day it was set, which the real threshold is at least. */
-function floorOf(set: ZoneSet): { durationS: number; asOfMs: number } | null {
-  return FLOOR_ZONES[set.sport] && set.floorS !== null && set.asOfMs !== null
-    ? { durationS: set.floorS, asOfMs: set.asOfMs }
-    : null
-}
-
 /** Where a zone set's reference came from, in the words under its title. */
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
-    // A pace no estimate stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
-    const floor = floorOf(set)
-    if (floor !== null) {
-      return `From your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
-    }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
     // A pace or power from an older estimate, because the half year before the date holds no effort its estimate reads.
     return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
@@ -137,54 +112,33 @@ const REFERENCE_TEXT: Record<ZoneMeasure, (reference: number, units: UnitSystem)
 export interface ZoneTable {
   /** "Ride power zones". */
   title: string
-  /** The reference and where it came from: "Threshold power: 250 W, estimated from your rides". */
+  /** The reference and where it came from: "Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov". */
   detail: string
   citation: string
   columns: string[]
   rows: string[][]
 }
 
-const REFERENCE_NAME: Record<ZoneMeasure, string> = {
-  power: 'Threshold power',
-  heartRate: 'Max heart rate',
-  pace: 'Threshold pace',
-}
-
 /**
- * Where a power or pace reference came from, after its figure: an estimate from the sport's activities (up to the month of an
- * older one), a floor names its effort, and an entered one says so.
+ * The line under a zone table: what the reference is, after its figure. A max heart rate says where it came from. A power or
+ * pace is cut per week from the settled timeline of thresholds, so it is the sport's threshold over the window that ends then
+ * (`windowEndMs`), which is the period tile's threshold only when the period is those weeks: the line names the window, and the
+ * figure is the display module's, as the tile's is.
  */
-function referenceSourceText(set: ZoneSet): string {
-  if (set.source === 'entered') return 'entered by you'
-  // A floor is the best 30 min or 20 min of the 12 months up to the date, named with the day it was set.
-  const floor = floorOf(set)
-  if (floor !== null) {
-    return `from your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
+function detailText(set: ZoneSet, reference: string): string {
+  if (set.measure === 'heartRate') {
+    return `Max heart rate: ${maxHeartRateBasis(set) ?? `${reference}, entered by you`}`
   }
-  return estimatedSourceText(set)
-}
-
-/** The sports a set was estimated from, as a phrase: "your rides". */
-function fromSports(set: ZoneSet): string {
-  return `your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
-}
-
-/** An estimated pace or power's source, the same for a run and a ride: an estimate from the sport's activities, up to the month of an older one. */
-function estimatedSourceText(set: ZoneSet): string {
-  return `estimated from ${fromSports(set)}${set.asOfMs === null ? '' : ` up to ${formatMonth(set.asOfMs, true)}`}`
+  if (set.source === 'entered') return `Zones cut from ${reference}, entered by you`
+  const window = set.windowEndMs === null ? '' : ` to ${formatDayMonth(set.windowEndMs)}`
+  return `Zones cut from ${reference}, your threshold over the ${THRESHOLD_WINDOW_WEEKS} weeks${window}`
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */
 export function zoneTable(set: ZoneSet, units: UnitSystem): ZoneTable {
-  const basis = maxHeartRateBasis(set)
-  const reference = REFERENCE_TEXT[set.measure](set.reference, units)
   return {
     title: `${SPORT_LABEL[set.sport]} ${MEASURE_TITLE[set.measure]} zones`,
-    // An estimated max heart rate says where it came from in place of the figure alone.
-    detail:
-      basis !== null
-        ? `${REFERENCE_NAME[set.measure]}: ${basis}`
-        : `${REFERENCE_NAME[set.measure]}: ${floorOf(set) === null ? '' : 'at least '}${reference}, ${referenceSourceText(set)}`,
+    detail: detailText(set, REFERENCE_TEXT[set.measure](set.reference, units)),
     citation: set.citation,
     columns: ['Zone', 'Name', 'Range'],
     rows: set.zones.map((zone) => [

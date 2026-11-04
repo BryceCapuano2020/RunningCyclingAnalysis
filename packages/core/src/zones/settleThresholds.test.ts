@@ -179,6 +179,66 @@ describe('settledThresholds', () => {
       [4, 15],
       [8, 15],
     ])
-    expect(settledThresholds({ run: flat, ride: [] }, LATER).run).toEqual(flat)
+    // Each step says the window its fit was taken over: the first, which adopted it and which every later one confirms.
+    const settled = settledThresholds({ run: flat, ride: [] }, LATER).run
+    expect(settled.map((step) => step.windowEndMs)).toEqual(flat.map(() => flat[0]!.fromMs))
+    expect(settled.map(({ windowEndMs: _end, ...step }) => step)).toEqual(flat)
+  })
+
+  it('says which window the held fit was taken over: the step that adopted it, not the one it is held through', () => {
+    const points: [number, number | null][] = [
+      [0, 15],
+      [3, 15.05],
+      [6, 17],
+      [9, 17.05],
+    ]
+    const run = settledRun(points)
+    const week = (n: number) => START + n * WEEK_MS
+    expect(run.map((step) => step.windowEndMs)).toEqual([week(0), week(0), week(6), week(6)])
+    // The week after the second step the zones read the first window's 15, and from the third step on the window ending then.
+    expect(thresholdAt(run, week(4))).toMatchObject({ windowEndMs: week(0) })
+    expect(thresholdAt(run, week(8))).toMatchObject({ windowEndMs: week(6) })
+    // The timeline as built has no such field: a step's fit is its own window's, which ended with its week.
+    const built = stepsOf(points)
+    expect(built.every((step) => step.windowEndMs === undefined)).toBe(true)
+    expect(thresholdAt(built, week(4))).toMatchObject({ windowEndMs: week(3) })
+  })
+
+  it('ends a window no later than the day of the newest activity the steps read', () => {
+    // A Sunday's end labels a week, but a fit adopted in the week of the newest activity (the first the library has, here) has no
+    // days after that activity yet: a Tuesday's window does not end on the Sunday to come.
+    const sunday = Date.UTC(2024, 0, 14, 23, 59, 59, 999)
+    const tuesday = Date.UTC(2024, 0, 9, 14, 30)
+    const first: ThresholdStep = { fromMs: sunday, fit: fitOf(15), asOfMs: tuesday, lastFit: 0 }
+    const [settled] = settledThresholds({ run: [first], ride: [] }, LATER).run
+    expect(settled!.windowEndMs).toBe(Date.UTC(2024, 0, 9, 23, 59, 59, 999))
+  })
+
+  it('keeps the week end of a window that closed before the newest activity', () => {
+    const sunday = Date.UTC(2024, 0, 14, 23, 59, 59, 999)
+    const tuesday = Date.UTC(2024, 0, 9, 14, 30)
+    const early: ThresholdStep = { fromMs: sunday, fit: fitOf(15), asOfMs: tuesday, lastFit: 0 }
+    const later: ThresholdStep = {
+      fromMs: sunday + 6 * WEEK_MS,
+      fit: fitOf(17),
+      asOfMs: tuesday + 6 * WEEK_MS,
+      lastFit: 1,
+    }
+    const run = settledThresholds({ run: [early, later], ride: [] }, LATER).run
+    expect(run.map((step) => step.windowEndMs)).toEqual([
+      sunday,
+      Date.UTC(2024, 1, 20, 23, 59, 59, 999),
+    ])
+  })
+
+  it('names the window of the older fit that stands in for a window with none', () => {
+    const run = settledRun([
+      [0, 15],
+      [10, null],
+    ])
+    expect(thresholdAt(run, START + 12 * WEEK_MS)).toMatchObject({
+      windowEndMs: START,
+      asOfMs: START - WEEK_MS,
+    })
   })
 })

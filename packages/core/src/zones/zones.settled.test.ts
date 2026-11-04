@@ -3,8 +3,6 @@ import { DAY_MS } from '../constants'
 import { judgeHeartRate } from '../digest/setAside'
 import { FIRST_MONDAY_MS, weeklyRuns } from '../digest/test/runLibrary'
 import type { AthleteSettings } from '../types'
-import { weekEndFor } from '../calendar'
-import { floorAt } from '../digest/thresholdFloor'
 import { missingThresholdZones } from './missingZones'
 import { zoneEstimatesOf, zonesAt } from './zones'
 
@@ -39,29 +37,15 @@ describe('the zones of a library whose own threshold is refused', () => {
     const refused = { ...judged, fit: { run: null, ride: null } }
     expect(refused.thresholdTimeline.run.some((step) => step.fit !== null)).toBe(true)
     const [set] = paceSets(refused)
-    expect(set).toMatchObject({ source: 'estimated', floorS: null })
+    expect(set).toMatchObject({ source: 'estimated', asOfMs: null })
     expect(set!.reference).toBe(paceSets(judged)[0]!.reference)
     expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(refused, NOW))).toEqual([])
   })
 
-  it('are cut from the best of the year up to their week, dated, where no window has a fit', () => {
-    const [set] = paceSets(noWindowFits)
-    const floor = floorAt(judged.floor.run, weekEndFor({ startMs: AT }), false)!
-    expect(set).toMatchObject({
-      source: 'estimated',
-      floorS: floor.durationS,
-      asOfMs: floor.asOfMs,
-    })
-    // The runs after that week are not in it: the efforts of the whole library reach further.
-    expect(floor.asOfMs).toBeLessThanOrEqual(weekEndFor({ startMs: AT }))
-    expect(set!.reference).not.toBe(paceSets(judged)[0]!.reference)
-    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(noWindowFits, NOW))).toEqual([])
-  })
-
-  it('have none where no window has a fit and the library holds no effort of 20 minutes to stand as a floor', () => {
-    const bare = { ...noWindowFits, floor: { run: [], ride: [] } }
-    expect(paceSets(bare)).toHaveLength(0)
-    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(bare, NOW))).toEqual([
+  it('have none where no window has a fit, however many efforts the library holds: a best is no threshold', () => {
+    expect(judged.thresholdTimeline.run.length).toBeGreaterThan(0)
+    expect(paceSets(noWindowFits)).toHaveLength(0)
+    expect(missingThresholdZones(AT, SETTINGS, zoneEstimatesOf(noWindowFits, NOW))).toEqual([
       { sport: 'run', measure: 'pace' },
     ])
   })

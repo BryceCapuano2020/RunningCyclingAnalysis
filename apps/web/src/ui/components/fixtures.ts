@@ -224,9 +224,12 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
   }
 }
 
+/** The end of the window the fixtures' thresholds were taken over: a Sunday's last moment on the week axis (26 Oct 2025). */
+export const FIXTURE_WINDOW_END_MS = Date.UTC(2025, 9, 26, 23, 59, 59, 999)
+
 /**
  * Zone estimates in which an analysis's own thresholds hold on every date, so a test of what the zones show need not
- * build the library's thresholds by week.
+ * build the library's thresholds by week. Each is the threshold of the 26 weeks to `FIXTURE_WINDOW_END_MS`.
  */
 export function estimatesFrom(
   result: Pick<
@@ -240,7 +243,9 @@ export function estimatesFrom(
   >,
 ): ZoneEstimates {
   const always = (fit: AnalysisResult['runCp']) =>
-    fit === null ? [] : [{ fromMs: 0, fit, asOfMs: null, lastFit: 0 }]
+    fit === null
+      ? []
+      : [{ fromMs: 0, fit, asOfMs: null, lastFit: 0, windowEndMs: FIXTURE_WINDOW_END_MS }]
   return {
     runMaxHeartRate: result.runMaxHeartRate,
     rideMaxHeartRate: result.rideMaxHeartRate,

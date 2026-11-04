@@ -98,7 +98,8 @@ describe('a climber whose 20 and 30 minute bests are tempo', () => {
     const [set] = zonesAt(now, SETTINGS, zoneEstimatesOf(judged, now)).filter(
       (each) => each.sport === 'ride' && each.measure === 'power',
     )
-    expect(set).toMatchObject({ source: 'estimated', floorS: null })
+    expect(set).toMatchObject({ source: 'estimated', asOfMs: null })
+    expect(set!.windowEndMs).not.toBeNull()
     expect(Math.abs(set!.reference / THRESHOLD_W - 1)).toBeLessThan(0.06)
     expect(set!.reference).toBeGreaterThan(1.1 * TEMPO_W)
   })

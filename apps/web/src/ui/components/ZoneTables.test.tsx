@@ -113,7 +113,7 @@ describe('ZoneTables, a pace or power the fitness cannot give today', () => {
     expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: /^Run pace zones/ })).toBeNull()
     expect(
-      screen.getByText('No run pace zones today. A run of 20 min or more sets your pace zones.'),
+      screen.getByText('No run pace zones today. A run of 8 min or more sets your pace zones.'),
     ).toBeInTheDocument()
     expect(screen.getByText(/^No ride power zones today\./)).toBeInTheDocument()
   })

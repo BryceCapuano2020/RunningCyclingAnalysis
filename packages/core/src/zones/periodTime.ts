@@ -39,12 +39,6 @@ export interface MeasureTime {
   enteredReferences: number[]
   /** Present when counted activities' heart-rate zones were cut from the highest heart rate on file, for want of a maximum. */
   fromHighest?: true
-  /**
-   * Present when counted activities' pace or power zones were cut from a floor, no fit standing for their dates: the length
-   * of the best, s, and the day it was set, ms, of the newest floor used (each activity's is the best of the 12 months up to
-   * its week), and how many counted activities were cut from one.
-   */
-  floor?: { durationS: number; asOfMs: number; activities: number }
 }
 
 /** Each sport's measures, in the order ZONE_MEASURES gives. A measure with nothing counted is still there. */
@@ -186,15 +180,6 @@ export function periodTimeInZones(
         row.counted++
         const set = sets.find((each) => each.sport === digest.sport && each.measure === measure)
         if (set?.fromHighest === true) row.fromHighest = true
-        if (set?.floorS != null && set.asOfMs !== null) {
-          const newest =
-            row.floor !== undefined && row.floor.asOfMs >= set.asOfMs ? row.floor : null
-          row.floor = {
-            durationS: newest?.durationS ?? set.floorS,
-            asOfMs: newest?.asOfMs ?? set.asOfMs,
-            activities: (row.floor?.activities ?? 0) + 1,
-          }
-        }
         if (time.source === 'entered') {
           row.entered++
           entered.get(row)!.add(Math.round(time.reference * 1000) / 1000)

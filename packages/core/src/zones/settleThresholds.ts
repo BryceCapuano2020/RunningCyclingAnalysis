@@ -1,3 +1,4 @@
+import { localDayNumber } from '../calendar'
 import { DAY_MS } from '../constants'
 import type {
   ThresholdFit,
@@ -45,15 +46,33 @@ function stands(
 }
 
 /**
+ * The last millisecond of the local day of the newest activity any of the steps reads, on the week axis (as a week end is), or
+ * infinity for steps that read none. A window the library has no activity after does not end later than that day, whatever
+ * Sunday its week is labelled with: a week still running has not reached its Sunday.
+ */
+function newestDayEnd(steps: readonly ThresholdStep[]): number {
+  let newest = Number.NEGATIVE_INFINITY
+  for (const { asOfMs } of steps) if (asOfMs !== null && asOfMs > newest) newest = asOfMs
+  return Number.isFinite(newest)
+    ? (localDayNumber({ startMs: newest }) + 1) * DAY_MS - 1
+    : Number.POSITIVE_INFINITY
+}
+
+/**
  * One sport's steps as the zones read them. The threshold is a fit over the trailing 26 weeks, so a hard effort entering
  * or leaving that window moves the fit in one step, and a zone edge would follow the window and not the athlete. The zones
  * hold the fit they had until a window's fit differs from it by more than its own standard error and stands (see
  * `stands`, about two weeks). A step the window gave no fit for stays without one, and one whose efforts outgrew the older fit
- * (its `lastFit` is -1) leaves no older fit to stand in for it.
+ * (its `lastFit` is -1) leaves no older fit to stand in for it. Each step with a fit says which window it was taken over
+ * (`windowEndMs`): the step's own only where the step adopted the fit, and no later than the day of the newest activity
+ * (`newestDayEnd`).
  */
 function settledSteps(steps: readonly ThresholdStep[], nowMs: number): ThresholdStep[] {
   let held: ThresholdFit | null = null
   let heldAsOf: number | null = null
+  // The end of the window the held fit was taken over: the week end of the step that adopted it, or the newest activity's day.
+  let heldEnd = 0
+  const newestEnd = newestDayEnd(steps)
   let lastFit = -1
   return steps.map((step, i) => {
     const raw = step.fit
@@ -64,11 +83,14 @@ function settledSteps(steps: readonly ThresholdStep[], nowMs: number): Threshold
     }
     const moved = held !== null && beyondError(raw, held)
     const adopt = held === null || (moved && stands(steps, i, raw, held, nowMs))
-    if (adopt) held = raw
+    if (adopt) {
+      held = raw
+      heldEnd = Math.min(step.fromMs, newestEnd)
+    }
     // A window within error of the held fit confirms it, so its newest effort dates it; a spike does not.
     if (adopt || !moved) heldAsOf = step.asOfMs
     lastFit = i
-    return { ...step, fit: held, asOfMs: heldAsOf, lastFit }
+    return { ...step, fit: held, asOfMs: heldAsOf, lastFit, windowEndMs: heldEnd }
   })
 }
 

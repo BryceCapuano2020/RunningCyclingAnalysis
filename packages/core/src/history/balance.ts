@@ -1,10 +1,9 @@
 import { civilOfDay, localDayOf } from '../calendar'
-import { plainCurve } from '../digest/bestCurve'
 import { thresholdSpeedOf } from '../digest/equivalents'
 import { ownRideGate } from '../digest/estimatedRide'
 import { massesOf } from '../digest/masses'
 import { trustedPower } from '../digest/powerCheck'
-import { bestCurves, fitBikeModelOver } from '../digest/rideCurves'
+import { fitBikeModelOver } from '../digest/rideCurves'
 import { thresholdsOf } from '../digest/thresholdLibraries'
 import { effortGatesOf } from '../digest/twentyMinute'
 import { NO_EFFORT_REFERENCE } from '../effort'
@@ -51,17 +50,8 @@ function readYear(own: ActivityDigest[], input: HistoryInput): YearReads {
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(own, masses).model
   const gate = input.gate === undefined ? ownRideGate(trustedPower(own, masses)) : input.gate
-  const curves = bestCurves(own, masses, bikeModel, settings.massKg, gate)
   const reference = input.effortReference ?? NO_EFFORT_REFERENCE
-  const gates = effortGatesOf(
-    own,
-    masses,
-    bikeModel,
-    gate,
-    { run: plainCurve(curves.runBest), ride: curves.rideMetabolic },
-    reference,
-    input.setAside,
-  )
+  const gates = effortGatesOf(own, masses, bikeModel, gate, reference, input.setAside)
   return {
     threshold: thresholdsOf(
       own,
