@@ -17,6 +17,26 @@ The agent definitions live in `.claude/agents/` (local, not in the repository). 
 `subagent_type`, not as general-purpose agents told to read a file: the type applies its model and
 tool limits, so a reviewer really cannot write. A session loads agent types when it starts.
 
+## Guards
+
+Rules that prose kept failing to hold are hooks in `.claude/settings.json`, which every session in
+this repository loads when it starts:
+
+- Before each prompt, `pr-queue.mjs --action` prints the pull requests that need someone (a failing
+  or stale run, a conflict, auto-merge off) and a red `main`. It prints nothing when all is well.
+- Before each shell command, `agent-guard.mjs` refuses: a vitest or Playwright run (directly, or
+  through any `test`, `e2e`, `check` or `verify:release` script) outside the test slot;
+  `gh pr checks`, `gh run watch`, watch loops and sleeps that wait on CI; `git stash`; a push to
+  `main` or a force-push without a lease. A deploy, a remote Wrangler call or a secret asks the
+  owner in the main session and is refused to agents.
+- The split between coordinator and agents: an agent (any subagent) opens pull requests as drafts
+  and cannot mark one ready or merge it by any route, and the reviewer cannot commit, push or write
+  to a pull request.
+- At startup, `worktree-sweep.mjs` removes clean worktrees under `.claude/worktrees` whose pull
+  request has merged or closed, and lists detached ones and finished ones holding uncommitted work.
+
+A refused command is a signal, not an obstacle: do not route around it with another tool.
+
 ## The coordinator never waits
 
 - Auto-merge is always on. Every pull request that is ready for review gets squash auto-merge as

@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 // One line per open pull request saying what it needs next, so the coordinator reads the queue in
 // one command instead of polling checks (docs/PROCESS.md). npm run pr:queue, or --json for objects.
+// --action prints only what needs someone to act, and nothing when all is well: the UserPromptSubmit
+// hook in .claude/settings.json runs it before every prompt.
 
 /** The required checks that only collect their shards; a failed shard says more. */
 const COLLECTORS = ['Lint, typecheck, unit tests, build', 'End-to-end (Playwright)']
@@ -103,6 +105,18 @@ export function queue(prs) {
     .sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.number - b.number)
 }
 
+/** Kinds that need someone to act now; the rest only need time or belong to a builder. */
+export const ACTION = ['stale-draft-run', 'failing', 'conflict', 'no-auto-merge']
+
+/** The --action text: a red main and the rows that need action, or '' when there are none. */
+export function actionText(mainLine, mainState, rows) {
+  const lines = rows.filter((row) => ACTION.includes(row.kind)).map(formatLine)
+  if (mainState.startsWith('RED')) lines.unshift(mainLine)
+  return lines.length
+    ? ['PR queue, needs action (npm run pr:queue for all):', ...lines].join('\n')
+    : ''
+}
+
 export function formatLine(row) {
   const title = row.title.length > 60 ? `${row.title.slice(0, 59)}…` : row.title
   return `#${row.number}  ${row.kind.padEnd(15)}  ${title}${row.detail ? `\n        ${row.detail}` : ''}`
@@ -134,10 +148,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         : main.conclusion === 'success'
           ? 'green'
           : `RED (${main.conclusion})`
+    const mainLine = `main ${main?.headSha?.slice(0, 8) ?? ''}: ${mainState}`
     if (process.argv.includes('--json')) {
       console.log(JSON.stringify({ main: { sha: main?.headSha, state: mainState }, rows }, null, 2))
+    } else if (process.argv.includes('--action')) {
+      const text = actionText(mainLine, mainState, rows)
+      if (text) console.log(text)
     } else {
-      console.log(`main ${main?.headSha?.slice(0, 8) ?? ''}: ${mainState}`)
+      console.log(mainLine)
       for (const row of rows) console.log(formatLine(row))
     }
   } catch (error) {

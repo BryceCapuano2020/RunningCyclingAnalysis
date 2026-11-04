@@ -37,7 +37,9 @@ data/
 !**/fixtures/*.fit
 !**/e2e/fixtures/*.fit
 !**/e2e/fixtures/*.zip
-.claude/
+# Claude Code's local state stays out; the project hooks (docs/PROCESS.md, Guards) are shared.
+.claude/*
+!.claude/settings.json
 
 # local Worker secrets and Wrangler state
 .dev.vars
