@@ -40,20 +40,45 @@ describe('sportStanding', () => {
     expect(grade.grade.range!.high.grade).toBeGreaterThanOrEqual(grade.grade.centre.grade)
   })
 
-  it('takes each sport’s age on its own strongest day', () => {
-    const [run, ride] = [strongestDay(result, 'run'), strongestDay(result, 'ride')]
-    expect(run.startMs).not.toBe(ride.startMs)
-    // Born so that the two days fall in different years: the ages differ by the years between the days.
-    const spread = sportStanding(result, {
-      birthYear: new Date(run.startMs).getFullYear() - 30,
-      sex: 'male',
-    })
-    const [a, b] = [spread.grades.run, spread.grades.ride]
-    if (a.kind === 'graded' && (b.kind === 'graded' || b.kind === 'top-of-scale')) {
-      expect(b.age - a.age).toBe(
-        new Date(ride.startMs).getFullYear() - new Date(run.startMs).getFullYear(),
-      )
+  it('takes each sport’s age on the day of its own strongest effort', () => {
+    // Re-date the two strongest efforts to days in different years, so a grade that took the other sport's day, or a day of its
+    // own that is not the strongest effort's, comes out at the wrong age.
+    const [runDay, rideDay] = [Date.UTC(2021, 5, 15, 12), Date.UTC(2024, 5, 15, 12)]
+    const [runId, rideId] = [
+      result.runThreshold!.efforts.strongest.activityId,
+      result.rideThreshold!.efforts.strongest.activityId,
+    ]
+    expect(runId).not.toBe(rideId)
+    const dated = {
+      ...result,
+      activities: result.activities.map((activity) => {
+        if (activity.id === runId)
+          return { ...activity, startMs: runDay, localDayShift: 0 as const }
+        if (activity.id === rideId)
+          return { ...activity, startMs: rideDay, localDayShift: 0 as const }
+        // Every other activity sits in a third year, so no other day can stand in for the strongest one.
+        return { ...activity, startMs: Date.UTC(2018, 0, 10, 12), localDayShift: 0 as const }
+      }),
     }
+    const born = { birthYear: 1990, sex: 'male' } as const
+    const spread = sportStanding(dated, born)
+    const [run, ride] = [spread.grades.run, spread.grades.ride]
+    if (run.kind !== 'graded' || ride.kind !== 'graded') throw new Error('the sample grades both')
+    expect([run.age, ride.age]).toEqual([31, 34])
+    const runSpeed = metabolicToFlatSpeed(result.runThreshold!.value)
+    expect(run.grade.centre.grade).toBe(
+      gradeAtSpeed(runSpeed, HOUR_S, { age: 31, sex: 'male' })!.grade,
+    )
+    expect(run.grade.centre.grade).not.toBe(
+      gradeAtSpeed(runSpeed, HOUR_S, { age: 34, sex: 'male' })!.grade,
+    )
+    const rideSpeed = result.rideThresholdRunSpeed!.p50
+    expect(ride.grade.centre.grade).toBe(
+      gradeAtSpeed(rideSpeed, HOUR_S, { age: 34, sex: 'male' })!.grade,
+    )
+    expect(ride.grade.centre.grade).not.toBe(
+      gradeAtSpeed(rideSpeed, HOUR_S, { age: 31, sex: 'male' })!.grade,
+    )
   })
 
   it('grades the ride through the anchored running equivalent of its threshold', () => {
