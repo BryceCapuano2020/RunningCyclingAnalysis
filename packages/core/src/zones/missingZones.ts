@@ -17,9 +17,9 @@ const THRESHOLD_MEASURES: readonly ZoneMeasure[] = ['pace', 'power']
 
 /**
  * The measures with no zones on a date although the library holds activities of the sport. A pace or power: no threshold
- * is entered, the window ending then supports no fit, no earlier fit is within a year, and the library holds no effort of
- * 20 minutes to stand as a floor. A heart rate always has zones once the library holds a heart rate. The page says what
- * would give the others.
+ * is entered, the window ending then supports no fit, and no earlier fit is within a year. The zones are cut from a fit of the
+ * threshold over the half year and from nothing else, so a best effort does not stand in for one. A heart rate always has
+ * zones once the library holds a heart rate. The page says what would give the others.
  */
 export function missingThresholdZones(
   at: number | Dated,
