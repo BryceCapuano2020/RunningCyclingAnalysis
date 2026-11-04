@@ -6,7 +6,7 @@ import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../ui/balanceGap'
 import { energyReading, gapReading } from '../ui/components/balanceScale'
-import { makeActivity, makeResult } from '../ui/components/fixtures'
+import { makeActivity, makeResult, makeRunThreshold } from '../ui/components/fixtures'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
 import { BALANCE_PAIR } from '../ui/sports'
@@ -123,16 +123,16 @@ describe('buildShareCard', () => {
     const metric = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     const imperial = cardFor(makeResult(), SETTINGS, 'imperial', 42, false)
     expect(metric?.heroes[0]).toMatchObject({
-      label: 'Threshold GAP, estimated from your best 3 to 20 min',
+      label: 'Threshold GAP, estimated from your runs',
       figure: { number: '23:23', unit: '/km' },
     })
     expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('names a run’s threshold as estimated from its best 3 to 20 min efforts, as GAP, and a ride’s from its rides', () => {
+  it('names a run’s threshold as estimated from its runs, as GAP, and a ride’s from its rides', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.label)).toEqual([
-      'Threshold GAP, estimated from your best 3 to 20 min',
+      'Threshold GAP, estimated from your runs',
       'Threshold power, estimated from your rides',
     ])
   })
@@ -153,6 +153,18 @@ describe('buildShareCard', () => {
 
   it('has no card when the run has no threshold, even with a comparison, so no image asks for more', () => {
     expect(cardFor(makeResult({ runCp: null }), SETTINGS, 'metric', 42, false)).toBeNull()
+  })
+
+  it('reads the run’s pace from its estimate, not from the critical-power fit', () => {
+    // The fit says 4.0 W/kg (23:23 /km); the estimate says 16, which is a different pace.
+    const card = cardFor(
+      makeResult({ runThreshold: makeRunThreshold(16) }),
+      SETTINGS,
+      'metric',
+      42,
+      false,
+    )
+    expect(card?.heroes[0]?.figure).toEqual({ number: '4:24', unit: '/km' })
   })
 
   it('has no card when the ride has no threshold, even with a comparison, so no image asks for more', () => {

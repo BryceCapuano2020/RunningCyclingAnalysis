@@ -37,11 +37,6 @@
   line-height: 1.5;
 }
 
-/* The chip is the Balance tile's, so a threshold says what it is the same way on both pages; it sits beside its name, not at the far edge. */
-.sport-hero__head .stat-tile__basis {
-  margin-left: 0;
-}
-
 /* The figure: the display face, with its unit and any second reading smaller beside it. */
 .sport-hero__figure {
   display: flex;
@@ -68,11 +63,6 @@
 .sport-hero__side {
   font-size: var(--title);
   font-weight: 700;
-}
-
-.sport-hero__track {
-  max-width: 29rem;
-  padding-top: var(--space-2);
 }
 
 .sport-hero__grades {

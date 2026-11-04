@@ -64,10 +64,10 @@ describe('renderShareCard', () => {
       SPORT_LABEL[BALANCE_PAIR[0]],
       'Even',
       SPORT_LABEL[BALANCE_PAIR[1]],
-      'THRESHOLD GAP, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      'THRESHOLD GAP, ESTIMATED FROM YOUR RUNS',
       '21:35',
       '/km',
-      'THRESHOLD POWER, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      'THRESHOLD POWER, ESTIMATED FROM YOUR RIDES',
       '48',
       'W',
       '0.6 W/kg',
@@ -161,7 +161,7 @@ describe('renderShareCard', () => {
     if (run === undefined || ride === undefined) throw new Error('The card has two heroes')
     const texts = draw(cardModel({ heroes: [run, { ...ride, label: 'Power' }] }), 'square').texts
     // The run's label wraps to a second line; the ride's short label is one line, POWER.
-    expect(texts.some((text) => text.text === 'FROM YOUR BEST 3 TO 20 MIN')).toBe(true)
+    expect(texts.some((text) => text.text === 'FROM YOUR RUNS')).toBe(true)
     expect(texts.filter((text) => text.text === 'POWER')).toHaveLength(1)
     const figureY = (figure: string) => texts.find((text) => text.text === figure)?.y
     expect(figureY('21:35')).toBeDefined()
@@ -355,7 +355,7 @@ describe('the card figures, levels and copy', () => {
     (format) => {
       const { ok, ctx } = render(cardModel(), format)
       expect(ok).toBe(true)
-      expect(words(ctx.texts)).toContain('THRESHOLD GAP, ESTIMATED FROM YOUR BEST 3 TO 20 MIN')
+      expect(words(ctx.texts)).toContain('THRESHOLD GAP, ESTIMATED FROM YOUR RUNS')
     },
   )
 

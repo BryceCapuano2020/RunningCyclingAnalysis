@@ -1,4 +1,4 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S, HEADLINE_DURATION_S } from '@rca/core/constants'
+import { runDurationRatio } from '@rca/core/threshold'
 import { CHANGE } from '@rca/core/change'
 import {
   DEFAULT_WINDOW_DAYS,
@@ -32,13 +32,11 @@ const WINDOW_EXAMPLES = listWords(
   ),
 )
 
-/** The shortest and longest efforts a run's threshold is fitted to, as copy: "3 to 20 min". */
-const THRESHOLD_EFFORTS = `${CP_FIT_MIN_S / 60} to ${effortLabel(CP_FIT_MAX_S)}`
-
-/** The longer best a run's floor is taken from, s: the best 30 min where the curve holds one. */
-const FLOOR_LONG_S = 30 * 60
-
-const HEADLINE = effortLabel(HEADLINE_DURATION_S)
+/**
+ * How much above an hour's energy rate the running table puts an all-out effort of `minutes`, as a whole percent. Read from
+ * the ratio the estimate uses, so the copy cannot drift from it.
+ */
+const runExcess = (minutes: number) => Math.round((runDurationRatio(minutes * 60) - 1) * 100)
 
 /** The entries about the efforts and what is drawn from them, calculated by the app, in page order. */
 export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
@@ -47,10 +45,10 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     state: 'calculated',
     lines: [
       'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
-      'Heart rate can raise it and never lowers it.',
-      `A run’s threshold is critical speed, fitted to your best ${THRESHOLD_EFFORTS} efforts.`,
+      'A ride’s threshold can be raised by heart rate and never lowered.',
+      'A run’s threshold is the strongest effort of each run, scaled to an hour and averaged.',
+      'Neither is ever under an hour you did.',
       'Each range is the estimate’s own, not the balance’s 90% range.',
-      `A run whose fit is refused shows a floor, marked “At least”: your best ${effortLabel(FLOOR_LONG_S)} or else ${HEADLINE}.`,
     ],
     detail: [
       'Each ride gives one estimate, from the effort that scales highest.',
@@ -65,20 +63,15 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'The answer is the estimate from power alone, unless heart rate shows you had more in you.',
       'Then it rises toward what heart rate reads, and no further.',
       'A ride’s range takes the higher 10th and the higher 90th percentile of the two estimates.',
-      'On simulated riders, across the cases tested, it held the true threshold for 65% to 97% of them.',
-      'The estimate was tuned on simulated riders with a known threshold.',
-      'It is not measured on people.',
-      'A run’s own range is drawn lighter.',
-      'It runs down by one standard error of the fit.',
-      'It runs up by an allowance for how hard the effort behind it was.',
-      'A best that was not quite all-out puts the fit under the truth.',
-      'So the spread reaches further above the threshold than below it.',
-      'It reaches further the less clearly hard the effort was.',
-      'The allowance is calibrated on simulated athletes.',
-      'The spread shows how loosely the fit was pinned down.',
-      'It does not show where your capability lies.',
-      'A best that mixed hard and easy is left out of a second fit.',
-      'The run’s range then runs up to that fit.',
+      'Each run gives one estimate too, from the effort that scales highest.',
+      'A run is scaled with Daniels and Gilbert’s published table of what a runner holds for each length.',
+      `It puts an all-out 10 min effort ${runExcess(10)}% above your hour’s energy rate, 20 min ${runExcess(20)}% and 40 min ${runExcess(40)}%.`,
+      'The runs are averaged, with more weight on recent runs and on those near your top.',
+      'A run’s range is the estimate’s own 10th to 90th percentile.',
+      'An hour you ran or rode is a floor: the answer, and the low end of its range, are never under it.',
+      'On simulated riders and runners, across the cases tested, the range held the true threshold for 65% to 97% of them.',
+      'The estimates were tuned on simulated athletes with a known threshold.',
+      'They are not measured on people.',
     ],
   },
   {

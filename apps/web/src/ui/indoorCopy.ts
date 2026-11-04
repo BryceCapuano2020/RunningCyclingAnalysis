@@ -1,6 +1,6 @@
-import { CP_FIT_MIN_S } from '@rca/core/constants'
 import { effortsCount } from '@rca/core/digest'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { DURATION_TABLES } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
 import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
@@ -22,7 +22,7 @@ const INDOOR_UNCOUNTED: Partial<Record<Sport, (count: number) => string>> = {
 
 /** What the athlete adds to see the sport's efforts: only for a sport whose indoor efforts do not count. */
 const INDOOR_ADD: Partial<Record<Sport, string>> = {
-  run: `Add an outdoor run of ${CP_FIT_MIN_S / 60} min or more.`,
+  run: `Add an outdoor run of ${DURATION_TABLES.run.shortestS / 60} min or more.`,
 }
 
 export interface IndoorCount {

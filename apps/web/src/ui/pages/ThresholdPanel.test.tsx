@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
-import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
+import {
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from '../components/fixtures'
 import { formatDayMonth } from '../format/date'
 import { ThresholdPanel } from './ThresholdPanel'
 
@@ -49,13 +54,19 @@ describe('ThresholdPanel for a ride', () => {
     expect(section.querySelector('.sport-hero__side')).toHaveTextContent('3.3 W/kg')
     expect(section.querySelector('.sport-hero__period')).toHaveTextContent('· 12 weeks')
     // Not "At least", "Estimated", "Not all-out" or "Hard effort": the name says it is a threshold.
-    expect(container.querySelector('.stat-tile__basis, .chip')).toBeNull()
+    expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/At least|Estimated|Not all-out|Hard effort/)
   })
 
-  it('draws no range beside the figure', () => {
+  it('draws no range beside the figure: only its number, unit and W/kg sit there', () => {
     const { container } = panel('ride', ridden(estimate()))
-    expect(container.querySelector('.range-track, .sport-hero__track')).toBeNull()
+    const figure = container.querySelector('.sport-hero__figure')
+    expect([...(figure?.children ?? [])].map((child) => child.className)).toEqual([
+      'display sport-hero__number',
+      'sport-hero__unit',
+      'sport-hero__side',
+    ])
+    expect(screen.queryByText('range')).toBeNull()
   })
 
   it('says what it rests on under the figure: the rides and the strongest effort, with its length and day', () => {
@@ -110,17 +121,79 @@ describe('ThresholdPanel for a ride', () => {
 })
 
 describe('ThresholdPanel for a run', () => {
-  it('keeps its Estimated chip and its range as a track, and moves the effort chip into its detail', () => {
-    const effort = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }
-    const { container } = panel('run', makeResult({ effort: [effort] }))
-    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(within(section).getByText('Estimated')).toHaveClass('stat-tile__basis')
-    expect(section.querySelector('.range-track')).not.toBeNull()
+  const RUN_DAY = new Date(2026, 5, 10, 12).getTime()
+
+  /** 4:24 /km, from four runs, the strongest a 40 min effort on 10 June. */
+  const runEstimate = (over: Partial<ThresholdEstimate> = {}) =>
+    makeRunThreshold(16, {
+      low: 15.2,
+      high: 16.8,
+      efforts: {
+        value: 16,
+        relativeError: 0.03,
+        rides: 4,
+        strongest: { activityId: 'run-1', durationS: 2400, estimated: false },
+      },
+      ...over,
+    })
+
+  const ran = (runThreshold: ThresholdEstimate | null) =>
+    makeResult({
+      activities: [makeActivity({ id: 'run-1', sport: 'run', startMs: RUN_DAY })],
+      runThreshold,
+    })
+
+  it('is one number named by its words and its period, with no Estimated chip and no range track', () => {
+    const { container } = panel('run', ran(runEstimate()))
+    const section = screen.getByRole('region', { name: 'Threshold pace' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('4:24')
+    expect(section.querySelector('.sport-hero__unit')).toHaveTextContent('/km')
+    expect(section.querySelector('.sport-hero__period')).toHaveTextContent('· 12 weeks')
     expect(container.querySelector('.chip')).toBeNull()
-    expect(within(section).queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
-    expect(within(section).getByRole('note')).toHaveTextContent(
-      /^Fitted to your best 3 to 20 min efforts\. Your best 20 min running reached 70%/,
-    )
+    expect(container.textContent).not.toMatch(/At least|Estimated|Not all-out|Hard effort/)
+    const figure = container.querySelector('.sport-hero__figure')
+    expect([...(figure?.children ?? [])].map((child) => child.className)).toEqual([
+      'display sport-hero__number',
+      'sport-hero__unit',
+    ])
+  })
+
+  it('says what it rests on under the figure: the runs and the strongest effort, with its length and day', () => {
+    panel('run', ran(runEstimate()))
+    expect(
+      screen.getByText(`From 4 runs. Strongest: 40 min on ${formatDayMonth(RUN_DAY)}.`, {
+        exact: false,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the range and the method from one control, and says nothing of heart rate', () => {
+    panel('run', ran(runEstimate({ heartRate: { value: 17.5, efforts: 6 }, value: 17.5 })))
+    const section = screen.getByRole('region', { name: 'Threshold pace' })
+    const control = within(section).getByRole('button', { name: /^How this was worked out/ })
+    expect(control).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(control)
+    expect(control).toHaveAttribute('aria-expanded', 'true')
+    const note = within(section).getByRole('note')
+    expect(note).toHaveTextContent('Range 4:10 to 4:39 /km.')
+    expect(note).toHaveTextContent('scaled to an hour and averaged')
+    expect(note).toHaveTextContent('never under an hour you ran')
+    expect(note).not.toHaveTextContent(/heart rate|not used|raise/i)
+  })
+
+  it('shows the estimate whatever the critical-power fit, and asks for an 8 min effort with no estimate', () => {
+    const fitless = makeResult({
+      activities: [makeActivity({ id: 'run-1', sport: 'run' })],
+      runCp: null,
+      runCpRefusal: 'missing',
+      runThreshold: runEstimate(),
+    })
+    const { container, unmount } = panel('run', fitless)
+    expect(container.querySelector('.sport-hero__number')).toHaveTextContent('4:24')
+    unmount()
+    const empty = panel('run', ran(null))
+    expect(empty.container.querySelector('.sport-hero__number')).toBeNull()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^How this was worked out/ })).toBeNull()
   })
 })

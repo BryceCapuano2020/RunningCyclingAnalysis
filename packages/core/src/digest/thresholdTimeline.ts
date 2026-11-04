@@ -1,4 +1,5 @@
 import { DAY_MS } from '../constants'
+import { memoByDigests } from '../digestMemo'
 import type { MaxHeartRates } from '../effort'
 import { estimateOver, thresholdBasis } from '../threshold'
 import type { ThresholdBasis } from '../threshold'
@@ -128,17 +129,43 @@ export function thresholdTimeline(
       effort.referenceHr,
     )
   return eachSport((sport) => {
-    const { activities, line } = own[sport]
-    const placed = activities.map((each): Placed => ({
-      weekEnd: weekEndFor(each),
-      startMs: each.startMs,
-      effort: each.prepared.best !== null,
-    }))
-    const basis = thresholdBasis(
-      activities.map((each) => each.prepared),
-      line,
-      thresholdHeartRate(thresholdReferenceOf(sport, effort.referenceHr)),
-    )
-    return stepsOf(placed, windowReader(activities, all, basis))
+    const thresholdHr = thresholdHeartRate(thresholdReferenceOf(sport, effort.referenceHr))
+    return thresholdHr === null
+      ? stepsWithoutHeartRate[sport](all, own[sport])
+      : sportSteps(all, own[sport], thresholdHr)
   })
 }
+
+/** A sport's steps from its library, read against its line and threshold heart rate. */
+function sportSteps(
+  all: ActivityDigest[],
+  { activities, line }: ThresholdLibrary,
+  thresholdHr: number | null,
+): ThresholdStep[] {
+  const placed = activities.map((each): Placed => ({
+    weekEnd: weekEndFor(each),
+    startMs: each.startMs,
+    effort: each.prepared.best !== null,
+  }))
+  const basis = thresholdBasis(
+    activities.map((each) => each.prepared),
+    line,
+    thresholdHr,
+  )
+  return stepsOf(placed, windowReader(activities, all, basis))
+}
+
+/**
+ * The steps of a sport that reads no heart rate (a run, for now) depend on its library and the digests alone, so they are kept
+ * for the last digests asked for: with the library kept too (`librariesOf`), a change of body mass, bike model or ride gate takes
+ * the run's steps already worked out, and only the rides' are worked out again. Each sport keeps its own, so a ride read without
+ * heart rate (a library with no ride reference) never pushes the run's out.
+ */
+const stepsWithoutHeartRate = eachSport(() =>
+  memoByDigests(
+    (all: ActivityDigest[], library: ThresholdLibrary) => sportSteps(all, library, null),
+    (a, b) => a === b,
+    undefined,
+    2,
+  ),
+)

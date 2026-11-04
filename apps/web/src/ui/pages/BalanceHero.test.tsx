@@ -6,7 +6,13 @@ import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
 import type { Interval } from '@rca/core/types'
 import { curvePoint } from '../charts/fixtures'
-import { comparisonPoint, interval, makeActivity, makeResult } from '../components/fixtures'
+import {
+  comparisonPoint,
+  interval,
+  makeActivity,
+  makeResult,
+  makeRunThreshold,
+} from '../components/fixtures'
 import { balanceOfPick } from '../components/balanceScale'
 import { BalanceHero, type BalanceHeroProps } from './BalanceHero'
 
@@ -490,7 +496,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.queryByText(/Add a ride/)).toBeNull()
   })
 
-  it('asks for nothing in the headline of a one-sport library whose threshold is refused: its tile shows a floor', () => {
+  it('asks for nothing in the headline of a one-sport library whose fit is refused: its tile shows the estimate', () => {
     const run = makeActivity({ sport: 'run' })
     render(
       <Hero
@@ -500,6 +506,7 @@ describe('BalanceHero without a comparison yet', () => {
           activities: [run],
           runCp: null,
           runCpRefusal: 'shape',
+          runThreshold: makeRunThreshold(16),
           runCurve: [curvePoint(1200, 3.4, run.id)],
           comparison: { prior: [], calibrated: null },
         })}
@@ -526,7 +533,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={null}
       />,
     )
-    expect(screen.getByText('Needs an effort of 20 min or longer')).toBeInTheDocument()
+    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
   })
 
   it('leaves the file chooser to the empty sport card, so the answer offers none', () => {

@@ -1,22 +1,18 @@
-import {
-  HALF_MARATHON_M,
-  HEADLINE_DURATION_S,
-  MARATHON_M,
-  PRIORS,
-  RUN_RECORD_DISTANCES_M,
-} from '@rca/core/constants'
-import type { RunRecordDistanceM } from '@rca/core/constants'
+import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 export { CURVE_START_S } from '@rca/core/profile'
 export { calendarDaysBetween, latestStartOf } from './activityDates'
+export { distanceRecords, ownDistanceRecords, paceIsTime } from './distanceRecords'
+export type { DistanceRecord, DistanceRecords } from './distanceRecords'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
-import { effortsCount } from '@rca/core/digest'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
 import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { UnitSystem } from '@rca/core/units'
+import { distanceName } from './distanceRecords'
+import { thresholdEstimate } from './thresholdEstimate'
 import {
   formatPace,
   formatPaceValue,
@@ -24,10 +20,7 @@ import {
   formatWatts,
   formatWkg,
   PACE_UNIT,
-  METRES_PER_KM,
-  METRES_PER_MILE,
   formatDistance,
-  formatRecordTime,
   formatDuration,
 } from '@rca/core/units'
 
@@ -47,15 +40,6 @@ export const RECORD_DURATIONS_S: Record<Sport, readonly number[]> = {
 export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.ride.filter(
   (durationS) => durationS >= 5 * 60,
 )
-
-/** A run record distance's name: the marathon or the half marathon, the mile, else whole kilometres. */
-function distanceName(distanceM: RunRecordDistanceM): string {
-  if (distanceM === MARATHON_M) return 'marathon'
-  if (distanceM === HALF_MARATHON_M) return 'half marathon'
-  return distanceM === METRES_PER_MILE
-    ? `${distanceM / METRES_PER_MILE} mi`
-    : `${distanceM / METRES_PER_KM} km`
-}
 
 export interface SportNumber {
   /** The number in the sport's own unit, with the unit: a pace for running, watts for cycling. */
@@ -168,9 +152,9 @@ export function activityNames(activities: ActivitySummary[]): Record<string, str
 }
 
 /**
- * Estimated threshold in the sport's own unit; null without one. A run's is the critical-power fit, shown as it was
- * fitted. A ride's is the best estimate from every ride's efforts (`rideThreshold`), which is null only where no ride
- * has an effort of 3 min or more.
+ * Estimated threshold in the sport's own unit; null without one. Each sport's is the best estimate from every one of its
+ * activities' efforts (`runThreshold`, `rideThreshold`: the strongest effort of each, scaled to an hour and averaged), which
+ * is null only where the sport has no effort its table reads (3 min for a ride, 8 for a run).
  *
  * A ride's threshold is shown in watts, and the estimate works in metabolic W/kg at the prior-mean
  * efficiency. Converting back with that same efficiency returns the estimated watts exactly, since the
@@ -196,15 +180,19 @@ export function rideThresholdFigure(metabolicWkg: number, massKg: number): Sport
 /** A sport's threshold as its own figure: null when the sport has none. */
 type Threshold = (result: AnalysisResult, massKg: number, units: UnitSystem) => SportNumber | null
 const THRESHOLD_OF: Record<Sport, Threshold> = {
-  run: (result, _massKg, units) =>
-    result.runCp ? { ...paceFigure(result.runCp.cp, units), sub: null } : null,
-  ride: (result, massKg) =>
-    result.rideThreshold ? rideThresholdFigure(result.rideThreshold.value, massKg) : null,
+  run: (result, _massKg, units) => {
+    const estimate = thresholdEstimate(result, 'run')
+    return estimate ? { ...paceFigure(estimate.value, units), sub: null } : null
+  },
+  ride: (result, massKg) => {
+    const estimate = thresholdEstimate(result, 'ride')
+    return estimate ? rideThresholdFigure(estimate.value, massKg) : null
+  },
 }
 
-/** Whether a sport has a threshold: a run's fit is missing or refused, a ride has no effort of 3 min or more. */
+/** Whether a sport has a threshold: it has an effort its table reads (3 min or more for a ride, 8 for a run). */
 export function hasThreshold(result: AnalysisResult, sport: Sport): boolean {
-  return { run: result.runCp, ride: result.rideThreshold }[sport] !== null
+  return thresholdEstimate(result, sport) !== null
 }
 
 /** The best effort at each record duration, with the activity that set it. */
@@ -293,92 +281,6 @@ export function featuredEquivalence(equivalents: Equivalence[]): Equivalence | n
   if (exact) return exact
   const shorter = equivalents.filter((e) => e.durationS < HEADLINE_DURATION_S)
   return shorter.at(-1) ?? equivalents[0] ?? null
-}
-
-export interface DistanceRecord {
-  distanceM: RunRecordDistanceM
-  label: string
-  seconds: number
-  /** The time as m:ss, or h:mm:ss from an hour. */
-  time: string
-  /** The pace in the unit preference. */
-  pace: string
-  activity: ActivitySummary
-}
-
-export interface DistanceRecords {
-  records: DistanceRecord[]
-  /** True when some runs in scope were digested before distance bests, so the list may be short. */
-  partial: boolean
-}
-
-/** Whether a starts before b: the earlier start first, then the smaller id, as in the analysis. */
-function startsBefore(a: ActivitySummary, b: ActivitySummary): boolean {
-  if (a.startMs !== b.startMs) return a.startMs < b.startMs
-  return a.id < b.id
-}
-
-/**
- * The fastest run at each record distance among the activities in scope. A tie goes to the earlier
- * activity. A treadmill run holds no record (see effortsCount). Runs with no distance bests are not
- * counted as having none, so `partial` tells the page the list may be incomplete.
- */
-export function distanceRecords(activities: ActivitySummary[], units: UnitSystem): DistanceRecords {
-  const runs = activities.filter((activity) => activity.sport === 'run' && effortsCount(activity))
-  const covered = runs.filter((activity) => activity.distanceBests !== undefined)
-  const records: DistanceRecord[] = []
-  for (const distanceM of RUN_RECORD_DISTANCES_M) {
-    let best: { seconds: number; activity: ActivitySummary } | null = null
-    for (const activity of covered) {
-      const seconds = activity.distanceBests?.find((b) => b.distanceM === distanceM)?.seconds
-      if (seconds === undefined) continue
-      if (best === null || seconds < best.seconds) best = { seconds, activity }
-      else if (seconds === best.seconds && startsBefore(activity, best.activity)) {
-        best = { seconds, activity }
-      }
-    }
-    if (best !== null) records.push(distanceRecordOf(distanceM, best.seconds, best.activity, units))
-  }
-  return { records, partial: covered.length > 0 && covered.length < runs.length }
-}
-
-/** A run's time over one record distance, with the activity that ran it. */
-function distanceRecordOf(
-  distanceM: RunRecordDistanceM,
-  seconds: number,
-  activity: ActivitySummary,
-  units: UnitSystem,
-): DistanceRecord {
-  return {
-    distanceM,
-    label: distanceName(distanceM),
-    seconds,
-    time: formatRecordTime(seconds),
-    pace: formatPace(distanceM / seconds, units),
-    activity,
-  }
-}
-
-/** Whether a distance's pace is its time: the mile in miles, or the kilometre in kilometres. */
-export function paceIsTime(distanceM: number, units: UnitSystem): boolean {
-  return distanceM === (units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM)
-}
-
-/** Whether a distance is one that a run record is kept for. */
-function isRunRecordDistance(distanceM: number): distanceM is RunRecordDistanceM {
-  return RUN_RECORD_DISTANCES_M.some((record) => record === distanceM)
-}
-
-/**
- * The run distances one activity has its own time at, in ascending distance. These are its own
- * times, not all of them records; a ride has none.
- */
-export function ownDistanceRecords(activity: ActivitySummary, units: UnitSystem): DistanceRecord[] {
-  return (activity.distanceBests ?? []).flatMap((best) =>
-    isRunRecordDistance(best.distanceM)
-      ? [distanceRecordOf(best.distanceM, best.seconds, activity, units)]
-      : [],
-  )
 }
 
 /** The chip text for each record that earns one, in the order the records come. */

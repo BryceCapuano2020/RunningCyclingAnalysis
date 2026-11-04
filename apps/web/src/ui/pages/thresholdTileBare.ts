@@ -4,7 +4,6 @@ import type { UnitSystem } from '@rca/core/units'
 import { HEADLINE_LABEL, gradeParts, notGradedText } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { CHIP_DURATIONS_S, headlineEffort, plainEffort, sportRecords, threshold } from '../records'
-import { floorThreshold } from '../thresholdFloor'
 
 /**
  * The grade line under the figure: the level and grade, and the best effort it rests on. Where the levels row
@@ -56,7 +55,6 @@ export function thresholdTileIsBare({
 }: BareTileInput): boolean {
   if (!needInHeadline || needsWeight(sport, weighted)) return false
   if (threshold(result, sport, massKg, units) !== null) return false
-  if (floorThreshold(result, sport, massKg, units) !== null) return false
   const records = sportRecords(result, sport, massKg, units).filter((record) =>
     CHIP_DURATIONS_S.includes(record.durationS),
   )

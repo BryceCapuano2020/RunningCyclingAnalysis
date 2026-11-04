@@ -17,7 +17,6 @@ import { countEfforts, countSport, hasThreshold } from '../records'
 import { otherSport } from '../soleSport'
 import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
 import { isUnconfirmed, notHardWords, uncheckedWords } from '../effortWords'
-import { floorOf } from '../thresholdFloor'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 
 /** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
@@ -125,7 +124,7 @@ function soleSportMissing(
     }
   }
   // A sport with a level is graded, not held: the line under the level never asks for a harder effort, which would say the
-  // grade is not there. A sport with a best shows its threshold, or its floor, on its own tile; only one with none is asked.
+  // grade is not there. A sport with an effort shows its threshold on its own tile; only one with none is asked.
   // While the library is only part of what was added, the other sport may be in the files that were not read: the
   // hold's own words say to finish the import, where a line about what the sport needs would send the athlete elsewhere.
   const partial = holdInputs.partialImport
@@ -136,7 +135,7 @@ function soleSportMissing(
         ? `${partial.text} ${partial.action}`
         : level !== null
           ? gateAsk(result, sport)
-          : hasThreshold(result, sport) || floorOf(result, sport) !== null
+          : hasThreshold(result, sport)
             ? ''
             : thresholdNeedsLine(result, sport),
     canShowAll: false,

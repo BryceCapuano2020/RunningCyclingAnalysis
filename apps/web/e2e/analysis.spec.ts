@@ -193,30 +193,19 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   )
   const run = page.getByRole('article', { name: 'Run threshold' })
   await expect(run).toBeVisible()
-  // The name and the range say the threshold is an estimate, so the tile carries no chip; how it was worked out is one tap down.
+  // The name says the threshold is an estimate, so the tile carries no chip and no range shape; the runs it rests on are
+  // one line under the figure and how it was worked out is one tap down.
   await expect(run.locator('.stat-tile__number')).toBeVisible()
-  await expect(run.locator('.range-track')).toBeVisible()
-  // The band runs from the first printed end to the last, and the ring sits on it.
-  const track = await run.locator('.range-track').evaluate((el) => {
-    const box = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
-    const printed = Array.from(el.querySelectorAll('.range-track__ends > [aria-hidden="true"]'))
-    const [band, ring] = [box('.range-track__band'), box('.range-track__ring')]
-    return {
-      bandLeft: band.left,
-      bandRight: band.right,
-      firstLeft: printed[0]!.getBoundingClientRect().left,
-      lastRight: printed[2]!.getBoundingClientRect().right,
-      ringMiddle: (ring.left + ring.right) / 2,
-    }
-  })
-  expect(Math.abs(track.bandLeft - track.firstLeft)).toBeLessThan(1)
-  expect(Math.abs(track.bandRight - track.lastRight)).toBeLessThan(1)
-  expect(track.ringMiddle).toBeGreaterThanOrEqual(track.bandLeft - 0.5)
-  expect(track.ringMiddle).toBeLessThanOrEqual(track.bandRight + 0.5)
-  await expect(run.getByText('Estimated', { exact: true })).toHaveCount(0)
-  await expect(run.locator('.stat-tile__basis')).toHaveCount(0)
+  await expect(run.locator('.stat-tile__source')).toContainText(
+    /^From 1 run\. Strongest: \d+ min on /,
+  )
+  await expect(run.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
-  await expect(run.getByRole('button', { name: 'How this was worked out' })).toBeVisible()
+  await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
+  const note = run.getByRole('note')
+  await expect(note).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /)
+  await expect(note).toContainText('never under an hour you ran')
+  await expect(note).not.toContainText(/heart rate/i)
 })
 
 test('a one-sport library never gets a request for a headline, whichever sport it holds', async ({

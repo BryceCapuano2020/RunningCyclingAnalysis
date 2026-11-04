@@ -21,7 +21,8 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 }
 
 /**
- * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where its fit is refused.
+ * Whether a sport's pace or power can be a floor: the best 30 min or 20 min on file. A run's can, where no threshold estimate
+ * stands for the date: no run effort of 8 min or more in its window, nor in the year before.
  * A ride's threshold is the estimate from all its efforts, which has no floor, so a ride's zones are never cut from one.
  */
 const FLOOR_ZONES: Record<Sport, boolean> = { run: true, ride: false }
@@ -37,13 +38,13 @@ function floorOf(set: ZoneSet): { durationS: number; asOfMs: number } | null {
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
   estimated: (set) => {
-    // A pace no fit stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
+    // A pace no estimate stands for is a floor: the best 30 min or 20 min on file, and the day it was set.
     const floor = floorOf(set)
     if (floor !== null) {
       return `From your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
     }
     const from = `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
-    // A pace or power from an older fit, because the half year before the date holds no hard, even effort to fit.
+    // A pace or power from an older estimate, because the half year before the date holds no effort its estimate reads.
     return set.asOfMs === null ? from : `${from} up to ${formatMonth(set.asOfMs, true)}`
   },
 }
@@ -150,8 +151,8 @@ const REFERENCE_NAME: Record<ZoneMeasure, string> = {
 }
 
 /**
- * Where a power or pace reference came from, after its figure: a run's fit is dated by the month it was set, a ride's is an
- * estimate from its rides (up to the month of an older one), a floor names its effort, and an entered one says so.
+ * Where a power or pace reference came from, after its figure: an estimate from the sport's activities (up to the month of an
+ * older one), a floor names its effort, and an entered one says so.
  */
 function referenceSourceText(set: ZoneSet): string {
   if (set.source === 'entered') return 'entered by you'
@@ -160,7 +161,7 @@ function referenceSourceText(set: ZoneSet): string {
   if (floor !== null) {
     return `from your best ${formatDuration(floor.durationS)} on ${formatDayMonth(floor.asOfMs)}`
   }
-  return ESTIMATED_SOURCE[set.sport](set)
+  return estimatedSourceText(set)
 }
 
 /** The sports a set was estimated from, as a phrase: "your rides". */
@@ -168,12 +169,9 @@ function fromSports(set: ZoneSet): string {
   return `your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`
 }
 
-/** An estimated pace or power's source: a run's fit is dated by its month; a ride's is an estimate from its rides. */
-const ESTIMATED_SOURCE: Record<Sport, (set: ZoneSet) => string> = {
-  run: (set) =>
-    set.asOfMs === null ? `from ${fromSports(set)}` : `set in ${formatMonth(set.asOfMs, true)}`,
-  ride: (set) =>
-    `estimated from ${fromSports(set)}${set.asOfMs === null ? '' : ` up to ${formatMonth(set.asOfMs, true)}`}`,
+/** An estimated pace or power's source, the same for a run and a ride: an estimate from the sport's activities, up to the month of an older one. */
+function estimatedSourceText(set: ZoneSet): string {
+  return `estimated from ${fromSports(set)}${set.asOfMs === null ? '' : ` up to ${formatMonth(set.asOfMs, true)}`}`
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */

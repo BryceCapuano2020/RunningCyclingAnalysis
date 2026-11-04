@@ -60,11 +60,12 @@ test('a reload on a deep link stays on it while the kept library restores, once 
   // The restored threshold is the page's signal that the kept library has replied. The age grades' trend request
   // was sent at load, before the library read, and the worker answers in order, so it has answered by then. A
   // file chosen here would itself be an import on a deep link, which moves the visitor to Balance by design.
-  // The run is too short for a threshold, so the card shows its longest best, named as the best it is.
-  const threshold = page.getByRole('region', { name: 'Threshold pace, best 10 min' })
+  // The run is too short for a fit but not for an estimate, so the card shows its pace and the one run it rests on.
+  const threshold = page.getByRole('region', { name: 'Threshold pace' })
   await expect(threshold).toBeVisible()
-  await expect(threshold).toContainText('Best 10 min')
+  await expect(threshold).toContainText(/From 1 run\. Strongest: \d+ min on /)
   await expect(threshold).toContainText(/\d+:\d{2}/)
+  await expect(threshold).not.toContainText(/Best \d+ min|At least/)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
   await expect(page).toHaveURL(/#\/run$/)

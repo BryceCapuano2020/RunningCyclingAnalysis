@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -8,7 +8,12 @@ import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
-import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
+import {
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from '../components/fixtures'
 import { NO_HEART_RATE, UNKNOWN } from '../effortGateFixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
@@ -121,7 +126,7 @@ describe('a sport page with everything to show', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     // The page is given no look-back here, so the years are one line in their place.
     expect(headings()).toEqual([
-      'Threshold pace, estimated',
+      'Threshold pace',
       'History',
       'Best efforts',
       'Race predictions',
@@ -234,7 +239,7 @@ describe('race predictions where the effort could not be checked', () => {
     const result = { ...fullRun(), effortGate: { run: NO_HEART_RATE, ride: UNKNOWN } }
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     openSection('Race predictions')
-    const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    const threshold = screen.getByRole('region', { name: 'Threshold pace' })
     expect(threshold.querySelector('.sport-hero__number')).not.toBeNull()
     expect(screen.queryByText(/so the effort was not checked/)).toBeNull()
     expect(screen.queryByText('No slower than')).toBeNull()
@@ -257,7 +262,7 @@ describe('a sport page with sections that have nothing to show', () => {
   it('says one line in each empty section’s own place, and names the section', () => {
     renderPage('run', newRun())
     expect(headings()).toEqual([
-      'Threshold pace, estimated',
+      'Threshold pace',
       'History',
       'Best efforts',
       'Race predictions',
@@ -329,15 +334,21 @@ describe('a sport page with sections that have nothing to show', () => {
   })
 })
 
-describe('the threshold when only a floor is shown', () => {
+describe('the run threshold whatever the fit does', () => {
   const uneven = {
     fit: { cp: 4.4, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
     leftOutS: [900, 1200],
     floor: 3.2,
   }
   const pace = (wkg: number) => paceFigure(wkg, 'metric').number
+  const notHard = {
+    ...UNKNOWN,
+    verdict: 'notHard' as const,
+    unchecked: null,
+    floor: { durationS: 1800, value: 3 },
+  }
 
-  it('is labelled "at least", not "estimated", on a run', () => {
+  it('is the plain "Threshold pace" with the estimate as its figure when the fit is refused, whatever the gate holds', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(
       'run',
@@ -346,63 +357,18 @@ describe('the threshold when only a floor is shown', () => {
         runCp: null,
         runCpRefusal: 'shape',
         runCpUneven: uneven,
-      }),
-    )
-    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
-    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(3.2))
-    expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toHaveClass(
-      'stat-tile__basis--floor',
-    )
-    expect(screen.queryByText('Estimated', { selector: '.stat-tile__basis' })).toBeNull()
-  })
-
-  it('runs its range up to the uneven fit when the best 20 min was not hard', () => {
-    const run = makeActivity({ id: 'run-1', sport: 'run' })
-    const notHard = {
-      ...UNKNOWN,
-      verdict: 'notHard' as const,
-      unchecked: null,
-      floor: { durationS: 1800, value: 3 },
-    }
-    renderPage(
-      'run',
-      makeResult({
-        activities: [run],
-        runCp: null,
-        runCpRefusal: 'shape',
-        runCpUneven: uneven,
+        runThreshold: makeRunThreshold(16),
         effortGate: { run: notHard, ride: UNKNOWN },
       }),
     )
-    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
-    // The gate's floor stands: a 20 min best that was not hard can sit above a threshold, so it does not raise it.
-    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(3))
-    expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(section.querySelector('.sport-hero__track')).toHaveTextContent(pace(3))
-    expect(section.querySelector('.sport-hero__track')).toHaveTextContent(pace(4.4))
-  })
-
-  it('shows no range when the gate’s floor is already at the uneven fit', () => {
-    const run = makeActivity({ id: 'run-1', sport: 'run' })
-    const notHard = {
-      ...UNKNOWN,
-      verdict: 'notHard' as const,
-      unchecked: null,
-      floor: { durationS: 1800, value: 4.6 },
-    }
-    renderPage(
-      'run',
-      makeResult({
-        activities: [run],
-        runCp: null,
-        runCpRefusal: 'shape',
-        runCpUneven: uneven,
-        effortGate: { run: notHard, ride: UNKNOWN },
-      }),
-    )
-    const section = screen.getByRole('region', { name: 'Threshold pace, at least' })
-    expect(within(section).getByText('From your best 30 min.')).toBeInTheDocument()
-    expect(section.querySelector('.sport-hero__track')).toBeNull()
+    const section = screen.getByRole('region', { name: 'Threshold pace' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(16))
+    // Not the gate's floor (its best 30 min, at 3.0 W/kg), nor the uneven fit's 4.4.
+    expect(section.querySelector('.sport-hero__figure')).not.toHaveTextContent(pace(3))
+    expect(section.querySelector('.sport-hero__figure')).not.toHaveTextContent(pace(4.4))
+    expect(section.querySelector('.chip')).toBeNull()
+    expect(within(section).queryByText(/At least|From your best|Estimated/)).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Threshold pace, at least' })).toBeNull()
   })
 
   it('has no floor on a ride: the estimate stands, whatever a refused fit left out', () => {
@@ -419,14 +385,18 @@ describe('the threshold when only a floor is shown', () => {
     )
     const section = screen.getByRole('region', { name: 'Threshold power' })
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent('250')
-    expect(section.querySelector('.stat-tile__basis')).toBeNull()
+    expect(section.querySelector('.chip')).toBeNull()
     expect(within(section).queryByText(/At least|From your best/)).toBeNull()
   })
 
-  it('stays "estimated" while a run’s threshold is fitted, even with an uneven fit beside it', () => {
+  it('keeps the estimate and its own range while an uneven fit sits beside it', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage('run', makeResult({ activities: [run], runCpUneven: uneven }))
-    expect(screen.getByRole('region', { name: 'Threshold pace, estimated' })).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Threshold pace' })
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(4))
+    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    // The range is the estimate's own 10th to 90th percentile, not a run up to the uneven fit's pace.
+    expect(within(section).getByRole('note')).not.toHaveTextContent(pace(4.4))
   })
 })
 
@@ -468,7 +438,7 @@ describe('a sport page’s fitness', () => {
   it('leads the run page with its status, above the threshold, and does not name the sport twice', () => {
     withFitness('run', fullRun())
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
-    const threshold = screen.getByRole('heading', { name: 'Threshold pace, estimated' })
+    const threshold = screen.getByRole('heading', { name: 'Threshold pace' })
     expect(follows(fitness, threshold)).toBe(true)
     expect(screen.getByRole('article', { name: 'Slipping' })).toBeInTheDocument()
     expect(within(fitness).queryByText('Run')).not.toBeInTheDocument()

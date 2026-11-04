@@ -271,20 +271,20 @@ describe('BalancePage', () => {
     ])
   })
 
-  it('keeps the evidence for the duration the answer is about in the run tile’s detail, with no chip and no card', () => {
+  it('leaves the best 20 min’s heart rate out of both tiles’ details, with no chip and no card', () => {
     renderPage(
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
     const run = screen.getByRole('article', { name: 'Run threshold' })
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
     expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
+    // A run's estimate is worked out from pace alone, so its detail says nothing of heart rate.
     fireEvent.click(within(run).getByRole('button', { name: /^How this was worked out/ }))
-    expect(within(run).getByRole('note')).toHaveTextContent(
-      /reached 95% of your running max heart rate.*close to your/,
-    )
+    expect(within(run).getByRole('note')).toHaveTextContent(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
+    expect(within(run).getByRole('note')).not.toHaveTextContent(/heart rate/)
     // A ride's estimate does not read how hard its best 20 min was, so its detail does not say.
     fireEvent.click(within(ride).getByRole('button', { name: /^How this was worked out/ }))
-    expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate/)
+    expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate|reached \d+%/)
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
 

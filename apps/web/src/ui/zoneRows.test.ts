@@ -101,7 +101,9 @@ describe('zoneTable', () => {
 
   it('gives an estimated threshold its figure and its source, with no note on a newer fit', () => {
     const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
-    expect(zoneTable(set, 'metric').detail).toBe('Threshold pace: 4:46 /km, from your runs')
+    expect(zoneTable(set, 'metric').detail).toBe(
+      'Threshold pace: 4:46 /km, estimated from your runs',
+    )
   })
 
   it('says an entered reference was entered', () => {
@@ -132,7 +134,7 @@ describe('the source and basis of an estimated zone set', () => {
     expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
     expect(sourceText(set)).toBe('From your runs')
     expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe(
-      'Threshold pace: 4:46 /km, set in Mar 2025',
+      'Threshold pace: 4:46 /km, estimated from your runs up to Mar 2025',
     )
   })
 
