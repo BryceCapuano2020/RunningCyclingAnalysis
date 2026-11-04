@@ -1,3 +1,4 @@
+import { memoByDigests } from '../digestMemo'
 import type { MaxHeartRates } from '../effort'
 import type { ThresholdEstimate, ThresholdLine } from '../threshold'
 import { SPORTS } from '../types'
@@ -55,13 +56,31 @@ export function librariesOf(
   referenceHr: MaxHeartRates,
 ): Record<Sport, ThresholdLibrary> {
   return eachSport((sport) =>
-    libraryOf(
-      ACTIVITIES_OF[sport](ordered, inputs),
-      ordered,
-      thresholdReferenceOf(sport, referenceHr),
-    ),
+    sport === 'run' && !READS_HEART_RATE.run
+      ? runLibrary(ordered, inputs.heartSetAside)
+      : libraryOf(
+          ACTIVITIES_OF[sport](ordered, inputs),
+          ordered,
+          thresholdReferenceOf(sport, referenceHr),
+        ),
   )
 }
+
+const sameMembers = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
+  a === b || (a.size === b.size && [...a].every((id) => b.has(id)))
+
+/**
+ * The runs' library while a run's threshold reads no heart rate: a run is priced from its pace alone, so it reads no body mass,
+ * bike model or ride gate, and no reference heart rate. It is kept for the last digests asked for, so a change of body mass, or
+ * anything else that only rides read, takes the library already read (and the threshold timeline its steps, by the same object).
+ */
+const runLibrary = memoByDigests(
+  (ordered: ActivityDigest[], heartSetAside: ReadonlySet<string>) =>
+    libraryOf(runsOf(ordered, heartSetAside), ordered, null),
+  sameMembers,
+  undefined,
+  2,
+)
 
 /**
  * Each sport's threshold over a set of digests (`thresholdOf`), read against `lines` (the library's, one per sport; absent, a
