@@ -155,8 +155,8 @@ describe('the answer: threshold and level in one card', () => {
     renderPage(
       'ride',
       makeResult({
-        activities: [makeActivity({ id: 'r', sport: 'ride', name: 'Hill ride' })],
-        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'r')],
+        activities: [makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
         equivalents: [
           makeEquivalence({
             durationS: HEADLINE_DURATION_S,
