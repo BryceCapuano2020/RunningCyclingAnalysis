@@ -79,6 +79,8 @@ subagent reports were most of it.
   ready and set auto-merge. `main` does not require branches to be up to date, so either may land
   first. If the stacked one lands first it carries the base, which is then closed as included. One
   merged into its base branch (#285 into #286's) reaches `main` only with that base.
+- A stack is at most three pull requests deep. Past that, land the base before stacking more: a
+  deeper stack stalls as one when its base fails, and every fix to the base ripples up through it.
 - Push ordinary commits and never squash locally: GitHub squashes on merge. Two local squashes
   reverted merged work (#41 undid #39, and #158 undid #155).
 - Never rebase a green pull request. `main` does not require branches to be up to date. Rebase
