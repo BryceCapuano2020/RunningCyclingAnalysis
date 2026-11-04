@@ -16,7 +16,7 @@ import { GradeProfileSection } from './GradeProfileSection'
 
 vi.mock('@rca/core/pipeline', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@rca/core/pipeline')>()
-  return { ...actual, equivalenceFor: vi.fn(actual.equivalenceFor) }
+  return { ...actual, profileEquivalents: vi.fn(actual.profileEquivalents) }
 })
 
 afterEach(cleanup)
@@ -152,7 +152,7 @@ describe('GradeProfileSection', () => {
     // A best at 15 min is beyond the six durations a combine prices, so the section prices it.
     const base = resultAt([600, 1200, 3600])
     const result = { ...base, rideCurve: [...base.rideCurve, curvePoint(900, 250, 'ride-1')] }
-    vi.mocked(pipeline.equivalenceFor).mockClear()
+    vi.mocked(pipeline.profileEquivalents).mockClear()
     const props = {
       result,
       profile: MAN_BORN_1986,
@@ -161,18 +161,18 @@ describe('GradeProfileSection', () => {
       lean: 'run' as const,
     }
     const { rerender } = render(<GradeProfileSection {...props} />)
-    expect(pipeline.equivalenceFor).toHaveBeenCalledTimes(1)
+    expect(pipeline.profileEquivalents).toHaveBeenCalledTimes(1)
     // A new profile object with the same year and sex, as the page builds on each render.
     rerender(<GradeProfileSection {...props} profile={{ ...MAN_BORN_1986 }} />)
-    expect(pipeline.equivalenceFor).toHaveBeenCalledTimes(1)
+    expect(pipeline.profileEquivalents).toHaveBeenCalledTimes(1)
     rerender(<GradeProfileSection {...props} massKg={80} />)
-    expect(pipeline.equivalenceFor).toHaveBeenCalledTimes(2)
+    expect(pipeline.profileEquivalents).toHaveBeenCalledTimes(2)
   })
 
   it('prices nothing without a year of birth, or without a weight', () => {
     const base = resultAt([600, 1200, 3600])
     const result = { ...base, rideCurve: [...base.rideCurve, curvePoint(900, 250, 'ride-1')] }
-    vi.mocked(pipeline.equivalenceFor).mockClear()
+    vi.mocked(pipeline.profileEquivalents).mockClear()
     render(
       <GradeProfileSection result={result} profile={null} massKg={75} weightKnown lean="run" />,
     )
@@ -186,7 +186,7 @@ describe('GradeProfileSection', () => {
         lean="run"
       />,
     )
-    expect(pipeline.equivalenceFor).not.toHaveBeenCalled()
+    expect(pipeline.profileEquivalents).not.toHaveBeenCalled()
   })
 
   it('shows the chart open, with the finding under its title, when a duration separates the sports', () => {
