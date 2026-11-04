@@ -4,6 +4,7 @@ import { gradeEffort } from '../grade'
 import type { AgeProfile, EffortGrade, GapKind } from '../grade'
 import { metabolicToFlatSpeed } from '../metabolic'
 import { HOUR_S } from '../threshold/constants'
+import { endAtFiveNinetyFive } from '../threshold/coverage'
 import type { ThresholdEstimate } from '../threshold'
 import type { Interval, Sport } from '../types'
 import { SPORTS } from '../types'
@@ -45,15 +46,20 @@ const ESTIMATE_OF: Record<Sport, (result: AnalysisResult) => ThresholdEstimate |
   ride: (result) => result.rideThreshold,
 }
 
-/** The flat running speed a sport's threshold stands for, with its range: a run's pace, and a ride's anchored running equivalent. */
+/**
+ * The flat running speed a sport's threshold stands for, with its range: a run's pace, and a ride's anchored running equivalent. A
+ * run's range is its threshold's `low` and `high` (10th and 90th percentiles) moved out to the 5th and 95th on the log scale of energy
+ * (`endAtFiveNinetyFive`), so it has the coverage of a ride's, which the anchor's spread makes a 5th to 95th range, and the lead
+ * combines two ranges of one kind.
+ */
 const SPEED_OF_THRESHOLD: Record<Sport, (result: AnalysisResult) => Interval | null> = {
   run: (result) => {
     const estimate = result.runThreshold
     if (estimate === null) return null
     return {
-      p05: metabolicToFlatSpeed(estimate.low),
+      p05: metabolicToFlatSpeed(endAtFiveNinetyFive(estimate.value, estimate.low)),
       p50: metabolicToFlatSpeed(estimate.value),
-      p95: metabolicToFlatSpeed(estimate.high),
+      p95: metabolicToFlatSpeed(endAtFiveNinetyFive(estimate.value, estimate.high)),
     }
   },
   ride: (result) => result.rideThresholdRunSpeed,

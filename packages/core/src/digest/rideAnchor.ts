@@ -8,6 +8,7 @@ import {
   ridePowerToMetabolic,
 } from '../metabolic'
 import { HOUR_S } from '../threshold/constants'
+import { P90_TO_P95, Z_P95 } from '../threshold/coverage'
 import type { Interval } from '../types'
 
 /*
@@ -30,12 +31,6 @@ export const CYCLING_WORLD_CLASS_HOUR_WKG: Record<Sex, number> = { male: 6.4, fe
  * (6.40 and 6.60). A ride's range through the anchor is exp(+-1.645 x this) on its energy, the 5th and 95th percentiles.
  */
 export const CYCLING_ANCHOR_LOG_SD = 0.03
-
-/** The z of the 95th percentile of a normal, and so, mirrored, of the 5th: the ends of the ranges this module returns. */
-const Z_P95 = 1.645
-
-/** The z of the 90th percentile: the ends (`low`, `high`) a threshold estimate carries are its 10th and 90th percentiles. */
-const Z_P90 = 1.2816
 
 /**
  * An age at which both sexes' road standards hold the open class at an hour: nobody's age-standard time at 3600 s is faster
@@ -92,12 +87,12 @@ export interface RideEnergy {
 
 /**
  * How far an end is from the value on the log scale, as a 5th or 95th percentile would be: the caller's ends are 10th and 90th
- * percentiles, so their distance is scaled by 1.645 / 1.2816 to the same percentiles as the anchor's. An absent end, or one that
+ * percentiles, so their distance is scaled by 1.645 / 1.2816 (`P90_TO_P95`) to the same percentiles as the anchor's. An absent end, or one that
  * is not a positive figure, is no distance. The distance is absolute, so an end on the wrong side of the value widens the range
  * the same as one on the right side.
  */
 function logDistance(value: number, end: number | undefined): number {
-  return end === undefined || !(end > 0) ? 0 : (Math.abs(Math.log(value / end)) * Z_P95) / Z_P90
+  return end === undefined || !(end > 0) ? 0 : Math.abs(Math.log(value / end)) * P90_TO_P95
 }
 
 /**

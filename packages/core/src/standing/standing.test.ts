@@ -40,6 +40,29 @@ describe('sportStanding', () => {
     expect(grade.grade.range!.high.grade).toBeGreaterThanOrEqual(grade.grade.centre.grade)
   })
 
+  it('gives the run a 5th to 95th range from its threshold’s 10th and 90th, as the ride’s is', () => {
+    // A threshold whose 10th and 90th sit 1.2816 sd out on the log scale of energy has a 5th and 95th 1.645 sd out.
+    const [value, sd] = [result.runThreshold!.value, 0.04]
+    const wide = {
+      ...result,
+      runThreshold: {
+        ...result.runThreshold!,
+        low: value * Math.exp(-1.2816 * sd),
+        high: value * Math.exp(1.2816 * sd),
+      },
+    }
+    const grade = sportStanding(wide, MAN).grades.run
+    if (grade.kind !== 'graded' || grade.grade.range === null)
+      throw new Error('graded with a range')
+    const who = ageAndSexAt(MAN, strongestDay(wide, 'run'))!
+    const at = (z: number) =>
+      gradeAtSpeed(metabolicToFlatSpeed(value * Math.exp(z * sd)), HOUR_S, who)!
+    expect(grade.grade.range.low.grade).toBeCloseTo(at(-1.645).grade, 9)
+    expect(grade.grade.range.high.grade).toBeCloseTo(at(1.645).grade, 9)
+    // Not the 10th and 90th it was built from.
+    expect(grade.grade.range.high.grade).toBeGreaterThan(at(1.2816).grade)
+  })
+
   it('takes each sport’s age on the day of its own strongest effort', () => {
     // Re-date the two strongest efforts to days in different years, so a grade that took the other sport's day, or a day of its
     // own that is not the strongest effort's, comes out at the wrong age.
