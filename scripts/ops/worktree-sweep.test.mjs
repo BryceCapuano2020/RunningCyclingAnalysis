@@ -5,6 +5,7 @@ import { parseWorktrees, planSweep, report, stateByBranch } from './worktree-swe
 const ROOT = '/repo'
 const tree = (name, fields = {}) => ({
   path: `${ROOT}/.claude/worktrees/${name}`,
+  head: `sha-${name}`,
   branch: `feat/${name}`,
   detached: false,
   locked: false,
@@ -19,31 +20,45 @@ test('reads git worktree list --porcelain', () => {
     '',
   ].join('\n\n')
   assert.deepEqual(parseWorktrees(porcelain), [
-    { path: '/repo', branch: 'main', detached: false, locked: false },
-    { path: '/repo/.claude/worktrees/a', branch: 'feat/a', detached: false, locked: true },
-    { path: '/repo/.claude/worktrees/gate', branch: undefined, detached: true, locked: false },
+    { path: '/repo', head: 'aaa', branch: 'main', detached: false, locked: false },
+    {
+      path: '/repo/.claude/worktrees/a',
+      head: 'bbb',
+      branch: 'feat/a',
+      detached: false,
+      locked: true,
+    },
+    {
+      path: '/repo/.claude/worktrees/gate',
+      head: 'ccc',
+      branch: undefined,
+      detached: true,
+      locked: false,
+    },
   ])
 })
 
 test('an open pull request on a branch wins over an older closed one', () => {
   const states = stateByBranch([
-    { number: 2, state: 'OPEN', headRefName: 'feat/a' },
-    { number: 1, state: 'CLOSED', headRefName: 'feat/a' },
-    { number: 3, state: 'CLOSED', headRefName: 'feat/b' },
-    { number: 4, state: 'MERGED', headRefName: 'feat/b' },
+    { number: 2, state: 'OPEN', headRefName: 'feat/a', headRefOid: 'a2' },
+    { number: 1, state: 'CLOSED', headRefName: 'feat/a', headRefOid: 'a1' },
+    { number: 3, state: 'CLOSED', headRefName: 'feat/b', headRefOid: 'b3' },
+    { number: 4, state: 'MERGED', headRefName: 'feat/b', headRefOid: 'b4' },
   ])
-  assert.equal(states.get('feat/a'), 'OPEN')
-  assert.equal(states.get('feat/b'), 'MERGED')
+  assert.deepEqual(states.get('feat/a'), { state: 'OPEN', head: 'a2' })
+  assert.deepEqual(states.get('feat/b'), { state: 'MERGED', head: 'b4' })
 })
 
 test('removes only clean worktrees whose pull request is done', () => {
+  const done = (name, state = 'MERGED') => [`feat/${name}`, { state, head: `sha-${name}` }]
   const states = new Map([
-    ['feat/merged', 'MERGED'],
-    ['feat/closed', 'CLOSED'],
-    ['feat/open', 'OPEN'],
-    ['feat/dirty', 'MERGED'],
-    ['feat/locked', 'MERGED'],
-    ['feat/mine', 'MERGED'],
+    done('merged'),
+    done('closed', 'CLOSED'),
+    done('open', 'OPEN'),
+    done('dirty'),
+    done('locked'),
+    done('mine'),
+    done('moved'),
   ])
   const worktrees = [
     { path: ROOT, branch: 'main', detached: false, locked: false },
@@ -54,8 +69,15 @@ test('removes only clean worktrees whose pull request is done', () => {
     tree('dirty'),
     tree('locked', { locked: true }),
     tree('mine'),
+    tree('moved', { head: 'sha-new-work' }),
     tree('gate', { branch: undefined, detached: true }),
-    { path: '/elsewhere/wt', branch: 'feat/merged', detached: false, locked: false },
+    {
+      path: '/elsewhere/wt',
+      head: 'sha-merged',
+      branch: 'feat/merged',
+      detached: false,
+      locked: false,
+    },
   ]
   const plan = planSweep({
     worktrees,

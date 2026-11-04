@@ -57,8 +57,11 @@ export function core(words) {
   for (;;) {
     const word = words[i]
     if (word === undefined) return []
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word) || RESERVED.has(word) || WRAPPERS.has(word)) i++
-    else if (word === 'timeout') i += 2
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word) || RESERVED.has(word)) i++
+    else if (WRAPPERS.has(word)) {
+      i++
+      while (words[i]?.startsWith('-')) i += words[i] === '-n' ? 2 : 1
+    } else if (word === 'timeout') i += 2
     else return words.slice(i)
   }
 }
@@ -87,6 +90,7 @@ export function startsTests(words) {
   const tool = basename(words[0] ?? '')
   if (tool === 'vitest') return true
   if (tool === 'playwright') return words[1] === 'test'
+  if (tool === 'node') return /vitest\.mjs$|playwright\/cli\.js$/.test(words[1] ?? '')
   if (tool === 'npx' || (tool === 'npm' && ['exec', 'x'].includes(words[1]))) {
     let i = tool === 'npx' ? 1 : 2
     while (words[i]?.startsWith('-')) i += ['-p', '--package'].includes(words[i]) ? 2 : 1
@@ -122,18 +126,43 @@ function pushesMainOrForces(words) {
   if (forced || refs.slice(1).some((ref) => ref.startsWith('+'))) {
     return 'Force-push only with --force-with-lease, and never to main.'
   }
-  if (refs.slice(1).some((ref) => /(^|[:/+])(main|master)$/.test(ref))) {
+  const target = (ref) => ref.slice(ref.lastIndexOf(':') + 1).replace(/^refs\/heads\//, '')
+  if (refs.slice(1).some((ref) => ['main', 'master'].includes(target(ref)))) {
     return 'Never push to main: open a pull request (docs/PROCESS.md).'
   }
   return undefined
 }
 
+/** Whether a subagent's gh call marks a pull request ready or merges it, by any route. */
+function readiesOrMerges(words, verbs) {
+  if (verbs[0] === 'pr') {
+    if (verbs[1] === 'ready' || verbs[1] === 'merge') return true
+    return verbs[1] === 'create' && !words.includes('--draft') && !words.includes('-d')
+  }
+  if (verbs[0] !== 'api') return false
+  const text = words.join(' ')
+  return /pulls\/\d+\/merge|enablePullRequestAutoMerge|markPullRequestReadyForReview|mergePullRequest/.test(
+    text,
+  )
+}
+
+/**
+ * A sleep that waits on CI: inside a loop that calls gh or the queue, or a long one beside them.
+ * Short sleeps in a loop that waits for a local server are fine.
+ */
+function pollsCi(words, { loop, callsGh }) {
+  if (basename(words[0]) !== 'sleep') return false
+  const seconds =
+    Number.parseFloat(words[1] ?? '0') * ({ m: 60, h: 3600 }[words[1]?.slice(-1)] ?? 1)
+  return callsGh && (loop || seconds >= 30)
+}
+
 /** One refusal for one simple command, or undefined. */
-function judge(words, { agent, loop }) {
+function judge(words, { agent, loop, callsGh }) {
   const verbs = ghVerbs(words)
   if (verbs[0] === 'pr' && verbs[1] === 'checks') return { deny: NO_POLL }
   if (verbs[0] === 'run' && verbs[1] === 'watch') return { deny: NO_POLL }
-  if (basename(words[0]) === 'sleep' && loop) return { deny: `No sleep loops. ${NO_POLL}` }
+  if (pollsCi(words, { loop, callsGh })) return { deny: `No sleep loops on CI. ${NO_POLL}` }
   if (basename(words[0]) === 'watch') return { deny: `No watch loops. ${NO_POLL}` }
   const git = basename(words[0]) === 'git' ? positionals(words.slice(1), GIT_VALUE_FLAGS) : []
   if (git[0] === 'stash' && !['list', 'show'].includes(git[1])) {
@@ -147,9 +176,9 @@ function judge(words, { agent, loop }) {
     const why = 'This reaches production, which needs the owner to ask (CLAUDE.md).'
     return agent ? { deny: `${why} Report it to the coordinator.` } : { ask: why }
   }
-  if (agent && verbs[0] === 'pr' && (verbs[1] === 'ready' || verbs[1] === 'merge')) {
+  if (agent && readiesOrMerges(words, verbs)) {
     return {
-      deny: 'Only the coordinator marks a pull request ready or sets auto-merge, after review. Leave it a draft and report.',
+      deny: 'Only the coordinator marks a pull request ready or sets auto-merge, after review. Open it as a draft, leave it a draft and report.',
     }
   }
   if (agent === 'rca-reviewer') {
@@ -167,6 +196,10 @@ function judge(words, { agent, loop }) {
 export function decide(command, agent) {
   const commands = simpleCommands(command)
   const loop = commands.some((words) => LOOPS.has(basename(words[0] ?? '')))
+  const callsGh = commands.some((words) => {
+    const cmd = core(words)
+    return basename(cmd[0] ?? '') === 'gh' || npmScript(cmd) === 'pr:queue'
+  })
   for (const words of commands) {
     const cmd = core(words)
     if (!cmd.length || basename(cmd[0]) === 'testslot.sh') continue
@@ -175,7 +208,7 @@ export function decide(command, agent) {
     const verdict =
       flag > 0 && cmd[flag + 1] !== undefined
         ? decide(cmd[flag + 1], agent)
-        : judge(cmd, { agent, loop })
+        : judge(cmd, { agent, loop, callsGh })
     if (verdict) return verdict
   }
   return undefined

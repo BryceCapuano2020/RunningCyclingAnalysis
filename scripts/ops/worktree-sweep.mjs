@@ -19,6 +19,7 @@ export function parseWorktrees(porcelain) {
       const value = (key) => lines.find((line) => line.startsWith(`${key} `))?.slice(key.length + 1)
       return {
         path: value('worktree'),
+        head: value('HEAD'),
         branch: value('branch')?.replace(/^refs\/heads\//, ''),
         detached: lines.includes('detached'),
         locked: lines.some((line) => line === 'locked' || line.startsWith('locked ')),
@@ -26,11 +27,13 @@ export function parseWorktrees(porcelain) {
     })
 }
 
-/** Each branch's pull request state: OPEN if any is open, else the newest one's state. */
+/** Each branch's pull request: an open one if any, else the newest. { state, head } by branch. */
 export function stateByBranch(prs) {
   const states = new Map()
   for (const pr of [...prs].sort((a, b) => a.number - b.number)) {
-    if (states.get(pr.headRefName) !== 'OPEN') states.set(pr.headRefName, pr.state)
+    if (states.get(pr.headRefName)?.state !== 'OPEN') {
+      states.set(pr.headRefName, { state: pr.state, head: pr.headRefOid })
+    }
   }
   return states
 }
@@ -45,8 +48,10 @@ export function planSweep({ worktrees, states, root, current, isClean }) {
       plan.detached.push(tree.path)
       continue
     }
-    const state = states.get(tree.branch)
-    if (state !== 'MERGED' && state !== 'CLOSED') continue
+    const pr = states.get(tree.branch)
+    if (pr?.state !== 'MERGED' && pr?.state !== 'CLOSED') continue
+    // A branch whose tip moved past its last pull request holds new work, even with no new one yet.
+    if (tree.head !== pr.head) continue
     if (isClean(tree.path)) plan.remove.push(tree.path)
     else plan.dirty.push(tree.path)
   }
@@ -64,7 +69,7 @@ export function report(plan) {
   }
   if (plan.dirty.length) {
     lines.push(
-      `Worktrees whose pull request is done but hold uncommitted work (check, then remove): ${plan.dirty.map(name).join(', ')}.`,
+      `Worktrees whose pull request is done but hold uncommitted work or could not be read (check, then remove): ${plan.dirty.map(name).join(', ')}.`,
     )
   }
   if (plan.detached.length) {
@@ -83,7 +88,16 @@ function main() {
   const prs = JSON.parse(
     execFileSync(
       'gh',
-      ['pr', 'list', '--state', 'all', '--limit', '500', '--json', 'number,state,headRefName'],
+      [
+        'pr',
+        'list',
+        '--state',
+        'all',
+        '--limit',
+        '500',
+        '--json',
+        'number,state,headRefName,headRefOid',
+      ],
       { cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
     ),
   )
@@ -92,7 +106,14 @@ function main() {
     states: stateByBranch(prs),
     root: realpathSync(root),
     current: realpathSync(cwd),
-    isClean: (path) => git(['status', '--porcelain'], path).trim() === '',
+    // A worktree whose folder is gone or unreadable counts as not clean: named, never removed.
+    isClean: (path) => {
+      try {
+        return git(['status', '--porcelain'], path).trim() === ''
+      } catch {
+        return false
+      }
+    },
   })
   if (plan.remove.length) {
     // Deleting node_modules takes a while, so the removals finish after the session has started.

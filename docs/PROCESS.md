@@ -24,12 +24,14 @@ this repository loads when it starts:
 
 - Before each prompt, `pr-queue.mjs --action` prints the pull requests that need someone (a failing
   or stale run, a conflict, auto-merge off) and a red `main`. It prints nothing when all is well.
-- Before each shell command, `agent-guard.mjs` refuses: a vitest, Playwright, `test:perf`,
-  `test:sim`, `check` or `verify:release` run outside the test slot; `gh pr checks`, `gh run watch`
-  and sleep or watch loops; `git stash`; a push to `main` or a force-push without a lease. A deploy,
-  a remote Wrangler call or a secret asks the owner in the main session and is refused to agents.
-- The split between coordinator and agents: an agent (any subagent) cannot mark a pull request
-  ready or merge it, and the reviewer cannot commit, push or write to a pull request.
+- Before each shell command, `agent-guard.mjs` refuses: a vitest or Playwright run (directly, or
+  through any `test`, `e2e`, `check` or `verify:release` script) outside the test slot;
+  `gh pr checks`, `gh run watch`, watch loops and sleeps that wait on CI; `git stash`; a push to
+  `main` or a force-push without a lease. A deploy, a remote Wrangler call or a secret asks the
+  owner in the main session and is refused to agents.
+- The split between coordinator and agents: an agent (any subagent) opens pull requests as drafts
+  and cannot mark one ready or merge it by any route, and the reviewer cannot commit, push or write
+  to a pull request.
 - At startup, `worktree-sweep.mjs` removes clean worktrees under `.claude/worktrees` whose pull
   request has merged or closed, and lists detached ones and finished ones holding uncommitted work.
 

@@ -47,6 +47,8 @@ test('test runs need a slot', () => {
     'npm run verify:release',
     'npm run check',
     'CI=1 npx vitest run',
+    'nice -n 10 npx vitest run',
+    'node node_modules/vitest/vitest.mjs run',
     'bash -lc "npx vitest run"',
   ]) {
     assert.equal(kind(command), 'deny', command)
@@ -76,6 +78,8 @@ test('nobody polls CI', () => {
     'while true; do gh pr view 1; sleep 30; done',
     'until gh pr view 1 --json state | grep MERGED; do sleep 60; done',
     'watch -n 30 gh pr view 1',
+    'sleep 60 && gh run list --branch main',
+    'for i in 1 2 3; do npm run pr:queue; sleep 5; done',
   ]) {
     assert.equal(kind(command), 'deny', command)
   }
@@ -84,6 +88,7 @@ test('nobody polls CI', () => {
     'gh pr view 1 --json state',
     'gh run view 123 --log-failed',
     'for f in a b; do echo $f; done',
+    'for i in $(seq 30); do curl -s localhost:8787 && break; sleep 1; done',
   ]) {
     assert.equal(kind(command), 'allow', command)
   }
@@ -96,6 +101,13 @@ test('only the coordinator marks ready and merges', () => {
     assert.equal(kind(command, 'general-purpose'), 'deny', command)
   }
   assert.equal(kind('gh pr create --draft --title x --body y', 'rca-builder'), 'allow')
+  assert.equal(kind('gh pr create --title x --body y', 'rca-builder'), 'deny')
+  assert.equal(kind('gh pr create --title x --body y'), 'allow')
+  assert.equal(kind('gh api -X PUT repos/o/r/pulls/7/merge', 'rca-builder'), 'deny')
+  assert.equal(
+    kind("gh api graphql -f query='mutation { enablePullRequestAutoMerge }'", 'rca-gate'),
+    'deny',
+  )
   assert.equal(kind('git push -u origin feat/x', 'rca-builder'), 'allow')
 })
 
@@ -111,6 +123,7 @@ test('no push to main, no plain force-push, no stash', () => {
   for (const command of [
     'git push origin main',
     'git push origin HEAD:main',
+    'git push origin HEAD:refs/heads/main',
     'git push --force origin feat/x',
     'git push -f origin feat/x',
     'git push origin +feat/x',
@@ -123,6 +136,7 @@ test('no push to main, no plain force-push, no stash', () => {
   for (const command of [
     'git push --force-with-lease origin feat/x',
     'git push origin feat/main-menu',
+    'git push origin feature/main',
     'git stash list',
   ]) {
     assert.equal(kind(command), 'allow', command)
