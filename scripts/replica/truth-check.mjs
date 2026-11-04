@@ -38,6 +38,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gradeText, readBalanceGrade, readSportGrade, sameGrade } from './grade-cards.mjs'
 
 const USAGE = 'usage: node scripts/replica/truth-check.mjs <replica-out> <truth.json>'
 /** How many lines after the card title the number may sit. */
@@ -200,6 +201,7 @@ const ROUNDING = { pace: 1, power: 0.5 }
  * - A figure shown on two pages is one number: Balance's run and ride threshold cards read the same pace and power as the
  *   sport pages' threshold cards for the same period, so no page works out its own copy (docs/ENGINEERING.md, "One figure, one
  *   function").
+ * - The same goes for the age grade at threshold: Balance's level for each sport is the one on the sport page for the same period.
  * A page without the cards a check needs is skipped. One result per check that ran, as `runChecks` gives them.
  */
 export function runInvariants(outdir) {
@@ -262,6 +264,22 @@ export function runInvariants(outdir) {
           file,
           `Balance ${run.value} s, run page ${runOwn.value} s ${run.unit}`,
         )
+      }
+      for (const [sport, title] of [
+        ['run', 'RUNNING'],
+        ['ride', 'CYCLING'],
+      ]) {
+        const page = onPage(sport)
+        const balanceGrade = readBalanceGrade(text, title)
+        const sportGrade = page === null ? null : readSportGrade(page)
+        if (balanceGrade && sportGrade) {
+          record(
+            sameGrade(balanceGrade, sportGrade),
+            `balance-vs-sport-${sport}-grade`,
+            file,
+            `Balance ${gradeText(balanceGrade)}, ${sport} page ${gradeText(sportGrade)}`,
+          )
+        }
       }
       const ridePage = onPage('ride')
       const rideBalance = readCard(text, 'Ride threshold', 'W', [], cards)?.value ?? null
