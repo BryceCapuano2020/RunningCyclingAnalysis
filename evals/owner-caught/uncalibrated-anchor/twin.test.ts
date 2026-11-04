@@ -50,10 +50,10 @@ describe('the cycling anchor', () => {
 })
 
 describe('the running anchor', () => {
-  it("puts the men's world-class hour within 2% of the world-record pace at an hour", () => {
+  it("puts the men's world-class hour within 0.5% of the world-record pace at an hour", () => {
     // The anchor is the speed a ride at the published cycling hour is worth: the running hour it is anchored to.
     const anchor = equivalentRunSpeed(PUBLISHED_WKG.male * MASS, MASS, 'male').p50
     const record = recordSpeedAtHour()
-    expect(Math.abs(anchor / record - 1)).toBeLessThan(0.02)
+    expect(Math.abs(anchor / record - 1)).toBeLessThan(0.005)
   })
 })

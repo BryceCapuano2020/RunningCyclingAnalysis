@@ -4,11 +4,21 @@ import { levelTargetText } from '../../../apps/web/src/ui/levelTarget'
 import { balanceOfPick } from '../../../apps/web/src/ui/components/balanceScale'
 import { fewEffortsText } from '../../../apps/web/src/ui/pages/balanceMissing'
 import { heldPick } from '../../../apps/web/src/ui/resultHold'
+import { holdWithRideOut, rideLeftOut } from '../../../apps/web/src/ui/rideLeftOut'
 import { standingOf } from '../../../apps/web/src/ui/standing'
 import { threshold } from '../../../apps/web/src/ui/records'
 import { thresholdBasisLine } from '../../../apps/web/src/ui/thresholdBasis'
 import { thresholdRange } from '../../../apps/web/src/ui/thresholdRange'
-import { drift, flat, library, PROFILE, resultOf, SETTINGS, sessionOf } from '../support'
+import {
+  drift,
+  flat,
+  library,
+  PROFILE,
+  resultOf,
+  SETTINGS,
+  sessionOf,
+  withoutHeartRate,
+} from '../support'
 import type { Plan } from '../support'
 
 const YEARS = 6
@@ -33,8 +43,19 @@ const ATHLETES: Record<string, Plan> = {
   },
 }
 
-describe.each(Object.entries(ATHLETES))('a long history of a %s athlete', (_name, plan) => {
-  const session = sessionOf(library(plan))
+/** The same six years as a watch with a loose strap (a low heart rate) and as one with no strap records them. */
+const LOW_HEART_RATE: Plan = {
+  ...ATHLETES.steady!,
+  scale: { run: flat(1, 120), ride: flat(1, 120) },
+}
+const LIBRARIES: Record<string, ReturnType<typeof library>> = {
+  ...Object.fromEntries(Object.entries(ATHLETES).map(([name, plan]) => [name, library(plan)])),
+  'low heart rate': library(LOW_HEART_RATE),
+  'no heart rate': withoutHeartRate(library(ATHLETES.steady!)),
+}
+
+describe.each(Object.entries(LIBRARIES))('a long history of a %s athlete', (_name, digests) => {
+  const session = sessionOf(digests)
 
   it.each(['default', 'all', 365] as const)(
     'gets an answer for each sport on the Balance surface, over %s',
@@ -49,8 +70,11 @@ describe.each(Object.entries(ATHLETES))('a long history of a %s athlete', (_name
           `${sport} threshold`,
         ).not.toBeNull()
       }
-      // The headline is not held, so the lede, the meter and the tiles all state the balance.
-      const { hold, pick } = heldPick(result)
+      // The headline is not held, so the lede, the meter and the tiles all state the balance. The page holds it for a
+      // ride at the top of the age tables or a power that cannot be, which the same function reads from the grades.
+      const rideOut = rideLeftOut(grades.ride, result)
+      expect(rideOut).toBeNull()
+      const { hold, pick } = heldPick(result, holdWithRideOut(rideOut))
       expect(hold).toBeNull()
       expect(pick).not.toBeNull()
       expect(balanceOfPick(standing.lead, pick)).not.toBeNull()

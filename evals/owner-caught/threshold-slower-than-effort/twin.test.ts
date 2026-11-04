@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { flatSpeedOfWkg, ridePowerAt } from '@rca/core/display'
-import type { ActivityDigest } from '@rca/core/types'
+import type { ActivityDigest, Sport } from '@rca/core/types'
 import { nativeCurve, valueAt } from '../../../apps/web/src/ui/records'
 import { flat, library, resultOf, sessionOf } from '../support'
 import type { Plan } from '../support'
@@ -18,6 +18,16 @@ const scaled = (digest: ActivityDigest, by: number): ActivityDigest => ({
   ...digest,
   curve: digest.curve.map((point) => ({ ...point, value: point.value * by })),
 })
+/** The share an hour is lifted by, per sport, so it sits above what the same athlete's shorter efforts imply. */
+const HOUR_LIFT: Record<Sport, number> = { run: 1.25, ride: 1.6 }
+/** A digest with only its hour and longer points lifted: a measured hour the shorter efforts do not explain. */
+const withLiftedHour = (digest: ActivityDigest): ActivityDigest => ({
+  ...digest,
+  curve: digest.curve.map((point) =>
+    point.durationS >= HOUR_S ? { ...point, value: point.value * HOUR_LIFT[digest.sport] } : point,
+  ),
+})
+
 /** A digest that holds no effort of an hour or more, as a library of short training days does. */
 const withoutHour = (digest: ActivityDigest): ActivityDigest => ({
   ...digest,
@@ -86,5 +96,31 @@ describe.each(Object.entries(LIBRARIES))('a library with %s hours', (_name, dige
     const result = resultOf(session, 'all')
     expect(Number.isFinite(valueAt(nativeCurve('run', result), HOUR_S))).toBe(true)
     expect(Number.isFinite(valueAt(nativeCurve('ride', result), HOUR_S))).toBe(true)
+  })
+})
+
+describe('two old hours above what every other effort implies', () => {
+  const ids = [OLD.run, OLD.ride, NEXT.run, NEXT.ride]
+  const lifted = (hours: boolean) => [
+    ...shortDaysExcept(ids),
+    ...base.filter((digest) => ids.includes(digest.id)).map((d) => (hours ? withLiftedHour(d) : d)),
+  ]
+  const [plain, withHours] = [sessionOf(lifted(false)), sessionOf(lifted(true))]
+
+  it('sets the run threshold, which the shorter efforts alone leave under it', () => {
+    const hour = valueAt(nativeCurve('run', resultOf(withHours, 'all')), HOUR_S)
+    const without = flatSpeedOfWkg(resultOf(plain, 'all').runThreshold!.value)
+    expect(hour).toBeGreaterThan(without + 0.05)
+    expect(flatSpeedOfWkg(resultOf(withHours, 'all').runThreshold!.value)).toBeCloseTo(hour, 6)
+  })
+
+  it('sets the ride threshold, which the shorter efforts alone leave under it', () => {
+    const hour = valueAt(nativeCurve('ride', resultOf(withHours, 'all')), HOUR_S)
+    const without = ridePowerAt(resultOf(plain, 'all').rideThreshold!.value, MASS).watts
+    expect(hour).toBeGreaterThan(without + 5)
+    expect(ridePowerAt(resultOf(withHours, 'all').rideThreshold!.value, MASS).watts).toBeCloseTo(
+      hour,
+      6,
+    )
   })
 })

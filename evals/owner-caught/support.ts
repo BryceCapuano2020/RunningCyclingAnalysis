@@ -8,7 +8,7 @@ import type { ActivityDigest, AthleteSettings, Sport } from '@rca/core/types'
 export const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9, sex: 'male' }
 export const PROFILE = { birthYear: 1990, sex: 'male' } as const
 
-const DAY_MS = 86_400_000
+export const DAY_MS = 86_400_000
 /** The last day of every synthetic library, so a twin is the same on every run. */
 export const END_MS = Date.UTC(2025, 9, 1, 12)
 
@@ -22,7 +22,9 @@ export interface Plan {
 }
 
 /** The same scale on every day: an athlete who neither gains nor loses. */
-export const flat = (scale: number) => () => ({ scale, heartRate: 175 })
+export const flat =
+  (scale: number, heartRate = 175) =>
+  () => ({ scale, heartRate })
 
 /** An athlete whose scale moves linearly from `from` (the library's first day) to `to` (its last). */
 export function drift(from: number, to: number, years: number) {
@@ -48,6 +50,14 @@ export function library(plan: Plan): ActivityDigest[] {
     }
   }
   return out
+}
+
+/** The library as a watch with no heart-rate strap records it. */
+export function withoutHeartRate(digests: ActivityDigest[]): ActivityDigest[] {
+  return digests.map((digest) => ({
+    ...digest,
+    curve: digest.curve.map((point) => ({ ...point, heartRate: null })),
+  }))
 }
 
 /** A session holding a library, as the web worker holds the athlete's. */

@@ -7,7 +7,7 @@ floor under it (docs/design/threshold.md), so the threshold is never slower (run
 the best hour.
 
 **What the twin checks.** Per sport, over the default period and All time, in three synthetic libraries:
-hours all through the years; one old hour among days with none, within the margin the rest of the
+hours all through the years; two old hours lifted well above every other effort, where only the floor can set the threshold (checked for run and ride); one old hour among days with none, within the margin the rest of the
 athlete's efforts support; and two old hours well above the rest that agree with each other. The threshold
 is no slower (run) and no lower (ride) than the best 60 minutes on the sport page's curve, to its printed
 rounding.

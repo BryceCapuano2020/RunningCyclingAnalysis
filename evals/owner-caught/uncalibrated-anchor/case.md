@@ -13,7 +13,7 @@ cites, to a stated tolerance:
   Coggan's power profile table (`rideAnchor.ts`, docs/design/cross-sport.md). A rider at that hour grades
   100% within half a point. The other reprint's men's value, 6.60, lands inside the range the anchor
   states for 6.40 (its 3% log spread, 5th to 95th).
-- Running, men: the anchor's running hour is within 2% of the open men's world-record pace at an hour,
+- Running, men: the anchor's running hour is within 0.5% of the open men's world-record pace at an hour,
   read between the half marathon and the marathon entries of `RUN_WORLD_RECORD_SPEEDS`
   (`packages/core/src/constants.ts`).
 

@@ -13,8 +13,8 @@ The miss is back when:
   surface prints a refusal or hedge where the answer should be.
 - **two-thresholds-one-card**: two printed figures for one sport's threshold differ by more than their
   rounding.
-- **threshold-slower-than-effort**: a threshold reads slower (run) or lower (ride) than the best hour in
-  its period, old or isolated or not.
+- **threshold-slower-than-effort**: a threshold reads slower (run) or lower (ride) than a backed, measured hour in
+  its period, however old.
 - **lean-vs-ride-as-a-run**: the lean names a sport that the ride as a run, set beside the run
   threshold, contradicts.
 - **uncalibrated-anchor**: a world-class hour moves off its cited source by more than the stated

@@ -7,7 +7,8 @@ other: the ride as a run was slower than the run threshold, yet the lean named c
 pace cards a reader puts side by side cannot disagree.
 
 **What the twin checks.** Synthetic athletes with the run fixed and the ride swept from far under it to far
-over it, so the lean falls toward running, toward cycling and level. Where the lean is running, the ride
+over it, so the lean falls toward running, toward cycling and level. The lead must equal the run card's whole percent less the ride-as-a-run card's, on a sweep in
+0.01 steps of the ride's scale near level. Where the lean is running, the ride
 as a run is no faster than the run threshold. Where it is cycling, no slower. Where it is level, within
 a few percent of pace. All compared as printed, to the second, and the sweep must reach all three leans.
 
