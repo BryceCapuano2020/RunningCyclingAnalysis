@@ -800,7 +800,9 @@ describe('MethodPage heart-rate check', () => {
     const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 min effort' })
     expect(heading).toHaveAttribute('id', TWENTY_MINUTE_ID)
     expect(
-      within(section).getByText(/^Balance reads your best 20 min in each sport/),
+      within(section).getByText(
+        /^Balance’s changes and energy view read your best 20 min in each sport/,
+      ),
     ).toBeInTheDocument()
   })
 

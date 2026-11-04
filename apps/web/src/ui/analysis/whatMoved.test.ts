@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { headlineGrades } from '../balanceFixtures'
 import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Comparison, Interval } from '@rca/core/types'
@@ -13,8 +12,9 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
-import { gapOfHeadline } from '../balanceGap'
 import { formatGrade } from '../gradeFormat'
+import { standingOf } from '../standing'
+import { thresholdGrade } from '../thresholdGrade'
 import type { ImportChange } from './importState'
 import { listedMoves, whatMoved } from './whatMoved'
 
@@ -565,8 +565,11 @@ describe('whatMoved: balance in grade points', () => {
     const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
       (item) => item.text,
     )
+    // The range moves with the ride's threshold, so the line states it with the centre.
     expect(texts).toContainEqual(
-      expect.stringMatching(/^Your balance now leans more toward running \(\d+ → \d+ points\)$/),
+      expect.stringMatching(
+        /^Your balance now leans more toward running \(\d+ → \d+ points\), and the range was \d+ to \d+ points and is now \d+ to \d+ points$/,
+      ),
     )
   })
 
@@ -576,12 +579,19 @@ describe('whatMoved: balance in grade points', () => {
     const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
       (item) => item.text,
     )
-    expect(texts).toContain('Your balance now leans toward cycling')
+    expect(texts).toContainEqual(
+      expect.stringMatching(
+        /^Your balance now leans toward cycling, and the range was \d+ to \d+ points and is now -?\d+ to -?\d+ points$/,
+      ),
+    )
   })
 
   it('lists no balance when one side has grades and the other has only the energy ratio', () => {
     const before = gradedResult(3.8)
-    const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
+    // No run threshold yet, so the run is not graded: this side has only the energy ratio.
+    const after = resultWith({ runCp: null, comparison: balance(interval(1.02, 1.08, 1.14)) })
+    expect(standingOf(before, MAN_BORN_1986).lead).not.toBeNull()
+    expect(standingOf(after, MAN_BORN_1986).lead).toBeNull()
     const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
       (item) => item.text,
     )
@@ -594,7 +604,7 @@ describe('whatMoved: a ride at the top of the age tables', () => {
     // The ride's 9 m/s equivalent is faster than the running record for a man of 40, so it tops the scale.
     const before = gradedResult(9, { comparison: balance(interval(1.05, 1.12, 1.2)) })
     const after = gradedResult(9.5, { comparison: balance(interval(1.02, 1.08, 1.14)) })
-    expect(headlineGrades(before, MAN_BORN_1986).ride.kind).toBe('top-of-scale')
+    expect(thresholdGrade(before, 'ride', MAN_BORN_1986).kind).toBe('top-of-scale')
     const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
       (item) => item.text,
     )
@@ -648,10 +658,10 @@ describe('whatMoved while no weight is entered', () => {
   })
 })
 
-/** The ride's headline grade as the page writes it, for a result graded for MAN_BORN_1986. */
+/** The ride's grade at its threshold as the page writes it, for a result graded for MAN_BORN_1986. */
 function rideGradeText(result: AnalysisResult): string {
-  const outcome = headlineGrades(result, MAN_BORN_1986).ride
-  if (outcome.kind !== 'graded') throw new Error('the ride has no headline grade')
+  const outcome = thresholdGrade(result, 'ride', MAN_BORN_1986)
+  if (outcome.kind !== 'graded') throw new Error('the ride has no grade at its threshold')
   return formatGrade(outcome.grade.centre.grade)
 }
 
@@ -737,7 +747,7 @@ describe('whatMoved: an import that added one activity', () => {
     ])
   })
 
-  it('adds the sport headline grade after the balance, in a spoken form too, when its whole percent changed', () => {
+  it('adds the sport grade at its threshold after the balance, in a spoken form too, when its whole percent changed', () => {
     const before = gradedResult(3.8)
     const after = gradedResult(3.5, {
       activities: [RUN, RIDE, NEW_RIDE],
@@ -749,8 +759,8 @@ describe('whatMoved: an import that added one activity', () => {
     const items = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')
     expect(items[0]?.text).toMatch(/^Your balance now leans more toward running \(/)
     expect(items[1]).toEqual({
-      text: `Ride 20 min grade: ${from} → ${to}`,
-      spoken: `Ride 20 min grade from ${from} to ${to}`,
+      text: `Ride threshold grade: ${from} → ${to}`,
+      spoken: `Ride threshold grade from ${from} to ${to}`,
     })
   })
 
@@ -869,9 +879,9 @@ describe('whatMoved: review fixes for one added activity', () => {
   })
 })
 
-/** The grade gap of a graded result for MAN_BORN_1986; throws when it has none. */
+/** The lead the page states for a result graded for MAN_BORN_1986, from the thresholds' grades; throws when it has none. */
 function gapOf(result: AnalysisResult) {
-  const gap = gapOfHeadline(headlineGrades(result, MAN_BORN_1986))
+  const gap = standingOf(result, MAN_BORN_1986).lead
   if (gap === null) throw new Error('the result has no grade gap')
   return gap
 }
@@ -887,10 +897,13 @@ describe('whatMoved: the balance line states the figures the Balance page shows'
     const to = Math.abs(Math.round(gapOf(after).centre))
     expect(from).not.toBe(to)
     const direction = to < from ? 'less' : 'more'
+    const [a, b] = [gapOf(before), gapOf(after)]
+    // The ride's threshold range moves with its centre, so the page states both.
+    const range = `the range was ${a.low} to ${a.high} points and is now ${b.low} to ${b.high} points`
     const [first] = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')
     expect(first).toEqual({
-      text: `Your balance now leans ${direction} toward running (${from} → ${to} points)`,
-      spoken: `Your balance now leans ${direction} toward running, from ${from} to ${to} points`,
+      text: `Your balance now leans ${direction} toward running (${from} → ${to} points), and ${range}`,
+      spoken: `Your balance now leans ${direction} toward running, from ${from} to ${to} points, and ${range}`,
     })
   })
 

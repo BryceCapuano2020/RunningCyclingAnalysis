@@ -59,10 +59,8 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
           lines={[
             'Each sport is graded against its own best: a ride against the best riders’ hour, a run against the best runners’.',
             'Your grade in each is your share of world class at your age.',
-            'A ride has no published cycling standard, so its threshold is placed on the running scale at the same share of its world class.',
-            'That running pace is its running equivalent, and it is graded like a run.',
+            'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
             'So a ride grade is an estimate.',
-            'Each sport is graded at its threshold, as an hour.',
           ]}
         />
         <MethodLines
@@ -83,11 +81,9 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         />
         <MethodLines
           lines={[
-            'Each threshold is graded at your age on the day of its strongest effort.',
+            'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
             'It is not graded at the newest activity’s date.',
-            'A best effort at a duration is graded at your age on its own date.',
-            'A ride takes the date of its own best ride at that duration.',
-            'Its running equivalent comes from that ride.',
+            'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
           ]}
         />
         <p className="secondary">

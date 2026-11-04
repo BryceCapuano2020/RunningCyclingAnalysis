@@ -87,8 +87,11 @@ describe('the import summary for an athlete with a birth year, a sex and a weigh
 
     render(<App />)
 
+    // The ride's threshold range moves with its centre, so the notice states the range beside the centre.
     expect(
-      screen.getByText(/^Your balance now leans more toward running \(\d+ → \d+ points\)$/),
+      screen.getByText(
+        /^Your balance now leans more toward running \(\d+ → \d+ points\), and the range was \d+ to \d+ points and is now \d+ to \d+ points$/,
+      ),
     ).toBeInTheDocument()
   })
 

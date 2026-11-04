@@ -20,7 +20,7 @@ export function TwentyMinuteEffort() {
         The 20 min effort
       </h3>
       <p className="secondary">
-        <span className="method__line">{`Balance reads your best ${HEADLINE_LABEL} in each sport for changes and the energy view.`}</span>{' '}
+        <span className="method__line">{`Balance’s changes and energy view read your best ${HEADLINE_LABEL} in each sport.`}</span>{' '}
         <span className="method__line">
           The heart-rate check judges that effort against your{' '}
           <Definition meaning={MAX_HEART_RATE_MEANING}>max heart rate</Definition>.
