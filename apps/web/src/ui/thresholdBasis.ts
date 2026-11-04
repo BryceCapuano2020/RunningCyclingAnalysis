@@ -73,8 +73,8 @@ const HEART_RATE_SENTENCES: Record<Sport, (estimate: ThresholdEstimate) => strin
 
 /** The method in one sentence, in the sport's own words. */
 const METHOD: Record<Sport, string> = {
-  run: 'Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under an hour you ran.',
-  ride: 'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under an hour you rode.',
+  run: 'Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under a backed hour you ran.',
+  ride: 'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under a backed hour you rode.',
 }
 
 /** A sentence per fact, left out where there is none, as one text. */

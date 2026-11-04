@@ -195,7 +195,7 @@ describe('ThresholdTile', () => {
     expect(note).toHaveTextContent(
       /^Range 4:\d\d to 4:\d\d \/km\. Worked out from the strongest effort of each run/,
     )
-    expect(note).toHaveTextContent('never under an hour you ran')
+    expect(note).toHaveTextContent('never under a backed hour you ran')
     expect(note).not.toHaveTextContent(/heart rate|max heart|not used|raise/i)
   })
 
