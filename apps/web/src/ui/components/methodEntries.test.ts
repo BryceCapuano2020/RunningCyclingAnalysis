@@ -191,8 +191,15 @@ describe('How this works entries', () => {
     expect(detail).toContain(
       'The runs are averaged, with more weight on recent runs and on those near your top.',
     )
+    // Both rules the code applies (`backedHour`): a next hour within the agreement, or under the estimate's 90th percentile.
     expect(detail).toContain(
-      'A backed hour is an hour you ran or rode that a second hour within 4% of it backs.',
+      'An hour you ran or rode is backed when the next hour down is within 4% of it.',
+    )
+    expect(detail).toContain(
+      'It is also backed when it is no higher than the 90th percentile of the estimate.',
+    )
+    expect(detail).toContain(
+      'If the best hour is not backed, the second-best is tried the same way, and with neither backed there is no floor.',
     )
     expect(detail).toContain(
       'A backed hour is a floor: the answer, and the low end of its range, are never under it.',

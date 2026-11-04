@@ -164,7 +164,7 @@ describe('thresholdDetail for a ride', () => {
   const detail = (rideThreshold: ThresholdEstimate | null) =>
     thresholdDetail(resultOf(rideThreshold), 'ride', 75, 'metric')
   const METHOD =
-    'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under an hour you rode. ' +
+    'Worked out from the strongest effort of each ride, scaled to an hour and averaged, with more weight on recent rides and on those near your top, and never under a backed hour you rode. ' +
     'Heart rate can raise the answer and never lowers it.'
 
   it('gives the range, the method, and that heart rate raised the answer where it did', () => {
@@ -217,9 +217,9 @@ describe('thresholdDetail for a run', () => {
   const detail = (runThreshold: ThresholdEstimate | null) =>
     thresholdDetail(runResultOf(runThreshold), 'run', 70, 'metric')
 
-  it('gives the range and the method in a run’s words, never under an hour you ran', () => {
+  it('gives the range and the method in a run’s words, never under a backed hour you ran', () => {
     expect(detail(runEstimate())).toBe(
-      `Range 4:10 to 4:39 /km. Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under an hour you ran.`,
+      `Range 4:10 to 4:39 /km. Worked out from the strongest effort of each run, scaled to an hour and averaged, with more weight on recent runs and on those near your top, and never under a backed hour you ran.`,
     )
   })
 

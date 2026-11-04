@@ -593,8 +593,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   was not hard and the effort gate's floor reach none of these cards. The zones table says where its pace came from as a ride's power
   is said, "Threshold pace: 7:30 /mi, estimated from your runs" (and "up to Mar 2025" for an older one). The share card labels it "Threshold GAP,
   estimated from your runs", since the card has no note to say what GAP allows for, and a card is offered once both sports have an estimate.
-  The Method page's Thresholds entry gives the ride's and the run's method in one line each, says an hour you did is a floor, and gives the
-  table's figures from the code.
+  The Method page's Thresholds entry gives the ride's and the run's method in one line each, says a backed hour you did is a floor and gives both rules that back
+  an hour, and gives the table's figures from the code.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "No clear change from previous 6 weeks" when the
   move is not one the change test calls (the same verdict the curve's title reads); a sport page's list leaves that line out, since the curve's title says it once. A length the test could not judge, with too few efforts in either period, shows no change at all. It is absent for All time, and for a ride when either best's watts are
