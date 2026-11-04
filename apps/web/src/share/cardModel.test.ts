@@ -205,8 +205,8 @@ describe('buildShareCard', () => {
       ride: RIDE_GRADE,
     })
     expect(card?.heroes.map((hero) => hero.grade)).toEqual([
-      'Local · 64% on best 20 min',
-      'Recreational · 61% on best 20 min',
+      'Local · 64% at threshold',
+      'Recreational · 61% at threshold',
     ])
   })
 
@@ -215,7 +215,7 @@ describe('buildShareCard', () => {
       run: RUN_GRADE,
       ride: null,
     })
-    expect(card?.heroes.map((hero) => hero.grade)).toEqual(['Local · 64% on best 20 min', null])
+    expect(card?.heroes.map((hero) => hero.grade)).toEqual(['Local · 64% at threshold', null])
   })
 
   it('carries the balance as a magnitude line in points, with its range', () => {
@@ -258,8 +258,8 @@ describe('buildShareCard', () => {
     it('gives each hero its grade line and the card the graded footnote, with the meter as the balance', () => {
       const card = graded()
       expect(card?.heroes.map((hero) => hero.grade)).toEqual([
-        'Local · 64% on best 20 min',
-        'Recreational · 61% on best 20 min',
+        'Local · 64% at threshold',
+        'Recreational · 61% at threshold',
       ])
       expect(card?.meter).toEqual(gapReading(gap))
       expect(card?.footnote).toBe(GRADED_FOOTNOTE)
@@ -271,7 +271,7 @@ describe('buildShareCard', () => {
         ride: null,
       })
       expect(card?.magnitude).toBe(leadSentence(gapReading(gap)))
-      expect(card?.heroes[0]?.grade).toBe('Local · 64% on best 20 min')
+      expect(card?.heroes[0]?.grade).toBe('Local · 64% at threshold')
       expect(card?.heroes[1]?.grade).toBeNull()
     })
   })

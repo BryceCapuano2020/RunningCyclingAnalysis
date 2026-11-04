@@ -179,7 +179,7 @@ describe('a ride whose range crosses a level', () => {
       const { ok, ctx } = render(crossing(), format)
       expect(ok).toBe(true)
       const lines = ctx.texts.filter((text) => CROSSING.includes(text.text) && text.text !== '')
-      expect(CROSSING).toBe('Recreational · 61% on best 20 min')
+      expect(CROSSING).toBe('Recreational · 61% at threshold')
       expect(lines.map((line) => line.text).join(' ')).toContain('Recreational · 61%')
       expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
       for (const text of ctx.texts) {

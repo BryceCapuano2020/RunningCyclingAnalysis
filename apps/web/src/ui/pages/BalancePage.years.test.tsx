@@ -78,7 +78,10 @@ describe('the Balance over the years on the home page', () => {
     expect(follows(screen.getByRole('heading', { name: 'Your ride as a run' }))).toBeTruthy()
     // Nothing else drawn on the page comes between the tiles and the chart.
     const tiles = container.querySelector('.balance-tiles')
-    expect(tiles?.nextElementSibling?.contains(years)).toBe(true)
+    // The standards line that sits under the cards it grades is the only thing between them and the chart.
+    const next = tiles?.nextElementSibling
+    const after = next?.classList.contains('balance__source') ? next.nextElementSibling : next
+    expect(after?.contains(years)).toBe(true)
   })
 
   it('is left out without a year with a best 20 minutes, with nothing said in its place', () => {

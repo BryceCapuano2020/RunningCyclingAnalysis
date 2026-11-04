@@ -88,7 +88,7 @@ export function BalanceTiles({
             result={result}
             units={units}
             weighted={weighted}
-            period={period}
+            massKg={massKg}
           />,
         ]
       : []),

@@ -5,7 +5,7 @@ import type { Sport } from '@rca/core/types'
 import { SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
 import { gapOfHeadline } from './balanceGap'
 import { profileOf } from './durationProfile'
-import { headlineGrades } from './grades'
+import { thresholdGrades } from './thresholdGrade'
 import { LANDING_EXAMPLE } from './landingExample'
 import { headlineEffort, sportRecords } from './records'
 import { sampleProfileAt } from './sampleAthlete'
@@ -101,7 +101,7 @@ describe('the sample gives one result on every day of a week, and in every week'
     const state = new AnalysisSession().loadSample(SETTINGS, clock)
     const result = state.result!
     const newest = state.library[0]!.startMs
-    const grades = headlineGrades(result, sampleProfileAt(newest))
+    const grades = thresholdGrades(result, sampleProfileAt(newest))
     const run = state.fitness.run
     return {
       newestYear: new Date(newest).getUTCFullYear(),

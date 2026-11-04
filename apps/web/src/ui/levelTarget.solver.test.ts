@@ -1,8 +1,14 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { PRIORS } from '@rca/core/constants'
+import { HOUR_S } from '@rca/core/threshold'
 import { ageGradeForEffort } from '@rca/core/grade'
 import { describe, expect, it } from 'vitest'
-import { curvePoint } from './charts/fixtures'
-import { flatWkg, makeActivity, makeResult } from './components/fixtures'
+import {
+  flatWkg,
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from './components/fixtures'
 import { levelTarget, levelledNative, nativeAtGrade } from './levelTarget'
 
 const ATHLETE = { age: 37, sex: 'male', massKg: 75, calibration: makeResult().hr } as const
@@ -13,8 +19,8 @@ describe('the run solver', () => {
   it('finds the run speed that grades at the target to within a hundred-thousandth', () => {
     let worst = 0
     for (let whole = 50; whole <= 80; whole++) {
-      const speed = nativeAtGrade('run', whole / 100, HEADLINE_DURATION_S, ATHLETE)!
-      const grade = ageGradeForEffort(speed, HEADLINE_DURATION_S, ATHLETE.age, ATHLETE.sex)!
+      const speed = nativeAtGrade('run', whole / 100, HOUR_S, ATHLETE)!
+      const grade = ageGradeForEffort(speed, HOUR_S, ATHLETE.age, ATHLETE.sex)!
       worst = Math.max(worst, Math.abs(grade - whole / 100))
     }
     expect(worst).toBeLessThan(1e-5)
@@ -35,8 +41,8 @@ describe('levelTarget for a run that is already at the levelled pace', () => {
       makeActivity({ id: 'run-1', sport: 'run' }),
       makeActivity({ id: 'ride-1', sport: 'ride' }),
     ],
-    runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.0), 'run-1')],
-    rideCurve: [curvePoint(HEADLINE_DURATION_S, 320, 'ride-1')],
+    runThreshold: makeRunThreshold(flatWkg(3.0)),
+    rideThreshold: makeRideThreshold(320 / (PRIORS.grossEfficiency.mean * 75)),
   })
   const input = {
     result,
@@ -50,15 +56,14 @@ describe('levelTarget for a run that is already at the levelled pace', () => {
 
   it('names a target for a slower run, and none once the run shows the levelled pace', () => {
     expect(levelTarget(input)).not.toBeNull()
-    const speed = levelledNative(
-      'run',
-      nativeAtGrade('run', 0.67, HEADLINE_DURATION_S, ATHLETE)!,
-      'metric',
-      { wholePercent: 67, durationS: HEADLINE_DURATION_S, athlete: ATHLETE },
-    )
+    const speed = levelledNative('run', nativeAtGrade('run', 0.67, HOUR_S, ATHLETE)!, 'metric', {
+      wholePercent: 67,
+      durationS: HOUR_S,
+      athlete: ATHLETE,
+    })
     const level = makeResult({
       ...result,
-      runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(speed), 'run-1')],
+      runThreshold: makeRunThreshold(flatWkg(speed)),
     })
     expect(levelTarget({ ...input, result: level })).toBeNull()
   })

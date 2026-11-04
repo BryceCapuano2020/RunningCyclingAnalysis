@@ -1,19 +1,18 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ageGradeForEffort, gradeCeiling } from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { HOUR_S } from '@rca/core/threshold'
 import type { HrCalibration, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { PACE_UNIT, formatClock, formatWatts, paceSeconds } from '@rca/core/units'
 import type { Lean } from '../domain/lean'
-import { HEADLINE_LABEL, type GradeOutcome } from './grades'
-import { activityMasses } from './activityMasses'
+import type { GradeOutcome } from './grades'
 import { wholeGrade } from './gradeFormat'
 import { nativeRangeAtGrade } from './levelSolver'
 import type { NativeRange, TargetAthlete } from './levelSolver'
-import { curveOf, valueAt } from './records'
 import { SPORT_FORMAT } from './sports'
+import { thresholdEstimate } from './thresholdEstimate'
+import { thresholdNative } from './thresholdLine'
 
 export { nativeAtGrade, nativeRangeAtGrade } from './levelSolver'
 export type { NativeRange, TargetAthlete } from './levelSolver'
@@ -30,28 +29,6 @@ function ceilTo(value: number, step: number): number {
 function floorTo(value: number, step: number): number {
   return Math.floor(value / step) * step
 }
-
-/**
- * A best effort's own figure from its curve value. A run's curve holds gross metabolic W/kg, read as
- * its flat speed; a ride's curve already holds watts.
- */
-const OWN_OF_CURVE: Record<Sport, (value: number) => number> = {
-  run: (value) => metabolicToFlatSpeed(value),
-  ride: (watts) => watts,
-}
-
-/**
- * A sport's own number for the best effort, as it would read at today's mass. A ride's watts were held
- * at the body mass on its day, and the target is worked out at today's, so the two are compared at
- * the same power-to-weight. Without dated masses the two masses are one, and a run has no mass.
- */
-const AT_TODAYS_MASS: Record<Sport, (own: number, rideKg: number, todayKg: number) => number> = {
-  run: (speed) => speed,
-  ride: (watts, rideKg, todayKg) => (watts * todayKg) / rideKg,
-}
-
-/** Whether a sport's own number depends on body mass: a ride's watts do, a run's pace does not. */
-const MASS_DEPENDENT: Record<Sport, boolean> = { run: false, ride: true }
 
 /**
  * What a rounded target has to reach: the higher sport's whole-percent grade, over the headline duration, for the
@@ -125,17 +102,17 @@ export function levelledNative(
 
 /**
  * The levelled target as the words a sentence uses: a pace, or watts with the range the ride's estimate carries,
- * then the length of the effort: "285 W for 20 min (240 to 330)".
+ * then what it is the figure of, the sport's threshold: "285 W threshold (240 to 330)".
  */
 const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, units: UnitSystem) => string> = {
   run: (levelled, units) =>
-    `${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} for ${HEADLINE_LABEL}`,
+    `${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} threshold`,
   ride: (levelled) => {
     const range =
       levelled.low === levelled.high
         ? ''
         : ` (${formatWatts(levelled.low)} to ${formatWatts(levelled.high)})`
-    return `${formatWatts(levelled.centre)} W for ${HEADLINE_LABEL}${range}`
+    return `${formatWatts(levelled.centre)} W threshold${range}`
   },
 }
 
@@ -143,8 +120,8 @@ const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, units: UnitSystem) => st
 const MATCH_ON: Record<Sport, string> = { run: 'on the run', ride: 'on the bike' }
 
 /**
- * Whether the levelled centre is strictly beyond the figure the page shows for the lower sport's best
- * effort: more whole watts, or a faster whole second of pace. Compared on the shown figures, so a
+ * Whether the levelled centre is strictly beyond the figure the page shows for the lower sport's
+ * threshold: more whole watts, or a faster whole second of pace. Compared on the shown figures, so a
  * target that reads the same as the figure on screen is not a change to name.
  */
 const BEYOND_SHOWN: Record<Sport, (levelled: number, now: number, units: UnitSystem) => boolean> = {
@@ -167,7 +144,7 @@ const RANGE_TEXT: Record<Sport, (levelled: NativeRange) => string> = {
 
 /**
  * The grade the inverse is worked out at, for the lower sport: a run's is the higher grade exactly, so the pace is the one the
- * Your ride as a run tile names for the same effort (that tile's pace is what the ride's grade is read from); a ride's is the whole
+ * run threshold card names for the same grade (that pace is what the run's grade is read from); a ride's is the whole
  * percent, since its watts are named up to the next 5 W and a whole percent is all the page says of the run.
  */
 const INVERSE_GRADE: Record<Sport, (exact: number, whole: number) => number> = {
@@ -214,15 +191,15 @@ export interface LevelTarget {
   centre: string
   /** A ride's range as text, "245 to 295 W"; null for a run, which has one pace. */
   range: string | null
-  /** The figure the page shows for the lower sport's best effort, with today's weight beside it when it differs. */
+  /** The figure the page shows for the lower sport's threshold. */
   now: string
   /** The target's sentence, as the page words it. */
   sentence: string
 }
 
 /**
- * The lower sport's best effort at the headline duration, as what it would need to grade level with the
- * higher sport's whole-percent grade: rounded toward the levelling side, and for a ride with the range its
+ * The lower sport's threshold, as what it would need to grade level with the higher sport's whole-percent grade
+ * (both graded as an hour): rounded toward the levelling side, and for a ride with the range its
  * estimate carries. Null when the balance is even, when either grade is not on screen, when the target is above
  * 100% or at the ceiling of what a runner of this age and sex has run, or when the levelled centre is not strictly
  * beyond the figure the page already shows.
@@ -240,35 +217,26 @@ export function levelTarget(input: LevelTargetInput): LevelTarget | null {
   const athlete = { age: lowerGrade.age, sex, massKg, calibration }
   // A grade above 100% is not a level anyone can be asked to reach, and neither is a figure the lower sport
   // would itself be flagged at: the same ceiling that holds a ride's grade down holds the target down.
-  const ceiling = gradeCeiling(HEADLINE_DURATION_S, athlete.age, sex)
+  const ceiling = gradeCeiling(HOUR_S, athlete.age, sex)
   if (target > 1 || (ceiling !== null && beyondCeiling(lower, target, ceiling))) return null
   const needed = nativeRangeAtGrade(
     lower,
     INVERSE_GRADE[lower](higherGrade.grade.centre.grade, target),
-    HEADLINE_DURATION_S,
+    HOUR_S,
     athlete,
   )
-  const curve = curveOf(result, lower)
-  const shown = OWN_OF_CURVE[lower](valueAt(curve, HEADLINE_DURATION_S))
-  // A ride held at another weight is compared at today's, as the target is; every other effort is as shown.
-  const rideKg = activityMasses(result.activities)[
-    curve.find((p) => p.durationS === HEADLINE_DURATION_S)?.activityId ?? ''
-  ]
-  const reweighted = MASS_DEPENDENT[lower] && rideKg !== undefined && rideKg !== massKg
-  const now = reweighted ? AT_TODAYS_MASS[lower](shown, rideKg, massKg) : shown
+  // The lower sport's threshold, in its own unit: a ride's at today's mass, as the target is.
+  const estimate = thresholdEstimate(result, lower)
+  const now = estimate === null ? Number.NaN : thresholdNative(lower, estimate.value, massKg)
   if (needed === null || !Number.isFinite(now)) return null
   const reach = {
     wholePercent: wholeGrade(higherGrade.grade.centre.grade),
-    durationS: HEADLINE_DURATION_S,
+    durationS: HOUR_S,
     athlete,
   }
   const levelled = levelledRange(lower, needed, units, reach)
   if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null
-  // The figure the page shows for the ride stays the one named, with today's weight beside it when it differs.
-  const shownText = SPORT_FORMAT[lower].formatted(shown, units)
-  const nowText = reweighted
-    ? `${shownText}, ${SPORT_FORMAT[lower].formatted(now, units)} at today’s weight`
-    : shownText
+  const nowText = SPORT_FORMAT[lower].formatted(now, units)
   const sentence = `To match it ${MATCH_ON[lower]}: ${SHOWN_TEXT[lower](levelled, units)}. You’re at ${nowText}.`
   return {
     higher,

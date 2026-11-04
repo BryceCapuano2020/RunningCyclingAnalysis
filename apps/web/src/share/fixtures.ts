@@ -161,12 +161,12 @@ export function draw(model: ShareCardModel, format: CardFormat = 'square'): Fake
 /** The magnitude line the card states under its headline: the grade gap in points, with its range. */
 export const MAGNITUDE = 'Running grades 6 points higher (2 to 10)'
 /** A run's level line, and a ride's, as the grade line writes them. */
-export const RUN_GRADE = `Local · 64% on best ${HEADLINE_LABEL}`
-export const RIDE_GRADE = `Estimated · Recreational · 61% on best ${HEADLINE_LABEL}`
+export const RUN_GRADE = `Local · 64% at threshold`
+export const RIDE_GRADE = `Estimated · Recreational · 61% at threshold`
 /** A magnitude and a grade line long enough to take two lines, as a long range or name would. */
 export const LONG_MAGNITUDE =
   'Running grades 16 points higher, with a range from 4 to 28 points that depends on the heart-rate check and the population model'
-export const LONG_GRADE = `Estimated · 61% (55 to 67) on best ${HEADLINE_LABEL}, with the model range set by the standards`
+export const LONG_GRADE = `Estimated · 61% (55 to 67) at threshold, with the model range set by the standards`
 
 /** A card with a meter, both estimates and their levels, a magnitude, a period, a caveat, a footnote and an origin. */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {

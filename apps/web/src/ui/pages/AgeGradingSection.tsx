@@ -3,7 +3,7 @@ import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { SECTION_ID } from '../components/methodTopics'
-import { HEADLINE_LABEL, LEVEL_BANDS, SEX_NOUN } from '../grades'
+import { LEVEL_BANDS, SEX_NOUN } from '../grades'
 import { hrefFor } from '../route'
 import './AgeGradingSection.css'
 
@@ -58,16 +58,16 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         <MethodLines
           lines={[
             'A ride has no published cycling standard.',
-            'Its best effort is converted to a running equivalent.',
-            'That is the flat running speed that costs the same energy over the same time.',
+            'Its threshold is converted to a running equivalent.',
+            'That is the flat running speed that costs the same energy for the same hour.',
             'The equivalent is graded like a run.',
             'So a ride grade is an estimate.',
-            `The grades of each sport’s best ${HEADLINE_LABEL} give the balance.`,
+            'Each sport is graded at its threshold, as an hour.',
           ]}
         />
         <MethodLines
           lines={[
-            'The level target on Balance is what the lower sport’s best effort would need to be to match the other.',
+            'The level target on Balance is what the lower sport’s threshold would need to be to match the other.',
             'It is in that sport’s own unit.',
             'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
             'Its range is the 5th to 95th percentile of the equivalence.',
@@ -85,7 +85,6 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
           lines={[
             'Each effort is graded at your age on its own date.',
             'It is not graded at the newest activity’s date.',
-            'Age changes across a period, so the date matters.',
             'A run takes the date of its best effort at that duration.',
             'A ride takes the date of its own best ride at that duration.',
             'Its running equivalent comes from that ride.',

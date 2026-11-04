@@ -62,8 +62,8 @@ describe('AgeGradingSection', () => {
 
     for (const line of [
       'A ride has no published cycling standard.',
-      'Its best effort is converted to a running equivalent.',
-      'That is the flat running speed that costs the same energy over the same time.',
+      'Its threshold is converted to a running equivalent.',
+      'That is the flat running speed that costs the same energy for the same hour.',
       'The equivalent is graded like a run.',
       'So a ride grade is an estimate.',
     ]) {
@@ -196,7 +196,7 @@ describe('AgeGradingSection level target', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     for (const line of [
-      'The level target on Balance is what the lower sport’s best effort would need to be to match the other.',
+      'The level target on Balance is what the lower sport’s threshold would need to be to match the other.',
       'It is in that sport’s own unit.',
       'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
       'Its range is the 5th to 95th percentile of the equivalence.',
@@ -211,7 +211,9 @@ describe('AgeGradingSection balance', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText('The grades of each sport’s best 20 min give the balance.'),
+      within(section()).getByText(
+        'Each sport is graded at its threshold, as an hour.',
+      ),
     ).toBeInTheDocument()
   })
 })

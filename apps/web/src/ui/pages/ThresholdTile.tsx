@@ -4,7 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
-import { CHIP_DURATIONS_S, headlineEffort, sportRecords, threshold } from '../records'
+import { threshold } from '../records'
 import { SPORT_LABEL, THRESHOLD_MEANING } from '../sports'
 import { thresholdBasisLine, thresholdDetail } from '../thresholdBasis'
 import { thresholdNeedsLine } from '../thresholdNeeds'
@@ -17,7 +17,7 @@ export interface ThresholdTileProps {
   result: AnalysisResult
   units: UnitSystem
   massKg: number
-  /** The sport's grade at the headline duration; null while the year of birth or sex is missing. */
+  /** The sport's grade at its threshold; null while the year of birth or sex is missing. */
   grade: GradeOutcome | null
   /** False while no body weight is entered; a ride's figures then wait for it. */
   weighted: boolean
@@ -43,7 +43,7 @@ const DEFINED: Record<Sport, { term: string; meaning: string }> = {
 
 /**
  * A sport's threshold as a tile: the figure at display size, the line that says what it rests on, and how it was worked out
- * one tap down; the tile gives the level its best 20 minutes grades at. It is one number for a run as for a ride, with no chip
+ * one tap down; the tile gives the level the threshold grades at. It is one number for a run as for a ride, with no chip
  * and no range shape: a threshold is an estimate by its name, and its range is in the detail. A sport with no effort its
  * estimate reads (3 min for a ride, 8 for a run) says what it needs. A ride's figures wait for the weight, which the tile says in its place.
  */
@@ -74,10 +74,7 @@ export function ThresholdTile({
     )
   }
   const hero = threshold(result, sport, massKg, units)
-  const records = sportRecords(result, sport, massKg, units).filter((record) =>
-    CHIP_DURATIONS_S.includes(record.durationS),
-  )
-  const line = gradeLine(sport, grade, headlineEffort(sport, records), levelShown)
+  const line = gradeLine(sport, grade, levelShown, hero !== null)
   if (hero === null) {
     if (needInHeadline && line === null) return null
     return (

@@ -19,7 +19,6 @@ const sheets = {
   dropzone: await readStylesheet(import.meta.url, './Dropzone.css'),
   exportGuides: await readStylesheet(import.meta.url, './ExportGuides.css'),
   sportRecords: await readStylesheet(import.meta.url, './SportRecords.css'),
-  crossSportCard: await readStylesheet(import.meta.url, '../pages/CrossSportCard.css'),
 }
 
 /** The control height the tokens give a desktop pointer, which is the shared token's default. */
@@ -76,7 +75,6 @@ describe('the shared control height', () => {
     ['header tab', sheets.header, '.header__tab'],
     ['header profile link', sheets.header, '.header__profile'],
     ['link arrow', sheets.app, '.link-arrow'],
-    ['cross-sport link', sheets.crossSportCard, '.cross-sport__link'],
     ['file retention choice', sheets.app, '.file-retention__choice'],
     ['number field input', sheets.numberField, '.number-field__input input'],
     ['activity page back link', sheets.activityPage, '.activity-page__back'],

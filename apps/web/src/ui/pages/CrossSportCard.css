@@ -1,12 +1,3 @@
-/* The link to the activity stands on a line of its own, so it is a control's height tall (40 px, 44 on a finger). */
-.cross-sport__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
-}
-
 .cross-sport__details {
   min-width: 0;
 }

@@ -306,6 +306,19 @@ tilt 60% within 5% (80% when always all-out); strides moving the median by under
 and the estimate from 3 min at least 5 points higher with them and over 3% high; and never all-out between 8% and 14% low with
 under 2% within 5%. Seeds 11 to 14 agree within 3 points on every cell.
 
+## Grading a threshold
+
+Each sport's age grade on the current-period surfaces (Balance's lean, levels, tiles and level target, the sport pages' level panel, the share
+card) is its threshold graded as an effort of an hour, so the lean, the cards and "Your ride as a run" agree (`apps/web/src/ui/thresholdGrade.ts`).
+A run's threshold pace, the flat speed of `runThreshold.value`, goes through `gradeAtSpeed` at 3600 s and has no range of its own. A ride's goes
+through its running equivalent at 3600 s, `AnalysisResult.rideThresholdRunSpeed` (`thresholdRunSpeed`, built in `combine` from the same equivalence
+as `equivalents`): `p50` is the estimate, `p05` its low through the equivalence's 5th percentile and `p95` its high through the 95th, so the ride's
+range holds both what the efforts leave open and what the efficiency priors leave open. `rideGradeFromSpeeds` reads it as it reads a ride best, with the
+same ceiling. The age is the age on the day of `efforts.strongest.activityId`. "Your ride as a run" prints the same `p50` as a pace, so where the
+grades lean toward running it is slower than the run threshold, and where they lean toward cycling, faster (the replica's `lean-vs-cards` rule).
+A sport with no threshold has the threshold's own needs text in place of a grade. Still read from a best 20 min: grade by duration, the
+best-effort rows and records, History's years, "What changed" and the findings.
+
 ## Interface
 
 ```ts

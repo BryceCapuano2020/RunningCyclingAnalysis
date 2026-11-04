@@ -1,12 +1,16 @@
-import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
+import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { RejectedFile } from '@rca/core/session'
 import { countFlags } from '@rca/core/digest'
+import { ageGradeForEffort } from '@rca/core/grade'
+import { metabolicToFlatSpeed } from '@rca/core/metabolic'
+import { HOUR_S } from '@rca/core/threshold'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
 import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
+import { nativeAtGrade } from '../levelSolver'
 
 export function interval(p05: number, p50: number, p95: number): Interval {
   return { p05, p50, p95 }
@@ -113,14 +117,60 @@ const DEFAULT_RIDE_CP = { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 
 const DEFAULT_RUN_CP = { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 }
 
 /**
+ * The ride threshold as a running speed, for a fixture: the 20 min equivalence's when the result has one (so a test that
+ * sets a ride through its equivalents grades that ride), else the flat speed of the threshold's own W/kg, with the range of its
+ * low and high widened a tenth either way as the equivalence widens it.
+ */
+/**
+ * The speed that grades as an hour what a 20 min effort at speedMs grades as, for the man of 40 the fixtures use: how a fixture's
+ * best 20 min stands for a threshold, so a test that sets a graded run or ride through its 20 min bests keeps that grade.
+ */
+function hourSpeedOf(speedMs: number): number {
+  const grade = ageGradeForEffort(speedMs, HEADLINE_DURATION_S, 40, 'male')
+  const athlete = { age: 40, sex: 'male', massKg: 75, calibration: null } as const
+  return (grade === null ? null : nativeAtGrade('run', grade, HOUR_S, athlete)) ?? speedMs
+}
+
+function rideSpeedOf(
+  threshold: ThresholdEstimate | null,
+  equivalents: readonly Equivalence[],
+): Interval | null {
+  if (threshold === null) return null
+  const at = equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
+  if (at !== undefined) {
+    const { p05, p50, p95 } = at.runSpeed
+    return { p05: hourSpeedOf(p05), p50: hourSpeedOf(p50), p95: hourSpeedOf(p95) }
+  }
+  const flat = (wkg: number) => Math.max(0, (wkg - RESTING_W_PER_KG) / FLAT_RUN_COST)
+  return {
+    p05: flat(threshold.low) * 0.9,
+    p50: flat(threshold.value),
+    p95: flat(threshold.high) * 1.1,
+  }
+}
+
+/**
  * A complete result with a run and a ride and a 1200 s comparison, so every card has data. A fit given or left out
  * carries a matching threshold estimate, since the cards read the estimate: give `rideThreshold` or `runThreshold` to set it
- * on its own.
+ * on its own. A run given a best 20 min (and no fit) reads it as its threshold, and a ride's threshold as a running speed follows its 20 min
+ * equivalence, so a test that builds a graded run or ride through its bests still gets that grade; give `runThreshold` or
+ * `rideThresholdRunSpeed` to set them on their own.
  */
 export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   const comparison: Comparison = { prior: [comparisonPoint()], calibrated: null }
   const rideCp = overrides.rideCp === undefined ? DEFAULT_RIDE_CP : overrides.rideCp
   const runCp = overrides.runCp === undefined ? DEFAULT_RUN_CP : overrides.runCp
+  // A fit given sets the threshold as it always did; only a result left to its defaults reads its best 20 min as the threshold.
+  const best20 =
+    overrides.runCp === undefined
+      ? overrides.runCurve?.find((point) => point.durationS === HEADLINE_DURATION_S)
+      : undefined
+  const rideThreshold =
+    overrides.rideThreshold !== undefined
+      ? overrides.rideThreshold
+      : rideCp === null
+        ? null
+        : makeRideThreshold(rideCp.cp)
   return {
     // Three of each, so the headline's rule of enough activities in the period is met.
     activities: [
@@ -137,8 +187,16 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     rideMeasuredCurve: [],
     runCp: DEFAULT_RUN_CP,
     rideCp: DEFAULT_RIDE_CP,
-    runThreshold: runCp === null ? null : makeRunThreshold(runCp.cp),
-    rideThreshold: rideCp === null ? null : makeRideThreshold(rideCp.cp),
+    runThreshold:
+      runCp === null
+        ? null
+        : makeRunThreshold(
+            best20 === undefined
+              ? runCp.cp
+              : flatWkg(hourSpeedOf(metabolicToFlatSpeed(best20.value))),
+          ),
+    rideThreshold,
+    rideThresholdRunSpeed: rideSpeedOf(rideThreshold, overrides.equivalents ?? []),
     runCpRefusal: null,
     rideCpRefusal: null,
     runCpUneven: null,

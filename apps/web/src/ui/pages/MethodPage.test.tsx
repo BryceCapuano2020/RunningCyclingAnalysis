@@ -800,7 +800,7 @@ describe('MethodPage heart-rate check', () => {
     const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 min effort' })
     expect(heading).toHaveAttribute('id', TWENTY_MINUTE_ID)
     expect(
-      within(section).getByText(/^Balance uses your best 20 min in each sport\./),
+      within(section).getByText(/^Balance reads your best 20 min in each sport/),
     ).toBeInTheDocument()
   })
 
@@ -1074,6 +1074,7 @@ describe('MethodPage without a weight', () => {
   it('with no weight, takes the sex from a run grade only, never from a ride grade on the placeholder', () => {
     renderPage(
       makeResult({
+        runThreshold: null,
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')],
         equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
       }),
@@ -1088,6 +1089,7 @@ describe('MethodPage without a weight', () => {
   it('with a weight, takes the sex from a ride grade when only a ride is graded', () => {
     renderPage(
       makeResult({
+        runThreshold: null,
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')],
         equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
       }),

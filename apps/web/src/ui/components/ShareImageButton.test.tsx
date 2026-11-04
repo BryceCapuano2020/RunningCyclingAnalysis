@@ -521,7 +521,7 @@ describe('ShareImageButton', () => {
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         heroes: [
-          expect.objectContaining({ sport: 'run', grade: 'Local · 64% on best 20 min' }),
+          expect.objectContaining({ sport: 'run', grade: 'Local · 64% at threshold' }),
           expect.objectContaining({ sport: 'ride', grade: null }),
         ],
       }),

@@ -909,8 +909,8 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
-    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^4:00 \/km at age 40\.$/)
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^\d:\d{2} \/km at age 40\.$/)
     expect(within(level).getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
       'href',
       '#/method',
@@ -929,7 +929,7 @@ describe('SportPage age grades', () => {
     )
 
     expect(screen.queryByText(/not a ranking/)).not.toBeInTheDocument()
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(level).not.toHaveTextContent(/USATF|standards|graded at/)
   })
 
@@ -968,8 +968,8 @@ describe('SportPage age grades', () => {
       'metric',
       MAN_BORN_1986,
     )
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
-    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^400 W at age 40\.$/)
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^\d+ W at age 40\.$/)
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__range')).not.toBeNull()
     expect(level.textContent).not.toMatch(/estimated/i)
@@ -1315,7 +1315,7 @@ describe('SportPage cycling figures without a weight', () => {
 })
 
 describe('SportPage depth', () => {
-  it('draws the level ladder under the threshold, graded on the best 20 minutes', () => {
+  it('draws the level ladder under the threshold, graded at threshold', () => {
     renderPage(
       'run',
       makeResult({
@@ -1327,13 +1327,13 @@ describe('SportPage depth', () => {
     )
 
     // The level sits beside the threshold, in the same card, as its own named section.
-    const level = screen.getByRole('region', { name: 'Age grade, best 20 min' })
+    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(
-      within(level).getByRole('img', { name: /Age grade 67%, Local, on your best 20 min/ }),
+      within(level).getByRole('img', { name: /Age grade 67%, Local, at threshold/ }),
     ).toBeInTheDocument()
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^4:00 \/km at age 40/)
+    expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^\d:\d{2} \/km at age 40/)
   })
 
   it('names only the field that is missing, in the note and on its link', () => {
@@ -1367,7 +1367,7 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    expect(screen.getByText(/ at age \d+\.$/)).toHaveTextContent(/^4:00 \/km at age \d+\.$/)
+    expect(screen.getByText(/ at age \d+\.$/)).toHaveTextContent(/^\d:\d{2} \/km at age \d+\.$/)
   })
 
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {

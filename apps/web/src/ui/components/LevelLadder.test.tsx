@@ -23,7 +23,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={RUN} />)
     expect(
       screen.getByRole('img', {
-        name: 'Age grade 67%, Local, on your best 20 min, on the USATF road standards.',
+        name: 'Age grade 67%, Local, at threshold, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -32,7 +32,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67%, Local, on your best 20 min, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, at threshold, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -41,7 +41,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />)
     expect(
       screen.getByRole('img', {
-        name: 'Age grade 25%, Recreational, on your best 20 min, below the 30% to 100% scale, on the USATF road standards.',
+        name: 'Age grade 25%, Recreational, at threshold, below the 30% to 100% scale, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })

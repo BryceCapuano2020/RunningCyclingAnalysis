@@ -1,3 +1,6 @@
+import { PRIORS } from '../constants'
+import { metabolicToRidePower } from '../metabolic'
+import type { ThresholdEstimate } from '../threshold'
 import type { Curve, Interval } from '../types'
 
 export interface Equivalence {
@@ -36,4 +39,26 @@ export function equivalentsOf(
     }
   }
   return equivalents
+}
+
+/**
+ * The ride threshold as a flat running speed, m/s, the pace the same hour of riding costs a runner: the estimate through the
+ * ride equivalence (`equivalence`, the one `equivalentsOf` reads, so the heart-rate weights are the same). `p50` is the
+ * estimate's, `p05` its low through the equivalence's 5th percentile and `p95` its high through the 95th, so the ends carry both
+ * what the efforts leave open and what the efficiency priors leave open. The threshold is in gross metabolic W/kg at the prior-mean
+ * efficiency; it is priced at massKg, today's, which cancels in the equivalence. Null without a threshold.
+ */
+export function thresholdRunSpeed(
+  equivalence: (ridePowerW: number, massKg: number) => Interval,
+  threshold: ThresholdEstimate | null,
+  massKg: number,
+): Interval | null {
+  if (threshold === null) return null
+  const through = (wkg: number) =>
+    equivalence(metabolicToRidePower(wkg, massKg, PRIORS.grossEfficiency.mean), massKg)
+  return {
+    p05: through(threshold.low).p05,
+    p50: through(threshold.value).p50,
+    p95: through(threshold.high).p95,
+  }
 }

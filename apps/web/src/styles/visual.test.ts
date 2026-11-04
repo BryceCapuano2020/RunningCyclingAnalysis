@@ -441,9 +441,9 @@ describe('shared layout', () => {
     expect(tokens).toMatch(/--column-landing:\s*360px/)
   })
 
-  it('wraps a long activity name in the ride on foot tile, so the page does not widen', () => {
+  it('lets the ride on foot tile shrink, so the page does not widen', () => {
     expect(rulesWith(statTile, '.stat-tile')).toMatch(/min-width:\s*0/)
-    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(rulesWith(crossSport, '.cross-sport__details')).toMatch(/min-width:\s*0/)
   })
 })
 
@@ -525,18 +525,11 @@ describe('balance hero, meter and evidence', () => {
     }
   })
 
-  it('gives the held note’s Profile link and the Set on link the control height on a phone', () => {
+  it('gives the held note’s Profile link the control height on a phone', () => {
     const phone = '(max-width: 760px), (pointer: coarse)'
     expect(mediaOf(weightNote, phone)).toMatch(
       /\.weight-note__link \{[^}]*min-height:\s*var\(--control-height\)/,
     )
-    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(
-      /min-height:\s*var\(--control-height\)/,
-    )
-  })
-
-  it('sets the Set on link at the small size of the tile’s text, so it reads as part of it', () => {
-    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/font-size:\s*var\(--text-sm\)/)
   })
 
   it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {

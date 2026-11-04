@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
-import { HEADLINE_LABEL, LEVEL_BANDS, gradeLevelText } from '../grades'
+import { LEVEL_BANDS, gradeLevelText } from '../grades'
 import type { SportGrade } from '../grades'
 import { formatGrade } from '../gradeFormat'
 import { SPORT_FORMAT } from '../sports'
@@ -91,7 +91,7 @@ function beyondScale(grade: SportGrade): 'below' | 'above' | null {
 /** What a screen reader hears: the grade, its level, its range or single activity, and the scale. */
 function ladderLabel(sport: Sport, grade: SportGrade): string {
   const { centre, range } = grade
-  const effort = `on your best ${HEADLINE_LABEL}`
+  const effort = 'at threshold'
   const basis = range
     ? `${effort}, range ${formatGrade(range.low.grade)} to ${formatGrade(range.high.grade)}`
     : effort

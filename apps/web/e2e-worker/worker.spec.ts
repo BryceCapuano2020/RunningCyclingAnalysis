@@ -32,7 +32,7 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
   // The meter is named by the balance in words, each sport's level is a line with its grade, and the ride as a
-  // run is a tile with its pace and the ride behind it.
+  // run is a tile with its pace and the ride threshold behind it.
   await expect(
     page.getByRole('img', { name: /^Cycling grades \d+ points? higher than running/ }),
   ).toBeVisible()
@@ -40,7 +40,7 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await expect(page.locator('.balance-levels__row').first()).toContainText(/\d+%/)
   const onFoot = page.getByRole('article', { name: 'Your ride as a run' })
   await expect(onFoot.locator('.stat-tile__number')).toHaveText(/^\d+:\d{2}$/)
-  await expect(onFoot.getByRole('link', { name: /^Set on / })).toBeVisible()
+  await expect(onFoot.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
   await page.getByRole('button', { name: 'Share image' }).click()
   const sheet = page.getByRole('dialog', { name: 'Share image' })
   await expect(sheet).toBeVisible()

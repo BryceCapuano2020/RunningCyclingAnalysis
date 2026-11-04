@@ -14,6 +14,11 @@ const NATIVE: Record<Sport, Native> = {
   ride: (cp, massKg) => metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
 }
 
+/** A sport's threshold in its own number (m/s for a run, watts at massKg for a ride), as the curve chart and the level target read it. */
+export function thresholdNative(sport: Sport, metabolicWkg: number, massKg: number): number {
+  return NATIVE[sport](metabolicWkg, massKg)
+}
+
 /**
  * The sport's threshold as the curve chart draws it: the estimate in the curve's own number, and its 10th to 90th percentile as
  * the band, from the same number the answer's figure reads, so the line and the figure agree. The line is named as an estimate

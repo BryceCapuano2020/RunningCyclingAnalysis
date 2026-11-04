@@ -315,7 +315,7 @@ describe('ThresholdTile', () => {
       })
       const { container } = renderTile('run', result, RUN_GRADED)
       expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        /^Local · 64% on your best 20 min, \d+:\d{2} \/km\.$/,
+        /^Local · 64% at threshold\.$/,
       )
     })
 
@@ -328,7 +328,7 @@ describe('ThresholdTile', () => {
         })
         const { container } = renderTile('run', result, RUN_GRADED)
         const lines = [...container.querySelectorAll('.stat-tile__line')].map((l) => l.textContent)
-        expect(lines).toEqual([expect.stringMatching(/^Local · 64% on your best 20 min, /)])
+        expect(lines).toEqual([expect.stringMatching(/^Local · 64% at threshold\./)])
         expect(container.textContent).not.toMatch(/Best 20 min:/)
         cleanup()
       }
@@ -374,7 +374,7 @@ describe('ThresholdTile', () => {
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
       expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
-        'Recreational · 58% on your best 20 min, 246 W.',
+        'Recreational · 58% at threshold.',
       )
     })
 
@@ -385,7 +385,7 @@ describe('ThresholdTile', () => {
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
       expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
-        'Recreational · 58% on your best 20 min, 246 W.',
+        'Recreational · 58% at threshold.',
       )
     })
 

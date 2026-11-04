@@ -1,6 +1,6 @@
 import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from '../src/ui/balanceGap.ts'
-import { headlineGrades } from '../src/ui/grades.ts'
+import { thresholdGrades } from '../src/ui/thresholdGrade.ts'
 import type { LandingFigures } from '../src/ui/landingFigures.ts'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../src/ui/sampleAthlete.ts'
 
@@ -16,10 +16,10 @@ export function computeLandingFigures(): LandingFigures {
   const { result, fitness } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
   if (result === null)
     throw new Error(`The sample has no result, so the landing page has no figures: ${FIX}.`)
-  const headline = headlineGrades(result, SAMPLE_PROFILE)
+  const headline = thresholdGrades(result, SAMPLE_PROFILE)
   const gap = gapOfHeadline(headline)
   if (headline.run.kind !== 'graded' || headline.ride.kind !== 'graded' || gap === null) {
-    throw new Error(`The sample no longer grades both sports at the headline duration: ${FIX}.`)
+    throw new Error(`The sample no longer grades both sports at their thresholds: ${FIX}.`)
   }
   // The headline and the card say which sport leads, so the lead's range must keep clear of zero.
   if (gap.lean === 'even' || (gap.low <= 0 && gap.high >= 0)) {

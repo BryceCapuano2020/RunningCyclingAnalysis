@@ -7,7 +7,7 @@ import { DEFAULT_ATHLETE, generateActivity } from '@rca/core/synthetic'
 import type { ActivitySpec, SyntheticAthlete } from '@rca/core/synthetic'
 import type { Sport } from '@rca/core/types'
 import { gapOfHeadline } from './balanceGap'
-import { headlineGrades } from './grades'
+import { thresholdGrades } from './thresholdGrade'
 import type { AgeProfile } from './grades'
 
 /*
@@ -52,11 +52,14 @@ function library() {
 
 const PERIODS: PeriodChoice[] = ['default', 90, 365, 'all']
 
-/** body mass, then per period the running lead and its lean. */
+/**
+ * body mass, then per period the running lead and its lean, from each sport's threshold graded as an hour (re-pinned for U2; it was the best
+ * 20 min, where the lean read run or even). The library's rides now lead by 6 to 19 points, and a 5 kg step still moves the lead by about 12.
+ */
 const PINNED: Record<number, Record<string, string>> = {
-  70: { default: '-1 even', '90': '-1 even', '365': '5 run', all: '5 run' },
-  75: { default: '0 even', '90': '0 even', '365': '6 run', all: '6 run' },
-  80: { default: '9 run', '90': '9 run', '365': '15 run', all: '15 run' },
+  70: { default: '-19 ride', '90': '-19 ride', '365': '-18 ride', all: '-18 ride' },
+  75: { default: '-18 ride', '90': '-18 ride', '365': '-17 ride', all: '-17 ride' },
+  80: { default: '-6 ride', '90': '-6 ride', '365': '-6 ride', all: '-6 ride' },
 }
 
 describe('the Balance verdict against the period chip and the typed body mass', () => {
@@ -71,7 +74,7 @@ describe('the Balance verdict against the period chip and the typed body mass', 
       for (const choice of PERIODS) {
         const state = session.setRange(choice, settings)
         const gap =
-          state.result === null ? null : gapOfHeadline(headlineGrades(state.result, PROFILE))
+          state.result === null ? null : gapOfHeadline(thresholdGrades(state.result, PROFILE))
         found[massKg]![String(choice)] = gap === null ? 'none' : `${gap.centre} ${gap.lean}`
       }
     }

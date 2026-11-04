@@ -1,378 +1,145 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { PRIORS } from '@rca/core/constants'
+import { equivalenceFor, thresholdRunSpeed } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Period } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
-import { curvePoint } from '../charts/fixtures'
-import { interval, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
+import { paceSeconds } from '@rca/core/units'
+import {
+  MAN_BORN_1986,
+  flatWkg,
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from '../components/fixtures'
+import { gapOfHeadline } from '../balanceGap'
+import { thresholdGrades } from '../thresholdGrade'
 import { CrossSportCard } from './CrossSportCard'
+import { ThresholdTile } from './ThresholdTile'
 
-// A fixed clock, so the year on the ride's date does not depend on when the suite runs.
-const NOW = new Date(2026, 5, 10, 12).getTime()
+afterEach(cleanup)
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(NOW)
-})
+const MASS_KG = 75
 
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-})
-
-// Local date: 9 January 2026 is a Friday.
-const hillRide = makeActivity({
-  id: 'ride-1',
-  name: 'Hill ride',
-  sport: 'ride',
-  startMs: new Date(2026, 0, 9, 17, 0).getTime(),
-})
-
-/** A ride under the 3 min an equivalence needs, so no power curve can be read from it. */
-const shortRide = makeActivity({
-  id: 'ride-2',
-  name: 'Warm-up spin',
-  sport: 'ride',
-  startMs: new Date(2026, 0, 10, 17, 0).getTime(),
-  durationS: 120,
-})
-
-const ALL_TIME_PERIOD: Period = {
-  choice: 'all',
-  startMs: null,
-  endMs: null,
-  days: null,
-  fellBack: false,
-}
-/** A six-week period from 12 May to 3 August 2025, dated in the viewer's zone. */
-const SIX_WEEKS: Period = {
-  choice: 42,
-  startMs: new Date(2025, 4, 12, 12).getTime(),
-  endMs: new Date(2025, 7, 3, 12).getTime(),
-  days: 42,
-  fellBack: false,
+/** A result with a run threshold at this speed and a ride threshold of these watts, the ride's pace priced as the analysis prices it. */
+function resultWith(runMs: number, rideW: number): AnalysisResult {
+  const rideThreshold = makeRideThreshold(rideW / (PRIORS.grossEfficiency.mean * MASS_KG))
+  return makeResult({
+    runThreshold: makeRunThreshold(flatWkg(runMs)),
+    rideThreshold,
+    rideThresholdRunSpeed: thresholdRunSpeed(equivalenceFor(null), rideThreshold, MASS_KG),
+  })
 }
 
-function renderCard(
-  result: AnalysisResult,
-  units: UnitSystem = 'metric',
-  weighted = true,
-  period: Period = ALL_TIME_PERIOD,
-) {
+function renderCard(result: AnalysisResult, units: UnitSystem = 'metric', weighted = true) {
   return render(
-    <CrossSportCard result={result} units={units} weighted={weighted} period={period} />,
+    <CrossSportCard result={result} units={units} weighted={weighted} massKg={MASS_KG} />,
   )
 }
 
-/** The ride the best 20 minutes came from, measured or virtual, as the result holds it. */
-function rideWith(powerSource: 'measured' | 'virtual' | 'none') {
-  return makeActivity({ ...hillRide, powerSource })
-}
-
-/** The disclosure that opens to every duration, found by its summary. */
-function everyDuration(): HTMLElement {
-  const details = screen.getByText('See the pace curve').closest('details')
-  if (!details) throw new Error('No disclosure for every duration')
-  return details
+/** The pace a card prints as its figure, in seconds a kilometre or a mile. */
+function printedSeconds(container: HTMLElement): number {
+  const [minutes, seconds] = (
+    container.querySelector('.stat-tile__number')?.textContent ?? ''
+  ).split(':')
+  return Number(minutes) * 60 + Number(seconds)
 }
 
 describe('CrossSportCard', () => {
   it.each([
     ['metric', '/km'],
     ['imperial', '/mi'],
-  ] as const)(
-    'sets the %s unit apart from its pace, in its own span, so the figure and its unit are two things',
-    (units, unit) => {
-      const { container } = renderCard(
-        makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
-        units,
-      )
-      expect(container.querySelector('.stat-tile__number')?.textContent).toMatch(/^\d+:\d{2}$/)
-      expect(container.querySelector('.stat-tile__unit')).toHaveTextContent(unit)
-    },
-  )
-
-  it('leaves how hard the 20 min ride was to the ride’s own tile beside it, whatever the check says', () => {
-    const base = { equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }
-    const check = (share: number, reference: 'trusted' | 'low' = 'trusted') => ({
-      effort: [
-        {
-          durationS: 1200,
-          runHrFraction: null,
-          rideHrFraction: share,
-          runReference: null,
-          rideReference: reference,
-        },
-      ],
-    })
-    for (const found of [check(0.95), check(0.7), check(0.99, 'low')]) {
-      const { container } = renderCard(makeResult({ ...base, ...found }))
-      expect(screen.queryByRole('button', { name: /effort/ })).toBeNull()
-      expect(container.textContent).toContain('250 W for 20 min')
-      cleanup()
-    }
-    const unchecked = {
-      verdict: 'unknown' as const,
-      unchecked: 'noHeartRate' as const,
-      share: null,
-      reference: null,
-      referenceBpm: null,
-      referenceSource: null,
-      referenceFrom: null,
-      floor: null,
-      neededS: 1200,
-      sessions: { hard: [], endurance: [] },
-    }
-    const { container } = renderCard(
-      makeResult({ ...base, effortGate: { run: unchecked, ride: unchecked } }),
-    )
-    expect(container.textContent).not.toMatch(/not checked/)
+  ] as const)('sets the %s unit apart from its pace, in its own span', (units, unit) => {
+    const { container } = renderCard(resultWith(4, 230), units)
+    expect(container.querySelector('.stat-tile__number')?.textContent).toMatch(/^\d+:\d{2}$/)
+    expect(container.querySelector('.stat-tile__unit')).toHaveTextContent(unit)
   })
 
-  it('says a soft ride behind a shorter featured effort too, at the duration the pace is of', () => {
+  it('names the ride threshold in watts under the pace, and no best effort or activity', () => {
+    const { container } = renderCard(resultWith(4, 230))
+    expect(screen.getByText('From your 230 W threshold.')).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/for 20 min|Set on|all-out|checked/)
+    expect(container.querySelector('a')).toBeNull()
+  })
+
+  it('prints the ride threshold’s running equivalent at 60 min', () => {
+    const result = resultWith(4, 230)
+    const { container } = renderCard(result)
+    const speed = result.rideThresholdRunSpeed!.p50
+    expect(printedSeconds(container)).toBe(Math.round(paceSeconds(speed, 'metric')))
+  })
+
+  it('opens to the pace curve of every duration', () => {
     const { container } = renderCard(
       makeResult({
-        equivalents: [makeEquivalence({ durationS: 600, ridePowerW: 300 })],
-        effort: [
-          {
-            durationS: 600,
-            runHrFraction: null,
-            rideHrFraction: 0.7,
-            runReference: null,
-            rideReference: 'trusted',
-          },
-        ],
+        ...resultWith(4, 230),
+        equivalents: [makeEquivalence({ durationS: 3600, ridePowerW: 220 })],
       }),
     )
-    const chip = screen.getByRole('button', { name: 'Not all-out' })
-    expect(chip).toBeInTheDocument()
-    expect(container.textContent).toContain('Your best 10 min on the bike reached 70%')
+    expect(screen.getByText('See the pace curve').closest('details')).not.toBeNull()
+    expect(container.querySelector('details')).toHaveTextContent(/1 hour|60 min/)
   })
 
-  it('states the ride as a running pace, with the cycling effort it comes from', () => {
-    const { container } = renderCard(
-      makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
-    )
-
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
-    ).toBeInTheDocument()
-    expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:10/km')
-    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
-  })
-
-  it('names an hour effort in minutes in the line under the pace, as the records list does', () => {
-    renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 3600, ridePowerW: 200 })] }))
-
-    expect(screen.getByText('200 W for 60 min.')).toBeInTheDocument()
-  })
-
-  describe('a short estimated ride', () => {
-    const SHORT = { durationS: 300, ridePowerW: 280 }
-
-    it('is not priced as a pace: it asks for a ride of 10 min or more instead', () => {
-      const { container } = renderCard(
-        makeResult({
-          activities: [rideWith('virtual')],
-          rideCurve: [curvePoint(300, 280, 'ride-1')],
-          equivalents: [makeEquivalence(SHORT)],
-        }),
-      )
-      expect(screen.getByText('Needs a ride of 10 min or more.')).toBeInTheDocument()
-      expect(container.querySelector('.stat-tile__figure')).toBeNull()
-    })
-
-    it('still gives the pace of a short ride a power meter measured', () => {
-      const { container } = renderCard(
-        makeResult({
-          activities: [rideWith('measured')],
-          rideCurve: [curvePoint(300, 280, 'ride-1')],
-          equivalents: [makeEquivalence(SHORT)],
-        }),
-      )
-      expect(container.querySelector('.stat-tile__figure')).not.toBeNull()
-      expect(screen.queryByText(/Needs a ride/)).toBeNull()
-    })
-
-    it('gives the pace of an estimated ride of 10 min or more', () => {
-      const { container } = renderCard(
-        makeResult({
-          activities: [rideWith('virtual')],
-          rideCurve: [curvePoint(600, 260, 'ride-1')],
-          equivalents: [makeEquivalence({ durationS: 600, ridePowerW: 260 })],
-        }),
-      )
-      expect(container.querySelector('.stat-tile__figure')).not.toBeNull()
-    })
-  })
-
-  it.each(['virtual', 'measured'] as const)(
-    'says the watts plainly when the ride that set the effort had %s power',
-    (source) => {
-      renderCard(
-        makeResult({
-          activities: [rideWith(source)],
-          rideCurve: [curvePoint(1200, 250, 'ride-1')],
-          equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
-        }),
-      )
-      // How the watts were found is said on the Ride page and in the pace-curve table, not on this line.
-      expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
-    },
-  )
-
-  it('holds the ride figures without a weight, with the same prompt as the cards', () => {
-    renderCard(
-      makeResult({
-        activities: [rideWith('measured')],
-        rideCurve: [curvePoint(1200, 250, 'ride-1')],
-        equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
-      }),
-      'metric',
-      false,
-    )
-
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/250 W/)).not.toBeInTheDocument()
-    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
-    expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
-  })
-
-  it('is a tile with no chip of its own: its heading says the figure is the ride as a run', () => {
-    const { container } = renderCard(
-      makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
-    )
-    expect(container.querySelector('article')).toHaveClass('stat-tile')
-    // The head holds the sport dot and the name, and nothing else: no chip beside the heading.
-    expect(container.querySelectorAll('.stat-tile__head > *')).toHaveLength(2)
-    expect(container.querySelector('.cross-sport__pair')).toBeNull()
-  })
-
-  it('gives the pace per mile for imperial', () => {
-    const { container } = renderCard(
-      makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
-      'imperial',
-    )
-
-    expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('6:42/mi')
-    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
-    expect(screen.queryByText(/6:42/, { selector: 'p' })).not.toBeInTheDocument()
-  })
-
-  it('features the 20 minute effort rather than a shorter or longer one', () => {
-    renderCard(
-      makeResult({
-        equivalents: [
-          makeEquivalence({ durationS: 600, ridePowerW: 300 }),
-          makeEquivalence({ durationS: 1200, ridePowerW: 250 }),
-          makeEquivalence({ durationS: 3600, ridePowerW: 200 }),
-        ],
-      }),
-    )
-
-    expect(screen.getByText('250 W for 20 min.')).toBeInTheDocument()
-  })
-
-  it('names the ride that set the effort, linked to its activity page with the day', () => {
-    renderCard(
-      makeResult({
-        activities: [hillRide],
-        rideCurve: [curvePoint(1200, 250, 'ride-1')],
-        equivalents: [makeEquivalence({ durationS: 1200 })],
-      }),
-    )
-
-    expect(screen.getByRole('link', { name: 'Set on Hill ride, 9 Jan' })).toHaveAttribute(
-      'href',
-      '#/activities/ride-1',
-    )
-  })
-
-  it('names no ride when the activity that set the effort is not in the result', () => {
-    renderCard(
-      makeResult({
-        activities: [hillRide],
-        rideCurve: [curvePoint(1200, 250, 'gone')],
-        equivalents: [makeEquivalence({ durationS: 1200 })],
-      }),
-    )
-
-    expect(screen.queryByRole('link', { name: /Set on/ })).not.toBeInTheDocument()
-  })
-
-  it('opens to every duration, as a table closed under the headline', () => {
-    renderCard(
-      makeResult({
-        equivalents: [
-          makeEquivalence({ durationS: 600, ridePowerW: 300 }),
-          makeEquivalence({ durationS: 1200, ridePowerW: 250 }),
-          makeEquivalence({ durationS: 3600, ridePowerW: 200 }),
-        ],
-      }),
-    )
-
-    const details = everyDuration()
-    expect(details).not.toHaveAttribute('open')
-    expect(within(details).getByRole('columnheader', { name: 'Ride effort' })).toBeInTheDocument()
-    expect(within(details).getAllByRole('row')).toHaveLength(4)
-  })
-
-  it('names the dates the period covers in its needs-a-ride line', () => {
-    renderCard(makeResult({ activities: [shortRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
-    expect(
-      screen.getByText('Needs a ride of 3 min or more between 12 May and 3 Aug 2025.'),
-    ).toBeInTheDocument()
-  })
-
-  it('asks for a ride of 3 min when no ride is that long', () => {
-    renderCard(makeResult({ activities: [shortRide], equivalents: [] }))
-
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
-    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
-  })
-
-  it('names the power as the missing reason when a ride is long enough but has no power curve', () => {
-    renderCard(makeResult({ activities: [hillRide], equivalents: [] }))
-
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Needs a ride of 3 min or more with power.')).toBeInTheDocument()
-    expect(screen.queryByText('Needs a ride of 3 min or more.')).not.toBeInTheDocument()
-  })
-
-  it('names the power and the dates when a long ride has no power curve in the period', () => {
-    renderCard(makeResult({ activities: [hillRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
-    expect(
-      screen.getByText('Needs a ride of 3 min or more with power between 12 May and 3 Aug 2025.'),
-    ).toBeInTheDocument()
-  })
-
-  it('asks for a ride instead of a pace when the effort gives no valid running pace', () => {
-    renderCard(
-      makeResult({
-        activities: [hillRide],
-        equivalents: [makeEquivalence({ durationS: 1200, runSpeed: interval(0, 0, 0) })],
-      }),
-    )
-
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Your ride as a run' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
-    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
-  })
-
-  it('takes no room on a file with no rides, so a run-only balance shows no cross-sport slot', () => {
-    const { container } = renderCard(makeResult({ activities: [], equivalents: [] }))
+  it('waits for the weight, and is left out with no ride', () => {
+    renderCard(resultWith(4, 230), 'metric', false)
+    expect(screen.queryByText(/From your/)).toBeNull()
+    cleanup()
+    const { container } = renderCard(makeResult({ activities: [makeActivity({ sport: 'run' })] }))
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('asks for the effort the ride threshold needs when the ride has none', () => {
+    renderCard(makeResult({ rideThreshold: null, rideThresholdRunSpeed: null }))
+    expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
+    expect(screen.queryByText(/From your/)).toBeNull()
+  })
+})
+
+describe('the ride as a run beside the run threshold, for the lean the grades give', () => {
+  /** The pace the Run threshold tile prints, in seconds, and the lean of the grades the page states. */
+  function paces(runMs: number, rideW: number) {
+    const result = resultWith(runMs, rideW)
+    const lean = gapOfHeadline(thresholdGrades(result, MAN_BORN_1986))?.lean
+    const card = renderCard(result)
+    const ride = printedSeconds(card.container)
+    cleanup()
+    const tile = render(
+      <ThresholdTile
+        sport="run"
+        result={result}
+        units="metric"
+        massKg={MASS_KG}
+        grade={null}
+        weighted
+      />,
+    )
+    const run = printedSeconds(tile.container)
+    cleanup()
+    return { lean, run, ride }
+  }
+
+  it('is slower than the run threshold where the grades lean toward running', () => {
+    const { lean, run, ride } = paces(4.4, 150)
+    expect(lean).toBe('run')
+    expect(ride).toBeGreaterThan(run)
+  })
+
+  it('is faster than the run threshold where the grades lean toward cycling', () => {
+    const { lean, run, ride } = paces(3.0, 330)
+    expect(lean).toBe('ride')
+    expect(ride).toBeLessThan(run)
+  })
+
+  it('agrees with the lean at every pair of thresholds on a sweep, as the replica’s lean-vs-cards rule reads them', () => {
+    for (const runMs of [2.8, 3.2, 3.6, 4.0, 4.4, 4.8]) {
+      for (const rideW of [120, 170, 220, 270, 320, 370]) {
+        const { lean, run, ride } = paces(runMs, rideW)
+        if (lean === 'run') expect(ride, `${runMs} m/s, ${rideW} W`).toBeGreaterThanOrEqual(run - 1)
+        if (lean === 'ride') expect(ride, `${runMs} m/s, ${rideW} W`).toBeLessThanOrEqual(run + 1)
+      }
+    }
   })
 })

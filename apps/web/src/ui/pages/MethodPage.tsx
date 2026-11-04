@@ -28,7 +28,8 @@ import { SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { periodDates } from '../components/rangeOptions'
-import { gradedSexOf, headlineGrades } from '../grades'
+import { gradedSexOf } from '../grades'
+import { thresholdGrades } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
 import { activityNames } from '../records'
@@ -103,7 +104,7 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const holdInputs = useHoldInputs()
-  const headline = profile === null || result === null ? null : headlineGrades(result, profile)
+  const headline = profile === null || result === null ? null : thresholdGrades(result, profile)
   // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
   const rideHold =
     result === null || headline === null || !weightKnown

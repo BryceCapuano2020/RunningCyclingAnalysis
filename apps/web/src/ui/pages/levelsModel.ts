@@ -1,9 +1,7 @@
 import type { Sport } from '@rca/core/types'
 import {
   AGE_RANGE_TEXT,
-  HEADLINE_LABEL,
   TOP_OF_SCALE_SHORT,
-  NEEDS_EFFORT_TEXT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
 } from '../grades'
@@ -32,7 +30,6 @@ export interface BalanceLevelsModel {
 
 /** The reason a grade is missing, in a few words. The grade's own sentence is the key. */
 const SHORT_REASON: Record<string, string> = {
-  [NEEDS_EFFORT_TEXT]: `Needs a best ${HEADLINE_LABEL} effort`,
   [NO_DATE_TEXT]: 'Best effort has no date',
   [AGE_RANGE_TEXT]: AGE_RANGE_TEXT.replace(/\.$/, ''),
   [NO_STANDARD_TEXT]: 'No age standard for this effort',

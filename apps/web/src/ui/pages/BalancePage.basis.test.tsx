@@ -40,10 +40,6 @@ function render20(run: EffortGate, ride: EffortGate) {
   return screen.getByRole('heading', { level: 1 }).textContent
 }
 
-const RUN_LINE = "Your run best wasn't all-out, so running could be higher."
-const RIDE_LINE = "Your ride best wasn't all-out, so cycling could be higher."
-const NEITHER_LINE = 'Neither best was all-out.'
-
 describe('the balance when a best 20 min was not shown hard', () => {
   it('states the same balance whether the bests were hard or not, and never holds it', () => {
     const hard = render20(HARD, HARD)
@@ -61,53 +57,37 @@ describe('the balance when a best 20 min was not shown hard', () => {
     expect(title).not.toMatch(/grades|best 20 min|Not enough to compare/)
   })
 
-  it('says under it which best was not all-out, or that neither was', () => {
-    render20(gate(), HARD)
-    expect(screen.getByText(RUN_LINE)).toBeInTheDocument()
-    expect(screen.queryByText(RIDE_LINE)).not.toBeInTheDocument()
-    cleanup()
-    render20(HARD, gate())
-    expect(screen.getByText(RIDE_LINE)).toBeInTheDocument()
-    cleanup()
-    render20(gate(), gate())
-    expect(screen.getByText(NEITHER_LINE)).toBeInTheDocument()
-    expect(screen.queryByText(RUN_LINE)).not.toBeInTheDocument()
+  it('says nothing of a best that was not all-out, since the grades rest on thresholds and not on a best', () => {
+    for (const [run, ride] of [
+      [gate(), HARD],
+      [HARD, gate()],
+      [gate(), gate()],
+    ] as const) {
+      render20(run, ride)
+      expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/could be higher/)).not.toBeInTheDocument()
+      cleanup()
+    }
   })
 
-  it('says nothing when both bests were hard, and keeps the note for one that was not checked', () => {
-    render20(HARD, HARD)
-    expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
-    cleanup()
+  it('says nothing of a best that was not checked either: no grade on the page rests on it', () => {
     render20(HARD, NO_HEART_RATE)
-    expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
-    expect(
-      screen.getAllByText(/No heart rate on your best 20 min ride, so the effort was not checked/)
-        .length,
-    ).toBe(1)
-  })
-
-  it('says no heart rate once: under the lede, and never in a line under the tiles', () => {
-    render20(HARD, NO_HEART_RATE)
-    expect(screen.getAllByText(/^No heart rate on your best 20 min ride/)).toHaveLength(1)
-    expect(document.querySelector('.evidence-line')?.textContent).toBe('How sure is this?')
-    cleanup()
-    // With nothing said under the lede, the line under the tiles is still the link alone, with no chip or nudge.
-    render20(HARD, HARD)
+    expect(screen.queryByText(/not checked/)).not.toBeInTheDocument()
     expect(screen.queryByText(/No heart rate on your best 20 min/)).not.toBeInTheDocument()
     expect(document.querySelector('.evidence-line')?.textContent).toBe('How sure is this?')
     expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
     expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
   })
 
-  it('keeps every other line of the answer, the level target among them', () => {
+  it('keeps every line of the answer the same whatever the gate said, the level target among them', () => {
     const lines = () =>
       Array.from(document.querySelectorAll('.balance-hero__text p')).map((p) => p.textContent)
     render20(HARD, HARD)
     const hard = lines()
     cleanup()
     render20(gate(), gate())
-    expect(lines().filter((line) => line !== NEITHER_LINE)).toEqual(hard)
-    // The lede and the level target are there to keep.
-    expect(hard.length).toBeGreaterThan(1)
+    expect(lines()).toEqual(hard)
+    // The lede says it at threshold.
+    expect(hard.join(' ')).toMatch(/at\u00a0threshold|at threshold/)
   })
 })

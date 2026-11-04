@@ -16,7 +16,7 @@ import { calibratedOf } from './calibration'
 import { thresholdFits } from './combineThresholds'
 import { thresholdsOf } from './thresholdLibraries'
 import { effortGatesOf, judgeHeadline } from './twentyMinute'
-import { equivalentsOf } from './equivalents'
+import { equivalentsOf, thresholdRunSpeed } from './equivalents'
 import type { Equivalence } from './equivalents'
 import { activitySummaries } from './activitySummaries'
 import type { BikeModelSource } from '../virtualPower'
@@ -213,8 +213,9 @@ export function combine(
   })
 
   // The draws and their heart-rate weights are the same for every duration, so they are built once.
+  const equivalence = equivalenceFor(calibration)
   const equivalents = equivalentsOf(
-    equivalenceFor(calibration),
+    equivalence,
     rideCurve,
     bodyKgById,
     massKg,
@@ -254,6 +255,7 @@ export function combine(
     rideCp: thresholds.ride.fit,
     runThreshold,
     rideThreshold,
+    rideThresholdRunSpeed: thresholdRunSpeed(equivalence, rideThreshold, massKg),
     runCpRefusal: thresholds.run.refusal,
     rideCpRefusal: thresholds.ride.refusal,
     effortGate,

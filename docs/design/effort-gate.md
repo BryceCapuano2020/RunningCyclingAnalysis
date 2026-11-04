@@ -93,12 +93,14 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   a hard run in the year answers before an easy one in the period. Runs older than that year are told as they were run ("You ran
   19:58 in Oct 2024"), with no forecast. Nothing left only where the library has no run of a mile.
 - **Balance headline**: never held for the gate. A best 20 minutes that was not shown hard still gives a pick, so the lean, the tiles,
-  the level target and the changes are all stated, and the lean is the same centre rule (`leanOfLead`). A best not shown hard is a floor:
-  real ability is at least this. One line under the balance says so (`basisLine`, `ui/components/basisLine.ts`): "Your ride best
-  wasn't all-out, so cycling could be higher.", or "Neither best was all-out."; nothing when both were hard. A best that was only not
-  checked is shown with its own note, "No heart rate on your best 20 min run, so the effort was not checked." The page is titled by the balance whatever the bests were
-  (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable. The level
-  rows say nothing of it; the line under the lede does. What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
+  the level target and the changes are all stated, and the lean is the same centre rule (`leanOfLead`). The lean compares each sport's
+  threshold graded as an hour (`thresholdGrade`), not its best 20 min, so a best that was not all-out sets no grade and no line under
+  the balance says so: `basisLine` and its "Your ride best wasn't all-out, so cycling could be higher." are gone. The gate's verdict is
+  still a label where a best 20 min is shown (the sport pages' best-effort rows, the energy balance that stands in for a missing grade),
+  and a best that was only not checked is shown with its own note beside an energy balance, "No heart rate on your best 20 min run, so
+  the effort was not checked." The page is titled by the balance whatever the bests were
+  (`balanceTitle`); `levelsTitle` titles only a page that states none, one sport on file or the sports not yet comparable.
+  What still holds the headline is in `holdOf` (`ui/resultHold.ts`), in this order:
   'updating', 'partial-import', 'implausible-ride'; a ride at the top of the age tables leaves the pick out with no fault to name.
   The share card waits for both thresholds, which the gate no longer withholds, so a library whose bests were not hard offers the card too.
 - **Change test** (`digest/hardEffortRule.ts`, D5): a point of the test's readings counts when heart rate shows it hard (up to 20 min by the

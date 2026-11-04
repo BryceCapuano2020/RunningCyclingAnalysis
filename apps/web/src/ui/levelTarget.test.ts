@@ -1,22 +1,23 @@
 import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { equivalentRunSpeed } from '@rca/core/digest'
+import { PRIORS } from '@rca/core/constants'
+import { equivalenceFor, equivalentRunSpeed, thresholdRunSpeed } from '@rca/core/digest'
+import { HOUR_S } from '@rca/core/threshold'
 import { ageGradeForEffort } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { HrCalibration } from '@rca/core/types'
 import { AnalysisSession } from '@rca/core/session'
 import { PACE_UNIT, formatPaceValue } from '@rca/core/units'
 import { gapOfHeadline } from './balanceGap'
-import { curvePoint } from './charts/fixtures'
-import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import {
-  headlineGrades,
-  notGradedText,
-  sportGrade,
-  type AgeProfile,
-  type GradeOutcome,
-} from './grades'
+  flatWkg,
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from './components/fixtures'
+import { notGradedText, type AgeProfile, type GradeOutcome } from './grades'
+import { thresholdGrade, thresholdGrades } from './thresholdGrade'
 import {
   levelTarget,
   levelTargetText,
@@ -26,17 +27,23 @@ import {
   type Reach,
 } from './levelTarget'
 import { wholeGrade } from './gradeFormat'
-import { featuredEquivalence } from './records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 
 /** A 37-year-old man at 75 kg, with the heart-rate cross-check of the fixture result. */
 const MASS_KG = 75
 const PROFILE: AgeProfile = { birthYear: 1988, sex: 'male' }
 const ATHLETE = { age: 37, sex: 'male', massKg: MASS_KG, calibration: makeResult().hr } as const
+/** The thresholds of a run at this speed and a ride at these watts, at this mass: what the page grades each sport by. */
+function thresholds(runMs: number, rideW: number, massKg = MASS_KG) {
+  return {
+    runThreshold: makeRunThreshold(flatWkg(runMs)),
+    rideThreshold: makeRideThreshold(rideW / (PRIORS.grossEfficiency.mean * massKg)),
+  }
+}
 /** What a rounded target has to reach: this whole percent at the headline duration, for this athlete. */
 const reachOf = (wholePercent: number, athlete: Reach['athlete']): Reach => ({
   wholePercent,
-  durationS: HEADLINE_DURATION_S,
+  durationS: HOUR_S,
   athlete,
 })
 /** A heart-rate calibration that says riding costs this athlete more than the priors assume. */
@@ -57,8 +64,8 @@ function graded(grade: number, age = 37): GradeOutcome {
 }
 
 /**
- * The grade the page gives a ride whose best effort at the headline duration is these watts: its
- * equivalent is built as the analysis builds it, and the grade is read by sportGrade.
+ * The grade the page gives a ride whose threshold is these watts: its running equivalent is built as the analysis builds it
+ * (`thresholdRunSpeed`), and the grade is read by thresholdGrade.
  */
 function pageRideGrade(
   watts: number,
@@ -66,19 +73,20 @@ function pageRideGrade(
   profile: AgeProfile,
   calibration: HrCalibration | null = result.hr,
 ): number {
-  const ride = result.activities.find((activity) => activity.sport === 'ride')
-  if (ride === undefined) throw new Error('The result has no ride to date the effort by')
-  const equivalent = makeEquivalence({
-    durationS: HEADLINE_DURATION_S,
-    ridePowerW: watts,
-    runSpeed: equivalentRunSpeed(watts, MASS_KG, calibration),
-  })
+  const value = watts / (PRIORS.grossEfficiency.mean * MASS_KG)
+  // The result's own ride threshold names the strongest effort whose day the age is taken on; only its value is set.
+  const rideThreshold = {
+    ...(result.rideThreshold ?? makeRideThreshold(value)),
+    value,
+    low: value * 0.95,
+    high: value * 1.05,
+  }
   const page: AnalysisResult = {
     ...result,
-    rideCurve: [curvePoint(HEADLINE_DURATION_S, watts, ride.id)],
-    equivalents: [equivalent],
+    rideThreshold,
+    rideThresholdRunSpeed: thresholdRunSpeed(equivalenceFor(calibration), rideThreshold, MASS_KG),
   }
-  const outcome = sportGrade(page, 'ride', HEADLINE_DURATION_S, profile)
+  const outcome = thresholdGrade(page, 'ride', profile)
   if (outcome.kind !== 'graded') throw new Error(`Expected a grade, got: ${notGradedText(outcome)}`)
   return outcome.grade.centre.grade
 }
@@ -90,34 +98,34 @@ const RIDE_RESULT = makeResult({
 
 describe('nativeAtGrade', () => {
   it('gives the flat run speed whose age grade is the target, graded back within half a point', () => {
-    const speed = nativeAtGrade('run', 0.67, HEADLINE_DURATION_S, ATHLETE)!
-    const grade = ageGradeForEffort(speed, HEADLINE_DURATION_S, ATHLETE.age, ATHLETE.sex)!
+    const speed = nativeAtGrade('run', 0.67, HOUR_S, ATHLETE)!
+    const grade = ageGradeForEffort(speed, HOUR_S, ATHLETE.age, ATHLETE.sex)!
     expect(Math.abs(grade - 0.67)).toBeLessThanOrEqual(0.005)
   })
 
   it('prices the ride with the library calibration it is given, so the page grades the watts back to the target', () => {
     const calibrated = { ...ATHLETE, calibration: CALIBRATION }
-    const watts = nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, calibrated)!
+    const watts = nativeAtGrade('ride', 0.67, HOUR_S, calibrated)!
     // The grade chart prices the same watts through the same calibration (gradeProfile's profileEquivalents).
     expect(
       Math.abs(pageRideGrade(watts, RIDE_RESULT, PROFILE, CALIBRATION) - 0.67),
     ).toBeLessThanOrEqual(0.005)
-    expect(watts).not.toBeCloseTo(nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!, 0)
+    expect(watts).not.toBeCloseTo(nativeAtGrade('ride', 0.67, HOUR_S, ATHLETE)!, 0)
   })
 
   it('gives the ride watts that the page grades back to the target, within half a point', () => {
-    const watts = nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!
+    const watts = nativeAtGrade('ride', 0.67, HOUR_S, ATHLETE)!
     expect(watts).toBeGreaterThan(0)
     expect(Math.abs(pageRideGrade(watts, RIDE_RESULT, PROFILE) - 0.67)).toBeLessThanOrEqual(0.005)
   })
 
   it('gives the watts at each end of the ride grade range, so each end grades back to the target within half a point', () => {
-    const range = nativeRangeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!
+    const range = nativeRangeAtGrade('ride', 0.67, HOUR_S, ATHLETE)!
     // The page's ride range runs from the grade at the 5th percentile speed to the grade at the 95th.
     const gradeAtEnd = (watts: number, end: 'p05' | 'p95') =>
       ageGradeForEffort(
         equivalentRunSpeed(watts, MASS_KG, ATHLETE.calibration)[end],
-        HEADLINE_DURATION_S,
+        HOUR_S,
         ATHLETE.age,
         ATHLETE.sex,
       )!
@@ -128,17 +136,17 @@ describe('nativeAtGrade', () => {
   })
 
   it('needs more watts for a higher grade, and more speed for a higher grade', () => {
-    expect(nativeAtGrade('ride', 0.7, HEADLINE_DURATION_S, ATHLETE)!).toBeGreaterThan(
-      nativeAtGrade('ride', 0.6, HEADLINE_DURATION_S, ATHLETE)!,
+    expect(nativeAtGrade('ride', 0.7, HOUR_S, ATHLETE)!).toBeGreaterThan(
+      nativeAtGrade('ride', 0.6, HOUR_S, ATHLETE)!,
     )
-    expect(nativeAtGrade('run', 0.7, HEADLINE_DURATION_S, ATHLETE)!).toBeGreaterThan(
-      nativeAtGrade('run', 0.6, HEADLINE_DURATION_S, ATHLETE)!,
+    expect(nativeAtGrade('run', 0.7, HOUR_S, ATHLETE)!).toBeGreaterThan(
+      nativeAtGrade('run', 0.6, HOUR_S, ATHLETE)!,
     )
   })
 
   it('is null for a grade no speed the standards cover reaches', () => {
-    expect(nativeAtGrade('run', 1000, HEADLINE_DURATION_S, ATHLETE)).toBeNull()
-    expect(nativeAtGrade('ride', 1000, HEADLINE_DURATION_S, ATHLETE)).toBeNull()
+    expect(nativeAtGrade('run', 1000, HOUR_S, ATHLETE)).toBeNull()
+    expect(nativeAtGrade('ride', 1000, HOUR_S, ATHLETE)).toBeNull()
   })
 })
 
@@ -148,9 +156,8 @@ describe('levelTargetText', () => {
       makeActivity({ id: 'run-1', sport: 'run' }),
       makeActivity({ id: 'ride-1', sport: 'ride' }),
     ],
-    // A run of 3.9 m/s for 20 min, and a ride of 230 W, both below the target the grades name.
-    runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.9), 'run-1')],
-    rideCurve: [curvePoint(HEADLINE_DURATION_S, 230, 'ride-1')],
+    // A run threshold of 3.9 m/s, and a ride threshold of 230 W, both below the target the grades name.
+    ...thresholds(3.9, 230),
   })
   const grades = { run: graded(0.67), ride: graded(0.6) }
   const base = {
@@ -165,9 +172,9 @@ describe('levelTargetText', () => {
   it('says what a ride would need to match the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To match it on the bike: \d+ W for 20 min \(\d+ to \d+\)\. You’re at 230 W\.$/,
+      /^To match it on the bike: \d+ W threshold \(\d+ to \d+\)\. You’re at 230 W\.$/,
     )
-    const [, centre, low, high] = /: (\d+) W for 20 min \((\d+) to (\d+)\)/.exec(line ?? '') ?? []
+    const [, centre, low, high] = /: (\d+) W threshold \((\d+) to (\d+)\)/.exec(line ?? '') ?? []
     expect(Number(centre) % 5).toBe(0)
     expect(Number(low) % 5).toBe(0)
     expect(Number(high) % 5).toBe(0)
@@ -183,22 +190,22 @@ describe('levelTargetText', () => {
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
     expect(line).toMatch(
-      /^To match it on the run: \d+:\d\d \/km for 20 min\. You’re at \d+:\d\d \/km\.$/,
+      /^To match it on the run: \d+:\d\d \/km threshold\. You’re at \d+:\d\d \/km\.$/,
     )
   })
 
-  it("compares a ride held at an earlier weight with the target at today's weight", () => {
-    // 300 W at 100 kg is the power-to-weight of 240 W at 80 kg, which is what the target is worked out at.
+  it("states the ride threshold at today's weight, whatever weight the rides were held at", () => {
+    // The threshold is stated at today's mass (80 kg here), so the ride's earlier weight changes neither figure.
     const heavier = makeResult({
       activities: [
         makeActivity({ id: 'run-1', sport: 'run' }),
         makeActivity({ id: 'ride-1', sport: 'ride', massKg: 100 }),
       ],
-      runCurve: result.runCurve,
-      rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
+      ...thresholds(3.9, 240, 80),
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/You’re at 300 W, 240 W at today’s weight\.$/)
+    expect(line).toMatch(/You’re at 240 W\.$/)
+    expect(line).not.toContain('today’s weight')
   })
 
   it('says nothing of weight when the lower sport is a run, whose pace has no mass, even with dated masses', () => {
@@ -208,8 +215,8 @@ describe('levelTargetText', () => {
         makeActivity({ id: 'run-1', sport: 'run', massKg: 70 }),
         makeActivity({ id: 'ride-1', sport: 'ride', massKg: 70 }),
       ],
-      runCurve: result.runCurve,
-      rideCurve: result.rideCurve,
+      runThreshold: result.runThreshold,
+      rideThreshold: result.rideThreshold,
     })
     const line = levelTargetText({
       ...base,
@@ -217,7 +224,7 @@ describe('levelTargetText', () => {
       lean: 'ride',
       grades: { run: graded(0.6), ride: graded(0.67) },
     })
-    expect(line).toMatch(/ for 20 min\. You’re at \d+:\d\d \/km\.$/)
+    expect(line).toMatch(/ threshold\. You’re at \d+:\d\d \/km\.$/)
     expect(line).not.toContain('today’s weight')
   })
 
@@ -244,7 +251,7 @@ describe('levelTargetText', () => {
     expect(
       levelTargetText({
         ...level,
-        result: { ...result, rideCurve: [curvePoint(HEADLINE_DURATION_S, 900, 'ride-1')] },
+        result: { ...result, ...thresholds(3.9, 900) },
       }),
     ).toBeNull()
   })
@@ -253,7 +260,7 @@ describe('levelTargetText', () => {
 describe('levelTargetText on the sample athlete', () => {
   it('names the run pace that would match the sample ride, as the sample shows it', () => {
     const { result, calibration } = loadedSample()
-    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    const grades = thresholdGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
     expect(gap?.lean).toBe('ride')
     expect(
@@ -266,13 +273,13 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
         calibration,
       }),
-    ).toBe('To match it on the run: 3:18 /km for 20 min. You’re at 4:01 /km.')
+    ).toMatch(/^To match it on the run: \d:\d\d \/km threshold\. You’re at \d:\d\d \/km\.$/)
   })
 
   it('names the same pace the Your ride as a run tile gives for that ride, in metric and imperial', () => {
     const { result, calibration } = loadedSample()
-    const grades = headlineGrades(result, SAMPLE_PROFILE)
-    const featured = featuredEquivalence(result.equivalents)!
+    const grades = thresholdGrades(result, SAMPLE_PROFILE)
+    const ridePace = result.rideThresholdRunSpeed!.p50
     for (const units of ['metric', 'imperial'] as const) {
       const line = levelTargetText({
         lean: 'ride',
@@ -284,7 +291,7 @@ describe('levelTargetText on the sample athlete', () => {
         calibration,
       })
       expect(line, units).toContain(
-        `${formatPaceValue(featured.runSpeed.p50, units)} ${PACE_UNIT[units]} for 20 min. You’re at `,
+        `${formatPaceValue(ridePace, units)} ${PACE_UNIT[units]} threshold. You’re at `,
       )
     }
   })
@@ -292,7 +299,7 @@ describe('levelTargetText on the sample athlete', () => {
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
     const { result, calibration } = loadedSample()
     const athlete = { age: 37, sex: 'male' as const, massKg: SAMPLE_SETTINGS.massKg, calibration }
-    const watts = nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!
+    const watts = nativeAtGrade('ride', 0.64, HOUR_S, athlete)!
     expect(
       Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE, calibration) - 0.64),
     ).toBeLessThanOrEqual(0.005)
@@ -312,7 +319,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
     }
     for (let whole = 50; whole <= 80; whole++) {
       const grade = whole / 100
-      const watts = nativeAtGrade('ride', grade, HEADLINE_DURATION_S, athlete)
+      const watts = nativeAtGrade('ride', grade, HOUR_S, athlete)
       if (watts === null) throw new Error(`No ride reaches ${whole}%`)
       const rideGrade = pageRideGrade(
         levelledNative('ride', watts, 'metric', reachOf(whole, athlete)),
@@ -322,10 +329,10 @@ describe('the levelled target, rounded toward the side that levels', () => {
       )
       expect(wholeGrade(rideGrade), `ride at ${whole}%`).toBeGreaterThanOrEqual(whole)
 
-      const speed = nativeAtGrade('run', grade, HEADLINE_DURATION_S, athlete)
+      const speed = nativeAtGrade('run', grade, HOUR_S, athlete)
       if (speed === null) throw new Error(`No run reaches ${whole}%`)
       const levelled = levelledNative('run', speed, 'metric', reachOf(whole, athlete))
-      const runGrade = ageGradeForEffort(levelled, HEADLINE_DURATION_S, athlete.age, athlete.sex)
+      const runGrade = ageGradeForEffort(levelled, HOUR_S, athlete.age, athlete.sex)
       expect(wholeGrade(runGrade ?? 0), `run at ${whole}%`).toBeGreaterThanOrEqual(whole)
     }
   })
@@ -338,20 +345,28 @@ describe('the levelled target, rounded toward the side that levels', () => {
       massKg: SAMPLE_SETTINGS.massKg,
       calibration,
     }
-    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    const grades = thresholdGrades(result, SAMPLE_PROFILE)
     // The ride levels with the sample's own run grade, whatever the season has made it.
     const runGrade = grades.run.kind === 'graded' ? grades.run.grade.centre.grade : Number.NaN
     expect(runGrade).not.toBeNaN()
     const levelled = levelledNative(
       'ride',
-      nativeAtGrade('ride', wholeGrade(runGrade) / 100, HEADLINE_DURATION_S, athlete)!,
+      nativeAtGrade('ride', wholeGrade(runGrade) / 100, HOUR_S, athlete)!,
       'metric',
       reachOf(wholeGrade(runGrade), athlete),
     )
     const rideId = result.activities.find((activity) => activity.sport === 'ride')!.id
     const withRideAt = (watts: number) => ({
       ...result,
-      rideCurve: [curvePoint(HEADLINE_DURATION_S, watts, rideId)],
+      rideThreshold: makeRideThreshold(
+        watts / (PRIORS.grossEfficiency.mean * SAMPLE_SETTINGS.massKg),
+        {
+          efforts: {
+            ...result.rideThreshold!.efforts,
+            strongest: { ...result.rideThreshold!.efforts.strongest, activityId: rideId },
+          },
+        },
+      ),
     })
     const at = (watts: number) =>
       levelTargetText({
@@ -374,8 +389,7 @@ describe('levelTarget', () => {
       makeActivity({ id: 'run-1', sport: 'run' }),
       makeActivity({ id: 'ride-1', sport: 'ride' }),
     ],
-    runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.9), 'run-1')],
-    rideCurve: [curvePoint(HEADLINE_DURATION_S, 230, 'ride-1')],
+    ...thresholds(3.9, 230),
   })
   const base = {
     result,
@@ -394,16 +408,12 @@ describe('levelTarget', () => {
     expect(target?.now).toBe('230 W')
     expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
     expect(target?.sentence).toBe(
-      `To match it on the bike: ${target?.centre} for 20 min (${target?.range?.replace(' W', '')}). You’re at ${target?.now}.`,
+      `To match it on the bike: ${target?.centre} threshold (${target?.range?.replace(' W', '')}). You’re at ${target?.now}.`,
     )
   })
 
   it('gives a run as its pace, with no range, since a run’s grade is one recorded effort', () => {
-    const slowRun = makeResult({
-      ...result,
-      runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.0), 'run-1')],
-      rideCurve: [curvePoint(HEADLINE_DURATION_S, 320, 'ride-1')],
-    })
+    const slowRun = makeResult({ ...result, ...thresholds(3.0, 320) })
     const target = levelTarget({
       ...base,
       result: slowRun,

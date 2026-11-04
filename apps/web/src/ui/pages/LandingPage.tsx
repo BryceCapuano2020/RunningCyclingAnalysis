@@ -3,7 +3,6 @@ import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { privacyText } from '../components/privacyText'
 import { ExportGuides } from '../components/ExportGuides'
-import { HEADLINE_LABEL } from '../grades'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
@@ -95,7 +94,7 @@ export function LandingPage({
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          {`Each sport is judged on your best ${HEADLINE_LABEL} against the standard for your age and sex.`}
+          Each sport is judged on your threshold against the standard for your age and sex.
         </p>
         <a href="#/method">Full method</a>
       </section>

@@ -1,11 +1,10 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
-import { sportGrade } from '../grades'
 import { indoorSplitLine } from '../indoorCopy'
-import { headlineEffort, sportRecords } from '../records'
+import { threshold } from '../records'
+import { thresholdGrade } from '../thresholdGrade'
 import { LevelPanel } from './LevelPanel'
 import type { SportPageProps } from './sportPageProps'
 import { ThresholdPanel } from './ThresholdPanel'
@@ -70,14 +69,14 @@ function EmptySport({
 
 /**
  * The sport page's answer, in one slot: the threshold with its range and what it means beside the level of
- * the best 20 minutes; or the prompt for an empty sport, or the note that a ride waits for a body weight.
+ * the threshold; or the prompt for an empty sport, or the note that a ride waits for a body weight.
  * With the threshold refused, its floor is shown in its place under its own label, so the refusal is not said.
  */
 export function SportAnswer(props: SportAnswerProps) {
   const { sport, result, massKg, units, profile, missingAge, count, held, rangeDays } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
-  const headline = profile === null ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
+  const headline = profile === null ? null : thresholdGrade(result, sport, profile)
   // The split between indoor and outdoor, said once, under the answer it qualifies.
   const split = indoorSplitLine(result.activities, sport)
   return (
@@ -93,7 +92,7 @@ export function SportAnswer(props: SportAnswerProps) {
         <LevelPanel
           sport={sport}
           outcome={headline}
-          effort={headlineEffort(sport, sportRecords(result, sport, massKg, units))}
+          effort={threshold(result, sport, massKg, units)?.value ?? null}
           missingAge={missingAge}
         />
       </div>
