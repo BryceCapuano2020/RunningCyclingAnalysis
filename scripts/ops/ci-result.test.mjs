@@ -95,7 +95,10 @@ test('a change to the owner’s evals, or to how CI runs them, needs the owner-e
     size,
     /git diff --name-only --no-renames HEAD\^1 HEAD -- evals\/owner-caught evals\/vitest\.config\.ts evals\/tsconfig\.json/,
   )
-  assert.match(size, /grep -E "projects:\.\*'evals'" vitest\.config\.ts/)
+  assert.match(
+    size,
+    /if \[ -d evals\/owner-caught \] && ! grep -E "projects:\.\*'evals'" vitest\.config\.ts/,
+  )
   assert.match(size, /grep -x owner-evals > \/dev\/null/)
   assert.match(size, /if \[ -z "\$changed" \]; then exit 0; fi/)
   // The check sits in the job the result job already needs, so a missing label fails the required check.

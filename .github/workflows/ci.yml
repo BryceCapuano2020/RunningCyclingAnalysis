@@ -449,7 +449,8 @@ jobs:
         run: |
           # The cases, and the two files that run them in CI. Dropping the evals project from the root config counts too.
           changed=$(git diff --name-only --no-renames HEAD^1 HEAD -- evals/owner-caught evals/vitest.config.ts evals/tsconfig.json)
-          if ! grep -E "projects:.*'evals'" vitest.config.ts > /dev/null; then
+          # Once the owner's evals exist, CI must keep running them.
+          if [ -d evals/owner-caught ] && ! grep -E "projects:.*'evals'" vitest.config.ts > /dev/null; then
             changed=$(printf '%s\nvitest.config.ts no longer lists the evals project' "$changed")
           fi
           if [ -z "$changed" ]; then exit 0; fi
