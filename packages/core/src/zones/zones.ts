@@ -2,15 +2,14 @@ import type { Dated } from '../calendar'
 import { massAtFor } from '../athlete/mass'
 import { entryAt } from '../athlete/measurements'
 import type { AthleteSettings } from '../athlete/settings'
-import { DISTRIBUTION_BINS, PRIORS } from '../constants'
+import { DISTRIBUTION_BINS } from '../constants'
+import { flatSpeedOfWkg, ridePowerOfWkg } from '../display'
 import { EDGE_EPSILON } from '../math'
 import type { ReferenceMax } from '../digest/referenceMax'
 import type { HeartRateJudgement } from '../digest/setAsideTypes'
-import { floorAt } from '../digest/thresholdFloor'
 import { thresholdAt } from '../digest/thresholdTimelineTypes'
-import type { ThresholdFloors, ThresholdTimeline } from '../digest/thresholdTimelineTypes'
-import { weekEndFor } from '../calendar'
-import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
+import type { ThresholdTimeline } from '../digest/thresholdTimelineTypes'
+import { weekEndInstant } from '../calendar'
 import { SPORTS } from '../types'
 import type { Sport } from '../types'
 import {
@@ -66,11 +65,12 @@ export interface ZoneSet {
    */
   asOfMs: number | null
   /**
-   * For an estimated pace or power reference that no fit stands for (none in the half year before the date, and none
-   * within a year), the length, s, of the best it is a floor from: the best 30 minutes in the 12 months up to the date's
-   * week, else the best 20 (`floorAt`). `asOfMs` is then the day that best was set. Null otherwise.
+   * For an estimated pace or power reference, the end of the last week of the window it is the threshold of: the 26 weeks
+   * (`THRESHOLD_WINDOW_WEEKS`) that end then, ms, as an instant in the viewer's zone. It is the date's own week while the zones
+   * follow that week's fit, and an earlier one while they hold a fit within error of it or an older one stands in. Null when
+   * entered, and for a heart rate.
    */
-  floorS: number | null
+  windowEndMs: number | null
   /**
    * For an estimated heart-rate reference cut from the highest heart rate on file because no effort reached near a
    * maximum (`UntrustedMax` `low` or `habitual`). Zones follow the highest value there is. False otherwise.
@@ -123,12 +123,7 @@ export interface ZoneEstimates {
   observedMaxSource: Record<Sport, ReferenceMax | null>
   /** The thresholds the pace and power zones are cut from, by week: see `ThresholdTimeline`. */
   thresholds: ThresholdTimeline
-  /**
-   * Each sport's efforts a floor on its threshold is taken from, which the pace and power zones are cut from on a date no
-   * fit stands for (`floorAt`). Absent: none, and those dates have no zones.
-   */
-  floor?: ThresholdFloors
-  /** The day the estimates are as of, ms. Zones for this week or later are current: they may stand on a floor older than a year. */
+  /** The day the estimates are as of, ms; the thresholds are settled as of it. */
   nowMs?: number
   /**
    * The sports whose estimated maximum heart rate is not one a maximum can be: `low` (under what a maximum is at the
@@ -180,7 +175,6 @@ export function zoneEstimatesOf(judgement: HeartRateJudgement, nowMs: number): Z
     rideObservedMaxHeartRate: judgement.observedMaxHr.ride,
     observedMaxSource: judgement.observedMaxSource,
     thresholds: settledThresholds(judgement.thresholdTimeline, nowMs),
-    floor: judgement.floor,
     nowMs,
     ...untrustedMaxOf(judgement),
   }
@@ -193,7 +187,7 @@ interface Estimated {
   from: Sport[]
   maxHeartRateFrom?: ReferenceMax
   asOfMs?: number
-  floorS?: number
+  windowEndMs?: number
   fromHighest?: true
 }
 
@@ -221,11 +215,10 @@ function heartRate(
 }
 
 /**
- * A threshold reference from the sport's fit over the half year that ends with the date, or, when that window
- * holds no fit, the newest earlier one within a year (marked with when its efforts end). Where no fit stands, the sport's
- * floor stands in: its best 30 minutes in the 12 months up to the end of the date's week, else its best 20 (marked with the
- * length and the day it was set). With none in those months, only zones for this week or later take the newest effort before
- * them, as `floorAt` has it. `convert` takes the fit's gross metabolic W/kg to the measure's unit.
+ * A threshold reference from the sport's fit over the half year that ends with the date's week, or, when that window holds no
+ * fit, the newest earlier one within a year (marked with when its efforts end). Both are the settled timeline's, so the zones
+ * are cut from the window that fit was taken over, which `windowEndMs` names. With no fit in the year there is no reference:
+ * a best effort is no threshold. `convert` takes the fit's gross metabolic W/kg to the measure's unit.
  */
 function threshold(
   sport: Sport,
@@ -234,25 +227,11 @@ function threshold(
   convert: (cp: number) => number,
 ): Estimated | null {
   const found = thresholdAt(estimates.thresholds[sport], when)
-  if (found === null) {
-    const weekEnd = weekEndFor(when)
-    const floor = floorAt(
-      estimates.floor?.[sport] ?? [],
-      weekEnd,
-      estimates.nowMs !== undefined && weekEnd >= estimates.nowMs,
-    )
-    return floor === null
-      ? null
-      : {
-          reference: convert(floor.value),
-          from: [sport],
-          asOfMs: floor.asOfMs,
-          floorS: floor.durationS,
-        }
-  }
+  if (found === null) return null
   return {
     reference: convert(found.fit.cp),
     from: [sport],
+    windowEndMs: weekEndInstant(found.windowEndMs),
     ...(found.asOfMs === null ? {} : { asOfMs: found.asOfMs }),
   }
 }
@@ -280,7 +259,7 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
         'run',
         heartRate('run', e.runMaxHeartRate, e.runObservedMaxHeartRate, e.observedMaxSource.run),
       ),
-    pace: (e, _massKg, when) => threshold('run', e, when, metabolicToFlatSpeed),
+    pace: (e, _massKg, when) => threshold('run', e, when, flatSpeedOfWkg),
   },
   ride: {
     heartRate: (e) =>
@@ -289,10 +268,7 @@ const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
         'ride',
         heartRate('ride', e.rideMaxHeartRate, e.rideObservedMaxHeartRate, e.observedMaxSource.ride),
       ),
-    power: (e, massKg, when) =>
-      threshold('ride', e, when, (cp) =>
-        metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
-      ),
+    power: (e, massKg, when) => threshold('ride', e, when, (cp) => ridePowerOfWkg(cp, massKg)),
   },
 }
 
@@ -341,7 +317,7 @@ export function zonesAt(
         estimatedFrom: entered === null ? (estimate?.from ?? []) : [],
         maxHeartRateFrom: entered === null ? (estimate?.maxHeartRateFrom ?? null) : null,
         asOfMs: entered === null ? (estimate?.asOfMs ?? null) : null,
-        floorS: entered === null ? (estimate?.floorS ?? null) : null,
+        windowEndMs: entered === null ? (estimate?.windowEndMs ?? null) : null,
         fromHighest: entered === null && estimate?.fromHighest === true,
         citation: ZONE_SCHEMES[measure].citation,
         zones: zonesFor(measure, reference),

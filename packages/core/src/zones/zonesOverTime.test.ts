@@ -89,7 +89,7 @@ describe('zones from current fitness', () => {
         source: 'entered',
         reference,
         asOfMs: null,
-        floorS: null,
+        windowEndMs: null,
         fromHighest: false,
       })
     }
@@ -120,31 +120,16 @@ describe('when the half year cannot support a threshold', () => {
     expect(missingThresholdZones(at(60), SETTINGS, estimates)).toEqual([])
   })
 
-  it('cuts the zones of today from the newest effort when none is within a year, and dates it', () => {
-    // The last hard run was in week 19; today is week 75. Its year up to week 75 holds none, so the newest effort stands in.
+  it('has no zones after a year without an effort, today included, and says which are missing', () => {
+    // The last hard run was in week 19; week 75 is a year and more on. The strides hold no effort a threshold reads, and a best
+    // of theirs would be no threshold, so nothing stands in.
     const today = estimatesFor([...hard, ...easy], at(19 + 56))
-    const set = pace(zonesAt(at(19 + 56), SETTINGS, today))!
-    const lastHard = FIRST_MONDAY_MS + (19 * 7 + 2) * DAY_MS
-    expect(set).toMatchObject({ source: 'estimated', floorS: 1800 })
-    expect(set.asOfMs).toBeLessThanOrEqual(lastHard)
-    expect(set.asOfMs).toBeGreaterThan(FIRST_MONDAY_MS - 1)
-    expect(missingThresholdZones(at(19 + 56), SETTINGS, today)).toEqual([])
-  })
-
-  it('has no zones for a date in the past after a year without an effort, and says which are missing', () => {
-    expect(estimates.floor!.run.length).toBeGreaterThan(0)
-    expect(pace(zonesAt(at(19 + 56), SETTINGS, estimates))).toBeUndefined()
-    expect(missingThresholdZones(at(19 + 56), SETTINGS, estimates)).toEqual([
-      { sport: 'run', measure: 'pace' },
-    ])
-  })
-
-  it('has none where the library holds no 20 minute effort, even for today', () => {
-    const bare = { ...estimatesFor([...hard, ...easy], at(19 + 56)), floor: { run: [], ride: [] } }
-    expect(pace(zonesAt(at(19 + 56), SETTINGS, bare))).toBeUndefined()
-    expect(missingThresholdZones(at(19 + 56), SETTINGS, bare)).toEqual([
-      { sport: 'run', measure: 'pace' },
-    ])
+    for (const found of [estimates, today]) {
+      expect(pace(zonesAt(at(19 + 56), SETTINGS, found))).toBeUndefined()
+      expect(missingThresholdZones(at(19 + 56), SETTINGS, found)).toEqual([
+        { sport: 'run', measure: 'pace' },
+      ])
+    }
   })
 
   it('has nothing missing where a threshold is entered, or where the sport has no activities', () => {
@@ -163,23 +148,18 @@ describe('when the half year cannot support a threshold', () => {
 })
 
 describe('the session', () => {
-  it('cuts pace and power from the floor where their fits lapse, and keeps heart rate', () => {
+  it('has no pace or power zones where their fits lapse, and keeps heart rate', () => {
     const session = new AnalysisSession()
     const state = session.loadSample(SETTINGS)
     const newest = state.library[0]!.startMs
     const soon = session.zonesAt(newest, SETTINGS)
     expect(soon.some((set) => set.measure === 'pace')).toBe(true)
     expect(soon.some((set) => set.measure === 'power')).toBe(true)
-    expect(soon.every((set) => set.floorS === null)).toBe(true)
     const later = session.zonesAt(newest + 400 * DAY_MS, SETTINGS)
-    expect(later.map((set) => set.measure).sort()).toEqual([
-      'heartRate',
-      'heartRate',
-      'pace',
-      'power',
+    expect(later.map((set) => set.measure)).toEqual(['heartRate', 'heartRate'])
+    expect(missingThresholdZones(newest + 400 * DAY_MS, SETTINGS, state.zoneEstimates)).toEqual([
+      { sport: 'run', measure: 'pace' },
+      { sport: 'ride', measure: 'power' },
     ])
-    const floored = later.filter((set) => set.measure !== 'heartRate')
-    expect(floored.every((set) => set.floorS !== null && set.asOfMs !== null)).toBe(true)
-    expect(missingThresholdZones(newest + 400 * DAY_MS, SETTINGS, state.zoneEstimates)).toEqual([])
   })
 })

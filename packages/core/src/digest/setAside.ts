@@ -12,7 +12,6 @@ import { bestCurves, fitBikeModelOver } from './rideCurves'
 import type { BestCurves } from './rideCurves'
 import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { effortsCount } from './effortTrust'
-import { floorEffortsOf } from './thresholdFloor'
 import { eachSport, librariesOf } from './thresholdLibraries'
 import { thresholdTimeline } from './thresholdTimeline'
 
@@ -35,7 +34,7 @@ function reportedFits(
 export function libraryThresholds(
   digests: ActivityDigest[],
   settings: AthleteSettings,
-): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline' | 'floor'> {
+): Pick<HeartRateJudgement, 'fit' | 'thresholdTimeline'> {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedFor('setAside', digests)
@@ -44,7 +43,6 @@ export function libraryThresholds(
   const curves = bestCurves(ordered, masses, bikeModel, settings.massKg, null)
   return {
     fit: reportedFits(curves, settings.massKg),
-    floor: floorEffortsOf(ordered, masses, bikeModel, null),
     thresholdTimeline: thresholdTimeline(ordered, masses, bikeModel, null),
   }
 }
@@ -102,7 +100,6 @@ export function judgeHeartRate(
     observedMaxSource: { run: observedSource.run, ride: observedSource.ride },
     effortReference: effort,
     fit: reportedFits(curves, settings.massKg),
-    floor: floorEffortsOf(ordered, masses, bikeModel, gate),
     sessions: {
       run: sessionsOfSport('run'),
       ride: sessionsOfSport('ride'),

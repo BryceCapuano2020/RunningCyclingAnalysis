@@ -32,6 +32,12 @@ export interface ThresholdStep {
   asOfMs: number | null
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
   lastFit: number
+  /**
+   * The end of the last week of the window `fit` was taken over, ms (a week end, see `weekEndFor`). Absent in the timeline as
+   * built, where a step's fit is its own window's and this is `fromMs`. The settled timeline the zones read sets it: it holds
+   * an earlier window's fit through a step whose own fit is within error of it, so the fit's window is not the step's.
+   */
+  windowEndMs?: number
 }
 
 /** Each sport's threshold over time; a sport with no efforts has no steps. */
@@ -39,36 +45,13 @@ export type ThresholdTimeline = Record<Sport, ThresholdStep[]>
 
 export const NO_THRESHOLD_TIMELINE: ThresholdTimeline = { run: [], ride: [] }
 
-/**
- * A sport's floor on its threshold at a date (`floorAt`): the best 30 minutes in the 12 months up to it, else the best 20,
- * whichever hard or not. Real ability is at least this, so the zones are cut from it where no fit stands for the date.
- */
-export interface ThresholdFloor {
-  /** The length of the effort, s: 30 minutes where the window has one, else 20. */
-  durationS: number
-  /** The best mean value over it, in the unit of the fit (gross metabolic W/kg). */
-  value: number
-  /** The start of the activity that set it, ms. */
-  asOfMs: number
-}
-
-/**
- * What one activity gives a floor, as `[startMs, hold, headline]`: the start of the activity, ms, and its best 30 minutes and
- * its best 20, in the unit of the fit (gross metabolic W/kg) to four decimals, each 0 when the activity has no such effort. A
- * tuple of numbers, since the session posts one for every activity.
- */
-export type FloorEffort = readonly [startMs: number, hold: number, headline: number]
-
-/** Both sports' efforts a floor is taken from, oldest first. */
-export type ThresholdFloors = Record<Sport, FloorEffort[]>
-
-export const NO_THRESHOLD_FLOORS: ThresholdFloors = { run: [], ride: [] }
-
 /** The threshold in effect on a date, and when it is from if it is not the date's own window's. */
 export interface ThresholdAt {
   fit: ThresholdFit
   /** Null for a fit over the window ending at the date. Otherwise the start of the newest activity of the older fit. */
   asOfMs: number | null
+  /** The end of the last week of the window the fit was taken over, ms (a week end): `ThresholdStep.windowEndMs`, else `fromMs`. */
+  windowEndMs: number
 }
 
 /** The index of the step in effect at an instant: the last whose week has ended by the instant's week's end, -1 for none. */
@@ -87,6 +70,11 @@ function stepIndexAt(steps: readonly ThresholdStep[], at: number | Dated): numbe
   return found
 }
 
+/** The end of the last week of the window a step's fit was taken over (see `ThresholdStep.windowEndMs`). */
+function windowEndOf(step: ThresholdStep): number {
+  return step.windowEndMs ?? step.fromMs
+}
+
 /**
  * The threshold in effect at an instant: the fit over the window that ends with the instant's week, or, when
  * that window cannot support one, the newest earlier fit whose activities end within `STALE_THRESHOLD_DAYS`. Null when none exists.
@@ -97,11 +85,11 @@ export function thresholdAt(
 ): ThresholdAt | null {
   const step = steps[stepIndexAt(steps, at)]
   if (step === undefined) return null
-  if (step.fit !== null) return { fit: step.fit, asOfMs: null }
+  if (step.fit !== null) return { fit: step.fit, asOfMs: null, windowEndMs: windowEndOf(step) }
   const older = steps[step.lastFit]
   if (older?.fit == null || older.asOfMs === null) return null
   const startMs = typeof at === 'number' ? at : at.startMs
   return startMs - older.asOfMs <= STALE_THRESHOLD_DAYS * DAY_MS
-    ? { fit: older.fit, asOfMs: older.asOfMs }
+    ? { fit: older.fit, asOfMs: older.asOfMs, windowEndMs: windowEndOf(older) }
     : null
 }

@@ -179,6 +179,39 @@ describe('settledThresholds', () => {
       [4, 15],
       [8, 15],
     ])
-    expect(settledThresholds({ run: flat, ride: [] }, LATER).run).toEqual(flat)
+    // Each step says the window its fit was taken over: the first, which adopted it and which every later one confirms.
+    const settled = settledThresholds({ run: flat, ride: [] }, LATER).run
+    expect(settled.map((step) => step.windowEndMs)).toEqual(flat.map(() => flat[0]!.fromMs))
+    expect(settled.map(({ windowEndMs: _end, ...step }) => step)).toEqual(flat)
+  })
+
+  it('says which window the held fit was taken over: the step that adopted it, not the one it is held through', () => {
+    const points: [number, number | null][] = [
+      [0, 15],
+      [3, 15.05],
+      [6, 17],
+      [9, 17.05],
+    ]
+    const run = settledRun(points)
+    const week = (n: number) => START + n * WEEK_MS
+    expect(run.map((step) => step.windowEndMs)).toEqual([week(0), week(0), week(6), week(6)])
+    // The week after the second step the zones read the first window's 15, and from the third step on the window ending then.
+    expect(thresholdAt(run, week(4))).toMatchObject({ windowEndMs: week(0) })
+    expect(thresholdAt(run, week(8))).toMatchObject({ windowEndMs: week(6) })
+    // The timeline as built has no such field: a step's fit is its own window's, which ended with its week.
+    const built = stepsOf(points)
+    expect(built.every((step) => step.windowEndMs === undefined)).toBe(true)
+    expect(thresholdAt(built, week(4))).toMatchObject({ windowEndMs: week(3) })
+  })
+
+  it('names the window of the older fit that stands in for a window with none', () => {
+    const run = settledRun([
+      [0, 15],
+      [10, null],
+    ])
+    expect(thresholdAt(run, START + 12 * WEEK_MS)).toMatchObject({
+      windowEndMs: START,
+      asOfMs: START - WEEK_MS,
+    })
   })
 })
