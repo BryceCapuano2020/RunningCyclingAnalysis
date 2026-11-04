@@ -1,23 +1,22 @@
-import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
+import { HEADLINE_DURATION_S } from '../constants'
 import { sessionsOf } from '../effort'
 import type { EffortGate, EffortReference, GateReference } from '../effort'
 import { effortGateOf } from '../effort'
-import type { ActivityDigest, BikeModel, Curve, EffortCheck, Sport } from '../types'
+import type { ActivityDigest, BikeModel, EffortCheck, Sport } from '../types'
 import { effortsCount } from './effortTrust'
 import type { EstimatedRideGate } from './estimatedRide'
 import type { Masses } from './masses'
 import { twentyMinutePoints } from './rideCurves'
 
 /**
- * Both sports' effort gates: the 20 minute efforts, the library's references (what each can certify), the curve's best
- * 20 minutes as the floor, and the sessions that reached a hard heart rate.
+ * Both sports' effort gates: the 20 minute efforts, the library's references (what each can certify) and the sessions that
+ * reached a hard heart rate.
  */
 export function effortGatesOf(
   ordered: readonly ActivityDigest[],
   masses: Masses,
   bikeModel: BikeModel,
   rideGate: EstimatedRideGate | null,
-  floors: Record<Sport, Curve>,
   judged: EffortReference,
   setAside: ReadonlySet<string>,
 ): Record<Sport, EffortGate> {
@@ -29,19 +28,13 @@ export function effortGatesOf(
       source: judged.source[sport],
       from: judged.from[sport],
     }
-    const held = [CP_FIT_HOLD_S, HEADLINE_DURATION_S]
-      .map((durationS) => ({
-        durationS,
-        value: floors[sport].find((p) => p.durationS === durationS)?.value ?? Number.NaN,
-      }))
-      .find((candidate) => Number.isFinite(candidate.value))
     const sessions = sessionsOf(
       ordered.filter((d) => d.sport === sport && effortsCount(d)),
       own.bpm,
       own.reading,
       setAside,
     )
-    return effortGateOf(points[sport], held ?? null, own, sessions)
+    return effortGateOf(points[sport], own, sessions)
   }
   return { run: gateOf('run'), ride: gateOf('ride') }
 }

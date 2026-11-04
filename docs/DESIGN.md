@@ -590,7 +590,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   ("Range 4:10 to 4:39 /km", the estimate's 10th to 90th percentile, or "About 4:24 /km" where the ends print the same) and the method in
   one sentence. The critical-speed fit (`runCp`) stays on the result and no screen reads it: the curve chart draws the bests and the
   estimate's threshold line, and the race predictions read the bests and the heart-rate VO2max. A refused fit, an uneven one, a best that
-  was not hard and the effort gate's floor reach none of these cards. The zones table says what its pace is and when, as a ride's power
+  was not hard reach none of these cards. The zones table says what its pace is and when, as a ride's power
   is said: "Zones cut from 7:30 /mi, your threshold over the 26 weeks to 1 Nov". The share card labels it "Threshold GAP,
   estimated from your runs", since the card has no note to say what GAP allows for, and a card is offered once both sports have an estimate.
   The Method page's Thresholds entry gives the ride's and the run's method in one line each, says a backed hour you did is a floor and gives both rules that back

@@ -15,7 +15,7 @@ import { thresholdNeedsLine } from './thresholdNeeds'
 
 afterEach(cleanup)
 
-/** A best the gate once handed a card as its floor: in the fit's unit, a 30 min effort. */
+/** A 30 min best, in the fit's unit: the longest of a ride's, which no card prints as a threshold. */
 const THIRTY = { durationS: 1800, value: 3.4 }
 const MASS_KG = 70
 /** The bests each sport holds when it has no estimate: a run's longest is 7 min, under its 8; a ride's are 20 and 30 min. */
@@ -59,7 +59,7 @@ function panel(sport: Sport, result: AnalysisResult) {
   )
 }
 
-/** A sport with bests that give no threshold estimate and a gate that holds a 30 min floor: it still shows no number. */
+/** A sport with bests that give no threshold estimate and a gate that judged them hard: it still shows no number. */
 function noEstimate(sport: Sport) {
   const curve = BESTS[sport].map(({ durationS, value }) => curvePoint(durationS, value, 'a'))
   return makeResult({
@@ -71,7 +71,7 @@ function noEstimate(sport: Sport) {
     rideCpRefusal: 'shape',
     runCurve: curve,
     rideMetabolicCurve: curve,
-    effortGate: { run: UNKNOWN, ride: UNKNOWN, [sport]: { ...HARD, floor: THIRTY } },
+    effortGate: { run: UNKNOWN, ride: UNKNOWN, [sport]: HARD },
   })
 }
 
@@ -83,7 +83,7 @@ describe.each([
   const needs = `Needs an effort of ${minutes} min or longer`
   const heading = `Threshold ${sport === 'run' ? 'pace' : 'power'}`
 
-  it('has no figure, floor or best label to show, whatever the gate holds', () => {
+  it('has no figure or best label to show, whatever the gate says', () => {
     const result = noEstimate(sport)
     expect(hasThreshold(result, sport)).toBe(false)
     expect(threshold(result, sport, MASS_KG, 'metric')).toBeNull()
@@ -108,7 +108,7 @@ describe.each([
 describe('a run whose critical-power fit is refused', () => {
   const REFUSALS: CriticalPowerRefusal[] = ['shape', 'missing']
 
-  /** A run with an estimate of 16 W/kg beside a refused fit and a gate that holds a floor of 30 min at 3.4. */
+  /** A run with an estimate of 16 W/kg beside a refused fit. */
   function refused(refusal: CriticalPowerRefusal, notHard = false) {
     const gate = notHard ? { ...UNKNOWN, verdict: 'notHard' as const, unchecked: null } : HARD
     return makeResult({
@@ -116,11 +116,11 @@ describe('a run whose critical-power fit is refused', () => {
       runCp: null,
       runCpRefusal: refusal,
       runThreshold: makeRunThreshold(16),
-      effortGate: { run: { ...gate, floor: THIRTY }, ride: UNKNOWN },
+      effortGate: { run: gate, ride: UNKNOWN },
     })
   }
 
-  it.each(REFUSALS)('%s: the tile shows the estimate, not the gate’s best 30 min', (refusal) => {
+  it.each(REFUSALS)('%s: the tile shows the estimate, not a best 30 min', (refusal) => {
     const { container } = tile('run', refused(refusal))
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent(numberOf('run', 16))
     expect(container.textContent).not.toContain(numberOf('run', THIRTY.value))

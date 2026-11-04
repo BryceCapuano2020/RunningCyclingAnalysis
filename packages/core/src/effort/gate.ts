@@ -37,12 +37,6 @@ export interface EffortGate {
   referenceSource: ReferenceSource | null
   referenceFrom: Sport | null
   /**
-   * The demonstrated best shown in place of a withheld threshold, in the sport's fit unit (gross metabolic W/kg) with the
-   * duration it was held for: the best 30 minutes (what a threshold is said to be held for) where the curve has one, else the
-   * best 20 minutes. Null without either.
-   */
-  floor: { durationS: number; value: number } | null
-  /**
    * What would settle a failed gate: one hard effort of this length, s, when the reference can certify one. Null when it
    * cannot (low, habitual or high): then a hard effort is not the missing piece, the reference is.
    */
@@ -63,7 +57,6 @@ export const NO_EFFORT_GATE: EffortGate = {
   referenceBpm: null,
   referenceSource: null,
   referenceFrom: null,
-  floor: null,
   neededS: HEADLINE_DURATION_S,
   sessions: { hard: [], endurance: [] },
 }
@@ -118,13 +111,9 @@ export interface GateReference {
   from: Sport | null
 }
 
-/**
- * The gate for a sport, from its 20 minute efforts. `floor` is the demonstrated best the surfaces show in place of a
- * withheld threshold.
- */
+/** The gate for a sport, from its 20 minute efforts. */
 export function effortGateOf(
   points: readonly TwentyMinutePoint[],
-  floor: EffortGate['floor'],
   reference: GateReference,
   sessions: EffortGate['sessions'],
 ): EffortGate {
@@ -134,7 +123,6 @@ export function effortGateOf(
     referenceBpm: reference.bpm,
     referenceSource: reference.source,
     referenceFrom: reference.from,
-    floor,
   }
   const share =
     heartRate !== null && reference.bpm !== null && reference.bpm > 0

@@ -67,7 +67,6 @@ describe('judgedTwentyMinutes', () => {
 
 describe('effortGateOf', () => {
   const points = [{ value: 16, heartRate: 171, measured: true }]
-  const floor = { durationS: 1800, value: 15 }
   const none = { hard: [], endurance: [] }
   const ref = (over: Partial<GateReference> = {}): GateReference => ({
     bpm: 190,
@@ -78,23 +77,22 @@ describe('effortGateOf', () => {
   })
 
   it('is hard when the best 20 minutes reached the line of a reference that can be trusted', () => {
-    const gate = effortGateOf(points, floor, ref(), none)
+    const gate = effortGateOf(points, ref(), none)
     expect(gate.verdict).toBe('hard')
     expect(gate.share).toBeCloseTo(171 / 190)
-    expect(gate.floor).toEqual(floor)
     expect(gate.neededS).toBe(HEADLINE_DURATION_S)
     expect(gate.unchecked).toBeNull()
   })
 
   it('is not hard under the line, and asks for a hard 20 minutes', () => {
-    const gate = effortGateOf(points, floor, ref({ bpm: 200 }), none)
+    const gate = effortGateOf(points, ref({ bpm: 200 }), none)
     expect(gate.verdict).toBe('notHard')
     expect(gate.neededS).toBe(HEADLINE_DURATION_S)
   })
 
   it('is not hard when the reference cannot be trusted, however high the share, and then asks for no effort', () => {
     for (const reading of ['low', 'habitual', 'high'] as const) {
-      const gate = effortGateOf(points, floor, ref({ bpm: 150, reading }), none)
+      const gate = effortGateOf(points, ref({ bpm: 150, reading }), none)
       expect(gate.share).toBeGreaterThan(1)
       expect(gate.verdict).toBe('notHard')
       expect(gate.reference).toBe(reading)
@@ -103,23 +101,23 @@ describe('effortGateOf', () => {
   })
 
   it('cannot judge a reference of too few days: it says so, and withholds nothing', () => {
-    const gate = effortGateOf(points, floor, ref({ reading: 'thin' }), none)
+    const gate = effortGateOf(points, ref({ reading: 'thin' }), none)
     expect(gate.verdict).toBe('unknown')
     expect(gate.unchecked).toBe('thin')
   })
 
   it('cannot judge without a heart rate on the best, without a reference, or without a 20 minute best', () => {
-    const bare = effortGateOf([{ value: 16, heartRate: null, measured: true }], floor, ref(), none)
+    const bare = effortGateOf([{ value: 16, heartRate: null, measured: true }], ref(), none)
     expect([bare.verdict, bare.unchecked]).toEqual(['unknown', 'noHeartRate'])
-    const open = effortGateOf(points, floor, ref({ bpm: null, reading: null }), none)
+    const open = effortGateOf(points, ref({ bpm: null, reading: null }), none)
     expect([open.verdict, open.unchecked]).toEqual(['unknown', 'noHeartRate'])
-    const missing = effortGateOf([], null, ref(), none)
-    expect([missing.verdict, missing.unchecked, missing.floor]).toEqual(['unknown', 'noBest', null])
+    const missing = effortGateOf([], ref(), none)
+    expect([missing.verdict, missing.unchecked]).toEqual(['unknown', 'noBest'])
   })
 
   it('carries the sessions only where it judged', () => {
     const sessions = { hard: ['a'], endurance: ['b'] }
-    expect(effortGateOf(points, floor, ref(), sessions).sessions).toEqual(sessions)
-    expect(effortGateOf(points, floor, ref({ reading: 'thin' }), sessions).sessions).toEqual(none)
+    expect(effortGateOf(points, ref(), sessions).sessions).toEqual(sessions)
+    expect(effortGateOf(points, ref({ reading: 'thin' }), sessions).sessions).toEqual(none)
   })
 })

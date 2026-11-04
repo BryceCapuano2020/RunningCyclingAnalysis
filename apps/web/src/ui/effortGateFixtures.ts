@@ -1,4 +1,4 @@
-import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '@rca/core/constants'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { EffortGate } from '@rca/core/effort'
 
 /** Gates for the effort tests: a gate that did not show the best hard, and the ways a gate can be unable to judge. */
@@ -10,7 +10,6 @@ export const gate = (over: Partial<EffortGate> = {}): EffortGate => ({
   referenceBpm: 190,
   referenceSource: 'data',
   referenceFrom: 'run',
-  floor: { durationS: CP_FIT_HOLD_S, value: 3.4 },
   neededS: HEADLINE_DURATION_S,
   sessions: { hard: [], endurance: [] },
   ...over,
@@ -19,7 +18,6 @@ export const gate = (over: Partial<EffortGate> = {}): EffortGate => ({
 export const UNKNOWN = gate({
   verdict: 'unknown',
   share: null,
-  floor: null,
   unchecked: 'noBest',
   reference: null,
   referenceBpm: null,

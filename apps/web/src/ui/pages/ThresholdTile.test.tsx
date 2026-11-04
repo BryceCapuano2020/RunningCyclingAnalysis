@@ -235,16 +235,8 @@ describe('ThresholdTile', () => {
       expect(container.textContent).not.toMatch(STATUS)
     })
 
-    it('gives a ride no floor: with no estimate it asks for an effort, whatever the gate holds', () => {
-      const held = makeResult({
-        rideCp: null,
-        rideCpRefusal: 'shape',
-        effortGate: {
-          ...makeResult().effortGate,
-          ride: { ...makeResult().effortGate.ride, floor: { durationS: 1800, value: 3.9 } },
-        },
-      })
-      const { container } = renderTile('ride', held)
+    it('asks a ride with no estimate for a 3 min effort, with no status', () => {
+      const { container } = renderTile('ride', makeResult({ rideCp: null, rideCpRefusal: 'shape' }))
       expect(container.querySelector('.stat-tile__number')).toBeNull()
       expect(container.textContent).not.toMatch(STATUS)
       expect(container.querySelector('.stat-tile__line')).toHaveTextContent(

@@ -12,7 +12,7 @@ afterEach(cleanup)
 /** The pace of the run estimate these tests give, 16 W/kg gross metabolic: the number the cards print. */
 const ESTIMATE_PACE = paceFigure(16, 'metric').number
 
-/** A run whose best was not hard, with a floor in its gate: the estimate stands, and the floor is not shown. */
+/** A run whose best was not hard: the estimate stands, and no best stands in for it. */
 const notHard = () =>
   makeResult({
     activities: [makeActivity({ id: 'run-1', sport: 'run' })],
