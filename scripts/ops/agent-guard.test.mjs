@@ -183,3 +183,107 @@ test('every hook in .claude/settings.json runs a script that exists', () => {
     assert.ok(script && existsSync(join(ROOT, script)), command)
   }
 })
+
+test('no session edits the owner’s evals, by any tool or shell route', () => {
+  for (const agent of [undefined, 'rca-builder', 'rca-reviewer']) {
+    for (const command of [
+      'rm evals/owner-caught/lean-vs-ride-as-a-run/twin.test.ts',
+      'echo x > evals/owner-caught/README.md',
+      'cat notes >> "./evals/owner-caught/RUBRIC.md"',
+      'cat x 2>evals/owner-caught/log',
+      'sed -i "" s/a/b/ evals/owner-caught/RUBRIC.md',
+      'cd evals/owner-caught && ls',
+      'cp /tmp/x /repo/evals/owner-caught/case.md',
+      'tee evals/owner-caught/x < /dev/null',
+      'git checkout evals/owner-caught',
+      'git add evals/owner-caught',
+      'find evals/owner-caught -delete',
+      'find evals/owner-caught -exec rm {} ;',
+      'FOO=1 bash -c "touch evals/owner-caught/new"',
+    ]) {
+      assert.equal(kind(command, agent), 'deny', command)
+    }
+  }
+})
+
+test('reading the owner’s evals is fine', () => {
+  for (const command of [
+    'cat evals/owner-caught/README.md',
+    'head -20 evals/owner-caught/RUBRIC.md',
+    'grep -rn hedge evals/owner-caught | wc -l',
+    'rg anchor evals/owner-caught',
+    'ls -la evals/owner-caught',
+    'find evals/owner-caught -name case.md',
+    'diff evals/owner-caught/a evals/owner-caught/b',
+    'git diff origin/main -- evals/owner-caught',
+    'git -C /repo log --oneline -- evals/owner-caught',
+    'git show HEAD:evals/owner-caught/README.md',
+    'git status evals/owner-caught',
+    'git blame evals/owner-caught/RUBRIC.md',
+    `${SLOT} npx vitest run --project evals`,
+    'git commit -m "Pin the anchor in evals/owner-caught"',
+    'gh pr create --draft --body "Adds evals/owner-caught"',
+    'ls evals',
+  ]) {
+    assert.equal(kind(command), 'allow', command)
+  }
+})
+
+test('the owner-evals label is the owner’s to apply', () => {
+  for (const command of [
+    'gh pr edit 5 --add-label owner-evals',
+    'gh pr edit 5 --add-label "bug,owner-evals"',
+    'gh issue edit 5 --add-label owner-evals',
+    'gh label create owner-evals --color ff0000',
+    'gh -R owner/repo label create owner-evals',
+    'gh api repos/o/r/issues/5/labels -f "labels[]=owner-evals"',
+    'gh api -X POST repos/o/r/issues/5/labels --field labels[]=owner-evals',
+    'gh api --method=POST repos/o/r/labels -f name=owner-evals',
+  ]) {
+    for (const agent of [undefined, 'rca-builder'])
+      assert.equal(kind(command, agent), 'deny', command)
+  }
+  for (const command of [
+    'gh pr list --label owner-evals',
+    'gh pr edit 5 --add-label integration',
+    'gh api repos/o/r/issues/5/labels',
+    'gh api repos/o/r/issues/5/labels --jq ".[].name" # owner-evals',
+  ]) {
+    assert.equal(kind(command), 'allow', command)
+  }
+})
+
+test('Edit, Write and NotebookEdit are refused under evals/owner-caught and nowhere else', () => {
+  const ask = (tool_name, tool_input, extra = {}) =>
+    hookOutput({ tool_name, tool_input, cwd: '/repo/.claude/worktrees/w', ...extra })
+  for (const [tool, input] of [
+    ['Edit', { file_path: '/repo/evals/owner-caught/RUBRIC.md' }],
+    ['Write', { file_path: '/repo/.claude/worktrees/w/evals/owner-caught/x/case.md' }],
+    ['Write', { file_path: 'evals/owner-caught/x/case.md' }],
+    ['Edit', { file_path: 'evals/owner-caught/../owner-caught/README.md' }],
+    ['NotebookEdit', { notebook_path: '/repo/evals/owner-caught/a.ipynb' }],
+  ]) {
+    for (const agent_type of [undefined, 'rca-builder']) {
+      const out = JSON.parse(ask(tool, input, { agent_type }))
+      assert.equal(out.hookSpecificOutput.permissionDecision, 'deny', JSON.stringify(input))
+      assert.match(out.hookSpecificOutput.permissionDecisionReason, /owner/)
+    }
+  }
+  for (const [tool, input] of [
+    ['Edit', { file_path: '/repo/evals/vitest.config.ts' }],
+    ['Write', { file_path: '/repo/evals/owner-caught-notes.md' }],
+    ['Edit', { file_path: '/repo/docs/evals/owner-caught.md' }],
+    ['Write', { file_path: '/repo/apps/web/src/a.ts' }],
+    ['Edit', {}],
+  ]) {
+    assert.equal(ask(tool, input), '', JSON.stringify(input))
+  }
+})
+
+test('the hook is installed for the tools it guards', () => {
+  const settings = JSON.parse(readFileSync(join(ROOT, '.claude', 'settings.json'), 'utf8'))
+  const matcher = settings.hooks.PreToolUse.find((group) =>
+    group.hooks.some((hook) => hook.command.includes('agent-guard.mjs')),
+  ).matcher
+  assert.deepEqual(matcher.split('|').sort(), ['Bash', 'Edit', 'NotebookEdit', 'Write'])
+})

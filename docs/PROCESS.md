@@ -32,6 +32,9 @@ this repository loads when it starts:
 - The split between coordinator and agents: an agent (any subagent) opens pull requests as drafts
   and cannot mark one ready or merge it by any route, and the reviewer cannot commit, push or write
   to a pull request.
+- The owner's evals (`evals/owner-caught`) are the owner's: `agent-guard.mjs` refuses Edit, Write,
+  NotebookEdit and shell writes there in every session, and refuses `gh` calls that add or create the
+  `owner-evals` label; the `size` job fails a pull request that changes the folder without that label.
 - At startup, `worktree-sweep.mjs` removes clean worktrees under `.claude/worktrees` whose pull
   request has merged or closed, and lists detached ones and finished ones holding uncommitted work.
 
