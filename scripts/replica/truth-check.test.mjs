@@ -256,6 +256,33 @@ test('fails a Balance page whose ride-as-a-run card contradicts its lean', () =>
   )
 })
 
+test('fails a Balance threshold that differs from the same period on the sport page', () => {
+  const balance = (run, ride) =>
+    `RUN THRESHOLD\n${run}\n/mi\nRIDE THRESHOLD\n${ride}\nW\nYOUR RIDE AS A RUN\n8:00\n/mi\n`
+  withOutput(
+    {
+      'balance-12-months.txt': balance('7:30', '250'),
+      'run-12-months.txt': 'THRESHOLD PACE\n7:30\n/mi\n',
+      'ride-12-months.txt': 'THRESHOLD POWER\n250\nW\n',
+      'balance-6-weeks.txt': balance('7:30', '250'),
+      'run-6-weeks.txt': 'THRESHOLD PACE\n7:45\n/mi\n',
+      'ride-6-weeks.txt': 'THRESHOLD POWER\n262\nW\n',
+      'balance-all-time.txt': balance('7:30', '250'),
+    },
+    (dir) => {
+      const lines = runInvariants(dir)
+        .map(({ line }) => line)
+        .filter((line) => line.includes('balance-vs-sport'))
+      assert.deepEqual(lines, [
+        'PASS balance-vs-sport-run-threshold balance-12-months: Balance 450 s, run page 450 s /mi',
+        'PASS balance-vs-sport-ride-threshold balance-12-months: Balance 250 W, ride page 250 W',
+        'FAIL balance-vs-sport-run-threshold balance-6-weeks: Balance 450 s, run page 465 s /mi',
+        'FAIL balance-vs-sport-ride-threshold balance-6-weeks: Balance 250 W, ride page 262 W',
+      ])
+    },
+  )
+})
+
 test('the command fails on a contradiction even when every truth check passes', () => {
   withOutput(
     {
