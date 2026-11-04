@@ -149,7 +149,7 @@ describe('How this works entries', () => {
     const { detail } = entryNamed('Thresholds')
     // Daniels and Gilbert's share of top effort held for m minutes, over the share held for an hour: 1.137, 1.073, 1.029.
     expect(detail).toContain(
-      'It puts an all-out 10 min effort 14% above your hour’s energy rate, 20 min 7% and 40 min 3%.',
+      'It puts an all-out 10 min effort 14% above your hour’s oxygen cost, 20 min 7% and 40 min 3%.',
     )
     expect(runDurationRatio(600)).toBeCloseTo(1.137, 3)
     expect(runDurationRatio(1200)).toBeCloseTo(1.073, 3)
@@ -187,12 +187,15 @@ describe('How this works entries', () => {
     expect(lines).toContain(
       'A run’s threshold is the strongest effort of each run, scaled to an hour and averaged.',
     )
-    expect(lines).toContain('Neither is ever under an hour you did.')
+    expect(lines).toContain('Neither is ever under a backed hour you did.')
     expect(detail).toContain(
       'The runs are averaged, with more weight on recent runs and on those near your top.',
     )
     expect(detail).toContain(
-      'An hour you ran or rode is a floor: the answer, and the low end of its range, are never under it.',
+      'A backed hour is an hour you ran or rode that a second hour within 4% of it backs.',
+    )
+    expect(detail).toContain(
+      'A backed hour is a floor: the answer, and the low end of its range, are never under it.',
     )
     // The old run method, a critical-speed fit with a refused-fit floor, is gone from the page.
     const copy = [...lines, ...(detail ?? [])].join(' ')

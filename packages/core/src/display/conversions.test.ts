@@ -50,3 +50,14 @@ describe('the display conversions', () => {
     }
   })
 })
+
+describe('the figures the Method page quotes', () => {
+  it('are read from what the analysis applies', async () => {
+    const figures = await import('./methodFigures')
+    // Daniels and Gilbert's ratio of oxygen cost: 14% above the hour at 10 min, 7% at 20, 3% at 40.
+    expect([10, 20, 40].map(figures.runOxygenExcessPercent)).toEqual([14, 7, 3])
+    expect(figures.HOUR_AGREEMENT_PERCENT).toBe(4)
+    expect(figures.CYCLING_ANCHOR_WKG).toEqual({ male: 6.4, female: 5.69 })
+    expect(figures.GROSS_EFFICIENCY_PERCENT).toBeCloseTo(21.5, 9)
+  })
+})

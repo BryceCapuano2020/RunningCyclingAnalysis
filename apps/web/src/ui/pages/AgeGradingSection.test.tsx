@@ -61,10 +61,9 @@ describe('AgeGradingSection', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     for (const line of [
-      'Each sport is graded against its own best: a ride against the best riders’ hour, a run against the best runners’.',
+      'Each sport is graded against its own best: the best riders’ hour (6.40 W/kg men, 5.69 women) or the best runners’.',
       'Your grade in each is your share of world class at your age.',
       'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
-      'So a ride grade is an estimate.',
     ]) {
       expect(within(section()).getByText(line)).toBeInTheDocument()
     }

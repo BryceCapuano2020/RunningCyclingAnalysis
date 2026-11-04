@@ -36,7 +36,7 @@ describe('TopicBody', () => {
     expect(detail).toHaveTextContent('beats per minute (bpm)')
     // The rule for each sport's reference is said once, in the facts under the check.
     expect(detail).not.toHaveTextContent('Running uses the higher of its own maximum')
-    expect(detail).toHaveTextContent('5 to 7 bpm lower')
+    expect(detail).toHaveTextContent('about 6 bpm lower')
   })
 
   it('says air density follows the altitude in the file, with sea level as the fallback', () => {

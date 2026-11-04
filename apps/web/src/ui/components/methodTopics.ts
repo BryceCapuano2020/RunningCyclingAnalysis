@@ -2,9 +2,14 @@ import {
   ESTIMATED_RIDE_MIN_RIDES,
   ESTIMATED_RIDE_MIN_SHARE,
   FLAT_RUN_COST,
-  PRIORS,
   RUN_COST_CORRECTION,
 } from '@rca/core/constants'
+import {
+  ECONOMY_SPREAD_PERCENT,
+  EFFICIENCY_SPREAD_PERCENT,
+  GROSS_EFFICIENCY_PERCENT,
+} from '@rca/core/display'
+import { REFERENCE_FLOOR_BPM, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import { CLIMB_NEEDED } from './headlineNeed'
 
@@ -17,9 +22,7 @@ export const SECTION_ID = {
   how: 'method-how',
 } as const
 
-const EFFICIENCY_PERCENT = (PRIORS.grossEfficiency.mean * 100).toFixed(1)
-const spreadPercent = (prior: { mean: number; sd: number }) =>
-  Math.round((prior.sd / prior.mean) * 100)
+const EFFICIENCY_PERCENT = GROSS_EFFICIENCY_PERCENT.toFixed(1)
 
 /**
  * The topics that sit in a section of their own, beside the chart or the figures they explain. Everything
@@ -53,8 +56,8 @@ const TOPIC_LIST = [
       'The range is not a fitness percentile.',
     ],
     detail: [
-      `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%.`,
-      `Running economy varies by about ${spreadPercent(PRIORS.runEconomyScale)}%.`,
+      `Efficiency varies between people by about ${EFFICIENCY_SPREAD_PERCENT}%.`,
+      `Running economy varies by about ${ECONOMY_SPREAD_PERCENT}%.`,
       'Those spreads are the model’s assumptions behind the range.',
       'A threshold and a race prediction each have a range of their own.',
     ],
@@ -77,10 +80,10 @@ const TOPIC_LIST = [
       'Each sport’s best efforts are judged against its max heart rate, in beats per minute (bpm).',
       'The max is the highest sustained heart rate that several separate days reached in the last three years.',
       'One stray reading sets nothing.',
-      'A cycling maximum usually runs 5 to 7 bpm lower than a running one.',
+      `A cycling maximum usually runs about ${RIDE_MAX_OFFSET_BPM} bpm lower than a running one.`,
       'So the cycling max allows for that.',
       'A max counts only if it could be one.',
-      'Under about 150 bpm (lower where your age gives a lower maximum), a max is too low.',
+      `Under about ${REFERENCE_FLOOR_BPM} bpm (lower where your age gives a lower maximum), a max is too low.`,
       'A heart rate far above the usual maximum for your age is not trusted until you confirm it.',
       'If your typical day already reaches nearly the same heart rate as your highest, the max is where you usually train.',
       'It does not show what you can reach.',
