@@ -46,6 +46,6 @@ describe('where a period’s zones were cut from', () => {
 
   it('counts pace with no threshold in effect as having no zones, whatever best the activities hold', () => {
     const without = row(estimatesOf(FIGURES), 'pace')
-    expect([without.counted, without.noZones, 'floor' in without]).toEqual([0, 2, false])
+    expect([without.counted, without.noZones]).toEqual([0, 2])
   })
 })

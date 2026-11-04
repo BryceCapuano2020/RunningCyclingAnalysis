@@ -171,16 +171,12 @@ describe('TimeInZonesSection', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 50%/)
   })
 
-  it('says nothing of which effort the zones were cut from: one line says they are estimated', () => {
+  it('says nothing of which threshold or heart rate the zones were cut from: one line says they are estimated', () => {
     const highest = { ...hr, entered: 0, fromHighest: true as const }
-    const floored = {
-      ...pace,
-      floor: { durationS: 1800, asOfMs: new Date(2025, 9, 3, 12).getTime(), activities: 5 },
-    }
     render(
       <TimeInZonesSection
         sport="run"
-        rows={[highest, floored]}
+        rows={[highest, pace]}
         previous={null}
         previousLabel={null}
       />,
