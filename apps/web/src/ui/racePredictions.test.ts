@@ -1,9 +1,10 @@
 import { METRES_PER_MILE } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
 import { makeActivity, makeResult } from './components/fixtures'
-import { racePredictionsOf } from './racePredictions'
+import { raceAnswerOf } from './raceAnswer'
+import { forecastOf } from './test/raceForecast'
 
-describe('racePredictionsOf', () => {
+describe('raceAnswerOf from the mile up', () => {
   // The page tells a runner "Needs a best of a mile or more", so a mile best alone must be enough.
   it('predicts from a run whose only distance best is the mile', () => {
     const result = makeResult({
@@ -17,7 +18,7 @@ describe('racePredictionsOf', () => {
       ],
       runVo2max: null,
     })
-    expect(racePredictionsOf('run', result)).not.toBeNull()
+    expect(forecastOf(raceAnswerOf('run', result, null)).found.races.length).toBeGreaterThan(0)
   })
 
   it('does not predict from a best shorter than a mile', () => {
@@ -32,6 +33,6 @@ describe('racePredictionsOf', () => {
       ],
       runVo2max: null,
     })
-    expect(racePredictionsOf('run', result)).toBeNull()
+    expect(raceAnswerOf('run', result, null)).toBeNull()
   })
 })

@@ -3,10 +3,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { makeActivity, makeResult } from '../components/fixtures'
+import type { RaceWindow } from '../raceAnswer'
 import { raceAnswerOf } from '../raceAnswer'
 import { forecastOf } from '../test/raceForecast'
-import type { RaceWindow } from '../raceAnswer'
-import { racePredictionsOf } from '../racePredictions'
 import { distanceRecords } from '../records'
 import type { DistanceRecord } from '../records'
 import { RacePredictions } from './RacePredictions'
@@ -196,12 +195,14 @@ describe('RacePredictions', () => {
       distanceM: 10_000,
       distanceBests: [{ distanceM: 10000, seconds: 38 * 60 }],
     })
-    const both = racePredictionsOf('run', makeResult({ activities: [withBests, treadmill] }))
-    const outdoorOnly = racePredictionsOf('run', makeResult({ activities: [withBests] }))
+    const found = (activities: (typeof withBests)[]) =>
+      forecastOf(raceAnswerOf('run', makeResult({ activities }), null)).found
+    const both = found([withBests, treadmill])
+    const outdoorOnly = found([withBests])
     // The treadmill's distance still counts as weekly volume, which only the marathon reads.
     expect(both?.runsVdot).toBe(outdoorOnly?.runsVdot)
     expect(both?.races.slice(0, 3)).toEqual(outdoorOnly?.races.slice(0, 3))
-    expect(racePredictionsOf('run', makeResult({ activities: [treadmill] }))).toBeNull()
+    expect(raceAnswerOf('run', makeResult({ activities: [treadmill] }), null)).toBeNull()
   })
 
   it('says what the times are for, with or without heart rate behind them', () => {
@@ -312,8 +313,8 @@ describe('RacePredictions', () => {
   })
 
   it('finds none for a sport without a predictor, or without evidence', () => {
-    expect(racePredictionsOf('ride', makeResult({ activities: [withBests] }))).toBeNull()
-    expect(racePredictionsOf('run', makeResult())).toBeNull()
+    expect(raceAnswerOf('ride', makeResult({ activities: [withBests] }), null)).toBeNull()
+    expect(raceAnswerOf('run', makeResult(), null)).toBeNull()
   })
 
   describe('a recorded best off the prediction', () => {
@@ -336,7 +337,7 @@ describe('RacePredictions', () => {
     const easy = { distanceM: 10_000, seconds: 38 * 60, activity: quick }
 
     it('puts a prediction no slower than a time already run at the distance', () => {
-      const found = racePredictionsOf('run', slowHeartRate)!
+      const found = forecastOf(raceAnswerOf('run', slowHeartRate, null)).found
       const ten = found.races.find((r) => r.distanceM === 10_000)!
       expect(ten.seconds).toBeLessThanOrEqual(40 * 60 + 7)
       expect(ten.methods.every((m) => m.seconds <= 40 * 60 + 7)).toBe(true)
