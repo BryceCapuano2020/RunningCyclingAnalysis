@@ -133,6 +133,17 @@ timeout at random.
   by events, including worker restarts and stale replies) and get it reviewed before coding.
 - If a third round still finds a blocker, stop and re-scope or split the pull request.
 
+## Releases
+
+- Release each package on its own, once it is green on `main` and has passed the replica (the
+  signed-in replica and its truth check, which stay local), with the owner's go each time. One go
+  covers one release and never carries over to the next.
+- The steps run from a clean worktree at the release commit, and every release gets a row in
+  [RELEASES.md](RELEASES.md).
+
+Why: one package per release keeps a regression traceable to one change, and the owner uses each
+change on their own data before the next lands.
+
 ## Retro at each gate
 
 At each stage gate the coordinator writes recurring problems into this file or into
