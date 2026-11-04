@@ -590,8 +590,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   ("Range 4:10 to 4:39 /km", the estimate's 10th to 90th percentile, or "About 4:24 /km" where the ends print the same) and the method in
   one sentence. The critical-speed fit (`runCp`) stays on the result and no screen reads it: the curve chart draws the bests and the
   estimate's threshold line, and the race predictions read the bests and the heart-rate VO2max. A refused fit, an uneven one, a best that
-  was not hard and the effort gate's floor reach none of these cards. The zones table says where its pace came from as a ride's power
-  is said, "Threshold pace: 7:30 /mi, estimated from your runs" (and "up to Mar 2025" for an older one). The share card labels it "Threshold GAP,
+  was not hard and the effort gate's floor reach none of these cards. The zones table says what its pace is and when, as a ride's power
+  is said: "Zones cut from 7:30 /mi, your threshold over the 26 weeks to 1 Nov". The share card labels it "Threshold GAP,
   estimated from your runs", since the card has no note to say what GAP allows for, and a card is offered once both sports have an estimate.
   The Method page's Thresholds entry gives the ride's and the run's method in one line each, says a backed hour you did is a floor and gives both rules that back
   an hour, and gives the table's figures from the code.
@@ -1109,9 +1109,11 @@ and the tests named at the foot of that page keep the two in step. A display siz
   rate and never lowered"); a run's is the strongest effort of each run scaled to an hour and averaged, with Daniels and
   Gilbert's table (its figures are read from the code), and says nothing of heart rate, since runs read pace only for now; neither is
   ever under an hour the athlete did. The run's critical-speed fit, its range and its "At least" floor are not on the page.
-  A zone table's reference line on Profile says a run's pace as a ride's power is said: "Threshold pace: 4:46 /km, estimated from your
-  runs". A ride's reads "Threshold power: 240 W, estimated from your rides". A pace cut from a floor (the zones' own fallback, below) still
-  reads "Threshold pace: at least 4:46 /km, from your best 30 min on 4 Sep".
+  A zone table's reference line on Profile says a run's pace as a ride's power is said: "Zones cut from 4:46 /km, your threshold over the
+  26 weeks to 1 Nov". A ride's reads "Zones cut from 240 W, your threshold over the 26 weeks to 1 Nov". It is not the period tile's
+  threshold: the zones are cut per week from the settled 26-week timeline, so the line names the window the figure is the threshold of (the one
+  that adopted it, `ZoneSet.windowEndMs`), and the figure is the tile's when the period is those weeks. An entered one reads "Zones cut from
+  240 W, entered by you".
 - **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
@@ -1326,8 +1328,8 @@ adds a column with the previous period's share of each zone, headed by its label
 Under the bars, a muted line for each measure that left activities out ("2 of 12 runs had no heart rate to count.": no
 distribution in an older digest, no heart rate, no power meter; "had heart rate set aside": the analysis of the whole library
 judged the sensor; or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from. The basis of a
-zone set cut from the highest heart rate on file, or from a floor (the best 30 min or 20 min of the 12 months before each activity), is on Profile, in the table's reference line;
-`MeasureTime.fromHighest` and `floor` are not read by the page.
+zone set cut from the highest heart rate on file is on Profile, in the table's reference line;
+`MeasureTime.fromHighest` is not read by the page.
 Whose heart rate is set aside is a judgement of the data, not of a period: the session makes it once over every visible
 activity, with the bike model fitted over all of them (`judgeHeartRate`, cached per library and masses by
 `HeartRateJudge`), exposes it as `SessionState.heartRateJudgement` (the sorted ids, and the reference heart rate and
@@ -1391,12 +1393,8 @@ period is picked: the library's judgement, taken over every visible activity onc
 over the last three years; where no effort reached near a maximum (`untrustedMax` `low` or `habitual`) the zones are still cut
 from the highest on file, and say so. A pace or power is the threshold estimate over the half year before the activity's week (`thresholdTimeline`;
 a run's and a ride's alike, docs/design/threshold.md), so an activity is cut by the athlete's fitness then; where that half year
-holds no effort its estimate reads (3 min for a ride, 8 for a run) the newest estimate within a year stands in, dated in the table ("up to Mar 2025"). Where none stands, the zones are
-cut from a **floor**: the best 30 min, else the best 20 min, of the 12 months up to the end of the activity's week
-(`floorAt`, from `HeartRateJudgement.floor`, each activity's two bests), dated by the activity that set it. An old best does
-not cut today's zones and a later one does not cut earlier activities. With no best in those 12 months, a date in the past has no
-pace or power zones, and only the zones for this week or later take the newest effort before them, with the best of the 12 months
-ending with it, the table saying its date. A library with no effort of 20 min has none, and a line says what would give them. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
+holds no effort its estimate reads (3 min for a ride, 8 for a run) the newest estimate within a year stands in, and the table's line names the window that estimate is the threshold of. Where none stands, there are no pace or power zones for that date, and a line says what would give
+them (an effort of 8 min for a run, 3 for a ride). A best effort is never a stand-in: it is no threshold, so no table labels one as such. A dated setting the athlete entered still wins on the date it is in force, so each activity is cut by the
 value in force on its own day, and the library's estimate stands where nothing was entered. Profile, the activity page and
 the sport page's time in zones all read it, so one activity has the same zones, and the same shares, under every period.
 Profile names where the max heart rate comes from ("186 bpm, the highest you reached on 4 separate days since Sep 2021.

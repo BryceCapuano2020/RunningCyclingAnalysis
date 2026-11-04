@@ -19,7 +19,7 @@ function setOf(sport: ZoneSet['sport'], measure: ZoneMeasure, reference: number)
     estimatedFrom: [sport],
     maxHeartRateFrom: null,
     asOfMs: null,
-    floorS: null,
+    windowEndMs: null,
     fromHighest: false,
     citation: '',
     zones: zonesFor(measure, reference),

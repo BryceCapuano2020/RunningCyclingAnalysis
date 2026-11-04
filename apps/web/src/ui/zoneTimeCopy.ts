@@ -1,3 +1,4 @@
+import { shortestEffortMin } from '@rca/core/display'
 import { hasEnoughZoneTime, mainZone, sameEnteredReferences } from '@rca/core/zones'
 import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
@@ -23,14 +24,14 @@ export const ROW_LABEL: Record<ZoneMeasure, string> = {
 }
 
 /**
- * What gives a measure zones when none is entered. A pace and a power are cut from a fitted threshold and, where none
- * stands, from the best 30 min or 20 min on file, so they lack zones only without an effort of 20 min. A heart rate is cut
- * from the highest on file, so it lacks them only without a heart rate.
+ * What gives a measure zones when none is entered. A pace and a power are cut from the sport's threshold estimate, which any
+ * effort its duration table reads gives (`shortestEffortMin`), so they lack zones only without one in the year. A heart rate is
+ * cut from the highest on file, so it lacks them only without a heart rate.
  */
 export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
   heartRate: 'Enter your max heart rate on Profile to get them.',
-  pace: 'A run of 20 min or more sets your pace zones.',
-  power: 'A ride of 20 min or more sets your power zones.',
+  pace: `A run of ${shortestEffortMin('run')} min or more sets your pace zones.`,
+  power: `A ride of ${shortestEffortMin('ride')} min or more sets your power zones.`,
 }
 
 /** What an activity has to record for a measure to count it. */

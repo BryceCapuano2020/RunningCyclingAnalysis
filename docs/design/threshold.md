@@ -249,8 +249,8 @@ the range, the records and the share card show one number.
   threshold heart rate and the run reading was built (above), but trying it on a real library lifted the estimate too far while pace
   alone was right, so the caller passes none and `runThreshold.heartRate` is `{ refused: 'no-heart-rate' }` for every run. A test
   holds the run detail to that: it carries no heart-rate sentence whether the estimate holds a reading or a refusal.
-- **Elsewhere.** The zones' source line says "Threshold pace: 7:30 /mi, estimated from your runs" (with "up to Mar 2025" for an
-  older estimate, as a ride's). The share card says "Threshold GAP, estimated from your runs", and a card needs an estimate on both
+- **Elsewhere.** The zones' source line says "Zones cut from 7:30 /mi, your threshold over the 26 weeks to 1 Nov" (the window the held
+  estimate was taken over, as a ride's). The share card says "Threshold GAP, estimated from your runs", and a card needs an estimate on both
   sports. The Method page's Thresholds entry says the run's method beside the ride's and quotes the table's percentages from the
   code (`DURATION_TABLES.run`): an all-out 10 min effort is 14% above an hour's energy rate, 20 min 7%, 40 min 3%.
 - **What stays on the fit.** `runCp` stays on the result as the critical-power fit, read by no screen (see "What it replaces").
@@ -423,7 +423,8 @@ do not (see "What it replaces"). A sport added to `Sport` has to say how its bes
   zones' hold asks. The 10th to 90th range is not that: it allows for an athlete above their best, so it is one-sided and about
   6.6% of the value, and settling on it ignored a real 5% rise.
 - **A window with any effort of its sport's shortest length or more has an estimate**, so the older-fit rule applies to a sport only
-  when a window holds none at all (a ride with nothing past 2 min, a run with nothing past 7 min, say), and the best-30-min zone floor only where no window does. The
+  when a window holds none at all (a ride with nothing past 2 min, a run with nothing past 7 min, say), and a date with no estimate within a year has no
+  zones: the best-30-min zone floor (`floorAt`, `HeartRateJudgement.floor`) is gone, since a raw best is no threshold. The
   "outgrown" rule, which kept an older fit from standing in for a window whose steady effort was far above it, had nothing
   left to do for either sport once every window with an effort had an estimate of its own, and is removed (with the
   "your threshold around this date is not settled" line it fed).

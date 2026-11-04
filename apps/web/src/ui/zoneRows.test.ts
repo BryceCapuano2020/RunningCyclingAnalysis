@@ -11,7 +11,7 @@ function setOf(partial: Partial<ZoneSet> & Pick<ZoneSet, 'measure' | 'reference'
     estimatedFrom: ['ride'],
     maxHeartRateFrom: null,
     asOfMs: null,
-    floorS: null,
+    windowEndMs: null,
     fromHighest: false,
     zones: zonesFor(partial.measure, partial.reference),
     ...partial,
@@ -89,21 +89,49 @@ describe('zone ranges do not repeat a shared edge', () => {
   })
 })
 
+/** The end of a window in the current year, so the year is left out of the date it is written as. */
+const WINDOW_END = new Date(new Date().getFullYear(), 10, 1, 23, 59, 59, 999).getTime()
+
 describe('zoneTable', () => {
   it('titles a table by sport and measure, with its source and reference', () => {
-    const table = zoneTable(setOf({ measure: 'power', reference: 250 }), 'metric')
+    const table = zoneTable(
+      setOf({ measure: 'power', reference: 250, windowEndMs: WINDOW_END }),
+      'metric',
+    )
     expect(table.title).toBe('Ride power zones')
-    expect(table.detail).toBe('Threshold power: 250 W, estimated from your rides')
+    expect(table.detail).toBe('Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
   })
 
-  it('gives an estimated threshold its figure and its source, with no note on a newer fit', () => {
-    const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
+  it('gives a run’s threshold as a pace in the page’s units, with the window it is the threshold of', () => {
+    const set = setOf({
+      sport: 'run',
+      measure: 'pace',
+      reference: 3.5,
+      estimatedFrom: ['run'],
+      windowEndMs: WINDOW_END,
+    })
     expect(zoneTable(set, 'metric').detail).toBe(
-      'Threshold pace: 4:46 /km, estimated from your runs',
+      'Zones cut from 4:46 /km, your threshold over the 26 weeks to 1 Nov',
     )
+    expect(zoneTable(set, 'imperial').detail).toBe(
+      'Zones cut from 7:40 /mi, your threshold over the 26 weeks to 1 Nov',
+    )
+  })
+
+  it('writes a year after the day of a window that ended in another year', () => {
+    const last = new Date(new Date().getFullYear() - 1, 10, 1, 23, 59, 59, 999).getTime()
+    const set = setOf({ measure: 'power', reference: 250, windowEndMs: last })
+    expect(zoneTable(set, 'metric').detail).toBe(
+      `Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov ${new Date(last).getFullYear()}`,
+    )
+  })
+
+  it('says an entered threshold was entered, with no window', () => {
+    const set = setOf({ measure: 'power', reference: 240, source: 'entered' })
+    expect(zoneTable(set, 'metric').detail).toBe('Zones cut from 240 W, entered by you')
   })
 
   it('says an entered reference was entered', () => {
@@ -129,57 +157,34 @@ describe('the source and basis of an estimated zone set', () => {
   const SEPTEMBER_2021 = new Date(2021, 8, 15, 12).getTime()
   const MARCH_2025 = new Date(2025, 2, 15, 12).getTime()
 
-  it('dates a pace or power that comes from an older fit', () => {
-    const set = setOf({ sport: 'run', measure: 'pace', reference: 3.5, estimatedFrom: ['run'] })
-    expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
-    expect(sourceText(set)).toBe('From your runs')
-    expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe(
-      'Threshold pace: 4:46 /km, estimated from your runs up to Mar 2025',
-    )
-  })
-
-  it('dates a pace or power cut from the floor by the effort that set it, and names the effort', () => {
-    const asOfMs = new Date(2025, 2, 15, 12).getTime()
+  it('dates a pace or power that comes from an older fit, and names the window that fit is the threshold of', () => {
     const set = setOf({
       sport: 'run',
       measure: 'pace',
       reference: 3.5,
       estimatedFrom: ['run'],
-      asOfMs,
-      floorS: 1800,
+      windowEndMs: WINDOW_END,
     })
-    expect(sourceText(set)).toBe('From your best 30 min on 15 Mar 2025')
-    // A floor says so beside its figure: the real threshold is at least that.
-    expect(zoneTable(set, 'metric').detail).toBe(
-      'Threshold pace: at least 4:46 /km, from your best 30 min on 15 Mar 2025',
+    expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
+    expect(sourceText(set)).toBe('From your runs')
+    expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe(
+      'Zones cut from 4:46 /km, your threshold over the 26 weeks to 1 Nov',
     )
-    expect(sourceText({ ...set, floorS: 1200 })).toBe('From your best 20 min on 15 Mar 2025')
   })
 
-  it('says a ride’s power is estimated from the rides, with no floor and no “at least”, even where a floor is held', () => {
-    const asOfMs = new Date(2025, 2, 15, 12).getTime()
+  it('says a ride’s power is its threshold over the window, whatever date the newest effort has', () => {
     const power = setOf({
       sport: 'ride',
       measure: 'power',
       reference: 240,
       estimatedFrom: ['ride'],
-      asOfMs,
-      floorS: 1800,
+      asOfMs: MARCH_2025,
+      windowEndMs: WINDOW_END,
     })
-    // The ride's threshold is the estimate from all its efforts, so no ride zone is said to rest on the best 30 min.
     expect(zoneTable(power, 'metric').detail).toBe(
-      'Threshold power: 240 W, estimated from your rides up to Mar 2025',
+      'Zones cut from 240 W, your threshold over the 26 weeks to 1 Nov',
     )
     expect(sourceText(power)).toBe('From your rides up to Mar 2025')
-    expect(zoneTable({ ...power, floorS: null }, 'metric').detail).toBe(
-      'Threshold power: 240 W, estimated from your rides up to Mar 2025',
-    )
-    expect(zoneTable({ ...power, floorS: null, asOfMs: null }, 'metric').detail).toBe(
-      'Threshold power: 240 W, estimated from your rides',
-    )
-    expect(
-      zoneTable({ ...power, source: 'entered', floorS: null, asOfMs: null }, 'metric').detail,
-    ).toBe('Threshold power: 240 W, entered by you')
   })
 
   it('says a max heart rate cut from the highest on file is that, and can still be corrected', () => {
