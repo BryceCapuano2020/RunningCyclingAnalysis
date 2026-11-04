@@ -28,7 +28,7 @@ test('splits commands on separators and keeps quoted text whole', () => {
 test('skips here-document bodies and comments', () => {
   const text = "cat > notes.md <<'EOF'\nnpx vitest run\ngh pr checks 12\nEOF\necho ok # npx vitest"
   assert.deepEqual(simpleCommands(text), [
-    ['cat', 'notes.md'],
+    ['cat', '>', 'notes.md'],
     ['echo', 'ok'],
   ])
   assert.deepEqual(simpleCommands('grep x <<< "npx vitest"'), [['grep', 'x', 'npx vitest']])
@@ -184,55 +184,86 @@ test('every hook in .claude/settings.json runs a script that exists', () => {
   }
 })
 
-test('no session edits the owner’s evals, by any tool or shell route', () => {
+test('no session writes the owner’s evals, by any shell route', () => {
   for (const agent of [undefined, 'rca-builder', 'rca-reviewer']) {
     for (const command of [
       'rm evals/owner-caught/lean-vs-ride-as-a-run/twin.test.ts',
       'echo x > evals/owner-caught/README.md',
       'cat notes >> "./evals/owner-caught/RUBRIC.md"',
       'cat x 2>evals/owner-caught/log',
+      "awk '{print}' in > evals/owner-caught/x",
+      `${SLOT} npx vitest run > evals/owner-caught/log`,
       'sed -i "" s/a/b/ evals/owner-caught/RUBRIC.md',
       'cd evals/owner-caught && ls',
       'cp /tmp/x /repo/evals/owner-caught/case.md',
       'tee evals/owner-caught/x < /dev/null',
-      'git checkout evals/owner-caught',
-      'git add evals/owner-caught',
+      'git checkout -- evals/owner-caught',
+      'git checkout HEAD evals/owner-caught/case.md',
+      'git restore evals/owner-caught',
+      'git rm -r evals/owner-caught',
+      'git clean -fd evals/owner-caught',
       'find evals/owner-caught -delete',
       'find evals/owner-caught -exec rm {} ;',
       'FOO=1 bash -c "touch evals/owner-caught/new"',
+      // The parent, a glob into the folder, a ./ prefix and an absolute path.
+      'rm -rf evals',
+      'rm -rf ./evals/',
+      'mv evals /tmp/x',
+      'find evals -delete',
+      'sed -i "" s/a/b/ evals/*/case.md',
+      'rm evals/*/case.md',
+      'rm ./evals/owner-caught',
+      'rm /Users/me/repo/evals/owner-caught/case.md',
+      'rm ev*/owner-*/case.md',
+      'awk \'{print > "x"}\' evals/owner-caught/case.md',
     ]) {
       assert.equal(kind(command, agent), 'deny', command)
     }
   }
 })
 
-test('reading the owner’s evals is fine', () => {
+test('reading the owner’s evals is fine, and so is naming their branch', () => {
   for (const command of [
     'cat evals/owner-caught/README.md',
     'head -20 evals/owner-caught/RUBRIC.md',
     'grep -rn hedge evals/owner-caught | wc -l',
     'rg anchor evals/owner-caught',
     'ls -la evals/owner-caught',
+    'ls evals',
     'find evals/owner-caught -name case.md',
     'diff evals/owner-caught/a evals/owner-caught/b',
+    'sed -n 1,5p evals/owner-caught/README.md',
+    "awk '{print $1}' evals/owner-caught/case.md",
+    "awk '$1 > 5' evals/owner-caught/case.md",
     'git diff origin/main -- evals/owner-caught',
     'git -C /repo log --oneline -- evals/owner-caught',
     'git show HEAD:evals/owner-caught/README.md',
     'git status evals/owner-caught',
     'git blame evals/owner-caught/RUBRIC.md',
+    'git grep -n anchor -- evals/owner-caught',
+    'git push origin evals/owner-caught',
+    'git push -u origin evals/owner-caught-guards',
+    'git checkout evals/owner-caught',
+    'git rebase origin/main evals/owner-caught',
+    'git switch -c evals/owner-caught-guards origin/main',
+    'git add evals/owner-caught',
     `${SLOT} npx vitest run --project evals`,
+    'npx prettier --check evals',
     'git commit -m "Pin the anchor in evals/owner-caught"',
-    'gh pr create --draft --body "Adds evals/owner-caught"',
-    'ls evals',
+    'gh pr create --draft --body "Adds evals/owner-caught -> owner-evals"',
+    'echo "the lead -> evals/owner-caught is the owner’s"',
+    'echo ok > docs/note.md',
   ]) {
     assert.equal(kind(command), 'allow', command)
   }
 })
 
-test('the owner-evals label is the owner’s to apply', () => {
+test('only the label value owner-evals is the owner’s to apply', () => {
   for (const command of [
     'gh pr edit 5 --add-label owner-evals',
     'gh pr edit 5 --add-label "bug,owner-evals"',
+    'gh pr edit 5 --add-label=owner-evals',
+    'gh pr create --draft --label owner-evals --title x',
     'gh issue edit 5 --add-label owner-evals',
     'gh label create owner-evals --color ff0000',
     'gh -R owner/repo label create owner-evals',
@@ -240,14 +271,19 @@ test('the owner-evals label is the owner’s to apply', () => {
     'gh api -X POST repos/o/r/issues/5/labels --field labels[]=owner-evals',
     'gh api --method=POST repos/o/r/labels -f name=owner-evals',
   ]) {
-    for (const agent of [undefined, 'rca-builder'])
+    for (const agent of [undefined, 'rca-builder']) {
       assert.equal(kind(command, agent), 'deny', command)
+    }
   }
   for (const command of [
     'gh pr list --label owner-evals',
     'gh pr edit 5 --add-label integration',
+    'gh pr edit 5 --body "Needs the owner-evals label from the owner"',
+    'gh pr create --draft --body "Adds owner-evals checks"',
+    'git commit -m "Refuse the owner-evals label"',
     'gh api repos/o/r/issues/5/labels',
     'gh api repos/o/r/issues/5/labels --jq ".[].name" # owner-evals',
+    'gh api -X POST repos/o/r/issues/5/comments -f "body=ask for owner-evals"',
   ]) {
     assert.equal(kind(command), 'allow', command)
   }

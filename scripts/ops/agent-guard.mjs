@@ -197,8 +197,6 @@ function judge(words, { agent, loop, callsGh }) {
 
 /** The guard's answer for one Bash command: { deny } or { ask } with a reason, or undefined. */
 export function decide(command, agent) {
-  const redirect = deniedRedirect(command)
-  if (redirect) return { deny: redirect }
   const commands = simpleCommands(command)
   const loop = commands.some((words) => LOOPS.has(basename(words[0] ?? '')))
   const callsGh = commands.some((words) => {
@@ -206,6 +204,8 @@ export function decide(command, agent) {
     return basename(cmd[0] ?? '') === 'gh' || npmScript(cmd) === 'pr:queue'
   })
   for (const words of commands) {
+    const redirect = deniedRedirect(words)
+    if (redirect) return { deny: redirect }
     const cmd = core(words)
     if (!cmd.length || basename(cmd[0]) === 'testslot.sh') continue
     const shell = ['bash', 'sh', 'zsh'].includes(basename(cmd[0]))
