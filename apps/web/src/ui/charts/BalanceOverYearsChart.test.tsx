@@ -49,9 +49,11 @@ describe('BalanceOverYearsChart', () => {
     const hollow = all.filter((dot) => dot.getAttribute('data-hollow') === 'true')
     expect(hollow.map((dot) => dot.getAttribute('data-sport'))).toEqual(['ride', 'ride', 'ride'])
     // The key lists the sports and the band only; a screen reader is told what a hollow dot is by the chart's description.
-    expect(legend()).toEqual(['Run', 'Ride, estimated', 'Ride range'])
+    expect(legend()).toEqual(['Run, estimated', 'Ride, estimated', 'Run range', 'Ride range'])
     expect(
-      screen.getByRole('img', { name: /A hollow dot is a best that was not all-out\.$/ }),
+      screen.getByRole('img', {
+        name: /A hollow dot is a year whose best 20 minutes was not all-out\.$/,
+      }),
     ).toBeInTheDocument()
   })
 
@@ -93,13 +95,13 @@ describe('BalanceOverYearsChart', () => {
     chartWidth(800)
     render(<BalanceOverYearsChart views={twelve} />)
     const table = screen.getByRole('table', {
-      name: 'Age grade of the best 20 minutes in each calendar year',
+      name: 'Age grade of the threshold in each calendar year',
     })
     expect(
       within(table)
         .getAllByRole('columnheader')
         .map((th) => th.textContent),
-    ).toEqual(['Year', 'Run', 'Ride, estimated', 'Leader'])
+    ).toEqual(['Year', 'Run, estimated', 'Ride, estimated', 'Leader'])
     const rows = within(table)
       .getAllByRole('row')
       .slice(1)
@@ -122,13 +124,14 @@ describe('BalanceOverYearsChart', () => {
     expect(byYear.get('2020')![2]).toMatch(/^\d+% \(\d+ to \d+%\)$/)
   })
 
-  it('reads a year with the keyboard: each sport’s grade and level, the ride’s range, and a best not all-out', () => {
+  it('reads a year with the keyboard: each sport’s grade, level and range, and a best 20 minutes not all-out', () => {
     chartWidth(800)
     render(<BalanceOverYearsChart views={twelve} />)
     const surface = screen.getByTestId('plot-surface')
     fireEvent.keyDown(surface, { key: 'Home' })
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('2013')
+    expect(status).toHaveTextContent('Run range')
     expect(status).toHaveTextContent('Ride range')
     expect(status).toHaveTextContent('not all-out')
   })

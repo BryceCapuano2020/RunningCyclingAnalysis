@@ -59,7 +59,7 @@ describe('findingAgreeing', () => {
     expect(findingAgreeing(dip, 'ride')).toBeNull()
   })
 
-  it('keeps a change of hands when the sport at 20 min is the hero’s, and drops it when it is not', () => {
+  it('keeps a change of hands when the sport at the hour is the hero’s, and drops it when it is not', () => {
     const crossover = profileOf(
       [3, RIDE_UP],
       [5, RIDE_UP],
@@ -70,13 +70,20 @@ describe('findingAgreeing', () => {
     const text = 'Cycling grades higher at 3 to 7 min, running at 20 to 60 min'
     expect(profileFinding(crossover)).toBe(text)
     expect(findingAgreeing(crossover, 'run')).toBe(text)
-    // The run is higher at 20 min by the range, which a hero leaning to the ride contradicts.
+    // The run is higher at the hour the hero grades by the range, which a hero leaning to the ride contradicts.
     expect(findingAgreeing(crossover, 'ride')).toBeNull()
   })
 
-  it('keeps a change of hands whose 20 min is an exception when the hero leans to a sport it names', () => {
-    const between = profileOf([3, RUN_UP], [5, RUN_UP], [10, LEVEL], [30, RIDE_UP], [60, RIDE_UP])
-    const text = 'Running grades higher at 3 to 5 min, cycling at 30 to 60 min'
+  it('keeps a change of hands that names no sport at the hour when the hero leans to a sport it names', () => {
+    const between = profileOf(
+      [3, RUN_UP],
+      [5, RUN_UP],
+      [10, LEVEL],
+      [30, RIDE_UP],
+      [45, RIDE_UP],
+      [60, LEVEL],
+    )
+    const text = 'Running grades higher at 3 to 5 min, cycling at 30 to 45 min'
     expect(findingAgreeing(between, 'ride')).toBe(text)
     expect(findingAgreeing(between, 'run')).toBe(text)
     expect(findingAgreeing(between, 'even')).toBeNull()

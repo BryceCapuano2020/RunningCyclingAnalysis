@@ -42,11 +42,13 @@ describe('BalanceOverYears', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('says what to add when no year has a best 20 minutes, on the History page only', () => {
+  it('says what to add when no year has a threshold, on the History page only', () => {
     const none = { ...BASE, years: [] }
     const { container, rerender } = render(<BalanceOverYears {...none} />)
     expect(
-      screen.getByText('Add a run or ride of 20 min or more to grade each year.'),
+      screen.getByText(
+        'Add a run effort of 8 min or more, or a ride effort of 3 min or more, to grade each year.',
+      ),
     ).toBeInTheDocument()
     rerender(<BalanceOverYears {...none} placement="home" />)
     expect(container).toBeEmptyDOMElement()

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { headlineGrades } from '../balanceFixtures'
 import { balanceLibrary } from '@rca/core/history/test/balanceLibrary'
 import type { PeriodChoice } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
 import { PROFILE, SETTINGS, TWELVE_YEARS } from '../balanceFixtures'
 import type { GradeOutcome } from '../grades'
+import { thresholdGrades } from '../thresholdGrade'
 import { yearViews } from './balanceYears'
 
-/** The grades the hero reads for a window of the library, run and ride. */
+/** The grades the hero reads for a window of the library, run and ride: each sport's threshold as an hour. */
 function heroFor(session: AnalysisSession, choice: PeriodChoice) {
   const state = session.setRange(choice, SETTINGS)
-  return { hero: headlineGrades(state.result!, PROFILE), history: state.history }
+  return { hero: thresholdGrades(state.result!, PROFILE), history: state.history }
 }
 
 const gradeOf = (outcome: GradeOutcome | undefined) =>

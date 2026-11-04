@@ -1,6 +1,7 @@
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import type { EffortReference } from '../effort'
-import type { ActivityDigest, AthleteSettings } from '../types'
+import type { ThresholdLine } from '../threshold'
+import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import type { ZoneEstimates } from '../zones'
 
 /** What a part may read besides the digests, which are the look-back's inputs. */
@@ -17,6 +18,11 @@ export interface HistoryInput {
   gate: EstimatedRideGate | null | undefined
   /** The references the effort gate judges a best against (`HeartRateJudgement.effortReference`); absent judges nothing. */
   effortReference?: EffortReference
+  /**
+   * The heart-rate line of each sport over the whole library (`JudgedWork.lines`), which a period's thresholds read, so a year's threshold
+   * is the one the hero has for a window of that year. Absent, each year fits its own.
+   */
+  lines?: Record<Sport, ThresholdLine>
 }
 
 /**

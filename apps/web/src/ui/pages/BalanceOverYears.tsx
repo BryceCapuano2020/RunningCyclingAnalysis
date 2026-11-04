@@ -2,12 +2,12 @@ import { useMemo } from 'react'
 import type { BalanceYear } from '@rca/core/history'
 import { BalanceOverYearsChart } from '../charts/BalanceOverYearsChart'
 import { hasGrades, yearViews } from '../charts/balanceYears'
-import { HEADLINE_LABEL } from '../grades'
+import { shortestEffortMin } from '@rca/core/display'
 import type { AgeGap, AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 
 export interface BalanceOverYearsProps {
-  /** Each calendar year's best 20 minutes, from the History of the whole library. */
+  /** Each calendar year's threshold, from the History of the whole library. */
   years: readonly BalanceYear[]
   profile: AgeProfile | null
   /** The year of birth or sex the grades still need; null when both are given. */
@@ -21,7 +21,7 @@ export interface BalanceOverYearsProps {
 }
 
 /**
- * The age grade of each calendar year, run and ride, graded as the Balance hero grades its window. It draws nothing
+ * The age grade of each calendar year, run and ride, graded as the Balance hero grades its window: the threshold as an hour. It draws nothing
  * until a year has a grade; the History page then says what to add, and the home page stays silent.
  */
 export function BalanceOverYears({
@@ -56,6 +56,6 @@ export function BalanceOverYears({
     )
   }
   return (
-    <p className="muted">{`Add a run or ride of ${HEADLINE_LABEL} or more to grade each year.`}</p>
+    <p className="muted">{`Add a run effort of ${shortestEffortMin('run')} min or more, or a ride effort of ${shortestEffortMin('ride')} min or more, to grade each year.`}</p>
   )
 }

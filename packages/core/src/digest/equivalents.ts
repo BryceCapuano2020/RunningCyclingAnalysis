@@ -1,6 +1,8 @@
+import { flatSpeedOfWkg } from '../display/conversions'
 import type { Sex } from '../grade/ageGrade'
 import type { ThresholdEstimate } from '../threshold'
-import type { Curve, Interval } from '../types'
+import { endAtFiveNinetyFive } from '../threshold/coverage'
+import type { Curve, Interval, Sport } from '../types'
 import { rideRunSpeed } from './rideAnchor'
 
 export interface Equivalence {
@@ -54,4 +56,39 @@ export function thresholdRunSpeed(
   sex: Sex | null | undefined,
 ): Interval | null {
   return threshold === null ? null : rideRunSpeed(threshold, sex)
+}
+
+/**
+ * A run threshold as the flat running speed it stands for, with its range: its pace, and its `low` and `high` (10th and 90th
+ * percentiles) moved out to the 5th and 95th on the log scale of energy (`endAtFiveNinetyFive`), so it has the coverage of a
+ * ride's, which the anchor's spread makes a 5th to 95th range. Null without a threshold.
+ */
+export function runThresholdSpeed(threshold: ThresholdEstimate | null): Interval | null {
+  if (threshold === null) return null
+  return {
+    p05: flatSpeedOfWkg(endAtFiveNinetyFive(threshold.value, threshold.low)),
+    p50: flatSpeedOfWkg(threshold.value),
+    p95: flatSpeedOfWkg(endAtFiveNinetyFive(threshold.value, threshold.high)),
+  }
+}
+
+/** Each sport's threshold as a flat running speed: a run's own pace, and a ride's anchored running equivalent for the athlete's sex. */
+const SPEED_OF_THRESHOLD: Record<
+  Sport,
+  (threshold: ThresholdEstimate | null, sex: Sex | null | undefined) => Interval | null
+> = {
+  run: (threshold) => runThresholdSpeed(threshold),
+  ride: thresholdRunSpeed,
+}
+
+/**
+ * The flat running speed a sport's threshold stands for, with its range. The one reading the standing (`sportStanding`) and the
+ * years (`standingOfYears`) share, so a year's threshold and a period's are graded from the same speed.
+ */
+export function thresholdSpeedOf(
+  sport: Sport,
+  threshold: ThresholdEstimate | null,
+  sex: Sex | null | undefined,
+): Interval | null {
+  return SPEED_OF_THRESHOLD[sport](threshold, sex)
 }

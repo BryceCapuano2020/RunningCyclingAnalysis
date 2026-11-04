@@ -1,11 +1,8 @@
-import {
-  EQUIVALENCE_DURATIONS_S,
-  HEADLINE_DURATION_S,
-  PROFILE_DURATIONS_S,
-} from '@rca/core/constants'
+import { EQUIVALENCE_DURATIONS_S, PROFILE_DURATIONS_S } from '@rca/core/constants'
 import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { Sex } from '@rca/core/grade'
+import { HOUR_S } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
 import { activityMasses } from './activityMasses'
 import { leanOfRange } from '../domain/lean'
@@ -183,17 +180,21 @@ interface ProfileClaim {
   text: string
   /** The sports it names as higher at some length, in the order it names them; none when it says they grade alike. */
   higher: Sport[]
-  /** The sport it calls higher at the headline length; null when it names no stretch there, or says they grade alike. */
+  /** The sport it calls higher at the hero's length; null when it names no stretch there, or says they grade alike. */
   atHeadline: Sport | null
 }
 
-/** The sport a named stretch calls higher at the headline length, or null when the headline is outside it or an exception in it. */
+/**
+ * The length the hero grades: its threshold is an hour (`sportStanding`), so the profile's claim is checked against the hero at the
+ * hour, and a stretch that calls the other sport higher there is the one that would contradict it.
+ */
+const HERO_DURATION_S = HOUR_S
+
+/** The sport a named stretch calls higher at the hero's length, or null when that length is outside it or an exception in it. */
 function higherAtHeadline(stretches: readonly Stretch[]): Sport | null {
   const holds = stretches.find(
     ({ fromS, toS, apart }) =>
-      fromS <= HEADLINE_DURATION_S &&
-      HEADLINE_DURATION_S <= toS &&
-      !apart.includes(HEADLINE_DURATION_S),
+      fromS <= HERO_DURATION_S && HERO_DURATION_S <= toS && !apart.includes(HERO_DURATION_S),
   )
   return holds?.sport ?? null
 }
@@ -246,7 +247,7 @@ export function profileComparable(profile: GradeProfile): boolean {
 
 /**
  * The finding, kept only where it agrees with the balance the hero states: "grade alike" for a level balance, and for
- * a lean a clause that names the sport the hero names, and does not call the other higher at the headline length.
+ * a lean a clause that names the sport the hero names, and does not call the other higher at the hour the hero grades.
  * The hero's lean is by the best estimate and the clause's by the range, so a lean of a few points can sit with sports
  * that grade alike by range; the card then says nothing rather than contradict the hero. Null without a hero lean.
  */

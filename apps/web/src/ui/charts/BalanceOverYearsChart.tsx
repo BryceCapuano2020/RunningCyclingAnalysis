@@ -27,8 +27,8 @@ export interface BalanceOverYearsChartProps {
 }
 
 /**
- * Each sport's age grade of the best 20 minutes in every calendar year, on one scale from 0 to 100, titled by who led.
- * A ride is estimated, so its range is a band. A dot is solid for a best the gate found hard (or could not judge),
+ * Each sport's age grade of its threshold in every calendar year, on one scale from 0 to 100, titled by who led.
+ * Each threshold is an estimate, so its range is a band. A dot is solid for a best the gate found hard (or could not judge),
  * hollow for one that was not all-out, which the tooltip and the chart's description say and the key and the table
  * do not.
  */

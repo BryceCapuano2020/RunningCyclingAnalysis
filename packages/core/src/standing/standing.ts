@@ -2,13 +2,12 @@ import type { Dated } from '../calendar'
 import type { AnalysisResult } from '../digest/combine'
 import { gradeEffort } from '../grade'
 import type { AgeProfile, EffortGrade, GapKind } from '../grade'
-import { metabolicToFlatSpeed } from '../metabolic'
 import { HOUR_S } from '../threshold/constants'
-import { endAtFiveNinetyFive } from '../threshold/coverage'
 import type { ThresholdEstimate } from '../threshold'
 import type { Interval, Sport } from '../types'
 import { SPORTS } from '../types'
 import type { UnitSystem } from '../units'
+import { runThresholdSpeed } from '../digest/equivalents'
 import { balanceLead } from './lead'
 import type { BalanceLead } from './lead'
 import { matchFigure } from './match'
@@ -47,21 +46,12 @@ const ESTIMATE_OF: Record<Sport, (result: AnalysisResult) => ThresholdEstimate |
 }
 
 /**
- * The flat running speed a sport's threshold stands for, with its range: a run's pace, and a ride's anchored running equivalent. A
- * run's range is its threshold's `low` and `high` (10th and 90th percentiles) moved out to the 5th and 95th on the log scale of energy
- * (`endAtFiveNinetyFive`), so it has the coverage of a ride's, which the anchor's spread makes a 5th to 95th range, and the lead
- * combines two ranges of one kind.
+ * The flat running speed a sport's threshold stands for, with its range: a run's pace (`runThresholdSpeed`, its range at the 5th and
+ * 95th percentiles like a ride's, so the lead combines two ranges of one kind), and a ride's anchored running equivalent, which the
+ * analysis already holds.
  */
 const SPEED_OF_THRESHOLD: Record<Sport, (result: AnalysisResult) => Interval | null> = {
-  run: (result) => {
-    const estimate = result.runThreshold
-    if (estimate === null) return null
-    return {
-      p05: metabolicToFlatSpeed(endAtFiveNinetyFive(estimate.value, estimate.low)),
-      p50: metabolicToFlatSpeed(estimate.value),
-      p95: metabolicToFlatSpeed(endAtFiveNinetyFive(estimate.value, estimate.high)),
-    }
-  },
+  run: (result) => runThresholdSpeed(result.runThreshold),
   ride: (result) => result.rideThresholdRunSpeed,
 }
 
@@ -70,17 +60,31 @@ function startOf(result: AnalysisResult, activityId: string): Dated | null {
   return result.activities.find((activity) => activity.id === activityId) ?? null
 }
 
+/**
+ * A sport's threshold graded as an hour at the age on the day of its strongest effort (`started`): the one grading every threshold
+ * goes through, a period's here and a year's in `standingOfYears`. `found` is null without a threshold; without a profile there is
+ * no age to grade at.
+ */
+export function gradeThreshold(
+  sport: Sport,
+  found: { speed: Interval | null; started: Dated | null } | null,
+  profile: AgeProfile | null,
+): StandingGrade {
+  if (found === null) return { kind: 'gap', why: 'no-threshold' }
+  if (profile === null) return { kind: 'gap', why: 'no-profile' }
+  return gradeEffort(sport, found, HOUR_S, profile)
+}
+
 function gradeOf(result: AnalysisResult, sport: Sport, profile: AgeProfile | null): StandingGrade {
   const estimate = ESTIMATE_OF[sport](result)
-  if (estimate === null) return { kind: 'gap', why: 'no-threshold' }
-  if (profile === null) return { kind: 'gap', why: 'no-profile' }
-  return gradeEffort(
+  return gradeThreshold(
     sport,
-    {
-      speed: SPEED_OF_THRESHOLD[sport](result),
-      started: startOf(result, estimate.efforts.strongest.activityId),
-    },
-    HOUR_S,
+    estimate === null
+      ? null
+      : {
+          speed: SPEED_OF_THRESHOLD[sport](result),
+          started: startOf(result, estimate.efforts.strongest.activityId),
+        },
     profile,
   )
 }

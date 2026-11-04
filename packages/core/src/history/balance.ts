@@ -1,97 +1,74 @@
 import { civilOfDay, localDayOf } from '../calendar'
-import { HEADLINE_DURATION_S } from '../constants'
 import { plainCurve } from '../digest/bestCurve'
-import { equivalentsOf } from '../digest/equivalents'
+import { thresholdSpeedOf } from '../digest/equivalents'
 import { ownRideGate } from '../digest/estimatedRide'
 import { massesOf } from '../digest/masses'
-import { equivalenceFor } from '../digest/rideAnchor'
 import { trustedPower } from '../digest/powerCheck'
 import { bestCurves, fitBikeModelOver } from '../digest/rideCurves'
+import { thresholdsOf } from '../digest/thresholdLibraries'
 import { effortGatesOf } from '../digest/twentyMinute'
 import { NO_EFFORT_REFERENCE } from '../effort'
 import type { EffortVerdict } from '../effort'
 import { sameAnalysisSettings } from '../athlete/references'
 import { sameSet } from '../digestMemo'
-import { metabolicToFlatSpeed } from '../metabolic'
+import type { ThresholdEstimate } from '../threshold'
 import { SPORTS } from '../types'
-import type { ActivityDigest, Curve, Interval, LocalDayShift, Sport } from '../types'
+import type { ActivityDigest, Interval, LocalDayShift, Sport } from '../types'
 import { perSport } from './sports'
 import type { HistoryInput, HistoryPart } from './types'
 
-/** One sport's best 20 minutes of a calendar year, before it is graded: what the age grade is taken from. */
-export interface YearBest {
-  /** The activity that set it, and the shift of its local day: the age is the one on that day. */
+/** One sport's threshold over a calendar year's activities, before it is graded: what the age grade is taken from. */
+export interface YearThreshold {
+  /** The activity that set the strongest effort behind it, and the shift of its local day: the age is the one on that day. */
   startMs: number
   localDayShift?: LocalDayShift
-  /** The flat running speed with the same cost, m/s: a run's pace as recorded, a ride's running equivalent (median). */
-  speed: number
-  /** A ride's 90% range of that speed, 5th and 95th percentile; null for a run, which is as recorded. */
-  range: readonly [number, number] | null
+  /** The flat running speed the threshold stands for, m/s, with its 5th and 95th percentile range (`thresholdSpeedOf`). */
+  speed: Interval
   /** Whether the effort gate found that year's best 20 minutes hard; `unknown` where it could not judge. */
   verdict: EffortVerdict
 }
 
-/** A calendar year with a best 20 minutes in at least one sport. Years with none are left out. */
+/** A calendar year with a threshold in at least one sport. Years with none are left out. */
 export interface BalanceYear {
   year: number
-  sports: Record<Sport, YearBest | null>
+  sports: Record<Sport, YearThreshold | null>
 }
 
-/** The speed interval of a best, for the grade: a run's is one value. */
-export function speedOfBest(best: YearBest): Interval {
-  const [p05, p95] = best.range ?? [best.speed, best.speed]
-  return { p05, p50: best.speed, p95 }
-}
-
-/** Which sports carry a range: a ride is estimated through its running equivalent. */
-const RANGED: Record<Sport, boolean> = { run: false, ride: true }
-
-/** What one year's digests give: each sport's curve, the speed its best stands for, and the gate's verdict. */
+/** What one year's digests give: each sport's threshold, and the gate's verdict on its best 20 minutes. */
 interface YearReads {
-  curve: Record<Sport, Curve>
-  speed: Record<Sport, Interval | null>
+  threshold: Record<Sport, ThresholdEstimate | null>
   verdict: Record<Sport, EffortVerdict>
 }
 
-const headlineOf = (curve: Curve) => curve.find((point) => point.durationS === HEADLINE_DURATION_S)
-
 /**
- * A year's curves, as an analysis of that year alone makes them: the bike model fitted over its rides, the library's
- * ride gate, set-aside list and references. The hero reads a window the same way, so an equal window
- * grades to the same number.
+ * A year's thresholds, as an analysis of that year alone makes them: the bike model fitted over its rides, the library's ride gate,
+ * set-aside list and references (`thresholdsOf`, which the analysis reads), and each year's own heart-rate line. The gate's verdict
+ * on the year's best 20 minutes is the one the analysis states beside its threshold. The hero reads a window the same way, so an
+ * equal window grades to the same number.
  */
-function readYear(
-  own: ActivityDigest[],
-  input: HistoryInput,
-  equivalence: ReturnType<typeof equivalenceFor>,
-): YearReads {
+function readYear(own: ActivityDigest[], input: HistoryInput): YearReads {
   const { settings } = input
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(own, masses).model
   const gate = input.gate === undefined ? ownRideGate(trustedPower(own, masses)) : input.gate
   const curves = bestCurves(own, masses, bikeModel, settings.massKg, gate)
-  const run = plainCurve(curves.runBest)
-  const ride = plainCurve(curves.rideBest)
+  const reference = input.effortReference ?? NO_EFFORT_REFERENCE
   const gates = effortGatesOf(
     own,
     masses,
     bikeModel,
     gate,
-    { run, ride: curves.rideMetabolic },
-    input.effortReference ?? NO_EFFORT_REFERENCE,
+    { run: plainCurve(curves.runBest), ride: curves.rideMetabolic },
+    reference,
     input.setAside,
   )
-  const equivalent = equivalentsOf(equivalence, ride, curves.bodyKgById, settings.massKg, [
-    HEADLINE_DURATION_S,
-  ])[0]
-  const runPoint = headlineOf(run)
-  const flat = runPoint === undefined ? Number.NaN : metabolicToFlatSpeed(runPoint.value)
   return {
-    curve: { run, ride },
-    speed: {
-      run: Number.isFinite(flat) ? { p05: flat, p50: flat, p95: flat } : null,
-      ride: equivalent?.runSpeed ?? null,
-    },
+    threshold: thresholdsOf(
+      own,
+      { masses, bikeModel, gate, heartSetAside: input.setAside },
+      reference.referenceHr,
+      input.lines,
+    ),
     verdict: { run: gates.run.verdict, ride: gates.ride.verdict },
   }
 }
@@ -103,21 +80,20 @@ function build(digests: ActivityDigest[], input: HistoryInput): BalanceYear[] {
     const year = civilOfDay(localDayOf(digest)).year
     byYear.set(year, [...(byYear.get(year) ?? []), digest])
   }
-  // A ride's equivalent is anchored at the sport's world class for the athlete's sex, the same for every year.
-  const equivalence = equivalenceFor(input.settings.sex)
   const rows: BalanceYear[] = []
   for (const [year, own] of [...byYear].sort(([a], [b]) => a - b)) {
-    const reads = readYear(own, input, equivalence)
-    const sports = perSport((sport): YearBest | null => {
-      const point = headlineOf(reads.curve[sport])
-      const speed = reads.speed[sport]
-      const digest = own.find((candidate) => candidate.id === point?.activityId)
+    const reads = readYear(own, input)
+    const sports = perSport((sport): YearThreshold | null => {
+      const estimate = reads.threshold[sport]
+      const digest = own.find(
+        (candidate) => candidate.id === estimate?.efforts.strongest.activityId,
+      )
+      const speed = thresholdSpeedOf(sport, estimate, input.settings.sex)
       if (speed === null || digest === undefined) return null
       return {
         startMs: digest.startMs,
         ...(digest.localDayShift === undefined ? {} : { localDayShift: digest.localDayShift }),
-        speed: speed.p50,
-        range: RANGED[sport] ? [speed.p05, speed.p95] : null,
+        speed,
         verdict: reads.verdict[sport],
       }
     })
@@ -131,8 +107,8 @@ const sameReference = (a: HistoryInput['effortReference'], b: HistoryInput['effo
   a === b || JSON.stringify(a) === JSON.stringify(b)
 
 /**
- * Each calendar year's best 20 minutes for run and ride, for the age grades of the Balance over the years: the speed it
- * stands for and the day it was set, with whether it was a hard effort. It reads the whole library by the judgement the
+ * Each calendar year's threshold for run and ride, for the age grades of the Balance over the years: the speed it stands for and
+ * the day of its strongest effort, with whether the year's best 20 minutes was a hard effort. It reads the whole library by the judgement the
  * hero reads (set-aside, ride gate, references), so the same window gives the same grade.
  */
 export const balance: HistoryPart<BalanceYear[]> = {
@@ -141,6 +117,7 @@ export const balance: HistoryPart<BalanceYear[]> = {
   same: (a, b) =>
     sameSet(a.setAside, b.setAside) &&
     a.gate === b.gate &&
+    a.lines === b.lines &&
     sameAnalysisSettings(a.settings, b.settings) &&
     sameReference(a.effortReference, b.effortReference),
 }

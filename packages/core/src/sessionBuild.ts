@@ -208,6 +208,8 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
             nowMs: Math.floor(inputs.nowMs / DAY_MS) * DAY_MS,
             gate: judgement.rideGate,
             effortReference: judgement.effortReference,
+            // The library's heart-rate lines, which a window of any year reads, so a year's threshold is the hero's for it.
+            lines: judgedWorkOf(judgement)?.lines,
           }),
     zoneEstimates,
     timeInZones:
