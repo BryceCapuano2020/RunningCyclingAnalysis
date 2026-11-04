@@ -108,6 +108,10 @@ timeout at random.
 
 - Dependabot pull requests are in the queue like any other. One that sits on a red `main` needs a
   rebase (comment `@dependabot rebase`). The Node types stay on the Node major in `.nvmrc`.
+- A builder's green is a claim, not a result. A pull request is green only when CI's run on its
+  head commit passes, as `npm run pr:queue` shows; the coordinator never marks one ready, or calls it
+  done, on a builder's report alone. The stage U process review found builder reports of a pass
+  that CI did not confirm, so builders list the exact commands and Playwright projects they ran.
 - A documentation-only pull request (every changed file is Markdown, under `docs/` or `LICENSE`)
   takes a short lane: format, lint, the ops tests and the unit tests that read Markdown.
 - Unit tests run in two shards and end-to-end tests in three, so a code pull request finishes in
