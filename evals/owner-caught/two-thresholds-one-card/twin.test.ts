@@ -7,6 +7,7 @@ import { threshold } from '../../../apps/web/src/ui/records'
 import { standingOf } from '../../../apps/web/src/ui/standing'
 import { thresholdLine } from '../../../apps/web/src/ui/thresholdLine'
 import {
+  DAY_MS,
   END_MS,
   PROFILE,
   SETTINGS,
@@ -47,6 +48,10 @@ const gaining = sessionOf(
 const steady = sessionOf(
   library({ years: YEARS, everyDays: 14, scale: { run: flat(1), ride: flat(1) } }),
 )
+const zonesOf = (session: typeof steady, sport: 'run' | 'ride', measure: 'pace' | 'power') =>
+  session
+    .zonesAt(END_MS, SETTINGS)
+    .find((zone) => zone.sport === sport && zone.measure === measure)!
 const zoneReference = (sport: 'run' | 'ride', measure: 'pace' | 'power') =>
   steady.zonesAt(END_MS, SETTINGS).find((zone) => zone.sport === sport && zone.measure === measure)
     ?.reference
@@ -95,6 +100,26 @@ describe('the zones', () => {
       const ride = Number(threshold(result, 'ride', MASS, UNITS)!.number)
       expect(Math.abs(KM / zoneReference('run', 'pace')! - run)).toBeLessThanOrEqual(HALF_SECOND)
       expect(Math.abs(zoneReference('ride', 'power')! - ride)).toBeLessThanOrEqual(HALF_WATT)
+    },
+  )
+})
+
+describe('the zones of a gaining athlete', () => {
+  const WINDOW_MS = 26 * 7 * DAY_MS
+  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+
+  it.each(['run', 'ride'] as const)(
+    'are the %s threshold over the half year the zone line names',
+    (sport) => {
+      const measure = { run: 'pace', ride: 'power' }[sport] as 'pace' | 'power'
+      const zone = zonesOf(gaining, sport, measure)
+      const end = zone.windowEndMs!
+      const result = resultOf(gaining, { from: day(end - WINDOW_MS), to: day(end) })
+      const card = threshold(result, sport, MASS, UNITS)!.number
+      const printed = { run: () => KM / zone.reference, ride: () => zone.reference }[sport]()
+      const expected = { run: () => seconds(card), ride: () => Number(card) }[sport]()
+      const half = { run: HALF_SECOND, ride: HALF_WATT }[sport]
+      expect(Math.abs(printed - expected)).toBeLessThanOrEqual(half)
     },
   )
 })
