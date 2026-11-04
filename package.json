@@ -16,7 +16,7 @@
     "dev:api": "npm run dev -w @rca/api",
     "build": "npm run build -w @rca/web",
     "lint": "oxlint --deny-warnings",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p evals/tsconfig.json --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
