@@ -68,8 +68,9 @@ economy, a zone rule) goes through these steps before code:
 
 1. A spec in `docs/design/` with the formula, every constant and the published source behind it.
 2. A prototype on synthetic athletes that shows what the change does to their numbers.
-3. A science review of the spec and the numbers only, not the code, by an Opus reviewer
-   (`rca-reviewer` run with the Opus model).
+3. A science review of the spec and the numbers only, not the code, by an Opus reviewer:
+   `rca-reviewer` spawned with the Agent tool's `model` set to `opus`, since its definition runs on
+   Sonnet.
 4. One presentation to the owner: the spec, the numbers and the reviewer's verdict together.
 
 The pull request that builds it adds a calibration case on synthetic athletes: a test that pins the
