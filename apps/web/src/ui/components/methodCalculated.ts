@@ -1,5 +1,7 @@
-import { runDurationRatio } from '@rca/core/threshold'
+import { WINDOW_DAYS, HEADLINE_MIN_ACTIVITIES } from '@rca/core/answer'
 import { CHANGE } from '@rca/core/change'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { HOUR_AGREEMENT_PERCENT, runOxygenExcessPercent } from '@rca/core/display'
 import {
   DEFAULT_WINDOW_DAYS,
   EFFORT_LENGTHS_S,
@@ -32,11 +34,12 @@ const WINDOW_EXAMPLES = listWords(
   ),
 )
 
-/**
- * How much above an hour's energy rate the running table puts an all-out effort of `minutes`, as a whole percent. Read from
- * the ratio the estimate uses, so the copy cannot drift from it.
- */
-const runExcess = (minutes: number) => Math.round((runDurationRatio(minutes * 60) - 1) * 100)
+/** A window of the default period's tries, in the words the picker uses: whole weeks, else months. */
+const windowWords = (days: number) =>
+  days % 7 === 0 ? `${days / 7} weeks` : `${Math.round(days / 30.4)} months`
+
+/** The effort the default period and its evidence read, as copy: "20 min". */
+const HEADLINE_LABEL = effortLabel(HEADLINE_DURATION_S)
 
 /** The entries about the efforts and what is drawn from them, calculated by the app, in page order. */
 export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
@@ -47,7 +50,7 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'A ride’s threshold is the strongest effort of each ride, scaled to an hour and averaged.',
       'A ride’s threshold can be raised by heart rate and never lowered.',
       'A run’s threshold is the strongest effort of each run, scaled to an hour and averaged.',
-      'Neither is ever under an hour you did.',
+      'Neither is ever under a backed hour you did.',
       'Each range is the estimate’s own, not the balance’s 90% range.',
     ],
     detail: [
@@ -65,10 +68,13 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'A ride’s range takes the higher 10th and the higher 90th percentile of the two estimates.',
       'Each run gives one estimate too, from the effort that scales highest.',
       'A run is scaled with Daniels and Gilbert’s published table of what a runner holds for each length.',
-      `It puts an all-out 10 min effort ${runExcess(10)}% above your hour’s energy rate, 20 min ${runExcess(20)}% and 40 min ${runExcess(40)}%.`,
+      `It puts an all-out 10 min effort ${runOxygenExcessPercent(10)}% above your hour’s oxygen cost, 20 min ${runOxygenExcessPercent(20)}% and 40 min ${runOxygenExcessPercent(40)}%.`,
       'The runs are averaged, with more weight on recent runs and on those near your top.',
       'A run’s range is the estimate’s own 10th to 90th percentile.',
-      'An hour you ran or rode is a floor: the answer, and the low end of its range, are never under it.',
+      `An hour you ran or rode is backed when the next hour down is within ${HOUR_AGREEMENT_PERCENT}% of it.`,
+      'It is also backed when it is no higher than the 90th percentile of the estimate.',
+      'If the best hour is not backed, the second-best is tried the same way, and with neither backed there is no floor.',
+      'A backed hour is a floor: the answer, and the low end of its range, are never under it.',
       'On simulated riders and runners, across the cases tested, the range held the true threshold for 65% to 97% of them.',
       'The estimates were tuned on simulated athletes with a known threshold.',
       'They are not measured on people.',
@@ -148,12 +154,12 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     state: 'calculated',
     lines: [
       'The default period is the shortest window where every sport qualifies.',
-      'The windows tried are 12 weeks, 26 weeks and 12 months.',
-      'Each sport needs 3 activities with a usable effort.',
-      'Each sport also needs a 20 min best that is hard, or not checked.',
+      `The windows tried are ${listWords(WINDOW_DAYS.map(windowWords))}.`,
+      `Each sport needs ${HEADLINE_MIN_ACTIVITIES} activities with a usable effort.`,
+      `Each sport also needs a ${HEADLINE_LABEL} best that is hard, or not checked.`,
       'If no window qualifies, the default is the one with evidence for every sport and the most sports qualifying.',
       'With no evidence for every sport, all time is used.',
-      'Evidence is a threshold, or a 20 min best.',
+      `Evidence is a threshold, or a ${HEADLINE_LABEL} best.`,
       'If two windows tie, the shorter one is used.',
       'A period you pick yourself is always used.',
     ],

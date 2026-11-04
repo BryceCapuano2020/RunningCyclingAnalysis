@@ -38,6 +38,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gradeText, readBalanceGrade, readSportGrade, sameGrade } from './grade-cards.mjs'
 
 const USAGE = 'usage: node scripts/replica/truth-check.mjs <replica-out> <truth.json>'
 /** How many lines after the card title the number may sit. */
@@ -197,6 +198,10 @@ const ROUNDING = { pace: 1, power: 0.5 }
  *   run threshold, and where it leans toward cycling, faster. These are the two pace cards a reader puts side by side,
  *   so the check reads them as printed, whatever each is computed from: a page whose ride-as-a-run card is a 20 min
  *   equivalent beside a threshold can be right in its own terms and still fail here, and that is the case it is for.
+ * - A figure shown on two pages is one number: Balance's run and ride threshold cards read the same pace and power as the
+ *   sport pages' threshold cards for the same period, so no page works out its own copy (docs/ENGINEERING.md, "One figure, one
+ *   function").
+ * - The same goes for the age grade at threshold: Balance's level for each sport is the one on the sport page for the same period.
  * A page without the cards a check needs is skipped. One result per check that ran, as `runChecks` gives them.
  */
 export function runInvariants(outdir) {
@@ -242,6 +247,51 @@ export function runInvariants(outdir) {
           'lean-vs-cards',
           file,
           `leans ${lean.toLowerCase()}, run threshold ${run.value} s, ride as a run ${ride} s ${run.unit}`,
+        )
+      }
+      const period = file.slice('balance-'.length)
+      const onPage = (sport) =>
+        existsSync(join(outdir, `${sport}-${period}`))
+          ? readFileSync(join(outdir, `${sport}-${period}`), 'utf8')
+          : null
+      const runPage = onPage('run')
+      const runOwn = runPage === null ? null : readPace(runPage, 'Threshold pace', [])
+      if (run && runOwn) {
+        const pass = run.unit === runOwn.unit && Math.abs(run.value - runOwn.value) <= ROUNDING.pace
+        record(
+          pass,
+          'balance-vs-sport-run-threshold',
+          file,
+          `Balance ${run.value} s, run page ${runOwn.value} s ${run.unit}`,
+        )
+      }
+      for (const [sport, title] of [
+        ['run', 'RUNNING'],
+        ['ride', 'CYCLING'],
+      ]) {
+        const page = onPage(sport)
+        const balanceGrade = readBalanceGrade(text, title)
+        const sportGrade = page === null ? null : readSportGrade(page)
+        if (balanceGrade && sportGrade) {
+          record(
+            sameGrade(balanceGrade, sportGrade),
+            `balance-vs-sport-${sport}-grade`,
+            file,
+            `Balance ${gradeText(balanceGrade)}, ${sport} page ${gradeText(sportGrade)}`,
+          )
+        }
+      }
+      const ridePage = onPage('ride')
+      const rideBalance = readCard(text, 'Ride threshold', 'W', [], cards)?.value ?? null
+      const rideOwn =
+        ridePage === null ? null : (readCard(ridePage, 'Threshold power', 'W')?.value ?? null)
+      if (rideBalance != null && rideOwn != null) {
+        const pass = Math.abs(rideBalance - rideOwn) <= ROUNDING.power
+        record(
+          pass,
+          'balance-vs-sport-ride-threshold',
+          file,
+          `Balance ${rideBalance} W, ride page ${rideOwn} W`,
         )
       }
     }

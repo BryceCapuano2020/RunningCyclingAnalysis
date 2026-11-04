@@ -1,25 +1,19 @@
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import type { EffortVerdict } from '@rca/core/effort'
-import { gradeEffort } from '@rca/core/grade'
-import type { AgeProfile, SportGrade } from '@rca/core/grade'
-import { speedOfBest } from '@rca/core/history'
+import type { AgeProfile } from '@rca/core/grade'
 import type { BalanceYear } from '@rca/core/history'
+import { standingOfYears } from '@rca/core/standing'
+import type { YearGrade as CoreYearGrade } from '@rca/core/standing'
 import type { Sport } from '@rca/core/types'
 import type { Lean } from '../../domain/lean'
-import { balanceGap } from '../balanceGap'
 import { SPORT_ORDER, SPORT_TITLE } from '../sports'
 
-/** A sport's best 20 minutes of one year, graded at the age on its day, with whether the gate found it hard. */
-export interface YearGrade {
-  grade: SportGrade
-  verdict: EffortVerdict
-}
+/** A sport's threshold of one year, graded as an hour at the age on its strongest day, with whether the gate found the year's best 20 minutes hard. */
+export type YearGrade = CoreYearGrade
 
-/** One calendar year of the chart. A year with no best in either sport is an empty room, so the axis is unbroken. */
+/** One calendar year of the chart. A year with no threshold in either sport is an empty room, so the axis is unbroken. */
 export interface YearView {
   year: number
   grades: Partial<Record<Sport, YearGrade>>
-  /** The sports whose best is at the top of the age tables (a ride can be): no grade of its own, left out of the comparison. */
+  /** The sports whose threshold is at the top of the age tables (a ride can be): no grade of its own, left out of the comparison. */
   atTop: Sport[]
   /** Who led, by the rule of the Balance hero; null unless both sports are graded. */
   leader: Lean | null
@@ -29,8 +23,9 @@ export interface YearView {
 const WAITS_FOR_WEIGHT: Record<Sport, boolean> = { run: false, ride: true }
 
 /**
- * Every calendar year from the first with a best to the last, each sport graded as the hero grades it
- * (`gradeEffort`, at the age on the day of the best). A ride waits for the weight, as the hero's does (`weightKnown`).
+ * Every calendar year from the first with a threshold to the last, each sport graded as the hero grades it (core's
+ * `standingOfYears`: the threshold as an hour, at the age on the day of its strongest effort), with an empty room for a year between.
+ * A ride waits for the weight, as the hero's does (`weightKnown`).
  */
 export function yearViews(
   years: readonly BalanceYear[],
@@ -40,29 +35,20 @@ export function yearViews(
   const first = years[0]?.year
   const last = years.at(-1)?.year
   if (first === undefined || last === undefined) return []
-  const byYear = new Map(years.map((row) => [row.year, row]))
+  const graded = standingOfYears(
+    years,
+    profile,
+    SPORT_ORDER.filter((sport) => weightKnown || !WAITS_FOR_WEIGHT[sport]),
+  )
+  const byYear = new Map(graded.map((row) => [row.year, row]))
   return Array.from({ length: last - first + 1 }, (_, i): YearView => {
     const year = first + i
-    const grades: YearView['grades'] = {}
-    const atTop: Sport[] = []
-    for (const sport of SPORT_ORDER) {
-      const best = byYear.get(year)?.sports[sport]
-      if (best == null || (WAITS_FOR_WEIGHT[sport] && !weightKnown)) continue
-      const outcome = gradeEffort(
-        sport,
-        { speed: speedOfBest(best), started: best },
-        HEADLINE_DURATION_S,
-        profile,
-      )
-      if (outcome.kind === 'graded') grades[sport] = { grade: outcome.grade, verdict: best.verdict }
-      else if (outcome.kind === 'top-of-scale') atTop.push(sport)
-    }
-    const [run, ride] = SPORT_ORDER.map((sport) => grades[sport])
+    const row = byYear.get(year)
     return {
       year,
-      grades,
-      atTop,
-      leader: run && ride ? balanceGap(run.grade, ride.grade).lean : null,
+      grades: row?.grades ?? {},
+      atTop: row?.atTop ?? [],
+      leader: row?.lead?.lean ?? null,
     }
   })
 }

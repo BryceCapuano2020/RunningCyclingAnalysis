@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { metabolicToFlatSpeed } from '../metabolic'
 import type { ThresholdEstimate } from '../threshold'
+import { P90_TO_P95, Z_P95 } from '../threshold/coverage'
 import { thresholdRunSpeed } from './equivalents'
 import { CYCLING_ANCHOR_LOG_SD, anchorFactor, rideRunSpeed } from './rideAnchor'
 
@@ -39,9 +40,9 @@ describe('thresholdRunSpeed', () => {
     const threshold = estimate(22, 0.06)
     const speed = thresholdRunSpeed(threshold, 'male')!
     const energy = (v: number) => (v * 3.9 + 1.22) / anchorFactor('male')
-    const anchor = 1.645 * CYCLING_ANCHOR_LOG_SD
-    // The threshold's ends are 10th and 90th percentiles; scaled by 1.645 / 1.2816 they are the 5th and 95th.
-    const scale = 1.645 / 1.2816
+    const anchor = Z_P95 * CYCLING_ANCHOR_LOG_SD
+    // The threshold's ends are 10th and 90th percentiles; scaled by `P90_TO_P95` they are the 5th and 95th.
+    const scale = P90_TO_P95
     expect(Math.log(energy(speed.p05) / 22)).toBeCloseTo(
       -Math.hypot(Math.log(22 / threshold.low) * scale, anchor),
       9,

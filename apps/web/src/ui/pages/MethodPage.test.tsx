@@ -848,7 +848,7 @@ describe('MethodPage heart-rate check', () => {
 
     const section = screen.getByRole('region', { name: 'Heart-rate check' })
     expect(section.querySelector('details.more-detail')).toHaveTextContent(
-      'A cycling maximum usually runs 5 to 7 bpm lower',
+      'A cycling maximum usually runs about 6 bpm lower',
     )
   })
 })

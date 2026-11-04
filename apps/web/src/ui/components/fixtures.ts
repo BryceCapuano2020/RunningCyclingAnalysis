@@ -3,7 +3,7 @@ import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pip
 import type { RejectedFile } from '@rca/core/session'
 import { countFlags } from '@rca/core/digest'
 import { ageGradeForEffort } from '@rca/core/grade'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
+import { flatSpeedOfWkg } from '@rca/core/display'
 import { HOUR_S } from '@rca/core/threshold'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
 import type { ThresholdEstimate } from '@rca/core/threshold'
@@ -197,9 +197,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
       runCp === null
         ? null
         : makeRunThreshold(
-            best20 === undefined
-              ? runCp.cp
-              : flatWkg(hourSpeedOf(metabolicToFlatSpeed(best20.value))),
+            best20 === undefined ? runCp.cp : flatWkg(hourSpeedOf(flatSpeedOfWkg(best20.value))),
           ),
     rideThreshold,
     rideThresholdRunSpeed: rideSpeedOf(rideThreshold, overrides.equivalents ?? []),

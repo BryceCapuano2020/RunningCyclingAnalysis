@@ -1,13 +1,8 @@
-import {
-  EQUIVALENCE_DURATIONS_S,
-  HEADLINE_DURATION_S,
-  PROFILE_DURATIONS_S,
-} from '@rca/core/constants'
-import { equivalenceFor } from '@rca/core/pipeline'
-import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { Sex } from '@rca/core/grade'
+import { PROFILE_DURATIONS_S } from '@rca/core/constants'
+import { profileEquivalents } from '@rca/core/pipeline'
+import type { AnalysisResult } from '@rca/core/pipeline'
+import { HOUR_S } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
-import { activityMasses } from './activityMasses'
 import { leanOfRange } from '../domain/lean'
 import type { Lean as BalanceLean } from '../domain/lean'
 import { balanceGap } from './balanceGap'
@@ -24,36 +19,6 @@ export interface ProfilePoint {
 
 /** Each sport's graded points, shortest duration first. A duration with no grade has no point. */
 export type GradeProfile = Record<Sport, ProfilePoint[]>
-
-/**
- * The ride's running equivalents at the profile durations that a combine does not price, from the ride curve's best at each.
- * They are priced here, for the chart that draws them, rather than in every combine, by the equivalence the result's own
- * equivalents were priced with (anchored at each sport's world class, for the athlete's sex), at the body mass the ride was
- * ridden at (massKg without dated masses).
- */
-export function profileEquivalents(
-  result: AnalysisResult,
-  massKg: number,
-  sex: Sex,
-): Equivalence[] {
-  const held = new Set(result.equivalents.map((equivalent) => equivalent.durationS))
-  const masses = activityMasses(result.activities)
-  const powers = PROFILE_DURATIONS_S.filter(
-    (durationS) => !EQUIVALENCE_DURATIONS_S.includes(durationS) && !held.has(durationS),
-  ).flatMap((durationS) => {
-    const point = result.rideCurve.find((candidate) => candidate.durationS === durationS)
-    return point !== undefined && Number.isFinite(point.value)
-      ? [{ durationS, ridePowerW: point.value, rideKg: masses[point.activityId ?? ''] ?? massKg }]
-      : []
-  })
-  if (powers.length === 0) return []
-  const equivalence = equivalenceFor(sex)
-  return powers.map(({ durationS, ridePowerW, rideKg }) => ({
-    durationS,
-    ridePowerW,
-    runSpeed: equivalence(ridePowerW, rideKg),
-  }))
-}
 
 /**
  * Each sport's age grade at every duration from 3 min to 3 h that its best-effort curve and the age
@@ -183,17 +148,21 @@ interface ProfileClaim {
   text: string
   /** The sports it names as higher at some length, in the order it names them; none when it says they grade alike. */
   higher: Sport[]
-  /** The sport it calls higher at the headline length; null when it names no stretch there, or says they grade alike. */
+  /** The sport it calls higher at the hero's length; null when it names no stretch there, or says they grade alike. */
   atHeadline: Sport | null
 }
 
-/** The sport a named stretch calls higher at the headline length, or null when the headline is outside it or an exception in it. */
+/**
+ * The length the hero grades: its threshold is an hour (`sportStanding`), so the profile's claim is checked against the hero at the
+ * hour, and a stretch that calls the other sport higher there is the one that would contradict it.
+ */
+const HERO_DURATION_S = HOUR_S
+
+/** The sport a named stretch calls higher at the hero's length, or null when that length is outside it or an exception in it. */
 function higherAtHeadline(stretches: readonly Stretch[]): Sport | null {
   const holds = stretches.find(
     ({ fromS, toS, apart }) =>
-      fromS <= HEADLINE_DURATION_S &&
-      HEADLINE_DURATION_S <= toS &&
-      !apart.includes(HEADLINE_DURATION_S),
+      fromS <= HERO_DURATION_S && HERO_DURATION_S <= toS && !apart.includes(HERO_DURATION_S),
   )
   return holds?.sport ?? null
 }
@@ -246,7 +215,7 @@ export function profileComparable(profile: GradeProfile): boolean {
 
 /**
  * The finding, kept only where it agrees with the balance the hero states: "grade alike" for a level balance, and for
- * a lean a clause that names the sport the hero names, and does not call the other higher at the headline length.
+ * a lean a clause that names the sport the hero names, and does not call the other higher at the hour the hero grades.
  * The hero's lean is by the best estimate and the clause's by the range, so a lean of a few points can sit with sports
  * that grade alike by range; the card then says nothing rather than contradict the hero. Null without a hero lean.
  */

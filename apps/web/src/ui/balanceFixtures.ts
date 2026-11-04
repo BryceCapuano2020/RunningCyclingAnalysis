@@ -1,5 +1,5 @@
 import { historyOf } from '@rca/core/history'
-import type { BalanceYear, YearBest } from '@rca/core/history'
+import type { BalanceYear, YearThreshold } from '@rca/core/history'
 import { balanceLibrary, REFERENCE, SETTINGS } from '@rca/core/history/test/balanceLibrary'
 import type { YearSpec } from '@rca/core/history/test/balanceLibrary'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
@@ -27,9 +27,13 @@ export function balanceRows(years: readonly YearSpec[]): BalanceYear[] {
   }).balance
 }
 
-/** A best on a June day of the year at a running speed, m/s; a ride's carries the range that an estimate has. */
-export function bestAt(year: number, speed: number, extra: Partial<YearBest> = {}): YearBest {
-  return { startMs: Date.UTC(year, 5, 10, 12), speed, range: null, verdict: 'hard', ...extra }
+/** A threshold on a June day of the year at a running speed, m/s; a ride's carries the range that an estimate has. */
+export function bestAt(year: number, speed: number, halfRange = 0): YearThreshold {
+  return {
+    startMs: Date.UTC(year, 5, 10, 12),
+    speed: { p05: speed - halfRange, p50: speed, p95: speed + halfRange },
+    verdict: 'hard',
+  }
 }
 
 /** A row of the library with the run and the ride at these speeds, or none. */
@@ -38,7 +42,7 @@ export function rowOf(year: number, run: number | null, ride: number | null): Ba
     year,
     sports: {
       run: run === null ? null : bestAt(year, run),
-      ride: ride === null ? null : bestAt(year, ride, { range: [ride - 0.1, ride + 0.1] }),
+      ride: ride === null ? null : bestAt(year, ride, 0.1),
     },
   }
 }

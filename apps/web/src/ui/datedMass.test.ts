@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { combine, digestActivity } from '@rca/core/digest'
-import type { AnalysisResult } from '@rca/core/pipeline'
-import { equivalentRunSpeed } from '@rca/core/pipeline'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeResult } from './components/fixtures'
-import { profileEquivalents } from './gradeProfile'
 import { bestEffortRows } from './pages/bestEffortRows'
 import type { BestEffortInput } from './pages/bestEffortRows'
 import { sportGrade } from './grades'
@@ -77,22 +74,6 @@ describe('a result whose best watts and best power-to-weight are different rides
     const equivalent = result.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
     expect(equivalent?.ridePowerW).toBeCloseTo(290, 9)
     expect(result.rideCurve[atHeadline(result.rideCurve)]?.activityId).toBe('light')
-  })
-})
-
-describe('profileEquivalents with dated body masses', () => {
-  it("prices a ride at the body mass it was ridden at, not at today's", () => {
-    const { hr } = makeResult()
-    const dated: AnalysisResult = makeResult({
-      activities: [makeActivity({ id: 'ride-1', sport: 'ride', massKg: 90 })],
-      rideCurve: [curvePoint(5400, 250, 'ride-1')],
-      equivalents: [],
-      hr,
-    })
-    const [equivalent] = profileEquivalents(dated, 75, 'male')
-    expect(equivalent?.ridePowerW).toBe(250)
-    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(250, 90, 'male').p50, 9)
-    expect(equivalent?.runSpeed.p50).not.toBeCloseTo(equivalentRunSpeed(250, 75, 'male').p50, 3)
   })
 })
 

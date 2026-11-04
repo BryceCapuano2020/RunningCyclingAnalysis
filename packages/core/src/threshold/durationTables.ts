@@ -1,4 +1,4 @@
-import { PRIORS } from '../constants'
+import { DISPLAY_ECONOMY } from '../display/economy'
 import { flatSpeedToMetabolic, metabolicToFlatSpeed } from '../metabolic'
 import type { Sport } from '../types'
 import {
@@ -26,8 +26,8 @@ export interface DurationTable {
   spread(durationS: number): number
 }
 
-/** The share of VO2max a runner holds for `minutes` (Daniels and Gilbert). */
-function shareOfVo2max(minutes: number): number {
+/** The share of VO2max a runner holds for `minutes` (Daniels and Gilbert). The one place the formula is written. */
+export function shareOfVo2max(minutes: number): number {
   const { floor, slow, fast } = RUN_SHARE
   return (
     floor +
@@ -48,12 +48,18 @@ export function runDurationRatio(durationS: number): number {
   return shareOfVo2max(durationS / 60) / HOUR_SHARE
 }
 
-const economy = PRIORS.runEconomyScale.mean
+const economy = DISPLAY_ECONOMY
+
+/** Daniels and Gilbert's oxygen cost of running at `metresPerMin`, ml/kg/min. The one place the formula is written. */
+export function runVo2PerMin(metresPerMin: number): number {
+  return (
+    RUN_VO2.constant + RUN_VO2.linear * metresPerMin + RUN_VO2.square * metresPerMin * metresPerMin
+  )
+}
 
 /** Daniels and Gilbert's oxygen cost of running at `speedMs`, ml/kg/min. Negative below a walk. */
 export function runVo2(speedMs: number): number {
-  const v = speedMs * 60
-  return RUN_VO2.constant + RUN_VO2.linear * v + RUN_VO2.square * v * v
+  return runVo2PerMin(speedMs * 60)
 }
 
 /** The speed, m/s, with the oxygen cost `vo2`: the positive root of `runVo2`. NaN under the cost of standing still. */

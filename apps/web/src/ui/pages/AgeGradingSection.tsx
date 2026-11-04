@@ -1,3 +1,4 @@
+import { CYCLING_ANCHOR_WKG } from '@rca/core/display'
 import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
 import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
@@ -57,10 +58,9 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         />
         <MethodLines
           lines={[
-            'Each sport is graded against its own best: a ride against the best riders’ hour, a run against the best runners’.',
+            `Each sport is graded against its own best: the best riders’ hour (${CYCLING_ANCHOR_WKG.male.toFixed(2)} W/kg men, ${CYCLING_ANCHOR_WKG.female.toFixed(2)} women) or the best runners’.`,
             'Your grade in each is your share of world class at your age.',
             'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
-            'So a ride grade is an estimate.',
           ]}
         />
         <MethodLines

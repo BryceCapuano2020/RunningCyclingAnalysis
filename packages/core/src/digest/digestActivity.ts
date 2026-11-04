@@ -1,11 +1,11 @@
 import {
   BEST_WINDOW_MIN_MOVING_FRACTION,
   DEFAULT_BIKE_MODEL,
-  PRIORS,
   RUN_RECORD_DISTANCES_M,
 } from '../constants'
 import type { RunRecordDistanceM } from '../constants'
 import type { Occupancy } from '../curves'
+import { DISPLAY_ECONOMY } from '../display/economy'
 import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
@@ -273,7 +273,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
   // The run's metabolic stream feeds its curve, its heart-rate blocks and its splits, so it is built once.
   const metabolic =
     activity.sport === 'run'
-      ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean, {
+      ? runMetabolicPower(streams.speed, grade, DISPLAY_ECONOMY, {
           steepDescent: true,
         })
       : null
@@ -338,7 +338,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
             activity,
             quality,
             metabolic,
-            PRIORS.runEconomyScale.mean,
+            DISPLAY_ECONOMY,
             agreed.covered,
             moving,
             streams.speed,

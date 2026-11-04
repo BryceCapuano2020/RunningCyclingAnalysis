@@ -131,7 +131,7 @@ misfit, not whether the efforts were maximal, and these are single sessions.
 ## The duration a threshold is held for
 
 A threshold is the pace or power held for an hour, for a run as for a ride (docs/design/threshold.md), and a card says "threshold" with no
-duration of its own. The 30 minutes of `THRESHOLD_HOLD_S` belongs to the gate's floor, the best 30 minutes, and to the critical-power fit: that
+duration of its own. The 30 minutes of `CP_FIT_HOLD_S` belongs to the gate's floor, the best 30 minutes, and to the critical-power fit: that
 fit rests on efforts of 3 to 20 minutes, and Poole et al. 2016 (Med Sci Sports Exerc 48:2320, PMC5070974) report riders completing 24
 minutes at critical power without difficulty, and exercise just above it sustained for "perhaps 30 minutes"; on noise-free curves that fall
 with duration the fit sat at about the value of a 40 minute effort (0.98 to 1.05 times it, in the audit's simulations). Half an hour, between

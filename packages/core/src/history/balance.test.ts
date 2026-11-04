@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '../constants'
-import { metabolicToFlatSpeed } from '../metabolic'
+import { runThresholdSpeed } from '../digest/equivalents'
+import { shortestEffortMin } from '../display'
 import { AnalysisSession } from '../session'
 import type { ActivityDigest } from '../types'
 import { historyOf, NO_HISTORY } from './compute'
 import { balanceLibrary, copyOf, REFERENCE, SETTINGS, TWELVE_YEARS } from './test/balanceLibrary'
 import type { HistoryInput } from './types'
-import { speedOfBest } from './balance'
 
 const INPUT: HistoryInput = {
   settings: SETTINGS,
@@ -21,7 +20,7 @@ const rowsOf = (digests: ActivityDigest[], input: HistoryInput = INPUT) =>
 describe('balance', () => {
   const rows = rowsOf(balanceLibrary(TWELVE_YEARS))
 
-  it('has a row for each year with a best, none for a year without one, and a null for a sport that did not train', () => {
+  it('has a row for each year with a threshold, none for a year without one, and a null for a sport that did not train', () => {
     expect(rows.map((row) => row.year)).toEqual([
       2013, 2014, 2015, 2016, 2017, 2019, 2020, 2021, 2022, 2023, 2024,
     ])
@@ -31,12 +30,15 @@ describe('balance', () => {
     expect(rows.every((row) => row.year === 2016 || row.sports.ride !== null)).toBe(true)
   })
 
-  it('carries a ride’s range and no range for a run, and the day of the activity that set each best', () => {
+  it('carries each sport’s range, and the day of the activity behind each threshold’s strongest effort', () => {
     const row = rows.find((candidate) => candidate.year === 2020)!
-    expect(row.sports.run!.range).toBeNull()
-    const [low, high] = row.sports.ride!.range!
-    expect(low).toBeLessThan(row.sports.ride!.speed)
-    expect(high).toBeGreaterThan(row.sports.ride!.speed)
+    // A run's range can close on its answer where a backed hour sets the floor; a ride's carries the anchor's spread.
+    const run = row.sports.run!.speed
+    expect(run.p05).toBeLessThanOrEqual(run.p50)
+    expect(run.p95).toBeGreaterThanOrEqual(run.p50)
+    const ride = row.sports.ride!.speed
+    expect(ride.p05).toBeLessThan(ride.p50)
+    expect(ride.p95).toBeGreaterThan(ride.p50)
     expect(row.sports.run!.startMs).toBe(Date.UTC(2020, 5, 10, 12))
     expect(row.sports.ride!.startMs).toBe(Date.UTC(2020, 5, 12, 12))
   })
@@ -63,14 +65,14 @@ describe('balance', () => {
     expect(new Set(verdicts(unjudged))).toEqual(new Set(['unknown', undefined]))
   })
 
-  it('is empty for an empty library and for a library with no 20 minute effort', () => {
+  it('is empty for an empty library and for a run with no effort long enough for a threshold', () => {
     expect(rowsOf([])).toEqual(NO_HISTORY.balance)
     const short = copyOf('run', 'short', Date.UTC(2020, 5, 1), { scale: 1 })
-    const noTwenty = {
+    const noThreshold = {
       ...short,
-      curve: short.curve.filter((p) => p.durationS < HEADLINE_DURATION_S),
+      curve: short.curve.filter((p) => p.durationS < shortestEffortMin('run') * 60),
     }
-    expect(rowsOf([noTwenty])).toEqual([])
+    expect(rowsOf([noThreshold])).toEqual([])
   })
 
   it('is remembered for the same digests, and made again when the references or the sex change', () => {
@@ -93,23 +95,21 @@ describe('balance against the hero of an equal window', () => {
   session.loadDigests(library, SETTINGS)
   const rows = session.setRange('all', SETTINGS).history.balance
 
-  it('reads the same speed, range, day and verdict as the analysis of that year alone', () => {
+  it('reads the same threshold speed, range, day and verdict as the analysis of that year alone', () => {
     for (const row of rows) {
       const state = session.setRange(
         { from: `${row.year}-01-01`, to: `${row.year}-12-31` },
         SETTINGS,
       )
       const result = state.result!
-      const run = result.runCurve.find((p) => p.durationS === HEADLINE_DURATION_S)
-      const ride = result.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
-      expect(row.sports.run === null).toBe(run === undefined || !Number.isFinite(run.value))
+      expect(row.sports.run === null).toBe(result.runThreshold === null)
       if (row.sports.run !== null) {
-        expect(row.sports.run.speed).toBe(metabolicToFlatSpeed(run!.value))
+        expect(row.sports.run.speed).toEqual(runThresholdSpeed(result.runThreshold))
         expect(row.sports.run.verdict).toBe(result.effortGate.run.verdict)
       }
-      expect(row.sports.ride === null).toBe(ride === undefined)
+      expect(row.sports.ride === null).toBe(result.rideThreshold === null)
       if (row.sports.ride !== null) {
-        expect(speedOfBest(row.sports.ride)).toEqual(ride!.runSpeed)
+        expect(row.sports.ride.speed).toEqual(result.rideThresholdRunSpeed)
         expect(row.sports.ride.verdict).toBe(result.effortGate.ride.verdict)
       }
     }

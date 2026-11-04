@@ -1,19 +1,16 @@
+import { runVo2PerMin, shareOfVo2max } from '../threshold/durationTables'
+
 /*
  * Daniels and Gilbert's running formulas (Oxygen Power, 1979), the basis of the VDOT tables: the
- * oxygen cost of running at a speed, and the share of VO2max a runner can hold for a time.
+ * oxygen cost of running at a speed, and the share of VO2max a runner can hold for a time. The formulas and their coefficients are
+ * the threshold's (`threshold/constants.ts`, `threshold/durationTables.ts`); the race predictions read them from there.
  */
 
 /** Oxygen cost, ml/kg/min, of running on the flat at speedMPerMin. */
-export function oxygenCost(speedMPerMin: number): number {
-  return -4.6 + 0.182258 * speedMPerMin + 0.000104 * speedMPerMin * speedMPerMin
-}
+export const oxygenCost = runVo2PerMin
 
 /** The share of VO2max a runner can hold for a race of minutes. */
-export function sustainableShare(minutes: number): number {
-  return (
-    0.8 + 0.1894393 * Math.exp(-0.012778 * minutes) + 0.2989558 * Math.exp(-0.1932605 * minutes)
-  )
-}
+export const sustainableShare = shareOfVo2max
 
 /** VDOT: the VO2max a race time implies, ml/kg/min. */
 export function vdotOf(distanceM: number, seconds: number): number {

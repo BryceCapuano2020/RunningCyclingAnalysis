@@ -3,6 +3,7 @@ import { DURATIONS_S, PRIORS, RESTING_W_PER_KG } from './constants'
 import type { AnalysisResult } from './pipeline'
 import { CYCLING_ANCHOR_LOG_SD, anchorFactor, combine, digestActivity } from './digest'
 import { analyze, equivalentRunSpeed } from './pipeline'
+import { Z_P95 } from './threshold/coverage'
 import { generateActivity, sampleDataset } from './synthetic'
 import type { ComparisonPoint } from './types'
 
@@ -119,7 +120,7 @@ describe('analyze on simulated ground truth', () => {
       const wkg = eq.ridePowerW / (PRIORS.grossEfficiency.mean * athlete.massKg)
       const speedAt = (energy: number) =>
         (anchorFactor(undefined) * energy - RESTING_W_PER_KG) / 3.9
-      const z = 1.645 * CYCLING_ANCHOR_LOG_SD
+      const z = Z_P95 * CYCLING_ANCHOR_LOG_SD
       expect(eq.runSpeed.p50).toBeCloseTo(speedAt(wkg), 9)
       expect(eq.runSpeed.p05).toBeCloseTo(speedAt(wkg * Math.exp(-z)), 9)
       expect(eq.runSpeed.p95).toBeCloseTo(speedAt(wkg * Math.exp(z)), 9)

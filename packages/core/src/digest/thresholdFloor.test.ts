@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DAY_MS, HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { DAY_MS, HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
 import type { AthleteSettings } from '../types'
 import { judgeHeartRate } from './setAside'
 import { FLOOR_WINDOW_DAYS, floorAt } from './thresholdFloor'
@@ -26,7 +26,7 @@ describe('floorAt', () => {
     ]
     // The effort 800 days ago is a better one, and so is the one ten days on; neither is in the year up to T.
     expect(floorAt(efforts, T, false)).toEqual({
-      durationS: THRESHOLD_HOLD_S,
+      durationS: CP_FIT_HOLD_S,
       value: 15,
       asOfMs: T - 100 * DAY_MS,
     })
@@ -50,7 +50,7 @@ describe('floorAt', () => {
     })
     // One 30 minute effort, however much lower than the 20s, is what the floor is taken from.
     const mixed = [...only20, effort(50, 9, 10)]
-    expect(floorAt(mixed, T, false)).toMatchObject({ durationS: THRESHOLD_HOLD_S, value: 9 })
+    expect(floorAt(mixed, T, false)).toMatchObject({ durationS: CP_FIT_HOLD_S, value: 9 })
   })
 
   it('has none for a date in the past without an effort in the year before it', () => {
@@ -62,7 +62,7 @@ describe('floorAt', () => {
     const efforts = [effort(900, 20, 21), effort(520, 11, 12), effort(500, 14, 15)]
     // The year before T holds nothing. The newest effort is 500 days ago; the year ending with it holds the other two.
     expect(floorAt(efforts, T, true)).toEqual({
-      durationS: THRESHOLD_HOLD_S,
+      durationS: CP_FIT_HOLD_S,
       value: 14,
       asOfMs: T - 500 * DAY_MS,
     })
@@ -85,7 +85,7 @@ describe('the efforts a library gives a floor', () => {
       [...floor.run.map((each) => each[0])].sort((a, b) => a - b),
     )
     // A run at level 1 holds 14 W/kg and 900 J/kg above it: the mean over 30 minutes and over 20, to four decimals.
-    expect(floor.run[0]![1]).toBeCloseTo(14 + 900 / THRESHOLD_HOLD_S, 4)
+    expect(floor.run[0]![1]).toBeCloseTo(14 + 900 / CP_FIT_HOLD_S, 4)
     expect(floor.run[0]![2]).toBeCloseTo(14 + 900 / HEADLINE_DURATION_S, 4)
     expect(floor.ride).toEqual([])
   })

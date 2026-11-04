@@ -256,6 +256,59 @@ test('fails a Balance page whose ride-as-a-run card contradicts its lean', () =>
   )
 })
 
+test('fails a Balance threshold that differs from the same period on the sport page', () => {
+  const balance = (run, ride) =>
+    `RUN THRESHOLD\n${run}\n/mi\nRIDE THRESHOLD\n${ride}\nW\nYOUR RIDE AS A RUN\n8:00\n/mi\n`
+  withOutput(
+    {
+      'balance-12-months.txt': balance('7:30', '250'),
+      'run-12-months.txt': 'THRESHOLD PACE\n7:30\n/mi\n',
+      'ride-12-months.txt': 'THRESHOLD POWER\n250\nW\n',
+      'balance-6-weeks.txt': balance('7:30', '250'),
+      'run-6-weeks.txt': 'THRESHOLD PACE\n7:45\n/mi\n',
+      'ride-6-weeks.txt': 'THRESHOLD POWER\n262\nW\n',
+      'balance-all-time.txt': balance('7:30', '250'),
+    },
+    (dir) => {
+      const lines = runInvariants(dir)
+        .map(({ line }) => line)
+        .filter((line) => line.includes('balance-vs-sport'))
+      assert.deepEqual(lines, [
+        'PASS balance-vs-sport-run-threshold balance-12-months: Balance 450 s, run page 450 s /mi',
+        'PASS balance-vs-sport-ride-threshold balance-12-months: Balance 250 W, ride page 250 W',
+        'FAIL balance-vs-sport-run-threshold balance-6-weeks: Balance 450 s, run page 465 s /mi',
+        'FAIL balance-vs-sport-ride-threshold balance-6-weeks: Balance 250 W, ride page 262 W',
+      ])
+    },
+  )
+})
+
+test('fails a Balance grade that differs from the sport page’s age grade at threshold for the same period', () => {
+  const sportPage = (level, percent) => `AGE GRADE AT THRESHOLD\n${level}\n${percent}\n`
+  withOutput(
+    {
+      'balance-12-months.txt': 'RUNNING\n47%\nRecreational\nCYCLING\n72%\nRegional\n',
+      'run-12-months.txt': sportPage('RECREATIONAL', '47%'),
+      'ride-12-months.txt': sportPage('REGIONAL', '72%'),
+      'balance-6-weeks.txt': 'RUNNING\n47%\nRecreational\nCYCLING\n72%\nRegional\n',
+      'run-6-weeks.txt': sportPage('RECREATIONAL', '48%'),
+      'ride-6-weeks.txt': sportPage('NATIONAL', '72%'),
+      'balance-all-time.txt': 'RUNNING\n47%\nRecreational\nCYCLING\n72%\nRegional\n',
+    },
+    (dir) => {
+      const lines = runInvariants(dir)
+        .map(({ line }) => line)
+        .filter((line) => line.includes('-grade '))
+      assert.deepEqual(lines, [
+        'PASS balance-vs-sport-run-grade balance-12-months: Balance 47% Recreational, run page 47% RECREATIONAL',
+        'PASS balance-vs-sport-ride-grade balance-12-months: Balance 72% Regional, ride page 72% REGIONAL',
+        'FAIL balance-vs-sport-run-grade balance-6-weeks: Balance 47% Recreational, run page 48% RECREATIONAL',
+        'FAIL balance-vs-sport-ride-grade balance-6-weeks: Balance 72% Regional, ride page 72% NATIONAL',
+      ])
+    },
+  )
+})
+
 test('the command fails on a contradiction even when every truth check passes', () => {
   withOutput(
     {

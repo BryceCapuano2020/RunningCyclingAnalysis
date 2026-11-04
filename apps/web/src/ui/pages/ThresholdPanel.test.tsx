@@ -177,7 +177,7 @@ describe('ThresholdPanel for a run', () => {
     const note = within(section).getByRole('note')
     expect(note).toHaveTextContent('Range 4:10 to 4:39 /km.')
     expect(note).toHaveTextContent('scaled to an hour and averaged')
-    expect(note).toHaveTextContent('never under an hour you ran')
+    expect(note).toHaveTextContent('never under a backed hour you ran')
     expect(note).not.toHaveTextContent(/heart rate|not used|raise/i)
   })
 

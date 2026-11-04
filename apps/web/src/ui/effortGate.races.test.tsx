@@ -7,7 +7,7 @@ import { makeActivity, makeResult } from './components/fixtures'
 import { gate, UNKNOWN } from './effortGateFixtures'
 import { raceAnswerOf } from './raceAnswer'
 import { forecastOf } from './test/raceForecast'
-import { racePredictionNeed, racePredictionsOf } from './racePredictions'
+import { racePredictionNeed } from './racePredictions'
 
 afterEach(cleanup)
 
@@ -43,11 +43,13 @@ describe('race predictions and the effort gate', () => {
   })
 
   it('carries the bests of a run that reached a hard heart rate to a race', () => {
-    expect(racePredictionsOf('run', result([run('hard', 180)]))?.races.length).toBeGreaterThan(0)
+    const answer = forecastOf(raceAnswerOf('run', result([run('hard', 180)]), null))
+    expect(answer.kind).toBe('predicted')
+    expect(answer.found.races.length).toBeGreaterThan(0)
   })
 
   it('does not carry the easy pace of a run whose peak heart rate was easy as a prediction', () => {
-    expect(racePredictionsOf('run', result([run('easy', 140)]))).toBeNull()
+    expect(raceAnswerOf('run', result([run('easy', 140)]), null)?.kind).not.toBe('predicted')
   })
 
   it('answers from an easy run with a forecast marked bound: every race is carried from it', () => {
@@ -68,7 +70,6 @@ describe('race predictions and the effort gate', () => {
       neededS: null,
       sessions: { hard: [], endurance: [] },
     })
-    expect(racePredictionsOf('run', habitual)).toBeNull()
     expect(raceAnswerOf('run', habitual, null)?.kind).toBe('bound')
   })
 
@@ -78,12 +79,14 @@ describe('race predictions and the effort gate', () => {
   })
 
   it('keeps the hard run’s bests among easy ones, and a run with no heart rate', () => {
-    const mixed = racePredictionsOf('run', result([run('easy', 140), run('hard', 180)]))
-    const hardOnly = racePredictionsOf('run', result([run('hard', 180)]))
+    const found = (runs: ReturnType<typeof run>[]) =>
+      forecastOf(raceAnswerOf('run', result(runs), null)).found
+    const mixed = found([run('easy', 140), run('hard', 180)])
+    const hardOnly = found([run('hard', 180)])
     // The marathon also reads weekly volume, which counts every run; the shorter races read the bests alone.
     expect(mixed?.races.slice(0, 3)).toEqual(hardOnly?.races.slice(0, 3))
     expect(mixed?.runsVdot).toBe(hardOnly?.runsVdot)
-    expect(racePredictionsOf('run', result([run('bare', null)]))).not.toBeNull()
+    expect(raceAnswerOf('run', result([run('bare', null)]), null)?.kind).toBe('predicted')
   })
 
   it('carries a half marathon or longer from a run of high average heart rate, and a shorter best only from a hard one', () => {
@@ -92,7 +95,7 @@ describe('race predictions and the effort gate', () => {
       { distanceM: HALF_MARATHON_M, seconds: 110 * 60 },
     ]
     const long = run('long-1', 150, { distanceBests: halfBests })
-    const found = racePredictionsOf('run', result([long]))!
+    const found = forecastOf(raceAnswerOf('run', result([long]), null)).found
     // Only the half marathon is carried from it: the 10 km best of a run that never got hard is not.
     expect(found.races.some((race) => race.methods.some((m) => m.fromM === HALF_MARATHON_M))).toBe(
       true,
@@ -102,7 +105,6 @@ describe('race predictions and the effort gate', () => {
 
   it('carries every run’s bests where the gate could not judge, as a prediction and not a bound', () => {
     const unchecked = result([run('easy', 140)], { verdict: 'unknown', unchecked: 'noHeartRate' })
-    expect(racePredictionsOf('run', unchecked)).not.toBeNull()
     expect(raceAnswerOf('run', unchecked, null)?.kind).toBe('predicted')
   })
 

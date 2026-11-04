@@ -6,7 +6,7 @@ import type { RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import { WIDENED_YEAR_DAYS } from '@rca/core/zones'
 import { RUN_RACE_DISTANCES_M } from '@rca/core/constants'
-import { RACE_PREDICTORS, libraryJudge, periodJudge, runBests } from './racePredictions'
+import { libraryJudge, periodJudge, racePredictionNeed, runBests } from './racePredictions'
 import type { RunBest, RunJudge } from './racePredictions'
 
 /** The sport the running predictor reads. */
@@ -153,7 +153,8 @@ export function raceAnswerOf(
   rangeDays: number | null,
   reach?: RaceReach,
 ): RaceAnswer | null {
-  if (RACE_PREDICTORS[sport] === undefined) return null
+  // A sport has a predictor exactly when it has a need to state (`RACE_PREDICTION_NEED`).
+  if (racePredictionNeed(sport) === undefined) return null
   const widening = rangeDays !== null && reach !== undefined && reach.endMs !== null ? reach : null
   const yearStartMs =
     widening === null ? null : windowEnding(widening.endMs!, WIDENED_YEAR_DAYS).startMs

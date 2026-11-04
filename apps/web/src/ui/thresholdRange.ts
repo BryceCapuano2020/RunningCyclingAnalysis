@@ -1,5 +1,4 @@
-import { PRIORS } from '@rca/core/constants'
-import { metabolicToRidePower } from '@rca/core/metabolic'
+import { ridePowerOfWkg } from '@rca/core/display'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -27,7 +26,7 @@ function rangeOf(
 ): string {
   const figureOf: Record<Sport, (cp: number) => Figure> = {
     run: (cp) => paceFigure(cp, units),
-    ride: (cp) => powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean)),
+    ride: (cp) => powerFigure(ridePowerOfWkg(cp, massKg)),
   }
   const low = figureOf[sport](lowCp)
   const high = figureOf[sport](highCp)

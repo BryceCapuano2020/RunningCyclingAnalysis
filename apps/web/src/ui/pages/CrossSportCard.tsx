@@ -1,6 +1,5 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { PRIORS } from '@rca/core/constants'
-import { metabolicToRidePower } from '@rca/core/metabolic'
+import { ridePowerAt } from '@rca/core/display'
 import type { UnitSystem } from '@rca/core/units'
 import { PACE_UNIT, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
@@ -57,7 +56,7 @@ export function CrossSportCard({ result, units, weighted, massKg }: CrossSportCa
       </StatTile>
     )
   }
-  const watts = metabolicToRidePower(estimate.value, massKg, PRIORS.grossEfficiency.mean)
+  const { watts } = ridePowerAt(estimate.value, massKg)
   return (
     <StatTile
       sport="ride"

@@ -17,6 +17,14 @@ strong enough to justify that cost, and the reason belongs in the PR description
      not a checked rule.
    - Shared contracts live in `packages/contract`. Shared numbers live in exactly one constant.
      Shared UI behaviour lives in one component or hook.
+   - One figure, one function. A figure shown on more than one page is worked out once, in
+     `packages/core`: grades, the lead and what the lower sport needs to match the higher in
+     `@rca/core/standing`; speed, power and W/kg conversions, and the figures the Method page quotes,
+     in `@rca/core/display`. The web names and formats what they return. A file under `apps/web/src`
+     that imports the grading, the equivalence, the metabolic conversions or the priors fails
+     `scripts/ops/figure-sources.test.mjs`, and a figure on two pages has a test that renders both
+     from one result and compares the printed text. A review asks of every new number: is there
+     already a function that makes it?
    - Prefer deleting code to adding it. Any new feature must name what it makes simpler, or what
      it costs, in its PR.
    - Names and comments explain why, not what. There are no lint-disable comments.

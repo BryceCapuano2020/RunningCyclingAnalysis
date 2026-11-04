@@ -2,8 +2,7 @@ import { HALF_MARATHON_M, MARATHON_M, RUN_RACE_DISTANCES_M } from '@rca/core/con
 import { effortsCount } from '@rca/core/digest'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import { predictRunRaces, typicalWeeklyDistance } from '@rca/core/predict'
-import type { Performance, PredictionMethod, RunPredictions } from '@rca/core/predict'
+import type { Performance, PredictionMethod } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import { METRES_PER_MILE } from '@rca/core/units'
 
@@ -87,24 +86,6 @@ export function runBests(
           .map((best) => ({ best, run })),
   )
   return { all, kept: all.filter(({ best, run }) => anchored(judge, run, best.distanceM)) }
-}
-
-/** Each sport's predictor from its period's result, where it has one. */
-export const RACE_PREDICTORS: Partial<Record<Sport, (result: AnalysisResult) => RunPredictions>> = {
-  run: (result) => {
-    const runs = result.activities.filter((activity) => activity.sport === RUN)
-    return predictRunRaces({
-      bests: runBests(runs, periodJudge(result)).kept.map(({ best }) => best),
-      vo2max: result.runVo2max,
-      weeklyM: typicalWeeklyDistance(runs),
-    })
-  },
-}
-
-/** A sport's race predictions, or null when it has no predictor or the evidence gives no race. */
-export function racePredictionsOf(sport: Sport, result: AnalysisResult): RunPredictions | null {
-  const found = RACE_PREDICTORS[sport]?.(result) ?? null
-  return found === null || found.races.length === 0 ? null : found
 }
 
 /** A race's name, as races are named whatever the units. */

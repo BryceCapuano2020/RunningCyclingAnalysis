@@ -16,7 +16,7 @@ const NOT_ALL_OUT = 'not all-out'
  * do not say it, and a sighted reader finds it in the tooltip.
  */
 export const DESCRIPTION =
-  'Age grade of the best 20 minutes in each calendar year, run and ride on one scale from 0 to 100. A ride is estimated and has a band for its range. A hollow dot is a best that was not all-out.'
+  'Age grade of the threshold in each calendar year, run and ride on one scale from 0 to 100. Each sport is an estimate and has a band for its range. A hollow dot is a year whose best 20 minutes was not all-out.'
 
 /** A ride's range as "58 to 66%". */
 export function rangeText(range: NonNullable<SportGrade['range']>): string {
@@ -63,7 +63,7 @@ export function tableOf(views: readonly YearView[]): ChartTableData {
   const sports = drawnIn(views)
   const both = sports.length === SPORT_ORDER.length
   return {
-    caption: 'Age grade of the best 20 minutes in each calendar year',
+    caption: 'Age grade of the threshold in each calendar year',
     columns: [
       'Year',
       ...sports.map((sport) => nameOf(sport, rangedIn(views, sport))),
@@ -91,7 +91,7 @@ export function tooltipFor(
     const each = view.grades[sport]
     const label = nameOf(sport, rangedIn(views, sport))
     if (each === undefined) return [{ kind: sport, label, value: NONE }]
-    // The level is the centre's, then "not all-out" where the year's best was not shown hard.
+    // The level is the centre's, then "not all-out" where the year's best 20 minutes was not shown hard.
     const note = [gradeLevelText(each.grade), isHollow(each) ? NOT_ALL_OUT : null]
       .filter((part) => part !== null)
       .join(', ')
