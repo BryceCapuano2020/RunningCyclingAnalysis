@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 // one command instead of polling checks (docs/PROCESS.md). npm run pr:queue, or --json for objects.
 
 /** The required checks that only collect their shards; a failed shard says more. */
-const COLLECTORS = ['Lint, typecheck, unit tests, build', 'End-to-end (Playwright)']
+const COLLECTORS = ['Lint, typecheck, unit tests, build', 'End-to-end (Playwright)', 'CI result']
 /** Checks that run on every code pull request but do not block a merge. */
 export const OPTIONAL = ['Unit tests in shuffled order']
 /** CI skips this job only when its run decided the pull request was a draft. */

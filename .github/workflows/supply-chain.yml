@@ -1,8 +1,8 @@
 name: Supply chain
 
 # Weekly check of installed dependencies: registry signatures and provenance for everything in the
-# lockfile, and known vulnerabilities in production dependencies. Pull requests are checked by the
-# audit job in ci.yml, which also covers development dependencies.
+# lockfile, and known vulnerabilities in every dependency. Pull requests are checked by the audit job
+# in ci.yml, which covers production dependencies only.
 on:
   schedule:
     - cron: '17 6 * * 1'
@@ -31,5 +31,7 @@ jobs:
       - run: npm ci --no-audit
       - name: Verify registry signatures and provenance
         run: npm audit signatures
+      - name: Audit every dependency, development ones included
+        run: npm audit --audit-level=high --fetch-timeout=30000 --fetch-retries=1 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=5000
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=moderate --fetch-timeout=30000 --fetch-retries=1 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=5000

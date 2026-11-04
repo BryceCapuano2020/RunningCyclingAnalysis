@@ -120,6 +120,10 @@ timeout at random.
   push and one run each: the 12-week load, then a test timing out under coverage, then the body mass
   change.
 - While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
+- A pull request over 800 changed lines (`package-lock.json` aside) fails the size job unless it
+  carries the `integration` label, which marks a merge of pull requests already reviewed on their
+  own. Re-run the job after adding the label.
+- Pull requests audit production dependencies; the weekly supply-chain run audits every dependency.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
   before the next change to it. Two ready pull requests never both grow one: each passes alone and
   the merge breaks `main`.
@@ -144,8 +148,9 @@ These are owner settings in GitHub, not files in the repository.
 
 - Allow auto-merge (Settings, General).
 - Branch protection on `main` without "require branches to be up to date".
-- Required checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`,
-  `Dependency audit`, `Performance budgets`, `Statistical simulations` and
-  `Unit tests in shuffled order`.
+- One required check, `CI result`, which passes only when every gating job passed. Until the owner
+  swaps to it, the older list stands: `Lint, typecheck, unit tests, build`,
+  `End-to-end (Playwright)`, `Dependency audit`, `Performance budgets`, `Statistical simulations`
+  and `Unit tests in shuffled order`.
 - Head branches deleted on merge (Settings, General), so GitHub retargets a stacked pull request to
   `main` when its base merges.

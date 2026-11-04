@@ -33,7 +33,9 @@ const CI = [
   'End-to-end (2 of 3)',
   'End-to-end (3 of 3)',
   'End-to-end (Playwright)',
+  'Pull request size',
   'Dependency audit',
+  'CI result',
 ]
 /** A code pull request's checks, all green unless `results` says otherwise. */
 const checks = (results = {}) => CI.map((name) => done(name, results[name] ?? 'SUCCESS'))

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { jobBlocks } from './workflow-blocks.mjs'
 
 const root = new URL('../../', import.meta.url)
 const workflow = (name) => readFile(new URL(`.github/workflows/${name}.yml`, root), 'utf8')
@@ -101,22 +102,6 @@ test('a skipped deep health check opens one monitoring-gap issue, and a deep che
   )
   assert.match(uptime, /gh issue list --label monitoring-gap --state open/)
 })
-
-const jobBlocks = (source) => {
-  const lines = source.split('\n')
-  const blocks = new Map()
-  let current = null
-  for (const line of lines.slice(lines.indexOf('jobs:') + 1)) {
-    const job = /^ {2}([A-Za-z0-9_-]+):$/.exec(line)
-    if (job) {
-      current = job[1]
-      blocks.set(current, [])
-    } else if (current) {
-      blocks.get(current).push(line)
-    }
-  }
-  return blocks
-}
 
 test('every CI and Deploy job has a timeout so a hang fails instead of running for hours', async () => {
   for (const name of ['ci', 'deploy']) {
