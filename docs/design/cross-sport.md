@@ -20,7 +20,8 @@ Each sport is graded against its own best: a ride against the best riders' hour,
 - A ride's running equivalent at any duration is `v_eq = M^-1(f(sex) x rideMetabolicWkg)`. Age is left to the running age tables:
   cycling ages like running in energy terms.
 - Its range is the anchor's alone, `exp(+-1.645 x 0.03)` on the energy (5th and 95th percentiles). A threshold's own low and high are
-  combined with it in quadrature on the log scale.
+  10th and 90th percentiles, so their log distances from the estimate are scaled by 1.645 / 1.2816 to the 5th and 95th before they are
+  combined with the anchor's in quadrature on the log scale.
 
 ## Constants and sources
 
@@ -31,8 +32,9 @@ Each sport is graded against its own best: a ride against the best riders' hour,
 
 ## Sensitivity
 
-The men's anchor 6.60 instead of 6.40 lowers every ride's equivalent energy by 3%, which is about 3 to 4 points of grade at the
-middle of the scale. The anchor's range (log sd 0.03) is the allowance for that, and it is in every ride's range.
+The men's anchor 6.60 instead of 6.40 lowers every ride's equivalent energy by 3%. In grade that is about 2.4 points for a ride at 75%
+of the cycling world-class hour (at ages 25 to 35), from 1.6 points at half of it to 3.2 at 95%, and a little more at older ages
+(`rideAnchor.test.ts` pins the 75% figure). The anchor's range (log sd 0.03) is the allowance for that, and it is in every ride's range.
 
 ## One standing
 

@@ -107,6 +107,15 @@ describe('the cycling anchor', () => {
   })
 })
 
+describe('the sensitivity to the men’s anchor', () => {
+  it('moves a ride at 75% of the hour by about 2.4 points if the anchor were 6.60 rather than 6.40', () => {
+    // The figure docs/design/cross-sport.md states. Against 6.60 the same ride is 6.40 / 6.60 of the share it is against 6.40.
+    const wkg = 0.75 * CYCLING_WORLD_CLASS_HOUR_WKG.male
+    const points = (hourGrade(wkg, 'male') - hourGrade((wkg * 6.4) / 6.6, 'male')) * 100
+    expect(points).toBeCloseTo(2.4, 1)
+  })
+})
+
 describe('the range of a ride through the anchor', () => {
   const ride = { value: 24 }
 

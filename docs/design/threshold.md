@@ -309,13 +309,17 @@ under 2% within 5%. Seeds 11 to 14 agree within 3 points on every cell.
 ## Grading a threshold
 
 Each sport's age grade on the current-period surfaces (Balance's lean, levels, tiles and level target, the sport pages' level panel, the share
-card) is its threshold graded as an effort of an hour, so the lean, the cards and "Your ride as a run" agree (`apps/web/src/ui/thresholdGrade.ts`).
-A run's threshold pace, the flat speed of `runThreshold.value`, goes through `gradeAtSpeed` at 3600 s and has no range of its own. A ride's goes
-through its running equivalent at 3600 s, `AnalysisResult.rideThresholdRunSpeed` (`thresholdRunSpeed`, built in `combine` from the same equivalence
-as `equivalents`): `p50` is the estimate, `p05` its low through the equivalence's 5th percentile and `p95` its high through the 95th, so the ride's
-range holds both what the efforts leave open and what the efficiency priors leave open. `rideGradeFromSpeeds` reads it as it reads a ride best, with the
-same ceiling. The age is the age on the day of `efforts.strongest.activityId`. "Your ride as a run" prints the same `p50` as a pace, so where the
-grades lean toward running it is slower than the run threshold, and where they lean toward cycling, faster (the replica's `lean-vs-cards` rule).
+card, the import notice and the Method page) is its threshold graded as an effort of an hour. `sportStanding` (`packages/core/src/standing`)
+works it out once and every surface reads that object, so the lean, the cards and "Your ride as a run" agree (`apps/web/src/ui/thresholdGrade.ts`
+words the gaps). A run's threshold pace, the flat speed of `runThreshold.value`, goes through `gradeAtSpeed` at 3600 s; its `low` and `high`
+(10th and 90th percentiles) go through the same grade as the ends of the run's range. A ride's goes through its running equivalent at 3600 s,
+`AnalysisResult.rideThresholdRunSpeed` (`thresholdRunSpeed`, the anchored equivalence of `docs/design/cross-sport.md`): `p50` is the estimate;
+`p05` and `p95` are its `low` and `high`, their distances from the estimate on the log scale scaled by 1.645 / 1.2816 from the 10th and 90th to
+the 5th and 95th percentiles, then widened by the anchor's spread in quadrature. The ride's range holds what the efforts leave open and what the
+anchor leaves open; the equivalence has no efficiency, economy or heart-rate prior. `rideGradeFromSpeeds` reads it as it reads a ride best, with
+the same ceiling. The age is the age on the day of `efforts.strongest.activityId`, taken for each sport on its own strongest effort. "Your ride as
+a run" prints the same `p50` as a pace, so where the grades lean toward running it is slower than the run threshold, and where they lean toward
+cycling, faster (the replica's `lean-vs-cards` rule).
 A sport with no threshold has the threshold's own needs text in place of a grade. Still read from a best 20 min: grade by duration, the
 best-effort rows and records, History's years, "What changed" and the findings.
 
