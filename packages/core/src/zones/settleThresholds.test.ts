@@ -204,6 +204,33 @@ describe('settledThresholds', () => {
     expect(thresholdAt(built, week(4))).toMatchObject({ windowEndMs: week(3) })
   })
 
+  it('ends a window no later than the day of the newest activity the steps read', () => {
+    // A Sunday's end labels a week, but a fit adopted in the week of the newest activity (the first the library has, here) has no
+    // days after that activity yet: a Tuesday's window does not end on the Sunday to come.
+    const sunday = Date.UTC(2024, 0, 14, 23, 59, 59, 999)
+    const tuesday = Date.UTC(2024, 0, 9, 14, 30)
+    const first: ThresholdStep = { fromMs: sunday, fit: fitOf(15), asOfMs: tuesday, lastFit: 0 }
+    const [settled] = settledThresholds({ run: [first], ride: [] }, LATER).run
+    expect(settled!.windowEndMs).toBe(Date.UTC(2024, 0, 9, 23, 59, 59, 999))
+  })
+
+  it('keeps the week end of a window that closed before the newest activity', () => {
+    const sunday = Date.UTC(2024, 0, 14, 23, 59, 59, 999)
+    const tuesday = Date.UTC(2024, 0, 9, 14, 30)
+    const early: ThresholdStep = { fromMs: sunday, fit: fitOf(15), asOfMs: tuesday, lastFit: 0 }
+    const later: ThresholdStep = {
+      fromMs: sunday + 6 * WEEK_MS,
+      fit: fitOf(17),
+      asOfMs: tuesday + 6 * WEEK_MS,
+      lastFit: 1,
+    }
+    const run = settledThresholds({ run: [early, later], ride: [] }, LATER).run
+    expect(run.map((step) => step.windowEndMs)).toEqual([
+      sunday,
+      Date.UTC(2024, 1, 20, 23, 59, 59, 999),
+    ])
+  })
+
   it('names the window of the older fit that stands in for a window with none', () => {
     const run = settledRun([
       [0, 15],

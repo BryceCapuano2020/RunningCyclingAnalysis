@@ -65,10 +65,11 @@ export interface ZoneSet {
    */
   asOfMs: number | null
   /**
-   * For an estimated pace or power reference, the end of the last week of the window it is the threshold of: the 26 weeks
-   * (`THRESHOLD_WINDOW_WEEKS`) that end then, ms, as an instant in the viewer's zone. It is the date's own week while the zones
-   * follow that week's fit, and an earlier one while they hold a fit within error of it or an older one stands in. Null when
-   * entered, and for a heart rate.
+   * For an estimated pace or power reference, the end of the window it is the threshold of: the 26 weeks
+   * (`THRESHOLD_WINDOW_WEEKS`) that end then, ms, as an instant in the viewer's zone. It is the end of the last week, and never
+   * later than the end of the day of the newest activity (a week still running has not reached its Sunday). That week is the
+   * date's own while the zones follow its fit, and an earlier one while they hold a fit within error of it or an older one
+   * stands in. Null when entered, and for a heart rate.
    */
   windowEndMs: number | null
   /**

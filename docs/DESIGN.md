@@ -1112,7 +1112,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   A zone table's reference line on Profile says a run's pace as a ride's power is said: "Zones cut from 4:46 /km, your threshold over the
   26 weeks to 1 Nov". A ride's reads "Zones cut from 240 W, your threshold over the 26 weeks to 1 Nov". It is not the period tile's
   threshold: the zones are cut per week from the settled 26-week timeline, so the line names the window the figure is the threshold of (the one
-  that adopted it, `ZoneSet.windowEndMs`), and the figure is the tile's when the period is those weeks. An entered one reads "Zones cut from
+  that adopted it, `ZoneSet.windowEndMs`: its last week's end, or the day of the newest activity where the week is still running, so it never
+  names a day to come), and the figure is the tile's when the period is those weeks. An entered one reads "Zones cut from
   240 W, entered by you".
 - **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted

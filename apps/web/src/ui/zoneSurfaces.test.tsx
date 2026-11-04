@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { THRESHOLD_WINDOW_WEEKS } from '@rca/core/display'
 import { DAY_MS } from '@rca/core/constants'
-import { weekEndFor, weekEndInstant } from '@rca/core/calendar'
+import { endOfLocalDay, weekEndFor, weekEndInstant } from '@rca/core/calendar'
 import { AnalysisSession } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -67,6 +67,8 @@ describe.each(['metric', 'imperial'] as const)('the zones and the tile, in %s un
       // The window is one of the 26 weeks the period spans, the newest at latest: the zones lag a window that has not yet settled.
       expect(set.windowEndMs).not.toBeNull()
       expect(set.windowEndMs!).toBeLessThanOrEqual(weekEndInstant(end))
+      // And it does not end on a day after the newest activity, which a week that has not ended would otherwise name.
+      expect(set.windowEndMs!).toBeLessThanOrEqual(endOfLocalDay(newest))
       expect(line).toBe(
         `Zones cut from ${printed}, your threshold over the ${THRESHOLD_WINDOW_WEEKS} weeks to ${formatDayMonth(set.windowEndMs!)}`,
       )

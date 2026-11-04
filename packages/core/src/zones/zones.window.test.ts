@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { weekEndInstant } from '../calendar'
+import { endOfLocalDay, weekEndInstant } from '../calendar'
 import type { Measurement } from '../athlete/measurements'
 import type { ThresholdStep } from '../digest/thresholdTimelineTypes'
 import { flatSpeedOfWkg, ridePowerOfWkg } from '../display'
@@ -62,8 +62,20 @@ describe('the window a pace or power zone set is the threshold of', () => {
 
   it('names the older window while it stands in for a window with no fit', () => {
     const power = find(on(5), 'power')!
-    expect(power).toMatchObject({ asOfMs: week(-1), windowEndMs: weekEndInstant(week(0)) })
+    // The step is week 0's, but the ride's newest activity was a week before its Sunday: the window ends on that day.
+    expect(power).toMatchObject({ asOfMs: week(-1), windowEndMs: endOfLocalDay(week(-1)) })
     expect(power.reference).toBe(Math.round(ridePowerOfWkg(3.5, 70)))
+  })
+
+  it('ends on the day of the newest activity while its week has not ended', () => {
+    // The newest run was on a Tuesday and the Sunday that ends its week is still to come.
+    const tuesday = Date.UTC(2025, 4, 27, 14, 30)
+    const adopted = settledThresholds({ run: [step(0, 14, 0, tuesday)], ride: [] }, week(40))
+    const sets = zonesAt(tuesday, SETTINGS, { ...estimatesOf(FIGURES), thresholds: adopted })
+    const end = find(sets, 'pace')!.windowEndMs!
+    expect(end).toBeLessThanOrEqual(endOfLocalDay(tuesday))
+    expect(end).toBeLessThan(weekEndInstant(week(0)))
+    expect(new Date(end).getUTCDay()).toBe(2)
   })
 
   it('is absent for an entered threshold and for a heart rate', () => {

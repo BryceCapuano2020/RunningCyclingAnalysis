@@ -33,9 +33,10 @@ export interface ThresholdStep {
   /** The index of the last step at or before this one that has a fit (itself when it has), -1 for none. */
   lastFit: number
   /**
-   * The end of the last week of the window `fit` was taken over, ms (a week end, see `weekEndFor`). Absent in the timeline as
-   * built, where a step's fit is its own window's and this is `fromMs`. The settled timeline the zones read sets it: it holds
-   * an earlier window's fit through a step whose own fit is within error of it, so the fit's window is not the step's.
+   * The end of the last week of the window `fit` was taken over, ms (a week end, see `weekEndFor`), or the end of the day of the
+   * newest activity the sport's steps read where that is earlier: a week still running has not reached its Sunday. Absent in the
+   * timeline as built, where a step's fit is its own window's and this is `fromMs`. The settled timeline the zones read sets it: it
+   * holds an earlier window's fit through a step whose own fit is within error of it, so the fit's window is not the step's.
    */
   windowEndMs?: number
 }
@@ -50,7 +51,7 @@ export interface ThresholdAt {
   fit: ThresholdFit
   /** Null for a fit over the window ending at the date. Otherwise the start of the newest activity of the older fit. */
   asOfMs: number | null
-  /** The end of the last week of the window the fit was taken over, ms (a week end): `ThresholdStep.windowEndMs`, else `fromMs`. */
+  /** The end of the window the fit was taken over, ms (a week end, or an earlier day): `ThresholdStep.windowEndMs`, else `fromMs`. */
   windowEndMs: number
 }
 
