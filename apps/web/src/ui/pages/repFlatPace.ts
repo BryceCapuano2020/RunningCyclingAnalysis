@@ -1,10 +1,5 @@
-import { PRIORS } from '@rca/core/constants'
-import {
-  metabolicToFlatSpeed,
-  runMetabolicPower,
-  smoothGrade,
-  travelledDistance,
-} from '@rca/core/metabolic'
+import { flatSpeedOfWkg, runWkgOfTrace } from '@rca/core/display'
+import { smoothGrade, travelledDistance } from '@rca/core/metabolic'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { readableTrace } from './workbenchData'
 
@@ -29,7 +24,7 @@ function metabolicPower(trace: ActivityTrace): Float64Array | null {
       Float64Array.from(altitude),
       travelledDistance(metres, trace.distance),
     )
-    power = runMetabolicPower(metres, grade, PRIORS.runEconomyScale.mean, { steepDescent: true })
+    power = runWkgOfTrace(metres, grade)
   }
   kept.set(trace, power)
   return power
@@ -56,5 +51,5 @@ export function flatSpeedOf(trace: ActivityTrace, startS: number, endS: number):
     }
   }
   if (moving === 0 || graded < MIN_GRADE_COVERAGE * moving) return null
-  return metabolicToFlatSpeed(sum / graded, PRIORS.runEconomyScale.mean)
+  return flatSpeedOfWkg(sum / graded)
 }

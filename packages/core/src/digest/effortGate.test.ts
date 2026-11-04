@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
 import { criticalPowerOutcome, wPrimeFloor } from '../cp'
 import { athleteFor, birthYearFor, libraryOf } from '../effort/test/libraries'
 import type { LibraryKind } from '../effort/test/libraries'
@@ -35,8 +35,8 @@ describe('the effort gate through the analysis', () => {
     expect(result.runCp).toEqual(outcome.fit)
     expect(result.runCpRefusal).toEqual(outcome.refusal)
     // The floor is the best 30 minutes where the curve has one: the time a threshold is said to be held for.
-    const best = result.runCurve.find((p) => p.durationS === THRESHOLD_HOLD_S)!.value
-    expect(result.effortGate.run.floor).toEqual({ durationS: THRESHOLD_HOLD_S, value: best })
+    const best = result.runCurve.find((p) => p.durationS === CP_FIT_HOLD_S)!.value
+    expect(result.effortGate.run.floor).toEqual({ durationS: CP_FIT_HOLD_S, value: best })
     // The reference is too low to be a maximum, so a harder effort is not what is missing: the reference is.
     expect(result.effortGate.run.neededS).toBeNull()
     // A sport with no activities has nothing to judge.

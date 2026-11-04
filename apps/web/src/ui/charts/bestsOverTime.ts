@@ -1,7 +1,7 @@
 import type { TrendPoint } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { nativeValue } from '../records'
+import { nativeOfWkg } from '@rca/core/display'
 import { SPORT_FORMAT } from '../sports'
 import { markerRadii } from './chartInteraction'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
@@ -40,7 +40,7 @@ export function bestDots(points: readonly TrendPoint[], sport: Sport, massKg: nu
   for (const point of points) {
     const { atMs, wkg, massKg: rideMassKg } = LEADER[sport](point)
     if (atMs === null || wkg === null || seen.has(atMs)) continue
-    const value = usable(nativeValue(sport, wkg, rideMassKg ?? massKg))
+    const value = usable(nativeOfWkg(sport, wkg, rideMassKg ?? massKg))
     if (!Number.isFinite(value)) continue
     seen.add(atMs)
     dots.push({

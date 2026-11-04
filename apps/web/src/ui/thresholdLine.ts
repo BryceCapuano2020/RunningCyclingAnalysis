@@ -1,23 +1,10 @@
-import { PRIORS } from '@rca/core/constants'
-import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
+import { nativeOfWkg } from '@rca/core/display'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { ThresholdLine } from './charts/sportCurveModel'
 import { thresholdRange } from './thresholdRange'
 import { thresholdEstimate } from './thresholdEstimate'
-
-/** A threshold's metabolic W/kg as the sport's own number: flat speed in m/s for running, watts for cycling. */
-type Native = (metabolicWkg: number, massKg: number) => number
-const NATIVE: Record<Sport, Native> = {
-  run: (cp) => metabolicToFlatSpeed(cp),
-  ride: (cp, massKg) => metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean),
-}
-
-/** A sport's threshold in its own number (m/s for a run, watts at massKg for a ride), as the curve chart and the level target read it. */
-export function thresholdNative(sport: Sport, metabolicWkg: number, massKg: number): number {
-  return NATIVE[sport](metabolicWkg, massKg)
-}
 
 /**
  * The sport's threshold as the curve chart draws it: the estimate in the curve's own number, and its 10th to 90th percentile as
@@ -32,11 +19,11 @@ export function thresholdLine(
 ): ThresholdLine | null {
   const estimate = thresholdEstimate(result, sport)
   if (!estimate) return null
-  const native = NATIVE[sport]
+  const native = (wkg: number) => nativeOfWkg(sport, wkg, massKg)
   return {
-    value: native(estimate.value, massKg),
-    low: native(estimate.low, massKg),
-    high: native(estimate.high, massKg),
+    value: native(estimate.value),
+    low: native(estimate.low),
+    high: native(estimate.high),
     detail: thresholdRange(result, sport, massKg, units) ?? undefined,
     estimated: estimate.efforts.strongest.estimated,
   }

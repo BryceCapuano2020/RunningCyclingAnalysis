@@ -1,4 +1,4 @@
-import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
 import { sessionsOf } from '../effort'
 import type { EffortGate, EffortReference, GateReference } from '../effort'
 import { effortGateOf } from '../effort'
@@ -29,7 +29,7 @@ export function effortGatesOf(
       source: judged.source[sport],
       from: judged.from[sport],
     }
-    const held = [THRESHOLD_HOLD_S, HEADLINE_DURATION_S]
+    const held = [CP_FIT_HOLD_S, HEADLINE_DURATION_S]
       .map((durationS) => ({
         durationS,
         value: floors[sport].find((p) => p.durationS === durationS)?.value ?? Number.NaN,

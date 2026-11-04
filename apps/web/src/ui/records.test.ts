@@ -27,7 +27,6 @@ import {
   featuredEquivalence,
   isEstimatedRecord,
   nativeCurve,
-  nativeValue,
   ownDistanceRecords,
   paceIsTime,
   sportRecords,
@@ -307,13 +306,7 @@ describe('featuredEquivalence', () => {
   })
 })
 
-describe('nativeValue and nativeCurve', () => {
-  it('reads a running value as the flat speed that costs it, and a cycling value as watts', () => {
-    const wkg = RESTING_W_PER_KG + FLAT_RUN_COST * 4
-    expect(nativeValue('run', wkg, 75)).toBeCloseTo(4, 9)
-    expect(nativeValue('ride', 250 / (PRIORS.grossEfficiency.mean * 75), 75)).toBeCloseTo(250, 9)
-  })
-
+describe('nativeCurve', () => {
   it('gives a running curve in speed, and a cycling curve as it already is, in watts', () => {
     const curves = {
       runCurve: [curvePoint(1200, RESTING_W_PER_KG + FLAT_RUN_COST * 4, 'run-1')],

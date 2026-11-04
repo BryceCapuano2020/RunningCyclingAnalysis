@@ -1,5 +1,5 @@
-import { PRIORS, RUN_WORLD_RECORD_SPEEDS } from '../constants'
-import { metabolicToFlatSpeed } from '../metabolic'
+import { RUN_WORLD_RECORD_SPEEDS } from '../constants'
+import { flatSpeedOfWkg } from '../display/conversions'
 import { interpolatedCeiling } from './speedCeiling'
 
 // Every run curve point and heart-rate block of a library is checked against the ceiling of one of the
@@ -27,6 +27,6 @@ export function runCeilingSpeed(durationS: number): number {
  * from another activity takes its place.
  */
 export function possibleRunWkg(durationS: number, metabolicWkg: number): number {
-  const speed = metabolicToFlatSpeed(metabolicWkg, PRIORS.runEconomyScale.mean)
+  const speed = flatSpeedOfWkg(metabolicWkg)
   return speed > runCeilingSpeed(durationS) ? Number.NaN : metabolicWkg
 }

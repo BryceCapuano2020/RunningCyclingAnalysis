@@ -1,4 +1,4 @@
-import { DAY_MS, DURATIONS_S, HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { DAY_MS, DURATIONS_S, HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
 import type { ActivityDigest, BikeModel, Sport } from '../types'
 import { effortsCount } from './effortTrust'
 import type { EstimatedRideGate } from './estimatedRide'
@@ -10,7 +10,7 @@ import type { FloorEffort, ThresholdFloor, ThresholdFloors } from './thresholdTi
 /** The days a floor reaches back: 12 months up to the date it is taken at. */
 export const FLOOR_WINDOW_DAYS = 365
 
-const HOLD_INDEX = DURATIONS_S.indexOf(THRESHOLD_HOLD_S)
+const HOLD_INDEX = DURATIONS_S.indexOf(CP_FIT_HOLD_S)
 const HEADLINE_INDEX = DURATIONS_S.indexOf(HEADLINE_DURATION_S)
 
 /**
@@ -67,7 +67,7 @@ function bestWithin(
   for (let i = firstFrom(efforts, from); i < efforts.length && efforts[i]![0] <= to; i++) {
     const [startMs, heldWkg, headlineWkg] = efforts[i]!
     if (heldWkg > 0 && (hold === null || heldWkg > hold.value)) {
-      hold = { durationS: THRESHOLD_HOLD_S, value: heldWkg, asOfMs: startMs }
+      hold = { durationS: CP_FIT_HOLD_S, value: heldWkg, asOfMs: startMs }
     }
     if (headlineWkg > 0 && (headline === null || headlineWkg > headline.value)) {
       headline = { durationS: HEADLINE_DURATION_S, value: headlineWkg, asOfMs: startMs }

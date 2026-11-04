@@ -1,7 +1,7 @@
-import { DAY_MS, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG, SAME_HEART_RATE } from '../constants'
+import { DAY_MS, HR_BLOCK_S, RESTING_W_PER_KG, SAME_HEART_RATE } from '../constants'
 import { possibleRunWkg } from '../curves'
 import { mulberry32, quantile } from '../math'
-import { metabolicToFlatSpeed } from '../metabolic'
+import { flatSpeedOfWkg } from '../display/conversions'
 import type { ActivityDigest, DigestHrBlock, Sport } from '../types'
 import { orderedFor } from './consumers'
 import { outputAtHeartRate } from './theilSen'
@@ -35,9 +35,7 @@ const READING: Record<Sport, Reading> = {
     usable: effortsCount,
     output: (block) => {
       const wkg = possibleRunWkg(HR_BLOCK_S, block.value)
-      return wkg >= 2 * RESTING_W_PER_KG
-        ? metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean)
-        : Number.NaN
+      return wkg >= 2 * RESTING_W_PER_KG ? flatSpeedOfWkg(wkg) : Number.NaN
     },
   },
   ride: {

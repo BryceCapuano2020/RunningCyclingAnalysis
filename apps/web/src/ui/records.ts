@@ -1,10 +1,10 @@
-import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { flatSpeedOfWkg, ridePowerAt, wattsPerKg } from '@rca/core/display'
 export { CURVE_START_S } from '@rca/core/profile'
 export { calendarDaysBetween, latestStartOf } from './activityDates'
 export { distanceRecords, ownDistanceRecords, paceIsTime } from './distanceRecords'
 export type { DistanceRecord, DistanceRecords } from './distanceRecords'
 import type { EarnedRecord } from '@rca/core/records'
-import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
@@ -72,7 +72,7 @@ export type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
 
 /** A running value (gross metabolic W/kg) as the flat pace with the same cost. */
 export function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
-  const speed = metabolicToFlatSpeed(metabolicWkg)
+  const speed = flatSpeedOfWkg(metabolicWkg)
   return {
     value: formatPace(speed, units),
     number: formatPaceValue(speed, units),
@@ -95,26 +95,12 @@ export function curveOf(result: AnalysisResult, sport: Sport): Curve {
   return { run: result.runCurve, ride: result.rideCurve }[sport]
 }
 
-/**
- * A metabolic W/kg value as the sport's own number: the flat speed, m/s, that costs the same for
- * running, and the mechanical watts for cycling at the prior-mean efficiency.
- */
-export function nativeValue(sport: Sport, metabolicWkg: number, massKg: number): number {
-  return NATIVE_VALUE[sport](metabolicWkg, massKg)
-}
-
-const NATIVE_VALUE: Record<Sport, (metabolicWkg: number, massKg: number) => number> = {
-  run: (metabolicWkg) => metabolicToFlatSpeed(metabolicWkg),
-  ride: (metabolicWkg, massKg) =>
-    metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean),
-}
-
 /** A sport's best-effort curve in its own number: running in m/s, cycling in watts. */
 export function nativeCurve(sport: Sport, curves: SportCurves): Curve {
   if (sport === 'ride') return curves.rideCurve
   return curves.runCurve.map((point) => ({
     durationS: point.durationS,
-    value: metabolicToFlatSpeed(point.value, PRIORS.runEconomyScale.mean),
+    value: flatSpeedOfWkg(point.value),
     activityId: point.activityId,
     startIndex: point.startIndex,
     // Kept so the chart can tell a longer effort's value, carried down by the envelope, from a measured one.
@@ -173,8 +159,8 @@ export function threshold(
 
 /** A ride's threshold value (gross metabolic W/kg) as the watts it is shown in, with W/kg beside it. */
 export function rideThresholdFigure(metabolicWkg: number, massKg: number): SportNumber {
-  const watts = metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean)
-  return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+  const { watts, wattsPerKg: perKg } = ridePowerAt(metabolicWkg, massKg)
+  return { ...powerFigure(watts), sub: formatWkg(perKg) }
 }
 
 /** A sport's threshold as its own figure: null when the sport has none. */
@@ -216,13 +202,13 @@ export function sportRecords(
             ...paceFigure(point.value, units),
             sub: null,
             activity,
-            covered: coveredText(metabolicToFlatSpeed(point.value) * durationS, durationS, units),
+            covered: coveredText(flatSpeedOfWkg(point.value) * durationS, durationS, units),
           }
         : {
             durationS,
             ...powerFigure(point.value),
             // With dated body masses the ride is priced at the mass on its own date.
-            sub: formatWkg(point.value / (activity?.massKg ?? massKg)),
+            sub: formatWkg(wattsPerKg(point.value, activity?.massKg ?? massKg)),
             activity,
             covered: null,
           },

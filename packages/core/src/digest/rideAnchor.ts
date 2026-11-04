@@ -1,12 +1,11 @@
-import { PRIORS } from '../constants'
 import { ageStandardSeconds } from '../grade/ageGrade'
 import type { Sex } from '../grade/ageGrade'
 import {
-  flatSpeedToMetabolic,
-  metabolicToFlatSpeed,
-  metabolicToRidePower,
-  ridePowerToMetabolic,
-} from '../metabolic'
+  flatSpeedOfWkg,
+  ridePowerOfWkg,
+  wkgOfFlatSpeed,
+  wkgOfRidePower,
+} from '../display/conversions'
 import { HOUR_S } from '../threshold/constants'
 import { P90_TO_P95, Z_P95 } from '../threshold/coverage'
 import type { Interval } from '../types'
@@ -71,9 +70,8 @@ export function worldClassRunHourSpeed(sex: Sex): number {
  */
 export function anchorFactor(sex: Sex | null | undefined): number {
   const who: Sex = sex === 'female' ? 'female' : 'male'
-  const efficiency = PRIORS.grossEfficiency.mean
-  const cyclingHour = ridePowerToMetabolic(CYCLING_WORLD_CLASS_HOUR_WKG[who], 1, efficiency)
-  return flatSpeedToMetabolic(worldClassRunHourSpeed(who)) / cyclingHour
+  const cyclingHour = wkgOfRidePower(CYCLING_WORLD_CLASS_HOUR_WKG[who], 1)
+  return wkgOfFlatSpeed(worldClassRunHourSpeed(who)) / cyclingHour
 }
 
 /** A ride's figure as it stands and the ends the caller gives it: gross metabolic W/kg at the prior-mean efficiency. */
@@ -105,7 +103,7 @@ function logDistance(value: number, end: number | undefined): number {
 export function rideRunSpeed(ride: RideEnergy, sex: Sex | null | undefined): Interval {
   const factor = anchorFactor(sex)
   const anchor = Z_P95 * CYCLING_ANCHOR_LOG_SD
-  const speedAt = (energy: number) => metabolicToFlatSpeed(factor * energy)
+  const speedAt = (energy: number) => flatSpeedOfWkg(factor * energy)
   const down = Math.hypot(logDistance(ride.value, ride.low), anchor)
   const up = Math.hypot(logDistance(ride.value, ride.high), anchor)
   return {
@@ -122,11 +120,7 @@ export function rideRunSpeed(ride: RideEnergy, sex: Sex | null | undefined): Int
 export function equivalenceFor(
   sex: Sex | null | undefined,
 ): (ridePowerW: number, massKg: number) => Interval {
-  return (ridePowerW, massKg) =>
-    rideRunSpeed(
-      { value: ridePowerToMetabolic(ridePowerW, massKg, PRIORS.grossEfficiency.mean) },
-      sex,
-    )
+  return (ridePowerW, massKg) => rideRunSpeed({ value: wkgOfRidePower(ridePowerW, massKg) }, sex)
 }
 
 /** The running equivalent of riding at `ridePowerW` at `massKg`: the one-off form of `equivalenceFor`. */
@@ -148,8 +142,8 @@ export function ridePowerForRunSpeed(
   massKg: number,
   sex: Sex | null | undefined,
 ): { low: number; centre: number; high: number } {
-  const energy = flatSpeedToMetabolic(speedMs) / anchorFactor(sex)
-  const watts = (wkg: number) => metabolicToRidePower(wkg, massKg, PRIORS.grossEfficiency.mean)
+  const energy = wkgOfFlatSpeed(speedMs) / anchorFactor(sex)
+  const watts = (wkg: number) => ridePowerOfWkg(wkg, massKg)
   const spread = Math.exp(Z_P95 * CYCLING_ANCHOR_LOG_SD)
   return { low: watts(energy / spread), centre: watts(energy), high: watts(energy * spread) }
 }

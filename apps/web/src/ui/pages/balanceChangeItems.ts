@@ -1,7 +1,7 @@
 import type { ChangeEvidence } from '@rca/core/change/types'
 import { callAt, directionOf, verdictOfCall } from '@rca/core/change/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
+import { flatSpeedOfWkg } from '@rca/core/display'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport, SportCurves } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -53,7 +53,7 @@ const CURVE: Record<
 
 /** A best in the sport's own unit: a running flat speed in m/s, watts for a ride; NaN when it has none. */
 const NATIVE: Record<Sport, (value: number) => number> = {
-  run: (wkg) => metabolicToFlatSpeed(wkg),
+  run: (wkg) => flatSpeedOfWkg(wkg),
   ride: (watts) => watts,
 }
 

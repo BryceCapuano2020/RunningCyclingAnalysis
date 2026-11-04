@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { combine } from '../digest/combine'
-import { HEADLINE_DURATION_S, THRESHOLD_HOLD_S } from '../constants'
+import { HEADLINE_DURATION_S, CP_FIT_HOLD_S } from '../constants'
 import { NO_HEART_RATE_JUDGEMENT } from '../digest/setAsideTypes'
 import type { FloorEffort } from '../digest/thresholdTimelineTypes'
 import { HeartRateJudge } from './heartRateJudge'
@@ -9,7 +9,7 @@ import { SET_ASIDE_SETTINGS as settings, setAsideLibrary } from './test/setAside
 /** The best 30 minutes among a sport's floor efforts, else the best 20: what the analysis holds as the library's floor. */
 function bestOfAll(efforts: readonly FloorEffort[]) {
   const hold = Math.max(0, ...efforts.map((effort) => effort[1]))
-  if (hold > 0) return { durationS: THRESHOLD_HOLD_S, value: hold }
+  if (hold > 0) return { durationS: CP_FIT_HOLD_S, value: hold }
   const headline = Math.max(0, ...efforts.map((effort) => effort[2]))
   return headline > 0 ? { durationS: HEADLINE_DURATION_S, value: headline } : null
 }

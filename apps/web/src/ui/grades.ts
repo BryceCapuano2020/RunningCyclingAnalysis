@@ -9,7 +9,7 @@ import {
   gradeEffort,
 } from '@rca/core/grade'
 import type { AgeProfile, EffortGrade, GapKind, Grade, Sex, SportGrade } from '@rca/core/grade'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
+import { flatSpeedOfWkg } from '@rca/core/display'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Interval, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
@@ -101,7 +101,7 @@ const SPEED_OF: Record<
   (result: AnalysisResult, durationS: number, value: number) => Interval | null
 > = {
   run: (_result, _durationS, value) => {
-    const speed = metabolicToFlatSpeed(value)
+    const speed = flatSpeedOfWkg(value)
     return { p05: speed, p50: speed, p95: speed }
   },
   ride: (result, durationS) =>

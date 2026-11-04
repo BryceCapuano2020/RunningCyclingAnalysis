@@ -1,6 +1,6 @@
-import { LATE_IN_EFFORT, PRIORS } from '@rca/core/constants'
+import { LATE_IN_EFFORT } from '@rca/core/constants'
+import { flatSpeedOfWkg } from '@rca/core/display'
 import type { DriftPoint, LateEvidence, PeriodDurabilityRow } from '@rca/core/digest'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Sport } from '@rca/core/types'
 import { durabilityLine, durabilityStat, driftLede } from './lateInEffortCopy'
 import { lateNeeds } from './lateInEffortNeeds'
@@ -72,7 +72,7 @@ export interface LateInEffort {
  * efforts are read. A ride's are watts already. Keyed by Sport so a sport adds its own.
  */
 const NATIVE: Record<Sport, (value: number) => number> = {
-  run: (wkg) => metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean),
+  run: (wkg) => flatSpeedOfWkg(wkg),
   ride: (watts) => watts,
 }
 

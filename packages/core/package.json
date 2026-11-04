@@ -15,6 +15,7 @@
     "./constants": "./src/constants.ts",
     "./customRange": "./src/customRange.ts",
     "./digest": "./src/digest/index.ts",
+    "./display": "./src/display/index.ts",
     "./digest/read": "./src/digest/readResult.ts",
     "./digest/analysed": "./src/digest/analysed.ts",
     "./import/applyLabels": "./src/import/applyLabels.ts",

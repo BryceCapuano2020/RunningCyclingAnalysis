@@ -1,5 +1,5 @@
-import { DURATIONS_S, HEADLINE_DURATION_S, PRIORS } from '../constants'
-import { metabolicToFlatSpeed } from '../metabolic'
+import { DURATIONS_S, HEADLINE_DURATION_S } from '../constants'
+import { flatSpeedOfWkg } from '../display/conversions'
 import { CURVE_START_S } from '../profile'
 import { sig } from '../lookback/round'
 import type { ActivityDigest, Curve, Sport, SportCurves } from '../types'
@@ -43,7 +43,7 @@ const CURVE_OF: Record<Sport, (curves: SportCurves) => Curve> = {
 }
 /** A run's gross metabolic W/kg is the flat speed that costs the same, kept to five digits; a ride's watts to the watt. */
 const NATIVE: Record<Sport, (value: number) => number> = {
-  run: (wkg) => sig(metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean)),
+  run: (wkg) => sig(flatSpeedOfWkg(wkg)),
   ride: (watts) => Math.round(watts),
 }
 
