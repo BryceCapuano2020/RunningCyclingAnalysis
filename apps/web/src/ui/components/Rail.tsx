@@ -18,6 +18,16 @@ export interface RailProps {
   periods?: ReactNode
 }
 
+/** The shell under the header: the rail and the page beside it (or under it, below the rail's width). */
+export function Shell({ route, periods = null, children }: RailProps & { children: ReactNode }) {
+  return (
+    <div className="shell">
+      <Rail route={route} periods={periods} />
+      <div className="shell__page">{children}</div>
+    </div>
+  )
+}
+
 /**
  * The text rail: Balance, Run and Ride, a rule, then the periods. The current page and period are ink and the others
  * the secondary ink, with no icon, box or bar. From the rail's width it is a column left of the page that stays in

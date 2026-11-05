@@ -4,7 +4,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { previousPeriodLabel } from '../components/rangeOptions'
-import { Rail } from '../components/Rail'
+import { Shell } from '../components/Rail'
 import { judgedDetail } from '../analysis/detailCoverage'
 import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { ageProfileOf, missingAgeOf } from '../grades'
@@ -116,10 +116,9 @@ export function ResultPage({
     inPeriod,
   })
   return (
-    <div className="shell">
-      <Rail route={route} periods={periods} />
-      <div className="shell__page">{pageOf()}</div>
-    </div>
+    <Shell route={route} periods={periods}>
+      {pageOf()}
+    </Shell>
   )
 
   function pageOf(): ReactNode {
