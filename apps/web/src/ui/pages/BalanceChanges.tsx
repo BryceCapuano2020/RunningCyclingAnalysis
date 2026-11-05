@@ -21,10 +21,13 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
   if (changes === null || previousLabel === null) return null
   const { items } = changes
   return (
-    <section className="section balance-changes" aria-labelledby="balance-changes-title">
+    <section
+      className="section balance-changes"
+      aria-labelledby="balance-changes-title balance-changes-against"
+    >
       <div className="section__head">
         <h2 id="balance-changes-title">What changed</h2>
-        <p className="meta">{`vs ${withThe(previousLabel)}`}</p>
+        <p id="balance-changes-against" className="meta">{`vs ${withThe(previousLabel)}`}</p>
       </div>
       {items.length === 0 ? (
         <p className="balance-changes__empty">{noChangeText(previousLabel)}</p>

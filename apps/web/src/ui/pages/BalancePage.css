@@ -55,7 +55,7 @@
 .balance-hero__title {
   font-size: var(--display-2);
   line-height: 1.15;
-  max-width: 34ch;
+  max-width: var(--measure);
 }
 
 .balance-hero__lede,

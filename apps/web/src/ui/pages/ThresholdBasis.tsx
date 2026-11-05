@@ -31,7 +31,9 @@ export function ThresholdBasis({
             {DETAIL_TERM}
             <span className="sr-only">{` for ${THRESHOLD_HEADING[sport].toLowerCase()}`}</span>
           </summary>
-          <p className="disclosure__body">{detail}</p>
+          <p className="disclosure__body" role="note">
+            {detail}
+          </p>
         </details>
       )}
     </div>

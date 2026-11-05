@@ -36,15 +36,15 @@ function HeadingText({ heading, definition }: Pick<StatTileProps, 'heading' | 'd
 export function StatTile({ sport, heading, definition, figure, children }: StatTileProps) {
   return (
     <article className="stat-tile row__body" data-sport={sport} aria-label={heading}>
-      <div className="row__head">
+      <div className="row__head stat-tile__head">
         <h3 className="row__title">
           <HeadingText heading={heading} definition={definition} />
         </h3>
         {figure === undefined ? null : (
-          <p className="row__figure">
+          <p className="row__figure stat-tile__figure">
             <span className="stat-tile__number">{figure.number}</span>
             {' '}
-            <span className="row__unit">{figure.unit}</span>
+            <span className="row__unit stat-tile__unit">{figure.unit}</span>
             {figure.side === undefined ? null : (
               <>
                 {' '}

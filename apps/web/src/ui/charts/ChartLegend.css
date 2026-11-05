@@ -142,7 +142,7 @@
 /* The previous period's key: a solid grey line, thinner than a sport's. */
 .chart-legend__key--previous {
   height: 0;
-  border-top: 2px solid var(--previous-mark);
+  border-top: 1.5px solid var(--previous-mark);
   background: none;
 }
 

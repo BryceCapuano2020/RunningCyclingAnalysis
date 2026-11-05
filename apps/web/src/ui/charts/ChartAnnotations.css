@@ -3,51 +3,52 @@
  * under the fill), so it stays legible over gridlines, washes and the line itself.
  */
 .annot__text {
-  fill: var(--text-primary);
+  fill: var(--ink);
   font-size: var(--text-xs);
   paint-order: stroke;
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-width: 4px;
   stroke-linejoin: round;
 }
 
 .annot__text--eyebrow {
-  fill: var(--text-secondary);
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
+  fill: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: var(--tracking-meta);
   text-transform: uppercase;
 }
 
 .annot__text--caption {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
 }
 
 .annot__text--label {
-  font-weight: 600;
+  font-weight: 500;
 }
 
-/* A value is the one display-size figure of a mark: the display face, large and bold; the font size is set inline. */
+/* A value is the one large figure of a mark: the mono, at its figure weight; the font size is set inline. */
 .annot__text--value {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-family: var(--font-mono);
+  font-weight: 400;
   stroke-width: 5px;
 }
 
 .annot__glyph {
-  fill: var(--sport-colour, var(--text-primary));
+  fill: var(--sport-ink, var(--ink));
   stroke: none;
 }
 
 .annot__unit {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
+  /* annotationTypes.ts measures a unit at 0.6 of its figure's size. */
   font-size: 0.6em;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .annot__leader {
   fill: none;
-  stroke: var(--text-secondary);
+  stroke: var(--ink-secondary);
   stroke-width: 1.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -55,7 +56,7 @@
 
 /* A reference line is a neutral rule that reads as context, never as a sport. */
 .annot__rule {
-  stroke: var(--text-secondary);
+  stroke: var(--ink-secondary);
   stroke-width: 1px;
 }
 
@@ -65,14 +66,14 @@
 }
 
 .annot__ring {
-  fill: var(--surface-1);
-  stroke: var(--text-secondary);
+  fill: var(--paper);
+  stroke: var(--ink-secondary);
   stroke-width: 2px;
 }
 
 /* The threshold's range: a quiet band, so the rule and the curve stay in front. */
 .annot__band {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
   fill-opacity: 0.12;
 }
 
