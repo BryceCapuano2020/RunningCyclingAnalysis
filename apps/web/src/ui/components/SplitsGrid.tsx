@@ -27,7 +27,7 @@ function PaceValue({ cell }: { cell: SplitCells }) {
   return (
     <>
       <span className={cell.fastest ? 'splits-table__fastest' : undefined}>{cell.pace}</span>
-      {cell.fastest && <span className="chip">Fastest</span>}
+      {cell.fastest && <span className="meta splits-table__tag">Fastest</span>}
     </>
   )
 }

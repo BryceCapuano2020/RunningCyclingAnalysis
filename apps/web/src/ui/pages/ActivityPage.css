@@ -6,18 +6,6 @@
   justify-self: start;
 }
 
-.activity-page__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-  margin: 0;
-}
-
-.activity-page__icon {
-  color: var(--sport-colour);
-}
-
 /* A long name wraps inside the page at any character, as a single token would otherwise widen it. */
 .activity-page__title {
   margin: 0;
@@ -115,7 +103,7 @@
   /* Beside the route, the time leads on the left and the tiles fill the rest, so the header is one band. */
   .activity-page__summary {
     grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
+    align-items: start;
     gap: var(--space-5);
   }
 }
@@ -130,6 +118,8 @@
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--hairline);
 }
 
 .activity-page__hero p {
@@ -172,22 +162,24 @@
   align-content: start;
   gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--hairline);
   overflow-wrap: anywhere;
-}
-
-/* A stat's name keeps its line while there is room, and wraps at a large text size rather than widen the page. */
-.activity-page__stat dt {
-  font-size: var(--text-xs);
 }
 
 .activity-page__stat dd {
   margin: 0;
 }
 
+/* A figure is mono; the second reading under it is a mono byline. */
+.activity-page__stat .stat-number {
+  font-family: var(--font-mono);
+  font-size: var(--title);
+  font-weight: 400;
+}
+
 .activity-page__stat dd.secondary {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
@@ -237,22 +229,6 @@
   gap: var(--space-2);
 }
 
-.activity-page__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-/* A chip that links to its sport page is a target of its own, at the control height. */
-.activity-page__chips a.chip {
-  min-height: var(--control-height);
-  text-decoration: none;
-}
-
-.activity-page__chips a.chip:hover {
-  text-decoration: underline;
-}
-
 .activity-page__remove {
   justify-self: start;
 }
@@ -290,13 +266,12 @@
     grid-column: 1;
     grid-row: 1;
     align-content: start;
-    padding: var(--space-2) var(--space-3);
-    background: var(--surface-2);
-    border-radius: var(--radius-sm);
+    padding: var(--space-2) 0 0;
+    border-top: 1px solid var(--hairline);
   }
 
   .activity-page__main--detail .activity-page__hero .hero-number {
-    font-size: var(--display-3);
+    font-size: var(--title);
     line-height: 1.2;
   }
 
@@ -305,7 +280,7 @@
   }
 
   .activity-page__main--detail .activity-page__stats--key .stat-number {
-    font-size: 1.375rem;
+    font-size: var(--heading);
     /* A number and its unit may part when the cell is narrow (a large text size), and a word breaks before it leaves the cell. */
     overflow-wrap: anywhere;
   }

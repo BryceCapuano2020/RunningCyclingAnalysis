@@ -100,9 +100,9 @@
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
 }
 
@@ -126,9 +126,8 @@
 }
 
 .metric-chip:has(:checked) {
-  background: var(--surface-2);
-  border-color: var(--text-primary);
-  font-weight: 600;
+  background: var(--paper-hover);
+  border-color: var(--ink);
 }
 
 .metric-chip:has(:checked) .metric-chip__box {
@@ -139,7 +138,7 @@
 .metric-chip--empty {
   background: transparent;
   border-style: dashed;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   cursor: default;
 }
 
@@ -148,16 +147,16 @@
 }
 
 .metric-chip--empty .metric-chip__box {
-  border-color: var(--text-muted);
+  border-color: var(--ink-secondary);
 }
 
 .metric-chip__note {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-xs);
 }
 
 .metric-chip:has(:focus-visible) {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -180,7 +179,7 @@
 .activity-workbench__stats h2,
 .activity-workbench__stats h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--text-md);
 }
 
 /* The strip's name sits beside it, on a phone too, so the strip costs one row and not two. */
@@ -226,18 +225,18 @@
 
 .activity-workbench__summary div {
   min-width: 0;
-  padding: var(--space-2);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--hairline);
 }
 
 .activity-workbench__summary dt {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
 .activity-workbench__summary dd {
   margin: 0;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -261,7 +260,7 @@
 .activity-workbench__stats caption {
   caption-side: top;
   padding: 0 0 var(--space-2);
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   text-align: left;
 }

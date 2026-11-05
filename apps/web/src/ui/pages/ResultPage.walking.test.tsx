@@ -170,7 +170,8 @@ describe('a library of runs at walking pace alone', () => {
   it('still opens the hike from the list, with its mark and a line in the place of its best efforts', () => {
     renderOnly({ page: 'activity', id: 'hike-1' })
     expect(screen.getByRole('heading', { level: 1, name: 'Saturday hike' })).toBeInTheDocument()
-    expect(screen.getByText(WALKING_PACE_CHIP)).toHaveClass('chip')
+    // The mark is a word in the facts behind Details, not a chip.
+    expect(screen.getByText(WALKING_PACE_CHIP).closest('details')).not.toBeNull()
     expect(screen.getByText(WALKING_PACE_NOTE)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Best efforts/ })).not.toBeInTheDocument()
   })

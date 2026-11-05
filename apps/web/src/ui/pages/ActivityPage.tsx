@@ -16,13 +16,10 @@ import { PowerCheck } from '../components/PowerCheck'
 import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SplitsTable } from '../components/SplitsTable'
-import { SportIcon } from '../components/icons'
-import { formatDay, formatTimeOfDay } from '../format/date'
 import type { AgeProfile } from '../grades'
 import { chipLabels } from '../records'
 import { hrefFor } from '../route'
 import { removedHash } from '../activitiesView'
-import { SPORT_LABEL } from '../sports'
 import type { RouteReply } from '../routeReply'
 import { useDeleteOutcome } from '../useDeleteOutcome'
 import { useRouteShape } from '../useRouteShape'
@@ -32,11 +29,11 @@ import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
 import { powerCheckChip } from '../analysis/powerCheckCopy'
-import { ATHLETE_LABEL_CHIP, WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { isAnalysed } from '@rca/core/digest/analysed'
 import { WalkingPaceSection } from '../components/WalkingChoice'
 import type { WalkingChoice } from '../components/WalkingChoice'
 import { ActivityIssues } from './ActivityIssues'
+import { ActivityFacts } from './ActivityFacts'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
 import { ActivityWorkbench } from './ActivityWorkbench'
@@ -272,22 +269,10 @@ export function ActivityPage({
     <div className="page-stack">
       <div className="page-title">
         <BackLink origin={originOf()} />
-        <p className="eyebrow activity-page__eyebrow">
-          <SportIcon sport={activity.sport} className="activity-page__icon" />
-          <span>{SPORT_LABEL[activity.sport]}</span>
-          <span>{formatDay(activity.startMs)}</span>
-          <span>{formatTimeOfDay(activity.startMs)}</span>
-          {activity.indoor && <span className="chip">Indoor</span>}
-          {activity.athleteType !== undefined ? (
-            <span className="chip">{ATHLETE_LABEL_CHIP[activity.athleteType]}</span>
-          ) : (
-            activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>
-          )}
-          {power !== null && <span className="chip chip--warning">{power}</span>}
-        </p>
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
         </h1>
+        <ActivityFacts activity={activity} power={power} />
       </div>
 
       {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
@@ -316,14 +301,14 @@ export function ActivityPage({
 
       {chips.length > 0 && (
         <div className="activity-page__records" role="group" aria-labelledby="activity-records">
-          <p id="activity-records" className="eyebrow">
+          <p id="activity-records" className="meta">
             All-time records
           </p>
           <div className="activity-page__chips">
             {chips.map((label) => (
               <a
                 key={label}
-                className="chip"
+                className="meta"
                 data-sport={activity.sport}
                 href={hrefFor({ page: activity.sport })}
               >

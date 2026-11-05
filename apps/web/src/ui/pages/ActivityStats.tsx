@@ -39,7 +39,7 @@ export function ActivityStats({
       value={value}
       sub={sub}
       className="activity-page__stat"
-      labelClassName="eyebrow"
+      labelClassName="meta"
       valueClassName="stat-number"
     />
   )
@@ -78,10 +78,10 @@ export function ActivityStats({
   return (
     <div className="activity-page__summary">
       <div className="activity-page__hero">
-        <p className="eyebrow">{timeLabelOf(activity)}</p>
+        <p className="meta">{timeLabelOf(activity)}</p>
         <p className="display hero-number">{formatTotalTime(moving)}</p>
         {elapsedDiffers && (
-          <p className="secondary">{`Elapsed ${formatTotalTime(activity.durationS)}`}</p>
+          <p className="meta">{`Elapsed ${formatTotalTime(activity.durationS)}`}</p>
         )}
       </div>
       {/* Two lists, so a phone can set the first under the title and the second under the timeline. */}
