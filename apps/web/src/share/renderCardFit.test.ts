@@ -72,10 +72,13 @@ function find(texts: RecordedText[], text: string): RecordedText {
   return found
 }
 
-/** The caveat's lines: the medium text in the caveat's size that is not the origin. */
-function caveatLines(texts: RecordedText[]): RecordedText[] {
+/** The caveat's lines: the text in the caveat's size that is a piece of the caveat's words. */
+function caveatLines(texts: RecordedText[], caveat: string): RecordedText[] {
   return texts.filter(
-    (text) => text.size === CAVEAT.size && text.font.startsWith('500 ') && text.text !== ORIGIN_URL,
+    (text) =>
+      text.size === CAVEAT.size &&
+      text.text !== ORIGIN_URL &&
+      caveat.includes(text.text.replace(/^\* /, '')),
   )
 }
 
@@ -128,7 +131,7 @@ describe('a caveat or footnote longer than two lines', () => {
       const { ok, ctx } = render(cardModel({ caveat: THREE_LINE_CAVEAT }), format)
       expect(ok).toBe(true)
       expect(ctx.texts.length).toBeGreaterThan(0)
-      expect(caveatLines(ctx.texts)).toHaveLength(3)
+      expect(caveatLines(ctx.texts, THREE_LINE_CAVEAT)).toHaveLength(3)
       expect(ctx.texts.map((text) => text.text).join(' ')).toContain(THREE_LINE_CAVEAT)
       expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
     },
@@ -255,7 +258,7 @@ describe('the story layout', () => {
     expect(ok).toBe(true)
     const headline = find(ctx.texts, 'YOUR BALANCE LEANS')
     const period = find(ctx.texts, 'Last 6 weeks')
-    const caveat = caveatLines(ctx.texts)[0]
+    const caveat = caveatLines(ctx.texts, cardModel().caveat ?? '')[0]
     expect(caveat).toBeDefined()
     const above = headline.y - (marginY + mark)
     const below = (caveat?.y ?? 0) - (period.y + PERIOD.lineHeight)

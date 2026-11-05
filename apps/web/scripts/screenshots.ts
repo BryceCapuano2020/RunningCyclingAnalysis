@@ -18,8 +18,6 @@ const PADDING = 24
 const SCALE = 2
 const DESKTOP = { width: 1280, height: 800 }
 
-type ColorScheme = 'light' | 'dark'
-
 interface Box {
   x: number
   y: number
@@ -100,13 +98,11 @@ async function capture(page: Page, targets: Locator[], fileName: string): Promis
 async function withPage(
   browser: Browser,
   viewport: { width: number; height: number },
-  colorScheme: ColorScheme,
   job: (page: Page) => Promise<void>,
 ): Promise<void> {
   const context = await browser.newContext({
     viewport,
     deviceScaleFactor: SCALE,
-    colorScheme,
   })
   try {
     const page = await context.newPage()
@@ -144,7 +140,7 @@ async function main(): Promise<void> {
   let browser: Browser | undefined
   try {
     browser = await chromium.launch()
-    await withPage(browser, DESKTOP, 'light', async (page) => {
+    await withPage(browser, DESKTOP, async (page) => {
       await openSample(page)
       await capture(page, balanceTargets(page), 'screenshot-light.png')
       // The footer has a second link of this name, so the one in the page's main content is used.
@@ -158,10 +154,6 @@ async function main(): Promise<void> {
         [sectionWith(page, 'Heart-rate check'), sectionWith(page, 'Virtual power meter accuracy')],
         'screenshot-checks.png',
       )
-    })
-    await withPage(browser, DESKTOP, 'dark', async (page) => {
-      await openSample(page)
-      await capture(page, balanceTargets(page), 'screenshot-dark.png')
     })
   } finally {
     await browser?.close()

@@ -226,23 +226,14 @@ and the tests named at the foot of that page keep the two in step. A display siz
 
 ## Components, charts and pages
 
-- **Cards only for things you can open or act on.** Sections are separated by space and a heading,
-  not a border. A card has a 12 px radius, a 1 px border and no shadow.
-- One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
-  a volt button with an ink label in dark, so it stands out on either page colour. Its hover moves
-  the fill to `--accent-hover`, a visible change in both schemes. A press shows on every control: the
-  control drops a pixel and takes its pressed fill (`--surface-pressed`, or `--accent-pressed` for the
-  primary button) with an inset ring, so it reads in both schemes even where the fill barely changes.
-  A tab's ring is an inset outline, since the tab bar's current mark is a flat bar, not an inset shadow.
-  The current Activities page number keeps its selected look while pressed, and in forced colours it takes
-  the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped,
-  the primary button takes the system highlight with its label, the browser's own colour adjustment
-  being off for it, and a chip is outlined.
-  A button's hover also darkens its edge to `--text-secondary`, so the hover shows against the page.
-  The one destructive button, a removal's confirm, keeps its red fill and white label on hover and
-  press, and shows the state by brightness, so the generic hover never blanks it.
-  A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
-- A sport glyph (`SportIcon`) sits next to every sport name. Its path data and stroke width are in
+- **Rows and hairlines, not cards** (design/system.md, Layout). A section is a heading and a hairline; a list is numbered
+  rows. No shadow anywhere. The only outlined things are controls.
+- One primary action per screen, in `.btn-primary`: solid ink with a paper label. Its hover moves the fill to `--ink-hover`.
+  Every other button is small and outlined (`.btn`), sans, sentence case. A press shows on every control: it takes
+  `--paper-pressed` (the primary button keeps ink) with an inset ring. In forced colours a press is an outline and the primary
+  button takes the system highlight with its label. The one destructive button, a removal's confirm, is `--status-critical`
+  with a paper label, and shows hover and press by brightness. The header's Profile link is in sentence case too.
+- A sport glyph (`SportIcon`) is drawn only where it carries information the words do not (the share card, a chart key); a sport name in text needs none. Its path data and stroke width are in
   `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
   a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
   than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.15 to 1.3 times the
@@ -747,7 +738,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   out". The choices are forgotten with the library (Remove all my activities, once the library is known to be empty), on signing out and on deleting the
   account, and follow a change made in another tab. An import notice that added only runs left out ends with a link: "Open Run to count them."
 - **The app-wide error boundary is friendly and plain.** It says "Something went wrong" and "The page stopped working. Reload to try again; your saved activities are untouched." with a **Reload** button. The error's own message is never shown; React logs it to the console.
-- **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and a theme colour for each colour scheme. The image is `public/social-card.png` (1200 x 630, drawn by `scripts/make-social-card.ts` from the sample athlete's figures, which the build reads from the sample's analysis (`landingFigures()` in `vite.config.ts`), and from the dark theme's colours in `tokens.css`; the script also writes the app icons and `public/social-card.stamp`, a hash of those figures and colours). The alt text in `index.html` is a `%LANDING_OG_ALT%` placeholder the build fills from the same figures. When the sample or a token the card uses changes, `shareMetadata.test.ts` fails on the stale stamp: run `npx playwright install chromium`, then `npm run card`, then commit `public/social-card.png`, `public/social-card.stamp` and the icons. `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
+- **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and one theme colour. The image is `public/social-card.png` (1200 x 630, drawn by `scripts/make-social-card.ts` from the sample athlete's figures, which the build reads from the sample's analysis (`landingFigures()` in `vite.config.ts`), and from the paper colours in `tokens.css`; the script also writes the app icons and `public/social-card.stamp`, a hash of those figures and colours). The alt text in `index.html` is a `%LANDING_OG_ALT%` placeholder the build fills from the same figures. When the sample or a token the card uses changes, `shareMetadata.test.ts` fails on the stale stamp: run `npx playwright install chromium`, then `npm run card`, then commit `public/social-card.png`, `public/social-card.stamp` and the icons. `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
@@ -1425,17 +1416,16 @@ digest, a dated setting, the masses or the analysis changes, and 2,000 activitie
 The level ladder on the sport pages draws the five age-grade levels (Recreational, Local, Regional,
 National, World) as neutral bands on one x-scale. The bands are the canvas, so sport colour only ever means
 "this sport": a dot or a ring in the sport colour sits on the neutral bands. Each band is the ink at a rising alpha,
-so every step is a deeper wash than the one below it, in light and dark, and a band is named in words as well as
-tinted. In dark the steps are wider, so two bands with one between them differ by at least 1.3:1 and the secondary text still reads on the
-darkest. `levelTokens.test.ts` pins the values and the order.
+so every step is a deeper wash than the one below it, and a band is named in words as well as
+tinted. `levelTokens.test.ts` pins the values and the order.
 
-| Token       | Light       | Dark        | Use               |
-| ----------- | ----------- | ----------- | ----------------- |
-| `--level-1` | `#0e111606` | `#eef0f308` | Recreational band |
-| `--level-2` | `#0e11160d` | `#eef0f315` | Local band        |
-| `--level-3` | `#0e111614` | `#eef0f323` | Regional band     |
-| `--level-4` | `#0e11161d` | `#eef0f32f` | National band     |
-| `--level-5` | `#0e111626` | `#eef0f339` | World band        |
+| Token       | Value       | Use               |
+| ----------- | ----------- | ----------------- |
+| `--level-1` | `#0a0a0a04` | Recreational band |
+| `--level-2` | `#0a0a0a09` | Local band        |
+| `--level-3` | `#0a0a0a0d` | Regional band     |
+| `--level-4` | `#0a0a0a11` | National band     |
+| `--level-5` | `#0a0a0a14` | World band        |
 
 **Shape language.** A recorded grade is a solid dot ringed in the card colour. An estimated grade is a ring over a
 translucent band for its 90% range, never a dashed line. On Balance's meter the best estimate is a ringed dot and the range a translucent band behind it.

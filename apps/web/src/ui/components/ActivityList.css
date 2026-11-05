@@ -37,7 +37,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  white-space: nowrap;
 }
 
 .activity-list__total--hours {
@@ -168,7 +167,7 @@
 .activity-list__stats {
   grid-area: stats;
   display: grid;
-  grid-template-columns: 5.5rem 5.5rem 4.5rem 6.5rem;
+  grid-template-columns: 5.5rem 5.5rem 4.5rem minmax(var(--column-hero), max-content);
   gap: var(--space-2);
   margin: 0;
   font-variant-numeric: tabular-nums;

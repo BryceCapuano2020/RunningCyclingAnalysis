@@ -91,7 +91,6 @@ function outsideMedia(css: string): string {
 
 const PHONE = '(max-width: 760px)'
 const FORCED = '(forced-colors: active)'
-const DARK = ":root:not([data-theme='light'])"
 
 /** The font sizes that near-duplicate the type scale: 12.8 to 13.6 px, which read as one size. */
 const NEAR_DUPLICATE_SIZES = ['0.8rem', '0.8125rem', '0.85rem', '13px']
@@ -154,7 +153,7 @@ describe('brand mark', () => {
     expect(icons).not.toMatch(/brand-mark__(run|ride)"[\s\S]*?strokeWidth="3"/)
   })
 
-  it('rings the tile in dark, so it does not vanish on the dark page', () => {
+  it('rings the tile with the mark ring token', () => {
     expect(rulesWith(iconsCss, '.brand-mark__tile')).toMatch(/stroke:\s*var\(--mark-ring\)/)
   })
 })
@@ -190,14 +189,12 @@ describe('buttons and links', () => {
     )
   })
 
-  it('sets the pressed fills to the values in DESIGN.md, in both schemes', () => {
-    expect(declared(tokens, ':root').get('surface-pressed')).toBe('#dde2ea')
-    expect(declared(tokens, DARK).get('surface-pressed')).toBe('#101318')
-    expect(declared(tokens, ':root').get('accent-pressed')).toBe('#000000')
-    expect(declared(tokens, DARK).get('accent-pressed')).toBe('#8fb81c')
+  it('sets the pressed fills to the paper and ink tokens', () => {
+    expect(declared(tokens, ':root').get('surface-pressed')).toBe('var(--paper-pressed)')
+    expect(declared(tokens, ':root').get('accent-pressed')).toBe('var(--ink)')
   })
 
-  it('changes the primary button visibly on hover, in light as in dark', () => {
+  it('changes the primary button visibly on hover', () => {
     expect(rulesWith(components, '.btn-primary:hover')).toMatch(
       /background:\s*var\(--accent-hover\)/,
     )
@@ -213,11 +210,9 @@ describe('buttons and links', () => {
 })
 
 describe('colour tokens the chrome uses', () => {
-  it('sets the accent hover and the brand ring to the values in DESIGN.md, in both schemes', () => {
-    expect(declared(tokens, ':root').get('accent-hover')).toBe('#474f5c')
-    expect(declared(tokens, DARK).get('accent-hover')).toBe('#a9d62c')
-    expect(declared(tokens, ':root').get('mark-ring')).toBe('#0e1116')
-    expect(declared(tokens, DARK).get('mark-ring')).toBe('#6b7380')
+  it('sets the accent hover and the brand ring from the ink tokens', () => {
+    expect(declared(tokens, ':root').get('accent-hover')).toBe('var(--ink-hover)')
+    expect(declared(tokens, ':root').get('mark-ring')).toBe('var(--ink)')
   })
 })
 
@@ -391,8 +386,8 @@ describe('footer', () => {
 describe('type scale', () => {
   it('defines the small sizes, the tab label and the caps tracking as tokens', () => {
     expect(tokens).toMatch(/--text-sm:\s*0\.875rem/)
-    expect(tokens).toMatch(/--text-md:\s*1rem/)
-    expect(tokens).toMatch(/--text-label:\s*0\.9375rem/)
+    expect(tokens).toMatch(/--text-md:\s*1\.0625rem/)
+    expect(tokens).toMatch(/--text-label:\s*var\(--text-sm\)/)
     expect(tokens).toMatch(/--tracking-caps:/)
     expect(tokens).toMatch(/--tracking-tab:\s*0\.02em/)
   })

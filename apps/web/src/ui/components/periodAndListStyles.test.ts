@@ -104,7 +104,7 @@ describe('the Custom form', () => {
   it('sizes its date fields to the control height, with 16 px text so iOS does not zoom', () => {
     const field = rulesWith(rangePicker, '.range-picker__field input')
     expect(field).toMatch(/min-height:\s*var\(--control-height\)/)
-    expect(field).toMatch(/font-size:\s*var\(--text-md\)/)
+    expect(field).toMatch(/font-size:\s*var\(--text-input\)/)
   })
 
   it('lets a segment take its natural width, so a segment alone on a row is not a full-width bar', () => {

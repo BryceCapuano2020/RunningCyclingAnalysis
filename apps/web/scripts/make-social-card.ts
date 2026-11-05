@@ -16,18 +16,18 @@ const FONTS = fileURLToPath(new URL('../../../node_modules/@fontsource/', import
 const WIDTH = 1200
 const HEIGHT = 630
 
-/** The dark theme's own colours, read from src/styles/tokens.css so the card reads as the app does. */
+/** The paper colours, read from src/styles/tokens.css so the card reads as the app does. */
 const INK = cardInk(readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8'))
 const FIGURES = computeLandingFigures()
 
 /** The level ladder's scale: age grade from 30% to 100%, with the band edges the app draws. */
 const SCALE = { from: 0.3, to: 1 }
 const BANDS = [
-  { name: 'Recreational', from: 0.3, to: 0.6, fill: '#232830' },
-  { name: 'Local', from: 0.6, to: 0.7, fill: '#2b313b' },
-  { name: 'Regional', from: 0.7, to: 0.8, fill: '#333a47' },
-  { name: 'National', from: 0.8, to: 0.9, fill: '#3b4352' },
-  { name: 'World', from: 0.9, to: 1, fill: '#454e61' },
+  { name: 'Recreational', from: 0.3, to: 0.6, fill: '#f3f1ed' },
+  { name: 'Local', from: 0.6, to: 0.7, fill: '#eae7e1' },
+  { name: 'Regional', from: 0.7, to: 0.8, fill: '#dcd8d1' },
+  { name: 'National', from: 0.8, to: 0.9, fill: '#cfcac2' },
+  { name: 'World', from: 0.9, to: 1, fill: '#c2bdb4' },
 ]
 
 function font(family: string, file: string, weight: number): string {
@@ -55,7 +55,7 @@ function ladder(top: number, label: string, colour: string, draw: string): strin
         `<text x="${at(band.from)}" y="${top + 98}" text-anchor="middle" fill="${INK.muted}" font-size="15" font-weight="500">${Math.round(band.from * 100)}%</text>`,
     )
     .join('')
-  return `<text x="${LADDER.x}" y="${top + 16}" fill="${colour}" font-size="25" font-weight="600">${label}</text>${bands}${edges}${draw}`
+  return `<text x="${LADDER.x}" y="${top + 16}" fill="${colour}" font-size="25" font-weight="500">${label}</text>${bands}${edges}${draw}`
 }
 
 /**
@@ -84,33 +84,33 @@ function card(): string {
   const leanRange =
     side.from <= 0 ? { from: sign(side.from), to: sign(side.to) } : { from: side.from, to: side.to }
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-${font('barlow-condensed', 'barlow-condensed-latin-800-normal.woff2', 800)}
-${font('barlow', 'barlow-latin-500-normal.woff2', 500)}
-${font('barlow', 'barlow-latin-600-normal.woff2', 600)}
-body{margin:0;width:${WIDTH}px;height:${HEIGHT}px;background:${INK.surface0};font-family:'barlow',sans-serif}
+${font('newsreader', 'newsreader-latin-500-normal.woff2', 500)}
+${font('ibm-plex-mono', 'ibm-plex-mono-latin-500-normal.woff2', 500)}
+body{margin:0;width:${WIDTH}px;height:${HEIGHT}px;background:${INK.surface0};font-family:'newsreader',serif;font-weight:500}
 svg{display:block}
-.display{font-family:'barlow-condensed',sans-serif;font-weight:800}
+.display{font-family:'newsreader',serif}
+.num{font-family:'ibm-plex-mono',monospace}
 </style></head><body>
 <svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${WIDTH}" height="${HEIGHT}" fill="${INK.surface0}"/>
   <g transform="translate(64 64)">
-    <svg width="44" height="44" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0e1116" stroke="#6b7380" stroke-width="0.8"/><path d="M5 22c5-1 8-5 11-9s6-6 11-6" fill="none" stroke="${INK.run}" stroke-width="3" stroke-linecap="round"/><path d="M5 12c5 0 8 3 11 6s6 6 11 6" fill="none" stroke="${INK.ride}" stroke-width="3" stroke-linecap="round"/></svg>
-    <text class="display" x="60" y="33" fill="${INK.text}" font-size="30" letter-spacing="2.4">RUNNING CYCLING ANALYSIS</text>
+    <svg width="44" height="44" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0a0a0a"/><path d="M5 22c5-1 8-5 11-9s6-6 11-6" fill="none" stroke="${INK.run}" stroke-width="3" stroke-linecap="round"/><path d="M5 12c5 0 8 3 11 6s6 6 11 6" fill="none" stroke="${INK.ride}" stroke-width="3" stroke-linecap="round"/></svg>
+    <text class="display" x="60" y="33" fill="${INK.text}" font-size="32">Running Cycling Analysis</text>
   </g>
-  <g class="display" fill="${INK.text}" font-size="84" letter-spacing="0.5">
-    <text x="64" y="226">ARE YOU A BETTER</text>
-    <text x="64" y="304"><tspan fill="${INK.run}">RUNNER</tspan> OR A</text>
-    <text x="64" y="382">BETTER <tspan fill="${INK.ride}">CYCLIST</tspan>?</text>
+  <g class="display" fill="${INK.text}" font-size="76">
+    <text x="64" y="226">Are you a better</text>
+    <text x="64" y="304"><tspan fill="${INK.run}">runner</tspan> or a</text>
+    <text x="64" y="382">better <tspan fill="${INK.ride}">cyclist</tspan>?</text>
   </g>
   <g fill="${INK.secondary}" font-size="28" font-weight="500">
     <text x="64" y="470">Your level in each sport for your age,</text>
     <text x="64" y="506">with honest ranges. Nothing leaves your device.</text>
   </g>
   <rect x="${PANEL.x}" y="${PANEL.y}" width="${PANEL.width}" height="${PANEL.height}" rx="16" fill="${INK.surface1}" stroke="${INK.border}" stroke-width="2"/>
-  <text class="display" x="${LADDER.x}" y="${PANEL.y + 54}" fill="${INK.muted}" font-size="20" letter-spacing="1.6">SAMPLE ATHLETE</text>
-  <text class="display" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="132">+${Math.abs(Math.round(lead.centre))}</text>
-  <text class="display" x="${LADDER.x + 150}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="24" letter-spacing="1.9">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
-  <text x="${LADDER.x + 150}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="23" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
+  <text class="num" x="${LADDER.x}" y="${PANEL.y + 54}" fill="${INK.muted}" font-size="16" letter-spacing="1.9">SAMPLE ATHLETE</text>
+  <text class="num" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="96">+${Math.abs(Math.round(lead.centre))}</text>
+  <text class="num" x="${LADDER.x + 180}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="14" letter-spacing="1.2">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
+  <text x="${LADDER.x + 180}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="18" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
   ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, mark(RUN_TOP, INK.run, run))}
   ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, mark(RIDE_TOP, INK.ride, ride))}
   <g fill="${INK.muted}" font-size="17" font-weight="500">

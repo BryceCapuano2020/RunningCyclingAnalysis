@@ -35,7 +35,7 @@ const phoneBlock = (css: string) => mediaBlock(css, PHONE_MAX_WIDTH_PX)
 
 /**
  * The width of "Activities" in Chromium at 100% text, per pixel of its font size: 57.73 px at 14 px,
- * with the bundled Barlow Condensed and 0.02em letter-spacing. jsdom cannot lay text out, so the fit
+ * with the bundled serif and 0.02em letter-spacing. jsdom cannot lay text out, so the fit
  * is checked against this measured ratio; the browser run is the real check.
  */
 const ACTIVITIES_PER_FONT_PX = 57.73 / 14
@@ -148,8 +148,11 @@ describe('Header on a phone', () => {
     const padding = spacePx(tokensCss, 'space-1')
     const slot = (bar: number) => (bar - 4 * gap) / 5 - 2 * padding
     // A size is a literal in a block, or a token that tokens.css holds: the phone label token, or the small label's.
-    const remOfToken = (name: string) =>
-      Number(new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(tokensCss)?.[1])
+    const remOfToken = (name: string): number => {
+      const alias = new RegExp(`--${name}:\\s*var\\(--([\\w-]+)\\)`).exec(tokensCss)?.[1]
+      if (alias !== undefined) return remOfToken(alias)
+      return Number(new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(tokensCss)?.[1])
+    }
     const fontPx = (block: string) => {
       const value = /\.header__tab \{[^}]*font-size:\s*([^;]+);/.exec(block)?.[1]?.trim()
       const token = /^var\(--([\w-]+)\)$/.exec(value ?? '')?.[1]

@@ -22,18 +22,22 @@ export interface TextStyle extends Face {
   lineHeight: number
 }
 
-/** The page's --font-sans and --font-display from tokens.css, so the card falls back as the page does. */
-const BARLOW = "'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-const CONDENSED = "'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif"
+/**
+ * The page's --font-serif and --font-mono from tokens.css, so the card falls back as the page does. The face
+ * names (SANS for text, CONDENSED for figures and headlines) stay until the card's own redesign: text is the
+ * serif and a figure the mono, both at the two weights the page loads.
+ */
+const SERIF = "'Newsreader', Georgia, serif"
+const MONO = "'IBM Plex Mono', ui-monospace, monospace"
 
-export const SANS_400: Face = { family: BARLOW, weight: 400 }
-export const SANS_500: Face = { family: BARLOW, weight: 500 }
-export const SANS_600: Face = { family: BARLOW, weight: 600 }
-export const CONDENSED_700: Face = { family: CONDENSED, weight: 700 }
-export const CONDENSED_800: Face = { family: CONDENSED, weight: 800 }
+export const SANS_400: Face = { family: SERIF, weight: 400 }
+export const SANS_500: Face = { family: SERIF, weight: 500 }
+export const SANS_600: Face = SANS_500
+export const CONDENSED_700: Face = { family: MONO, weight: 400 }
+export const CONDENSED_800: Face = { family: MONO, weight: 500 }
 
 /** Every face the card draws in. loadCardFonts waits for each one. */
-export const FACES: Face[] = [SANS_400, SANS_500, SANS_600, CONDENSED_700, CONDENSED_800]
+export const FACES: Face[] = [SANS_400, SANS_500, CONDENSED_700, CONDENSED_800]
 
 /** The CSS font shorthand for a face at a size, as both the canvas and document.fonts.load read it. */
 export function fontOf(face: Face, size: number): string {

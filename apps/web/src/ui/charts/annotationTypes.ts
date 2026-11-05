@@ -1,6 +1,6 @@
 import type { Box } from './chartBoxes'
 import type { PlotBox, Point } from './chartTypes'
-import { DEFAULT_ROOT_PX, LABEL_PAD_EM, LABEL_REM, textEm } from './rootFont'
+import { DEFAULT_ROOT_PX, LABEL_PAD_EM, LABEL_REM, readRoot, textEm } from './rootFont'
 
 /**
  * The annotation primitive: the marks that say what a chart found. An end label names a series where it
@@ -144,10 +144,18 @@ export function eyebrowWidth(text: string, rootPx: number): number {
   return smallWidth(text, rootPx) * 1.2
 }
 
-/** A display value's width: its number at display size and its unit at a little over half of it. */
+/**
+ * A display value's width: its number at display size and its unit at a little over half of it, with the reader's
+ * letter and word spacing (WCAG 1.4.12), which are em of the value's own size.
+ */
 export function valueWidth(value: string, px: number, rootPx: number): number {
   const { number, unit } = splitValue(value)
-  return (number.length * px * DISPLAY_EM + unit.length * px * 0.6 * DISPLAY_EM) * scaleOf(rootPx)
+  const { letterEm, wordEm } = readRoot()
+  const spacing = (value.length * letterEm + (value.split(' ').length - 1) * wordEm) * px
+  return (
+    (number.length * px * DISPLAY_EM + unit.length * px * 0.6 * DISPLAY_EM + spacing) *
+    scaleOf(rootPx)
+  )
 }
 
 /** "5:47 /mi" as its number and its unit, the unit with its leading space; a value with no space is all number. */

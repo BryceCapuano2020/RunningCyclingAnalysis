@@ -77,13 +77,8 @@ describe('share metadata in index.html', () => {
     expect(index).not.toContain('%LANDING_OG')
   })
 
-  it('sets a theme colour for each colour scheme, matching the page’s own surface', () => {
-    expect(index).toMatch(
-      /<meta name="theme-color" content="#f5f6f8" media="\(prefers-color-scheme: light\)"/,
-    )
-    expect(index).toMatch(
-      /<meta name="theme-color" content="#0f1115" media="\(prefers-color-scheme: dark\)"/,
-    )
+  it('sets one theme colour, the page’s own paper', () => {
+    expect(index).toContain('<meta name="theme-color" content="#fbfaf8" />')
   })
 
   it('links the manifest and the touch icon, from files that exist', async () => {
@@ -119,13 +114,12 @@ describe('the share image’s stamp', () => {
     ).toBe(cardStamp(LANDING_EXAMPLE, ink))
   })
 
-  it('takes its colours from the dark theme’s tokens', async () => {
+  it('takes its colours from the paper tokens', async () => {
     const css = await readStylesheet(import.meta.url, './styles/tokens.css')
     const ink = cardInk(css)
     for (const colour of Object.values(ink)) expect(colour).toMatch(/^#[0-9a-f]{6}$/)
-    // The light root's surface is the page's; the card is drawn on the dark one.
-    expect(ink.surface0).toBe(declared(css, ":root:not([data-theme='light'])").get('surface-0'))
-    expect(ink.surface0).not.toBe(declared(css, ':root').get('surface-0'))
+    expect(ink.surface0).toBe(declared(css, ':root').get('paper'))
+    expect(ink.text).toBe(declared(css, ':root').get('ink'))
   })
 })
 
@@ -143,7 +137,7 @@ describe('the web app manifest', () => {
     expect(manifest.name).toBe('RunningCyclingAnalysis')
     expect(manifest.start_url).toBe('/')
     expect(manifest.scope).toBe('/')
-    expect(manifest.theme_color).toBe('#0f1115')
+    expect(manifest.theme_color).toBe('#fbfaf8')
   })
 
   it('lists icons that exist, at the sizes it states', async () => {

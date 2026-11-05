@@ -20,14 +20,11 @@ summaries are kept in your browser's IndexedDB storage so your results survive a
 sent to Cloudflare, and Remove all my activities removes them (on Profile, when signed out).
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png" />
-    <img
-      src="docs/screenshot-light.png"
-      width="640"
-      alt="Balance page with sample data. The headline says the balance leans toward running, shown on a meter of age-grade points. Below it are the period control, set to 12 weeks, and a run card and a ride card, each with its threshold, its level and its best efforts."
-    />
-  </picture>
+  <img
+    src="docs/screenshot-light.png"
+    width="640"
+    alt="Balance page with sample data. The headline says the balance leans toward running, shown on a meter of age-grade points. Below it are the period control, set to 12 weeks, and a run card and a ride card, each with its threshold, its level and its best efforts."
+  />
 </p>
 
 ## Where this is going

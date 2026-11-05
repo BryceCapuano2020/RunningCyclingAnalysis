@@ -34,7 +34,10 @@ function words(texts: RecordedText[]): string {
 /** The headline's lines: capital letters in the extra-bold condensed face. */
 function isHeadline(text: RecordedText): boolean {
   return (
-    text.font.startsWith('800 ') && /[A-Z]/.test(text.text) && text.text === text.text.toUpperCase()
+    text.font.startsWith('500 ') &&
+    text.font.includes('IBM Plex Mono') &&
+    /[A-Z]/.test(text.text) &&
+    text.text === text.text.toUpperCase()
   )
 }
 

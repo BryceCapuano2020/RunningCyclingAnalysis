@@ -26,18 +26,6 @@
   justify-content: center;
 }
 
-.google-sign-in:hover {
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
-}
-
 .google-sign-in__mark {
   flex: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .google-sign-in {
-    border-color: #8e918f;
-    background: #131314;
-    color: #e3e3e3;
-  }
 }

@@ -6,12 +6,7 @@ import { colour, declared, resolved } from './tokenSheet'
 import type { Tokens } from './tokenSheet'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
-const lightRaw = declared(tokensCss, ':root')
-const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
-const schemes: [string, Tokens][] = [
-  ['light', resolved(lightRaw)],
-  ['dark', resolved(new Map([...lightRaw, ...darkRaw]))],
-]
+const schemes: [string, Tokens][] = [['paper', resolved(declared(tokensCss, ':root'))]]
 
 /** The least CIEDE2000 between two colours to a reader with normal vision and with the worst deficiency. */
 function apart(first: string, second: string): { normal: number; worst: number } {
@@ -35,12 +30,9 @@ describe('the run colour is coral, owned apart from the status red', () => {
   })
 
   it.each(schemes)(
-    '%s: coral is 14 from the critical red, and 10 under the worst vision',
+    '%s: the run ink is 14 from the critical red, and 10 under the worst vision',
     (_name, tokens) => {
-      const { normal, worst } = apart(
-        colour(tokens, 'series-run'),
-        colour(tokens, 'status-critical'),
-      )
+      const { normal, worst } = apart(colour(tokens, 'run-ink'), colour(tokens, 'status-critical'))
       expect(normal).toBeGreaterThanOrEqual(14)
       expect(worst).toBeGreaterThanOrEqual(10)
     },
