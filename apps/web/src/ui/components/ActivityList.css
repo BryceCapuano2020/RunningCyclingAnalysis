@@ -50,6 +50,8 @@
 }
 
 .activity-list__items {
+  /* The rows measure the list's own width, so text at 200% on a tablet puts the figures under the name (below). */
+  container-type: inline-size;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -206,5 +208,27 @@
     flex-wrap: wrap;
     gap: var(--space-1) var(--space-4);
     text-align: left;
+  }
+}
+
+/*
+ * The wide row needs about 40 rem. Text at 200% on a tablet leaves a list narrower than that though the window is wider
+ * than 760 px, so a list narrower than 42 rem sets its rows as the phone does (WCAG 1.4.4, 1.4.10).
+ */
+@container (max-width: 42rem) {
+  .activity-list__item {
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
+  }
+
+  .activity-list__stats {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    text-align: left;
+    white-space: normal;
   }
 }

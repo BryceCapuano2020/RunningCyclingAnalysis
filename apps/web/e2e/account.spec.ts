@@ -339,13 +339,14 @@ test('saved activity deletion requires confirmation and persists after reload', 
   await expect.poll(() => storedFileCount(page), IMPORT).toBe(1)
   const [record] = await apiActivities(page.request)
   if (!record) throw new Error('saved activity missing')
-  await goTo(page, 'Activities')
-  const list = page.locator('.activity-list')
-  await deleteButton(list, record.digest.name).click()
-  await list.getByRole('button', { name: 'Cancel', exact: true }).click()
+  // A list row offers no Delete while its page opens, so the activity's own page asks the question.
+  await (await activitiesRows(page)).first().getByRole('link').click()
+  const onPage = page.locator('main')
+  await deleteButton(onPage, record.digest.name).click()
+  await onPage.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await apiActivities(page.request)).toHaveLength(1)
-  await deleteButton(list, record.digest.name).click()
-  await list.getByRole('button', { name: 'Delete', exact: true }).click()
+  await deleteButton(onPage, record.digest.name).click()
+  await onPage.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
   // The only activity is gone, so no list is left to say so; the notices do.
   await expect(
