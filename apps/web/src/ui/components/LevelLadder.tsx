@@ -110,8 +110,8 @@ function offScaleText(grade: SportGrade): string | null {
 }
 
 /**
- * The band the grade falls in, filled and named in bold: the band of its centre (`gradeLevelText`), also where a ride's
- * range reaches a neighbouring band. The ring and its range bar show the spread.
+ * The band the grade falls in, named in ink: the band of its centre (`gradeLevelText`), also where a ride's range
+ * reaches a neighbouring band. The ring and its range bar show the spread.
  */
 function currentBands(grade: SportGrade): Set<string> {
   return new Set([gradeLevelText(grade)])
@@ -135,30 +135,19 @@ function BeyondMark({ side }: { side: 'below' | 'above' }) {
   )
 }
 
-/** The bar: the bands and the range clipped to its rounded ends, the edges, the marker and any chevron. */
+/** The bar: a hairline with a tick at each band's edge, a ride's range, the marker and any chevron. */
 function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
   const { centre, range } = grade
-  const current = currentBands(grade)
   const side = beyondScale(grade)
   const markerKind = range ? 'level-ladder__ring' : 'level-ladder__dot'
   return (
     <div className="level-ladder__track" role="img" aria-label={ladderLabel(sport, grade)}>
-      <div className="level-ladder__fill">
-        {BANDS.map((band) => (
-          <span
-            key={band.name}
-            className={`level-ladder__band level-ladder__band--${BANDS.indexOf(band) + 1}${current.has(band.name) ? ' level-ladder__band--current' : ''}`}
-            style={spanStyle(band.low, band.high)}
-          />
-        ))}
-        {range && (
-          <span
-            className="level-ladder__range"
-            style={spanStyle(range.low.grade, range.high.grade)}
-          />
-        )}
-      </div>
-      {/* Drawn after the range, so the edges stay visible inside a ride's band. */}
+      {range && (
+        <span
+          className="level-ladder__range"
+          style={spanStyle(range.low.grade, range.high.grade)}
+        />
+      )}
       {EDGES.map((edge) => (
         <span key={edge} className="level-ladder__edge" style={{ left: `${place(edge)}%` }} />
       ))}
@@ -169,9 +158,9 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
 }
 
 /**
- * An age grade on the level bands, on a 30% to 100% scale. A run is read as recorded: a solid dot.
- * A ride is estimated: a ring over its model range. The band the grade falls in is filled and its name
- * is bold. The names and percentages are visible text beside the drawing.
+ * An age grade on the level bands, on a 30% to 100% scale: a hairline with a tick at each band's edge and one ink mark.
+ * A run is read as recorded: a solid dot. A ride is estimated: a ring over its model range. The band the grade falls in
+ * is named in ink, the others in the secondary ink. The names and percentages are visible text beside the drawing.
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)

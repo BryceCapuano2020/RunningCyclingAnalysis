@@ -34,9 +34,7 @@ function estimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
 }
 
 function panel(sport: Sport, result: AnalysisResult) {
-  return render(
-    <ThresholdPanel sport={sport} result={result} massKg={75} units="metric" rangeDays={84} />,
-  )
+  return render(<ThresholdPanel sport={sport} result={result} massKg={75} units="metric" />)
 }
 
 const ridden = (rideThreshold: ThresholdEstimate | null) =>

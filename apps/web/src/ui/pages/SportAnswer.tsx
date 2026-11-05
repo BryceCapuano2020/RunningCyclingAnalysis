@@ -73,7 +73,7 @@ function EmptySport({
  * estimate, the panel asks for the effort that would give one.
  */
 export function SportAnswer(props: SportAnswerProps) {
-  const { sport, result, massKg, units, profile, missingAge, count, held, rangeDays } = props
+  const { sport, result, massKg, units, profile, missingAge, count, held } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
   const headline = profile === null ? null : thresholdGrade(result, sport, profile)
@@ -82,13 +82,7 @@ export function SportAnswer(props: SportAnswerProps) {
   return (
     <>
       <div className="band sport-hero" data-sport={sport}>
-        <ThresholdPanel
-          sport={sport}
-          result={result}
-          massKg={massKg}
-          units={units}
-          rangeDays={rangeDays}
-        />
+        <ThresholdPanel sport={sport} result={result} massKg={massKg} units={units} />
         <LevelPanel
           sport={sport}
           outcome={headline}

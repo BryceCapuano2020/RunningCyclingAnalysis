@@ -1,69 +1,33 @@
-/* The best efforts list: one row per record, with the activity that set it under the figure. */
-.records {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.records__row {
-  display: grid;
-  /* A quarter of the row at most: at a large text size the figure keeps most of a phone's width, and a long label wraps. */
-  grid-template-columns: min(6rem, 25%) minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  min-width: 0;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
-}
-
+/* The best efforts list: numbered rows (RowList.css), the activity that set each under its figure. */
 .records__label {
   overflow-wrap: anywhere;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 
 .records__figure {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
   min-width: 0;
 }
 
-.records__value {
-  font-family: var(--font-display);
-  /* A display size with no type token; see docs/design/system.md, Type. */
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
-}
-
 .records__sub {
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  /* A display size with no type token; see docs/design/system.md, Type. */
-  font-size: var(--heading);
-  font-weight: 700;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
 }
 
 .records__set {
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
-.records__grade {
-  grid-column: 2;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
+/* The marks and the grade share the meta line, a dot between each. */
+.records__meta > * + *::before {
+  content: '· ';
 }
 
-/* The change on the period before, in words, under the figure. */
+.records__meta .record-tag,
+.records__meta .records__grade {
+  margin-right: var(--space-1);
+}
+
 .records__change {
-  grid-column: 2;
-  color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
@@ -89,11 +53,6 @@
 .records__date {
   flex: none;
   white-space: nowrap;
-}
-
-/* A row's activity and how long ago it was set share the second column's line; the count keeps its whole text. */
-.records__row > .records__source {
-  grid-column: 2;
 }
 
 .records__shared {
@@ -126,7 +85,7 @@
 .records__dot {
   flex: none;
   margin-left: var(--space-1);
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 

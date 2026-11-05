@@ -28,6 +28,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Every figure in the table is mono. */
+.zone-tables__rows td {
+  font-family: var(--font-mono);
+}
+
 /* The zone's number is narrow and the range, the widest text, takes the room that is left. */
 .zone-tables__rows th:first-child {
   width: 3.5rem;
@@ -49,7 +54,5 @@
 /* A max heart rate far over what a maximum is at the athlete's age: set apart from the plain detail line, not a small control. */
 .zone-tables__suspect {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-left: 3px solid var(--status-warning);
-  background: var(--status-warning-bg);
+  color: var(--status-warning);
 }

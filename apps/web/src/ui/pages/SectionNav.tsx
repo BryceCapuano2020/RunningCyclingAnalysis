@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { useStickyExtra } from '../components/useStickyExtra'
 import { goToSection } from './goToSection'
 import './SectionNav.css'
 
@@ -10,17 +8,13 @@ export interface SectionNavItem {
 }
 
 /**
- * "On this page": one row of buttons that jump to each section of a long page. On a desktop it holds its
- * place under the header while the page scrolls, so a section is one press from anywhere; on a phone it is
- * a row that scrolls sideways. It sits after the period control, so the answer keeps the first screen.
+ * "On this page": one plain line of mono words that jump to each section of a long page, after the answer. It does
+ * not stick: the rail holds the page's place, and the line wraps rather than scroll.
  */
 export function SectionNav({ items }: { items: readonly SectionNavItem[] }) {
-  const [bar, setBar] = useState<HTMLElement | null>(null)
-  // While the row sticks under the header, the page's scroll padding clears it too.
-  useStickyExtra(bar)
   if (items.length < 2) return null
   return (
-    <nav ref={setBar} className="section-nav" aria-label="On this page">
+    <nav className="section-nav" aria-label="On this page">
       <ul className="section-nav__list">
         {items.map(({ id, label }) => (
           <li key={id}>

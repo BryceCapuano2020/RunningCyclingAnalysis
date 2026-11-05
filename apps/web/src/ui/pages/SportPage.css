@@ -1,16 +1,12 @@
+/* The title and, under it, the meta lines: the last activity and the period's caption. */
+.sport-page__head {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .sport-page__title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* The heading takes focus on a route change, so its ring keeps clear of the icon and the word. */
-.sport-page__title:focus-visible {
-  outline-offset: var(--space-2);
-}
-
-.sport-page__title .icon {
-  color: var(--sport-colour);
+  font-size: var(--title);
 }
 
 /* The page is a column of bands and disclosures with room between, closer than the other pages' sections. */
@@ -18,10 +14,9 @@
   gap: var(--stack-gap);
 }
 
-/* Where the figures come from: the last activity, the count and the distance, on the title's line. */
+/* Where the figures come from: the last activity, the count and the distance, under the title. */
 .sport-page__form {
   margin: 0;
-  font-size: var(--text-sm);
 }
 
 /* A row of one section, or two side by side at 60 and 40 on a desktop; on a phone they stack. */

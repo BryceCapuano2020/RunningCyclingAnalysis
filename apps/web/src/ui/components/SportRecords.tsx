@@ -4,6 +4,7 @@ import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
 import { RecordTag } from './RecordTag'
+import { RowIndex } from './RowList'
 import './SportRecords.css'
 
 export interface SportRecordsProps {
@@ -65,49 +66,79 @@ function sharedActivity(rows: RecordRow[]): ActivitySummary | null {
   return rows.every((row) => row.activity?.id === first.id) ? first : null
 }
 
+/** A figure as its number and its unit, so the unit can be set smaller: "5:31 /mi" is "5:31" and "/mi". */
+function figureParts(value: string): { number: string; unit: string | null } {
+  const at = value.indexOf(' ')
+  return at < 0
+    ? { number: value, unit: null }
+    : { number: value.slice(0, at), unit: value.slice(at + 1) }
+}
+
 /**
- * A sport's best efforts, one row each: the duration, the figure, its second reading, its grade, how
- * long ago it was set and the activity that set it. When every record was set in one activity, that
- * activity is named once under the list rather than repeated on each row, with how long ago it was.
- * A long name is cut short by the layout, with its date kept and its whole text as the link's title.
+ * A sport's best efforts as numbered rows: the duration as the title, the figure in mono at its right, then its marks
+ * and grade as the meta line, how it moved, and the activity that set it with how long ago. When every record was set
+ * in one activity, that activity is named once under the list rather than repeated on each row.
  */
 export function SportRecords({ rows }: SportRecordsProps) {
   const shared = sharedActivity(rows)
   const sharedDays = shared === null ? null : (rows[0]?.setDays ?? null)
   return (
     <>
-      <ul className="records">
-        {rows.map((row) => (
-          <li key={row.key} className="records__row">
-            <span className="records__label">{row.label}</span>
-            <span className="records__figure">
-              <span className="records__value">{row.value}</span>
-              {row.sub && <span className="records__sub">{row.sub}</span>}
-              {row.tags.map((tag) => (
-                <RecordTag key={tag} tag={tag} />
-              ))}
-            </span>
-            {row.grade && <span className="records__grade">{row.grade}</span>}
-            {row.change && <span className="records__change">{row.change}</span>}
-            {shared === null && row.activity && (
-              <span className="records__source">
-                <span className="records__where">
-                  <a
-                    className="records__link"
-                    href={hrefFor({ page: 'activity', id: row.activity.id })}
-                    title={sourceText(row.activity)}
-                    aria-label={`${row.label}, from ${sourceText(row.activity)}`}
-                  >
-                    <SourceLabel activity={row.activity} />
-                  </a>
-                  {row.setDays !== null && <Dot />}
-                </span>
-                {row.setDays !== null && <AgoCount days={row.setDays} />}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+      <ol className="rows records">
+        {rows.map((row, index) => {
+          const figure = figureParts(row.value)
+          return (
+            <li key={row.key} className="row records__row">
+              <RowIndex index={index} />
+              <div className="row__body">
+                <div className="row__head">
+                  <h3 className="row__title records__label">{row.label}</h3>
+                  <p className="row__figure records__figure">
+                    <span className="records__value">{figure.number}</span>
+                    {figure.unit === null ? null : (
+                      <>
+                        {'\u00a0'}
+                        <span className="row__unit">{figure.unit}</span>
+                      </>
+                    )}
+                    {row.sub && (
+                      <>
+                        {' '}
+                        <span className="records__sub">{row.sub}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                {row.tags.length === 0 && !row.grade ? null : (
+                  <p className="meta records__meta">
+                    {row.tags.map((tag) => (
+                      <RecordTag key={tag} tag={tag} />
+                    ))}
+                    {row.grade && <span className="records__grade">{row.grade}</span>}
+                  </p>
+                )}
+                {row.change && <p className="row__line records__change">{row.change}</p>}
+                {shared === null && row.activity && (
+                  <p className="records__source">
+                    <span className="records__where">
+                      <a
+                        className="records__link"
+                        href={hrefFor({ page: 'activity', id: row.activity.id })}
+                        title={sourceText(row.activity)}
+                        aria-label={`${row.label}, from ${sourceText(row.activity)}`}
+                      >
+                        <SourceLabel activity={row.activity} />
+                      </a>
+                      {row.setDays !== null && <Dot />}
+                    </span>
+                    {row.setDays !== null && <AgoCount days={row.setDays} />}
+                  </p>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
       {shared && (
         <p className="records__shared">
           <span>All set on</span>{' '}

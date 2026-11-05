@@ -48,15 +48,7 @@ function tile(sport: Sport, result: AnalysisResult) {
 }
 
 function panel(sport: Sport, result: AnalysisResult) {
-  return render(
-    <ThresholdPanel
-      sport={sport}
-      result={result}
-      massKg={MASS_KG}
-      units="metric"
-      rangeDays={null}
-    />,
-  )
+  return render(<ThresholdPanel sport={sport} result={result} massKg={MASS_KG} units="metric" />)
 }
 
 /** A sport with bests that give no threshold estimate and a gate that judged them hard: it still shows no number. */

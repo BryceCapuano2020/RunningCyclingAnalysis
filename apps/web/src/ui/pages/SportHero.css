@@ -1,7 +1,6 @@
 /*
- * The sport page's answer: the threshold at display size on the left, the level of the best 20 minutes on
- * the right, in one .band (a rule across the top, no box). Below 1080 px the two stack, the threshold first,
- * so it keeps the first screen.
+ * The sport page's answer: the threshold on the left, the age grade at threshold on the right, in one .band (a rule
+ * across the top, no box). Below 1080 px the two stack, the threshold first, so it keeps the first screen.
  */
 .sport-hero {
   display: grid;
@@ -16,86 +15,55 @@
   align-content: start;
   gap: var(--space-3);
   min-width: 0;
-  /* The band's own top padding opens the panel. */
   padding: 0 0 var(--space-5);
 }
 
 .sport-hero__levelpanel {
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
 }
 
-.sport-hero__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
+.sport-hero__title {
+  font-size: var(--title);
 }
 
-.sport-hero__eyebrow {
-  color: var(--text-primary);
-  line-height: 1.5;
-}
-
-/* The figure: the display face, with its unit and any second reading smaller beside it. */
+/* The figure: the mono at --display-1, with its unit and any second reading smaller after it. */
 .sport-hero__figure {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
   margin: 0;
 }
 
 .sport-hero__number {
-  color: var(--text-primary);
-  font-size: var(--display-1);
+  color: var(--ink);
 }
 
 .sport-hero__unit,
 .sport-hero__side {
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--display-3);
-  font-weight: 800;
-  line-height: 1;
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
 }
 
-.sport-hero__side {
-  font-size: var(--title);
-  font-weight: 700;
+.sport-hero__basis {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
 }
 
 .sport-hero__grades {
-  max-width: 46ch;
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-md);
 }
 
+/* The level and its percent on one line: the level in the serif, the percent in the mono. */
 .sport-hero__level {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--space-3);
   margin: 0;
-  text-transform: uppercase;
-}
-
-.sport-hero__level-name {
-  min-width: 0;
-  /* A level word wider than the panel (a large text size, a reader's letter spacing) breaks rather than leave the card. */
+  /* A level word wider than the panel (a large text size) breaks rather than leave it. */
   overflow-wrap: anywhere;
-  color: var(--text-primary);
-  font-size: var(--display-2);
-}
-
-.sport-hero__level-name--long {
-  font-size: var(--display-3);
+  font-family: var(--font-serif);
+  font-size: var(--heading);
 }
 
 .sport-hero__level-value {
-  color: var(--text-secondary);
-  font-size: var(--display-3);
+  color: var(--ink-secondary);
 }
 
 @media (min-width: 1081px) {
@@ -106,25 +74,15 @@
 
   .sport-hero__levelpanel {
     border-top: 0;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--hairline);
     padding-top: 0;
     padding-left: var(--space-6);
-    align-content: center;
   }
 }
 
-/*
- * Forced colours paint a backplate behind each run of text, as tall as the font and not the line. At 0.8 the
- * figure's backplate covered the eyebrow and the chip above it; at 1 it sits on its own line.
- */
+/* Forced colours paint a backplate behind each run of text, as tall as the font: a full line keeps it off the title. */
 @media (forced-colors: active) {
   .sport-hero__number {
-    line-height: 1;
-  }
-
-  /* A level name that wraps puts its percent on a second line, which the backplate of the first would cover. */
-  .sport-hero__level {
-    row-gap: var(--space-3);
     line-height: 1;
   }
 }

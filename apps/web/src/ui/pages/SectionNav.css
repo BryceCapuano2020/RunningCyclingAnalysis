@@ -1,65 +1,32 @@
-/* The "On this page" row: pills in one line, held under the header on a desktop. */
+/* The "On this page" line: plain mono words that jump to each section, wrapping onto a second line rather than scroll. */
 .section-nav {
-  /* Its width is what the large-text rule below asks about, in em of its own text size. */
-  container-type: inline-size;
   min-width: 0;
-  /* Covers the page behind it while it holds its place, so a card does not show through it. */
-  background: var(--surface-0);
 }
 
 .section-nav__list {
   display: flex;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
   margin: 0;
-  padding: var(--space-2) 0;
+  padding: 0;
   list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .section-nav__button {
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-pill);
-  background: var(--surface-1);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: var(--text-label);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
+  min-height: var(--button-height);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
   text-transform: uppercase;
-  white-space: nowrap;
+  text-align: left;
   cursor: pointer;
 }
 
 .section-nav__button:hover {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
-}
-
-/*
- * At a normal text size the row is one line that scrolls sideways. When the text is large the row is narrow in em
- * (a phone at 200% is about 10 em wide): the pills go on more rows rather than run past the screen, and a pill's
- * own words wrap (WCAG 1.4.4, 1.4.10). The desktop's held row is wide in em even at 200%, so it keeps one line.
- */
-@container (max-width: 16em) {
-  .section-nav__list {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
-  .section-nav__button {
-    padding-block: var(--space-1);
-    white-space: normal;
-  }
-}
-
-/* The header is a sticky bar of its own on a desktop; the row holds its place right under it. */
-@media (min-width: 1081px) {
-  .section-nav {
-    position: sticky;
-    top: var(--header-height);
-    z-index: 10;
-  }
+  color: var(--ink);
+  text-decoration: underline;
 }

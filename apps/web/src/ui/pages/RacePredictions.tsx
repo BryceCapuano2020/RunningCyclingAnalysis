@@ -1,4 +1,5 @@
 import type { PredictionMethod, RacePrediction, RunPredictions } from '@rca/core/predict'
+import { RowIndex } from '../components/RowList'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
@@ -89,16 +90,18 @@ function RaceBar({
 }
 
 /**
- * One race: its name and pace on the left, its bar between, its time at display size on the right. A time from runs none
+ * One race as a numbered row: its name and pace on the left, its time in mono on the right, and its bar under them. A time from runs none
  * of which was shown hard is a time the athlete can beat, so its range would mislead and the bar is left out.
  */
 function RaceRow({
+  index,
   prediction,
   units,
   ran,
   scale,
   bound,
 }: {
+  index: number
   prediction: RacePrediction
   units: UnitSystem
   ran: RanBest | undefined
@@ -107,9 +110,10 @@ function RaceRow({
 }) {
   return (
     <li className="race-row">
+      <RowIndex index={index} />
       <p className="race-row__name">
         <span className="race-row__race">{raceName(prediction.distanceM)}</span>
-        <span className="race-row__pace">
+        <span className="meta race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
         {ran && <span className="race-row__ran">{ranText(ran)}</span>}
@@ -272,13 +276,14 @@ export function RacePredictions({
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
-        <p className="secondary">{basisLine({ basis }, openedAt)}</p>
+        <p className="meta">{basisLine({ basis }, openedAt)}</p>
       </div>
       {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
-      <ul className="race-rows">
-        {found.races.map((prediction) => (
+      <ol className="race-rows">
+        {found.races.map((prediction, index) => (
           <RaceRow
             key={prediction.distanceM}
+            index={index}
             prediction={prediction}
             units={units}
             ran={ran.find((r) => r.distanceM === prediction.distanceM)}
@@ -286,7 +291,7 @@ export function RacePredictions({
             bound={bound}
           />
         ))}
-      </ul>
+      </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
         <p className="muted">{methodNote(window, bound)}</p>
         <RaceTable found={found} units={units} ran={ran} bound={bound} />

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { SportIcon } from '../components/icons'
 import { countSport } from '../records'
 import { formLine } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
@@ -41,21 +40,18 @@ export function SportPage(props: SportPageProps) {
   const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt, onFile)
   return (
     <div className="page-stack sport-page" data-sport={sport}>
-      <div className="page-head">
+      <div className="sport-page__head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="sport-page__title">
-          <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
-        {form && !held && <p className="muted sport-page__form">{form}</p>}
+        {form && !held && <p className="meta sport-page__form">{form}</p>}
+        {inLibrary > 0 ? controls : null}
       </div>
       {/* The fitness status leads: it is the finding that moves, and it is library-wide, so it does not wait on the period. */}
       {fitness && !held && count > 0 ? (
         <FitnessSection fitness={fitness} units={units} library={library} sport={sport} />
       ) : null}
-      {/* The answer is one slot, and the period control the next child in every state, so the control keeps
-          its parent and place, and its focus, when a pick takes the sport to or from zero activities. */}
       <SportAnswer {...props} count={count} held={held} />
-      {inLibrary > 0 ? controls : null}
       <SectionNav items={nav} />
       {rows.map(({ key, cells }) => (
         <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>
