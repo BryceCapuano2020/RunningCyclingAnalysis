@@ -33,12 +33,10 @@ describe('a long run’s splits', () => {
     show(50)
     const rows = () => within(screen.getByRole('table')).getAllByRole('row').slice(1)
     expect(rows()).toHaveLength(20)
-    expect(screen.getAllByRole('listitem')).toHaveLength(20)
     const more = screen.getByRole('button', { name: 'Show all 50 splits' })
     expect(more).toHaveAttribute('aria-expanded', 'false')
     await user.click(more)
     expect(rows()).toHaveLength(50)
-    expect(screen.getAllByRole('listitem')).toHaveLength(50)
     expect(screen.getByRole('button', { name: 'Show the first 20 splits' })).toHaveAttribute(
       'aria-expanded',
       'true',

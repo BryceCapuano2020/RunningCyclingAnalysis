@@ -768,8 +768,8 @@ describe('ActivityPage', () => {
     expect(within(first!).getByText(wholeText('5:00 /km'))).toBeInTheDocument()
     expect(within(first!).getByText(wholeText('4:50 /km'))).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
-    // One term for the table, and one for the list a narrow screen shows in its place.
-    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    // One term, in the table's header.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(1)
   })
 
   it('says a run whose splits were not kept has none, and shows no table', async () => {
@@ -829,8 +829,8 @@ describe('GAP on the activity page', () => {
       vi.fn(async () => twoKilometres),
     )
     await screen.findByRole('table', { name: 'Pace for each kilometre' })
-    // One term for the table, and one for the list a narrow screen shows in its place.
-    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    // One term, in the table's header.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(1)
     expect(paragraphsAboutHills(splitsSection())).toEqual([])
   })
 

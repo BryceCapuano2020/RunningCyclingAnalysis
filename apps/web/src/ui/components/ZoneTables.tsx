@@ -53,7 +53,9 @@ function ZoneTable({ id, columns, rows }: { id: string; columns: string[]; rows:
                   {cell}
                 </th>
               ) : (
-                <td key={columns[i]}>{cell}</td>
+                <td key={columns[i]} className={i === 1 ? 'zone-tables__name' : undefined}>
+                  {cell}
+                </td>
               ),
             )}
           </tr>

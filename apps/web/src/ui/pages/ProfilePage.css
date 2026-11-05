@@ -1,10 +1,11 @@
 /*
  * The one status line under the two sections, in the same grid item as them, so it adds a line and no
- * page gap. It stays mounted and holds a line's height when empty, so a save that adds its text moves
- * no field.
+ * page gap. It stays mounted and holds a line's height when empty, inside the gap before the next section,
+ * so a save that adds its text moves nothing and no empty line is left.
  */
 .profile-save {
   margin: 0;
+  margin-block-end: -1lh;
   min-height: 1lh;
 }
 

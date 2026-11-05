@@ -31,7 +31,6 @@ import { periodDates } from '../components/rangeOptions'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
-import { hrefFor } from '../route'
 import { activityNames } from '../records'
 import { answerVerdict, estimatesOf } from './methodAnswer'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -149,37 +148,33 @@ export function MethodPage({
     }
   }, [])
 
+  // The one line under the title: the balance's verdict, or the estimates sentence while there is none.
+  const estimates = hasResult ? (
+    <NumText text={estimatesOf(runs, rides, weightKnown)} />
+  ) : (
+    'Thresholds, ride levels and the balance are estimates.'
+  )
+
   return (
     <div className="page-stack method">
-      {hasResult && (
-        <a className="link-arrow" href={hrefFor({ page: 'balance' })}>
-          <span aria-hidden="true">&larr;</span> Back to Balance
-        </a>
-      )}
       <div className="page-head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          How sure is this?
+          Method
         </h1>
       </div>
 
       <div className="lede method__answer" role="group" aria-label="The short answer">
         <p className="method__answer-text">
-          {verdict !== null && (
-            <span>
-              <NumText text={verdict} />{' '}
-            </span>
-          )}
-          <span>
-            {hasResult ? (
-              <NumText text={estimatesOf(runs, rides, weightKnown)} />
-            ) : (
-              'Thresholds, ride levels and the balance are estimates.'
-            )}
-          </span>
+          {verdict !== null ? <NumText text={verdict} /> : estimates}
         </p>
         <details className="method__details">
           <summary>Details</summary>
           <ul>
+            {verdict !== null && (
+              <li>
+                <span>{estimates}</span>
+              </li>
+            )}
             <li>
               <button
                 type="button"

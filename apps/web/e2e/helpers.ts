@@ -8,7 +8,7 @@ import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 import { lbToKg } from '@rca/core/units'
 
 /**
- * Opens the Method page (How sure is this?) from the header, or from the footer where the header has no room for it
+ * Opens the Method page (Method) from the header, or from the footer where the header has no room for it
  * (360 px and below).
  */
 export async function openMethod(page: Page): Promise<void> {
@@ -19,7 +19,7 @@ export async function openMethod(page: Page): Promise<void> {
     ? header
     : page.getByRole('contentinfo').getByRole('link', { name: 'Method' })
   await link.click()
-  await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Method' })).toBeVisible()
 }
 
 /**

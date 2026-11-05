@@ -68,7 +68,10 @@ function SplitRow({ cell, columns }: { cell: SplitCells; columns: Columns }) {
   )
 }
 
-/** The splits as a table, shown from 480 px wide. */
+/**
+ * The splits as a table at every width. Where it is wider than the page it scrolls inside its own box, with the
+ * split's name held at the left, so each split stays one row.
+ */
 function SplitTable({
   cells,
   caption,
@@ -123,86 +126,7 @@ function SplitTable({
   )
 }
 
-/**
- * One split as an item of the list, below 480 px. Its values are the row's. The first item's GAP carries the term's
- * meaning, so a long run is not a column of buttons.
- */
-function SplitItem({
-  cell,
-  columns,
-  first,
-}: {
-  cell: SplitCells
-  columns: Columns
-  first: boolean
-}) {
-  return (
-    <li className="splits-list__item">
-      <dl>
-        <div>
-          <dt>{columns.lap ? 'Lap' : 'Split'}</dt>
-          <dd>{cell.label}</dd>
-        </div>
-        <div>
-          <dt>Pace</dt>
-          <dd>
-            <PaceValue cell={cell} />
-            <PaceBar percent={cell.barPercent} />
-          </dd>
-        </div>
-        {columns.lap && (
-          <>
-            <div>
-              <dt>Time</dt>
-              <dd>{cell.lap?.time ?? <Missing words="Not timed" />}</dd>
-            </div>
-            <div>
-              <dt>Distance</dt>
-              <dd>{cell.lap?.distance ?? <Missing words="Not available" />}</dd>
-            </div>
-          </>
-        )}
-        {columns.flat && (
-          <div>
-            <dt>{first ? <GapTerm /> : 'GAP'}</dt>
-            <dd>{cell.gradeAdjustedPace ?? <FlatMissing cell={cell} />}</dd>
-          </div>
-        )}
-        {columns.elevation && (
-          <div>
-            <dt>Elevation gain</dt>
-            <dd>{cell.elevation ?? <Missing words="No altitude" />}</dd>
-          </div>
-        )}
-        <div>
-          <dt>Heart rate</dt>
-          <dd>{cell.heartRate ?? <Missing words="No heart rate" />}</dd>
-        </div>
-      </dl>
-    </li>
-  )
-}
-
-/** The same splits, one definition list per split, below 480 px. */
-function SplitList({
-  cells,
-  caption,
-  columns,
-}: {
-  cells: SplitCells[]
-  caption: string
-  columns: Columns
-}) {
-  return (
-    <ol className="splits-list" aria-label={caption}>
-      {cells.map((cell, index) => (
-        <SplitItem key={cell.label} cell={cell} columns={columns} first={index === 0} />
-      ))}
-    </ol>
-  )
-}
-
-/** The table and list of one set of rows, with the notes its columns call for. */
+/** The table of one set of rows, with the notes its columns call for. */
 export function Rows({
   cells,
   caption,
@@ -219,7 +143,6 @@ export function Rows({
   return (
     <>
       <SplitTable cells={shown} caption={caption} columns={columns} />
-      <SplitList cells={shown} caption={caption} columns={columns} />
       {cells.length > COLLAPSED_ROWS && (
         <button
           type="button"

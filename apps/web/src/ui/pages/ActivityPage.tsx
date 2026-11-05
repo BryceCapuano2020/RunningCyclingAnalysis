@@ -268,7 +268,6 @@ export function ActivityPage({
   return (
     <div className="page-stack">
       <div className="page-title">
-        <BackLink origin={originOf()} />
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
         </h1>
@@ -298,6 +297,7 @@ export function ActivityPage({
       )}
       <PowerCheck activity={activity} />
       <ActivityNav activity={activity} library={library} />
+      <BackLink origin={originOf()} />
 
       {chips.length > 0 && (
         <div className="activity-page__records" role="group" aria-labelledby="activity-records">

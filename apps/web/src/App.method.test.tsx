@@ -29,12 +29,12 @@ beforeEach(() => {
   resetAppMocks()
 })
 
-describe('How sure is this? with no result loaded', () => {
+describe('Method with no result loaded', () => {
   it('shows the method page, not the landing page, when the hash names it', () => {
     window.location.hash = '#/method'
     render(<App />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 1, name: LANDING_HEADING })).toBeNull()
   })
 
@@ -45,7 +45,7 @@ describe('How sure is this? with no result loaded', () => {
     expect(screen.queryByText(COLD_NOTICE)).toBeNull()
   })
 
-  it('keeps the address on How sure is this?, rather than sending the visitor to Balance', () => {
+  it('keeps the address on Method, rather than sending the visitor to Balance', () => {
     window.location.hash = '#/method'
     render(<App />)
 
@@ -61,17 +61,17 @@ describe('How sure is this? with no result loaded', () => {
     rerender(<App />)
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toHaveFocus(),
+      expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toHaveFocus(),
     )
   })
 
-  it('shows How sure is this? with its own content and loading line, not the restoring page, while a kept library still loads', () => {
+  it('shows Method with its own content and loading line, not the restoring page, while a kept library still loads', () => {
     setAccount('loading')
     app.analysis.restoring = true
     window.location.hash = '#/method'
     render(<App />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
     expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
     expect(
       screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),

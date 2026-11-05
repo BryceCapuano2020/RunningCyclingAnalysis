@@ -54,9 +54,11 @@
   font-size: var(--text-sm);
 }
 
+/* Its line sits in the gap before the next section and adds none, so a status moves nothing and leaves no empty line. */
 .settings-over-time__status {
   min-height: 1lh;
   margin: 0;
+  margin-block-end: -1lh;
 }
 
 /* The dated settings are numbered rows (RowList.css): index, setting and date, value, Delete. A row with no sport takes the

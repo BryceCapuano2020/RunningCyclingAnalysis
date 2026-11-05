@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { act, render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
@@ -219,16 +218,6 @@ describe('deep links without a result', () => {
     showResult()
     view.rerender(<App />)
 
-    await waitFor(() => expect(window.location.hash).toBe('#/'))
-  })
-})
-
-describe('Back to Balance from the method page', () => {
-  it('is reachable from How sure is this?', async () => {
-    showResult()
-    window.location.hash = '#/method'
-    render(<App />)
-    await userEvent.click(screen.getByRole('link', { name: 'Back to Balance' }))
     await waitFor(() => expect(window.location.hash).toBe('#/'))
   })
 })

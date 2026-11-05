@@ -24,11 +24,12 @@ describe('Rail', () => {
     expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
   })
 
-  it('lights Balance on the method page, but names it no current page', () => {
+  it('lights no page on the method page', () => {
     render(<Rail route={{ page: 'method' }} />)
-    const balance = screen.getByRole('link', { name: 'Balance' })
-    expect(balance).toHaveClass('rail__link--current')
-    expect(balance).not.toHaveAttribute('aria-current')
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).not.toHaveClass('rail__link--current')
+      expect(link).not.toHaveAttribute('aria-current')
+    }
   })
 
   it('keeps a sport lit, marked "true", on an activity opened from it', () => {

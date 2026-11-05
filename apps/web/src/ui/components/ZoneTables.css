@@ -33,9 +33,13 @@
   overflow-wrap: normal;
 }
 
-/* Every figure in the table is mono. */
+/* Every figure in the table is mono; the zone's name is a word and stays in the serif. */
 .zone-tables__rows td {
   font-family: var(--font-mono);
+}
+
+.zone-tables__rows td.zone-tables__name {
+  font-family: var(--font-serif);
 }
 
 /* The zone's number is narrow and the range, the widest text, takes the room that is left. */

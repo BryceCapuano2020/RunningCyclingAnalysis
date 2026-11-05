@@ -37,11 +37,6 @@ describe('activity page stylesheet', () => {
     expect(declarations(page, '.activity-page__flags li::marker')).toMatch(/content:\s*'';/)
   })
 
-  it('keeps the splits list a list, hiding its numbers with an empty marker and not list-style none', () => {
-    expect(declarations(splits, '.splits-list')).not.toMatch(/list-style:\s*none;/)
-    expect(declarations(splits, '.splits-list__item::marker')).toMatch(/content:\s*'';/)
-  })
-
   it('spans a lone last stat across both columns on a phone', () => {
     expect(inMedia(page, '(max-width: 479px)')).toMatch(
       /\.activity-page__stat:last-child:nth-child\(odd\) \{[^}]*grid-column:\s*1 \/ -1;/,
@@ -79,11 +74,15 @@ describe('splits table', () => {
     )
   })
 
-  it('sets each split on two or three lines below 480 px, its split and pace first, and wraps the rest', () => {
-    expect(declarations(splits, '.splits-list dl')).toMatch(/flex-wrap:\s*wrap;/)
-    expect(declarations(splits, '.splits-list dl > div:nth-child(2)')).toMatch(
-      /margin-left:\s*auto;/,
-    )
+  it('keeps each split one row below 480 px: the table scrolls in its own box, the split held at the left', () => {
+    expect(declarations(splits, '.splits-wide')).toMatch(/overflow-x:\s*auto;/)
+    expect(
+      declarations(
+        splits,
+        ".splits-table tbody th[scope='row'],\n.splits-table thead th:first-child",
+      ),
+    ).toMatch(/position:\s*sticky;[^}]*left:\s*0;/)
+    expect(splits).not.toContain('.splits-list')
   })
 
   it('sets the Fastest word as a byline after its pace, with no box', () => {

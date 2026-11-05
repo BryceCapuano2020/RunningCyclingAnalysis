@@ -149,7 +149,7 @@ describe('ActivityPage: the GAP term with laps open', () => {
     ).toBeGreaterThan(0)
     expect(within(splitsSection()).queryByRole('button', { name: 'GAP' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Kilometres' }))
-    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(1)
     expect(within(bestsSection()).getAllByRole('button', { name: 'GAP' }).length).toBeGreaterThan(0)
   })
 })
