@@ -36,6 +36,25 @@
   grid-template-columns: 2.25rem minmax(0, 1fr) 7rem 5.5rem 6rem;
 }
 
+/* Each cell has its own column, so a row without a second reading or a trend leaves that column empty. */
+.row--figures .row__figure {
+  grid-column: 3;
+}
+
+.row--figures .row__sub {
+  grid-column: 4;
+}
+
+.row--figures .row__spark {
+  grid-column: 5;
+}
+
+.row--figures .row__figure,
+.row--figures .row__sub,
+.row--figures .row__spark {
+  grid-row: 1;
+}
+
 .row__figure {
   justify-self: end;
   text-align: right;
@@ -99,11 +118,10 @@
     grid-row: 3;
   }
 
-  .row--figures:has(.row__sub:empty) .row__spark {
+  .row--figures:not(:has(.row__sub)) .row__spark {
     grid-row: 2;
   }
 
-  .row--figures .row__sub:empty,
   .row--figures .row__spark:empty {
     display: none;
   }
