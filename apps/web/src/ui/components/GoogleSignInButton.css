@@ -1,6 +1,7 @@
 /*
- * Google's neutral sign-in button spec. The literal colours below are the documented exception
- * to the token rule: Google's branding guidelines fix them, so they do not follow --surface tokens.
+ * Google's neutral sign-in button spec. The literal colours and the Roboto face below are the one documented
+ * exception to the token rule (docs/design/system.md, Layout, Controls): Google's branding guidelines fix them. Only
+ * the height and the outline shape follow the paper system.
  */
 .google-sign-in {
   display: inline-flex;
@@ -9,7 +10,7 @@
   min-height: var(--control-height);
   padding: 0 var(--space-4);
   border: 1px solid #747775;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: #ffffff;
   color: #1f1f1f;
   cursor: pointer;
@@ -24,6 +25,11 @@
   min-width: min(11.75rem, 100%);
   max-width: 100%;
   justify-content: center;
+}
+
+/* Google's hover state: an 8% overlay of the text colour on the fill, as the one solid colour it comes to. */
+.google-sign-in:hover {
+  background: #ededed;
 }
 
 .google-sign-in__mark {

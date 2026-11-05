@@ -294,15 +294,24 @@ describe('original file retention', () => {
   })
 })
 
+describe('signed-out landing', () => {
+  it('says the privacy sentence once, in the footer', () => {
+    setAccount('signed-out')
+    render(<App />)
+    const found = screen.getAllByText(/stay in this browser/)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toHaveClass('privacy-note')
+  })
+})
+
 describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    // The subtitle and the footer say the one privacy sentence, in the same words, and the drop zone does not repeat it.
-    const [subtitle, footer] = screen.getAllByText(/stored in your private library/)
-    expect(subtitle).toHaveClass('lede')
-    expect(footer).toHaveClass('privacy-note')
-    expect(subtitle!.textContent!.endsWith(footer!.textContent!)).toBe(true)
+    // The footer says the one privacy sentence; the line under the title does not repeat it.
+    const found = screen.getAllByText(/stored in your private library/)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toHaveClass('privacy-note')
   })
 
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {

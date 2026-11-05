@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import type { DragEvent as ReactDragEvent, ReactNode } from 'react'
-import { HISTORY_ADVICE } from '../exportGuides'
 import { useTouchFirst } from '../useMediaQuery'
-import { UploadIcon } from './icons'
 import { SampleButton } from './SampleButton'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
@@ -10,8 +8,6 @@ import './Dropzone.css'
 export interface DropzoneProps {
   onFiles: (files: File[]) => void
   onSample: () => void
-  /** Shows the export guides on the page, for a visitor who has no files yet. */
-  onShowGuides: () => void
   busy: boolean
   /** A signed-in visitor already has a library, so the sample is not offered to them. */
   signedIn: boolean
@@ -42,7 +38,7 @@ function SampleActions({ onSample, primary, after }: SampleActionsProps) {
  * requests in order, so a file chosen during a load is queued rather than lost. The sample is left
  * off the page while an import runs: it could not start then, and a greyed button only invites a press. The window drop listeners and the progress live in ImportStatus.
  */
-export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
+export function Dropzone({ onFiles, onSample, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   // On a touch screen the actions sit directly under the pitch as a compact row, the sample leading, and
   // nothing says to drag: a finger cannot drop a file here.
@@ -66,7 +62,6 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
 
   const addFiles = (primary: boolean) => (
     <button type="button" className={primary ? 'btn btn-primary' : 'btn'} onClick={picker.open}>
-      <UploadIcon />
       Add files
     </button>
   )
@@ -79,14 +74,8 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         ) : (
           <div className="dropzone__actions">{addFiles(true)}</div>
         )}
-        <p className="dropzone__hint">
-          {`Add FIT, GPX or TCX files, or a Strava or Garmin export zip. ${HISTORY_ADVICE}`}
-        </p>
-        <p className="dropzone__guides">
-          <span className="dropzone__touch">Exports usually come from a computer. </span>
-          <button type="button" className="dropzone__link" onClick={onShowGuides}>
-            No files yet? How to get them
-          </button>
+        <p className="dropzone__title">
+          Add FIT, GPX or TCX files, or a Strava or Garmin export zip
         </p>
         {picker.input}
       </div>
@@ -106,16 +95,8 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         <p className="dropzone__title">
           Add FIT, GPX or TCX files, or a Strava or Garmin export zip
         </p>
-        <p className="dropzone__hint">{HISTORY_ADVICE}</p>
-        <p className="dropzone__drag">Drag them onto this box, or</p>
         {addFiles(true)}
       </div>
-      <p className="dropzone__guides">
-        <span className="dropzone__touch">Exports usually come from a computer. </span>
-        <button type="button" className="dropzone__link" onClick={onShowGuides}>
-          No files yet? How to get them
-        </button>
-      </p>
       {showSample ? <SampleActions onSample={onSample} primary={false} /> : null}
       {picker.input}
     </div>

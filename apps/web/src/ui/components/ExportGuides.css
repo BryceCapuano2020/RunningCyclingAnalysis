@@ -2,50 +2,51 @@
   display: grid;
   gap: var(--space-4);
   min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
 }
 
 .export-guides h2 {
   margin: 0;
 }
 
-/* One tile per service, in a grid that wraps; the expanded tile takes the selected colours. */
+/* One small outlined button per service; the open one takes the ink edge. */
 .export-guides__tiles {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--column-export)), 1fr));
 }
 
 .export-guides__tile {
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--button-height);
+  padding: 0 var(--space-3);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-  font-weight: 700;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
   cursor: pointer;
 }
 
 .export-guides__tile:hover {
-  background: var(--surface-2);
+  background: var(--paper-hover);
 }
 
 .export-guides__tile[aria-expanded='true'] {
-  border-color: var(--selected);
-  background: var(--highlight);
-  color: var(--highlight-ink);
+  border-color: var(--ink);
+  background: var(--paper-hover);
+  font-weight: 500;
 }
 
+/* The open service's steps are on the page, between hairlines: no box. */
 .export-guide {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
+  padding-block: var(--space-4);
+  border-block: 1px solid var(--hairline);
 }
 
 /* The guide's help link is a line of its own: a finger needs a control's height to tap it. */
@@ -60,11 +61,8 @@
 
 .export-guide h3 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: var(--heading);
+  font-weight: 500;
 }
 
 /* A plain list, so screen readers keep its numbered-list semantics. */
@@ -86,8 +84,13 @@
   margin: 0;
 }
 
-.export-guide__checked {
-  font-size: var(--text-sm);
+.export-guide__details {
+  max-width: var(--measure);
+  color: var(--ink-secondary);
+}
+
+.export-guide__details p {
+  margin-top: var(--space-2);
 }
 
 .export-guides__none {
@@ -100,4 +103,13 @@
 .export-guides__none h3,
 .export-guides__none p {
   margin: 0;
+}
+
+.export-guides__none h3 {
+  font-size: var(--heading);
+  font-weight: 500;
+}
+
+.export-guides__none p {
+  color: var(--ink-secondary);
 }

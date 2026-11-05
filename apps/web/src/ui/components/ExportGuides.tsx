@@ -1,5 +1,4 @@
 import { useId, useRef, useState } from 'react'
-import type { RefObject } from 'react'
 import { EXPORT_GUIDES, GUIDES_CHECKED_ON } from '../exportGuides'
 import type { ExportGuide } from '../exportGuides'
 import { SampleButton } from './SampleButton'
@@ -20,8 +19,6 @@ export interface ExportGuidesProps {
    * visitor's own data, such as from a result.
    */
   sample?: { busy: boolean; onSample: () => void }
-  /** Lets the page focus this section's heading, such as from a link in the drop zone. */
-  headingRef?: RefObject<HTMLHeadingElement | null>
 }
 
 /**
@@ -29,7 +26,7 @@ export interface ExportGuidesProps {
  * expanded and its steps fill the panel under the tiles. Opening a tile moves focus to the panel's
  * heading, so the steps are read from the top. The first service is open on arrival.
  */
-export function ExportGuides({ sample, headingRef }: ExportGuidesProps) {
+export function ExportGuides({ sample }: ExportGuidesProps) {
   const [index, setIndex] = useState(0)
   const headingId = useId()
   const panelId = useId()
@@ -44,9 +41,7 @@ export function ExportGuides({ sample, headingRef }: ExportGuidesProps) {
 
   return (
     <section className="export-guides" aria-labelledby={headingId}>
-      <h2 id={headingId} ref={headingRef} tabIndex={-1}>
-        How to get your files
-      </h2>
+      <h2 id={headingId}>How to get your files</h2>
       <div className="export-guides__tiles" role="group" aria-label="Services">
         {EXPORT_GUIDES.map((item, position) => (
           <button
@@ -77,16 +72,19 @@ export function ExportGuides({ sample, headingRef }: ExportGuidesProps) {
             </li>
           ))}
         </ol>
-        <p className="secondary">{guide.contains}</p>
-        {guide.alsoAvailable ? <p className="secondary">{guide.alsoAvailable}</p> : null}
-        <p className="export-guide__checked secondary">{sourceLine(guide)}</p>
+        <details className="export-guide__details">
+          <summary>Details</summary>
+          <p>{guide.contains}</p>
+          {guide.alsoAvailable ? <p>{guide.alsoAvailable}</p> : null}
+          <p className="export-guide__checked">{sourceLine(guide)}</p>
+        </details>
         <a href={guide.helpUrl} rel="noopener noreferrer">
           Open {guide.helpName}’s help
         </a>
       </div>
       <div className="export-guides__none">
         <h3>No files yet, or only a phone?</h3>
-        <p className="secondary">
+        <p>
           Wahoo’s steps use its phone app. The other services’ steps are written for a computer:
           save the files there, then choose them here.
         </p>

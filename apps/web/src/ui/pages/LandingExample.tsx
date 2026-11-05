@@ -10,7 +10,6 @@ import { FITNESS_STATE, trackModel } from '../fitnessModel'
 import { SPORT_ORDER } from '../sports'
 import { balanceLevels } from './levelsModel'
 import { BalanceLevels } from './BalanceLevels'
-import { FitnessGlyph } from './FitnessGlyph'
 import { FitnessTrack } from './FitnessTrack'
 import './LandingExample.css'
 
@@ -47,18 +46,16 @@ export function LandingExample({ units = 'metric' }: { units?: UnitSystem }) {
   })
   return (
     <figure className="landing-example">
+      <p className="landing-example__title">{balanceTitle(reading)}</p>
       <figcaption className="landing-example__label">
-        <span className="eyebrow">Sample athlete</span>
+        <span className="landing-example__name">Sample athlete</span>
+        {': '}
         <span className="landing-example__who">{sampleDescription(units)}</span>
       </figcaption>
-      <p className="landing-example__title">{balanceTitle(reading)}</p>
       <BalanceMeter reading={reading} />
       <BalanceLevels model={levels} />
       <div className="landing-example__fitness" data-sport="run" data-state="slipping">
-        <p className="landing-example__state">
-          <FitnessGlyph glyph={SLIP.glyph} />
-          <span>{SLIP.label}</span>
-        </p>
+        <p className="landing-example__state">{SLIP.label}</p>
         <p className="landing-example__sentence">{FITNESS_SENTENCE}</p>
         <FitnessTrack track={SLIP_TRACK} />
       </div>

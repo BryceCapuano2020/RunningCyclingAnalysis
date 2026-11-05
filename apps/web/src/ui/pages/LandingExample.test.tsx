@@ -81,11 +81,11 @@ describe('LandingExample', () => {
     expect(sentence).toMatch(/\d+ bpm\.$/)
   })
 
-  it('is labelled once, Sample athlete, names the persona beside it, and gives the answer’s headline', () => {
+  it('is labelled once, Sample athlete, names the persona in one line under the headline, and gives the answer’s headline', () => {
     const { container } = render(<LandingExample />)
     expect(screen.getByText('Sample athlete')).toBeInTheDocument()
     expect(container.querySelector('figcaption')).toHaveTextContent(
-      `Sample athlete${SAMPLE_DESCRIPTION}`,
+      `Sample athlete: ${SAMPLE_DESCRIPTION}`,
     )
     expect(container.querySelectorAll('figcaption')).toHaveLength(1)
     expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()

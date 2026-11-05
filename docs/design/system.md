@@ -125,7 +125,9 @@ third-party font request is made.
 - **No shadow.** A menu, a dialog or a tooltip is paper with a 1 px `--rule` edge.
 - **Controls.** The primary button is solid ink with paper text, one a screen. Every other button is small and outlined: 40
   px tall, a control's own target (`target-size.spec.ts`), `--control-border` edge, sans at `--text-sm`, sentence case. A
-  phone or a finger gets a 44 px target. A disclosure's ▸ summary is as tall.
+  phone or a finger gets a 44 px target. A disclosure's ▸ summary is as tall. The one exception is Google's sign-in button,
+  which keeps Google's own fill, stroke, text colour and Roboto (its branding rules fix them); only its height and outline
+  shape follow this system.
 - **Breakpoints** are named constants in `ui/layoutBreakpoints.ts`; a sheet that repeats one says so in a comment, and a
   test ties it to the constant.
 

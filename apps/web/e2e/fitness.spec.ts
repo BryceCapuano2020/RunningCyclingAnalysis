@@ -263,7 +263,7 @@ test('the landing page’s one sample card holds the finding under the balance, 
   await page.goto('/')
   const example = page.locator('.landing-example')
   await expect(example).toHaveCount(1)
-  await expect(example.locator('figcaption .eyebrow')).toHaveText('Sample athlete')
+  await expect(example.locator('figcaption .landing-example__name')).toHaveText('Sample athlete')
   await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
   await expect(example.locator('.landing-example__sentence')).toHaveText(
     /^Slower than your old level at 120 bpm\.$/,

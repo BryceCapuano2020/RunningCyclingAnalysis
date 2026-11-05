@@ -5,8 +5,6 @@ import { analysisStub } from '../../test/analysisStub'
 import { landingText } from '../../test/landingText'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
-import { HISTORY_ADVICE } from '../exportGuides'
-import { privacyText } from '../components/privacyText'
 import { balanceTitle } from '../components/headlineText'
 import { gapReading } from '../components/balanceScale'
 import { LANDING_EXAMPLE } from '../landingExample'
@@ -90,13 +88,14 @@ describe('LandingPage', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
-  it('says what to add and what it shows, ending on the footer’s own privacy sentence', () => {
+  it('says what to add and what it shows in one line, leaving the privacy sentence to the footer', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
     expect(
       screen.getByText(
-        'Add your Strava or Garmin export. See your level in each sport for your age. Your activities stay in this browser, where anyone using it can see them.',
+        'Add your Strava or Garmin export. See your level in each sport for your age.',
       ),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/stay in this browser/)).not.toBeInTheDocument()
   })
 
   it('does not promise that nothing leaves the device to a signed-in visitor, whose summaries are stored', () => {
@@ -104,31 +103,9 @@ describe('LandingPage', () => {
     expect(screen.queryByText(/stay (on your device|in this browser)/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'Add your Strava or Garmin export. See your level in each sport for your age. Summaries and original files are stored in your private library.',
+        'Add your Strava or Garmin export. See your level in each sport for your age.',
       ),
     ).toBeInTheDocument()
-  })
-
-  it('ends on the sentence it is given, which is the footer’s for the visitor’s state', () => {
-    for (const state of [
-      { signedIn: true, keepFiles: false },
-      { signedIn: true, keepFiles: true, issues: [{ code: 'read-only' as const }] },
-      { signedIn: false, keepFiles: false },
-    ]) {
-      const privacy = privacyText(state)
-      const { unmount } = render(
-        <LandingPage
-          analysis={analysisStub()}
-          signedIn={state.signedIn}
-          privacy={privacy}
-          onFiles={vi.fn()}
-        />,
-      )
-      expect(document.querySelector('.app__pitch .lede')?.textContent).toBe(
-        `Add your Strava or Garmin export. See your level in each sport for your age. ${privacy}`,
-      )
-      unmount()
-    }
   })
 
   it('puts the example before the drop zone on a pointer, where they sit side by side', () => {
@@ -231,26 +208,6 @@ describe('LandingPage', () => {
         'Your age and sex set each sport’s standard. A ride also needs your weight.',
       ),
     ).toBeInTheDocument()
-  })
-
-  it('says how much history to bring once, in the drop zone, and not again in step 1', () => {
-    const { container } = render(
-      <LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />,
-    )
-    const list = container.querySelector('.app__steps')
-    if (!list) throw new Error('No steps list')
-    const [first] = within(list as HTMLElement).getAllByRole('listitem')
-    expect(within(first!).queryByText(HISTORY_ADVICE)).not.toBeInTheDocument()
-    expect(within(first!).queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.getAllByText(HISTORY_ADVICE)).toHaveLength(1)
-  })
-
-  it('moves focus to the export guides from the drop zone, without changing the hash route', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
-    const hash = window.location.hash
-    fireEvent.click(screen.getByRole('button', { name: 'No files yet? How to get them' }))
-    expect(screen.getByRole('heading', { level: 2, name: 'How to get your files' })).toHaveFocus()
-    expect(window.location.hash).toBe(hash)
   })
 
   it('offers how to get the files after the steps, in a section of its own', () => {

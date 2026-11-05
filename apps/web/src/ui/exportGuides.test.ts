@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EXPORT_GUIDES, GUIDES_CHECKED_ON, HISTORY_ADVICE } from './exportGuides'
+import { EXPORT_GUIDES, GUIDES_CHECKED_ON } from './exportGuides'
 
 /** Every line a guide shows, for the copy rules that apply to all of them. */
 function guideText(): string[] {
@@ -110,11 +110,5 @@ describe('EXPORT_GUIDES', () => {
     for (const line of guideText()) {
       expect(line.replace(/\.fit\.gz/g, '')).not.toMatch(/\.gz|gzip/i)
     }
-  })
-})
-
-describe('HISTORY_ADVICE', () => {
-  it('says that a Strava export brings the most history at once', () => {
-    expect(HISTORY_ADVICE).toBe('A Strava export brings in the most history at once.')
   })
 })

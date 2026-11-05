@@ -2,7 +2,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HISTORY_ADVICE } from '../exportGuides'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
 import { Dropzone } from './Dropzone'
@@ -32,7 +31,6 @@ function baseProps(): DropzoneProps {
   return {
     onFiles: vi.fn(),
     onSample: vi.fn(),
-    onShowGuides: vi.fn(),
     busy: false,
     signedIn: false,
   }
@@ -61,11 +59,6 @@ describe('Dropzone', () => {
     expect(screen.queryByText(/Drop .* here/)).not.toBeInTheDocument()
   })
 
-  it('says how much history to bring, under the title', () => {
-    renderDropzone()
-    expect(screen.getByText(HISTORY_ADVICE)).toBeInTheDocument()
-  })
-
   it('makes Add files a real button, and the one primary action', () => {
     renderDropzone({ signedIn: false })
     expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn', 'btn-primary')
@@ -74,17 +67,14 @@ describe('Dropzone', () => {
     )
   })
 
-  it('draws an upload glyph on Add files, decoration only, not the Add files plus', () => {
+  it('draws no icon on Add files, as the header’s Add files has none', () => {
     renderDropzone()
-    const glyph = screen.getByRole('button', { name: 'Add files' }).querySelector('svg')
-    expect(glyph).toHaveClass('icon')
-    expect(glyph).toHaveAttribute('aria-hidden', 'true')
-    expect(glyph?.innerHTML).not.toContain('M12 5v14')
+    expect(screen.getByRole('button', { name: 'Add files' }).querySelector('svg')).toBeNull()
   })
 
   it('does not make the whole drop area a button', () => {
     renderDropzone()
-    expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
   })
 
   it('leaves the privacy line to the footer, so it is not said twice', () => {
@@ -92,10 +82,11 @@ describe('Dropzone', () => {
     expect(screen.queryByText(/Your files never leave this device/)).not.toBeInTheDocument()
   })
 
-  it('says that exports usually come from a computer, and includes the drag text for pointers', () => {
+  it('says nothing under the title but the actions: no hint, drag line or guides link', () => {
     renderDropzone()
-    expect(screen.getByText('Exports usually come from a computer.')).toBeInTheDocument()
-    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
+    expect(screen.queryByText(/Drag/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/most history|usually come from a computer/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /No files yet/ })).not.toBeInTheDocument()
   })
 
   it('opens the file picker from Add files by click, Enter and Space', async () => {
@@ -115,14 +106,6 @@ describe('Dropzone', () => {
     const pick = vi.spyOn(input, 'click')
     fireEvent.click(choose)
     expect(pick).toHaveBeenCalledTimes(1)
-  })
-
-  it('offers a way to get the files, which asks the page to show the guides', async () => {
-    const user = userEvent.setup()
-    const onShowGuides = vi.fn()
-    renderDropzone({ onShowGuides })
-    await user.click(screen.getByRole('button', { name: 'No files yet? How to get them' }))
-    expect(onShowGuides).toHaveBeenCalledOnce()
   })
 
   it('calls onSample from the sample button', async () => {
@@ -253,11 +236,10 @@ describe('Dropzone on a touch screen', () => {
     expect(screen.queryByText(/Drag/)).not.toBeInTheDocument()
   })
 
-  it('keeps the sample secondary and after Add files, with the drag text, on a mouse', () => {
+  it('keeps the sample secondary and after Add files on a mouse', () => {
     renderDropzone()
     const buttons = screen.getAllByRole('button')
     expect(buttons[0]).toBe(screen.getByRole('button', { name: 'Add files' }))
-    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
   })
 
   it('offers no sample to a signed-in visitor, touch or not', () => {

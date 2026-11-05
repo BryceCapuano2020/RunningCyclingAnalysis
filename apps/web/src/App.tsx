@@ -3,7 +3,6 @@ import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header } from './ui/components'
 import { AppFooter } from './ui/components/AppFooter'
-import { privacyText } from './ui/components/privacyText'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
 import { WALKING_NOTE_PAGES } from './ui/analysis/walkingPaceCopy'
@@ -357,7 +356,6 @@ export function App() {
               <LandingPage
                 analysis={analysis}
                 signedIn={signedIn}
-                privacy={privacyText(privacyNote)}
                 units={units}
                 onFiles={setup.requestImport}
               />

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EXPORT_GUIDES, GUIDES_CHECKED_ON } from '../exportGuides'
 import { ExportGuides } from './ExportGuides'
@@ -202,23 +201,6 @@ describe('ExportGuides', () => {
     )
     const [first, second] = screen.getAllByRole('region', { name: 'How to get your files' })
     expect(first?.getAttribute('aria-labelledby')).not.toBe(second?.getAttribute('aria-labelledby'))
-  })
-
-  it('exposes the heading to the page through headingRef, so a link can focus it', () => {
-    function Harness() {
-      const headingRef = useRef<HTMLHeadingElement>(null)
-      return (
-        <>
-          <button type="button" onClick={() => headingRef.current?.focus()}>
-            Go to guides
-          </button>
-          <ExportGuides headingRef={headingRef} />
-        </>
-      )
-    }
-    render(<Harness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Go to guides' }))
-    expect(screen.getByRole('heading', { level: 2, name: 'How to get your files' })).toHaveFocus()
   })
 
   it('is listed in the order of the services in the data', () => {
