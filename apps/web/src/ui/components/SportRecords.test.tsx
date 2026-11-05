@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
+import type { SparkPoint } from './sparkRule'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeActivity } from './fixtures'
 import { SportRecords } from './SportRecords'
@@ -310,10 +311,11 @@ describe('SportRecords', () => {
     expect(drawn.every((li) => li.querySelector(':scope > .row__spark > svg') !== null)).toBe(true)
     full.unmount()
     // One row with five points, or one row with none, and the list draws no line at all.
-    for (const sparks of [
+    const partial: Record<string, readonly SparkPoint[]>[] = [
       { '300': series(6), '1200': series(MIN_SPARK_POINTS - 1) },
       { '300': series(6) },
-    ]) {
+    ]
+    for (const sparks of partial) {
       const { container, unmount } = render(<SportRecords rows={rows} sparks={sparks} />)
       expect(container.querySelector('svg')).toBeNull()
       unmount()
