@@ -33,7 +33,7 @@ export function HistoryPage({ history, units, grading, lookBack }: HistoryPagePr
       </div>
       {stats.length > 0 && (
         <>
-          <HistorySummary stats={stats} years={history.years} />
+          <HistorySummary stats={stats} />
           {listedSections().map(({ id, render }) => (
             <div key={id} className="section" data-section={id}>
               {render({ history, units, grading, lookBack })}

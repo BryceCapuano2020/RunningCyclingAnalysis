@@ -91,7 +91,7 @@ describe('HistoryPage', () => {
 })
 
 describe('HistoryPage totals', () => {
-  it('lists the totals as numbered rows, with a year-by-year line on hours and each distance', () => {
+  it('lists the totals as numbered rows, with no trend line', () => {
     const { container } = render(
       <HistoryPage
         history={historyOfYears(THREE_YEARS)}
@@ -107,9 +107,8 @@ describe('HistoryPage totals', () => {
       '03',
       '04',
     ])
-    expect(Array.from(rows, (row) => row.querySelectorAll('.row__spark svg').length)).toEqual([
-      0, 1, 1, 1,
-    ])
+    expect(container.querySelectorAll('.history-summary svg')).toHaveLength(0)
+    expect(screen.getByRole('list', { name: 'Library totals' })).toBeInTheDocument()
     expect(container.querySelector('.history-summary dl, dl')).toBeNull()
   })
 })
