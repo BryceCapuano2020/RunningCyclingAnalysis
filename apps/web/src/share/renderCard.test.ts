@@ -11,7 +11,6 @@ import {
   LONG_FOOTNOTE,
   LONG_GRADE,
   LONG_HEADLINE,
-  MAGNITUDE,
   cardModel,
   draw,
   fakeCanvas,
@@ -20,7 +19,8 @@ import {
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']
-const GRADED_FOOTNOTE = 'Age-graded on USATF road standards.'
+/** The one footer line: the period's dates and the standard, as metadata. */
+const FOOTER = '12 MAY – 3 AUG 2025 · AGE-GRADED ON USATF ROAD STANDARDS.'
 const [LEFT, RIGHT] = BALANCE_PAIR
 
 /** The drawn text, in order, as one string. */
@@ -36,13 +36,6 @@ function isHeadline(text: RecordedText): boolean {
 function find(texts: RecordedText[], text: string): RecordedText {
   const found = texts.find((candidate) => candidate.text === text)
   if (found === undefined) throw new Error(`no text ${text}`)
-  return found
-}
-
-/** The first line that starts with the words: a label that wraps keeps its first words on the first line. */
-function starting(texts: RecordedText[], start: string): RecordedText {
-  const found = texts.find((text) => text.text.startsWith(start))
-  if (found === undefined) throw new Error(`no text starting ${start}`)
   return found
 }
 
@@ -66,8 +59,8 @@ describe('renderShareCard', () => {
   it.each(FORMATS)('draws every element of the %s card', (format) => {
     const model = cardModel({ badge: 'Sample data' })
     const drawn = words(draw(model, format).texts)
-    // The square sheds the origin and the magnitude line first, to keep its room (renderCardFit.test.ts).
-    const shed = format === 'square' ? [MAGNITUDE, 'example.test'] : []
+    // The square sheds the origin first, to keep its room (renderCardFit.test.ts).
+    const shed = format === 'square' ? ['example.test'] : []
     const value = meterValue(model.meter!)
     for (const expected of [
       'RunningCyclingAnalysis',
@@ -79,18 +72,15 @@ describe('renderShareCard', () => {
       value.number,
       value.unit,
       `RANGE ${meterRange(model.meter!)}`.toUpperCase(),
-      'THRESHOLD GAP, ESTIMATED',
+      'RUN THRESHOLD',
       '21:35',
       '/km',
-      'THRESHOLD POWER, ESTIMATED',
+      'RIDE THRESHOLD',
       '48',
       'W',
       '0.6 W/kg',
-      'Last 6 weeks',
-      'Best efforts over 20 min did not reach a hard heart rate.',
-      GRADED_FOOTNOTE,
+      FOOTER,
       'example.test',
-      MAGNITUDE,
     ].filter((text) => !shed.includes(text))) {
       expect(drawn).toContain(expected)
     }
@@ -121,22 +111,23 @@ describe('renderShareCard', () => {
 
   it.each(FORMATS)('sets every figure and date in the mono on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
-    for (const figure of ['21:35', '48', '0.6 W/kg', 'Last 6 weeks']) {
+    for (const figure of ['21:35', '48', '0.6 W/kg', FOOTER]) {
       expect(find(texts, figure).font).toContain('IBM Plex Mono')
     }
     expect(find(texts, '21:35').font.startsWith('500 ')).toBe(true)
-    expect(find(texts, GRADED_FOOTNOTE).font).toContain('Newsreader')
   })
 
   it.each(FORMATS)(
-    'sets both figures in ink and the sports’ inks only on their labels on the %s card',
+    'sets both figures in ink and the sports’ inks only on the meter’s ends on the %s card',
     (format) => {
       const texts = draw(cardModel(), format).texts
       for (const figure of ['21:35', '48']) expect(find(texts, figure).color).toBe(CARD_COLORS.ink)
       expect(find(texts, 'RUNNING').color).toBe(CARD_COLORS.run)
       expect(find(texts, 'CYCLING').color).toBe(CARD_COLORS.ride)
-      expect(starting(texts, 'THRESHOLD GAP').color).toBe(CARD_COLORS.run)
-      expect(starting(texts, 'THRESHOLD POWER').color).toBe(CARD_COLORS.ride)
+      for (const label of ['RUN THRESHOLD', 'RIDE THRESHOLD']) {
+        expect(find(texts, label).color).toBe(CARD_COLORS.secondary)
+        expect(find(texts, label).font).toContain('IBM Plex Mono')
+      }
     },
   )
 
@@ -145,11 +136,11 @@ describe('renderShareCard', () => {
     expect(words(draw(cardModel({ badge: 'Sample data' })).texts)).toContain('SAMPLE DATA')
   })
 
-  it('omits the caveat and the origin when the model has none', () => {
-    const drawn = words(draw(cardModel({ caveat: null, origin: '' })).texts)
-    expect(drawn).not.toContain('Best efforts')
+  it('omits the origin when the model has none, and draws no caveat or lead line in any case', () => {
+    const drawn = words(draw(cardModel({ origin: '' }), 'story').texts)
     expect(drawn).not.toContain('example.test')
-    expect(drawn).toContain('Last 6 weeks')
+    expect(drawn).not.toMatch(/did not reach|\* |grades \d+ points/)
+    expect(drawn).toContain(FOOTER)
   })
 
   it.each(FORMATS)('sets the hero columns side by side on the %s card', (format) => {
@@ -158,16 +149,15 @@ describe('renderShareCard', () => {
     expect(find(texts, '21:35').x).toBeLessThan(find(texts, '48').x)
   })
 
-  it('lines the figures up side by side when one hero label wraps to two lines and the other to one', () => {
-    const [run, ride] = cardModel().heroes
-    if (run === undefined || ride === undefined) throw new Error('The card has two heroes')
-    const long = { ...run, label: 'Threshold GAP, estimated from your runs and every long pace' }
-    const texts = draw(cardModel({ heroes: [long, { ...ride, label: 'Power' }] }), 'square').texts
-    // The run's label takes two lines and the ride's one, so the figures sit below the taller of the two.
-    expect(find(texts, '21:35').y).toBeGreaterThan(find(texts, 'POWER').y + 2 * 28)
-    expect(texts.filter((text) => text.text === 'POWER')).toHaveLength(1)
-    expect(find(texts, '21:35').y).toBe(find(texts, '48').y)
-  })
+  it.each(FORMATS)(
+    'sets each threshold name on one line above its figure on the %s card',
+    (format) => {
+      const texts = draw(cardModel(), format).texts
+      expect(texts.filter((text) => text.text.endsWith('THRESHOLD'))).toHaveLength(2)
+      expect(find(texts, 'RUN THRESHOLD').y).toBe(find(texts, 'RIDE THRESHOLD').y)
+      expect(find(texts, '21:35').y).toBeGreaterThan(find(texts, 'RUN THRESHOLD').y)
+    },
+  )
 
   it.each(FORMATS)(
     'cuts a headline too long for its lines, at the smallest size, on the %s card',
@@ -278,6 +268,17 @@ describe('the balance meter on the card', () => {
       find(texts, value.number).y - 60,
     )
     expect(find(texts, `RANGE ${range}`.toUpperCase()).color).toBe(CARD_COLORS.secondary)
+  })
+
+  it('says "informed by heart rate" on the range line of an energy balance the check informed, and only there', () => {
+    const line = (informedByHeartRate: boolean, meter = cardModel().meter) =>
+      draw(cardModel({ informedByHeartRate, meter })).texts.find((text) =>
+        text.text.startsWith('RANGE'),
+      )
+    expect(line(true)?.text.endsWith(' · INFORMED BY HEART RATE')).toBe(true)
+    expect(line(false)?.text).not.toContain('INFORMED')
+    const points = gapReading({ centre: 6, low: 2, high: 10, lean: 'run' })
+    expect(line(true, points)?.text).not.toContain('INFORMED')
   })
 
   it('marks a running lead past the scale with "30+" just after the running label', () => {

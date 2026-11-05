@@ -21,7 +21,7 @@
 }
 
 .share-sheet::backdrop {
-  background: rgb(10 10 10 / 0.4);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 .share-sheet__body {

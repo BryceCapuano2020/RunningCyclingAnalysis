@@ -126,7 +126,6 @@ export function BalancePage({
   // A ride at the top of the age tables is left out of the comparison, so the energy view cannot carry it in.
   const rideOut = rideLeftOut(grades.ride, result)
   const { pick } = heldPick(result, holdWithRideOut(rideOut, hold))
-  const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
   // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
   const reading = useMemo(
@@ -222,7 +221,6 @@ export function BalancePage({
             units={units}
             period={period}
             isSample={isSample}
-            effort={effort}
             weightKnown={weightKnown}
             gap={gap}
             grades={grades}

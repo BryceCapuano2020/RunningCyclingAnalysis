@@ -8,7 +8,8 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import { AnalysisSession } from '@rca/core/session'
 import { formatPaceValue } from '@rca/core/units'
 import { buildShareCard } from '../share/cardModel'
-import { draw } from '../share/fixtures'
+import { meterValue } from './components/meterReading'
+import { SPORT_TITLE } from './sports'
 import { whatMoved } from './analysis/whatMoved'
 import { balanceOfPick } from './components/balanceScale'
 import { formatGrade } from './gradeFormat'
@@ -191,17 +192,18 @@ describe('one lead, printed the same on every surface', () => {
       'metric',
       ALL_TIME,
       true,
-      null,
       true,
       lead,
       gradesAfter,
     )
     if (card === null) throw new Error('the sample offers a card')
-    const share = printedGrades(
-      draw(card, 'story')
-        .texts.map((drawn) => drawn.text)
-        .join(' '),
-    )
+    // The card's meter writes the lead as a number under its mark, toward the sport its mark leans to.
+    const meter = card.meter
+    if (meter === null || meter.lean === 'even') throw new Error('the sample leans')
+    const share: PrintedLead = {
+      points: Number(meterValue(meter).number.replace('+', '')),
+      toward: SPORT_TITLE[meter.lean].toLowerCase(),
+    }
 
     const moves = whatMoved(before, after, SAMPLE_SETTINGS, 'metric', SAMPLE_PROFILE)
     const notice = printedMove(moves.map((item) => item.text).join(' '))

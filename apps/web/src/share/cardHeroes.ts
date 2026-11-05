@@ -5,7 +5,6 @@ import {
   drawLines,
   metaStyle,
   setFont,
-  wrapIn,
   type CardContext,
   type TextStyle,
 } from './cardCanvas'
@@ -23,8 +22,6 @@ const UNIT_GAP = 12
 /** Where the figure's baseline sits in its line, as a share of its size. */
 const BASELINE = 0.8
 
-/** The hero label's sizes, largest first: it steps down only where a label would run past two lines. */
-const LABEL_SIZES = [22, 20, 18]
 const SUB: TextStyle = { ...MONO_400, size: 28, lineHeight: 36 }
 
 function figureStyle(size: number): TextStyle {
@@ -37,9 +34,8 @@ function unitStyle(size: number): TextStyle {
   return { ...MONO_400, size: unit, lineHeight: unit }
 }
 
-function labelStyle(size: number): TextStyle {
-  return metaStyle(size, 28)
-}
+/** The threshold's name as a row title is set: one line of mono metadata in secondary ink. */
+const LABEL: TextStyle = metaStyle(22, 28)
 
 /** Whether a figure's number and unit fit on one line of the width at this size. */
 function figureFits(ctx: CardContext, figure: ShareFigure, size: number, width: number): boolean {
@@ -65,33 +61,16 @@ function figureSize(
 
 interface Column {
   hero: ShareHero
-  label: string[]
-  labelStyle: TextStyle
-  /** The label rows this column reserves: the tallest label's, shared by every column. */
-  labelRows: number
   height: number
 }
 
-/** A hero's label, upper case as metadata is, wrapped to two lines at most. */
-function labelLines(ctx: CardContext, hero: ShareHero, style: TextStyle, width: number): string[] {
-  return wrapIn(ctx, hero.label.toUpperCase(), style, width, 2)
-}
-
-function measureColumn(
-  ctx: CardContext,
-  hero: ShareHero,
-  width: number,
-  size: number,
-  style: TextStyle,
-  labelRows: number,
-): Column {
-  const label = labelLines(ctx, hero, style, width)
+function measureColumn(hero: ShareHero, size: number): Column {
   const height =
-    labelRows * style.lineHeight +
+    LABEL.lineHeight +
     SPACE +
     figureStyle(size).lineHeight +
     (hero.sub === null ? 0 : SUB.lineHeight)
-  return { hero, label, labelStyle: style, labelRows, height }
+  return { hero, height }
 }
 
 /** The number at its size, with the unit after it on the same baseline. */
@@ -114,11 +93,11 @@ function drawFigure(
   ctx.textBaseline = 'top'
 }
 
-/** One threshold: its label in the sport's ink, the figure in ink, and the second reading under it. */
+/** One threshold: its name, the figure in ink, and the second reading under it. */
 function drawColumn(ctx: CardContext, column: Column, size: number, x: number, y: number): void {
   const { hero } = column
-  drawLines(ctx, column.label, x, y, column.labelStyle, CARD_COLORS[hero.sport])
-  const figureY = y + column.labelRows * column.labelStyle.lineHeight + SPACE
+  drawLines(ctx, [hero.label.toUpperCase()], x, y, LABEL, CARD_COLORS.secondary)
+  const figureY = y + LABEL.lineHeight + SPACE
   drawFigure(ctx, hero.figure, size, x, figureY)
   if (hero.sub !== null) {
     drawLines(
@@ -133,18 +112,6 @@ function drawColumn(ctx: CardContext, column: Column, size: number, x: number, y
 }
 
 /**
- * The largest label size, from the list, at which every hero's label fits two lines, so the two
- * figures line up. Where no size fits, the smallest is used and its last line is cut.
- */
-function labelSizeFor(ctx: CardContext, heroes: ShareHero[], width: number): number {
-  const fits = (size: number) =>
-    heroes.every(
-      (hero) => wrapIn(ctx, hero.label.toUpperCase(), labelStyle(size), width).length <= 2,
-    )
-  return LABEL_SIZES.find(fits) ?? Math.min(...LABEL_SIZES)
-}
-
-/**
  * The thresholds under a rule, one column per sport in the order given, side by side.
  */
 export function heroBlock(
@@ -155,16 +122,7 @@ export function heroBlock(
 ): Block {
   const columnWidth = (contentWidth - COLUMN_GAP) / heroes.length
   const size = figureSize(ctx, heroes, layout.figure, columnWidth)
-  const label = labelStyle(labelSizeFor(ctx, heroes, columnWidth))
-  // Every column's figure sits below the tallest label, so the figures line up across the columns
-  // even where one label wraps to a single line and another to two.
-  const labelRows = Math.max(
-    0,
-    ...heroes.map((hero) => labelLines(ctx, hero, label, columnWidth).length),
-  )
-  const columns = heroes.map((hero) =>
-    measureColumn(ctx, hero, columnWidth, size, label, labelRows),
-  )
+  const columns = heroes.map((hero) => measureColumn(hero, size))
   const body = Math.max(...columns.map((column) => column.height))
   return {
     height: RULE_HEIGHT + RULE_GAP + body,

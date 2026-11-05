@@ -1,6 +1,5 @@
 import { CARD_COLORS } from './cardColors'
 import {
-  SERIF_400,
   SERIF_500,
   cutWithEllipsis,
   drawLines,
@@ -36,13 +35,8 @@ const RULE_HEIGHT = 2
 const RULE_GAP = 20
 /** Between the app name and the metadata beside it, and between the metadata's own items. */
 const ROW_GAP = 24
-/** The period: its dates and counts, as metadata. */
-export const PERIOD: TextStyle = metaStyle(22, 28)
-/** The balance in words under the answer. */
-export const MAGNITUDE_LINE: TextStyle = { ...SERIF_400, size: 36, lineHeight: 46 }
-/** The heart-rate caveat: a starred line of prose. */
-export const CAVEAT: TextStyle = { ...SERIF_400, size: 28, lineHeight: 36 }
-const FOOTNOTE: TextStyle = { ...SERIF_400, size: 28, lineHeight: 36 }
+/** The footer: the period's dates and the standard, as one line of metadata. */
+export const FOOTER: TextStyle = metaStyle(20, 28)
 export const ORIGIN: TextStyle = metaStyle(22, 28)
 const HEADLINE_LINE_RATIO = 1.08
 
@@ -102,32 +96,9 @@ function topBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout): 
   }
 }
 
-/**
- * The heart-rate caveat as a quiet starred line, anchored to the bottom with the footnote. However
- * many lines it takes, it is drawn whole: a card that cannot hold it falls back to a smaller shed
- * step, or fails.
- */
-function caveatBlocks(
-  ctx: CardContext,
-  caveat: string | null,
-  x: number,
-  contentWidth: number,
-): Block[] {
-  if (caveat === null) return []
-  return textBlock(
-    ctx,
-    wrapIn(ctx, `* ${caveat}`, CAVEAT, contentWidth),
-    x,
-    CAVEAT,
-    CARD_COLORS.secondary,
-    'bottom',
-  )
-}
-
-/** What one attempt at fitting the card keeps: the origin and magnitude lines, and how far down the size lists to start. */
+/** What one attempt at fitting the card keeps: the origin line, and how far down the size lists to start. */
 interface Shed {
   origin: boolean
-  magnitude: boolean
   step: number
 }
 
@@ -153,31 +124,16 @@ function cardBlocks(
   return [
     topBlock(ctx, model, layout),
     ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.ink),
-    ...textBlock(
-      ctx,
-      shed.magnitude && model.magnitude !== null
-        ? wrapIn(ctx, model.magnitude, MAGNITUDE_LINE, contentWidth, 2)
-        : [],
-      x,
-      MAGNITUDE_LINE,
-      CARD_COLORS.secondary,
-    ),
-    ...(model.meter === null ? [] : [meterBlock(ctx, model.meter, x, contentWidth)]),
+    ...(model.meter === null
+      ? []
+      : [meterBlock(ctx, model.meter, x, contentWidth, model.informedByHeartRate)]),
     ...levelsBlock(ctx, model.heroes, x, contentWidth),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
       ctx,
-      wrapIn(ctx, model.period, PERIOD, contentWidth, 1),
+      wrapIn(ctx, `${model.period} · ${model.footnote}`.toUpperCase(), FOOTER, contentWidth),
       x,
-      PERIOD,
-      CARD_COLORS.secondary,
-    ),
-    ...caveatBlocks(ctx, model.caveat, x, contentWidth),
-    ...textBlock(
-      ctx,
-      wrapIn(ctx, model.footnote, FOOTNOTE, contentWidth),
-      x,
-      FOOTNOTE,
+      FOOTER,
       CARD_COLORS.secondary,
       'bottom',
     ),
@@ -193,24 +149,22 @@ function cardBlocks(
 }
 
 /**
- * The ways to fit the card, in the order they are tried: the origin line goes first, then the
- * magnitude line, which restates the headline, and then the headline and figures step down one size
- * at a time.
+ * The ways to fit the card, in the order they are tried: the origin line goes first, and then the
+ * headline and figures step down one size at a time.
  */
 function sheds(layout: CardLayout): Shed[] {
   const steps = Math.min(layout.headline.length, layout.figure.length)
   const list: Shed[] = [
-    { origin: true, magnitude: true, step: 0 },
-    { origin: false, magnitude: true, step: 0 },
-    { origin: false, magnitude: false, step: 0 },
+    { origin: true, step: 0 },
+    { origin: false, step: 0 },
   ]
-  for (let step = 1; step < steps; step++) list.push({ origin: false, magnitude: false, step })
+  for (let step = 1; step < steps; step++) list.push({ origin: false, step })
   return list
 }
 
 /**
  * Draws the card on the canvas in the given shape, with Canvas 2D only. The first way of fitting
- * that holds every block is drawn; the caveat is never left out. Returns false, drawing nothing,
+ * that holds every block is drawn. Returns false, drawing nothing,
  * when no way fits or the canvas gives no 2D context.
  */
 export function renderShareCard(

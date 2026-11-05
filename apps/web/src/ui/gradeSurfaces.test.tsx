@@ -101,7 +101,6 @@ function onShareCard(result: AnalysisResult, sport: Sport): Printed {
     'metric',
     ALL_TIME,
     true,
-    null,
     true,
     standing.lead,
     gradesOfStanding(result, standing),

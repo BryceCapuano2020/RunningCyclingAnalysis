@@ -567,7 +567,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   The age grade line is the effort and the age, "6:28 /mi at age 37.", with no standard and no sentence about what a level is. A ride's grade carries no Estimated chip, and its watts stand plain ("250 W at age 37."); the ride's threshold tile gives the watts. How many rides had estimated watts is said on the Ride page, in its best-efforts section; on Balance it is the Estimated chips in the pace-curve table, one tap down. A run's pace in a record is a GAP, a chip with its meaning one press away
   ("Grade-adjusted pace: your pace allowing for hills, as if on level ground."), and there is no sentence about it under the records.
   On an activity page the splits' column is headed with the same term, once in the table's header and once at the first item of the narrow list.
-- **A ride's threshold is one best estimate, from every ride** (docs/design/threshold.md). It is the strongest effort of each ride scaled to an hour and averaged, with heart rate as a second estimate that can raise it and never lowers it (the answer is the estimate from power alone unless heart rate lifts it, and then no higher than heart rate reads), so no effort check withholds it, floors it or labels it. It is null only where no ride has an effort of 3 min or more, and then its place reads "Needs an effort of 3 min or longer". The figure is watts at today's mass with W/kg beside it, on the sport page's panel, Balance's tile, the share card, the curve chart's threshold line and the import summary alike. It has no chip ("At least", "Estimated", "Not all-out", "Hard effort"), no track and no "Best 20 min" line. One basis line sits under it, "From 5 rides. Strongest: 12 min on 4 Mar.", from `rideThreshold.efforts`: the rides it rests on and the effort that scales highest, with its length and day, and ", on estimated watts" where that effort had no power meter. One tap down, "How this was worked out" opens, in a definition: the range ("Range 258 to 316 W", the estimate's 10th to 90th percentile, or "About 258 W" where the ends print the same), the method in one sentence, that heart rate can raise the answer and never lowers it, and what it did here: raised the answer, did not raise it, or was not used, with one plain clause why (`HeartRateRefusal`: "your heart rate rises too little with power to read"). Heart rate is never said to have set an answer it did not raise. The range is not called an 80% range: it held the true threshold for more riders than that in the simulations. The best 20 min's share of the max heart rate is not said for a ride, since the estimate does not read the effort's hardness; the share card's caveat line is the gate's, unchanged.
+- **A ride's threshold is one best estimate, from every ride** (docs/design/threshold.md). It is the strongest effort of each ride scaled to an hour and averaged, with heart rate as a second estimate that can raise it and never lowers it (the answer is the estimate from power alone unless heart rate lifts it, and then no higher than heart rate reads), so no effort check withholds it, floors it or labels it. It is null only where no ride has an effort of 3 min or more, and then its place reads "Needs an effort of 3 min or longer". The figure is watts at today's mass with W/kg beside it, on the sport page's panel, Balance's tile, the share card, the curve chart's threshold line and the import summary alike. It has no chip ("At least", "Estimated", "Not all-out", "Hard effort"), no track and no "Best 20 min" line. One basis line sits under it, "From 5 rides. Strongest: 12 min on 4 Mar.", from `rideThreshold.efforts`: the rides it rests on and the effort that scales highest, with its length and day, and ", on estimated watts" where that effort had no power meter. One tap down, "How this was worked out" opens, in a definition: the range ("Range 258 to 316 W", the estimate's 10th to 90th percentile, or "About 258 W" where the ends print the same), the method in one sentence, that heart rate can raise the answer and never lowers it, and what it did here: raised the answer, did not raise it, or was not used, with one plain clause why (`HeartRateRefusal`: "your heart rate rises too little with power to read"). Heart rate is never said to have set an answer it did not raise. The range is not called an 80% range: it held the true threshold for more riders than that in the simulations. The best 20 min's share of the max heart rate is not said for a ride, since the estimate does not read the effort's hardness; the share card carries no heart-rate line.
 - **A run's threshold is one best estimate, from every run** (docs/design/threshold.md, "Runs"), built as a ride's is and shown the
   same way. It is the strongest effort of each run scaled to an hour with the running table and averaged, with more weight on recent
   runs and on those near the athlete's top, and never under an hour the athlete ran. It is worked out from pace alone, for now: a run's
@@ -584,8 +584,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   one sentence. The critical-speed fit (`runCp`) stays on the result and no screen reads it: the curve chart draws the bests and the
   estimate's threshold line, and the race predictions read the bests and the heart-rate VO2max. A refused fit, an uneven one, a best that
   was not hard reach none of these cards. The zones table says what its pace is and when, as a ride's power
-  is said: "Zones cut from 7:30 /mi, your threshold over the 26 weeks to 1 Nov". The share card labels it "Threshold GAP,
-  estimated from your runs", since the card has no note to say what GAP allows for, and a card is offered once both sports have an estimate.
+  is said: "Zones cut from 7:30 /mi, your threshold over the 26 weeks to 1 Nov". The share card titles it "Run threshold", as Balance does (`THRESHOLD_NAME`), and a card is offered once both sports have an estimate.
   The Method page's Thresholds entry gives the ride's and the run's method in one line each, says a backed hour you did is a floor and gives both rules that back
   an hour, and gives the table's figures from the code.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
@@ -779,18 +778,19 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - The card reads top to bottom as the page does. A top row: the app name in the serif at the left, then in mono capitals
   the sample label ("Sample athlete") and the visitor's name where there are any (the name cut with an ellipsis where it
   would reach the app name), over a `--rule` line. The answer sentence in the serif at 500, in sentence case, two lines on a
-  square and three on a story, "Your balance leans toward running", with the lead line under it where there is room. The
+  square and three on a story, "Your balance leans toward running", with nothing between it and the meter: the lead is the meter's own value. The
   meter as the page draws it: a hairline track, an upright in the run ink at its left end and the ride ink at its right,
   a tick at Even, one ink mark for the reading, the value in mono under the mark with its unit quieter, and "range" and
-  its edges in mono capitals under that, drawn from the same `BalanceReading` as the page's. The two sports' levels in one
-  line, as Balance writes them (name, age grade in mono, level in `--ink-secondary`), or one under the other when they do
-  not fit side by side. Under a rule, each sport's threshold: its label in mono capitals in the sport's ink ("Threshold
-  GAP, estimated from your runs" for a run and "Threshold power, estimated from your rides" for a ride), the figure in
-  mono at 500 in ink with its unit after it, and the W/kg under a ride's. Last, the period in mono capitals, the
-  heart-rate caveat as a starred line when there is one, the footnote, and the site's host when it is public. A card
-  sheds the host, then the lead line, then steps the answer and the figures down one size at a time, until it fits.
-- Figures are drawn in ink. A sport's ink is on its name over the meter's end, the end's upright and its threshold label,
-  and nowhere else. It never colours a figure or a sentence.
+  its edges in mono capitals under that (with " · informed by heart rate" after the edges where Balance says it), drawn from
+  the same `BalanceReading` as the page's. The two sports' levels in one line on one baseline, as Balance writes them (name,
+  age grade in mono, level in `--ink-secondary`), or one under the other when they do not fit side by side. Under a rule,
+  each sport's threshold: its name as Balance titles it ("Run threshold", "Ride threshold", from `THRESHOLD_NAME`) on one
+  line of mono capitals in `--ink-secondary`, the figure in mono at 500 in ink with its unit after it, and the W/kg under a
+  ride's. Last one line of mono capitals: the period's dates and the standard ("12 May – 3 Aug 2025 · Age-graded on USATF
+  road standards."), and the site's host when it is public. There is no caveat, lead line or count on the card: the answer
+  is the best estimate. A card sheds the host, then steps the answer and the figures down one size at a time, until it fits.
+- Figures are drawn in ink. A sport's ink is on its name over the meter's end and the end's upright, and nowhere else. It
+  never colours a figure, a title or a sentence.
 - The card is offered only once both sports have a threshold, a balance can be stated and a weight is
   entered. A card never asks the reader for anything, so there is no prompt on it: while a sport has no
   threshold, or no weight is entered, the share button is not shown.
@@ -1066,7 +1066,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   "GAP" in charts, axes, tables, records and copy, and spelled out once on a page, "Grade-adjusted pace (/mi), faster up", on the axis of
   its first chart (the best-effort curve). Its record mark is "GAP", a term whose note reads
   "Grade-adjusted pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
-  "Threshold pace" on the app's cards and pages. The share card has no note, so its run threshold reads "Threshold GAP, estimated". "Grade" means an age grade and nothing else.
+  "Threshold pace" on the app's cards and pages. "Grade" means an age grade and nothing else.
 - **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. In each
   unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
   imperial, 1 km in metric. In All best efforts every distance row carries a "Finish time" chip beside its time, so the column reads

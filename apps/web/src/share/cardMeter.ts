@@ -1,5 +1,5 @@
 import { EVEN_LABEL, cappedEnds, capText, meterFraction } from '../ui/components/balanceScale'
-import { meterRange, meterValue, RANGE_WORD } from '../ui/components/meterReading'
+import { BASIS_TEXT, meterRange, meterValue, RANGE_WORD } from '../ui/components/meterReading'
 import { BALANCE_PAIR, SPORT_TITLE } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import {
@@ -86,7 +86,14 @@ function drawEnds(ctx: CardContext, meter: ShareMeter, x: number, y: number, wid
   ctx.textAlign = 'left'
 }
 
-function drawMeter(ctx: CardContext, meter: ShareMeter, x: number, y: number, width: number): void {
+function drawMeter(
+  ctx: CardContext,
+  meter: ShareMeter,
+  x: number,
+  y: number,
+  width: number,
+  informed: boolean,
+): void {
   drawEnds(ctx, meter, x, y, width)
   const middle = y + TRACK_TOP + TRACK_HEIGHT / 2
   ctx.fillStyle = CARD_COLORS.hairline
@@ -130,7 +137,9 @@ function drawMeter(ctx: CardContext, meter: ShareMeter, x: number, y: number, wi
 
   const range = meterRange(meter)
   if (range !== null) {
-    const text = `${RANGE_WORD} ${range}`.toUpperCase()
+    // An energy balance the heart-rate check informed says so on the range line, as the page does.
+    const basis = informed && meter.unit === 'percent' ? ` · ${BASIS_TEXT}` : ''
+    const text = `${RANGE_WORD} ${range}${basis}`.toUpperCase()
     drawCentred(
       ctx,
       text,
@@ -144,6 +153,12 @@ function drawMeter(ctx: CardContext, meter: ShareMeter, x: number, y: number, wi
 }
 
 /** The balance meter across the content width, at the given x. */
-export function meterBlock(ctx: CardContext, meter: ShareMeter, x: number, width: number): Block {
-  return { height: meterHeight(meter), draw: (y) => drawMeter(ctx, meter, x, y, width) }
+export function meterBlock(
+  ctx: CardContext,
+  meter: ShareMeter,
+  x: number,
+  width: number,
+  informed: boolean,
+): Block {
+  return { height: meterHeight(meter), draw: (y) => drawMeter(ctx, meter, x, y, width, informed) }
 }

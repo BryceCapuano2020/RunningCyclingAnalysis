@@ -39,16 +39,21 @@ function widthOf(ctx: CardContext, item: Item): number {
   )
 }
 
+/** Where the baseline sits in a line, so the serif name and level and the mono grade share one. */
+const BASELINE = 31
+
 function drawItem(ctx: CardContext, item: Item, x: number, y: number): void {
   let at = x
+  ctx.textBaseline = 'alphabetic'
   for (const [style, text, color] of [
     [NAME, item.name, CARD_COLORS.ink],
     [GRADE, item.grade, CARD_COLORS.ink],
     [LEVEL, item.level, CARD_COLORS.secondary],
   ] as const) {
-    drawLines(ctx, [text], at, y, style, color)
+    drawLines(ctx, [text], at, y + BASELINE, style, color)
     at += ctx.measureText(text).width + WORD_GAP
   }
+  ctx.textBaseline = 'top'
 }
 
 /**

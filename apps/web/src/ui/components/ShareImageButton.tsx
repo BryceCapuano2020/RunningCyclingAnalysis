@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
+import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { saveCardName, storedCardName } from '../../share/cardName'
 import { cardFileName, type CardFormat } from '../../share/cardLayout'
@@ -32,8 +32,6 @@ export interface ShareImageButtonProps {
   /** The period on screen, which the card names with its dates. */
   period: Period
   isSample: boolean
-  /** Heart-rate check for the headline duration, shown on the card as a caveat when it applies. */
-  effort: EffortCheck | null
   /** False while no body weight is entered: the balance waits for it, so no card is offered. */
   weightKnown: boolean
   /** The age-grade gap on the page, so the card states the same balance as the page. */
@@ -117,7 +115,6 @@ async function makeFile(
     inputs.units,
     inputs.period,
     inputs.isSample,
-    inputs.effort,
     inputs.weightKnown,
     inputs.gap,
     inputs.grades,
@@ -138,8 +135,7 @@ async function makeFile(
  * entered.
  */
 export function ShareImageButton(props: ShareImageButtonProps) {
-  const { result, settings, units, period, isSample, effort, weightKnown, gap, grades, disabled } =
-    props
+  const { result, settings, units, period, isSample, weightKnown, gap, grades, disabled } = props
   const hold = useHoldInputs()
   const [open, setOpen] = useState(false)
   const [format, setFormat] = useState<CardFormat>('square')
@@ -192,7 +188,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     units,
     period,
     isSample,
-    effort,
     weightKnown,
     gap,
     grades,
@@ -241,7 +236,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       units,
       period,
       isSample,
-      effort,
       weightKnown,
       gap,
       grades,
@@ -267,7 +261,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     units,
     period,
     isSample,
-    effort,
     weightKnown,
     gap,
     grades,
