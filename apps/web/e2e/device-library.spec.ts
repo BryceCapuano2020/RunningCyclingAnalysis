@@ -148,7 +148,7 @@ test('the Profile page counts the activities kept in this browser, and deletes n
   expect(errors).toEqual([])
 })
 
-test('deleting one kept activity from the Activities page removes it after a reload', async ({
+test('deleting one kept activity, from its own page, removes it after a reload', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -156,33 +156,35 @@ test('deleting one kept activity from the Activities page removes it after a rel
   await uploadFixtures(page, TWO_WORKOUTS)
   const rows = await activitiesRows(page)
   await expect(rows).toHaveCount(2)
+  // A row offers no Delete while its page opens; the activity page does.
+  await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0)
 
-  const deleteButtons = page.getByRole('button', { name: /^Delete / })
-  await expect(deleteButtons).toHaveCount(2)
-  const label = await deleteButtons.first().getAttribute('aria-label')
-  if (label === null) throw new Error('a kept activity has no delete label')
-  await deleteButtons.first().click()
+  const name = (await rows.first().getByRole('link').first().textContent()) ?? ''
+  await rows.first().getByRole('link').first().click()
+  const open = page.getByRole('button', { name: `Delete ${name}`, exact: true })
+  await expect(open).toBeVisible()
+  await open.click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  // The list replaces the page, and says what was deleted.
+  await expect(page.getByRole('heading', { level: 1, name: 'Activities' })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: 'Deleted' })).toBeVisible()
-  await expect(deleteButtons).toHaveCount(1)
+  await expect(await activitiesRows(page)).toHaveCount(1)
 
   await page.reload()
 
-  // Counted only once the kept list has loaded again, so the label check cannot pass early.
-  await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(1)
-  await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(1)
+  await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
-test('deleting the last kept activity from the Activities page leaves nothing kept', async ({
-  page,
-}) => {
+test('deleting the last kept activity from its page leaves nothing kept', async ({ page }) => {
   const errors = trackErrors(page)
   await page.goto('/')
   await uploadFixtures(page, ['one-ride.gpx'])
-  await expect(await activitiesRows(page)).toHaveCount(1)
+  const rows = await activitiesRows(page)
+  await expect(rows).toHaveCount(1)
 
+  await rows.first().getByRole('link').first().click()
   await page.getByRole('button', { name: /^Delete / }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
