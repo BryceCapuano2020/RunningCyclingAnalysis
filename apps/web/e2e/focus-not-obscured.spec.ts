@@ -110,12 +110,10 @@ async function expectFocusClear(page: Page): Promise<void> {
 
 test.describe('focus clears the sticky bars', () => {
   for (const sport of ['Run', 'Ride'] as const) {
-    test(`${sport} at 1440 px: section row and header leave focus in view`, async ({
-      page,
-    }, testInfo) => {
+    test(`${sport} at 1440 px: the header leaves focus in view`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'desktop', 'A 1440 px window is a desktop case')
       await openPage(page, sport, 1440)
-      await expect(page.locator('.section-nav')).toBeVisible()
+      await expect(page.locator('.sport-disclosure').first()).toBeVisible()
       await expectFocusClear(page)
     })
 

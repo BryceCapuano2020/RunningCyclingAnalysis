@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
 import { tooShortText, yearsFinding } from '@rca/core/lookback'
 import { PROFILE_UNFIT_TEXT, profileNamesAny } from '@rca/core/profile'
-import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
+import { LATE_IN_EFFORT_NAME, lateFindings, lateInEffort } from '../lateInEffort'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
 import { bestEffortRows, curvesOf } from './bestEffortRows'
@@ -15,8 +15,6 @@ import { SameHeartRateSection } from './SameHeartRateSection'
 import { sameHeartRateLackText, sameHeartRateName, sameHeartRateTitle } from '../sameHeartRateCopy'
 import { SectionCell } from './SectionCell'
 import { SectionLine } from './SectionLine'
-import { anchorOf } from './sectionAnchor'
-import type { SectionNavItem } from './SectionNav'
 import { StandOutSection } from './StandOutSection'
 import { standOutFinding, standOutFor } from './standOut'
 import { TimeInZonesSection } from './TimeInZonesSection'
@@ -39,20 +37,18 @@ export type SectionId =
 
 /**
  * What a section gives the page: its content, or when the library cannot fill it yet, the one line in its place that
- * says what to add (`empty`), and for a section that sits behind a disclosure, the name and the finding its row says (a name
- * alone for one with nothing to add to it).
- * A disclosure starts open; `restated` marks one whose body says its finding already, so the row does not say it twice
+ * says what to add, and for a section that sits behind a disclosure, its heading (the finding where it has one) and what
+ * else its row says while folded.
+ * A disclosure starts open; `restated` marks one whose body says that line already, so the row does not say it twice
  * while open. No section leaves the page in silence. A null content leaves a section out that the sport does not have.
  */
 export interface SectionOutcome {
   content: ReactNode | null
-  /** Set when `content` is one line in a section's place (what to add, or History's finding and its link): "On this page" does not list it. */
-  empty?: true
   closed?: { title: string; finding?: string; restated?: true }
 }
 
-/** What the page's "On this page" row calls each section. */
-const NAV_LABEL: Record<SectionId, (sport: Sport) => string> = {
+/** What each section is called where it has no finding to head it. */
+const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
   years: () => 'History',
   bestEfforts: () => 'Best efforts',
   racePredictions: () => 'Race predictions',
@@ -105,8 +101,7 @@ type Context = SectionContext & { list: ReturnType<typeof bestEffortRows> }
 /** A section the library cannot fill yet, as its name and the one line that says what to add. */
 function emptyOf({ sport }: Context, id: SectionId, line: string): SectionOutcome {
   return {
-    content: <SectionLine sport={sport} id={id} title={NAV_LABEL[id](sport)} line={line} />,
-    empty: true,
+    content: <SectionLine sport={sport} id={id} title={SECTION_NAME[id](sport)} line={line} />,
   }
 }
 
@@ -129,12 +124,11 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
         <SectionLine
           sport={sport}
           id="years"
-          title={NAV_LABEL.years(sport)}
+          title={SECTION_NAME.years(sport)}
           line={finding}
           link={{ href: hrefFor({ page: 'history' }), text: 'See History' }}
         />
       ),
-      empty: true,
     }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),
@@ -205,23 +199,21 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     const { sport, sameHeartRate, units } = context
     const lack = sameHeartRateLackText(sport, sameHeartRate)
     if (lack !== null) return emptyOf(context, 'sameHeartRate', lack)
-    // No change is claimed from the weekly dots: the fitness status is the sport's voice on that.
+    // No change is claimed from the weekly dots: the fitness status is the sport's voice on that. The chart's title
+    // heads the section, which does not name itself a second time over it.
     return {
       content: <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />,
-      closed: {
-        title: NAV_LABEL.sameHeartRate(sport),
-        finding: `${sameHeartRateTitle(sport, sameHeartRate.referenceHeartRate)}.`,
-        restated: true,
-      },
+      closed: { title: sameHeartRateTitle(sport, sameHeartRate.referenceHeartRate) },
     }
   },
   // The section holds two readings, each with its own need. A half the library cannot give says its need under the
-  // other; with neither, the section is the one line that says what to add.
+  // other; with neither, the section is the one line that says what to add. The first half's finding heads the
+  // section; the second's is its chart's headline, and the folded row says it too.
   lateInEffort: (context) => {
     const { sport, result, lateEvidence, units } = context
     const reading = lateInEffort(sport, lateEvidence)
-    const finding = lateFinding(reading)
-    return finding === null
+    const [heading, ...more] = lateFindings(reading)
+    return heading === undefined
       ? emptyOf(context, 'lateInEffort', reading.needs.join(' '))
       : {
           content: (
@@ -232,7 +224,10 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
               units={units}
             />
           ),
-          closed: { title: NAV_LABEL.lateInEffort(sport), finding, restated: true },
+          closed:
+            more.length === 0
+              ? { title: heading }
+              : { title: heading, finding: more.join(' '), restated: true },
         }
   },
   // A finding that names no duration tells the athlete nothing, so the section is left out; one that names one is the
@@ -255,7 +250,7 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     content: (
       <BestEffortsEvidence sport={sport} list={list} sparks={recordSparks(sport, trends, massKg)} />
     ),
-    closed: { title: NAV_LABEL.evidence(sport) },
+    closed: { title: SECTION_NAME.evidence(sport) },
   }),
 }
 
@@ -267,29 +262,17 @@ export interface PlacedRow {
 
 /**
  * A sport's page below its answer: the rows that have something to show, in a section's own place whether it holds its
- * answer or the one line that says what to add, and the "On this page" items for the sections that hold an answer.
+ * answer or the one line that says what to add.
  */
-export function layoutOf(
-  sport: Sport,
-  context: SectionContext,
-): { rows: PlacedRow[]; nav: SectionNavItem[] } {
+export function layoutOf(sport: Sport, context: SectionContext): PlacedRow[] {
   const full: Context = { ...context, list: bestEffortRows(context) }
-  const outcomes = new Map(SPORT_SECTIONS[sport].map((id) => [id, SECTIONS[id](full)] as const))
-  const rows = SPORT_ROWS[sport].flatMap((ids) => {
+  return SPORT_ROWS[sport].flatMap((ids) => {
     const cells = ids.flatMap((id) => {
-      const outcome = outcomes.get(id)
-      return outcome?.content
+      const outcome = SECTIONS[id](full)
+      return outcome.content
         ? [{ id, node: <SectionCell sport={sport} id={id} outcome={outcome} /> }]
         : []
     })
     return cells.length === 0 ? [] : [{ key: ids.join('-'), cells }]
   })
-  return {
-    rows,
-    nav: rows.flatMap((row) =>
-      row.cells
-        .filter(({ id }) => outcomes.get(id)?.empty !== true)
-        .map(({ id }) => ({ id: anchorOf(sport, id), label: NAV_LABEL[id](sport) })),
-    ),
-  }
 }

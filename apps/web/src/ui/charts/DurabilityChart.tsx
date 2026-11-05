@@ -24,6 +24,8 @@ export interface DurabilityChartProps {
   units: UnitSystem
   /** The finding, set as the chart's headline: "Durability: 99% of your best 20 min after an hour." */
   takeaway: string
+  /** The section's heading says the finding: the chart does not set it again, and its name is for a screen reader alone. */
+  headed?: boolean
 }
 
 const MARK_R = 6
@@ -66,7 +68,13 @@ function rowsOf(groups: readonly LateGroup[], sport: Sport, units: UnitSystem): 
  * extremes, so a small fall is a short bar and not an empty row. The share is of the sport's own number, a pace's
  * by its speed, with better to the right.
  */
-export function DurabilityChart({ sport, groups, units, takeaway }: DurabilityChartProps) {
+export function DurabilityChart({
+  sport,
+  groups,
+  units,
+  takeaway,
+  headed = false,
+}: DurabilityChartProps) {
   const [rootPx] = useState(rootFontPx)
   const baseRowH = Math.max(34, Math.round(labelSizePx(rootPx) * 2.4))
   const rows = rowsOf(groups, sport, units)
@@ -79,7 +87,8 @@ export function DurabilityChart({ sport, groups, units, takeaway }: DurabilityCh
   return (
     <ChartFrame
       title={DURABILITY_TITLE}
-      takeaway={takeaway}
+      titleHidden={headed}
+      takeaway={headed ? undefined : takeaway}
       description={durabilityDescription(sport, groups, units)}
       height={(width) => rows.length * rowHAt(width) + 2 * EDGE}
       table={durabilityTable(sport, groups, units)}

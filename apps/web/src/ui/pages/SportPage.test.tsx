@@ -1713,7 +1713,8 @@ describe('SportPage depth', () => {
           (region) => region.getAttribute('aria-label') ?? region.querySelector('h2')?.textContent,
         )
       expect(names.indexOf('Best efforts by day')).toBeGreaterThan(-1)
-      expect(names.indexOf('Power at heart rate')).toBeGreaterThan(
+      // The section is headed by what its chart plots, the heart rate a number.
+      expect(names.indexOf('Power at 145 bpm, by week')).toBeGreaterThan(
         names.indexOf('Best efforts by day'),
       )
     })
@@ -1739,10 +1740,8 @@ describe('SportPage depth', () => {
           null,
           data,
         )
-        expect(closedRow('Power at heart rate')).toBe(
-          'Power at heart ratePower at 145 bpm, by week.',
-        )
-        const section = openSection('Power at heart rate')
+        expect(closedRow('Power at 145 bpm, by week')).toBe('Power at 145 bpm, by week')
+        const section = openSection('Power at 145 bpm, by week')
         const figure = within(section).getByRole('figure', { name: 'Power at 145 bpm, by week' })
         expect(section.textContent).not.toMatch(
           /no clear change|more than|less than|clear of zero/i,

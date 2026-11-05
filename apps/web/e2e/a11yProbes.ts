@@ -85,7 +85,7 @@ export async function reflowProblems(page: Page): Promise<{ overflow: number; cl
       const rect = el.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       // A row that scrolls sideways on purpose keeps its controls past the edge.
-      if (el.closest('.section-nav__list, .range-picker, [data-scrolls]')) continue
+      if (el.closest('.range-picker, [data-scrolls]')) continue
       if (rect.right > width + 1 || rect.left < -1) {
         clipped.push(`${el.tagName.toLowerCase()} ${(el.textContent ?? '').trim().slice(0, 30)}`)
       }

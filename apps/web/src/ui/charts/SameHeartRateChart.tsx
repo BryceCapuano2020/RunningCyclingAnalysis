@@ -34,6 +34,8 @@ export interface SameHeartRateChartProps {
   units: UnitSystem
   /** Muted text under the plot: how to read it, and what it does not count. */
   note: string
+  /** The section's heading is the chart's title, so the chart names itself for a screen reader alone. */
+  titleHidden?: boolean
 }
 
 const weekHasFit = (week: SameHeartRateWeek): boolean => week.fit !== null
@@ -83,7 +85,13 @@ const NO_WEEKS_TEXT = `Needs ${SAME_HEART_RATE.minReportedWeeks} weeks of steady
  * the weekly windows overlap and the level wanders, so a line through them would claim a trend the data cannot
  * show, and the fitness status is the sport's voice on change. Rides are diamonds.
  */
-export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateChartProps) {
+export function SameHeartRateChart({
+  sport,
+  data,
+  units,
+  note,
+  titleHidden = false,
+}: SameHeartRateChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { weeks, referenceHeartRate: reference } = data
   const hasData = reference !== null && weeks.filter(weekHasFit).length >= 2
@@ -95,6 +103,7 @@ export function SameHeartRateChart({ sport, data, units, note }: SameHeartRateCh
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={title}
+      titleHidden={titleHidden}
       description={`${title}. One dot for each week with enough steady stretches.`}
       note={note}
       table={{

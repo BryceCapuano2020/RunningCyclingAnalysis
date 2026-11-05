@@ -10,7 +10,8 @@ import type { ActivitySummary } from '@rca/core/pipeline'
  * efforts that start after an hour or more of moving time against the best overall, as a stat and a dumbbell,
  * and how efficiency changed across steady efforts, as a dot for each with the median drawn across.
  * A half with too little behind it is left out and says what it needs in a line under the other; the page
- * gives the section as one line when neither half has anything to show.
+ * gives the section as one line when neither half has anything to show. The first chart's finding is the section's
+ * heading, so that chart does not set it again.
  */
 export function LateInEffortSection({
   sport,
@@ -32,6 +33,7 @@ export function LateInEffortSection({
           groups={durability.groups}
           units={units}
           takeaway={durability.lede}
+          headed
         />
       )}
       {drift !== null && (
@@ -40,6 +42,7 @@ export function LateInEffortSection({
           points={drift.points}
           names={activityNames(activities)}
           takeaway={drift.lede}
+          headed={durability === null}
           medianPct={drift.medianPct}
         />
       )}

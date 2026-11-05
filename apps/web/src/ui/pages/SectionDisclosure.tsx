@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import './SectionDisclosure.css'
 
 export interface SectionDisclosureProps {
-  /** The element id the page's "On this page" list scrolls to and opens. */
+  /** The section's anchor, set on the element that opens. */
   id: string
   /** The section's name, in the serif: what a folded row is called. */
   title: string
