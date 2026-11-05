@@ -12,6 +12,7 @@ import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { FLOORED_TEXT, basisLine, methodNote, originText, spreadText } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
+import { NumText } from '../components/NumText'
 import { ranMeta, ranText } from './raceRan'
 import type { RanBest } from './raceRan'
 import './RacePredictions.css'
@@ -119,7 +120,11 @@ function RaceRow({
             {formatPace(prediction.distanceM / prediction.seconds, units)}
           </span>
           {ran || prediction.floored ? ' · ' : null}
-          {ran && <span className="race-row__ran">{ranMeta(ran)}</span>}
+          {ran && (
+            <span className="race-row__ran">
+              <NumText text={ranMeta(ran)} />
+            </span>
+          )}
           {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
         </span>
       </p>
