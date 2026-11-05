@@ -20,6 +20,7 @@ import {
 } from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
 import { HEADLINE_LABEL } from '../grades'
+import { NumText } from '../components/NumText'
 import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
 import { TopicBody } from '../components/TopicBody'
@@ -163,11 +164,17 @@ export function MethodPage({
 
       <div className="lede method__answer" role="group" aria-label="The short answer">
         <p className="method__answer-text">
-          {verdict !== null && <span>{verdict} </span>}
+          {verdict !== null && (
+            <span>
+              <NumText text={verdict} />{' '}
+            </span>
+          )}
           <span>
-            {hasResult
-              ? estimatesOf(runs, rides, weightKnown)
-              : 'Thresholds, ride levels and the balance are estimates.'}
+            {hasResult ? (
+              <NumText text={estimatesOf(runs, rides, weightKnown)} />
+            ) : (
+              'Thresholds, ride levels and the balance are estimates.'
+            )}
           </span>
         </p>
         <details className="method__details">
@@ -237,7 +244,9 @@ export function MethodPage({
           </MethodText>
         ) : pick === null ? (
           <MethodText>
-            <p className="secondary">{`${HELD_COMPARISON} ${reason}`}</p>
+            <p className="secondary">
+              <NumText text={`${HELD_COMPARISON} ${reason}`} />
+            </p>
             <TopicBody id="unit" />
             <TopicBody id="range" />
           </MethodText>
@@ -252,9 +261,13 @@ export function MethodPage({
                 ]}
               />
               <ul className="method__facts">
-                <li>{headlineText(pick.point).range}</li>
+                <li>
+                  <NumText text={headlineText(pick.point).range} />
+                </li>
                 {headlineBasis(result.comparison, pick.calibrated).map((line) => (
-                  <li key={line}>{line}</li>
+                  <li key={line}>
+                    <NumText text={line} />
+                  </li>
                 ))}
                 <li>The range does not include every source of error.</li>
               </ul>
@@ -287,10 +300,20 @@ export function MethodPage({
           <TopicBody id="heart" />
           <ul className="method__facts">
             {referenceDefinition().map((line) => (
-              <li key={line}>{line}</li>
+              <li key={line}>
+                <NumText text={line} />
+              </li>
             ))}
-            {reference && <li>{reference}</li>}
-            {setAside && <li>{setAside}</li>}
+            {reference && (
+              <li>
+                <NumText text={reference} />
+              </li>
+            )}
+            {setAside && (
+              <li>
+                <NumText text={setAside} />
+              </li>
+            )}
             {hardEfforts && (
               <>
                 <li>
@@ -337,7 +360,9 @@ export function MethodPage({
               (weightKnown ? (
                 accuracy.nSegments > 0 && (
                   <p>
-                    {`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                    <NumText
+                      text={`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                    />
                   </p>
                 )
               ) : (

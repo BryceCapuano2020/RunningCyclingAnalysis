@@ -1,3 +1,4 @@
+import { NumText } from '../components/NumText'
 import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import { formatPercent } from '@rca/core/units'
 import { Definition } from '../components/Definition'
@@ -20,14 +21,20 @@ export function TwentyMinuteEffort() {
         The 20 min effort
       </h3>
       <p className="secondary">
-        <span className="method__line">{`Balance’s changes and energy view read your best ${HEADLINE_LABEL} in each sport.`}</span>{' '}
+        <span className="method__line">
+          <NumText
+            text={`Balance’s changes and energy view read your best ${HEADLINE_LABEL} in each sport.`}
+          />
+        </span>{' '}
         <span className="method__line">
           The heart-rate check judges that effort against your{' '}
           <Definition meaning={MAX_HEART_RATE_MEANING}>max heart rate</Definition>.
         </span>{' '}
         <span className="method__line">It says whether the effort was hard.</span>{' '}
         <span className="method__line">
-          {`A steady ${HEADLINE_LABEL} run, or a ${HEADLINE_LABEL} ride ridden hard, with heart rate on, narrows the check.`}
+          <NumText
+            text={`A steady ${HEADLINE_LABEL} run, or a ${HEADLINE_LABEL} ride ridden hard, with heart rate on, narrows the check.`}
+          />
         </span>
       </p>
     </>

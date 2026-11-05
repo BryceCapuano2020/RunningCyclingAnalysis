@@ -209,7 +209,20 @@ export function SettingsOverTime({
   return (
     <section className="section band settings-over-time" aria-labelledby={`${baseId}-title`}>
       <h2 id={`${baseId}-title`}>Settings over time</h2>
-      <p className="secondary">Add dated values. Each activity uses the value from its day.</p>
+      <details className="settings-over-time__details">
+        <summary>Details</summary>
+        <p className="secondary">Add dated values. Each activity uses the value from its day.</p>
+        {elsewhere > 0 && (
+          <p className="secondary">
+            {`This browser also holds ${plural(elsewhere, 'dated setting', 'dated settings')} from before you signed in. ${elsewhere === 1 ? 'It is' : 'They are'} not part of your account, and ${elsewhere === 1 ? 'is' : 'are'} not used while you are signed in.`}
+          </p>
+        )}
+        {rows.length === 0 && state === 'ready' && (
+          <p className="secondary">
+            No dated settings yet. The app uses your current weight and its own estimates.
+          </p>
+        )}
+      </details>
       <form className="settings-over-time__form" onSubmit={(event) => void add(event)}>
         <div className="settings-over-time__field">
           {/* Its own label, since a label that wrapped the select would be named by every option. */}
@@ -326,16 +339,6 @@ export function SettingsOverTime({
             )
           })}
         </ol>
-      )}
-      {elsewhere > 0 && (
-        <p className="secondary">
-          {`This browser also holds ${plural(elsewhere, 'dated setting', 'dated settings')} from before you signed in. ${elsewhere === 1 ? 'It is' : 'They are'} not part of your account, and ${elsewhere === 1 ? 'is' : 'are'} not used while you are signed in.`}
-        </p>
-      )}
-      {rows.length === 0 && state === 'ready' && (
-        <p className="secondary">
-          No dated settings yet. The app uses your current weight and its own estimates.
-        </p>
       )}
     </section>
   )

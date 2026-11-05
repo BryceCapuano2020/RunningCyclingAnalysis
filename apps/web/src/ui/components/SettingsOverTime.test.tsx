@@ -78,6 +78,28 @@ describe('the dated settings rows', () => {
   })
 })
 
+describe('the row index', () => {
+  it('numbers again from 01 when a row is deleted', () => {
+    const first = { kind: 'massKg' as const, value: 78, from: '2026-08-15' }
+    const second = { kind: 'massKg' as const, value: 75, from: '2025-08-15' }
+    const props = {
+      state: 'ready' as const,
+      units: 'metric' as const,
+      onAdd: async () => undefined,
+      onRemove: async () => undefined,
+    }
+    const { rerender } = render(<SettingsOverTime {...props} entries={[first, second]} />)
+    const indexes = () =>
+      screen
+        .getAllByRole('listitem')
+        .map((row) => row.querySelector('.row__index')?.textContent)
+        .filter((text) => text !== undefined)
+    expect(indexes()).toEqual(['01', '02'])
+    rerender(<SettingsOverTime {...props} entries={[second]} />)
+    expect(indexes()).toEqual(['01'])
+  })
+})
+
 describe('Try again', () => {
   it('is offered only when the settings could not be loaded, and runs the retry', () => {
     const retry = vi.fn()

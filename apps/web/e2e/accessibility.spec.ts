@@ -314,7 +314,13 @@ test('Profile with dated settings fits 320 px, each row with its Delete in view'
   )
   expect(overflow).toBeLessThanOrEqual(0)
   const rows = page.getByRole('list', { name: 'Your dated settings' }).getByRole('listitem')
-  await expect(rows.last().getByRole('button', { name: /^Delete/ })).toBeInViewport()
+  const lastDelete = await rows
+    .last()
+    .getByRole('button', { name: /^Delete/ })
+    .boundingBox()
+  const viewport = page.viewportSize()
+  expect(lastDelete).not.toBeNull()
+  expect((lastDelete?.x ?? 0) + (lastDelete?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0)
   expect(await violationsOf(page)).toEqual([])
 })
 

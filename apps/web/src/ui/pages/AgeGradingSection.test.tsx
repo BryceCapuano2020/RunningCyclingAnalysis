@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { wholeText } from '../test/wholeText'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
@@ -21,26 +22,34 @@ describe('AgeGradingSection', () => {
     ).toHaveAttribute('tabindex', '-1')
     expect(
       within(section()).getByText(
-        'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time.',
+        wholeText(
+          'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time.',
+        ),
       ),
     ).toBeInTheDocument()
-    expect(within(section()).getByText('70% means 70% of standard pace.')).toBeInTheDocument()
+    expect(
+      within(section()).getByText(wholeText('70% means 70% of standard pace.')),
+    ).toBeInTheDocument()
     expect(
       within(section()).getByText(
-        'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
+        wholeText(
+          'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
+        ),
       ),
     ).toBeInTheDocument()
-    expect(within(section()).getByText('Below 60% is Recreational.')).toBeInTheDocument()
+    expect(within(section()).getByText(wholeText('Below 60% is Recreational.'))).toBeInTheDocument()
   })
 
   it('says a ride’s level is the band of its best estimate, and that its range can reach a neighbouring band', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText('A ride’s level is the band of its best estimate.'),
+      within(section()).getByText(wholeText('A ride’s level is the band of its best estimate.')),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText('Its range, drawn on the ladder, can reach a neighbouring band.'),
+      within(section()).getByText(
+        wholeText('Its range, drawn on the ladder, can reach a neighbouring band.'),
+      ),
     ).toBeInTheDocument()
     expect(section()).not.toHaveTextContent(/whole range sits in one band|with no level name/)
   })
@@ -49,10 +58,10 @@ describe('AgeGradingSection', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
-      within(section()).getByText('A run’s grade uses its grade-adjusted pace (GAP).'),
+      within(section()).getByText(wholeText('A run’s grade uses its grade-adjusted pace (GAP).')),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText('GAP is the recorded pace, corrected for hills.'),
+      within(section()).getByText(wholeText('GAP is the recorded pace, corrected for hills.')),
     ).toBeInTheDocument()
     expect(section()).not.toHaveTextContent(/flat pace|a fact from the file/)
   })
@@ -65,7 +74,7 @@ describe('AgeGradingSection', () => {
       'Your grade in each is your share of world class at your age.',
       'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
     ]) {
-      expect(within(section()).getByText(line)).toBeInTheDocument()
+      expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
     }
     // The old rule priced a ride's energy and read the run that costs the same; it is gone from the page.
     expect(section()).not.toHaveTextContent(/costs the same energy/)
@@ -82,7 +91,7 @@ describe('AgeGradingSection', () => {
       'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
       'Inside that range, the two are level.',
     ]) {
-      expect(within(section()).getByText(line)).toBeInTheDocument()
+      expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
     }
   })
 
@@ -91,15 +100,19 @@ describe('AgeGradingSection', () => {
 
     expect(
       within(section()).getByText(
-        'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
+        wholeText(
+          'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
+        ),
       ),
     ).toBeInTheDocument()
     expect(
-      within(section()).getByText('It is not graded at the newest activity’s date.'),
+      within(section()).getByText(wholeText('It is not graded at the newest activity’s date.')),
     ).toBeInTheDocument()
     expect(
       within(section()).getByText(
-        'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
+        wholeText(
+          'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
+        ),
       ),
     ).toBeInTheDocument()
   })
@@ -165,13 +178,15 @@ describe('AgeGradingSection', () => {
   it('names the sex the grades are for when a grade is shown', () => {
     render(<AgeGradingSection gradedSex="female" />)
 
-    expect(within(section()).getByText('Your grades are for a woman.')).toBeInTheDocument()
+    expect(
+      within(section()).getByText(wholeText(/^Your grades are for a woman\./)),
+    ).toBeInTheDocument()
   })
 
   it('names no sex when no grade is shown', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(screen.queryByText(/Your grades are for a/)).not.toBeInTheDocument()
+    expect(screen.queryByText(wholeText(/Your grades are for a/))).not.toBeInTheDocument()
   })
 
   it('links to Profile to change the age and sex the grades use', () => {
@@ -202,7 +217,7 @@ describe('AgeGradingSection level target', () => {
       'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
       'Its range is the 5th to 95th percentile of the equivalence.',
     ]) {
-      expect(within(section()).getByText(line)).toBeInTheDocument()
+      expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
     }
   })
 })
@@ -211,7 +226,9 @@ describe('AgeGradingSection balance', () => {
   it('says the balance grades each sport at its threshold, as an hour', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(within(section()).getByText(/^Each threshold is graded as an hour,/)).toBeInTheDocument()
+    expect(
+      within(section()).getByText(wholeText(/^Each threshold is graded as an hour,/)),
+    ).toBeInTheDocument()
     expect(section()).not.toHaveTextContent(/best effort at the headline length/)
   })
 })
