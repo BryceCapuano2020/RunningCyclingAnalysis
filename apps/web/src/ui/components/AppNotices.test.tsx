@@ -12,6 +12,8 @@ import { makeActivity, makeRejectedFile, makeResult } from './fixtures'
 
 afterEach(() => {
   cleanup()
+  // The notes this browser has seen are kept in storage; each test starts as a first visit, whatever ran before it.
+  window.localStorage.clear()
 })
 
 function noticesProps(
@@ -54,8 +56,6 @@ describe('the walking pace line', () => {
   })
 
   it('leaves the notes to the page’s own Details on Balance, Run and Ride once there is a result', () => {
-    // A note this browser has seen is not shown again, so the visits above are forgotten first.
-    window.localStorage.clear()
     const analysis = { state: { walkingPaceRuns: 3, hiddenDuplicates: 2, result: makeResult() } }
     for (const page of ['balance', 'run', 'ride'] as const) {
       const view = render(<AppNotices {...noticesProps(analysis, { page, walkingNote: true })} />)

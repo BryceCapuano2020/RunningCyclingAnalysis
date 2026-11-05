@@ -169,6 +169,9 @@ test('a tap on the lower third of a term opens it and not the term on the line b
     !['mobile', 'mobile-webkit'].includes(testInfo.project.name),
     'A touch is made on the phone projects',
   )
+  // At 412 px both engines set the evidence's "steady run" over "120 bpm", their reaches overlapping in x; at 390 WebKit
+  // breaks the line so the two no longer overlap, and the check would have no pair to try.
+  await page.setViewportSize({ width: 412, height: 800 })
   await openSample(page)
   await openDetails(card(page))
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
