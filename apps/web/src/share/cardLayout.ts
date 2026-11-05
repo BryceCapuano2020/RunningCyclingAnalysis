@@ -10,10 +10,8 @@ export interface CardLayout {
   height: number
   marginX: number
   marginY: number
-  /** The brand mark's size, which a story, with the more room, makes larger. */
-  mark: number
-  /** Hero columns stack one above the other rather than sitting side by side. */
-  stacked: boolean
+  /** The most lines the answer may take before it is cut. */
+  headlineLines: number
   /**
    * The gap between the middle blocks, which are then centred between the top and bottom anchors.
    * Without it, every gap is the same and the blocks fill the height.
@@ -30,21 +28,19 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     height: 1080,
     marginX: 80,
     marginY: 80,
-    mark: 48,
-    stacked: false,
-    headline: [120, 104, 88, 72],
-    figure: [160, 140, 128, 112, 96],
+    headlineLines: 2,
+    headline: [96, 88, 80, 72, 64, 56],
+    figure: [96, 88, 80, 72, 64, 56],
   },
   story: {
     width: 1080,
     height: 1920,
     marginX: 80,
     marginY: 240,
-    mark: 72,
-    stacked: true,
+    headlineLines: 3,
     groupGap: 48,
-    headline: [168, 152, 136, 120, 104, 88],
-    figure: [240, 220, 200, 180, 160, 140],
+    headline: [120, 112, 104, 96, 88, 80],
+    figure: [128, 120, 112, 104, 96, 88],
   },
 }
 

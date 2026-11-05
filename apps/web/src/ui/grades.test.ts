@@ -29,7 +29,7 @@ import {
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
 import { formatGrade } from './gradeFormat'
-import { ageProfileOf, gradeLevelText, heroGradeLine } from './grades'
+import { ageProfileOf, gradeLevelText } from './grades'
 
 /** A date in 2026, the year the fixtures use, and an old one for an effort set long ago. */
 const IN_2026 = new Date(2026, 2, 1).getTime()
@@ -463,27 +463,5 @@ describe('gradeLevelText', () => {
         range: { low: band(0.58, 'Recreational'), high: band(0.72, 'Regional') },
       }),
     ).toBe('Local')
-  })
-})
-
-describe('heroGradeLine', () => {
-  const grade = (level: string, centre: number): SportGrade => ({
-    centre: { grade: centre, level },
-    range: null,
-  })
-
-  it('names the level, the whole percent and the effort it grades, as the share card reads it', () => {
-    expect(heroGradeLine(grade('Local', 0.64))).toBe('Local · 64% at threshold')
-  })
-
-  it('names the centre’s level for a ride whose range crosses a level, as the page does, with no range', () => {
-    const ride: SportGrade = {
-      centre: { grade: 0.61, level: 'Recreational' },
-      range: {
-        low: { grade: 0.55, level: 'Recreational' },
-        high: { grade: 0.67, level: 'Local' },
-      },
-    }
-    expect(heroGradeLine(ride)).toBe('Recreational · 61% at threshold')
   })
 })

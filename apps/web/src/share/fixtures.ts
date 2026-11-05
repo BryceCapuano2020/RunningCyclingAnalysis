@@ -1,7 +1,5 @@
 import { energyReading } from '../ui/components/balanceScale'
 import { interval } from '../ui/components/fixtures'
-import { HEADLINE_LABEL } from '../ui/grades'
-import { effortLabel } from '../ui/records'
 import type { CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
 import { renderShareCard } from './renderCard'
@@ -43,8 +41,8 @@ export interface RecordedArc {
 }
 
 /**
- * Records what the renderer draws. Text is half an em per character, so wrapping at a width
- * depends on the size the renderer chose.
+ * Records what the renderer draws. Text is as wide as its face makes it per character (see
+ * measureText), so wrapping at a width depends on the size the renderer chose.
  */
 export class FakeContext {
   fillStyle = ''
@@ -67,8 +65,10 @@ export class FakeContext {
     return Number(match?.[1] ?? 0)
   }
 
+  /** Plex Mono is 0.6 em a character and Newsreader about 0.5, as the faces measure on a real canvas. */
   measureText(text: string) {
-    return { width: text.length * this.size() * 0.5 }
+    const em = this.font.includes('IBM Plex Mono') ? 0.6 : 0.5
+    return { width: text.length * this.size() * em }
   }
 
   fillRect(x: number, y: number, w: number, h: number) {
@@ -158,41 +158,40 @@ export function draw(model: ShareCardModel, format: CardFormat = 'square'): Fake
   return render(model, format).ctx
 }
 
-/** The magnitude line the card states under its headline: the grade gap in points, with its range. */
-export const MAGNITUDE = 'Running grades 6 points higher (2 to 10)'
-/** A run's level line, and a ride's, as the grade line writes them. */
-export const RUN_GRADE = `Local · 64% at threshold`
-export const RIDE_GRADE = `Estimated · Recreational · 61% at threshold`
-/** A magnitude and a grade line long enough to take two lines, as a long range or name would. */
-export const LONG_MAGNITUDE =
-  'Running grades 16 points higher, with a range from 4 to 28 points that depends on the heart-rate check and the population model'
-export const LONG_GRADE = `Estimated · 61% (55 to 67) at threshold, with the model range set by the standards`
+/** A run's level, and a ride's, as the levels line writes them. */
+export const RUN_GRADE = { percent: '64%', level: 'Local' }
+export const RIDE_GRADE = { percent: '61%', level: 'Recreational' }
+/** The longest level name, on both sports, and a name that fills the top row: the worst the card is tested at. */
+export const LONG_GRADE = {
+  percent: '61%',
+  level: 'Recreational with a model range set by the standards of the age group',
+}
+export const LONG_NAME = 'Riley Example Longname-Hyphenated Jr'
 
-/** A card with a meter, both estimates and their levels, a magnitude, a period, a caveat, a footnote and an origin. */
+/** A card with a meter, both estimates and their levels, the period's dates, a footnote and an origin. */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
   return {
     title: 'RunningCyclingAnalysis',
     headline: 'Your balance leans toward running',
-    magnitude: MAGNITUDE,
     meter: energyReading(interval(1.05, 1.12, 1.2)),
+    informedByHeartRate: false,
     heroes: [
       {
         sport: 'run',
-        label: 'Threshold GAP, estimated from your runs',
+        label: 'Run threshold',
         figure: { number: '21:35', unit: '/km' },
         sub: null,
         grade: RUN_GRADE,
       },
       {
         sport: 'ride',
-        label: 'Threshold power, estimated from your rides',
+        label: 'Ride threshold',
         figure: { number: '48', unit: 'W' },
         sub: '0.6 W/kg',
         grade: RIDE_GRADE,
       },
     ],
-    period: 'Last 6 weeks',
-    caveat: `Best efforts over ${HEADLINE_LABEL} did not reach a hard heart rate.`,
+    period: '12 May – 3 Aug 2025',
     footnote: 'Age-graded on USATF road standards.',
     origin: 'example.test',
     badge: null,
@@ -204,13 +203,6 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
 /** A headline long enough that it cannot fit two lines at any size on the card. */
 export const LONG_HEADLINE =
   'Your balance leans toward running, with a range that depends on every one of the population assumptions behind both sports and on how their efficiency was estimated from your files'
-
-/**
- * The longest caveat the card draws, and the one the layout is tested at. It is at least as long as every
- * effortCaveat short line at every duration the app names (fixtures.test.ts), and it takes two lines on the
- * card.
- */
-export const LONG_CAVEAT = `Best cycling efforts over the full ${effortLabel(3600)} did not reach a hard heart rate, so the figure is low.`
 
 /** A footnote long enough to wrap onto several lines of the card. */
 export const LONG_FOOTNOTE =

@@ -23,27 +23,14 @@ describe('share card colours', () => {
   )
 })
 
-/** The card is drawn on its paper canvas, and its track, badge and dot sit on the surface. */
-const CANVAS = CARD_COLORS.ink
+/** Every word and figure is drawn on the paper canvas. */
 const TEXT_MIN = 4.5
-const MARK_MIN = 3
 
 describe('share card contrast', () => {
-  it.each(['text', 'secondary', 'muted', 'brand'] as const)(
-    'draws %s text at 4.5:1 or better on the canvas',
+  it.each(['ink', 'secondary', 'run', 'ride'] as const)(
+    'draws %s text at 4.5:1 or better on the paper',
     (name) => {
-      expect(contrast(CARD_COLORS[name], CANVAS)).toBeGreaterThanOrEqual(TEXT_MIN)
+      expect(contrast(CARD_COLORS[name], CARD_COLORS.paper)).toBeGreaterThanOrEqual(TEXT_MIN)
     },
   )
-
-  it.each(['run', 'ride', 'neutralMark'] as const)(
-    'draws the %s meter mark at 3:1 or better on the track it sits on',
-    (name) => {
-      expect(contrast(CARD_COLORS[name], CARD_COLORS.surface)).toBeGreaterThanOrEqual(MARK_MIN)
-    },
-  )
-
-  it('outlines the track in muted ink at 3:1 or better on the canvas', () => {
-    expect(contrast(CARD_COLORS.muted, CANVAS)).toBeGreaterThanOrEqual(MARK_MIN)
-  })
 })

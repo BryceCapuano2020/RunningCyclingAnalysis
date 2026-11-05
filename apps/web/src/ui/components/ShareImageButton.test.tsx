@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { EffortCheck, Sport } from '@rca/core/types'
+import type { Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import { canShareImage, canvasFile, saveFile, shareFile } from '../../share/download'
 import { loadCardFonts, renderShareCard } from '../../share/renderCard'
@@ -35,7 +35,6 @@ afterEach(() => {
 
 const NOTE = 'Made on this device. Nothing is uploaded.'
 const PREVIEW_FAILED = 'The preview could not be made.'
-const LOW_EFFORT: EffortCheck = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }
 const TRIGGER = 'Share image'
 const SAVE = 'Save image'
 const SHARE_FILE = 'Share file'
@@ -69,7 +68,6 @@ function buttonProps(overrides: Partial<ShareImageButtonProps> = {}): ShareImage
     units: 'metric',
     period: PERIOD,
     isSample: false,
-    effort: null,
     weightKnown: true,
     gap: null,
     grades: NO_GRADES,
@@ -513,7 +511,7 @@ describe('ShareImageButton', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("gives the card each sport's level on its hero, with the effort it grades", async () => {
+  it("gives the card each sport's level and percent on its hero", async () => {
     renderButton({ grades: { run: RUN_GRADE, ride: null } })
     const dialog = await openSheet()
     press(dialog, SAVE)
@@ -521,7 +519,7 @@ describe('ShareImageButton', () => {
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         heroes: [
-          expect.objectContaining({ sport: 'run', grade: 'Local · 64% at threshold' }),
+          expect.objectContaining({ sport: 'run', grade: { percent: '64%', level: 'Local' } }),
           expect.objectContaining({ sport: 'ride', grade: null }),
         ],
       }),
@@ -540,20 +538,6 @@ describe('ShareImageButton', () => {
       expect.objectContaining({
         headline: 'Your balance leans toward cycling',
         meter: expect.objectContaining({ unit: 'points', lean: 'ride' }),
-      }),
-      expect.any(HTMLCanvasElement),
-      'square',
-    )
-  })
-
-  it('passes the heart-rate effort to the card so the caveat is included', async () => {
-    renderButton({ effort: LOW_EFFORT })
-    const dialog = await openSheet()
-    press(dialog, SAVE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
-    expect(renderShareCard).toHaveBeenCalledWith(
-      expect.objectContaining({
-        caveat: 'Best efforts over 20 min did not reach a hard heart rate.',
       }),
       expect.any(HTMLCanvasElement),
       'square',

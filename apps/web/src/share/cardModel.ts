@@ -1,32 +1,23 @@
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
+import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_WORDS } from '../appName'
 import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
-import { effortCaveat } from '../ui/effortCaveat'
-import { balanceTitle, leadSentence } from '../ui/components/headlineText'
+import { balanceTitle } from '../ui/components/headlineText'
 import { heldPick } from '../ui/resultHold'
 import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
-import { plural } from '../ui/components/plural'
-import { heroGradeLine, type GradeOutcome } from '../ui/grades'
-import { countSport, threshold } from '../ui/records'
+import { gradeLevelText, type GradeOutcome } from '../ui/grades'
+import { formatGrade } from '../ui/gradeFormat'
+import { threshold } from '../ui/records'
 import { BALANCE_PAIR } from '../ui/sports'
+import { THRESHOLD_NAME } from '../ui/thresholdName'
 import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
-
-/**
- * A threshold's name on the share card, with what it is estimated from. A run says "GAP" here, since the card has no page
- * note to say what the pace allows for. Each rests on all its runs or rides, one estimate each, not on a window of bests.
- */
-const CARD_THRESHOLD_LABEL: Record<Sport, string> = {
-  run: 'Threshold GAP, estimated from your runs',
-  ride: 'Threshold power, estimated from your rides',
-}
 
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
 export interface ShareFigure {
@@ -34,16 +25,22 @@ export interface ShareFigure {
   unit: string
 }
 
+/** A sport's age grade and its level, as the levels line under the meter writes them. */
+export interface ShareLevel {
+  percent: string
+  level: string
+}
+
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
 export interface ShareHero {
   sport: Sport
-  /** The estimate's name and the efforts it rests on, such as "Threshold GAP, estimated from your runs". */
+  /** The threshold's name as Balance titles it, such as "Run threshold". */
   label: string
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
   sub: string | null
-  /** The sport's level and the effort it grades, as heroGradeLine writes it, or null when it is not on the card. */
-  grade: string | null
+  /** The sport's level and whole-percent age grade at threshold, or null when it is not on the card. */
+  grade: ShareLevel | null
 }
 
 /** The balance between the sports, read the same way as the page's meter. */
@@ -57,16 +54,14 @@ export interface ShareCardModel {
   title: string
   /** The answer in an athlete's words, as the page states it. */
   headline: string
-  /** The lead in one line under the headline, as the page's meter states it; null for an even balance. */
-  magnitude: string | null
   /** The balance, or null when the card has no meter. */
   meter: ShareMeter | null
+  /** True when the heart-rate check informed an energy balance's range, which the meter's range line says. */
+  informedByHeartRate: boolean
   /** Running first, then cycling. */
   heroes: ShareHero[]
-  /** The selected period, such as "Last 6 weeks". */
+  /** The selected period's dates, such as "12 May – 3 Aug 2025". */
   period: string
-  /** One line on the heart-rate effort, or null when heart rate does not raise a concern. */
-  caveat: string | null
   footnote: string
   /** The site's host when it is public, or an empty string for a local or private address. */
   origin: string
@@ -147,11 +142,13 @@ function heroFor(
   if (estimate === null) return null
   return {
     sport,
-    // Says "estimated" and what it rests on, in the words the card's threshold label uses.
-    label: CARD_THRESHOLD_LABEL[sport],
+    label: THRESHOLD_NAME[sport],
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
-    grade: outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,
+    grade:
+      outcome?.kind === 'graded'
+        ? { percent: formatGrade(outcome.grade.centre.grade), level: gradeLevelText(outcome.grade) }
+        : null,
   }
 }
 
@@ -171,11 +168,6 @@ function heroesFor(
   return heroes
 }
 
-/** The period line on the card: its dates and what it counts, such as "Based on 12 May – 3 Aug 2025, 5 runs, 9 rides". */
-function periodLine(period: Period, counts: Record<Sport, number>): string {
-  return `Based on ${periodDates(period)}, ${plural(counts.run, 'run')}, ${plural(counts.ride, 'ride')}`
-}
-
 /**
  * The card for the balance on screen, or null when it is not offered: a weight, a balance, and a
  * threshold for each sport are all needed, so the card never asks the reader for anything. Reads the
@@ -187,7 +179,6 @@ export function buildShareCard(
   units: UnitSystem,
   period: Period,
   isSample: boolean,
-  effort: EffortCheck | null,
   weightKnown: boolean,
   gap: BalanceGap | null,
   grades: Record<Sport, GradeOutcome | null>,
@@ -201,19 +192,13 @@ export function buildShareCard(
   const reading = balanceOfPick(gap, pick)
   const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null
-  const counts: Record<Sport, number> = {
-    run: countSport(result.activities, 'run'),
-    ride: countSport(result.activities, 'ride'),
-  }
-
   return {
     title: APP_WORDS,
     headline: balanceTitle(reading),
-    magnitude: leadSentence(reading),
     meter: reading,
+    informedByHeartRate: pick?.calibrated ?? false,
     heroes,
-    period: periodLine(period, counts),
-    caveat: effortCaveat(effort)?.short ?? null,
+    period: periodDates(period),
     footnote: heroes.some((hero) => hero.grade !== null) ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,

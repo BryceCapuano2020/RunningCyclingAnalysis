@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readStylesheet } from '../ui/components/stylesheet'
 import {
-  CONDENSED_800,
   FACES,
-  SANS_600,
-  CONDENSED_700,
+  SERIF_500,
+  MONO_400,
   fitText,
   fontOf,
   loadCardFonts,
@@ -78,14 +77,14 @@ describe('wrapText', () => {
 describe('fitText', () => {
   it('uses the first size, from the largest, at which the text fits the lines allowed', () => {
     // At 100 px an 'ONE TWO' is 350 px and wraps to two lines; at 50 px it is 175 px and fits.
-    const { style, lines } = fitText(recording(), 'ONE TWO', CONDENSED_800, [100, 50], 1, 200, 1)
+    const { style, lines } = fitText(recording(), 'ONE TWO', SERIF_500, [100, 50], 1, 200, 1)
     expect(style.size).toBe(50)
     expect(lines).toEqual(['ONE TWO'])
   })
 
   it('falls back to the smallest size and cuts the text when nothing fits', () => {
     const ctx = recording()
-    const { style, lines } = fitText(ctx, 'A B C D E F', CONDENSED_800, [100, 50], 1, 40, 1)
+    const { style, lines } = fitText(ctx, 'A B C D E F', SERIF_500, [100, 50], 1, 40, 1)
     expect(style.size).toBe(50)
     expect(lines).toHaveLength(1)
   })
@@ -112,8 +111,8 @@ describe('loadCardFonts', () => {
   })
 
   it('draws in the same font stacks as tokens.css, so the card matches the page', () => {
-    expect(SANS_600.family).toBe(tokenValue('font-serif'))
-    expect(CONDENSED_700.family).toBe(tokenValue('font-mono'))
+    expect(SERIF_500.family).toBe(tokenValue('font-serif'))
+    expect(MONO_400.family).toBe(tokenValue('font-mono'))
   })
 
   it('stops waiting after ten seconds when a face never loads, rather than hanging the download', async () => {
@@ -168,8 +167,8 @@ describe('loadCardFonts', () => {
     const cards = [
       draw(cardModel(), 'square'),
       draw(cardModel({ badge: 'Sample data' }), 'story'),
-      draw(cardModel({ magnitude: null, meter: null }), 'story'),
-      draw(cardModel({ headline: LONG_HEADLINE, caveat: null }), 'square'),
+      draw(cardModel({ meter: null }), 'story'),
+      draw(cardModel({ headline: LONG_HEADLINE, origin: '' }), 'square'),
     ]
     const drawn = new Set(cards.flatMap((card) => card.texts.map((text) => faceOf(text.font))))
     expect(drawn.size).toBeGreaterThan(1)

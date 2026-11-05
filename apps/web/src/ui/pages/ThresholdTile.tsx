@@ -5,7 +5,8 @@ import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
 import { threshold } from '../records'
-import { SPORT_LABEL, THRESHOLD_MEANING } from '../sports'
+import { THRESHOLD_MEANING } from '../sports'
+import { THRESHOLD_NAME } from '../thresholdName'
 import { thresholdBasisLine, thresholdDetail } from '../thresholdBasis'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { gradeLine, needsWeight } from './thresholdTileBare'
@@ -27,12 +28,6 @@ export interface ThresholdTileProps {
   levelShown?: boolean
   /** False on a second threshold tile in the same view, where the word is already defined: the screen defines it once. */
   defineTerm?: boolean
-}
-
-/** The tile's name: the sport and what the figure is, in the words the card used to carry as its label. */
-const NAME: Record<Sport, string> = {
-  run: `${SPORT_LABEL.run} threshold`,
-  ride: `${SPORT_LABEL.ride} threshold`,
 }
 
 /** The word in each tile's name that is defined in place, and what it means: the threshold in plain words. */
@@ -62,7 +57,7 @@ export function ThresholdTile({
   const defined = defineTerm ? DEFINED[sport] : undefined
   if (needsWeight(sport, weighted)) {
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={defined}>
+      <StatTile sport={sport} heading={THRESHOLD_NAME[sport]} definition={defined}>
         {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
         <HeldSportFacts
           sport={sport}
@@ -78,7 +73,7 @@ export function ThresholdTile({
   if (hero === null) {
     if (needInHeadline && line === null) return null
     return (
-      <StatTile sport={sport} heading={NAME[sport]} definition={defined}>
+      <StatTile sport={sport} heading={THRESHOLD_NAME[sport]} definition={defined}>
         {needInHeadline ? null : (
           <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
         )}
@@ -89,7 +84,7 @@ export function ThresholdTile({
   return (
     <StatTile
       sport={sport}
-      heading={NAME[sport]}
+      heading={THRESHOLD_NAME[sport]}
       figure={{
         number: hero.number,
         unit: hero.unit,

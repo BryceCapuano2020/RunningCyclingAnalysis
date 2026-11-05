@@ -194,15 +194,6 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 }
 
 /**
- * A grade on the share card's hero: its level and whole percent, and what it grades, such as "Local · 64% at threshold".
- * A ride's level is its centre's, as the page names it. The card's threshold label already says the figure is estimated,
- * so the line does not repeat it.
- */
-export function heroGradeLine(grade: SportGrade): string {
-  return `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)} at threshold`
-}
-
-/**
  * Where a grade sentence is written. A card says a ride is estimated; a row in a list of records reads
  * only its level, range and percent, and the list says no-standard gaps once under it.
  */

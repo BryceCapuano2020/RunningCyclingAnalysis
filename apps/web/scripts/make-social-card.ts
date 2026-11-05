@@ -6,9 +6,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { formatGrade } from '../src/ui/gradeFormat.ts'
+import { gapReading, meterFraction } from '../src/ui/components/balanceScale.ts'
+import { RANGE_WORD, meterRange, meterValue } from '../src/ui/components/meterReading.ts'
 import type { SportGrade } from '../src/ui/grades.ts'
 import { cardInk, cardStamp } from '../src/ui/landingFigures.ts'
-import { SPORT_NOUN } from '../src/ui/sports.ts'
+import { BALANCE_PAIR, SPORT_TITLE } from '../src/ui/sports.ts'
 import { computeLandingFigures } from './landingFigures.ts'
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url))
@@ -20,103 +22,61 @@ const HEIGHT = 630
 const INK = cardInk(readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8'))
 const FIGURES = computeLandingFigures()
 
-/** The level ladder's scale: age grade from 30% to 100%, with the band edges the app draws. */
-const SCALE = { from: 0.3, to: 1 }
-const BANDS = [
-  { name: 'Recreational', from: 0.3, to: 0.6, fill: '#f3f1ed' },
-  { name: 'Local', from: 0.6, to: 0.7, fill: '#eae7e1' },
-  { name: 'Regional', from: 0.7, to: 0.8, fill: '#dcd8d1' },
-  { name: 'National', from: 0.8, to: 0.9, fill: '#cfcac2' },
-  { name: 'World', from: 0.9, to: 1, fill: '#c2bdb4' },
-]
-
 function font(family: string, file: string, weight: number): string {
   const data = readFileSync(`${FONTS}${family}/files/${file}`).toString('base64')
   return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/woff2;base64,${data}) format('woff2')}`
 }
 
-const PANEL = { x: 712, y: 64, width: 424, height: 502 }
-/** The top of each sport's row in the panel. */
-const RUN_TOP = PANEL.y + 230
-const RIDE_TOP = PANEL.y + 336
-const LADDER = { x: PANEL.x + 32, width: PANEL.width - 64 }
-const at = (grade: number) =>
-  LADDER.x + ((grade - SCALE.from) / (SCALE.to - SCALE.from)) * LADDER.width
+/** The meter's plot: the app's own reading of the sample's gap, so the image cannot differ from Balance. */
+const READING = gapReading(FIGURES.gap)
+const PLOT = { x: 720, width: 408 }
+const TRACK_Y = 300
+const markX = PLOT.x + meterFraction(READING.lead.centre) * PLOT.width
+const VALUE = meterValue(READING)
+const RANGE = meterRange(READING)
 
-function ladder(top: number, label: string, colour: string, draw: string): string {
-  const bands = BANDS.map(
-    (band) =>
-      `<rect x="${at(band.from)}" y="${top + 34}" width="${at(band.to) - at(band.from)}" height="44" fill="${band.fill}"/>`,
-  ).join('')
-  // The band edges, as the percentages the ladder prints, below the band.
-  const edges = BANDS.slice(1)
-    .map(
-      (band) =>
-        `<text x="${at(band.from)}" y="${top + 98}" text-anchor="middle" fill="${INK.muted}" font-size="15" font-weight="500">${Math.round(band.from * 100)}%</text>`,
-    )
-    .join('')
-  return `<text x="${LADDER.x}" y="${top + 16}" fill="${colour}" font-size="25" font-weight="500">${label}</text>${bands}${edges}${draw}`
-}
-
-/**
- * A sport's mark on its ladder: a ring on a band of the range of its threshold's grade, and a solid dot where a grade carries
- * no range.
- */
-function mark(top: number, colour: string, { centre, range }: SportGrade): string {
-  const cy = top + 56
-  if (range === null) {
-    return `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${colour}" stroke="${INK.surface1}" stroke-width="4"/>`
-  }
-  const band = `<rect x="${at(range.low.grade)}" y="${top + 44}" width="${at(range.high.grade) - at(range.low.grade)}" height="24" rx="12" fill="${colour}" fill-opacity="0.35" stroke="${colour}" stroke-width="2"/>`
-  const ring = `<circle cx="${at(centre.grade)}" cy="${cy}" r="14" fill="${INK.surface1}" stroke="${colour}" stroke-width="5"/>`
-  return band + ring
+/** One sport's level on the line under the meter: its name, its grade in mono, its level. */
+function level(x: number, sport: 'run' | 'ride', grade: SportGrade): string {
+  return `<text x="${x}" y="588" fill="${INK.ink}" font-size="30">${SPORT_TITLE[sport]} <tspan class="num" font-size="26">${formatGrade(grade.centre.grade)}</tspan> <tspan fill="${INK.secondary}">${grade.centre.level}</tspan></text>`
 }
 
 function card(): string {
-  const run = FIGURES.grades.run
-  const ride = FIGURES.grades.ride
-  const lead = FIGURES.gap
-  // The range is signed toward running; the card states it from the side the balance leans to.
-  const side =
-    lead.lean === 'ride' ? { from: -lead.high, to: -lead.low } : { from: lead.low, to: lead.high }
-  // A range that reaches zero is written with signs and a true minus, as Balance writes it ("−1 to +28").
-  const sign = (count: number) => (count < 0 ? `−${-count}` : count > 0 ? `+${count}` : '0')
-  const leanRange =
-    side.from <= 0 ? { from: sign(side.from), to: sign(side.to) } : { from: side.from, to: side.to }
+  const [left, right] = BALANCE_PAIR
   return `<!doctype html><html><head><meta charset="utf-8"><style>
+${font('newsreader', 'newsreader-latin-400-normal.woff2', 400)}
 ${font('newsreader', 'newsreader-latin-500-normal.woff2', 500)}
+${font('ibm-plex-mono', 'ibm-plex-mono-latin-400-normal.woff2', 400)}
 ${font('ibm-plex-mono', 'ibm-plex-mono-latin-500-normal.woff2', 500)}
-body{margin:0;width:${WIDTH}px;height:${HEIGHT}px;background:${INK.surface0};font-family:'newsreader',serif;font-weight:500}
+body{margin:0;width:${WIDTH}px;height:${HEIGHT}px;background:${INK.paper};font-family:'newsreader',serif;font-weight:400}
 svg{display:block}
-.display{font-family:'newsreader',serif}
 .num{font-family:'ibm-plex-mono',monospace}
+.meta{font-family:'ibm-plex-mono',monospace;font-size:15px;letter-spacing:1.8px;text-transform:uppercase}
 </style></head><body>
 <svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${WIDTH}" height="${HEIGHT}" fill="${INK.surface0}"/>
-  <g transform="translate(64 64)">
-    <svg width="44" height="44" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0a0a0a"/><path d="M5 22c5-1 8-5 11-9s6-6 11-6" fill="none" stroke="${INK.run}" stroke-width="3" stroke-linecap="round"/><path d="M5 12c5 0 8 3 11 6s6 6 11 6" fill="none" stroke="${INK.ride}" stroke-width="3" stroke-linecap="round"/></svg>
-    <text class="display" x="60" y="33" fill="${INK.text}" font-size="32">Running Cycling Analysis</text>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="${INK.paper}"/>
+  <text x="72" y="96" fill="${INK.ink}" font-size="32" font-weight="500">Running Cycling Analysis</text>
+  <rect x="72" y="120" width="1056" height="2" fill="${INK.rule}"/>
+  <g fill="${INK.ink}" font-size="80" font-weight="500">
+    <text x="72" y="236">Are you a better</text>
+    <text x="72" y="320">runner or a</text>
+    <text x="72" y="404">better cyclist?</text>
   </g>
-  <g class="display" fill="${INK.text}" font-size="76">
-    <text x="64" y="226">Are you a better</text>
-    <text x="64" y="304"><tspan fill="${INK.run}">runner</tspan> or a</text>
-    <text x="64" y="382">better <tspan fill="${INK.ride}">cyclist</tspan>?</text>
+  <g fill="${INK.secondary}" font-size="28">
+    <text x="72" y="480">Your level in each sport for your age.</text>
   </g>
-  <g fill="${INK.secondary}" font-size="28" font-weight="500">
-    <text x="64" y="470">Your level in each sport for your age,</text>
-    <text x="64" y="506">with honest ranges. Nothing leaves your device.</text>
-  </g>
-  <rect x="${PANEL.x}" y="${PANEL.y}" width="${PANEL.width}" height="${PANEL.height}" rx="16" fill="${INK.surface1}" stroke="${INK.border}" stroke-width="2"/>
-  <text class="num" x="${LADDER.x}" y="${PANEL.y + 54}" fill="${INK.muted}" font-size="16" letter-spacing="1.9">SAMPLE ATHLETE</text>
-  <text class="num" x="${LADDER.x}" y="${PANEL.y + 168}" fill="${INK.text}" font-size="96">+${Math.abs(Math.round(lead.centre))}</text>
-  <text class="num" x="${LADDER.x + 180}" y="${PANEL.y + 128}" fill="${INK.secondary}" font-size="14" letter-spacing="1.2">PTS TOWARD ${SPORT_NOUN[lead.lean].toUpperCase()}</text>
-  <text x="${LADDER.x + 180}" y="${PANEL.y + 160}" fill="${INK.muted}" font-size="18" font-weight="500">range ${leanRange.from} to ${leanRange.to} points</text>
-  ${ladder(RUN_TOP, `Run · ${run.centre.level} · ${formatGrade(run.centre.grade)}`, INK.run, mark(RUN_TOP, INK.run, run))}
-  ${ladder(RIDE_TOP, `Ride · ${ride.centre.level} · ${formatGrade(ride.centre.grade)}`, INK.ride, mark(RIDE_TOP, INK.ride, ride))}
-  <g fill="${INK.muted}" font-size="17" font-weight="500">
-    <text x="${LADDER.x}" y="${PANEL.y + 462}">Ring: the grade at your threshold.</text>
-    <text x="${LADDER.x}" y="${PANEL.y + 486}">Band: the range of that grade.</text>
-  </g>
+  <text class="meta" x="${PLOT.x + PLOT.width}" y="172" text-anchor="end" fill="${INK.secondary}">Sample athlete</text>
+  <text class="meta" x="${PLOT.x}" y="262" fill="${INK.run}">${SPORT_TITLE[left]}</text>
+  <text class="meta" x="${PLOT.x + PLOT.width}" y="262" text-anchor="end" fill="${INK.ride}">${SPORT_TITLE[right]}</text>
+  <rect x="${PLOT.x}" y="${TRACK_Y - 1.5}" width="${PLOT.width}" height="3" fill="${INK.hairline}"/>
+  <rect x="${PLOT.x}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.run}"/>
+  <rect x="${PLOT.x + PLOT.width - 3}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.ride}"/>
+  <rect x="${PLOT.x + PLOT.width / 2 - 1.5}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.secondary}"/>
+  <rect x="${markX - 2}" y="${TRACK_Y - 28}" width="4" height="56" fill="${INK.ink}"/>
+  <text class="num" x="${markX}" y="${TRACK_Y + 94}" fill="${INK.ink}" font-size="64" font-weight="500" text-anchor="middle">${VALUE.number}<tspan font-size="24" font-weight="400" fill="${INK.secondary}" dx="10">${VALUE.unit}</tspan></text>
+  ${RANGE === null ? '' : `<text class="meta" x="${markX}" y="${TRACK_Y + 132}" text-anchor="middle" fill="${INK.secondary}">${RANGE_WORD} ${RANGE}</text>`}
+  <rect x="72" y="540" width="1056" height="2" fill="${INK.rule}"/>
+  ${level(72, 'run', FIGURES.grades.run)}
+  ${level(420, 'ride', FIGURES.grades.ride)}
 </svg></body></html>`
 }
 
