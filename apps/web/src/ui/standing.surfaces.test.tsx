@@ -198,7 +198,7 @@ describe('one lead, printed the same on every surface', () => {
     )
     if (card === null) throw new Error('the sample offers a card')
     const share = printedGrades(
-      draw(card, 'square')
+      draw(card, 'story')
         .texts.map((drawn) => drawn.text)
         .join(' '),
     )
