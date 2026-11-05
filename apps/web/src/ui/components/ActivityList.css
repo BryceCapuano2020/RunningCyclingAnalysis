@@ -275,6 +275,11 @@
   .activity-list__chevron {
     display: none;
   }
+
+  /* A figure and its unit may part here, between words, so a wide pace at a large text size keeps to its column. */
+  .activity-list__value {
+    white-space: normal;
+  }
 }
 
 /*
