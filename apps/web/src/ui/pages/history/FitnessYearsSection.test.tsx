@@ -40,7 +40,7 @@ describe('FitnessYearsSection', () => {
     expect(
       within(episodes)
         .getAllByRole('listitem')
-        .map((li) => li.textContent),
+        .map((li) => li.textContent?.slice(2)),
     ).toEqual([
       expect.stringMatching(
         /^May 2021 to January 2022\. Slipped 9% \(6 to 11\), then back\. 64 steady runs\.$/,

@@ -4,6 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { summaryOf } from '../historySummary'
 import { listedSections } from './history/sectionList'
 import type { GradingInputs } from './history/types'
+import { HistorySummary } from './HistorySummary'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './HistoryPage.css'
 
@@ -19,7 +20,7 @@ export interface HistoryPageProps {
 
 const EMPTY_TEXT = 'Add runs or rides to see your history.'
 
-/** The athlete's whole library, year by year: a row of totals, then one chart for each section. */
+/** The athlete's whole library, year by year: numbered rows of totals, then one chart for each section. */
 export function HistoryPage({ history, units, grading, lookBack }: HistoryPageProps) {
   const stats = summaryOf(history.years, units)
   return (
@@ -32,19 +33,7 @@ export function HistoryPage({ history, units, grading, lookBack }: HistoryPagePr
       </div>
       {stats.length > 0 && (
         <>
-          <dl className="history-summary">
-            {stats.map((stat) => (
-              <div key={stat.id} data-sport={stat.sport}>
-                <dt className="history-summary__label">
-                  {stat.sport === undefined ? null : (
-                    <span className="history-summary__dot" aria-hidden="true" />
-                  )}
-                  {stat.label}
-                </dt>
-                <dd className="display history-summary__value">{stat.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <HistorySummary stats={stats} />
           {listedSections().map(({ id, render }) => (
             <div key={id} className="section" data-section={id}>
               {render({ history, units, grading, lookBack })}

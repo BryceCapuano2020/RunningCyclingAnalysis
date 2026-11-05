@@ -5,6 +5,7 @@ import '../../test/deviceZone'
 import { GRADING, balanceRows, TWELVE_YEARS } from '../balanceFixtures'
 import { dotsFixture, slipAndRise } from '../fitnessYearsFixtures'
 import { historyOfYears, THREE_YEARS, yearRow } from '../historyFixtures'
+import { wholeText } from '../test/wholeText'
 import { HistoryPage } from './HistoryPage'
 import { NO_LOOKBACK } from '@rca/core/lookback'
 
@@ -21,11 +22,11 @@ describe('HistoryPage', () => {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
     expect(screen.getByRole('figure', { name: 'Hours per year' })).toBeInTheDocument()
-    expect(screen.getByText('1,850.0 km')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('1,850.0 km'))).toBeInTheDocument()
     rerender(
       <HistoryPage history={history} units="imperial" grading={GRADING} lookBack={NO_LOOKBACK} />,
     )
-    expect(screen.getByText('1,149.5 mi')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('1,149.5 mi'))).toBeInTheDocument()
   })
 
   it('opens with the balance over the years, before the hours, and says what grading needs when it cannot draw', () => {
@@ -86,5 +87,28 @@ describe('HistoryPage', () => {
     expect(screen.getByText('Add runs or rides to see your history.')).toBeInTheDocument()
     expect(screen.queryByRole('figure')).toBeNull()
     expect(screen.queryByText('Total hours')).toBeNull()
+  })
+})
+
+describe('HistoryPage totals', () => {
+  it('lists the totals as numbered rows, with no trend line', () => {
+    const { container } = render(
+      <HistoryPage
+        history={historyOfYears(THREE_YEARS)}
+        units="metric"
+        grading={GRADING}
+        lookBack={NO_LOOKBACK}
+      />,
+    )
+    const rows = container.querySelectorAll('.history-summary > li')
+    expect(Array.from(rows, (row) => row.querySelector('.row__index')?.textContent)).toEqual([
+      '01',
+      '02',
+      '03',
+      '04',
+    ])
+    expect(container.querySelectorAll('.history-summary svg')).toHaveLength(0)
+    expect(screen.getByRole('list', { name: 'Library totals' })).toBeInTheDocument()
+    expect(container.querySelector('.history-summary dl, dl')).toBeNull()
   })
 })

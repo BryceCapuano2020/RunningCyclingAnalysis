@@ -1,22 +1,18 @@
-/* The episodes under the fitness chart: a small head and a plain list. */
+/* The episodes under the fitness chart: numbered rows (RowList.css) of one sentence each. */
 .fitness-episodes {
-  display: grid;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--stack-gap);
   min-width: 0;
 }
 
-.fitness-episodes__head {
+.fitness-episodes p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  font-weight: 600;
 }
 
-.fitness-episodes__list {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding-left: var(--space-4);
-  font-size: var(--text-sm);
+.fitness-episodes__text {
+  font-size: var(--text-md);
+}
+
+.fitness-episodes__more {
+  margin-top: var(--space-3);
+  color: var(--ink-secondary);
 }
