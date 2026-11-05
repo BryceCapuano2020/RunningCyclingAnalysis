@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { formatDuration } from '../units'
-import { CURVE_START_S, durationProfile, profileNeeds, profileSentence } from './index'
+import {
+  CURVE_START_S,
+  durationProfile,
+  profileNamesAny,
+  profileNeeds,
+  profileSentence,
+} from './index'
 import type { ProfilePoint, ProfileRow, ReadyProfile } from './index'
 
 import { DURATIONS, modelCurve, morton, ready, scaled, standing } from './test/curves'
@@ -125,6 +131,13 @@ describe('what a profile needs', () => {
     expect(profileNeeds(['durations', 'sessions'])).toBe(
       'Needs bests at 5 or more durations and from 2 or more sessions',
     )
+  })
+})
+
+describe('profileNamesAny', () => {
+  it('is false where the sentence names no duration, and true where it names one', () => {
+    expect(profileNamesAny(ready(modelCurve()))).toBe(false)
+    expect(profileNamesAny(ready(scaled(1200, 1.15)))).toBe(true)
   })
 })
 
