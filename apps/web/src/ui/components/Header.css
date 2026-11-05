@@ -114,6 +114,7 @@ html {
 
   .header__actions > .btn {
     order: 1;
+    white-space: nowrap;
   }
 
   .header__pages,
@@ -137,29 +138,24 @@ html {
   }
 }
 
-/*
- * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. A narrow phone has no room for the words Add files beside the
- * wordmark. The button keeps its name for screen readers and shows only the plus.
- */
+/* ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. The second row's links sit a step closer. */
 @media (max-width: 420px) {
-  .header__actions .add-files__label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   .header__pages {
     gap: var(--space-4);
   }
 }
 
-/* ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. The second row's gaps tighten, so it keeps one line at 320 px. */
+/*
+ * ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. The gaps tighten and the wordmark is a step smaller, so the wordmark
+ * and the words Add files share the first row at 320 px, and the links keep one line on the second.
+ */
 @media (max-width: 360px) {
   .header {
     column-gap: var(--space-3);
+  }
+
+  .header__brand {
+    font-size: var(--text-md);
   }
 
   .header__pages {

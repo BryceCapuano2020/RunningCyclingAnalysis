@@ -105,8 +105,9 @@ third-party font request is made.
 - **The rail.** From 1024 px a text rail of `--rail-width` (12rem) sits left of the page: Balance, Run, Ride, then a rule,
   then the periods (6 weeks, 12 weeks, 6 months, 12 months, All time, Custom). Each is a serif text link at `--text-md`. The current
   page and the current period are ink; the others `--ink-secondary`. No icon, box or bar marks them. Below 1024 px the rail
-  is one row across the top of the page, pages then periods with a rule between, that scrolls sideways inside itself, so
-  the page never does. Strength joins the rail when lifting ships.
+  is two lines across the top of the page, the pages over the periods with a rule between, the periods by their short
+  names (6 wk, 12 wk, 6 mo, 12 mo, All, Custom) with the full names kept as their accessible names, so nothing scrolls
+  sideways at 320 px. Strength joins the rail when lifting ships.
 - **The header** is one line: the wordmark in serif, the other pages (History, Activities, Method) as text links, and the
   account and Add files at the right.
 - **Rows, not cards.** A list (records, best efforts, history, What changed) is a numbered list of rows between hairlines.
@@ -138,7 +139,7 @@ on paper and a control's edge 3:1. Beyond axe:
 - **Focus is never wholly behind a stuck bar (2.4.11).** `focus-not-obscured.spec.ts` tabs through Run and Ride at 1440 and
   390 px and fails when a focused control lies inside a sticky or fixed rect. Focus is a 2 px ink outline offset 2 px.
 - **Reflow at 320 x 256 (1.4.10).** The `reflow-320x256` project loads each page at 320 x 256 and fails on a horizontal scroll
-  or a clipped primary control. The rail's row scrolls inside itself.
+  or a clipped primary control. The rail's two lines fit 320 px with no sideways scroll.
 - **Forced colours.** `forced-colours.spec.ts` runs `assertNoTextOverlap` over the heroes of Balance, Run, Ride and an
   activity. The meter's mark and track take the system text colour.
 - **Large text and text spacing (1.4.4, 1.4.12).** `text-zoom.spec.ts` sets the root font to 200% and injects the 1.4.12

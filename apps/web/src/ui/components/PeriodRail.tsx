@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { CustomRangeForm } from './CustomRangeForm'
 import { PeriodCaption } from './PeriodCaption'
@@ -47,23 +47,14 @@ export function usePeriodRail({
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
   const shownValue = customOpen ? CUSTOM_OPTION.value : optionValue(checked)
-  // Where the rail is a row that scrolls (below the rail's width), the current period is scrolled into it, so the row
-  // does not open on the shortest period while the page shows another. The page itself does not move.
-  useEffect(() => {
-    const rail = root.current?.closest('.rail')
-    const label = root.current?.querySelector(`input[value="${shownValue}"]`)?.closest('label')
-    if (!(rail instanceof HTMLElement) || !(label instanceof HTMLElement)) return
-    if (rail.scrollWidth <= rail.clientWidth) return
-    const over = label.getBoundingClientRect().right - rail.getBoundingClientRect().right
-    if (over > 0) rail.scrollLeft += over + label.offsetWidth
-  }, [shownValue])
   const periods = (
     <div className="period-rail" ref={root}>
       <SegmentedControl
         legend="Period"
         legendHidden
         variant="text"
-        options={offered.map(({ value, label }) => ({ value, label }))}
+        // Below the rail's width the periods take their short names; the full name stays each one's accessible name.
+        options={offered.map(({ value, label, short }) => ({ value, label, short }))}
         selected={shownValue}
         onReselect={(value) => {
           // The segment of a resolved default is checked without being a pick, so clicking it makes the pick.
