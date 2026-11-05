@@ -1,40 +1,40 @@
-/* The level ladder: labels as text placed by percentage, the bar at a fixed height, the marker in the sport's colour. */
+/*
+ * The level ladder: a hairline with a tick at each band's edge, the percentages over it and the level names under it in
+ * mono meta, and one ink mark. No band fill: the current band's name is in ink, the others in the secondary ink.
+ */
 .level-ladder {
-  --level-track: 2rem;
-  --level-marker: 1.5rem;
-  --ladder-colour: var(--sport-colour);
+  --level-track: 1.25rem;
+  --level-marker: 0.625rem;
 }
 
-.level-ladder--run {
-  --ladder-band: var(--ladder-run-band);
-}
-
-.level-ladder--ride {
-  --ladder-band: var(--ladder-ride-band);
-}
-
-/* The labels are rem-sized text, so they stay legible on a 320 px screen. The bar and the marker keep their size at every width. */
+/* The labels are rem-sized text placed by percentage, over and under the bar. */
 .level-ladder__scale,
 .level-ladder__names {
   position: relative;
 }
 
-/* As tall as its text, so the gap to the bar matches the gap to the names. */
 .level-ladder__scale {
-  height: var(--text-xs);
+  height: var(--text-meta);
 }
 
+/* One line of names. */
 .level-ladder__names {
-  height: 2.25rem;
+  height: 1rem;
 }
 
 .level-ladder__pct,
 .level-ladder__name {
   position: absolute;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
   line-height: 1;
+  text-transform: uppercase;
   white-space: nowrap;
+}
+
+.level-ladder__pct {
   transform: translateX(-50%);
 }
 
@@ -42,113 +42,50 @@
   transform: none;
 }
 
+/* A name starts at its own band's tick; named alone, it sits under the mark, held inside the bar at either end. */
 .level-ladder__name {
-  font-weight: 600;
+  top: 0;
 }
 
-/* The band the grade falls in is named in bold, so the level reads without its colour. */
 .level-ladder__name--current {
-  color: var(--text-primary);
-  font-weight: 600;
+  color: var(--ink);
 }
 
-/* The end names are anchored to the figure's edges, so a large text size cannot push them past it. */
-.level-ladder__name--first {
-  left: 0;
-  transform: none;
-}
-
-.level-ladder__name--last {
-  left: 100%;
-  transform: translateX(-100%);
-}
-
-/* Alternate names sit on two rows, so neighbouring names never touch on a narrow screen. */
-.level-ladder__name--top {
-  top: 0;
-}
-
-.level-ladder__name--bottom {
-  top: 1.25rem;
-}
-
-/* The track has a 3:1 edge, so its end is visible on a white card. */
-.level-ladder__track {
-  position: relative;
-  height: var(--level-track);
-  border: 1px solid var(--control-border);
-  border-radius: calc(var(--level-track) / 2);
-  background: var(--surface-2);
-}
-
-/* The bands and the range are clipped to the track's rounded ends, so their square corners stay inside it. */
-.level-ladder__fill {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.level-ladder__band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border: 1px solid transparent;
-}
-
-/* The five bands are the neutral level washes, a deeper step for each level up: a level is not a sport's colour. */
-.level-ladder__band--1 {
-  background: var(--level-1);
-}
-
-.level-ladder__band--2 {
-  background: var(--level-2);
-}
-
-.level-ladder__band--3 {
-  background: var(--level-3);
-}
-
-.level-ladder__band--4 {
-  background: var(--level-4);
-}
-
-.level-ladder__band--5 {
-  background: var(--level-5);
-}
-
-/* The band the grade falls in takes a solid edge in the sport's colour, as well as its bold name. */
-.level-ladder__band--current {
-  border: 1px solid var(--ladder-colour);
-}
-
-.level-ladder__key {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-/* Band boundaries, so each level's edge is visible without relying on the track's fill. */
-.level-ladder__edge {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 1.5px;
-  background: var(--neutral-mark);
+.level-ladder__name--centre {
   transform: translateX(-50%);
 }
 
-/* The range is outlined in the sport's colour, so it stands out from the bar. */
-.level-ladder__range {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  box-sizing: border-box;
-  min-width: 2px;
-  border: 2px solid var(--ladder-colour);
-  background: var(--ladder-band);
+.level-ladder__track {
+  position: relative;
+  height: var(--level-track);
 }
 
-/* The marker is a fixed size, and its centre is held inside the track at either end. */
+.level-ladder__track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.level-ladder__key {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+/* A band's edge: a short tick through the line. */
+.level-ladder__edge {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 0.5rem;
+  background: var(--ink-secondary);
+  transform: translate(-50%, -50%);
+}
+
+/* The one mark, held inside the track at either end. */
 .level-ladder__marker {
   position: absolute;
   top: 50%;
@@ -161,13 +98,12 @@
 }
 
 .level-ladder__dot {
-  background: var(--ladder-colour);
-  border: 2px solid var(--surface-1);
+  background: var(--ink);
 }
 
 .level-ladder__ring {
-  background: var(--surface-1);
-  border: 2px solid var(--ladder-colour);
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
 }
 
 /* A grade past either end of the scale carries a chevron just outside that end, pointing past it. */
@@ -179,8 +115,8 @@
   transform: translateY(-50%);
   overflow: visible;
   fill: none;
-  stroke: var(--ladder-colour);
-  stroke-width: 2;
+  stroke: var(--ink);
+  stroke-width: 1.5;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
@@ -193,35 +129,15 @@
   left: 100%;
 }
 
-/* In forced colours the band tints go: the bands are outlines, the band the grade falls in is filled
-   in the system's highlight, and the marks take the text colour. */
 @media (forced-colors: active) {
-  .level-ladder__track {
-    background: Canvas;
-    border-color: CanvasText;
-  }
-
-  .level-ladder__band {
-    background: Canvas;
-    border-color: CanvasText;
-  }
-
-  .level-ladder__band--current {
-    background: Highlight;
-    border-color: CanvasText;
-  }
-
-  .level-ladder__edge {
-    background: CanvasText;
-  }
-
-  .level-ladder__range {
-    background: none;
-    border-color: CanvasText;
-  }
-
+  .level-ladder__track::before,
+  .level-ladder__edge,
   .level-ladder__dot {
     background: CanvasText;
+  }
+
+  .level-ladder__name--current {
+    text-decoration: underline;
   }
 
   .level-ladder__ring {

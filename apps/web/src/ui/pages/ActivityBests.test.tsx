@@ -76,7 +76,7 @@ function marksOf(label: string): string[] {
   const row = screen.getByText(label, { selector: '.records__label' }).closest('li')
   if (row === null) throw new Error(`No best named ${label}`)
   return within(row)
-    .queryAllByText(/./, { selector: '.chip' })
+    .queryAllByText(/./, { selector: '.record-tag' })
     .map((chip) => chip.textContent ?? '')
 }
 

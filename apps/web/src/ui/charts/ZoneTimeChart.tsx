@@ -23,6 +23,8 @@ export interface ZoneChartRow {
 
 export interface ZoneTimeChartProps {
   title: string
+  /** The title is the accessible name only, under a section heading that names the chart already. */
+  titleHidden?: boolean
   /** A line under the title, such as the stretch the bars are of; absent for none. */
   lede?: string
   rows: readonly ZoneChartRow[]
@@ -174,12 +176,20 @@ function Bar({
  * under it where they fit, and the easy and hard shares above the bar as its takeaway. Each bar names its own zones
  * once, so no key under the bars can disagree with one; the same numbers are in a table behind View as table.
  */
-export function ZoneTimeChart({ title, lede, rows, table, summary }: ZoneTimeChartProps) {
+export function ZoneTimeChart({
+  title,
+  titleHidden = false,
+  lede,
+  rows,
+  table,
+  summary,
+}: ZoneTimeChartProps) {
   const clipId = useId().replaceAll(':', '')
   const description = `Stacked bars of the share of time in each zone. ${rows.map((row) => `${row.label}: ${row.summary}.`).join(' ')}`
   return (
     <ChartFrame
       title={title}
+      titleHidden={titleHidden}
       description={description}
       lede={lede}
       height={(width) => layoutOf(rows, width).height}

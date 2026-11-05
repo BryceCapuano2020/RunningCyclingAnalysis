@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { FITNESS } from '@rca/core/fitness'
 import type { FitnessStatus } from '@rca/core/fitness'
 import { Definition } from './components/Definition'
+import { NumText } from './components/NumText'
 import { DEFINITIONS } from './pages/balanceDefinitions'
 import { FITNESS_WORDS } from './fitnessWords'
 import type { UnitSystem } from '@rca/core/units'
@@ -29,7 +30,7 @@ interface Rule {
 
 /**
  * A line from the analysis with its terms defined in place: the heart rate it is taken at, a range and
- * "steady run", the first of each. Text that has none of them comes back as it is.
+ * "steady run", the first of each, and its figures set in the mono (NumText).
  */
 export function withDefinitions(text: string, status: FitnessStatus, units: UnitSystem): ReactNode {
   const meaning = fitnessDefinitions(status, units)
@@ -52,14 +53,14 @@ export function withDefinitions(text: string, status: FitnessStatus, units: Unit
   let at = 0
   for (const piece of found) {
     if (piece.start < at) continue
-    nodes.push(text.slice(at, piece.start))
+    nodes.push(<NumText key={`text-${at}`} text={text.slice(at, piece.start)} />)
     nodes.push(
       <Definition key={piece.start} meaning={piece.rule.meaning}>
-        {piece.text}
+        <NumText text={piece.text} />
       </Definition>,
     )
     at = piece.end
   }
-  nodes.push(text.slice(at))
+  nodes.push(<NumText key={`text-${at}`} text={text.slice(at)} />)
   return nodes
 }

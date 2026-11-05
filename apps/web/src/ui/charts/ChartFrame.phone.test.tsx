@@ -170,7 +170,7 @@ describe('the phone readout row’s stylesheet', () => {
 })
 
 describe('the phone readout row at rest', () => {
-  it('says the chart’s own latest value in one line when the chart gives one, else how to read a point', () => {
+  it('keeps the chart’s own latest value on the row as data when the chart gives one, else how to read a point', () => {
     chartWidth(358)
     const { unmount } = render(<Readable idleReadout="Latest: 64% run, 58% ride" />)
     expect(screen.getByTestId('chart-readout')).toHaveAttribute(
@@ -185,27 +185,21 @@ describe('the phone readout row at rest', () => {
     )
   })
 
-  it('is one 2 rem line at rest and draws a reading over it, so the plot is never moved by one', () => {
+  it('takes no room and says nothing at rest, and draws a reading over the lines above the plot', () => {
     const rest = css.slice(
       css.indexOf('.chart-frame__readout--compact {'),
       css.indexOf('}', css.indexOf('.chart-frame__readout--compact {')),
     )
-    expect(rest).toMatch(/min-height: 2rem/)
-    expect(css).toContain('content: attr(data-idle)')
-    expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
-  })
-
-  it('wraps its resting line rather than end it in an ellipsis, and keeps its room while a reading is drawn', () => {
-    const idle = css.slice(
-      css.indexOf('.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {'),
-    )
-    const rule = idle.slice(0, idle.indexOf('}'))
-    expect(rule).not.toMatch(/text-overflow|white-space: nowrap|overflow: hidden/)
-    expect(rule).toContain('overflow-wrap: anywhere')
-    // Hidden and not removed, so the row's height is the same whether a reading is drawn or not.
+    expect(rest).toMatch(/min-height: 0;/)
+    expect(rest).toMatch(/padding: 0;/)
+    expect(rest).toMatch(/border: 0;/)
+    // No resting line under the title: the idle text is not drawn, whether or not a reading is.
     expect(css).toMatch(
-      /\.chart-frame__readout--compact:has\(\.chart-tooltip__title\)::before \{[^}]*visibility: hidden/,
+      /\.chart-frame__readout\.chart-frame__readout--compact::before,\s*\.chart-frame__readout\.chart-frame__readout--compact:not\(:has\(\.chart-tooltip__title\)\)::before \{\s*content: none;/,
     )
+    expect(css).not.toContain('content: attr(data-idle)')
+    expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*position: absolute/)
+    expect(css).toMatch(/\.chart-frame__readout--compact \.chart-tooltip \{[^}]*inset: auto 0 0;/)
   })
 
   it('animates its growth only where motion is welcome', () => {
@@ -278,9 +272,9 @@ describe('ChartFrame’s takeaway and focal figure', () => {
     expect(screen.getByText('Left and right arrows read values')).toBeInTheDocument()
   })
 
-  it('sets the takeaway in the display face, a size down on a phone', () => {
-    expect(css).toMatch(/\.chart-frame__takeaway \{[^}]*font-family: var\(--font-display\)/)
-    expect(css).toMatch(/\.chart-frame__focal-value \{[^}]*font-family: var\(--font-display\)/)
+  it('sets the takeaway in the serif and the focal figure in the mono, the takeaway a size down on a phone', () => {
+    expect(css).toMatch(/\.chart-frame__takeaway \{[^}]*font-family: var\(--font-serif\)/)
+    expect(css).toMatch(/\.chart-frame__focal-value \{[^}]*font-family: var\(--font-mono\)/)
     expect(css).toMatch(/@media \(max-width: 480px\) \{[^}]*\.chart-frame__takeaway/)
   })
 })

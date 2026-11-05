@@ -1,26 +1,16 @@
-import { useRef, useState } from 'react'
-import { isCustomChoice } from '@rca/core/customRange'
+import { useRef } from 'react'
 import type { CustomRange } from '@rca/core/customRange'
-import { sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
-import { formatCount } from '../format/count'
-import { plural } from './plural'
 import { CustomRangeForm } from './CustomRangeForm'
+import { PeriodCaption } from './PeriodCaption'
+import { NOUNS } from './periodNouns'
 import { CUSTOM_OPTION, RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
 import type { RangeOption } from './rangeOptions'
 import { SegmentedControl } from './SegmentedControl'
-import { usePickInPlace } from './usePickInPlace'
+import { usePeriodPicks } from './usePeriodPicks'
 import './RangePicker.css'
 
-/** What is counted in the period: the activities, or one sport's, which take their own words. */
-const NOUNS: Record<'activity' | 'run' | 'ride', [string, string]> = {
-  activity: ['activity', 'activities'],
-  run: ['run', 'runs'],
-  ride: ['ride', 'rides'],
-}
-
-/** Shown after a reversed range is applied: its days are taken in order, so the caption dates them right. */
-export const SWAPPED_NOTE = 'Swapped so From comes first.'
+export { SWAPPED_NOTE } from './periodNouns'
 
 /** Shown while a pick waits behind an import: the worker answers it only once the import finishes. */
 export const WAITS_FOR_IMPORT = 'Applies when the current import finishes'
@@ -92,64 +82,17 @@ export function RangePicker({
   busy = false,
   onChange,
 }: RangePickerProps) {
-  // Each pick is numbered, and its answer marks that number as answered. The worker answers the picks in
-  // the order they were made, so the control shows the latest pick until every pick is answered, and the
-  // page's choice after that. An answer to an earlier pick cannot move it, whatever choice it reads.
-  const made = useRef(0)
-  const [picks, setPicks] = useState<{
-    count: number
-    answered: number
-    latest: PeriodChoice | null
-  }>({ count: 0, answered: 0, latest: null })
-  const waiting = picks.count > picks.answered
-  const picked = waiting && picks.latest !== null ? picks.latest : choice
-  // The default is the window it resolved to on screen, so that is the segment that shows as selected.
-  const checked: PeriodChoice = picked === 'default' ? (resolved ?? picked) : picked
-  // The form is open while a custom range is on screen, or while the athlete has picked Custom and not
-  // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
-  const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))
-  const [seenChoice, setSeenChoice] = useState(choice)
-  // Whether the range on screen was swapped on Apply. A fixed period is not a swap, so it clears the note.
-  const [swapped, setSwapped] = useState(false)
-  if (!sameChoice(choice, seenChoice)) {
-    setSeenChoice(choice)
-    setCustomOpen(isCustomChoice(choice))
-    if (!isCustomChoice(choice)) setSwapped(false)
-  }
+  const rootRef = useRef<HTMLDivElement>(null)
+  const { picked, checked, waiting, customOpen, openCustom, swapped, pick } = usePeriodPicks({
+    choice,
+    resolved,
+    root: rootRef,
+    onChange,
+  })
   const offered = custom ? [...options, CUSTOM_OPTION] : options
-  const [singular, pluralForm] = NOUNS[noun]
-  const totalPhrase = plural(total, singular, pluralForm)
-  const notCountedText = notCounted > 0 ? `${formatCount(notCounted)} not counted` : ''
-  // A period that holds fewer than the total says "42 of 1,200". One that holds them all says the total only to give what is not counted.
-  const count =
-    shown < total ? `${formatCount(shown)} of ${totalPhrase}` : notCounted > 0 ? totalPhrase : ''
-  // Changing the period changes every number on the page, so the choice, the count and the dates are
-  // announced. The region stays mounted, so the announcement is made when its text changes. It is hidden from sight:
-  // the caption gives the same count.
-  const counted =
-    total === 0
-      ? `No ${pluralForm} to show`
-      : shown < total
-        ? `Showing ${formatCount(shown)} of ${totalPhrase}`
-        : `Showing all ${totalPhrase}`
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
-  const announcement = [counted, notCountedText, choiceLabel, dates, swapped ? SWAPPED_NOTE : '']
-    .filter((part) => part !== undefined && part !== '')
-    .join(', ')
-  const rootRef = useRef<HTMLDivElement>(null)
-  const markPick = usePickInPlace(rootRef, waiting)
-  const pick = (next: PeriodChoice, reversed = false) => {
-    markPick()
-    setSwapped(reversed)
-    const id = made.current + 1
-    made.current = id
-    setPicks((current) => ({ count: id, answered: current.answered, latest: next }))
-    onChange(next, () =>
-      setPicks((current) => ({ ...current, answered: Math.max(current.answered, id) })),
-    )
-  }
   return (
     <div className={compact ? 'range-picker range-picker--compact' : 'range-picker'} ref={rootRef}>
       <SegmentedControl
@@ -164,54 +107,31 @@ export function RangePicker({
         }}
         onSelect={(value) => {
           if (value === CUSTOM_OPTION.value) {
-            setCustomOpen(true)
+            openCustom(true)
             return
           }
           const next = choiceOfValue(value)
           if (next === undefined) return
-          setCustomOpen(false)
+          openCustom(false)
           pick(next)
         }}
       />
       {custom && customOpen && (
         <CustomRangeForm range={range} onApply={(next, reversed) => pick(next, reversed)} />
       )}
-      {(dates !== '' || count !== '' || swapped || (compact && noteText)) && (
-        <p className="range-picker__caption muted">
-          {dates !== '' && <span className="range-picker__dates">{dates}</span>}
-          {dates !== '' && count !== '' && ' · '}
-          {count !== '' && (
-            <span className="range-picker__count">
-              {countHref === undefined ? count : <a href={countHref}>{count}</a>}
-              {notCountedText !== '' && (
-                <>
-                  {', '}
-                  {notCountedHref === undefined ? (
-                    notCountedText
-                  ) : (
-                    <a href={notCountedHref}>{notCountedText}</a>
-                  )}
-                </>
-              )}
-            </span>
-          )}
-          {swapped && (
-            <>
-              {(dates !== '' || count !== '') && ' · '}
-              <span className="range-picker__swapped">{SWAPPED_NOTE}</span>
-            </>
-          )}
-          {compact && noteText ? (
-            <>
-              {(dates !== '' || count !== '' || swapped) && ' · '}
-              <span className="range-picker__inline-note">{noteText}</span>
-            </>
-          ) : null}
-        </p>
-      )}
-      <p role="status" className="sr-only">
-        {announcement}
-      </p>
+      <PeriodCaption
+        className="range-picker__caption muted"
+        dates={dates}
+        shown={shown}
+        total={total}
+        notCounted={notCounted}
+        noun={noun}
+        countHref={countHref}
+        notCountedHref={notCountedHref}
+        swapped={swapped}
+        inlineNote={compact && noteText ? noteText : null}
+        choiceLabel={choiceLabel}
+      />
       {noteText && !compact && <p className="range-picker__note muted">{noteText}</p>}
     </div>
   )

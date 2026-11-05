@@ -22,8 +22,14 @@ function rides(measured: number, total: number): ActivitySummary[] {
 
 const FEW = waitingStatus({ kind: 'history', have: 2, need: 12, weeks: 2, needWeeks: 8 }, 2, 'ride')
 
+/** The ride's row on the page: its one line under its title. */
+const rideLine = () =>
+  document.querySelector(
+    'li.fitness-card[data-sport="ride"] [data-testid="fitness-line"]',
+  ) as HTMLElement
+
 describe('the ride’s fitness line with too few rides measured', () => {
-  it('says how many rides have a power meter, linked to the Ride page, in place of the steady count', () => {
+  it('says how many rides have a power meter, as the ride row’s one line, in place of the steady count', () => {
     render(
       <FitnessSection
         nowMs={FITNESS_AS_OF_MS}
@@ -32,9 +38,10 @@ describe('the ride’s fitness line with too few rides measured', () => {
         library={rides(4, 31)}
       />,
     )
-    const line = screen.getByTestId('ride-fitness-line')
+    const line = rideLine()
     expect(line).toHaveTextContent(/^4 of 31 rides have a power meter\. Fitness needs more\.$/)
-    expect(within(line).getByRole('link')).toHaveAttribute('href', '#/ride')
+    expect(screen.getByRole('heading', { level: 3, name: 'Ride' })).toBeInTheDocument()
+    expect(within(line).queryByRole('link')).toBeNull()
   })
 
   it('says it plainly on the Ride page itself', () => {
@@ -47,8 +54,8 @@ describe('the ride’s fitness line with too few rides measured', () => {
         sport="ride"
       />,
     )
-    const line = screen.getByTestId('ride-fitness-line')
-    expect(line).toHaveTextContent('4 of 31 rides have a power meter. Fitness needs more.')
+    const line = rideLine()
+    expect(line).toHaveTextContent(/^4 of 31 rides have a power meter\. Fitness needs more\.$/)
     expect(within(line).queryByRole('link')).toBeNull()
   })
 
@@ -61,9 +68,7 @@ describe('the ride’s fitness line with too few rides measured', () => {
         library={rides(31, 31)}
       />,
     )
-    expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
-      '2 steady rides with a power meter so far.',
-    )
+    expect(rideLine()).toHaveTextContent(/^2 steady rides with a power meter so far\.$/)
     cleanup()
     const level = waitingStatus(
       { kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 },
@@ -78,9 +83,11 @@ describe('the ride’s fitness line with too few rides measured', () => {
         library={rides(7, 31)}
       />,
     )
-    expect(screen.getByTestId('ride-fitness-line')).toHaveTextContent(
-      '200 W (194 to 206) at 140 bpm. From 7 steady rides.',
-    )
+    // A level to tell is the line, without its range; the range and the count are in the row's Details.
+    expect(rideLine().textContent).toBe('200 W at 140 bpm.')
+    const details = rideLine().closest('li')!.querySelector('details')!.cloneNode(true) as Element
+    details.querySelectorAll('.definition__note').forEach((note) => note.remove())
+    expect(details.textContent).toContain('From 7 steady rides.')
   })
 
   it('says it for a library of rides alone when some have a meter but no steady one is on file', () => {

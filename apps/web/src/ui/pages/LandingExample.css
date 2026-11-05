@@ -46,6 +46,7 @@
   border-top: 1px solid var(--border);
 }
 
+/* The mark and the state word wrap onto two lines at a large text size rather than widen the card. */
 .landing-example__state {
   display: flex;
   flex-wrap: wrap;

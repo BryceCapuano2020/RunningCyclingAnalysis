@@ -260,12 +260,14 @@ describe('GradeProfileChart', () => {
       .map((cell) => cell.textContent)
     expect(within(first as HTMLElement).getByRole('rowheader')).toHaveTextContent('3 min')
     expect(cells).toEqual(['50%', '60% (57 to 63)'])
-    expect(screen.getByText('View as table')).toBeInTheDocument()
+    // The table shares the chart's one Details with the line that explains the band.
+    expect(table.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
   })
 
-  it('explains the band under the plot', () => {
+  it('explains the band in the chart’s Details, not as a line under the plot', () => {
     renderChart()
-    expect(screen.getByText(/Shading is the 90% range/)).toBeInTheDocument()
+    const note = screen.getByText(/Shading is the 90% range/)
+    expect(note.closest('details')).toHaveClass('chart-frame__details')
   })
 
   it('shows a message instead of a plot with fewer than two durations graded', () => {

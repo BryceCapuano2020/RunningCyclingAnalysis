@@ -2,9 +2,9 @@ import { effortsCount } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { EarnedRecord } from '@rca/core/records'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { INDOOR_NOTE } from '../analysis/indoorCopy'
-import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
@@ -18,7 +18,7 @@ import {
 } from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
-import { recordRow } from '../recordRow'
+import { GAP_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   chipLabels,
@@ -61,12 +61,15 @@ const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
 /** The mark an all-time record carries, in the same chip as the marks of the figure. */
 const ALL_TIME_MARK = 'All-time record'
 
+/** The mark a duration best's figure carries on the activity page: a run's pace is a GAP, a ride's watts carry none. */
+const PACE_MARKS: Record<Sport, readonly string[]> = { run: [GAP_MARK], ride: [] }
+
 /**
  * The best efforts this activity set, as one records list: the bests it holds over the period the page
  * names, then the run distances it has its own time at. A best that is an all-time record says so, and
  * one that is the best of the period says which period; an activity outside the period has no period
  * bests, and its all-time records are named even though the period holds no figure for them. Each is
- * graded at its own date and linked to How is this graded?. The list says nothing when it has no best,
+ * graded at its own date. The list says nothing when it has no best,
  * so an activity without one is not told it has none. An indoor run holds no best: its own distance
  * times show, ungraded and unmarked, under a line that says its pace is not used for bests.
  */
@@ -134,7 +137,6 @@ export function ActivityBests({
         : distanceGrade(record.distanceM, record.seconds, activity, profile),
   }))
   const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
-  const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
   // The list says the no-standard gap once under it, so each row leaves it off.
   const listNotes = listedGradeNotes(sport, outcomes, [
     ...durationItems.map(({ record }) => effortLabel(record.durationS)),
@@ -145,13 +147,15 @@ export function ActivityBests({
     if (allTime) return [ALL_TIME_MARK]
     return ofPeriod && periodMark !== null ? [periodMark] : []
   }
+  // A run's duration bests are paces graded for the hills, so each says GAP: this list has no Details to say it once.
+  const marks = PACE_MARKS[sport]
   // The page is the activity, so its rows name no activity of their own.
   const rows: RecordRow[] = [
     ...durationItems.map(({ record, outcome }) => {
-      const row = recordRow(sport, record, {
+      const row = recordRow(record, {
         label: `Best ${effortLabel(record.durationS)}`,
-        grade: recordGradeCell(sport, outcome, record.covered, 'row'),
-        tags: scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true),
+        grade: recordGradeCell(sport, outcome, 'row'),
+        tags: [...marks, ...scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true)],
       })
       row.activity = null
       return row
@@ -166,7 +170,7 @@ export function ActivityBests({
         value: record.time,
         // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
         sub: paceIsTime(record.distanceM, units) ? null : record.pace,
-        grade: recordGradeCell(sport, outcome, null, 'row'),
+        grade: recordGradeCell(sport, outcome, 'row'),
         tags: scopeMark(chipped.has(`Best ${record.label}`), ofPeriod),
         change: null,
         setDays: null,
@@ -194,7 +198,6 @@ export function ActivityBests({
         <p className="muted">{splitsView === 'laps' ? TIMING_NOTE_LAPS : TIMING_NOTE}</p>
       )}
       {!counts && <p className="muted">{INDOOR_NOTE}</p>}
-      {anyGraded && <GradingLink />}
     </section>
   )
 }

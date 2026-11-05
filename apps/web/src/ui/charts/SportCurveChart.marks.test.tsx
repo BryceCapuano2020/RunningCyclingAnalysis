@@ -285,21 +285,20 @@ describe('markers on a curve with a carried stretch', () => {
   it('has a ring rule for each sport, filled with the card and outlined in the sport colour', () => {
     for (const sport of ['run', 'ride']) {
       const rule = seriesCss.slice(seriesCss.indexOf(`.chart-series__ring--${sport} {`))
-      expect(rule).toMatch(
-        new RegExp(`fill: var\\(--surface-1\\);\\s*stroke: var\\(--series-${sport}\\)`),
-      )
+      expect(rule).toMatch(new RegExp(`fill: var\\(--paper\\);\\s*stroke: var\\(--${sport}-ink\\)`))
     }
   })
 })
 
 describe('the previous period’s line', () => {
-  it('is a thinner solid grey, never dashed', () => {
+  it('is a thinner solid grey than a sport’s 2 px line, never dashed', () => {
     const rule = seriesCss.slice(
       seriesCss.indexOf('.chart-series__line--previous {'),
       seriesCss.indexOf('}', seriesCss.indexOf('.chart-series__line--previous {')),
     )
     expect(rule).toMatch(/stroke: var\(--previous-mark\)/)
-    expect(rule).toMatch(/stroke-width: 2px/)
+    expect(rule).toMatch(/stroke-width: 1\.5px/)
+    expect(seriesCss).toMatch(/\.chart-series__line \{[^}]*stroke-width: 2px/)
     expect(rule).not.toContain('dasharray')
   })
 })

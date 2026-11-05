@@ -23,17 +23,6 @@ function firstNameOf(me: Me): string {
   return local || me.user.email
 }
 
-/** First and last initials of the name, or the first letter of the email when there is no name. */
-function initialsOf(me: Me): string {
-  const words = me.user.name
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word !== '')
-  const ends = words.length > 1 ? [words.at(0), words.at(-1)] : [words.at(0)]
-  const letters = ends.map((word) => word?.charAt(0) ?? '').join('')
-  return (letters || me.user.email.charAt(0)).toUpperCase()
-}
-
 /**
  * The header's account control. Signed out it offers Google sign-in. Signed in it is a disclosure
  * button whose menu shows the email and sign out; the header's Profile link holds the rest,
@@ -136,7 +125,6 @@ export function AccountMenu({ status, me, onSignIn, onSignOut, onRetry }: Accoun
   }
 
   const { email } = me.user
-  const pictureUrl = me.user.pictureUrl
 
   function handleSignOut() {
     setOpen(false)
@@ -155,15 +143,10 @@ export function AccountMenu({ status, me, onSignIn, onSignOut, onRetry }: Accoun
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className="account-menu__avatar" aria-hidden="true">
-            {pictureUrl ? (
-              <img src={pictureUrl} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              initialsOf(me)
-            )}
-          </span>
           <span className="account-menu__name">{firstNameOf(me)}</span>
-          <span className="account-menu__chevron" aria-hidden="true" />
+          <span className="account-menu__chevron" aria-hidden="true">
+            ▾
+          </span>
         </button>
         <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
           <p className="account-menu__email">{email}</p>

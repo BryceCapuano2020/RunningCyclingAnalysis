@@ -93,13 +93,16 @@ describe('the x ticks of bars that are months', () => {
     expect(at.map((tick) => tick.index)).toEqual(Array.from({ length: 13 }, (_, i) => i))
   })
 
-  it('names a partial month that sits close to the one before it, and thins the one before', () => {
-    // 3 weeks into October: the partial month's bar is one week after September's, a quarter of the usual room.
+  it('names a partial month in its own month’s place, a full month’s room from the one before', () => {
+    // One week into October: the partial month's bar stands in October's own slot, not a week after September's.
     const { at, rows } = placed(1100, weeks(52))
     expect(monthBarLabel(rows.at(-1)!.endMs)).toBe('Sep 2026')
+    expect(at.at(-1)?.label).toBe('Sep 2026')
     const closer = placed(1100, weeks(53))
     expect(closer.at.at(-1)?.label).toBe('Oct 2026')
-    expect(closer.at.some((tick) => tick.label === 'Sep 2026')).toBe(false)
-    expect(at.at(-1)?.label).toBe('Sep 2026')
+    const gaps = closer.xs.slice(1).map((x, i) => x - closer.xs[i]!)
+    // The last gap is a month's room like the others (a month is 28 to 31 days), not a quarter of it.
+    expect(gaps.at(-1)!).toBeGreaterThan(Math.min(...gaps) * 0.9)
+    expect(gaps.at(-1)!).toBeLessThan(Math.max(...gaps) * 1.1)
   })
 })

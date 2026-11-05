@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { reflowProblems } from './a11yProbes.js'
-import { LANDING_TITLE, activitiesRows, goTo, openSample } from './helpers.js'
+import { LANDING_TITLE, activitiesRows, goTo, openSample, openMethod } from './helpers.js'
 
 // WCAG 1.4.10 Reflow: a 320 px wide, 256 px tall window (a 1280 px page at 400% zoom) scrolls one way only.
 const ONLY_REFLOW = 'Measures the 320 x 256 window'
@@ -20,8 +20,7 @@ test('each page of the sample fits 320 x 256', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'reflow-320x256', ONLY_REFLOW)
   await openSample(page)
   const failures: string[] = []
-  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  await openMethod(page)
   const method = await reflowProblems(page)
   if (method.overflow > 0 || method.clipped.length > 0) {
     failures.push(`Method: +${method.overflow} ${method.clipped}`)

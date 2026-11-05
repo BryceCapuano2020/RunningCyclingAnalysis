@@ -10,6 +10,7 @@ import {
   SETUP_DIALOG_NAME,
   fixturePath,
   uploadFixtures,
+  openMethod,
 } from './helpers.js'
 
 /** One line per violation, so a failure names the rule and the elements it hit. */
@@ -24,7 +25,8 @@ async function violationsOf(page: Page) {
 
 /** Opens the fitness card's evidence and waits for what is in it: its chart and the runs it rests on. */
 async function openFitnessEvidence(page: Page): Promise<void> {
-  await page.getByText('See the evidence').click()
+  // The run's row holds its evidence in its one Details, which mounts the chart once opened.
+  await page.locator('.fitness-card[data-sport="run"] .fitness-card__evidence > summary').click()
   await expect(page.getByRole('figure', { name: /^Pace at \d+ bpm over time$/ })).toBeVisible()
   await expect(page.locator('.fitness-runs a').first()).toBeVisible()
 }
@@ -87,6 +89,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     name: 'Balance, a fitness definition open',
     open: async (page) => {
       await openSample(page)
+      await page
+        .locator('.fitness-card[data-sport="run"] .fitness-card__evidence > summary')
+        .click()
       // By keyboard: a term that wraps over two lines has no one point to click.
       await page
         .locator('.fitness-card')
@@ -102,6 +107,8 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     name: 'Balance, a definition open',
     open: async (page) => {
       await openSample(page)
+      // The standards line is the last line of the answer's Details.
+      await page.locator('.balance-hero .page-details > summary').click()
       await page.getByRole('button', { name: 'Age-graded', exact: true }).click()
       await expect(page.getByRole('note').first()).toBeVisible()
     },
@@ -182,8 +189,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     name: 'How sure is this?',
     open: async (page) => {
       await openSample(page)
-      await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-      await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+      await openMethod(page)
     },
   },
   {
@@ -325,19 +331,25 @@ test('Profile with dated settings fits 320 px, and its table is a keyboard scrol
   expect(await violationsOf(page)).toEqual([])
 })
 
-// The phone header keeps the brand and the actions on one row at the widths where the wordmark is
-// still shown, so the tabs' bar and the header do not wrap or widen the page.
+// The phone header keeps the brand and Add files on its first row at the widths where the wordmark is
+// still shown, so the header does not wrap further or widen the page.
 for (const width of [600, 760]) {
-  test(`the phone header keeps its brand and actions on one row at ${width} px`, async ({
+  test(`the phone header keeps its brand and Add files on one row at ${width} px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 })
     await openSample(page)
+    // On a phone the wordmark and Add files share the first row; the links, Profile and the account the second.
     const brand = await page.locator('.header__brand').boundingBox()
-    const actions = await page.locator('.header__actions').boundingBox()
+    const addFiles = await page
+      .getByRole('banner')
+      .getByRole('button', { name: 'Add files' })
+      .boundingBox()
     expect(brand).not.toBeNull()
-    expect(actions).not.toBeNull()
-    expect(Math.abs((brand?.y ?? 0) - (actions?.y ?? 0))).toBeLessThan(4)
+    expect(addFiles).not.toBeNull()
+    const middle = (box: { y: number; height: number } | null) =>
+      (box?.y ?? 0) + (box?.height ?? 0) / 2
+    expect(Math.abs(middle(brand) - middle(addFiles))).toBeLessThan(4)
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     )
@@ -416,7 +428,11 @@ test('the fitness card and its evidence fit a 320 px screen', async ({ page }, t
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)
-    await page.locator('.fitness-card[data-sport="run"]').getByText('View as table').click()
+    // The evidence chart's own disclosure: its table, under its note where it has one.
+    await page
+      .locator('.fitness-card[data-sport="run"] .chart-frame__details > summary')
+      .first()
+      .click()
     await expect(page.locator('.fitness-card[data-sport="run"] table').first()).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),

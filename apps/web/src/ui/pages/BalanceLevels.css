@@ -1,64 +1,31 @@
 /*
- * The levels sit under the meter on one quiet line a sport: name, grade, level. Side by side each sport is under
- * its own end of the meter; when they do not fit side by side they stack. A hairline above sets them apart from the measurement.
+ * The levels sit under the meter on one line: each sport's name, its grade in mono, and its level. When the two do not
+ * fit side by side they stack.
  */
-.balance-levels {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
 .balance-levels__list {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
+  gap: var(--space-1) var(--space-6);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* A fixed name column and a fixed grade column, so the grades line up when the rows stack. */
 .balance-levels__row {
-  display: grid;
-  grid-template-columns: 4.75rem auto minmax(0, auto);
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   column-gap: var(--space-2);
   min-width: 0;
-}
-
-.balance-levels__row > .balance-levels__missing {
-  grid-column: 2 / -1;
-}
-
-.balance-levels__name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* The sport colour marks the glyph only; the name stays in ink. */
-.balance-levels__glyph {
-  color: var(--sport-colour);
-}
-
-.balance-levels__glyph.icon {
-  --icon-size: 1.125rem;
-  flex: none;
+  font-size: var(--text-md);
 }
 
 .balance-levels__grade {
-  /* The grade column is at least this wide, and grows for a grade of 100% or more, so it never meets the level. */
-  min-width: 3rem;
-  font-family: var(--font-display);
-  /* A display size with no type token; see docs/design/system.md, Type. */
-  font-size: var(--title);
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-  line-height: 1;
+  font-size: var(--text-sm);
 }
 
 .balance-levels__level {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   /* A defined term is a button, which centres its text: the level reads from the left, wrapped or not. */
   text-align: start;
 }
@@ -66,28 +33,16 @@
 .balance-levels__level,
 .balance-levels__level .definition__term {
   text-align: start;
-  /* The level column is the row's squeezed track: at a large text size a long level word breaks rather than widen the page.
-     Only the first row's level is a defined term, so the others need the same rule on the column itself. */
+  /* At a large text size a long level word breaks rather than widen the page. */
   overflow-wrap: anywhere;
 }
 
-/* The level sits at the row's right edge, where the usual reach of 6 px past the term would widen the page. */
 .balance-levels__level .definition__term::after {
   inset-inline: 0;
 }
 
 .balance-levels__missing {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-md);
-}
-
-@media (max-width: 479px) {
-  .balance-levels {
-    padding-top: var(--space-3);
-  }
-
-  .balance-levels__list {
-    gap: var(--space-2) var(--space-6);
-  }
 }

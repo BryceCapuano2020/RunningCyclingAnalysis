@@ -11,7 +11,10 @@ describe('CheckInRow stylesheet', () => {
     expect(open).not.toMatch(/display:\s*none/)
   })
 
-  it('keeps the chevron at the end of the summary when the sentence is out of the flow', () => {
-    expect(ruleBody(css, '.checkin-row__toggle')).toMatch(/margin-left:\s*auto/)
+  it('is a plain disclosure: the base ▸, no box, chevron or fill', () => {
+    expect(css).not.toMatch(/checkin-row__toggle|border:|background|border-radius/)
+    expect(ruleBody(css, '.checkin-row__summary::-webkit-details-marker')).toMatch(
+      /display:\s*none/,
+    )
   })
 })

@@ -7,13 +7,18 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
 }) => {
   const errors = trackErrors(page)
   await openSample(page)
-  const tabs = page.getByRole('navigation', { name: 'Sections' }).getByRole('link')
-  expect((await tabs.allTextContents()).map((tab) => tab.trim())).toEqual([
+  // Balance, Run and Ride are the rail's pages; History sits first among the header's, before Activities and Method.
+  const rail = page.getByRole('navigation', { name: 'Pages', exact: true }).getByRole('link')
+  expect((await rail.allTextContents()).map((tab) => tab.trim())).toEqual([
     'Balance',
     'Run',
     'Ride',
+  ])
+  const more = page.getByRole('navigation', { name: 'More pages' }).getByRole('link')
+  expect((await more.allTextContents()).map((tab) => tab.trim())).toEqual([
     'History',
     'Activities',
+    'Method',
   ])
 
   await goTo(page, 'History')
@@ -27,7 +32,7 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   await chart.getByTestId('plot-surface').focus()
   await page.keyboard.press('End')
   await expect(chart.getByRole('status')).toContainText('Total')
-  await chart.getByText('View as table').click()
+  await chart.locator('details.chart-frame__details > summary').click()
   await expect(chart.getByRole('table').getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -89,7 +94,7 @@ test('the History tab draws the fitness dots in one node, toggles the sport, and
   await chart.getByTestId('plot-surface').focus()
   await page.keyboard.press('End')
   await expect(chart.getByRole('status')).toContainText('Steady rides')
-  await chart.getByText('View as table').click()
+  await chart.locator('details.chart-frame__details > summary').click()
   await expect(chart.getByRole('table').first().getByRole('row').nth(1)).toBeVisible()
   expect(errors).toEqual([])
 })

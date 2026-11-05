@@ -7,7 +7,7 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { MethodPage } from '../pages/MethodPage'
 import { focusPageHeading } from '../pages/pageHeading'
 import { makeResult } from './fixtures'
-import { GradingLink } from './GradingLink'
+import { GradesLink } from './GradingLink'
 import {
   clearRequestedMethodSection,
   requestMethodSection,
@@ -58,14 +58,11 @@ function PageMount({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-describe('GradingLink', () => {
-  it('links to How sure is this?', () => {
-    render(<GradingLink />)
+describe('GradesLink', () => {
+  it('links to the age grades on the Method page', () => {
+    render(<GradesLink>Age grades</GradesLink>)
 
-    expect(screen.getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
-      'href',
-      '#/method',
-    )
+    expect(screen.getByRole('link', { name: 'Age grades' })).toHaveAttribute('href', '#/method')
   })
 
   it.each([
@@ -75,17 +72,17 @@ describe('GradingLink', () => {
     ['an alt-click, which downloads the link', { altKey: true }],
     ['a middle-button click', { button: 1 }],
   ])('leaves nothing armed for %s', (_name, init) => {
-    render(<GradingLink />)
+    render(<GradesLink>Age grades</GradesLink>)
 
-    fireEvent.click(screen.getByRole('link', { name: 'How is this graded?' }), init)
+    fireEvent.click(screen.getByRole('link', { name: 'Age grades' }), init)
 
     expect(requestedMethodSection()).toBeNull()
   })
 
   it('asks the Method page to focus its grading heading, and that page focuses it when it mounts', async () => {
-    render(<GradingLink />)
+    render(<GradesLink>Age grades</GradesLink>)
 
-    fireEvent.click(screen.getByRole('link', { name: 'How is this graded?' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Age grades' }))
     expect(requestedMethodSection()).toBe(SECTION_ID.grades)
 
     cleanup()
@@ -124,8 +121,8 @@ describe('GradingLink', () => {
 
   it('drops a request whose link was followed with no result, so a later visit does not jump', async () => {
     await navigateTo('#/')
-    render(<GradingLink />)
-    fireEvent.click(screen.getByRole('link', { name: 'How is this graded?' }))
+    render(<GradesLink>Age grades</GradesLink>)
+    fireEvent.click(screen.getByRole('link', { name: 'Age grades' }))
 
     // The link's own navigation arrives, but no result is loaded, so no Method page mounts.
     await navigateTo('#/method')

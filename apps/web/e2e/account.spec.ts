@@ -150,6 +150,13 @@ test('a saved library survives reloads and sign-out, and deleting the account re
   await test.step('turning off keep original files deletes the stored files', async () => {
     const keep = page.getByRole('checkbox', { name: KEEP_FILES })
     await expect(keep).toBeChecked()
+    // The page's later sections fill in after the reload and move the checkbox down; it is pressed once it holds still.
+    const top = () => keep.evaluate((el) => Math.round(el.getBoundingClientRect().top + scrollY))
+    await expect(async () => {
+      const before = await top()
+      await page.waitForTimeout(300)
+      expect(await top()).toBe(before)
+    }).toPass()
     // Turning it off asks first; the checkbox follows the saved profile once the PUT has returned.
     await keep.click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Turn off and delete' }).click()

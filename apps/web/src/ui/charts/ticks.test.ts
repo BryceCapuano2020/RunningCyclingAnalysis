@@ -34,13 +34,13 @@ describe('fitTicks', () => {
     expect(kept.map((tick) => tick.position)).toEqual([0, 80])
   })
 
-  it('caps x ticks at four and uses 12 px text on a narrow chart', () => {
+  it('caps x ticks at four on a narrow chart, and uses 12 px text at every width', () => {
     const ticks = ticksAt([0, 100, 200, 300, 400, 500], '1 h')
     const kept = fitTicks(ticks, { axis: 'x', width: 390 })
     expect(kept.length).toBeLessThanOrEqual(4)
     expect(kept.map((tick) => tick.position)).toEqual([0, 200, 400])
     expect(axisFontSize(390)).toBe(12)
-    expect(axisFontSize(1200)).toBe(13)
+    expect(axisFontSize(1200)).toBe(12)
   })
 
   it('caps the count on request, spaced evenly', () => {

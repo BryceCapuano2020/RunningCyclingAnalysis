@@ -86,7 +86,6 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     const run = earlier(false)
     const view = renderPage([SHORT, run], [])
     const section = screen.getByRole('region', { name: 'Race predictions' })
-    expect(within(section).getByText(/^From your 10 km on \d+ \w+( \d{4})?\.$/)).toBeInTheDocument()
     const rows = Array.from(section.querySelectorAll('.race-row'))
     expect(rows).toHaveLength(4)
     for (const row of rows) {
@@ -99,6 +98,8 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     const details = within(section).getByText('About these predictions').closest('details')!
     details.open = true
     fireEvent(details, new Event('toggle'))
+    // The run the times were carried from is named inside the disclosure, not under the heading.
+    expect(within(details).getByText(/^From your 10 km on \d+ \w+( \d{4})?\.$/)).toBeInTheDocument()
     expect(within(section).getByRole('columnheader', { name: 'Predicted' })).toBeInTheDocument()
     expect(within(section).queryByRole('columnheader', { name: 'Range' })).not.toBeInTheDocument()
     expect(

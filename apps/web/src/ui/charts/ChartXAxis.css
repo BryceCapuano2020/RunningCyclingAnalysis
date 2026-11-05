@@ -1,14 +1,14 @@
 .chart-x-axis__grid {
-  stroke: var(--grid);
+  stroke: var(--hairline);
   stroke-width: 1;
 }
 
 .chart-x-axis__tick {
-  fill: var(--text-muted);
+  fill: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .chart-x-axis__title {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
   font-size: var(--text-xs);
 }

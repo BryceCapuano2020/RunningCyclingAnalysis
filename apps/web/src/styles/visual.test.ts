@@ -96,44 +96,44 @@ const FORCED = '(forced-colors: active)'
 const NEAR_DUPLICATE_SIZES = ['0.8rem', '0.8125rem', '0.85rem', '13px']
 
 describe('header', () => {
-  it('marks the current tab with a flat bar, not an inset shadow on a rounded box', () => {
-    expect(header).not.toMatch(/box-shadow:\s*inset/)
-    expect(header).toMatch(/\.header__tab--current::after,[\s\S]*?height:\s*2px/)
+  it('marks the current page link by ink alone: no bar, box or shadow', () => {
+    expect(header).not.toMatch(/box-shadow|::after\s*\{[^}]*height:\s*2px/)
+    expect(rulesWith(header, '.header__link--current')).toMatch(/color:\s*var\(--ink\)/)
+    expect(rulesWith(header, '.header__link')).toMatch(/color:\s*var\(--ink-secondary\)/)
   })
 
-  it('keeps the current tab bar visible in forced colours, with a system colour', () => {
-    const forced = mediaOf(header, FORCED)
-    expect(rulesWith(forced, '.header__tab--current::after')).toMatch(/background:\s*Highlight/)
-  })
-
-  it('sets the current tab in the system text colour in forced colours, as its neighbours are', () => {
-    // The current tab's own rule is more specific than the tab's, so forced colours must name it too.
-    expect(rulesWith(mediaOf(header, FORCED), '.header__tab--current')).toMatch(
-      /color:\s*CanvasText/,
+  it('underlines the current page link in forced colours, where its ink is lost', () => {
+    expect(rulesWith(mediaOf(header, FORCED), '.header__link--current')).toMatch(
+      /text-decoration:\s*underline/,
     )
   })
 
-  it('sets the wordmark in capitals, in the tab type', () => {
-    expect(rulesWith(header, '.header__name')).toMatch(/text-transform:\s*uppercase/)
+  it('sets the wordmark in the serif at 500, in sentence case, with no tile', () => {
+    const brand = rulesWith(header, '.header__brand')
+    expect(brand).toMatch(/font-family:\s*var\(--font-serif\)/)
+    expect(brand).toMatch(/font-weight:\s*500/)
+    expect(brand).not.toMatch(/text-transform/)
+    expect(header).not.toMatch(/brand-mark|header__name/)
   })
 
-  it('keeps the phone wordmark small enough that the brand and actions share one row at 600 and 760 px', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header__name')).toMatch(
-      /font-size:\s*var\(--text-lead\)/,
-    )
-    expect(rulesWith(mediaOf(header, PHONE), '.header__name')).toMatch(/letter-spacing:\s*0\.04em/)
-  })
-
-  it('keeps the phone tab bar at its background and its height', () => {
+  it('puts the wordmark and Add files on the phone’s first row, and the links on a second', () => {
     const phone = mediaOf(header, PHONE)
-    expect(rulesWith(phone, '.header__tabs')).toMatch(/background:\s*var\(--surface-0\)/)
-    expect(rulesWith(phone, '.header__tab')).toMatch(/min-height:\s*var\(--tab-bar-height\)/)
+    expect(rulesWith(phone, '.header::after')).toMatch(/flex-basis:\s*100%/)
+    expect(rulesWith(phone, '.header__actions > .btn')).toMatch(/order:\s*1/)
+    expect(rulesWith(phone, '.header__pages')).toMatch(/order:\s*3/)
   })
 
-  it('sets the phone tab labels from the tab tokens, not literal sizes', () => {
-    const tab = rulesWith(mediaOf(header, PHONE), '.header__tab')
-    expect(tab).toMatch(/font-size:\s*var\(--text-label\)/)
-    expect(tab).toMatch(/letter-spacing:\s*var\(--tracking-tab\)/)
+  it('lets the header scroll away below the rail’s width, and holds it at the top from it', () => {
+    expect(rulesWith(outsideMedia(header), '.header')).not.toMatch(/position/)
+    expect(rulesWith(mediaOf(header, '(min-width: 1024px)'), '.header')).toMatch(
+      /position:\s*sticky/,
+    )
+  })
+
+  it('sets the page links in the serif at the prose size', () => {
+    const link = rulesWith(header, '.header__link')
+    expect(link).toMatch(/font-family:\s*var\(--font-serif\)/)
+    expect(link).toMatch(/font-size:\s*var\(--text-md\)/)
   })
 })
 
@@ -172,18 +172,16 @@ describe('buttons and links', () => {
     expect(rulesWith(skipLink, '.skip-link')).not.toMatch(/text-transform/)
   })
 
-  it('draws a pressed button one pixel lower, in its pressed fill', () => {
+  it('draws a pressed button in its pressed fill, with no shadow or drop', () => {
     const pressed = rulesWith(components, ".btn:active:not([aria-disabled='true'])")
-    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
-    expect(pressed).toMatch(/transform:\s*translateY\(1px\)/)
-    expect(pressed).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
+    expect(pressed).toMatch(/background:\s*var\(--paper-pressed\)/)
+    expect(pressed).not.toMatch(/transform|box-shadow/)
   })
 
-  it('draws a pressed primary button in its own pressed fill, after its hover', () => {
+  it('draws a pressed primary button back in solid ink, after its hover', () => {
     const pressed = rulesWith(components, ".btn-primary:active:not([aria-disabled='true'])")
-    expect(pressed).toMatch(/background:\s*var\(--accent-pressed\)/)
-    expect(pressed).toMatch(/border-color:\s*var\(--accent-pressed\)/)
-    expect(pressed).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--accent-contrast\)/)
+    expect(pressed).toMatch(/background:\s*var\(--ink\)/)
+    expect(pressed).toMatch(/border-color:\s*var\(--ink\)/)
     expect(components.indexOf('.btn-primary:active')).toBeGreaterThan(
       components.indexOf('.btn-primary:hover'),
     )
@@ -195,9 +193,16 @@ describe('buttons and links', () => {
   })
 
   it('changes the primary button visibly on hover', () => {
-    expect(rulesWith(components, '.btn-primary:hover')).toMatch(
-      /background:\s*var\(--accent-hover\)/,
-    )
+    expect(rulesWith(components, '.btn-primary:hover')).toMatch(/background:\s*var\(--ink-hover\)/)
+  })
+
+  it('sets every other button small and outlined: the button height, sans, at the small size', () => {
+    const button = rulesWith(components, '.btn')
+    expect(button).toMatch(/min-height:\s*var\(--button-height\)/)
+    expect(button).toMatch(/border:\s*1px solid var\(--control-border\)/)
+    expect(button).toMatch(/font-family:\s*var\(--font-sans\)/)
+    expect(button).toMatch(/font-size:\s*var\(--text-sm\)/)
+    expect(declared(tokens, ':root').get('button-height')).toBe('40px')
   })
 
   it('uses the navigation link size from the type scale', () => {
@@ -238,17 +243,30 @@ describe('page chrome', () => {
 })
 
 describe('forced colours', () => {
-  it('keeps the meter line, its caps and the band in the system colours', () => {
+  it('keeps the meter line, its end caps, its tick and its mark in the system colours', () => {
     const forced = mediaOf(balanceMeter, FORCED)
-    expect(rulesWith(forced, '.balance-meter__track::before')).toMatch(/background:\s*CanvasText/)
+    for (const selector of [
+      '.balance-meter__track::before',
+      '.balance-meter__even',
+      '.balance-meter__dot',
+    ]) {
+      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
+    }
     expect(rulesWith(forced, '.balance-meter__track::after')).toMatch(/border-color:\s*CanvasText/)
-    expect(rulesWith(forced, '.balance-meter__band')).toMatch(/border:\s*1px solid Highlight/)
   })
 
-  it('keeps the level ladder track, current band and chevrons in the system colours', () => {
+  it('keeps the level ladder line, its ticks, its mark and chevrons in the system colours', () => {
     const forced = mediaOf(ladder, FORCED)
-    expect(rulesWith(forced, '.level-ladder__track')).toMatch(/border-color:\s*CanvasText/)
-    expect(rulesWith(forced, '.level-ladder__band--current')).toMatch(/background:\s*Highlight/)
+    for (const selector of [
+      '.level-ladder__track::before',
+      '.level-ladder__edge',
+      '.level-ladder__dot',
+    ]) {
+      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
+    }
+    expect(rulesWith(forced, '.level-ladder__name--current')).toMatch(
+      /text-decoration:\s*underline/,
+    )
     expect(rulesWith(forced, '.level-ladder__beyond')).toMatch(/stroke:\s*CanvasText/)
   })
 
@@ -291,32 +309,22 @@ describe('activity record links', () => {
 })
 
 describe('pressed states', () => {
-  it('draws a pressed tab in the pressed fill, with an inset outline and no inset shadow', () => {
-    const pressed = rulesWith(header, '.header__tab:active')
-    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
-    expect(pressed).toMatch(/outline:\s*2px solid var\(--control-border\)/)
-    expect(pressed).toMatch(/outline-offset:\s*-2px/)
-  })
-
-  it('draws a pressed unselected segment in the pressed fill, and a pressed selected one with a light ring', () => {
+  it('draws a pressed unselected segment in the pressed fill, and a pressed selected one with a paper ring', () => {
     const unselected = rulesWith(
       segmented,
       '.segmented-control__option:not(.segmented-control__option--selected):active',
     )
-    expect(unselected).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(unselected).toMatch(/background:\s*var\(--paper-pressed\)/)
     expect(unselected).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
     expect(rulesWith(segmented, '.segmented-control__option--selected:active')).toMatch(
-      /box-shadow:\s*inset 0 0 0 2px var\(--highlight-ink\)/,
+      /box-shadow:\s*inset 0 0 0 2px var\(--paper\)/,
     )
   })
 
-  it('gives each pressed control an outline in forced colours, since its fill and shadow are dropped', () => {
+  it('gives each pressed control an outline in forced colours, since its fill is dropped', () => {
     expect(
       rulesWith(mediaOf(components, FORCED), ".btn:active:not([aria-disabled='true'])"),
     ).toMatch(/outline:\s*2px solid CanvasText/)
-    expect(rulesWith(mediaOf(header, FORCED), '.header__tab:active')).toMatch(
-      /outline:\s*2px solid CanvasText/,
-    )
     expect(rulesWith(mediaOf(segmented, FORCED), '.segmented-control__option:active')).toMatch(
       /outline:\s*2px solid CanvasText/,
     )
@@ -350,9 +358,9 @@ describe('pressed states', () => {
 })
 
 describe('control height', () => {
-  it('sets segmented options from the shared control height, not a literal', () => {
+  it('sets segmented options from the shared button height, not a literal', () => {
     expect(rulesWith(segmented, '.segmented-control__option')).toMatch(
-      /min-height:\s*var\(--control-height\)/,
+      /min-height:\s*var\(--button-height\)/,
     )
   })
 
@@ -436,8 +444,8 @@ describe('shared layout', () => {
     expect(tokens).toMatch(/--column-landing:\s*360px/)
   })
 
-  it('lets the ride on foot tile shrink, so the page does not widen', () => {
-    expect(rulesWith(statTile, '.stat-tile')).toMatch(/min-width:\s*0/)
+  it('lets the ride on foot row shrink, so the page does not widen', () => {
+    expect(statTileTsx).toContain('className="row__body stat-tile__body"')
     expect(rulesWith(crossSport, '.cross-sport__details')).toMatch(/min-width:\s*0/)
   })
 })
@@ -448,21 +456,19 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
 
-  it('sets the evidence line as one wrapping row, never a card', () => {
-    const line = rulesWith(balancePage, '.evidence-line')
-    expect(line).toMatch(/display:\s*flex/)
-    expect(line).toMatch(/flex-wrap:\s*wrap/)
-    expect(line).toMatch(/gap:\s*var\(--space-2\) var\(--space-3\)/)
-    expect(balancePage).not.toMatch(/evidence-card/)
+  it('has no evidence line or card, and keeps one section gap between bands', () => {
+    expect(balancePage).not.toMatch(/evidence-line|evidence-card/)
+    expect(rulesWith(balancePage, '.balance-page > .band')).toMatch(/margin-top:\s*0;/)
   })
 
   it('gives the value room under the track, clear of the line, for the number and its range', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-bottom:\s*5rem/)
-    expect(rulesWith(balanceMeter, '.balance-meter__reading')).toMatch(/top:\s*2\.25rem/)
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-bottom:\s*3\.5rem/)
+    expect(rulesWith(balanceMeter, '.balance-meter__track')).toMatch(/height:\s*1\.5rem/)
+    expect(rulesWith(balanceMeter, '.balance-meter__reading')).toMatch(/top:\s*1\.875rem/)
   })
 
-  it('clamps the dot and the value to an edge inside the plot, so each stays whole at either end of the scale', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--dot-edge:\s*0\.75rem/)
+  it('clamps the mark and the value to an edge inside the plot, so each stays whole at either end of the scale', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--dot-edge:\s*1px/)
     expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(
       /left:\s*clamp\(var\(--dot-edge\),\s*var\(--at\),\s*calc\(100% - var\(--dot-edge\)\)\)/,
     )
@@ -498,26 +504,23 @@ describe('balance hero, meter and evidence', () => {
     )
   })
 
-  it('sets the value in the display face, tabular, with its unit quieter beside it', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__value')).toMatch(
-      /font-family:\s*var\(--font-display\)/,
+  it('sets the value in the mono, tabular, with its unit quieter beside it and the range as meta', () => {
+    const value = rulesWith(balanceMeter, '.balance-meter__value')
+    expect(value).toMatch(/font-family:\s*var\(--font-mono\)/)
+    expect(value).toMatch(/tabular-nums/)
+    expect(rulesWith(balanceMeter, '.balance-meter__unit')).toMatch(
+      /color:\s*var\(--ink-secondary\)/,
     )
-    expect(rulesWith(balanceMeter, '.balance-meter__number')).toMatch(/tabular-nums/)
-    expect(rulesWith(balanceMeter, '.balance-meter__unit')).toMatch(/color:\s*var\(--text-muted\)/)
+    const range = rulesWith(balanceMeter, '.balance-meter__range')
+    expect(range).toMatch(/font-size:\s*var\(--text-meta\)/)
+    expect(range).toMatch(/text-transform:\s*uppercase/)
   })
 
-  it('draws the dot in the system text colour in forced colours, past the sport colour rule', () => {
-    const forced = mediaOf(balanceMeter, FORCED)
-    for (const selector of [
-      '.balance-meter--run .balance-meter__dot',
-      '.balance-meter--ride .balance-meter__dot',
-    ]) {
-      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
-      // Forced colours drop box-shadow, so the ring is an outline, which they keep.
-      expect(rulesWith(forced, selector), selector).toMatch(/outline:\s*2px solid Canvas/)
-      expect(rulesWith(forced, selector), selector).toMatch(/outline-offset:\s*0/)
-      expect(rulesWith(forced, selector), selector).not.toMatch(/box-shadow/)
-    }
+  it('draws one ink mark, an upright with no ring, halo or sport colour', () => {
+    const mark = rulesWith(balanceMeter, '.balance-meter__dot')
+    expect(mark).toMatch(/background:\s*var\(--ink\)/)
+    expect(mark).toMatch(/width:\s*2px/)
+    expect(balanceMeter).not.toMatch(/box-shadow|balance-meter__band|border-radius/)
   })
 
   it('gives the held note’s Profile link the control height on a phone', () => {
@@ -540,29 +543,15 @@ describe('balance hero, meter and evidence', () => {
 })
 
 describe('balance tiles', () => {
-  it('lays the tiles one across on a phone, two on a tablet, and all three in a row from 64rem, never four', () => {
-    expect(rulesWith(outsideMedia(balanceTiles), '.balance-tiles')).toMatch(
-      /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
-    )
-    expect(rulesWith(mediaOf(balanceTiles, '(min-width: 38rem)'), '.balance-tiles')).toMatch(
-      /repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
-    )
-    expect(
-      rulesWith(mediaOf(balanceTiles, '(min-width: 64rem)'), ".balance-tiles[data-tiles='3']"),
-    ).toMatch(/repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
-    // The lean has no tile, so three is the most: no rule sets four across.
-    expect(balanceTiles).not.toMatch(/data-tiles='4'|repeat\(4/)
+  it('lists the headline numbers as rows at every width, never a grid of tiles', () => {
+    expect(balanceTiles).not.toMatch(/grid-template-columns|@media/)
   })
 
-  it('stretches the tiles to one height in a row', () => {
-    expect(rulesWith(balanceTiles, '.balance-tiles')).toMatch(/align-items:\s*stretch/)
-  })
-
-  it('sets a tile’s figure at display size in the display face, and its name as an eyebrow', () => {
-    expect(statTileTsx).toContain('className="display stat-tile__number"')
-    expect(rulesWith(statTile, '.stat-tile__number')).toMatch(/font-size:\s*var\(--display-2\)/)
-    // The eyebrow's capitals are the tag's (styles/tag.test.ts): the name takes the class.
-    expect(statTileTsx).toContain('className="tag stat-tile__name"')
+  it('sets a row’s figure in the mono at the right of its serif title, with its unit smaller', () => {
+    expect(statTileTsx).toContain('className="row__title"')
+    expect(statTileTsx).toContain('className="row__figure stat-tile__figure"')
+    expect(statTileTsx).toContain('className="row__unit stat-tile__unit"')
+    expect(statTileTsx).not.toMatch(/className="(tag|display)\b/)
   })
 })
 
@@ -587,78 +576,38 @@ describe('sport records', () => {
         /text-transform|background|border|padding/,
       )
     }
-    expect(rulesWith(sportRecords, '.records__set')).toMatch(/color:\s*var\(--text-muted\)/)
+    expect(rulesWith(sportRecords, '.records__set')).toMatch(/color:\s*var\(--ink-secondary\)/)
   })
 })
 
 describe('header details', () => {
-  it('sets the phone tab focus ring inside the tab bar, which would otherwise clip it', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header__tab:focus-visible')).toMatch(
-      /outline-offset:\s*-4px/,
-    )
+  it('sets Profile as a text link, as History and Activities are, with no outline', () => {
+    expect(rulesWith(header, '.header__profile')).not.toMatch(/border|text-transform/)
   })
 
-  it('sets the first wide tab flush with the brand, so its glyph lines up under the wordmark', () => {
-    expect(rulesWith(mediaOf(header, '(min-width: 761px)'), '.header__tab:first-child')).toMatch(
-      /padding-left:\s*0/,
-    )
-  })
-
-  it('sets Profile in sentence case, keeping its outline', () => {
-    expect(rulesWith(header, '.header__profile')).toMatch(/text-transform:\s*none/)
-    expect(rulesWith(header, '.header__profile')).toMatch(
-      /border:\s*1px solid var\(--control-border\)/,
-    )
-  })
-
-  it('draws the tab labels in the system text colour in forced colours', () => {
-    expect(rulesWith(mediaOf(header, FORCED), '.header__tab')).toMatch(/color:\s*CanvasText/)
-  })
-
-  it('hides the wordmark from 840 px down, and the account name only from 560 px down', () => {
-    expect(rulesWith(mediaOf(header, '(max-width: 840px)'), '.header__name')).toMatch(
-      /position:\s*absolute/,
-    )
-    expect(
-      rulesWith(mediaOf(header, '(max-width: 560px)'), '.header__account .account-menu__name'),
-    ).toMatch(/position:\s*absolute/)
+  it('keeps the wordmark and the account name at every width', () => {
+    expect(header).not.toMatch(/max-width:\s*840px|max-width:\s*560px/)
   })
 
   it('underlines the wordmark on hover, as the brand is a link', () => {
-    expect(rulesWith(header, '.header__brand:hover .header__name')).toMatch(
-      /text-decoration:\s*underline/,
-    )
+    expect(rulesWith(header, '.header__brand:hover')).toMatch(/text-decoration:\s*underline/)
   })
 
-  it('pads the foot of the phone header, so its row clears the border below it', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header')).toMatch(
-      /padding-bottom:\s*var\(--space-2\)/,
-    )
+  it('draws a hairline under the header', () => {
+    expect(rulesWith(header, '.header')).toMatch(/border-bottom:\s*1px solid var\(--hairline\)/)
   })
 
-  it('draws a wide header with no tabs as one row, so no empty gap sits under it', () => {
-    expect(rulesWith(header, '.header:not(:has(.header__tabs))')).toMatch(
-      /grid-template-areas:\s*'brand actions'/,
-    )
+  it('lays the header out as one wrapping row, with the actions pushed to its end', () => {
+    expect(rulesWith(header, '.header')).toMatch(/display:\s*flex/)
+    expect(rulesWith(header, '.header__actions')).toMatch(/margin-left:\s*auto/)
   })
 
-  it('presses Profile as a tab does, with the pressed fill and an inset outline', () => {
-    const pressed = rulesWith(header, '.header__profile:active')
-    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
-    expect(pressed).toMatch(/outline:\s*2px solid var\(--control-border\)/)
-    expect(pressed).toMatch(/outline-offset:\s*-2px/)
-    expect(rulesWith(mediaOf(header, FORCED), '.header__profile:active')).toMatch(
-      /outline:\s*2px solid CanvasText/,
-    )
-  })
-
-  it('presses the account trigger as a button does, with the pressed fill and a pixel drop', () => {
-    const pressed = rulesWith(accountMenu, '.account-menu__trigger:active')
-    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
-    expect(pressed).toMatch(/transform:\s*translateY\(1px\)/)
-    expect(rulesWith(mediaOf(accountMenu, FORCED), '.account-menu__trigger:active')).toMatch(
-      /outline:\s*2px solid CanvasText/,
-    )
+  it('sets the account trigger as plain text, its name and a caret, with no pill', () => {
+    const trigger = rulesWith(accountMenu, '.account-menu__trigger')
+    expect(trigger).toMatch(/border:\s*0/)
+    expect(trigger).toMatch(/background:\s*none/)
+    expect(trigger).toMatch(/font-family:\s*var\(--font-serif\)/)
+    expect(accountMenu).not.toMatch(/account-menu__avatar|radius-pill/)
   })
 
   it('keeps the skip link at rest at the top of the page, hidden by its translate, not under the header', () => {
@@ -683,22 +632,20 @@ describe('sign-in button', () => {
     expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/justify-content:\s*center/)
   })
 
-  it('lets the phone sign-in shrink to the width of its mark and its two words, past that minimum', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header__account .google-sign-in')).toMatch(
-      /min-width:\s*6rem/,
-    )
-  })
-
-  it('holds the same width for the pending status on a phone, so the header does not move', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header__account .account-menu__pending')).toMatch(
-      /width:\s*6\.05rem/,
-    )
+  it('lets the pending status take no room on a phone, keeping its words for a screen reader', () => {
+    const pending = rulesWith(mediaOf(header, PHONE), '.header__account .account-menu__pending')
+    expect(pending).toMatch(/font-size:\s*0/)
+    expect(pending).toMatch(/min-width:\s*0/)
+    // A box of a pixel, out of the row: the status is still in the page, and the second row keeps its line.
+    expect(pending).toMatch(/position:\s*absolute/)
+    expect(pending).toMatch(/width:\s*1px/)
+    expect(pending).toMatch(/height:\s*1px/)
   })
 })
 
 describe('global controls', () => {
-  it('draws a button edge in the secondary text colour on hover', () => {
-    expect(rulesWith(components, '.btn:hover')).toMatch(/border-color:\s*var\(--text-secondary\)/)
+  it('draws a button edge in the secondary ink on hover', () => {
+    expect(rulesWith(components, '.btn:hover')).toMatch(/border-color:\s*var\(--ink-secondary\)/)
   })
 
   it('sets the link arrow and the activity back link to their own width, not the full row', () => {
@@ -765,16 +712,14 @@ describe('footer', () => {
 })
 
 describe('sport records, on the card and the page', () => {
-  it('sets a row’s activity and its count on one line in the second column, the count after a dot', () => {
-    expect(rulesWith(sportRecords, '.records__row > .records__source')).toMatch(/grid-column:\s*2/)
-    expect(rulesWith(sportRecords, '.records__source')).toMatch(/column-gap:\s*var\(--space-1\)/)
+  it('sets a row’s activity and its count on one line, the count after a dot', () => {
+    expect(rulesWith(sportRecords, '.records__source')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rulesWith(sportRecords, '.records__dot')).toMatch(/flex:\s*none/)
   })
 
-  it('gives the label column 6rem, but never more than a quarter of the row, so a large text size leaves the figure its room', () => {
-    expect(rulesWith(sportRecords, '.records__row')).toMatch(
-      /grid-template-columns:\s*min\(6rem, 25%\) minmax\(0, 1fr\)/,
-    )
+  it('lets a record’s label wrap rather than widen the row at a large text size', () => {
     expect(rulesWith(sportRecords, '.records__label')).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(rulesWith(sportRecords, '.records__figure')).toMatch(/min-width:\s*0/)
   })
 
   it('keeps every record link at least 24 px tall, for a pointer as for a finger', () => {
@@ -794,10 +739,11 @@ describe('sport records, on the card and the page', () => {
     )
   })
 
-  it('sets the threshold heading on the eyebrow’s line, and keeps the heading’s own display face', () => {
-    const threshold = rulesWith(sportHero, '.sport-hero__eyebrow')
-    expect(threshold).not.toMatch(/font-family/)
-    expect(threshold).toMatch(/line-height:\s*1\.5/)
+  it('sets the threshold title in the serif at --title, over its figure in the mono', () => {
+    expect(rulesWith(sportHero, '.sport-hero__title')).toMatch(/font-size:\s*var\(--title\)/)
+    expect(sportHero).toMatch(
+      /\.sport-hero__unit,\s*\.sport-hero__side\s*\{[^}]*font-family:\s*var\(--font-mono\)/,
+    )
   })
 
   it('sets the sport page’s threshold and level 60 and 40 on a desktop, and stacked below it', () => {
@@ -818,20 +764,20 @@ describe('sport records, on the card and the page', () => {
     expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
   })
 
-  it('holds the “On this page” row under the header on a desktop, and lets it scroll sideways on a phone', () => {
-    expect(rulesWith(sectionNav, '.section-nav__list')).toMatch(/overflow-x:\s*auto/)
-    expect(rulesWith(mediaOf(sectionNav, '(min-width: 1081px)'), '.section-nav')).toMatch(
-      /position:\s*sticky;[^}]*top:\s*var\(--header-height\)/,
+  it('sets “On this page” as one plain line of mono words that wraps and never sticks', () => {
+    expect(sectionNav).not.toMatch(/position:\s*sticky|border-radius|overflow-x/)
+    expect(rulesWith(sectionNav, '.section-nav__list')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rulesWith(sectionNav, '.section-nav__button')).toMatch(
+      /font-family:\s*var\(--font-mono\)/,
     )
+    expect(rulesWith(sectionNav, '.section-nav__button')).toMatch(/border:\s*0/)
   })
 
-  it('gives a closed section a row the height of a control, with the finding beside its name on a desktop', () => {
-    expect(rulesWith(sectionDisclosure, '.sport-disclosure__summary')).toMatch(
-      /padding:\s*var\(--space-3\) var\(--space-5\)/,
+  it('sets a section’s fold as a serif summary with its finding, and no box', () => {
+    expect(rulesWith(sectionDisclosure, '.sport-disclosure__title')).toMatch(
+      /font-family:\s*var\(--font-serif\)/,
     )
-    expect(
-      rulesWith(mediaOf(sectionDisclosure, '(min-width: 761px)'), '.sport-disclosure__finding'),
-    ).toMatch(/grid-column:\s*3/)
+    expect(sectionDisclosure).not.toMatch(/border-radius|background|border:/)
   })
 
   it('lets a record tile’s link shrink to its tile, so a long activity name wraps whole and never widens a phone', () => {
@@ -844,9 +790,10 @@ describe('sport records, on the card and the page', () => {
     expect(name).not.toMatch(/text-overflow|white-space:\s*nowrap/)
   })
 
-  it('draws a race bar in the sport’s colour, with its two estimates as triangles above and below', () => {
-    expect(rulesWith(racePredictions, '.race-bar__band')).toMatch(/var\(--sport-colour-soft\)/)
-    expect(rulesWith(racePredictions, '.race-bar__dot')).toMatch(/var\(--sport-colour\)/)
+  it('draws a race bar in the sport’s wash, with its two estimates as triangles above and below', () => {
+    expect(rulesWith(racePredictions, '.race-bar__band')).toMatch(
+      /background:\s*var\(--sport-wash\)/,
+    )
     expect(rulesWith(racePredictions, '.race-bar__mark--above')).toMatch(/clip-path/)
     expect(rulesWith(racePredictions, '.race-bar__mark--below')).toMatch(/clip-path/)
   })

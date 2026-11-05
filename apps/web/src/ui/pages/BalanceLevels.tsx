@@ -1,13 +1,12 @@
 import { Definition } from '../components/Definition'
-import { SportIcon } from '../components/icons'
 import { SPORT_TITLE } from '../sports'
 import { DEFINITIONS } from './balanceDefinitions'
 import type { BalanceLevelsModel } from './levelsModel'
 import './BalanceLevels.css'
 
 /**
- * Each sport's level on one plain line under the meter, named as the meter's ends are: its name, its age grade, then the level of
- * that grade's centre. The sport colour marks the sport's glyph only. A sport with no grade says what it is missing.
+ * Each sport's level on one plain line under the meter: its name, its age grade in mono, then the level of that grade's
+ * centre. No icon or colour: the meter's ends already say which sport is which. A sport with no grade says what it is missing.
  */
 export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
   if (model.rows.length === 0 && model.note === null) return null
@@ -18,15 +17,12 @@ export function BalanceLevels({ model }: { model: BalanceLevelsModel }) {
         <ul className="balance-levels__list">
           {model.rows.map((row, index) => (
             <li key={row.sport} className="balance-levels__row" data-sport={row.sport}>
-              <span className="tag tag--ink balance-levels__name">
-                <SportIcon sport={row.sport} className="balance-levels__glyph" />
-                {SPORT_TITLE[row.sport]}
-              </span>{' '}
+              <span className="balance-levels__name">{SPORT_TITLE[row.sport]}</span>{' '}
               {row.grade === null ? (
                 <span className="balance-levels__missing">{row.missing}</span>
               ) : (
                 <>
-                  <span className="balance-levels__grade">{row.grade}</span>{' '}
+                  <span className="num balance-levels__grade">{row.grade}</span>{' '}
                   <span className="balance-levels__level">
                     {/* The level is defined once, on the first row that names one. */}
                     {index === firstNamed ? (

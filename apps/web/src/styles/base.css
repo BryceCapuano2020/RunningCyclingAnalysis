@@ -56,7 +56,7 @@ h3 {
 }
 
 a {
-  color: var(--link);
+  color: var(--ink);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
@@ -75,22 +75,16 @@ li {
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
-/* The app focuses a page's heading after a change of page. That is not a control, so it gets an
-   underline rather than the focus ring. */
-h1[tabindex='-1']:focus {
-  outline: none;
-}
-
-/* Only keyboard focus draws the underline, so a click that moves focus leaves the title plain. */
+/* The app focuses a page's heading after a change of page. That is not a control, so it gets neither the focus ring
+   nor an underline: a title is never drawn like a link. */
+h1[tabindex='-1']:focus,
 h1[tabindex='-1']:focus-visible {
-  text-decoration: underline;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 0.12em;
-  text-decoration-color: var(--focus);
+  outline: none;
+  text-decoration: none;
 }
 
 button,
@@ -116,7 +110,7 @@ td {
 }
 
 th {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-weight: 500;
 }
 
@@ -146,11 +140,11 @@ li .num {
 }
 
 .muted {
-  color: var(--text-muted);
+  color: var(--ink-secondary);
 }
 
 .secondary {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .sr-only {

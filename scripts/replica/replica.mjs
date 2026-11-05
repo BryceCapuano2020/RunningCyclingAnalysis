@@ -225,7 +225,7 @@ async function main() {
       .getByText('Checking sign-in…')
       .waitFor({ state: 'hidden', timeout: 60_000 })
       .catch(() => undefined)
-    await page.getByRole('navigation', { name: 'Sections' }).waitFor({ timeout: 180_000 })
+    await page.getByRole('navigation', { name: 'Pages' }).waitFor({ timeout: 180_000 })
     log('signed in and loaded')
 
     for (const target of PAGES) {

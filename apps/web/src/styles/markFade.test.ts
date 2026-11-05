@@ -7,14 +7,15 @@ const seriesCss = await readStylesheet(import.meta.url, '../ui/charts/ChartSerie
 const paper = resolved(declared(tokensCss, ':root'))
 
 describe('the faded marks', () => {
-  it('keep all of their fade on paper: --mark-fade is 1', () => {
-    expect(Number(paper.get('mark-fade'))).toBe(1)
+  it('have one fade on one theme, so no token scales it', () => {
+    expect(paper.has('mark-fade')).toBe(false)
+    expect(seriesCss).not.toMatch(/--mark-fade/)
   })
 
-  it('read the fade from the token, for the light dot and for a dot whose age is its opacity', () => {
-    expect(seriesCss).toMatch(/\.chart-series__marker--light \{[^}]*var\(--mark-fade, 1\)/)
+  it('set the light dot at 40% and an aged dot at its own opacity', () => {
+    expect(seriesCss).toMatch(/\.chart-series__marker--light \{[^}]*fill-opacity: 0\.4;/)
     expect(seriesCss).toMatch(
-      /\.chart-series__marker--aged \{[^}]*1 - var\(--dot-opacity, 1\)[^}]*var\(--mark-fade, 1\)/,
+      /\.chart-series__marker--aged \{[^}]*fill-opacity: var\(--dot-opacity, 1\);/,
     )
   })
 })

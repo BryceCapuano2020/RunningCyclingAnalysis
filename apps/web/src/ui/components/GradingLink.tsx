@@ -1,6 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { hrefFor } from '../route'
-import { ArrowRightIcon } from './icons'
 import { requestMethodSection } from './methodSection'
 import { SECTION_ID } from './methodTopics'
 
@@ -41,15 +40,5 @@ export function GradesLink({ className, children }: { className?: string; childr
     <MethodSectionLink sectionId={SECTION_ID.grades} className={className}>
       {children}
     </MethodSectionLink>
-  )
-}
-
-/** How a level is graded: a link to the age grades, under the grade. */
-export function GradingLink() {
-  return (
-    <GradesLink className="link-arrow">
-      How is this graded?
-      <ArrowRightIcon />
-    </GradesLink>
   )
 }

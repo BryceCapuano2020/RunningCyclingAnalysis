@@ -43,6 +43,8 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await expect(page.locator('.balance-levels__row').first()).toContainText(/\d+%/)
   const onFoot = page.getByRole('article', { name: 'Your ride as a run' })
   await expect(onFoot.locator('.stat-tile__number')).toHaveText(/^\d+:\d{2}$/)
+  // The basis line sits in the row's disclosure (docs/design/system.md, No subtitle lines).
+  await onFoot.getByText('See the pace curve').click()
   await expect(onFoot.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
   await page.getByRole('button', { name: 'Share image' }).click()
   const sheet = page.getByRole('dialog', { name: 'Share image' })

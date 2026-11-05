@@ -29,7 +29,7 @@ describe('a run threshold whatever the effort gate says', () => {
 
   it('is drawn on the sport page’s panel as the estimate, with no floor, reason, spread or best-named heading', () => {
     const { container } = render(
-      <ThresholdPanel sport="run" result={notHard()} massKg={70} units="metric" rangeDays={null} />,
+      <ThresholdPanel sport="run" result={notHard()} massKg={70} units="metric" />,
     )
     expect(screen.getByRole('heading', { name: 'Threshold pace' })).toBeInTheDocument()
     expect(container.querySelector('.sport-hero__number')).toHaveTextContent(ESTIMATE_PACE)
@@ -66,7 +66,7 @@ describe('a run threshold whatever the effort gate says', () => {
         effortGate: { run: unchecked, ride: UNKNOWN },
       })
       const panel = render(
-        <ThresholdPanel sport="run" result={result} massKg={70} units="metric" rangeDays={null} />,
+        <ThresholdPanel sport="run" result={result} massKg={70} units="metric" />,
       )
       expect(panel.container.querySelector('.sport-hero__number')).toHaveTextContent(ESTIMATE_PACE)
       expect(panel.container.textContent).not.toMatch(/not checked|with heart rate to check/)

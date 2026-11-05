@@ -144,26 +144,19 @@ describe('BalanceMeter with a grade gap', () => {
     expect(container.querySelector('.balance-meter__value')?.textContent).toBe('+30pts')
   })
 
-  it('draws the band between the low and high ends of its range, centred on the band', () => {
+  it('draws no band for the range: the range is written under the mark instead', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    const band = container.querySelector<HTMLElement>('.balance-meter__band')
-    const middle = (positionOf(2) + positionOf(10)) / 2
-    expect(Number.parseFloat(band?.style.left ?? '')).toBeCloseTo(middle, 6)
-    expect(Number.parseFloat(band?.style.width ?? '')).toBeCloseTo(
-      Math.abs(positionOf(10) - positionOf(2)),
-      6,
-    )
+    expect(container.querySelector('.balance-meter__band')).toBeNull()
+    expect(container.querySelector('.balance-meter__range')).toHaveTextContent(/2 to 10$/)
   })
 
-  it('keeps the dot inside its band when the range is wider than the centre', () => {
+  it('draws one mark, at the centre of the range, and no icon beside the sport names', () => {
     const { container } = render(
       <BalanceMeter reading={gapReading({ centre: 4, low: -2, high: 10, lean: 'even' })} />,
     )
-    const band = container.querySelector<HTMLElement>('.balance-meter__band')
-    const middle = Number.parseFloat(band?.style.left ?? '')
-    const half = Number.parseFloat(band?.style.width ?? '') / 2
-    expect(dotLeft(container)).toBeGreaterThanOrEqual(middle - half)
-    expect(dotLeft(container)).toBeLessThanOrEqual(middle + half)
+    expect(container.querySelectorAll('.balance-meter__dot')).toHaveLength(1)
+    expect(dotLeft(container)).toBeCloseTo(positionOf(4), 6)
+    expect(container.querySelector('svg')).toBeNull()
   })
 
   it('places the dot and the value by a custom property, not a bare left, so the CSS can clamp them', () => {

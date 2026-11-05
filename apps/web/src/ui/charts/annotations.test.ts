@@ -4,6 +4,7 @@ import type { Annotation, AnnotationSpace } from './annotations'
 import { meetsBoxes } from './chartBoxes'
 import type { Box } from './chartBoxes'
 import { LINE_CLEARANCE_PX } from './sportCurveAnnotations'
+import { valueWidth } from './annotationTypes'
 
 const PLOT = { left: 56, right: 884, top: 28, bottom: 290 }
 const SPACE: AnnotationSpace = { plot: PLOT, width: 1048, rootPx: 16 }
@@ -398,7 +399,16 @@ describe('a callout beside the curve’s own line', () => {
     expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThanOrEqual(LINE_CLEARANCE_PX / 2)
   })
 
-  it('has more room than a thin obstacle gave', () => {
-    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(5))
+  it('has more room than an obstacle as thin as the stroke gave', () => {
+    // The 3 px stroke alone lets the value sit nearly on the line; its clearance obstacle keeps it well off. (A 5 px
+    // obstacle now gives the same room as the clearance here: the value's box is measured at the mono's full 0.6 em.)
+    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(3) * 2)
+  })
+})
+
+describe('valueWidth', () => {
+  it('measures a callout value at the mono face’s advance, 0.6 em a character, its unit at 0.6 of that', () => {
+    // "6:20" at 30 px is four characters of 18 px; " /mi" is four more at 0.6 of the size.
+    expect(valueWidth('6:20 /mi', 30, 16)).toBeCloseTo(4 * 18 + 4 * 18 * 0.6, 5)
   })
 })

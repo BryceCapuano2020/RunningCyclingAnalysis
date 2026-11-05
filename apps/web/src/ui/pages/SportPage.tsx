@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { SportIcon } from '../components/icons'
+import { NumText } from '../components/NumText'
+import { indoorSplitLine } from '../indoorCopy'
 import { countSport } from '../records'
 import { formLine } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { PageDetails } from './PageDetails'
 import { FitnessSection } from './FitnessSection'
 import { SectionNav } from './SectionNav'
 import { SportAnswer } from './SportAnswer'
@@ -14,7 +16,7 @@ import './SportPage.css'
 export type { SportPageProps } from './sportPageProps'
 
 /**
- * One sport's page: the answer, the period control under it, a row that jumps to each section, then the sections
+ * One sport's page: the title with one ▸ Details under it (the last activity and the period's dates and counts), the answer, a row that jumps to each section, then the sections
  * as the rows of its list in sportSections give, each open to start with and each saying its finding on its row.
  * A section the library cannot fill yet is one line in its own place that says what to add: none leaves the page.
  */
@@ -24,6 +26,8 @@ export function SportPage(props: SportPageProps) {
     result,
     weighted,
     controls,
+    periodLine = null,
+    periodCounts = false,
     footnote = null,
     inLibrary,
     units,
@@ -38,24 +42,36 @@ export function SportPage(props: SportPageProps) {
   const held = sport === 'ride' && !weighted
   const { rows, nav } =
     held || count === 0 ? { rows: [], nav: [] } : layoutOf(sport, { ...props, count, openedAt })
-  const form = count === 0 ? null : formLine(result.activities, sport, units, openedAt, onFile)
+  // The period's line gives the count when it has one, so the page's own line does not say it twice.
+  const form =
+    count === 0
+      ? null
+      : formLine(result.activities, sport, units, openedAt, periodCounts ? null : onFile)
+  const split = count === 0 ? null : indoorSplitLine(result.activities, sport)
   return (
     <div className="page-stack sport-page" data-sport={sport}>
-      <div className="page-head">
+      <div className="sport-page__head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="sport-page__title">
-          <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
-        {form && !held && <p className="muted sport-page__form">{form}</p>}
+        {inLibrary > 0 ? controls : null}
+        {/* The last activity, the distance and the period's dates and counts are one press down, not lines under the title. */}
+        <PageDetails>
+          {form && !held ? <p className="meta sport-page__form">{form}</p> : null}
+          {inLibrary > 0 ? periodLine : null}
+          {/* The split between indoor and outdoor qualifies the answer, so it is said here, once. */}
+          {split === null || held ? null : (
+            <p data-testid="indoor-split">
+              <NumText text={split} />
+            </p>
+          )}
+        </PageDetails>
       </div>
       {/* The fitness status leads: it is the finding that moves, and it is library-wide, so it does not wait on the period. */}
       {fitness && !held && count > 0 ? (
         <FitnessSection fitness={fitness} units={units} library={library} sport={sport} />
       ) : null}
-      {/* The answer is one slot, and the period control the next child in every state, so the control keeps
-          its parent and place, and its focus, when a pick takes the sport to or from zero activities. */}
       <SportAnswer {...props} count={count} held={held} />
-      {inLibrary > 0 ? controls : null}
       <SectionNav items={nav} />
       {rows.map(({ key, cells }) => (
         <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>

@@ -10,7 +10,7 @@ import {
   zonesChangedNotes,
 } from '../zoneTimeCopy'
 import { periodBars, periodTables } from '../zoneTimeRows'
-import './TimeInZonesSection.css'
+import { PageDetails } from './PageDetails'
 
 export interface TimeInZonesSectionProps {
   sport: Sport
@@ -29,7 +29,7 @@ export interface TimeInZonesSectionProps {
 /**
  * How the period's time was spread across training zones, a bar for each measure with enough of it, each bar saying its
  * easy and hard shares. Where the period held too little, the bars are of the last 12 months or all time and a line says
- * which. Under them, the activities a measure left out and where the zones came from.
+ * which, in the Details under the bars, with the activities a measure left out and where the zones came from.
  * The page asks timeInZonesLack first, so this is drawn only when some measure has enough time.
  */
 export function TimeInZonesSection({
@@ -47,21 +47,22 @@ export function TimeInZonesSection({
   return (
     <section className="section" data-sport={sport} aria-labelledby={`${sport}-time-in-zones`}>
       <h2 id={`${sport}-time-in-zones`}>{TIME_IN_ZONES_NAME}</h2>
+      {/* The section's heading names the chart, and its window, the activities left out and where the zones came from
+          are one ▸ Details under the bars (docs/design/system.md, No subtitle lines). */}
       <ZoneTimeChart
         title="Share of time in each zone"
-        lede={zoneWindow === undefined ? undefined : ZONE_WINDOW_LINE[zoneWindow]}
+        titleHidden
         rows={periodBars(shown)}
         table={table}
         summary={summary}
       />
-      {notes.length > 0 && (
-        <ul className="muted time-in-zones__notes">
-          {notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      )}
-      <p className="muted">{zoneSourceNote(shown)}</p>
+      <PageDetails about="time in zones">
+        {zoneWindow === undefined ? null : <p>{ZONE_WINDOW_LINE[zoneWindow]}</p>}
+        {notes.map((note) => (
+          <p key={note}>{note}</p>
+        ))}
+        <p>{zoneSourceNote(shown)}</p>
+      </PageDetails>
     </section>
   )
 }

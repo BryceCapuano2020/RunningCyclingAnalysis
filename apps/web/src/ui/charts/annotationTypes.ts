@@ -121,7 +121,8 @@ export const CLEARANCE = 2
 export const LEADER_LENGTHS = [28, 50, 72]
 export const END_NUDGES = [0, -16, 16, -32, 32]
 export const LABEL_LINE = 14
-export const DISPLAY_EM = 0.55
+/** A character of a callout's value in em of its size: IBM Plex Mono's advance width, 600 of 1000 units. */
+export const DISPLAY_EM = 0.6
 /** A reference line's value is smaller than a callout's: it is the line's label, not a finding. */
 export const REFERENCE_VALUE_PX = 22
 

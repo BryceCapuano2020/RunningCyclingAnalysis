@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
 import type { Sport } from '@rca/core/types'
 import { tooShortText, yearsFinding } from '@rca/core/lookback'
+import { PROFILE_UNFIT_TEXT, profileNamesAny } from '@rca/core/profile'
 import { LATE_IN_EFFORT_NAME, lateFinding, lateInEffort } from '../lateInEffort'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
 import { bestEffortRows, curvesOf } from './bestEffortRows'
 import { BestEffortsEvidence } from './BestEffortsEvidence'
+import { recordSparks } from './recordSparks'
 import { BestEffortsSection } from './BestEffortsSection'
 import { LateInEffortSection } from './LateInEffortSection'
 import { racePredictionsContent } from './racePredictionsSection'
@@ -233,21 +235,26 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
           closed: { title: NAV_LABEL.lateInEffort(sport), finding, restated: true },
         }
   },
+  // A finding that names no duration tells the athlete nothing, so the section is left out; one that names one is the
+  // section's heading, as a chart's finding is. A library that cannot be compared yet says what to add.
   standOut: (context) => {
     const { sport, result, libraryBests, library, inLibrary } = context
     const answer = standOutFor(result, sport, libraryBests ?? null, library, inLibrary)
-    return 'lack' in answer
-      ? emptyOf(context, 'standOut', answer.lack)
-      : {
-          content: <StandOutSection sport={sport} profile={answer.profile} />,
-          closed: {
-            title: NAV_LABEL.standOut(sport),
-            finding: standOutFinding(answer.profile, answer.allTime),
-          },
-        }
+    if ('lack' in answer) {
+      return answer.lack === PROFILE_UNFIT_TEXT
+        ? { content: null }
+        : emptyOf(context, 'standOut', answer.lack)
+    }
+    if (!profileNamesAny(answer.profile)) return { content: null }
+    return {
+      content: <StandOutSection sport={sport} profile={answer.profile} />,
+      closed: { title: standOutFinding(answer.profile, answer.allTime) },
+    }
   },
-  evidence: ({ sport, list }) => ({
-    content: <BestEffortsEvidence list={list} />,
+  evidence: ({ sport, list, trends, massKg }) => ({
+    content: (
+      <BestEffortsEvidence sport={sport} list={list} sparks={recordSparks(sport, trends, massKg)} />
+    ),
     closed: { title: NAV_LABEL.evidence(sport) },
   }),
 }

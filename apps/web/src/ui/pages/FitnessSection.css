@@ -1,13 +1,6 @@
-/* A ride that is still waiting on its count, said as one line on the home page. */
+/* A sport with no status to show yet, or a fitness held for an import, said as one line. */
 .fitness-section__line {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
-}
-
-/* The link is the line, so it is a control's height tall (40 px, 44 on a finger). */
-.fitness-section__line a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
 }

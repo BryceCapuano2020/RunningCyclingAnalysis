@@ -1,6 +1,7 @@
 import type { Sport } from '@rca/core/types'
 import { anchorOf } from './sectionAnchor'
 import type { SectionId } from './sportSections'
+import { NumText } from '../components/NumText'
 
 /**
  * A section the library cannot fill yet: its name and one line that says what to add, in its own place on the page.
@@ -25,7 +26,7 @@ export function SectionLine({
     <section className="section" data-sport={sport} aria-labelledby={`${anchor}-title`}>
       <h2 id={`${anchor}-title`}>{title}</h2>
       <p className="muted">
-        {line.endsWith('.') ? line : `${line}.`}
+        <NumText text={line.endsWith('.') ? line : `${line}.`} />
         {link === undefined ? null : (
           <>
             {' '}

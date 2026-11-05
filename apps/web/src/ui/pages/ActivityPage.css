@@ -178,6 +178,7 @@
   overflow-wrap: anywhere;
 }
 
+/* A stat's name keeps its line while there is room, and wraps at a large text size rather than widen the page. */
 .activity-page__stat dt {
   font-size: var(--text-xs);
 }

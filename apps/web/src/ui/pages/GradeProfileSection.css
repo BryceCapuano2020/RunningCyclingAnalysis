@@ -9,7 +9,7 @@
 .grade-profile__finding {
   max-width: var(--measure);
   margin: 0;
-  color: var(--text-primary);
+  color: var(--ink);
   font-size: var(--text-md);
 }
 
@@ -41,7 +41,7 @@
  * thinner than the run's, and its band has no outline, so it never drowns the run line drawn over it.
  */
 .grade-profile .chart-series__line--ride {
-  stroke-width: 2px;
+  stroke-width: 1.5px;
 }
 
 .grade-profile .chart-series__band--ride {
@@ -59,25 +59,21 @@
   }
 }
 
-/* The 20 minute labels: the sport and its grade in the display face, an estimate's range in small type under. */
+/* The 20 minute labels: the sport and its grade in the mono, an estimate's range smaller under. */
 .grade-profile__label {
-  fill: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-  font-weight: 800;
-  letter-spacing: var(--tracking-caps);
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 400;
   paint-order: stroke;
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-linejoin: round;
   stroke-width: 4px;
-  text-transform: uppercase;
 }
 
 .grade-profile__label-range {
-  fill: var(--text-secondary);
-  font-family: var(--font-sans);
+  fill: var(--ink-secondary);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
+  font-weight: 400;
 }

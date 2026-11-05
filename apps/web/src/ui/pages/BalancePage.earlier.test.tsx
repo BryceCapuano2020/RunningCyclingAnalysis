@@ -14,6 +14,7 @@ import {
   makeResult,
 } from '../components/fixtures'
 import { BalancePage } from './BalancePage'
+import { wholeText } from '../test/wholeText'
 
 afterEach(cleanup)
 
@@ -68,7 +69,7 @@ describe('what changed, on a library whose period before holds too little', () =
         change: changeOf('higher'),
       },
     })
-    const strip = screen.getByRole('region', { name: 'What changed · vs Jan to Mar' })
+    const strip = screen.getByRole('region', { name: 'What changed vs Jan to Mar' })
     expect(strip).toHaveTextContent('Faster 20 min run than Jan to Mar')
     expect(strip).toHaveTextContent('More power over 20 min than Jan to Mar')
     expect(strip).not.toHaveTextContent(/previous 12 weeks|hard effort|not checked/)
@@ -86,14 +87,17 @@ describe('what changed, on a library whose period before holds too little', () =
         change: changeOf('none'),
       },
     })
-    expect(screen.getByRole('region', { name: 'What changed · vs Jan to Mar 2023' })).toBeVisible()
-    expect(screen.getByText('No clear change at 20 min from Jan to Mar 2023.')).toBeVisible()
+    // With nothing called, the one sentence names the window, so the region is named by its heading alone.
+    expect(screen.getByRole('region', { name: 'What changed' })).toBeVisible()
+    expect(
+      screen.getByText(wholeText('No clear change at 20 min from Jan to Mar 2023.')),
+    ).toBeVisible()
   })
 
   it('compares with the period before when the session found no earlier window', () => {
     renderPage({ period: period(END), previous: lower, change: changeOf('higher'), earlier: null })
     expect(
-      screen.getByRole('region', { name: 'What changed · vs the previous 12 weeks' }),
+      screen.getByRole('region', { name: 'What changed vs the previous 12 weeks' }),
     ).toHaveTextContent('Faster 20 min run than the previous 12 weeks')
   })
 

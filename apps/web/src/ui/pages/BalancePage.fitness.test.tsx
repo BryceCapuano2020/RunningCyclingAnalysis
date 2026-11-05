@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import type { AthleteSettings } from '@rca/core/types'
@@ -75,9 +75,12 @@ describe('the home page’s fitness', () => {
     expect(fitness.parentElement?.firstElementChild).not.toBe(fitness)
   })
 
-  it('says the run’s state with its figures, and the card is named by the state', () => {
+  it('says the run’s state as a numbered row titled by the sport and the state', () => {
     renderHome({ run: RECOVERING, ride: NO_FITNESS.ride })
-    expect(screen.getByRole('article', { name: 'Recovering' })).toBeInTheDocument()
+    const region = screen.getByRole('region', { name: 'Your fitness' })
+    const title = within(region).getByRole('heading', { level: 3, name: 'Run · Recovering' })
+    expect(title.closest('li')).toHaveAttribute('data-sport', 'run')
+    expect(title.closest('li')?.querySelector('.row__index')).toHaveTextContent('01')
   })
 
   it('draws no fitness section for a library with no status, and the balance still opens the page', () => {

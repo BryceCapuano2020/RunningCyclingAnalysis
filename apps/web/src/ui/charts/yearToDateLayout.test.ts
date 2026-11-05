@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ChartSize } from './chartTypes'
 import { nearestYear, yearToDateLayout } from './yearToDateLayout'
+import { axisFontSize } from './ticks'
 import { SAMPLE_DAYS, TODAY, THIS_YEAR_ONLY, YEAR_TO_DATE } from '../yearToDateFixtures'
 
 const SIZE: ChartSize = {
@@ -75,7 +76,7 @@ describe('yearToDateLayout', () => {
       SIZE,
     )!.labels
     const [best, previous] = ['best', 'previous'].map((r) => labels.find((l) => l.role === r)!)
-    expect(Math.abs(best!.y - previous!.y)).toBeGreaterThanOrEqual(13 + 2)
+    expect(Math.abs(best!.y - previous!.y)).toBeGreaterThanOrEqual(axisFontSize(SIZE.width) + 2)
   })
 
   it('gives a pointer between two lines that run together to the later year', () => {

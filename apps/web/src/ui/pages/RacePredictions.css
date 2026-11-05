@@ -12,18 +12,22 @@
 
 .race-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
   grid-template-areas:
-    'name time'
-    'bar bar';
-  align-items: center;
+    'index name time'
+    '. bar bar';
+  align-items: baseline;
   gap: 0 var(--space-3);
   padding: var(--space-3) 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
 }
 
-.race-row:first-child {
-  border-top: 0;
+.race-row:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.race-row > .row__index {
+  grid-area: index;
 }
 
 .race-row__name {
@@ -36,37 +40,41 @@
 }
 
 .race-row__race {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: var(--title);
-  font-weight: 800;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
-.race-row__pace {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--heading);
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 /* What was run, where it beat the prediction, sits with the name and pace. */
 .race-row__ran {
   flex-basis: 100%;
-  color: var(--text-primary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
-  font-weight: 600;
 }
 
 .race-row__time {
   grid-area: time;
   margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 2.125rem;
-  font-weight: 800;
-  line-height: 1;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--title);
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/*
+ * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. On a narrow phone the bar takes the row's whole width, under the
+ * index too, so its printed ends keep their margins at a large text size.
+ */
+@media (max-width: 420px) {
+  .race-row {
+    grid-template-areas:
+      'index name time'
+      'bar bar bar';
+  }
 }
 
 /* The bar's own box is the scale; its ends print outside it, in the margins the box leaves. */
@@ -90,7 +98,7 @@
   top: calc(50% - 0.375rem);
   height: 0.75rem;
   border-radius: var(--radius-pill);
-  background: var(--sport-colour-soft);
+  background: var(--sport-wash);
 }
 
 .race-bar__cap {
@@ -98,7 +106,7 @@
   width: 2px;
   height: 1.375rem;
   border-radius: 1px;
-  background: var(--sport-colour);
+  background: var(--sport-ink);
   transform: translateX(-50%);
 }
 
@@ -107,10 +115,10 @@
   box-sizing: border-box;
   width: 1.125rem;
   height: 1.125rem;
-  border: 3px solid var(--surface-1);
+  border: 3px solid var(--paper);
   border-radius: 50%;
-  background: var(--sport-colour);
-  box-shadow: 0 0 0 1px var(--sport-colour);
+  background: var(--sport-ink);
+  box-shadow: 0 0 0 1px var(--sport-ink);
   transform: translate(-50%, -50%);
 }
 
@@ -120,7 +128,7 @@
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 50%;
-  background: var(--text-primary);
+  background: var(--ink);
   transform: translate(-50%, -50%);
 }
 
@@ -128,9 +136,10 @@
   position: absolute;
   bottom: calc(100% + 0.25rem);
   left: 50%;
-  color: var(--text-primary);
+  color: var(--ink);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1;
   transform: translateX(-50%);
 }
@@ -139,7 +148,7 @@
 .race-bar__mark {
   width: 0.75rem;
   height: 0.6875rem;
-  background: var(--text-secondary);
+  background: var(--ink-secondary);
   transform: translateX(-50%);
 }
 
@@ -155,9 +164,10 @@
 
 .race-bar__end {
   top: 50%;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   transform: translateY(-50%);
@@ -179,7 +189,7 @@
   gap: var(--space-1) var(--space-4);
   margin: 0;
   padding: 0;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   list-style: none;
 }
@@ -198,17 +208,17 @@
 
 .race-key__shape--dot {
   border-radius: 50%;
-  background: var(--sport-colour);
+  background: var(--sport-ink);
 }
 
 .race-key__shape--above,
 .race-key__shape--below {
-  background: var(--text-secondary);
+  background: var(--ink-secondary);
 }
 
 .race-key__shape--ran {
   border-radius: 50%;
-  background: var(--text-primary);
+  background: var(--ink);
 }
 
 .race-key__shape--above {
@@ -223,8 +233,8 @@
   width: 1.25rem;
   height: 0.625rem;
   border-radius: var(--radius-pill);
-  background: var(--sport-colour-soft);
-  box-shadow: inset 0 0 0 1px var(--sport-colour);
+  background: var(--sport-wash);
+  box-shadow: inset 0 0 0 1px var(--sport-ink);
 }
 
 .race-table th,
@@ -260,9 +270,10 @@
 
 @media (min-width: 761px) {
   .race-row {
-    grid-template-columns: 9rem minmax(0, 1fr) 8rem;
-    grid-template-areas: 'name bar time';
-    gap: 0 var(--space-4);
+    grid-template-columns: 2.25rem 8rem minmax(0, 1fr) 6.5rem;
+    grid-template-areas: 'index name bar time';
+    align-items: center;
+    gap: 0 var(--space-3);
   }
 
   .race-row__name {
@@ -272,10 +283,6 @@
 
   .race-row__race {
     white-space: nowrap;
-  }
-
-  .race-row__time {
-    font-size: 2.375rem;
   }
 }
 

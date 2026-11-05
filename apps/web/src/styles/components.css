@@ -4,7 +4,7 @@
 .stat-number,
 .chip,
 .btn-primary {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
 }
 
 /* The page fills the window at least, and is a column, so the footer stays at its foot on a short page.
@@ -43,12 +43,12 @@
 
 /*
  * The two surfaces. A panel is a box: disclosure rows and the error notice keep one, because the box is what says
- * "open me" or "this broke". A band is not a box: a 2 px rule across the top, the heading, and the section gap
+ * "open me" or "this broke". A band is not a box: a 1 px rule across the top, the heading, and the section gap
  * under it. Everything else on a sport page is a band, so the answer is the one thing with weight (D10, fewer boxes).
  */
 .panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius);
   min-width: 0;
 }
@@ -57,12 +57,12 @@
 .band {
   min-width: 0;
   padding-top: var(--space-4);
-  border-top: 2px solid var(--divider);
+  border-top: 1px solid var(--rule);
   margin-top: calc(var(--section-gap) - var(--stack-gap));
 }
 
 .band > h2 + p {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   margin-top: var(--space-1);
   max-width: var(--measure);
 }
@@ -75,20 +75,20 @@
  */
 .eyebrow,
 .tag {
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
+  font-weight: 500;
+  letter-spacing: var(--tracking-meta);
   text-transform: uppercase;
 }
 
 /* The tag is set in the display face. The eyebrow keeps the face it has (the group at the top of this sheet). */
 .tag {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
 }
 
 .tag--ink {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .tag--small {
@@ -126,12 +126,12 @@
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text-secondary);
+  border-radius: var(--radius);
+  background: var(--paper-hover);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
+  font-weight: 500;
+  letter-spacing: var(--tracking-meta);
   text-transform: uppercase;
 }
 
@@ -142,45 +142,45 @@
 
 .chip--warning {
   color: var(--status-warning);
-  background: var(--status-warning-bg);
+  background: var(--paper);
 }
 
 .chip--good {
   color: var(--status-good);
-  background: var(--status-good-bg);
+  background: var(--paper);
 }
 
 /* A record chip takes its sport's colour as a soft fill, and keeps ink text for contrast. */
 .chip[data-sport] {
-  background: var(--sport-colour-soft);
-  color: var(--text-primary);
+  background: var(--sport-wash);
+  color: var(--ink);
 }
 
+/* Every button but the one primary action is small and outlined: 32 px, sans, sentence case (44 px on a finger). */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-height);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-sm);
+  min-height: var(--button-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
   border: 1px solid var(--control-border);
-  background: var(--surface-1);
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  text-decoration: none;
 }
 
-/* The hover also darkens the edge to the secondary text colour, so it shows on the page. */
 .btn:hover {
-  background: var(--surface-2);
-  border-color: var(--text-secondary);
+  background: var(--paper-hover);
+  border-color: var(--ink-secondary);
 }
 
-/* A press drops the control a pixel, takes the pressed fill and an inset ring, so the press shows in
-   both schemes even where the fill barely changes. */
 .btn:active:not([aria-disabled='true']) {
-  background: var(--surface-pressed);
-  box-shadow: inset 0 0 0 2px var(--control-border);
-  transform: translateY(1px);
+  background: var(--paper-pressed);
 }
 
 /* aria-disabled keeps a busy button focusable; it looks the same as a disabled one. */
@@ -190,24 +190,22 @@
   cursor: not-allowed;
 }
 
-/* A button is a sentence, so it is set in sentence case, not capitals. */
+/* The one primary action on a screen: solid ink with paper text. */
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 800;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
 }
 
-/* The hover is a visible change in both schemes: the fill moves to --accent-hover. */
 .btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
 }
 
 .btn-primary:active:not([aria-disabled='true']) {
-  background: var(--accent-pressed);
-  border-color: var(--accent-pressed);
-  box-shadow: inset 0 0 0 2px var(--accent-contrast);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 /* Forced colours drop the fill and the shadow of a press, so a pressed control gets an outline. */

@@ -1,22 +1,24 @@
 .chart-y-axis__grid {
-  stroke: var(--grid);
+  stroke: var(--hairline);
   stroke-width: 1;
 }
 
 .chart-y-axis__tick {
-  fill: var(--text-muted);
+  fill: var(--ink-secondary);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .chart-y-axis__title {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
 /* Inside the plot a label sits over data and gridlines, so it is set on a halo in the card colour. */
 .chart-y-axis__tick--inside {
   paint-order: stroke;
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

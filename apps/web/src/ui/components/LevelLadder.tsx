@@ -5,6 +5,10 @@ import { LEVEL_BANDS, gradeLevelText } from '../grades'
 import type { SportGrade } from '../grades'
 import { formatGrade } from '../gradeFormat'
 import { SPORT_FORMAT } from '../sports'
+import { rootFontPx } from '../charts/rootFont'
+import { useSize } from '../charts/useSize'
+import { aloneAlignment, namesFit } from './ladderNames'
+import type { NamedBand } from './ladderNames'
 import './LevelLadder.css'
 
 export interface LevelLadderProps {
@@ -47,11 +51,6 @@ function place(grade: number): number {
   return ((clamped - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100
 }
 
-/** A shape on the bar from one grade to another: its left edge and its width, both in percent. */
-function spanStyle(from: number, to: number): CSSProperties {
-  return { left: `${place(from)}%`, width: `${place(to) - place(from)}%` }
-}
-
 /**
  * The marker's centre, handed to the stylesheet as a custom property. The stylesheet holds the whole
  * marker inside the track, so a grade past either end sits at that end of the bar, not over its edge.
@@ -64,19 +63,30 @@ function percentText(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
+/** The index in BANDS of the band a grade falls in: the last whose lower edge it reaches (the first below the scale). */
+function bandIndexOf(grade: number): number {
+  const index = BANDS.findLastIndex((band) => grade >= band.low)
+  return Math.max(index, 0)
+}
+
 /** The scale's first label starts at the bar's left end, so it does not run off the figure. */
 function tickAlignment(index: number): 'start' | 'middle' {
   return index === 0 ? 'start' : 'middle'
 }
 
-/**
- * The lowest and the highest band's names sit centred on narrow bands near the ends of the figure, so at a large
- * text size they would run past it: they are anchored to its edge instead.
- */
-function nameEnd(index: number): string {
-  if (index === 0) return ' level-ladder__name--first'
-  return index === BANDS.length - 1 ? ' level-ladder__name--last' : ''
+/** Where the current level's name stands when it is named alone, by how it is held inside the bar. */
+const ALONE_AT: Record<'start' | 'centre' | 'end', (at: number) => CSSProperties> = {
+  start: () => ({ left: 0 }),
+  centre: (at) => ({ left: `${at}%` }),
+  end: () => ({ right: 0 }),
 }
+
+/** The bands as the names line reads them: each name, and its band's edges on the bar in percent. */
+const NAMED: NamedBand[] = BANDS.map((band) => ({
+  name: band.name,
+  from: place(band.low),
+  to: place(band.high),
+}))
 
 /** Where a grade sits against the scale: below it, above it, or within it (null). */
 function beyondScale(grade: SportGrade): 'below' | 'above' | null {
@@ -110,14 +120,6 @@ function offScaleText(grade: SportGrade): string | null {
 }
 
 /**
- * The band the grade falls in, filled and named in bold: the band of its centre (`gradeLevelText`), also where a ride's
- * range reaches a neighbouring band. The ring and its range bar show the spread.
- */
-function currentBands(grade: SportGrade): Set<string> {
-  return new Set([gradeLevelText(grade)])
-}
-
-/**
  * A chevron just outside the bar end a grade lies past, pointing out past it. It sits beside the bar
  * rather than on the marker, so a grade whose centre is on the scale still reads cleanly.
  */
@@ -135,30 +137,13 @@ function BeyondMark({ side }: { side: 'below' | 'above' }) {
   )
 }
 
-/** The bar: the bands and the range clipped to its rounded ends, the edges, the marker and any chevron. */
+/** The bar: a hairline with a tick at each band's edge, the one mark and any chevron. A ride's range is in its label. */
 function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
   const { centre, range } = grade
-  const current = currentBands(grade)
   const side = beyondScale(grade)
   const markerKind = range ? 'level-ladder__ring' : 'level-ladder__dot'
   return (
     <div className="level-ladder__track" role="img" aria-label={ladderLabel(sport, grade)}>
-      <div className="level-ladder__fill">
-        {BANDS.map((band) => (
-          <span
-            key={band.name}
-            className={`level-ladder__band level-ladder__band--${BANDS.indexOf(band) + 1}${current.has(band.name) ? ' level-ladder__band--current' : ''}`}
-            style={spanStyle(band.low, band.high)}
-          />
-        ))}
-        {range && (
-          <span
-            className="level-ladder__range"
-            style={spanStyle(range.low.grade, range.high.grade)}
-          />
-        )}
-      </div>
-      {/* Drawn after the range, so the edges stay visible inside a ride's band. */}
       {EDGES.map((edge) => (
         <span key={edge} className="level-ladder__edge" style={{ left: `${place(edge)}%` }} />
       ))}
@@ -169,15 +154,28 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
 }
 
 /**
- * An age grade on the level bands, on a 30% to 100% scale. A run is read as recorded: a solid dot.
- * A ride is estimated: a ring over its model range. The band the grade falls in is filled and its name
- * is bold. The names and percentages are visible text beside the drawing.
+ * An age grade on the level bands, on a 30% to 100% scale: a hairline with a tick at each band's edge and one ink mark,
+ * a solid dot for a run's recorded effort and a ring for a ride's estimate. The level names are one line, each under its
+ * own tick, the current one in ink and the rest in the secondary ink; where they cannot all fit, only the current
+ * level is named, under the mark. The names and percentages are visible text beside the drawing.
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
-  const current = currentBands(grade)
+  const current = gradeLevelText(grade)
+  // The current band by its place on the scale, not by its name, so two bands can never both read as current.
+  const currentIndex = bandIndexOf(grade.centre.grade)
   const off = offScaleText(grade)
+  const [measure, width] = useSize()
+  const rootPx = rootFontPx()
+  // One line of names, each under its own tick, while all of them fit; else the current level alone, under the mark.
+  const allFit = namesFit(NAMED, width, rootPx)
+  const at = place(grade.centre.grade)
+  const alone = aloneAlignment(current, at, width, rootPx)
   return (
-    <figure className={`scale-figure level-ladder level-ladder--${sport}`} data-sport={sport}>
+    <figure
+      ref={measure}
+      className={`scale-figure level-ladder level-ladder--${sport}`}
+      data-sport={sport}
+    >
       <div className="level-ladder__scale" aria-hidden="true">
         {SCALE_TICKS.map((tick, index) => (
           <span
@@ -191,19 +189,28 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
       </div>
       <LadderTrack sport={sport} grade={grade} />
       <div className="level-ladder__names" aria-hidden="true">
-        {BANDS.map((band, index) => (
+        {allFit ? (
+          NAMED.map((band, index) => (
+            <span
+              key={band.name}
+              className={
+                index === currentIndex
+                  ? 'level-ladder__name level-ladder__name--current'
+                  : 'level-ladder__name'
+              }
+              style={{ left: `${band.from}%` }}
+            >
+              {band.name}
+            </span>
+          ))
+        ) : (
           <span
-            key={band.name}
-            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}${nameEnd(index)}`}
-            style={
-              nameEnd(index) === ''
-                ? { left: `${(place(band.low) + place(band.high)) / 2}%` }
-                : undefined
-            }
+            className={`level-ladder__name level-ladder__name--current level-ladder__name--${alone}`}
+            style={ALONE_AT[alone](at)}
           >
-            {band.name}
+            {current}
           </span>
-        ))}
+        )}
       </div>
       {off !== null && <p className="level-ladder__key">{off}</p>}
     </figure>

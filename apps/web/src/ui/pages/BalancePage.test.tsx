@@ -40,6 +40,7 @@ vi.mock('../../share/renderCard', () => ({
 }))
 import { renderShareCard } from '../../share/renderCard'
 import { canvasFile } from '../../share/download'
+import { openDetail } from '../test/openDetail'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -235,11 +236,13 @@ describe('BalancePage', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]).toMatch(/^Running \d+% \w+/)
     expect(rows[1]).toMatch(/^Cycling \d+% \w+/)
-    // The levels come after the meter and before the period control.
+    // The levels come after the meter; the period's line is under the headline, before both.
     const meter = container.querySelector('.balance-meter') as Node
     const picker = screen.getByText('Period picker')
     expect(meter.compareDocumentPosition(levels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(levels.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(picker.compareDocumentPosition(meter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rows[0]).not.toMatch(/RUNNING/)
+    expect(levels.querySelector('svg')).toBeNull()
   })
 
   it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the meter', () => {
@@ -279,11 +282,14 @@ describe('BalancePage', () => {
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
     expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
     // A run's estimate is worked out from pace alone, so its detail says nothing of heart rate.
-    fireEvent.click(within(run).getByRole('button', { name: /^How this was worked out/ }))
-    expect(within(run).getByRole('note')).toHaveTextContent(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
+    openDetail(run)
+    // The disclosure opens on what the figure rests on, then the range and the method.
+    const [basis, detail] = within(run).getByRole('note').querySelectorAll('p')
+    expect(basis).toHaveTextContent(/^From \d+ runs\. Strongest: /)
+    expect(detail).toHaveTextContent(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
     expect(within(run).getByRole('note')).not.toHaveTextContent(/heart rate/)
     // A ride's estimate does not read how hard its best 20 min was, so its detail does not say.
-    fireEvent.click(within(ride).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(ride)
     expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate|reached \d+%/)
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
@@ -292,18 +298,17 @@ describe('BalancePage', () => {
     ['have heart rate', 170],
     ['have none', null],
   ])(
-    'says nothing about heart rate under the tiles when the files %s: the link to how sure it is stands alone',
+    'says nothing about heart rate under the tiles when the files %s, and no link stands under them',
     (_name, maxHeartRate) => {
-      renderPage(
+      const { container } = renderPage(
         makeResult({
           comparison: { prior: [], calibrated: null },
           effort: [],
           maxHeartRate,
         }),
       )
-      const line = document.querySelector('.evidence-line')
-      expect(line).not.toBeNull()
-      expect(line?.textContent).toBe('How sure is this?')
+      expect(container.querySelector('.evidence-line')).toBeNull()
+      expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
       expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
       expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
     },
@@ -321,7 +326,7 @@ describe('BalancePage', () => {
     ).toBeLessThanOrEqual(2)
   })
 
-  it('puts the grading source right under the tiles it explains, ahead of the charts', () => {
+  it('names the grading source as the last line of the answer’s Details, not under the tiles', () => {
     const { container } = renderPage(
       GRADED_RUN,
       { state: { trend: trendWithWeeks(2) } },
@@ -329,8 +334,12 @@ describe('BalancePage', () => {
     )
     const source = container.querySelector('.balance__source')
     expect(source).not.toBeNull()
+    const details = source?.closest('details')
+    expect(details).toHaveClass('page-details')
+    expect(details?.closest('.balance-hero')).not.toBeNull()
+    expect(source?.parentElement?.lastElementChild).toBe(source)
     const tiles = container.querySelector('.balance-tiles') as HTMLElement
-    expect(tiles.nextElementSibling).toBe(source)
+    expect(tiles.nextElementSibling).not.toBe(source)
   })
 
   it('puts the grade by duration after the tiles, with the width of the page to itself', () => {
@@ -371,12 +380,12 @@ describe('BalancePage', () => {
     expect(levels.querySelectorAll('.balance-levels__row')).toHaveLength(0)
   })
 
-  it('links to the method page once, from the evidence card, whatever the card says to do', () => {
+  it('links to the method page nowhere in its text: the header names it', () => {
     renderPage()
     const links = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('href') === '#/method')
-    expect(links).toHaveLength(1)
+    expect(links).toHaveLength(0)
   })
 
   it('offers the share image while the analysis is idle', () => {
@@ -621,7 +630,7 @@ describe('BalancePage concept budget', () => {
     }
   })
 
-  it('states the level target once, as a line under the hero’s lede', () => {
+  it('states the level target once, in the Details under the hero’s lede', () => {
     renderPage(
       makeResult({
         runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
@@ -634,7 +643,9 @@ describe('BalancePage concept budget', () => {
     const sentences = screen.getAllByText(/^To match it/)
     expect(sentences).toHaveLength(1)
     expect(sentences[0]?.closest('.balance-hero__text')).not.toBeNull()
-    expect(sentences[0]?.previousElementSibling).toHaveClass('balance-hero__lede')
+    expect(sentences[0]?.closest('details')?.previousElementSibling).toHaveClass(
+      'balance-hero__lede',
+    )
   })
 
   it('has no across-sports section and no second table of the ride as a run at every duration', () => {

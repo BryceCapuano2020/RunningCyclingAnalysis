@@ -14,6 +14,7 @@ import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
 import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
+import { Shell } from './ui/components/Rail'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
 import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
@@ -330,7 +331,10 @@ export function App() {
                 countedRuns={countedRuns}
               />
             ) : restoringPage ? (
-              <RestoringPage onFiles={setup.requestImport} />
+              // The rail is there while results restore, so the page does not jump sideways when they arrive.
+              <Shell route={route}>
+                <RestoringPage onFiles={setup.requestImport} />
+              </Shell>
             ) : page === 'unavailable' ? (
               <UnavailableLibraryPage canRetry={signedIn} />
             ) : page === 'held' ? (

@@ -1,6 +1,7 @@
 import { wholeCentre } from '../../domain/lean'
 import type { BalanceReading } from '../components/balanceScale'
 import { energySummary, readFrom } from '../components/headlineText'
+import { NumText } from '../components/NumText'
 import { plural } from '../components/plural'
 import { SPORT_TITLE } from '../sports'
 
@@ -19,12 +20,12 @@ export function BalanceLede({
   reading: BalanceReading
   durationS: number
 }) {
-  if (reading.unit === 'percent') return <>{energySummary(reading, durationS)}</>
+  if (reading.unit === 'percent') return <NumText text={energySummary(reading, durationS)} />
   const centre = wholeCentre(reading.lead)
   if (centre === 0) return <>Running and cycling grade the same {AT}.</>
   return (
-    <>
-      {SPORT_TITLE[readFrom(reading)]} grades {plural(Math.abs(centre), 'point')} higher {AT}.
-    </>
+    <NumText
+      text={`${SPORT_TITLE[readFrom(reading)]} grades ${plural(Math.abs(centre), 'point')} higher ${AT}.`}
+    />
   )
 }

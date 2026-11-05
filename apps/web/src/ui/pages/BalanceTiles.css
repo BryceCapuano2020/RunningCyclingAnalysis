@@ -1,19 +1,11 @@
-/* The headline tiles, three at most: all in a row on a wide screen, two across on a tablet, one on a phone. */
+/*
+ * The headline numbers are a section of their own: the band's rule and gap above them, as the sections around them
+ * have, then numbered rows (RowList.css). The band's rule stands in for the first row's hairline.
+ */
 .balance-tiles {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
+  min-width: 0;
 }
 
-@media (min-width: 38rem) {
-  .balance-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 64rem) {
-  .balance-tiles[data-tiles='3'] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.balance-tiles .row:first-child {
+  border-top: 0;
 }

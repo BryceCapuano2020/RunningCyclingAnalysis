@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  COMPACT_PHONE_MAX_WIDTH_PX,
   NARROW_PHONE_MAX_WIDTH_PX,
   PHONE_MAX_WIDTH_PX,
+  RAIL_MIN_WIDTH_PX,
   SMALL_PHONE_MAX_WIDTH_PX,
-  WORDMARK_HIDDEN_MAX_WIDTH_PX,
 } from '../layoutBreakpoints'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { Header } from './Header'
@@ -14,315 +13,143 @@ import { readStylesheet } from './stylesheet'
 
 const headerCss = await readStylesheet(import.meta.url, './Header.css')
 const tokensCss = await readStylesheet(import.meta.url, '../../styles/tokens.css')
-const designMd = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
-
-/** The media block of a stylesheet at a given width, from its opening rule to its closing brace. */
-function mediaBlock(css: string, maxWidth: number): string {
-  const open = css.indexOf(`@media (max-width: ${maxWidth}px) {`)
-  if (open < 0) return ''
-  let depth = 0
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1
-    if (css[i] === '}') {
-      depth -= 1
-      if (depth === 0) return css.slice(open, i + 1)
-    }
-  }
-  return ''
-}
-
-const phoneBlock = (css: string) => mediaBlock(css, PHONE_MAX_WIDTH_PX)
-
-/**
- * The width of "Activities" in Chromium at 100% text, per pixel of its font size: 57.73 px at 14 px,
- * with the bundled serif and 0.02em letter-spacing. jsdom cannot lay text out, so the fit
- * is checked against this measured ratio; the browser run is the real check.
- */
-const ACTIVITIES_PER_FONT_PX = 57.73 / 14
-
-/** A space token's value in px, read from tokens.css. */
-function spacePx(css: string, token: string): number {
-  return Number(new RegExp(`--${token}:\\s*(\\d+)px`).exec(css)?.[1])
-}
-const smallPhoneBlock = (css: string) => mediaBlock(css, SMALL_PHONE_MAX_WIDTH_PX)
 
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
 })
 
-/** A 320 px tab bar whose tabs need the given width, so it overflows when that is wider. */
-function overflowingBar(scrollWidth: number) {
-  vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(scrollWidth)
-  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(320)
-}
-
 /** Whether the second element comes later in the page than the first. */
 function follows(first: Element, second: Element): boolean {
   return (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 }
 
-describe('Header on a phone', () => {
-  it('keeps the brand and the actions on one row at every phone width, not three', () => {
-    expect(phoneBlock(headerCss)).toMatch(/grid-template-areas:\s*'brand actions';/)
+describe('Header stylesheet', () => {
+  it('takes its breakpoints from layoutBreakpoints.ts, the one place they are named', () => {
+    for (const width of [PHONE_MAX_WIDTH_PX, NARROW_PHONE_MAX_WIDTH_PX, SMALL_PHONE_MAX_WIDTH_PX]) {
+      expect(headerCss).toContain(`@media (max-width: ${width}px)`)
+    }
+    expect(headerCss).toContain(`@media (min-width: ${RAIL_MIN_WIDTH_PX}px)`)
   })
 
-  it('keeps the tabs in a bar fixed to the foot of the screen, so they are in reach as the page scrolls', () => {
-    expect(phoneBlock(headerCss)).toMatch(
-      /\.header__tabs \{[^}]*position:\s*fixed;[^}]*bottom:\s*0/,
-    )
+  it('stays at the top of the screen only from the rail’s width, and scrolls away below it', () => {
+    const wide = headerCss.slice(headerCss.indexOf(`@media (min-width: ${RAIL_MIN_WIDTH_PX}px)`))
+    expect(wide).toMatch(/\.header \{[^}]*position:\s*sticky;[^}]*top:\s*0/)
+    expect(headerCss.slice(0, headerCss.indexOf('@media'))).not.toMatch(/position:\s*sticky/)
   })
 
-  it('keeps the header at the top of the screen as the page scrolls', () => {
-    expect(headerCss).toMatch(/\.header \{[^}]*position:\s*sticky;[^}]*top:\s*0/)
-  })
-
-  it('keeps sign-in one tap away as the mark and a visible "Sign in", with "with Google" kept for screen readers', () => {
-    const phone = phoneBlock(headerCss)
-    expect(phone).not.toMatch(/google-sign-in \{\s*display:\s*none/)
-    // The label itself stays visible; only its tail is taken out of sight.
-    expect(phone).not.toMatch(/\.google-sign-in__label \{[^}]*position:\s*absolute/)
-    expect(phone).toMatch(/\.header__account \.google-sign-in__rest \{[^}]*position:\s*absolute/)
-  })
-
-  it('shows "Sign in" as the visible label and keeps the full name on the button', () => {
-    render(<GoogleSignInButton onClick={() => undefined} />)
-    const button = screen.getByRole('button', { name: 'Sign in with Google' })
-    expect(button.querySelector('.google-sign-in__label')).toHaveTextContent('Sign in with Google')
-    expect(button.querySelector('.google-sign-in__rest')).toHaveTextContent('with Google')
-    expect(button.querySelector('.google-sign-in__label')?.firstChild?.textContent).toBe('Sign in ')
-  })
-
-  it('names the compact sign-in button for screen readers, so it is found by role and name', () => {
-    render(<Header route={null} account={<GoogleSignInButton onClick={() => undefined} />} />)
-    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+  it('keeps sign-in one tap away as the mark and a visible "Sign in"', () => {
+    expect(headerCss).not.toMatch(/google-sign-in \{\s*display:\s*none/)
+    expect(headerCss).toMatch(/\.header__account \.google-sign-in \{[^}]*white-space:\s*nowrap/)
   })
 
   it('makes a phone control 44 px tall, and every other control 40 px', () => {
     expect(tokensCss).toMatch(/--control-height:\s*40px;/)
     expect(tokensCss).toMatch(
       new RegExp(
-        `@media \\(max-width: ${PHONE_MAX_WIDTH_PX}px\\), \\(pointer: coarse\\) \\{\\s*:root \\{\\s*--control-height:\\s*44px`,
+        `@media \\(max-width: ${PHONE_MAX_WIDTH_PX}px\\), \\(pointer: coarse\\) \\{\\s*:root \\{\\s*--control-height:\\s*44px;\\s*--button-height:\\s*44px`,
       ),
     )
   })
 
-  it('keeps the header height and the tab bar height in the tokens, with the header clear of focus', () => {
-    expect(tokensCss).toContain(
-      '--header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);',
-    )
-    expect(tokensCss).toMatch(/--tab-bar-height:\s*48px;/)
-    expect(mediaBlock(tokensCss, PHONE_MAX_WIDTH_PX)).toContain(
-      '--header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);',
-    )
+  it('keeps a control the browser scrolls to clear of the header and of any bar stuck under it', () => {
     expect(headerCss).not.toMatch(/--header-height:/)
     expect(headerCss).toMatch(
       /html \{[^}]*scroll-padding-top:\s*calc\(var\(--header-height\) \+ var\(--sticky-extra\)\)/,
     )
-  })
-
-  it('keeps the bars stuck under the header at zero until a page measures them', () => {
     expect(tokensCss).toMatch(/--sticky-extra:\s*0px;/)
   })
 
-  it('tells the reader the header sizes are in tokens.css, where they are', () => {
-    expect(designMd).toMatch(/header's sizes are custom properties in `tokens\.css`/)
-    expect(designMd).not.toMatch(/header's sizes are custom properties in `Header\.css`/)
-  })
-
-  it('pads the bottom of the scroll by the tab bar and its top border, so focus clears the bar', () => {
-    expect(phoneBlock(headerCss)).toContain(
-      'scroll-padding-bottom: calc(var(--tab-bar-height) + 1px);',
+  it('starts --header-height at one row where the header sticks and at zero where it scrolls away', () => {
+    expect(tokensCss).toMatch(
+      /--header-height:\s*calc\(var\(--control-height\) \+ var\(--space-3\) \* 2 \+ 1px\);/,
     )
-  })
-  it('sets the five tabs as equal slots that never shrink below their label, with labels at the phone size', () => {
-    const tab = /\.header__tab \{([^}]*)\}/.exec(phoneBlock(headerCss))?.[1] ?? ''
-    expect(tab).toMatch(/flex:\s*1 1 0/)
-    expect(tab).toMatch(/min-width:\s*min-content/)
-    expect(tab).toMatch(/font-size:\s*var\(--text-label\)/)
-  })
-
-  it('fits Activities, the longest label, in its tab slot at 350 px with the small label size, and at 375 px with the phone size, at 100% text; narrower, the bar scrolls', () => {
-    // Five equal tabs share the bar less the gaps between them; each tab keeps its padding either side.
-    const gap = spacePx(tokensCss, 'space-1')
-    const padding = spacePx(tokensCss, 'space-1')
-    const slot = (bar: number) => (bar - 4 * gap) / 5 - 2 * padding
-    // A size is a literal in a block, or a token that tokens.css holds: the phone label token, or the small label's.
-    const remOfToken = (name: string): number => {
-      const alias = new RegExp(`--${name}:\\s*var\\(--([\\w-]+)\\)`).exec(tokensCss)?.[1]
-      if (alias !== undefined) return remOfToken(alias)
-      return Number(new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(tokensCss)?.[1])
-    }
-    const fontPx = (block: string) => {
-      const value = /\.header__tab \{[^}]*font-size:\s*([^;]+);/.exec(block)?.[1]?.trim()
-      const token = /^var\(--([\w-]+)\)$/.exec(value ?? '')?.[1]
-      const literal = /^([\d.]+)rem$/.exec(value ?? '')?.[1]
-      return Number(literal ?? remOfToken(token ?? 'text-label')) * 16
-    }
-    const smallFont = fontPx(smallPhoneBlock(headerCss))
-    const phoneFont = fontPx(phoneBlock(headerCss))
-    // Five tabs need more room than four did: below these widths the bar scrolls, as it does at 200% text.
-    expect(ACTIVITIES_PER_FONT_PX * smallFont).toBeLessThanOrEqual(slot(350))
-    expect(ACTIVITIES_PER_FONT_PX * phoneFont).toBeLessThanOrEqual(slot(375))
-  })
-
-  it('starts the tabs at the left when the bar overflows, so no label spills off the left edge', () => {
-    expect(phoneBlock(headerCss)).toMatch(
-      /\.header__tabs--overflowing \.header__tab \{[^}]*justify-content:\s*flex-start/,
+    expect(tokensCss).toMatch(
+      new RegExp(
+        `@media \\(max-width: ${RAIL_MIN_WIDTH_PX - 1}px\\) \\{\\s*:root \\{\\s*--header-height:\\s*0px;`,
+      ),
     )
   })
 
-  it('fades the tab bar edge while there is more to scroll to, so the rest of the row can be found', () => {
-    expect(phoneBlock(headerCss)).toMatch(/\.header__tabs--faded \{[^}]*mask-image/)
-    expect(phoneBlock(headerCss)).not.toMatch(/\.header__tabs--overflowing \{[^}]*mask-image/)
-  })
-
-  it('takes its breakpoints from layoutBreakpoints.ts, the one place they are named', () => {
-    expect(tokensCss).toContain(`@media (max-width: ${PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (max-width: ${PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (max-width: ${NARROW_PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (max-width: ${SMALL_PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (max-width: ${WORDMARK_HIDDEN_MAX_WIDTH_PX}px)`)
-  })
-
-  it('drops only the fade once the bar is scrolled to its end: the labels stay left-aligned', () => {
-    overflowingBar(480)
-    let scrolled = 0
-    vi.spyOn(Element.prototype, 'scrollLeft', 'get').mockImplementation(() => scrolled)
-    render(<Header route={{ page: 'run' }} />)
-    const bar = screen.getByRole('navigation', { name: 'Sections' })
-    expect(bar).toHaveClass('header__tabs--overflowing', 'header__tabs--faded')
-
-    scrolled = 160
-    fireEvent.scroll(bar)
-    expect(bar).toHaveClass('header__tabs--overflowing')
-    expect(bar).not.toHaveClass('header__tabs--faded')
-
-    scrolled = 0
-    fireEvent.scroll(bar)
-    expect(bar).toHaveClass('header__tabs--overflowing', 'header__tabs--faded')
-  })
-
-  it('shows the fade on a tab bar whose tabs overflow, and neither class on one that fits', () => {
-    overflowingBar(480)
-    const { unmount } = render(<Header route={{ page: 'run' }} />)
-    expect(screen.getByRole('navigation', { name: 'Sections' })).toHaveClass(
-      'header__tabs--overflowing',
-      'header__tabs--faded',
+  it('keeps the words of Add files at every width, and sets the wordmark a step smaller at 360 px to fit them', () => {
+    expect(headerCss).not.toMatch(/add-files__label|clip-path/)
+    expect(headerCss).toMatch(
+      new RegExp(
+        `@media \\(max-width: ${SMALL_PHONE_MAX_WIDTH_PX}px\\) \\{[^@]*\\.header__brand \\{\\s*font-size:\\s*var\\(--text-md\\)`,
+      ),
     )
-    unmount()
-
-    overflowingBar(320)
-    render(<Header route={{ page: 'run' }} />)
-    const bar = screen.getByRole('navigation', { name: 'Sections' })
-    expect(bar).not.toHaveClass('header__tabs--overflowing')
-    expect(bar).not.toHaveClass('header__tabs--faded')
-  })
-})
-
-describe('Header profile link', () => {
-  it('keeps its word visible at every width, so the link is not an unlabeled icon on a phone', () => {
-    render(<Header route={null} />)
-
-    const link = screen.getByRole('link', { name: 'Profile' })
-    expect(link).toHaveTextContent('Profile')
-    expect(link.querySelector('.header__profile-label')).toHaveTextContent('Profile')
-    // The phone rule hides the wordmark. It must not hide the Profile word.
-    expect(headerCss).not.toMatch(/\.header__profile-label\s*[,{]/)
   })
 })
 
 describe('Header', () => {
-  it('links the wordmark home', () => {
+  it('links the wordmark home, in words, with no tile', () => {
     render(<Header route={null} />)
-    expect(screen.getByRole('link', { name: 'Running Cycling Analysis' })).toHaveAttribute(
-      'href',
-      '#/',
+    const brand = screen.getByRole('link', { name: 'Running Cycling Analysis' })
+    expect(brand).toHaveAttribute('href', '#/')
+    expect(brand.querySelector('svg')).toBeNull()
+  })
+
+  it('hides History and Activities while there is nothing to navigate', () => {
+    render(<Header route={null} />)
+    expect(screen.queryByRole('navigation', { name: 'More pages' })).not.toBeInTheDocument()
+  })
+
+  it('links History, Activities and Method as text, and marks the current one', () => {
+    render(<Header route={{ page: 'history' }} />)
+    const links = within(screen.getByRole('navigation', { name: 'More pages' })).getAllByRole(
+      'link',
     )
+    expect(links.map((link) => link.textContent)).toEqual(['History', 'Activities', 'Method'])
+    expect(screen.getByRole('link', { name: 'Method' })).toHaveAttribute('href', '#/method')
+    expect(screen.getByRole('link', { name: 'Method' })).toHaveClass('header__link--method')
+    for (const link of links) expect(link.querySelector('svg')).toBeNull()
+    expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'History' })).toHaveClass('header__link--current')
+    expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveAttribute('aria-current')
   })
 
-  it('hides the tabs while there is nothing to navigate', () => {
-    render(<Header route={null} />)
-    expect(screen.queryByRole('navigation', { name: 'Sections' })).not.toBeInTheDocument()
+  it('leaves Balance, Run and Ride to the rail', () => {
+    render(<Header route={{ page: 'run' }} />)
+    for (const name of ['Balance', 'Run', 'Ride'])
+      expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
   })
 
-  it('shows the five tabs and marks the current one', () => {
-    render(<Header route={{ page: 'ride' }} />)
-    const tabs = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      'Balance',
-      'Run',
-      'Ride',
-      'History',
-      'Activities',
-    ])
-    expect(screen.getByRole('link', { name: 'Ride' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
-  })
-
-  it('lights the parent tab of the method page and activity page, but names no tab as the current page', () => {
-    const { rerender } = render(<Header route={{ page: 'method' }} />)
-    const balance = screen.getByRole('link', { name: 'Balance' })
-    expect(balance).toHaveClass('header__tab--current')
-    expect(balance).not.toHaveAttribute('aria-current')
-    rerender(<Header route={{ page: 'activity', id: 'a1' }} />)
-    const activities = screen.getByRole('link', { name: 'Activities' })
-    expect(activities).toHaveClass('header__tab--current')
-    // An activity is a page of its section, so its section's tab is marked "true", not "page".
-    expect(activities).toHaveAttribute('aria-current', 'true')
-  })
-
-  it('marks a tab current, with aria-current, only on its own page', () => {
-    render(<Header route={{ page: 'activities' }} />)
-    expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('aria-current', 'page')
-  })
-
-  describe('an activity opened from a sport', () => {
+  describe('an activity', () => {
     afterEach(() => window.history.replaceState(null, '', '#/'))
 
-    it('keeps that sport’s tab lit, since the visitor came from it', () => {
-      window.history.replaceState({ rcaFrom: '#/run' }, '', '#/activities/a1')
-      render(<Header route={{ page: 'activity', id: 'a1' }} />)
-      expect(screen.getByRole('link', { name: 'Run' })).toHaveClass('header__tab--current')
-      expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('aria-current', 'true')
-      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveClass(
-        'header__tab--current',
-      )
-      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveAttribute('aria-current')
-    })
-
-    it('keeps Activities lit when it was opened from the list', () => {
+    it('keeps Activities current, marked "true", when it was opened from the list', () => {
       window.history.replaceState({ rcaFrom: '#/activities' }, '', '#/activities/a1')
       render(<Header route={{ page: 'activity', id: 'a1' }} />)
-      expect(screen.getByRole('link', { name: 'Activities' })).toHaveClass('header__tab--current')
-      expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute(
-        'aria-current',
-        'true',
-      )
+      const activities = screen.getByRole('link', { name: 'Activities' })
+      expect(activities).toHaveClass('header__link--current')
+      expect(activities).toHaveAttribute('aria-current', 'true')
+    })
+
+    it('leaves Activities plain when it was opened from a sport, whose rail link is lit', () => {
+      window.history.replaceState({ rcaFrom: '#/run' }, '', '#/activities/a1')
+      render(<Header route={{ page: 'activity', id: 'a1' }} />)
+      const activities = screen.getByRole('link', { name: 'Activities' })
+      expect(activities).not.toHaveClass('header__link--current')
+      expect(activities).not.toHaveAttribute('aria-current')
     })
   })
 
-  it('always links to the profile, marked current there', () => {
+  it('always links to the profile as text, marked current there', () => {
     const { rerender } = render(<Header route={null} />)
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    const profile = screen.getByRole('link', { name: 'Profile' })
+    expect(profile).toHaveAttribute('href', '#/profile')
+    expect(profile).toHaveTextContent(/^Profile$/)
+    expect(profile.querySelector('svg')).toBeNull()
     rerender(<Header route={{ page: 'profile' }} />)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('renders the add-files and account controls it is given', () => {
-    render(
-      <Header
-        route={null}
-        addFiles={<button type="button">Add files</button>}
-        account={<button type="button">Sign in</button>}
-      />,
-    )
-    expect(screen.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  it('names the sign-in button for screen readers, so it is found by role and name', () => {
+    render(<Header route={null} account={<GoogleSignInButton onClick={() => undefined} />} />)
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
   })
 
-  it('reads in order: the brand, then the actions, then the section tabs', () => {
+  it('reads in order: the brand, the page links, then Profile, the account and Add files', () => {
     render(
       <Header
         route={{ page: 'run' }}
@@ -331,26 +158,14 @@ describe('Header', () => {
       />,
     )
     const brand = screen.getByRole('link', { name: 'Running Cycling Analysis' })
-    const addFiles = screen.getByRole('button', { name: 'Add files' })
+    const pages = screen.getByRole('navigation', { name: 'More pages' })
     const profile = screen.getByRole('link', { name: 'Profile' })
-    const tabs = screen.getByRole('navigation', { name: 'Sections' })
-    expect(follows(brand, addFiles)).toBe(true)
-    expect(follows(addFiles, profile)).toBe(true)
-    expect(follows(profile, tabs)).toBe(true)
-  })
-})
-
-describe('Header glyphs and wordmark', () => {
-  it('gives every tab a glyph, so the five tabs read as one set', () => {
-    render(<Header route={{ page: 'balance' }} />)
-    const tabs = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
-    expect(tabs).toHaveLength(5)
-    for (const tab of tabs) expect(tab.querySelector('svg')).not.toBeNull()
-  })
-
-  it('spells the wordmark in words, so it does not read as a file name', () => {
-    render(<Header route={{ page: 'balance' }} />)
-    expect(screen.getByRole('link', { name: 'Running Cycling Analysis' })).toBeInTheDocument()
+    const account = screen.getByRole('button', { name: 'Sign in' })
+    const addFiles = screen.getByRole('button', { name: 'Add files' })
+    expect(follows(brand, pages)).toBe(true)
+    expect(follows(pages, profile)).toBe(true)
+    expect(follows(profile, account)).toBe(true)
+    expect(follows(account, addFiles)).toBe(true)
   })
 })
 
@@ -360,8 +175,8 @@ describe('Header height', () => {
     document.documentElement.style.removeProperty('--header-height')
   })
 
-  it('sets --header-height to the header as measured, and keeps it so as the header resizes', () => {
-    // The tab bar has an observer too, so the one watching the header is found by its target.
+  /** A ResizeObserver that the test fires by hand. */
+  function fakeObservers() {
     const observers: { observed: Element[]; fire: () => void }[] = []
     class FakeResizeObserver {
       observed: Element[] = []
@@ -377,14 +192,30 @@ describe('Header height', () => {
       disconnect() {}
     }
     vi.stubGlobal('ResizeObserver', FakeResizeObserver)
-    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(161)
+    return observers
+  }
 
+  it('sets --header-height to the header as measured while it sticks, and keeps it so as it resizes', () => {
+    const observers = fakeObservers()
+    const computed = window.getComputedStyle
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) =>
+      element.tagName === 'HEADER'
+        ? ({ position: 'sticky' } as CSSStyleDeclaration)
+        : computed(element),
+    )
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(65)
     render(<Header route={{ page: 'run' }} />)
-    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('161px')
-
-    height.mockReturnValue(113)
+    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('65px')
+    height.mockReturnValue(97)
     const header = document.querySelector('header')
     observers.find((observer) => observer.observed.includes(header as Element))?.fire()
-    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('113px')
+    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('97px')
+  })
+
+  it('sets --header-height to zero while the header scrolls away with the page', () => {
+    fakeObservers()
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(97)
+    render(<Header route={{ page: 'run' }} />)
+    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('0px')
   })
 })

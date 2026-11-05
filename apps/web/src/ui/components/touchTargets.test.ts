@@ -53,14 +53,30 @@ describe('interactive targets', () => {
     ['sign-in button', sheets.googleSignIn, '.google-sign-in'],
     ['account trigger', sheets.accountMenu, '.account-menu__trigger'],
     ['account menu item', sheets.accountMenu, '.account-menu__item'],
-    ['segmented option', sheets.segmentedControl, '.segmented-control__option'],
     ['delete email field', sheets.deleteDialog, '.delete-dialog__input'],
     ['number field', sheets.numberField, '.number-field__input input'],
-    ['button', sheets.button, '.btn'],
     ['disclosure summary', sheets.summary, 'summary'],
   ])('%s is at least 40 px tall', (_name, css, selector) => {
     expect(minHeightOf(css, selector)).toBeGreaterThanOrEqual(STANDARD_PX)
   })
+
+  /*
+   * A small outlined button and a segment are 40 px for a mouse, a control's own target (docs/design/system.md,
+   * Controls; target-size.spec.ts), and take the 44 px target on a phone or for a finger.
+   */
+  it.each([
+    ['button', sheets.button, '.btn'],
+    ['segmented option', sheets.segmentedControl, '.segmented-control__option'],
+  ])(
+    '%s takes the button height: 40 px for a mouse, 44 px for a finger',
+    (_name, css, selector) => {
+      expect(bodyOf(css, selector)).toMatch(/min-height:\s*var\(--button-height\)/)
+      expect(Number(/--button-height:\s*(\d+)px/.exec(sheets.tokens)?.[1])).toBe(40)
+      expect(sheets.tokens).toMatch(
+        /@media \(max-width: 760px\), \(pointer: coarse\) \{\s*:root \{[^}]*--button-height:\s*44px/,
+      )
+    },
+  )
 })
 
 /** The controls that take the shared control height, so a phone or a finger gets 44 px for each. */
@@ -69,11 +85,9 @@ describe('the shared control height', () => {
     ['sign-in button', sheets.googleSignIn, '.google-sign-in'],
     ['account trigger', sheets.accountMenu, '.account-menu__trigger'],
     ['account menu item', sheets.accountMenu, '.account-menu__item'],
-    ['button', sheets.button, '.btn'],
     ['skip link', sheets.skipLink, '.skip-link'],
     ['header brand', sheets.header, '.header__brand'],
-    ['header tab', sheets.header, '.header__tab'],
-    ['header profile link', sheets.header, '.header__profile'],
+    ['header page and profile link', sheets.header, '.header__link'],
     ['link arrow', sheets.app, '.link-arrow'],
     ['file retention choice', sheets.app, '.file-retention__choice'],
     ['number field input', sheets.numberField, '.number-field__input input'],

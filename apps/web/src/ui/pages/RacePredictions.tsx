@@ -1,4 +1,5 @@
 import type { PredictionMethod, RacePrediction, RunPredictions } from '@rca/core/predict'
+import { RowIndex } from '../components/RowList'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
@@ -14,6 +15,7 @@ import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
 import type { RanBest } from './raceRan'
 import './RacePredictions.css'
+import { NumText } from '../components/NumText'
 
 /**
  * Which side of the bar each method's triangle sits on: the athlete's runs point down from above, the heart
@@ -89,16 +91,18 @@ function RaceBar({
 }
 
 /**
- * One race: its name and pace on the left, its bar between, its time at display size on the right. A time from runs none
+ * One race as a numbered row: its name and pace on the left, its time in mono on the right, and its bar under them. A time from runs none
  * of which was shown hard is a time the athlete can beat, so its range would mislead and the bar is left out.
  */
 function RaceRow({
+  index,
   prediction,
   units,
   ran,
   scale,
   bound,
 }: {
+  index: number
   prediction: RacePrediction
   units: UnitSystem
   ran: RanBest | undefined
@@ -107,12 +111,17 @@ function RaceRow({
 }) {
   return (
     <li className="race-row">
+      <RowIndex index={index} />
       <p className="race-row__name">
         <span className="race-row__race">{raceName(prediction.distanceM)}</span>
-        <span className="race-row__pace">
+        <span className="meta race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
-        {ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {ran && (
+          <span className="race-row__ran">
+            <NumText text={ranText(ran)} />
+          </span>
+        )}
         {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
       {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}
@@ -272,13 +281,13 @@ export function RacePredictions({
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
-        <p className="secondary">{basisLine({ basis }, openedAt)}</p>
       </div>
       {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
-      <ul className="race-rows">
-        {found.races.map((prediction) => (
+      <ol className="race-rows">
+        {found.races.map((prediction, index) => (
           <RaceRow
             key={prediction.distanceM}
+            index={index}
             prediction={prediction}
             units={units}
             ran={ran.find((r) => r.distanceM === prediction.distanceM)}
@@ -286,8 +295,10 @@ export function RacePredictions({
             bound={bound}
           />
         ))}
-      </ul>
+      </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
+        {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
+        <p className="meta">{basisLine({ basis }, openedAt)}</p>
         <p className="muted">{methodNote(window, bound)}</p>
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">

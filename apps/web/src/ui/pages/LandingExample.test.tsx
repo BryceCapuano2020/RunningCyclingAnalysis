@@ -66,7 +66,7 @@ describe('LandingExample', () => {
     expect(finding.querySelector('.landing-example__sentence')?.textContent).toBe(
       `Slower than your old level at ${LANDING_EXAMPLE.fitness.referenceHr} bpm.`,
     )
-    expect(finding.querySelector('.fitness-track__band')).not.toBeNull()
+    expect(finding.querySelector('.fitness-track__ring')).not.toBeNull()
     // One card: the finding is not a figure of its own, and it follows the balance and the levels.
     expect(container.querySelectorAll('figure.landing-example')).toHaveLength(1)
     expect(finding.closest('figure')).toBe(card)

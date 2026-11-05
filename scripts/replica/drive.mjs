@@ -18,6 +18,9 @@ export const PERIODS = [
   { file: 'all-time', label: 'All time' },
 ]
 
+/** The pages the header links to; the rest are the rail's. */
+const BANNER_PAGES = new Set(['profile', 'history', 'activities'])
+
 const BUSY = '[aria-busy="true"], progress, [role="progressbar"]'
 const BUSY_TIMEOUT_MS = 180_000
 const STABLE_TIMEOUT_MS = 30_000
@@ -69,17 +72,19 @@ export async function settle(page, what, note) {
   if (!(await stable())) note('warn', `${what}: text kept changing after scroll`)
 }
 
-/** Clicks the page's link (Profile is in the banner, the rest in the Sections navigation) and waits for it to be current. */
+/**
+ * Clicks the page's link and waits for it to be current. Profile, History and Activities are in the banner; Balance, Run
+ * and Ride in the rail's Pages navigation.
+ */
 export async function goToPage(page, target) {
-  const link =
-    target.name === 'profile'
-      ? page.getByRole('banner').getByRole('link', { name: 'Profile', exact: true })
-      : page
-          .getByRole('navigation', { name: 'Sections' })
-          .getByRole('link', { name: target.link, exact: true })
+  const link = BANNER_PAGES.has(target.name)
+    ? page.getByRole('banner').getByRole('link', { name: target.link, exact: true })
+    : page
+        .getByRole('navigation', { name: 'Pages' })
+        .getByRole('link', { name: target.link, exact: true })
   await link.click()
-  const handle = await link.elementHandle()
-  await page.waitForFunction((el) => el.hasAttribute('aria-current'), handle, { timeout: 30_000 })
+  // The link is found again once clicked: leaving Profile mounts a new rail, so the clicked element may be gone.
+  await link.and(page.locator('[aria-current]')).waitFor({ timeout: 30_000 })
   await page.mouse.move(0, 0)
 }
 

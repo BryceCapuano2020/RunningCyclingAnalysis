@@ -3,12 +3,12 @@ import { boxCensus } from './boxCensus'
 import { goTo, openSample } from './helpers'
 
 /**
- * The box ratchet (D10, fewer boxes). Run and Ride put 71% of their height in bordered, shadowed cards; the
- * sections, the answer and the fitness card are bands now, an open disclosure with them, and what keeps a box is a
- * folded disclosure row. The
- * caps are the measured values (6% and 11% at most, normal and forced colours) plus about 2 points, so they may only be lowered: a new card on a sport page fails here.
+ * The box ratchet (D10, fewer boxes). Run and Ride once put 71% of their height in bordered, shadowed cards. On paper
+ * (docs/design/system.md, No boxes) every section is a heading and a rule, open or folded, so the census measures none
+ * at either size, in normal and forced colours. The caps are those measured values, so they may only stay at zero: a
+ * new card on a sport page fails here.
  */
-const CAP = { desktop: 0.08, phone: 0.12 } as const
+const CAP = { desktop: 0, phone: 0 } as const
 const SIZES = [
   { name: 'desktop', width: 1440, height: 900, cap: CAP.desktop },
   { name: 'phone', width: 390, height: 844, cap: CAP.phone },
@@ -28,15 +28,26 @@ for (const size of SIZES) {
         await expect(page.locator('.fitness-card')).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const census = await boxCensus(page)
-        // Sections are open to start with, and an open one is a band: only a box that is a disclosure card may remain.
-        expect(census.boxes.filter((box) => !box.startsWith('section.panel'))).toEqual([])
+        // Sections are open to start with, and a section is a band: no box remains on the page.
+        expect(census.boxes).toEqual([])
         expect(census.share).toBeLessThanOrEqual(size.cap)
-        // A folded disclosure is a card of one row, so the census is not blind to it.
+        // A folded disclosure is a row under its rule, not a card: folding one adds no box.
+        const fold = page.locator('details.sport-disclosure__details').first()
         await page.locator('.sport-disclosure__summary').first().click()
-        await expect(page.locator('section.panel.sport-disclosure')).toHaveCount(1)
+        await expect(fold).not.toHaveAttribute('open', '')
         const folded = await boxCensus(page)
-        expect(folded.boxes.some((box) => box.startsWith('section.panel'))).toBe(true)
+        expect(folded.boxes).toEqual([])
         expect(folded.share).toBeLessThanOrEqual(size.cap)
+        // The census is not blind: a bordered block put on the page is counted.
+        await page.evaluate(() => {
+          const card = document.createElement('div')
+          card.style.cssText = 'height:60px;width:300px;border:1px solid currentColor'
+          card.className = 'census-probe'
+          document.querySelector('main')!.append(card)
+        })
+        const probed = await boxCensus(page)
+        expect(probed.boxes).toEqual(['div.census-probe'])
+        expect(probed.share).toBeGreaterThan(0)
       })
     }
   }

@@ -34,7 +34,7 @@
   flex: 0 0 auto;
   margin: 0;
   padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 /*
@@ -99,8 +99,8 @@
   min-height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
+  border-radius: var(--radius);
+  background: var(--paper);
   font: inherit;
   font-size: var(--text-input);
 }
@@ -118,7 +118,7 @@
 
 /* The note that a reversed range was swapped, after the dates and count it sits beside. */
 .range-picker__swapped {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 /*

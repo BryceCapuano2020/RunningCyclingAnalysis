@@ -2,8 +2,6 @@ import { AddSportFiles } from '../components/AddSportFiles'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
-import { indoorSplitLine } from '../indoorCopy'
-import { threshold } from '../records'
 import { thresholdGrade } from '../thresholdGrade'
 import { LevelPanel } from './LevelPanel'
 import type { SportPageProps } from './sportPageProps'
@@ -73,34 +71,14 @@ function EmptySport({
  * estimate, the panel asks for the effort that would give one.
  */
 export function SportAnswer(props: SportAnswerProps) {
-  const { sport, result, massKg, units, profile, missingAge, count, held, rangeDays } = props
+  const { sport, result, massKg, units, profile, missingAge, count, held } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
   const headline = profile === null ? null : thresholdGrade(result, sport, profile)
-  // The split between indoor and outdoor, said once, under the answer it qualifies.
-  const split = indoorSplitLine(result.activities, sport)
   return (
-    <>
-      <div className="band sport-hero" data-sport={sport}>
-        <ThresholdPanel
-          sport={sport}
-          result={result}
-          massKg={massKg}
-          units={units}
-          rangeDays={rangeDays}
-        />
-        <LevelPanel
-          sport={sport}
-          outcome={headline}
-          effort={threshold(result, sport, massKg, units)?.value ?? null}
-          missingAge={missingAge}
-        />
-      </div>
-      {split === null ? null : (
-        <p className="muted sport-hero__source" data-testid="indoor-split">
-          {split}
-        </p>
-      )}
-    </>
+    <div className="band sport-hero" data-sport={sport}>
+      <ThresholdPanel sport={sport} result={result} massKg={massKg} units={units} />
+      <LevelPanel sport={sport} outcome={headline} missingAge={missingAge} />
+    </div>
   )
 }

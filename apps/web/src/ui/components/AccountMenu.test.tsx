@@ -114,36 +114,22 @@ describe('AccountMenu states', () => {
     expect(onSignIn).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the first name and initials when there is no picture', () => {
-    renderMenu()
-    expect(trigger()).toHaveTextContent('Bryce')
-    expect(trigger().querySelector('.account-menu__avatar')).toHaveTextContent('BC')
-    expect(trigger().querySelector('img')).toBeNull()
-  })
-
-  it('shows the picture, with empty alt text, when there is one', () => {
+  it('shows the first name as plain text and a caret, with no avatar, initials or picture', () => {
     const { container } = renderMenu({
       me: makeMe({ pictureUrl: 'https://lh3.example.com/photo.jpg' }),
     })
-    const image = container.querySelector('img')
-    expect(image).toHaveAttribute('src', 'https://lh3.example.com/photo.jpg')
-    expect(image).toHaveAttribute('alt', '')
-    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer')
+    expect(trigger()).toHaveTextContent(/^Bryce▾$/)
+    expect(container.querySelector('img, .account-menu__avatar')).toBeNull()
   })
 
-  it('uses the first and last initials for a longer name', () => {
+  it('names a longer name by its first word', () => {
     renderMenu({ me: makeMe({ name: 'Mary Ann Smith' }) })
-    expect(trigger('Mary').querySelector('.account-menu__avatar')).toHaveTextContent('MS')
+    expect(trigger('Mary')).toHaveTextContent(/^Mary▾$/)
   })
 
-  it('uses the single initial of a one-word name', () => {
-    renderMenu({ me: makeMe({ name: 'Cher' }) })
-    expect(trigger('Cher').querySelector('.account-menu__avatar')).toHaveTextContent('C')
-  })
-
-  it('falls back to the email when the name is blank', () => {
+  it('falls back to the email’s name when the name is blank', () => {
     renderMenu({ me: makeMe({ name: '   ' }) })
-    expect(trigger('bryce').querySelector('.account-menu__avatar')).toHaveTextContent('B')
+    expect(trigger('bryce')).toHaveTextContent(/^bryce▾$/)
   })
 
   it('shows the sign-in button instead of the menu when signed-in has no user', () => {

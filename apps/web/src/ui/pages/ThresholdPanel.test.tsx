@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { ThresholdEstimate } from '@rca/core/threshold'
@@ -12,6 +12,7 @@ import {
 } from '../components/fixtures'
 import { formatDayMonth } from '../format/date'
 import { ThresholdPanel } from './ThresholdPanel'
+import { detailSummaries, openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
 
@@ -34,9 +35,7 @@ function estimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
 }
 
 function panel(sport: Sport, result: AnalysisResult) {
-  return render(
-    <ThresholdPanel sport={sport} result={result} massKg={75} units="metric" rangeDays={84} />,
-  )
+  return render(<ThresholdPanel sport={sport} result={result} massKg={75} units="metric" />)
 }
 
 const ridden = (rideThreshold: ThresholdEstimate | null) =>
@@ -46,13 +45,15 @@ const ridden = (rideThreshold: ThresholdEstimate | null) =>
   })
 
 describe('ThresholdPanel for a ride', () => {
-  it('is one number with its W/kg, named by its words and its period, and no chip', () => {
+  it('is one number with its W/kg, named by its words, with no period tag and no chip', () => {
     const { container } = panel('ride', ridden(estimate()))
     const section = screen.getByRole('region', { name: 'Threshold power' })
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent('250')
     expect(section.querySelector('.sport-hero__unit')).toHaveTextContent('W')
     expect(section.querySelector('.sport-hero__side')).toHaveTextContent('3.3 W/kg')
-    expect(section.querySelector('.sport-hero__period')).toHaveTextContent('· 12 weeks')
+    // The rail names the period, so the panel does not.
+    expect(section.querySelector('.sport-hero__period')).toBeNull()
+    expect(section).not.toHaveTextContent(/12 weeks/)
     // Not "At least", "Estimated", "Not all-out" or "Hard effort": the name says it is a threshold.
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/At least|Estimated|Not all-out|Hard effort/)
@@ -81,10 +82,10 @@ describe('ThresholdPanel for a ride', () => {
   it('opens the range, the method and what heart rate did from one control', () => {
     panel('ride', ridden(estimate()))
     const section = screen.getByRole('region', { name: 'Threshold power' })
-    const control = within(section).getByRole('button', { name: /^How this was worked out/ })
-    expect(control).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(control)
-    expect(control).toHaveAttribute('aria-expanded', 'true')
+    const details = section.querySelector('details.disclosure') as HTMLDetailsElement
+    expect(details.open).toBe(false)
+    openDetail(section)
+    expect(details.open).toBe(true)
     const note = within(section).getByRole('note')
     expect(note).toHaveTextContent('Range 240 to 264 W.')
     expect(note).toHaveTextContent('scaled to an hour and averaged')
@@ -94,7 +95,7 @@ describe('ThresholdPanel for a ride', () => {
 
   it('says why heart rate was not used, in one plain clause', () => {
     panel('ride', ridden(estimate({ heartRate: { refused: 'flat' } })))
-    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    openDetail()
     expect(screen.getByRole('note')).toHaveTextContent(
       'Here it was not used: your heart rate rises too little with power to read.',
     )
@@ -116,7 +117,7 @@ describe('ThresholdPanel for a ride', () => {
     const { container } = panel('ride', ridden(null))
     expect(container.querySelector('.sport-hero__number')).toBeNull()
     expect(screen.getByText('Needs an effort of 3 min or longer')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^How this was worked out/ })).toBeNull()
+    expect(detailSummaries()).toEqual([])
   })
 })
 
@@ -143,12 +144,12 @@ describe('ThresholdPanel for a run', () => {
       runThreshold,
     })
 
-  it('is one number named by its words and its period, with no Estimated chip and no range track', () => {
+  it('is one number named by its words, with no period tag, no Estimated chip and no range track', () => {
     const { container } = panel('run', ran(runEstimate()))
     const section = screen.getByRole('region', { name: 'Threshold pace' })
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent('4:24')
     expect(section.querySelector('.sport-hero__unit')).toHaveTextContent('/km')
-    expect(section.querySelector('.sport-hero__period')).toHaveTextContent('· 12 weeks')
+    expect(section.querySelector('.sport-hero__period')).toBeNull()
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/At least|Estimated|Not all-out|Hard effort/)
     const figure = container.querySelector('.sport-hero__figure')
@@ -170,10 +171,10 @@ describe('ThresholdPanel for a run', () => {
   it('opens the range and the method from one control, and says nothing of heart rate', () => {
     panel('run', ran(runEstimate({ heartRate: { value: 17.5, efforts: 6 }, value: 17.5 })))
     const section = screen.getByRole('region', { name: 'Threshold pace' })
-    const control = within(section).getByRole('button', { name: /^How this was worked out/ })
-    expect(control).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(control)
-    expect(control).toHaveAttribute('aria-expanded', 'true')
+    const details = section.querySelector('details.disclosure') as HTMLDetailsElement
+    expect(details.open).toBe(false)
+    openDetail(section)
+    expect(details.open).toBe(true)
     const note = within(section).getByRole('note')
     expect(note).toHaveTextContent('Range 4:10 to 4:39 /km.')
     expect(note).toHaveTextContent('scaled to an hour and averaged')
@@ -194,6 +195,6 @@ describe('ThresholdPanel for a run', () => {
     const empty = panel('run', ran(null))
     expect(empty.container.querySelector('.sport-hero__number')).toBeNull()
     expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^How this was worked out/ })).toBeNull()
+    expect(detailSummaries()).toEqual([])
   })
 })

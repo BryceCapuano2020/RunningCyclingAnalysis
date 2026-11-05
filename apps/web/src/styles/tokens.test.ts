@@ -198,15 +198,11 @@ describe('contrast', () => {
 
 describe('level ladder', () => {
   it('reaches 3:1 for every mark against what it sits on', () => {
-    const track = colour(paper, 'surface-2')
-    const runBand = over(String(paper.get('ladder-run-band')), track)
-    const rideBand = over(String(paper.get('ladder-ride-band')), track)
+    const page = colour(paper, 'paper')
     const pairs: [string, string, string][] = [
-      ['run ring on its range band', colour(paper, 'series-run'), runBand],
-      ['ride ring on its range band', colour(paper, 'series-ride'), rideBand],
-      ['band edge inside a ride range', colour(paper, 'neutral-mark'), rideBand],
-      ['band edge on the track', colour(paper, 'neutral-mark'), track],
-      ['run dot on the track', colour(paper, 'series-run'), track],
+      ['ink ring on the page', colour(paper, 'ink'), page],
+      ['band edge on the page', colour(paper, 'ink-secondary'), page],
+      ['ink dot on the page', colour(paper, 'ink'), page],
     ]
     for (const [label, fg, bg] of pairs)
       expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
@@ -219,19 +215,12 @@ describe('level ladder', () => {
     }
   })
 
-  it('fills its column, and paints each sport’s band from that sport’s token', () => {
+  it('fills its column, draws no wash for a range, and paints its marks in ink', () => {
     expect(ruleBody(ladderCss, '.level-ladder')).not.toMatch(/max-width/)
-    expect(declarations(ladderCss, '.level-ladder--run').get('--ladder-band')).toBe(
-      'var(--ladder-run-band)',
-    )
-    expect(declarations(ladderCss, '.level-ladder--ride').get('--ladder-band')).toBe(
-      'var(--ladder-ride-band)',
-    )
-    expect(declarations(ladderCss, '.level-ladder').get('--ladder-colour')).toBe(
-      'var(--sport-colour)',
-    )
+    expect(ladderCss).not.toMatch(/level-ladder__range/)
+    expect(declarations(ladderCss, '.level-ladder__dot').get('background')).toBe('var(--ink)')
     expect(declarations(ladderCss, '.level-ladder__edge').get('background')).toBe(
-      'var(--neutral-mark)',
+      'var(--ink-secondary)',
     )
   })
 })

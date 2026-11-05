@@ -80,7 +80,7 @@ export function GradeProfileSection({
         <GradeProfileChart profile={graded} finding={finding ?? undefined} />
       ) : (
         <>
-          <p className="eyebrow" aria-hidden="true">
+          <p className="meta" aria-hidden="true">
             {GRADE_PROFILE_TITLE}
           </p>
           {finding === null ? null : <p className="grade-profile__finding">{finding}</p>}

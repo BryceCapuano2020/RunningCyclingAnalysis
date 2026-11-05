@@ -7,23 +7,14 @@
   gap: var(--space-3);
 }
 
+/* A chart's heading is a section's: the serif at --title. */
 .chart-frame__title {
-  color: var(--text-primary);
-  font-size: var(--text-label);
-  font-weight: 600;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--title);
+  font-weight: 500;
+  line-height: 1.15;
   text-wrap: balance;
-}
-
-/*
- * With a takeaway, the title is the chart's name in small capitals above its finding: the data is the hero,
- * and the sentence beneath says what was found.
- */
-.chart-frame__title--eyebrow {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
 }
 
 /* The finding, and the one figure the chart is about beside it; the figure drops under the sentence where there is no room. */
@@ -39,11 +30,11 @@
   flex: 1 1 18rem;
   max-width: 40ch;
   margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.1;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--title);
+  font-weight: 500;
+  line-height: 1.15;
   text-wrap: balance;
 }
 
@@ -54,30 +45,33 @@
 }
 
 .chart-frame__focal-label {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
 }
 
 .chart-frame__focal-value {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 3.5rem;
-  font-weight: 800;
-  line-height: 0.95;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--title);
+  font-weight: 400;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 
 .chart-frame__focal-unit {
   margin-left: 0.25em;
-  color: var(--text-secondary);
-  font-size: 0.45em;
+  color: var(--ink-secondary);
+  font-size: 0.75em;
 }
 
 /* The sentence the chart supports, on the page's reading measure, under the title. */
 .chart-frame__lede {
-  max-width: 62ch;
+  max-width: var(--measure);
   margin: 0;
-  color: var(--text-primary);
+  color: var(--ink);
   font-size: var(--text-md);
 }
 
@@ -109,6 +103,11 @@
   touch-action: pan-y pinch-zoom;
 }
 
+/* Every word and figure drawn in a chart is the mono, whose glyphs the layouts measure (GLYPH_EM). */
+.chart-frame__svg text {
+  font-family: var(--font-mono);
+}
+
 .chart-frame__overlay {
   position: absolute;
   inset: 0;
@@ -119,11 +118,11 @@
   display: flex;
   align-items: center;
   max-width: 52ch;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .chart-frame__note {
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
@@ -137,10 +136,10 @@
   display: none;
   margin: 0;
   padding: 0 var(--space-2);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
@@ -159,7 +158,7 @@
 
 /* Layout (flex row, disclosure triangle, 40 px height) comes from the global summary rule. */
 .chart-frame__details summary {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-md);
 }
 
@@ -188,14 +187,14 @@
 .chart-frame__details caption {
   caption-side: top;
   padding: 0 0 var(--space-2);
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   text-align: left;
 }
 
 /* The line through the active point, shared by every chart with a tooltip. */
 .chart-crosshair {
-  stroke: var(--text-muted);
+  stroke: var(--ink-secondary);
   stroke-width: 1;
 }
 
@@ -207,14 +206,15 @@
  */
 .chart-frame__readout {
   min-height: 6rem;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  padding: var(--space-2) 0;
+  border-block: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
 }
 
 .chart-frame__readout:not(:has(.chart-tooltip__title))::before {
   content: 'Select a point to read its value';
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
@@ -247,7 +247,7 @@
 
 @media (max-width: 480px) {
   .chart-frame__takeaway {
-    font-size: 1.5rem;
+    font-size: var(--title);
   }
 
   .chart-frame__focal-value {
@@ -256,34 +256,22 @@
 }
 
 /*
- * ChartFrame's own readout is at least 2 rem tall, saying the chart's latest or headline value (or how to read one):
- * a phone's plot keeps the room the fullest reading would take. That line wraps on a narrow phone rather than end in an
- * ellipsis, and stays in the row, hidden, while a reading is drawn, so the row keeps its height and the plot does not
- * move. A point's full reading draws over the row, growing upward from its foot over the lines above the plot, so the
+ * ChartFrame's own readout takes no room at rest and says nothing, so no line sits between a chart's title and its
+ * plot. A point's full reading draws from the plot's top edge, growing upward over the lines above the plot, so the
  * plot is never pushed down under a finger. Another chart's readout row (the activity timeline's) keeps the base rules
  * above.
  */
 .chart-frame__readout--compact {
   position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 2rem;
-  padding-block: var(--space-1);
+  min-height: 0;
+  padding: 0;
+  border: 0;
 }
 
-.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
-  content: attr(data-idle);
-  min-width: 0;
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
-}
-
-.chart-frame__readout--compact:has(.chart-tooltip__title)::before {
-  content: attr(data-idle);
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: var(--text-sm);
-  visibility: hidden;
+/* At rest the row says nothing: no line sits under a chart's title (docs/design/system.md, No subtitle lines). */
+.chart-frame__readout.chart-frame__readout--compact::before,
+.chart-frame__readout.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
+  content: none;
 }
 
 .chart-frame__readout--compact .chart-tooltip {
@@ -296,9 +284,8 @@
 /* An empty tooltip stays in the page, as the live region a screen reader hears, with no box of its own. */
 .chart-frame__readout--compact .chart-tooltip:has(.chart-tooltip__title) {
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  box-shadow: var(--shadow-pop);
+  border-radius: var(--radius);
+  background: var(--paper-hover);
   overflow: hidden;
 }
 

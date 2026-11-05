@@ -182,3 +182,32 @@ describe('weeklyVolumeLayout', () => {
     expect(weeklyVolumeLayout(weeksOf([1, 0]), sizeOf(640))).toBeNull()
   })
 })
+
+describe('weeklyVolumeLayout with month bars', () => {
+  /** One row a month dated at its last Sunday, then a final month of one week that ends on its 1st. */
+  const months = (): VolumeWeek[] => {
+    const ends = [
+      Date.UTC(2025, 0, 26, 23, 59, 59, 999),
+      Date.UTC(2025, 1, 23, 23, 59, 59, 999),
+      Date.UTC(2025, 2, 30, 23, 59, 59, 999),
+      Date.UTC(2025, 3, 27, 23, 59, 59, 999),
+      Date.UTC(2025, 5, 1, 23, 59, 59, 999),
+    ]
+    return ends.map((endMs) => ({ endMs, seconds: { run: 3 * HOUR, ride: HOUR } }))
+  }
+
+  it('keeps every bar inside the plot, one width, apart from its neighbours, the last month on its 1st included', () => {
+    for (const width of [320, 390, 640]) {
+      const size = sizeOf(width)
+      const layout = weeklyVolumeLayout(months(), size, [], true)!
+      const { bars } = layout
+      const last = bars.at(-1)!
+      expect(last.left).toBeGreaterThanOrEqual(size.plot.left)
+      expect(last.left + last.width).toBeLessThanOrEqual(size.plot.right)
+      expect(new Set(bars.map((bar) => bar.width)).size).toBe(1)
+      bars.slice(1).forEach((bar, i) => {
+        expect(bars[i]!.left + bars[i]!.width).toBeLessThan(bar.left)
+      })
+    }
+  })
+})

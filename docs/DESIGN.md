@@ -94,7 +94,7 @@ window 760 px wide or less, so a short desktop window keeps the tall layout.
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
-links in a records list, the cross-sport idea, the standards link under a grade and the two footer
+links in a records list, the cross-sport idea and the footer
 links, which are padded to that height on a finger. A footer link is 24 px tall with a mouse, the
 smallest target WCAG allows. At 360 px and below the tab labels and the sex choices shrink a step,
 so "ACTIVITIES" keeps its line in a five-tab bar from 350 px and "Prefer not to say" keeps two. Where the tabs
@@ -109,8 +109,8 @@ fragment link.
 Back and Forward return to the page the visitor left, where they left it. A page opened by a link
 starts at the top. **Back to activities** on an activity goes Back when the list was the page before; an activity opened
 from Run or Ride reads **Back to Run** (or **Back to Ride**), keeps that tab lit and goes back there.
-Run and Ride link to **How sure is this?** from a grade's **How is this graded?** link and, for a ride
-with estimated watts, from its power note; the footer links to it too. How sure is this? links back to
+No page links to **How sure is this?** in its text: the header names it **Method**, beside History and Activities
+(at 360 px and below, where the header's second row has no room, the footer names it instead). How sure is this? links back to
 **Back to Balance**, and the Balance tab stays lit there, since its answer is Balance's.
 
 A deep link to a page that needs a result, with none on this device, stays where it is and says
@@ -312,16 +312,19 @@ and the tests named at the foot of that page keep the two in step. A display siz
   and a link to how it is graded. Then the period
   control, then "On this page", then the sport's sections as the rows its list gives (`SPORT_ROWS` in
   `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or drops a section there and
-  the page maps it). The page's title row carries a line of recent form ("Last run 14 Jan · 9 runs · 42.10 km").
+  the page maps it). The page's title has one ▸ Details under it, which holds a line of recent form ("Last run 14 Jan · 42.10 km"), the period's dates and counts, and any note about the data.
   - **Every section shows its best answer, or one line in its own place.** Open as cards: **Best efforts** (the curve with its
     findings written on it), **Race predictions** beside **Time in zones** (60 and 40 on
     a desktop; a ride's zones take the whole row), and **Best efforts by day**. Then sections with a row that names the
     section and says what it found, each **open by default** with its content shown, which the reader can fold (open, a section is a band like the others; folded, it is a card of one row, so the box ratchet counts a fold and not an open section): **Pace at heart
     rate** (**Power at heart rate** for a ride; "Pace at 145 bpm, by week.", the row naming the heart rate so "the same" is a number), **Durability** ("Durability: 99% of your best 20 min after an hour. Heart rate drift: efficiency fell 3%."),
-    **Best durations**, and **All best
+    **Best durations** (only when it names a duration: its finding is then the section's heading; with nothing to
+    name the section is left out, and so is its place in "On this page"), and **All best
     efforts** (every record with its level, where there is a profile to grade it, and its activity; the row is its name alone). A row whose charts already say its finding (pace at heart rate and durability) does not say it a
     second time while the section is open (`data-restated`); folded, it says it, so a folded section still tells the athlete something.
-    A section the library cannot fill yet is **one line in its own place** (below), never a list at the end and never a missing section.
+    A section the library cannot fill yet is **one line in its own place** (below) that says what to add, never a list at
+    the end. A section whose only answer would tell the athlete nothing they can act on (Best durations naming no duration,
+    or a curve that could not be fitted) is left out.
   - **"On this page"** is a row of buttons, one for each section the page has. On a desktop it holds its place
     under the header while the page scrolls, because the page is long and a section is then one press from
     anywhere; on a phone it is a row that scrolls sideways and does not hold. A button scrolls to the section,
@@ -385,13 +388,13 @@ and the tests named at the foot of that page keep the two in step. A display siz
   critical-power model, fitted without that duration; the method is in
   [research/duration-profile.md](research/duration-profile.md)). A sentence leads: "Your 1 min best is 14%
   above what your other bests suggest. Your 2 min best is 9% below: it may be relatively low, or
-  untested." With none to name it says "Nothing stands out." It names at most the three that stand out most, shortest first, and only a duration whose
+  untested." With none to name, the section is not drawn. It names at most the three that stand out most, shortest first, and only a duration whose
   range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
-  the rest is always said to be possibly untested, since a best is a lower bound. With none standing out it
-  says "Nothing stands out." at any library size, never "in line" (a few efforts can match a curve by chance), and offers no strip. When the bests are the whole library's the sentence says all-time: "Your all-time 5 min best is 14% above what your other bests suggest." A period with fewer than 40 activities of the sport reads the
+  the rest is always said to be possibly untested, since a best is a lower bound. With none standing out the section is
+  left out at any library size, never said to be "in line" (a few efforts can match a curve by chance). When the bests are the whole library's the sentence says all-time: "Your all-time 5 min best is 14% above what your other bests suggest." A period with fewer than 40 activities of the sport reads the
   bests of the whole library instead, when it holds more, and the sentence on the row names the window (the "all-time" wording above); the state carries those
   bests (`libraryBests`) and the profile is judged at the library's size. A stand-out is judged at a stricter level in a library under 40 activities (the 5% level scaled by activities over 40), the size it states is shrunk toward the athlete's own curve (positive-part James-Stein, so the duration that noise helped most is not stated at full size), and the curve's spread is never tightened by the points the lower-bound refit drops (`profile/standOut.sim.test.ts` records the false-stand-out rates). With some
-  standing out by less than 2% it says "Nothing stands out clearly." and the chart shows the small differences. The sentence names no span and no short-end note says why the chart starts where it does. Durations are named as every effort length is,
+  standing out by less than 2% the sentence would name none, so the section is left out too. The sentence names no span and no short-end note says why the chart starts where it does. Durations are named as every effort length is,
   in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"
   and "ahead of" are never used, and "grade" means age grade only.
   Under the sentence, when something stands out, is a lollipop strip, shown with no press: duration on a log x axis, 5 s to
@@ -594,10 +597,10 @@ and the tests named at the foot of that page keep the two in step. A display siz
   says its no-standard note, such as a run's "No age standard under 1 mile" or a ride's "No age
   standard for this duration", once, under the list, and each row then reads only its level. A ride's
   row carries no Estimated chip and the list no note about the running equivalent; the line above says
-  how many rides had estimated watts, and How is this graded? says how a ride is graded.
+  how many rides had estimated watts, and the Method page says how a ride is graded.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
-  estimated." The line links to How sure is this?. The pipeline writes an average power only from a
+  estimated." The pipeline writes an average power only from a
   power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
   carries estimated watts.
 - **How your reps held up** sits in an activity's In detail section, under the lap strip (a Laps strip shows for two or more recorded laps, since one lap is the whole activity, and Suggested intervals show when none were recorded), when the activity
@@ -707,9 +710,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the
   link's line. A long activity name is cut short with an ellipsis, and its full name is the link's
   title and accessible name.
-- **Your ride as a run is a tile:** the pace as the tile's figure ("4:10 /km", the unit in its own span), and one line under it ("From your 295 W threshold."). The pace is the ride threshold's running equivalent at 60 min (`AnalysisResult.rideThresholdRunSpeed`), so it sits beside the run threshold like for like: where the lean says running it is slower than the run threshold, and where it says cycling, faster (the replica's `lean-vs-cards` rule checks it). It has no chip, no evidence chip and no activity link; its title says what the figure is. How the ride threshold was worked out is on the ride's own tile beside it.
+- **Your ride as a run is a tile:** the pace as the tile's figure ("4:10 /km", the unit in its own span), and the line that says what it rests on ("From your 295 W threshold.") inside its See the pace curve disclosure. The pace is the ride threshold's running equivalent at 60 min (`AnalysisResult.rideThresholdRunSpeed`), so it sits beside the run threshold like for like: where the lean says running it is slower than the run threshold, and where it says cycling, faster (the replica's `lean-vs-cards` rule checks it). It has no chip, no evidence chip and no activity link; its title says what the figure is. How the ride threshold was worked out is on the ride's own tile beside it.
   Its ride figures and its table wait for the weight, as the tiles' do, and its needs-a-ride line names
-  the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The heart-rate check is never a card: it is a chip on the tile it qualifies, and under the tiles is one line, the link to How sure is this?, with no chip or nudge about heart rate.
+  the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The heart-rate check is never a card: it is a chip on the tile it qualifies, with no chip or nudge about heart rate and no link under the tiles.
 - **A held comparison leads with what it can show.** While Balance cannot set the sports against each other, its title names the levels the files do give ("Running is at Local level, cycling at Recreational", or "Your running is at Local level"), and the line under it is one action: "Add one run of 20 min or more to compare them.", "Add 2 more rides in this period to compare them." or "Add your weight on Profile to grade your rides and compare them with your runs." For rides without a power meter the line names the climb instead, since a long ride is not what is missing: "Add one ride with a power meter, or with a climb of 3% or steeper that holds for 20 min without a break to compare them." (virtual power is trusted only on climbs, and a 20 min estimate needs one unbroken, `CLIMB_NEEDED`; the landing page and How sure is this? say the same). "Not enough to compare yet" is the title only when no sport has a level. With only one sport on file, the other sport's card asks for files to compare it with the first ("Add rides to compare them with your running."). A ride card held for the weight says how many rides there are, how long they ran and when the latest was, none of which needs a weight, then asks for it.
 - **The browser is asked to keep a signed-out library, and a lost one is told.** After a first import is kept in this browser it
   asks the browser to keep the site's storage (`navigator.storage.persist()`). A browser that refuses gets the notice "This browser may clear
@@ -742,7 +745,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
-- **The Balance footer is one line** that names the standard, "Age-graded on USATF road standards.", with "Age-graded" defined in place as the age grade. It says no more: not the age, the sex or a line about rankings. How a ride is graded is said once, on the your-ride-as-a-run tile. A screen says each thing once: the levels row gives the level and grade, so a threshold tile keeps only its effort; a word defined in place is defined once (the first threshold tile, the first level). Each first screen has a word budget in a `*.words.test.tsx` beside its page, a ratchet that only goes down. The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
+- **The standard is named once, in the answer's Details**: "Age-graded on USATF road standards.", with "Age-graded" defined in place as the age grade, as the Details' last line. It says no more: not the age, the sex or a line about rankings. How a ride is graded is said once, on the your-ride-as-a-run tile. A screen says each thing once: the levels row gives the level and grade, so a threshold tile keeps only its effort; a word defined in place is defined once (the first threshold tile, the first level). Each first screen has a word budget in a `*.words.test.tsx` beside its page, a ratchet that only goes down. The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
 - **The phone has no grade strip.** The levels show both grades at every width, so no strip repeats them.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption

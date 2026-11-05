@@ -7,10 +7,12 @@
   min-width: 0;
 }
 
+/* A table wider than the page at a large text size scrolls inside its own box, its figures kept whole. */
 .zone-tables__table {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+  overflow-x: auto;
 }
 
 .zone-tables__table h3 {
@@ -21,11 +23,19 @@
   margin: 0;
 }
 
-/* The cells wrap, so a range that is wide for a phone runs onto a second line and the table keeps its box. */
+/*
+ * The cells wrap between words, so a range that is wide for a phone runs onto a second line between its two ends and
+ * the table keeps its box; a figure itself is never split.
+ */
 .zone-tables__rows th,
 .zone-tables__rows td {
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+}
+
+/* Every figure in the table is mono. */
+.zone-tables__rows td {
+  font-family: var(--font-mono);
 }
 
 /* The zone's number is narrow and the range, the widest text, takes the room that is left. */
@@ -49,7 +59,5 @@
 /* A max heart rate far over what a maximum is at the athlete's age: set apart from the plain detail line, not a small control. */
 .zone-tables__suspect {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-left: 3px solid var(--status-warning);
-  background: var(--status-warning-bg);
+  color: var(--status-warning);
 }

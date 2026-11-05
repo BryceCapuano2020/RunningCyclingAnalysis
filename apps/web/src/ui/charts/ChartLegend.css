@@ -5,7 +5,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--text-primary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
 
@@ -15,16 +15,16 @@
 }
 
 .swatch-run {
-  background: var(--series-run);
+  background: var(--run-ink);
 }
 
 .swatch-ride {
-  background: var(--series-ride);
+  background: var(--ride-ink);
 }
 
 .chart-legend__swatch--neutral {
-  background: var(--neutral-band);
-  box-shadow: inset 0 0 0 1px var(--neutral-mark);
+  background: var(--rule);
+  box-shadow: inset 0 0 0 1px var(--ink-secondary);
 }
 
 /* Shaded-range and line keys share a 14 px box, so they line up with text and each other. */
@@ -40,21 +40,26 @@
 
 .chart-legend__key--band {
   box-sizing: border-box;
-  border: 1px dashed var(--neutral-mark);
-  background: var(--neutral-band);
+  border: 1px dashed var(--ink-secondary);
+  background: var(--rule);
+}
+
+.chart-legend__key--band[data-sport] {
+  border: 1px solid var(--sport-ink);
+  background: var(--sport-wash);
 }
 
 .chart-legend__key--band-strong {
   box-sizing: border-box;
-  border: 1px solid var(--neutral-mark);
-  background: var(--neutral-band);
+  border: 1px solid var(--ink-secondary);
+  background: var(--rule);
   overflow: hidden;
 }
 
 .chart-legend__layer {
   position: absolute;
   inset: 0;
-  background: var(--neutral-band);
+  background: var(--rule);
 }
 
 .chart-legend__median {
@@ -64,7 +69,7 @@
   top: 50%;
   height: 2px;
   margin-top: -1px;
-  background: var(--neutral-mark);
+  background: var(--ink-secondary);
 }
 
 .chart-legend__key--line {
@@ -90,15 +95,15 @@
 }
 
 .chart-legend__key--run {
-  background: var(--series-run);
+  background: var(--run-ink);
 }
 
 .chart-legend__key--ride {
-  background: var(--series-ride);
+  background: var(--ride-ink);
 }
 
 .chart-legend__key--neutral {
-  background: var(--neutral-mark);
+  background: var(--ink-secondary);
 }
 
 /*
@@ -107,8 +112,8 @@
  */
 .chart-legend__key--partial {
   box-sizing: border-box;
-  border: 1.5px dashed var(--sport-colour, var(--neutral-mark));
-  background: color-mix(in srgb, var(--sport-colour, var(--neutral-mark)) 35%, transparent);
+  border: 1.5px dashed var(--sport-ink, var(--ink-secondary));
+  background: color-mix(in srgb, var(--sport-ink, var(--ink-secondary)) 35%, transparent);
 }
 
 /* A hollow point's key: the page colour inside, and an outline in the sport's colour. */
@@ -118,8 +123,8 @@
   width: 10px;
   height: 10px;
   margin-right: 7px;
-  border: 2px solid var(--sport-colour, var(--neutral-mark));
-  background: var(--surface-1);
+  border: 2px solid var(--sport-ink, var(--ink-secondary));
+  background: var(--paper);
 }
 
 .chart-legend__key--ring {
@@ -137,7 +142,7 @@
 /* The previous period's key: a solid grey line, thinner than a sport's. */
 .chart-legend__key--previous {
   height: 0;
-  border-top: 2px solid var(--previous-mark);
+  border-top: 1.5px solid var(--previous-mark);
   background: none;
 }
 
@@ -150,13 +155,13 @@
 
 /* An estimate keys a sport's line, so it is drawn at that line's width (.chart-series__line), not the thin comparison's. */
 .chart-legend__key--dashed-run {
-  border-top-width: 3px;
-  border-top-color: var(--series-run);
+  border-top-width: 2px;
+  border-top-color: var(--run-ink);
 }
 
 .chart-legend__key--dashed-ride {
-  border-top-width: 3px;
-  border-top-color: var(--series-ride);
+  border-top-width: 2px;
+  border-top-color: var(--ride-ink);
 }
 
 /*

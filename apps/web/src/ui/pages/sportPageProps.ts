@@ -64,8 +64,12 @@ export interface SportPageProps {
    * header's count is this one, so the page says one count. Absent: the activities the analysis counted.
    */
   onFile?: number
-  /** The period control, shown under the answer it changes. */
+  /** The period's status and Custom form, under the title. */
   controls: ReactNode
+  /** The period's dates and counts as one meta line, for the Details under the title. */
+  periodLine?: ReactNode
+  /** Whether that line gives the count, so the page's own line under the title leaves it out. */
+  periodCounts?: boolean
   /** The line that says what the page is based on, at its foot. */
   footnote?: ReactNode
   /** What to say when the sport has nothing in the period, naming the period. */

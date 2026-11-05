@@ -5,7 +5,6 @@ import { plural } from '../components/plural'
 import { formatCount } from '../format/count'
 import { activityMasses } from '../activityMasses'
 import { activityNames } from '../records'
-import { hrefFor } from '../route'
 import { SPORT_PLURAL } from '../sports'
 import { thresholdLine } from '../thresholdLine'
 import { curvesOf } from './bestEffortRows'
@@ -42,8 +41,7 @@ export function BestEffortsSection(context: SectionContext & { list: BestEffortR
       />
       {sport === 'ride' && list.someEstimated && (
         <p className="muted">
-          {`Power meters measured ${formatCount(measuredRides)} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}
-          <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
+          {`Power meters measured ${formatCount(measuredRides)} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}
         </p>
       )}
       <a className="link-arrow" href={`#/activities?${queryFromView({ ...DEFAULT_VIEW, sport })}`}>

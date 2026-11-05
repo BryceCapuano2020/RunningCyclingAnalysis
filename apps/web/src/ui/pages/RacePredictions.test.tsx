@@ -181,10 +181,16 @@ describe('RacePredictions', () => {
     expect(screen.queryByText(/middle of two estimates/)).not.toBeInTheDocument()
   })
 
-  it('says under the title the run the times were carried from, and nothing about the method', () => {
+  it('says the run the times were carried from inside About these predictions, and no line under the title', () => {
     const dated = makeActivity({ ...withBests, startMs: RAN_AT })
     renderPredictions(makeResult({ activities: [dated] }))
-    expect(screen.getByText('From your 5 km on 27 Nov.')).toBeInTheDocument()
+    expect(screen.queryByText('From your 5 km on 27 Nov.')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Race predictions' }).nextElementSibling).toBeNull()
+    openAbout()
+    const line = screen.getByText('From your 5 km on 27 Nov.')
+    expect(line.closest('details')).toBe(
+      screen.getByText('About these predictions').closest('details'),
+    )
   })
 
   it('carries a race from the outdoor run, not from a faster indoor run', () => {

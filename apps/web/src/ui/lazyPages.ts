@@ -46,8 +46,9 @@ const result = lazyPage<ComponentProps<typeof ResultPageComponent>>(() =>
 const history = lazyPage<ComponentProps<typeof HistoryPageComponent>>(() =>
   import('./pages/HistoryPage').then((module) => module.HistoryPage),
 )
+// Profile stands in the shell with the rail once there is a result (RailedProfilePage).
 const profile = lazyPage<ComponentProps<typeof ProfilePageComponent>>(() =>
-  import('./pages/ProfilePage').then((module) => module.ProfilePage),
+  import('./pages/RailedProfilePage').then((module) => module.RailedProfilePage),
 )
 const method = lazyPage<ComponentProps<typeof MethodPageComponent>>(() =>
   import('./pages/MethodPage').then((module) => module.MethodPage),

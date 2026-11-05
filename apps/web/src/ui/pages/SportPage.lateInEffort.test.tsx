@@ -10,6 +10,7 @@ import { makeActivity, makeResult } from '../components/fixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { closedRow } from '../test/openSection'
 import { SportPage } from './SportPage'
+import { wholeText } from '../test/wholeText'
 
 afterEach(cleanup)
 
@@ -111,7 +112,7 @@ describe('durability on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
       within(section).getByText(
-        'Heart rate drift: 2 of 3 steady runs over an hour with heart rate.',
+        wholeText('Heart rate drift: 2 of 3 steady runs over an hour with heart rate.'),
       ),
     ).toBeInTheDocument()
   })
@@ -123,7 +124,9 @@ describe('durability on a sport page', () => {
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(
-      within(section).getByText('Durability: 0 of 3 rides longer than an hour with a power meter.'),
+      within(section).getByText(
+        wholeText('Durability: 0 of 3 rides longer than an hour with a power meter.'),
+      ),
     ).toBeInTheDocument()
   })
 
@@ -134,7 +137,7 @@ describe('durability on a sport page', () => {
     expect(section.querySelector('figure')).toBeNull()
     expect(
       within(section).getByText(
-        '0 of 3 steady rides over an hour with a power meter and heart rate.',
+        wholeText('0 of 3 steady rides over an hour with a power meter and heart rate.'),
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()

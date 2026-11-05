@@ -19,6 +19,12 @@ test('skips a sport’s name that is not followed by a percent, and a page with 
   assert.equal(readBalanceGrade('', 'RUNNING'), null)
 })
 
+test('reads Balance’s grade whatever the case its sport’s name is set in', () => {
+  const text = 'RUNNING\nEVEN\nCYCLING\nRunning\n47%\nRecreational\nCycling\n72%\nRegional\n'
+  assert.deepEqual(readBalanceGrade(text, 'RUNNING'), { percent: '47%', level: 'Recreational' })
+  assert.deepEqual(readBalanceGrade(text, 'CYCLING'), { percent: '72%', level: 'Regional' })
+})
+
 test('reads the level and percent under a sport page’s age grade at threshold', () => {
   assert.deepEqual(readSportGrade('AGE GRADE AT THRESHOLD\nLOCAL\n55%\n7:30 /mi at age 40.\n'), {
     percent: '55%',
@@ -26,6 +32,19 @@ test('reads the level and percent under a sport page’s age grade at threshold'
   })
   assert.equal(readSportGrade('AGE GRADE AT THRESHOLD\nAdd your year of birth\n'), null)
   assert.equal(readSportGrade('THRESHOLD PACE\n7:30\n/mi\n'), null)
+})
+
+test('reads a sport page’s level and percent from one line, under a title in sentence case', () => {
+  assert.deepEqual(readSportGrade('Age grade at threshold\n\nLocal · 55%\n7:30 /MI AT AGE 40.\n'), {
+    percent: '55%',
+    level: 'Local',
+  })
+  assert.equal(readSportGrade('Age grade at threshold\nAge grades need your sex.\n'), null)
+})
+
+test('reads no grade from a percent further down than the line under the title', () => {
+  assert.equal(readSportGrade('Age grade at threshold\n\nSomething else\n\n55%\n'), null)
+  assert.equal(readSportGrade('Age grade at threshold\n\nSomething else\n\nLocal · 55%\n'), null)
 })
 
 test('two prints are one grade when the percent and the level agree, whatever the level’s case', () => {

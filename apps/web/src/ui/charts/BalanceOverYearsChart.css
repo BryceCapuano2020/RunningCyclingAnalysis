@@ -5,12 +5,12 @@
 
 /* A solid dot is its sport's colour (tokens.css sets it for each data-sport), ringed in the card colour by the shared marker. */
 .balance-years__dot {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
 }
 
 /* A ride's range in a year with no neighbour to join a band to: its ends, as a line in the sport's colour. */
 .balance-years__whisker {
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
   stroke-width: 3px;
   stroke-linecap: round;
   stroke-opacity: 0.5;

@@ -37,8 +37,11 @@ describe('focus on navigation', () => {
     'opens the %s page and moves focus to its heading',
     async (name) => {
       render(<App />)
-      const sections = screen.getByRole('navigation', { name: 'Sections' })
-      fireEvent.click(within(sections).getByRole('link', { name }))
+      // Run and Ride are the rail's; Activities is the header's.
+      const nav = screen.getByRole('navigation', {
+        name: name === 'Activities' ? 'More pages' : 'Pages',
+      })
+      fireEvent.click(within(nav).getByRole('link', { name }))
       await waitFor(() => expect(screen.getByRole('heading', { level: 1, name })).toHaveFocus())
     },
   )
@@ -47,7 +50,7 @@ describe('focus on navigation', () => {
     window.location.hash = '#/method'
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
-    const sections = screen.getByRole('navigation', { name: 'Sections' })
+    const sections = screen.getByRole('navigation', { name: 'Pages' })
     fireEvent.click(within(sections).getByRole('link', { name: 'Balance' }))
     await waitFor(() =>
       expect(
@@ -75,7 +78,7 @@ describe('focus on navigation', () => {
 
   it('moves focus to the new page when a followed link still has focus', async () => {
     render(<App />)
-    const run = within(screen.getByRole('navigation', { name: 'Sections' })).getByRole('link', {
+    const run = within(screen.getByRole('navigation', { name: 'Pages' })).getByRole('link', {
       name: 'Run',
     })
     run.focus()

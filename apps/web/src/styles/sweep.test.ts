@@ -164,19 +164,15 @@ describe('every stylesheet in the app', () => {
  * the static privacy page (pinned by tokens.test.ts) and the favicon, an SVG file.
  */
 const BOTH_SPORTS: Record<string, readonly string[]> = {
-  // Both ends of one meter: its band and its dot take the colour of the sport the lean names.
-  'ui/components/BalanceMeter.css': [
-    '.balance-meter--run .balance-meter__band',
-    '.balance-meter--ride .balance-meter__band',
-    '.balance-meter--run .balance-meter__dot',
-    '.balance-meter--ride .balance-meter__dot',
-  ],
+  // Both ends of one meter: each end's upright takes its own sport's ink.
+  'ui/components/BalanceMeter.css': ['.balance-meter__track::after'],
   // The brand mark draws both sport strokes.
   'ui/components/icons.css': ['.brand-mark__run', '.brand-mark__ride'],
   // Method's curves and the grade by duration draw both sports on one plot.
   'ui/charts/ChartSeries.css': [
     '.chart-series__line--run',
     '.chart-series__line--ride',
+    '.chart-series__band--run',
     '.chart-series__band--ride',
     '.chart-series__ring--ride',
     '.chart-series__ring--run',
@@ -214,12 +210,13 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
 /** The static privacy page's stylesheet copies the token values, and tokens.test.ts keeps them equal. */
 const PRIVACY_PAGE = 'styles/privacy.css'
 const HEX_COPIES = ['share/cardColors.ts', PRIVACY_PAGE, 'favicon.svg']
-const SERIES_TOKEN = /--series-(?:run|ride|swim)(?:-soft)?\b/
+const SERIES_TOKEN = /--(?:series-(?:run|ride|swim)(?:-soft)?|(?:run|ride|swim)-(?:ink|wash))\b/
 /**
  * A series token in TypeScript: a literal name, a var() whose name is built at run time, or a token
  * name built from a sport. A class such as `chart-series__area--${sport}` is not a token, so it passes.
  */
-const SERIES_SOURCE = /--series-(?:run|ride|swim)(?:-soft)?\b|var\(--\$\{|--series-\$\{/
+const SERIES_SOURCE =
+  /--(?:series-(?:run|ride|swim)(?:-soft)?|(?:run|ride|swim)-(?:ink|wash))\b|var\(--\$\{|--series-\$\{/
 const SPORT_HEX =
   /#(?:c2410c|1d4ed8|0e7490|e44f27|f56333|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
 
@@ -290,7 +287,7 @@ describe('sport colour', () => {
     const chartSeries = sheets.find(({ path }) => path === 'ui/charts/ChartSeries.css')?.css ?? ''
     for (const sport of ['run', 'ride']) {
       expect(declarations(chartSeries, `.chart-series__area--${sport}`).get('fill')).toBe(
-        'var(--sport-colour)',
+        'var(--sport-ink)',
       )
     }
     // The wash is a tint of the line's colour, never louder than 15%, so the line and gridlines stay in front.
@@ -307,6 +304,8 @@ describe('sport colour', () => {
 describe('the series token patterns', () => {
   it('catches the swim token in a stylesheet, as it catches run and ride', () => {
     expect(SERIES_TOKEN.test('color: var(--series-swim);')).toBe(true)
+    expect(SERIES_TOKEN.test('stroke: var(--swim-ink);')).toBe(true)
+    expect(SERIES_TOKEN.test('fill: var(--run-wash);')).toBe(true)
     expect(SERIES_TOKEN.test('background: var(--series-swim-soft);')).toBe(true)
   })
 

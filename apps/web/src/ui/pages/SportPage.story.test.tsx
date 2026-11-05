@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -23,6 +23,7 @@ import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { RIDE_SLIPPING, SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
+import { openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
 
@@ -135,9 +136,11 @@ describe('a sport page with everything to show', () => {
     ])
   })
 
-  it('follows with pace at heart rate, durability, best durations and the full list, each open', () => {
+  it('follows with pace at heart rate, durability, the stand-out finding and the full list, each open', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const sections = ['Pace at heart rate', 'Durability', 'Best durations', 'All best efforts']
+    // Best durations is titled by its finding, which names a duration here.
+    const finding = regions().find((name) => /^Your 5 min best is/.test(name ?? ''))!
+    const sections = ['Pace at heart rate', 'Durability', finding, 'All best efforts']
     const order = regions().filter((name) => sections.includes(name ?? ''))
     expect(order).toEqual(sections)
     for (const name of sections) {
@@ -154,7 +157,8 @@ describe('a sport page with everything to show', () => {
     expect(closedRow('Durability')).toMatch(
       /Durability: \d+% of your best 20 min after 90 min\. Heart rate drift: efficiency fell 3%/,
     )
-    expect(closedRow('Best durations')).toMatch(/Your 5 min best is [23]\d% above/)
+    // Best durations' finding is its heading: the row says it whole.
+    expect(closedRow(/^Your 5 min best is/)).toMatch(/^Your 5 min best is [23]\d% above/)
     // The full list is its name alone: a count of its rows says nothing the list does not.
     expect(closedRow('All best efforts')).toBe('All best efforts')
   })
@@ -172,9 +176,9 @@ describe('a sport page with everything to show', () => {
     const curve = within(section).getByRole('figure', { name: 'Best efforts' })
     // No strip of tiles under the curve: the records are in All best efforts, further down the page.
     expect(within(section).queryByRole('list', { name: 'Best efforts' })).toBeNull()
-    expect(section.querySelector('ul.records, .record-tiles')).toBeNull()
+    expect(section.querySelector('ol.records, .record-tiles')).toBeNull()
     const all = screen.getByRole('region', { name: 'All best efforts' })
-    expect(all.querySelector('ul.records')).not.toBeNull()
+    expect(all.querySelector('ol.records')).not.toBeNull()
     expect(follows(curve, all)).toBe(true)
     expect(within(section).queryByText(/^Your 5 min best is/)).toBeNull()
   })
@@ -182,26 +186,25 @@ describe('a sport page with everything to show', () => {
   it('shows every best effort from the start, in a section the reader can fold', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'All best efforts' })
-    expect(section.querySelector('ul.records')).not.toBeNull()
+    expect(section.querySelector('ol.records')).not.toBeNull()
     expect(section.querySelector('details')).toHaveAttribute('open')
   })
 
   it('draws the strip of each best against the others when one stands out, with no press', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const region = screen.getByRole('region', { name: 'Best durations' })
+    const region = screen.getByRole('region', { name: /^Your 5 min best is/ })
     expect(within(region).getByRole('figure')).toBeInTheDocument()
   })
 
-  it('says nothing stands out, and draws no strip', () => {
+  it('leaves the section out when nothing stands out: no row, no strip, no "Nothing stands out"', () => {
     const result = makeResult({
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
-    expect(
-      within(screen.getByRole('region', { name: 'Best durations' })).queryByRole('figure'),
-    ).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Best durations' })).toBeNull()
+    expect(screen.queryByText(/stands out/)).toBeNull()
+    expect(regions()).toContain('All best efforts')
   })
 
   it('draws the dated bests with no line and no wash, and no sentence about a dip in a window', () => {
@@ -394,7 +397,7 @@ describe('the run threshold whatever the fit does', () => {
     renderPage('run', makeResult({ activities: [run], runCpUneven: uneven }))
     const section = screen.getByRole('region', { name: 'Threshold pace' })
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(4))
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(section)
     // The range is the estimate's own 10th to 90th percentile, not a run up to the uneven fit's pace.
     expect(within(section).getByRole('note')).not.toHaveTextContent(pace(4.4))
   })
@@ -440,8 +443,9 @@ describe('a sport page’s fitness', () => {
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const threshold = screen.getByRole('heading', { name: 'Threshold pace' })
     expect(follows(fitness, threshold)).toBe(true)
-    expect(screen.getByRole('article', { name: 'Slipping' })).toBeInTheDocument()
-    expect(within(fitness).queryByText('Run')).not.toBeInTheDocument()
+    // The row's title is the state alone: the page's own title names the sport.
+    expect(within(fitness).getByRole('heading', { level: 3, name: 'Slipping' })).toBeInTheDocument()
+    expect(within(fitness).queryByText(/^Run( ·|$)/)).not.toBeInTheDocument()
   })
 
   it('says nothing about fitness on the ride page for a library with no ride status', () => {
@@ -455,8 +459,10 @@ describe('a sport page’s fitness', () => {
       ride: RIDE_SLIPPING,
     })
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
-    expect(within(fitness).getAllByRole('article')).toHaveLength(1)
-    expect(fitness.querySelector('.fitness-card__headline')).toHaveTextContent(/^\d+ W at 140 bpm/)
+    expect(within(fitness).getAllByRole('listitem')).toHaveLength(1)
+    expect(fitness.querySelector('.fitness-card__headline')).toHaveTextContent(
+      /^\d+ W( \(\d+ to \d+\))? at 140 bpm/,
+    )
     expect(fitness.textContent).not.toMatch(/\/km|\/mi/)
   })
 

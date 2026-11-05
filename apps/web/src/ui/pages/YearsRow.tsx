@@ -46,7 +46,6 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
         <summary className="checkin-row__summary">
           <span className="sr-only">Show history. </span>
           <span className="checkin-row__line">{words.lead}</span>
-          <span className="checkin-row__toggle" aria-hidden="true" />
         </summary>
         <div className="checkin-row__panel">
           <p className="checkin-row__full">{words.lead}</p>
@@ -59,7 +58,7 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
           )}
           <button
             type="button"
-            className="checkin-row__hide"
+            className="btn checkin-row__hide"
             onClick={() => {
               hiddenThisLoad = words.key
               setHidden(words.key)

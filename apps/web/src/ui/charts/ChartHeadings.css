@@ -11,14 +11,10 @@
 }
 
 .takeaway-chart .chart-frame__title {
-  font-family: var(--font-display);
-  font-size: var(--text-lead);
-  font-weight: 700;
-  line-height: 1.2;
   max-width: 40ch;
 }
 
 .takeaway-chart .chart-frame__lede {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
 }
