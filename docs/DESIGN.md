@@ -226,23 +226,14 @@ and the tests named at the foot of that page keep the two in step. A display siz
 
 ## Components, charts and pages
 
-- **Cards only for things you can open or act on.** Sections are separated by space and a heading,
-  not a border. A card has a 12 px radius, a 1 px border and no shadow.
-- One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
-  a volt button with an ink label in dark, so it stands out on either page colour. Its hover moves
-  the fill to `--accent-hover`, a visible change in both schemes. A press shows on every control: the
-  control drops a pixel and takes its pressed fill (`--surface-pressed`, or `--accent-pressed` for the
-  primary button) with an inset ring, so it reads in both schemes even where the fill barely changes.
-  A tab's ring is an inset outline, since the tab bar's current mark is a flat bar, not an inset shadow.
-  The current Activities page number keeps its selected look while pressed, and in forced colours it takes
-  the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped,
-  the primary button takes the system highlight with its label, the browser's own colour adjustment
-  being off for it, and a chip is outlined.
-  A button's hover also darkens its edge to `--text-secondary`, so the hover shows against the page.
-  The one destructive button, a removal's confirm, keeps its red fill and white label on hover and
-  press, and shows the state by brightness, so the generic hover never blanks it.
-  A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
-- A sport glyph (`SportIcon`) sits next to every sport name. Its path data and stroke width are in
+- **Rows and hairlines, not cards** (design/system.md, Layout). A section is a heading and a hairline; a list is numbered
+  rows. No shadow anywhere. The only outlined things are controls.
+- One primary action per screen, in `.btn-primary`: solid ink with a paper label. Its hover moves the fill to `--ink-hover`.
+  Every other button is small and outlined (`.btn`), sans, sentence case. A press shows on every control: it takes
+  `--paper-pressed` (the primary button keeps ink) with an inset ring. In forced colours a press is an outline and the primary
+  button takes the system highlight with its label. The one destructive button, a removal's confirm, is `--status-critical`
+  with a paper label, and shows hover and press by brightness. The header's Profile link is in sentence case too.
+- A sport glyph (`SportIcon`) is drawn only where it carries information the words do not (the share card, a chart key); a sport name in text needs none. Its path data and stroke width are in
   `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
   a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
   than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.15 to 1.3 times the
