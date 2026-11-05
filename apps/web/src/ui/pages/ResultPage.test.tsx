@@ -16,6 +16,7 @@ import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
 import { ResultPage } from './ResultPage'
 import { PERIOD_KEY } from '../periodPreference'
+import { wholeText } from '../test/wholeText'
 
 afterEach(() => {
   cleanup()
@@ -148,7 +149,7 @@ describe('ResultPage Ride with no weight entered', () => {
   it('holds the ride figures and asks for the weight, rather than using a placeholder', () => {
     renderPage({ page: 'ride' }, null, null, false)
     expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
-    expect(screen.queryByText('400 W')).not.toBeInTheDocument()
+    expect(screen.queryByText(wholeText('400 W'))).not.toBeInTheDocument()
     expect(screen.queryByText(/W\/kg/)).not.toBeInTheDocument()
   })
 
@@ -215,7 +216,7 @@ describe('ResultPage footnote', () => {
     ['ride', { page: 'ride' }],
   ] as const)('says what the %s page is based on, with a link to Profile', (_name, route) => {
     renderFooter(route, false)
-    expect(screen.getByText(/Based on your age, sex and 75 kg\./)).toBeInTheDocument()
+    expect(screen.getByText(wholeText(/Based on your age, sex and 75 kg\./))).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Edit your details on Profile' })).toHaveAttribute(
       'href',
       '#/profile',
@@ -286,7 +287,7 @@ describe('ResultPage footnote', () => {
     expect(
       screen.queryByRole('link', { name: 'Edit your details on Profile' }),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText(/Based on your age/)).not.toBeInTheDocument()
+    expect(screen.queryByText(wholeText(/Based on your age/))).not.toBeInTheDocument()
   })
 })
 
@@ -782,7 +783,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         sex={null}
       />,
     )
-    expect(screen.getByText('Counted over 12 May – 3 Aug 2025.')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.'))).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 

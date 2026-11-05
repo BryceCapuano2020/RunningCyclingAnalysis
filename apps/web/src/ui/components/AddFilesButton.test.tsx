@@ -9,7 +9,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'matchMedia')
 })
 
-/** Stubs the narrow phone's width query, which is what hides the words on a phone. */
+/** Stubs the narrow phone's width query, where the words once gave way to a plus. */
 function setNarrow(narrow: boolean) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -42,17 +42,16 @@ describe('AddFilesButton', () => {
     expect(input).not.toBeDisabled()
   })
 
-  it('has no title on a wide screen, where its words show', () => {
-    setNarrow(false)
-    const { button } = renderAddFiles()
-    expect(button).not.toHaveAttribute('title')
-  })
-
-  it('titles the button on a narrow phone, where only the plus shows, so it still says what it does', () => {
-    setNarrow(true)
-    const { button } = renderAddFiles()
-    expect(button).toHaveAttribute('title', 'Add files')
-  })
+  it.each([false, true])(
+    'says "Add files" in words with no icon or title, on a narrow phone (%s) as on a wide screen',
+    (narrow) => {
+      setNarrow(narrow)
+      const { button } = renderAddFiles()
+      expect(button).toHaveTextContent(/^Add files$/)
+      expect(button.querySelector('svg')).toBeNull()
+      expect(button).not.toHaveAttribute('title')
+    },
+  )
 
   it('opens the file chooser on click', async () => {
     const user = userEvent.setup()

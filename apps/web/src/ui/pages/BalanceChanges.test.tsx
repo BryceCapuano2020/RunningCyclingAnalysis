@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChangeItem } from './balanceChangeItems'
 import { BalanceChanges } from './BalanceChanges'
+import { wholeText } from '../test/wholeText'
 
 afterEach(cleanup)
 
@@ -74,7 +75,7 @@ describe('BalanceChanges', () => {
       <BalanceChanges changes={{ items: [] }} previousLabel="Previous 12 weeks" />,
     )
     expect(
-      screen.getByText('No clear change at 20 min from the previous 12 weeks.'),
+      screen.getByText(wholeText('No clear change at 20 min from the previous 12 weeks.')),
     ).toBeInTheDocument()
     expect(container.querySelector('ol, ul')).toBeNull()
   })
@@ -84,7 +85,9 @@ describe('BalanceChanges', () => {
       <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,
     )
     expect(screen.getByRole('region', { name: 'What changed vs Jan to Mar' })).toBeInTheDocument()
-    expect(screen.getByText('No clear change at 20 min from Jan to Mar.')).toBeInTheDocument()
+    expect(
+      screen.getByText(wholeText('No clear change at 20 min from Jan to Mar.')),
+    ).toBeInTheDocument()
     expect(container.querySelector('ol, ul')).toBeNull()
   })
 

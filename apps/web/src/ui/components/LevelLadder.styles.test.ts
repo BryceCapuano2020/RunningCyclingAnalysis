@@ -54,18 +54,19 @@ describe('Level ladder chevrons', () => {
   })
 })
 
-describe('Level ladder range', () => {
-  it('draws a ride’s range as its wash along the line, with no outline or shadow', () => {
-    expect(ruleBody(css, '.level-ladder__range')).toMatch(/background:\s*var\(--sport-wash\)/)
-    expect(ruleBody(css, '.level-ladder__range')).not.toMatch(/border|box-shadow/)
+describe('Level ladder range and names', () => {
+  it('draws no wash for a ride’s range: the ring says it is an estimate, and its label says the range', () => {
+    expect(css).not.toMatch(/level-ladder__range|-wash/)
+  })
+
+  it('sets the names on one line: no second row, and a name named alone centred under the mark', () => {
+    expect(css).not.toMatch(/level-ladder__name--(top|bottom|first|last)/)
+    expect(ruleBody(css, '.level-ladder__names')).toMatch(/height:\s*1rem/)
+    expect(ruleBody(css, '.level-ladder__name--centre')).toMatch(/transform:\s*translateX\(-50%\)/)
   })
 })
 
 describe('Level ladder forced colours', () => {
-  it('draws the range in the system highlight, where its wash is dropped', () => {
-    expect(forced).toMatch(/\.level-ladder__range \{\s*background:\s*Highlight;/)
-  })
-
   it('takes the line, the ticks and the dot in the system text colour', () => {
     expect(forced).toMatch(
       /\.level-ladder__track::before,\s*\.level-ladder__edge,\s*\.level-ladder__dot \{\s*background:\s*CanvasText/,

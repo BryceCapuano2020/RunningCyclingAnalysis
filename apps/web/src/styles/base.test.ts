@@ -22,15 +22,13 @@ describe('scrolling tables', () => {
 })
 
 describe('focus on a page heading', () => {
-  it('draws no outline when the app moves focus to the heading', () => {
-    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus")).toMatch(/outline:\s*none/)
-  })
-
-  it('underlines the heading only for keyboard focus, so a click that moves focus does not look like a link', () => {
-    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus-visible")).toMatch(
-      /text-decoration:\s*underline/,
+  it('never underlines a page title, for keyboard focus or any other, so no title looks like a link', () => {
+    const rule = /h1\[tabindex='-1'\]:focus,\s*h1\[tabindex='-1'\]:focus-visible \{([^}]*)\}/.exec(
+      baseCss,
     )
-    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus")).not.toMatch(/text-decoration/)
+    expect(rule?.[1]).toMatch(/text-decoration:\s*none/)
+    expect(rule?.[1]).toMatch(/outline:\s*none/)
+    expect(baseCss).not.toMatch(/text-decoration:\s*underline/)
   })
 })
 

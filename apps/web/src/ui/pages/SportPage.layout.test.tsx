@@ -173,7 +173,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
-    expect(level.querySelector('.level-ladder__range')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__range')).toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).queryByText('Estimated')).toBeNull()
     expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local · 67%$/)

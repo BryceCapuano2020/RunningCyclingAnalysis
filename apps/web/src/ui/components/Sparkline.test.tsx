@@ -45,7 +45,7 @@ describe('Sparkline', () => {
     )
     const svg = container.querySelector('svg')
     expect(svg).toHaveAttribute('aria-hidden', 'true')
-    expect(svg).toHaveClass('row__spark')
+    expect(svg).toHaveClass('sparkline')
     expect(container.querySelectorAll('polyline')).toHaveLength(1)
     expect(container.querySelector('circle, path, rect')).toBeNull()
   })

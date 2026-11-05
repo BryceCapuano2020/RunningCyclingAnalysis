@@ -36,10 +36,8 @@ describe('Balance page stylesheet', () => {
     expect(ruleBody(meter, '.balance-meter__number')).toMatch(/font-size:\s*var\(--title\)/)
   })
 
-  it('draws no underline under the headline focused on arrival', () => {
-    expect(page).toMatch(
-      /\.balance-hero__title\[tabindex='-1'\]:focus-visible \{[^}]*text-decoration:\s*none/,
-    )
+  it('leaves the headline’s focus to the base rule, which underlines no page title', () => {
+    expect(page).not.toMatch(/focus-visible|text-decoration/)
   })
 
   it('keeps the answer’s lines to the reading measure, not a character count', () => {

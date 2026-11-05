@@ -60,10 +60,11 @@ describe('Header stylesheet', () => {
     expect(tokensCss).toMatch(/--sticky-extra:\s*0px;/)
   })
 
-  it('hides only the words of Add files on a narrow phone, keeping its name', () => {
+  it('keeps the words of Add files at every width, and sets the wordmark a step smaller at 360 px to fit them', () => {
+    expect(headerCss).not.toMatch(/add-files__label|clip-path/)
     expect(headerCss).toMatch(
       new RegExp(
-        `@media \\(max-width: ${NARROW_PHONE_MAX_WIDTH_PX}px\\) \\{\\s*\\.header__actions \\.add-files__label \\{[^}]*clip-path:\\s*inset\\(50%\\)`,
+        `@media \\(max-width: ${SMALL_PHONE_MAX_WIDTH_PX}px\\) \\{[^@]*\\.header__brand \\{\\s*font-size:\\s*var\\(--text-md\\)`,
       ),
     )
   })

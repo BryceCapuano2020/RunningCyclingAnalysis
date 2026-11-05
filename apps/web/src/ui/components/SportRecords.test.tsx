@@ -65,8 +65,8 @@ describe('SportRecords', () => {
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(2)
     expect(within(items[1]!).getByText(wholeText('250 W'))).toBeInTheDocument()
-    expect(within(items[1]!).getByText('3.3 W/kg')).toBeInTheDocument()
-    expect(within(items[1]!).getByText('Estimated · Local · 67%')).toBeInTheDocument()
+    expect(within(items[1]!).getByText(wholeText('3.3 W/kg'))).toBeInTheDocument()
+    expect(within(items[1]!).getByText(wholeText('Estimated · Local · 67%'))).toBeInTheDocument()
   })
 
   it('links each record to its activity, named with its label and the day it was set', () => {
@@ -166,7 +166,7 @@ describe('SportRecords', () => {
         ]}
       />,
     )
-    const count = screen.getByText('4 days ago')
+    const count = screen.getByText(wholeText('4 days ago'))
     expect(count.textContent).toBe('4 days ago')
     const where = count.parentElement?.querySelector('.records__where')
     expect(where).toHaveTextContent('Late run, 9 Jan ·')
@@ -183,7 +183,7 @@ describe('SportRecords', () => {
         ]}
       />,
     )
-    const count = screen.getByText('5 months ago')
+    const count = screen.getByText(wholeText('5 months ago'))
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
   })
@@ -198,10 +198,10 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.queryByText(/All set on/)).not.toBeInTheDocument()
-    const count = screen.getByText('9 days ago')
+    const count = screen.getByText(wholeText('9 days ago'))
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
-    expect(screen.getByText('4 days ago')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('4 days ago'))).toBeInTheDocument()
   })
 
   it('puts each row’s count on its activity’s line, after the name, and not in the figure', () => {
@@ -300,7 +300,7 @@ describe('SportRecords', () => {
       />,
     )
     const [withTrend, without] = Array.from(container.querySelectorAll('li'))
-    expect(withTrend?.querySelector(':scope > svg.row__spark')).not.toBeNull()
+    expect(withTrend?.querySelector(':scope > .row__spark > svg')).not.toBeNull()
     expect(without?.querySelector('svg')).toBeNull()
   })
 

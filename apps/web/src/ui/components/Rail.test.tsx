@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { RAIL_MIN_WIDTH_PX } from '../layoutBreakpoints'
+import { usePeriodRail } from './PeriodRail'
 import { Rail, Shell } from './Rail'
 import { readStylesheet } from './stylesheet'
 
@@ -71,9 +72,19 @@ describe('Rail stylesheet', () => {
     expect(wide).toMatch(/\.rail \{[^}]*position:\s*sticky/)
   })
 
-  it('is one row below it that scrolls inside itself, so the page never scrolls sideways', () => {
+  it('is two lines below it, the pages over the periods, with nothing to scroll sideways', () => {
     const narrow = railCss.slice(0, railCss.indexOf('@media'))
-    expect(narrow).toMatch(/\.rail \{[^}]*display:\s*flex;[^}]*overflow-x:\s*auto/)
+    expect(narrow).toMatch(/\.rail \{[^}]*display:\s*grid/)
+    expect(railCss).not.toMatch(/overflow-x/)
+    expect(narrow).toMatch(
+      /\.rail \.segmented-control--text \.segmented-control__options \{[^}]*flex-direction:\s*row/,
+    )
+  })
+
+  it('shows the periods by their short names below it, and their full names from it', () => {
+    const narrow = railCss.slice(0, railCss.indexOf('@media'))
+    expect(narrow).toMatch(/\.rail \.segmented-control__full \{[^}]*clip-path:\s*inset\(50%\)/)
+    expect(wide).toMatch(/\.rail \.segmented-control__short \{\s*display:\s*none/)
   })
 
   it('marks the current page and period by ink alone, never a box, bar or icon', () => {
@@ -85,7 +96,28 @@ describe('Rail stylesheet', () => {
   })
 
   it('sets a rule between the pages and the periods', () => {
-    expect(railCss).toMatch(/\.rail__periods \{[^}]*border-left:\s*1px solid var\(--rule\)/)
-    expect(wide).toMatch(/\.rail__periods \{[^}]*border-top:\s*1px solid var\(--rule\)/)
+    expect(railCss).toMatch(/\.rail__periods \{[^}]*border-top:\s*1px solid var\(--rule\)/)
+  })
+})
+
+/** The rail with its periods, as the result pages set it. */
+function RailWithPeriods() {
+  const { periods } = usePeriodRail({ choice: 84, shown: 3, total: 3, onChange: () => undefined })
+  return <Rail route={{ page: 'run' }} periods={periods} />
+}
+
+describe('the rail’s periods', () => {
+  it('keeps the group named Period, each radio named in full, with its short name beside it for a phone', () => {
+    render(<RailWithPeriods />)
+    const group = screen.getByRole('group', { name: 'Period' })
+    expect(within(group).getAllByRole('radio')).toHaveLength(6)
+    for (const name of ['6 weeks', '12 weeks', '6 months', '12 months', 'All time', 'Custom'])
+      expect(within(group).getByRole('radio', { name })).toBeInTheDocument()
+    expect(
+      Array.from(group.querySelectorAll('.segmented-control__short')).map(
+        (short) => short.textContent,
+      ),
+    ).toEqual(['6 wk', '12 wk', '6 mo', '12 mo', 'All'])
+    expect(within(group).getByRole('radio', { name: '12 weeks' })).toBeChecked()
   })
 })

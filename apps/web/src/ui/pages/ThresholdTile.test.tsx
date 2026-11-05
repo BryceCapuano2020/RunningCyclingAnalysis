@@ -227,7 +227,10 @@ describe('ThresholdTile', () => {
       expect(container.querySelector('.stat-tile__number')).not.toBeNull()
       expect(container.textContent).not.toMatch(STATUS)
       expect(container.querySelector('.chip, .tag--small')).toBeNull()
-      expect(container.querySelectorAll('.stat-tile__head > *')).toHaveLength(2)
+      // The title alone heads the tile's lines; the figure has its own column.
+      expect(container.querySelector('.stat-tile__body')?.firstElementChild).toHaveClass(
+        'row__title',
+      )
     })
 
     it('gives a run whose fit was refused its estimate and the same lack of status', () => {
@@ -352,9 +355,8 @@ describe('ThresholdTile', () => {
       for (const sport of ['run', 'ride'] as const) {
         const tile = renderTile(sport, makeResult()).container.querySelector('article')!
         expect(tile).toHaveAttribute('aria-label', `${sport === 'run' ? 'Run' : 'Ride'} threshold`)
-        // The title and its figure share the head line; what the figure rests on is the next line.
-        expect(tile.querySelector('.row__head')?.children).toHaveLength(2)
-        expect(tile.querySelector('.row__head')?.nextElementSibling).toBe(
+        // What the figure rests on is the line straight under the title.
+        expect(tile.querySelector('.row__title')?.nextElementSibling).toBe(
           tile.querySelector('.stat-tile__source'),
         )
         expect(tile).not.toHaveTextContent(/you could hold/)

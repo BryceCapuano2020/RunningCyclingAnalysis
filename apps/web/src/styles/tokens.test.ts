@@ -199,10 +199,8 @@ describe('contrast', () => {
 describe('level ladder', () => {
   it('reaches 3:1 for every mark against what it sits on', () => {
     const page = colour(paper, 'paper')
-    const rideRange = over(String(paper.get('ride-wash')), page)
     const pairs: [string, string, string][] = [
-      ['ink ring on a ride range', colour(paper, 'ink'), rideRange],
-      ['band edge inside a ride range', colour(paper, 'ink-secondary'), rideRange],
+      ['ink ring on the page', colour(paper, 'ink'), page],
       ['band edge on the page', colour(paper, 'ink-secondary'), page],
       ['ink dot on the page', colour(paper, 'ink'), page],
     ]
@@ -217,11 +215,9 @@ describe('level ladder', () => {
     }
   })
 
-  it('fills its column, and paints a ride’s range from the sport’s wash and its marks in ink', () => {
+  it('fills its column, draws no wash for a range, and paints its marks in ink', () => {
     expect(ruleBody(ladderCss, '.level-ladder')).not.toMatch(/max-width/)
-    expect(declarations(ladderCss, '.level-ladder__range').get('background')).toBe(
-      'var(--sport-wash)',
-    )
+    expect(ladderCss).not.toMatch(/level-ladder__range/)
     expect(declarations(ladderCss, '.level-ladder__dot').get('background')).toBe('var(--ink)')
     expect(declarations(ladderCss, '.level-ladder__edge').get('background')).toBe(
       'var(--ink-secondary)',

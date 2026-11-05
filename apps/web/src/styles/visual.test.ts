@@ -445,7 +445,7 @@ describe('shared layout', () => {
   })
 
   it('lets the ride on foot row shrink, so the page does not widen', () => {
-    expect(statTileTsx).toContain('className="stat-tile row__body"')
+    expect(statTileTsx).toContain('className="row__body stat-tile__body"')
     expect(rulesWith(crossSport, '.cross-sport__details')).toMatch(/min-width:\s*0/)
   })
 })

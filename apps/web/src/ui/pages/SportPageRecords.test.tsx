@@ -16,6 +16,7 @@ import {
 import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
 import { changeOf } from '../charts/changeFixtures'
+import { wholeText } from '../test/wholeText'
 
 afterEach(() => {
   cleanup()
@@ -84,7 +85,7 @@ describe('the change on the period before', () => {
     )
 
     expect(
-      within(recordNamed('1 min')).getByText('8 W more than previous 6 weeks'),
+      within(recordNamed('1 min')).getByText(wholeText('8 W more than previous 6 weeks')),
     ).toBeInTheDocument()
   })
 
@@ -105,7 +106,7 @@ describe('the change on the period before', () => {
       [now, earlier],
     )
 
-    expect(within(recordNamed('1 min')).queryByText(/previous 6 weeks/)).toBeNull()
+    expect(within(recordNamed('1 min')).queryByText(wholeText(/previous 6 weeks/))).toBeNull()
   })
 
   it('leaves the change out when the earlier best was estimated', () => {
@@ -125,7 +126,7 @@ describe('the change on the period before', () => {
       [now, earlier],
     )
 
-    expect(within(recordNamed('1 min')).queryByText(/previous 6 weeks/)).toBeNull()
+    expect(within(recordNamed('1 min')).queryByText(wholeText(/previous 6 weeks/))).toBeNull()
   })
 
   it('still shows a run’s change, since a run’s pace is never estimated', () => {
@@ -145,7 +146,7 @@ describe('the change on the period before', () => {
     )
 
     expect(
-      within(recordNamed('5 min')).getByText(/faster than previous 6 weeks/),
+      within(recordNamed('5 min')).getByText(wholeText(/faster than previous 6 weeks/)),
     ).toBeInTheDocument()
   })
 })
@@ -168,7 +169,7 @@ describe('an indoor run on the sport page', () => {
     renderPage('run', makeResult({ activities: [indoor, outdoor] }))
 
     const item = recordNamed('10 km')
-    expect(within(item).getByText('40:00')).toBeInTheDocument()
+    expect(within(item).getByText(wholeText('40:00'))).toBeInTheDocument()
     expect(within(item).queryByText('Indoor')).toBeNull()
   })
 
@@ -182,7 +183,7 @@ describe('an indoor run on the sport page', () => {
     })
     renderPage('run', makeResult({ activities: [indoor] }))
 
-    expect(screen.queryByText('10 km')).toBeNull()
+    expect(screen.queryByText(wholeText('10 km'))).toBeNull()
   })
 })
 

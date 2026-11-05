@@ -264,7 +264,7 @@ describe('SportPage', () => {
       42,
       'No runs between 12 May and 3 Aug 2025.',
     )
-    const prompt = screen.getByText('No runs between 12 May and 3 Aug 2025.')
+    const prompt = screen.getByText(wholeText('No runs between 12 May and 3 Aug 2025.'))
     const section = prompt.closest('section')!
     expect(section).toHaveClass('section')
     const add = within(section).getByRole('button', { name: 'Add runs' })
@@ -327,7 +327,9 @@ describe('SportPage', () => {
     )
 
     expect(
-      screen.getByText('No runs between 12 May and 3 Aug 2025. You have 1 run in All time.'),
+      screen.getByText(
+        wholeText('No runs between 12 May and 3 Aug 2025. You have 1 run in All time.'),
+      ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Best efforts' })).not.toBeInTheDocument()
   })
@@ -366,10 +368,10 @@ describe('SportPage', () => {
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(heroFigure(section)).toEqual({ number: '23:23', unit: '/km' })
     // The line counts the runs the estimate rests on, as a ride's counts its rides, not the runs in the period.
-    expect(within(section).getByText(/^From 3 runs\. Strongest: 20 min on /)).toHaveTextContent(
-      `From 3 runs. Strongest: 20 min on ${formatDayMonth(morningRun.startMs)}.`,
-    )
-    expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
+    expect(
+      within(section).getByText(wholeText(/^From 3 runs\. Strongest: 20 min on /)),
+    ).toHaveTextContent(`From 3 runs. Strongest: 20 min on ${formatDayMonth(morningRun.startMs)}.`)
+    expect(within(section).queryByText(wholeText(/Based on/))).not.toBeInTheDocument()
     expect(within(section).queryByText(/Estimated|At least/)).toBeNull()
   })
 
@@ -463,7 +465,7 @@ describe('SportPage', () => {
     )
 
     expect(screen.getByText('Period picker')).toBeInTheDocument()
-    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument()
+    expect(screen.queryByText(wholeText(/Based on/))).not.toBeInTheDocument()
   })
 
   it('does not count the rides a cycling threshold rests on', () => {
@@ -473,7 +475,7 @@ describe('SportPage', () => {
       makeResult({ activities: [ride, makeActivity({ id: 'ride-2', sport: 'ride' })] }),
     )
 
-    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument()
+    expect(screen.queryByText(wholeText(/Based on/))).not.toBeInTheDocument()
     expect(heroFigure(screen.getByRole('region', { name: THRESHOLD_HEADING.ride }))).toEqual({
       number: '48',
       unit: 'W',
@@ -506,7 +508,9 @@ describe('SportPage', () => {
 
     // June is the newest and only activity, but today is 10 June, so the best was set nine days ago.
     const records = openSection('All best efforts')
-    expect(within(recordNamed(records, '20 min')).getByText('9 days ago')).toBeInTheDocument()
+    expect(
+      within(recordNamed(records, '20 min')).getByText(wholeText('9 days ago')),
+    ).toBeInTheDocument()
   })
 
   it('counts a record set a fortnight ago in weeks, as quiet text rather than a chip', () => {
@@ -522,7 +526,7 @@ describe('SportPage', () => {
     )
 
     const records = openSection('All best efforts')
-    const tag = within(recordNamed(records, '20 min')).getByText('2 weeks ago')
+    const tag = within(recordNamed(records, '20 min')).getByText(wholeText('2 weeks ago'))
     expect(tag).not.toHaveClass('chip')
   })
 
@@ -549,8 +553,12 @@ describe('SportPage', () => {
     )
 
     const records = openSection('All best efforts')
-    expect(within(recordNamed(records, '20 min')).getByText('17 months ago')).toBeInTheDocument()
-    expect(within(recordNamed(records, '5 min')).getByText('2 years ago')).toBeInTheDocument()
+    expect(
+      within(recordNamed(records, '20 min')).getByText(wholeText('17 months ago')),
+    ).toBeInTheDocument()
+    expect(
+      within(recordNamed(records, '5 min')).getByText(wholeText('2 years ago')),
+    ).toBeInTheDocument()
   })
 
   it('says when every record was set in one activity on the shared line, with its count', () => {
@@ -642,7 +650,9 @@ describe('SportPage', () => {
     rerender(page())
 
     const records = openSection('All best efforts')
-    expect(within(recordNamed(records, '20 min')).getByText('9 days ago')).toBeInTheDocument()
+    expect(
+      within(recordNamed(records, '20 min')).getByText(wholeText('9 days ago')),
+    ).toBeInTheDocument()
   })
 
   it('gives the threshold its figure and its basis line and no sentence about what a threshold is', () => {
@@ -650,7 +660,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(heroFigure(section)).toEqual({ number: '23:23', unit: '/km' })
-    expect(within(section).getByText(/^From 3 runs\./)).toBeInTheDocument()
+    expect(within(section).getByText(wholeText(/^From 3 runs\./))).toBeInTheDocument()
     expect(within(section).queryByText(/you could hold/)).not.toBeInTheDocument()
     expect(within(section).queryByText(/estimated from your/)).not.toBeInTheDocument()
   })
@@ -660,7 +670,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
     expect(heroFigure(section)).toEqual({ number: '48', unit: 'W' })
-    expect(within(section).getByText('0.6 W/kg')).toBeInTheDocument()
+    expect(within(section).getByText(wholeText('0.6 W/kg'))).toBeInTheDocument()
     // A ride’s threshold is one best estimate: the name says so, and no chip does.
     expect(section.querySelector('.chip')).toBeNull()
     expect(within(section).queryByText(/Estimated|At least/)).toBeNull()
@@ -684,9 +694,9 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
     expect(heroFigure(section)).toEqual({ number: '250', unit: 'W' })
-    expect(within(section).getByText(/^From 5 rides\. Strongest: 12 min on /)).toHaveTextContent(
-      `From 5 rides. Strongest: 12 min on ${formatDayMonth(ride.startMs)}.`,
-    )
+    expect(
+      within(section).getByText(wholeText(/^From 5 rides\. Strongest: 12 min on /)),
+    ).toHaveTextContent(`From 5 rides. Strongest: 12 min on ${formatDayMonth(ride.startMs)}.`)
   })
 
   it('shows no floor, and asks for nothing, when the fit is refused and the efforts are not all-out', () => {
@@ -703,7 +713,9 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(heroFigure(section).number).toBe('4:24')
-    expect(within(section).queryByText(/At least|From your best 30 min/)).not.toBeInTheDocument()
+    expect(
+      within(section).queryByText(wholeText(/At least|From your best 30 min/)),
+    ).not.toBeInTheDocument()
     // The answer asks for nothing; the sections below say their own needs, each in its own place.
     expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
     expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
@@ -712,7 +724,7 @@ describe('SportPage', () => {
   it('asks for one effort of 8 min or longer, with no number, when the sport holds no effort', () => {
     renderPage('run', makeResult({ activities: [morningRun], runCp: null }))
 
-    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('Needs an effort of 8 min or longer'))).toBeInTheDocument()
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
@@ -733,9 +745,11 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(heroFigure(section).number).toBe('4:24')
-    expect(within(section).getByText(/^From 1 run\. Strongest: 12 min on /)).toBeInTheDocument()
     expect(
-      within(section).queryByText(/At least|Best 12 min|From your best/),
+      within(section).getByText(wholeText(/^From 1 run\. Strongest: 12 min on /)),
+    ).toBeInTheDocument()
+    expect(
+      within(section).queryByText(wholeText(/At least|Best 12 min|From your best/)),
     ).not.toBeInTheDocument()
     expect(within(section).queryByText(/Needs/)).not.toBeInTheDocument()
   })
@@ -744,7 +758,7 @@ describe('SportPage', () => {
     const brief = [{ durationS: 420, value: 6, activityId: morningRun.id, startIndex: 0 }]
     renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: brief }))
 
-    expect(screen.getByText('Needs an effort of 8 min or longer')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('Needs an effort of 8 min or longer'))).toBeInTheDocument()
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
@@ -772,10 +786,10 @@ describe('SportPage', () => {
     const section = openSection('All best efforts')
     const records = within(section.querySelector<HTMLElement>('ol.records')!)
     // A run lists no best shorter than 5 minutes, though its curve holds a 1 minute point.
-    expect(records.queryByText('1 min')).not.toBeInTheDocument()
-    expect(records.getByText('5 min')).toBeInTheDocument()
-    expect(records.getByText('20 min')).toBeInTheDocument()
-    expect(records.getByText('60 min')).toBeInTheDocument()
+    expect(records.queryByText(wholeText('1 min'))).not.toBeInTheDocument()
+    expect(records.getByText(wholeText('5 min'))).toBeInTheDocument()
+    expect(records.getByText(wholeText('20 min'))).toBeInTheDocument()
+    expect(records.getByText(wholeText('60 min'))).toBeInTheDocument()
     // A duration's figure is a pace, so only a distance's time is marked as a finish time.
     expect(records.queryByText('Finish time')).not.toBeInTheDocument()
     expect(within(section).getAllByRole('link', { name: 'Morning run, 5 Jan' })[0]).toHaveAttribute(
@@ -810,7 +824,7 @@ describe('SportPage', () => {
 
     const records = openSection('All best efforts')
     expect(within(records).getByText(wholeText('400 W'))).toBeInTheDocument()
-    expect(within(records).getByText('5.3 W/kg')).toBeInTheDocument()
+    expect(within(records).getByText(wholeText('5.3 W/kg'))).toBeInTheDocument()
   })
 
   it('leaves GAP off the cycling page', () => {
@@ -977,7 +991,7 @@ describe('SportPage age grades', () => {
     const level = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(level.querySelector('.sport-hero__grades')).toHaveTextContent(/^\d+ W at age 40\.$/)
     expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
-    expect(level.querySelector('.level-ladder__range')).not.toBeNull()
+    expect(level.querySelector('.level-ladder__range')).toBeNull()
     expect(level.textContent).not.toMatch(/estimated/i)
     expect(level.querySelector('.level-ladder__key')).toBeNull()
     expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
@@ -1026,7 +1040,7 @@ describe('SportPage age grades', () => {
 
     expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
+    expect(within(legend).getByText(wholeText('Previous 6 weeks'))).toBeInTheDocument()
   })
 
   it('draws no comparison for all time', () => {
@@ -1146,21 +1160,21 @@ describe('SportPage distance records', () => {
     renderPage('run', makeResult({ activities: [mile] }), 'imperial')
 
     const section = within(bestEfforts())
-    expect(section.getByText('1 mi')).toBeTruthy()
-    expect(section.getByText('6:40')).toBeTruthy()
+    expect(section.getByText(wholeText('1 mi'))).toBeTruthy()
+    expect(section.getByText(wholeText('6:40'))).toBeTruthy()
     expect(section.queryByText(/\/mi/)).toBeNull()
   })
 
   it('lists the fastest run at each record distance, with its time, pace and activity', () => {
     renderPage('run', makeResult({ activities: [parkrun, morningRun] }))
     const section = within(bestEfforts())
-    expect(section.getByText('1 km')).toBeTruthy()
-    expect(section.getByText('4:00')).toBeTruthy()
+    expect(section.getByText(wholeText('1 km'))).toBeTruthy()
+    expect(section.getByText(wholeText('4:00'))).toBeTruthy()
     // The 1 km pace is its time, so the row shows the time alone.
-    expect(section.queryByText('4:00 /km')).toBeNull()
-    expect(section.getByText('5 km')).toBeTruthy()
-    expect(section.getByText('21:00')).toBeTruthy()
-    expect(section.getByText('4:12 /km')).toBeTruthy()
+    expect(section.queryByText(wholeText('4:00 /km'))).toBeNull()
+    expect(section.getByText(wholeText('5 km'))).toBeTruthy()
+    expect(section.getByText(wholeText('21:00'))).toBeTruthy()
+    expect(section.getByText(wholeText('4:12 /km'))).toBeTruthy()
     // A distance row is a finish time and a duration row a pace, so each distance row says which it is.
     for (const name of ['1 km', '5 km']) {
       expect(within(recordNamed(bestEfforts(), name)).getByText('Finish time')).toBeTruthy()
@@ -1180,9 +1194,9 @@ describe('SportPage distance records', () => {
     )
     // The 1 km row has no grade of its own: the list says once that no standard covers under a mile.
     expect(recordNamed(records, '1 km').querySelector('.records__grade')).toBeNull()
-    expect(within(records).getAllByText('No age standard under 1 mile, for the 1 km')).toHaveLength(
-      1,
-    )
+    expect(
+      within(records).getAllByText(wholeText('No age standard under 1 mile, for the 1 km')),
+    ).toHaveLength(1)
   })
 
   it('says the distance records may not be the fastest when some runs predate distance bests', () => {
@@ -1196,7 +1210,7 @@ describe('SportPage distance records', () => {
 
   it('shows no distance records and no line when no run in scope has them', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
-    expect(screen.queryByText('1 km')).toBeNull()
+    expect(screen.queryByText(wholeText('1 km'))).toBeNull()
     expect(screen.queryByText(/since distance records were introduced/)).toBeNull()
   })
 })
@@ -1246,7 +1260,7 @@ describe('SportPage cycling figures without a weight', () => {
     expect(screen.queryByRole('region', { name: 'Best efforts' })).toBeNull()
     expect(screen.queryByRole('region', { name: /of your best 20 min, trailing/ })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Every duration' })).toBeNull()
-    expect(screen.queryByText('400 W')).toBeNull()
+    expect(screen.queryByText(wholeText('400 W'))).toBeNull()
     expect(screen.queryByText(/W\/kg/)).toBeNull()
     expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
@@ -1316,7 +1330,9 @@ describe('SportPage cycling figures without a weight', () => {
       true,
       <p>Based on your age, sex and 75 kg. Edit</p>,
     )
-    expect(screen.getByText('Based on your age, sex and 75 kg. Edit')).toBeInTheDocument()
+    expect(
+      screen.getByText(wholeText('Based on your age, sex and 75 kg. Edit')),
+    ).toBeInTheDocument()
   })
 })
 
@@ -1373,7 +1389,9 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    expect(screen.getByText(/ at age \d+\.$/)).toHaveTextContent(/^\d:\d{2} \/km at age \d+\.$/)
+    expect(screen.getByText(wholeText(/ at age \d+\.$/))).toHaveTextContent(
+      /^\d:\d{2} \/km at age \d+\.$/,
+    )
   })
 
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
@@ -1402,7 +1420,7 @@ describe('SportPage depth', () => {
     const records = openSection('All best efforts')
     expect(recordNamed(records, '5 min').querySelector('.records__grade')).toBeNull()
     expect(
-      within(records).getByText('No age standard under 1 mile, for the 5 min'),
+      within(records).getByText(wholeText('No age standard under 1 mile, for the 5 min')),
     ).toBeInTheDocument()
   })
 
@@ -1418,7 +1436,7 @@ describe('SportPage depth', () => {
 
     const section = within(openSection('All best efforts'))
     expect(section.getByText('Half marathon')).toBeInTheDocument()
-    expect(section.getByText('1:27:54')).toBeInTheDocument()
+    expect(section.getByText(wholeText('1:27:54'))).toBeInTheDocument()
   })
 
   it('says nothing about distance times being as run, where a distance is listed or not', () => {
@@ -1432,7 +1450,7 @@ describe('SportPage depth', () => {
     renderPage('run', makeResult({ activities: [fiveK] }))
 
     const section = within(openSection('All best efforts'))
-    expect(section.getByText('5 km')).toBeInTheDocument()
+    expect(section.getByText(wholeText('5 km'))).toBeInTheDocument()
     expect(section.queryByText(/Distance times are as run|allows for hills/)).toBeNull()
     cleanup()
     renderPage('run', makeResult({ activities: [morningRun] }))
@@ -1449,7 +1467,7 @@ describe('SportPage depth', () => {
     })
     renderPage('run', makeResult({ activities: [run] }))
 
-    expect(screen.getByText('Last run 5 Jan · 1 run · 10.0 km')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('Last run 5 Jan · 1 run · 10.0 km'))).toBeInTheDocument()
   })
 
   it('groups the power-meter count and the ride count from a thousand on', () => {
@@ -1540,7 +1558,9 @@ describe('SportPage depth', () => {
     expect(threshold.querySelector('.chip')).toBeNull()
     openDetail(threshold)
     expect(within(threshold).getByRole('note')).not.toHaveTextContent(/heart rate|not used|raise/i)
-    expect(screen.queryAllByText(/reached 70% of your running max heart rate/)).toHaveLength(0)
+    expect(
+      screen.queryAllByText(wholeText(/reached 70% of your running max heart rate/)),
+    ).toHaveLength(0)
   })
 
   it('shows no heart-rate line when heart rate is not on file for the sport', () => {
@@ -1552,7 +1572,9 @@ describe('SportPage depth', () => {
       }),
     )
 
-    expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(wholeText(/reached \d+% of your \w+ max heart rate/)),
+    ).not.toBeInTheDocument()
   })
 
   it.each(['run', 'ride'] as const)(
@@ -1573,7 +1595,9 @@ describe('SportPage depth', () => {
         }),
       )
 
-      expect(screen.queryByText(/reached \d+% of your \w+ max heart rate/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(wholeText(/reached \d+% of your \w+ max heart rate/)),
+      ).not.toBeInTheDocument()
     },
   )
 
@@ -1713,7 +1737,7 @@ describe('SportPage depth', () => {
       expect(line.querySelector('figure')).toBeNull()
       expect(line.closest('details')).toBeNull()
       expect(
-        within(line).getByText('0 of 6 rides with steady stretches in 8 weeks.'),
+        within(line).getByText(wholeText('0 of 6 rides with steady stretches in 8 weeks.')),
       ).toBeInTheDocument()
       expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     })
@@ -1894,7 +1918,9 @@ describe('SportPage with activities held indoors', () => {
       makeActivity({ id: `run-${i}`, sport: 'run', indoor: true }),
     )
     renderPage('run', makeResult({ activities: treadmill, runCp: null, runCurve: [] }))
-    expect(screen.getByText(/^All 4 of your runs were on a treadmill\./)).toBeInTheDocument()
+    expect(
+      screen.getByText(wholeText(/^All 4 of your runs were on a treadmill\./)),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Needs an effort/)).toBeNull()
   })
 })

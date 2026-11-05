@@ -52,9 +52,9 @@ describe('LevelLadder', () => {
     const names = container.querySelectorAll('.level-ladder__name--current')
     expect(names).toHaveLength(1)
     expect(names[0]).toHaveTextContent('Local')
-    // The ring and its range are drawn too, from the range's low end to its high end.
+    // The ring says it is an estimate; its range is spoken in the label, and no wash is drawn for it.
     expect(container.querySelector('.level-ladder__ring')).not.toBeNull()
-    expect(container.querySelector('.level-ladder__range')).not.toBeNull()
+    expect(container.querySelector('.level-ladder__range')).toBeNull()
   })
 
   it('names the one band a ride range sits wholly inside', () => {
@@ -134,7 +134,7 @@ describe('LevelLadder shapes', () => {
     const ride = render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(ride.container.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(ride.container.querySelector('.level-ladder__dot')).toBeNull()
-    expect(ride.container.querySelector('.level-ladder__range')).not.toBeNull()
+    expect(ride.container.querySelector('.level-ladder__range')).toBeNull()
   })
 
   it('places the marker where the grade falls on the scale', () => {
@@ -142,12 +142,24 @@ describe('LevelLadder shapes', () => {
     expect(markerFraction(container)).toBeCloseTo(SCALE_FRACTION(0.676), 2)
   })
 
-  it('draws the range from its low end to its high end', () => {
-    const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    const left = fraction(container, '.level-ladder__range', 'left')
-    const width = fraction(container, '.level-ladder__range', 'width')
-    expect(left).toBeCloseTo(SCALE_FRACTION(0.63), 2)
-    expect(left + width).toBeCloseTo(SCALE_FRACTION(0.715), 2)
+  it('names every level on one line, each at its own tick, where they all fit', () => {
+    // jsdom lays nothing out, so the ladder is read at the fallback width, where every name fits.
+    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
+    const names = Array.from(container.querySelectorAll<HTMLElement>('.level-ladder__name'))
+    expect(names.map((name) => name.textContent)).toEqual([
+      'Recreational',
+      'Local',
+      'Regional',
+      'National',
+      'World',
+    ])
+    expect(names.map((name) => Number.parseFloat(name.style.left))).toEqual([
+      0,
+      ...[0.6, 0.7, 0.8, 0.9].map((edge) => expect.closeTo(SCALE_FRACTION(edge) * 100, 1)),
+    ])
+    expect(
+      container.querySelector('.level-ladder__name--top, .level-ladder__name--bottom'),
+    ).toBeNull()
   })
 
   it('sets a marker past either end of the scale at that end of the bar', () => {
@@ -227,15 +239,5 @@ describe('LevelLadder off the scale', () => {
   it('draws no chevron for a grade on the scale', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
     expect(container.querySelector('.level-ladder__beyond')).toBeNull()
-  })
-})
-
-describe('LevelLadder layering', () => {
-  it('draws the range before the first band edge, so the edges sit on top of it', () => {
-    const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    const range = container.querySelector('.level-ladder__range')
-    const firstEdge = container.querySelector('.level-ladder__edge')
-    if (range === null || firstEdge === null) throw new Error('The ladder lacks a range or an edge')
-    expect(range.compareDocumentPosition(firstEdge)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 })
