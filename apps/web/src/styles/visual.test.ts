@@ -202,7 +202,7 @@ describe('buttons and links', () => {
     expect(button).toMatch(/border:\s*1px solid var\(--control-border\)/)
     expect(button).toMatch(/font-family:\s*var\(--font-sans\)/)
     expect(button).toMatch(/font-size:\s*var\(--text-sm\)/)
-    expect(declared(tokens, ':root').get('button-height')).toBe('32px')
+    expect(declared(tokens, ':root').get('button-height')).toBe('40px')
   })
 
   it('uses the navigation link size from the type scale', () => {
@@ -636,6 +636,10 @@ describe('sign-in button', () => {
     const pending = rulesWith(mediaOf(header, PHONE), '.header__account .account-menu__pending')
     expect(pending).toMatch(/font-size:\s*0/)
     expect(pending).toMatch(/min-width:\s*0/)
+    // A box of a pixel, out of the row: the status is still in the page, and the second row keeps its line.
+    expect(pending).toMatch(/position:\s*absolute/)
+    expect(pending).toMatch(/width:\s*1px/)
+    expect(pending).toMatch(/height:\s*1px/)
   })
 })
 

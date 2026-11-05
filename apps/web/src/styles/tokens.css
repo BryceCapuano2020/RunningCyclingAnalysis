@@ -89,8 +89,8 @@
   --stack-gap: var(--space-5);
   /* A control is 40 px; a phone or a finger gets the 44 px touch target, set below. */
   --control-height: 40px;
-  /* A small outlined button and the primary one are 32 px; a phone or a finger gets 44 px, set below. */
-  --button-height: 32px;
+  /* A small outlined button and the primary one are 40 px, a control's target; a phone or a finger gets 44 px, below. */
+  --button-height: 40px;
   /*
    * The header's height while it sticks: one row, its padding and its hairline. useHeaderHeight.ts measures it and sets
    * the measured value on the root, which wins; this is the value before that runs. The phone tab bar is 48 px.
