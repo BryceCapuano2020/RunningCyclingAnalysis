@@ -17,8 +17,8 @@ export interface FitnessCardProps {
   view: FitnessView
   units: UnitSystem
   library: readonly ActivitySummary[]
-  /** The row's place in the list, which its index shows. */
-  index?: number
+  /** The row's place in the list, which its index shows. Null in a list of one row, which is not numbered. */
+  index?: number | null
   /** Names the sport in the row's title. A sport's own page leaves it out: its title says it. */
   showSport?: boolean
   /**
@@ -45,6 +45,8 @@ export function FitnessCard({
   const [mounted, setMounted] = useState(false)
   const partial = useHoldInputs().partialImport
   const { status } = view
+  // A row with no index has no index column.
+  const rowClass = index === null ? 'row row--unnumbered fitness-card' : 'row fitness-card'
   const title = (label: string) =>
     bare !== undefined && showSport
       ? SPORT_LABEL[view.sport]
@@ -54,8 +56,8 @@ export function FitnessCard({
   // Held with the headline: a library known to be only part of what was added gives no state to show.
   if (partial !== undefined && partial !== null) {
     return (
-      <li className="row fitness-card" data-sport={view.sport} data-state="held">
-        <RowIndex index={index} />
+      <li className={rowClass} data-sport={view.sport} data-state="held">
+        {index === null ? null : <RowIndex index={index} />}
         <div className="row__body">
           <h3 id={`${id}-state`} className="row__title fitness-card__state">
             {title('Held')}
@@ -84,8 +86,8 @@ export function FitnessCard({
     view.track !== null ||
     evidenceOf
   return (
-    <li className="row fitness-card" data-sport={view.sport} data-state={view.state}>
-      <RowIndex index={index} />
+    <li className={rowClass} data-sport={view.sport} data-state={view.state}>
+      {index === null ? null : <RowIndex index={index} />}
       <div className="row__body">
         <h3 id={`${id}-state`} className="row__title fitness-card__state">
           {title(view.label)}

@@ -26,19 +26,8 @@
 
 .balance-levels__level {
   color: var(--ink-secondary);
-  /* A defined term is a button, which centres its text: the level reads from the left, wrapped or not. */
-  text-align: start;
-}
-
-.balance-levels__level,
-.balance-levels__level .definition__term {
-  text-align: start;
   /* At a large text size a long level word breaks rather than widen the page. */
   overflow-wrap: anywhere;
-}
-
-.balance-levels__level .definition__term::after {
-  inset-inline: 0;
 }
 
 .balance-levels__missing {

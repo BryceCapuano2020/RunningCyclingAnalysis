@@ -103,7 +103,8 @@ export function FitnessSection({
             view={view}
             units={units}
             library={library}
-            index={index}
+            // A list of one row is not numbered: an index of 01 alone counts nothing.
+            index={rows.length > 1 ? index : null}
             showSport={sport === undefined}
             bare={
               lines.includes(view)

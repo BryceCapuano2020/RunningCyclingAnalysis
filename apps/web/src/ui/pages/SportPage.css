@@ -1,12 +1,23 @@
-/* The title and, under it, its one ▸ Details. */
+/*
+ * The title and its one ▸ Details read as one line: the Details sit quiet at the line's right, centred on the title's
+ * line box, and open, their lines fall under the title. The title keeps the y of every page's title.
+ */
 .sport-page__head {
+  position: relative;
   display: grid;
   gap: var(--space-2);
   min-width: 0;
 }
 
 .sport-page__title {
+  padding-inline-end: 6rem;
   font-size: var(--title);
+}
+
+.sport-page__head > .page-details > summary {
+  position: absolute;
+  inset-block-start: calc((var(--title) * var(--lh-display) - var(--button-height)) / 2);
+  inset-inline-end: 0;
 }
 
 /* The page is a column of bands and disclosures with room between, closer than the other pages' sections. */

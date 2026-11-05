@@ -35,6 +35,19 @@ describe('the History row', () => {
     expect(screen.queryByRole('heading')).toBeNull()
   })
 
+  it('sets the line’s figures in the mono', async () => {
+    const Row = await freshRow()
+    render(<Row words={words()} onSeen={vi.fn()} />)
+    const line = document.querySelector('.checkin-row__line')!
+    expect(Array.from(line.querySelectorAll('.num')).map((num) => num.textContent)).toEqual([
+      '9',
+      '6',
+      '11',
+      '2021',
+      '2022',
+    ])
+  })
+
   it('names the disclosure for a screen reader, and opens to the whole sentence', async () => {
     const Row = await freshRow()
     const onSeen = vi.fn()

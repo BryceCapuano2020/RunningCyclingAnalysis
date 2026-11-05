@@ -75,12 +75,12 @@ describe('the home page’s fitness', () => {
     expect(fitness.parentElement?.firstElementChild).not.toBe(fitness)
   })
 
-  it('says the run’s state as a numbered row titled by the sport and the state', () => {
+  it('says the run’s state as a row titled by the sport and the state, with no index when it is the one row', () => {
     renderHome({ run: RECOVERING, ride: NO_FITNESS.ride })
     const region = screen.getByRole('region', { name: 'Your fitness' })
     const title = within(region).getByRole('heading', { level: 3, name: 'Run · Recovering' })
     expect(title.closest('li')).toHaveAttribute('data-sport', 'run')
-    expect(title.closest('li')?.querySelector('.row__index')).toHaveTextContent('01')
+    expect(title.closest('li')?.querySelector('.row__index')).toBeNull()
   })
 
   it('draws no fitness section for a library with no status, and the balance still opens the page', () => {

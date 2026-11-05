@@ -86,6 +86,52 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   },
 ]
 
+/** The sport page's title, its text's own box, its ▸ Details summary, and whether the page scrolls sideways. */
+async function titleRow(page: Page) {
+  return page.evaluate(() => {
+    const title = document.querySelector('.sport-page__title')!
+    const summary = document.querySelector('.sport-page__head > .page-details > summary')!
+    const words = document.createRange()
+    words.selectNodeContents(title)
+    const box = ({ top, bottom, left, right }: DOMRect) => ({ top, bottom, left, right })
+    const root = document.documentElement
+    return {
+      title: box(title.getBoundingClientRect()),
+      text: box(words.getBoundingClientRect()),
+      summary: box(summary.getBoundingClientRect()),
+      width: root.clientWidth,
+      sideways: root.scrollWidth > root.clientWidth,
+    }
+  })
+}
+
+/** The Details sit on the title's line, clear of its words and inside the window, and nothing scrolls sideways. */
+async function expectOneTitleLine(page: Page): Promise<void> {
+  const row = await titleRow(page)
+  const middle = (row.summary.top + row.summary.bottom) / 2
+  expect(middle, JSON.stringify(row)).toBeGreaterThan(row.title.top)
+  expect(middle, JSON.stringify(row)).toBeLessThan(row.title.bottom)
+  expect(row.text.right).toBeLessThan(row.summary.left)
+  expect(row.summary.right).toBeLessThanOrEqual(row.width + 0.5)
+  expect(row.sideways).toBe(false)
+}
+
+for (const zoomed of [false, true]) {
+  test(`the sport page's Details sit on its title's line on a phone${zoomed ? ', at 200% text' : ''}`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
+    await page.setViewportSize({ width: 390, height: 844 })
+    if (zoomed) await zoomText(page)
+    await openSample(page)
+    for (const sport of ['Run', 'Ride'] as const) {
+      await goTo(page, sport)
+      await expect(page.locator('.sport-page__head > .page-details > summary')).toBeVisible()
+      await expectOneTitleLine(page)
+    }
+  })
+}
+
 for (const size of SIZES) {
   for (const { name, open } of PAGES) {
     test(`${name} keeps its chart labels apart at 200% text and text spacing, ${size.name}`, async ({

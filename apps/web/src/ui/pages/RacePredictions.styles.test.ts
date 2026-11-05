@@ -9,9 +9,9 @@ describe('race bars', () => {
     expect(ruleBody(css, '.race-bar__end--low')).toMatch(/translate\(-100%, -50%\)/)
   })
 
-  it('drops the bar under the name and the time below a desktop, so it keeps a 320 px phone’s width', () => {
+  it('sets the bar under the name and the time at every width, so the name’s meta line has the row’s width', () => {
     expect(ruleBody(css, '.race-row')).toMatch(/'index name time'\s*'\. bar bar'/)
-    expect(css).toMatch(/@media \(min-width: 761px\) \{\s*\.race-row \{[^}]*'index name bar time'/)
+    expect(css).not.toMatch(/'index name bar time'/)
   })
 
   it('lets the table in the disclosure scroll rather than widen the page', () => {

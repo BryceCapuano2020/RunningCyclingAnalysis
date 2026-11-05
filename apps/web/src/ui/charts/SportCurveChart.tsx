@@ -17,7 +17,7 @@ import { Crosshair } from './Crosshair'
 import { captionOf, columnsOf, tableRow } from './curveTable'
 import type { View } from './curveTable'
 import { areaPath, linePath } from './paths'
-import { axisTitle } from './sportAxis'
+import { axisTitleWithin } from './sportAxis'
 import { curveMarks } from './sportCurveAnnotations'
 import { keyOf } from './sportCurveKey'
 import { curveTakeaway } from './sportCurveTakeaway'
@@ -198,7 +198,7 @@ export function SportCurveChart({
             <ChartYAxis
               ticks={m.yTicks}
               plot={size.plot}
-              title={axisTitle(sport, units, true)}
+              title={axisTitleWithin(sport, units, size.plot)}
               fontSize={axisFontSize(size.width)}
             />
             {activeX !== undefined ? <Crosshair x={activeX} plot={size.plot} /> : null}

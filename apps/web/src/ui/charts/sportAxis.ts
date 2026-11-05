@@ -5,6 +5,7 @@ import { PER } from '../format/units'
 import { SPORT_FORMAT } from '../sports'
 import type { AxisTick, PlotBox } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
+import { labelWidth, rootScale } from './ticks'
 import type { Scale } from './scale'
 
 /** Pace steps in seconds: five and ten seconds, quarter, half and whole minutes, then two and five. */
@@ -12,6 +13,8 @@ const PACE_STEPS_S = [5, 10, 15, 30, 60, 120, 300]
 const INTERVALS = 4
 /** Absorbs floating-point noise in a span that should be exactly INTERVALS steps wide. */
 const SPAN_TOLERANCE = 1e-9
+/** The axis title's size, px at a 16 px root: --text-xs (ChartYAxis.css). */
+const AXIS_TITLE_PX = 12
 
 /** A value that can be drawn as a pace or a power: a speed in m/s or watts, above zero. */
 export function usable(value: number): number {
@@ -42,6 +45,21 @@ export function nativeLabel(sport: Sport): string {
  */
 export function axisTitle(sport: Sport, units: UnitSystem, full = false): string {
   return SPORT_FORMAT[sport].axisTitle(units, full)
+}
+
+/**
+ * The axis title spelt out where it fits over the plot, which it starts at the left of, else the short one: on a narrow
+ * phone the full title would run past the plot's right edge and be cut off.
+ */
+export function axisTitleWithin(
+  sport: Sport,
+  units: UnitSystem,
+  plot: PlotBox,
+  scale: number = rootScale(),
+): string {
+  const full = axisTitle(sport, units, true)
+  const fits = labelWidth(full, AXIS_TITLE_PX, scale) <= plot.right - plot.left
+  return fits ? full : axisTitle(sport, units)
 }
 
 /** The pace unit spelt out, for a chart's name: "per kilometre" or "per mile". */

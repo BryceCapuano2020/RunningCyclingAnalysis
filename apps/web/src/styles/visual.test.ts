@@ -779,6 +779,16 @@ describe('sport records, on the card and the page', () => {
     expect(sectionDisclosure).not.toMatch(/border-radius|background|border:/)
   })
 
+  it('sets a sport page’s ▸ Details on its title’s line, at the right, centred on the title’s line box', () => {
+    expect(rulesWith(sportPage, '.sport-page__head')).toMatch(/position:\s*relative/)
+    const summary = rulesWith(sportPage, '.sport-page__head > .page-details > summary')
+    expect(summary).toMatch(/position:\s*absolute/)
+    expect(summary).toMatch(/inset-inline-end:\s*0/)
+    expect(summary).toMatch(
+      /inset-block-start:\s*calc\(\(var\(--title\) \* var\(--lh-display\) - var\(--button-height\)\) \/ 2\)/,
+    )
+  })
+
   it('lets a record tile’s link shrink to its tile, so a long activity name wraps whole and never widens a phone', () => {
     const link = rulesWith(recordTiles, '.record-tiles__link')
     expect(link).toMatch(/min-width:\s*0/)

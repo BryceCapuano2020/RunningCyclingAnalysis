@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RunPredictions } from '@rca/core/predict'
 import { makeActivity } from '../components/fixtures'
-import { ranBests, ranText } from './raceRan'
+import { ranBests, ranMeta, ranText } from './raceRan'
 
 const OPENED = new Date(2026, 10, 30, 12).getTime()
 
@@ -30,6 +30,7 @@ describe('ranBests', () => {
     )
     expect(ran).toEqual([{ distanceM: 10000, seconds: 2407, side: 'faster', when: '27 Nov' }])
     expect(ranText(ran[0]!)).toBe('You ran 40:07 on 27 Nov')
+    expect(ranMeta(ran[0]!)).toBe('ran 40:07, 27 Nov')
   })
 
   it('adds the year to a day outside the year the page opened in, and ignores a tie or a missing distance', () => {
@@ -48,5 +49,6 @@ describe('ranBests', () => {
     const slower = ranBests(found, [record(5000, 1291, new Date(2026, 10, 2, 8).getTime())], OPENED)
     expect(slower).toEqual([{ distanceM: 5000, seconds: 1291, side: 'slower', when: '2 Nov' }])
     expect(ranText(slower[0]!)).toBe('Your best is 21:31, from 2 Nov, slower than this range')
+    expect(ranMeta(slower[0]!)).toBe('best 21:31, 2 Nov, slower than this range')
   })
 })
