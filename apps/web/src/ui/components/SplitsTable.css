@@ -50,6 +50,8 @@
 /* While columns wait off the right edge, a fade says so. The scrolling layer is the fade, and the layer fixed to the
    content covers it once the last column is in view. */
 .splits-wide {
+  /* The containing block of the cells' visually hidden text, so it scrolls with them and never widens the page. */
+  position: relative;
   overflow-x: auto;
   background:
     linear-gradient(to left, var(--paper), var(--paper)) right center / 2rem 100% no-repeat local,
