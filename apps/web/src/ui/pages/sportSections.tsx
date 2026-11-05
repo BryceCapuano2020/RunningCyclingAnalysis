@@ -6,6 +6,7 @@ import { timeInZonesLack } from '../zoneTimeCopy'
 import { buildRows } from '../charts/sportCurveModel'
 import { bestEffortRows, curvesOf } from './bestEffortRows'
 import { BestEffortsEvidence } from './BestEffortsEvidence'
+import { recordSparks } from './recordSparks'
 import { BestEffortsSection } from './BestEffortsSection'
 import { LateInEffortSection } from './LateInEffortSection'
 import { racePredictionsContent } from './racePredictionsSection'
@@ -246,8 +247,8 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
           },
         }
   },
-  evidence: ({ sport, list }) => ({
-    content: <BestEffortsEvidence list={list} />,
+  evidence: ({ sport, list, trends, massKg }) => ({
+    content: <BestEffortsEvidence list={list} sparks={recordSparks(sport, trends, massKg)} />,
     closed: { title: NAV_LABEL.evidence(sport) },
   }),
 }

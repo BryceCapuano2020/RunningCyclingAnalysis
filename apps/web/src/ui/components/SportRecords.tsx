@@ -5,10 +5,14 @@ import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
 import { RecordTag } from './RecordTag'
 import { RowIndex } from './RowList'
+import { Sparkline } from './Sparkline'
+import type { SparkPoint } from './Sparkline'
 import './SportRecords.css'
 
 export interface SportRecordsProps {
   rows: RecordRow[]
+  /** A row's trend, by its key, from a series the page already charts: drawn as a sparkline at the row's right. */
+  sparks?: Readonly<Record<string, readonly SparkPoint[]>>
 }
 
 /** The day an activity was set on, as the end of a link's text: ", 5 Jan". */
@@ -74,12 +78,15 @@ function figureParts(value: string): { number: string; unit: string | null } {
     : { number: value.slice(0, at), unit: value.slice(at + 1) }
 }
 
+/** No row has a trend: the activity page's records, and a page that charts none. */
+const NO_SPARKS: Readonly<Record<string, readonly SparkPoint[]>> = {}
+
 /**
  * A sport's best efforts as numbered rows: the duration as the title, the figure in mono at its right, then its marks
  * and grade as the meta line, how it moved, and the activity that set it with how long ago. When every record was set
  * in one activity, that activity is named once under the list rather than repeated on each row.
  */
-export function SportRecords({ rows }: SportRecordsProps) {
+export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
   const shared = sharedActivity(rows)
   const sharedDays = shared === null ? null : (rows[0]?.setDays ?? null)
   return (
@@ -94,13 +101,15 @@ export function SportRecords({ rows }: SportRecordsProps) {
                 <div className="row__head">
                   <h3 className="row__title records__label">{row.label}</h3>
                   <p className="row__figure records__figure">
-                    <span className="records__value">{figure.number}</span>
-                    {figure.unit === null ? null : (
-                      <>
-                        {'\u00a0'}
-                        <span className="row__unit">{figure.unit}</span>
-                      </>
-                    )}
+                    <span className="records__value">
+                      {figure.number}
+                      {figure.unit === null ? null : (
+                        <>
+                          {'\u00a0'}
+                          <span className="row__unit">{figure.unit}</span>
+                        </>
+                      )}
+                    </span>
                     {row.sub && (
                       <>
                         {' '}
@@ -110,12 +119,12 @@ export function SportRecords({ rows }: SportRecordsProps) {
                   </p>
                 </div>
                 {row.tags.length === 0 && !row.grade ? null : (
-                  <p className="meta records__meta">
+                  <div className="meta records__meta">
                     {row.tags.map((tag) => (
                       <RecordTag key={tag} tag={tag} />
                     ))}
                     {row.grade && <span className="records__grade">{row.grade}</span>}
-                  </p>
+                  </div>
                 )}
                 {row.change && <p className="row__line records__change">{row.change}</p>}
                 {shared === null && row.activity && (
@@ -135,6 +144,7 @@ export function SportRecords({ rows }: SportRecordsProps) {
                   </p>
                 )}
               </div>
+              <Sparkline points={sparks[row.key] ?? []} />
             </li>
           )
         })}
