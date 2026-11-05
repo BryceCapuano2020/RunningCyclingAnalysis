@@ -61,17 +61,17 @@ describe('interactive targets', () => {
   })
 
   /*
-   * A small outlined button and a segment are 32 px for a mouse (docs/design/system.md, Controls), above the WCAG 2.2
-   * minimum of 24 px, and take the 44 px target on a phone or for a finger.
+   * A small outlined button and a segment are 40 px for a mouse, a control's own target (docs/design/system.md,
+   * Controls; target-size.spec.ts), and take the 44 px target on a phone or for a finger.
    */
   it.each([
     ['button', sheets.button, '.btn'],
     ['segmented option', sheets.segmentedControl, '.segmented-control__option'],
   ])(
-    '%s takes the button height: 32 px for a mouse, 44 px for a finger',
+    '%s takes the button height: 40 px for a mouse, 44 px for a finger',
     (_name, css, selector) => {
       expect(bodyOf(css, selector)).toMatch(/min-height:\s*var\(--button-height\)/)
-      expect(Number(/--button-height:\s*(\d+)px/.exec(sheets.tokens)?.[1])).toBe(32)
+      expect(Number(/--button-height:\s*(\d+)px/.exec(sheets.tokens)?.[1])).toBe(40)
       expect(sheets.tokens).toMatch(
         /@media \(max-width: 760px\), \(pointer: coarse\) \{\s*:root \{[^}]*--button-height:\s*44px/,
       )
