@@ -37,7 +37,7 @@ volt, card and dark-mode system with this one.
 | `--swim-ink`        | `#0e7490`   | Swim, reserved (4.5:1)                                                                |
 | `--run-wash`        | `#c2410c1f` | A run band or area fill under a line, never behind text                               |
 | `--ride-wash`       | `#1d4ed81f` | A ride band or area fill under a line, never behind text                              |
-| `--previous-mark`   | `#a8a29a`   | The previous period's line, under the current one                                     |
+| `--previous-mark`   | `#8a847c`   | The previous period's line, under the current one (3:1)                               |
 | `--status-critical` | `#991b1b`   | An error's words and a removal's confirm button, always with a label                  |
 | `--status-warning`  | `#8a5300`   | A warning's words, always with a label                                                |
 | `--status-good`     | `#17753a`   | A success's words, always with a label                                                |

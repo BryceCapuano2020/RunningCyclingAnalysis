@@ -53,6 +53,7 @@ const PAIRS: [string, string, number][] = [
   ['paper', 'ink-hover', TEXT],
   ['control-border', 'paper', GRAPHIC],
   ['control-border', 'paper-hover', GRAPHIC],
+  ['previous-mark', 'paper', GRAPHIC],
   ['run-ink', 'paper', TEXT],
   ['ride-ink', 'paper', TEXT],
   ['swim-ink', 'paper', TEXT],
