@@ -186,7 +186,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
-    name: 'How sure is this?',
+    name: 'Method',
     open: async (page) => {
       await openSample(page)
       await openMethod(page)

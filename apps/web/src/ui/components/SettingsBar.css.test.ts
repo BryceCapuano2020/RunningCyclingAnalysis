@@ -28,6 +28,10 @@ describe('SettingsBar stylesheet', () => {
     expect(field).not.toMatch(/max-width/)
   })
 
+  it('sets the empty status line in the gap under the section, so it adds no empty line and a long status cannot overlap', () => {
+    expect(ruleBody(css, '.settings-bar__status:empty')).toMatch(/margin-block-end:\s*-1lh;/)
+  })
+
   it('reserves the status line at one line of its own text, not a fixed rem', () => {
     expect(ruleBody(css, '.settings-bar__status')).toMatch(/min-height:\s*1lh;/)
   })

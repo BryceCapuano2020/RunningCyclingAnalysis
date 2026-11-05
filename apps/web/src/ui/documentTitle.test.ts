@@ -12,7 +12,7 @@ describe('documentTitleFor', () => {
     [{ page: 'ride' }, 'Ride'],
     [{ page: 'history' }, 'History'],
     [{ page: 'activities' }, 'Activities'],
-    [{ page: 'method' }, 'How sure is this?'],
+    [{ page: 'method' }, 'Method'],
   ] as const)('names the %o page in the tab title', (route, name) => {
     expect(documentTitleFor(route, result)).toBe(`${name} · ${APP}`)
   })
@@ -36,10 +36,8 @@ describe('documentTitleFor', () => {
     expect(documentTitleFor({ page: 'profile' }, null)).toBe(`Profile · ${APP}`)
   })
 
-  it('names How sure is this? with no result, since that page shows without one', () => {
-    expect(documentTitleFor({ page: 'method' }, null)).toBe(
-      'How sure is this? · RunningCyclingAnalysis',
-    )
+  it('names Method with no result, since that page shows without one', () => {
+    expect(documentTitleFor({ page: 'method' }, null)).toBe('Method · RunningCyclingAnalysis')
   })
 
   it('is the app name alone on the landing page, which has no page of its own', () => {

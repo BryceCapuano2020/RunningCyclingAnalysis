@@ -61,7 +61,7 @@ describe('restoring kept results on a reload', () => {
     )
   })
 
-  it('shows Add files in the header on How sure is this? while the results restore, since that page has none of its own', () => {
+  it('shows Add files in the header on Method while the results restore, since that page has none of its own', () => {
     setAccount('loading')
     app.analysis.restoring = true
     window.location.hash = '#/method'

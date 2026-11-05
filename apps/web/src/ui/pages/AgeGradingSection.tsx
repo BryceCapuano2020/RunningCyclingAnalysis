@@ -37,7 +37,7 @@ const LIMITS = [
   'It is not a race result or a ranking.',
 ]
 
-/** The method, the source and the limits of the age grades and levels, on How sure is this?. */
+/** The method, the source and the limits of the age grades and levels, on Method. */
 export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
   return (
     <section className="section band" aria-labelledby={SECTION_ID.grades}>

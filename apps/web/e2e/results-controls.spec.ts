@@ -208,7 +208,7 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
 })
 
-test('How sure is this? says that both best efforts were hard efforts', async ({ page }) => {
+test('Method says that both best efforts were hard efforts', async ({ page }) => {
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their max heart rate. Neither tile carries a chip, the run's
   // detail says nothing of heart rate, and the method page says they reached the hard line.

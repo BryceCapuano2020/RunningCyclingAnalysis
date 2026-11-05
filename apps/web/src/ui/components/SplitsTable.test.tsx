@@ -47,11 +47,6 @@ function columnHeaders(): (string | null)[] {
     .map((cell) => cell.querySelector('button')?.textContent ?? cell.textContent)
 }
 
-/** The list items of the narrow representation. */
-function listItems(name = 'Pace for each kilometre'): HTMLElement[] {
-  return within(screen.getByRole('list', { name })).getAllByRole('listitem')
-}
-
 describe('SplitsTable', () => {
   it('leaves what GAP means to its term, with no sentence under the splits', () => {
     renderSplits(loaded({ km: [split()], mile: [] }))
@@ -79,7 +74,7 @@ describe('SplitsTable', () => {
     expect(within(second!).getByText('4:45 /km')).toBeInTheDocument()
   })
 
-  it('leaves out the elevation gain column when no split climbs, in the table and the list', () => {
+  it('leaves out the elevation gain column when no split climbs', () => {
     renderSplits(
       loaded({
         km: [split({ elevationGainM: 0 }), split({ elevationGainM: null, seconds: 285 })],
@@ -87,10 +82,9 @@ describe('SplitsTable', () => {
       }),
     )
     expect(columnHeaders()).toEqual(['Split', 'Pace', 'GAP', 'Heart rate'])
-    expect(screen.queryByText('Elevation gain', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('leaves out the flat pace column when it equals the pace in every split, in the table and the list', () => {
+  it('leaves out the flat pace column when it equals the pace in every split', () => {
     renderSplits(
       loaded({
         km: [
@@ -101,7 +95,6 @@ describe('SplitsTable', () => {
       }),
     )
     expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
-    expect(screen.queryByText('GAP', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
   it('keeps the flat pace column while one split differs from its pace', () => {
@@ -300,18 +293,22 @@ describe('SplitsTable', () => {
     ])
   })
 
-  it('shows the same splits as a table and as a list, with one definition list per split', () => {
+  it('shows each split as one table row', () => {
     renderSplits(
       loaded({ km: [split(), split({ seconds: 285, gradeAdjustedSeconds: 280 })], mile: [] }),
     )
-    const [first] = listItems()
-    expect(screen.getAllByText('Split', { selector: 'dt' })).toHaveLength(2)
+    const [first, second] = bodyRows()
+    expect(bodyRows()).toHaveLength(2)
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
     expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
     expect(within(first!).getByText('12 m')).toBeInTheDocument()
     expect(within(first!).getByText('150 bpm')).toBeInTheDocument()
-    expect(listItems()).toHaveLength(2)
-    expect(within(listItems()[1]!).getByText('Fastest')).toBeInTheDocument()
+    expect(within(second!).getByText('Fastest')).toBeInTheDocument()
+    // The scroller is a region named by the table's caption.
+    const region = screen.getByRole('region', { name: 'Pace for each kilometre' })
+    expect(region).toContainElement(table())
+    expect(region).toHaveAttribute('tabindex', '0')
   })
 
   it('says a run is too short to split when it has no splits in these units', () => {

@@ -1,5 +1,5 @@
 /**
- * The How sure is this? section a link asked for. A fragment would change the hash route, so the
+ * The Method section a link asked for. A fragment would change the hash route, so the
  * link leaves the section's id here, and the page focuses it once it has mounted.
  *
  * A request belongs to the navigation its link made. The first hash change after the link keeps it,

@@ -73,7 +73,7 @@ describe('TopicBody', () => {
     const details = container.querySelectorAll('details')
     expect(details[0]).toHaveTextContent('Efficiency varies between people by about 7%.')
     expect(details[0]).toHaveTextContent('Running economy varies by about 8%.')
-    // The range and its limits are defined once, on How sure is this?, so this topic refers back.
+    // The range and its limits are defined once, on Method, so this topic refers back.
     expect(details[0]?.textContent).not.toMatch(/every source of|sensor error|90% range summarises/)
     expect(details[1]).toHaveTextContent('Gross efficiency averages about 21.5%.')
   })

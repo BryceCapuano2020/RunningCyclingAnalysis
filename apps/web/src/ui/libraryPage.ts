@@ -9,7 +9,7 @@ import type { Route } from './route'
  * page (`held`), and a library that has not answered has the restoring page, or an error.
  * - `profile`: Profile, whatever else is true.
  * - `result`: the page the route names, from a result.
- * - `method`: How sure is this? with no result, which is its own page. Which pages stand like this is
+ * - `method`: Method with no result, which is its own page. Which pages stand like this is
  *   PAGE_RULES' ownPage.
  * - `restoring`: a library is being restored or loaded.
  * - `unavailable`: the library could not be loaded or read.

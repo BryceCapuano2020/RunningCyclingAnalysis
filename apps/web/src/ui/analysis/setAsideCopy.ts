@@ -41,7 +41,7 @@ export function setAsideActivityText(sport: Sport, judgement: HeartRateJudgement
   return `We left this activity's heart rate out of the heart-rate and effort checks. Its heart rate ${rule([sport], judgement)}`
 }
 
-/** The line on How sure is this?, or null when nothing is set aside. */
+/** The line on Method, or null when nothing is set aside. */
 export function setAsideText(result: AnalysisResult, judgement: HeartRateJudgement): string | null {
   const ids = new Set(result.heartRateSetAside)
   if (ids.size === 0) return null

@@ -121,7 +121,7 @@ describe('a signed-in library with every digest held out', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps How sure is this? as its own page', () => {
+  it('keeps Method as its own page', () => {
     staleLibrary()
     window.location.hash = '#/method'
     render(<App />)

@@ -113,41 +113,43 @@ async function openAllEvidence(container: HTMLElement): Promise<void> {
   }
 }
 
-/** The short answer's three lines: recorded and checks from behind Details, the estimate as the one line shown. */
+/** The short answer: recorded and checks from behind Details, the verdict as the one line shown, then the estimates behind Details. */
 function answerLines(): HTMLElement[] {
   const group = screen.getByRole('group', { name: 'The short answer' })
   const items = within(group).getAllByRole('listitem', { hidden: true })
   return [
-    items[0],
-    group.querySelector('.method__answer-text') as HTMLElement,
     items[1],
+    group.querySelector('.method__answer-text') as HTMLElement,
+    items[2],
+    items[0],
   ] as HTMLElement[]
 }
 
 describe('MethodPage answer', () => {
-  it('is the page heading, with a link back to Balance', () => {
+  it('is the page heading, with nothing above it', () => {
     renderPage()
 
-    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toHaveAttribute(
+    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toHaveAttribute(
       'id',
       'page-heading',
     )
-    expect(screen.getByRole('link', { name: 'Back to Balance' })).toHaveAttribute('href', '#/')
+    expect(screen.queryByRole('link', { name: /Back to Balance/ })).toBeNull()
   })
 
   it('opens with one line, the balance verdict, and keeps what is recorded and how far to trust it behind Details', () => {
     renderPage(makeResult(CONTRIBUTING))
 
     const lines = answerLines()
-    expect(lines).toHaveLength(3)
     expect(
       screen.getByRole('group', { name: 'The short answer' }).querySelectorAll(':scope > p'),
     ).toHaveLength(1)
     expect(screen.getByText(wholeText('Details')).closest('details')).not.toHaveAttribute('open')
+    expect(lines[1]).toHaveTextContent('Your balance leans toward running.')
+    expect(lines[1]).not.toHaveTextContent('are estimates')
     expect(lines[0]).toHaveTextContent(
       'Running efforts, and ride power from a power meter, are recorded.',
     )
-    expect(lines[1]).toHaveTextContent(
+    expect(lines[3]).toHaveTextContent(
       'Thresholds, ride levels, the balance and ride power without a meter are estimates. They rest on 1 run and 1 ride with a usable effort.',
     )
     expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
@@ -1204,18 +1206,11 @@ describe('MethodPage without a weight', () => {
   })
 })
 
-describe('MethodPage links back', () => {
-  it('links back to Balance, the page the method answers', () => {
-    renderPage()
-    expect(screen.getByRole('link', { name: 'Back to Balance' })).toHaveAttribute('href', '#/')
-  })
-})
-
 describe('MethodPage without a result', () => {
   it('shows the method, the age grades and the topics, with no period line', () => {
     renderPage(null)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Age grades and levels' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'How this works' })).toBeInTheDocument()
     const energy = screen.getByRole('region', { name: 'The energy view' })

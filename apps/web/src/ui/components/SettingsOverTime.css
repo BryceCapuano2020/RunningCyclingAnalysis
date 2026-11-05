@@ -54,9 +54,15 @@
   font-size: var(--text-sm);
 }
 
+/* Empty, its reserved line sits in the gap before the next section and adds none; with text it is a line of the page, so a
+   long status cannot run over the next heading. */
 .settings-over-time__status {
   min-height: 1lh;
   margin: 0;
+}
+
+.settings-over-time__status:empty {
+  margin-block-end: -1lh;
 }
 
 /* The dated settings are numbered rows (RowList.css): index, setting and date, value, Delete. A row with no sport takes the

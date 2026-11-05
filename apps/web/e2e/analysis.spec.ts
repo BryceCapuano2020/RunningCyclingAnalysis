@@ -41,7 +41,7 @@ const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
 const POWER_ACCURACY = /^Estimated against measured power on climbs$/
 
-/** Opens one section's "Show the evidence" disclosure on How sure is this?, so its chart is shown. */
+/** Opens one section's "Show the evidence" disclosure on Method, so its chart is shown. */
 async function showEvidence(page: Page, section: string): Promise<void> {
   await page.locator('summary', { hasText: `Show the evidence for the ${section}` }).click()
 }

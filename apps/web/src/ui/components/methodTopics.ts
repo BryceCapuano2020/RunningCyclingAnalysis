@@ -13,7 +13,7 @@ import { REFERENCE_FLOOR_BPM, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import { CLIMB_NEEDED } from './headlineNeed'
 
-/** The ids of the sections on How sure is this?, which the contents list and the links name. */
+/** The ids of the sections on Method, which the contents list and the links name. */
 export const SECTION_ID = {
   energy: 'method-energy',
   grades: 'method-grades',

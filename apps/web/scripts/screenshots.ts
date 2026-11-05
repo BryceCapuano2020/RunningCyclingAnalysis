@@ -25,7 +25,7 @@ interface Box {
   height: number
 }
 
-/** Opens one section's "Show the evidence" disclosure on How sure is this?, so its chart is captured. */
+/** Opens one section's "Show the evidence" disclosure on Method, so its chart is captured. */
 async function showEvidence(page: Page, section: string): Promise<void> {
   await page.locator('summary', { hasText: `Show the evidence for the ${section}` }).click()
 }
@@ -143,9 +143,8 @@ async function main(): Promise<void> {
     await withPage(browser, DESKTOP, async (page) => {
       await openSample(page)
       await capture(page, balanceTargets(page), 'screenshot-light.png')
-      // The footer has a second link of this name, so the one in the page's main content is used.
-      await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-      await page.getByRole('heading', { level: 1, name: 'How sure is this?' }).waitFor()
+      await page.getByRole('banner').getByRole('link', { name: 'Method' }).click()
+      await page.getByRole('heading', { level: 1, name: 'Method' }).waitFor()
       await showEvidence(page, 'heart-rate check')
       await showEvidence(page, 'virtual power meter')
       await settle(page)

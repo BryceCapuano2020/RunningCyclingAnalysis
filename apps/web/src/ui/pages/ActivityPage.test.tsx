@@ -670,8 +670,8 @@ describe('ActivityPage', () => {
       '#/activities/older',
     )
     expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
-    // The footer links to How sure is this? on every page, so the activity's own links do not.
-    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+    // The header links to Method, so the activity's own links do not.
+    expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
   })
 
   it('offers Delete for a saved activity, and asks before it removes the saved copy', async () => {
@@ -768,8 +768,8 @@ describe('ActivityPage', () => {
     expect(within(first!).getByText(wholeText('5:00 /km'))).toBeInTheDocument()
     expect(within(first!).getByText(wholeText('4:50 /km'))).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
-    // One term for the table, and one for the list a narrow screen shows in its place.
-    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    // One term, in the table's header.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(1)
   })
 
   it('says a run whose splits were not kept has none, and shows no table', async () => {
@@ -829,8 +829,8 @@ describe('GAP on the activity page', () => {
       vi.fn(async () => twoKilometres),
     )
     await screen.findByRole('table', { name: 'Pace for each kilometre' })
-    // One term for the table, and one for the list a narrow screen shows in its place.
-    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)
+    // One term, in the table's header.
+    expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(1)
     expect(paragraphsAboutHills(splitsSection())).toEqual([])
   })
 

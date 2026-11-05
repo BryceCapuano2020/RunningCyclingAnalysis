@@ -91,8 +91,8 @@ describe('SplitsTable: a single split', () => {
         distanceM={2000}
       />,
     )
-    // The table and the list each carry the chip.
-    expect(screen.getAllByText('Fastest')).toHaveLength(2)
+    // The one table carries the chip once.
+    expect(screen.getAllByText('Fastest')).toHaveLength(1)
   })
 })
 

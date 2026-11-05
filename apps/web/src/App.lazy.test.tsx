@@ -89,7 +89,7 @@ describe('pages that load when first shown', () => {
     render(<App />)
     expect(screen.getByText('Loading')).toHaveAttribute('role', 'status')
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'How sure is this?' }, LOAD),
+      await screen.findByRole('heading', { level: 1, name: 'Method' }, LOAD),
     ).toBeInTheDocument()
   })
 })

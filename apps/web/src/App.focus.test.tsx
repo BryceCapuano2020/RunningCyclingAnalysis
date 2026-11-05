@@ -49,7 +49,7 @@ describe('focus on navigation', () => {
   it('moves focus to the new heading when the method page is left for Balance', async () => {
     window.location.hash = '#/method'
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
     const sections = screen.getByRole('navigation', { name: 'Pages' })
     fireEvent.click(within(sections).getByRole('link', { name: 'Balance' }))
     await waitFor(() =>

@@ -64,9 +64,37 @@
   font-size: var(--text-sm);
 }
 
-/* Kept as a line of its own, one line high, so a saved or failed change does not move the fields below it. */
+/* A line of its own, one line high. Empty, it sits in the gap under the section and adds no empty line; with text it is a
+   line of the page, so a long status cannot run over the next heading. */
 .settings-bar__status {
   min-height: 1lh;
   color: var(--ink-secondary);
   font-size: var(--text-sm);
+}
+
+.settings-bar__status:empty {
+  margin-block-end: -1lh;
+}
+
+/* A phone gives each weight its own row and one label width, so a long label wraps beside no short one. */
+@media (max-width: 479px) {
+  .settings-bar__fields {
+    grid-template-columns: minmax(0, 16ch);
+  }
+
+  .settings-bar__field:first-child > .number-field > .number-field__label,
+  .settings-bar__field:first-child > .number-field > .number-field__input,
+  .settings-bar__field:last-child > .number-field > .number-field__label,
+  .settings-bar__field:last-child > .number-field > .number-field__input {
+    grid-column: 1;
+  }
+
+  .settings-bar__field:last-child > .number-field > .number-field__label {
+    grid-row: 3;
+    margin-top: var(--space-2);
+  }
+
+  .settings-bar__field:last-child > .number-field > .number-field__input {
+    grid-row: 4;
+  }
 }
