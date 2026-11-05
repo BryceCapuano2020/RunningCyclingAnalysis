@@ -146,7 +146,7 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
                   )}
                 </span>
               </p>
-              <span className="row__sub records__sub">{row.sub}</span>
+              {row.sub && <span className="row__sub records__sub">{row.sub}</span>}
               <span className="row__spark">
                 <Sparkline points={sparks[row.key] ?? []} />
               </span>
