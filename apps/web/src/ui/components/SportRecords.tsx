@@ -3,10 +3,11 @@ import { formatDayMonth } from '../format/date'
 import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
-import { RecordTag } from './RecordTag'
 import { NumText } from './NumText'
+import { RecordTag } from './RecordTag'
 import { RowIndex } from './RowList'
 import { Sparkline } from './Sparkline'
+import { sparkTrend, sparksDrawn } from './sparkRule'
 import type { SparkPoint } from './Sparkline'
 import './SportRecords.css'
 
@@ -87,12 +88,15 @@ function figureParts(value: string): { number: string; unit: string | null } {
 const NO_SPARKS: Readonly<Record<string, readonly SparkPoint[]>> = {}
 
 /**
- * A sport's best efforts as numbered rows: the duration as the title, the figure in mono at its right, then its marks
- * and grade as the meta line, how it moved, and the activity that set it with how long ago. When every record was set
- * in one activity, that activity is named once under the list rather than repeated on each row.
+ * A sport's best efforts as numbered rows: the duration as the title, the figure in mono at its right, and one meta line
+ * under the title: the day it was set, the activity as a link and its level and grade (docs/design/system.md, No
+ * subtitle lines). How it moved is the row's sparkline, drawn only when every row has one, and words for a screen reader. When every record was set in one
+ * activity, that activity is named once under the list rather than repeated on each row.
  */
 export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
   const shared = sharedActivity(rows)
+  // Sparklines are drawn for the whole list or for none of it.
+  const drawn = sparksDrawn(rows.map((row) => sparks[row.key]))
   const sharedDays = shared === null ? null : (rows[0]?.setDays ?? null)
   return (
     <>
@@ -104,33 +108,36 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
               <RowIndex index={index} />
               <div className="row__body">
                 <h3 className="row__title records__label">{row.label}</h3>
-                {row.tags.length === 0 && !row.grade ? null : (
+                {/* One meta line: the day it was set, the activity that set it and its grade. How it moved is the
+                    sparkline's to show, and said in words to a screen reader. */}
+                {!row.grade &&
+                row.tags.length === 0 &&
+                (shared !== null || !row.activity) ? null : (
                   <div className="meta records__meta">
+                    {shared === null && row.activity && (
+                      <>
+                        <span className="records__date">
+                          {formatDayMonth(row.activity.startMs)}
+                        </span>
+                        <a
+                          className="records__link"
+                          href={hrefFor({ page: 'activity', id: row.activity.id })}
+                          title={sourceText(row.activity)}
+                          aria-label={`${row.label}, from ${sourceText(row.activity)}`}
+                        >
+                          <span className="records__name">{row.activity.name}</span>
+                        </a>
+                      </>
+                    )}
+                    {row.grade && <span className="records__grade">{row.grade}</span>}
                     {row.tags.map((tag) => (
                       <RecordTag key={tag} tag={tag} />
                     ))}
-                    {row.grade && <span className="records__grade">{row.grade}</span>}
                   </div>
                 )}
                 {row.change && (
-                  <p className="row__line records__change">
+                  <p className="sr-only records__change">
                     <NumText text={row.change} />
-                  </p>
-                )}
-                {shared === null && row.activity && (
-                  <p className="records__source">
-                    <span className="records__where">
-                      <a
-                        className="records__link"
-                        href={hrefFor({ page: 'activity', id: row.activity.id })}
-                        title={sourceText(row.activity)}
-                        aria-label={`${row.label}, from ${sourceText(row.activity)}`}
-                      >
-                        <SourceLabel activity={row.activity} />
-                      </a>
-                      {row.setDays !== null && <Dot />}
-                    </span>
-                    {row.setDays !== null && <AgoCount days={row.setDays} />}
                   </p>
                 )}
               </div>
@@ -138,17 +145,17 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
               <p className="row__figure records__figure">
                 <span className="records__value">
                   {figure.number}
-                  {figure.unit === null ? null : (
-                    <>
-                      {'\u00a0'}
-                      <span className="row__unit">{figure.unit}</span>
-                    </>
-                  )}
+                  {/* A figure with no unit keeps the unit's slot, so its number ends where the others do. */}
+                  {'\u00a0'}
+                  <span className="row__unit">{figure.unit}</span>
                 </span>
               </p>
               {row.sub && <span className="row__sub records__sub">{row.sub}</span>}
               <span className="row__spark">
-                <Sparkline points={sparks[row.key] ?? []} />
+                {drawn && <Sparkline points={sparks[row.key] ?? []} />}
+                {drawn && !row.change && (
+                  <span className="sr-only">{`Trend ${sparkTrend(sparks[row.key] ?? [])}`}</span>
+                )}
               </span>
             </li>
           )

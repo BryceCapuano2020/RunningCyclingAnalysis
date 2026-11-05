@@ -322,7 +322,7 @@ describe('recordRow', () => {
   }
 
   it('tags a run’s pace GAP, since it is a grade-adjusted pace', () => {
-    expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['GAP'])
+    expect(recordRow(record, { label: '20 min', grade: null }).tags).toEqual([])
   })
 
   it.each([
@@ -331,18 +331,17 @@ describe('recordRow', () => {
     ['from a ride that is not in the result', null],
   ])('leaves a ride’s watts untagged when they are %s', (_, activity) => {
     const ride = { ...record, value: '250 W', activity }
-    expect(recordRow('ride', ride, { label: '20 min', grade: null }).tags).toEqual([])
+    expect(recordRow(ride, { label: '20 min', grade: null }).tags).toEqual([])
   })
 
   it('carries the days since each record was set, so the list can say how long ago', () => {
-    const row = recordRow('run', record, { label: '20 min', grade: null, setDays: 9 })
+    const row = recordRow(record, { label: '20 min', grade: null, setDays: 9 })
     expect(row.setDays).toBe(9)
-    expect(recordRow('run', record, { label: '20 min', grade: null }).setDays).toBeNull()
+    expect(recordRow(record, { label: '20 min', grade: null }).setDays).toBeNull()
   })
 
   it('carries the label, figure, second reading, grade and activity of the record', () => {
     const row = recordRow(
-      'run',
       { ...record, sub: '3.3 W/kg' },
       { label: 'Best 20 min', grade: 'Local · 67%' },
     )

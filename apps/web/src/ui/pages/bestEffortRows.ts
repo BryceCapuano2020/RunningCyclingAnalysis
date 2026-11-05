@@ -16,7 +16,6 @@ import {
   effortLabel,
   isEstimatedRecord,
   nativeCurve,
-  paceIsTime,
   sportRecords,
   valueAt,
 } from '../records'
@@ -62,9 +61,6 @@ export function curvesOf({
 function setDaysOf(activity: ActivitySummary | null, openedAt: number): number | null {
   return activity === null ? null : calendarDaysBetween(activity.startMs, openedAt)
 }
-
-/** The mark beside a distance best's time, so the column reads: a duration's row is a pace, and this row is a finish time. */
-export const FINISH_MARK = 'Finish time'
 
 /** A run distance's row label in sentence case, such as "Half marathon" from its record name. */
 function rowLabel(name: string): string {
@@ -130,10 +126,11 @@ function distanceRowsOf(input: BestEffortInput): {
     key: `distance-${record.distanceM}`,
     label: rowLabel(record.label),
     value: record.time,
-    sub: paceIsTime(record.distanceM, units) ? null : record.pace,
+    // One figure column: a distance's row is its finish time, and its pace is on the activity.
+    sub: null,
     // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
-    grade: recordGradeCell(sport, outcomes[index] ?? null, null, 'row'),
-    tags: [FINISH_MARK],
+    grade: recordGradeCell(sport, outcomes[index] ?? null, 'row'),
+    tags: [],
     change: null,
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,
@@ -170,9 +167,9 @@ export function bestEffortRows(input: BestEffortInput): BestEffortRows {
   const curves = curvesOf(input)
   // The list says the no-standard gap once under it, so each row leaves it off.
   const durationRows = graded.map(({ record, outcome }) =>
-    recordRow(sport, record, {
+    recordRow(record, {
       label: effortLabel(record.durationS),
-      grade: recordGradeCell(sport, outcome, record.covered, 'row'),
+      grade: recordGradeCell(sport, outcome, 'row'),
       change: changeOf(record, input, curves),
       setDays: setDaysOf(record.activity, openedAt),
     }),

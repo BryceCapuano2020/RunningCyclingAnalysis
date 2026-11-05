@@ -30,6 +30,11 @@ function namedRows(rows: readonly ProfileRow[]): ProfileRow[] {
     .sort((a, b) => a.durationS - b.durationS)
 }
 
+/** Whether the sentence names a duration: false when it would say that nothing stands out, clearly or at all. */
+export function profileNamesAny({ rows }: ReadyProfile): boolean {
+  return namedRows(rows).length > 0
+}
+
 /**
  * One sentence on what stands out, or that nothing does. It names only the durations whose interval clears zero by a
  * margin, and says a low best may be relatively low or untested, since a best is a lower bound. A duration that

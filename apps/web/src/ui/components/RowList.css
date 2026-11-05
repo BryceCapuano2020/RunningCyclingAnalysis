@@ -118,8 +118,12 @@
     grid-row: 3;
   }
 
-  .row--figures:not(:has(.row__sub)) .row__spark {
+  .row--figures:not(:has(.row__sub:not(:empty))) .row__spark {
     grid-row: 2;
+  }
+
+  .row--figures .row__sub:empty {
+    display: none;
   }
 
   .row--figures .row__spark:empty {
@@ -172,6 +176,16 @@
   font-size: 0.75em;
 }
 
+/*
+ * In a list of figures the unit has a slot of its own, three of its characters wide and set from the left, so every
+ * number ends at one x whether its unit is "/mi", "W" or none.
+ */
+.row--figures .row__unit {
+  display: inline-block;
+  min-width: 3ch;
+  text-align: left;
+}
+
 .row__line {
   max-width: var(--measure);
   color: var(--ink-secondary);
@@ -194,4 +208,15 @@
   padding: var(--space-1) 0 var(--space-2) var(--space-4);
   color: var(--ink);
   font-size: var(--text-md);
+}
+
+/* A disclosure that holds several lines (a page's Details, how a threshold was worked out): one under another. */
+.disclosure__lines {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.disclosure__lines > p {
+  margin: 0;
 }

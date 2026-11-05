@@ -43,14 +43,15 @@
   font-size: var(--text-lead);
 }
 
+/* A ride's W/kg after the watts' unit: a mono space apart, since the serif space between them is too narrow to read. */
+.sport-hero__side {
+  margin-left: 0.6em;
+}
+
 .sport-hero__basis {
   display: grid;
   gap: var(--space-1);
   justify-items: start;
-}
-
-.sport-hero__grades {
-  margin: 0;
 }
 
 /* The level and its percent on one line: the level in the serif, the percent in the mono. */

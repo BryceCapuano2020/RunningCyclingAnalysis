@@ -281,7 +281,6 @@ export function RacePredictions({
     <section className="section race-predictions" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
-        <p className="meta">{basisLine({ basis }, openedAt)}</p>
       </div>
       {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
       <ol className="race-rows">
@@ -298,6 +297,8 @@ export function RacePredictions({
         ))}
       </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
+        {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
+        <p className="meta">{basisLine({ basis }, openedAt)}</p>
         <p className="muted">{methodNote(window, bound)}</p>
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">

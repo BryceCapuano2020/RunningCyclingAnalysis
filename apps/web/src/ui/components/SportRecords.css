@@ -17,18 +17,21 @@
   font-size: var(--text-sm);
 }
 
-/* The marks and the grade share the meta line, a dot between each. */
+/*
+ * The day, the activity and the grade share the meta line, a dot between each. The dot is an inline block, so a link's
+ * underline does not run under it.
+ */
 .records__meta > * + *::before {
-  content: '· ';
+  content: '·';
+  display: inline-block;
+  margin-inline: var(--space-2);
+  color: var(--ink-secondary);
 }
 
-.records__meta .record-tag,
-.records__meta .records__grade {
-  margin-right: var(--space-1);
-}
-
-.records__change {
-  font-size: var(--text-sm);
+/* On the meta line the activity is a link in the line's own mono, its name wrapping. */
+.records__meta .records__link {
+  display: inline;
+  font-size: inherit;
 }
 
 /*

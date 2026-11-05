@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import './SectionDisclosure.css'
 
@@ -26,13 +27,20 @@ export function SectionDisclosure({
   restated = false,
   children,
 }: SectionDisclosureProps) {
+  // Open is where it starts: the reader's fold is kept, so a later render does not open a section they closed.
+  const [open, setOpen] = useState(true)
   return (
     <section
       className="band sport-disclosure"
       aria-label={title}
       data-restated={restated ? '' : undefined}
     >
-      <details id={id} open className="sport-disclosure__details">
+      <details
+        id={id}
+        open={open}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
+        className="sport-disclosure__details"
+      >
         <summary className="sport-disclosure__summary">
           <span className="sport-disclosure__title">{title}</span>
           {finding !== undefined && <span className="sport-disclosure__finding">{finding}</span>}

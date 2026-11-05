@@ -1,18 +1,14 @@
 import type { Sport } from '@rca/core/types'
-import { GradingLink } from '../components/GradingLink'
 import { LevelLadder } from '../components/LevelLadder'
 import { formatGrade } from '../gradeFormat'
 import { gradeLevelText, notGradedText } from '../grades'
 import type { AgeGap, GradeOutcome } from '../grades'
-import { plainEffort } from '../records'
 import { hrefFor } from '../route'
 
 export interface LevelPanelProps {
   sport: Sport
   /** The grade at the sport's threshold, or the reason there is none; null while the profile is missing. */
   outcome: GradeOutcome | null
-  /** The threshold's figure such as "6:37 /mi" or "250 W", which the grade is of. */
-  effort: string | null
   /** The year of birth or sex the grades still need, named in the prompt; null when both are given. */
   missingAge: AgeGap | null
 }
@@ -29,11 +25,11 @@ function LevelFigure({ outcome }: { outcome: GradeOutcome & { kind: 'graded' } }
 }
 
 /**
- * The age grade at threshold: its level and percent on one line, a meta line of the effort and the age it was graded
- * at, and the level ladder, a dot for a recorded effort and a ring with its range for
+ * The age grade at threshold: its level and percent on one line and the level ladder (the threshold it grades is the
+ * figure beside it, so no line repeats it), a dot for a recorded effort and a ring with its range for
  * an estimated one. Without a year of birth and sex it asks for them; with a gap it says why.
  */
-export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelProps) {
+export function LevelPanel({ sport, outcome, missingAge }: LevelPanelProps) {
   if (outcome === null && missingAge === null) return null
   return (
     <section
@@ -53,11 +49,7 @@ export function LevelPanel({ sport, outcome, effort, missingAge }: LevelPanelPro
       ) : (
         <>
           <LevelFigure outcome={outcome} />
-          <p className="meta sport-hero__grades">
-            {effort ? `${plainEffort(effort)} at age ${outcome.age}.` : `At age ${outcome.age}.`}
-          </p>
           <LevelLadder sport={sport} grade={outcome.grade} />
-          <GradingLink />
         </>
       )}
     </section>

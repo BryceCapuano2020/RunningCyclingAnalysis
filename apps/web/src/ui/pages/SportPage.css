@@ -1,4 +1,4 @@
-/* The title and, under it, the meta lines: the last activity and the period's caption. */
+/* The title and, under it, its one ▸ Details. */
 .sport-page__head {
   display: grid;
   gap: var(--space-2);
@@ -14,7 +14,7 @@
   gap: var(--stack-gap);
 }
 
-/* Where the figures come from: the last activity, the count and the distance, under the title. */
+/* Where the figures come from: the last activity and the distance, in the Details. */
 .sport-page__form {
   margin: 0;
 }
