@@ -1,9 +1,9 @@
-/* Since your last import: one line under the fitness card, 48 px or less closed at every width. */
+/*
+ * Since your last import, and the years' lead: one line under the fitness section, a native disclosure with the base
+ * ▸ (base.css), no box. Closed it is one line, cut after two.
+ */
 .checkin-row {
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
 }
 
 .checkin-row__summary {
@@ -11,21 +11,19 @@
   list-style: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: 2.75rem;
-  padding: var(--space-1) var(--space-4);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  line-height: 1.2;
+  color: var(--ink);
+  font-size: var(--text-md);
+  line-height: 1.3;
   cursor: pointer;
 }
 
-/* The sentence is cut after two lines; the panel gives it whole. */
 .checkin-row__summary::-webkit-details-marker {
   display: none;
 }
 
+/* The sentence is cut after two lines; the panel gives it whole. */
 .checkin-row__line {
   display: -webkit-box;
   min-width: 0;
@@ -46,27 +44,12 @@
   white-space: nowrap;
 }
 
-/* A chevron, so the line keeps the width: the summary is the disclosure and says so to a screen reader. */
-.checkin-row__toggle {
-  flex: none;
-  margin-left: auto;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-right: var(--space-1);
-  border-right: 2px solid var(--text-secondary);
-  border-bottom: 2px solid var(--text-secondary);
-  transform: translateY(-2px) rotate(45deg);
-}
-
-.checkin-row__details[open] .checkin-row__toggle {
-  transform: translateY(2px) rotate(-135deg);
-}
-
 .checkin-row__panel {
   display: grid;
   gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
-  font-size: var(--text-sm);
+  max-width: var(--measure);
+  padding: 0 0 var(--space-2) var(--space-4);
+  font-size: var(--text-md);
 }
 
 .checkin-row__full,
@@ -82,13 +65,4 @@
 
 .checkin-row__hide {
   justify-self: start;
-  min-height: 2.75rem;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
 }

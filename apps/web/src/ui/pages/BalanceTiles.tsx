@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { ActivitySummary } from '@rca/core/pipeline'
@@ -7,6 +8,7 @@ import { countSport } from '../records'
 import type { GradeOutcome } from '../grades'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BALANCE_PAIR } from '../sports'
+import { RowIndex } from '../components/RowList'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
 import { ThresholdTile } from './ThresholdTile'
@@ -33,7 +35,7 @@ export interface BalanceTilesProps {
 }
 
 /**
- * The headline numbers, at most three: each sport's threshold, and what the ride is worth as a run. The lean
+ * The headline numbers, at most three, as numbered rows: each sport's threshold, and what the ride is worth as a run. The lean
  * between the sports is the headline and the meter's to say, once, so it has no tile. A sport with nothing in
  * the period is a prompt in its place; the ride as a run needs both sports, so it is left out with one.
  */
@@ -64,35 +66,43 @@ export function BalanceTiles({
     levelShown,
     defineTerm: sport === firstThreshold,
   })
-  const tiles = [
-    ...BALANCE_PAIR.map((sport) =>
-      countSport(result.activities, sport) > 0 ? (
-        thresholdTileIsBare(thresholdProps(sport)) ? null : (
-          <ThresholdTile key={sport} {...thresholdProps(sport)} />
-        )
-      ) : soleSport !== null ? null : (
-        <EmptySportCard
-          key={sport}
-          sport={sport}
-          inLibrary={countSport(library, sport)}
-          period={period}
-          onAddFiles={onAddFiles}
-          leftOut={leftOut?.sport === sport ? leftOut : undefined}
-        />
-      ),
+  // Each row: its sport, whose ink its index takes (the ride as a run is a ride's), and what it shows.
+  const tiles: { key: string; sport: Sport; node: ReactNode }[] = [
+    ...BALANCE_PAIR.flatMap((sport) =>
+      countSport(result.activities, sport) > 0
+        ? thresholdTileIsBare(thresholdProps(sport))
+          ? []
+          : [{ key: sport, sport, node: <ThresholdTile {...thresholdProps(sport)} /> }]
+        : soleSport !== null
+          ? []
+          : [
+              {
+                key: sport,
+                sport,
+                node: (
+                  <EmptySportCard
+                    sport={sport}
+                    inLibrary={countSport(library, sport)}
+                    period={period}
+                    onAddFiles={onAddFiles}
+                    leftOut={leftOut?.sport === sport ? leftOut : undefined}
+                  />
+                ),
+              },
+            ],
     ),
     ...(both
       ? [
-          <CrossSportCard
-            key="foot"
-            result={result}
-            units={units}
-            weighted={weighted}
-            massKg={massKg}
-          />,
+          {
+            key: 'foot',
+            sport: 'ride' as const,
+            node: (
+              <CrossSportCard result={result} units={units} weighted={weighted} massKg={massKg} />
+            ),
+          },
         ]
       : []),
-  ].filter((tile) => tile !== null)
+  ]
   // A sport's tile that would hold only its name is left out, and with nothing else there is no section either.
   if (tiles.length === 0) return null
   return (
@@ -104,7 +114,14 @@ export function BalanceTiles({
       <h2 id="balance-tiles-title" className="sr-only">
         Headline numbers
       </h2>
-      {tiles}
+      <ol className="rows">
+        {tiles.map(({ key, sport, node }, index) => (
+          <li key={key} className="row" data-sport={sport}>
+            <RowIndex index={index} />
+            {node}
+          </li>
+        ))}
+      </ol>
     </section>
   )
 }

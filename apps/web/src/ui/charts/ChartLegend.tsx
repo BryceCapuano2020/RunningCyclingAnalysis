@@ -45,7 +45,14 @@ const LINE_KIND_CLASS: Record<SeriesKind, string> = {
 function keyFor(entry: ChartLegendEntry): ReactNode {
   switch (entry.swatch ?? 'solid') {
     case 'band':
-      return <span aria-hidden="true" className="chart-legend__key chart-legend__key--band" />
+      // A sport's band takes its wash and ink from data-sport; a neutral one keeps the grey.
+      return (
+        <span
+          aria-hidden="true"
+          className="chart-legend__key chart-legend__key--band"
+          data-sport={entry.kind === 'neutral' ? undefined : entry.kind}
+        />
+      )
     case 'band-strong':
       // Two layers of the band fill, with the median line through the middle.
       return (

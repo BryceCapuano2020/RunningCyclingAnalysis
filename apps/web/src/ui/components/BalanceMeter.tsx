@@ -4,7 +4,6 @@ import { balanceSentence } from './headlineText'
 import { EVEN_LABEL, capText, cappedEnds, meterFraction, type BalanceReading } from './balanceScale'
 import { DEFINITIONS } from '../pages/balanceDefinitions'
 import { Definition } from './Definition'
-import { SportIcon } from './icons'
 import {
   BASIS_TEXT,
   RANGE_WORD,
@@ -54,15 +53,13 @@ function readingStyle(reading: BalanceReading, adjusted: boolean): CSSProperties
 }
 
 /**
- * The balance between the two sports as one line: the dot is the best estimate and the band behind it the
- * range. The value and the range are written right under the dot, so the line needs no key. The sport on
- * the left is the first in BALANCE_PAIR, and a lead toward a sport moves the dot toward it.
+ * The balance between the two sports as one line: a hairline track with each sport's name at its own end in its own
+ * ink, a small tick at Even, and one ink mark for the best estimate. The value is written under the mark and the
+ * range as a meta line under that, so the line needs no key, band or fill. The sport on the left is the first in
+ * BALANCE_PAIR, and a lead toward a sport moves the mark toward it.
  */
 export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
   const { lead, lean } = reading
-  const bandEdges = [percentAt(lead.low), percentAt(lead.high)]
-  const bandLeft = Math.min(...bandEdges)
-  const bandRight = Math.max(...bandEdges)
   const value = meterValue(reading)
   const range = meterRange(reading)
   const capped = cappedEnds(lead)
@@ -73,22 +70,16 @@ export function BalanceMeter({ reading, adjusted = false }: BalanceMeterProps) {
       <div className="balance-meter__ends">
         <span className="balance-meter__end balance-meter__end--left" data-sport={LEFT}>
           {capped.left ? <span className="balance-meter__cap">{cap}</span> : null}
-          <SportIcon sport={LEFT} className="balance-meter__glyph" />
           {SPORT_TITLE[LEFT]}
         </span>
         <span className="balance-meter__even-label">{EVEN_LABEL}</span>
         <span className="balance-meter__end balance-meter__end--right" data-sport={RIGHT}>
-          <SportIcon sport={RIGHT} className="balance-meter__glyph" />
           {SPORT_TITLE[RIGHT]}
           {capped.right ? <span className="balance-meter__cap">{cap}</span> : null}
         </span>
       </div>
       <div className="balance-meter__plot">
         <div className="balance-meter__track" role="img" aria-label={nameOf(reading)}>
-          <span
-            className="balance-meter__band"
-            style={{ left: `${(bandLeft + bandRight) / 2}%`, width: `${bandRight - bandLeft}%` }}
-          />
           <span className="balance-meter__even" />
           <span className="balance-meter__dot" style={placedAt(lead.centre)} />
         </div>

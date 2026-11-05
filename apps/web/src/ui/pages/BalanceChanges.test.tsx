@@ -8,18 +8,21 @@ afterEach(cleanup)
 
 const LEAN: ChangeItem = {
   key: 'lean',
+  sport: 'run',
   direction: 'down',
   title: 'Lean eased 3 pts',
   body: 'Down from 9 pts toward running.',
 }
 const RIDE: ChangeItem = {
   key: 'ride-best',
+  sport: 'ride',
   direction: 'up',
   title: 'New 20 min ride best',
   body: '246 W, 6 W more than previous 12 weeks.',
 }
 const RUN: ChangeItem = {
   key: 'run-best',
+  sport: 'run',
   direction: 'up',
   title: 'New 20 min run best',
   body: '0:12 /mi faster than previous 12 weeks.',

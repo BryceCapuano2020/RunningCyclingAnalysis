@@ -12,11 +12,13 @@ import { NO_CLEAR_CHANGE, recordChange } from '../recordChange'
 import { effortLabel, valueAt } from '../records'
 
 /**
- * One thing that moved since the previous period: an arrow, its title and its line. Every item is one the change test
+ * One thing that moved since the previous period: its title, which says which way, and its line. Every item is one the change test
  * called: a best that left the band its two periods' efforts make by chance.
  */
 export interface ChangeItem {
   key: string
+  /** The sport the item is of, whose ink marks its index. */
+  sport: Sport
   direction: 'up' | 'down'
   title: string
   body: string
@@ -114,6 +116,7 @@ function bestItem(
   return {
     item: {
       key: `${sport}-best`,
+      sport,
       direction: better ? 'up' : 'down',
       title: bestTitle(sport, better, label),
       body: setOn(`${SHOWN[sport](now, units)}, ${words}`, source),

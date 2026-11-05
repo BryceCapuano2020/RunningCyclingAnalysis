@@ -1,14 +1,12 @@
 import { useId, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
-import { SportIcon } from '../components/icons'
 import { useHoldInputs } from '../holdContext'
 import { SPORT_LABEL } from '../sports'
 import { adjustedForWarmDays } from '../fitnessModel'
 import type { FitnessView } from '../fitnessModel'
 import { withDefinitions } from '../fitnessText'
 import { FitnessEvidence } from './FitnessEvidence'
-import { FitnessGlyph } from './FitnessGlyph'
 import { FitnessTrack } from './FitnessTrack'
 import './FitnessCard.css'
 
@@ -21,8 +19,8 @@ export interface FitnessCardProps {
 }
 
 /**
- * One sport's fitness at the same effort: the state as a word and a shape, the sentence that gives its size and
- * range, the change as a track, and the evidence behind a disclosure. A status that cannot call a trend gives its
+ * One sport's fitness at the same effort: the state as a word, the sentence that gives its size and range, the change
+ * as a track, and the evidence behind a disclosure. A status that cannot call a trend gives its
  * level and what a trend needs in place of the sentence and the track. A state
  * that began to be shown in the last few weeks wears a "New" marker with the week it began.
  */
@@ -45,14 +43,11 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       >
         {showSport ? (
           <header className="fitness-card__top">
-            <p className="fitness-card__sport">
-              <SportIcon sport={view.sport} />
-              <span>{SPORT_LABEL[view.sport]}</span>
-            </p>
+            <p className="meta fitness-card__sport">{SPORT_LABEL[view.sport]}</p>
           </header>
         ) : null}
-        <p id={`${id}-state`} className="display fitness-card__state">
-          <span>Held</span>
+        <p id={`${id}-state`} className="fitness-card__state">
+          Held
         </p>
         <p className="fitness-card__headline" data-testid="fitness-held">
           {`${partial.text} ${partial.action}`}
@@ -70,17 +65,13 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       {showSport || view.fresh !== null ? (
         <header className="fitness-card__top">
           {showSport ? (
-            <p className="tag tag--ink fitness-card__sport">
-              <SportIcon sport={view.sport} />
-              <span>{SPORT_LABEL[view.sport]}</span>
-            </p>
+            <p className="meta fitness-card__sport">{SPORT_LABEL[view.sport]}</p>
           ) : (
             <span />
           )}
           {view.fresh === null ? null : (
-            <p className="fitness-card__new" data-testid="fitness-new">
-              <strong>New</strong>
-              <span className="fitness-card__new-week">{`since ${view.fresh}`}</span>
+            <p className="meta fitness-card__new" data-testid="fitness-new">
+              New <span className="fitness-card__new-week">{`since ${view.fresh}`}</span>
             </p>
           )}
         </header>
@@ -88,9 +79,8 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       <div className="fitness-card__body">
         <div className="fitness-card__text">
           {/* Not a heading: the page's own title comes first, and the card is named by its state. */}
-          <p id={`${id}-state`} className="display fitness-card__state">
-            <FitnessGlyph glyph={view.glyph} />
-            <span>{view.label}</span>
+          <p id={`${id}-state`} className="fitness-card__state">
+            {view.label}
           </p>
           <p className="fitness-card__headline">{withDefinitions(view.headline, status, units)}</p>
           {view.changes.map((line) => (
@@ -125,7 +115,7 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
       </div>
       {waiting || !evidenceOf ? null : (
         <details
-          className="fitness-card__evidence"
+          className="disclosure fitness-card__evidence"
           onToggle={(event) => {
             if (event.currentTarget.open) setMounted(true)
           }}

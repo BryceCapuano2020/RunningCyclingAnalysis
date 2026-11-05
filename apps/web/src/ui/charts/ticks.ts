@@ -4,16 +4,16 @@ import { PHONE_CHART_WIDTH } from './plotBox'
 import { DEFAULT_ROOT_PX, readRoot, rootFontPx, textEm } from './rootFont'
 import type { RootText } from './rootFont'
 
-/** Below this width, x ticks are capped at four, and axis text is 12 px rather than 13. */
+/** Below this width, x ticks are capped at four. */
 export const NARROW_WIDTH = PHONE_CHART_WIDTH
 
 const LABEL_GAP = 8
 /** Candidate duration ticks on a log x axis: 1, 5, 10, 20, 30, 60, 120 and 180 minutes. */
 const TICK_DURATIONS_S = [60, 300, 600, 1200, 1800, 3600, 7200, 10800]
 
-/** Axis text in px: 13 on a wide chart, and 12 on a narrow one, the smallest that reads comfortably. */
-export function axisFontSize(width: number): number {
-  return width < NARROW_WIDTH ? 12 : 13
+/** Axis text in px: 12 (--text-xs) at every width, in the mono, whose glyphs GLYPH_EM measures. */
+export function axisFontSize(_width: number): number {
+  return 12
 }
 
 /**

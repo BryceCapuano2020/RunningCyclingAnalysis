@@ -64,7 +64,7 @@ export function CrossSportCard({ result, units, weighted, massKg }: CrossSportCa
       figure={{ number: formatPaceValue(speed, units), unit: PACE_UNIT[units] }}
     >
       <p className="stat-tile__line">{`From your ${formatPower(watts)} threshold.`}</p>
-      <details className="cross-sport__details">
+      <details className="disclosure cross-sport__details">
         <summary>See the pace curve</summary>
         <EquivalenceTable
           equivalents={result.equivalents}

@@ -8,12 +8,13 @@ import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { uncheckedNote } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
+import { NumText } from '../components/NumText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { holdWithRideOut } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
-import { eyebrowText, titleParts } from './balanceCopy'
+import { titleParts } from './balanceCopy'
 import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
 import { BalanceLede } from './BalanceLede'
@@ -113,6 +114,7 @@ export function BalanceHero({
       <div className="balance-hero__pair">
         <section className="balance-hero">
           {head(title)}
+          {controls}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
           {canShowAll && (
             <p>
@@ -127,7 +129,6 @@ export function BalanceHero({
           {levels === null ? action : null}
         </section>
         {levels}
-        {controls}
         {levels === null ? null : action}
       </div>
     )
@@ -141,32 +142,31 @@ export function BalanceHero({
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
         <div className="balance-hero__text">
-          <p className="eyebrow">{eyebrowText(period)}</p>
           {head(
             <>
               {lead}
-              {sport === null ? null : (
-                <em className="balance-hero__sport" data-sport={sport}>
-                  {noun}
-                </em>
-              )}
+              {sport === null ? null : noun}
             </>,
             'balance-hero__title',
           )}
-          <p className="lede secondary balance-hero__lede">
+          {controls}
+          <p className="balance-hero__lede">
             <BalanceLede
               reading={reading}
               durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
             />
           </p>
-          {target !== null && <p className="secondary">{target}</p>}
-          {few !== null && <p className="secondary">{few}</p>}
-          {unchecked !== null && <p className="secondary">{unchecked}</p>}
+          {target !== null && (
+            <p className="balance-hero__line">
+              <NumText text={target} />
+            </p>
+          )}
+          {few !== null && <p className="balance-hero__line">{few}</p>}
+          {unchecked !== null && <p className="balance-hero__line">{unchecked}</p>}
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
       {levels}
-      {controls}
       {action}
     </div>
   )

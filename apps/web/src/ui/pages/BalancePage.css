@@ -1,14 +1,14 @@
 /*
- * The headline runs the answer's full width. The text under it keeps the 62 character measure, as the
- * lede and the other lines do.
+ * The answer: the sentence in the serif at --display-2, the period's meta line under it, then the lead line and the
+ * lines that follow it at the prose measure. The meter, the levels and the share button stack under it.
  */
 .balance-hero {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .balance-hero > p {
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 
 /* The one prompt for a missing year of birth or sex: a short line and the button that acts on it. */
@@ -18,7 +18,6 @@
   justify-items: start;
 }
 
-/* The headline on its own line; the share button sits under the lede, on the same text column. */
 .balance-hero__head {
   display: block;
 }
@@ -29,32 +28,16 @@
   text-wrap: balance;
 }
 
-/*
- * At or below 359 px, which is HEADLINE_SMALL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. The size is set so
- * that at 130% text the headline still takes two lines, with no word alone on one.
- */
-@media (max-width: 359px) {
-  .balance-hero__head h1 {
-    /* A display size with no type token; see docs/design/system.md, Type. */
-    font-size: 1.7rem;
-  }
-}
-
-/* The answer, the meter, the levels, the period control and the share button stack with the gap a page's sections have. */
+/* The answer, the meter, the levels and the share button stack with the gap inside a stack. */
 .balance-hero__pair {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--stack-gap);
   min-width: 0;
 }
 
-/* What sits under the levels, such as the period control and the share button, keeps its own width. */
+/* What sits under the levels, such as the share button, keeps its own width. */
 .balance-hero__pair > :not(.balance-hero, .scale-figure, .balance-levels) {
   justify-self: start;
-}
-
-/* The meter sits a step apart from the sentence above it, so the line has room to breathe. */
-.balance-hero--answer {
-  margin-bottom: var(--space-3);
 }
 
 .balance-hero__text {
@@ -65,60 +48,27 @@
 }
 
 .balance-hero__text > p {
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 
+/* The sentence is the one thing on the page with weight. */
 .balance-hero__title {
-  /* A sentence, not a figure: display-1 would run it to three lines on a phone and push the meter off the first screen. */
   font-size: var(--display-2);
-  /* 28 ch of the smaller headline is the width 21 ch was at the old, larger size: wider than the lede. */
-  max-width: 28ch;
+  line-height: 1.15;
+  max-width: 34ch;
 }
 
-/* On a wide screen the headline is the page's largest type, so a tile (display-2) never equals it. */
-@media (min-width: 1081px) {
-  .balance-hero__title {
-    font-size: 4.25rem;
-  }
-}
-
-/* The sport the balance leans toward is underlined in its own colour: a shape, so the text stays ink. */
-.balance-hero__sport {
-  font-style: normal;
-  background: linear-gradient(transparent 82%, var(--sport-colour) 82% 94%, transparent 94%);
-}
-
-.balance-hero__lede {
-  /* The answer's sentence is the lead size, a step above the body. */
+.balance-hero__lede,
+.balance-hero__line {
+  font-family: var(--font-serif);
   font-size: var(--text-lead);
 }
 
-@media (max-width: 760px) {
-  .balance-hero__lede {
-    font-size: var(--text-md);
-  }
+.balance-hero__line {
+  color: var(--ink-secondary);
 }
 
-/*
- * On a phone (BALANCE_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts) the eyebrow goes, since the period control under
- * the levels states the dates, and the stack tightens, so the meter and both levels are on the first screen above the
- * section tabs at 390 x 844 and 320 x 640 with the sample notice showing.
- */
-@media (max-width: 479px) {
-  .balance-hero--answer .eyebrow {
-    display: none;
-  }
-
-  .balance-hero__pair {
-    gap: var(--space-4);
-  }
-
-  .balance-hero--answer {
-    margin-bottom: 0;
-  }
-}
-
-/* A keyboard-focused headline is not underlined here: the sport it names carries the only underline. */
+/* The app focuses the headline on arrival; a two-line sentence is not underlined for it. */
 .balance-hero__title[tabindex='-1']:focus-visible {
   text-decoration: none;
 }
@@ -128,38 +78,26 @@
   align-content: start;
 }
 
-/* The link to how sure the answer is sits under the tiles as one line. */
+/* The link to how sure the answer is sits under the list as one line. */
 .evidence-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-md);
 }
 
-/* A tile's effort chip, under its lines: the check that says how hard the best 20 minutes were. */
-/* A chart that has the page's width to itself, as a card: grade by duration. */
+/* A chart that has the page's width to itself: no box, a heading and its plot. */
 .balance__panel {
   display: grid;
   gap: var(--space-3);
   align-content: start;
   min-width: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow);
-}
-
-@media (max-width: 760px) {
-  .balance__panel {
-    padding: var(--space-4) var(--space-3);
-  }
 }
 
 .balance__source {
-  max-width: 62ch;
+  max-width: var(--measure);
   font-size: var(--text-md);
 }

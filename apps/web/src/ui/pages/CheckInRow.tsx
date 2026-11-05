@@ -41,7 +41,6 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
         <summary className="checkin-row__summary">
           <span className="checkin-row__line">{words.headline}</span>
           {/* The disclosure's mark is drawn in the stylesheet; the summary is already a button with an open state. */}
-          <span className="checkin-row__toggle" aria-hidden="true" />
         </summary>
         <div className="checkin-row__panel">
           <p className="checkin-row__full">{words.headline}</p>
@@ -54,7 +53,7 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
           )}
           <button
             type="button"
-            className="checkin-row__hide"
+            className="btn checkin-row__hide"
             onClick={() => {
               setHidden(true)
               seen.current('hide')

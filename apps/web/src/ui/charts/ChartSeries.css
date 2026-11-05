@@ -1,23 +1,23 @@
-/* Shared by the single-series charts: a 3 px line with round caps and joins, an area under it and markers. */
+/* Shared by the single-series charts: a 2 px line with round caps and joins, an area under it and markers. */
 .chart-series__line {
   fill: none;
-  stroke-width: 3px;
+  stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .chart-series__line--run {
-  stroke: var(--series-run);
+  stroke: var(--run-ink);
 }
 
 .chart-series__line--ride {
-  stroke: var(--series-ride);
+  stroke: var(--ride-ink);
 }
 
 /* The previous period is a thinner solid mid grey line, under the current one, so it reads as context and never as a sport. Dashes are for estimates only. */
 .chart-series__line--previous {
   stroke: var(--previous-mark);
-  stroke-width: 2px;
+  stroke-width: 1.5px;
 }
 
 /*
@@ -31,20 +31,26 @@
 
 /* The wash takes its sport's colour from data-sport, which sets --sport-colour on the area itself. */
 .chart-series__area--run {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
 }
 
 .chart-series__area--ride {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
 }
 
 /*
- * The cycling range on an age-grade trend: a soft tint between its edges, with an outline in the ride
- * colour, which keeps the edges at 3:1 or better against the surface.
+ * A sport's range on an age-grade trend: its wash between the edges, with a 1 px outline in the sport's ink,
+ * which keeps the edges at 3:1 or better against the paper.
  */
+.chart-series__band--run {
+  fill: var(--run-wash);
+  stroke: var(--run-ink);
+  stroke-width: 1px;
+}
+
 .chart-series__band--ride {
-  fill: var(--series-ride-soft);
-  stroke: var(--series-ride);
+  fill: var(--ride-wash);
+  stroke: var(--ride-ink);
   stroke-width: 1px;
 }
 
@@ -58,29 +64,29 @@
  * in the sport's colour over the card.
  */
 .chart-series__ring--ride {
-  fill: var(--surface-1);
-  stroke: var(--series-ride);
+  fill: var(--paper);
+  stroke: var(--ride-ink);
   stroke-width: 2.5px;
 }
 
 .chart-series__ring--run {
-  fill: var(--surface-1);
-  stroke: var(--series-run);
+  fill: var(--paper);
+  stroke: var(--run-ink);
   stroke-width: 2.5px;
 }
 
 /* A marker is its fill ringed in the card colour, so it stays legible where it crosses a line or a gridline. */
 .chart-series__marker {
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-width: 2.5;
 }
 
 .chart-series__marker--run {
-  fill: var(--series-run);
+  fill: var(--run-ink);
 }
 
 .chart-series__marker--ride {
-  fill: var(--series-ride);
+  fill: var(--ride-ink);
 }
 
 .chart-series__marker--previous {
@@ -106,23 +112,24 @@
 
 /* The band round a fitted trend: a wash of the sport, a little lighter than an area, since it is a range and not a total. */
 .chart-series__area--trend {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
   fill-opacity: 0.14;
 }
 
 /* A week with no value: a short mark on the date axis, in the muted text colour. */
 .chart-series__gap {
-  stroke: var(--text-muted);
+  stroke: var(--ink-secondary);
   stroke-width: 1;
 }
 
 /* Surface-coloured halo keeps the label legible over gridlines and lines. */
 .chart-series__label {
-  fill: var(--text-primary);
+  fill: var(--ink);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 400;
   paint-order: stroke;
-  stroke: var(--surface-0);
+  stroke: var(--paper);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -172,6 +179,11 @@
   .chart-series__band--ride {
     fill: Canvas;
     stroke: Highlight;
+  }
+
+  .chart-series__band--run {
+    fill: Canvas;
+    stroke: CanvasText;
   }
 
   /* A run marker is solid and a ride marker hollow, so the two sports differ by more than their colour. */

@@ -1,0 +1,106 @@
+/*
+ * Rows, not cards (docs/design/system.md, Layout). A list is numbered rows between hairlines: the mono index in its
+ * sport's ink, the serif title, a mono meta line, an optional disclosure, and at the right a sparkline where the row
+ * has a trend. A row's figure sits at the right of its title line, in mono, with its unit smaller.
+ */
+.section__head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: baseline;
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+
+.row:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.row:has(> .row__spark) {
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+}
+
+.row__index {
+  color: var(--sport-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.row__body {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  min-width: 0;
+}
+
+/* The title and, at its right, the row's figure. */
+.row__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  justify-self: stretch;
+}
+
+.row__title {
+  font-family: var(--font-serif);
+  font-size: var(--heading);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.row__figure {
+  font-family: var(--font-mono);
+  font-size: var(--title);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.row__unit {
+  color: var(--ink-secondary);
+  font-size: 0.75em;
+}
+
+.row__line {
+  max-width: var(--measure);
+  color: var(--ink-secondary);
+  font-size: var(--text-md);
+}
+
+.row__spark {
+  align-self: center;
+}
+
+/* A fold: a native disclosure with the base ▸ (base.css), no box, no background. */
+.disclosure > summary {
+  min-height: var(--button-height);
+  color: var(--ink-secondary);
+  font-size: var(--text-md);
+}
+
+.disclosure > summary:hover {
+  color: var(--ink);
+}
+
+.disclosure__body {
+  max-width: var(--measure);
+  padding: var(--space-1) 0 var(--space-2) var(--space-4);
+  color: var(--ink);
+  font-size: var(--text-md);
+}

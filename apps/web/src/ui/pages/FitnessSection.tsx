@@ -94,9 +94,7 @@ export function FitnessSection({
   if (partial !== undefined && partial !== null) {
     return (
       <section className="band fitness-section" aria-labelledby={id} data-testid="fitness-section">
-        <p id={id} className="eyebrow">
-          Your fitness
-        </p>
+        <h2 id={id}>Your fitness</h2>
         <p className="fitness-section__line" data-testid="fitness-held">
           {`${partial.text} ${partial.action}`}
         </p>
@@ -105,10 +103,7 @@ export function FitnessSection({
   }
   return (
     <section className="band fitness-section" aria-labelledby={id} data-testid="fitness-section">
-      {/* Not a heading either: on Balance the page's h1 follows, and the region is named by this line. */}
-      <p id={id} className="eyebrow">
-        Your fitness
-      </p>
+      <h2 id={id}>Your fitness</h2>
       {cards.length === 0 ? null : (
         <div className="fitness-section__cards">
           {cards.map((view) => (
