@@ -213,7 +213,7 @@ export function ProfilePage({
           {/* The pair and its one status line are one grid item, so the line adds a line, not a page gap. */}
           <div className="profile-sections">
             <div className="profile-pair">
-              <section className="section" aria-labelledby="profile-about">
+              <section className="section band" aria-labelledby="profile-about">
                 <h2 id="profile-about">About you</h2>
                 <div inert={accountLoading}>
                   <AthleteFields
@@ -231,7 +231,7 @@ export function ProfilePage({
                 </div>
               </section>
 
-              <section className="section" aria-labelledby="profile-body">
+              <section className="section band" aria-labelledby="profile-body">
                 <h2 id="profile-body">Body and bike</h2>
                 <div inert={accountLoading}>
                   {/* The units come first: they say what the weights below are measured in. */}
@@ -294,7 +294,7 @@ export function ProfilePage({
       ) : (
         accountsAvailable &&
         !accountLoading && (
-          <section className="section" aria-labelledby="profile-account">
+          <section className="section band" aria-labelledby="profile-account">
             <h2 id="profile-account">Account</h2>
             <p className="secondary">
               Sign in to keep your library on any device. Activity summaries are saved to your
@@ -307,7 +307,7 @@ export function ProfilePage({
         )
       )}
 
-      <section className="section" aria-labelledby="profile-get-files">
+      <section className="section band" aria-labelledby="profile-get-files">
         <h2 id="profile-get-files">Get your files</h2>
         <p className="secondary">
           Each guide shows how to export from the app or device that recorded your activities.
@@ -318,7 +318,7 @@ export function ProfilePage({
       </section>
 
       {signedIn && (
-        <section className="section" aria-labelledby="profile-files">
+        <section className="section band" aria-labelledby="profile-files">
           <h2 id="profile-files">Original files</h2>
           <FileRetention
             keepFiles={keepFiles}
@@ -332,7 +332,7 @@ export function ProfilePage({
       )}
 
       {signedIn && userId !== null && (
-        <section className="section" aria-labelledby="profile-titles">
+        <section className="section band" aria-labelledby="profile-titles">
           <h2 id="profile-titles">Activity titles</h2>
           <TitleUpload key={userId} userId={userId} />
         </section>
@@ -341,7 +341,7 @@ export function ProfilePage({
       <SavedLibraryCard analysis={analysis} signedIn={signedIn} />
 
       {canRemoveAll && (
-        <section className="section" aria-labelledby="profile-remove">
+        <section className="section band" aria-labelledby="profile-remove">
           <h2 id="profile-remove">Remove activities</h2>
           <p className="secondary">{removal.lead}</p>
           <div>

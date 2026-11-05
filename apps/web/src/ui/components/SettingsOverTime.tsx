@@ -7,7 +7,6 @@ import { MEASUREMENT_YEARS, isMeasurementYear } from '@rca/contract'
 import { messageOf } from '../../api/messageOf'
 import { SPORT_ACTIVITY } from '../sports'
 import { useNow } from '../useNow'
-import { useScrollRegion } from '../useScrollRegion'
 import { plural } from './plural'
 import { formatDay } from '../format/date'
 import {
@@ -23,6 +22,7 @@ import type { MeasurementsController } from '../useMeasurements'
 import { weightQuestion } from '../typicalWeight'
 import type { WeightReference } from '../typicalWeight'
 import { NumberField } from './NumberField'
+import './RowList.css'
 import './SettingsOverTime.css'
 
 export interface SettingsOverTimeProps {
@@ -97,8 +97,6 @@ export function SettingsOverTime({
   prefill = null,
 }: SettingsOverTimeProps) {
   const baseId = useId()
-  // At 320 px the table is wider than the page, so it scrolls and a keyboard reader can reach it.
-  const tableRegion = useScrollRegion('Your dated settings')
   const [choiceId, setChoiceId] = useState(FIRST_CHOICE.id)
   const [text, setText] = useState('')
   // The date the athlete picked. Until one is picked the form starts from today, and rolls over at midnight.
@@ -209,7 +207,7 @@ export function SettingsOverTime({
   }
 
   return (
-    <section className="section settings-over-time" aria-labelledby={`${baseId}-title`}>
+    <section className="section band settings-over-time" aria-labelledby={`${baseId}-title`}>
       <h2 id={`${baseId}-title`}>Settings over time</h2>
       <p className="secondary">Add dated values. Each activity uses the value from its day.</p>
       <form className="settings-over-time__form" onSubmit={(event) => void add(event)}>
@@ -298,46 +296,36 @@ export function SettingsOverTime({
         </div>
       )}
       {rows.length > 0 && (
-        <div className="table-scroll" {...tableRegion}>
-          <table className="settings-over-time__table">
-            <caption>Your dated settings</caption>
-            <thead>
-              <tr>
-                <th scope="col">Setting</th>
-                <th scope="col">From</th>
-                <th scope="col" className="num">
-                  Value
-                </th>
-                <th scope="col">
-                  <span className="sr-only">Delete</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((entry) => {
-                const label = settingLabel(entry.kind, entry.sport)
-                return (
-                  <tr key={measurementKey(entry)}>
-                    <td>{label}</td>
-                    <td>{dayText(entry.from)}</td>
-                    <td className="num">{displaySetting(entry.kind, entry.value, units)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn settings-over-time__delete"
-                        disabled={busy}
-                        aria-label={`Delete ${displaySetting(entry.kind, entry.value, units)}${entry.sport === undefined ? '' : ` (${SPORT_ACTIVITY[entry.sport]})`} from ${dayText(entry.from)}`}
-                        onClick={() => void remove(entry)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ol className="rows settings-over-time__rows" aria-label="Your dated settings">
+          {rows.map((entry, index) => {
+            const value = displaySetting(entry.kind, entry.value, units)
+            return (
+              <li
+                key={measurementKey(entry)}
+                className="row settings-over-time__row"
+                data-sport={entry.sport}
+              >
+                <span className="row__index" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div className="row__body">
+                  <span className="row__title">{settingLabel(entry.kind, entry.sport)}</span>
+                  <span className="meta">{dayText(entry.from)}</span>
+                </div>
+                <span className="row__figure num">{value}</span>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  aria-label={`Delete ${value}${entry.sport === undefined ? '' : ` (${SPORT_ACTIVITY[entry.sport]})`} from ${dayText(entry.from)}`}
+                  onClick={() => void remove(entry)}
+                >
+                  Delete
+                </button>
+              </li>
+            )
+          })}
+        </ol>
       )}
       {elsewhere > 0 && (
         <p className="secondary">

@@ -10,9 +10,9 @@
     <style>
       /* Self-contained: served for any unknown path, at any depth, so it uses no relative URL and no script. */
       :root {
-        --surface: #fbfaf8;
-        --text: #0a0a0a;
-        --muted: #6b6660;
+        --paper: #fbfaf8;
+        --ink: #0a0a0a;
+        --ink-secondary: #6b6660;
       }
       body {
         display: grid;
@@ -21,8 +21,8 @@
         place-items: center;
         padding: 24px 16px;
         box-sizing: border-box;
-        background: var(--surface);
-        color: var(--text);
+        background: var(--paper);
+        color: var(--ink);
         font-family: 'Newsreader', Georgia, serif;
         line-height: 1.5;
       }
@@ -30,15 +30,17 @@
         max-width: 32rem;
       }
       h1 {
-        margin: 0 0 8px;
-        font-size: 2rem;
+        margin: 0 0 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #dcd8d1;
+        font-size: 1.5rem;
         font-weight: 500;
         line-height: 1.1;
       }
       p {
         margin: 0 0 24px;
-        color: var(--muted);
-        font-size: 1.125rem;
+        color: var(--ink-secondary);
+        font-size: 1.0625rem;
       }
       a {
         display: inline-flex;
@@ -46,15 +48,15 @@
         min-height: 44px;
         padding: 0 20px;
         border-radius: 8px;
-        background: var(--text);
-        color: var(--surface);
+        background: var(--ink);
+        color: var(--paper);
         font-family: system-ui, sans-serif;
         font-weight: 500;
         text-decoration: none;
       }
       a:focus-visible {
-        outline: 3px solid var(--text);
-        outline-offset: 3px;
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
       }
     </style>
   </head>

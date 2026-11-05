@@ -1,13 +1,13 @@
-/* Prose in as many columns as fit at the reading measure, two at most: a wide page uses its width, a phone has one. */
+/* Prose: serif at --text-md, one column at the reading measure. */
 .method__text {
-  max-width: calc(var(--measure) * 2 + var(--space-6));
-  columns: var(--measure) 2;
-  column-gap: var(--space-6);
+  max-width: var(--measure);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  line-height: 1.6;
+  text-wrap: pretty;
 }
 
-/* A paragraph, a list or a heading with its first lines stays in one column. */
 .method__text > * {
-  break-inside: avoid;
   margin: 0 0 var(--space-3);
 }
 
@@ -15,18 +15,7 @@
   margin-bottom: 0;
 }
 
-/* A heading starts a part, so it keeps clear of the list or paragraph above it, and stays with the lines after it. */
+/* A heading starts a part, so it keeps clear of the list or paragraph above it. */
 .method__text > h3 {
   margin-top: var(--space-4);
-  break-after: avoid;
-}
-
-/* A list of facts may continue in the next column, but one fact stays whole. */
-.method__text > ul {
-  break-inside: auto;
-  max-width: none;
-}
-
-.method__text > ul > li {
-  break-inside: avoid;
 }

@@ -39,7 +39,7 @@ const LIMITS = [
 /** The method, the source and the limits of the age grades and levels, on How sure is this?. */
 export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
   return (
-    <section className="section" aria-labelledby={SECTION_ID.grades}>
+    <section className="section band" aria-labelledby={SECTION_ID.grades}>
       <h2 id={SECTION_ID.grades} tabIndex={-1}>
         Age grades and levels
       </h2>

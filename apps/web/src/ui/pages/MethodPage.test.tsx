@@ -112,6 +112,17 @@ async function openAllEvidence(container: HTMLElement): Promise<void> {
   }
 }
 
+/** The short answer's three lines: recorded and checks from behind Details, the estimate as the one line shown. */
+function answerLines(): HTMLElement[] {
+  const group = screen.getByRole('group', { name: 'The short answer' })
+  const items = within(group).getAllByRole('listitem', { hidden: true })
+  return [
+    items[0],
+    group.querySelector('.method__answer-text') as HTMLElement,
+    items[1],
+  ] as HTMLElement[]
+}
+
 describe('MethodPage answer', () => {
   it('is the page heading, with a link back to Balance', () => {
     renderPage()
@@ -123,13 +134,15 @@ describe('MethodPage answer', () => {
     expect(screen.getByRole('link', { name: 'Back to Balance' })).toHaveAttribute('href', '#/')
   })
 
-  it('opens with three lines: what is recorded, the balance verdict, and how far to trust it', () => {
+  it('opens with one line, the balance verdict, and keeps what is recorded and how far to trust it behind Details', () => {
     renderPage(makeResult(CONTRIBUTING))
 
-    const lines = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
-      'listitem',
-    )
+    const lines = answerLines()
     expect(lines).toHaveLength(3)
+    expect(
+      screen.getByRole('group', { name: 'The short answer' }).querySelectorAll(':scope > p'),
+    ).toHaveLength(1)
+    expect(screen.getByText('Details').closest('details')).not.toHaveAttribute('open')
     expect(lines[0]).toHaveTextContent(
       'Running efforts, and ride power from a power meter, are recorded.',
     )
@@ -144,9 +157,7 @@ describe('MethodPage answer', () => {
     // leans toward running. A reversed lean would read toward cycling and fail here.
     renderPage(makeResult(CONTRIBUTING))
 
-    const line = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
-      'listitem',
-    )[1]
+    const line = answerLines()[1]
     expect(line).toHaveTextContent(
       'Your balance leans toward running. Running 12% higher in energy (5% to 20%). The range stays on one side of level.',
     )
@@ -167,9 +178,7 @@ describe('MethodPage answer', () => {
       }),
     )
 
-    const text =
-      within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole('listitem')[1]
-        ?.textContent ?? ''
+    const text = answerLines()[1]?.textContent ?? ''
     const lean = text.indexOf('Your balance leans toward')
     const range = text.indexOf('Running 10% higher in energy')
     const verdict = text.indexOf('The range crosses level, so treat this as close.')
@@ -183,20 +192,17 @@ describe('MethodPage answer', () => {
   it('says the balance waits for the weight, and keeps the run estimate on its own', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
-    const line = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
-      'listitem',
-    )[1]
+    const line = answerLines()[1]
     expect(line).toHaveTextContent('Your balance waits for your weight.')
   })
 
   it('names each chip by its word and where it goes, and moves focus there', () => {
     renderPage(makeResult(CONTRIBUTING))
-    const answer = within(screen.getByRole('list', { name: 'The short answer' }))
+    const answer = within(screen.getByRole('group', { name: 'The short answer' }))
 
-    // A run's grade is read as recorded, and a ride's as an estimate, both in the same section.
+    // A run's grade is read as recorded, in the age grades section.
     fireEvent.click(answer.getByRole('button', { name: 'Recorded: see Age grades and levels' }))
     expect(screen.getByRole('heading', { name: 'Age grades and levels' })).toHaveFocus()
-    fireEvent.click(answer.getByRole('button', { name: 'Estimated: see Age grades and levels' }))
     expect(screen.getByRole('heading', { name: 'Age grades and levels' })).toHaveFocus()
     fireEvent.click(answer.getByRole('button', { name: 'Checks below: see Heart-rate check' }))
     expect(screen.getByRole('heading', { name: 'Heart-rate check' })).toHaveFocus()
@@ -269,12 +275,10 @@ describe('MethodPage answer', () => {
     expect(document.body.textContent).not.toMatch(/\(12 May – 3 Aug 2025\)|\(this period\)/)
   })
 
-  it('sets the dated period in the page head, beside the heading', () => {
+  it('keeps the dated period behind Details, not as a line under the heading', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
 
-    expect(
-      screen.getByText('Counted over 12 May – 3 Aug 2025.').closest('.page-head'),
-    ).not.toBeNull()
+    expect(screen.getByText('Counted over 12 May – 3 Aug 2025.').closest('details')).not.toBeNull()
   })
 
   it('sets the page on the method class, which holds its paragraphs to a 68 character measure', () => {
@@ -1168,9 +1172,7 @@ describe('MethodPage without a result', () => {
       'Once your files load, this view puts running and cycling on one scale',
     )
     expect(energy).not.toHaveTextContent('This view is that ratio')
-    const lines = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
-      'listitem',
-    )
+    const lines = answerLines()
     expect(lines[1]).toHaveTextContent('Thresholds, ride levels and the balance are estimates.')
     expect(document.body.textContent).not.toMatch(/\(last 6 weeks\)|\(all time\)|estimates from \d/)
   })

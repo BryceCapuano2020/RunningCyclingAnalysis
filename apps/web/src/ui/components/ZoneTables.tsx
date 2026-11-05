@@ -92,7 +92,7 @@ export function ZoneTables({
     [now, athlete, estimates],
   )
   return (
-    <section className="section zone-tables" aria-labelledby={titleId}>
+    <section className="section band zone-tables" aria-labelledby={titleId}>
       <h2 id={titleId}>Training zones</h2>
       {waitingForWeight && (
         <p className="secondary">

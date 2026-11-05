@@ -67,15 +67,13 @@ describe('dated settings on Profile, signed in', () => {
       { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2023-02-01' },
     ])
     render(<App />)
-    const table = await screen.findByRole('table', { name: 'Your dated settings' })
+    const table = await screen.findByRole('list', { name: 'Your dated settings' })
     const rows = within(table)
-      .getAllByRole('row')
-      .slice(1)
+      .getAllByRole('listitem')
       .map((row) =>
-        within(row)
-          .getAllByRole('cell')
-          .slice(0, 3)
-          .map((cell) => cell.textContent),
+        ['.row__title', '.meta', '.row__figure'].map(
+          (part) => row.querySelector(part)?.textContent,
+        ),
       )
     expect(rows).toEqual([
       ['Body weight', expect.stringContaining('2024'), '80 kg'],
@@ -87,7 +85,7 @@ describe('dated settings on Profile, signed in', () => {
   it('leaves the profile weight the only field named body weight, by any partial match', async () => {
     measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     expect(screen.getAllByLabelText(/body weight/i)).toHaveLength(1)
   })
 
@@ -112,7 +110,7 @@ describe('dated settings on Profile, signed in', () => {
       { kind: 'massKg', value: 75, from: '2024-05-01' },
     ])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2022-01-01' } })
     await addSetting(user, 'Body weight', '90')
     await waitFor(() => expect(measurementsApi.putMeasurement).toHaveBeenCalled())
@@ -123,7 +121,7 @@ describe('dated settings on Profile, signed in', () => {
     const user = userEvent.setup()
     measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '78{Enter}')
@@ -154,7 +152,7 @@ describe('dated settings on Profile, signed in', () => {
       { kind: 'massKg', value: 75, from: '2024-05-01' },
     ])
     render(<App />)
-    const table = await screen.findByRole('table', { name: 'Your dated settings' })
+    const table = await screen.findByRole('list', { name: 'Your dated settings' })
     // The latest is first. Deleting it leaves the 90 kg of 2020 in effect today.
     await user.click(within(table).getAllByRole('button', { name: /^Delete \d+ kg/ })[0]!)
     await waitFor(() =>
@@ -190,7 +188,7 @@ describe('dated settings on Profile, signed in', () => {
   it('shows the dated weight in effect today as the current weight, whatever the profile holds', async () => {
     measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     await waitFor(() => expect(screen.getByLabelText('Body weight')).toHaveValue('90'))
   })
 
@@ -200,7 +198,7 @@ describe('dated settings on Profile, signed in', () => {
       { kind: 'massKg', value: 60, from: '2099-01-01' },
     ])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     await waitFor(() => expect(screen.getByLabelText('Body weight')).toHaveValue('90'))
   })
 
@@ -253,10 +251,10 @@ describe('dated settings on Profile, signed in', () => {
         .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValue([OLD_MASS])
       render(<App />)
-      expect(screen.queryByRole('table', { name: 'Your dated settings' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: 'Your dated settings' })).not.toBeInTheDocument()
       expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(1)
       await waitOutRetry()
-      expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+      expect(await screen.findByRole('list', { name: 'Your dated settings' })).toBeInTheDocument()
       expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(2)
       expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     })
@@ -279,7 +277,7 @@ describe('dated settings on Profile, signed in', () => {
       await renderFailed()
       measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
       await user.click(screen.getByRole('button', { name: 'Try again' }))
-      expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+      expect(await screen.findByRole('list', { name: 'Your dated settings' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
       const body = screen.getByLabelText('Body weight')
       await user.clear(body)
@@ -324,7 +322,7 @@ describe('dated settings on Profile, signed in', () => {
     measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
     measurementsApi.putMeasurement.mockRejectedValueOnce(new Error('Too many settings'))
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '78{Enter}')
@@ -338,7 +336,7 @@ describe('dated settings on Profile, signed in', () => {
     const user = userEvent.setup()
     measurementsApi.listMeasurements.mockResolvedValue([{ ...OLD_MASS, from: TODAY }])
     render(<App />)
-    await screen.findByRole('table', { name: 'Your dated settings' })
+    await screen.findByRole('list', { name: 'Your dated settings' })
     await addSetting(user, 'Body weight', '88')
     expect(await screen.findByText(/^Updated body weight from/)).toBeInTheDocument()
   })
@@ -365,7 +363,7 @@ describe('dated settings on Profile, signed in', () => {
       await screen.findByText(/This browser also holds 1 dated setting from before you signed in/),
     ).toBeInTheDocument()
     // They are not the account's, so they are not listed or used.
-    expect(screen.queryByRole('table', { name: 'Your dated settings' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Your dated settings' })).not.toBeInTheDocument()
   })
 })
 
@@ -376,7 +374,7 @@ describe('dated settings on Profile, signed out', () => {
     const user = userEvent.setup()
     render(<App />)
     await addSetting(user, 'Max heart rate (ride)', '181')
-    expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: 'Your dated settings' })).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')).toEqual([
       { kind: 'maxHeartRate', sport: 'ride', value: 181, from: TODAY },
     ])
@@ -388,7 +386,7 @@ describe('dated settings on Profile, signed out', () => {
     const user = userEvent.setup()
     localStorage.setItem(STORAGE_KEY, JSON.stringify([OLD_MASS]))
     render(<App />)
-    expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: 'Your dated settings' })).toBeInTheDocument()
     await addSetting(user, 'Body weight', '82.5 kg')
     await waitFor(() =>
       expect(setPreferences).toHaveBeenCalledWith(

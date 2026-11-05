@@ -22,7 +22,7 @@
   min-width: 0;
   max-width: 100%;
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .settings-over-time__date {
@@ -40,9 +40,9 @@
   min-height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   font: inherit;
   font-size: var(--text-md);
 }
@@ -59,17 +59,22 @@
   margin: 0;
 }
 
-.settings-over-time__table {
-  width: 100%;
+/* The dated settings are numbered rows (RowList.css): index, setting and date, value, Delete. A row with no sport takes the
+   neutral index; a setting of one sport takes that sport's ink. */
+.settings-over-time__row {
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
+  align-items: center;
 }
 
-.settings-over-time__table caption {
-  padding-bottom: var(--space-2);
-  color: var(--text-secondary);
-  text-align: left;
+.settings-over-time__row .row__index {
+  color: var(--ink-secondary);
 }
 
-.settings-over-time__delete {
-  min-height: var(--control-height);
+.settings-over-time__row[data-sport] .row__index {
+  color: var(--sport-ink);
+}
+
+.settings-over-time__row .row__figure {
   font-size: var(--text-md);
+  padding-inline: var(--space-3);
 }

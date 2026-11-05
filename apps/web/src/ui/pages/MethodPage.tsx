@@ -20,7 +20,6 @@ import {
 } from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
 import { HEADLINE_LABEL } from '../grades'
-import { CheckIcon, WarningIcon } from '../components/icons'
 import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
 import { TopicBody } from '../components/TopicBody'
@@ -160,53 +159,50 @@ export function MethodPage({
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           How sure is this?
         </h1>
-        {period && <p className="muted">{`Counted over ${periodDates(period)}.`}</p>}
       </div>
 
-      <ul className="lede method__answer" aria-label="The short answer">
-        <li>
-          <button
-            type="button"
-            className="chip chip--good method__chip"
-            aria-label={`Recorded: see ${SECTION_NAME.grades}`}
-            onClick={() => focusSection(SECTION_ID.grades)}
-          >
-            <CheckIcon />
-            Recorded
-          </button>
-          <span>Running efforts, and ride power from a power meter, are recorded.</span>
-        </li>
-        <li>
-          <button
-            type="button"
-            className="chip method__chip"
-            aria-label={`Estimated: see ${SECTION_NAME.grades}`}
-            onClick={() => focusSection(SECTION_ID.grades)}
-          >
-            <WarningIcon />
-            Estimated
-          </button>
-          <span className="method__answer-text">
-            {verdict !== null && <span>{verdict} </span>}
-            <span>
-              {hasResult
-                ? estimatesOf(runs, rides, weightKnown)
-                : 'Thresholds, ride levels and the balance are estimates.'}
-            </span>
+      <div className="lede method__answer" role="group" aria-label="The short answer">
+        <p className="method__answer-text">
+          {verdict !== null && <span>{verdict} </span>}
+          <span>
+            {hasResult
+              ? estimatesOf(runs, rides, weightKnown)
+              : 'Thresholds, ride levels and the balance are estimates.'}
           </span>
-        </li>
-        <li>
-          <button
-            type="button"
-            className="chip method__chip"
-            aria-label={`Checks below: see ${SECTION_NAME.heart}`}
-            onClick={() => focusSection(SECTION_ID.heart)}
-          >
-            Checks below
-          </button>
-          <span>These checks show how far to trust them.</span>
-        </li>
-      </ul>
+        </p>
+        <details className="method__details">
+          <summary>Details</summary>
+          <ul>
+            <li>
+              <button
+                type="button"
+                className="method__chip"
+                aria-label={`Recorded: see ${SECTION_NAME.grades}`}
+                onClick={() => focusSection(SECTION_ID.grades)}
+              >
+                Recorded
+              </button>
+              <span>Running efforts, and ride power from a power meter, are recorded.</span>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="method__chip"
+                aria-label={`Checks below: see ${SECTION_NAME.heart}`}
+                onClick={() => focusSection(SECTION_ID.heart)}
+              >
+                Checks below
+              </button>
+              <span>These checks show how far to trust them.</span>
+            </li>
+            {period && (
+              <li>
+                <span className="meta">{`Counted over ${periodDates(period)}.`}</span>
+              </li>
+            )}
+          </ul>
+        </details>
+      </div>
 
       <nav className="method__contents" aria-label="On this page">
         <ul>
@@ -220,7 +216,7 @@ export function MethodPage({
         </ul>
       </nav>
 
-      <section className="section" aria-labelledby={SECTION_ID.energy}>
+      <section className="section band" aria-labelledby={SECTION_ID.energy}>
         <h2 id={SECTION_ID.energy} tabIndex={-1}>
           The energy view
         </h2>
@@ -283,7 +279,7 @@ export function MethodPage({
 
       <AgeGradingSection gradedSex={gradedSex} />
 
-      <section className="section" aria-labelledby={SECTION_ID.heart}>
+      <section className="section band" aria-labelledby={SECTION_ID.heart}>
         <h2 id={SECTION_ID.heart} tabIndex={-1}>
           Heart-rate check
         </h2>
@@ -331,7 +327,7 @@ export function MethodPage({
       </section>
 
       {showAccuracy && (
-        <section className="section" aria-labelledby={SECTION_ID.accuracy}>
+        <section className="section band" aria-labelledby={SECTION_ID.accuracy}>
           <h2 id={SECTION_ID.accuracy} tabIndex={-1}>
             Virtual power meter accuracy
           </h2>

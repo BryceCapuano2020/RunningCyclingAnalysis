@@ -1,21 +1,36 @@
-/* The three-line answer: what is recorded, the balance, and how far to trust it. */
+/* One line under the title, the estimate; the three labels and the period's dates sit behind one disclosure. */
 .method__answer {
   display: grid;
-  gap: var(--space-4);
-  list-style: none;
+  gap: var(--space-3);
+}
+
+.method__answer-text {
+  max-width: var(--measure);
   margin: 0;
+}
+
+.method__answer ul {
+  display: grid;
+  margin: var(--space-2) 0 0;
   padding: 0;
+  list-style: none;
 }
 
 .method__answer li {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--hairline);
+}
+
+.method__answer li:last-child {
+  border-bottom: 1px solid var(--hairline);
 }
 
 /* One pixel above the compact phone width (ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX), a line's
-   text sits beside its chip rather than wrapping beneath it. */
+   text sits beside its label rather than wrapping beneath it. */
 @media (min-width: 561px) {
   .method__answer li > span {
     flex: 1 1 0;
@@ -28,12 +43,25 @@
   display: block;
 }
 
-/* A chip that is a button moves focus to its section. It keeps the chip's type and is a full control. */
+/* A label that is a button moves focus to its section. It is metadata type in a fixed column, and a full control. */
 .method__answer button.method__chip {
-  min-height: var(--control-height);
+  flex: 0 0 7rem;
+  min-height: var(--button-height);
+  padding: 0;
   border: 0;
+  background: none;
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
   line-height: inherit;
+  text-align: left;
+  text-transform: uppercase;
   cursor: pointer;
+}
+
+.method__answer button.method__chip:hover {
+  color: var(--ink);
 }
 
 /* The on-page contents. Each entry is a button that moves focus, since a fragment would change the hash route. */
@@ -51,7 +79,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--text-primary);
+  color: var(--ink);
   font: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -64,7 +92,7 @@
 }
 
 .method__contents button:active {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 /* A section's paragraphs outside its columns (the one line that stands in for a chart) keep the reading measure. */
@@ -78,6 +106,8 @@
   max-width: var(--measure);
   margin: 0;
   padding-left: 1.25rem;
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
 }
 
 /* Charts sit behind a disclosure, and the claim above them stays in words. */
@@ -96,4 +126,9 @@
 
 .method__evidence[open] > summary {
   margin-bottom: var(--space-1);
+}
+
+/* A list of facts keeps a paragraph's space under it, as the text round it does. */
+.method__text > .method__facts {
+  margin-bottom: var(--space-3);
 }

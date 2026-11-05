@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import { SettingsOverTime } from './SettingsOverTime'
@@ -49,14 +49,14 @@ describe('the From date', () => {
   })
 })
 
-describe('the dated settings table', () => {
+describe('the dated settings rows', () => {
   const entries = [
     { kind: 'massKg' as const, value: 78, from: '2026-08-15' },
-    { kind: 'massKg' as const, value: 75, from: '2025-08-15' },
+    { kind: 'thresholdPower' as const, sport: 'ride' as const, value: 250, from: '2025-08-15' },
   ]
 
-  function renderTable() {
-    return render(
+  it('lists each setting as a numbered row with its date, its value and a Delete', () => {
+    render(
       <SettingsOverTime
         entries={entries}
         state="ready"
@@ -65,32 +65,16 @@ describe('the dated settings table', () => {
         onRemove={async () => undefined}
       />,
     )
-  }
-
-  it('is a plain box while it fits, so it is not an extra tab stop', () => {
-    renderTable()
-    expect(screen.queryByRole('region', { name: 'Your dated settings' })).not.toBeInTheDocument()
-  })
-
-  it('is a named, focusable scroll region once it is wider than its box, so its Value and Delete columns can be reached', () => {
-    class MeasuringObserver {
-      private readonly callback: () => void
-      constructor(callback: () => void) {
-        this.callback = callback
-      }
-      observe() {
-        this.callback()
-      }
-      disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', MeasuringObserver)
-    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(434)
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(288)
-    renderTable()
-    expect(screen.getByRole('region', { name: 'Your dated settings' })).toHaveAttribute(
-      'tabindex',
-      '0',
+    const rows = within(screen.getByRole('list', { name: 'Your dated settings' })).getAllByRole(
+      'listitem',
     )
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('01')
+    expect(rows[0]).toHaveTextContent('78')
+    expect(rows[1]).toHaveAttribute('data-sport', 'ride')
+    expect(
+      within(rows[1] as HTMLElement).getByRole('button', { name: /^Delete 250/ }),
+    ).toBeVisible()
   })
 })
 
