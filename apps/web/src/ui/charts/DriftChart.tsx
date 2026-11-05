@@ -33,6 +33,8 @@ export interface DriftChartProps {
   names: Readonly<Record<string, string>>
   /** The finding, set as the chart's title. */
   takeaway: string
+  /** The section's heading says the finding: the chart does not set it again, and its name is for a screen reader alone. */
+  headed?: boolean
   /** The middle effort's decoupling in percent, a fall being positive: drawn as a line across the dots. */
   medianPct: number
 }
@@ -113,7 +115,14 @@ function changeCell(point: DriftPoint): string {
  * second, by date, a fall below zero, with a line at the median across them and the finding as the title. A dashed line at the common 5% fall reference is named in the key. No line joins the
  * dots, since a line would claim the efforts between them.
  */
-export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftChartProps) {
+export function DriftChart({
+  sport,
+  points,
+  names,
+  takeaway,
+  headed = false,
+  medianPct,
+}: DriftChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const layoutOf = sizedOnce((size: ChartSize) => layout(points, medianPct, size))
   const nameOf = (point: DriftPoint) => names[point.activityId] ?? formatDay(point.startMs)
@@ -121,7 +130,8 @@ export function DriftChart({ sport, points, names, takeaway, medianPct }: DriftC
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={`Heart rate drift on steady ${SPORT_PLURAL[sport]}`}
-      takeaway={takeaway}
+      titleHidden={headed}
+      takeaway={headed ? undefined : takeaway}
       description={driftDescription(sport)}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? gutterPx(medianPct) : undefined)}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}

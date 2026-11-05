@@ -14,6 +14,10 @@ import { wholeText } from '../test/wholeText'
 
 afterEach(cleanup)
 
+/** The section by its heading, which is the durability finding, or the drift's where there is no durability. */
+const DURABILITY = /^Durability: /
+const DRIFT = /^Heart rate drift: /
+
 function renderPage(sport: Sport, lateEvidence: LateEvidence) {
   const result = makeResult({
     activities: [makeActivity({ id: `${sport}-1`, sport, name: 'Sunday long' })],
@@ -45,29 +49,29 @@ function renderPage(sport: Sport, lateEvidence: LateEvidence) {
 
 describe('durability on a sport page', () => {
   it.each(['run', 'ride'] as const)(
-    'is open on a %s page, and its row says what it found: durability and heart rate drift',
+    'is open on a %s page, headed by its finding, and its row says both: durability and heart rate drift',
     (sport) => {
       renderPage(sport, lateEvidenceFor(sport))
-      const row = closedRow('Durability')
+      const row = closedRow(DURABILITY)
       expect(row).toMatch(
-        /^DurabilityDurability: \d+% of your best 20 min after 90 min\. Heart rate drift: efficiency fell 3%\.$/,
+        /^Durability: \d+% of your best 20 min after 90 min\.Heart rate drift: efficiency fell 3%\.$/,
       )
-      const region = screen.getByRole('region', { name: 'Durability' })
+      const region = screen.getByRole('region', { name: DURABILITY })
       expect(region.querySelector('details')).toHaveAttribute('open')
-      // Both charts are drawn from the start, and the page's row does not say them a second time while it is open.
+      // Both charts are drawn from the start, and the page's row does not say the drift a second time while it is open.
       expect(within(region).getAllByRole('figure')).toHaveLength(2)
       expect(region).toHaveAttribute('data-restated')
+      // The finding is said once on screen: the heading, not the heading and the chart's headline.
+      expect(within(region).getAllByText(DURABILITY)).toHaveLength(1)
     },
   )
 
-  it('draws both charts, each titled by its finding', () => {
+  it('draws both charts, the first under the section’s heading and the second titled by its finding', () => {
     renderPage('run', lateEvidenceFor('run'))
-    const section = screen.getByRole('region', { name: 'Durability' })
+    const section = screen.getByRole('region', { name: DURABILITY })
+    expect(section).toHaveAccessibleName(/^Durability: \d+% of your best 20 min after 90 min\.$/)
     const figures = within(section).getAllByRole('figure')
     expect(figures).toHaveLength(2)
-    expect(figures[0]).toHaveAccessibleDescription(
-      /^Durability: \d+% of your best 20 min after 90 min\.$/,
-    )
     expect(figures[1]).toHaveAccessibleDescription('Heart rate drift: efficiency fell 3%.')
     // Each chart's eyebrow and headline say the one term.
     expect(figures[0]).toHaveAccessibleName('Durability of best efforts')
@@ -80,25 +84,21 @@ describe('durability on a sport page', () => {
 
   it('says "at least" where no session behind the late bests was shown hard', () => {
     renderPage('run', { ...lateEvidenceFor('run'), ruler: null })
-    expect(closedRow('Durability')).toMatch(
-      /Durability: at least \d+% of your best 20 min after 90 min\./,
-    )
-    const section = screen.getByRole('region', { name: 'Durability' })
-    expect(within(section).getAllByRole('figure')[0]).toHaveAccessibleDescription(
-      /^Durability: at least \d+% of your best 20 min after 90 min\.$/,
+    expect(closedRow(DURABILITY)).toMatch(
+      /^Durability: at least \d+% of your best 20 min after 90 min\./,
     )
   })
 
   it('names the window in the row when the whole library is read, for each half', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durabilityPooled: true, driftPooled: true })
-    expect(closedRow('Durability')).toMatch(
-      /Durability: 94% of your best 20 min after 90 min, all time\. Heart rate drift: efficiency fell 3%, all time\.$/,
+    expect(closedRow(DURABILITY)).toMatch(
+      /Durability: 94% of your best 20 min after 90 min, all time\.Heart rate drift: efficiency fell 3%, all time\.$/,
     )
   })
 
   it('keeps the activity count out of the stat', () => {
     renderPage('ride', lateEvidenceFor('ride'))
-    expect(closedRow('Durability')).not.toMatch(/\d+ rides/)
+    expect(closedRow(DURABILITY)).not.toMatch(/\d+ rides/)
   })
 
   it('shows the durability alone, and says what the library has of drift under it, when drift is short', () => {
@@ -106,9 +106,9 @@ describe('durability on a sport page', () => {
       ...lateEvidenceFor('run'),
       drift: lateEvidenceFor('run').drift.slice(0, 2),
     })
-    expect(closedRow('Durability')).toMatch(/Durability: \d+% of your best 20 min after 90 min\.$/)
-    expect(closedRow('Durability')).not.toMatch(/drift/i)
-    const section = screen.getByRole('region', { name: 'Durability' })
+    expect(closedRow(DURABILITY)).toMatch(/^Durability: \d+% of your best 20 min after 90 min\.$/)
+    expect(closedRow(DURABILITY)).not.toMatch(/drift/i)
+    const section = screen.getByRole('region', { name: DURABILITY })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
       within(section).getByText(
@@ -119,8 +119,10 @@ describe('durability on a sport page', () => {
 
   it('shows the drift alone when no late best has enough activities behind it', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durability: NO_LATE_EVIDENCE.ride.durability })
-    expect(closedRow('Durability')).toBe('DurabilityHeart rate drift: efficiency fell 3%.')
-    const section = screen.getByRole('region', { name: 'Durability' })
+    expect(closedRow(DRIFT)).toBe('Heart rate drift: efficiency fell 3%.')
+    const section = screen.getByRole('region', { name: DRIFT })
+    // The drift's finding heads the section, so its chart does not set it again.
+    expect(within(section).getAllByText(DRIFT)).toHaveLength(1)
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(within(section).queryByText(/overall/)).toBeNull()
     expect(
@@ -149,7 +151,8 @@ describe('durability on a sport page', () => {
       .getAllByRole('region')
       .map((region) => region.getAttribute('aria-label'))
       .filter((name) => name !== null)
-    expect(names.indexOf('Durability')).toBeGreaterThan(-1)
-    expect(names.indexOf('Durability')).toBeLessThan(names.indexOf('All best efforts'))
+    const durability = names.findIndex((name) => DURABILITY.test(name))
+    expect(durability).toBeGreaterThan(-1)
+    expect(durability).toBeLessThan(names.indexOf('All best efforts'))
   })
 })

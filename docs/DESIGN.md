@@ -310,7 +310,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   ("Age grade at threshold") at display size with its percent, one line of the threshold and the age ("6:28 /mi at age 37."),
   and the level ladder on the neutral level bands, a dot for a recorded effort and a ring with its range for an estimated one, with no key in words under it
   and a link to how it is graded. Then the period
-  control, then "On this page", then the sport's sections as the rows its list gives (`SPORT_ROWS` in
+  control, then the sport's sections as the rows its list gives (`SPORT_ROWS` in
   `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or drops a section there and
   the page maps it). The page's title has one ▸ Details under it, which holds a line of recent form ("Last run 14 Jan · 42.10 km"), the period's dates and counts, and any note about the data.
   - **Every section shows its best answer, or one line in its own place.** Open as cards: **Best efforts** (the curve with its
@@ -319,17 +319,14 @@ and the tests named at the foot of that page keep the two in step. A display siz
     section and says what it found, each **open by default** with its content shown, which the reader can fold (open, a section is a band like the others; folded, it is a card of one row, so the box ratchet counts a fold and not an open section): **Pace at heart
     rate** (**Power at heart rate** for a ride; "Pace at 145 bpm, by week.", the row naming the heart rate so "the same" is a number), **Durability** ("Durability: 99% of your best 20 min after an hour. Heart rate drift: efficiency fell 3%."),
     **Best durations** (only when it names a duration: its finding is then the section's heading; with nothing to
-    name the section is left out, and so is its place in "On this page"), and **All best
+    name the section is left out), and **All best
     efforts** (every record with its level, where there is a profile to grade it, and its activity; the row is its name alone). A row whose charts already say its finding (pace at heart rate and durability) does not say it a
     second time while the section is open (`data-restated`); folded, it says it, so a folded section still tells the athlete something.
     A section the library cannot fill yet is **one line in its own place** (below) that says what to add, never a list at
     the end. A section whose only answer would tell the athlete nothing they can act on (Best durations naming no duration,
     or a curve that could not be fitted) is left out.
-  - **"On this page"** is a row of buttons, one for each section the page has. On a desktop it holds its place
-    under the header while the page scrolls, because the page is long and a section is then one press from
-    anywhere; on a phone it is a row that scrolls sideways and does not hold. A button scrolls to the section,
-    opens it when it was folded and moves the keyboard there; a section that is only its one line has no button; they are buttons and not links because the app
-    routes by the hash.
+  - **No jump links.** The page has no "On this page" row: each section is a heading and a hairline, and the
+    page scrolls. Section ids stay on the sections, so a link to one still lands.
   - **Best efforts** has no heading of its own on screen (a screen reader has one): the chart's title and its
     finding name it. Its four tiles are a run's 1 km, 1 mi, 5 km and 10 km, or a ride's 1, 5, 20 and 60 minutes
     (`RECORD_TILE_KEYS`), each the time or power at display size with its pace or W/kg, a level chip and the
@@ -372,7 +369,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
     the section would have used, worded by the Voice rules: under "Race predictions", "Needs a run of a mile or more."; under "Time in zones", "Needs an activity with heart rate, or a
     threshold pace entered on Profile."; under "Durability", "0 of 3 steady runs over an hour with heart rate." (a ride, "with a power meter and heart rate"). It is a
     card of its own with no fold, so the page has no "Not enough yet" list and no section vanishes in silence. A section with content for
-    one half says the other half's need in a line under it. "On this page" lists the sections that hold an answer, not the lines.
+    one half says the other half's need in a line under it.
     A page with no activities has none.
   - **A run has no floor either.** Its threshold is the estimate from every run (below), which a run with one effort of 8 min or more
     already has, so a refused critical-power fit, an uneven one or a best that was not hard changes nothing on the card, and no

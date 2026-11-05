@@ -139,8 +139,15 @@ describe('a sport page with everything to show', () => {
   it('follows with pace at heart rate, durability, the stand-out finding and the full list, each open', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     // Best durations is titled by its finding, which names a duration here.
-    const finding = regions().find((name) => /^Your 5 min best is/.test(name ?? ''))!
-    const sections = ['Pace at heart rate', 'Durability', finding, 'All best efforts']
+    const named = (pattern: RegExp) => regions().find((name) => pattern.test(name ?? ''))!
+    const finding = named(/^Your 5 min best is/)
+    // Pace at heart rate and durability are headed by their findings too.
+    const sections = [
+      'Pace at 145 bpm, by week',
+      named(/^Durability: \d+% of your best/),
+      finding,
+      'All best efforts',
+    ]
     const order = regions().filter((name) => sections.includes(name ?? ''))
     expect(order).toEqual(sections)
     for (const name of sections) {
@@ -153,9 +160,9 @@ describe('a sport page with everything to show', () => {
   it('says its finding on every row, so a section the reader folds still tells the athlete something', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     // The row names the heart rate, so "the same" is a number. It claims no change.
-    expect(closedRow('Pace at heart rate')).toBe('Pace at heart ratePace at 145 bpm, by week.')
-    expect(closedRow('Durability')).toMatch(
-      /Durability: \d+% of your best 20 min after 90 min\. Heart rate drift: efficiency fell 3%/,
+    expect(closedRow('Pace at 145 bpm, by week')).toBe('Pace at 145 bpm, by week')
+    expect(closedRow(/^Durability: /)).toMatch(
+      /^Durability: \d+% of your best 20 min after 90 min\.Heart rate drift: efficiency fell 3%/,
     )
     // Best durations' finding is its heading: the row says it whole.
     expect(closedRow(/^Your 5 min best is/)).toMatch(/^Your 5 min best is [23]\d% above/)
@@ -287,16 +294,18 @@ describe('a sport page with sections that have nothing to show', () => {
     expect(lineIn('Best durations')).toMatch(/^Needs bests at 5 or more durations/)
   })
 
-  it('has no list of what is missing, and no empty section is a fold or a nav button', () => {
+  it('has no list of what is missing, no empty section is a fold, and no jump list', () => {
     renderPage('run', newRun())
     expect(screen.queryByText('Not enough yet')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
     for (const name of ['History', 'Durability', 'Best durations']) {
       expect(screen.getByRole('region', { name }).closest('details')).toBeNull()
     }
-    const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(within(nav).queryByRole('button', { name: 'Durability' })).toBeNull()
-    expect(within(nav).getByRole('button', { name: 'Best efforts by day' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
+    // A section with an answer is drawn whole, its heading in place.
+    expect(
+      screen.getByRole('heading', { name: 'Best efforts by day', level: 2 }),
+    ).toBeInTheDocument()
   })
 
   it('keeps the lines in the sections’ own order, before the footnote', () => {
@@ -323,7 +332,7 @@ describe('a sport page with sections that have nothing to show', () => {
       ...lateEvidenceFor('run'),
       durability: NO_LATE_EVIDENCE.run.durability,
     })
-    const section = screen.getByRole('region', { name: 'Durability' })
+    const section = screen.getByRole('region', { name: /^Heart rate drift: / })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
     expect(
       within(section).getByText('Durability: 0 of 3 runs longer than an hour.'),
@@ -470,10 +479,10 @@ describe('a sport page’s fitness', () => {
     // The weekly data rise 13% while the status says slipping: the section must not say so beside the card.
     withFitness('run', fullRun(), { run: SLIPPING, ride: NO_FITNESS.ride }, RUN_SAME_HEART_RATE)
     expect(screen.queryByRole('region', { name: 'At the same heart rate' })).not.toBeInTheDocument()
-    const row = closedRow('Pace at heart rate')
-    expect(row).toBe('Pace at heart ratePace at 145 bpm, by week.')
+    const row = closedRow('Pace at 145 bpm, by week')
+    expect(row).toBe('Pace at 145 bpm, by week')
     expect(row).not.toMatch(/faster|slower|quicker|no clear change|since|status/i)
-    const region = openSection('Pace at heart rate')
+    const region = openSection('Pace at 145 bpm, by week')
     // The chart is still there, named by what it plots, without a headline of its own.
     expect(within(region).getByRole('figure')).toBeInTheDocument()
     expect(region.querySelector('.chart-frame__takeaway')).toBeNull()
@@ -486,6 +495,6 @@ describe('a sport page’s fitness', () => {
       { run: waitingStatus({ kind: 'recent', have: 2, need: 4, weeks: 8 }), ride: NO_FITNESS.ride },
       RUN_SAME_HEART_RATE,
     )
-    expect(closedRow('Pace at heart rate')).toBe('Pace at heart ratePace at 145 bpm, by week.')
+    expect(closedRow('Pace at 145 bpm, by week')).toBe('Pace at 145 bpm, by week')
   })
 })

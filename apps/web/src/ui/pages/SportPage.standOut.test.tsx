@@ -58,11 +58,11 @@ describe('the best durations on a sport page', () => {
   })
   const run = makeResult({ activities: profileActivities('run'), runCurve: profileCurve() })
 
-  /** The page's "On this page" buttons, by name. */
-  const navItems = () =>
-    within(screen.getByRole('navigation', { name: 'On this page' }))
-      .queryAllByRole('button')
-      .map((button) => button.textContent)
+  /** The sections the page draws, by their anchors. */
+  const sections = () =>
+    Array.from(document.querySelectorAll('[id^="ride-section-"], [id^="run-section-"]')).map((el) =>
+      el.id.replace(/^(run|ride)-section-/, ''),
+    )
 
   /** A ride whose best minute stands out from the rest of its curve. */
   const standing = makeResult({
@@ -73,16 +73,16 @@ describe('the best durations on a sport page', () => {
     ),
   })
 
-  it('is left out when it names no duration, with no place in On this page and no "Nothing stands out"', () => {
+  it('is left out when it names no duration, with no place on the page and no "Nothing stands out"', () => {
     renderPage('ride', ride)
     expect(screen.queryByRole('region', { name: 'Best durations' })).toBeNull()
     expect(screen.queryByText(/stands out/)).toBeNull()
-    expect(navItems()).not.toContain('Best durations')
+    expect(sections()).not.toContain('standOut')
     // The page still has its other sections.
     expect(screen.getByRole('region', { name: 'Best efforts' })).toBeInTheDocument()
   })
 
-  it('takes the finding as its heading where a best stands out, open, with its strip and its place in On this page', () => {
+  it('takes the finding as its heading where a best stands out, open, with its strip and its place on the page', () => {
     renderPage('ride', standing)
     const region = screen.getByRole('region', { name: /^Your 1 min best is \d+% above/ })
     expect(closedRow(/^Your 1 min best is/)).toMatch(
@@ -90,7 +90,7 @@ describe('the best durations on a sport page', () => {
     )
     expect(region.querySelector('details')).toHaveAttribute('open')
     expect(within(region).getByRole('figure')).toBeInTheDocument()
-    expect(navItems()).toContain('Best durations')
+    expect(sections()).toContain('standOut')
     // The curve's card does not carry it as a caption.
     expect(
       within(screen.getByRole('region', { name: 'Best efforts' })).queryByText(/stands out/),

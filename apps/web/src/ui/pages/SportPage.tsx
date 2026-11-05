@@ -7,7 +7,6 @@ import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { PageDetails } from './PageDetails'
 import { FitnessSection } from './FitnessSection'
-import { SectionNav } from './SectionNav'
 import { SportAnswer } from './SportAnswer'
 import type { SportPageProps } from './sportPageProps'
 import { layoutOf } from './sportSections'
@@ -16,8 +15,8 @@ import './SportPage.css'
 export type { SportPageProps } from './sportPageProps'
 
 /**
- * One sport's page: the title with one ▸ Details under it (the last activity and the period's dates and counts), the answer, a row that jumps to each section, then the sections
- * as the rows of its list in sportSections give, each open to start with and each saying its finding on its row.
+ * One sport's page: the title with its one ▸ Details (the last activity and the period's dates and counts), the
+ * answer, then the sections as the rows of its list in sportSections give, each open to start with and each saying its finding on its row.
  * A section the library cannot fill yet is one line in its own place that says what to add: none leaves the page.
  */
 export function SportPage(props: SportPageProps) {
@@ -40,8 +39,7 @@ export function SportPage(props: SportPageProps) {
   const [openedAt] = useState(() => Date.now())
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
-  const { rows, nav } =
-    held || count === 0 ? { rows: [], nav: [] } : layoutOf(sport, { ...props, count, openedAt })
+  const rows = held || count === 0 ? [] : layoutOf(sport, { ...props, count, openedAt })
   // The period's line gives the count when it has one, so the page's own line does not say it twice.
   const form =
     count === 0
@@ -72,7 +70,6 @@ export function SportPage(props: SportPageProps) {
         <FitnessSection fitness={fitness} units={units} library={library} sport={sport} />
       ) : null}
       <SportAnswer {...props} count={count} held={held} />
-      <SectionNav items={nav} />
       {rows.map(({ key, cells }) => (
         <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>
           {cells.map(({ id, node }) => (

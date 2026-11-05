@@ -31,5 +31,14 @@ export function SameHeartRateSection({
   units: UnitSystem
 }) {
   if (data.reportedWeeks < 2) return null
-  return <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport, data)} />
+  // The section's heading is the chart's title, so the chart does not set it a second time.
+  return (
+    <SameHeartRateChart
+      sport={sport}
+      data={data}
+      units={units}
+      note={noteFor(sport, data)}
+      titleHidden
+    />
+  )
 }

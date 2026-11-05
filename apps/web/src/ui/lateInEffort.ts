@@ -170,13 +170,18 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
   }
 }
 
+/** Each half's finding in the order the section draws them: the durability stat, then what heart rate drift did. */
+export function lateFindings(reading: LateInEffort): string[] {
+  return [reading.durability?.lede, reading.drift?.lede].filter(
+    (part): part is string => part !== undefined,
+  )
+}
+
 /**
  * What the section's row says of it: the durability stat and what heart rate drift did, each only when it is there,
  * so a section with one half still tells its finding. Null when neither half has evidence.
  */
 export function lateFinding(reading: LateInEffort): string | null {
-  const parts = [reading.durability?.lede, reading.drift?.lede].filter(
-    (part): part is string => part !== undefined,
-  )
+  const parts = lateFindings(reading)
   return parts.length === 0 ? null : parts.join(' ')
 }

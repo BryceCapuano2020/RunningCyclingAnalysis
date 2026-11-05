@@ -74,7 +74,7 @@ describe('SectionDisclosure', () => {
     expect(screen.getByRole('region')).not.toHaveAttribute('data-restated')
   })
 
-  it('carries the id the “On this page” row scrolls to, on the element that opens', () => {
+  it('carries the section’s anchor on the element that opens', () => {
     const { container } = renderDisclosure()
     expect(container.querySelector('details#run-section-x')).not.toBeNull()
   })

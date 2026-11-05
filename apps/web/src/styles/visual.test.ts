@@ -13,7 +13,6 @@ const balanceMeter = await read('../ui/components/BalanceMeter.css')
 const ladder = await read('../ui/components/LevelLadder.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const sportHero = await read('../ui/pages/SportHero.css')
-const sectionNav = await read('../ui/pages/SectionNav.css')
 const sectionDisclosure = await read('../ui/pages/SectionDisclosure.css')
 const racePredictions = await read('../ui/pages/RacePredictions.css')
 const recordTiles = await read('../ui/pages/RecordTiles.css')
@@ -761,15 +760,6 @@ describe('sport records, on the card and the page', () => {
     // The width is the shell's, 75rem (1,200 px) on every page, so the sport pages set none of their own.
     expect(rulesWith(components, '.page')).toMatch(/max-width:\s*var\(--page-width\)/)
     expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
-  })
-
-  it('sets “On this page” as one plain line of mono words that wraps and never sticks', () => {
-    expect(sectionNav).not.toMatch(/position:\s*sticky|border-radius|overflow-x/)
-    expect(rulesWith(sectionNav, '.section-nav__list')).toMatch(/flex-wrap:\s*wrap/)
-    expect(rulesWith(sectionNav, '.section-nav__button')).toMatch(
-      /font-family:\s*var\(--font-mono\)/,
-    )
-    expect(rulesWith(sectionNav, '.section-nav__button')).toMatch(/border:\s*0/)
   })
 
   it('sets a section’s fold as a serif summary with its finding, and no box', () => {

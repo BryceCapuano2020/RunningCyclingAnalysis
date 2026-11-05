@@ -25,7 +25,6 @@ import { SportPage } from './SportPage'
 import { openDetail } from '../test/openDetail'
 
 beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn()
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => undefined,
@@ -333,7 +332,7 @@ describe('the records of the page', () => {
   })
 })
 
-describe('"On this page" and the layout', () => {
+describe('the sections and the layout', () => {
   const full = () =>
     makeResult({
       activities: [
@@ -359,46 +358,50 @@ describe('"On this page" and the layout', () => {
     latestWeekEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
   }
 
-  it('lists the open sections first and the closed ones after, naming only what the page has', () => {
+  /**
+   * The sections the page draws an answer for, by their anchors, in the order they are read: a section that is one line
+   * of what to add (titled by its own element) is left out.
+   */
+  const sectionsOf = (sport: Sport) =>
+    Array.from(document.querySelectorAll(`[id^="${sport}-section-"]`))
+      .map((el) => el.id.slice(`${sport}-section-`.length))
+      .filter((id) => !id.endsWith('-title'))
+      .filter((id) => document.getElementById(`${sport}-section-${id}-title`) === null)
+
+  it('draws the open sections first and the closed ones after, only what the page has, with no jump list', () => {
     renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((button) => button.textContent),
-    ).toEqual([
-      'Best efforts',
-      'Race predictions',
-      'Time in zones',
-      'Best efforts by day',
-      'Pace at heart rate',
-      'All best efforts',
+    expect(sectionsOf('run')).toEqual([
+      'bestEfforts',
+      'racePredictions',
+      'timeInZones',
+      'bestsOverTime',
+      'sameHeartRate',
+      'evidence',
     ])
+    expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
   })
 
   it('leaves out a section the page has nothing for, and race predictions on a ride', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] }))
-    const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((button) => button.textContent),
-    ).toEqual(['Best efforts', 'Best efforts by day', 'All best efforts'])
+    expect(sectionsOf('ride')).toEqual(['bestEfforts', 'bestsOverTime', 'evidence'])
+    expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
   })
 
-  it('opens a section the reader folded when its button is pressed, and scrolls to it', () => {
+  it('heads a chart section with its finding once, and says it still when the reader folds it', () => {
     renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    const region = screen.getByRole('region', { name: 'Pace at heart rate' })
+    const region = screen.getByRole('region', { name: 'Pace at 145 bpm, by week' })
     const details = region.querySelector('details')!
-    // A section with content is open to start with.
+    // A section with content is open to start with, its heading the chart's title, which the chart does not repeat.
     expect(details.open).toBe(true)
-    expect(within(region).getByRole('figure')).toBeInTheDocument()
+    expect(within(region).getAllByText('Pace at 145 bpm, by week')).toHaveLength(2)
+    expect(
+      within(region).getByText('Pace at 145 bpm, by week', { selector: 'figcaption' }),
+    ).toHaveClass('sr-only')
+    expect(screen.queryByText('Pace at heart rate')).toBeNull()
     details.open = false
     fireEvent(details, new Event('toggle'))
-    fireEvent.click(screen.getByRole('button', { name: 'Pace at heart rate' }))
-    expect(details.open).toBe(true)
-    expect(within(region).getByRole('figure')).toBeInTheDocument()
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(region.querySelector('summary')).toHaveTextContent('Pace at 145 bpm, by week')
+    expect(within(region).getByRole('figure', { hidden: true })).toBeInTheDocument()
   })
 
   it('sets race predictions and the zones side by side in one row, and every other section alone', () => {
@@ -422,7 +425,7 @@ describe('"On this page" and the layout', () => {
     expect(screen.getByRole('region', { name: 'Time in zones' })).toBeInTheDocument()
   })
 
-  it('gives every closed section a summary with its name, and a finding wherever it has one to add', () => {
+  it('gives every closed section a summary that heads it, and a finding wherever it has one to add', () => {
     renderPage('run', full(), {
       zoneTimes: ZONES,
       sameHeartRate,
@@ -437,11 +440,12 @@ describe('"On this page" and the layout', () => {
       const finding = summary.querySelector('.sport-disclosure__finding')
       if (finding !== null) expect(finding.textContent!.length).toBeGreaterThan(10)
     }
-    // Only the full list is its name alone: a count of its rows would say nothing the list does not.
+    // A heading that is the finding needs nothing beside it, and the full list is its name alone: a count of its rows
+    // would say nothing the list does not.
     expect(
       summaries
         .filter((summary) => summary.querySelector('.sport-disclosure__finding') === null)
         .map((summary) => summary.textContent),
-    ).toEqual(['All best efforts'])
+    ).toEqual(['Pace at 145 bpm, by week', 'All best efforts'])
   })
 })
