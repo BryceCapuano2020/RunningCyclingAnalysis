@@ -22,11 +22,16 @@
   outline-offset: 4px;
 }
 
+/*
+ * The drawing takes no pointer: nothing in it is pressed, and WebKit hit-tests a zero-length mark with a non-scaling
+ * stroke far past its box, which covered the header's links on a phone.
+ */
 .route-shape__svg {
   display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
+  pointer-events: none;
 }
 
 .route-shape__line {

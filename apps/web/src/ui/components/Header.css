@@ -146,16 +146,23 @@ html {
     padding: 0 var(--space-2);
   }
 
-  /* As the pending status below: the words stay for a screen reader and take no room. */
+  /* The words after "Sign in" stay for a screen reader and take no room. */
   .header__account .google-sign-in__rest {
     font-size: 0;
   }
 
-  /* While the account loads or cannot be reached, the status keeps its words for screen readers and takes no room. */
+  /*
+   * While the account loads or cannot be reached, the status is read and not seen, as .sr-only is, so the second row keeps
+   * one line; Try again, when offered, is the control in its place.
+   */
   .header__account .account-menu__pending {
+    position: absolute;
+    width: 1px;
     min-width: 0;
-    font-size: 0;
+    height: 1px;
     overflow: hidden;
+    font-size: 0;
+    white-space: nowrap;
   }
 }
 
