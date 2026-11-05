@@ -29,7 +29,7 @@ export function Sparkline({ points }: { points: readonly SparkPoint[] }) {
   const line = points.map((point) => `${x(point.atMs).toFixed(1)},${y(point.value).toFixed(1)}`)
   return (
     <svg
-      className="sparkline row__spark"
+      className="sparkline"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       width={WIDTH}
       height={HEIGHT}

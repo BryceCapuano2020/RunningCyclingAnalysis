@@ -15,6 +15,7 @@ import type { RaceScale } from './raceBars'
 import { ranText } from './raceRan'
 import type { RanBest } from './raceRan'
 import './RacePredictions.css'
+import { NumText } from '../components/NumText'
 
 /**
  * Which side of the bar each method's triangle sits on: the athlete's runs point down from above, the heart
@@ -116,7 +117,11 @@ function RaceRow({
         <span className="meta race-row__pace">
           {formatPace(prediction.distanceM / prediction.seconds, units)}
         </span>
-        {ran && <span className="race-row__ran">{ranText(ran)}</span>}
+        {ran && (
+          <span className="race-row__ran">
+            <NumText text={ranText(ran)} />
+          </span>
+        )}
         {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
       </p>
       {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}

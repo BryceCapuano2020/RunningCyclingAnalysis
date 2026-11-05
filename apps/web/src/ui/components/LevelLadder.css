@@ -7,6 +7,7 @@
   --level-marker: 0.625rem;
 }
 
+/* The labels are rem-sized text placed by percentage, over and under the bar. */
 .level-ladder__scale,
 .level-ladder__names {
   position: relative;
@@ -16,8 +17,9 @@
   height: var(--text-meta);
 }
 
+/* One line of names. */
 .level-ladder__names {
-  height: 2rem;
+  height: 1rem;
 }
 
 .level-ladder__pct,
@@ -30,6 +32,9 @@
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.level-ladder__pct {
   transform: translateX(-50%);
 }
 
@@ -37,28 +42,17 @@
   transform: none;
 }
 
+/* A name starts at its own band's tick; named alone, it sits under the mark, held inside the bar at either end. */
+.level-ladder__name {
+  top: 0;
+}
+
 .level-ladder__name--current {
   color: var(--ink);
 }
 
-/* The end names are anchored to the figure's edges, so a large text size cannot push them past it. */
-.level-ladder__name--first {
-  left: 0;
-  transform: none;
-}
-
-.level-ladder__name--last {
-  left: 100%;
-  transform: translateX(-100%);
-}
-
-/* Alternate names sit on two rows, so neighbouring names never touch on a narrow screen. */
-.level-ladder__name--top {
-  top: 0;
-}
-
-.level-ladder__name--bottom {
-  top: 1rem;
+.level-ladder__name--centre {
+  transform: translateX(-50%);
 }
 
 .level-ladder__track {
@@ -89,16 +83,6 @@
   height: 0.5rem;
   background: var(--ink-secondary);
   transform: translate(-50%, -50%);
-}
-
-/* A ride's range: its wash along the line, never behind text. */
-.level-ladder__range {
-  position: absolute;
-  top: 50%;
-  height: 0.375rem;
-  min-width: 2px;
-  transform: translateY(-50%);
-  background: var(--sport-wash);
 }
 
 /* The one mark, held inside the track at either end. */
@@ -154,10 +138,6 @@
 
   .level-ladder__name--current {
     text-decoration: underline;
-  }
-
-  .level-ladder__range {
-    background: Highlight;
   }
 
   .level-ladder__ring {

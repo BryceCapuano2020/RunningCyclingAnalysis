@@ -20,18 +20,19 @@
 }
 
 /*
- * Each visible label is the click target, and at least 44 px tall. Options shrink to fit a 320 px
- * phone and wrap their own text, so a long label grows the segment rather than the row.
+ * Each visible label is the click target, the button height tall. A segment never narrows past its words, which keep
+ * one line; a row of segments that does not fit wraps whole segments (RangePicker.css) rather than their words.
  */
 .segmented-control__option {
   position: relative;
   display: inline-flex;
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
   align-items: center;
   justify-content: center;
+  min-width: max-content;
   min-height: var(--button-height);
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-4);
+  white-space: nowrap;
   border: 1px solid var(--control-border);
   background: var(--paper);
   cursor: pointer;
@@ -41,9 +42,9 @@
   text-align: center;
 }
 
-/* A label of two lines balances them, so a short last word does not sit alone on the second. */
+/* A label is one line: a segment is as wide as its words, with room each side, and never wraps them. */
 .segmented-control__option span {
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
 .segmented-control__option:first-of-type {

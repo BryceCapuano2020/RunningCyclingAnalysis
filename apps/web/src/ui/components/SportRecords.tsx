@@ -4,6 +4,7 @@ import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
 import { RecordTag } from './RecordTag'
+import { NumText } from './NumText'
 import { RowIndex } from './RowList'
 import { Sparkline } from './Sparkline'
 import type { SparkPoint } from './Sparkline'
@@ -33,7 +34,9 @@ function SourceLabel({ activity }: { activity: ActivitySummary }) {
   return (
     <>
       <span className="records__name">{activity.name}</span>
-      <span className="records__date">{dateText(activity)}</span>
+      <span className="records__date">
+        <NumText text={dateText(activity)} />
+      </span>
     </>
   )
 }
@@ -58,7 +61,9 @@ function AgoCount({ days }: { days: number }) {
   return (
     <>
       {' '}
-      <span className="records__set">{agoText(days)}</span>
+      <span className="records__set">
+        <NumText text={agoText(days)} />
+      </span>
     </>
   )
 }
@@ -95,29 +100,10 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
         {rows.map((row, index) => {
           const figure = figureParts(row.value)
           return (
-            <li key={row.key} className="row records__row">
+            <li key={row.key} className="row row--figures records__row">
               <RowIndex index={index} />
               <div className="row__body">
-                <div className="row__head">
-                  <h3 className="row__title records__label">{row.label}</h3>
-                  <p className="row__figure records__figure">
-                    <span className="records__value">
-                      {figure.number}
-                      {figure.unit === null ? null : (
-                        <>
-                          {'\u00a0'}
-                          <span className="row__unit">{figure.unit}</span>
-                        </>
-                      )}
-                    </span>
-                    {row.sub && (
-                      <>
-                        {' '}
-                        <span className="records__sub">{row.sub}</span>
-                      </>
-                    )}
-                  </p>
-                </div>
+                <h3 className="row__title records__label">{row.label}</h3>
                 {row.tags.length === 0 && !row.grade ? null : (
                   <div className="meta records__meta">
                     {row.tags.map((tag) => (
@@ -126,7 +112,11 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
                     {row.grade && <span className="records__grade">{row.grade}</span>}
                   </div>
                 )}
-                {row.change && <p className="row__line records__change">{row.change}</p>}
+                {row.change && (
+                  <p className="row__line records__change">
+                    <NumText text={row.change} />
+                  </p>
+                )}
                 {shared === null && row.activity && (
                   <p className="records__source">
                     <span className="records__where">
@@ -144,7 +134,22 @@ export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
                   </p>
                 )}
               </div>
-              <Sparkline points={sparks[row.key] ?? []} />
+              {/* The figure, its second reading and the trend each have a column of their own, so they line up down the list. */}
+              <p className="row__figure records__figure">
+                <span className="records__value">
+                  {figure.number}
+                  {figure.unit === null ? null : (
+                    <>
+                      {'\u00a0'}
+                      <span className="row__unit">{figure.unit}</span>
+                    </>
+                  )}
+                </span>
+              </p>
+              <span className="row__sub records__sub">{row.sub}</span>
+              <span className="row__spark">
+                <Sparkline points={sparks[row.key] ?? []} />
+              </span>
             </li>
           )
         })}

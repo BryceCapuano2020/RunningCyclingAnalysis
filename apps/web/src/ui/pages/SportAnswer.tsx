@@ -9,6 +9,7 @@ import { LevelPanel } from './LevelPanel'
 import type { SportPageProps } from './sportPageProps'
 import { ThresholdPanel } from './ThresholdPanel'
 import './SportHero.css'
+import { NumText } from '../components/NumText'
 
 export interface SportAnswerProps extends Pick<
   SportPageProps,
@@ -92,7 +93,7 @@ export function SportAnswer(props: SportAnswerProps) {
       </div>
       {split === null ? null : (
         <p className="muted sport-hero__source" data-testid="indoor-split">
-          {split}
+          <NumText text={split} />
         </p>
       )}
     </>
