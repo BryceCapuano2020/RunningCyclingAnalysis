@@ -47,8 +47,18 @@
 
 /* One row per split at every width. Where the table is wider than the page it scrolls inside its own box, and the
    split's name stays at the left, so a figure is never read without its split. */
+/* While columns wait off the right edge, a fade says so. The scrolling layer is the fade, and the layer fixed to the
+   content covers it once the last column is in view. */
 .splits-wide {
   overflow-x: auto;
+  background:
+    linear-gradient(to left, var(--paper), var(--paper)) right center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--hairline), transparent) right center / 2rem 100% no-repeat scroll;
+}
+
+.splits-wide:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .splits-table tbody th[scope='row'],

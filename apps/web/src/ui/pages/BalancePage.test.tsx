@@ -308,7 +308,7 @@ describe('BalancePage', () => {
         }),
       )
       expect(container.querySelector('.evidence-line')).toBeNull()
-      expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
       expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
       expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
     },

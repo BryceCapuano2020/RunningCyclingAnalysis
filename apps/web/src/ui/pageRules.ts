@@ -33,7 +33,7 @@ export interface PageRule {
   needsResult: boolean
   /** The page of its own that stands in the main area with no result, or null to follow the library. */
   ownPage: OwnPage | null
-  /** The own page also stands over a result: Profile does, and How sure is this? gives way to one. */
+  /** The own page also stands over a result: Profile does, and Method gives way to one. */
   ownOverResult: boolean
 }
 

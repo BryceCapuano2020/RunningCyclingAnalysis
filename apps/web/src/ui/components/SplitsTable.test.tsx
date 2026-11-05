@@ -305,6 +305,9 @@ describe('SplitsTable', () => {
     expect(within(first!).getByText('12 m')).toBeInTheDocument()
     expect(within(first!).getByText('150 bpm')).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
+    // The scroller is a region named by the table's caption.
+    const region = screen.getByRole('region', { name: 'Pace for each kilometre' })
+    expect(region).toContainElement(table())
   })
 
   it('says a run is too short to split when it has no splits in these units', () => {

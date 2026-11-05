@@ -129,7 +129,7 @@ describe('GradesLink', () => {
     expect(requestedMethodSection()).toBe(SECTION_ID.grades)
     cleanup()
 
-    // A later visit to How sure is this? from another page is a route change of its own.
+    // A later visit to Method from another page is a route change of its own.
     await navigateTo('#/')
     await navigateTo('#/method')
     expect(requestedMethodSection()).toBeNull()

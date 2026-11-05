@@ -670,8 +670,8 @@ describe('ActivityPage', () => {
       '#/activities/older',
     )
     expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
-    // The footer links to How sure is this? on every page, so the activity's own links do not.
-    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+    // The header links to Method, so the activity's own links do not.
+    expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
   })
 
   it('offers Delete for a saved activity, and asks before it removes the saved copy', async () => {

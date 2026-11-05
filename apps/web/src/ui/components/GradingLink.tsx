@@ -9,7 +9,7 @@ function isPlainPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 /**
- * A link to one section of How sure is this?. The page focuses that heading once it opens, because a
+ * A link to one section of Method. The page focuses that heading once it opens, because a
  * fragment would change the hash route.
  */
 export function MethodSectionLink({
@@ -34,7 +34,7 @@ export function MethodSectionLink({
   )
 }
 
-/** A link to the age grades on How sure is this?. */
+/** A link to the age grades on Method. */
 export function GradesLink({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <MethodSectionLink sectionId={SECTION_ID.grades} className={className}>

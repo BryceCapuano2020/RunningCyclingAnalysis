@@ -1,12 +1,15 @@
 /*
  * The one status line under the two sections, in the same grid item as them, so it adds a line and no
- * page gap. It stays mounted and holds a line's height when empty, inside the gap before the next section,
- * so a save that adds its text moves nothing and no empty line is left.
+ * page gap. It stays mounted, so a screen reader hears a save, and holds no height while empty.
  */
 .profile-save {
   margin: 0;
-  margin-block-end: -1lh;
   min-height: 1lh;
+}
+
+/* Empty, the line sits in the gap before the next section; with text it is a line of the page and cannot run over it. */
+.profile-save:empty {
+  margin-block-end: -1lh;
 }
 
 /* About you and Body and bike stand side by side on a wide screen, and stack on a narrow one. */

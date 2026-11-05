@@ -64,12 +64,16 @@
   font-size: var(--text-sm);
 }
 
-/* Kept as a line of its own, one line high, in the gap under the section so it adds no empty line. */
+/* A line of its own, one line high. Empty, it sits in the gap under the section and adds no empty line; with text it is a
+   line of the page, so a long status cannot run over the next heading. */
 .settings-bar__status {
   min-height: 1lh;
-  margin-block-end: -1lh;
   color: var(--ink-secondary);
   font-size: var(--text-sm);
+}
+
+.settings-bar__status:empty {
+  margin-block-end: -1lh;
 }
 
 /* A phone gives each weight its own row and one label width, so a long label wraps beside no short one. */

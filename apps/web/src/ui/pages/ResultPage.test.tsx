@@ -291,7 +291,7 @@ describe('ResultPage footnote', () => {
   })
 })
 
-describe('ResultPage How sure is this? with no weight entered', () => {
+describe('ResultPage Method with no weight entered', () => {
   it('holds the energy view and asks for the weight, as Balance does, once a ride is on file', () => {
     renderPage({ page: 'method' }, 1986, 'male', false, true)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
@@ -769,7 +769,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
   }
   const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
 
-  it('dates the period on How sure is this?, in one line with no control', () => {
+  it('dates the period on Method, in one line with no control', () => {
     const result = makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })
     render(
       <ResultPage

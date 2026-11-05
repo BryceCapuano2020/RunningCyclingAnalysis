@@ -989,7 +989,7 @@ describe('SportPage age grades', () => {
     expect(level).not.toHaveTextContent(/USATF|standards|graded at/)
   })
 
-  it('leaves the full standards credit to How sure is this?, with no source paragraph under Best efforts', () => {
+  it('leaves the full standards credit to Method, with no source paragraph under Best efforts', () => {
     renderPage(
       'run',
       makeResult({
@@ -1253,7 +1253,7 @@ describe('SportPage distance records', () => {
 })
 
 describe('SportPage method link', () => {
-  it('has no How sure is this? or How is this graded? link on the page: the header names Method', () => {
+  it('has no Method or How is this graded? link in the page body: the header names Method', () => {
     renderPage(
       'run',
       makeResult({
@@ -1263,7 +1263,7 @@ describe('SportPage method link', () => {
       'metric',
       MAN_BORN_1986,
     )
-    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'How is this graded?' })).not.toBeInTheDocument()
     expect(document.querySelector('a[href="#/method"]')).toBeNull()
   })
@@ -1653,7 +1653,7 @@ describe('SportPage depth', () => {
         /^Power meters measured \d+ of \d+ rides?\. Watts for the rest are estimated\.$/,
       ),
     ).toBeInTheDocument()
-    expect(within(records).queryByRole('link', { name: 'How sure is this?' })).toBeNull()
+    expect(within(records).queryByRole('link', { name: 'Method' })).toBeNull()
   })
 
   it('names the dated bests "Best efforts by day" and draws the curve in the sport’s unit under the records', () => {

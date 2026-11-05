@@ -7,7 +7,7 @@ import type { RouteGuardInput } from './useRouteGuard'
 const cold = { hasResult: false, busy: false, restoring: false, settled: true }
 
 describe('needsResult', () => {
-  it('lets Balance, Profile and How sure is this? show without a result, and every other page needs one', () => {
+  it('lets Balance, Profile and Method show without a result, and every other page needs one', () => {
     expect(needsResult({ page: 'balance' })).toBe(false)
     expect(needsResult({ page: 'profile' })).toBe(false)
     expect(needsResult({ page: 'method' })).toBe(false)

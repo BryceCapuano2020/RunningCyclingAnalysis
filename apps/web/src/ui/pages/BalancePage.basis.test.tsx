@@ -74,7 +74,7 @@ describe('the balance when a best 20 min was not shown hard', () => {
     render20(HARD, NO_HEART_RATE)
     expect(screen.queryByText(/not checked/)).not.toBeInTheDocument()
     expect(screen.queryByText(/No heart rate on your best 20 min/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
     expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
     expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
   })

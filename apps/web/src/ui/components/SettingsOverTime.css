@@ -54,10 +54,14 @@
   font-size: var(--text-sm);
 }
 
-/* Its line sits in the gap before the next section and adds none, so a status moves nothing and leaves no empty line. */
+/* Empty, its reserved line sits in the gap before the next section and adds none; with text it is a line of the page, so a
+   long status cannot run over the next heading. */
 .settings-over-time__status {
   min-height: 1lh;
   margin: 0;
+}
+
+.settings-over-time__status:empty {
   margin-block-end: -1lh;
 }
 

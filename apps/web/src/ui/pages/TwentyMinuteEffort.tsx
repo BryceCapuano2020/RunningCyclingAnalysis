@@ -7,7 +7,7 @@ import { HEADLINE_LABEL } from '../grades'
 /** What the max heart rate is, in a note beside the term. */
 const MAX_HEART_RATE_MEANING = `The highest heart rate you hold for a sustained effort in each sport. An effort counts as hard when it reaches ${formatPercent(ALL_OUT_FRACTION)} of it.`
 
-/** The id of the 20 minute effort's heading on How sure is this?, which the evidence card's link names. */
+/** The id of the 20 minute effort's heading on Method, which the evidence card's link names. */
 export const TWENTY_MINUTE_ID = 'method-twenty'
 
 /**

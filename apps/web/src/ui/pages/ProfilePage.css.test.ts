@@ -27,7 +27,7 @@ describe('ProfilePage stylesheet', () => {
   })
 
   it('sets the reserved line in the gap under it, so it leaves no empty line', () => {
-    expect(bare).toMatch(/\.profile-save \{[^}]*margin-block-end:\s*-1lh;/)
+    expect(bare).toMatch(/\.profile-save:empty \{[^}]*margin-block-end:\s*-1lh;/)
   })
 
   it('gives the status line no margin of its own, so the line is the only space it adds', () => {

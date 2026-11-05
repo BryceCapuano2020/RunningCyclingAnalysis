@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { STEEP_DESCENT_NOTE } from '../grades'
 import { GapTerm } from './GapTerm'
 import type { Columns, SplitCells } from './splitRows'
@@ -81,10 +81,12 @@ function SplitTable({
   caption: string
   columns: Columns
 }) {
+  const captionId = useId()
   return (
-    <div className="splits-wide">
+    // A named region, so a screen reader says where the scrolling columns are; its name is the table's.
+    <div className="splits-wide" role="region" aria-labelledby={captionId}>
       <table className="splits-table">
-        <caption>{caption}</caption>
+        <caption id={captionId}>{caption}</caption>
         <thead>
           <tr>
             <th scope="col">{columns.lap ? 'Lap' : 'Split'}</th>
