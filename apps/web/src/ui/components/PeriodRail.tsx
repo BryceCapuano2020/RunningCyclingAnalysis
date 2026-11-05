@@ -1,7 +1,9 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { CustomRangeForm } from './CustomRangeForm'
-import { PeriodCaption } from './PeriodCaption'
+import { PeriodCaptionLine, PeriodStatus } from './PeriodCaption'
+import { captionSays } from './periodCaptionWords'
+import type { PeriodCaptionProps } from './periodCaptionWords'
 import { WAITS_FOR_IMPORT } from './RangePicker'
 import type { RangePickerProps } from './RangePicker'
 import { CUSTOM_OPTION, RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
@@ -13,13 +15,18 @@ export type PeriodRailProps = Omit<RangePickerProps, 'options' | 'custom' | 'com
 export interface PeriodRail {
   /** The periods as the rail's words: the group named Period, one radio for each, then Custom. */
   periods: ReactNode
-  /** Under the page title: the dates, the count and the note as one meta line, and the Custom form while it is open. */
+  /** Under the page title: the status a screen reader hears when the period changes, and the Custom form while it is open. */
   caption: ReactNode
+  /** The dates, the count and the note as one meta line, for the page's Details; null when it has nothing to say. */
+  line: ReactNode
+  /** Whether the line gives a count, so a page that would give one too leaves its own out. */
+  lineCounts: boolean
 }
 
 /**
- * The period control set out of the page: the choices in the rail and what they say under the page's title. Both
- * read one state, so a pick in the rail moves the caption, and Custom in the rail opens its form under the title.
+ * The period control set out of the page: the choices in the rail, and what they say: a status under the page's title
+ * and one meta line the page puts in its Details (docs/design/system.md, No subtitle lines). All read one state, so a
+ * pick in the rail moves the line, and Custom in the rail opens its form under the title.
  */
 export function usePeriodRail({
   choice,
@@ -74,25 +81,39 @@ export function usePeriodRail({
       />
     </div>
   )
+  const words: PeriodCaptionProps = {
+    className: 'meta period-caption__line',
+    dates,
+    shown,
+    total,
+    notCounted,
+    noun,
+    countHref,
+    notCountedHref,
+    swapped,
+    // The note (why the window was chosen, how old the newest activity is) is a line of its own in the Details.
+    inlineNote: null,
+    choiceLabel,
+  }
   const caption = (
     <div className="period-caption">
-      <PeriodCaption
-        className="meta period-caption__line"
-        dates={dates}
-        shown={shown}
-        total={total}
-        notCounted={notCounted}
-        noun={noun}
-        countHref={countHref}
-        notCountedHref={notCountedHref}
-        swapped={swapped}
-        inlineNote={noteText ? noteText : null}
-        choiceLabel={choiceLabel}
-      />
+      <PeriodStatus {...words} />
       {customOpen && (
         <CustomRangeForm range={range} onApply={(next, reversed) => pick(next, reversed)} />
       )}
     </div>
   )
-  return { periods, caption }
+  const { said, counted } = captionSays(words)
+  return {
+    periods,
+    caption,
+    line:
+      !said && !noteText ? null : (
+        <>
+          {said ? <PeriodCaptionLine {...words} /> : null}
+          {noteText ? <p className="period-caption__note">{noteText}</p> : null}
+        </>
+      ),
+    lineCounts: said && counted,
+  }
 }

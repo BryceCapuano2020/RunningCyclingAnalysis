@@ -94,7 +94,7 @@ describe('a signed-in library with every digest held out', () => {
     staleLibrary()
     render(<App />)
     const header = within(screen.getByRole('banner'))
-    expect(header.getByRole('navigation', { name: 'Pages' })).toBeInTheDocument()
+    expect(header.getByRole('navigation', { name: 'More pages' })).toBeInTheDocument()
     expect(header.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
     const list = screen.getByRole('region', { name: 'Activities held out of the analysis' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(3)

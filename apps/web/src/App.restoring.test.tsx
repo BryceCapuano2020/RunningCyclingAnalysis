@@ -42,8 +42,23 @@ describe('restoring kept results on a reload', () => {
     app.analysis.restoring = true
     render(<App />)
     const header = within(screen.getByRole('banner'))
-    expect(header.getByRole('navigation', { name: 'Pages' })).toBeInTheDocument()
+    expect(header.getByRole('navigation', { name: 'More pages' })).toBeInTheDocument()
     expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the rail beside the restoring state, so the page does not move when the results arrive', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    render(<App />)
+    const rail = screen.getByRole('navigation', { name: 'Pages' })
+    expect(
+      within(rail)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Balance', 'Run', 'Ride'])
+    expect(rail.closest('.shell')).toContainElement(
+      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+    )
   })
 
   it('shows Add files in the header on How sure is this? while the results restore, since that page has none of its own', () => {
@@ -79,7 +94,7 @@ describe('restoring kept results on a reload', () => {
         screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
       ).toBeInTheDocument()
       expect(
-        within(screen.getByRole('banner')).getByRole('navigation', { name: 'Pages' }),
+        within(screen.getByRole('banner')).getByRole('navigation', { name: 'More pages' }),
       ).toBeInTheDocument()
     } finally {
       vi.useRealTimers()

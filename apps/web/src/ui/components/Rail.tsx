@@ -37,7 +37,7 @@ export function Rail({ route, periods = null }: RailProps) {
   const current = sectionOf(route)
   return (
     <div className="rail">
-      <nav className="rail__pages" aria-label="Sections">
+      <nav className="rail__pages" aria-label="Pages">
         {SECTIONS.map(({ label, page }) => (
           <a
             key={page}

@@ -138,10 +138,18 @@ html {
   }
 }
 
-/* ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. The second row's links sit a step closer. */
+/*
+ * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. The second row's links are a step smaller and closer, so History,
+ * Activities, Method, Profile and the account keep one line and the header stays two rows.
+ */
 @media (max-width: 420px) {
   .header__pages {
     gap: var(--space-4);
+  }
+
+  .header__link,
+  .header .account-menu__trigger {
+    font-size: var(--text-sm);
   }
 }
 
@@ -160,6 +168,11 @@ html {
 
   .header__pages {
     gap: var(--space-3);
+  }
+
+  /* At 320 px the second row has no room for Method: the footer names it instead (AppFooter.tsx). */
+  .header__link--method {
+    display: none;
   }
 }
 

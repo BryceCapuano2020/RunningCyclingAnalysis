@@ -50,7 +50,7 @@ describe('focus on navigation', () => {
     window.location.hash = '#/method'
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
-    const sections = screen.getByRole('navigation', { name: 'Sections' })
+    const sections = screen.getByRole('navigation', { name: 'Pages' })
     fireEvent.click(within(sections).getByRole('link', { name: 'Balance' }))
     await waitFor(() =>
       expect(
@@ -78,7 +78,7 @@ describe('focus on navigation', () => {
 
   it('moves focus to the new page when a followed link still has focus', async () => {
     render(<App />)
-    const run = within(screen.getByRole('navigation', { name: 'Sections' })).getByRole('link', {
+    const run = within(screen.getByRole('navigation', { name: 'Pages' })).getByRole('link', {
       name: 'Run',
     })
     run.focus()

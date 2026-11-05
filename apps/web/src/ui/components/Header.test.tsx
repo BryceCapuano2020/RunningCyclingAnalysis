@@ -60,6 +60,17 @@ describe('Header stylesheet', () => {
     expect(tokensCss).toMatch(/--sticky-extra:\s*0px;/)
   })
 
+  it('starts --header-height at one row where the header sticks and at zero where it scrolls away', () => {
+    expect(tokensCss).toMatch(
+      /--header-height:\s*calc\(var\(--control-height\) \+ var\(--space-3\) \* 2 \+ 1px\);/,
+    )
+    expect(tokensCss).toMatch(
+      new RegExp(
+        `@media \\(max-width: ${RAIL_MIN_WIDTH_PX - 1}px\\) \\{\\s*:root \\{\\s*--header-height:\\s*0px;`,
+      ),
+    )
+  })
+
   it('keeps the words of Add files at every width, and sets the wordmark a step smaller at 360 px to fit them', () => {
     expect(headerCss).not.toMatch(/add-files__label|clip-path/)
     expect(headerCss).toMatch(
@@ -80,12 +91,14 @@ describe('Header', () => {
 
   it('hides History and Activities while there is nothing to navigate', () => {
     render(<Header route={null} />)
-    expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'More pages' })).not.toBeInTheDocument()
   })
 
   it('links History and Activities as text, and marks the current one', () => {
     render(<Header route={{ page: 'history' }} />)
-    const links = within(screen.getByRole('navigation', { name: 'Pages' })).getAllByRole('link')
+    const links = within(screen.getByRole('navigation', { name: 'More pages' })).getAllByRole(
+      'link',
+    )
     expect(links.map((link) => link.textContent)).toEqual(['History', 'Activities'])
     for (const link of links) expect(link.querySelector('svg')).toBeNull()
     expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
@@ -143,7 +156,7 @@ describe('Header', () => {
       />,
     )
     const brand = screen.getByRole('link', { name: 'Running Cycling Analysis' })
-    const pages = screen.getByRole('navigation', { name: 'Pages' })
+    const pages = screen.getByRole('navigation', { name: 'More pages' })
     const profile = screen.getByRole('link', { name: 'Profile' })
     const account = screen.getByRole('button', { name: 'Sign in' })
     const addFiles = screen.getByRole('button', { name: 'Add files' })

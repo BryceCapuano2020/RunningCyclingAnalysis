@@ -59,19 +59,19 @@ describe('header', () => {
   it('hides the section tabs on the landing page', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toBeInTheDocument()
-    expect(screen.queryByRole('navigation', { name: 'Sections' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
   })
 
   it('shows the rail and the page links once there is a result, with Balance marked as the current page', () => {
     showResult()
     render(<App />)
-    const sections = screen.getByRole('navigation', { name: 'Sections' })
+    const sections = screen.getByRole('navigation', { name: 'Pages' })
     expect(within(sections).getByRole('link', { name: 'Balance' })).toHaveAttribute(
       'aria-current',
       'page',
     )
     expect(within(sections).getByRole('link', { name: 'Run' })).toHaveAttribute('href', '#/run')
-    const pages = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Pages' })
+    const pages = within(screen.getByRole('banner')).getByRole('navigation', { name: 'More pages' })
     expect(within(pages).getByRole('link', { name: 'Activities' })).toHaveAttribute(
       'href',
       '#/activities',

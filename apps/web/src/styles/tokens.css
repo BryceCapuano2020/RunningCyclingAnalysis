@@ -91,8 +91,11 @@
   --control-height: 40px;
   /* A small outlined button and the primary one are 32 px; a phone or a finger gets 44 px, set below. */
   --button-height: 32px;
-  /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
-  --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
+  /*
+   * The header's height while it sticks: one row, its padding and its hairline. useHeaderHeight.ts measures it and sets
+   * the measured value on the root, which wins; this is the value before that runs. The phone tab bar is 48 px.
+   */
+  --header-height: calc(var(--control-height) + var(--space-3) * 2 + 1px);
   --tab-bar-height: 48px;
   /* The bars that stick under the header (section row, chart readout) add their height here while stuck; see useStickyExtra.ts. */
   --sticky-extra: 0px;
@@ -113,8 +116,6 @@
   --tracking-meta: 0.12em;
   /* The display line height, set once in .display; forced colours takes 1 so a mark beside it is clear. */
   --lh-display: 1.1;
-  /* How much of its fade a faded mark keeps: all of it, on paper. */
-  --mark-fade: 1;
   /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
   --tracking-tab: 0.02em;
   /* The narrowest column a landing card or example is laid out at, before it wraps. */
@@ -179,10 +180,10 @@
   }
 }
 
-/* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone's header is one row, with a space below it. */
-@media (max-width: 760px) {
+/* ui/layoutBreakpoints.ts: RAIL_MIN_WIDTH_PX. Below the rail's width the header scrolls away with the page, so nothing clears it. */
+@media (max-width: 1023px) {
   :root {
-    --header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);
+    --header-height: 0px;
   }
 }
 

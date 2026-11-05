@@ -16,7 +16,7 @@ afterEach(() => {
 describe('Rail', () => {
   it('links Balance, Run and Ride as text in the Sections navigation, and marks the current one', () => {
     render(<Rail route={{ page: 'ride' }} />)
-    const links = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
+    const links = within(screen.getByRole('navigation', { name: 'Pages' })).getAllByRole('link')
     expect(links.map((link) => link.textContent)).toEqual(['Balance', 'Run', 'Ride'])
     for (const link of links) expect(link.querySelector('svg')).toBeNull()
     expect(screen.getByRole('link', { name: 'Ride' })).toHaveAttribute('aria-current', 'page')
@@ -42,7 +42,7 @@ describe('Rail', () => {
     const { container, rerender } = render(
       <Rail route={{ page: 'run' }} periods={<p>Periods here</p>} />,
     )
-    const nav = screen.getByRole('navigation', { name: 'Sections' })
+    const nav = screen.getByRole('navigation', { name: 'Pages' })
     const periods = screen.getByText('Periods here')
     expect(nav.compareDocumentPosition(periods) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     rerender(<Rail route={{ page: 'history' }} />)
@@ -55,7 +55,7 @@ describe('Rail', () => {
         <h1>Page</h1>
       </Shell>,
     )
-    const nav = screen.getByRole('navigation', { name: 'Sections' })
+    const nav = screen.getByRole('navigation', { name: 'Pages' })
     const page = screen.getByRole('heading', { name: 'Page' })
     expect(page.closest('.shell__page')).not.toBeNull()
     expect(nav.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

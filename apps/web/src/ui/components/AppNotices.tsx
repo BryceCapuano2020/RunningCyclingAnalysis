@@ -1,13 +1,7 @@
 import type { UnitSystem } from '@rca/core/units'
 import type { AnalysisController } from '../useAnalysis'
 import { detailCoverageLine, judgedDetail } from '../analysis/detailCoverage'
-import {
-  countedDespiteText,
-  leftOutNote,
-  leftOutRuns,
-  labelledText,
-  walkingPaceText,
-} from '../analysis/walkingPaceCopy'
+import { countedDespiteText, leftOutNote, leftOutRuns } from '../analysis/walkingPaceCopy'
 import { SPORT_LABEL } from '../sports'
 import { hrefFor } from '../route'
 import type { CountedRunsController } from '../useCountedRuns'
@@ -19,7 +13,7 @@ import { ImportNotice } from './ImportNotice'
 import { IncompleteImportNotice } from './IncompleteImportNotice'
 import { AboutData } from './AboutData'
 import { DeviceOffer } from './DeviceOffer'
-import { hiddenCopiesText } from '../analysis/hiddenCopiesCopy'
+import { NOTES_IN_DETAILS, aboutNotesOf } from './aboutNotes'
 import { LibraryNotices } from './LibraryNotices'
 import { SyncStatus } from './SyncStatus'
 import { hasRetryableIssue, useSaveRetry } from '../useSaveRetry'
@@ -89,24 +83,10 @@ export function AppNotices({
   // was deleted, no page does, so the notices say it.
   const bareLibraryNotice = result === null ? analysis.libraryNotice : null
   const bareLibraryError = result === null ? analysis.libraryError : null
-  // Notes about the data that need no action. The walking-pace count is said where runs are listed or analysed.
-  const {
-    hiddenDuplicates: copies,
-    walkingPaceRuns: walking,
-    labelledRuns: labelled = 0,
-  } = analysis.state
+  // Notes about the data that need no action, above the page; Balance, Run and Ride hold them in their own Details.
+  const aboutNotes =
+    result !== null && NOTES_IN_DETAILS.includes(page) ? [] : aboutNotesOf(analysis.state, page)
   const left = leftOutRuns(analysis.state.library)
-  // Run, when every run is left out, has its own button to count them, so it leaves the offer to open one out.
-  const offerToOpen = !(left.allLeftOut && left.runs[0]?.sport === page)
-  const aboutNotes = [
-    ...(copies > 0 ? [{ id: 'copies', count: copies, text: hiddenCopiesText(copies) }] : []),
-    ...(walkingNote && walking > 0
-      ? [{ id: 'walking', count: walking, text: walkingPaceText(walking, offerToOpen) }]
-      : []),
-    ...(walkingNote && labelled > 0
-      ? [{ id: 'labelled', count: labelled, text: labelledText(labelled) }]
-      : []),
-  ]
   // A signed-in library can read older detail back from a saved original, so the line, like the list's tag, is for this browser's own.
   const detailLine = detailCoverageLine(
     judgedDetail(analysis.detail, { isSample: analysis.state.isSample, signedIn }),

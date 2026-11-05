@@ -31,8 +31,12 @@ export interface ResultPeriod {
   pickPeriod: (choice: PeriodChoice, answered?: (reply: unknown) => void) => void
   /** The rail's periods on a page the period moves, else null. */
   periods: ReactNode
-  /** The period's caption for under the page title, on the same pages, else null. */
+  /** The period's status and Custom form for under the page title, on the same pages, else null. */
   caption: ReactNode
+  /** The period's dates and counts as one meta line, for the page's Details, else null. */
+  line: ReactNode
+  /** Whether that line gives a count, so a sport page's own line leaves its count out. */
+  lineCounts: boolean
 }
 
 /** The notes after the period's dates, in the caption's one line: joined with a dot, with no full stops. */
@@ -112,5 +116,7 @@ export function useResultPeriod({
     pickPeriod,
     periods: shown ? rail.periods : null,
     caption: shown ? rail.caption : null,
+    line: shown ? rail.line : null,
+    lineCounts: shown && rail.lineCounts,
   }
 }

@@ -134,6 +134,23 @@
   text-align: start;
 }
 
+.app__footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+/* ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. Method is the header's from 361 px, the footer's below. */
+.app__footer .app__footer-method {
+  display: none;
+}
+
+@media (max-width: 360px) {
+  .app__footer .app__footer-method {
+    display: inline-flex;
+  }
+}
+
 /* 24 px is the smallest target WCAG allows, so a footer link is never a line-high sliver. */
 .app__footer a {
   display: inline-flex;

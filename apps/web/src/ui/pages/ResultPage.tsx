@@ -20,6 +20,7 @@ import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
+import { aboutNotesOf } from '../components/aboutNotes'
 import { MethodPage } from './MethodPage'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
@@ -108,13 +109,25 @@ export function ResultPage({
   // too, which then says what the page is based on.
   const askingForAge = missingAge === 'year of birth and sex' && !weightKnown
   const balanceFootnote = askingForAge ? null : footnote
-  const { pickPeriod, periods, caption } = useResultPeriod({
+  const { pickPeriod, periods, caption, line, lineCounts } = useResultPeriod({
     route,
     analysis,
     library,
     analysed,
     inPeriod,
   })
+  // The notes about the data (copies hidden, runs at walking pace) sit with the period's line in the one Details under
+  // the title, so nothing stands above it and the title does not move between Balance, Run and Ride.
+  const notes = aboutNotesOf(analysis.state, route.page)
+  const details =
+    line === null && notes.length === 0 ? null : (
+      <>
+        {line}
+        {notes.map((note) => (
+          <p key={note.id}>{note.text}</p>
+        ))}
+      </>
+    )
   return (
     <Shell route={route} periods={periods}>
       {pageOf()}
@@ -160,6 +173,8 @@ export function ResultPage({
             heartRateJudgement={analysis.state.heartRateJudgement}
             onFile={countsOf(inPeriod, route.page).onFile}
             controls={caption}
+            periodLine={details}
+            periodCounts={lineCounts}
             emptyText={sportEmptyText(
               route.page,
               period,
@@ -269,6 +284,7 @@ export function ResultPage({
             profile={profile}
             missingAge={missingAge}
             controls={caption}
+            periodLine={details}
             leftOut={leftOut ?? undefined}
             onShowAll={() => pickPeriod('all')}
             footnote={balanceFootnote}

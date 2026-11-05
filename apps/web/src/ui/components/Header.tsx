@@ -10,7 +10,7 @@ import './Header.css'
 export interface HeaderProps {
   /** The current page, which the page links and the Profile link mark as current. */
   route: Route | null
-  /** Shows History and Activities: only once there is a result to navigate. */
+  /** Shows History, Activities and Method: only once there is a result to navigate. */
   showTabs?: boolean
   /** The Add files button. */
   addFiles?: ReactNode
@@ -19,13 +19,14 @@ export interface HeaderProps {
 }
 
 /** The pages the header links to. Balance, Run and Ride are the rail's (Rail.tsx). */
-const PAGES: { label: string; page: 'history' | 'activities' }[] = [
+const PAGES: { label: string; page: 'history' | 'activities' | 'method' }[] = [
   { label: 'History', page: 'history' },
   { label: 'Activities', page: 'activities' },
+  { label: 'Method', page: 'method' },
 ]
 
 /**
- * The header is one line: the wordmark, History and Activities as text links, then Profile, the account and Add
+ * The header is one line: the wordmark, History, Activities and Method as text links, then Profile, the account and Add
  * files at the right, with a hairline under it.
  */
 export function Header({ route, showTabs = route !== null, addFiles, account }: HeaderProps) {
@@ -38,11 +39,11 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
         {APP_WORDS}
       </a>
       {showTabs && (
-        <nav className="header__pages" aria-label="Pages">
+        <nav className="header__pages" aria-label="More pages">
           {PAGES.map(({ label, page }) => (
             <a
               key={page}
-              className={current === page ? 'header__link header__link--current' : 'header__link'}
+              className={`header__link header__link--${page}${current === page ? ' header__link--current' : ''}`}
               href={hrefFor({ page })}
               aria-current={ariaCurrentOf(route, page, current)}
             >
