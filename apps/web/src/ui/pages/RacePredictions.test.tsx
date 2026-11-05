@@ -125,10 +125,12 @@ describe('RacePredictions', () => {
     }
   })
 
-  it('keys each shape, naming the VO2max the heart-rate triangle comes from', () => {
+  it('keys each shape behind About these predictions, naming the VO2max the heart-rate triangle comes from', () => {
     renderPredictions(
       makeResult({ activities: [withBests], runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 } }),
     )
+    expect(screen.queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+    openAbout()
     const key = screen.getByRole('list', { name: 'Key' })
     const entries = within(key).getAllByRole('listitem')
     expect(entries.slice(0, 3).map((li) => li.textContent)).toEqual([
@@ -300,8 +302,8 @@ describe('RacePredictions', () => {
     it('says nothing of it for a forecast from hard runs, which keeps its bar and key', () => {
       const view = renderPredictions(makeResult({ activities: [withBests] }))
       expect(view.container.querySelectorAll('.race-bar')).toHaveLength(found.races.length)
-      expect(screen.getByRole('list', { name: 'Key' })).toBeInTheDocument()
       openAbout()
+      expect(screen.getByRole('list', { name: 'Key' })).toBeInTheDocument()
       expect(screen.queryByText(/was shown hard/)).not.toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
     })
@@ -313,8 +315,8 @@ describe('RacePredictions', () => {
       runVo2max: { vo2max: 62, runs: 5, hillCapped: 3 },
     })
     renderPredictions(result)
-    expect(screen.getByText('From heart rate (VO2max 62)')).toBeInTheDocument()
     openAbout()
+    expect(screen.getByText('From heart rate (VO2max 62)')).toBeInTheDocument()
     expect(screen.queryByText(/points to more|hilly runs|wide/)).not.toBeInTheDocument()
   })
 
@@ -367,7 +369,11 @@ describe('RacePredictions', () => {
       const row = Array.from(view.container.querySelectorAll('.race-row')).find(
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
       )!
-      expect(row.querySelector('.race-row__ran')?.textContent).toBe('You ran 38:00 on 27 Nov')
+      // One meta line: the pace, then the recorded best.
+      expect(row.querySelector('.race-row__meta')?.textContent).toMatch(
+        /^\d:\d\d \/km · ran 38:00, 27 Nov$/,
+      )
+      expect(row.querySelectorAll('.race-row__name > *')).toHaveLength(2)
       expect(row.querySelector('.race-bar__ran-label')?.textContent).toBe('Run')
       expect(row.querySelectorAll('.race-bar__ran')).toHaveLength(1)
       expect(row.querySelector('.race-bar')?.getAttribute('aria-label')).toMatch(
@@ -379,12 +385,13 @@ describe('RacePredictions', () => {
       expect(at('.race-bar__ran')).toBeLessThan(at('.race-bar__dot'))
     })
 
-    it('keys the dot and repeats the run in the table', () => {
+    it('keys the dot behind About these predictions and repeats the run in the table', () => {
       renderPredictions(slowHeartRate, 'period', [easy])
+      expect(screen.queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+      openAbout()
       expect(
         within(screen.getByRole('list', { name: 'Key' })).getByText(/^Run:/),
       ).toBeInTheDocument()
-      openAbout()
       const table = screen.getByRole('table')
       expect(
         within(table).getByRole('columnheader', { name: 'Recorded best, off the prediction' }),
@@ -404,7 +411,7 @@ describe('RacePredictions', () => {
         (el) => el.querySelector('.race-row__race')?.textContent === '10 km',
       )!
       expect(row.querySelector('.race-row__ran')?.textContent).toBe(
-        'Your best is 50:00, from 27 Nov, slower than this range',
+        'best 50:00, 27 Nov, slower than this range',
       )
       expect(row.querySelector('.race-bar__ran')).toBeNull()
       expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()

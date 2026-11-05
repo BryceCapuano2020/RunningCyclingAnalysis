@@ -56,3 +56,14 @@ export function ranText(ran: RanBest): string {
     ? `You ran ${time} on ${ran.when}`
     : `Your best is ${time}, from ${ran.when}, slower than this range`
 }
+
+/**
+ * The same, short enough to follow the pace on a row's one meta line: "ran 41:15, 3 Mar", or "best 47:30, 3 Mar,
+ * slower than this range". The bar's name keeps the sentence.
+ */
+export function ranMeta(ran: RanBest): string {
+  const time = formatRecordTime(ran.seconds)
+  return ran.side === 'faster'
+    ? `ran ${time}, ${ran.when}`
+    : `best ${time}, ${ran.when}, slower than this range`
+}

@@ -59,21 +59,13 @@ describe('the level on each sport’s line', () => {
     expect(rows(RIDE_ACROSS_TWO)).toEqual(['Running 65% Local', 'Cycling 61% Recreational'])
   })
 
-  it('defines the level once, on the first line that names one', () => {
+  it('sets each level as plain text, with no control that reads as a link', () => {
     rows(RIDE_ACROSS_TWO)
-    expect(screen.getAllByRole('button')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Local' })).toBeInTheDocument()
-    cleanup()
-    const model = balanceLevels({
-      grades: { run: null, ride: RIDE_ACROSS_TWO },
-      sports: ['ride'],
-      inPeriod: IN_PERIOD,
-      missingAge: null,
-    })
-    render(<BalanceLevels model={model} />)
-    // Alone, the ride's row is the first that names a level, so it holds the one definition.
-    expect(screen.getAllByRole('button')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Recreational' })).toBeInTheDocument()
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(document.querySelector('.definition__term')).toBeNull()
+    expect(
+      [...document.querySelectorAll('.balance-levels__level')].map((level) => level.textContent),
+    ).toEqual(['Local', 'Recreational'])
   })
 
   it('says nothing about how hard the best was, which the line under the lede does', () => {

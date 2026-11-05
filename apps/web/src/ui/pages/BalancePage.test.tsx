@@ -245,6 +245,17 @@ describe('BalancePage', () => {
     expect(levels.querySelector('svg')).toBeNull()
   })
 
+  it('sets the level as plain text, and says what a level is in the answer’s Details', () => {
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    const levels = screen.getByRole('region', { name: 'Level in each sport' })
+    // Nothing on the line is a control, so nothing reads as a link.
+    expect(levels.querySelector('button, .definition__term')).toBeNull()
+    const meaning = document.querySelector('.balance__levels-meaning')!
+    expect(meaning.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details/)
+    expect(meaning).toHaveTextContent(/^A band of the age grade: .+ from \d+%\.$/)
+    expect(meaning.querySelector('.num')).not.toBeNull()
+  })
+
   it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the meter', () => {
     const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
     for (const gone of ['.balance-scale', '.balance-hero__gap', '.balance-meter__key']) {

@@ -117,10 +117,10 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     renderPage([SHORT, run], [run.id])
     const section = screen.getByRole('region', { name: 'Race predictions' })
     expect(section.querySelectorAll('.race-bar')).toHaveLength(4)
-    expect(within(section).getByRole('list', { name: 'Key' })).toBeInTheDocument()
     const details = within(section).getByText('About these predictions').closest('details')!
     details.open = true
     fireEvent(details, new Event('toggle'))
+    expect(within(section).getByRole('list', { name: 'Key' })).toBeInTheDocument()
     expect(within(section).getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/was shown hard|easier running/)
   })

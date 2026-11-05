@@ -19,8 +19,8 @@ const FIGURES_NOTE: Record<Sport, ReactNode> = {
 
 /**
  * Every best effort, in the sport's own units with its level and the activity that set it. What the figures are and what
- * a row lacks (a distance with no age standard, runs added before distance bests were recorded) are one ▸ Details under
- * the section's heading, not lines under the list.
+ * a row lacks (a distance with no age standard, runs added before distance bests were recorded) are one ▸ Details after
+ * the list: the section's heading is its own fold, and a second fold straight under it would read as an empty one.
  */
 export function BestEffortsEvidence({
   sport,
@@ -34,6 +34,7 @@ export function BestEffortsEvidence({
 }) {
   return (
     <>
+      <SportRecords rows={list.rows} sparks={sparks} />
       <PageDetails about="all best efforts">
         {FIGURES_NOTE[sport] === null ? null : <p>{FIGURES_NOTE[sport]}</p>}
         {list.listNotes.map((note) => (
@@ -46,7 +47,6 @@ export function BestEffortsEvidence({
           </p>
         )}
       </PageDetails>
-      <SportRecords rows={list.rows} sparks={sparks} />
     </>
   )
 }

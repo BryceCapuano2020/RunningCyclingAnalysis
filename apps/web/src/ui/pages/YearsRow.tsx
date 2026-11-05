@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { SeenEvent } from '../../worker/protocol'
+import { NumText } from '../components/NumText'
 import type { YearsWords } from '../yearsRow'
 import { focusPageHeading } from './pageHeading'
 import { useSighting } from './useSighting'
@@ -19,7 +20,7 @@ export interface YearsRowProps {
 
 /**
  * "History": the look-back's lead in one line under the fitness card, and behind the disclosure the other episodes.
- * It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
+ * Its figures are mono (NumText). It is a region, not a heading, and it is built like the check-in row (the family of one-line rows under the card):
  * the line is cut after two lines and the panel gives it whole. Opening or hiding it, or being shown it on two page
  * loads, is seeing its lead, and a seen lead gives up the place until the look-back has a new one; its content stays on
  * the History tab, under the fitness chart.
@@ -45,14 +46,20 @@ export function YearsRow({ words, onSeen }: YearsRowProps) {
       >
         <summary className="checkin-row__summary">
           <span className="sr-only">Show history. </span>
-          <span className="checkin-row__line">{words.lead}</span>
+          <span className="checkin-row__line">
+            <NumText text={words.lead} />
+          </span>
         </summary>
         <div className="checkin-row__panel">
-          <p className="checkin-row__full">{words.lead}</p>
+          <p className="checkin-row__full">
+            <NumText text={words.lead} />
+          </p>
           {words.rows.length === 0 ? null : (
             <ul className="checkin-row__list">
               {words.rows.map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line}>
+                  <NumText text={line} />
+                </li>
               ))}
             </ul>
           )}

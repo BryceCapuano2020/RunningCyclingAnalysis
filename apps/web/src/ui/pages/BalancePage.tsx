@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { Definition } from '../components/Definition'
+import { NumText } from '../components/NumText'
 import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
@@ -189,11 +190,20 @@ export function BalancePage({
   const only = soleSportOf(library)
   const soleSport = only !== null && inPeriod[only] > 0 ? only : null
   // The standards the grades are read against: what the answer rests on, so it is the last line of its Details.
+  // What a level is goes with them, where the line under the meter names one.
+  const levelNamed = levels?.rows.some((row) => row.level !== null) ?? false
   const sourceLine = !gradeShown ? null : (
-    <p className="balance__source">
-      <Definition meaning={DEFINITIONS.ageGrade}>Age-graded</Definition>
-      {` on ${ROAD_STANDARDS_SOURCE.shortName}.`}
-    </p>
+    <>
+      {levelNamed ? (
+        <p className="balance__levels-meaning">
+          <NumText text={DEFINITIONS.level} />
+        </p>
+      ) : null}
+      <p className="balance__source">
+        <Definition meaning={DEFINITIONS.ageGrade}>Age-graded</Definition>
+        {` on ${ROAD_STANDARDS_SOURCE.shortName}.`}
+      </p>
+    </>
   )
 
   return (

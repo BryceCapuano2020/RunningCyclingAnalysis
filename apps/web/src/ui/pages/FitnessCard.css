@@ -8,6 +8,11 @@
   min-width: 0;
 }
 
+/* A list of one row has no index, so its row has no index column. */
+.fitness-card.row--unnumbered {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* A long state word hyphenates, then breaks, rather than spill at 200% text. */
 .fitness-card__state {
   overflow-wrap: anywhere;

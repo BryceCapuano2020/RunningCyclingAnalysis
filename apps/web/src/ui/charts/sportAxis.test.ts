@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlotBox } from './chartTypes'
 import {
   axisTitle,
+  axisTitleWithin,
   curveYAxis,
   fillsArea,
   formatNative,
@@ -157,5 +158,21 @@ describe('curveYAxis', () => {
     expect(curve.ticks).toEqual(page.ticks)
     expect(curve.y(400)).toBe(page.y(400))
     expect(curveYAxis('ride', [196, 640], PLOT).ticks[0]?.label).toBe('0')
+  })
+})
+
+describe('axisTitleWithin', () => {
+  it('spells the title out over a wide plot and shortens it over a narrow phone’s, so it never runs past the plot', () => {
+    const wide = { left: 48, right: 900, top: 20, bottom: 200 }
+    const narrow = { left: 40, right: 260, top: 20, bottom: 200 }
+    expect(axisTitleWithin('run', 'imperial', wide, 1)).toBe(axisTitle('run', 'imperial', true))
+    expect(axisTitleWithin('run', 'imperial', narrow, 1)).toBe(axisTitle('run', 'imperial'))
+    // At a larger text size the full title needs more room.
+    expect(axisTitleWithin('run', 'imperial', { ...narrow, right: 360 }, 1)).toBe(
+      axisTitle('run', 'imperial', true),
+    )
+    expect(axisTitleWithin('run', 'imperial', { ...narrow, right: 360 }, 2)).toBe(
+      axisTitle('run', 'imperial'),
+    )
   })
 })

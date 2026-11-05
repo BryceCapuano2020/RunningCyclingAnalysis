@@ -76,14 +76,16 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
 }
 
 describe('FitnessSection', () => {
-  it('is a named region, "Your fitness", with a numbered row for the run titled by the sport and its state', () => {
+  it('is a named region, "Your fitness", with a row for the run titled by the sport and its state', () => {
     renderSection()
     const region = screen.getByRole('region', { name: 'Your fitness' })
     const title = within(region).getByRole('heading', { level: 3, name: 'Run · Slipping' })
     const row = title.closest('li')!
     expect(row).toHaveAttribute('data-sport', 'run')
     expect(row.closest('ol')).toHaveClass('rows')
-    expect(row.querySelector('.row__index')).toHaveTextContent('01')
+    // A list of one row is not numbered, and has no index column.
+    expect(row.querySelector('.row__index')).toBeNull()
+    expect(row).toHaveClass('row--unnumbered')
     // No mono sport label over the state, and no second small line under the title.
     expect(region.querySelector('.fitness-card__sport')).toBeNull()
     expect(row.querySelectorAll(':scope > .row__body > p')).toHaveLength(1)
@@ -121,6 +123,9 @@ describe('FitnessSection', () => {
     const rows = rowsOf()
     expect(rows.map((row) => row.getAttribute('data-sport'))).toEqual(['run', 'ride'])
     expect(rowNamed('Ride · Slipping')).toBe(rows[1])
+    // Two rows are numbered.
+    expect(rows.map((row) => row.querySelector('.row__index')?.textContent)).toEqual(['01', '02'])
+    expect(rows[0]).not.toHaveClass('row--unnumbered')
     const ride = linesOf(rows[1]!)
     // The one line is the change, without its range; the level is in the Details.
     expect(ride.line).toMatch(/^\d+% off your level before \d+ [A-Z][a-z]{2}\.$/)

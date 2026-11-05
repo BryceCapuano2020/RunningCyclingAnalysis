@@ -1,7 +1,7 @@
 /*
- * Each race is a row: its name and pace, its bar, its time at display size. The bar is drawn in HTML on the
- * sport's colour, so it takes the page's type scale and a phone's width without a measured canvas. Below a
- * desktop the bar drops under the name and the time, as the row's second line.
+ * Each race is a row: its name over one meta line, its time at display size, and its bar under them as the row's
+ * second line at every width, so the meta line has the row's width. The bar is drawn in HTML on the sport's colour,
+ * so it takes the page's type scale and a phone's width without a measured canvas.
  */
 .race-rows {
   display: grid;
@@ -32,10 +32,7 @@
 
 .race-row__name {
   grid-area: name;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--space-3);
+  display: grid;
   margin: 0;
 }
 
@@ -45,13 +42,6 @@
   font-size: var(--heading);
   font-weight: 500;
   line-height: 1.25;
-}
-
-/* What was run, where it beat the prediction, sits with the name and pace. */
-.race-row__ran {
-  flex-basis: 100%;
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
 }
 
 .race-row__time {
@@ -266,24 +256,6 @@
 .race-origins__race,
 .race-origins__method {
   display: block;
-}
-
-@media (min-width: 761px) {
-  .race-row {
-    grid-template-columns: 2.25rem 8rem minmax(0, 1fr) 6.5rem;
-    grid-template-areas: 'index name bar time';
-    align-items: center;
-    gap: 0 var(--space-3);
-  }
-
-  .race-row__name {
-    display: grid;
-    gap: 0;
-  }
-
-  .race-row__race {
-    white-space: nowrap;
-  }
 }
 
 @media (forced-colors: active) {

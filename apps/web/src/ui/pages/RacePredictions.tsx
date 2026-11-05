@@ -12,10 +12,10 @@ import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { FLOORED_TEXT, basisLine, methodNote, originText, spreadText } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
-import { ranText } from './raceRan'
+import { NumText } from '../components/NumText'
+import { ranMeta, ranText } from './raceRan'
 import type { RanBest } from './raceRan'
 import './RacePredictions.css'
-import { NumText } from '../components/NumText'
 
 /**
  * Which side of the bar each method's triangle sits on: the athlete's runs point down from above, the heart
@@ -91,8 +91,9 @@ function RaceBar({
 }
 
 /**
- * One race as a numbered row: its name and pace on the left, its time in mono on the right, and its bar under them. A time from runs none
- * of which was shown hard is a time the athlete can beat, so its range would mislead and the bar is left out.
+ * One race as a numbered row: its name over one meta line (the pace, and a recorded best that sets the prediction in
+ * doubt), its time in mono on the right, and its bar under them. A time from runs none of which was shown hard is a
+ * time the athlete can beat, so its range would mislead and the bar is left out.
  */
 function RaceRow({
   index,
@@ -114,15 +115,18 @@ function RaceRow({
       <RowIndex index={index} />
       <p className="race-row__name">
         <span className="race-row__race">{raceName(prediction.distanceM)}</span>
-        <span className="meta race-row__pace">
-          {formatPace(prediction.distanceM / prediction.seconds, units)}
-        </span>
-        {ran && (
-          <span className="race-row__ran">
-            <NumText text={ranText(ran)} />
+        <span className="meta race-row__meta">
+          <span className="race-row__pace">
+            {formatPace(prediction.distanceM / prediction.seconds, units)}
           </span>
-        )}
-        {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
+          {ran || prediction.floored ? ' · ' : null}
+          {ran && (
+            <span className="race-row__ran">
+              <NumText text={ranMeta(ran)} />
+            </span>
+          )}
+          {prediction.floored && !ran && <span className="race-row__ran">{FLOORED_TEXT}</span>}
+        </span>
       </p>
       {!bound && <RaceBar prediction={prediction} ran={ran} scale={scale} />}
       <p className="race-row__time">{formatRecordTime(prediction.seconds)}</p>
@@ -130,7 +134,7 @@ function RaceRow({
   )
 }
 
-/** The key above the bars, with each shape drawn as it is on a bar; the heart-rate entry names its VO2max. */
+/** The key to the bars, with each shape drawn as it is on a bar; the heart-rate entry names its VO2max. */
 function RaceKey({ found, anyRan }: { found: RunPredictions; anyRan: boolean }) {
   const used = new Set(found.races.flatMap((race) => race.methods.map((m) => m.method)))
   const heartRate = `${KEY_NAME.heartRate}${found.vo2max ? ` (VO2max ${Math.round(found.vo2max.vo2max)})` : ''}`
@@ -282,7 +286,6 @@ export function RacePredictions({
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
       </div>
-      {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
       <ol className="race-rows">
         {found.races.map((prediction, index) => (
           <RaceRow
@@ -297,6 +300,8 @@ export function RacePredictions({
         ))}
       </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
+        {/* The key to the bars' marks is read once, so it waits here with the rest of what the bars rest on. */}
+        {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
         {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
         <p className="meta">{basisLine({ basis }, openedAt)}</p>
         <p className="muted">{methodNote(window, bound)}</p>

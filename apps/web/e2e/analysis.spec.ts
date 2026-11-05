@@ -503,24 +503,26 @@ test('at 667 by 375 the balance headline is on the first screen', async ({ page 
   expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(foot)
 })
 
-test('the meter defines its terms in place, by press and by Enter', async ({ page }) => {
+test('the meter defines its range in place, and the level line is plain text whose meaning is in the Details', async ({
+  page,
+}) => {
   await openSample(page)
-  const level = page.locator(LEVEL_ROWS).first().getByRole('button')
-  await expect(level).toHaveAttribute('aria-expanded', 'false')
-  await level.click()
-  await expect(level).toHaveAttribute('aria-expanded', 'true')
-  await expect(page.getByRole('note').filter({ hasText: /Recreational below 60%/ })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(level).toHaveAttribute('aria-expanded', 'false')
-  await level.focus()
-  await page.keyboard.press('Enter')
-  await expect(level).toHaveAttribute('aria-expanded', 'true')
-  await page.keyboard.press('Escape')
-  await expect(level).toHaveAttribute('aria-expanded', 'false')
+  // Nothing on the level line is a control, so nothing there reads as a link.
+  await expect(page.locator(LEVEL_ROWS).first().getByRole('button')).toHaveCount(0)
+  await expect(page.locator(`${LEVEL_ROWS} .definition__term`)).toHaveCount(0)
+  const meaning = page.locator('.balance__levels-meaning')
+  await expect(meaning).toBeHidden()
+  await page.locator('details', { has: meaning }).locator('summary').click()
+  await expect(meaning).toHaveText(/^A band of the age grade: Recreational below 60%/)
   const range = page.getByRole('button', { name: 'range', exact: true })
+  await range.click()
+  await expect(range).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('note').filter({ hasText: /nine times out of ten/ })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(range).toHaveAttribute('aria-expanded', 'false')
   await range.focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('note').filter({ hasText: /nine times out of ten/ })).toBeVisible()
+  await expect(range).toHaveAttribute('aria-expanded', 'true')
 })
 
 test('the meter is named in words and its value and levels are text, none under the meta size', async ({
@@ -562,15 +564,18 @@ for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the range and level notes are sheets at the window's foot`, async ({
+  test(`at ${width} by ${height} the range and age-grade notes are sheets at the window's foot`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await openSample(page)
-    const terms = [
-      page.getByRole('button', { name: 'range', exact: true }),
-      page.locator(LEVEL_ROWS).first().getByRole('button'),
-    ]
+    // The age grade is defined in the answer's Details, which open first.
+    await page
+      .locator('details', { has: page.locator('.balance__source') })
+      .locator('summary')
+      .click()
+    const ageGraded = page.getByRole('button', { name: 'Age-graded', exact: true })
+    const terms = [page.getByRole('button', { name: 'range', exact: true }), ageGraded]
     for (const term of terms) {
       await term.focus()
       await page.keyboard.press('Enter')
@@ -628,11 +633,11 @@ test('no box around a defined term is transformed, filtered or contained, on the
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  // The landing example defines the range and, once, the level; Method defines its own term.
+  // The landing example defines the range (its level is plain text); Method defines its own term.
   await page.goto('/')
-  await expect(page.locator('.landing-example .definition')).toHaveCount(2)
+  await expect(page.locator('.landing-example .definition')).toHaveCount(1)
   const landing = await definedTermAncestors(page)
-  expect(landing.terms).toBeGreaterThanOrEqual(2)
+  expect(landing.terms).toBeGreaterThanOrEqual(1)
   expect(landing.bad).toEqual([])
   await page.goto('/#/method')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
