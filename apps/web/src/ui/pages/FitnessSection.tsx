@@ -10,11 +10,9 @@ import { fitnessViews, lineOf } from '../fitnessModel'
 import { FITNESS_LACK_INDOOR_LINE, FITNESS_LACK_LINE } from '../fitnessWords'
 import { indoorCount } from '../indoorCopy'
 import type { FitnessView } from '../fitnessModel'
-import { hrefFor } from '../route'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
 import './FitnessSection.css'
-import { NumText } from '../components/NumText'
 
 const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
 
@@ -24,15 +22,6 @@ const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
  */
 const isLine = (view: FitnessView, home: boolean) =>
   isWaiting(view) && (view.status.level === undefined || (home && SPORTS.indexOf(view.sport) > 0))
-
-/**
- * A line's words. Without a level to tell, why there is none, with the library's counts, and how old the status is when
- * it is old; else the status's own line.
- */
-function lineText(view: FitnessView, library: readonly ActivitySummary[]): string {
-  const why = view.status.level === undefined ? fitnessCountLine(library, view.sport) : null
-  return why === null ? lineOf(view) : [why, view.age ?? ''].join(' ').trim()
-}
 
 export interface FitnessSectionProps {
   fitness: FitnessBySport
@@ -47,7 +36,7 @@ export interface FitnessSectionProps {
 }
 
 /**
- * "Your fitness": each sport's status at the same heart rate, as cards, run first. A sport with nothing to say
+ * "Your fitness": each sport's status at the same heart rate, as a numbered row each, run first. A sport with nothing to say
  * has none (a library with no steady run, or no ride with a power meter), and with no card the section is not
  * drawn. A sport with fewer than 3 steady activities is a line. While an import is known partial, the section says so
  * and shows no card (the same hold as the headline's).
@@ -102,37 +91,33 @@ export function FitnessSection({
       </section>
     )
   }
+  // One numbered row for each sport, run first: the cards, then the sports that are a line, each its own row.
+  const rows = views.filter((view) => cards.includes(view) || lines.includes(view))
   return (
     <section className="band fitness-section" aria-labelledby={id} data-testid="fitness-section">
       <h2 id={id}>Your fitness</h2>
-      {cards.length === 0 ? null : (
-        <div className="fitness-section__cards">
-          {cards.map((view) => (
-            <FitnessCard
-              key={view.sport}
-              view={view}
-              units={units}
-              library={library}
-              showSport={sport === undefined}
-            />
-          ))}
-        </div>
-      )}
-      {lines.map((view) => (
-        <p
-          key={view.sport}
-          className="fitness-section__line"
-          data-testid={`${view.sport}-fitness-line`}
-        >
-          {home ? (
-            <a href={hrefFor({ page: view.sport })}>
-              <NumText text={lineText(view, library)} />
-            </a>
-          ) : (
-            <NumText text={lineText(view, library)} />
-          )}
-        </p>
-      ))}
+      <ol className="rows fitness-section__rows">
+        {rows.map((view, index) => (
+          <FitnessCard
+            key={view.sport}
+            view={view}
+            units={units}
+            library={library}
+            index={index}
+            showSport={sport === undefined}
+            bare={
+              lines.includes(view)
+                ? {
+                    text:
+                      view.status.level === undefined
+                        ? (fitnessCountLine(library, view.sport) ?? lineOf(view))
+                        : null,
+                  }
+                : undefined
+            }
+          />
+        ))}
+      </ol>
     </section>
   )
 }

@@ -14,21 +14,27 @@ export interface BalanceChangesProps {
 
 /**
  * What changed against the previous period, or against the latest earlier window that held enough to compare: a
- * heading, what it is against as a meta line, and at most four numbered rows, each a title and a line. An item is
+ * heading, what it is against as a meta line (left out when the one sentence of no change says it), and at most four numbered rows, each a title and a line. An item is
  * listed only where the change test calls it. With nothing called, the section says so in one line; with nothing to
  * compare, and under all time, it is left out.
  */
 export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) {
   if (changes === null || previousLabel === null) return null
   const { items } = changes
+  // With nothing called, the sentence names what it is against, so no meta line says it first.
+  const against = items.length > 0
   return (
     <section
       className="section balance-changes"
-      aria-labelledby="balance-changes-title balance-changes-against"
+      aria-labelledby={
+        against ? 'balance-changes-title balance-changes-against' : 'balance-changes-title'
+      }
     >
       <div className="section__head">
         <h2 id="balance-changes-title">What changed</h2>
-        <p id="balance-changes-against" className="meta">{`vs ${withThe(previousLabel)}`}</p>
+        {against && (
+          <p id="balance-changes-against" className="meta">{`vs ${withThe(previousLabel)}`}</p>
+        )}
       </div>
       {items.length === 0 ? (
         <p className="balance-changes__empty">

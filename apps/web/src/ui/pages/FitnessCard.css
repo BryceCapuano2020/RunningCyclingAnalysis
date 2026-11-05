@@ -1,175 +1,36 @@
-/* Your fitness: one card for each sport that has a status, under the balance it sits beside. */
+/*
+ * Your fitness: a numbered row for each sport that has a status (RowList.css), its title the sport and its state, one
+ * line under it, and the rest behind its ▸ Details.
+ */
 .fitness-section {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
 }
 
-.fitness-section__cards {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* A sport's fitness has no box: its sport is a meta line in the sport's ink, and the figures stay in ink. */
-.fitness-card {
-  position: relative;
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-  padding-bottom: var(--space-2);
-}
-
-/* Two (Balance) are told apart by a hairline. */
-.fitness-card + .fitness-card {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--hairline);
-}
-
-.fitness-card__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-}
-
-.fitness-card__sport {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.fitness-card__sport {
-  color: var(--sport-ink);
-}
-
-/* New: a meta line with the week it began. */
-.fitness-card__new {
-  margin: 0;
-}
-
-.fitness-card__body {
-  display: grid;
-  gap: var(--space-4) var(--space-6);
-  grid-template-columns: minmax(0, 1fr);
-  align-items: center;
-}
-
-@media (min-width: 761px) {
-  .fitness-card__body {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  }
-}
-
-/*
- * A short phone (the same test as the page's own tighter gaps) has a header, a notice and a tab bar to share its
- * height with, so the card gives up what its evidence panel repeats: the support line and the sport's tag go, the New
- * marker rides the corner without its week (read aloud still), and the sentence is a size smaller. What stays is the
- * state, the sentence with its range and the track.
- */
-@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
-  .fitness-card {
-    gap: var(--space-3);
-    padding-bottom: var(--space-2);
-  }
-
-  .fitness-card__sport,
-  .fitness-card__support {
-    display: none;
-  }
-
-  .fitness-card__top {
-    position: absolute;
-    top: var(--space-1);
-    right: 0;
-  }
-
-  .fitness-card__new-week {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .fitness-card__headline {
-    font-size: var(--text-md);
-  }
-}
-
-/* A landscape phone has little height: the track sits beside the words, as on a wide screen, and the card is tighter. */
-@media (max-height: 520px) and (min-width: 560px) {
-  .fitness-card {
-    gap: var(--space-2);
-    padding-bottom: var(--space-3);
-  }
-
-  .fitness-card__body {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  }
-
-  /* The sport's tag goes and the marker rides the card's corner, so the state is its first line. */
-  .fitness-card__top {
-    position: absolute;
-    top: var(--space-1);
-    right: 0;
-  }
-
-  .fitness-card__sport {
-    display: none;
-  }
-}
-
-.fitness-card__text {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-/* The state word in the serif at --title: no shape, box or coloured edge. */
+/* A long state word hyphenates, then breaks, rather than spill at 200% text. */
 .fitness-card__state {
-  margin: 0;
-  /* A long word hyphenates, then breaks, rather than spill at 200% text. */
   overflow-wrap: anywhere;
   hyphens: auto;
-  font-family: var(--font-serif);
-  font-size: var(--title);
-  font-weight: 500;
-  line-height: 1.15;
 }
 
-.fitness-card__headline {
-  margin: 0;
-  max-width: var(--measure);
-  color: var(--ink);
-  font-size: var(--text-lead);
-  line-height: 1.35;
-  text-wrap: pretty;
+/* The Details hold the level, the changes, what they rest on and the track, then the evidence once opened. */
+.fitness-card__details {
+  min-width: 0;
+  max-width: none;
 }
 
-/* One line for each change, the number first: set between the level above and the evidence below. */
-.fitness-card__change {
-  margin: 0;
+.fitness-card__details > p {
   max-width: var(--measure);
-  color: var(--ink);
-  font-size: var(--text-md);
-  line-height: 1.35;
-}
-
-.fitness-card__support {
-  margin: 0;
-  max-width: var(--measure);
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
 }
 
 .fitness-card__shape {
+  justify-self: stretch;
   min-width: 0;
+  max-width: var(--measure);
 }
 
 .fitness-card__evidence {
   min-width: 0;
+  justify-self: stretch;
 }

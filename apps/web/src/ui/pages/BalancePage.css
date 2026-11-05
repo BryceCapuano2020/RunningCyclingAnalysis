@@ -1,6 +1,6 @@
 /*
- * The answer: the sentence in the serif at --display-2, the period's meta line under it, then the lead line and the
- * lines that follow it at the prose measure. The meter, the levels and the share button stack under it.
+ * The answer: the sentence in the serif at --display-2, the one lead line under it, and its ▸ Details. The meter, the
+ * levels and the share button stack under it.
  */
 .balance-hero {
   display: grid;
@@ -58,30 +58,14 @@
   max-width: var(--measure);
 }
 
-.balance-hero__lede,
-.balance-hero__line {
+.balance-hero__lede {
   font-family: var(--font-serif);
   font-size: var(--text-lead);
-}
-
-.balance-hero__line {
-  color: var(--ink-secondary);
 }
 
 /* The tiles' prompt for a sport with nothing in the period fills its slot. */
 .balance-tiles > .empty-sport {
   align-content: start;
-}
-
-/* The link to how sure the answer is sits under the list as one line. */
-.evidence-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: var(--text-md);
 }
 
 /* A chart that has the page's width to itself: no box, a heading and its plot. */
@@ -92,7 +76,10 @@
   min-width: 0;
 }
 
-.balance__source {
-  max-width: var(--measure);
-  font-size: var(--text-md);
+/*
+ * Balance's sections are already a section gap apart (.page-stack), so a band adds only its rule, not the extra margin
+ * it takes on the sport page, whose stack is closer: one gap between sections, never a gap and a half.
+ */
+.balance-page > .band {
+  margin-top: 0;
 }

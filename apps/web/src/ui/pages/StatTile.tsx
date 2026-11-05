@@ -42,17 +42,18 @@ export function StatTile({ sport, heading, definition, figure, children }: StatT
         </h3>
         {children}
       </div>
-      {/* The figure, its second reading and the (empty) trend column line up with the rows above and below. */}
-      {figure === undefined ? null : (
-        <p className="row__figure stat-tile__figure">
-          <span className="stat-tile__number">{figure.number}</span>
-          {'\u00a0'}
-          <span className="row__unit stat-tile__unit">{figure.unit}</span>
-        </p>
-      )}
-      {figure?.side === undefined ? null : (
-        <span className="row__sub stat-tile__side">{figure.side}</span>
-      )}
+      {/* Every tile emits the figure, its second reading and the trend column, empty where it has none, so a figure
+          sits in the same column on every row of the list whatever its neighbours hold. */}
+      <p className="row__figure stat-tile__figure">
+        {figure === undefined ? null : (
+          <>
+            <span className="stat-tile__number">{figure.number}</span>
+            {'\u00a0'}
+            <span className="row__unit stat-tile__unit">{figure.unit}</span>
+          </>
+        )}
+      </p>
+      <span className="row__sub stat-tile__side">{figure?.side}</span>
       <span className="row__spark" />
     </article>
   )

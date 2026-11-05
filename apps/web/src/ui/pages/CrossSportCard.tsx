@@ -32,8 +32,8 @@ const HEADING = 'Your ride as a run'
 /**
  * What your ride is worth as a run: the app's most relatable idea, as a tile. Its figure is the pace your ride threshold equals,
  * the hour of riding it stands for priced as an hour of running, so it sits beside the run threshold like for like: where the
- * balance leans toward running the pace is slower than the run threshold, and where it leans toward cycling, faster. The line
- * under it names the ride threshold in watts. It opens to every duration's pace, from the best efforts. It does not say how the
+ * balance leans toward running the pace is slower than the run threshold, and where it leans toward cycling, faster. The fold
+ * names the ride threshold in watts. It opens to every duration's pace, from the best efforts. It does not say how the
  * watts were found: the ride threshold's own tile says how many rides it rests on, and the pace-curve table marks each estimated
  * effort. A file with no ride has no such idea, so the slot is left out; without a weight the ride's figures wait for it.
  */
@@ -63,9 +63,10 @@ export function CrossSportCard({ result, units, weighted, massKg }: CrossSportCa
       heading={HEADING}
       figure={{ number: formatPaceValue(speed, units), unit: PACE_UNIT[units] }}
     >
-      <p className="meta stat-tile__basis">{`From your ${formatPower(watts)} threshold.`}</p>
       <details className="disclosure cross-sport__details">
         <summary>See the pace curve</summary>
+        {/* What the pace rests on, inside the fold rather than a line under the title. */}
+        <p className="meta stat-tile__basis">{`From your ${formatPower(watts)} threshold.`}</p>
         <EquivalenceTable
           equivalents={result.equivalents}
           units={units}

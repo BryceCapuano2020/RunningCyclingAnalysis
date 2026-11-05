@@ -19,6 +19,7 @@ import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
 import { BalanceLede } from './BalanceLede'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { PageDetails } from './PageDetails'
 
 export interface BalanceHeroProps {
   result: AnalysisResult
@@ -48,15 +49,20 @@ export interface BalanceHeroProps {
   rideLeftOut?: RideLeftOut | null
   /** Each sport's level, as one line under the meter; with the meter's grades missing, the one sport on file's. */
   levels?: ReactNode
-  /** The period control, under the levels it changes. */
+  /** The period's status and Custom form, under the title. */
   controls?: ReactNode
+  /** The period's dates and counts as one meta line, which goes in the Details under the answer. */
+  periodLine?: ReactNode
+  /** The standards the grades are read against, the last line of the Details. */
+  standards?: ReactNode
   /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
   leftOut?: LeftOutRuns
 }
 
 /**
  * The answer: a headline that names it, one plain sentence, and the meter, a single line with the gap and its
- * range written at the dot. Each sport's level is one line under the meter, and the period control under that.
+ * range written at the dot. Each sport's level is one line under the meter. The period's dates and counts, the target
+ * and any caveat are behind one ▸ Details under the sentence.
  * Where the two sports cannot be compared yet, the headline says what is missing.
  */
 export function BalanceHero({
@@ -74,6 +80,8 @@ export function BalanceHero({
   rideLeftOut = null,
   levels = null,
   controls = null,
+  periodLine = null,
+  standards = null,
   leftOut,
 }: BalanceHeroProps) {
   const hold = useHoldInputs()
@@ -96,8 +104,9 @@ export function BalanceHero({
         <p className="lede secondary">
           <WeightPrompt />
         </p>
-        {action}
         {controls}
+        <PageDetails>{periodLine}</PageDetails>
+        {action}
       </section>
     )
   }
@@ -116,6 +125,7 @@ export function BalanceHero({
           {head(title)}
           {controls}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
+          <PageDetails>{periodLine}</PageDetails>
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>
@@ -156,13 +166,18 @@ export function BalanceHero({
               durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
             />
           </p>
-          {target !== null && (
-            <p className="balance-hero__line">
-              <NumText text={target} />
-            </p>
-          )}
-          {few !== null && <p className="balance-hero__line">{few}</p>}
-          {unchecked !== null && <p className="balance-hero__line">{unchecked}</p>}
+          {/* The answer is the sentence and this one line; the period, the target and any caveat are one press down. */}
+          <PageDetails>
+            {periodLine}
+            {target !== null && (
+              <p className="balance-hero__line">
+                <NumText text={target} />
+              </p>
+            )}
+            {few !== null && <p className="balance-hero__line">{few}</p>}
+            {unchecked !== null && <p className="balance-hero__line">{unchecked}</p>}
+            {standards}
+          </PageDetails>
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
