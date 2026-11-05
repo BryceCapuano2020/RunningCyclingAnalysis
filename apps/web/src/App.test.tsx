@@ -294,6 +294,16 @@ describe('original file retention', () => {
   })
 })
 
+describe('signed-out landing', () => {
+  it('says the privacy sentence once, in the footer', () => {
+    setAccount('signed-out')
+    render(<App />)
+    const found = screen.getAllByText(/stay in this browser/)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toHaveClass('privacy-note')
+  })
+})
+
 describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)

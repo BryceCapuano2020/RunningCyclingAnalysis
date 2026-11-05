@@ -19,7 +19,7 @@
 }
 
 /* On a short phone the drop zone is a step tighter, so Add files is on the first screen at 320 x 568. A
-   short desktop window keeps the tall padding: the query asks for a finger or a phone-width window. */
+   short desktop window keeps the tall gaps: the query asks for a finger or a phone-width window. */
 @media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
   .dropzone {
     gap: var(--space-2);
@@ -37,44 +37,6 @@
   font-weight: 500;
 }
 
-.dropzone__hint,
-.dropzone__drag {
-  margin: 0;
-  color: var(--ink-secondary);
-}
-
-/* Drag text is for a mouse or trackpad: a touch screen cannot drop a file onto the page. */
-@media (pointer: coarse) {
-  .dropzone__drag {
-    display: none;
-  }
-}
-
-.dropzone__guides {
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
-}
-
-@media (pointer: fine) {
-  .dropzone__touch {
-    display: none;
-  }
-}
-
-/* A text button that reads as a link: underlined, at the shared control height. */
-.dropzone__link {
-  min-height: var(--control-height);
-  padding: 0 var(--space-2);
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
 .dropzone__actions {
   display: flex;
   flex-wrap: wrap;
@@ -84,7 +46,7 @@
 
 /*
  * On a touch screen the drop zone is not a drop target, so it is not drawn as one: it is the row of actions
- * under the pitch, with the accepted files and the guides link under it in small text.
+ * under the pitch.
  */
 .dropzone--touch {
   align-content: start;
@@ -93,10 +55,4 @@
 
 .dropzone--touch .dropzone__actions {
   justify-content: flex-start;
-}
-
-.dropzone--touch .dropzone__hint,
-.dropzone--touch .dropzone__guides {
-  font-size: var(--text-sm);
-  text-align: start;
 }

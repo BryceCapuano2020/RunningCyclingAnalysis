@@ -1,18 +1,22 @@
-/* The sign-in button is a control like the others: outlined, sans, on paper. The mark keeps Google's own colours. */
+/*
+ * Google's neutral sign-in button spec. The literal colours and the Roboto face below are the one documented
+ * exception to the token rule (docs/design/system.md, Layout, Controls): Google's branding guidelines fix them. Only
+ * the height and the outline shape follow the paper system.
+ */
 .google-sign-in {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-height);
   padding: 0 var(--space-4);
-  border: 1px solid var(--control-border);
+  border: 1px solid #747775;
   border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
+  background: #ffffff;
+  color: #1f1f1f;
   cursor: pointer;
-  font-family: var(--font-sans);
+  font-family: 'Roboto', system-ui, sans-serif;
   font-size: var(--text-sm);
-  font-weight: 400;
+  font-weight: 500;
   /* The label stays on one line where there is room; in a column narrower than it, at 200% text, it wraps. The
      header sets its own (Header.css), where a wrapped label would grow the bar. */
   white-space: normal;
@@ -23,9 +27,9 @@
   justify-content: center;
 }
 
+/* Google's hover state: an 8% overlay of the text colour on the fill, as the one solid colour it comes to. */
 .google-sign-in:hover {
-  background: var(--paper-hover);
-  border-color: var(--ink-secondary);
+  background: #ededed;
 }
 
 .google-sign-in__mark {

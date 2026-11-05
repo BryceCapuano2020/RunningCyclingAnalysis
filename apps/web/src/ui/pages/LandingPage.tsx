@@ -1,5 +1,4 @@
 import type { UnitSystem } from '@rca/core/units'
-import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
 import { useTouchFirst } from '../useMediaQuery'
@@ -13,8 +12,6 @@ const METHOD_HEADING_ID = 'landing-method-heading'
 export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
-  /** The footer's privacy sentence. The page no longer repeats it under the title: the footer says it once. */
-  privacy?: string
   /** The units the example's weight is told in. Metric without one. */
   units?: UnitSystem
   /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
@@ -23,20 +20,13 @@ export interface LandingPageProps {
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
 export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
-  const guidesHeading = useRef<HTMLHeadingElement>(null)
   // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
   const touch = useTouchFirst()
-
-  // Focus moves to the guides, which scrolls to them. A fragment link would break the hash routes.
-  function showExportGuides() {
-    guidesHeading.current?.focus()
-  }
 
   const dropzone = (
     <Dropzone
       onFiles={onFiles}
       onSample={analysis.loadSample}
-      onShowGuides={showExportGuides}
       busy={analysis.busy}
       signedIn={signedIn}
     />
@@ -81,7 +71,6 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         </li>
       </ol>
       <ExportGuides
-        headingRef={guidesHeading}
         sample={signedIn ? undefined : { busy: analysis.busy, onSample: analysis.loadSample }}
       />
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>

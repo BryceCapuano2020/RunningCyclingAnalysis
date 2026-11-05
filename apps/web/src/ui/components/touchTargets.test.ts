@@ -94,7 +94,6 @@ describe('the shared control height', () => {
     ['activity page back link', sheets.activityPage, '.activity-page__back'],
     ['delete dialog input', sheets.deleteDialog, '.delete-dialog__input'],
     ['disclosure summary', sheets.summary, 'summary'],
-    ['landing drop-zone link', sheets.dropzone, '.dropzone__link'],
   ])('%s takes the shared control height', (_name, css, selector) => {
     expect(bodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
   })
