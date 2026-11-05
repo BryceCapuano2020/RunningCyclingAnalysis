@@ -16,6 +16,11 @@ volt, card and dark-mode system with this one.
   between hairlines. The only outlined things are controls.
 - **The removal test.** Every element must carry information the page would lose without it. A label that repeats its
   heading, an icon in a circle, a chip, a badge or a pill, and a second emphasis in one row all fail it and are not drawn.
+- **No subtitle lines.** A page title, a section heading or a row has no small line under it unless that line is the
+  content itself. Context goes behind one ▸ Details disclosure where it is: the period's dates and counts, "not counted",
+  why a window was chosen, what a figure rests on ("From 130 runs. Strongest: ..."), a target ("To match it on the bike"),
+  a caveat. A line that repeats a heading, the rail or another line is deleted. A row keeps one meta line at most, and only
+  for what tells it apart (its date or activity). The owner called the stacked small lines slop (4 Nov 2026).
 - **Almost no colour.** Ink and paper do the work. The run ink and the ride ink mark which sport a figure or a line belongs
   to. Nothing else on a page is coloured, except a status line and the data of a chart.
 
