@@ -4,6 +4,7 @@ import { seedBaseline } from './checkinSeed.js'
 import {
   BALANCE_TITLE,
   edgesOf,
+  firstScreenFoot,
   horizontalOverflow,
   trackErrors,
   uploadFixtures,
@@ -28,13 +29,6 @@ async function openWithRow(page: Page): Promise<void> {
   await expect(page.locator(ROW)).toBeVisible()
 }
 
-/** The top of the section tabs at a phone width, where they are fixed to the foot of the window. */
-async function tabBarTop(page: Page): Promise<number> {
-  const tabs = page.locator('.header__tabs')
-  expect(await tabs.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
-  return (await edgesOf(tabs)).top
-}
-
 const SIZES = [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
@@ -42,7 +36,7 @@ const SIZES = [
 ] as const
 
 for (const size of SIZES) {
-  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is above it and above the tabs, and nothing overflows`, async ({
+  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is above it and on the first screen, and nothing overflows`, async ({
     page,
   }) => {
     const errors = trackErrors(page)
@@ -54,8 +48,7 @@ for (const size of SIZES) {
     const rowEdges = await edgesOf(row)
     const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
     expect(rowEdges.top).toBeGreaterThanOrEqual(headline.bottom)
-    if (size.width < 768) expect(headline.top).toBeLessThan(await tabBarTop(page))
-    else expect(headline.top).toBeLessThan(size.height)
+    expect(headline.bottom).toBeLessThanOrEqual(await firstScreenFoot(page))
     const overflow = await horizontalOverflow(page)
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth)
     expect(box.x).toBeGreaterThanOrEqual(0)
@@ -79,7 +72,7 @@ test('at 320 by 640 the line says what was added and that nothing moved, without
     const last = [...range.getClientRects()].at(-1)
     return {
       clamped: el.scrollHeight > el.clientHeight + 1,
-      lines: Math.round(el.clientHeight / 17),
+      lines: Math.round(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)),
       bottom: last?.bottom ?? 0,
     }
   })

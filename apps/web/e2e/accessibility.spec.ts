@@ -10,6 +10,7 @@ import {
   SETUP_DIALOG_NAME,
   fixturePath,
   uploadFixtures,
+  openMethod,
 } from './helpers.js'
 
 /** One line per violation, so a failure names the rule and the elements it hit. */
@@ -182,8 +183,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     name: 'How sure is this?',
     open: async (page) => {
       await openSample(page)
-      await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-      await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+      await openMethod(page)
     },
   },
   {

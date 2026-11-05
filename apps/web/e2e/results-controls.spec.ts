@@ -7,6 +7,7 @@ import {
   goTo,
   openSample,
   periodSegment,
+  openMethod,
 } from './helpers.js'
 
 test('the Activities period narrows its own rows and All time restores them all, and a Balance pick hides none', async ({
@@ -66,7 +67,7 @@ test('the Custom form fits 320 px, with no page scroll sideways', async ({ page 
   expect(overflow).toBeLessThanOrEqual(320)
 })
 
-test('the Custom fields are a control tall with 16 px text, Apply sits below them, and Custom is not a bar at 390 px', async ({
+test('the Custom fields are a control tall with 16 px text or more, Apply sits below them, and Custom is not a bar at 390 px', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -79,7 +80,10 @@ test('the Custom fields are a control tall with 16 px text, Apply sits below the
   const applyBox = await form.getByRole('button', { name: 'Apply' }).boundingBox()
   const customBox = await period.locator('.segmented-control__option').last().boundingBox()
   expect(fromBox?.height ?? 0).toBeGreaterThanOrEqual(40)
-  expect(await from.evaluate((element) => getComputedStyle(element).fontSize)).toBe('16px')
+  // 16 px or more, so a phone does not zoom the page when the field takes focus.
+  expect(
+    await from.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+  ).toBeGreaterThanOrEqual(16)
   expect((applyBox?.y ?? 0) > (fromBox?.y ?? 0) + (fromBox?.height ?? 0)).toBe(true)
   expect(customBox?.width ?? 390).toBeLessThan(200)
 })
@@ -195,6 +199,8 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await page.addStyleTag({ content: ':root { font-size: 20px; }' })
   const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 wk', { exact: true }).click()
+  // The count is in the answer's Details, one press down.
+  await page.locator('.balance-hero .page-details > summary').click()
   await expect(page.getByText(/^\d+ of \d+ activities$/)).toBeVisible()
   await period.getByText('All', { exact: true }).click()
   // The count leaves the caption once the pick is answered; a slow runner can still be applying it.
@@ -208,12 +214,13 @@ test('How sure is this? says that both best efforts were hard efforts', async ({
   // detail says nothing of heart rate, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
   const run = page.getByRole('article', { name: 'Run threshold' })
-  await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
-  await expect(run.getByRole('note')).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /)
+  await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
+  await expect(run.getByRole('note')).toContainText(
+    /^From \d+ runs?\. Strongest: \d+ min on [^.]+\.Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /,
+  )
   await expect(run.getByRole('note')).not.toContainText(/heart rate/i)
 
-  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  await openMethod(page)
   await expect(page.getByText(/Both best efforts reached at least 90% of each sport/)).toBeVisible()
 })
 
@@ -226,15 +233,16 @@ test('the ride threshold says what it rests on, and opens its range and method o
   // One number, named by its words: no chip and no range shape beside it.
   await expect(ride.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(ride.locator('.chip')).toHaveCount(0)
-  await expect(ride.locator('.stat-tile__source')).toContainText(
-    /^From \d+ rides\. Strongest: \d+ min on /,
-  )
+  // What it rests on is the first line of its one disclosure, not a line under the figure.
+  await expect(ride.getByText(/^From \d+ rides\. Strongest: /)).toBeHidden()
   // The two tiles' terms are told apart by the threshold each opens.
-  const term = ride.getByRole('button', { name: 'How this was worked out for threshold power' })
+  const term = ride.locator('summary', { hasText: 'How this was worked out for threshold power' })
   await term.click()
   const note = ride.getByRole('note')
   await expect(note).toBeVisible()
-  await expect(note).toContainText(/^Range \d+ to \d+ W\./)
+  await expect(note).toContainText(
+    /^From \d+ rides\. Strongest: \d+ min on [^.]+\.Range \d+ to \d+ W\./,
+  )
   await expect(note).toContainText('Heart rate can raise the answer and never lowers it.')
   await expect(note).toContainText(
     /Here it (raised|did not raise) the answer|Here it was not used:/,
@@ -242,7 +250,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   await expect(
     page
       .getByRole('article', { name: 'Run threshold' })
-      .getByRole('button', { name: 'How this was worked out for threshold pace' }),
+      .locator('summary', { hasText: 'How this was worked out for threshold pace' }),
   ).toBeVisible()
 })
 

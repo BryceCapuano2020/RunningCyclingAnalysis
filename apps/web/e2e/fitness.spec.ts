@@ -13,44 +13,49 @@ const spoken = (line: Locator) =>
     return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
   })
 
-/** The sample's fitness card, on the page the test is on. */
+/** The sample's run fitness row, on the page the test is on. */
 const card = (page: Page) => page.locator(CARD)
 
-test('the sample’s Balance shows a fitness status that is new, with its range and the runs behind it', async ({
+/** Opens a fitness row's one Details, which holds the level, the basis, the track and the evidence. */
+const openDetails = (row: Locator) => row.locator('.fitness-card__evidence > summary').click()
+
+test('the sample’s Balance shows a fitness status that is new, with its one line and the runs behind it in Details', async ({
   page,
 }) => {
   const errors = trackErrors(page)
   await openSample(page)
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
-  // The words: the level at its heart rate, a line for the change with its 90% range, and the evidence behind it.
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run · Slipping')
+  // One line under the title: the change, with no range.
+  expect(await spoken(card(page).locator('.fitness-card__line'))).toMatch(
+    /^\d+% off your (\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
+  )
+  // The rest waits in the row's Details: the level at its heart rate, the runs behind it, what is new and the track.
+  await expect(card(page).locator('.fitness-card__headline')).toBeHidden()
+  await openDetails(card(page))
   expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(
     /^\d+:\d{2}\s\/(km|mi) at \d+ bpm\.$/,
-  )
-  expect(await spoken(card(page).getByTestId('fitness-change'))).toMatch(
-    /^\d+% \(\d+ to \d+\) off your (\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
   )
   expect(await spoken(card(page).locator('.fitness-card__support'))).toMatch(
     /^From \d+ steady runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}\.$/,
   )
   await expect(card(page).getByTestId('fitness-season')).toHaveCount(0)
   await expect(page.getByTestId('fitness-new')).toHaveText(
-    /^Newsince the week of \d{1,2} [A-Z][a-z]{2}$/,
+    /^New since the week of \d{1,2} [A-Z][a-z]{2}\.$/,
   )
-  // The state is a shape as well as a word, and the change is a track: both drawn, both hidden from a screen reader.
-  await expect(card(page).locator('.fitness-glyph')).toHaveAttribute('aria-hidden', 'true')
-  await expect(card(page).locator('.fitness-track__band')).toBeVisible()
+  // The change is a track, drawn and hidden from a screen reader, whose words are in the lines above it.
+  await expect(card(page).locator('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
   await expect(card(page).locator('.fitness-track__ring')).toBeVisible()
   expect(errors).toEqual([])
 })
 
-test('See the evidence opens a chart with its table twin, the method, the limit once and the runs as links', async ({
+test('the row’s Details open a chart with its table twin, the method, the limit once and the runs as links', async ({
   page,
 }) => {
   await openSample(page)
   // Closed, the panel draws and measures nothing.
   await expect(page.getByRole('figure', { name: CHART })).toHaveCount(0)
-  await page.getByText('See the evidence').click()
+  await openDetails(card(page))
   const chart = page.getByRole('figure', { name: CHART })
   await expect(chart).toBeVisible()
   // The chart: a ring and a range for each four-week step, the line it is read against, the month it began, and now.
@@ -60,7 +65,9 @@ test('See the evidence opens a chart with its table twin, the method, the limit 
   await expect(chart.locator('[data-testid="fitness-onset"]')).toContainText(/^Began /)
   // Its table twin has a row for each step.
   const steps = await chart.locator('[data-testid="fitness-point"]').count()
-  await chart.getByText('View as table').click()
+  await chart
+    .locator('details.chart-frame__details > summary', { hasText: 'View as table' })
+    .click()
   await expect(chart.locator('table').nth(1).locator('tbody tr')).toHaveCount(steps + 1)
   // The method and the honest limit, said once; and why some runs do not count.
   const panel = page.locator('.fitness-evidence')
@@ -90,7 +97,7 @@ test('a keyboard reaches the disclosure, opens it with Enter and reads the chart
     'Keyboard reading is checked on the desktop project',
   )
   await openSample(page)
-  const summary = page.locator('.fitness-card__evidence > summary')
+  const summary = card(page).locator('.fitness-card__evidence > summary')
   await summary.focus()
   await expect(summary).toBeFocused()
   await page.keyboard.press('Enter')
@@ -111,12 +118,12 @@ test('the terms that carry the answer are defined in place: the heart rate, the 
   await openSample(page)
   // Each is opened and closed in turn with the keyboard: on a phone a note is a sheet at the window's foot, which
   // covers the terms below it until it is closed.
-  // The support line (where "steady runs" first stands) is left out on a short phone, so the third term is the one
-  // in how the figure is measured, which every phone has.
-  await page.getByText('See the evidence').click()
+  // The row's one line carries no range, so the range is the one the evidence names; the third term is the one in how
+  // the figure is measured, which every phone has.
+  await openDetails(card(page))
   const terms: [Locator, RegExp][] = [
     [card(page).getByRole('button', { name: /^at \d+ bpm$/ }), /one heart rate, \d+ bpm/],
-    [card(page).getByRole('button', { name: /^\(\d+ to \d+\)$/ }), /nine times out of ten/],
+    [card(page).getByRole('button', { name: '90% range', exact: true }), /nine times out of ten/],
     [
       card(page)
         .locator('.fitness-evidence')
@@ -163,16 +170,18 @@ test('a tap on the lower third of a term opens it and not the term on the line b
     'A touch is made on the phone projects',
   )
   await openSample(page)
-  await page.getByText('See the evidence').click()
+  await openDetails(card(page))
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
   let pairs = 0
   for (const scope of [
-    '.fitness-card__headline',
-    '.fitness-card__change',
-    '.fitness-card__support',
+    `${CARD} .fitness-card__headline`,
+    `${CARD} [data-testid="fitness-change"]`,
+    `${CARD} .fitness-card__support`,
     '.fitness-evidence',
   ]) {
     const region = page.locator(scope)
+    // A status with one change has no second change line in its Details.
+    if ((await region.count()) === 0) continue
     const boxes = await termBoxes(region)
     for (const upper of boxes) {
       // The term that starts on the next line, whose own box begins where this one's line ends.
@@ -208,31 +217,34 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await goTo(page, 'Run')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
   await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
-  // Above the threshold, and the sport is not named twice.
+  // Above the threshold, and the sport is not named twice: the row's title is the state alone (exact text above).
   const fitness = await edgesOf(card(page))
   const threshold = await edgesOf(page.getByRole('heading', { level: 2, name: /^Threshold pace/ }))
   expect(fitness.bottom).toBeLessThanOrEqual(threshold.top)
-  await expect(card(page).locator('.fitness-card__sport')).toHaveCount(0)
   // The heading's own page title comes first.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })
 
 // The sample is a runner who took up riding this autumn, so it has too few steady rides from before the last 8 weeks to call a
-// trend (see FitnessCard.test.tsx): home gives the ride's level in one line and does not draw a waiting card, and the Ride page
-// holds the ride's own card, with the level, what a trend needs and no run on it.
-test('Balance tells a ride that cannot call a trend as one line, and the Ride page holds its card', async ({
+// trend (see FitnessCard.test.tsx): home gives the ride a row titled by the sport alone with its level as the one line, its
+// figures spaced and no link, and the Ride page holds the ride's own row, with the level, what a trend needs and no run on it.
+test('Balance tells a ride that cannot call a trend as one line, and the Ride page holds its row', async ({
   page,
 }) => {
   await openSample(page)
-  await expect(page.locator('.fitness-card')).toHaveCount(1)
-  const line = page.getByTestId('ride-fitness-line')
-  await expect(line).toHaveText(/^\d+ W \(\d+ to \d+\) at \d+ bpm\. From \d+ steady rides\.$/)
-  await line.getByRole('link').click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ride')
+  await expect(page.locator('.fitness-card')).toHaveCount(2)
+  const home = page.locator('.fitness-card[data-sport="ride"]')
+  await expect(home.locator('.fitness-card__state')).toHaveText('Ride')
+  const line = home.locator('.fitness-card__line')
+  // The words as the eye reads them, so a collapsed space around a figure fails here.
+  expect(await line.evaluate((el) => (el as HTMLElement).innerText)).toMatch(/^\d+ W at \d+ bpm\.$/)
+  await expect(line.getByRole('link')).toHaveCount(0)
+  await goTo(page, 'Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
   await expect(ride).toHaveCount(1)
   await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
+  await openDetails(ride)
   expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(
     /^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/,
   )
@@ -253,7 +265,7 @@ test('the landing page’s one sample card holds the finding under the balance, 
   await expect(example.locator('.landing-example__sentence')).toHaveText(
     /^Slower than your old level at 120 bpm\.$/,
   )
-  await expect(example.locator('.fitness-track__band')).toBeVisible()
+  await expect(example.locator('.fitness-track__ring')).toBeVisible()
   // The balance comes first; the finding is under it, in the same card.
   const levels = await edgesOf(example.locator('.balance-levels'))
   const panel = await edgesOf(example.locator('.landing-example__fitness'))
@@ -262,11 +274,12 @@ test('the landing page’s one sample card holds the finding under the balance, 
   expect(panel.bottom).toBeLessThanOrEqual(frame.bottom)
   // The sample's own Balance page says the same state at the same heart rate.
   await openSample(page)
-  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run · Slipping')
+  await openDetails(card(page))
   expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(/ at 120 bpm\.$/)
 })
 
-test('a forced-colours reader still sees the card’s edge and the track’s outline', async ({
+test('a forced-colours reader still sees the row’s hairline, the track’s line and its mark', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -275,17 +288,21 @@ test('a forced-colours reader still sees the card’s edge and the track’s out
   )
   await page.emulateMedia({ forcedColors: 'active' })
   await openSample(page)
-  const edge = await card(page).evaluate((el) => getComputedStyle(el, '::before').backgroundColor)
-  expect(edge).not.toBe('rgba(0, 0, 0, 0)')
-  const bar = await card(page)
+  const edge = await card(page).evaluate((el) => {
+    const style = getComputedStyle(el)
+    return { width: style.borderTopWidth, style: style.borderTopStyle }
+  })
+  expect(edge).toEqual({ width: '1px', style: 'solid' })
+  await openDetails(card(page))
+  // The track's line and its mark are fills in colour; they take the system's text colour, so both are still drawn.
+  const line = await card(page)
     .locator('.fitness-track__bar')
-    .evaluate((el) => getComputedStyle(el).borderTopWidth)
-  expect(bar).toBe('1px')
-  // The band, which is a tint in colour, takes the system's highlight so the range is still a shape.
-  const band = await card(page)
-    .locator('.fitness-track__band')
+    .evaluate((el) => getComputedStyle(el, '::before').backgroundColor)
+  expect(line).not.toBe('rgba(0, 0, 0, 0)')
+  const mark = await card(page)
+    .locator('.fitness-track__ring')
     .evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(band).not.toBe('rgba(0, 0, 0, 0)')
+  expect(mark).not.toBe('rgba(0, 0, 0, 0)')
 })
 
 // The one thing in the evidence panel that moves is the phone's readout sheet, which opens with a short animation
@@ -303,7 +320,7 @@ for (const [preference, animation] of [
     )
     await page.emulateMedia({ reducedMotion: preference })
     await openSample(page)
-    await page.getByText('See the evidence').click()
+    await openDetails(card(page))
     const chart = page.getByRole('figure', { name: CHART })
     await chart.locator('.plot-surface').focus()
     await page.keyboard.press('ArrowRight')
@@ -318,7 +335,7 @@ for (const [preference, animation] of [
 // the chart's texts may share ground, whatever the width.
 test('no label of the evidence chart is written over another', async ({ page }) => {
   await openSample(page)
-  await page.getByText('See the evidence').click()
+  await openDetails(card(page))
   const chart = page.getByRole('figure', { name: CHART })
   await expect(chart.locator('[data-annotation="before"]')).toBeVisible()
   const boxes = await chart.evaluate((root) => {
@@ -355,8 +372,8 @@ test('no label of the evidence chart is written over another', async ({ page }) 
   }
 })
 
-// The state word is display type, which grows with the text size. At 200% text on a phone every state, not only the
-// sample's, must stay inside the card's content box (Slipping overflowed by 36 px at 390 once).
+// The row's title grows with the text size. At 200% text on a phone every state, not only the sample's, must stay inside
+// the row (Slipping overflowed by 36 px at 390 once).
 for (const width of [320, 390]) {
   test(`every fitness state word fits the card at 200% text and ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 })
@@ -365,16 +382,15 @@ for (const width of [320, 390]) {
     const labels = ['Slipping', 'Holding', 'Holding below', 'Recovering', 'Back']
     const over = await card(page).evaluate((el, words) => {
       const state = el.querySelector('.fitness-card__state')!
-      const text = state.querySelector('span')!
       const style = getComputedStyle(el)
       const inner =
         el.getBoundingClientRect().right -
         parseFloat(style.paddingRight) -
         parseFloat(style.borderRightWidth)
       return words.map((word) => {
-        text.textContent = word
+        state.textContent = `Run · ${word}`
         const range = document.createRange()
-        range.selectNodeContents(text)
+        range.selectNodeContents(state)
         return { word, over: Math.round(range.getBoundingClientRect().right - inner) }
       })
     }, labels)

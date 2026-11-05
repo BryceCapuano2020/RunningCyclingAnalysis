@@ -7,7 +7,7 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   await openSample(page)
   // A card's "How this was worked out" note holds a pace too and stays hidden until opened, so only visible text counts.
   const shownPace = (unit: RegExp) => page.getByText(unit).filter({ visible: true }).first()
-  await expect(shownPace(/\d+:\d{2} \/mi/)).toBeVisible()
+  await expect(shownPace(/\d+:\d{2}\s\/mi/)).toBeVisible()
 
   await goTo(page, 'Profile')
   // The radio is visually hidden behind its label, so click the visible text.
@@ -15,7 +15,7 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   await expect(page.getByRole('radio', { name: 'Metric' })).toBeChecked()
 
   await goTo(page, 'Balance')
-  await expect(shownPace(/\d+:\d{2} \/km/)).toBeVisible()
+  await expect(shownPace(/\d+:\d{2}\s\/km/)).toBeVisible()
   await expect(page.getByRole('main').getByText(/\/mi\b/)).toHaveCount(0)
 
   await goTo(page, 'Profile')
@@ -23,7 +23,7 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
   await expect(page.getByRole('radio', { name: 'Metric' })).toBeChecked()
   await openSample(page)
-  await expect(shownPace(/\d+:\d{2} \/km/)).toBeVisible()
+  await expect(shownPace(/\d+:\d{2}\s\/km/)).toBeVisible()
 })
 
 test('a visitor’s own ride W/kg follows the body weight they enter on Profile', async ({

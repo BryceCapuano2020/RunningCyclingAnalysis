@@ -102,7 +102,7 @@ for (const size of SIZES) {
   }
 }
 
-test('the section pills stay one scrolling row at normal text on a phone', async ({
+test('the section words wrap onto lines inside the page at normal text on a phone, and never scroll', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
@@ -111,10 +111,19 @@ test('the section pills stay one scrolling row at normal text on a phone', async
   await goTo(page, 'Run')
   const list = page.locator('.section-nav__list')
   await expect(list).toBeVisible()
-  const box = await list.boundingBox()
-  // One row of pills (a control tall, with the list's padding), not several wrapped rows.
-  expect(box?.height ?? Infinity).toBeLessThanOrEqual(72)
-  expect(await list.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
+  // "On this page" is a line of plain words that wraps (docs/design/system.md): no row scrolls sideways, every word is
+  // inside the list's box, and the sport page's sections take more than one line at a phone's width.
+  expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  const words = await list.locator('.section-nav__button').evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const box = button.getBoundingClientRect()
+      return { right: box.right, top: Math.round(box.top) }
+    }),
+  )
+  const edge = (await list.boundingBox())!
+  expect(words.length).toBeGreaterThan(3)
+  for (const word of words) expect(word.right).toBeLessThanOrEqual(edge.x + edge.width + 0.5)
+  expect(new Set(words.map((word) => word.top)).size).toBeGreaterThan(1)
 })
 
 test('the section pills wrap to more rows, and stay on screen, at 200% text on a phone', async ({

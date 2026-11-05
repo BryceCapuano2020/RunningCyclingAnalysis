@@ -7,6 +7,44 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 import { lbToKg } from '@rca/core/units'
 
+/**
+ * Opens the Method page (How sure is this?) from the header, or from the footer where the header has no room for it
+ * (360 px and below).
+ */
+export async function openMethod(page: Page): Promise<void> {
+  const header = page
+    .getByRole('navigation', { name: 'More pages' })
+    .getByRole('link', { name: 'Method' })
+  const link = (await header.isVisible())
+    ? header
+    : page.getByRole('contentinfo').getByRole('link', { name: 'Method' })
+  await link.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+}
+
+/**
+ * The foot of the first screen at a phone width. Below the rail's width the header scrolls away with the page and no
+ * bar is fixed over the window's foot, so a mark is on the first screen when it ends above the window's height. It
+ * fails if anything is fixed or stuck over the foot, since the line would then be wrong.
+ */
+export async function firstScreenFoot(page: Page): Promise<number> {
+  const covered = await page.evaluate(
+    () =>
+      [...document.querySelectorAll('body *')].filter((node) => {
+        const style = getComputedStyle(node)
+        const box = node.getBoundingClientRect()
+        return (
+          (style.position === 'fixed' || style.position === 'sticky') &&
+          box.height > 0 &&
+          box.bottom >= window.innerHeight - 1 &&
+          style.visibility !== 'hidden'
+        )
+      }).length,
+  )
+  expect(covered).toBe(0)
+  return page.evaluate(() => window.innerHeight)
+}
+
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
 export const LANDING_TITLE = 'Are you a better runner or a better cyclist?'
 
@@ -35,13 +73,24 @@ const HEADINGS: Record<Destination, string | RegExp> = {
   Profile: 'Profile',
 }
 
-/** Clicks the header link to a page, then waits for that page's h1. */
+/** Where each page's link is: the rail ("Pages") for Balance, Run and Ride, the header for the rest. */
+const NAV_OF: Record<Destination, string | null> = {
+  Balance: 'Pages',
+  Run: 'Pages',
+  Ride: 'Pages',
+  History: 'More pages',
+  Activities: 'More pages',
+  Profile: null,
+}
+
+/** Clicks the link to a page, in the rail or the header, then waits for that page's h1. */
 export async function goTo(page: Page, destination: Destination): Promise<void> {
+  const nav = NAV_OF[destination]
   const link =
-    destination === 'Profile'
-      ? page.getByRole('banner').getByRole('link', { name: 'Profile', exact: true })
+    nav === null
+      ? page.getByRole('banner').getByRole('link', { name: destination, exact: true })
       : page
-          .getByRole('navigation', { name: 'Sections' })
+          .getByRole('navigation', { name: nav, exact: true })
           .getByRole('link', { name: destination, exact: true })
   await link.click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(HEADINGS[destination])

@@ -8,10 +8,12 @@ import {
   SAMPLE_BANNER,
   activitiesRows,
   edgesOf,
+  firstScreenFoot,
   goTo,
   openSample,
   trackErrors,
   uploadFixtures,
+  openMethod,
 } from './helpers.js'
 
 /**
@@ -29,10 +31,8 @@ const BEST_EFFORTS_CURVE = 'Best efforts'
 const OPEN_SEASON_SECTION = 'Best efforts by day'
 /** The pace-at-heart-rate row is the weekly view: it says what is drawn and claims no change. */
 const SAME_HEART_RATE_SECTION = { Run: 'Pace at heart rate', Ride: 'Power at heart rate' } as const
-/** The section of the finding that compares each best with the athlete's other bests. */
+/** The section of the finding that compares each best with the athlete's other bests, by its "On this page" name. */
 const STAND_OUT_SECTION = 'Best durations'
-const STANDS_OUT_LINE =
-  /^(?:Nothing stands out|Your (?:all-time )?\d+ (?:min|s) best is \d+% (?:above|below))/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -67,9 +67,13 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
     })
     await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
     expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
-    // A section with content is open to start with, and its row says what it found.
-    const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
-    await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)
+    // The sample's bests name no duration that stands out, so that section is not drawn: no region, no place in
+    // "On this page", and no line that says nothing stands out.
+    const onThisPage = page.getByRole('navigation', { name: 'On this page' })
+    await expect(onThisPage.getByRole('button', { name: 'Durability' })).toBeVisible()
+    await expect(onThisPage.getByRole('button', { name: STAND_OUT_SECTION })).toHaveCount(0)
+    await expect(page.locator('section.sport-disclosure')).toHaveCount(3)
+    await expect(page.getByText(/Nothing stands out/)).toHaveCount(0)
     // The sections that need a season: each row says its finding, and the section is open to its chart.
     for (const section of [SAME_HEART_RATE_SECTION[sport], 'Durability']) {
       const region = page.getByRole('region', { name: section })
@@ -89,8 +93,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   }
 
   await goTo(page, 'Balance')
-  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  await openMethod(page)
   // A closed disclosure hides its chart, in every browser, until the reader opens it.
   await expect(page.locator('details.method__evidence').first()).not.toHaveAttribute('open')
   await expect(page.getByRole('figure', { name: RATIO })).toBeHidden()
@@ -114,12 +117,14 @@ test('the ride as a run tile names the ride threshold behind its pace and opens 
   await openSample(page)
 
   const card = page.getByRole('article', { name: 'Your ride as a run' })
-  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
   await expect(card.getByRole('link')).toHaveCount(0)
 
+  // The threshold the pace rests on is inside the tile's one fold, not a line under its title.
   const details = card.locator('details')
   await expect(details).not.toHaveAttribute('open')
+  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeHidden()
   await details.locator('summary').click()
+  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
   // A phone shows the efforts as a list, and a wider screen as a table.
   const rideEffort = isMobile
     ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
@@ -127,7 +132,7 @@ test('the ride as a run tile names the ride threshold behind its pace and opens 
   await expect(rideEffort).toBeVisible()
 })
 
-test('Balance says the lean once: no lean tile, three tiles at most, and the level target under the lede', async ({
+test('Balance says the lean once: no lean tile, three tiles at most, and the level target in the answer’s Details', async ({
   page,
 }) => {
   await openSample(page)
@@ -138,8 +143,12 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   await expect(tiles).not.toContainText(/\bpts\b/)
   // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
   await expect(page.locator('.balance-meter__number')).toHaveCount(1)
+  // The target is the answer's Details, one press down, not a line under the lede.
   const target = page.locator('.balance-hero').getByText(/^To match it on the /)
   await expect(target).toHaveCount(1)
+  await expect(target).toBeHidden()
+  await page.locator('.balance-hero .page-details > summary').click()
+  await expect(target).toBeVisible()
   await expect(tiles.getByText(/^To match it/)).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
@@ -194,17 +203,17 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   )
   const run = page.getByRole('article', { name: 'Run threshold' })
   await expect(run).toBeVisible()
-  // The name says the threshold is an estimate, so the tile carries no chip and no range shape; the runs it rests on are
-  // one line under the figure and how it was worked out is one tap down.
+  // The name says the threshold is an estimate, so the tile carries no chip and no range shape; the runs it rests on
+  // and how it was worked out are one tap down, with no line under the figure.
   await expect(run.locator('.stat-tile__number')).toBeVisible()
-  await expect(run.locator('.stat-tile__source')).toContainText(
-    /^From 1 run\. Strongest: \d+ min on /,
-  )
+  await expect(run.getByText(/^From 1 run\. Strongest: /)).toBeHidden()
   await expect(run.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
-  await run.getByRole('button', { name: 'How this was worked out for threshold pace' }).click()
+  await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
   const note = run.getByRole('note')
-  await expect(note).toContainText(/^Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /)
+  await expect(note).toContainText(
+    /^From 1 run\. Strongest: \d+ min on [^.]+\.Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /,
+  )
   await expect(note).toContainText('never under a backed hour you ran')
   await expect(note).not.toContainText(/heart rate/i)
 })
@@ -299,9 +308,9 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
   await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(BALANCE_TITLE)
   await expect(
     page
-      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('navigation', { name: 'Pages', exact: true })
       .getByRole('link', { name: 'Run', exact: true }),
-  ).toHaveClass(/header__tab--current/)
+  ).toHaveClass(/rail__link--current/)
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
 })
 
@@ -314,40 +323,33 @@ test('the sport page opens a section the reader folded from "On this page", and 
   await expect(nav).toBeVisible()
   // A section with content is open to start with, and its row says its name alone.
   const all = page.getByRole('region', { name: 'All best efforts', exact: true })
-  await expect(all.locator('summary')).toHaveText('All best efforts')
-  await expect(all.locator('details')).toHaveAttribute('open', '')
-  await expect(all.locator('ul.records')).toBeVisible()
+  const row = all.locator('.sport-disclosure__summary')
+  const fold = all.locator('details.sport-disclosure__details')
+  await expect(row).toHaveText('All best efforts')
+  await expect(fold).toHaveAttribute('open', '')
+  await expect(all.locator('ol.records')).toBeVisible()
   // Folded, the row is still its name, and "On this page" opens it again.
-  await all.locator('summary').click()
-  await expect(all.locator('details')).not.toHaveAttribute('open', '')
-  await expect(all.locator('summary')).toHaveText('All best efforts')
-  await expect(all.locator('ul.records')).toBeHidden()
+  await row.click()
+  await expect(fold).not.toHaveAttribute('open', '')
+  await expect(row).toHaveText('All best efforts')
+  await expect(all.locator('ol.records')).toBeHidden()
   await nav.getByRole('button', { name: 'All best efforts' }).click()
-  await expect(all.locator('details')).toHaveAttribute('open', '')
-  await expect(all.locator('ul.records')).toBeVisible()
+  await expect(fold).toHaveAttribute('open', '')
+  await expect(all.locator('ol.records')).toBeVisible()
   // The address is the page's own: pressing the row did not move the app's hash route.
   await expect(page).toHaveURL(/#\/run$/)
 })
-
-/**
- * The top of the section tabs at a phone width. There they are fixed to the foot of the window and cover
- * what is under them, so a mark is on the first screen only when it ends above this line. The test fails
- * if they are not fixed there, since the line would then be wrong.
- */
-async function tabBarTop(page: Page): Promise<number> {
-  const tabs = page.locator('.header__tabs')
-  expect(await tabs.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
-  return (await edgesOf(tabs)).top
-}
 
 /** The meter's track, its value under the dot, and the two sports' level lines. */
 const TRACK = '.balance-meter [role="img"]'
 const VALUE = '.balance-meter__value'
 const LEVEL_ROWS = '.balance-levels__row'
 
-/** The fitness card's state, as the card names it, its sentence, and the change drawn as a track. */
+/** The run's fitness row: its title (the sport and its state), its one line, and the Details that hold the rest. */
 const FITNESS_CARD = '.fitness-card[data-sport="run"]'
 const FITNESS_STATE = `${FITNESS_CARD} .fitness-card__state`
+const FITNESS_LINE = `${FITNESS_CARD} .fitness-card__line`
+const FITNESS_DETAILS = `${FITNESS_CARD} details.fitness-card__evidence`
 
 // The balance leads the home page: at 1440 by 900 its headline, meter and levels are on the first screen, and the
 // fitness card sits under the tiles, whole, with its track beside the words.
@@ -368,18 +370,21 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
   expect(card.bottom).toBeLessThanOrEqual(grades.top)
   await page.locator(FITNESS_CARD).scrollIntoViewIfNeeded()
-  await expect(page.locator(FITNESS_STATE)).toHaveText('Slipping')
+  await expect(page.locator(FITNESS_STATE)).toHaveText('Run · Slipping')
+  // One line under the title, a figure with no range; the level with its range, what is new and the track are behind
+  // the row's Details, inside the row, under its line.
+  await expect(page.locator(FITNESS_LINE)).toHaveText(/^\S.*\.$/)
+  await expect(page.locator(FITNESS_LINE)).not.toHaveText(/\(\S+ to \S+\)/)
+  await expect(page.getByTestId('fitness-new')).toBeHidden()
+  await page.locator(`${FITNESS_DETAILS} > summary`).click()
   await expect(page.getByTestId('fitness-new')).toContainText('since the week of')
-  // The change's track sits beside the words on a wide screen, inside the card, and not under them.
   const trackEdges = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
-  const cardEdges = await edgesOf(page.locator(FITNESS_CARD))
-  const trackBox = (await page.locator(`${FITNESS_CARD} .fitness-track`).boundingBox())!
-  const sentenceBox = (await page.locator(`${FITNESS_CARD} .fitness-card__headline`).boundingBox())!
+  const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
   const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
-  expect(trackBox.x).toBeGreaterThanOrEqual(sentenceBox.x + sentenceBox.width)
+  const trackBox = (await page.locator(`${FITNESS_CARD} .fitness-track`).boundingBox())!
+  expect(trackEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
   expect(trackBox.x + trackBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width)
-  expect(trackEdges.bottom).toBeLessThanOrEqual(cardEdges.bottom)
-  await expect(page.getByText('See the evidence')).toBeInViewport()
+  expect(trackEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
   // The meter is the first drawing on the page, and the card's track comes after it.
   const order = await page.evaluate(() => {
     const track = document.querySelector('.fitness-card[data-sport="run"] .fitness-track__bar')
@@ -401,25 +406,27 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
 })
 
 // A phone opens on the balance, the sample notice and all: at 390 by 844 and at 320 by 640 the headline, the meter
-// and its value end above the section tabs fixed to the window's foot, and the fitness card follows the tiles.
+// and its value end on the first screen, under the header and the rail, and the fitness row follows the tiles.
 for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the balance headline, meter and value are above the section tabs, and the fitness card follows the tiles`, async ({
+  test(`at ${width} by ${height} the balance headline, meter and value are on the first screen, and the fitness row follows the tiles`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await openSample(page)
     await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
-    const tabs = await tabBarTop(page)
+    const foot = await firstScreenFoot(page)
     const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
     const meter = await edgesOf(page.locator(TRACK))
     const value = await edgesOf(page.locator(VALUE))
     expect(headline.bottom).toBeLessThan(meter.top)
     expect(value.top).toBeGreaterThanOrEqual(meter.bottom)
-    expect(value.bottom).toBeLessThanOrEqual(tabs)
-    // Then both levels, in order, and the period.
+    expect(value.bottom).toBeLessThanOrEqual(foot)
+    // The period is the rail's, above the title; then both levels follow the value, in order.
+    const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
+    expect(period.bottom).toBeLessThanOrEqual(headline.top)
     let previous = value.bottom
     const rows = await page.locator(LEVEL_ROWS).all()
     expect(rows).toHaveLength(2)
@@ -428,13 +435,12 @@ for (const [width, height] of [
       expect(box.top).toBeGreaterThanOrEqual(previous)
       previous = box.bottom
     }
-    const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
-    expect(period.top).toBeGreaterThanOrEqual(previous)
-    // The card is under the tiles, and its state, sentence and track follow one another.
+    // The row is under the tiles, and its title, its line and, once opened, its track follow one another.
+    await page.locator(`${FITNESS_DETAILS} > summary`).click()
     const tiles = await edgesOf(page.locator('.balance-tiles'))
     const card = await edgesOf(page.locator(FITNESS_CARD))
     const state = await edgesOf(page.locator(FITNESS_STATE))
-    const sentence = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-card__headline`))
+    const sentence = await edgesOf(page.locator(FITNESS_LINE))
     const track = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
     expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
     expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
@@ -444,6 +450,7 @@ for (const [width, height] of [
     for (const selector of [
       FITNESS_CARD,
       `${FITNESS_CARD} .fitness-track__ends`,
+      FITNESS_LINE,
       `${FITNESS_CARD} .fitness-card__headline`,
       '.balance-meter__ends',
       VALUE,
@@ -459,43 +466,43 @@ for (const [width, height] of [
   })
 }
 
-// On a wide screen the headline runs the answer's full width, the lede keeps its 62 character measure, and the
-// meter and the tiles span the same width.
+// On a wide screen the headline runs the answer's full width, the lede keeps the prose measure, and the meter and the
+// tiles span the same width.
 test('at 1280 the headline runs the full width, the lede keeps its measure, and the meter spans the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSample(page)
   const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
-  const lede = await page.locator('.balance-hero .lede').boundingBox()
+  const lede = await page.locator('.balance-hero__lede').boundingBox()
   const tiles = await page.locator('.balance-tiles').boundingBox()
   const meter = await page.locator('.balance-meter').boundingBox()
   if (headline === null || lede === null || tiles === null || meter === null) {
     throw new Error('no box for the headline, lede, tiles or meter')
   }
-  // The lede keeps its own 62 character measure, which a probe in the lede's font measures.
-  const sixtyTwoCh = await page.locator('.balance-hero .lede').evaluate((el) => {
+  // The lede keeps the prose measure (--measure, 36rem), which a probe of that width measures.
+  const measure = await page.locator('.balance-hero__lede').evaluate((el) => {
     const probe = document.createElement('div')
-    probe.style.cssText = 'position:absolute;visibility:hidden;width:62ch'
-    probe.style.font = getComputedStyle(el).font
+    probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--measure)'
     el.parentElement!.appendChild(probe)
     const width = probe.getBoundingClientRect().width
     probe.remove()
     return width
   })
+  expect(measure).toBeGreaterThan(400)
   expect(headline.width).toBeGreaterThan(lede.width)
-  expect(lede.width).toBeLessThanOrEqual(sixtyTwoCh + 1)
+  expect(lede.width).toBeLessThanOrEqual(measure + 1)
   expect(meter.y).toBeGreaterThanOrEqual(lede.y + lede.height)
   expect(meter.x).toBeCloseTo(tiles.x, 0)
   expect(meter.x + meter.width).toBeCloseTo(tiles.x + tiles.width, 0)
 })
 
 // A landscape phone has too little height for the meter and a card: the balance's headline is what is on screen.
-test('at 667 by 375 the balance headline is above the section tabs', async ({ page }) => {
+test('at 667 by 375 the balance headline is on the first screen', async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await openSample(page)
-  const tabs = await tabBarTop(page)
-  expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(tabs)
+  const foot = await firstScreenFoot(page)
+  expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(foot)
 })
 
 test('the meter defines its terms in place, by press and by Enter', async ({ page }) => {
@@ -518,7 +525,7 @@ test('the meter defines its terms in place, by press and by Enter', async ({ pag
   await expect(page.getByRole('note').filter({ hasText: /nine times out of ten/ })).toBeVisible()
 })
 
-test('the meter is named in words and its value and levels are text, none under 12 px', async ({
+test('the meter is named in words and its value and levels are text, none under the meta size', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 })
@@ -534,7 +541,17 @@ test('the meter is named in words and its value and levels are text, none under 
     )
     .evaluateAll((nodes) => nodes.map((node) => parseFloat(getComputedStyle(node).fontSize)))
   expect(sizes.length).toBeGreaterThan(6)
-  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(12)
+  // The smallest step of the type scale is --text-meta, 11 px (docs/design/system.md, Type): nothing is set under it.
+  const meta = await page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.style.fontSize = 'var(--text-meta)'
+    document.body.append(probe)
+    const px = parseFloat(getComputedStyle(probe).fontSize)
+    probe.remove()
+    return px
+  })
+  expect(meta).toBe(11)
+  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(meta)
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(0)

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import {
   activitiesRows,
+  firstScreenFoot,
   goTo,
   libraryLoaded,
   openSample,
@@ -33,18 +34,28 @@ async function expectFits(page: Page): Promise<void> {
   expect(await clippedContent(page)).toEqual([])
 }
 
-/** The tab bar's links: five, and none overlaps another, whether the bar fits, wraps to a second row or scrolls. */
+/**
+ * The page links, the rail's three and the header's that are shown (History and Activities, and Method above 360 px):
+ * none overlaps another, wherever the rows wrap.
+ */
 async function expectTabsApart(page: Page): Promise<void> {
-  const boxes = await page
-    .getByRole('navigation', { name: 'Sections' })
-    .getByRole('link')
-    .evaluateAll((links) =>
-      links.map((link) => {
-        const { left, right, top, bottom } = link.getBoundingClientRect()
-        return { left, right, top, bottom }
-      }),
-    )
-  expect(boxes).toHaveLength(5)
+  const boxesOf = (name: string) =>
+    page
+      .getByRole('navigation', { name, exact: true })
+      .getByRole('link')
+      .evaluateAll((links) =>
+        links
+          .map((link) => {
+            const { left, right, top, bottom, width } = link.getBoundingClientRect()
+            return { left, right, top, bottom, width }
+          })
+          .filter((box) => box.width > 0),
+      )
+  const rail = await boxesOf('Pages')
+  const header = await boxesOf('More pages')
+  expect(rail).toHaveLength(3)
+  expect(header.length).toBeGreaterThanOrEqual(2)
+  const boxes = [...rail, ...header]
   for (const [i, a] of boxes.entries()) {
     for (const b of boxes.slice(i + 1)) {
       const apart =
@@ -95,9 +106,10 @@ for (const size of SIZES) {
       await expectFits(page)
       const box = await offer.boundingBox()
       expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
-      const avatar = page.locator('.account-menu__avatar')
-      await expect(avatar).toBeVisible()
-      expect(await avatar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+      // The account is its first name in the header, shown whole: not cut short by its ellipsis.
+      const name = page.locator('.account-menu__name')
+      await expect(name).toHaveText('Ada')
+      expect(await name.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
     })
 
     test('the Settings over time form on Profile wraps, signed in', async ({ page }) => {
@@ -125,16 +137,17 @@ for (const size of SIZES) {
   })
 }
 
-test('the Balance headline is on the first screen of a phone, above the tab bar', async ({
+test('the Balance headline is on the first screen of a phone, under the rail', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
   await page.setViewportSize({ width: 390, height: 844 })
   await openSample(page)
-  const [headline, tabs] = await Promise.all([
+  const [headline, rail] = await Promise.all([
     page.getByRole('main').getByRole('heading', { level: 1 }).boundingBox(),
-    page.getByRole('navigation', { name: 'Sections' }).boundingBox(),
+    page.locator('.rail').boundingBox(),
   ])
-  // The balance leads the page, so all of the headline is above the bar.
-  expect(headline!.y + headline!.height).toBeLessThanOrEqual(tabs!.y)
+  // The balance leads the page: all of the headline is under the rail and on the first screen.
+  expect(headline!.y).toBeGreaterThanOrEqual(rail!.y + rail!.height)
+  expect(headline!.y + headline!.height).toBeLessThanOrEqual(await firstScreenFoot(page))
 })
