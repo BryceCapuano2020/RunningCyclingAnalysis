@@ -1,21 +1,18 @@
-/*
- * Google's neutral sign-in button spec. The literal colours below are the documented exception
- * to the token rule: Google's branding guidelines fix them, so they do not follow --surface tokens.
- */
+/* The sign-in button is a control like the others: outlined, sans, on paper. The mark keeps Google's own colours. */
 .google-sign-in {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-height);
   padding: 0 var(--space-4);
-  border: 1px solid #747775;
-  border-radius: var(--radius-sm);
-  background: #ffffff;
-  color: #1f1f1f;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
-  font-family: 'Roboto', system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 400;
   /* The label stays on one line where there is room; in a column narrower than it, at 200% text, it wraps. The
      header sets its own (Header.css), where a wrapped label would grow the bar. */
   white-space: normal;
@@ -24,6 +21,11 @@
   min-width: min(11.75rem, 100%);
   max-width: 100%;
   justify-content: center;
+}
+
+.google-sign-in:hover {
+  background: var(--paper-hover);
+  border-color: var(--ink-secondary);
 }
 
 .google-sign-in__mark {

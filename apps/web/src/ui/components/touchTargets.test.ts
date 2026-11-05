@@ -95,9 +95,14 @@ describe('the shared control height', () => {
     ['delete dialog input', sheets.deleteDialog, '.delete-dialog__input'],
     ['disclosure summary', sheets.summary, 'summary'],
     ['landing drop-zone link', sheets.dropzone, '.dropzone__link'],
-    ['export guide tile', sheets.exportGuides, '.export-guides__tile'],
   ])('%s takes the shared control height', (_name, css, selector) => {
     expect(bodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
+  })
+
+  it('gives the export guide tile the button height, which is 44 px for a finger like the control height', () => {
+    expect(bodyOf(sheets.exportGuides, '.export-guides__tile')).toMatch(
+      /min-height:\s*var\(--button-height\)/,
+    )
   })
 
   it('is 40 px for a desktop pointer and 44 px on a phone or for a finger', () => {

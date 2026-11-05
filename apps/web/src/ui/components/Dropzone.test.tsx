@@ -95,7 +95,7 @@ describe('Dropzone', () => {
   it('says that exports usually come from a computer, and includes the drag text for pointers', () => {
     renderDropzone()
     expect(screen.getByText('Exports usually come from a computer.')).toBeInTheDocument()
-    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
+    expect(screen.getByText('Drag them here, or')).toBeInTheDocument()
   })
 
   it('opens the file picker from Add files by click, Enter and Space', async () => {
@@ -257,7 +257,7 @@ describe('Dropzone on a touch screen', () => {
     renderDropzone()
     const buttons = screen.getAllByRole('button')
     expect(buttons[0]).toBe(screen.getByRole('button', { name: 'Add files' }))
-    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
+    expect(screen.getByText('Drag them here, or')).toBeInTheDocument()
   })
 
   it('offers no sample to a signed-in visitor, touch or not', () => {

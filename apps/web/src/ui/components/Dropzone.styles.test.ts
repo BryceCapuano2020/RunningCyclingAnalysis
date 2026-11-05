@@ -22,11 +22,10 @@ describe('Dropzone stylesheet', () => {
 })
 
 describe('Dropzone on a touch screen', () => {
-  it('is not drawn as a drop box: no dashed outline, no fill, no padding, just the row of actions', () => {
-    const rule = ruleBody(css, '.dropzone--touch')
-    expect(rule).toMatch(/border:\s*0/)
-    expect(rule).toMatch(/background:\s*none/)
-    expect(rule).toMatch(/padding:\s*0/)
+  it('is not drawn as a drop box on any screen: no outline, fill or padding, just the actions', () => {
+    for (const selector of ['.dropzone', '.dropzone--touch', '.dropzone__target']) {
+      expect(ruleBody(css, selector), selector).not.toMatch(/border|background|padding|shadow/)
+    }
   })
 })
 

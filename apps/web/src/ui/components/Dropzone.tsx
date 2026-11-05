@@ -107,7 +107,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
           Add FIT, GPX or TCX files, or a Strava or Garmin export zip
         </p>
         <p className="dropzone__hint">{HISTORY_ADVICE}</p>
-        <p className="dropzone__drag">Drag them onto this box, or</p>
+        <p className="dropzone__drag">Drag them here, or</p>
         {addFiles(true)}
       </div>
       <p className="dropzone__guides">

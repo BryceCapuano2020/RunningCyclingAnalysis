@@ -77,16 +77,19 @@ export function ExportGuides({ sample, headingRef }: ExportGuidesProps) {
             </li>
           ))}
         </ol>
-        <p className="secondary">{guide.contains}</p>
-        {guide.alsoAvailable ? <p className="secondary">{guide.alsoAvailable}</p> : null}
-        <p className="export-guide__checked secondary">{sourceLine(guide)}</p>
+        <details className="export-guide__details">
+          <summary>Details</summary>
+          <p>{guide.contains}</p>
+          {guide.alsoAvailable ? <p>{guide.alsoAvailable}</p> : null}
+          <p className="export-guide__checked">{sourceLine(guide)}</p>
+        </details>
         <a href={guide.helpUrl} rel="noopener noreferrer">
           Open {guide.helpName}’s help
         </a>
       </div>
       <div className="export-guides__none">
         <h3>No files yet, or only a phone?</h3>
-        <p className="secondary">
+        <p>
           Wahoo’s steps use its phone app. The other services’ steps are written for a computer:
           save the files there, then choose them here.
         </p>

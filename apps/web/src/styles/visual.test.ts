@@ -237,8 +237,9 @@ describe('page chrome', () => {
     expect(rulesWith(app, '.app__footer')).toMatch(/text-align:\s*start/)
   })
 
-  it('draws the drop area with the hairline dashed rule', () => {
-    expect(rulesWith(dropzone, '.dropzone')).toMatch(/border:\s*1px dashed/)
+  it('draws the drop area as no box, and outlines it in ink only while a file is held over it', () => {
+    expect(rulesWith(dropzone, '.dropzone')).not.toMatch(/border|background|shadow/)
+    expect(rulesWith(dropzone, '.dropzone--over')).toMatch(/outline:\s*2px solid var\(--ink\)/)
   })
 })
 

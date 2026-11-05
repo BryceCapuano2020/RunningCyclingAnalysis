@@ -1,29 +1,21 @@
-/* The dashed outline marks the drop area, and only that; the example beside it is solid. */
+/* The drop area is not drawn as a box: it is the actions on the page. A file held over it gets an ink outline. */
 .dropzone {
   display: grid;
   align-content: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   min-width: 0;
-  padding: var(--space-5);
-  border: 1px dashed var(--control-border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
 }
 
 .dropzone--over {
-  border-color: var(--accent);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  outline: 2px solid var(--ink);
+  outline-offset: var(--space-2);
 }
 
 .dropzone__target {
   display: grid;
-  justify-items: center;
-  gap: var(--space-2);
+  justify-items: start;
+  gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4);
-  border-radius: calc(var(--radius) - 1px);
-  text-align: center;
 }
 
 /* On a short phone the drop zone is a step tighter, so Add files is on the first screen at 320 x 568. A
@@ -31,24 +23,24 @@
 @media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
   .dropzone {
     gap: var(--space-2);
-    padding: var(--space-4);
   }
 
   .dropzone__target {
-    padding: var(--space-3);
+    gap: var(--space-2);
   }
 }
 
 .dropzone__title {
   margin: 0;
+  font-family: var(--font-serif);
   font-size: var(--text-lead);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .dropzone__hint,
 .dropzone__drag {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 /* Drag text is for a mouse or trackpad: a touch screen cannot drop a file onto the page. */
@@ -60,9 +52,8 @@
 
 .dropzone__guides {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
-  text-align: center;
 }
 
 @media (pointer: fine) {
@@ -77,7 +68,7 @@
   padding: 0 var(--space-2);
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--ink);
   font: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -87,7 +78,7 @@
 .dropzone__actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--space-3);
 }
 
@@ -96,9 +87,6 @@
  * under the pitch, with the accepted files and the guides link under it in small text.
  */
 .dropzone--touch {
-  padding: 0;
-  border: 0;
-  background: none;
   align-content: start;
   justify-items: start;
 }

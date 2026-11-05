@@ -1,0 +1,44 @@
+/*
+ * The landing page's own sheet around the shared pieces. The layout rules of the hero and the example's column
+ * stay in App.css; what is here is the paper look: the pitch, the steps as ruled columns, the method section.
+ */
+.app__pitch h1 {
+  font-size: var(--title);
+}
+
+.app__pitch .lede {
+  color: var(--ink-secondary);
+  font-size: var(--text-lead);
+}
+
+/* The three steps: a rule over each, a serif title and its sentence. */
+.app__steps li {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.app__steps h2 {
+  margin: 0;
+  font-size: var(--heading);
+  font-weight: 500;
+}
+
+.app__steps p {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* The method: a section under its rule, as every page's sections are. */
+.landing__method {
+  max-width: none;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.landing__method p {
+  color: var(--ink-secondary);
+}
+
+.landing__method > * {
+  max-width: var(--measure);
+}

@@ -1,22 +1,19 @@
 import type { UnitSystem } from '@rca/core/units'
 import { useRef } from 'react'
 import { Dropzone } from '../components/Dropzone'
-import { privacyText } from '../components/privacyText'
 import { ExportGuides } from '../components/ExportGuides'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
+import './LandingPage.css'
 
 const METHOD_HEADING_ID = 'landing-method-heading'
 
 export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
-  /**
-   * The footer's privacy sentence for the visitor's state, which the subtitle ends on, so the page says it once in
-   * one phrase. Left out, it is the sentence of a signed-out visitor, or of a signed-in one who keeps files.
-   */
+  /** The footer's privacy sentence. The page no longer repeats it under the title: the footer says it once. */
   privacy?: string
   /** The units the example's weight is told in. Metric without one. */
   units?: UnitSystem
@@ -25,13 +22,7 @@ export interface LandingPageProps {
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
-export function LandingPage({
-  analysis,
-  signedIn,
-  privacy = privacyText({ signedIn, keepFiles: true }),
-  units,
-  onFiles,
-}: LandingPageProps) {
+export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
   const guidesHeading = useRef<HTMLHeadingElement>(null)
   // On a touch screen the actions come straight after the pitch, ahead of the example, so they are on the first screen.
   const touch = useTouchFirst()
@@ -58,7 +49,9 @@ export function LandingPage({
           <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
             Are you a better runner or a better cyclist?
           </h1>
-          <p className="lede secondary">{`Add your Strava or Garmin export. See your level in each sport for your age. ${privacy}`}</p>
+          <p className="lede secondary">
+            Add your Strava or Garmin export. See your level in each sport for your age.
+          </p>
         </section>
         {/* A pointer sees the example first, with the drop zone beside it; a touch screen sees the actions first. */}
         <div className={touch ? 'landing__start landing__start--touch' : 'landing__start'}>
