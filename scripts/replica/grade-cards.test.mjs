@@ -42,6 +42,11 @@ test('reads a sport page’s level and percent from one line, under a title in s
   assert.equal(readSportGrade('Age grade at threshold\nAge grades need your sex.\n'), null)
 })
 
+test('reads no grade from a percent further down than the line under the title', () => {
+  assert.equal(readSportGrade('Age grade at threshold\n\nSomething else\n\n55%\n'), null)
+  assert.equal(readSportGrade('Age grade at threshold\n\nSomething else\n\nLocal · 55%\n'), null)
+})
+
 test('two prints are one grade when the percent and the level agree, whatever the level’s case', () => {
   const balance = { percent: '55%', level: 'Local' }
   assert.equal(sameGrade(balance, { percent: '55%', level: 'LOCAL' }), true)

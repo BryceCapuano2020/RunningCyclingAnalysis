@@ -23,10 +23,12 @@ export function readBalanceGrade(text, title) {
 
 /** What a sport page prints under "Age grade at threshold": `{ percent, level }`, or null where the page has no grade. */
 export function readSportGrade(text) {
-  const lines = linesOf(text).filter((line) => line !== '')
+  const lines = linesOf(text)
   const at = lines.findIndex((line) => line.toUpperCase() === 'AGE GRADE AT THRESHOLD')
   if (at === -1) return null
-  const oneLine = ONE_LINE.exec(lines[at + 1] ?? '')
+  // The one-line print sits right under the title, or after the one blank line a heading's margin gives; nothing further.
+  const next = (lines[at + 1] ?? '') === '' ? (lines[at + 2] ?? '') : (lines[at + 1] ?? '')
+  const oneLine = ONE_LINE.exec(next)
   if (oneLine !== null) return { percent: oneLine[2], level: oneLine[1] }
   if ((lines[at + 1] ?? '') === '' || !PERCENT.test(lines[at + 2] ?? '')) return null
   return { percent: lines[at + 2], level: lines[at + 1] }
