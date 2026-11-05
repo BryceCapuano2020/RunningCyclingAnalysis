@@ -14,6 +14,7 @@ import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../com
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'
+import { wholeText } from '../test/wholeText'
 
 // A fixed clock, so the year shown on the date does not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -284,9 +285,9 @@ describe('ActivityPage', () => {
     expect(
       screen.queryByText('Best 1 min', { selector: '.records__label' }),
     ).not.toBeInTheDocument()
-    expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
-    expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
-    expect(within(bestRow('Best 60 min')).getByText('5:37 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 5 min')).getByText(wholeText('4:31 /km'))).toBeInTheDocument()
+    expect(within(bestRow('Best 20 min')).getByText(wholeText('5:00 /km'))).toBeInTheDocument()
+    expect(within(bestRow('Best 60 min')).getByText(wholeText('5:37 /km'))).toBeInTheDocument()
     // A best's pace is a GAP, with its meaning one press away and no sentence under the bests.
     expect(within(bestRow('Best 5 min')).getByRole('button', { name: 'GAP' })).toBeInTheDocument()
     expect(paragraphsAboutHills(bestsSection())).toEqual([])
@@ -398,8 +399,8 @@ describe('ActivityPage', () => {
 
   it('lists the ride best efforts in watts', () => {
     renderPage(powerRide, resultWith({ rideCurve: rideCurveFixture }))
-    expect(within(bestRow('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
-    expect(within(bestRow('Best 20 min')).getByText('1,050 W')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText(wholeText('1,400 W'))).toBeInTheDocument()
+    expect(within(bestRow('Best 20 min')).getByText(wholeText('1,050 W'))).toBeInTheDocument()
   })
 
   it('shows a ride best the same when its power is estimated: the watts, with no Estimated chip', () => {
@@ -407,7 +408,7 @@ describe('ActivityPage', () => {
       { ...powerRide, powerSource: 'virtual' },
       resultWith({ rideCurve: rideCurveFixture }),
     )
-    expect(within(bestRow('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText(wholeText('1,400 W'))).toBeInTheDocument()
     expect(within(bestRow('Best 1 min')).queryByText('Estimated')).not.toBeInTheDocument()
   })
 
@@ -442,7 +443,7 @@ describe('ActivityPage', () => {
 
   it('lists only the durations this activity set', () => {
     renderPage(morningRun, resultWith({ runCurve: curveOf({ 300: 15.6 }) }))
-    expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 5 min')).getByText(wholeText('4:31 /km'))).toBeInTheDocument()
     expect(
       screen.queryByText('Best 1 min', { selector: '.records__label' }),
     ).not.toBeInTheDocument()
@@ -765,8 +766,8 @@ describe('ActivityPage', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Splits' })).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Pace for each kilometre' })
     const [first, second] = within(table).getAllByRole('row').slice(1)
-    expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
-    expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
+    expect(within(first!).getByText(wholeText('5:00 /km'))).toBeInTheDocument()
+    expect(within(first!).getByText(wholeText('4:50 /km'))).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
     // One term for the table, and one for the list a narrow screen shows in its place.
     expect(within(splitsSection()).getAllByRole('button', { name: 'GAP' })).toHaveLength(2)

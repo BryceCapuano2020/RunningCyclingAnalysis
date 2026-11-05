@@ -237,9 +237,12 @@ describe('chart shapes', () => {
     expect(unstyledClasses(sources, css)).toEqual([])
   })
 
-  it('draws the cycling range as a soft tint with a ride-coloured outline, so its edges read on the page', () => {
-    const body = ruleBody(seriesCss, '.chart-series__band--ride')
-    expect(body).toMatch(/fill:\s*var\(--series-ride-soft\)/)
-    expect(body).toMatch(/stroke:\s*var\(--series-ride\)/)
-  })
+  it.each(['run', 'ride'])(
+    'draws the %s range as its wash with an outline in its ink, so its edges read on the page',
+    (sport) => {
+      const body = ruleBody(seriesCss, `.chart-series__band--${sport}`)
+      expect(body).toMatch(new RegExp(`fill:\\s*var\\(--${sport}-wash\\)`))
+      expect(body).toMatch(new RegExp(`stroke:\\s*var\\(--${sport}-ink\\)`))
+    },
+  )
 })

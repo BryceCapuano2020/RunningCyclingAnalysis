@@ -40,6 +40,7 @@ vi.mock('../../share/renderCard', () => ({
 }))
 import { renderShareCard } from '../../share/renderCard'
 import { canvasFile } from '../../share/download'
+import { openDetail } from '../test/openDetail'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -235,11 +236,13 @@ describe('BalancePage', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]).toMatch(/^Running \d+% \w+/)
     expect(rows[1]).toMatch(/^Cycling \d+% \w+/)
-    // The levels come after the meter and before the period control.
+    // The levels come after the meter; the period's line is under the headline, before both.
     const meter = container.querySelector('.balance-meter') as Node
     const picker = screen.getByText('Period picker')
     expect(meter.compareDocumentPosition(levels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(levels.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(picker.compareDocumentPosition(meter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rows[0]).not.toMatch(/RUNNING/)
+    expect(levels.querySelector('svg')).toBeNull()
   })
 
   it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the meter', () => {
@@ -279,11 +282,11 @@ describe('BalancePage', () => {
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
     expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
     // A run's estimate is worked out from pace alone, so its detail says nothing of heart rate.
-    fireEvent.click(within(run).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(run)
     expect(within(run).getByRole('note')).toHaveTextContent(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
     expect(within(run).getByRole('note')).not.toHaveTextContent(/heart rate/)
     // A ride's estimate does not read how hard its best 20 min was, so its detail does not say.
-    fireEvent.click(within(ride).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(ride)
     expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate|reached \d+%/)
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })

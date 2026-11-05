@@ -46,9 +46,9 @@ describe('LevelLadder', () => {
     ).toBeInTheDocument()
   })
 
-  it('fills and names the band of the centre when a ride range crosses a band edge, and draws the range', () => {
+  it('names the band of the centre in ink when a ride range crosses a band edge, and draws the range', () => {
     const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(1)
+    expect(container.querySelector('.level-ladder__band')).toBeNull()
     const names = container.querySelectorAll('.level-ladder__name--current')
     expect(names).toHaveLength(1)
     expect(names[0]).toHaveTextContent('Local')
@@ -57,13 +57,13 @@ describe('LevelLadder', () => {
     expect(container.querySelector('.level-ladder__range')).not.toBeNull()
   })
 
-  it('fills and names the one band a ride range sits wholly inside', () => {
+  it('names the one band a ride range sits wholly inside', () => {
     const within: SportGrade = {
       centre: gradeAt(67.6, 'Local'),
       range: { low: gradeAt(63, 'Local'), high: gradeAt(68.5, 'Local') },
     }
     const { container } = render(<LevelLadder sport="ride" grade={within} />)
-    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(1)
+    expect(container.querySelectorAll('.level-ladder__name--current')).toHaveLength(1)
     expect(container.querySelector('.level-ladder__name--current')).toHaveTextContent('Local')
   })
 
@@ -163,14 +163,11 @@ describe('LevelLadder shapes', () => {
     expect(markerFraction(above.container)).toBe(1)
   })
 
-  it('fills the band that holds the grade, and names that band in bold', () => {
+  it('fills no band, ticks each band’s edge, and names the band that holds the grade in ink', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
-    const current = container.querySelectorAll('.level-ladder__band--current')
-    expect(current).toHaveLength(1)
-    expect(fraction(container, '.level-ladder__band--current', 'left')).toBeCloseTo(
-      SCALE_FRACTION(0.6),
-      2,
-    )
+    expect(container.querySelector('.level-ladder__band, .level-ladder__fill')).toBeNull()
+    expect(container.querySelectorAll('.level-ladder__edge')).toHaveLength(4)
+    expect(fraction(container, '.level-ladder__edge', 'left')).toBeCloseTo(SCALE_FRACTION(0.6), 2)
     expect(container.querySelector('.level-ladder__name--current')).toHaveTextContent('Local')
   })
 

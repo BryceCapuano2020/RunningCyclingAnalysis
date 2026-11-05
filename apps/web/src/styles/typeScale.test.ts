@@ -83,7 +83,7 @@ describe('the type scale', () => {
 })
 
 /** Font sizes that bypass the type tokens. The count may only fall; a page PR that moves a sheet lowers it. */
-const RAW_SIZES_NOW = 27
+const RAW_SIZES_NOW = 16
 
 describe('the three faces', () => {
   it('are a serif, a mono and a sans, each with its own token', () => {
@@ -137,4 +137,4 @@ describe('the font weights', () => {
 })
 
 /** Rules that still ask for a weight above 500, in sheets that wait on their page PR. The count may only fall. */
-const HEAVY_WEIGHTS_NOW = 83
+const HEAVY_WEIGHTS_NOW = 37

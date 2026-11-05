@@ -111,11 +111,11 @@ describe('ChartAnnotations', () => {
 describe('the annotation stylesheet', () => {
   it('sets every text over a halo in the card colour, painted under the fill', () => {
     expect(css).toMatch(/\.annot__text \{[^}]*paint-order: stroke/)
-    expect(css).toMatch(/\.annot__text \{[^}]*stroke: var\(--surface-1\)/)
+    expect(css).toMatch(/\.annot__text \{[^}]*stroke: var\(--paper\)/)
   })
 
-  it('sets a value in the display face and never in a literal colour', () => {
-    expect(css).toMatch(/\.annot__text--value \{[^}]*font-family: var\(--font-display\)/)
+  it('sets a value in the mono and never in a literal colour', () => {
+    expect(css).toMatch(/\.annot__text--value \{[^}]*font-family: var\(--font-mono\)/)
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
   })
 

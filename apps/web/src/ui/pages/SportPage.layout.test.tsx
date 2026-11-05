@@ -22,6 +22,7 @@ import {
 import type { AgeGap, AgeProfile } from '../grades'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { SportPage } from './SportPage'
+import { openDetail } from '../test/openDetail'
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn()
@@ -120,17 +121,18 @@ describe('the answer: threshold and level in one card', () => {
     const threshold = screen.getByRole('region', { name: 'Threshold pace' })
     expect(within(threshold).queryByRole('button', { name: 'Hard effort' })).toBeNull()
     expect(threshold.querySelector('.sport-hero__head .chip')).toBeNull()
-    fireEvent.click(within(threshold).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(threshold)
     expect(screen.getByRole('note')).not.toHaveTextContent(
       /close to your highest heart rate|heart rate/,
     )
   })
 
-  it('names the period the threshold is for beside its name, so it is not read against another period’s', () => {
+  it('leaves the period to the rail: the threshold carries no period tag of its own', () => {
     renderPage('run', makeResult({ activities: [run()] }))
     const threshold = screen.getByRole('region', { name: 'Threshold pace' })
     // renderPage's period is 42 days, the six weeks.
-    expect(threshold.querySelector('.sport-hero__period')).toHaveTextContent('· 6 weeks')
+    expect(threshold.querySelector('.sport-hero__period')).toBeNull()
+    expect(threshold).not.toHaveTextContent(/6 weeks/)
   })
 
   it('shows a run’s level as a ring on its threshold’s range, with its percent at display size', () => {
@@ -174,7 +176,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(level.querySelector('.level-ladder__range')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).queryByText('Estimated')).toBeNull()
-    expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local67%$/)
+    expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local · 67%$/)
   })
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {
@@ -189,10 +191,11 @@ describe('the answer: threshold and level in one card', () => {
     expect(screen.queryByRole('region', { name: 'Age grade at threshold' })).toBeNull()
   })
 
-  it('puts the period control directly under the answer', () => {
+  it('puts the period’s line last in the page head, under the title and above the answer', () => {
     renderPage('run', makeResult({ activities: [run()] }))
-    const hero = document.querySelector('.sport-hero')!
-    expect(hero.nextElementSibling).toHaveTextContent('Period picker')
+    const head = document.querySelector('.sport-page__head')!
+    expect(head.lastElementChild).toHaveTextContent('Period picker')
+    expect(head.contains(document.querySelector('.sport-hero'))).toBe(false)
   })
 })
 

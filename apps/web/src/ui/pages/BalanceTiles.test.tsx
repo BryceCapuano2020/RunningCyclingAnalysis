@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { headlineGrades } from '../balanceFixtures'
 import '../../test/warmSample'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
@@ -10,6 +10,7 @@ import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdRange } from '../thresholdRange'
 import { BalanceTiles } from './BalanceTiles'
+import { detailSummaries, openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
 
@@ -66,7 +67,7 @@ describe('BalanceTiles', () => {
       expect(tile).not.toHaveTextContent(/Estimated|At least|Not all-out|Hard effort/)
       const range = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
       expect(range).toMatch(/^Range /)
-      fireEvent.click(within(tile).getByRole('button', { name: /^How this was worked out/ }))
+      openDetail(tile)
       // A range the page states is the range the tile's detail opens with, in the sport's own unit.
       expect(within(tile).getByRole('note')).toHaveTextContent(new RegExp(`^${range}\\. `))
     }
@@ -85,13 +86,15 @@ describe('BalanceTiles', () => {
   it('says what a threshold rests on, in one line under its figure, for a ride and for a run', () => {
     renderTiles()
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(ride.querySelector('.stat-tile__source')).toHaveTextContent(
-      /^From \d+ rides\. Strongest: \d+ min on \d+ \w+( \d{4})?\. How this was worked out/,
+    expect(ride.querySelector('.stat-tile__source .meta')).toHaveTextContent(
+      /^From \d+ rides\. Strongest: \d+ min on \d+ \w+( \d{4})?\.$/,
     )
+    expect(detailSummaries(ride)).toEqual(['How this was worked out for threshold power'])
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run.querySelector('.stat-tile__source')).toHaveTextContent(
-      /^From \d+ runs\. Strongest: \d+ min on \d+ \w+( \d{4})?\. How this was worked out/,
+    expect(run.querySelector('.stat-tile__source .meta')).toHaveTextContent(
+      /^From \d+ runs\. Strongest: \d+ min on \d+ \w+( \d{4})?\.$/,
     )
+    expect(detailSummaries(run)).toEqual(['How this was worked out for threshold pace'])
   })
 
   it('gives the ride’s threshold its watts per kilogram beside the figure', () => {
@@ -124,7 +127,7 @@ describe('BalanceTiles', () => {
     // Only the run's threshold has a figure, so it alone has a detail to open, and no tile has a chip.
     expect(container.textContent).not.toMatch(/Estimated|At least/)
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
-    expect(screen.getAllByRole('button', { name: /^How this was worked out/ })).toHaveLength(1)
+    expect(detailSummaries(container)).toHaveLength(1)
   })
 
   it('puts a prompt in the empty sport’s place, and leaves the ride as a run out', () => {
@@ -198,8 +201,8 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
     for (const name of ['Run threshold', 'Ride threshold']) {
       const tile = screen.getByRole('article', { name })
-      expect(tile.querySelectorAll('.definition__term')).toHaveLength(1)
-      expect(tile.querySelector('.definition__term')).toHaveTextContent('How this was worked out')
+      expect(detailSummaries(tile)).toHaveLength(1)
+      expect(tile.querySelectorAll('.definition__term, .chip')).toHaveLength(0)
     }
     const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
     expect(asRun).not.toHaveTextContent(/Estimated|At least/)

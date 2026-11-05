@@ -32,6 +32,8 @@ import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
 import { changeOf } from '../charts/changeFixtures'
 import { YEARS_LOOKBACK } from '../yearsFixtures'
+import { openDetail } from '../test/openDetail'
+import { wholeText } from '../test/wholeText'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -107,7 +109,7 @@ function heroFigure(section: HTMLElement) {
 
 /** The record list item for one duration, found by its eyebrow such as "20 min". */
 function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
-  const list = records.querySelector<HTMLElement>('ul.records')
+  const list = records.querySelector<HTMLElement>('ol.records')
   if (list === null) throw new Error('No record list')
   const item = within(list).getByText(eyebrow).closest('li')
   if (item === null) throw new Error(`No record named ${eyebrow}`)
@@ -234,7 +236,7 @@ describe('SportPage: history', () => {
 })
 
 describe('SportPage', () => {
-  it('is the sport’s own page heading, with the period control under the answer, not in the heading row', () => {
+  it('is the sport’s own page heading, with the period’s line under it and before the answer', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Run' })
@@ -242,8 +244,10 @@ describe('SportPage', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
     const picker = screen.getByText('Period picker')
     const answer = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
-    expect(answer.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(heading.closest('.page-head')?.contains(picker)).toBe(false)
+    expect(picker.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(heading.closest('.sport-page__head')?.contains(picker)).toBe(true)
+    // The title is the sport's word alone, with no icon.
+    expect(heading.querySelector('svg')).toBeNull()
   })
 
   it('offers the guides beside the add action, in the one section with the prompt, as a secondary action', () => {
@@ -374,7 +378,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(section.querySelector('.sport-hero__figure')?.children).toHaveLength(2)
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(section)
     expect(within(section).getByRole('note')).toHaveTextContent(/^Range 21:49 to 25:12 \/km\. /)
   })
 
@@ -384,7 +388,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
     expect(section.querySelector('.sport-hero__figure')?.children).toHaveLength(3)
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(section)
     expect(within(section).getByRole('note')).toHaveTextContent(/^Range 46 to 51 W\. /)
   })
 
@@ -399,7 +403,7 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(heroFigure(section)).toEqual({ number: '23:23', unit: '/km' })
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(section)
     // The range is the estimate's own, not a run up to the uneven fit's 20:26.
     expect(within(section).getByRole('note')).not.toHaveTextContent(/20:26/)
     expect(within(section).queryByText(/mixed hard and easy|uneven/)).toBeNull()
@@ -766,7 +770,7 @@ describe('SportPage', () => {
     )
 
     const section = openSection('All best efforts')
-    const records = within(section.querySelector<HTMLElement>('ul.records')!)
+    const records = within(section.querySelector<HTMLElement>('ol.records')!)
     // A run lists no best shorter than 5 minutes, though its curve holds a 1 minute point.
     expect(records.queryByText('1 min')).not.toBeInTheDocument()
     expect(records.getByText('5 min')).toBeInTheDocument()
@@ -805,7 +809,7 @@ describe('SportPage', () => {
     )
 
     const records = openSection('All best efforts')
-    expect(within(records).getByText('400 W')).toBeInTheDocument()
+    expect(within(records).getByText(wholeText('400 W'))).toBeInTheDocument()
     expect(within(records).getByText('5.3 W/kg')).toBeInTheDocument()
   })
 
@@ -1279,7 +1283,7 @@ describe('SportPage cycling figures without a weight', () => {
   it('shows a cycling record’s watts plainly: no Estimated chip on the row, virtual power or measured', () => {
     const { unmount } = renderPage('ride', rideResult())
     const virtual = openSection('All best efforts')
-    expect(within(virtual).getByText('400 W')).toBeInTheDocument()
+    expect(within(virtual).getByText(wholeText('400 W'))).toBeInTheDocument()
     expect(within(virtual).queryByText('Estimated')).toBeNull()
     // The section says once that the watts are estimated.
     expect(
@@ -1295,7 +1299,7 @@ describe('SportPage cycling figures without a weight', () => {
       }),
     )
     const measured = openSection('All best efforts')
-    expect(within(measured).getByText('400 W')).toBeInTheDocument()
+    expect(within(measured).getByText(wholeText('400 W'))).toBeInTheDocument()
     expect(within(measured).queryByText('Estimated')).toBeNull()
     expect(screen.queryByText(/Power meters measured/)).toBeNull()
   })
@@ -1515,7 +1519,7 @@ describe('SportPage depth', () => {
     const threshold = screen.getByRole('region', { name: THRESHOLD_HEADING.ride })
     expect(within(threshold).queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
     expect(threshold.querySelector('.chip')).toBeNull()
-    fireEvent.click(within(threshold).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(threshold)
     expect(within(threshold).getByRole('note')).not.toHaveTextContent(/max heart rate|all-out/)
     expect(
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
@@ -1534,7 +1538,7 @@ describe('SportPage depth', () => {
     const threshold = screen.getByRole('region', { name: THRESHOLD_HEADING.run })
     expect(within(threshold).queryByRole('button', { name: /Not all-out|Hard effort/ })).toBeNull()
     expect(threshold.querySelector('.chip')).toBeNull()
-    fireEvent.click(within(threshold).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(threshold)
     expect(within(threshold).getByRole('note')).not.toHaveTextContent(/heart rate|not used|raise/i)
     expect(screen.queryAllByText(/reached 70% of your running max heart rate/)).toHaveLength(0)
   })

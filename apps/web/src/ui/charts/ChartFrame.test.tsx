@@ -78,7 +78,7 @@ describe('ChartFrame', () => {
       'chart-frame__lede',
       'chart-frame__legend',
     ])
-    expect(ruleBody(frameCss, '.chart-frame__lede')).toMatch(/max-width:\s*62ch/)
+    expect(ruleBody(frameCss, '.chart-frame__lede')).toMatch(/max-width:\s*var\(--measure\)/)
   })
 
   it('has no lede paragraph without one', () => {

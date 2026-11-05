@@ -8,8 +8,8 @@ const forced = css.slice(css.indexOf('@media (forced-colors: active)'))
 
 describe('Level ladder track and marker', () => {
   it('sets a track and a marker of fixed height, so the bar does not grow with the width', () => {
-    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-track:\s*2rem/)
-    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-marker:\s*1\.5rem/)
+    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-track:\s*1\.25rem/)
+    expect(ruleBody(css, '.level-ladder')).toMatch(/--level-marker:\s*0\.625rem/)
     expect(ruleBody(css, '.level-ladder__track')).toMatch(/height:\s*var\(--level-track\)/)
   })
 
@@ -19,19 +19,31 @@ describe('Level ladder track and marker', () => {
     )
   })
 
-  it('clips the bands to the rounded track, so the squared band ends stay inside its curve', () => {
-    expect(ruleBody(css, '.level-ladder__fill')).toMatch(/overflow:\s*hidden/)
-    expect(ruleBody(css, '.level-ladder__fill')).toMatch(/border-radius:\s*inherit/)
+  it('draws the track as a 1 px hairline, with a tick at each band’s edge', () => {
+    expect(ruleBody(css, '.level-ladder__track::before')).toMatch(/height:\s*1px/)
+    expect(ruleBody(css, '.level-ladder__track::before')).toMatch(/background:\s*var\(--hairline\)/)
+    expect(ruleBody(css, '.level-ladder__edge')).toMatch(/background:\s*var\(--ink-secondary\)/)
+  })
+
+  it('marks the grade in ink alone: a dot for a recorded effort, a ring for an estimate', () => {
+    expect(ruleBody(css, '.level-ladder__dot')).toMatch(/background:\s*var\(--ink\)/)
+    expect(ruleBody(css, '.level-ladder__ring')).toMatch(/border:\s*1\.5px solid var\(--ink\)/)
   })
 })
 
 describe('Level ladder bands', () => {
-  it('washes each band in its own neutral level step, so a level is never a sport colour', () => {
-    for (const step of [1, 2, 3, 4, 5]) {
-      expect(ruleBody(css, `.level-ladder__band--${step}`)).toMatch(
-        new RegExp(`background:\\s*var\\(--level-${step}\\)`),
-      )
-    }
+  it('fills no band: the current level is named in ink, the others in the secondary ink', () => {
+    expect(css).not.toMatch(/level-ladder__band|var\(--level-\d\)/)
+    expect(ruleBody(css, '.level-ladder__name--current')).toMatch(/color:\s*var\(--ink\)/)
+    expect(css).toMatch(
+      /\.level-ladder__pct,\s*\.level-ladder__name \{[^}]*color:\s*var\(--ink-secondary\)/,
+    )
+  })
+
+  it('names the levels and the percentages in the mono meta face', () => {
+    expect(css).toMatch(
+      /\.level-ladder__pct,\s*\.level-ladder__name \{[^}]*font-family:\s*var\(--font-mono\);[^}]*text-transform:\s*uppercase/,
+    )
   })
 })
 
@@ -42,36 +54,25 @@ describe('Level ladder chevrons', () => {
   })
 })
 
-describe('Level ladder outlines', () => {
-  it('outlines the range with a border, not a shadow, since forced colours drop shadows', () => {
-    expect(ruleBody(css, '.level-ladder__range')).toMatch(
-      /border:\s*2px solid var\(--ladder-colour\)/,
-    )
-    expect(ruleBody(css, '.level-ladder__range')).not.toMatch(/box-shadow/)
-  })
-
-  it('outlines the band the grade falls in with a border, not a shadow', () => {
-    expect(ruleBody(css, '.level-ladder__band--current')).toMatch(
-      /border:\s*1px solid var\(--ladder-colour\)/,
-    )
-    expect(ruleBody(css, '.level-ladder__band--current')).not.toMatch(/box-shadow/)
+describe('Level ladder range', () => {
+  it('draws a ride’s range as its wash along the line, with no outline or shadow', () => {
+    expect(ruleBody(css, '.level-ladder__range')).toMatch(/background:\s*var\(--sport-wash\)/)
+    expect(ruleBody(css, '.level-ladder__range')).not.toMatch(/border|box-shadow/)
   })
 })
 
 describe('Level ladder forced colours', () => {
-  it('draws the range as an outline only, with no band tint', () => {
-    expect(forced).toMatch(/\.level-ladder__range \{\s*background:\s*none;/)
+  it('draws the range in the system highlight, where its wash is dropped', () => {
+    expect(forced).toMatch(/\.level-ladder__range \{\s*background:\s*Highlight;/)
   })
 
-  it('takes the range outline in the system text colour, so it stays visible in forced colours', () => {
-    expect(forced).toMatch(/\.level-ladder__range \{[^}]*border-color:\s*CanvasText/)
+  it('takes the line, the ticks and the dot in the system text colour', () => {
+    expect(forced).toMatch(
+      /\.level-ladder__track::before,\s*\.level-ladder__edge,\s*\.level-ladder__dot \{\s*background:\s*CanvasText/,
+    )
   })
 
-  it('takes the outline of every band in the system text colour', () => {
-    expect(forced).toMatch(/\.level-ladder__band \{[^}]*border-color:\s*CanvasText/)
-  })
-
-  it('keeps the track edged in the system colours', () => {
-    expect(forced).toMatch(/\.level-ladder__track \{[^}]*border-color:\s*CanvasText/)
+  it('underlines the current level, where its ink is lost', () => {
+    expect(forced).toMatch(/\.level-ladder__name--current \{\s*text-decoration:\s*underline/)
   })
 })

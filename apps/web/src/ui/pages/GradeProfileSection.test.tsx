@@ -221,7 +221,7 @@ describe('GradeProfileSection', () => {
     expect(sentence).toBeVisible()
     // The title is the card's, shown once, and the chart is not mounted while it is folded.
     expect(screen.getAllByText('Grade by duration')).toHaveLength(2)
-    expect(container.querySelector('.eyebrow')).toHaveTextContent('Grade by duration')
+    expect(container.querySelector('.meta')).toHaveTextContent('Grade by duration')
     expect(screen.queryByRole('figure')).toBeNull()
     const details = container.querySelector<HTMLDetailsElement>('.grade-profile__details')!
     expect(details).not.toHaveAttribute('open')
@@ -249,7 +249,7 @@ describe('GradeProfileSection', () => {
         />,
       )
       // The card keeps its title and its folded chart, and says nothing that contradicts the hero.
-      expect(container.querySelector('.eyebrow')).toHaveTextContent('Grade by duration')
+      expect(container.querySelector('.meta')).toHaveTextContent('Grade by duration')
       expect(container.querySelector('.grade-profile__finding')).toBeNull()
       expect(screen.queryByText(/grade alike/)).toBeNull()
       expect(within(container).getByText('Show by duration')).toBeInTheDocument()

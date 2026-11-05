@@ -28,13 +28,7 @@ const PROSE_SHEETS = [
  * Sheets that still cap prose in ch, because another package holds them (Balance, SportHero, the chart
  * sheets). Move each to --measure when its owner merges, and delete it here; the list may only shrink.
  */
-const PENDING_CH_CAPS = [
-  'BalancePage.css',
-  'SportHero.css',
-  'ChartAbout.css',
-  'ChartFrame.css',
-  'ChartHeadings.css',
-]
+const PENDING_CH_CAPS = ['ChartAbout.css', 'ChartFrame.css', 'ChartHeadings.css']
 
 describe('the layout tokens', () => {
   it('give one shell width, one rail, one reading measure, two gaps and one radius', () => {
@@ -81,9 +75,9 @@ describe('the layout tokens', () => {
     }
   })
 
-  it('draw a band as a 3:1 rule across the top, with no box, and let each section reuse it', () => {
+  it('draw a band as a 1 px rule across the top, with no box, and let each section reuse it', () => {
     const band = ruleBody(sheet('components.css'), '.band')
-    expect(band).toMatch(/border-top:\s*2px solid var\(--divider\)/)
+    expect(band).toMatch(/border-top:\s*1px solid var\(--rule\)/)
     expect(band).not.toMatch(/box-shadow|border-radius|background/)
     // The hero and the fitness card carry the band's class, so their own rules add no edge.
     for (const [name, selector] of [
@@ -108,7 +102,7 @@ describe('the layout tokens', () => {
 })
 
 /** Raw radii left in the sheets: from 35, the rest are small marks, chart bars and sheets that wait on other work. */
-const RAW_RADII_NOW = 19
+const RAW_RADII_NOW = 16
 
 /** Pages that link one stylesheet and not tokens.css, so every custom property they read is their own. */
 const STANDALONE = [{ page: '../../privacy.html', sheet: 'privacy.css' }]

@@ -90,11 +90,11 @@ describe('a signed-in library with every digest held out', () => {
     expect(app.analysis.rebuildSavedActivities).toHaveBeenCalledOnce()
   })
 
-  it('keeps the section tabs and a primary Add files, and lists what is held out', () => {
+  it('keeps the page links and a primary Add files, and lists what is held out', () => {
     staleLibrary()
     render(<App />)
     const header = within(screen.getByRole('banner'))
-    expect(header.getByRole('navigation', { name: 'Sections' })).toBeInTheDocument()
+    expect(header.getByRole('navigation', { name: 'Pages' })).toBeInTheDocument()
     expect(header.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
     const list = screen.getByRole('region', { name: 'Activities held out of the analysis' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(3)

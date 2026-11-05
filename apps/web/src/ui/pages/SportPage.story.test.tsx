@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -23,6 +23,7 @@ import { closedRow, openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { RIDE_SLIPPING, SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
+import { openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
 
@@ -172,9 +173,9 @@ describe('a sport page with everything to show', () => {
     const curve = within(section).getByRole('figure', { name: 'Best efforts' })
     // No strip of tiles under the curve: the records are in All best efforts, further down the page.
     expect(within(section).queryByRole('list', { name: 'Best efforts' })).toBeNull()
-    expect(section.querySelector('ul.records, .record-tiles')).toBeNull()
+    expect(section.querySelector('ol.records, .record-tiles')).toBeNull()
     const all = screen.getByRole('region', { name: 'All best efforts' })
-    expect(all.querySelector('ul.records')).not.toBeNull()
+    expect(all.querySelector('ol.records')).not.toBeNull()
     expect(follows(curve, all)).toBe(true)
     expect(within(section).queryByText(/^Your 5 min best is/)).toBeNull()
   })
@@ -182,7 +183,7 @@ describe('a sport page with everything to show', () => {
   it('shows every best effort from the start, in a section the reader can fold', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'All best efforts' })
-    expect(section.querySelector('ul.records')).not.toBeNull()
+    expect(section.querySelector('ol.records')).not.toBeNull()
     expect(section.querySelector('details')).toHaveAttribute('open')
   })
 
@@ -394,7 +395,7 @@ describe('the run threshold whatever the fit does', () => {
     renderPage('run', makeResult({ activities: [run], runCpUneven: uneven }))
     const section = screen.getByRole('region', { name: 'Threshold pace' })
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(4))
-    fireEvent.click(within(section).getByRole('button', { name: /^How this was worked out/ }))
+    openDetail(section)
     // The range is the estimate's own 10th to 90th percentile, not a run up to the uneven fit's pace.
     expect(within(section).getByRole('note')).not.toHaveTextContent(pace(4.4))
   })

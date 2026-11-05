@@ -10,8 +10,8 @@ describe('race bars', () => {
   })
 
   it('drops the bar under the name and the time below a desktop, so it keeps a 320 px phone’s width', () => {
-    expect(ruleBody(css, '.race-row')).toMatch(/'bar bar'/)
-    expect(css).toMatch(/@media \(min-width: 761px\) \{\s*\.race-row \{[^}]*'name bar time'/)
+    expect(ruleBody(css, '.race-row')).toMatch(/'index name time'\s*'\. bar bar'/)
+    expect(css).toMatch(/@media \(min-width: 761px\) \{\s*\.race-row \{[^}]*'index name bar time'/)
   })
 
   it('lets the table in the disclosure scroll rather than widen the page', () => {

@@ -65,9 +65,12 @@ describe('FitnessSection', () => {
     )
   })
 
-  it('adds no heading, so a page’s own title stays first in the outline: the region and the card are named without one', () => {
+  it('is a section under the page’s title, with one heading that names it, and names its card without one', () => {
     renderSection()
-    expect(screen.queryAllByRole('heading')).toHaveLength(0)
+    const headings = screen.getAllByRole('heading')
+    expect(headings).toHaveLength(1)
+    expect(headings[0]).toHaveTextContent('Your fitness')
+    expect(headings[0]?.tagName).toBe('H2')
     expect(screen.getByRole('region', { name: 'Your fitness' })).toBeInTheDocument()
   })
 
@@ -162,7 +165,7 @@ describe('FitnessSection', () => {
 
   it('wears a New marker with the week the state began, only while it is new', () => {
     renderSection()
-    expect(screen.getByTestId('fitness-new').textContent).toBe('Newsince the week of 12 Oct')
+    expect(screen.getByTestId('fitness-new').textContent).toBe('New since the week of 12 Oct')
     cleanup()
     renderSection({ run: HOLDING })
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
@@ -184,7 +187,8 @@ describe('FitnessSection', () => {
       const { container } = renderSection({ run })
       expect(container.querySelector('.fitness-track')).not.toBeNull()
       expect(container.querySelector('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
-      expect(container.querySelector('.fitness-glyph')).toHaveAttribute('aria-hidden', 'true')
+      // The state is its word alone: no glyph or icon box beside it.
+      expect(container.querySelector('.fitness-glyph, .fitness-card__state svg')).toBeNull()
       cleanup()
     }
   })

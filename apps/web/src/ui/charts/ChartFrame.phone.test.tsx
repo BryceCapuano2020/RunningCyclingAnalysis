@@ -278,9 +278,9 @@ describe('ChartFrame’s takeaway and focal figure', () => {
     expect(screen.getByText('Left and right arrows read values')).toBeInTheDocument()
   })
 
-  it('sets the takeaway in the display face, a size down on a phone', () => {
-    expect(css).toMatch(/\.chart-frame__takeaway \{[^}]*font-family: var\(--font-display\)/)
-    expect(css).toMatch(/\.chart-frame__focal-value \{[^}]*font-family: var\(--font-display\)/)
+  it('sets the takeaway in the serif and the focal figure in the mono, the takeaway a size down on a phone', () => {
+    expect(css).toMatch(/\.chart-frame__takeaway \{[^}]*font-family: var\(--font-serif\)/)
+    expect(css).toMatch(/\.chart-frame__focal-value \{[^}]*font-family: var\(--font-mono\)/)
     expect(css).toMatch(/@media \(max-width: 480px\) \{[^}]*\.chart-frame__takeaway/)
   })
 })

@@ -37,12 +37,12 @@ describe('restoring kept results on a reload', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the tabs, and no Add files in the header, while the results restore', () => {
+  it('shows the page links, and no Add files in the header, while the results restore', () => {
     setAccount('loading')
     app.analysis.restoring = true
     render(<App />)
     const header = within(screen.getByRole('banner'))
-    expect(header.getByRole('navigation', { name: 'Sections' })).toBeInTheDocument()
+    expect(header.getByRole('navigation', { name: 'Pages' })).toBeInTheDocument()
     expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
   })
 
@@ -79,7 +79,7 @@ describe('restoring kept results on a reload', () => {
         screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
       ).toBeInTheDocument()
       expect(
-        within(screen.getByRole('banner')).getByRole('navigation', { name: 'Sections' }),
+        within(screen.getByRole('banner')).getByRole('navigation', { name: 'Pages' }),
       ).toBeInTheDocument()
     } finally {
       vi.useRealTimers()

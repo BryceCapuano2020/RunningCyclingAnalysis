@@ -95,8 +95,8 @@ describe('the period control', () => {
       segmented,
       '.segmented-control__option:not(.segmented-control__option--selected):hover',
     )
-    expect(hover).toMatch(/background:\s*var\(--surface-2\)/)
-    expect(hover).toMatch(/border-color:\s*var\(--text-secondary\)/)
+    expect(hover).toMatch(/background:\s*var\(--paper-hover\)/)
+    expect(hover).toMatch(/border-color:\s*var\(--ink-secondary\)/)
   })
 })
 

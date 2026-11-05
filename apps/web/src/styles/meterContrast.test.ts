@@ -11,7 +11,7 @@ const paper: Tokens = resolved(declared(tokensCss, ':root'))
 /** The least contrast a graphic reaches: a mark or a line, against what it sits on. */
 const GRAPHIC = 3
 
-/** The token a declaration names: `--control-border` for `var(--control-border)`. */
+/** The token a declaration names: `--ink` for `var(--ink)`. */
 function tokenOf(value: string | undefined): string {
   const match = /var\(--([a-z0-9-]+)\)/.exec(value ?? '')
   if (match?.[1] === undefined) throw new Error(`no token in “${value}”`)
@@ -19,32 +19,25 @@ function tokenOf(value: string | undefined): string {
 }
 
 /**
- * The balance meter's marks against the page they sit on. The line and the even mark are read from the
- * stylesheet, so the test checks the colours the meter actually paints; the dot takes the sport colours. The band
- * is a translucent tint behind the dot: the range it marks is also written under the dot, so it carries no
- * contrast of its own.
+ * The meter's marks against the page they sit on, read from the stylesheet, so the test checks the colours the meter
+ * paints: the one mark, the tick at Even and each end's upright in its sport's ink. The track is the hairline the system
+ * names (docs/design/system.md, The Balance meter): the scale it draws is also written at its ends and under the mark.
  */
 function meterPairs(tokens: Tokens): [string, string, string][] {
-  const line = colour(
-    tokens,
-    tokenOf(declarations(meterCss, '.balance-meter__track::before').get('background')),
-  )
-  const even = colour(
-    tokens,
-    tokenOf(declarations(meterCss, '.balance-meter__even').get('background')),
-  )
-  const page = colour(tokens, 'surface-0')
+  const fill = (selector: string) =>
+    colour(tokens, tokenOf(declarations(meterCss, selector).get('background')))
+  const ends = declarations(meterCss, '.balance-meter__track::after')
+  const page = colour(tokens, 'paper')
   return [
-    ['line on the page', line, page],
-    ['even mark on the page', even, page],
-    ['run dot on the page', colour(tokens, 'series-run'), page],
-    ['ride dot on the page', colour(tokens, 'series-ride'), page],
-    ['even dot on the page', colour(tokens, 'neutral-mark'), page],
+    ['the mark on the page', fill('.balance-meter__dot'), page],
+    ['the tick at Even on the page', fill('.balance-meter__even'), page],
+    ['the run end on the page', colour(tokens, tokenOf(ends.get('border-left'))), page],
+    ['the ride end on the page', colour(tokens, tokenOf(ends.get('border-right'))), page],
   ]
 }
 
 describe('balance meter contrast', () => {
-  it('the line, the even mark and the dot reach 3:1 against the page', () => {
+  it('the mark, the tick at Even and both ends reach 3:1 against the page', () => {
     for (const [label, fg, bg] of meterPairs(paper)) {
       expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
     }
@@ -52,34 +45,26 @@ describe('balance meter contrast', () => {
 })
 
 describe('balance meter stylesheet', () => {
-  it('draws the line at 3 px in control-border, so it reads against the page', () => {
+  it('draws the track as a 1 px hairline', () => {
     const line = declarations(meterCss, '.balance-meter__track::before')
-    expect(line.get('height')).toBe('3px')
-    expect(line.get('background')).toBe('var(--control-border)')
+    expect(line.get('height')).toBe('1px')
+    expect(line.get('background')).toBe('var(--hairline)')
   })
 
-  it.each([
-    ['run', 'series-run'],
-    ['ride', 'series-ride'],
-  ] as const)('tints the %s band and fills its dot in the sport colour', (sport, token) => {
-    expect(ruleBody(meterCss, `.balance-meter--${sport} .balance-meter__band`)).toMatch(
-      new RegExp(`background:\\s*var\\(--${token}-soft\\)`),
-    )
-    expect(ruleBody(meterCss, `.balance-meter--${sport} .balance-meter__dot`)).toMatch(
-      new RegExp(`background:\\s*var\\(--${token}\\)`),
-    )
+  it('sets each end’s upright in its own sport’s ink', () => {
+    const ends = declarations(meterCss, '.balance-meter__track::after')
+    expect(ends.get('border-left')).toBe('1px solid var(--run-ink)')
+    expect(ends.get('border-right')).toBe('1px solid var(--ride-ink)')
   })
 
-  it('rings the dot in the page colour, so it stands clear of the line and the band', () => {
-    expect(ruleBody(meterCss, '.balance-meter__dot')).toMatch(
-      /box-shadow:\s*0 0 0 3px var\(--surface-0\)/,
-    )
-  })
-
-  it('marks the range with a translucent band alone: no edge, no dashes', () => {
-    const band = ruleBody(meterCss, '.balance-meter__band')
-    expect(band).toMatch(/background:\s*var\(--neutral-band\)/)
-    expect(band).not.toMatch(/border:|outline|box-shadow/)
+  it('draws one ink mark, with no band, fill, ring or glow', () => {
+    expect(ruleBody(meterCss, '.balance-meter__dot')).toMatch(/background:\s*var\(--ink\)/)
+    expect(meterCss).not.toMatch(/balance-meter__band|box-shadow|radius-pill|-wash|-soft/)
     expect(meterCss).not.toMatch(/dashed|dotted|stroke-dasharray/)
+  })
+
+  it('names each end in its sport’s ink, in the meta face', () => {
+    expect(ruleBody(meterCss, '.balance-meter__end')).toMatch(/color:\s*var\(--sport-ink\)/)
+    expect(ruleBody(meterCss, '.balance-meter__ends')).toMatch(/font-family:\s*var\(--font-mono\)/)
   })
 })

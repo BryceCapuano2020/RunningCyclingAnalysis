@@ -62,7 +62,7 @@ describe('header', () => {
     expect(screen.queryByRole('navigation', { name: 'Sections' })).not.toBeInTheDocument()
   })
 
-  it('shows the section tabs once there is a result, with Balance marked as the current page', () => {
+  it('shows the rail and the page links once there is a result, with Balance marked as the current page', () => {
     showResult()
     render(<App />)
     const sections = screen.getByRole('navigation', { name: 'Sections' })
@@ -71,7 +71,8 @@ describe('header', () => {
       'page',
     )
     expect(within(sections).getByRole('link', { name: 'Run' })).toHaveAttribute('href', '#/run')
-    expect(within(sections).getByRole('link', { name: 'Activities' })).toHaveAttribute(
+    const pages = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Pages' })
+    expect(within(pages).getByRole('link', { name: 'Activities' })).toHaveAttribute(
       'href',
       '#/activities',
     )

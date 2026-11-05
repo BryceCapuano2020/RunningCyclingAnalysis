@@ -43,16 +43,15 @@ describe('SectionDisclosure', () => {
     expect(screen.getByText('The chart')).toBeInTheDocument()
   })
 
-  it('is a band while open and the card of one row when folded', () => {
+  it('is a band open or folded, never the box of a card', () => {
     renderDisclosure()
     const region = screen.getByRole('region')
     const details = region.querySelector('details')!
     expect(region).toHaveClass('band')
-    expect(region).not.toHaveClass('panel')
     details.open = false
     fireEvent(details, new Event('toggle'))
-    expect(region).toHaveClass('panel')
-    expect(region).not.toHaveClass('band')
+    expect(region).toHaveClass('band')
+    expect(region).not.toHaveClass('panel')
     details.open = true
     fireEvent(details, new Event('toggle'))
     expect(region).toHaveClass('band')

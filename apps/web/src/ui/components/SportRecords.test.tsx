@@ -5,6 +5,7 @@ import { makeActivity } from './fixtures'
 import { SportRecords } from './SportRecords'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
+import { wholeText } from '../test/wholeText'
 
 // A fixed clock, so the friendly dates do not depend on when the suite runs.
 const NOW = new Date(2026, 5, 10, 12).getTime()
@@ -63,7 +64,7 @@ describe('SportRecords', () => {
     )
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(2)
-    expect(within(items[1]!).getByText('250 W')).toBeInTheDocument()
+    expect(within(items[1]!).getByText(wholeText('250 W'))).toBeInTheDocument()
     expect(within(items[1]!).getByText('3.3 W/kg')).toBeInTheDocument()
     expect(within(items[1]!).getByText('Estimated · Local · 67%')).toBeInTheDocument()
   })
@@ -217,10 +218,10 @@ describe('SportRecords', () => {
       .getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
       .closest('.records__source')
     expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
-    expect(source?.parentElement).toBe(first)
-    expect(within(first!).getByText('3:50 /km').closest('.records__figure')).not.toHaveTextContent(
-      'ago',
-    )
+    expect(source?.closest('li')).toBe(first)
+    expect(
+      within(first!).getByText(wholeText('3:50 /km')).closest('.records__figure'),
+    ).not.toHaveTextContent('ago')
     expect(second).toHaveTextContent('Late run, 9 Jan · 4 days ago')
   })
 
@@ -255,19 +256,52 @@ describe('SportRecords', () => {
 
   it('shows a record without its link when its activity is not in the result', () => {
     render(<SportRecords rows={[row({ activity: null })]} />)
-    expect(screen.getByText('4:00 /km')).toBeInTheDocument()
+    expect(screen.getByText(wholeText('4:00 /km'))).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('shows each tag a row carries, as a chip', () => {
+  it('shows each tag a row carries as plain words on its meta line, never a chip', () => {
     render(<SportRecords rows={[row({ value: '4:00 /km', tags: ['All-time record'] })]} />)
-    expect(screen.getByText('All-time record')).toHaveClass('chip')
+    const tag = screen.getByText('All-time record')
+    expect(tag).toHaveClass('record-tag')
+    expect(tag).not.toHaveClass('chip')
+    expect(tag.closest('.meta')).not.toBeNull()
+  })
+
+  it('numbers its rows and sets each figure’s unit apart, smaller', () => {
+    const { container } = render(
+      <SportRecords
+        rows={[row({ key: 'a' }), row({ key: 'b', label: '20 min', value: '250 W' })]}
+      />,
+    )
+    expect(
+      Array.from(container.querySelectorAll('.row__index')).map((index) => index.textContent),
+    ).toEqual(['01', '02'])
+    expect(container.querySelector('ol.records')).not.toBeNull()
+    expect(screen.getByText('W', { selector: '.row__unit' })).toBeInTheDocument()
   })
 
   it('shows no chip for a row with no tags', () => {
     const { container } = render(<SportRecords rows={[row({ value: '400 W', tags: [] })]} />)
-    expect(container.querySelector('.records__figure .chip')).toBeNull()
-    expect(screen.getByText('400 W')).toBeInTheDocument()
+    expect(container.querySelector('.records__meta, .chip')).toBeNull()
+    expect(screen.getByText(wholeText('400 W'))).toBeInTheDocument()
+  })
+
+  it('draws a sparkline at the right of a row that has a trend, and none on a row without', () => {
+    const { container } = render(
+      <SportRecords
+        rows={[row({ key: '1200' }), row({ key: 'distance-5000', label: '5 km' })]}
+        sparks={{
+          '1200': [
+            { atMs: 0, value: 3 },
+            { atMs: 10, value: 4 },
+          ],
+        }}
+      />,
+    )
+    const [withTrend, without] = Array.from(container.querySelectorAll('li'))
+    expect(withTrend?.querySelector(':scope > svg.row__spark')).not.toBeNull()
+    expect(without?.querySelector('svg')).toBeNull()
   })
 
   it('marks a run’s pace Flat, in words', () => {

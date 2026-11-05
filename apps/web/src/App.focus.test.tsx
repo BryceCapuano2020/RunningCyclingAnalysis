@@ -37,8 +37,11 @@ describe('focus on navigation', () => {
     'opens the %s page and moves focus to its heading',
     async (name) => {
       render(<App />)
-      const sections = screen.getByRole('navigation', { name: 'Sections' })
-      fireEvent.click(within(sections).getByRole('link', { name }))
+      // Run and Ride are the rail's; Activities is the header's.
+      const nav = screen.getByRole('navigation', {
+        name: name === 'Activities' ? 'Pages' : 'Sections',
+      })
+      fireEvent.click(within(nav).getByRole('link', { name }))
       await waitFor(() => expect(screen.getByRole('heading', { level: 1, name })).toHaveFocus())
     },
   )

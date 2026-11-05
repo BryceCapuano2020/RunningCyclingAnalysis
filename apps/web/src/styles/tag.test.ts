@@ -18,19 +18,20 @@ describe('the tag', () => {
   it('sets the size, weight, tracking and capitals once, for the tag and the eyebrow alike', () => {
     const body = ruleBody(components, '.eyebrow,\n.tag')
     expect(body).toMatch(/font-size:\s*var\(--text-sm\)/)
-    expect(body).toMatch(/font-weight:\s*700/)
-    expect(body).toMatch(/letter-spacing:\s*var\(--tracking-caps\)/)
+    // The faces load 400 and 500 (docs/design/system.md, Type), so nothing asks for more.
+    expect(body).toMatch(/font-weight:\s*500/)
+    expect(body).toMatch(/letter-spacing:\s*var\(--tracking-meta\)/)
     expect(body).toMatch(/text-transform:\s*uppercase/)
     expect(ruleBody(components, '.tag--small')).toMatch(/font-size:\s*var\(--text-xs\)/)
   })
 
-  it('sets the display face on the tag only, and leaves the eyebrow the face it already had', () => {
+  it('sets the serif on the tag only, and leaves the eyebrow the face it already had', () => {
     expect(ruleBody(components, '.eyebrow,\n.tag')).not.toMatch(/font-family/)
-    expect(ruleBody(components, '.tag')).toMatch(/font-family:\s*var\(--font-display\)/)
+    expect(ruleBody(components, '.tag')).toMatch(/font-family:\s*var\(--font-serif\)/)
     // The eyebrow's face is the group at the head of the sheet, which this change does not touch.
     expect(
       ruleBody(components, '.eyebrow,\n.hero-number,\n.stat-number,\n.chip,\n.btn-primary'),
-    ).toMatch(/font-family:\s*var\(--font-display\)/)
+    ).toMatch(/font-family:\s*var\(--font-serif\)/)
   })
 
   it.each(TAGGED)('leaves %s only its layout, shape and state', (selector) => {
@@ -42,8 +43,9 @@ describe('the tag', () => {
     }
   })
 
-  it('beats the tag where a state sets its colour, since the tag is later in the bundle', () => {
+  it('names the fitness track’s marks as meta lines, with no tag of their own', () => {
     const track = sheets.find(({ path }) => path.endsWith('FitnessTrack.css'))?.css ?? ''
-    expect(track).toMatch(/\.tag\.fitness-track__tag--now\s*\{/)
+    expect(track).not.toMatch(/\.tag\b/)
+    expect(track).toMatch(/\.fitness-track__tag--now \{[^}]*color:\s*var\(--ink\)/)
   })
 })

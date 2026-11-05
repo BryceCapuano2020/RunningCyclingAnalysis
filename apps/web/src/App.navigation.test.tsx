@@ -242,7 +242,7 @@ describe('an activity opened from a sport', () => {
     window.history.pushState(null, '', '#/activities/run-1')
     await browserHashChange(listeners, oldURL)
 
-    expect(screen.getByRole('link', { name: 'Run' })).toHaveClass('header__tab--current')
+    expect(screen.getByRole('link', { name: 'Run' })).toHaveClass('rail__link--current')
     expect(screen.getByRole('link', { name: 'Back to Run' })).toHaveAttribute('href', '#/run')
   })
 })

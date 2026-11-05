@@ -15,6 +15,7 @@ import {
 } from '../components/fixtures'
 import { balanceOfPick } from '../components/balanceScale'
 import { BalanceHero, type BalanceHeroProps } from './BalanceHero'
+import { wholeText } from '../test/wholeText'
 
 afterEach(() => {
   cleanup()
@@ -103,7 +104,9 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByText(
-        'Over 20 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
+        wholeText(
+          'Over 20 min, your running is 12% higher than your cycling, within 5% to 20%, as energy per kilogram.',
+        ),
       ),
     ).toBeInTheDocument()
   })
@@ -141,7 +144,9 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Over 20 min, your cycling is 25% higher than your running, within 11% to 33%, as energy per kilogram.',
+        wholeText(
+          'Over 20 min, your cycling is 25% higher than your running, within 11% to 33%, as energy per kilogram.',
+        ),
       ),
     ).toBeInTheDocument()
   })
@@ -225,7 +230,7 @@ describe('BalanceHero visual', () => {
     expect(container.querySelector('.balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('sets the meter under the lede, then the levels, then the period control, then the action', () => {
+  it('sets the period line under the headline, then the lede, the meter, the levels and the action', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -238,21 +243,22 @@ describe('BalanceHero visual', () => {
       />,
     )
     const order = [
+      screen.getByRole('heading', { level: 1 }),
+      screen.getByTestId('controls'),
       container.querySelector('.balance-hero__lede'),
       container.querySelector('.balance-meter'),
       screen.getByTestId('levels'),
-      screen.getByTestId('controls'),
       screen.getByRole('button', { name: 'Share image' }),
     ]
     for (const [index, node] of order.entries()) {
       const next = order[index + 1]
-      if (node === null || next === undefined || next === null) continue
+      expect(node, `${index}`).not.toBeNull()
+      if (next === undefined) continue
       expect(
-        node.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING,
+        node!.compareDocumentPosition(next!) & Node.DOCUMENT_POSITION_FOLLOWING,
         `${index}`,
       ).toBeTruthy()
     }
-    expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 })
 
@@ -271,7 +277,7 @@ describe('BalanceHero answer', () => {
     expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
   })
 
-  it('underlines the sport the balance leans toward, in that sport’s colour, and no word when level', () => {
+  it('names the sport the balance leans toward in plain words, with no underline or colour', () => {
     const { container, rerender } = render(
       <Hero
         {...ALL_TIME}
@@ -280,9 +286,9 @@ describe('BalanceHero answer', () => {
         gap={gradedGap({ centre: -9, low: -12, high: -6, lean: 'ride' })}
       />,
     )
-    const marked = container.querySelector('.balance-hero__sport')
-    expect(marked).toHaveTextContent('cycling')
-    expect(marked).toHaveAttribute('data-sport', 'ride')
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading).toHaveTextContent(/cycling$/)
+    expect(heading.querySelector('em, [data-sport]')).toBeNull()
     rerender(
       <Hero
         {...ALL_TIME}
@@ -294,7 +300,7 @@ describe('BalanceHero answer', () => {
     expect(container.querySelector('.balance-hero__sport')).toBeNull()
   })
 
-  it('names the period in the eyebrow as a length, and leaves its dates to the period line', () => {
+  it('has no eyebrow: the rail names the period, and its dates are the period line', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -304,7 +310,8 @@ describe('BalanceHero answer', () => {
         gap={gradedGap()}
       />,
     )
-    expect(container.querySelector('.eyebrow')?.textContent).toBe('Last 6 weeks')
+    expect(container.querySelector('.eyebrow')).toBeNull()
+    expect(container).not.toHaveTextContent(/Last 6 weeks/)
   })
 
   it('defines the range in place, as a button with its note', () => {
@@ -348,11 +355,19 @@ describe('BalanceHero on the age-grade gap', () => {
     const target = 'To match it on the bike: 270 W for 20 min (245 to 295). You’re at 230 W.'
     const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
     const { container, rerender } = render(<Hero {...props} gap={gradedGap()} target={target} />)
-    const line = screen.getByText(target)
-    expect(line).toHaveClass('secondary')
+    const line = screen.getByText(wholeText(target))
+    expect(line).toHaveClass('balance-hero__line')
+    // Its figures are mono, set as .num inside the sentence.
+    expect(Array.from(line.querySelectorAll('.num')).map((num) => num.textContent)).toEqual([
+      '270',
+      '20',
+      '245',
+      '295',
+      '230',
+    ])
     expect(line.previousElementSibling).toHaveClass('balance-hero__lede')
     rerender(<Hero {...props} gap={gradedGap()} target={null} />)
-    expect(screen.queryByText(/^To match it/)).toBeNull()
+    expect(container.querySelector('.balance-hero__line')).toBeNull()
     expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 

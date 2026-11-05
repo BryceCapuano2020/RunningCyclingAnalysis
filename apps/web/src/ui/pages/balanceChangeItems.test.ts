@@ -114,7 +114,7 @@ describe('balanceChanges', () => {
     const ride = balanceChanges(
       input(scaled(1, 0.95), { result: { ...result, activities: virtual(result.activities) } }),
     )?.items.find((item) => item.key === 'ride-best')
-    expect(Object.keys(ride ?? {}).sort()).toEqual(['body', 'direction', 'key', 'title'])
+    expect(Object.keys(ride ?? {}).sort()).toEqual(['body', 'direction', 'key', 'sport', 'title'])
     expect(ride?.body).toMatch(/^\d+ W, \d+ W more than previous 12 weeks\./)
   })
 
@@ -192,8 +192,8 @@ describe('balanceChanges for a library that fails the hard-effort check', () => 
     const out = balanceChanges(input(previous, { result: easy }))
     expect(keys(out)).toEqual(['ride-best', 'run-best'])
     expect(out?.items.map((item) => Object.keys(item).sort())).toEqual([
-      ['body', 'direction', 'key', 'title'],
-      ['body', 'direction', 'key', 'title'],
+      ['body', 'direction', 'key', 'sport', 'title'],
+      ['body', 'direction', 'key', 'sport', 'title'],
     ])
   })
 
@@ -210,7 +210,7 @@ describe('balanceChanges for a library that fails the hard-effort check', () => 
     expect(run).toMatchObject({ direction: 'up' })
     expect(run?.title).toMatch(/^Faster 20 min run/)
     // The same fields as the best whose call was gated.
-    expect(Object.keys(run ?? {}).sort()).toEqual(['body', 'direction', 'key', 'title'])
+    expect(Object.keys(run ?? {}).sort()).toEqual(['body', 'direction', 'key', 'sport', 'title'])
   })
 
   it('gives only its items: no line about a best that was not hard, or an effort that was not checked', () => {

@@ -654,9 +654,9 @@ describe('ResultPage period', () => {
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(false)
-      // Balance's period control is compact: the note is in the line of the dates, after them.
-      const caption = container.querySelector('.range-picker__caption')
-      const note = container.querySelector('.range-picker__caption .range-picker__inline-note')
+      // The period's caption is one meta line under the title: the note follows the dates on it.
+      const caption = container.querySelector('.period-caption__line')
+      const note = container.querySelector('.period-caption__line .range-picker__inline-note')
       expect(note).toHaveTextContent('Latest activity 17 months ago')
       expect(caption?.textContent).toMatch(/^.+ · Latest activity 17 months ago$/)
     } finally {

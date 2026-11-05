@@ -15,6 +15,7 @@ import type { GradeOutcome } from '../grades'
 import { THRESHOLD_MEANING } from '../sports'
 import { ThresholdTile } from './ThresholdTile'
 import { thresholdTileIsBare } from './thresholdTileBare'
+import { detailSummaries, openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
 
@@ -64,7 +65,7 @@ describe('ThresholdTile', () => {
     expect(container.querySelector('.stat-tile__figure')).toHaveTextContent('4:24')
     expect(container.textContent).not.toMatch(/90% range|Estimated|At least/)
     expect(screen.queryByText('range')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    openDetail()
     expect(screen.getByRole('note')).toHaveTextContent(/^Range 4:10 to 4:39 \/km\. /)
   })
 
@@ -73,7 +74,7 @@ describe('ThresholdTile', () => {
     const { container } = renderTile('run', makeResult({ runThreshold: same }))
     expect(container.textContent).not.toMatch(/NaN/)
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
-    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    openDetail()
     expect(screen.getByRole('note')).toHaveTextContent(/^About 4:24 \/km\. /)
   })
 
@@ -165,7 +166,7 @@ describe('ThresholdTile', () => {
     )
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/Estimated|At least/)
-    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    openDetail()
     expect(screen.getByRole('note')).toHaveTextContent(/^Range 240 to 264 W\. /)
     expect(screen.getByRole('note')).toHaveTextContent(
       'Here it was not used: your heart rate does not move with power.',
@@ -190,7 +191,7 @@ describe('ThresholdTile', () => {
     expect(container.querySelector('.stat-tile__source')).toHaveTextContent(
       /^From 4 runs\. Strongest: 40 min on 4 Mar/,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^How this was worked out/ }))
+    openDetail()
     const note = screen.getByRole('note')
     expect(note).toHaveTextContent(
       /^Range 4:\d\d to 4:\d\d \/km\. Worked out from the strongest effort of each run/,
@@ -201,14 +202,14 @@ describe('ThresholdTile', () => {
 
   it('names each tile’s detail for its threshold, so two on a page are told apart', () => {
     renderTile('run', makeResult())
-    expect(
-      screen.getByRole('button', { name: 'How this was worked out for threshold pace' }),
-    ).toHaveTextContent('How this was worked out')
+    expect(detailSummaries()).toEqual(['How this was worked out for threshold pace'])
+    // The words that tell the two apart are for a screen reader; the eye reads the title above.
+    expect(document.querySelector('details > summary .sr-only')).toHaveTextContent(
+      'for threshold pace',
+    )
     cleanup()
     renderTile('ride', makeResult())
-    expect(
-      screen.getByRole('button', { name: 'How this was worked out for threshold power' }),
-    ).toHaveTextContent('How this was worked out')
+    expect(detailSummaries()).toEqual(['How this was worked out for threshold power'])
   })
 
   describe('one status to a card', () => {
@@ -351,8 +352,10 @@ describe('ThresholdTile', () => {
       for (const sport of ['run', 'ride'] as const) {
         const tile = renderTile(sport, makeResult()).container.querySelector('article')!
         expect(tile).toHaveAttribute('aria-label', `${sport === 'run' ? 'Run' : 'Ride'} threshold`)
-        expect(tile.querySelector('.stat-tile__head')?.nextElementSibling).toBe(
-          tile.querySelector('.stat-tile__figure'),
+        // The title and its figure share the head line; what the figure rests on is the next line.
+        expect(tile.querySelector('.row__head')?.children).toHaveLength(2)
+        expect(tile.querySelector('.row__head')?.nextElementSibling).toBe(
+          tile.querySelector('.stat-tile__source'),
         )
         expect(tile).not.toHaveTextContent(/you could hold/)
         cleanup()
