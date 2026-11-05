@@ -17,7 +17,7 @@ import { FakeContext, LONG_HEADLINE, cardModel, draw } from './fixtures'
 const mainTsx = await readStylesheet(import.meta.url, '../main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, '../styles/tokens.css')
 
-/** The face a family name and weight name, as "Barlow 600", from a CSS font family list. */
+/** The face a family name and weight name, as "Newsreader 500", from a CSS font family list. */
 function faceName(face: Face): string {
   const family = face.family.split(',')[0] ?? ''
   return `${family.replace(/['"]/g, '').trim()} ${face.weight}`

@@ -10,6 +10,8 @@ describe('one theme', () => {
       ...(await readFilesUnder(import.meta.url, '../', '.css')),
       ...(await readFilesUnder(import.meta.url, '../', '.ts')),
       ...(await readFilesUnder(import.meta.url, '../', '.tsx')),
+      ...(await readFilesUnder(import.meta.url, '../../scripts/', '.ts')),
+      { path: 'README.md', text: await readStylesheet(import.meta.url, '../../../../README.md') },
       { path: 'index.html', text: await readStylesheet(import.meta.url, '../../index.html') },
       { path: 'privacy.html', text: await readStylesheet(import.meta.url, '../../privacy.html') },
       { path: '404.html', text: await readStylesheet(import.meta.url, '../../public/404.html') },

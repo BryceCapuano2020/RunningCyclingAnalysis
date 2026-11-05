@@ -35,7 +35,7 @@ const phoneBlock = (css: string) => mediaBlock(css, PHONE_MAX_WIDTH_PX)
 
 /**
  * The width of "Activities" in Chromium at 100% text, per pixel of its font size: 57.73 px at 14 px,
- * with the bundled Barlow Condensed and 0.02em letter-spacing. jsdom cannot lay text out, so the fit
+ * with the bundled serif and 0.02em letter-spacing. jsdom cannot lay text out, so the fit
  * is checked against this measured ratio; the browser run is the real check.
  */
 const ACTIVITIES_PER_FONT_PX = 57.73 / 14

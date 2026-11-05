@@ -51,9 +51,9 @@
   --zone-ink-5: #ffffff;
   /*
    * The long ramp: a ride's power has seven zones, which five steps cannot tell apart, so a bar of seven reads this
-   * one (ZoneTimeChart.css). Blue runs into indigo as effort rises in light, and into azure in dark. Every step keeps
-   * 3:1 against the card and 4.5:1 for its ink. Seven steps leave less room than five, so neighbours are at least 5.5
-   * apart under every colour vision in light and 4 in dark; each step is numbered, and its percent and the table say
+   * one (ZoneTimeChart.css). Blue runs into indigo as effort rises. Every step keeps 3:1 against the paper and 4.5:1
+   * for its ink. Seven steps leave less room than five, so neighbours are at least 5.5 apart under every colour vision;
+   * each step is numbered, and its percent and the table say
    * the zone. styles/zoneRamp.test.ts checks it from these values.
    */
   --zone-ride-long-1: #5182f2;
