@@ -34,6 +34,11 @@
   line-clamp: 2;
 }
 
+/* A figure in the sentence is the mono at the size a figure takes in a paragraph (base.css), so the line keeps its height. */
+.checkin-row__line .num {
+  font-size: var(--text-num);
+}
+
 /* Open, the panel gives the sentence whole, so the summary keeps it for a screen reader's name and not for the eye. */
 .checkin-row__details[open] .checkin-row__line {
   position: absolute;
