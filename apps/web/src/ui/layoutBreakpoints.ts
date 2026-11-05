@@ -4,8 +4,14 @@
  * those queries together; Header.test.tsx fails when they disagree.
  */
 
-/** At or below this width the tabs are a bar at the foot of the screen; the header is one row. */
+/** At or below this width a control is a finger's 44 px and the header's page links take a row of their own. */
 export const PHONE_MAX_WIDTH_PX = 760
+
+/**
+ * From this width the rail is a column left of the page and the header stays at the top of the screen. Below it the
+ * rail is one row across the top of the page that scrolls inside itself (Rail.css, Header.css).
+ */
+export const RAIL_MIN_WIDTH_PX = 1024
 
 /**
  * At or below this width the header's wordmark is hidden, so the brand mark and the actions keep one

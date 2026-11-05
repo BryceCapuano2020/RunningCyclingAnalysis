@@ -3,60 +3,29 @@
   min-width: 0;
 }
 
+/* The trigger is the name as plain text and a ▾: a text control in the header's line, not a pill. */
 .account-menu__trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   max-width: 14rem;
   min-height: var(--control-height);
-  padding: 0 var(--space-3) 0 var(--space-1);
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-pill);
-  background: var(--surface-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-secondary);
   cursor: pointer;
-  font-weight: 500;
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
 }
 
 .account-menu__trigger:hover,
 .account-menu__trigger[aria-expanded='true'] {
-  background: var(--surface-2);
+  color: var(--ink);
 }
 
-/* The trigger is outlined like a button, so it presses as .btn does: the pressed fill, an inset ring
-   and a pixel drop. */
 .account-menu__trigger:active {
-  background: var(--surface-pressed);
-  box-shadow: inset 0 0 0 2px var(--control-border);
-  transform: translateY(1px);
-}
-
-/* Forced colours drop the fill and the shadow of a press, so a pressed trigger gets an outline. */
-@media (forced-colors: active) {
-  .account-menu__trigger:active {
-    outline: 2px solid CanvasText;
-    outline-offset: -2px;
-  }
-}
-
-.account-menu__avatar {
-  display: grid;
-  flex: none;
-  place-items: center;
-  /* In rem, so the initials keep their room when the reader's text is larger (at 200% two capitals are wider than 32 px). */
-  width: 2rem;
-  height: 2rem;
-  overflow: hidden;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.account-menu__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  color: var(--ink);
 }
 
 .account-menu__name {
@@ -68,15 +37,7 @@
 
 .account-menu__chevron {
   flex: none;
-  margin-left: var(--space-1);
-  border: 4px solid transparent;
-  border-top-color: currentColor;
-  border-bottom-width: 0;
-  transition: transform 0.15s;
-}
-
-.account-menu__trigger[aria-expanded='true'] .account-menu__chevron {
-  transform: rotate(180deg);
+  font-size: var(--text-sm);
 }
 
 .account-menu__panel {
@@ -91,10 +52,9 @@
   min-width: 14rem;
   max-width: min(22rem, calc(100vw - 2 * var(--space-4)));
   padding: var(--space-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-pop);
+  background: var(--paper);
 }
 
 .account-menu__panel[hidden] {
@@ -103,9 +63,9 @@
 
 .account-menu__email {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hairline);
   margin-bottom: var(--space-1);
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
@@ -116,9 +76,9 @@
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
-  color: var(--text-primary);
+  color: var(--ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -126,7 +86,7 @@
 }
 
 .account-menu__item:hover {
-  background: var(--surface-2);
+  background: var(--paper-hover);
 }
 
 /*
@@ -139,7 +99,7 @@
   justify-content: center;
   min-width: 11.75rem;
   min-height: var(--control-height);
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   white-space: nowrap;
 }
@@ -149,14 +109,14 @@
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
   font-size: var(--text-sm);
   white-space: nowrap;
 }
 
 .account-menu__retry:hover {
-  background: var(--surface-2);
+  background: var(--paper-hover);
 }

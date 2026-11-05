@@ -22,6 +22,8 @@ export interface SegmentedControlProps<T extends string> {
    * checked segment can be one the person did not pick, such as the window a default settled on, so that click can pick it.
    */
   onReselect?: (value: T) => void
+  /** Segments are outlined boxes; text is a column (or a row) of plain words, the current one in ink, as the rail sets it. */
+  variant?: 'segments' | 'text'
 }
 
 /**
@@ -35,10 +37,15 @@ export function SegmentedControl<T extends string>({
   selected,
   onSelect,
   onReselect,
+  variant = 'segments',
 }: SegmentedControlProps<T>) {
   const groupName = useId()
   return (
-    <fieldset className="segmented-control">
+    <fieldset
+      className={
+        variant === 'text' ? 'segmented-control segmented-control--text' : 'segmented-control'
+      }
+    >
       <legend className={legendHidden ? 'sr-only' : 'segmented-control__legend'}>{legend}</legend>
       <div className="segmented-control__options">
         {options.map((option) => {

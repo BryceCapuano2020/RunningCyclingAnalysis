@@ -89,6 +89,8 @@
   --stack-gap: var(--space-5);
   /* A control is 40 px; a phone or a finger gets the 44 px touch target, set below. */
   --control-height: 40px;
+  /* A small outlined button and the primary one are 32 px; a phone or a finger gets 44 px, set below. */
+  --button-height: 32px;
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
   --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
   --tab-bar-height: 48px;
@@ -173,6 +175,7 @@
 @media (max-width: 760px), (pointer: coarse) {
   :root {
     --control-height: 44px;
+    --button-height: 44px;
   }
 }
 

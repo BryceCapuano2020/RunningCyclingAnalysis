@@ -1,147 +1,81 @@
 /*
- * The header stays at the top of the screen while the page scrolls, so the tabs and Add files are
- * always in reach. On a phone the tabs move to a bar fixed to the foot of the screen instead.
- *
- * The breakpoints are named in ui/layoutBreakpoints.ts; the sizes are custom properties in
- * tokens.css, so the scroll padding and the page's foot padding follow the header and the tab bar.
+ * The header is one line of text over a hairline: the wordmark, the page links, then Profile, the account and Add
+ * files at the right. From the rail's width it stays at the top of the screen; below it, it scrolls away with the
+ * page, and the page links take a second row. The breakpoints are named in ui/layoutBreakpoints.ts.
  */
-
 .header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    'brand actions'
-    'tabs tabs';
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
-  /* Runs to the top and the sides of the page, so the background covers the page's gutters. */
+  gap: var(--space-1) var(--space-5);
+  /* Runs to the top and the sides of the page, so the paper covers the page's gutters. */
   margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
-  padding: var(--space-5) var(--space-4) 0;
-  background: var(--surface-0);
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
 }
 
-/* With no tabs, the header is one row: the empty second row would leave a gap under the actions. */
-.header:not(:has(.header__tabs)) {
-  grid-template-areas: 'brand actions';
-}
-
-/* Keeps a control that the browser scrolls to clear of the header, of any bar stuck under it, and of the tab bar on a phone. */
+/* Keeps a control that the browser scrolls to clear of the header and of any bar stuck under it. */
 html {
   scroll-padding-top: calc(var(--header-height) + var(--sticky-extra));
 }
 
+/* ui/layoutBreakpoints.ts: RAIL_MIN_WIDTH_PX. */
+@media (min-width: 1024px) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+}
+
 .header__brand {
-  grid-area: brand;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
   min-height: var(--control-height);
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-/* The wordmark is set in the tabs' capitals, so the name reads as a name, not a file name. */
-.header__name {
-  font-family: var(--font-display);
-  /* A display size with no type token; see docs/design/system.md, Type. */
-  font-size: 1.375rem;
-  font-weight: 800;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-
-/* The brand is a link home, so its name underlines on hover, as the links in the page do. */
-.header__brand:hover .header__name {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-}
-
-/* Tabs that do not fit one row (five at 200% text on a tablet) wrap to the next, so the page never scrolls sideways. */
-.header__tabs {
-  grid-area: tabs;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.header__tab,
-.header__profile {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: var(--text-lead);
-  font-weight: 700;
-  letter-spacing: var(--tracking-caps);
+  font-weight: 500;
   text-decoration: none;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* Profile is an account, so it is outlined like a button; the tabs are not. It is set in sentence
-   case, not capitals. */
-.header__profile {
-  border: 1px solid var(--control-border);
-  letter-spacing: normal;
-  text-transform: none;
+.header__brand:hover {
+  text-decoration: underline;
 }
 
-.header__tab:hover,
-.header__profile:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
+.header__pages {
+  display: flex;
+  gap: var(--space-5);
 }
 
-/* A pressed tab takes the pressed fill and an inset outline. The tab bar's current mark is a flat bar,
-   not an inset shadow, so the press uses an outline. */
-.header__tab:active {
-  background: var(--surface-pressed);
-  outline: 2px solid var(--control-border);
-  outline-offset: -2px;
+.header__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--ink-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-/* Profile presses as a tab does, with the pressed fill and an inset outline, not an inset shadow. */
-.header__profile:active {
-  background: var(--surface-pressed);
-  outline: 2px solid var(--control-border);
-  outline-offset: -2px;
+.header__link:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 
-/* The current page is marked by a flat bar along its foot, and by colour, so the mark does not rest
-   on colour alone. The bar is a pseudo-element, so the tab's rounded corners do not curl it. */
-.header__tab--current,
-.header__profile[aria-current='page'] {
-  color: var(--text-primary);
-}
-
-.header__tab--current::after,
-.header__profile[aria-current='page']::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--text-primary);
+.header__link--current,
+.header__link[aria-current='page'] {
+  color: var(--ink);
 }
 
 .header__actions {
-  grid-area: actions;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-5);
+  margin-left: auto;
 }
 
 /* The account control's own box is not laid out, so its children sit in the actions row. */
@@ -154,174 +88,58 @@ html {
   white-space: nowrap;
 }
 
-/* Phones (ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX): the brand and the actions share the top
-   row, and the tabs become a bar fixed to the foot of the screen. */
+/*
+ * ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. The wordmark and Add files share the first row; the page links,
+ * Profile and the account the second, which a zero-height break pushes to its own line.
+ */
 @media (max-width: 760px) {
-  html {
-    scroll-padding-bottom: calc(var(--tab-bar-height) + 1px);
-  }
-
   .header {
-    gap: var(--space-2);
-    grid-template-areas: 'brand actions';
+    column-gap: var(--space-4);
+    padding-block: var(--space-2);
   }
 
-  .header__tabs {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 20;
-    flex-wrap: nowrap;
-    /* The serif capitals are wider than the old display face: no gap, so the five labels share 320 px. */
-    gap: 0;
-    overflow-x: auto;
-    padding-bottom: env(safe-area-inset-bottom);
-    border-top: 1px solid var(--border);
-    background: var(--surface-0);
+  .header::after {
+    content: '';
+    flex-basis: 100%;
+    order: 2;
   }
 
-  /* Five equal tabs share the bar. A tab is never narrower than its label, so at 200% text the labels do not run
-     together: the bar scrolls instead, which its overflow rules below handle. */
-  .header__tab {
-    flex: 1 1 0;
-    min-width: min-content;
-    justify-content: center;
-    min-height: var(--tab-bar-height);
-    padding: 0 2px;
-    font-size: var(--text-label);
-    letter-spacing: var(--tracking-tab);
+  .header__actions {
+    display: contents;
   }
 
-  /* The wordmark is set a step smaller on a phone, so the brand and the actions share one row
-     from 841 px up, where the wordmark is still shown. */
-  .header__name {
-    /* The phone wordmark: a step below the wide size, so the brand and actions share a row. */
-    font-size: var(--text-lead);
-    letter-spacing: 0.04em;
+  .header__brand {
+    flex: 1 0 auto;
   }
 
-  /* The current tab is marked on the bar's top edge, where it stands out from the page. */
-  .header__tab--current::after {
-    top: 0;
-    bottom: auto;
+  .header__actions > .btn {
+    order: 1;
   }
 
-  /* The tab bar scrolls and would clip a ring drawn outside a tab, so the keyboard ring sits inside. */
-  .header__tab:focus-visible {
-    outline-offset: -4px;
+  .header__pages,
+  .header__profile {
+    order: 3;
   }
 
-  /* The row keeps a little space above the border, so the brand and the actions do not sit on it. */
-  .header {
-    padding-bottom: var(--space-2);
+  .header__account > * {
+    order: 4;
   }
 
-  /* Tabs that do not all fit fade at the edge while there is more to scroll to. */
-  .header__tabs--faded {
-    mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  .header__profile {
+    margin-left: auto;
   }
 
-  /* When the tabs overflow, a label starts at the left, so none is cut off where the bar scrolls. */
-  .header__tabs--overflowing .header__tab {
-    justify-content: flex-start;
-  }
-
-  /* While the account loads or cannot be reached, the status holds the width of the "Sign in" button,
-     and its words stay for screen readers, so the header keeps one row on a phone and does not move. */
+  /* While the account loads or cannot be reached, the status keeps its words for screen readers and takes no room. */
   .header__account .account-menu__pending {
-    /* The width "Sign in" settles at on a phone, measured: its words and the mark, with the button's padding. */
-    width: 6.05rem;
     min-width: 0;
-    /* Hidden text, read by a screen reader and not seen, so it takes no size. */
     font-size: 0;
     overflow: hidden;
-  }
-
-  /* Sign-in stays one tap away as the Google mark and "Sign in"; "with Google" is kept for screen readers,
-     so the button's name is the same as on a wide screen. */
-  .header__account .google-sign-in {
-    min-width: 6rem;
-    padding: 0 var(--space-3);
-    justify-content: center;
-  }
-
-  /* When sign-in is unavailable and Try again is offered, the button holds the status's width and the status is
-     read and not shown, so the header does not move. */
-  .header__account .account-menu__pending.account-menu__pending--with-retry {
-    position: absolute;
-    width: 1px;
-    min-width: 0;
-    height: 1px;
-    clip-path: inset(50%);
-  }
-
-  .header__account .account-menu__retry {
-    min-width: 6.05rem;
-  }
-
-  .header__account .google-sign-in__rest {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .page:has(> .header > .header__tabs) {
-    padding-bottom: calc(var(--space-7) + var(--tab-bar-height) + env(safe-area-inset-bottom));
-  }
-}
-
-/* ui/layoutBreakpoints.ts: WORDMARK_HIDDEN_MAX_WIDTH_PX. The wordmark goes first, so the brand
-   mark and the actions keep one row. */
-@media (max-width: 840px) {
-  .header__name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
-/* ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX. */
-@media (max-width: 560px) {
-  .header__account .account-menu__name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .header__tab .icon {
-    display: none;
-  }
-}
-
-/* From just above the phone layout, the first tab sits flush with the brand, so its glyph lines up
-   under the wordmark's edge. */
-@media (min-width: 761px) {
-  .header__tab:first-child {
-    padding-left: 0;
-  }
-}
-
-/* ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. The labels shrink, so ACTIVITIES keeps its line. */
-@media (max-width: 360px) {
-  .header__tab {
-    font-size: var(--text-sm);
   }
 }
 
 /*
- * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. A narrow phone has no room for the words Add
- * files beside Profile. The button keeps its name for screen readers and shows only the plus.
+ * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. A narrow phone has no room for the words Add files beside the
+ * wordmark. The button keeps its name for screen readers and shows only the plus.
  */
 @media (max-width: 420px) {
   .header__actions .add-files__label {
@@ -333,48 +151,25 @@ html {
     white-space: nowrap;
   }
 
-  .header__profile {
-    padding: 0 var(--space-2);
-  }
-
-  /* The plus, Profile and "Sign in" share one row down to 320 px, so sign-in gives up its minimum width and
-     some padding; the pending status holds the width it settles at. */
-  .header__account .google-sign-in {
-    min-width: 0;
-    gap: var(--space-1);
-    padding: 0 var(--space-2);
-  }
-
-  .header__account .account-menu__pending {
-    width: 5.3rem;
-  }
-
-  .header__account .account-menu__retry {
-    min-width: 5.3rem;
-    padding: 0 var(--space-1);
+  .header__pages {
+    gap: var(--space-4);
   }
 }
 
-/* In forced colours the current tab's bar is drawn in the system highlight, so the mark survives
-   the loss of the page's colours. */
+/* ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. The second row's gaps tighten, so it keeps one line at 320 px. */
+@media (max-width: 360px) {
+  .header {
+    column-gap: var(--space-3);
+  }
+
+  .header__pages {
+    gap: var(--space-3);
+  }
+}
+
 @media (forced-colors: active) {
-  .header__tab {
-    color: CanvasText;
-  }
-
-  /* The current tab's own colour is more specific than the rule above, so it is set here too. */
-  .header__tab--current {
-    color: CanvasText;
-  }
-
-  .header__tab:active,
-  .header__profile:active {
-    outline: 2px solid CanvasText;
-    outline-offset: -2px;
-  }
-
-  .header__tab--current::after,
-  .header__profile[aria-current='page']::after {
-    background: Highlight;
+  .header__link--current,
+  .header__link[aria-current='page'] {
+    text-decoration: underline;
   }
 }

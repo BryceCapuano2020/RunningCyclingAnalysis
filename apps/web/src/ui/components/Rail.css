@@ -1,0 +1,107 @@
+/*
+ * The shell under the header: the rail and the page. From RAIL_MIN_WIDTH_PX (ui/layoutBreakpoints.ts) the rail is a
+ * column of --rail-width left of the page, and stays in view under the header. Below it the rail is one row across
+ * the top of the page, pages then periods with a rule between, that scrolls sideways inside itself.
+ */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--stack-gap);
+  min-width: 0;
+}
+
+.shell__page {
+  min-width: 0;
+}
+
+.rail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.rail__pages {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.rail__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--button-height);
+  color: var(--ink-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rail__link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.rail__link--current,
+.rail__link[aria-current='page'] {
+  color: var(--ink);
+}
+
+/* The periods follow a rule: a short upright one in the row, a hairline across the column. */
+.rail__periods {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--rule);
+}
+
+.rail .segmented-control--text .segmented-control__options {
+  flex-direction: row;
+  gap: var(--space-5);
+}
+
+/* ui/layoutBreakpoints.ts: RAIL_MIN_WIDTH_PX. */
+@media (min-width: 1024px) {
+  .shell {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .rail {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-5));
+    display: grid;
+    justify-items: start;
+    gap: var(--space-4);
+    overflow: visible;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .rail__pages {
+    display: grid;
+    gap: 0;
+  }
+
+  .rail__periods {
+    justify-self: stretch;
+    padding: var(--space-4) 0 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+  }
+
+  .rail .segmented-control--text .segmented-control__options {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .rail__link--current,
+  .rail__link[aria-current='page'] {
+    text-decoration: underline;
+  }
+}
