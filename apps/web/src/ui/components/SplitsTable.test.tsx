@@ -308,6 +308,7 @@ describe('SplitsTable', () => {
     // The scroller is a region named by the table's caption.
     const region = screen.getByRole('region', { name: 'Pace for each kilometre' })
     expect(region).toContainElement(table())
+    expect(region).toHaveAttribute('tabindex', '0')
   })
 
   it('says a run is too short to split when it has no splits in these units', () => {

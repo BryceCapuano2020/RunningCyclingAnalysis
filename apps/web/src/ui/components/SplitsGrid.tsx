@@ -83,8 +83,8 @@ function SplitTable({
 }) {
   const captionId = useId()
   return (
-    // A named region, so a screen reader says where the scrolling columns are; its name is the table's.
-    <div className="splits-wide" role="region" aria-labelledby={captionId}>
+    // A named region a keyboard can focus and scroll (WCAG 2.1.1); its name is the table's.
+    <div className="splits-wide" role="region" aria-labelledby={captionId} tabIndex={0}>
       <table className="splits-table">
         <caption id={captionId}>{caption}</caption>
         <thead>

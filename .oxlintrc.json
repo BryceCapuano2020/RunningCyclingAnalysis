@@ -10,6 +10,8 @@
     "react/no-object-type-as-default-prop": "error",
     "react/no-array-index-key": "error",
     "jsx-a11y/no-static-element-interactions": "error",
+    // A named scroll region takes focus so a keyboard can scroll it (WCAG 2.1.1); no other non-interactive role may.
+    "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"], "tags": [] }],
     // Style only, so off rather than an error: a role is sometimes clearer than a tag.
     "jsx-a11y/prefer-tag-over-role": "off",
     "typescript/no-explicit-any": "error",
