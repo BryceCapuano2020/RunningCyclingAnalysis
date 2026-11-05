@@ -10,18 +10,25 @@ function mediaBody(query: string): string {
 }
 
 describe('method answer', () => {
-  it('spaces the three lines 16 px apart', () => {
-    expect(ruleBody(css, '.method__answer')).toMatch(/gap:\s*var\(--space-4\)/)
+  it('spaces the answer and its Details 12 px apart', () => {
+    expect(ruleBody(css, '.method__answer')).toMatch(/gap:\s*var\(--space-3\)/)
   })
 
-  it('keeps each line’s text beside its chip from 561 px, one pixel above the compact phone width', () => {
+  it('keeps each line’s text beside its label from 561 px, one pixel above the compact phone width', () => {
     const wide = mediaBody('(min-width: 561px)')
     expect(wide).toMatch(/\.method__answer li > span \{[^}]*flex:\s*1 1 0/)
     expect(wide).toMatch(/\.method__answer li > span \{[^}]*min-width:\s*0/)
   })
 
-  it('leaves the chip button in the chip face, not the body face', () => {
-    expect(ruleBody(css, '.method__answer button.method__chip')).not.toMatch(/font-family/)
+  it('sets each label in the mono metadata face, with no fill or edge', () => {
+    const rule = ruleBody(css, '.method__answer button.method__chip')
+    expect(rule).toMatch(/font-family:\s*var\(--font-mono\)/)
+    expect(rule).toMatch(/background:\s*none/)
+    expect(rule).toMatch(/border:\s*0/)
+  })
+
+  it('rules the three lines between hairlines', () => {
+    expect(ruleBody(css, '.method__answer li')).toMatch(/border-top:\s*1px solid var\(--hairline\)/)
   })
 })
 
@@ -34,7 +41,7 @@ describe('method contents', () => {
 
   it('draws a pressed contents button in the secondary ink', () => {
     expect(ruleBody(css, '.method__contents button:active')).toMatch(
-      /color:\s*var\(--text-secondary\)/,
+      /color:\s*var\(--ink-secondary\)/,
     )
   })
 })

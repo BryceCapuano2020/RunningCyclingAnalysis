@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import { NumText } from './NumText'
 import { paragraphsOf } from './paragraphs'
 
 /**
@@ -13,7 +14,9 @@ export function MethodLines({ lines }: { lines: readonly string[] }) {
           {paragraph.map((line, index) => (
             <Fragment key={line}>
               {index > 0 && ' '}
-              <span className="method__line">{line}</span>
+              <span className="method__line">
+                <NumText text={line} />
+              </span>
             </Fragment>
           ))}
         </p>

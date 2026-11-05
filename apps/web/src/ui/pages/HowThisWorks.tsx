@@ -11,11 +11,10 @@ import './HowThisWorks.css'
  */
 export function HowThisWorks() {
   return (
-    <section className="section how" aria-labelledby={SECTION_ID.how}>
+    <section className="section band how" aria-labelledby={SECTION_ID.how}>
       <h2 id={SECTION_ID.how} tabIndex={-1}>
         How this works
       </h2>
-      <p className="secondary">Where each number in the app comes from, and what it assumes.</p>
       {STATE_ORDER.map((state) => (
         <section key={state} className="how__group" aria-labelledby={`how-${state}`}>
           <h3 id={`how-${state}`}>{STATE_COPY[state].title}</h3>

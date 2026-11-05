@@ -1,5 +1,6 @@
 import { CYCLING_ANCHOR_WKG } from '@rca/core/display'
 import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
+import { NumText } from '../components/NumText'
 import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
 import { StandardsCredit } from '../components/StandardsCredit'
@@ -39,7 +40,7 @@ const LIMITS = [
 /** The method, the source and the limits of the age grades and levels, on How sure is this?. */
 export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
   return (
-    <section className="section" aria-labelledby={SECTION_ID.grades}>
+    <section className="section band" aria-labelledby={SECTION_ID.grades}>
       <h2 id={SECTION_ID.grades} tabIndex={-1}>
         Age grades and levels
       </h2>
@@ -97,7 +98,9 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         </p>
         <ul className="method__facts">
           {LIMITS.map((limit) => (
-            <li key={limit}>{limit}</li>
+            <li key={limit}>
+              <NumText text={limit} />
+            </li>
           ))}
         </ul>
       </MethodText>

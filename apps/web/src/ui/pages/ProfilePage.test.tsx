@@ -1129,7 +1129,11 @@ describe('ProfilePage zones and dated settings', () => {
     expect(table).toHaveAccessibleName(/Zones cut from 250 W, entered by you/)
     expect(within(table).getByText('375 W or more')).toBeInTheDocument()
     expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+    const rows = within(screen.getByRole('list', { name: 'Your dated settings' })).getAllByRole(
+      'listitem',
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('250 W')
   })
 
   it('names the published scheme under each zone table', () => {

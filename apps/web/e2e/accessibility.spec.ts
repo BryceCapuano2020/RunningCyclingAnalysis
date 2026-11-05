@@ -284,7 +284,7 @@ for (const sport of ['Run', 'Ride'] as const) {
   })
 }
 
-test('Profile with dated settings fits 320 px, and its table is a keyboard scroll region', async ({
+test('Profile with dated settings fits 320 px, each row with its Delete in view', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -308,26 +308,19 @@ test('Profile with dated settings fits 320 px, and its table is a keyboard scrol
         .filter({ hasText: /^(Added|Updated)/ }),
     ).toBeVisible()
   }
-  await expect(page.locator('.settings-over-time tbody tr')).toHaveCount(3)
+  await expect(page.locator('.settings-over-time .row')).toHaveCount(3)
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
   expect(overflow).toBeLessThanOrEqual(0)
-  // A phone's viewport can stretch to fit what overflows it, so also check that the box that scrolls
-  // the table is what positions the header cells that are visually hidden, which it then clips.
-  const escapes = await page.evaluate(() => {
-    const box = document.querySelector('.settings-over-time .table-scroll')
-    const hidden = document.querySelectorAll('.settings-over-time .table-scroll .sr-only')
-    const containerOf = (el: Element) => {
-      let up = el.parentElement
-      while (up !== null && getComputedStyle(up).position === 'static') up = up.parentElement
-      return up
-    }
-    return [...hidden].filter((el) => containerOf(el) !== box).length
-  })
-  expect(escapes).toBe(0)
-  const region = page.getByRole('region', { name: 'Your dated settings' })
-  await expect(region).toHaveAttribute('tabindex', '0')
+  const rows = page.getByRole('list', { name: 'Your dated settings' }).getByRole('listitem')
+  const lastDelete = await rows
+    .last()
+    .getByRole('button', { name: /^Delete/ })
+    .boundingBox()
+  const viewport = page.viewportSize()
+  expect(lastDelete).not.toBeNull()
+  expect((lastDelete?.x ?? 0) + (lastDelete?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0)
   expect(await violationsOf(page)).toEqual([])
 })
 

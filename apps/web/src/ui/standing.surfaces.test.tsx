@@ -180,7 +180,7 @@ describe('one lead, printed the same on every surface', () => {
           weightKnown
         />,
       )
-      const answer = screen.getByRole('list', { name: 'The short answer' }).textContent ?? ''
+      const answer = screen.getByRole('group', { name: 'The short answer' }).textContent ?? ''
       cleanup()
       return printedGrades(answer)
     })()

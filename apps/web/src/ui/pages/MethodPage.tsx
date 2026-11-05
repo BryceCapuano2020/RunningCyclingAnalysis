@@ -20,7 +20,7 @@ import {
 } from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
 import { HEADLINE_LABEL } from '../grades'
-import { CheckIcon, WarningIcon } from '../components/icons'
+import { NumText } from '../components/NumText'
 import { MethodLines } from '../components/MethodLines'
 import { MethodText } from '../components/MethodText'
 import { TopicBody } from '../components/TopicBody'
@@ -160,53 +160,56 @@ export function MethodPage({
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           How sure is this?
         </h1>
-        {period && <p className="muted">{`Counted over ${periodDates(period)}.`}</p>}
       </div>
 
-      <ul className="lede method__answer" aria-label="The short answer">
-        <li>
-          <button
-            type="button"
-            className="chip chip--good method__chip"
-            aria-label={`Recorded: see ${SECTION_NAME.grades}`}
-            onClick={() => focusSection(SECTION_ID.grades)}
-          >
-            <CheckIcon />
-            Recorded
-          </button>
-          <span>Running efforts, and ride power from a power meter, are recorded.</span>
-        </li>
-        <li>
-          <button
-            type="button"
-            className="chip method__chip"
-            aria-label={`Estimated: see ${SECTION_NAME.grades}`}
-            onClick={() => focusSection(SECTION_ID.grades)}
-          >
-            <WarningIcon />
-            Estimated
-          </button>
-          <span className="method__answer-text">
-            {verdict !== null && <span>{verdict} </span>}
+      <div className="lede method__answer" role="group" aria-label="The short answer">
+        <p className="method__answer-text">
+          {verdict !== null && (
             <span>
-              {hasResult
-                ? estimatesOf(runs, rides, weightKnown)
-                : 'Thresholds, ride levels and the balance are estimates.'}
+              <NumText text={verdict} />{' '}
             </span>
+          )}
+          <span>
+            {hasResult ? (
+              <NumText text={estimatesOf(runs, rides, weightKnown)} />
+            ) : (
+              'Thresholds, ride levels and the balance are estimates.'
+            )}
           </span>
-        </li>
-        <li>
-          <button
-            type="button"
-            className="chip method__chip"
-            aria-label={`Checks below: see ${SECTION_NAME.heart}`}
-            onClick={() => focusSection(SECTION_ID.heart)}
-          >
-            Checks below
-          </button>
-          <span>These checks show how far to trust them.</span>
-        </li>
-      </ul>
+        </p>
+        <details className="method__details">
+          <summary>Details</summary>
+          <ul>
+            <li>
+              <button
+                type="button"
+                className="method__chip"
+                aria-label={`Recorded: see ${SECTION_NAME.grades}`}
+                onClick={() => focusSection(SECTION_ID.grades)}
+              >
+                Recorded
+              </button>
+              <span>Running efforts, and ride power from a power meter, are recorded.</span>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="method__chip"
+                aria-label={`Checks below: see ${SECTION_NAME.heart}`}
+                onClick={() => focusSection(SECTION_ID.heart)}
+              >
+                Checks below
+              </button>
+              <span>These checks show how far to trust them.</span>
+            </li>
+            {period && (
+              <li>
+                <span className="meta">{`Counted over ${periodDates(period)}.`}</span>
+              </li>
+            )}
+          </ul>
+        </details>
+      </div>
 
       <nav className="method__contents" aria-label="On this page">
         <ul>
@@ -220,7 +223,7 @@ export function MethodPage({
         </ul>
       </nav>
 
-      <section className="section" aria-labelledby={SECTION_ID.energy}>
+      <section className="section band" aria-labelledby={SECTION_ID.energy}>
         <h2 id={SECTION_ID.energy} tabIndex={-1}>
           The energy view
         </h2>
@@ -241,7 +244,9 @@ export function MethodPage({
           </MethodText>
         ) : pick === null ? (
           <MethodText>
-            <p className="secondary">{`${HELD_COMPARISON} ${reason}`}</p>
+            <p className="secondary">
+              <NumText text={`${HELD_COMPARISON} ${reason}`} />
+            </p>
             <TopicBody id="unit" />
             <TopicBody id="range" />
           </MethodText>
@@ -256,9 +261,13 @@ export function MethodPage({
                 ]}
               />
               <ul className="method__facts">
-                <li>{headlineText(pick.point).range}</li>
+                <li>
+                  <NumText text={headlineText(pick.point).range} />
+                </li>
                 {headlineBasis(result.comparison, pick.calibrated).map((line) => (
-                  <li key={line}>{line}</li>
+                  <li key={line}>
+                    <NumText text={line} />
+                  </li>
                 ))}
                 <li>The range does not include every source of error.</li>
               </ul>
@@ -283,7 +292,7 @@ export function MethodPage({
 
       <AgeGradingSection gradedSex={gradedSex} />
 
-      <section className="section" aria-labelledby={SECTION_ID.heart}>
+      <section className="section band" aria-labelledby={SECTION_ID.heart}>
         <h2 id={SECTION_ID.heart} tabIndex={-1}>
           Heart-rate check
         </h2>
@@ -291,10 +300,20 @@ export function MethodPage({
           <TopicBody id="heart" />
           <ul className="method__facts">
             {referenceDefinition().map((line) => (
-              <li key={line}>{line}</li>
+              <li key={line}>
+                <NumText text={line} />
+              </li>
             ))}
-            {reference && <li>{reference}</li>}
-            {setAside && <li>{setAside}</li>}
+            {reference && (
+              <li>
+                <NumText text={reference} />
+              </li>
+            )}
+            {setAside && (
+              <li>
+                <NumText text={setAside} />
+              </li>
+            )}
             {hardEfforts && (
               <>
                 <li>
@@ -331,7 +350,7 @@ export function MethodPage({
       </section>
 
       {showAccuracy && (
-        <section className="section" aria-labelledby={SECTION_ID.accuracy}>
+        <section className="section band" aria-labelledby={SECTION_ID.accuracy}>
           <h2 id={SECTION_ID.accuracy} tabIndex={-1}>
             Virtual power meter accuracy
           </h2>
@@ -341,7 +360,9 @@ export function MethodPage({
               (weightKnown ? (
                 accuracy.nSegments > 0 && (
                   <p>
-                    {`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                    <NumText
+                      text={`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                    />
                   </p>
                 )
               ) : (
