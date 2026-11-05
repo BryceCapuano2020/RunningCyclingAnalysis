@@ -8,6 +8,8 @@ import { groupByMonth } from '../activitySort'
 import { movingTimeOf } from '../activityFigures'
 import { firstActivityOf, rowEntries } from '../sessions'
 import type { ListEntry } from '../sessions'
+import { chipLabels } from '../records'
+import { SPORT_NEEDS_WEIGHT } from '../sports'
 import { plural } from './plural'
 import { ActivityMonthHead } from './ActivityMonthHead'
 import { ActivityRow } from './ActivityRow'
@@ -26,6 +28,8 @@ export interface ActivityListProps {
    * as a session. Other sorts list each activity as its own row.
    */
   dateOrder?: boolean
+  /** False while no body weight is entered, which holds a ride's record, as its page's records are. */
+  weightKnown?: boolean
   /** The list is sorted by climb, so a phone's row shows its climb, which it leaves out of its line otherwise. */
   climbFirst?: boolean
   /** The page to start on, counted from zero, and told each page change, so an address can keep it. */
@@ -33,8 +37,6 @@ export interface ActivityListProps {
   onPageChange?: (page: number) => void
   /** The saved copy each activity is kept as. An activity with none cannot be deleted. */
   keptIds?: ReadonlyMap<string, string>
-  /** False while no body weight is entered, which holds a ride's record chips. */
-  weightKnown?: boolean
   busy?: boolean
   /**
    * The activities this browser holds detailed readings for. An activity outside it is tagged. Null while
@@ -74,12 +76,12 @@ export function ActivityList({
   activities,
   units,
   records,
+  weightKnown = true,
   dateOrder = false,
   climbFirst = false,
   initialPage,
   onPageChange,
   keptIds = NO_KEPT,
-  weightKnown = true,
   busy = false,
   detailIds = null,
   signedIn,
@@ -127,6 +129,10 @@ export function ActivityList({
     removedRef.current = false
   }, [collectionId, firstItemRef])
 
+  // The summary counts activities, so a session's legs are counted as the activities they are.
+  const before = entries
+    .slice(0, page * PAGE_SIZE)
+    .reduce((sum, entry) => sum + activitiesIn(entry), 0)
   const firstEntry = visible[0]
   const firstShownId = firstEntry === undefined ? undefined : firstActivityOf(firstEntry).id
   const remove = onDelete
@@ -135,6 +141,15 @@ export function ActivityList({
         onDelete(savedId)
       }
     : undefined
+  // Each row's number runs on from the pages before it, a session's legs numbered as the activities they are.
+  const placeOf = new Map<string, number>()
+  let placed = 0
+  for (const entry of visible) {
+    for (const leg of entry.kind === 'activity' ? [entry.activity] : entry.legs) {
+      placeOf.set(leg.id, before + placed)
+      placed += 1
+    }
+  }
   const rowFor = (activity: ActivitySummary) => {
     const isFirst = activity.id === firstShownId
     return (
@@ -143,11 +158,14 @@ export function ActivityList({
         activity={activity}
         units={units}
         isFirst={isFirst}
+        holdsRecord={
+          !(SPORT_NEEDS_WEIGHT[activity.sport] && !weightKnown) &&
+          chipLabels(records.get(activity.id) ?? []).length > 0
+        }
+        index={placeOf.get(activity.id) ?? 0}
         rowRef={isFirst ? firstItemRef : undefined}
         dateOrder={dateOrder}
-        records={records.get(activity.id) ?? []}
         keptId={keptIds.get(activity.id) ?? null}
-        weightKnown={weightKnown}
         busy={busy}
         noDetail={detailIds !== null && !detailIds.has(activity.id)}
         signedIn={signedIn}
@@ -172,10 +190,6 @@ export function ActivityList({
       )
     })
 
-  // The summary counts activities, so a session's legs are counted as the activities they are.
-  const before = entries
-    .slice(0, page * PAGE_SIZE)
-    .reduce((sum, entry) => sum + activitiesIn(entry), 0)
   const onPage = visible.reduce((sum, entry) => sum + activitiesIn(entry), 0)
 
   return (

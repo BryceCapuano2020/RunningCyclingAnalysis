@@ -3,9 +3,10 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
 import { makeActivity } from './fixtures'
+import { wholeText } from '../test/wholeText'
+import type { EarnedRecord } from '@rca/core/records'
 import { ActivityList, type ActivityListProps } from './ActivityList'
 import { readStylesheet, ruleBody } from './stylesheet'
 
@@ -40,7 +41,6 @@ afterEach(() => {
 function renderList(
   activities: ActivitySummary[],
   units: UnitSystem = 'metric',
-  records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
   extra: Partial<ActivityListProps> = {},
 ) {
   return render(
@@ -48,7 +48,7 @@ function renderList(
       signedIn={false}
       activities={activities}
       units={units}
-      records={records}
+      records={new Map()}
       {...extra}
     />,
   )
@@ -100,7 +100,6 @@ describe('ActivityList rows', () => {
         }),
       ],
       'metric',
-      new Map(),
       { dateOrder: true },
     )
     expect(within(rowFor('Tempo run')).getByText('Mon 5, 7:30 am')).toBeInTheDocument()
@@ -124,13 +123,13 @@ describe('ActivityList rows', () => {
     ])
     const row = within(rowFor('Tempo run'))
     expect(row.getByText('Elapsed time')).toBeInTheDocument()
-    expect(row.getByText('1 h')).toBeInTheDocument()
+    expect(row.getByText(wholeText('1 h'))).toBeInTheDocument()
     expect(row.getByText('Distance')).toBeInTheDocument()
-    expect(row.getByText('10.0 km')).toBeInTheDocument()
+    expect(row.getByText(wholeText('10.0 km'))).toBeInTheDocument()
     expect(row.getByText('Climb')).toBeInTheDocument()
-    expect(row.getByText('120 m')).toBeInTheDocument()
+    expect(row.getByText(wholeText('120 m'))).toBeInTheDocument()
     expect(row.getByText('Pace')).toBeInTheDocument()
-    expect(row.getByText('6:00 /km')).toBeInTheDocument()
+    expect(row.getByText(wholeText('6:00 /km'))).toBeInTheDocument()
   })
 
   it('times a run by its moving time when it is kept, so pauses do not slow the pace', () => {
@@ -139,8 +138,8 @@ describe('ActivityList rows', () => {
     ])
     const row = within(rowFor('Paused run'))
     expect(row.getByText('Moving time')).toBeInTheDocument()
-    expect(row.getByText('50 min')).toBeInTheDocument()
-    expect(row.getByText('5:00 /km')).toBeInTheDocument()
+    expect(row.getByText(wholeText('50 min'))).toBeInTheDocument()
+    expect(row.getByText(wholeText('5:00 /km'))).toBeInTheDocument()
   })
 
   it('shows a ride with its climb and its speed, and no pace', () => {
@@ -156,8 +155,8 @@ describe('ActivityList rows', () => {
     const row = within(rowFor('Hill ride'))
     expect(row.getByText('Ride')).toBeInTheDocument()
     expect(row.getByText('Speed')).toBeInTheDocument()
-    expect(row.getByText('420 m')).toBeInTheDocument()
-    expect(row.queryByText(/\/km/)).not.toBeInTheDocument()
+    expect(row.getByText(wholeText('420 m'))).toBeInTheDocument()
+    expect(row.queryByText(wholeText(/\/km/))).not.toBeInTheDocument()
   })
 
   it('leaves out a zero climb', () => {
@@ -182,7 +181,7 @@ describe('ActivityList rows', () => {
     expect(row.queryByText('Distance')).not.toBeInTheDocument()
     expect(row.queryByText('Speed')).not.toBeInTheDocument()
     expect(row.getByText('Power')).toBeInTheDocument()
-    expect(row.getByText('250 W')).toBeInTheDocument()
+    expect(row.getByText(wholeText('250 W'))).toBeInTheDocument()
   })
 
   it("marks an indoor ride's average power as estimated when no power meter measured it", () => {
@@ -197,15 +196,15 @@ describe('ActivityList rows', () => {
       }),
     ])
     const row = within(rowFor('Zwift ride'))
-    expect(row.getByText('180 W')).toBeInTheDocument()
+    expect(row.getByText(wholeText('180 W'))).toBeInTheDocument()
     expect(row.getByText('Estimated power')).toBeInTheDocument()
   })
 
   it('uses miles and minutes per mile in imperial units', () => {
     renderList([makeActivity({ name: 'Tempo run', durationS: 3600, distanceM: 10000 })], 'imperial')
     const row = within(rowFor('Tempo run'))
-    expect(row.getByText('6.2 mi')).toBeInTheDocument()
-    expect(row.getByText('9:39 /mi')).toBeInTheDocument()
+    expect(row.getByText(wholeText('6.2 mi'))).toBeInTheDocument()
+    expect(row.getByText(wholeText('9:39 /mi'))).toBeInTheDocument()
   })
 
   it('shows a warning chip with the readings skipped, only on activities that have some', () => {
@@ -217,7 +216,9 @@ describe('ActivityList rows', () => {
         flags: [flag('Heart rate read zero'), flag('Speed jumped'), flag('Power spiked')],
       }),
     ])
-    expect(within(rowFor('Noisy run')).getByText('3 sensor dropouts')).toBeInTheDocument()
+    expect(
+      within(rowFor('Noisy run')).getByText(wholeText('3 sensor dropouts')),
+    ).toBeInTheDocument()
     expect(within(rowFor('Clean run')).queryByText(/sensor dropout/)).not.toBeInTheDocument()
     expect(screen.getAllByText(/sensor dropout/)).toHaveLength(1)
   })
@@ -226,7 +227,6 @@ describe('ActivityList rows', () => {
     renderList(
       [makeActivity({ id: 'old', name: 'Old run' }), makeActivity({ id: 'new', name: 'New run' })],
       'metric',
-      new Map(),
       { detailIds: new Set(['new']) },
     )
     expect(within(rowFor('Old run')).getByText('No detail')).toBeInTheDocument()
@@ -270,7 +270,9 @@ describe('ActivityList rows', () => {
       }),
     ])
     expect(within(rowFor('Blip ride')).queryByText(/sensor dropout/)).not.toBeInTheDocument()
-    expect(within(rowFor('Strap ride')).getByText('1 sensor dropout')).toBeInTheDocument()
+    expect(
+      within(rowFor('Strap ride')).getByText(wholeText('1 sensor dropout')),
+    ).toBeInTheDocument()
   })
 
   it('leaves altitude notes off the skipped chip, since they remove no reading', () => {
@@ -292,12 +294,16 @@ describe('ActivityList rows', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     ])
-    expect(within(rowFor('Noisy strap run')).getByText('60 sensor dropouts')).toBeInTheDocument()
+    expect(
+      within(rowFor('Noisy strap run')).getByText(wholeText('60 sensor dropouts')),
+    ).toBeInTheDocument()
   })
 
   it('says once for one reading skipped', () => {
     renderList([makeActivity({ name: 'One skip run', flags: [flag('Heart rate read zero')] })])
-    expect(within(rowFor('One skip run')).getByText('1 sensor dropout')).toBeInTheDocument()
+    expect(
+      within(rowFor('One skip run')).getByText(wholeText('1 sensor dropout')),
+    ).toBeInTheDocument()
   })
 
   it('is a list rather than a table, so it reflows on a phone', () => {
@@ -316,18 +322,26 @@ describe('ActivityList rows', () => {
     expect(screen.getByRole('link', { name: longName })).toHaveClass('activity-list__name')
 
     expect(ruleBody(listCss, '.activity-list__name')).toMatch(/overflow-wrap:\s*anywhere/)
-    expect(ruleBody(listCss, '.activity-list__main')).toMatch(
+    expect(ruleBody(listCss, '.activity-list__item')).toMatch(
       /grid-template-columns:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/,
     )
   })
 
-  it("leads each row with the sport's glyph, and names the sport for a screen reader", () => {
+  it('leads each row with a mono index, numbered on from earlier pages, and names the sport for a screen reader', () => {
     renderList([makeActivity({ name: 'Hill ride', sport: 'ride' })])
     const row = rowFor('Hill ride')
-    const glyph = row.querySelector('.activity-list__glyph')
-    expect(glyph?.querySelector('svg')).toHaveClass('activity-list__icon--ride')
-    expect(within(glyph as HTMLElement).getByText('Ride')).toHaveClass('sr-only')
+    expect(row.querySelector('.row__index')).toHaveTextContent('01')
+    expect(row.querySelector('svg')).toBeNull()
+    expect(within(row).getByText('Ride')).toHaveClass('sr-only')
     expect(row).toHaveAttribute('data-sport', 'ride')
+  })
+
+  it('numbers the rows of a later page on from the pages before it', () => {
+    const many = Array.from({ length: 25 }, (_, i) =>
+      makeActivity({ id: `n-${i}`, name: `Run ${i}` }),
+    )
+    renderList(many, 'metric', { initialPage: 1 })
+    expect(rowFor('Run 20').querySelector('.row__index')).toHaveTextContent('21')
   })
 })
 
@@ -339,7 +353,7 @@ describe('ActivityList months', () => {
   ]
 
   it('heads each month once, with its year, when the list is in date order', () => {
-    renderList(monthActivities(), 'metric', new Map(), { dateOrder: true })
+    renderList(monthActivities(), 'metric', { dateOrder: true })
     const headings = screen.getAllByRole('heading', { level: 2 })
     expect(headings.map((heading) => heading.textContent)).toEqual(['Jun 2026', 'May 2026'])
     expect(within(rowFor('June run')).getByText('Tue 2, 7:00 am')).toBeInTheDocument()
@@ -442,7 +456,6 @@ describe('ActivityList paging', () => {
     renderList(
       Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
       'metric',
-      new Map(),
       { initialPage: 1 },
     )
     expect(screen.getByText('Showing 21–40 of 45 activities. Page 2 of 3.')).toBeVisible()
@@ -465,7 +478,7 @@ describe('ActivityList paging', () => {
     const activities = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),
     )
-    renderList(activities, 'metric', new Map(), { initialPage: 1, onPageChange })
+    renderList(activities, 'metric', { initialPage: 1, onPageChange })
     expect(screen.getByText('Showing 21–25 of 25 activities. Page 2 of 2.')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
     expect(onPageChange).toHaveBeenCalledWith(0)
@@ -550,16 +563,26 @@ describe('ActivityList paging', () => {
 describe('ActivityList deleting', () => {
   const kept = makeActivity({ id: 'kept', name: 'Morning run' })
   const sample = makeActivity({ id: 'sample', name: 'Sample run' })
+  const kept2 = makeActivity({ id: 'kept2', name: 'Evening run' })
+  const keptIds = new Map([
+    ['kept', 'saved-kept'],
+    ['kept2', 'saved-kept2'],
+  ])
 
-  it('offers Delete only on an activity kept in the library, and removes it by its saved copy', async () => {
+  it('offers Delete only on a kept activity whose page cannot open, and removes it by its saved copy', async () => {
     const user = userEvent.setup()
     const onDelete = vi.fn()
-    renderList([kept, sample], 'metric', new Map(), {
-      keptIds: new Map([['kept', 'saved-kept']]),
+    renderList([kept, sample, kept2], 'metric', {
+      keptIds,
       onDelete,
+      detailIds: new Set(['kept2']),
     })
+    // Not kept, or its page opens with a Delete of its own: no button in the row.
     expect(
       within(rowFor('Sample run')).queryByRole('button', { name: /Delete/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(rowFor('Evening run')).queryByRole('button', { name: /Delete/ }),
     ).not.toBeInTheDocument()
 
     await user.click(
@@ -569,110 +592,61 @@ describe('ActivityList deleting', () => {
     expect(onDelete).toHaveBeenCalledWith('saved-kept')
   })
 
+  it('offers no Delete on any row while it is not known which pages can open', () => {
+    renderList([kept], 'metric', { keptIds, onDelete: vi.fn(), detailIds: null })
+    expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument()
+  })
+
   it('offers no Delete while a removal is running', () => {
-    renderList([kept], 'metric', new Map(), {
-      keptIds: new Map([['kept', 'saved-kept']]),
+    renderList([kept], 'metric', {
+      keptIds,
       onDelete: vi.fn(),
       busy: true,
+      detailIds: new Set(),
     })
     expect(
       within(rowFor('Morning run')).getByRole('button', { name: 'Delete Morning run' }),
     ).toHaveAttribute('aria-disabled', 'true')
   })
+
+  it("keeps Delete on the name's line, which takes the width Delete leaves", () => {
+    expect(ruleBody(listCss, '.activity-list__name')).toMatch(/flex:\s*1 1 0/)
+    expect(ruleBody(listCss, '.activity-list__head > .activity-delete__open')).toMatch(
+      /flex:\s*none/,
+    )
+  })
 })
 
-describe('ActivityList records earned', () => {
-  /** The chip labels in a records group, in the order they are shown. */
-  function chipTexts(group: HTMLElement): (string | null)[] {
-    return within(group)
-      .getAllByText(/^Best /)
-      .map((chip) => chip.textContent)
-  }
-
+describe('ActivityList records', () => {
   const run = makeActivity({ id: 'run-1', name: 'Morning run' })
-  const other = makeActivity({ id: 'run-2', name: 'Evening run', startMs: NOW - 86_400_000 })
-
-  it('names the records an activity holds as chips, in the order given', () => {
-    const records = new Map<string, EarnedRecord[]>([
-      [
-        'run-1',
-        [
-          { kind: 'duration', durationS: 1200 },
-          { kind: 'distance', distanceM: 5000 },
-        ],
-      ],
-    ])
-    renderList([run], 'metric', records)
-    const group = screen.getByRole('group', { name: 'All-time records' })
-    expect(within(group).getByText('Best 20 min')).toBeTruthy()
-    expect(chipTexts(group)).toEqual(['Best 20 min', 'Best 5 km'])
-    expect(within(group).queryByText(/more/)).toBeNull()
-  })
-
-  it('shows at most two chips and says how many more the activity holds', () => {
-    const records = new Map<string, EarnedRecord[]>([
-      [
-        'run-1',
-        [
-          { kind: 'duration', durationS: 300 },
-          { kind: 'duration', durationS: 1200 },
-          { kind: 'duration', durationS: 3600 },
-          { kind: 'distance', distanceM: 5000 },
-        ],
-      ],
-    ])
-    renderList([run], 'metric', records)
-    const group = screen.getByRole('group', { name: 'All-time records' })
-    expect(chipTexts(group)).toEqual(['Best 5 min', 'Best 20 min'])
-    expect(within(group).getByText('+2 more records')).toBeTruthy()
-  })
-
-  it('gives chips only to the row of the activity that holds them', () => {
-    const records: ReadonlyMap<string, EarnedRecord[]> = new Map([
-      ['run-1', [{ kind: 'distance', distanceM: 1000 }]],
-    ])
-    renderList([run, other], 'metric', records)
-    const held = within(rowFor('Morning run')).getByRole('group', { name: 'All-time records' })
-    expect(held).toBeTruthy()
-    expect(
-      within(rowFor('Evening run')).queryByRole('group', { name: 'All-time records' }),
-    ).toBeNull()
-  })
-
-  it('shows no records group for an activity that holds nothing', () => {
-    renderList([run])
-    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
-  })
-})
-
-describe('ActivityList ride records and the weight', () => {
   const ride = makeActivity({ id: 'ride-1', name: 'Hill ride', sport: 'ride' })
-  const records = new Map<string, EarnedRecord[]>([
+  const held = new Map<string, EarnedRecord[]>([
+    ['run-1', [{ kind: 'duration', durationS: 1200 }]],
     ['ride-1', [{ kind: 'duration', durationS: 1200 }]],
   ])
 
-  it("holds a ride's record chips until the weight is entered, as the activity page does", () => {
-    renderList([ride], 'metric', records, { weightKnown: false })
-    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
+  it('says Record in the meta line of an activity that holds one, and draws no chip or count', () => {
+    renderList([run], 'metric', { records: held })
+    const row = rowFor('Morning run')
+    expect(within(row).getByText('Record')).toBeInTheDocument()
+    expect(row.querySelector('.chip')).toBeNull()
+    expect(within(row).queryByRole('group', { name: 'All-time records' })).toBeNull()
   })
 
-  it("shows a ride's record chips once the weight is known", () => {
-    renderList([ride], 'metric', records, { weightKnown: true })
-    expect(screen.getByRole('group', { name: 'All-time records' })).toBeTruthy()
+  it('says nothing of records on an activity that holds none', () => {
+    renderList([run])
+    expect(screen.queryByText('Record')).toBeNull()
   })
 
-  it("keeps a run's record chips whatever the weight", () => {
-    const run = makeActivity({ id: 'run-1', name: 'Morning run' })
-    renderList([run], 'metric', records, { weightKnown: false })
-    expect(
-      within(rowFor('Morning run')).queryByRole('group', { name: 'All-time records' }),
-    ).toBeNull()
-    const runRecords = new Map<string, EarnedRecord[]>([
-      ['run-1', [{ kind: 'duration', durationS: 1200 }]],
-    ])
+  it("holds a ride's Record until the weight is entered, as its page's records are", () => {
+    renderList([ride], 'metric', { records: held, weightKnown: false })
+    expect(screen.queryByText('Record')).toBeNull()
     cleanup()
-    renderList([run], 'metric', runRecords, { weightKnown: false })
-    expect(screen.getByRole('group', { name: 'All-time records' })).toBeTruthy()
+    renderList([ride], 'metric', { records: held, weightKnown: true })
+    expect(screen.getByText('Record')).toBeInTheDocument()
+    cleanup()
+    renderList([run], 'metric', { records: held, weightKnown: false })
+    expect(screen.getByText('Record')).toBeInTheDocument()
   })
 })
 
@@ -708,11 +682,10 @@ describe('ActivityList sessions', () => {
         makeActivity({ id: 'other', name: 'Other run', startMs: start - 86_400_000 }),
       ],
       'metric',
-      new Map(),
       { dateOrder: true },
     )
     const group = screen.getByRole('group', { name: '3 legs in one session' })
-    expect(within(group).getByText('3 h')).toBeInTheDocument()
+    expect(within(group).getByText(wholeText('3 h'))).toBeInTheDocument()
     const legs = within(group)
       .getAllByRole('link')
       .map((link) => link.textContent)
@@ -729,7 +702,6 @@ describe('ActivityList sessions', () => {
         leg('run-a', 'Brick run', start, 'run'),
       ],
       'metric',
-      new Map(),
       { dateOrder: true },
     )
     const group = screen.getByRole('group', { name: '3 legs in one session' })
@@ -749,7 +721,6 @@ describe('ActivityList sessions', () => {
         leg('b2', 'Second brick ride', start + 10_800_000, 'ride', 'hash-of-second-upload'),
       ],
       'metric',
-      new Map(),
       { dateOrder: true },
     )
     const groups = screen.getAllByRole('group', { name: '2 legs in one session' })
@@ -775,7 +746,6 @@ describe('ActivityList sessions', () => {
         makeActivity({ id: 'c', name: 'Run C', startMs: start - 7_200_000, sessionKey: upload }),
       ],
       'metric',
-      new Map(),
       { dateOrder: true },
     )
     expect(screen.queryByRole('group', { name: /legs in one session/ })).toBeNull()
@@ -791,7 +761,6 @@ describe('ActivityList sessions', () => {
         leg('ride-a', 'Brick ride', start + 3_600_000, 'ride'),
       ],
       'metric',
-      new Map(),
       { dateOrder: false },
     )
     expect(screen.queryByRole('group', { name: /legs in one session/ })).toBeNull()
@@ -810,7 +779,7 @@ describe('ActivityList sessions', () => {
     const tail = Array.from({ length: 5 }, (_, i) =>
       makeActivity({ id: `t-${i}`, name: `Tail ${i}`, startMs: start - (40 + i) * 86_400_000 }),
     )
-    renderList([...singles, ...session, ...tail], 'metric', new Map(), { dateOrder: true })
+    renderList([...singles, ...session, ...tail], 'metric', { dateOrder: true })
     expect(screen.getByRole('group', { name: '3 legs in one session' })).toBeInTheDocument()
     expect(screen.getByText('Showing 1–22 of 27 activities. Page 1 of 2.')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))

@@ -13,6 +13,7 @@ const segmented = await readStylesheet(import.meta.url, './SegmentedControl.css'
 const activityList = await readStylesheet(import.meta.url, './ActivityList.css')
 const pager = await readStylesheet(import.meta.url, './Pager.css')
 const activitiesPage = await readStylesheet(import.meta.url, '../pages/ActivitiesPage.css')
+const activityListRow = await readStylesheet(import.meta.url, './ActivityRow.tsx')
 const activityDelete = await readStylesheet(import.meta.url, './ActivityDelete.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
@@ -126,19 +127,14 @@ describe('the Custom form', () => {
 })
 
 describe('the activity list', () => {
-  it('sets a row as two lines up to 760 px: the name, then the date and figures, with no chevron', () => {
+  it('sets a row as two lines up to 760 px: the name and date, then the figures in a line', () => {
     const phone = mediaOf(activityList, PHONE_760)
-    expect(rulesWith(phone, '.activity-list__chevron')).toMatch(/display:\s*none/)
-    expect(rulesWith(phone, '.activity-list__main')).toMatch(/display:\s*flex/)
-    expect(rulesWith(phone, '.activity-list__main')).toMatch(/flex-wrap:\s*wrap/)
-    expect(rulesWith(phone, '.activity-list__sub')).toMatch(/display:\s*contents/)
-    expect(rulesWith(phone, '.activity-list__head')).toMatch(/flex:\s*1 1 calc\(100% - 2.5rem\)/)
+    expect(rulesWith(phone, '.activity-list__stats')).toMatch(/grid-row:\s*2/)
+    expect(rulesWith(phone, '.activity-list__stats')).toMatch(/flex-wrap:\s*wrap/)
   })
 
-  it('keeps the figure labels for screen readers when a phone row drops them', () => {
-    expect(rulesWith(mediaOf(activityList, PHONE_760), '.activity-list__label')).toMatch(
-      /clip-path:\s*inset\(50%\)/,
-    )
+  it('keeps the figure labels for screen readers, since a unit says what a figure is', () => {
+    expect(activityListRow).toContain('<dt className="sr-only">')
   })
 
   it('drops the Delete word for an overflow mark below 560 px, keeping the button a full target', () => {
@@ -159,8 +155,10 @@ describe('the activity list', () => {
     expect(rulesWith(phone, '.activities__sort > span')).toMatch(/clip-path:\s*inset\(50%\)/)
   })
 
-  it('keeps each figure value on one line', () => {
-    expect(rulesWith(activityList, '.activity-list__value')).toMatch(/white-space:\s*nowrap/)
+  it('keeps the figures on one line and right-aligned', () => {
+    const stats = rulesWith(activityList, '.activity-list__stats')
+    expect(stats).toMatch(/white-space:\s*nowrap/)
+    expect(stats).toMatch(/text-align:\s*right/)
   })
 
   it('sets each figure in its own column, so a row without distance or climb leaves a gap', () => {
@@ -168,23 +166,23 @@ describe('the activity list', () => {
     expect(rulesWith(activityList, '.activity-list__stat--hero')).toMatch(/grid-column:\s*4/)
   })
 
-  it('draws an inset rule on the left of a row on hover', () => {
-    expect(rulesWith(activityList, '.activity-list__item:hover')).toMatch(
-      /box-shadow:\s*inset 3px 0 0 var\(--text-secondary\)/,
-    )
+  it('fills a hovered row with the paper hover, with no shadow or rule', () => {
+    const hover = rulesWith(activityList, '.activity-list__item:hover')
+    expect(hover).toMatch(/background:\s*var\(--paper-hover\)/)
+    expect(hover).not.toMatch(/box-shadow/)
   })
 
-  it('makes Delete a quiet text button, with no border or fill at rest', () => {
+  it('makes Delete a small outlined button, as every button but the primary one is', () => {
     const open = rulesWith(activityList, '.activity-list__item .activity-delete__open')
-    expect(open).toMatch(/background:\s*transparent/)
-    expect(open).toMatch(/border-color:\s*transparent/)
+    expect(open).toMatch(/border:\s*1px solid var\(--control-border\)/)
+    expect(open).toMatch(/min-height:\s*var\(--button-height\)/)
   })
 
   it('sets the Sort by label in the small secondary text of the legends', () => {
     const label = rulesWith(activitiesPage, '.activities__sort > span')
     expect(label).toMatch(/font-size:\s*var\(--text-sm\)/)
     expect(label).toMatch(/font-weight:\s*400/)
-    expect(label).toMatch(/color:\s*var\(--text-secondary\)/)
+    expect(label).toMatch(/color:\s*var\(--ink-secondary\)/)
   })
 
   it('sets Sort beside Sport from 761 px, the first width past the phone layout', () => {
@@ -205,7 +203,6 @@ describe('breakpoints named in layoutBreakpoints.ts', () => {
   // Each stylesheet repeats its width in a media query and names the file in a comment, so a change is
   // made in the file and the query together. This fails when they disagree.
   it('gives each width its media query in the stylesheet that uses it', () => {
-    expect(activityList).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(activityList).toContain(`@media (max-width: ${PHONE_MAX_WIDTH_PX}px)`)
     expect(pager).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(activitiesPage).toContain(`@media (min-width: ${SPLIT_FILTERS_MIN_WIDTH_PX}px)`)

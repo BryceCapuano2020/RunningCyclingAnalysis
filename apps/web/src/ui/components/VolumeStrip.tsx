@@ -24,8 +24,6 @@ import './VolumeStrip.css'
 export interface VolumeStripProps {
   /** The activities the list is narrowed to by period and sport, before any week or month is picked. */
   activities: readonly ActivitySummary[]
-  /** Where the period ends the takeaway: "in the last 6 weeks", or "across all time". */
-  periodText: string
   /** The key of the week or month the list is narrowed to, or null for the whole period. */
   selected: string | null
   /** Narrows the list to a bucket by its key, or back to the whole period with null. */
@@ -96,7 +94,7 @@ function SkippedStretch({ column }: { column: Extract<VolumeColumn, { kind: 'gap
  * list is narrowed to. Its heading says what the stretch held. A column is a button: it narrows the list to
  * that week or month, and pressing it again lets go. The columns are one tab stop, moved by the arrow keys.
  */
-export function VolumeStrip({ activities, periodText, selected, onSelect }: VolumeStripProps) {
+export function VolumeStrip({ activities, selected, onSelect }: VolumeStripProps) {
   const phone = useNarrowScreen(COMPACT_PHONE_MAX_WIDTH_PX)
   const buckets = useMemo(() => volumeBuckets(activities, phone), [activities, phone])
   const columns = useMemo(() => volumeColumns(buckets), [buckets])
@@ -158,9 +156,8 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
   return (
     <section className="volume-strip" aria-labelledby="volume-strip-takeaway">
       <div className="volume-strip__head">
-        <h2 id="volume-strip-takeaway" className="volume-strip__takeaway">
-          <strong>{countsText(totals)}</strong>
-          {`, ${formatHoursText(secondsOf(totals))}, ${periodText}`}
+        <h2 id="volume-strip-takeaway" className="sr-only">
+          {`Hours trained each ${first.kind}, ${countsText(totals)}`}
         </h2>
         <ul className="volume-strip__key" aria-label="Sports">
           {SPORT_ORDER.filter((sport) => totals[sport].count > 0).map((sport) => (

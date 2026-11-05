@@ -16,7 +16,9 @@ import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
 import { allCountedText, listEmptyText, periodClause } from '../periodCopy'
 import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
+import { NumText } from '../components/NumText'
 import { VolumeStrip } from '../components/VolumeStrip'
+import { volumeTakeaway } from '../components/volumeTakeaway'
 import { SegmentedControl } from '../components/SegmentedControl'
 import type { SegmentedControlOption } from '../components/SegmentedControl'
 import { useDeleteOutcome } from '../useDeleteOutcome'
@@ -32,7 +34,7 @@ export interface ActivitiesPageProps {
   records: ReadonlyMap<string, readonly EarnedRecord[]>
   /** The saved copy each activity is kept as. Only a kept activity can be deleted. */
   keptIds?: ReadonlyMap<string, string>
-  /** False while no body weight is entered, which holds a ride's record chips. */
+  /** False while no body weight is entered, which holds a ride's record. */
   weightKnown?: boolean
   busy?: boolean
   /** The activities this browser holds detailed readings for; null while that is not known. */
@@ -181,14 +183,6 @@ export function ActivitiesPage({
         </h1>
         {activities.length === 0 && <p className="secondary">No activities yet</p>}
       </div>
-      {inPeriod.length > 0 && (
-        <VolumeStrip
-          activities={inPeriod}
-          periodText={periodClause(days, newestMs)}
-          selected={bucket}
-          onSelect={(next) => narrow({ bucket: next })}
-        />
-      )}
       {activities.length > 0 && (
         <div className="activities__controls">
           <RangePicker
@@ -198,6 +192,13 @@ export function ActivitiesPage({
             total={counts.onFile}
             notCounted={counts.notCounted}
             noun={sport === 'all' ? 'activity' : sport}
+            foldedLead={
+              inPeriod.length > 0 ? (
+                <p>
+                  <NumText text={volumeTakeaway(inPeriod, periodClause(days, newestMs))} />
+                </p>
+              ) : null
+            }
             onChange={(next, answered) => {
               narrow({ period: periodFromChoice(next), bucket: null })
               answered(null)
@@ -237,6 +238,13 @@ export function ActivitiesPage({
           )}
         </div>
       )}
+      {inPeriod.length > 0 && (
+        <VolumeStrip
+          activities={inPeriod}
+          selected={bucket}
+          onSelect={(next) => narrow({ bucket: next })}
+        />
+      )}
       {removal.outcome !== null &&
         (removal.outcome.failed ? (
           <p role="alert" className="activities__outcome">
@@ -252,6 +260,7 @@ export function ActivitiesPage({
           activities={shown}
           units={units}
           records={records}
+          weightKnown={weightKnown}
           dateOrder={sort === 'newest' || sort === 'oldest'}
           climbFirst={sort === 'climb'}
           initialPage={page}
@@ -260,7 +269,6 @@ export function ActivitiesPage({
             setView((current) => ({ ...current, page: next }))
           }}
           keptIds={keptIds}
-          weightKnown={weightKnown}
           busy={busy}
           detailIds={detailIds}
           signedIn={signedIn}

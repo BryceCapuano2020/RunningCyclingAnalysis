@@ -1,8 +1,10 @@
 import { useRef } from 'react'
+import type { ReactNode } from 'react'
 import type { CustomRange } from '@rca/core/customRange'
 import type { PeriodChoice } from '@rca/core/period'
 import { CustomRangeForm } from './CustomRangeForm'
-import { PeriodCaption } from './PeriodCaption'
+import { PeriodCaption, PeriodCaptionLine, PeriodStatus } from './PeriodCaption'
+import type { PeriodCaptionProps } from './PeriodCaption'
 import { NOUNS } from './periodNouns'
 import { CUSTOM_OPTION, RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
 import type { RangeOption } from './rangeOptions'
@@ -46,6 +48,8 @@ export interface RangePickerProps {
    * tight, and the dates, the count and the note on one line under them.
    */
   compact?: boolean
+  /** The caption behind one Details, with this first inside it: a page that keeps its counts and dates off its face. */
+  foldedLead?: ReactNode
   /** Where the count links to, such as the activity list that holds them. */
   countHref?: string
   /** Where "not counted" links to: the activities left out, with the reason on each. */
@@ -77,6 +81,7 @@ export function RangePicker({
   notCounted = 0,
   noun = 'activity',
   compact = false,
+  foldedLead,
   countHref,
   notCountedHref,
   busy = false,
@@ -93,6 +98,19 @@ export function RangePicker({
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
+  const caption: PeriodCaptionProps = {
+    className: 'range-picker__caption muted',
+    dates,
+    shown,
+    total,
+    notCounted,
+    noun,
+    countHref,
+    notCountedHref,
+    swapped,
+    inlineNote: compact && noteText ? noteText : null,
+    choiceLabel,
+  }
   return (
     <div className={compact ? 'range-picker range-picker--compact' : 'range-picker'} ref={rootRef}>
       <SegmentedControl
@@ -119,19 +137,20 @@ export function RangePicker({
       {custom && customOpen && (
         <CustomRangeForm range={range} onApply={(next, reversed) => pick(next, reversed)} />
       )}
-      <PeriodCaption
-        className="range-picker__caption muted"
-        dates={dates}
-        shown={shown}
-        total={total}
-        notCounted={notCounted}
-        noun={noun}
-        countHref={countHref}
-        notCountedHref={notCountedHref}
-        swapped={swapped}
-        inlineNote={compact && noteText ? noteText : null}
-        choiceLabel={choiceLabel}
-      />
+      {foldedLead === undefined ? (
+        <PeriodCaption {...caption} />
+      ) : (
+        <>
+          <details className="disclosure">
+            <summary>Details</summary>
+            <div className="disclosure__body">
+              {foldedLead}
+              <PeriodCaptionLine {...caption} />
+            </div>
+          </details>
+          <PeriodStatus {...caption} />
+        </>
+      )}
       {noteText && !compact && <p className="range-picker__note muted">{noteText}</p>}
     </div>
   )
