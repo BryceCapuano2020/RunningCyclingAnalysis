@@ -21,6 +21,8 @@ volt, card and dark-mode system with this one.
   why a window was chosen, what a figure rests on ("From 130 runs. Strongest: ..."), a target ("To match it on the bike"),
   a caveat. A line that repeats a heading, the rail or another line is deleted. A row keeps one meta line at most, and only
   for what tells it apart (its date or activity). The owner called the stacked small lines slop (4 Nov 2026).
+- **One thing under the answer.** A page's answer has exactly one line under it, the one fact the reader should look at
+  ("Running grades 9 points higher at threshold."). Everything else about it waits in the Details.
 - **Almost no colour.** Ink and paper do the work. The run ink and the ride ink mark which sport a figure or a line belongs
   to. Nothing else on a page is coloured, except a status line and the data of a chart.
 
