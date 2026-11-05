@@ -1,4 +1,11 @@
-/* The headline numbers are numbered rows (RowList.css), one under another at every width. */
+/*
+ * The headline numbers are a section of their own: the band's rule and gap above them, as the sections around them
+ * have, then numbered rows (RowList.css). The band's rule stands in for the first row's hairline.
+ */
 .balance-tiles {
   min-width: 0;
+}
+
+.balance-tiles .row:first-child {
+  border-top: 0;
 }

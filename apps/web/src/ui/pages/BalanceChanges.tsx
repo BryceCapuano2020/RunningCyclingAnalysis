@@ -3,6 +3,7 @@ import { MAX_CHANGES, noChangeText } from './balanceChangeItems'
 import type { BalanceChangesResult } from './balanceChangeItems'
 import { RowIndex } from '../components/RowList'
 import './BalanceChanges.css'
+import { NumText } from '../components/NumText'
 
 export interface BalanceChangesProps {
   /** What moved since the previous period; null when the period has no previous one, so the section is left out. */
@@ -30,15 +31,21 @@ export function BalanceChanges({ changes, previousLabel }: BalanceChangesProps) 
         <p id="balance-changes-against" className="meta">{`vs ${withThe(previousLabel)}`}</p>
       </div>
       {items.length === 0 ? (
-        <p className="balance-changes__empty">{noChangeText(previousLabel)}</p>
+        <p className="balance-changes__empty">
+          <NumText text={noChangeText(previousLabel)} />
+        </p>
       ) : (
         <ol className="rows" data-count={Math.min(items.length, MAX_CHANGES)}>
           {items.map((item, index) => (
             <li key={item.key} className="row" data-sport={item.sport}>
               <RowIndex index={index} />
               <div className="row__body">
-                <h3 className="row__title">{item.title}</h3>
-                <p className="row__line">{item.body}</p>
+                <h3 className="row__title">
+                  <NumText text={item.title} />
+                </h3>
+                <p className="row__line">
+                  <NumText text={item.body} />
+                </p>
               </div>
             </li>
           ))}

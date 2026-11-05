@@ -2,6 +2,7 @@ import type { Sex } from '@rca/core/grade'
 import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, weightUnit } from '../athlete'
 import { hrefFor } from '../route'
+import { NumText } from './NumText'
 
 export interface ProfileFootnoteProps {
   /** The body weight in kg, or null while none is entered, so the line does not name one. */
@@ -41,7 +42,7 @@ export function ProfileFootnote({
   const unset = parts.length === 0
   return (
     <p className="muted">
-      {unset ? 'Your details are not set yet.' : `Based on ${listed(parts)}.`}
+      {unset ? 'Your details are not set yet.' : <NumText text={`Based on ${listed(parts)}.`} />}
       {(!unset || unsetLink) && (
         <>
           {' '}

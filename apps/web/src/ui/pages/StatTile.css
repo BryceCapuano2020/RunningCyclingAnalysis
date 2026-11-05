@@ -1,13 +1,10 @@
-/* A headline number as a row's body (RowList.css): the title and figure, then the lines under them. */
-.stat-tile p {
-  margin: 0;
+/* A headline number as a row's cells (RowList.css): the tile itself lays nothing out, so its cells sit in the row's grid. */
+.stat-tile {
+  display: contents;
 }
 
-/* A second reading of the figure, such as watts per kilo, after its unit. */
-.stat-tile__side {
-  margin-left: var(--space-3);
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
+.stat-tile p {
+  margin: 0;
 }
 
 .stat-tile__line {

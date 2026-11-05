@@ -107,7 +107,7 @@ export function BalanceTiles({
   if (tiles.length === 0) return null
   return (
     <section
-      className="balance-tiles"
+      className="band balance-tiles"
       aria-labelledby="balance-tiles-title"
       data-tiles={tiles.length}
     >
@@ -116,7 +116,7 @@ export function BalanceTiles({
       </h2>
       <ol className="rows">
         {tiles.map(({ key, sport, node }, index) => (
-          <li key={key} className="row" data-sport={sport}>
+          <li key={key} className="row row--figures" data-sport={sport}>
             <RowIndex index={index} />
             {node}
           </li>

@@ -68,11 +68,6 @@
   color: var(--ink-secondary);
 }
 
-/* The app focuses the headline on arrival; a two-line sentence is not underlined for it. */
-.balance-hero__title[tabindex='-1']:focus-visible {
-  text-decoration: none;
-}
-
 /* The tiles' prompt for a sport with nothing in the period fills its slot. */
 .balance-tiles > .empty-sport {
   align-content: start;

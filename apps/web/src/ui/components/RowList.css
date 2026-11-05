@@ -28,8 +28,85 @@
   border-bottom: 1px solid var(--hairline);
 }
 
-.row:has(> .row__spark) {
-  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+/*
+ * A list of figures: the figure, its second reading and its trend each have a column of fixed width at the row's right,
+ * the figure right-aligned, so every figure ends at one x down the list and a row with no trend keeps an empty column.
+ */
+.row--figures {
+  grid-template-columns: 2.25rem minmax(0, 1fr) 7rem 5.5rem 6rem;
+}
+
+.row__figure {
+  justify-self: end;
+  text-align: right;
+}
+
+.row__sub {
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.row__spark {
+  justify-self: end;
+  width: 6rem;
+}
+
+/*
+ * ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone has no room for three columns beside the row's lines: the title
+ * shares the first line with the figure, the figure's second reading and its trend stack under it at the row's edge,
+ * right-aligned, and the lines under the title take the row's full width below them.
+ */
+@media (max-width: 760px) {
+  .row--figures {
+    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
+  }
+
+  .row--figures .row__body {
+    display: contents;
+  }
+
+  .row--figures .row__title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .row--figures .row__body > :not(.row__title) {
+    grid-column: 2 / -1;
+  }
+
+  .row--figures .row__figure {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .row--figures .row__sub,
+  .row--figures .row__spark {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  /* Placed before the lines, which flow round them: the second reading under the figure, the trend under that. */
+  .row--figures .row__sub {
+    grid-row: 2;
+  }
+
+  .row--figures .row__spark {
+    grid-row: 3;
+  }
+
+  .row--figures:has(.row__sub:empty) .row__spark {
+    grid-row: 2;
+  }
+
+  .row--figures .row__sub:empty,
+  .row--figures .row__spark:empty {
+    display: none;
+  }
 }
 
 .row__index {
@@ -81,10 +158,6 @@
   max-width: var(--measure);
   color: var(--ink-secondary);
   font-size: var(--text-md);
-}
-
-.row__spark {
-  align-self: center;
 }
 
 /* A fold: a native disclosure with the base ▸ (base.css), no box, no background. */

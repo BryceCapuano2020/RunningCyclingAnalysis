@@ -14,6 +14,7 @@ import { hrefFor } from '../route'
 import { FitnessCard } from './FitnessCard'
 import './FitnessCard.css'
 import './FitnessSection.css'
+import { NumText } from '../components/NumText'
 
 const isWaiting = (view: FitnessView) => view.state === 'not-enough-evidence'
 
@@ -124,9 +125,11 @@ export function FitnessSection({
           data-testid={`${view.sport}-fitness-line`}
         >
           {home ? (
-            <a href={hrefFor({ page: view.sport })}>{lineText(view, library)}</a>
+            <a href={hrefFor({ page: view.sport })}>
+              <NumText text={lineText(view, library)} />
+            </a>
           ) : (
-            lineText(view, library)
+            <NumText text={lineText(view, library)} />
           )}
         </p>
       ))}

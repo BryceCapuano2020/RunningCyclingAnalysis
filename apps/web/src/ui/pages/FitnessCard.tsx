@@ -9,6 +9,7 @@ import { withDefinitions } from '../fitnessText'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessTrack } from './FitnessTrack'
 import './FitnessCard.css'
+import { NumText } from '../components/NumText'
 
 export interface FitnessCardProps {
   view: FitnessView
@@ -93,12 +94,12 @@ export function FitnessCard({ view, units, library, showSport = true }: FitnessC
           )}
           {view.age === null ? null : (
             <p className="fitness-card__support" data-testid="fitness-age">
-              {view.age}
+              <NumText text={view.age} />
             </p>
           )}
           {view.needs === '' ? null : (
             <p className="fitness-card__support" data-testid="fitness-needs">
-              {view.needs}
+              <NumText text={view.needs} />
             </p>
           )}
           {warm ? (

@@ -29,32 +29,31 @@ function HeadingText({ heading, definition }: Pick<StatTileProps, 'heading' | 'd
 }
 
 /**
- * One headline number as the body of a row: the serif title with the figure in mono at its right, then the lines that
- * say what it rests on. It carries no chip and no range shape: the title says what the figure is, and a range is said
+ * One headline number as a row's cells: the serif title and the lines that say what it rests on, then the figure in mono,
+ * its second reading and the trend column, each in the row's own column, so the figures line up down the list. It carries no chip and no range shape: the title says what the figure is, and a range is said
  * in words.
  */
 export function StatTile({ sport, heading, definition, figure, children }: StatTileProps) {
   return (
-    <article className="stat-tile row__body" data-sport={sport} aria-label={heading}>
-      <div className="row__head stat-tile__head">
+    <article className="stat-tile" data-sport={sport} aria-label={heading}>
+      <div className="row__body stat-tile__body">
         <h3 className="row__title">
           <HeadingText heading={heading} definition={definition} />
         </h3>
-        {figure === undefined ? null : (
-          <p className="row__figure stat-tile__figure">
-            <span className="stat-tile__number">{figure.number}</span>
-            {' '}
-            <span className="row__unit stat-tile__unit">{figure.unit}</span>
-            {figure.side === undefined ? null : (
-              <>
-                {' '}
-                <span className="stat-tile__side">{figure.side}</span>
-              </>
-            )}
-          </p>
-        )}
+        {children}
       </div>
-      {children}
+      {/* The figure, its second reading and the (empty) trend column line up with the rows above and below. */}
+      <p className="row__figure stat-tile__figure">
+        {figure === undefined ? null : (
+          <>
+            <span className="stat-tile__number">{figure.number}</span>
+            {'\u00a0'}
+            <span className="row__unit stat-tile__unit">{figure.unit}</span>
+          </>
+        )}
+      </p>
+      <span className="row__sub stat-tile__side">{figure?.side}</span>
+      <span className="row__spark" />
     </article>
   )
 }
