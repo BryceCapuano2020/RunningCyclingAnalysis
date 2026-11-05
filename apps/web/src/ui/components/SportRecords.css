@@ -28,6 +28,11 @@
   color: var(--ink-secondary);
 }
 
+/* The level and its percent stay together, and break only where large text leaves them no room on a narrow phone. */
+.records__grade {
+  overflow-wrap: anywhere;
+}
+
 /* On the meta line the activity is a link in the line's own mono, its name wrapping. */
 .records__meta .records__link {
   display: inline;

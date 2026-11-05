@@ -65,6 +65,18 @@
   text-align: right;
 }
 
+/*
+ * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. On a narrow phone the bar takes the row's whole width, under the
+ * index too, so its printed ends keep their margins at a large text size.
+ */
+@media (max-width: 420px) {
+  .race-row {
+    grid-template-areas:
+      'index name time'
+      'bar bar bar';
+  }
+}
+
 /* The bar's own box is the scale; its ends print outside it, in the margins the box leaves. */
 .race-bar {
   grid-area: bar;

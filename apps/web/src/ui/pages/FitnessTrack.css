@@ -74,8 +74,10 @@
   left: var(--floor);
 }
 
+/* The ends and the level before wrap at a large text size rather than widen the row. */
 .fitness-track__ends {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
   margin: 0;

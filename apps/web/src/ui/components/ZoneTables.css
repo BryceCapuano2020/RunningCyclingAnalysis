@@ -7,10 +7,12 @@
   min-width: 0;
 }
 
+/* A table wider than the page at a large text size scrolls inside its own box, its figures kept whole. */
 .zone-tables__table {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+  overflow-x: auto;
 }
 
 .zone-tables__table h3 {

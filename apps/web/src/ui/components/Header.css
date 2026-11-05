@@ -45,9 +45,11 @@ html {
   text-decoration: underline;
 }
 
+/* The page links keep one line, and wrap onto a second at a large text size rather than widen the page. */
 .header__pages {
   display: flex;
-  gap: var(--space-5);
+  flex-wrap: wrap;
+  gap: 0 var(--space-5);
 }
 
 .header__link {
@@ -71,10 +73,13 @@ html {
   color: var(--ink);
 }
 
+/* Profile, the account and Add files wrap onto a second line at a large text size rather than widen the page. */
 .header__actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-1) var(--space-5);
   margin-left: auto;
 }
 
@@ -108,8 +113,11 @@ html {
     display: contents;
   }
 
+  /* The wordmark takes the row's room beside Add files, and wraps rather than widen the page at a large text size. */
   .header__brand {
-    flex: 1 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
   }
 
   .header__actions > .btn {
@@ -128,6 +136,19 @@ html {
 
   .header__profile {
     margin-left: auto;
+  }
+
+  /* Sign-in is the Google mark and "Sign in" on a phone; "with Google" stays in its name for screen readers, so the
+     second row keeps one line. */
+  .header__account .google-sign-in {
+    min-width: 0;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+  }
+
+  /* As the pending status below: the words stay for a screen reader and take no room. */
+  .header__account .google-sign-in__rest {
+    font-size: 0;
   }
 
   /* While the account loads or cannot be reached, the status keeps its words for screen readers and takes no room. */

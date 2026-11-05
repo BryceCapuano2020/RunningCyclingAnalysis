@@ -94,6 +94,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The wide table scrolls inside its own box where large text makes it wider than the page. */
+.splits-wide {
+  overflow-x: auto;
+}
+
 /* Exactly one representation is shown at each width. */
 @media (max-width: 479px) {
   .splits-wide {
