@@ -223,12 +223,13 @@ describe('saved library', () => {
   })
 })
 
-describe('a kept activity on the Activities page, by sign-in state', () => {
+describe('a kept activity on its page, by sign-in state', () => {
   it.each([
     { signedIn: true, from: 'your library' },
     { signedIn: false, from: 'this browser' },
   ])('says the removal is from $from', ({ signedIn, from }) => {
-    window.location.hash = '#/activities'
+    // A row on the list offers Delete only when its page cannot open, so the question is asked on the page.
+    window.location.hash = '#/activities/run-1'
     setAccount(signedIn ? 'signed-in' : 'signed-out')
     const run = makeActivity({
       id: 'run-1',
