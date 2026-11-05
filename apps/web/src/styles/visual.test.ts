@@ -22,6 +22,7 @@ const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
 const crossSport = await read('../ui/pages/CrossSportCard.css')
 const activityPage = await read('../ui/pages/ActivityPage.css')
+const activityFacts = await read('../ui/pages/ActivityFacts.css')
 const activityList = await read('../ui/components/ActivityList.css')
 const accountMenu = await read('../ui/components/AccountMenu.css')
 const segmented = await read('../ui/components/SegmentedControl.css')
@@ -293,19 +294,16 @@ describe('activity pages', () => {
 })
 
 describe('activity record links', () => {
-  it('sets a record chip that links to its sport page at the control height, a target of its own', () => {
-    expect(rulesWith(activityPage, '.activity-page__chips a.chip')).toMatch(
+  it('sets a record link to its sport page at the control height, a target of its own', () => {
+    expect(rulesWith(activityFacts, '.activity-page__chips a.meta')).toMatch(
       /min-height:\s*var\(--control-height\)/,
     )
   })
 
-  it('takes the underline off a record chip link, which underlines on hover', () => {
-    expect(rulesWith(activityPage, '.activity-page__chips a.chip')).toMatch(
-      /text-decoration:\s*none/,
-    )
-    expect(rulesWith(activityPage, '.activity-page__chips a.chip:hover')).toMatch(
-      /text-decoration:\s*underline/,
-    )
+  it('underlines a record link, a mono byline with no box', () => {
+    const link = rulesWith(activityFacts, '.activity-page__chips a.meta')
+    expect(link).toMatch(/text-decoration:\s*underline/)
+    expect(link).not.toMatch(/background/)
   })
 })
 

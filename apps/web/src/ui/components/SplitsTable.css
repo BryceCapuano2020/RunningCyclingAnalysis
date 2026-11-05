@@ -2,7 +2,7 @@
 .splits-table caption {
   caption-side: top;
   text-align: left;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   padding: 0 0 var(--space-2);
 }
 
@@ -21,12 +21,12 @@
 }
 
 .splits-table__fastest {
-  font-weight: 600;
+  font-weight: 500;
 }
 
-/* The Fastest chip sits in its row without making the row taller. */
-.splits-table .chip {
-  margin-block: -3px;
+/* The Fastest word sits after its pace, a mono byline, with no box. */
+.splits-table__tag {
+  margin-left: var(--space-2);
 }
 
 /* The bar runs from zero to the width of the fastest known pace. */
@@ -35,7 +35,7 @@
   margin-top: var(--space-2);
   height: 6px;
   border-radius: 3px;
-  background: var(--surface-2);
+  background: var(--paper-hover);
   overflow: hidden;
 }
 
@@ -43,7 +43,7 @@
   display: block;
   height: 100%;
   border-radius: 3px;
-  background: var(--sport-colour);
+  background: var(--sport-ink);
 }
 
 .splits-list {
@@ -60,7 +60,7 @@
 .splits-list__item + .splits-list__item {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
 }
 
 /* Below 480 px a split leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. */
@@ -85,7 +85,7 @@
 }
 
 .splits-list dt {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .splits-list dd {
@@ -120,15 +120,15 @@
 
 /* The chosen view takes the selected colours and a tick, so it is not told apart by colour alone. */
 .btn.splits-view__choice--active {
-  border-color: var(--selected);
-  background: var(--highlight);
-  color: var(--highlight-ink);
-  font-weight: 600;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
 }
 
 .btn.splits-view__choice--active:hover {
-  background: var(--highlight);
-  border-color: var(--selected);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .btn.splits-view__choice--active::before {

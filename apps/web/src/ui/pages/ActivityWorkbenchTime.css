@@ -18,7 +18,7 @@
 
 /* The two typed times sit side by side where there is room, and stack on a phone. */
 .activity-workbench__exact summary {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .activity-workbench__exact .activity-workbench__range {
@@ -31,9 +31,9 @@
   min-height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   font: inherit;
   font-variant-numeric: tabular-nums;
 }

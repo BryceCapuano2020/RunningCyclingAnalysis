@@ -176,8 +176,10 @@ describe('ActivityPage', () => {
       '#/activities',
     )
     expect(screen.getByText('Run')).toBeInTheDocument()
-    expect(screen.getByText('Mon 5 Jan')).toBeInTheDocument()
-    expect(screen.getByText('7:30 am')).toBeInTheDocument()
+    // The sport, day and time are one mono line, behind Details: the title has no caption above or below it.
+    const facts = screen.getByText('Mon 5 Jan, 7:30 am')
+    expect(facts.closest('details')).toHaveTextContent('Details')
+    expect(heading.previousElementSibling?.className ?? '').not.toContain('meta')
   })
 
   it('leads with the elapsed time when no moving time is kept, with distance, pace and climb', () => {

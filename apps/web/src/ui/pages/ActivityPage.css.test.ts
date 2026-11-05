@@ -86,7 +86,8 @@ describe('splits table', () => {
     )
   })
 
-  it('keeps the Fastest chip from growing its row', () => {
-    expect(declarations(splits, '.splits-table .chip')).toMatch(/margin-block:\s*-3px;/)
+  it('sets the Fastest word as a byline after its pace, with no box', () => {
+    expect(declarations(splits, '.splits-table__tag')).toMatch(/margin-left:/)
+    expect(splits).not.toMatch(/\.splits-table \.chip/)
   })
 })

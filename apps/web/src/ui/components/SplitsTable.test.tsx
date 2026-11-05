@@ -240,13 +240,14 @@ describe('SplitsTable', () => {
     ).toBeVisible()
   })
 
-  it('marks the fastest known split with a visible Fastest chip and bold pace', () => {
+  it('marks the fastest known split with a visible Fastest word and a heavier pace', () => {
     renderSplits(
       loaded({ km: [split(), split({ seconds: 285, gradeAdjustedSeconds: 280 })], mile: [] }),
     )
     const [first, second] = bodyRows()
-    const chip = within(second!).getByText('Fastest')
-    expect(chip).toHaveClass('chip')
+    const word = within(second!).getByText('Fastest')
+    expect(word).toHaveClass('meta')
+    expect(word).not.toHaveClass('chip')
     expect(within(second!).getByText('4:45 /km')).toHaveClass('splits-table__fastest')
     expect(within(first!).queryByText('Fastest')).not.toBeInTheDocument()
   })
