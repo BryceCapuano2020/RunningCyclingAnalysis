@@ -153,7 +153,7 @@ describe('privacy page brand', () => {
 })
 
 describe('privacy page type matches the app', () => {
-  it.each(['--font-sans', '--font-display'])('uses the %s stack from tokens.css', (name) => {
+  it.each(['--font-serif', '--font-mono'])('uses the %s stack from tokens.css', (name) => {
     const stack = new RegExp(`${name}: ([^;]+);`).exec(tokensCss)?.[1]
     expect(stack).toBeDefined()
     // Prettier may break a long stack over lines; the stack is the same without that whitespace.
@@ -169,14 +169,14 @@ describe('privacy page type matches the app', () => {
 })
 
 describe('privacy page loads the app fonts, from the same packages', () => {
-  it('imports the faces main.tsx imports, so Barlow is bundled and not left to the system', () => {
+  it('imports the faces main.tsx imports, so Newsreader and Plex Mono are bundled and not left to the system', () => {
     const appFaces = [...mainSource.matchAll(/^import '(@fontsource\/[^']+)'/gm)].map(
       ([, face]) => face,
     )
     const pageFaces = [...privacyCss.matchAll(/^@import '(@fontsource\/[^']+)';/gm)].map(
       ([, face]) => face,
     )
-    expect(appFaces).toHaveLength(5)
+    expect(appFaces).toHaveLength(4)
     expect(pageFaces).toEqual(appFaces)
   })
 
@@ -849,9 +849,6 @@ describe('privacy page loads nothing from elsewhere', () => {
 })
 
 describe('privacy page layout and copy', () => {
-  const darkBlock =
-    /@media \(prefers-color-scheme: dark\) \{([\s\S]*?)\n\}/.exec(privacyCss)?.[1] ?? ''
-
   it('titles the page with a middle dot, as the app names its pages', () => {
     expect(page).toContain('<title>Privacy policy · RunningCyclingAnalysis</title>')
   })
@@ -867,11 +864,6 @@ describe('privacy page layout and copy', () => {
 
   it('says summaries are kept in this browser where the browser allows', () => {
     expect(text).toContain("kept in this browser's IndexedDB where the browser allows")
-  })
-
-  it('takes the control height from the phone rule, not the dark scheme, so a phone gets 44 px', () => {
-    expect(darkBlock).not.toBe('')
-    expect(darkBlock).not.toMatch(/--control-height/)
   })
 
   it('gives the footer links a 24 px target at least', () => {

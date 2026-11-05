@@ -3,15 +3,7 @@ import { readStylesheet } from '../ui/components/stylesheet'
 import { colour, declared, resolved } from './tokenSheet'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
-const darkRun = colour(
-  resolved(
-    new Map([
-      ...declared(tokensCss, ':root'),
-      ...declared(tokensCss, ":root:not([data-theme='light'])"),
-    ]),
-  ),
-  'series-run',
-)
+const runInk = colour(resolved(declared(tokensCss, ':root')), 'run-ink')
 /** The Node built-ins this test needs, named in variables so the browser build never resolves them. */
 interface Node {
   readFileSync: (path: URL) => Uint8Array
@@ -74,16 +66,16 @@ function pixels(png: Uint8Array): [number, number, number][] {
 const near = (pixel: number[], hex: string) =>
   [1, 3, 5].every((at, i) => Math.abs(pixel[i]! - parseInt(hex.slice(at, at + 2), 16)) <= 4)
 
-describe('the brand icons carry the run colour of the dark theme', () => {
+describe('the brand icons carry the run colour of the paper theme', () => {
   it('draws the favicon with the token colour', () => {
-    expect(text(publicFile('favicon.svg')).toLowerCase()).toContain(darkRun)
+    expect(text(publicFile('favicon.svg')).toLowerCase()).toContain(runInk)
   })
 
   it.each(['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'social-card.png'])(
     'has the token colour in %s, and no crimson',
     (name) => {
       const found = pixels(publicFile(name))
-      expect(found.filter((pixel) => near(pixel, darkRun)).length).toBeGreaterThan(50)
+      expect(found.filter((pixel) => near(pixel, runInk)).length).toBeGreaterThan(50)
       expect(found.filter((pixel) => near(pixel, '#f0435f')).length).toBe(0)
     },
   )

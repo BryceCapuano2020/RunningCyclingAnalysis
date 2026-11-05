@@ -36,17 +36,17 @@ const PENDING_CH_CAPS = [
   'ChartHeadings.css',
 ]
 
-/** Sheets that still read --shadow: the Balance sheets and the tile, which wait on the Balance de-duplication. */
-const SHADOW_HOLDERS = ['BalanceChanges.css', 'BalancePage.css', 'StatTile.css']
-
 describe('the layout tokens', () => {
-  it('give one shell width, one reading measure, two gaps and the radius and shadow names', () => {
+  it('give one shell width, one rail, one reading measure, two gaps and one radius', () => {
     expect(tokens.get('page-width')).toBe('75rem')
-    expect(tokens.get('measure')).toBe('28.5rem')
+    expect(tokens.get('rail-width')).toBe('12rem')
+    expect(tokens.get('measure')).toBe('36rem')
+    expect(tokens.get('radius')).toBe('8px')
+    // The old small radius is the same token, so there is one corner for every box.
+    expect(tokens.get('radius-sm')).toBe('var(--radius)')
     expect(tokens.get('section-gap')).toBe('var(--space-7)')
     expect(tokens.get('stack-gap')).toBe('var(--space-5)')
     expect(tokens.get('radius-pill')).toBe('999px')
-    expect(tokens.has('shadow-pop')).toBe(true)
   })
 
   it('size the header, the tabs and every page from the one shell width', () => {
@@ -72,20 +72,13 @@ describe('the layout tokens', () => {
     expect(capped.sort()).toEqual([...PENDING_CH_CAPS].sort())
   })
 
-  it('keep the popover shadow for popovers, and the old name from spreading', () => {
-    for (const name of [
-      'Definition.css',
-      'AccountMenu.css',
-      'SetupDialog.css',
-      'ConfirmDialog.css',
-    ]) {
-      expect(sheet(name), name).toMatch(/box-shadow:\s*var\(--shadow-pop\)/)
+  it('have no shadow: the old names are none, and no sheet blurs one', () => {
+    expect(tokens.get('shadow-pop')).toBe('none')
+    expect(tokens.get('shadow')).toBe('none')
+    for (const { path, css } of sheets) {
+      // A ring is a shadow with no offset or blur; anything with a blur radius is a lift.
+      expect(css, path).not.toMatch(/box-shadow:\s*(inset\s+)?-?\d+(px)?\s+-?\d+(px)?\s+[1-9]\d*px/)
     }
-    const holders = sheets
-      .filter(({ css }) => css.includes('var(--shadow)'))
-      .map(({ path }) => path.split('/').pop())
-    // Sport pages and the fitness card are bands; only the Balance sheets still lift.
-    expect(holders.sort()).toEqual([...SHADOW_HOLDERS].sort())
   })
 
   it('draw a band as a 3:1 rule across the top, with no box, and let each section reuse it', () => {

@@ -6,10 +6,7 @@ import { colour, declarations, declared, resolved, type Tokens } from './tokenSh
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const meterCss = await readStylesheet(import.meta.url, '../ui/components/BalanceMeter.css')
 
-const lightRaw = declared(tokensCss, ':root')
-const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
-const light: Tokens = resolved(lightRaw)
-const dark: Tokens = resolved(new Map([...lightRaw, ...darkRaw]))
+const paper: Tokens = resolved(declared(tokensCss, ':root'))
 
 /** The least contrast a graphic reaches: a mark or a line, against what it sits on. */
 const GRAPHIC = 3
@@ -47,17 +44,11 @@ function meterPairs(tokens: Tokens): [string, string, string][] {
 }
 
 describe('balance meter contrast', () => {
-  it.each([
-    ['light', light],
-    ['dark', dark],
-  ] as const)(
-    '%s: the line, the even mark and the dot reach 3:1 against the page',
-    (_theme, tokens) => {
-      for (const [label, fg, bg] of meterPairs(tokens)) {
-        expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
-      }
-    },
-  )
+  it('the line, the even mark and the dot reach 3:1 against the page', () => {
+    for (const [label, fg, bg] of meterPairs(paper)) {
+      expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
+    }
+  })
 })
 
 describe('balance meter stylesheet', () => {

@@ -195,7 +195,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   },
 ]
 
-for (const scheme of ['light', 'dark'] as const) {
+for (const scheme of ['light'] as const) {
   for (const { name, open } of PAGES) {
     test(`${name} page has no WCAG 2 A/AA or best-practice violations in ${scheme} mode`, async ({
       page,
@@ -410,11 +410,9 @@ test('notices sit inside main, and a page has no empty live region of its own to
   expect(regions).toBe(1)
 })
 
-test('the fitness card and its evidence fit a 320 px screen, in both schemes', async ({
-  page,
-}, testInfo) => {
+test('the fitness card and its evidence fit a 320 px screen', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'narrow-320', 'Measures the narrowest supported screen')
-  for (const scheme of ['light', 'dark'] as const) {
+  for (const scheme of ['light'] as const) {
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)

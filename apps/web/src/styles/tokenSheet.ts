@@ -2,16 +2,27 @@
 
 export type Tokens = Map<string, string>
 
-/** The custom properties declared in the first block that opens with `selector`. */
+/**
+ * The custom properties declared in every top-level block (one that starts a line) that opens with `selector`,
+ * later blocks over earlier: tokens.css has the colour table, the level bands and the old names, all on :root.
+ */
 export function declared(css: string, selector: string): Tokens {
-  const start = css.indexOf(`${selector} {`)
-  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
-  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
   const tokens: Tokens = new Map()
-  for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
-    const [, name, value] = match
-    if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
+  let found = false
+  for (
+    let start = css.indexOf(`${selector} {`);
+    start >= 0;
+    start = css.indexOf(`${selector} {`, start + 1)
+  ) {
+    if (start > 0 && css[start - 1] !== '\n') continue
+    found = true
+    const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
+    for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+      const [, name, value] = match
+      if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
+    }
   }
+  if (!found) throw new Error(`no ${selector} block in tokens.css`)
   return tokens
 }
 

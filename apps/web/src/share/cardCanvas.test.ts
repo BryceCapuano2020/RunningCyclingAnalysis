@@ -23,14 +23,15 @@ function faceName(face: Face): string {
   return `${family.replace(/['"]/g, '').trim()} ${face.weight}`
 }
 
-/** The faces main.tsx imports from @fontsource, as "Barlow 600" and so on. */
+/** The faces main.tsx imports from @fontsource, as "Newsreader 500" and so on. */
 function importedFaces(): string[] {
   const faces: string[] = []
-  for (const match of mainTsx.matchAll(/@fontsource\/(barlow(?:-condensed)?)\/latin-(\d+)\.css/g)) {
+  for (const match of mainTsx.matchAll(
+    /@fontsource\/(newsreader|ibm-plex-mono)\/latin-(\d+)\.css/g,
+  )) {
     const [, pkg, weight] = match
     if (pkg === undefined || weight === undefined) continue
-    const family = pkg === 'barlow' ? 'Barlow' : 'Barlow Condensed'
-    faces.push(`${family} ${weight}`)
+    faces.push(`${pkg === 'newsreader' ? 'Newsreader' : 'IBM Plex Mono'} ${weight}`)
   }
   return faces
 }
@@ -111,8 +112,8 @@ describe('loadCardFonts', () => {
   })
 
   it('draws in the same font stacks as tokens.css, so the card matches the page', () => {
-    expect(SANS_600.family).toBe(tokenValue('font-sans'))
-    expect(CONDENSED_700.family).toBe(tokenValue('font-display'))
+    expect(SANS_600.family).toBe(tokenValue('font-serif'))
+    expect(CONDENSED_700.family).toBe(tokenValue('font-mono'))
   })
 
   it('stops waiting after ten seconds when a face never loads, rather than hanging the download', async () => {

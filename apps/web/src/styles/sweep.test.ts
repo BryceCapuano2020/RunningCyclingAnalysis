@@ -209,12 +209,7 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
   'ui/charts/RatioChart.css': ['.ratio-chart__higher--run', '.ratio-chart__higher--ride'],
   // The static privacy page keeps its own copy of the two sport colours, in its root blocks, and draws
   // the brand mark's two strokes.
-  'styles/privacy.css': [
-    ':root',
-    ":root:not([data-theme='light'])",
-    '.brand-mark__run',
-    '.brand-mark__ride',
-  ],
+  'styles/privacy.css': [':root', '.brand-mark__run', '.brand-mark__ride'],
 }
 /** The static privacy page's stylesheet copies the token values, and tokens.test.ts keeps them equal. */
 const PRIVACY_PAGE = 'styles/privacy.css'
@@ -225,7 +220,8 @@ const SERIES_TOKEN = /--series-(?:run|ride|swim)(?:-soft)?\b/
  * name built from a sport. A class such as `chart-series__area--${sport}` is not a token, so it passes.
  */
 const SERIES_SOURCE = /--series-(?:run|ride|swim)(?:-soft)?\b|var\(--\$\{|--series-\$\{/
-const SPORT_HEX = /#(?:e44f27|f56333|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
+const SPORT_HEX =
+  /#(?:c2410c|1d4ed8|0e7490|e44f27|f56333|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
 
 /** Each selector, from a stylesheet's rules, whose declarations name a series colour token. */
 function seriesSelectorsOf(css: string): string[] {
@@ -275,12 +271,15 @@ describe('sport colour', () => {
     expect(offenders).toEqual([])
   })
 
-  it('sets --sport-colour and --sport-colour-soft once for each sport, in tokens.css, from its series token', () => {
+  it('sets --sport-ink and --sport-wash once for each sport, in tokens.css, and the old --sport-colour names from them', () => {
     for (const sport of ['run', 'ride'] as const) {
       const tokens = declarations(tokensCss, `[data-sport='${sport}']`)
-      expect(tokens.get('--sport-colour')).toBe(`var(--series-${sport})`)
-      expect(tokens.get('--sport-colour-soft')).toBe(`var(--series-${sport}-soft)`)
+      expect(tokens.get('--sport-ink')).toBe(`var(--${sport}-ink)`)
+      expect(tokens.get('--sport-wash')).toBe(`var(--${sport}-wash)`)
     }
+    const old = declarations(tokensCss, '[data-sport]')
+    expect(old.get('--sport-colour')).toBe('var(--sport-ink)')
+    expect(old.get('--sport-colour-soft')).toBe('var(--sport-wash)')
     const declaring = sheets
       .filter(({ css }) => /--sport-colour(?:-soft)?\s*:/.test(css))
       .map(({ path }) => path)

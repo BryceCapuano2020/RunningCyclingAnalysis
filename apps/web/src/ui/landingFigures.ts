@@ -38,25 +38,20 @@ export type CardInk = Record<
 >
 
 const INK_TOKENS: Record<keyof CardInk, string> = {
-  surface0: 'surface-0',
-  surface1: 'surface-1',
-  border: 'border',
-  text: 'text-primary',
-  secondary: 'text-secondary',
-  muted: 'text-muted',
-  run: 'series-run',
-  ride: 'series-ride',
-  brand: 'brand',
+  surface0: 'paper',
+  surface1: 'paper',
+  border: 'hairline',
+  text: 'ink',
+  secondary: 'ink-secondary',
+  muted: 'ink-secondary',
+  run: 'run-ink',
+  ride: 'ride-ink',
+  brand: 'ink',
 }
 
-/** The card's colours from tokens.css: the dark theme's block over the root, which holds the colours it does not repeat. */
+/** The card's colours from tokens.css: the paper tokens, with any var() followed. */
 export function cardInk(tokensCss: string): CardInk {
-  const tokens = resolved(
-    new Map([
-      ...declared(tokensCss, ':root'),
-      ...declared(tokensCss, ":root:not([data-theme='light'])"),
-    ]),
-  )
+  const tokens = resolved(declared(tokensCss, ':root'))
   const ink = {} as CardInk
   for (const [name, token] of Object.entries(INK_TOKENS) as [keyof CardInk, string][]) {
     const value = tokens.get(token)

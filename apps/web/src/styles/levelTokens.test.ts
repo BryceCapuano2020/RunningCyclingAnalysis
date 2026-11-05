@@ -6,9 +6,9 @@ const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
 const systemMd = await readStylesheet(import.meta.url, '../../../../docs/design/system.md')
 
-/** The level tokens in the block after `marker`, as name to value, in the order written. */
-function levels(marker: string): Map<string, string> {
-  const start = tokensCss.indexOf(marker, tokensCss.indexOf('Level bands'))
+/** The level tokens in the block after the Level bands comment, as name to value, in the order written. */
+function levels(): Map<string, string> {
+  const start = tokensCss.indexOf(':root {', tokensCss.indexOf('Level bands'))
   const body = tokensCss.slice(tokensCss.indexOf('{', start) + 1, tokensCss.indexOf('}', start))
   return new Map(
     [...body.matchAll(/--(level-\d)\s*:\s*(#[0-9a-f]{8});/g)].map(([, name = '', value = '']) => [
@@ -18,88 +18,55 @@ function levels(marker: string): Map<string, string> {
   )
 }
 
-const light = levels(':root {')
-const dark = levels(":root:not([data-theme='light']) {")
-const CARD = { light: '#ffffff', dark: '#171a20' }
-const INK = { light: '#0e1116', dark: '#eef0f3' }
+const bands = levels()
+const PAPER = '#fbfaf8'
+const INK = '#0a0a0a'
 const NAMES = ['level-1', 'level-2', 'level-3', 'level-4', 'level-5']
 
-/** The designed table's rows under the Level bands heading, as name to light and dark. */
-function table(): Map<string, [string, string]> {
+/** The designed table's rows under the Level bands heading, as name to value. */
+function table(): Map<string, string> {
   const section = designMd.slice(designMd.indexOf('## Level bands'))
   return new Map(
-    [
-      ...section.matchAll(/^\|\s*`--(level-\d)`\s*\|\s*`(#[0-9a-f]{8})`\s*\|\s*`(#[0-9a-f]{8})`/gm),
-    ].map(([, name = '', a = '', b = '']) => [name, [a, b]]),
+    [...section.matchAll(/^\|\s*`--(level-\d)`\s*\|\s*`(#[0-9a-f]{8})`/gm)].map(
+      ([, name = '', value = '']) => [name, value],
+    ),
   )
 }
 
 describe('level band tokens', () => {
-  it('has all five, in a block of their own, in both schemes', () => {
-    expect([...light.keys()]).toEqual(NAMES)
-    expect([...dark.keys()]).toEqual(NAMES)
+  it('has all five, in a block of their own', () => {
+    expect([...bands.keys()]).toEqual(NAMES)
   })
 
   it('matches the table in docs/DESIGN.md, under its own heading and outside the colour table', () => {
-    const rows = table()
-    expect([...rows.keys()]).toEqual(NAMES)
-    for (const name of NAMES) expect(rows.get(name)).toEqual([light.get(name), dark.get(name)])
+    expect(table()).toEqual(bands)
     const colour = systemMd.slice(systemMd.indexOf('## Colour'), systemMd.indexOf('## Type'))
     expect(colour).not.toContain('--level-')
   })
 
-  it.each([
-    ['light', light, CARD.light, INK.light],
-    ['dark', dark, CARD.dark, INK.dark],
-  ] as const)(
-    '%s: each band is a deeper wash than the one below, and is the ink',
-    (_scheme, tokens, card, ink) => {
-      let last = 1
-      for (const name of NAMES) {
-        const value = tokens.get(name) ?? ''
-        expect(value.slice(1, 7), `${name} is the ink`).toBe(ink.slice(1))
-        const ratio = contrast(over(value, card), card)
-        expect(ratio, `${name} steps up`).toBeGreaterThan(last)
-        last = ratio
-      }
-    },
-  )
+  it('makes each band a deeper wash than the one below, and is the ink', () => {
+    let last = 1
+    for (const name of NAMES) {
+      const value = bands.get(name) ?? ''
+      expect(value.slice(1, 7), `${name} is the ink`).toBe(INK.slice(1))
+      const ratio = contrast(over(value, PAPER), PAPER)
+      expect(ratio, `${name} steps up`).toBeGreaterThan(last)
+      last = ratio
+    }
+  })
 
-  it.each([
-    ['light', light, CARD.light],
-    ['dark', dark, CARD.dark],
-  ] as const)(
-    '%s: neighbouring bands differ enough to tell apart, and World reads against the card',
-    (_scheme, tokens, card) => {
-      const painted = NAMES.map((name) => over(tokens.get(name) ?? '', card))
-      for (let i = 1; i < painted.length; i += 1) {
-        expect(contrast(painted[i]!, painted[i - 1]!)).toBeGreaterThanOrEqual(1.03)
-      }
-      // In dark the washes are the only thing that tells a level from the next, so every pair with one band between
-      // them, as the neighbours of the middle level are, differ by at least 1.3:1.
-      if (_scheme === 'dark') {
-        for (let i = 2; i < painted.length; i += 1) {
-          expect(contrast(painted[i]!, painted[i - 2]!)).toBeGreaterThanOrEqual(1.3)
-        }
-        for (let i = 1; i < painted.length; i += 1) {
-          expect(contrast(painted[i]!, painted[i - 1]!)).toBeGreaterThanOrEqual(1.12)
-        }
-      }
-      expect(contrast(painted[4]!, card)).toBeGreaterThanOrEqual(1.1)
-    },
-  )
+  it('tells neighbouring bands apart, and World reads against the paper', () => {
+    const painted = NAMES.map((name) => over(bands.get(name) ?? '', PAPER))
+    for (let i = 1; i < painted.length; i += 1) {
+      expect(contrast(painted[i]!, painted[i - 1]!)).toBeGreaterThanOrEqual(1.025)
+    }
+    expect(contrast(painted[4]!, PAPER)).toBeGreaterThanOrEqual(1.1)
+  })
 
-  it.each([
-    ['light', light, CARD.light, '#474f5c', '#5f6774'],
-    ['dark', dark, CARD.dark, '#b6bcc6', '#8d95a2'],
-  ] as const)(
-    '%s: the text on the bands reaches 4.5:1 on the darkest one, and the tick labels on the card',
-    (_scheme, tokens, card, secondary, muted) => {
-      const world = over(tokens.get('level-5') ?? '', card)
-      // Band names, grade lines, range ends and the gap's note are secondary text, drawn over the bands.
-      expect(contrast(secondary, world)).toBeGreaterThanOrEqual(4.5)
-      // The tick labels sit under the plot, on the card, in the muted colour.
-      expect(contrast(muted, card)).toBeGreaterThanOrEqual(4.5)
-    },
-  )
+  it('reaches 4.5:1 for the secondary text on the darkest band, and the tick labels on the paper', () => {
+    const world = over(bands.get('level-5') ?? '', PAPER)
+    // Band names, grade lines, range ends and the gap's note are secondary text, drawn over the bands.
+    expect(contrast('#6b6660', world)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast('#6b6660', PAPER)).toBeGreaterThanOrEqual(4.5)
+  })
 })

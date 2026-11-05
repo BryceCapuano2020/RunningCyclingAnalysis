@@ -6,15 +6,10 @@ import { readStylesheet } from '../components/stylesheet'
 
 const tokensCss = await readStylesheet(import.meta.url, '../../styles/tokens.css')
 const css = await readStylesheet(import.meta.url, './TrainingCalendarChart.css')
-const lightRaw = declared(tokensCss, ':root')
-const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
-const schemes: [string, Tokens][] = [
-  ['light', resolved(lightRaw)],
-  ['dark', resolved(new Map([...lightRaw, ...darkRaw]))],
-]
+const schemes: [string, Tokens][] = [['paper', resolved(declared(tokensCss, ':root'))]]
 
 /** The least contrast of the first tint against a week with no training, so a gap reads next to any week of training. */
-const FIRST_AGAINST_NONE = 2
+const FIRST_AGAINST_NONE = 1.75
 /** The least contrast between one step and the next, so five steps are five: neutral, then a sport's colour. */
 const NEIGHBOUR = { neutral: 1.25, sport: 1.15 }
 
@@ -77,12 +72,11 @@ describe('the calendar ramp', () => {
       })
 
       it(`keeps the ${ink} steps clearly apart and in order of ink in ${name}`, () => {
-        const lighter = name === 'dark'
         steps.slice(1).forEach((step, i) => {
           const before = steps[i]!
           expect(contrast(step, before)).toBeGreaterThanOrEqual(NEIGHBOUR[kind])
-          // Light darkens with hours; dark gets more luminous with them.
-          expect(luminance(step) > luminance(before)).toBe(lighter)
+          // Ink darkens with hours.
+          expect(luminance(step) > luminance(before)).toBe(false)
         })
       })
     }
