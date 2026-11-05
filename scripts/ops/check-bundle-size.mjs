@@ -11,7 +11,9 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
  * is hit is raised or the code split, never worked around; lower a number when a change shrinks its
  * part, so the headroom stays about the same.
  *
- * - initial: the script the page loads, the chunks it preloads and its stylesheets, which every visit pays.
+ * - initial: the script the page loads, the chunks it preloads and its stylesheets, which every visit pays. Raised
+ *   from 285 KB to 315 KB in Stage V: the initial load had sat at 273 to 275 KB since before the paper pages (the shell,
+ *   Balance and its share card), under 5% from the budget, and the paper round itself added under 1 KB.
  * - worker: the analysis worker, fetched when a request first needs it.
  * - chunk: any one other script, which loads when its page is first opened.
  * - history: the History tab's own chunk, loaded when the tab is first opened. It has a budget of its own, so the
@@ -19,7 +21,7 @@ const DIST_DIR = fileURLToPath(new URL('../../apps/web/dist/', import.meta.url))
  * - style: any one other stylesheet, which loads with its page.
  */
 export const BUDGETS = {
-  initial: 285_000,
+  initial: 315_000,
   worker: 185_000,
   chunk: 75_000,
   history: 16_500,
