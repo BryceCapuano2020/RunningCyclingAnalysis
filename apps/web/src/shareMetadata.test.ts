@@ -118,8 +118,8 @@ describe('the share image’s stamp', () => {
     const css = await readStylesheet(import.meta.url, './styles/tokens.css')
     const ink = cardInk(css)
     for (const colour of Object.values(ink)) expect(colour).toMatch(/^#[0-9a-f]{6}$/)
-    expect(ink.surface0).toBe(declared(css, ':root').get('paper'))
-    expect(ink.text).toBe(declared(css, ':root').get('ink'))
+    expect(ink.paper).toBe(declared(css, ':root').get('paper'))
+    expect(ink.ink).toBe(declared(css, ':root').get('ink'))
   })
 })
 

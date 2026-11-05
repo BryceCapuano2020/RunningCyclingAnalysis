@@ -513,7 +513,7 @@ describe('ShareImageButton', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("gives the card each sport's level on its hero, with the effort it grades", async () => {
+  it("gives the card each sport's level and percent on its hero", async () => {
     renderButton({ grades: { run: RUN_GRADE, ride: null } })
     const dialog = await openSheet()
     press(dialog, SAVE)
@@ -521,7 +521,7 @@ describe('ShareImageButton', () => {
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         heroes: [
-          expect.objectContaining({ sport: 'run', grade: 'Local · 64% at threshold' }),
+          expect.objectContaining({ sport: 'run', grade: { percent: '64%', level: 'Local' } }),
           expect.objectContaining({ sport: 'ride', grade: null }),
         ],
       }),

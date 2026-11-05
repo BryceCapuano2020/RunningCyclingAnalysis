@@ -4,15 +4,13 @@ import { LANDING_EXAMPLE } from './landingExample'
 import { cardStamp, fillLandingOg, ogAlt, type CardInk } from './landingFigures'
 
 const INK: CardInk = {
-  surface0: '#000001',
-  surface1: '#000002',
-  border: '#000003',
-  text: '#000004',
+  paper: '#000001',
+  hairline: '#000002',
+  rule: '#000003',
+  ink: '#000004',
   secondary: '#000005',
-  muted: '#000006',
-  run: '#000007',
-  ride: '#000008',
-  brand: '#000009',
+  run: '#000006',
+  ride: '#000007',
 }
 
 describe('the landing figures', () => {

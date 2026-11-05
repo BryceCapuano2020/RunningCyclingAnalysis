@@ -1,5 +1,3 @@
-import type { PathStep } from '../ui/components/iconPaths'
-
 /** The 2D context of either canvas kind; the card uses only the members they share. */
 export type CardContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
 
@@ -20,24 +18,29 @@ export interface Face {
 export interface TextStyle extends Face {
   size: number
   lineHeight: number
+  /** Extra space after each character in px, for upper-case metadata; none when unset. */
+  tracking?: number
 }
 
 /**
- * The page's --font-serif and --font-mono from tokens.css, so the card falls back as the page does. The face
- * names (SANS for text, CONDENSED for figures and headlines) stay until the card's own redesign: text is the
- * serif and a figure the mono, both at the two weights the page loads.
+ * The page's --font-serif and --font-mono from tokens.css, so the card falls back as the page does: the serif
+ * sets the answer and prose, the mono every figure and all metadata, each at the two weights the page loads.
  */
 const SERIF = "'Newsreader', Georgia, serif"
 const MONO = "'IBM Plex Mono', ui-monospace, monospace"
 
-export const SANS_400: Face = { family: SERIF, weight: 400 }
-export const SANS_500: Face = { family: SERIF, weight: 500 }
-export const SANS_600: Face = SANS_500
-export const CONDENSED_700: Face = { family: MONO, weight: 400 }
-export const CONDENSED_800: Face = { family: MONO, weight: 500 }
+export const SERIF_400: Face = { family: SERIF, weight: 400 }
+export const SERIF_500: Face = { family: SERIF, weight: 500 }
+export const MONO_400: Face = { family: MONO, weight: 400 }
+export const MONO_500: Face = { family: MONO, weight: 500 }
 
 /** Every face the card draws in. loadCardFonts waits for each one. */
-export const FACES: Face[] = [SANS_400, SANS_500, CONDENSED_700, CONDENSED_800]
+export const FACES: Face[] = [SERIF_400, SERIF_500, MONO_400, MONO_500]
+
+/** Metadata as the page sets it: mono, upper case by the caller, tracked at 0.12em. */
+export function metaStyle(size: number, lineHeight: number): TextStyle {
+  return { ...MONO_400, size, lineHeight, tracking: Math.round(size * 0.12 * 10) / 10 }
+}
 
 /** The CSS font shorthand for a face at a size, as both the canvas and document.fonts.load read it. */
 export function fontOf(face: Face, size: number): string {
@@ -51,6 +54,7 @@ export function scaled(face: Face, size: number, lineRatio: number): TextStyle {
 
 export function setFont(ctx: CardContext, style: TextStyle): void {
   ctx.font = fontOf(style, style.size)
+  ctx.letterSpacing = `${style.tracking ?? 0}px`
 }
 
 /**
@@ -142,84 +146,6 @@ export function drawLines(
   setFont(ctx, style)
   ctx.fillStyle = color
   lines.forEach((line, index) => ctx.fillText(line, x, y + index * style.lineHeight))
-}
-
-/** Traces a bar with round ends, at least as wide as it is tall, for a fill or a stroke. */
-export function tracePill(
-  ctx: CardContext,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void {
-  const radius = height / 2
-  ctx.arc(x + radius, y + radius, radius, Math.PI / 2, (3 * Math.PI) / 2)
-  ctx.arc(x + width - radius, y + radius, radius, -Math.PI / 2, Math.PI / 2)
-  ctx.closePath()
-}
-
-/** A filled bar with round ends, at least as wide as it is tall. */
-export function drawPill(
-  ctx: CardContext,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  color: string,
-): void {
-  ctx.fillStyle = color
-  ctx.beginPath()
-  tracePill(ctx, x, y, width, height)
-  ctx.fill()
-}
-
-/** Strokes the path that the trace draws, with round caps and joins. */
-export function strokeWith(
-  ctx: CardContext,
-  color: string,
-  width: number,
-  trace: () => void,
-): void {
-  ctx.beginPath()
-  trace()
-  ctx.strokeStyle = color
-  ctx.lineWidth = width
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.stroke()
-}
-
-/** Maps points drawn on an icon's own grid to the canvas, at a top-left corner and a scale. */
-export function placer(
-  x: number,
-  y: number,
-  scale: number,
-): (px: number, py: number) => [number, number] {
-  return (px, py) => [x + px * scale, y + py * scale]
-}
-
-/** Traces path steps on the canvas, placing each point with `at`. */
-export function traceSteps(
-  ctx: CardContext,
-  steps: readonly PathStep[],
-  at: (px: number, py: number) => [number, number],
-): void {
-  for (const step of steps) {
-    switch (step.op) {
-      case 'M':
-        ctx.moveTo(...at(step.x, step.y))
-        break
-      case 'L':
-        ctx.lineTo(...at(step.x, step.y))
-        break
-      case 'C':
-        ctx.bezierCurveTo(...at(step.x1, step.y1), ...at(step.x2, step.y2), ...at(step.x, step.y))
-        break
-      case 'Z':
-        ctx.closePath()
-        break
-    }
-  }
 }
 
 /** How long the card waits for its fonts before it gives up, so a stalled load cannot hang the download. */

@@ -13,7 +13,8 @@ import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
-import { heroGradeLine, type GradeOutcome } from '../ui/grades'
+import { gradeLevelText, type GradeOutcome } from '../ui/grades'
+import { formatGrade } from '../ui/gradeFormat'
 import { countSport, threshold } from '../ui/records'
 import { BALANCE_PAIR } from '../ui/sports'
 import { cardNameShown } from './cardName'
@@ -34,6 +35,12 @@ export interface ShareFigure {
   unit: string
 }
 
+/** A sport's age grade and its level, as the levels line under the meter writes them. */
+export interface ShareLevel {
+  percent: string
+  level: string
+}
+
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
 export interface ShareHero {
   sport: Sport
@@ -42,8 +49,8 @@ export interface ShareHero {
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
   sub: string | null
-  /** The sport's level and the effort it grades, as heroGradeLine writes it, or null when it is not on the card. */
-  grade: string | null
+  /** The sport's level and whole-percent age grade at threshold, or null when it is not on the card. */
+  grade: ShareLevel | null
 }
 
 /** The balance between the sports, read the same way as the page's meter. */
@@ -151,7 +158,10 @@ function heroFor(
     label: CARD_THRESHOLD_LABEL[sport],
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
-    grade: outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,
+    grade:
+      outcome?.kind === 'graded'
+        ? { percent: formatGrade(outcome.grade.centre.grade), level: gradeLevelText(outcome.grade) }
+        : null,
   }
 }
 

@@ -92,7 +92,7 @@ function onSportPage(result: AnalysisResult, sport: Sport): Printed {
   return printed
 }
 
-/** The grade line on a sport's hero of the share card: "Local · 61% at threshold". */
+/** A sport's level and percent on the share card's levels line. */
 function onShareCard(result: AnalysisResult, sport: Sport): Printed {
   const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT)
   const card = buildShareCard(
@@ -106,10 +106,9 @@ function onShareCard(result: AnalysisResult, sport: Sport): Printed {
     standing.lead,
     gradesOfStanding(result, standing),
   )
-  const line = card?.heroes.find((hero) => hero.sport === sport)?.grade
-  const found = /^(.+) · (\d+%) at threshold$/.exec(line ?? '')
-  if (found === null) throw new Error(`no grade on the ${sport} hero: ${line}`)
-  return { level: found[1]!, percent: found[2]! }
+  const grade = card?.heroes.find((hero) => hero.sport === sport)?.grade
+  if (grade === null || grade === undefined) throw new Error(`no grade on the ${sport} hero`)
+  return grade
 }
 
 describe.each([

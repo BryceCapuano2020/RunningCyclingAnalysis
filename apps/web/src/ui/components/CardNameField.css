@@ -6,7 +6,7 @@
 
 .card-name-field__label {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .card-name-field__input {
@@ -15,7 +15,7 @@
   min-height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
 }

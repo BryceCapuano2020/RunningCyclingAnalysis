@@ -233,15 +233,14 @@ and the tests named at the foot of that page keep the two in step. A display siz
   `--paper-pressed` (the primary button keeps ink) with an inset ring. In forced colours a press is an outline and the primary
   button takes the system highlight with its label. The one destructive button, a removal's confirm, is `--status-critical`
   with a paper label, and shows hover and press by brightness. The header's Profile link is in sentence case too.
-- A sport glyph (`SportIcon`) is drawn only where it carries information the words do not (the share card, a chart key); a sport name in text needs none. Its path data and stroke width are in
-  `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
+- A sport glyph (`SportIcon`) is drawn only where it carries information the words do not (a chart key); a sport name in text needs none. Its path data and stroke width are in
+  `iconPaths.ts`, the one source for the icon. The ride is drawn at
   a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
   than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.15 to 1.3 times the
   runner's ink (it was 1.6 to 1.8 at a 3.8 radius and a 1.75 stroke); the runner is not moved.
   Each sport glyph is cropped to its ink (`inkBox` in `iconPaths.ts`), so its box starts where the ink
   starts. Its left edge is the icon's edge in the tabs, the headings and the meter, and the gap to its label
-  is the same for both sports. The share card draws the same crop, with the ink at the inset; its label
-  starts at a fixed x, so the gap there is wider for the narrower runner.
+  is the same for both sports.
 - Charts share one set of defaults: a visible but recessive grid (`--grid`, about 1.5:1 on the card in both schemes), 3 px lines
   with round caps and joins, an optional wash of the sport's colour at 12% under a line, markers that are a fill ringed in the
   card colour, bars with rounded data ends and 2 px gaps, and axis text of 12 px or more in `--text-muted` (4.5:1 on the card).
@@ -741,7 +740,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   out". The choices are forgotten with the library (Remove all my activities, once the library is known to be empty), on signing out and on deleting the
   account, and follow a change made in another tab. An import notice that added only runs left out ends with a link: "Open Run to count them."
 - **The app-wide error boundary is friendly and plain.** It says "Something went wrong" and "The page stopped working. Reload to try again; your saved activities are untouched." with a **Reload** button. The error's own message is never shown; React logs it to the console.
-- **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and one theme colour. The image is `public/social-card.png` (1200 x 630, drawn by `scripts/make-social-card.ts` from the sample athlete's figures, which the build reads from the sample's analysis (`landingFigures()` in `vite.config.ts`), and from the paper colours in `tokens.css`; the script also writes the app icons and `public/social-card.stamp`, a hash of those figures and colours). The alt text in `index.html` is a `%LANDING_OG_ALT%` placeholder the build fills from the same figures. When the sample or a token the card uses changes, `shareMetadata.test.ts` fails on the stale stamp: run `npx playwright install chromium`, then `npm run card`, then commit `public/social-card.png`, `public/social-card.stamp` and the icons. `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
+- **Share metadata, the manifest and the 404 page.** `index.html` carries the canonical link, Open Graph and Twitter tags and one theme colour. The image is `public/social-card.png` (1200 x 630, on paper like the in-app card: the app name, the question as the answer sentence in the serif, the sample athlete's meter read by the same `gapReading`, `meterValue` and `meterRange` as Balance, and the two levels in one line, drawn by `scripts/make-social-card.ts` from the sample athlete's figures, which the build reads from the sample's analysis (`landingFigures()` in `vite.config.ts`), and from the paper colours in `tokens.css`; the script also writes the app icons and `public/social-card.stamp`, a hash of those figures and colours). The alt text in `index.html` is a `%LANDING_OG_ALT%` placeholder the build fills from the same figures. When the sample or a token the card uses changes, `shareMetadata.test.ts` fails on the stale stamp: run `npx playwright install chromium`, then `npm run card`, then commit `public/social-card.png`, `public/social-card.stamp` and the icons. `public/manifest.webmanifest` names the app and its icons; there is no service worker. An unknown path is answered with `public/404.html` and a 404 status (`not_found_handling = "404-page"`), which a browser navigation gets without invoking the Worker; `/api/*` keeps its JSON 404 under the rate limiter.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
@@ -764,26 +763,34 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - **Missing values** show a dash, with words for a screen reader that say why: "Not measured" for a
   time the device did not record, or an implied speed over 12.5 m/s that no run reaches; "Not
   available" for a grade; "No altitude"; or "No heart rate".
-- The share image is a dark canvas card on ink, as a square (1080 by 1080, "Square (feed)") or a tall
-  story (1080 by 1920, "Tall (story)"). Share sits under the answer's lede, dimmed and inert while the analysis runs, and opens a sheet: a
-  preview, the note that it is made on this device, an optional **Name on the card** field, the choice of
-  shape, and one action. The name is 40 characters at most, empty by default, kept in this browser under
-  `rca.card-name.v1`, drawn only on the card, and never sent to the server. The action reads "Share file" only
-  when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
-  PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
-  shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
-  stays, dimmed. A click on the backdrop closes the sheet. The sheet's action is outlined like the other
-  buttons, so the page's one primary action stays Add files. The file is named by the period's dates,
-  such as `balance-2025-05-12_2025-08-03-square.png`.
-- The card holds the brand mark, in the two sport colours, and the app name in words, in volt. When the
-  visitor has typed a name for the card, it sits small in secondary text at the right of that top row, before
-  the sample badge, cut with an ellipsis where it would reach the app name. Under the
-  headline sit the lead line and the meter, drawn from the same `BalanceReading` as the page's. Then each sport's threshold, "Threshold GAP, estimated from your
-  runs" for a run and "Threshold power, estimated from your rides" for a ride, with its W/kg and its level, such as "Local · 64% at threshold", under
-  the figure, and a glyph beside each label for its sport; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
-  site's host when it is public.
-- Figures are drawn in text colour. Sport colour appears only on the brand mark, the edge of each
-  column, and the meter's band and dot. It never colours text.
+- The share image is a paper card, as a square (1080 by 1080, "Square (feed)") or a tall story (1080 by 1920, "Tall (story)"),
+  drawn on the paper system (docs/design/system.md): paper ground and ink, with no dark canvas, accent colour, badge, mark or panel.
+  The answer is set in Newsreader and every figure and all metadata in IBM Plex Mono (`SERIF_*` and `MONO_*` in
+  `cardCanvas.ts`, the same stacks as `--font-serif` and `--font-mono`). Share sits under the answer's lede, dimmed and
+  inert while the analysis runs, and opens a sheet on paper with a `--rule` edge and no shadow: a preview, the note that
+  it is made on this device, an optional **Name on the card** field, the choice of shape, and one action. The name is 40
+  characters at most, empty by default, kept in this browser under `rca.card-name.v1`, drawn only on the card, and never
+  sent to the server. The action reads "Share file" only when the device's share sheet can take this image; otherwise it
+  reads "Save image" and downloads the PNG. The PNG is encoded once, for the preview, so the share starts within the tap.
+  Until the chosen shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
+  stays, dimmed. A click on the backdrop closes the sheet. The sheet's action is outlined like the other buttons, so the
+  page's one primary action stays Add files. The file is named by the period's dates, such as
+  `balance-2025-05-12_2025-08-03-square.png`.
+- The card reads top to bottom as the page does. A top row: the app name in the serif at the left, then in mono capitals
+  the sample label ("Sample athlete") and the visitor's name where there are any (the name cut with an ellipsis where it
+  would reach the app name), over a `--rule` line. The answer sentence in the serif at 500, in sentence case, two lines on a
+  square and three on a story, "Your balance leans toward running", with the lead line under it where there is room. The
+  meter as the page draws it: a hairline track, an upright in the run ink at its left end and the ride ink at its right,
+  a tick at Even, one ink mark for the reading, the value in mono under the mark with its unit quieter, and "range" and
+  its edges in mono capitals under that, drawn from the same `BalanceReading` as the page's. The two sports' levels in one
+  line, as Balance writes them (name, age grade in mono, level in `--ink-secondary`), or one under the other when they do
+  not fit side by side. Under a rule, each sport's threshold: its label in mono capitals in the sport's ink ("Threshold
+  GAP, estimated from your runs" for a run and "Threshold power, estimated from your rides" for a ride), the figure in
+  mono at 500 in ink with its unit after it, and the W/kg under a ride's. Last, the period in mono capitals, the
+  heart-rate caveat as a starred line when there is one, the footnote, and the site's host when it is public. A card
+  sheds the host, then the lead line, then steps the answer and the figures down one size at a time, until it fits.
+- Figures are drawn in ink. A sport's ink is on its name over the meter's end, the end's upright and its threshold label,
+  and nowhere else. It never colours a figure or a sentence.
 - The card is offered only once both sports have a threshold, a balance can be stated and a weight is
   entered. A card never asks the reader for anything, so there is no prompt on it: while a sport has no
   threshold, or no weight is entered, the share button is not shown.

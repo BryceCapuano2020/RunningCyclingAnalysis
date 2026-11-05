@@ -1,113 +1,149 @@
-import type { Lean } from '../domain/lean'
-import {
-  EVEN_LABEL,
-  bandSpan,
-  cappedEnds,
-  capText,
-  meterFraction,
-} from '../ui/components/balanceScale'
-import { BALANCE_PAIR, SPORT_LABEL } from '../ui/sports'
+import { EVEN_LABEL, cappedEnds, capText, meterFraction } from '../ui/components/balanceScale'
+import { meterRange, meterValue, RANGE_WORD } from '../ui/components/meterReading'
+import { BALANCE_PAIR, SPORT_TITLE } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import {
-  SANS_400,
-  SANS_600,
+  MONO_400,
+  MONO_500,
   drawLines,
-  drawPill,
+  metaStyle,
   setFont,
-  strokeWith,
-  tracePill,
   type CardContext,
   type TextStyle,
 } from './cardCanvas'
 import type { Block } from './cardLayout'
 import type { ShareMeter } from './cardModel'
 
-export const DOT_RADIUS = 16
-const TRACK_HEIGHT = 14
-/** The band is this tall; it is never drawn narrower, so its rounded ends stay round. */
-export const BAND_HEIGHT = 28
-/** The band is the leading sport's colour at this opacity, so the range reads on the card. */
-export const BAND_OPACITY = 0.5
-/** Where the labels sit under the dot and band, and the meter's height with them. */
-const LABEL_TOP = 52
-const LABEL: TextStyle = { ...SANS_600, size: 34, lineHeight: 38 }
-const EVEN: TextStyle = { ...SANS_400, size: 34, lineHeight: 38 }
-export const METER_HEIGHT = LABEL_TOP + LABEL.lineHeight
+/** The meter as the page draws it: a hairline track, an upright of each sport's ink at its end, one ink mark. */
+const ENDS: TextStyle = metaStyle(22, 26)
+const VALUE: TextStyle = { ...MONO_500, size: 56, lineHeight: 60 }
+const UNIT: TextStyle = { ...MONO_400, size: 24, lineHeight: 28 }
+const RANGE: TextStyle = metaStyle(22, 26)
+const TRACK_TOP = ENDS.lineHeight + 14
+const TRACK_HEIGHT = 56
+/** The track's own line, the end uprights and the tick at Even, in px. */
+const LINE = 3
+const UPRIGHT = 28
+const MARK_WIDTH = 4
+const UNIT_GAP = 10
+const READING_TOP = TRACK_TOP + TRACK_HEIGHT + 12
 /** The gap between an end label and its "30+" mark. */
 const CAP_GAP = 14
 
-/** The band and dot take the leading sport's colour. Even has no leader, so it takes the neutral one. */
-function leaderColour(lean: Lean): string {
-  if (lean === 'run') return CARD_COLORS.run
-  if (lean === 'ride') return CARD_COLORS.ride
-  return CARD_COLORS.neutralMark
+/** The meter's height: the ends, the track, the value, and the range line when there is one. */
+function meterHeight(meter: ShareMeter): number {
+  return READING_TOP + VALUE.lineHeight + (meterRange(meter) === null ? 0 : RANGE.lineHeight)
 }
 
 /**
- * The "30+" mark beside a sport's end label, when the lead runs past the scale on that sport's side:
- * after the left label, or before the right one, so it never sits on the track.
+ * The "30+" mark beside a sport's end label, when the lead runs past the scale on that sport's side: after the
+ * left label, or before the right one, so it never sits on the track.
  */
 function drawCap(
   ctx: CardContext,
   label: string,
-  edge: { x: number; y: number; align: 'left' | 'right' },
+  edge: { x: number; align: 'left' | 'right' },
+  y: number,
   text: string,
-): void {
-  setFont(ctx, LABEL)
+) {
+  setFont(ctx, ENDS)
   const width = ctx.measureText(label).width
   const x = edge.align === 'left' ? edge.x + width + CAP_GAP : edge.x - width - CAP_GAP
   ctx.textAlign = edge.align
-  drawLines(ctx, [text], x, edge.y, LABEL, CARD_COLORS.secondary)
+  drawLines(ctx, [text], x, y, ENDS, CARD_COLORS.secondary)
+}
+
+/** A text line centred on `centre`, kept inside [min, max]. */
+function drawCentred(
+  ctx: CardContext,
+  text: string,
+  style: TextStyle,
+  centre: number,
+  bounds: { min: number; max: number },
+  y: number,
+  color: string,
+): void {
+  setFont(ctx, style)
+  const width = ctx.measureText(text).width
+  const left = Math.min(Math.max(centre - width / 2, bounds.min), bounds.max - width)
+  ctx.textAlign = 'left'
+  drawLines(ctx, [text], left, y, style, color)
+}
+
+function drawEnds(ctx: CardContext, meter: ShareMeter, x: number, y: number, width: number): void {
+  const [left, right] = BALANCE_PAIR
+  const names = { left: SPORT_TITLE[left].toUpperCase(), right: SPORT_TITLE[right].toUpperCase() }
+  const capped = cappedEnds(meter.lead)
+  const cap = capText(meter.unit)
+  ctx.textAlign = 'left'
+  drawLines(ctx, [names.left], x, y, ENDS, CARD_COLORS[left])
+  if (capped.left) drawCap(ctx, names.left, { x, align: 'left' }, y, cap)
+  ctx.textAlign = 'center'
+  drawLines(ctx, [EVEN_LABEL.toUpperCase()], x + width / 2, y, ENDS, CARD_COLORS.secondary)
+  ctx.textAlign = 'right'
+  drawLines(ctx, [names.right], x + width, y, ENDS, CARD_COLORS[right])
+  if (capped.right) drawCap(ctx, names.right, { x: x + width, align: 'right' }, y, cap)
+  ctx.textAlign = 'left'
 }
 
 function drawMeter(ctx: CardContext, meter: ShareMeter, x: number, y: number, width: number): void {
-  const centreY = y + 20
-  const at = (lead: number) => x + meterFraction(lead) * width
-  const { lead, lean, unit } = meter
-  const low = at(lead.low)
-  const high = at(lead.high)
-  const centre = at(lead.centre)
-  const colour = leaderColour(lean)
-  const band = bandSpan(Math.min(low, high), Math.max(low, high), BAND_HEIGHT)
-  const trackY = centreY - TRACK_HEIGHT / 2
-  const bandY = centreY - BAND_HEIGHT / 2
-
-  // The track is outlined in muted ink so it reads on the card. The band is the leader's colour
-  // at half opacity, with a solid edge in the same colour, so its range reads without its tint.
-  drawPill(ctx, x, trackY, width, TRACK_HEIGHT, CARD_COLORS.surface)
-  strokeWith(ctx, CARD_COLORS.muted, 2, () => tracePill(ctx, x, trackY, width, TRACK_HEIGHT))
-  ctx.globalAlpha = BAND_OPACITY
-  drawPill(ctx, band.start, bandY, band.width, BAND_HEIGHT, colour)
-  ctx.globalAlpha = 1
-  strokeWith(ctx, colour, 3, () => tracePill(ctx, band.start, bandY, band.width, BAND_HEIGHT))
-  ctx.fillStyle = CARD_COLORS.muted
-  ctx.fillRect(x + width / 2 - 1.5, centreY - 20, 3, 40)
-  ctx.beginPath()
-  ctx.arc(centre, centreY, DOT_RADIUS, 0, Math.PI * 2)
-  ctx.fillStyle = colour
-  ctx.fill()
-  strokeWith(ctx, CARD_COLORS.ink, 4, () => ctx.arc(centre, centreY, DOT_RADIUS, 0, Math.PI * 2))
-
-  // The ends name the sports in BALANCE_PAIR: the first sport is on the left, as on the cards.
+  drawEnds(ctx, meter, x, y, width)
+  const middle = y + TRACK_TOP + TRACK_HEIGHT / 2
+  ctx.fillStyle = CARD_COLORS.hairline
+  ctx.fillRect(x, middle - LINE / 2, width, LINE)
   const [left, right] = BALANCE_PAIR
-  const labelY = y + LABEL_TOP
-  const capped = cappedEnds(lead)
-  ctx.textAlign = 'left'
-  drawLines(ctx, [SPORT_LABEL[left]], x, labelY, LABEL, CARD_COLORS.secondary)
-  if (capped.left) {
-    drawCap(ctx, SPORT_LABEL[left], { x, y: labelY, align: 'left' }, capText(unit))
+  ctx.fillStyle = CARD_COLORS[left]
+  ctx.fillRect(x, middle - UPRIGHT / 2, LINE, UPRIGHT)
+  ctx.fillStyle = CARD_COLORS[right]
+  ctx.fillRect(x + width - LINE, middle - UPRIGHT / 2, LINE, UPRIGHT)
+  ctx.fillStyle = CARD_COLORS.secondary
+  ctx.fillRect(x + width / 2 - LINE / 2, middle - UPRIGHT / 2, LINE, UPRIGHT)
+
+  // The one mark, an upright of ink, kept inside the track's ends.
+  const mark = Math.min(
+    Math.max(x + meterFraction(meter.lead.centre) * width, x + MARK_WIDTH / 2),
+    x + width - MARK_WIDTH / 2,
+  )
+  ctx.fillStyle = CARD_COLORS.ink
+  ctx.fillRect(mark - MARK_WIDTH / 2, y + TRACK_TOP, MARK_WIDTH, TRACK_HEIGHT)
+
+  // The value under the mark: the number centred on it, its unit hanging off to the right.
+  const value = meterValue(meter)
+  const readingY = y + READING_TOP
+  setFont(ctx, VALUE)
+  const numberWidth = ctx.measureText(value.number).width
+  setFont(ctx, UNIT)
+  const unitWidth = ctx.measureText(value.unit).width
+  const left0 = Math.min(
+    Math.max(mark - numberWidth / 2, x),
+    x + width - numberWidth - UNIT_GAP - unitWidth,
+  )
+  ctx.textBaseline = 'alphabetic'
+  const baseline = readingY + VALUE.size * 0.8
+  setFont(ctx, VALUE)
+  ctx.fillStyle = CARD_COLORS.ink
+  ctx.fillText(value.number, left0, baseline)
+  setFont(ctx, UNIT)
+  ctx.fillStyle = CARD_COLORS.secondary
+  ctx.fillText(value.unit, left0 + numberWidth + UNIT_GAP, baseline)
+  ctx.textBaseline = 'top'
+
+  const range = meterRange(meter)
+  if (range !== null) {
+    const text = `${RANGE_WORD} ${range}`.toUpperCase()
+    drawCentred(
+      ctx,
+      text,
+      RANGE,
+      mark,
+      { min: x, max: x + width },
+      readingY + VALUE.lineHeight,
+      CARD_COLORS.secondary,
+    )
   }
-  ctx.textAlign = 'center'
-  drawLines(ctx, [EVEN_LABEL], x + width / 2, labelY, EVEN, CARD_COLORS.muted)
-  ctx.textAlign = 'right'
-  drawLines(ctx, [SPORT_LABEL[right]], x + width, labelY, LABEL, CARD_COLORS.secondary)
-  if (capped.right) {
-    drawCap(ctx, SPORT_LABEL[right], { x: x + width, y: labelY, align: 'right' }, capText(unit))
-  }
-  ctx.textAlign = 'left'
 }
 
 /** The balance meter across the content width, at the given x. */
 export function meterBlock(ctx: CardContext, meter: ShareMeter, x: number, width: number): Block {
-  return { height: METER_HEIGHT, draw: (y) => drawMeter(ctx, meter, x, y, width) }
+  return { height: meterHeight(meter), draw: (y) => drawMeter(ctx, meter, x, y, width) }
 }

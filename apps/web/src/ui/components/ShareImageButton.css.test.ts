@@ -45,7 +45,7 @@ describe('the share sheet: its preview and its actions', () => {
     expect(bodyOf(css, '.share-sheet')).toContain('overflow: auto;')
     expect(bodyOf(css, '.share-sheet__foot')).toMatch(/position: sticky;/)
     expect(bodyOf(css, '.share-sheet__foot')).toContain('bottom: 0;')
-    expect(bodyOf(css, '.share-sheet__foot')).toContain('background: var(--surface-1);')
+    expect(bodyOf(css, '.share-sheet__foot')).toContain('background: var(--paper);')
   })
 
   it('keeps the first action the same width as its label changes, so Close does not move', () => {

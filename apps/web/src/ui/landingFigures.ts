@@ -33,20 +33,18 @@ export function fillLandingOg(html: string, figures: LandingFigures): string {
 
 /** The colours the share image draws with, by the name the image uses for each. */
 export type CardInk = Record<
-  'surface0' | 'surface1' | 'border' | 'text' | 'secondary' | 'muted' | 'run' | 'ride' | 'brand',
+  'paper' | 'hairline' | 'rule' | 'ink' | 'secondary' | 'run' | 'ride',
   string
 >
 
 const INK_TOKENS: Record<keyof CardInk, string> = {
-  surface0: 'paper',
-  surface1: 'paper',
-  border: 'hairline',
-  text: 'ink',
+  paper: 'paper',
+  hairline: 'hairline',
+  rule: 'rule',
+  ink: 'ink',
   secondary: 'ink-secondary',
-  muted: 'ink-secondary',
   run: 'run-ink',
   ride: 'ride-ink',
-  brand: 'ink',
 }
 
 /** The card's colours from tokens.css: the paper tokens, with any var() followed. */

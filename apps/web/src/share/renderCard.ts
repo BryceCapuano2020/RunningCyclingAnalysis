@@ -1,18 +1,12 @@
-import { BRAND_RIDING, BRAND_RUNNING } from '../ui/components/iconPaths'
 import { CARD_COLORS } from './cardColors'
 import {
-  CONDENSED_800,
-  SANS_400,
-  SANS_500,
-  SANS_600,
+  SERIF_400,
+  SERIF_500,
   cutWithEllipsis,
   drawLines,
-  drawPill,
   fitText,
-  placer,
+  metaStyle,
   setFont,
-  strokeWith,
-  traceSteps,
   wrapIn,
   type CardCanvas,
   type CardContext,
@@ -27,36 +21,30 @@ import {
   type CardFormat,
   type CardLayout,
 } from './cardLayout'
+import { levelsBlock } from './cardLevels'
 import { meterBlock } from './cardMeter'
 import type { ShareCardModel } from './cardModel'
 
 export { loadCardFonts } from './cardCanvas'
 
-/** The type and pill sizes the card's text sits in. The brand mark's size is set per shape. */
-export const NAME: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
-const BADGE: TextStyle = { ...SANS_600, size: 24, lineHeight: 30 }
-const BADGE_HEIGHT = 40
-const BADGE_PADDING = 14
-/** The athlete's name on the card, small, so it reads as a label for the card rather than its headline. */
-const ATHLETE: TextStyle = { ...SANS_500, size: 24, lineHeight: 30 }
-/** Between the brand mark and the app name, and between the top row's items. */
-const ROW_GAP = 16
-export const PERIOD: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
-/** The balance in words under the headline. */
-export const MAGNITUDE_LINE: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
-/** The heart-rate caveat: a quiet starred line, not a warning, so the card reads as a result. */
-export const CAVEAT: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
-const FOOTNOTE: TextStyle = { ...SANS_400, size: 30, lineHeight: 36 }
-export const ORIGIN: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
-const HEADLINE_LINE_RATIO = 0.95
-
-/** The brand mark: two curves crossing on ink, from the icon's own path data. The ink is the card. */
-function drawBrandMark(ctx: CardContext, x: number, y: number, size: number): void {
-  const scale = size / 32
-  const at = placer(x, y, scale)
-  strokeWith(ctx, CARD_COLORS.run, 3 * scale, () => traceSteps(ctx, BRAND_RUNNING, at))
-  strokeWith(ctx, CARD_COLORS.ride, 3 * scale, () => traceSteps(ctx, BRAND_RIDING, at))
-}
+/** The app's name in the serif, as the page's header sets it. */
+export const NAME: TextStyle = { ...SERIF_500, size: 36, lineHeight: 44 }
+/** The sample label and the athlete's name, mono metadata at the right of the top row. */
+const TOP_META: TextStyle = metaStyle(22, 28)
+/** The rule under the top row, and the space above it. */
+const RULE_HEIGHT = 2
+const RULE_GAP = 20
+/** Between the app name and the metadata beside it, and between the metadata's own items. */
+const ROW_GAP = 24
+/** The period: its dates and counts, as metadata. */
+export const PERIOD: TextStyle = metaStyle(22, 28)
+/** The balance in words under the answer. */
+export const MAGNITUDE_LINE: TextStyle = { ...SERIF_400, size: 36, lineHeight: 46 }
+/** The heart-rate caveat: a starred line of prose. */
+export const CAVEAT: TextStyle = { ...SERIF_400, size: 28, lineHeight: 36 }
+const FOOTNOTE: TextStyle = { ...SERIF_400, size: 28, lineHeight: 36 }
+export const ORIGIN: TextStyle = metaStyle(22, 28)
+const HEADLINE_LINE_RATIO = 1.08
 
 /** A block of text lines, or nothing when there is no text to show. */
 function textBlock(
@@ -78,71 +66,38 @@ function textBlock(
 }
 
 /**
- * The sample badge at the right of the top row. Returns the width it takes, so the name beside it can
- * stop short of it.
+ * The top row: the app name in the serif at the left, then at the right the sample label and the athlete's name
+ * as mono metadata, the name cut with an ellipsis where it would reach the app name. A rule closes the row.
  */
-function drawBadge(
-  ctx: CardContext,
-  badge: string,
-  right: number,
-  y: number,
-  mark: number,
-): number {
-  setFont(ctx, BADGE)
-  const width = ctx.measureText(badge).width + 2 * BADGE_PADDING
-  const top = y + (mark - BADGE_HEIGHT) / 2
-  drawPill(ctx, right - width, top, width, BADGE_HEIGHT, CARD_COLORS.surface)
-  const textY = top + (BADGE_HEIGHT - BADGE.lineHeight) / 2
-  drawLines(ctx, [badge], right - width + BADGE_PADDING, textY, BADGE, CARD_COLORS.secondary)
-  return width
-}
-
-/**
- * The athlete's name, small and secondary, ending at `right` and kept to one line: it fills the top
- * row between the app name and the badge, and is cut with an ellipsis where it would run into them.
- */
-function drawAthleteName(
-  ctx: CardContext,
-  name: string,
-  left: number,
-  right: number,
-  y: number,
-  mark: number,
-): void {
-  const room = right - left
-  const [wrapped = ''] = wrapIn(ctx, name, ATHLETE, room, 1)
-  setFont(ctx, ATHLETE)
-  const measure = (text: string) => ctx.measureText(text).width
-  // Wrapping leaves a name with no spaces whole, so one too wide for the row is cut here.
-  const line = measure(wrapped) <= room ? wrapped : cutWithEllipsis(wrapped, room, measure)
-  if (line === '' || measure(line) > room) return
-  const top = y + (mark - ATHLETE.lineHeight) / 2
-  drawLines(ctx, [line], right - measure(line), top, ATHLETE, CARD_COLORS.secondary)
-}
-
-/**
- * The top row: the brand mark and app name in volt, the athlete's name small beside them when there
- * is one, and the sample badge at the right.
- */
-function brandBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout): Block {
+function topBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout): Block {
   const x = layout.marginX
   const right = layout.width - layout.marginX
-  const mark = layout.mark
   return {
     anchor: 'top',
-    height: mark,
+    height: NAME.lineHeight + RULE_GAP + RULE_HEIGHT,
     draw: (y) => {
-      drawBrandMark(ctx, x, y, mark)
-      const titleLeft = x + mark + ROW_GAP
-      const nameY = y + (mark - NAME.lineHeight) / 2
-      drawLines(ctx, [model.title], titleLeft, nameY, NAME, CARD_COLORS.brand)
-      // The badge, when there is one, takes the right end of the row; the name ends at it, or at the edge.
-      const badgeWidth = model.badge === null ? 0 : drawBadge(ctx, model.badge, right, y, mark)
-      if (model.name === null) return
+      drawLines(ctx, [model.title], x, y, NAME, CARD_COLORS.ink)
       setFont(ctx, NAME)
-      const titleRight = titleLeft + ctx.measureText(model.title).width
-      const nameRight = badgeWidth === 0 ? right : right - badgeWidth - ROW_GAP
-      drawAthleteName(ctx, model.name, titleRight + ROW_GAP, nameRight, y, mark)
+      const left = x + ctx.measureText(model.title).width + ROW_GAP
+      setFont(ctx, TOP_META)
+      const measure = (text: string) => ctx.measureText(text).width
+      const metaY = y + (NAME.lineHeight - TOP_META.lineHeight) / 2
+      let edge = right
+      ctx.textAlign = 'right'
+      if (model.badge !== null) {
+        const badge = model.badge.toUpperCase()
+        drawLines(ctx, [badge], edge, metaY, TOP_META, CARD_COLORS.secondary)
+        edge -= measure(badge) + ROW_GAP
+      }
+      if (model.name !== null) {
+        const room = edge - left
+        const line =
+          measure(model.name) <= room ? model.name : cutWithEllipsis(model.name, room, measure)
+        if (measure(line) <= room) drawLines(ctx, [line], edge, metaY, TOP_META, CARD_COLORS.ink)
+      }
+      ctx.textAlign = 'left'
+      ctx.fillStyle = CARD_COLORS.rule
+      ctx.fillRect(x, y + NAME.lineHeight + RULE_GAP, right - x, RULE_HEIGHT)
     },
   }
 }
@@ -187,17 +142,17 @@ function cardBlocks(
   const x = layout.marginX
   const headline = fitText(
     ctx,
-    model.headline.toUpperCase(),
-    CONDENSED_800,
+    model.headline,
+    SERIF_500,
     layout.headline.slice(shed.step),
     HEADLINE_LINE_RATIO,
     contentWidth,
-    2,
+    layout.headlineLines,
   )
   const figureLayout = { ...layout, figure: layout.figure.slice(shed.step) }
   return [
-    brandBlock(ctx, model, layout),
-    ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.text),
+    topBlock(ctx, model, layout),
+    ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.ink),
     ...textBlock(
       ctx,
       shed.magnitude && model.magnitude !== null
@@ -208,6 +163,7 @@ function cardBlocks(
       CARD_COLORS.secondary,
     ),
     ...(model.meter === null ? [] : [meterBlock(ctx, model.meter, x, contentWidth)]),
+    ...levelsBlock(ctx, model.heroes, x, contentWidth),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
       ctx,
@@ -222,7 +178,7 @@ function cardBlocks(
       wrapIn(ctx, model.footnote, FOOTNOTE, contentWidth),
       x,
       FOOTNOTE,
-      CARD_COLORS.muted,
+      CARD_COLORS.secondary,
       'bottom',
     ),
     ...textBlock(
@@ -230,7 +186,7 @@ function cardBlocks(
       shed.origin && model.origin !== '' ? wrapIn(ctx, model.origin, ORIGIN, contentWidth, 1) : [],
       x,
       ORIGIN,
-      CARD_COLORS.muted,
+      CARD_COLORS.secondary,
       'bottom',
     ),
   ]
@@ -276,7 +232,7 @@ export function renderShareCard(
     const blocks = cardBlocks(ctx, model, layout, contentWidth, shed)
     const tops = placeBlocks(blocks, contentHeight, layout)
     if (tops === null) continue
-    ctx.fillStyle = CARD_COLORS.ink
+    ctx.fillStyle = CARD_COLORS.paper
     ctx.fillRect(0, 0, layout.width, layout.height)
     blocks.forEach((block, index) => block.draw(layout.marginY + (tops[index] ?? 0)))
     return true
