@@ -74,13 +74,13 @@ export async function settle(page, what, note) {
 
 /**
  * Clicks the page's link and waits for it to be current. Profile, History and Activities are in the banner; Balance, Run
- * and Ride in the rail's Sections navigation.
+ * and Ride in the rail's Pages navigation.
  */
 export async function goToPage(page, target) {
   const link = BANNER_PAGES.has(target.name)
     ? page.getByRole('banner').getByRole('link', { name: target.link, exact: true })
     : page
-        .getByRole('navigation', { name: 'Sections' })
+        .getByRole('navigation', { name: 'Pages' })
         .getByRole('link', { name: target.link, exact: true })
   await link.click()
   // The link is found again once clicked: leaving Profile mounts a new rail, so the clicked element may be gone.
