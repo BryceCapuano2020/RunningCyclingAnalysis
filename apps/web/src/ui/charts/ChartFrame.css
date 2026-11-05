@@ -17,16 +17,6 @@
   text-wrap: balance;
 }
 
-/* With a takeaway, the title is the chart's name as a meta line above its finding, which is the heading. */
-.chart-frame__title--eyebrow {
-  color: var(--ink-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  font-weight: 400;
-  letter-spacing: var(--tracking-meta);
-  text-transform: uppercase;
-}
-
 /* The finding, and the one figure the chart is about beside it; the figure drops under the sentence where there is no room. */
 .chart-frame__headline {
   display: flex;
@@ -266,34 +256,22 @@
 }
 
 /*
- * ChartFrame's own readout is at least 2 rem tall, saying the chart's latest or headline value (or how to read one):
- * a phone's plot keeps the room the fullest reading would take. That line wraps on a narrow phone rather than end in an
- * ellipsis, and stays in the row, hidden, while a reading is drawn, so the row keeps its height and the plot does not
- * move. A point's full reading draws over the row, growing upward from its foot over the lines above the plot, so the
+ * ChartFrame's own readout takes no room at rest and says nothing, so no line sits between a chart's title and its
+ * plot. A point's full reading draws from the plot's top edge, growing upward over the lines above the plot, so the
  * plot is never pushed down under a finger. Another chart's readout row (the activity timeline's) keeps the base rules
  * above.
  */
 .chart-frame__readout--compact {
   position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 2rem;
-  padding-block: var(--space-1);
+  min-height: 0;
+  padding: 0;
+  border: 0;
 }
 
-.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
-  content: attr(data-idle);
-  min-width: 0;
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
-}
-
-.chart-frame__readout--compact:has(.chart-tooltip__title)::before {
-  content: attr(data-idle);
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: var(--text-sm);
-  visibility: hidden;
+/* At rest the row says nothing: no line sits under a chart's title (docs/design/system.md, No subtitle lines). */
+.chart-frame__readout.chart-frame__readout--compact::before,
+.chart-frame__readout.chart-frame__readout--compact:not(:has(.chart-tooltip__title))::before {
+  content: none;
 }
 
 .chart-frame__readout--compact .chart-tooltip {

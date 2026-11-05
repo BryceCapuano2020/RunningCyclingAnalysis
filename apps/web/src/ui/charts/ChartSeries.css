@@ -95,19 +95,18 @@
 
 /*
  * A reading that is evidence for a trend, not the trend: a light dot, so the line in front says what the dots add up to.
- * It is 40% of the sport's tint in light, and in dark it keeps a third of that fade (--mark-fade), so it stays plainly there.
+ * It is 40% of the sport's tint.
  */
 .chart-series__marker--light {
-  fill-opacity: calc(1 - 0.6 * var(--mark-fade, 1));
+  fill-opacity: 0.4;
   stroke-width: 1.5;
 }
 
 /*
- * A dot whose age is its opacity (--dot-opacity, set by the chart, from the oldest's floor to 1): older is fainter in
- * both schemes, and in dark by a third of the fade, as the light dot above.
+ * A dot whose age is its opacity (--dot-opacity, set by the chart, from the oldest's floor to 1): older is fainter.
  */
 .chart-series__marker--aged {
-  fill-opacity: calc(1 - (1 - var(--dot-opacity, 1)) * var(--mark-fade, 1));
+  fill-opacity: var(--dot-opacity, 1);
 }
 
 /* The band round a fitted trend: a wash of the sport, a little lighter than an area, since it is a range and not a total. */

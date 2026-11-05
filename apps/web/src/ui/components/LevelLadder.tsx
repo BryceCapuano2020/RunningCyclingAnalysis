@@ -63,6 +63,12 @@ function percentText(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
+/** The index in BANDS of the band a grade falls in: the last whose lower edge it reaches (the first below the scale). */
+function bandIndexOf(grade: number): number {
+  const index = BANDS.findLastIndex((band) => grade >= band.low)
+  return Math.max(index, 0)
+}
+
 /** The scale's first label starts at the bar's left end, so it does not run off the figure. */
 function tickAlignment(index: number): 'start' | 'middle' {
   return index === 0 ? 'start' : 'middle'
@@ -155,6 +161,8 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = gradeLevelText(grade)
+  // The current band by its place on the scale, not by its name, so two bands can never both read as current.
+  const currentIndex = bandIndexOf(grade.centre.grade)
   const off = offScaleText(grade)
   const [measure, width] = useSize()
   const rootPx = rootFontPx()
@@ -182,11 +190,11 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
       <LadderTrack sport={sport} grade={grade} />
       <div className="level-ladder__names" aria-hidden="true">
         {allFit ? (
-          NAMED.map((band) => (
+          NAMED.map((band, index) => (
             <span
               key={band.name}
               className={
-                band.name === current
+                index === currentIndex
                   ? 'level-ladder__name level-ladder__name--current'
                   : 'level-ladder__name'
               }

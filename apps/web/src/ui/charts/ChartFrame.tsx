@@ -16,8 +16,14 @@ export interface ChartFocal {
   label?: string
 }
 
+/** A chart's disclosure: its table alone, or its table under the lines that say what it shows. */
+const CHART_TABLE_TERM = 'View as table'
+const CHART_DETAILS_TERM = 'Details'
+
 export interface ChartFrameProps {
   title: string
+  /** The title is the chart's accessible name only, where the section's own heading already says it on screen. */
+  titleHidden?: boolean
   description: string
   /** One sentence under the title that says what the chart shows, such as its finding. */
   lede?: string
@@ -108,6 +114,7 @@ function ChartFocalFigure({ value, unit, label }: ChartFocal) {
 
 export function ChartFrame({
   title,
+  titleHidden = false,
   description,
   lede,
   controls,
@@ -159,10 +166,16 @@ export function ChartFrame({
       aria-labelledby={titleId}
       aria-describedby={takeaway ? takeawayId : undefined}
     >
+      {/* With a takeaway, the finding is the heading on screen and the chart's name stays its accessible name only:
+          a small name over the finding would repeat the section's heading (docs/design/system.md, No subtitle lines). */}
       <figcaption
         id={titleId}
         className={
-          takeaway ? 'chart-frame__title chart-frame__title--eyebrow' : 'chart-frame__title'
+          takeaway
+            ? 'chart-frame__title chart-frame__title--eyebrow sr-only'
+            : titleHidden
+              ? 'chart-frame__title sr-only'
+              : 'chart-frame__title'
         }
       >
         {title}
@@ -177,7 +190,8 @@ export function ChartFrame({
           {focal ? <ChartFocalFigure {...focal} /> : null}
         </div>
       ) : null}
-      {lede ? <p className="chart-frame__lede">{lede}</p> : null}
+      {/* A chart with a plot keeps its lede and its note in its Details (docs/design/system.md, No subtitle lines). */}
+      {lede && empty ? <p className="chart-frame__lede">{lede}</p> : null}
       {controls ? <div className="chart-frame__controls">{controls}</div> : null}
       {/* The row is kept whenever the chart may have a key, so a key appearing does not move the plot. */}
       {legend === undefined ? null : (
@@ -231,10 +245,12 @@ export function ChartFrame({
           )}
         </div>
       </ReadoutContext.Provider>
-      {note ? <p className="chart-frame__note">{note}</p> : null}
+      {note && empty ? <p className="chart-frame__note">{note}</p> : null}
       {!empty ? (
         <details className="chart-frame__details">
-          <summary>View as table</summary>
+          <summary>{lede || note ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
+          {lede ? <p className="chart-frame__lede">{lede}</p> : null}
+          {note ? <p className="chart-frame__note">{note}</p> : null}
           {summary ? <ChartTable {...summary} /> : null}
           <ChartTable {...table} />
         </details>

@@ -7,7 +7,10 @@ export interface NamedBand {
   to: number
 }
 
-/** The mono meta face's width of a character, in em of its size: the glyph and the 0.12em tracking. */
+/**
+ * The mono meta face's width of a character, in em of its size: the glyph and the 0.12em tracking. An estimate from the
+ * face's advance width, since jsdom cannot lay text out; the browser runs are the check.
+ */
 const META_CHAR_EM = 0.6 + 0.12
 /** The meta size is --text-meta, 11 px against the 12 px label size labelSizePx gives. */
 const META_OF_LABEL = 11 / 12

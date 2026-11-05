@@ -137,4 +137,4 @@ describe('the font weights', () => {
 })
 
 /** Rules that still ask for a weight above 500, in sheets that wait on their page PR. The count may only fall. */
-const HEAVY_WEIGHTS_NOW = 37
+const HEAVY_WEIGHTS_NOW = 33

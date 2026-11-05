@@ -21,11 +21,14 @@
   margin: 0;
 }
 
-/* The cells wrap, so a range that is wide for a phone runs onto a second line and the table keeps its box. */
+/*
+ * The cells wrap between words, so a range that is wide for a phone runs onto a second line between its two ends and
+ * the table keeps its box; a figure itself is never split.
+ */
 .zone-tables__rows th,
 .zone-tables__rows td {
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 /* Every figure in the table is mono. */
