@@ -4,7 +4,6 @@ import { formatHoursText, secondsOf } from '../activitiesVolume'
 import type { TotalsBySport } from '../activitiesVolume'
 import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from '../sports'
 import { plural } from './plural'
-import { SportIcon } from './icons'
 
 export interface ActivityMonthHeadProps {
   /** The month and year, such as "Jun 2025". */
@@ -21,16 +20,12 @@ export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadPro
     <div className="activity-list__month-head">
       <h2 className="activity-list__heading">{label}</h2>
       {totals !== undefined && (
-        <p className="activity-list__totals">
+        <p className="num activity-list__totals">
           {sports.map((sport) => {
             const { count, distanceM } = totals[sport]
             const distance = distanceM > 0 ? `, ${formatDistance(distanceM, units)}` : ''
             return (
               <span key={sport} className="activity-list__total" data-sport={sport}>
-                <SportIcon
-                  sport={sport}
-                  className={`activity-list__icon activity-list__icon--${sport}`}
-                />
                 {`${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${distance}`}
                 <span className="sr-only">; </span>
               </span>

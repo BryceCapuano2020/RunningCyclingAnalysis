@@ -832,7 +832,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
   })
 })
 
-describe('ResultPage activities route, by sign-in state', () => {
+describe('ResultPage activity route, by sign-in state', () => {
   it.each([
     { signedIn: true, from: 'your library' },
     { signedIn: false, from: 'this browser' },
@@ -853,7 +853,8 @@ describe('ResultPage activities route, by sign-in state', () => {
       <ResultPage
         countedRuns={countedRunsStub()}
         signedIn={signedIn}
-        route={{ page: 'activities' }}
+        // A row on the list offers Delete only when its page cannot open, so the question is asked on the page.
+        route={{ page: 'activity', id: ACTIVITY.id }}
         analysis={analysis}
         result={makeResult({ activities: [ACTIVITY] })}
         settings={SETTINGS}

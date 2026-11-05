@@ -7,6 +7,7 @@ import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from './fixtures'
 import { VolumeStrip } from './VolumeStrip'
+import { volumeTakeaway } from './volumeTakeaway'
 import { readStylesheet } from './stylesheet'
 
 const css = await readStylesheet(import.meta.url, './VolumeStrip.css')
@@ -27,7 +28,6 @@ function Harness({ activities = WEEKS, onSelect = vi.fn(), initial = null as str
   return (
     <VolumeStrip
       activities={activities}
-      periodText="in the last 6 weeks"
       selected={selected}
       onSelect={(key) => {
         onSelect(key)
@@ -38,14 +38,17 @@ function Harness({ activities = WEEKS, onSelect = vi.fn(), initial = null as str
 }
 
 describe('VolumeStrip', () => {
-  it('says what the stretch held as its heading', () => {
+  it("names the strip for a screen reader, and leaves the counts to the page's Details", () => {
     render(<Harness />)
-    expect(
-      screen.getByRole('heading', {
-        level: 2,
-        name: '2 runs and 1 ride, 3.5 h, in the last 6 weeks',
-      }),
-    ).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { level: 2 })
+    expect(heading).toHaveTextContent('Hours trained each week, 2 runs and 1 ride')
+    expect(heading).toHaveClass('sr-only')
+  })
+
+  it('says what the stretch held in one line for that Details', () => {
+    expect(volumeTakeaway(WEEKS, 'in the last 6 weeks')).toBe(
+      '2 runs and 1 ride, 3.5 h, in the last 6 weeks',
+    )
   })
 
   it('makes a button of each week that has training, named by its week and totals, and none for an empty week', () => {
@@ -310,7 +313,7 @@ describe('VolumeStrip', () => {
   })
 
   it('keeps its colours to the sport tokens, and has forced-colours and phone rules', () => {
-    expect(css).toContain('var(--sport-colour)')
+    expect(css).toContain('var(--sport-ink)')
     expect(css).toContain('@media (forced-colors: active)')
     expect(css).toContain('@media (max-width: 560px)')
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)

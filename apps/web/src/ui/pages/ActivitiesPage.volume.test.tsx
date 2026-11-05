@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from '../components/fixtures'
+import { wholeText } from '../test/wholeText'
 import { ActivitiesPage } from './ActivitiesPage'
 
 beforeEach(() => {
@@ -39,7 +40,7 @@ describe('the volume strip on the Activities page', () => {
   it('heads the list with what the period held', () => {
     page()
     expect(
-      screen.getByRole('heading', { name: '3 runs and 1 ride, 4.0 h, across all time' }),
+      screen.getByText(wholeText('3 runs and 1 ride, 4.0 h, across all time')),
     ).toBeInTheDocument()
   })
 
@@ -78,9 +79,7 @@ describe('the volume strip on the Activities page', () => {
     await user.click(screen.getByRole('radio', { name: 'Runs' }))
     expect(screen.queryByText(/^Showing week/)).not.toBeInTheDocument()
     expect(names()).toEqual(['Delta run', 'Charlie run', 'Alpha run'])
-    expect(
-      screen.getByRole('heading', { name: '3 runs, 3.0 h, across all time' }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(wholeText('3 runs, 3.0 h, across all time'))).toBeInTheDocument()
   })
 
   it('says the period in its own words while the newest activity is recent', async () => {
@@ -91,7 +90,7 @@ describe('the volume strip on the Activities page', () => {
       page()
       await user.click(screen.getByRole('radio', { name: '6 weeks' }))
       expect(
-        screen.getByRole('heading', { name: '3 runs and 1 ride, 4.0 h, in the last 6 weeks' }),
+        screen.getByText(wholeText('3 runs and 1 ride, 4.0 h, in the last 6 weeks')),
       ).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
@@ -106,9 +105,7 @@ describe('the volume strip on the Activities page', () => {
       page()
       await user.click(screen.getByRole('radio', { name: '6 weeks' }))
       expect(
-        screen.getByRole('heading', {
-          name: '3 runs and 1 ride, 4.0 h, between 1 May and 11 Jun 2025',
-        }),
+        screen.getByText(wholeText('3 runs and 1 ride, 4.0 h, between 1 May and 11 Jun 2025')),
       ).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
@@ -122,7 +119,7 @@ describe('the volume strip on the Activities page', () => {
 
   it('shows month totals for the listed activities, beside each month heading', () => {
     page()
-    const june = screen.getByRole('heading', { name: 'Jun 2025' }).parentElement as HTMLElement
+    const june = screen.getByText(wholeText('Jun 2025')).parentElement as HTMLElement
     expect(within(june).getByText('2 runs, 20.0 km')).toBeInTheDocument()
     expect(within(june).getByText('1 ride, 10.0 km')).toBeInTheDocument()
     expect(within(june).getByText('3.0 h')).toBeInTheDocument()
@@ -193,6 +190,7 @@ describe('a week or month with nothing in it', () => {
           units="metric"
           records={new Map()}
           keptIds={new Map(SET.map((a) => [a.id, `saved-${a.id}`]))}
+          detailIds={new Set()}
           onDelete={(savedId) =>
             setActivities((now) => now.filter((a) => `saved-${a.id}` !== savedId))
           }
@@ -220,6 +218,7 @@ describe('a week or month with nothing in it', () => {
           units="metric"
           records={new Map()}
           keptIds={new Map([['a', 'saved-a']])}
+          detailIds={new Set()}
           onDelete={() => setActivities([])}
         />
       )
@@ -242,6 +241,7 @@ describe('a week or month with nothing in it', () => {
           units="metric"
           records={new Map()}
           keptIds={new Map(SET.map((a) => [a.id, `saved-${a.id}`]))}
+          detailIds={new Set()}
           onDelete={(id) => setActivities((now) => now.filter((a) => `saved-${a.id}` !== id))}
         />
       )

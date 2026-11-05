@@ -6,6 +6,7 @@ import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
 import { makeActivity } from '../components/fixtures'
+import { wholeText } from '../test/wholeText'
 import { ActivitiesPage } from './ActivitiesPage'
 
 // The view is kept in the address, so each test starts from the bare list. jsdom has no layout, so a
@@ -46,9 +47,10 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    // The strip's heading is the summary, so the page has no count line of its own.
+    // The counts are one line behind the page's Details, not a line of their own under the title.
     expect(screen.queryByText(/^14 activities/)).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /^8 runs and 6 rides, / })).toBeInTheDocument()
+    const line = screen.getByText(wholeText(/^8 runs and 6 rides, /))
+    expect(line.closest('details')).toHaveTextContent('Details')
   })
 
   it('uses the singular for one activity of a sport', () => {
@@ -60,7 +62,7 @@ describe('ActivitiesPage', () => {
         records={new Map()}
       />,
     )
-    expect(screen.getByRole('heading', { name: /^1 run, / })).toBeInTheDocument()
+    expect(screen.getByText(wholeText('1 run, 1.0 h, across all time'))).toBeInTheDocument()
   })
 
   it('lists the activities, each linking to its page', () => {
@@ -316,6 +318,7 @@ describe('ActivitiesPage sort, months and address', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={onDelete}
       />,
     )
@@ -333,6 +336,7 @@ describe('ActivitiesPage sort, months and address', () => {
         records={new Map()}
         signedIn={false}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
@@ -349,6 +353,7 @@ describe('ActivitiesPage sort, months and address', () => {
         records={new Map()}
         signedIn
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
@@ -374,6 +379,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={onDelete}
       />,
     )
@@ -402,6 +408,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
@@ -414,6 +421,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
         libraryError="Could not delete this activity. Try again."
       />,
@@ -499,6 +507,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['r-0', 'saved-0']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
@@ -529,6 +538,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['r-0', 'saved-0']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
@@ -565,6 +575,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
         units="metric"
         records={new Map()}
         keptIds={new Map([['new', 'saved-new']])}
+        detailIds={new Set()}
         onDelete={vi.fn()}
       />,
     )
