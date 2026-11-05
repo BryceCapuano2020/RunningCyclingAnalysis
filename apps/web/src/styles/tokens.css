@@ -101,6 +101,8 @@
   --heading: 1.3125rem;
   --text-lead: 1.125rem;
   --text-md: 1.0625rem;
+  /* A text field is never set below 16 px, or iOS zooms the page when it takes focus. */
+  --text-input: 1rem;
   --text-sm: 0.875rem;
   --text-xs: 0.75rem;
   --text-meta: 0.6875rem;
@@ -118,6 +120,7 @@
   /* The narrowest column each other responsive grid wraps at, named by what it holds. */
   --column-steps: 240px;
   --column-stat: 9rem;
+  --column-hero: 6.5rem;
   --column-figure: 6rem;
   --column-export: 8.5rem;
   --column-field: 10rem;

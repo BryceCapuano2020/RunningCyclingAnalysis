@@ -136,9 +136,9 @@
   margin: 0;
 }
 
-/* The time is one line at any width: it steps down with the screen rather than wrapping ("3 h 21" over "min"). */
+/* The time steps down with the screen rather than wrapping ("3 h 21" over "min"); only text at 200% with the
+   reader's letter spacing is wider than the column, and there it wraps rather than scroll the page sideways. */
 .activity-page__hero .hero-number {
-  white-space: nowrap;
   font-size: var(--display-1);
 }
 
@@ -180,7 +180,6 @@
 
 .activity-page__stat dt {
   font-size: var(--text-xs);
-  white-space: nowrap;
 }
 
 .activity-page__stat dd {

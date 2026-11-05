@@ -173,6 +173,8 @@ html {
     left: 0;
     z-index: 20;
     flex-wrap: nowrap;
+    /* The serif capitals are wider than the old display face: no gap, so the five labels share 320 px. */
+    gap: 0;
     overflow-x: auto;
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--border);
@@ -186,7 +188,7 @@ html {
     min-width: min-content;
     justify-content: center;
     min-height: var(--tab-bar-height);
-    padding: 0 var(--space-1);
+    padding: 0 2px;
     font-size: var(--text-label);
     letter-spacing: var(--tracking-tab);
   }

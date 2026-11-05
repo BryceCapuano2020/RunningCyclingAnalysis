@@ -20,8 +20,21 @@ async function openSections(page: Page): Promise<void> {
   await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
 }
 
+/** Before the app starts, as a reader's own stylesheet is: the charts lay out their labels with the spacing in force. */
 async function spaceText(page: Page): Promise<void> {
-  await page.addStyleTag({ content: TEXT_SPACING_CSS })
+  await page.addInitScript((css) => {
+    const add = (): boolean => {
+      if (document.documentElement === null) return false
+      const rule = document.createElement('style')
+      rule.textContent = css
+      document.documentElement.appendChild(rule)
+      return true
+    }
+    if (!add())
+      new MutationObserver((_, watcher) => add() && watcher.disconnect()).observe(document, {
+        childList: true,
+      })
+  }, TEXT_SPACING_CSS)
 }
 
 async function settle(page: Page): Promise<void> {
@@ -81,9 +94,9 @@ for (const size of SIZES) {
       test.skip(testInfo.project.name !== 'desktop', 'Sets its own viewport')
       await page.setViewportSize({ width: size.width, height: size.height })
       await zoomText(page)
+      await spaceText(page)
       await openSample(page)
       await open(page)
-      await spaceText(page)
       await expectIntact(page)
     })
   }
