@@ -50,11 +50,6 @@ function renderPage(sport: Sport, result: AnalysisResult, extras: Extras = {}) {
   )
 }
 
-/** The page's second-level headings, in the order they are read. */
-function headings(): string[] {
-  return screen.queryAllByRole('heading', { level: 2 }).map((heading) => heading.textContent ?? '')
-}
-
 describe('the best durations on a sport page', () => {
   const ride = makeResult({
     activities: profileActivities('ride', 'measured'),
@@ -63,39 +58,59 @@ describe('the best durations on a sport page', () => {
   })
   const run = makeResult({ activities: profileActivities('run'), runCurve: profileCurve() })
 
-  it('is an open section whose row says the finding, on a ride', () => {
+  /** The page's "On this page" buttons, by name. */
+  const navItems = () =>
+    within(screen.getByRole('navigation', { name: 'On this page' }))
+      .queryAllByRole('button')
+      .map((button) => button.textContent)
+
+  /** A ride whose best minute stands out from the rest of its curve. */
+  const standing = makeResult({
+    activities: profileActivities('ride', 'measured'),
+    rideCurve: profileCurve((durationS, value) => (durationS === 60 ? value * 1.15 : value)),
+    rideMeasuredCurve: profileCurve((durationS, value) =>
+      durationS === 60 ? value * 1.15 : value,
+    ),
+  })
+
+  it('is left out when it names no duration, with no place in On this page and no "Nothing stands out"', () => {
     renderPage('ride', ride)
-    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
-    const section = screen.getByRole('region', { name: 'Best durations' })
-    expect(section.querySelector('details')).toHaveAttribute('open')
-    expect(headings()).not.toContain('Best durations')
+    expect(screen.queryByRole('region', { name: 'Best durations' })).toBeNull()
+    expect(screen.queryByText(/stands out/)).toBeNull()
+    expect(navItems()).not.toContain('Best durations')
+    // The page still has its other sections.
+    expect(screen.getByRole('region', { name: 'Best efforts' })).toBeInTheDocument()
+  })
+
+  it('takes the finding as its heading where a best stands out, open, with its strip and its place in On this page', () => {
+    renderPage('ride', standing)
+    const region = screen.getByRole('region', { name: /^Your 1 min best is \d+% above/ })
+    expect(closedRow(/^Your 1 min best is/)).toMatch(
+      /^Your 1 min best is \d+% above what your other bests suggest\.$/,
+    )
+    expect(region.querySelector('details')).toHaveAttribute('open')
+    expect(within(region).getByRole('figure')).toBeInTheDocument()
+    expect(navItems()).toContain('Best durations')
     // The curve's card does not carry it as a caption.
     expect(
       within(screen.getByRole('region', { name: 'Best efforts' })).queryByText(/stands out/),
     ).toBeNull()
   })
 
-  it('draws its strip from the start, and only where a best stands out', () => {
-    const standing = makeResult({
-      activities: profileActivities('ride', 'measured'),
-      rideCurve: profileCurve((durationS, value) => (durationS === 60 ? value * 1.15 : value)),
-      rideMeasuredCurve: profileCurve((durationS, value) =>
-        durationS === 60 ? value * 1.15 : value,
-      ),
-    })
-    renderPage('ride', standing)
-    const region = screen.getByRole('region', { name: 'Best durations' })
-    expect(within(region).getByRole('figure')).toBeInTheDocument()
-    cleanup()
-    renderPage('ride', ride)
+  it('is on a run page too, and left out there when nothing stands out', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: profileActivities('run'),
+        runCurve: profileCurve((durationS, value) => (durationS === 1200 ? value * 1.3 : value)),
+      }),
+    )
     expect(
-      within(screen.getByRole('region', { name: 'Best durations' })).queryByRole('figure'),
-    ).toBeNull()
-  })
-
-  it('is on a run page too', () => {
+      screen.getByRole('region', { name: /^Your 20 min best is \d+% above/ }),
+    ).toBeInTheDocument()
+    cleanup()
     renderPage('run', run)
-    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
+    expect(screen.queryByText(/stands out/)).toBeNull()
   })
 
   it('names what a ride needs when its measured bests are too few, as one line in its own place', () => {
@@ -109,7 +124,7 @@ describe('the best durations on a sport page', () => {
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
   })
 
-  it('reads the library’s bests for a period short of activities, and says so in a few words', () => {
+  it('reads the library’s bests for a period short of activities, and says so in its heading', () => {
     const few = makeResult({
       activities: profileActivities('run', 'none', 12),
       runCurve: profileCurve(),
@@ -120,22 +135,29 @@ describe('the best durations on a sport page', () => {
       inLibrary: 60,
       library: profileActivities('run', 'none', 60),
     })
-    const region = screen.getByRole('region', { name: 'Best durations' })
-    // The row's own sentence names the window.
-    expect(closedRow('Best durations')).toMatch(/Your all-time 20 min best is \d+% above/)
+    // The heading's own sentence names the window.
+    const region = screen.getByRole('region', { name: /^Your all-time 20 min best is \d+% above/ })
     expect(within(region).getByRole('figure')).toBeInTheDocument()
   })
 
   it('says nothing of the library when the period has enough of its own', () => {
-    renderPage('run', run, {
-      libraryBests: profileCurve(),
-      inLibrary: 80,
-      library: profileActivities('run', 'none', 80),
-    })
-    expect(closedRow('Best durations')).not.toMatch(/all-time/)
+    renderPage(
+      'run',
+      makeResult({
+        activities: profileActivities('run'),
+        runCurve: profileCurve((durationS, value) => (durationS === 1200 ? value * 1.3 : value)),
+      }),
+      {
+        libraryBests: profileCurve((durationS, value) => (durationS === 60 ? value * 1.3 : value)),
+        inLibrary: 80,
+        library: profileActivities('run', 'none', 80),
+      },
+    )
+    expect(screen.getByRole('region', { name: /^Your 20 min best is/ })).toBeInTheDocument()
+    expect(screen.queryByText(/all-time/)).toBeNull()
   })
 
-  it('says nothing stands out, and never that the bests are in line, for a small library read as all time', () => {
+  it('is left out, never saying the bests are in line, for a small library read as all time with nothing standing out', () => {
     const few = makeResult({
       activities: profileActivities('run', 'none', 12),
       runCurve: profileCurve(),
@@ -145,8 +167,8 @@ describe('the best durations on a sport page', () => {
       inLibrary: 20,
       library: profileActivities('run', 'none', 20),
     })
-    expect(closedRow('Best durations')).toBe('Best durationsNothing stands out.')
-    expect(closedRow('Best durations')).not.toMatch(/in line/)
+    expect(screen.queryByRole('region', { name: 'Best durations' })).toBeNull()
+    expect(document.body.textContent).not.toMatch(/in line|stands out/)
   })
 
   it('is left out while a ride waits for the body weight, and for a sport with no activities', () => {

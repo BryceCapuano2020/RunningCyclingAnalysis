@@ -156,8 +156,10 @@ describe('ZoneTimeChart', () => {
       'Stacked bars of the share of time in each zone. Heart rate: zone 1 50%, zone 2 50%.',
     )
     expect(screen.getByRole('figure', { name: 'Share of time in each zone' })).toBeInTheDocument()
-    expect(screen.getByText('Most of the time was easy.')).toBeInTheDocument()
-    expect(screen.getByText('View as table')).toBeInTheDocument()
+    // The lede is the first line of the chart's Details, with the table, not a line under the title.
+    const lede = screen.getByText('Most of the time was easy.')
+    expect(lede.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
+    expect(lede.closest('details')?.querySelector('table')).not.toBeNull()
   })
 
   it('draws a bar with no time as nothing', () => {

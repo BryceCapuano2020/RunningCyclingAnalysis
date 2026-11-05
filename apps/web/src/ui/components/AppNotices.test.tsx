@@ -44,11 +44,27 @@ describe('the walking pace line', () => {
 
   it('shows on the pages that list or analyse runs, and on no other', () => {
     const analysis = { state: { walkingPaceRuns: 3 } }
-    const run = render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    const list = render(
+      <AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />,
+    )
     expect(screen.getByText(WALKING)).toBeInTheDocument()
-    run.unmount()
-    render(<AppNotices {...noticesProps(analysis)} />)
+    list.unmount()
+    render(<AppNotices {...noticesProps(analysis, { page: 'ride' })} />)
     expect(screen.queryByText(WALKING)).not.toBeInTheDocument()
+  })
+
+  it('leaves the notes to the page’s own Details on Balance, Run and Ride once there is a result', () => {
+    // A note this browser has seen is not shown again, so the visits above are forgotten first.
+    window.localStorage.clear()
+    const analysis = { state: { walkingPaceRuns: 3, hiddenDuplicates: 2, result: makeResult() } }
+    for (const page of ['balance', 'run', 'ride'] as const) {
+      const view = render(<AppNotices {...noticesProps(analysis, { page, walkingNote: true })} />)
+      expect(screen.queryByText('About your data')).not.toBeInTheDocument()
+      view.unmount()
+    }
+    render(<AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />)
+    expect(screen.getByText('About your data')).toBeInTheDocument()
+    expect(screen.getByText(WALKING)).toBeInTheDocument()
   })
 
   it('is for the Run and Activities pages', () => {
@@ -450,18 +466,25 @@ describe('AppNotices: About your data', () => {
 
   it('does not show a line the visitor has already seen on an earlier visit', () => {
     const analysis = { state: { walkingPaceRuns: 38 } }
-    const first = render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    const first = render(
+      <AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />,
+    )
     expect(screen.getByText('About your data')).toBeInTheDocument()
     first.unmount()
 
     // A later visit opens the app again.
-    render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    render(<AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />)
     expect(screen.queryByText('About your data')).not.toBeInTheDocument()
   })
 
   it('keeps a stable id and the count it said, not the sentence', () => {
     render(
-      <AppNotices {...noticesProps({ state: { walkingPaceRuns: 38 } }, { walkingNote: true })} />,
+      <AppNotices
+        {...noticesProps(
+          { state: { walkingPaceRuns: 38 } },
+          { page: 'activities', walkingNote: true },
+        )}
+      />,
     )
     expect(JSON.parse(window.localStorage.getItem('rca.aboutDataSeen') ?? '{}')).toEqual({
       walking: 38,
@@ -470,27 +493,40 @@ describe('AppNotices: About your data', () => {
 
   it('shows the line again once what this browser noted has been forgotten', () => {
     const analysis = { state: { walkingPaceRuns: 38 } }
-    render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    render(<AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />)
     cleanup()
     forgetSeenNotes()
-    render(<AppNotices {...noticesProps(analysis, { walkingNote: true })} />)
+    render(<AppNotices {...noticesProps(analysis, { page: 'activities', walkingNote: true })} />)
     expect(screen.getByText('About your data')).toBeInTheDocument()
   })
 
   it('shows the line again when what it says changes', () => {
     const first = render(
-      <AppNotices {...noticesProps({ state: { walkingPaceRuns: 38 } }, { walkingNote: true })} />,
+      <AppNotices
+        {...noticesProps(
+          { state: { walkingPaceRuns: 38 } },
+          { page: 'activities', walkingNote: true },
+        )}
+      />,
     )
     first.unmount()
 
     render(
-      <AppNotices {...noticesProps({ state: { walkingPaceRuns: 40 } }, { walkingNote: true })} />,
+      <AppNotices
+        {...noticesProps(
+          { state: { walkingPaceRuns: 40 } },
+          { page: 'activities', walkingNote: true },
+        )}
+      />,
     )
     expect(screen.getByText(/40 saved runs are at walking pace/)).toBeInTheDocument()
   })
 
   it('keeps the line for the rest of the visit it was first shown on', () => {
-    const props = noticesProps({ state: { walkingPaceRuns: 38 } }, { walkingNote: true })
+    const props = noticesProps(
+      { state: { walkingPaceRuns: 38 } },
+      { page: 'activities', walkingNote: true },
+    )
     const view = render(<AppNotices {...props} />)
     view.rerender(<AppNotices {...props} page="run" />)
     expect(screen.getByText(/38 saved runs are at walking pace/)).toBeInTheDocument()

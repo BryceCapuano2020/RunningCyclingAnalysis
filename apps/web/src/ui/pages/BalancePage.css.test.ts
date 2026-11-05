@@ -11,11 +11,12 @@ describe('Balance page stylesheet', () => {
     expect(page).not.toMatch(/@media|4\.25rem|1\.7rem/)
   })
 
-  it('sets the lead lines in the serif at --text-lead, and the lines after the first in the secondary ink', () => {
-    const lead = ruleBody(page, '.balance-hero__lede,\n.balance-hero__line')
+  it('sets the one line under the answer in the serif at --text-lead, and gives the Details’ lines no size of their own', () => {
+    const lead = ruleBody(page, '.balance-hero__lede')
     expect(lead).toMatch(/font-family:\s*var\(--font-serif\)/)
     expect(lead).toMatch(/font-size:\s*var\(--text-lead\)/)
-    expect(ruleBody(page, '.balance-hero__line')).toMatch(/color:\s*var\(--ink-secondary\)/)
+    // The target and the caveats are lines of the Details (RowList.css), not lead lines under the answer.
+    expect(page).not.toMatch(/\.balance-hero__line/)
   })
 
   it('stacks the answer, the meter, the levels and the share button in one column, the stack gap apart', () => {

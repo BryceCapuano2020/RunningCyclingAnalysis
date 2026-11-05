@@ -39,7 +39,7 @@ describe('focus on navigation', () => {
       render(<App />)
       // Run and Ride are the rail's; Activities is the header's.
       const nav = screen.getByRole('navigation', {
-        name: name === 'Activities' ? 'Pages' : 'Sections',
+        name: name === 'Activities' ? 'More pages' : 'Pages',
       })
       fireEvent.click(within(nav).getByRole('link', { name }))
       await waitFor(() => expect(screen.getByRole('heading', { level: 1, name })).toHaveFocus())

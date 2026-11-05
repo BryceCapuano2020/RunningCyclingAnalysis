@@ -105,7 +105,10 @@ export function BalanceHero({
           <WeightPrompt />
         </p>
         {controls}
-        <PageDetails>{periodLine}</PageDetails>
+        <PageDetails>
+          {periodLine}
+          {standards}
+        </PageDetails>
         {action}
       </section>
     )
@@ -125,7 +128,10 @@ export function BalanceHero({
           {head(title)}
           {controls}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
-          <PageDetails>{periodLine}</PageDetails>
+          <PageDetails>
+            {periodLine}
+            {standards}
+          </PageDetails>
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>

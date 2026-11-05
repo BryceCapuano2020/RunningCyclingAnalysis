@@ -399,8 +399,10 @@ describe('a callout beside the curve’s own line', () => {
     expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThanOrEqual(LINE_CLEARANCE_PX / 2)
   })
 
-  it('has more room than a thin obstacle gave', () => {
-    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(5))
+  it('has more room than an obstacle as thin as the stroke gave', () => {
+    // The 3 px stroke alone lets the value sit nearly on the line; its clearance obstacle keeps it well off. (A 5 px
+    // obstacle now gives the same room as the clearance here: the value's box is measured at the mono's full 0.6 em.)
+    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(3) * 2)
   })
 })
 

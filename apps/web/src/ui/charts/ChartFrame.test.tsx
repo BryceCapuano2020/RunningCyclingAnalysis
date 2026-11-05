@@ -60,7 +60,7 @@ describe('ChartFrame', () => {
     expect(container.querySelector('svg desc')).toBeNull()
   })
 
-  it('sets a lede under the title and above the key, when given one', () => {
+  it('keeps a lede out from under the title, as the first line of its Details beside the table', () => {
     const { container } = renderFrame({
       lede: 'Your running grades higher.',
       legend: [
@@ -73,12 +73,22 @@ describe('ChartFrame', () => {
     const order = Array.from(container.querySelector('figure')?.children ?? []).map(
       (child) => child.className,
     )
-    expect(order.slice(0, 3)).toEqual([
-      'chart-frame__title',
-      'chart-frame__lede',
-      'chart-frame__legend',
-    ])
+    // No line between the title and the key (docs/design/system.md, No subtitle lines).
+    expect(order.slice(0, 2)).toEqual(['chart-frame__title', 'chart-frame__legend'])
+    const details = lede.closest('details')
+    expect(details).toHaveClass('chart-frame__details')
+    expect(details?.querySelector('summary')).toHaveTextContent(/^Details$/)
+    expect(details?.querySelector('summary + *')).toBe(lede)
+    expect(details?.querySelector('table')).not.toBeNull()
     expect(ruleBody(frameCss, '.chart-frame__lede')).toMatch(/max-width:\s*var\(--measure\)/)
+  })
+
+  it('keeps a lede under the title when the chart is empty, since there is no Details to hold it', () => {
+    const { container } = renderFrame({ lede: 'Your running grades higher.', empty: 'Nothing yet' })
+    const order = Array.from(container.querySelector('figure')?.children ?? []).map(
+      (child) => child.className,
+    )
+    expect(order.slice(0, 2)).toEqual(['chart-frame__title', 'chart-frame__lede'])
   })
 
   it('has no lede paragraph without one', () => {
@@ -86,7 +96,7 @@ describe('ChartFrame', () => {
     expect(container.querySelector('.chart-frame__lede')).toBeNull()
   })
 
-  it('puts its controls under the lede and above the key, takes a toggle at the width of its segments, and has no row without them', () => {
+  it('puts its controls under the title and above the key, takes a toggle at the width of its segments, and has no row without them', () => {
     const { container } = renderFrame({
       lede: 'Your running grades higher.',
       legend: [],
@@ -95,9 +105,8 @@ describe('ChartFrame', () => {
     const order = Array.from(container.querySelector('figure')?.children ?? []).map(
       (child) => child.className,
     )
-    expect(order.slice(0, 4)).toEqual([
+    expect(order.slice(0, 3)).toEqual([
       'chart-frame__title',
-      'chart-frame__lede',
       'chart-frame__controls',
       'chart-frame__legend',
     ])
@@ -241,9 +250,18 @@ describe('ChartFrame', () => {
     expect(within(screen.getByRole('list', { name: 'Legend' })).getByText('Cycling')).toBeTruthy()
   })
 
-  it('shows the note under the plot, and only when the chart is not empty', () => {
+  it('keeps the note in the chart’s Details, under its summary and over the table, not under the plot', () => {
     renderFrame({ note: 'Shading is the model range' })
-    expect(screen.getByText('Shading is the model range')).toBeInTheDocument()
+    const note = screen.getByText('Shading is the model range')
+    expect(note.closest('details')).toHaveClass('chart-frame__details')
+    expect(note.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
+  })
+
+  it('calls its disclosure View as table when it holds the table alone', () => {
+    const { container } = renderFrame()
+    expect(container.querySelector('.chart-frame__details summary')).toHaveTextContent(
+      /^View as table$/,
+    )
   })
 
   it('replaces the plot and table with the empty message, and keeps a note under it that the caller gives', () => {

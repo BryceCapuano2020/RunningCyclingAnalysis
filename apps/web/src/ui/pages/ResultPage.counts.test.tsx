@@ -106,19 +106,28 @@ describe('the count of a period, out of what is on file', () => {
     )
   })
 
-  it('gives the sport page header the period line’s count, not a second one', () => {
+  it('gives the count once, in the period line, and leaves it out of the recent-form line beside it in the Details', () => {
     const { container } = renderWindow({ page: 'run' }, 42)
-    // Two of the three runs in the period are counted by the analysis: the header still says three, as the period line does.
+    // Two of the three runs in the period are counted by the analysis: the period line still says three.
     expect(container.querySelector('.range-picker__count')?.textContent).toBe(
       '3 of 5 runs, 1 not counted',
     )
-    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(/ · 3 runs · /)
+    const form = container.querySelector('.sport-page__form')
+    expect(form?.textContent).toMatch(/^Last run \d+ \w+ · [\d.]+ km$/)
+    // Both lines are behind the one Details under the title.
+    const details = form?.closest('details')
+    expect(details?.querySelector('summary')).toHaveTextContent(/^Details$/)
+    expect(details).toContainElement(
+      container.querySelector('.period-caption__line') as HTMLElement,
+    )
   })
 
   it('says the same on the Ride page, for its own rides', () => {
     const { container } = renderWindow({ page: 'ride' }, 90)
     expect(container.querySelector('.range-picker__count')?.textContent).toBe('1 of 3 rides')
-    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(/ · 1 ride · /)
+    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(
+      /^Last ride \d+ \w+ · [\d.]+ km$/,
+    )
   })
 
   it('says every activity on file, and how many are not counted, for all time', () => {

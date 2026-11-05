@@ -69,7 +69,12 @@ describe('BalanceTiles', () => {
       expect(range).toMatch(/^Range /)
       openDetail(tile)
       // A range the page states is the range the tile's detail opens with, in the sport's own unit.
-      expect(within(tile).getByRole('note')).toHaveTextContent(new RegExp(`^${range}\\. `))
+      // What the figure rests on is the disclosure's first line, then the range, in the sport's own unit.
+      const [basis, detail] = within(tile).getByRole('note').querySelectorAll('p')
+      expect(basis).toHaveTextContent(/^From \d+ (runs|rides)\. Strongest: /)
+      expect(detail).toHaveTextContent(new RegExp(`^${range}\\. `))
+      // No line sits under the figure: the basis is inside the disclosure only.
+      expect(tile.querySelectorAll('.stat-tile__source > p')).toHaveLength(0)
     }
   })
 

@@ -351,7 +351,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
   })
 
-  it('shows the level target under the lede when there is one, and no line when there is none', () => {
+  it('keeps the level target in the Details under the lede, the lede the one line under the answer', () => {
     const target = 'To match it on the bike: 270 W for 20 min (245 to 295). You’re at 230 W.'
     const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
     const { container, rerender } = render(<Hero {...props} gap={gradedGap()} target={target} />)
@@ -365,7 +365,12 @@ describe('BalanceHero on the age-grade gap', () => {
       '295',
       '230',
     ])
-    expect(line.previousElementSibling).toHaveClass('balance-hero__lede')
+    // One line under the answer: the lede, then the Details that hold the target, closed to start with.
+    const details = line.closest('details')!
+    expect(details).toHaveClass('page-details')
+    expect(details).not.toHaveAttribute('open')
+    expect(details.previousElementSibling).toHaveClass('balance-hero__lede')
+    expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
     rerender(<Hero {...props} gap={gradedGap()} target={null} />)
     expect(container.querySelector('.balance-hero__line')).toBeNull()
     expect(container.querySelector('.balance-hero__lede')).not.toBeNull()

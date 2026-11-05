@@ -122,7 +122,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(within(threshold).queryByRole('button', { name: 'Hard effort' })).toBeNull()
     expect(threshold.querySelector('.sport-hero__head .chip')).toBeNull()
     openDetail(threshold)
-    expect(screen.getByRole('note')).not.toHaveTextContent(
+    expect(within(threshold).getByRole('note')).not.toHaveTextContent(
       /close to your highest heart rate|heart rate/,
     )
   })
@@ -191,10 +191,15 @@ describe('the answer: threshold and level in one card', () => {
     expect(screen.queryByRole('region', { name: 'Age grade at threshold' })).toBeNull()
   })
 
-  it('puts the period’s line last in the page head, under the title and above the answer', () => {
+  it('puts the period’s control under the title and one Details last in the page head, above the answer', () => {
     renderPage('run', makeResult({ activities: [run()] }))
     const head = document.querySelector('.sport-page__head')!
-    expect(head.lastElementChild).toHaveTextContent('Period picker')
+    expect([...head.children].map((child) => child.tagName)).toEqual(['H1', 'SPAN', 'DETAILS'])
+    expect(head.children[1]).toHaveTextContent('Period picker')
+    // Nothing small stands under the title: the recent-form line is in the Details.
+    const details = head.lastElementChild!
+    expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
+    expect(details.querySelector('.sport-page__form')).toHaveTextContent(/^Last run /)
     expect(head.contains(document.querySelector('.sport-hero'))).toBe(false)
   })
 })
@@ -219,7 +224,7 @@ describe('the records of the page', () => {
   const rowNamed = (label: string) =>
     rows().find((row) => row.querySelector('.records__label')?.textContent === label)!
 
-  it('lists a run’s distances once, in All best efforts, with the time, the pace and the activity', () => {
+  it('lists a run’s distances once, in All best efforts, with the finish time in the one figure column', () => {
     renderPage('run', makeResult({ activities: [withDistances] }))
     const labels = rows().map((row) => row.querySelector('.records__label')?.textContent)
     for (const label of ['1 km', '1 mi', '5 km', '10 km']) expect(labels).toContain(label)
@@ -227,13 +232,15 @@ describe('the records of the page', () => {
     const values = Object.fromEntries(
       ['1 km', '1 mi', '5 km', '10 km'].map((label) => [
         label,
-        rowNamed(label).querySelector('.records__value')?.textContent,
+        rowNamed(label).querySelector('.records__value')?.textContent?.trim(),
       ]),
     )
     expect(values).toEqual({ '1 km': '3:20', '1 mi': '5:40', '5 km': '21:00', '10 km': '45:00' })
-    // The kilometre's pace is its time, so it has none beside it; the others show their pace.
-    expect(rowNamed('1 km').querySelector('.records__sub')).toBeNull()
-    expect(rowNamed('5 km').querySelector('.records__sub')).toHaveTextContent('4:12 /km')
+    // A finish time has no second reading: its pace is on the activity, so every figure ends at one x.
+    for (const label of ['1 km', '1 mi', '5 km', '10 km']) {
+      expect(rowNamed(label).querySelector('.records__sub')).toBeNull()
+      expect(rowNamed(label).querySelector('.records__value .row__unit')).toBeEmptyDOMElement()
+    }
   })
 
   it('draws no strip of tiles under the curve, whose rows the list below holds', () => {
@@ -277,7 +284,7 @@ describe('the records of the page', () => {
     expect(rowNamed('1 km').querySelector('.records__grade')).toBeNull()
     for (const label of ['1 mi', '5 km', '10 km']) {
       expect(rowNamed(label).querySelector('.records__grade')?.textContent).toMatch(
-        /^(Recreational|Local|Regional|National|World) · \d+%$/,
+        /^(Recreational|Local|Regional|National|World)\u00a0\d+%$/,
       )
     }
   })

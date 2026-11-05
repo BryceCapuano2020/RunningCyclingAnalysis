@@ -650,16 +650,18 @@ describe('ResultPage period', () => {
     )
   }
 
-  it('puts the latest activity, once it is old, in the period control’s note, under the dates', () => {
+  it('puts the latest activity, once it is old, in the period’s note, a line of its own under the dates in the Details', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(false)
-      // The period's caption is one meta line under the title: the note follows the dates on it.
+      // The dates and counts are one meta line in the Details under the answer, and the note the line after it.
       const caption = container.querySelector('.period-caption__line')
-      const note = container.querySelector('.period-caption__line .range-picker__inline-note')
-      expect(note).toHaveTextContent('Latest activity 17 months ago')
-      expect(caption?.textContent).toMatch(/^.+ · Latest activity 17 months ago$/)
+      const note = container.querySelector('.period-caption__note')
+      expect(note).toHaveTextContent(/ · Latest activity 17 months ago$/)
+      expect(caption?.textContent).not.toMatch(/Latest activity/)
+      expect(caption?.nextElementSibling).toBe(note)
+      expect(note?.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
     } finally {
       vi.useRealTimers()
     }
@@ -678,7 +680,7 @@ describe('ResultPage period', () => {
         reason: 'all-time',
         passed,
       })
-      expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+      expect(container.querySelector('.period-caption__note')).toHaveTextContent(
         'Last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
       )
       // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
@@ -701,7 +703,7 @@ describe('ResultPage period', () => {
     const { container } = renderOldLibrary(false, true, window)
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
-    expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+    expect(container.querySelector('.period-caption__note')).toHaveTextContent(
       'Last 12 weeks had no 20 min runs',
     )
   })
@@ -712,7 +714,7 @@ describe('ResultPage period', () => {
     try {
       const { container } = renderOldLibrary(true)
       // A longer period that holds nothing a shorter one does not says so, in place of repeating itself.
-      expect(container.querySelector('.range-picker__inline-note')).toHaveTextContent(
+      expect(container.querySelector('.period-caption__note')).toHaveTextContent(
         /^Same 1 activity as the 6 weeks to your latest activity · Latest activity 17 months ago$/,
       )
     } finally {

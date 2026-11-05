@@ -456,12 +456,9 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
 
-  it('sets the evidence line as one wrapping row, never a card', () => {
-    const line = rulesWith(balancePage, '.evidence-line')
-    expect(line).toMatch(/display:\s*flex/)
-    expect(line).toMatch(/flex-wrap:\s*wrap/)
-    expect(line).toMatch(/gap:\s*var\(--space-2\) var\(--space-3\)/)
-    expect(balancePage).not.toMatch(/evidence-card/)
+  it('has no evidence line or card, and keeps one section gap between bands', () => {
+    expect(balancePage).not.toMatch(/evidence-line|evidence-card/)
+    expect(rulesWith(balancePage, '.balance-page > .band')).toMatch(/margin-top:\s*0;/)
   })
 
   it('gives the value room under the track, clear of the line, for the number and its range', () => {

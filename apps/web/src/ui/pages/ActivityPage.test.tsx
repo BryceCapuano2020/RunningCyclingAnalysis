@@ -294,7 +294,7 @@ describe('ActivityPage', () => {
     expect(screen.queryByText(/Flat pace/)).not.toBeInTheDocument()
   })
 
-  it('gives a distance best its level, with a link to How is this graded?', () => {
+  it('gives a distance best its level and grade, "Local 61%", with no link under the list: Method is in the header', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
@@ -303,12 +303,9 @@ describe('ActivityPage', () => {
       }),
     )
     expect(bestRow('Best 5 km').querySelector('.records__grade')?.textContent).toMatch(
-      /Recreational|Local|Regional|National|World/,
+      /^(Recreational|Local|Regional|National|World)\u00a0\d+%$/,
     )
-    expect(screen.getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
-      'href',
-      '#/method',
-    )
+    expect(screen.queryByRole('link', { name: 'How is this graded?' })).not.toBeInTheDocument()
   })
 
   it('shows the mile’s time alone in miles, since its pace is its time, and a 5 km pace beside its time', () => {

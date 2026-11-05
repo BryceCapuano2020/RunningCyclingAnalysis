@@ -127,12 +127,15 @@ describe('a run whose critical-power fit is refused', () => {
     expect(container.textContent).not.toMatch(/At least|From your best|Needs/)
   })
 
-  it('says nothing more for a best that was not all-out: one name, one figure, one basis line', () => {
+  it('says nothing more for a best that was not all-out: one name, one figure, one basis line in its detail', () => {
     const { container } = tile('run', refused('shape', true))
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.querySelector('.stat-tile__effort')).toBeNull()
     expect(screen.queryByRole('button', { name: /all-out|effort/i })).toBeNull()
-    expect(container.querySelector('.stat-tile__source')).toHaveTextContent(/^From 3 runs\. /)
+    // The basis is the first line inside How this was worked out, not a line under the figure.
+    const basis = container.querySelector('.stat-tile__source details [role="note"] > .meta')
+    expect(basis).toHaveTextContent(/^From 3 runs\. /)
+    expect(container.querySelectorAll('.stat-tile__source > p')).toHaveLength(0)
     expect(container.textContent).not.toMatch(/Not a hard effort|would give a threshold|\d+%/)
   })
 })

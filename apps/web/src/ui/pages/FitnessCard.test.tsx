@@ -12,6 +12,7 @@ import {
   RECOVERING,
   SLIPPING,
   FITNESS_AS_OF_MS,
+  waitingStatus,
 } from '../fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -32,14 +33,33 @@ function spoken(node: Element): string {
   return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
 }
 
-/** A card's paragraphs as read: the level, a line for each change, and the evidence under them. */
-function linesOf(card: Element) {
-  const text = (selector: string) => spoken(card.querySelector(selector)!)
+/**
+ * A row's words as read: its one line under the title, then what its Details hold: the level with its range, a line
+ * for each change after the first, and the steady activities behind them.
+ */
+function linesOf(row: Element) {
+  const text = (selector: string) => spoken(row.querySelector(selector)!)
   return {
+    line: text('[data-testid="fitness-line"]'),
     headline: text('.fitness-card__headline'),
-    changes: [...card.querySelectorAll('[data-testid="fitness-change"]')].map(spoken),
+    changes: [...row.querySelectorAll('[data-testid="fitness-change"]')].map(spoken),
     support: text('.fitness-card__support'),
   }
+}
+
+/** The fitness rows on the page, one for each sport, in order. */
+const rowsOf = () => [...document.querySelectorAll('li.fitness-card')] as HTMLElement[]
+
+/** A row by its title: "Run · Slipping" on the home page, the state alone on a sport's own page. */
+const rowNamed = (name: string) =>
+  screen.getByRole('heading', { level: 3, name }).closest('li') as HTMLElement
+
+/** Opens a row's one Details, as a press does, so what it holds mounts. */
+function openDetails(row: Element): HTMLDetailsElement {
+  const details = row.querySelector('details')!
+  details.open = true
+  fireEvent(details, new Event('toggle'))
+  return details
 }
 
 function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPPING } = {}) {
@@ -56,21 +76,25 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
 }
 
 describe('FitnessSection', () => {
-  it('is a named region, "Your fitness", with a card for the run and its state as the card’s name', () => {
+  it('is a named region, "Your fitness", with a numbered row for the run titled by the sport and its state', () => {
     renderSection()
     const region = screen.getByRole('region', { name: 'Your fitness' })
-    expect(within(region).getByRole('article', { name: 'Slipping' })).toHaveAttribute(
-      'data-sport',
-      'run',
-    )
+    const title = within(region).getByRole('heading', { level: 3, name: 'Run · Slipping' })
+    const row = title.closest('li')!
+    expect(row).toHaveAttribute('data-sport', 'run')
+    expect(row.closest('ol')).toHaveClass('rows')
+    expect(row.querySelector('.row__index')).toHaveTextContent('01')
+    // No mono sport label over the state, and no second small line under the title.
+    expect(region.querySelector('.fitness-card__sport')).toBeNull()
+    expect(row.querySelectorAll(':scope > .row__body > p')).toHaveLength(1)
   })
 
-  it('is a section under the page’s title, with one heading that names it, and names its card without one', () => {
+  it('is a section under the page’s title, with one heading that names it and a row title under it', () => {
     renderSection()
     const headings = screen.getAllByRole('heading')
-    expect(headings).toHaveLength(1)
+    expect(headings.map((heading) => heading.tagName)).toEqual(['H2', 'H3'])
     expect(headings[0]).toHaveTextContent('Your fitness')
-    expect(headings[0]?.tagName).toBe('H2')
+    expect(headings[1]).toHaveTextContent('Run · Slipping')
     expect(screen.getByRole('region', { name: 'Your fitness' })).toBeInTheDocument()
   })
 
@@ -94,16 +118,16 @@ describe('FitnessSection', () => {
         library={library}
       />,
     )
-    const cards = screen.getAllByRole('article', { name: 'Slipping' })
-    expect(cards.map((card) => card.getAttribute('data-sport'))).toEqual(['run', 'ride'])
-    const ride = linesOf(cards[1]!)
+    const rows = rowsOf()
+    expect(rows.map((row) => row.getAttribute('data-sport'))).toEqual(['run', 'ride'])
+    expect(rowNamed('Ride · Slipping')).toBe(rows[1])
+    const ride = linesOf(rows[1]!)
+    // The one line is the change, without its range; the level is in the Details.
+    expect(ride.line).toMatch(/^\d+% off your level before \d+ [A-Z][a-z]{2}\.$/)
     expect(ride.headline).toMatch(/^\d+ W at 140 bpm\.$/)
-    expect(ride.changes).toHaveLength(1)
-    expect(ride.changes[0]).toMatch(
-      /^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/,
-    )
+    expect(ride.changes).toHaveLength(0)
     expect(ride.support).toMatch(/^From 12 steady rides, /)
-    expect(spoken(cards[1]!)).not.toMatch(BANNED)
+    expect(spoken(rows[1]!)).not.toMatch(BANNED)
     both.unmount()
     render(
       <FitnessSection
@@ -114,44 +138,49 @@ describe('FitnessSection', () => {
         sport="ride"
       />,
     )
-    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(rowsOf()).toHaveLength(1)
+    expect(rowNamed('Slipping')).toHaveAttribute('data-sport', 'ride')
     expect(screen.queryByText('Ride')).not.toBeInTheDocument()
   })
 
   it('shows one sport’s card without naming the sport, which its own page already names', () => {
     renderSection({ sport: 'run' })
-    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/^Slipping$/)
     cleanup()
     renderSection()
-    expect(screen.getByText('Run')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/^Run · Slipping$/)
   })
 
-  it('says the state, the level first, a line for the change with its range and the steady runs behind it', () => {
+  it('says the state in the title, the change as its one line without a range, and the level and the runs in its Details', () => {
     renderSection()
-    const card = screen.getByRole('article')
-    expect(spoken(card)).toMatch(/Slipping/)
+    const card = rowNamed('Run · Slipping')
     const lines = linesOf(card)
+    expect(lines.line).toMatch(/^\d+% off your level before \d+ [A-Z][a-z]{2}\.$/)
     expect(lines.headline).toMatch(/^\d:\d{2} \/km at 150 bpm\.$/)
-    expect(lines.changes).toHaveLength(1)
-    expect(lines.changes[0]).toMatch(
-      /^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/,
-    )
+    expect(
+      card.querySelector('details')?.contains(card.querySelector('.fitness-card__headline')),
+    ).toBe(true)
+    expect(lines.changes).toHaveLength(0)
     expect(lines.support).toMatch(/^From 12 steady runs, \d+ [A-Z][a-z]{2} to \d+ [A-Z][a-z]{2}\.$/)
     expect(spoken(card)).not.toMatch(BANNED)
   })
 
-  it('says a recovery in two lines, each with one range, and no line for the season', () => {
+  it('says a recovery as its one line without a range, the other change with its range in the Details, and no line for the season', () => {
     renderSection({ run: RECOVERING })
-    const { changes } = linesOf(screen.getByRole('article'))
-    expect(changes).toHaveLength(2)
-    expect(changes[0]).toMatch(/^Up \d+% \(\d+ to \d+\) from your \w+ low\.$/)
-    expect(changes[1]).toMatch(/^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/)
+    expect(rowNamed('Run · Recovering')).toBeInTheDocument()
+    const { line, changes } = linesOf(rowsOf()[0]!)
+    expect(line).toMatch(/^Up \d+% from your \w+ low\.$/)
+    expect(changes).toHaveLength(1)
+    expect(changes[0]).toMatch(/^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/)
     expect(screen.queryByTestId('fitness-season')).toBeNull()
   })
 
-  it('defines the terms that carry the answer in place: the heart rate, the range and a steady run', () => {
-    renderSection()
-    const card = screen.getByRole('article')
+  it('defines the terms that carry the answer in place, in its Details: the heart rate, the range and a steady run', () => {
+    renderSection({ run: RECOVERING })
+    const card = rowsOf()[0]!
+    openDetails(card)
+    // The one line under the title carries no defined term: its figures are plain.
+    expect(card.querySelector('[data-testid="fitness-line"] .definition')).toBeNull()
     const terms = within(card)
       .getAllByRole('button', { expanded: false })
       .map((button) => button.textContent)
@@ -165,7 +194,8 @@ describe('FitnessSection', () => {
 
   it('wears a New marker with the week the state began, only while it is new', () => {
     renderSection()
-    expect(screen.getByTestId('fitness-new').textContent).toBe('New since the week of 12 Oct')
+    expect(screen.getByTestId('fitness-new').textContent).toBe('New since the week of 12 Oct.')
+    expect(screen.getByTestId('fitness-new').closest('details')).not.toBeNull()
     cleanup()
     renderSection({ run: HOLDING })
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
@@ -175,17 +205,18 @@ describe('FitnessSection', () => {
     renderSection({ nowMs: FITNESS_AS_OF_MS + 280 * 86_400_000 })
     expect(screen.getByTestId('fitness-age')).toHaveTextContent('Latest activity 9 months ago.')
     expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
-    expect(spoken(screen.getByRole('article'))).not.toMatch(BANNED)
+    expect(spoken(rowsOf()[0]!)).not.toMatch(BANNED)
+    expect(screen.getByTestId('fitness-age').closest('details')).not.toBeNull()
     cleanup()
     renderSection()
     expect(screen.queryByTestId('fitness-age')).not.toBeInTheDocument()
     expect(screen.getByTestId('fitness-new')).toBeInTheDocument()
   })
 
-  it('has a label and a track for each state that has a change, and the track stays out of the reading order', () => {
+  it('has a title and a track in its Details for each state that has a change, and the track stays out of the reading order', () => {
     for (const run of [SLIPPING, RECOVERING, HOLDING, IMPROVING, IMPROVED]) {
       const { container } = renderSection({ run })
-      expect(container.querySelector('.fitness-track')).not.toBeNull()
+      expect(container.querySelector('details .fitness-track')).not.toBeNull()
       expect(container.querySelector('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
       // The state is its word alone: no glyph or icon box beside it.
       expect(container.querySelector('.fitness-glyph, .fitness-card__state svg')).toBeNull()
@@ -194,14 +225,53 @@ describe('FitnessSection', () => {
   })
 })
 
+describe('the home page’s rows, read as text', () => {
+  it('keeps a space on each side of every figure in the ride’s one line, which is plain text and no link', () => {
+    const ride = waitingStatus(
+      { kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 },
+      7,
+      'ride',
+    )
+    render(
+      <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
+        fitness={{ run: SLIPPING, ride }}
+        units="metric"
+        library={[...FITNESS_LIBRARY, ...FITNESS_RIDE_LIBRARY]}
+      />,
+    )
+    const row = rowNamed('Ride')
+    const line = row.querySelector('[data-testid="fitness-line"]')!
+    // The figures are their own spans (.num): the words around them keep their spaces, with no range.
+    expect(line.textContent).toMatch(/^\d+ W at \d+ bpm\.$/)
+    expect([...line.querySelectorAll('.num')].map((num) => num.textContent)).toEqual([
+      expect.stringMatching(/^\d+$/),
+      expect.stringMatching(/^\d+$/),
+    ])
+    expect(line.closest('a')).toBeNull()
+    expect(line.querySelector('a')).toBeNull()
+  })
+
+  it('titles the run by the sport and its state, and gives its first change without the range as its one line', () => {
+    renderSection({ run: RECOVERING })
+    const row = rowNamed('Run · Recovering')
+    const [view] = fitnessViews(
+      { run: RECOVERING, ride: NO_FITNESS.ride },
+      'metric',
+      FITNESS_AS_OF_MS,
+    )
+    const first = view!.changes[0]!
+    expect(first).toMatch(/ \(\d+ to \d+\) /)
+    const line = row.querySelector('[data-testid="fitness-line"]')!
+    expect(line.textContent).toBe(first.replace(/ \(\d+ to \d+\)/, ''))
+    expect(line.textContent).not.toMatch(/\(/)
+  })
+})
+
 describe('the evidence panel', () => {
   const open = () => {
     const view = renderSection()
-    const summary = screen.getByText('See the evidence')
-    fireEvent.click(summary)
-    const details = summary.closest('details')!
-    details.open = true
-    fireEvent(details, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     return view
   }
 
@@ -214,8 +284,8 @@ describe('the evidence panel', () => {
 
   it('holds the chart with its table twin, how it is measured, the honest limit once, and why runs do not count', () => {
     const { container } = open()
-    expect(screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })).toBeInTheDocument()
-    expect(screen.getByText('View as table')).toBeInTheDocument()
+    const figure = screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })
+    expect(figure.querySelector('.chart-frame__details table')).not.toBeNull()
     const panel = container.querySelector('.fitness-evidence')!
     expect(
       within(panel as HTMLElement).getByRole('heading', { name: 'How it is measured' }),
@@ -239,16 +309,14 @@ describe('the evidence panel', () => {
       evidence: { ...status.evidence!, method: { ...status.evidence!.method, seasonal: 0.021 } },
     })
     renderSection({ run: seasoned(SLIPPING) })
-    fireEvent.click(screen.getByText('See the evidence'))
-    const details = screen.getByText('See the evidence').closest('details')!
-    details.open = true
-    fireEvent(details, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     const panel = document.querySelector('.fitness-evidence')!
     expect(spoken(panel)).toMatch(
       /Your usual seasonal swing, up to 2\.1% either side of your usual, has been taken out of every steady run first\./,
     )
-    // The card above the evidence says nothing of the season.
-    expect(spoken(screen.getByRole('article').querySelector('.fitness-card__body')!)).not.toMatch(
+    // The row's title and its one line say nothing of the season.
+    expect(spoken(rowsOf()[0]!.querySelector('.row__title')!)).not.toMatch(/season/i)
+    expect(spoken(rowsOf()[0]!.querySelector('[data-testid="fitness-line"]')!)).not.toMatch(
       /season/i,
     )
     expect(screen.queryByTestId('fitness-season')).toBeNull()
@@ -262,10 +330,7 @@ describe('the evidence panel', () => {
         library={FITNESS_RIDE_LIBRARY}
       />,
     )
-    fireEvent.click(screen.getByText('See the evidence'))
-    const rideDetails = screen.getByText('See the evidence').closest('details')!
-    rideDetails.open = true
-    fireEvent(rideDetails, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     const ridePanel = document.querySelector('.fitness-evidence')!
     expect(spoken(ridePanel)).toMatch(/the power you rode at 140 bpm/)
     expect(spoken(ridePanel)).toMatch(/adjusted for the heart rate of each\./)
@@ -295,18 +360,13 @@ describe('the evidence panel', () => {
 
   it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {
     renderSection({ units: 'imperial' })
-    fireEvent.click(screen.getByText('See the evidence'))
-    const details = screen.getByText('See the evidence').closest('details')!
-    details.open = true
-    fireEvent(details, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     const panel = document.querySelector('.fitness-evidence')!
     expect(spoken(panel)).toMatch(/kilometres 2 to 10 \(from 0\.6 to 6\.2 miles into the run\)/)
     expect(spoken(panel)).toMatch(/changed pace from one kilometre \(0\.6 mi\) to the next/)
     cleanup()
     renderSection({ units: 'metric' })
-    const metric = screen.getByText('See the evidence').closest('details')!
-    metric.open = true
-    fireEvent(metric, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     expect(spoken(document.querySelector('.fitness-evidence')!)).not.toMatch(/miles?\b| mi\b/)
     expect(spoken(document.querySelector('.fitness-evidence')!)).toMatch(/kilometres 2 to 10/)
   })
@@ -333,10 +393,7 @@ describe('the evidence panel', () => {
 
   it('leaves out a run that is no longer in the library, rather than a dead link', () => {
     renderSection({ library: FITNESS_LIBRARY.slice(6) })
-    const summary = screen.getByText('See the evidence')
-    const details = summary.closest('details')!
-    details.open = true
-    fireEvent(details, new Event('toggle'))
+    openDetails(rowsOf()[0]!)
     expect(document.querySelectorAll('.fitness-runs a')).toHaveLength(6)
   })
 })
@@ -376,7 +433,7 @@ describe('fitness while the library is only part of what was added', () => {
 
     const region = screen.getByRole('region', { name: 'Your fitness' })
     expect(within(region).getByTestId('fitness-held')).toHaveTextContent(HELD_LINE)
-    expect(within(region).queryByRole('article')).toBeNull()
+    expect(region.querySelector('li.fitness-card')).toBeNull()
     expect(screen.queryByText('Slipping')).toBeNull()
   })
 
@@ -400,7 +457,8 @@ describe('fitness while the library is only part of what was added', () => {
     )
 
     expect(screen.getAllByTestId('fitness-held')).toHaveLength(2)
-    expect(screen.getByRole('article', { name: 'Held' })).toHaveAttribute('data-state', 'held')
+    // The card on its own is a row titled by the sport and Held; the sport's page holds its section with one line.
+    expect(rowNamed('Run · Held')).toHaveAttribute('data-state', 'held')
     expect(screen.queryByText('Slipping')).toBeNull()
   })
 
@@ -424,6 +482,6 @@ describe('fitness while the library is only part of what was added', () => {
         />
       </HoldInputsContext.Provider>,
     )
-    expect(screen.getByRole('article', { name: 'Slipping' })).toBeInTheDocument()
+    expect(rowNamed('Run · Slipping')).toBeInTheDocument()
   })
 })

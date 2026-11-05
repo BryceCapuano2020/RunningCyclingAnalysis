@@ -80,10 +80,12 @@ describe('ActivityZoneTime', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps every zone, its range and its share in the table behind a disclosure', () => {
+  it('keeps every zone, its range and its share in the table behind a disclosure, with the chart’s lede', () => {
     show(twoPartRun(), [heartRate200])
-    expect(screen.getByText('View as table')).toBeInTheDocument()
-    const table = screen.getByRole('table', { hidden: true })
+    // The chart has a lede, so its disclosure is its Details: the lede, then the table.
+    const details = screen.getByText('Details', { selector: 'summary' }).closest('details')!
+    expect(details).toHaveTextContent('This run spent the most time in heart rate zone 1 (50%).')
+    const table = within(details).getByRole('table', { hidden: true })
     expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(6)
     const row = within(table)
       .getByRole('cell', { name: '140–159 bpm', hidden: true })

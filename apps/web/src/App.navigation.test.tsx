@@ -71,14 +71,18 @@ describe('skip link', () => {
 })
 
 describe('footer', () => {
-  it('links to How sure is this? beside the privacy link', () => {
+  it('names Method beside the privacy link, for the widths whose header has no room for it, and no How sure is this?', () => {
     render(<App />)
     const footer = document.querySelector('.app__footer')
     if (!(footer instanceof HTMLElement)) throw new Error('No footer')
-    expect(within(footer).getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
+    const method = within(footer).getByRole('link', { name: 'Method' })
+    expect(method).toHaveAttribute('href', '#/method')
+    expect(method).toHaveClass('app__footer-method')
+    expect(within(footer).getByRole('link', { name: 'Privacy' })).toHaveAttribute(
       'href',
-      '#/method',
+      '/privacy',
     )
+    expect(within(footer).queryByRole('link', { name: 'How sure is this?' })).toBeNull()
   })
 })
 

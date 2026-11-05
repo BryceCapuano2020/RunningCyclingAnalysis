@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeActivity } from './fixtures'
 import { SportRecords } from './SportRecords'
+import { MIN_SPARK_POINTS } from './sparkRule'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import { wholeText } from '../test/wholeText'
@@ -157,21 +158,32 @@ describe('SportRecords', () => {
     expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
   })
 
-  it('keeps the dot with the activity, so a count that wraps never starts a line with it', () => {
+  it('gives each row one meta line: the day, the activity as a link, then the grade, and no count of days ago', () => {
     render(
       <SportRecords
         rows={[
-          row({ key: 'a', label: '5 min', setDays: 156 }),
+          row({ key: 'a', label: '5 min', setDays: 156, grade: 'Local 61%' }),
           row({ key: 'b', label: '20 min', activity: lateRun, setDays: 4 }),
         ]}
       />,
     )
-    const count = screen.getByText(wholeText('4 days ago'))
-    expect(count.textContent).toBe('4 days ago')
-    const where = count.parentElement?.querySelector('.records__where')
-    expect(where).toHaveTextContent('Late run, 9 Jan ·')
-    expect(where?.querySelector('.records__dot')).toHaveAttribute('aria-hidden', 'true')
-    expect(count.previousElementSibling).toBe(where)
+    const [first, second] = screen.getAllByRole('listitem')
+    const body = first!.querySelector('.row__body')!
+    // The title and one meta line, nothing else on screen.
+    const shown = [...body.children].filter((child) => !child.classList.contains('sr-only'))
+    expect(shown.map((child) => child.className)).toEqual([
+      'row__title records__label',
+      'meta records__meta',
+    ])
+    const meta = first!.querySelector('.records__meta')!
+    expect([...meta.children].map((child) => child.textContent)).toEqual([
+      '5 Jan',
+      'Morning run',
+      'Local 61%',
+    ])
+    expect(meta.children[1]).toHaveAttribute('href', '#/activities/run-1')
+    expect(first).not.toHaveTextContent(/ago/)
+    expect(second).not.toHaveTextContent(/ago/)
   })
 
   it('writes the shared count as quiet text, not a chip', () => {
@@ -188,7 +200,7 @@ describe('SportRecords', () => {
     expect(count).not.toHaveClass('chip')
   })
 
-  it('shows each row’s count as quiet text, not a chip, when the records come from different activities', () => {
+  it('says no count of days ago on a row when the records come from different activities: its date says when', () => {
     render(
       <SportRecords
         rows={[
@@ -198,13 +210,13 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.queryByText(/All set on/)).not.toBeInTheDocument()
-    const count = screen.getByText(wholeText('9 days ago'))
-    expect(count).toHaveClass('records__set')
-    expect(count).not.toHaveClass('chip')
-    expect(screen.getByText(wholeText('4 days ago'))).toBeInTheDocument()
+    expect(screen.queryByText(/days ago/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')[1]!.querySelector('.records__date')).toHaveTextContent(
+      /^9 Jan$/,
+    )
   })
 
-  it('puts each row’s count on its activity’s line, after the name, and not in the figure', () => {
+  it('keeps the activity on the row’s meta line and out of its figure', () => {
     render(
       <SportRecords
         rows={[
@@ -214,18 +226,17 @@ describe('SportRecords', () => {
       />,
     )
     const [first, second] = screen.getAllByRole('listitem')
-    const source = screen
-      .getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
-      .closest('.records__source')
-    expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
-    expect(source?.closest('li')).toBe(first)
+    const link = screen.getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
+    expect(link.closest('.records__meta')?.closest('li')).toBe(first)
     expect(
       within(first!).getByText(wholeText('3:50 /km')).closest('.records__figure'),
-    ).not.toHaveTextContent('ago')
-    expect(second).toHaveTextContent('Late run, 9 Jan · 4 days ago')
+    ).not.toHaveTextContent('Morning')
+    expect(
+      [...second!.querySelector('.records__meta')!.children].map((child) => child.textContent),
+    ).toEqual(['9 Jan', 'Late run'])
   })
 
-  it('sets the name and the date apart in a link, so a narrow line cuts the name and keeps the date', () => {
+  it('sets the date before the link and the name in it, the whole of both as the link’s title', () => {
     render(
       <SportRecords
         rows={[
@@ -235,8 +246,9 @@ describe('SportRecords', () => {
       />,
     )
     const link = screen.getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
-    expect(link.querySelector('.records__name')).toHaveTextContent(/^Morning run$/)
-    expect(link.querySelector('.records__date')).toHaveTextContent(/^, 5 Jan$/)
+    expect(link).toHaveTextContent(/^Morning run$/)
+    expect(link.previousElementSibling).toHaveClass('records__date')
+    expect(link.previousElementSibling).toHaveTextContent(/^5 Jan$/)
     // The whole text is still the title, so a cut name can be read in full.
     expect(link).toHaveAttribute('title', 'Morning run, 5 Jan')
   })
@@ -281,27 +293,45 @@ describe('SportRecords', () => {
     expect(screen.getByText('W', { selector: '.row__unit' })).toBeInTheDocument()
   })
 
-  it('shows no chip for a row with no tags', () => {
+  it('shows no chip and no tag for a row with no tags', () => {
     const { container } = render(<SportRecords rows={[row({ value: '400 W', tags: [] })]} />)
-    expect(container.querySelector('.records__meta, .chip')).toBeNull()
+    expect(container.querySelector('.chip, .record-tag')).toBeNull()
+    expect(container.querySelector('.records__meta')).not.toHaveTextContent('GAP')
     expect(screen.getByText(wholeText('400 W'))).toBeInTheDocument()
   })
 
-  it('draws a sparkline at the right of a row that has a trend, and none on a row without', () => {
+  it('draws sparklines only when every row has one of at least six points, and none at all otherwise', () => {
+    const series = (n: number) => Array.from({ length: n }, (_, i) => ({ atMs: i, value: 3 + i }))
+    const rows = [row({ key: '300' }), row({ key: '1200', label: '20 min' })]
+    const full = render(
+      <SportRecords rows={rows} sparks={{ '300': series(6), '1200': series(7) }} />,
+    )
+    const drawn = Array.from(full.container.querySelectorAll('li'))
+    expect(drawn.every((li) => li.querySelector(':scope > .row__spark > svg') !== null)).toBe(true)
+    full.unmount()
+    // One row with five points, or one row with none, and the list draws no line at all.
+    for (const sparks of [
+      { '300': series(6), '1200': series(MIN_SPARK_POINTS - 1) },
+      { '300': series(6) },
+    ]) {
+      const { container, unmount } = render(<SportRecords rows={rows} sparks={sparks} />)
+      expect(container.querySelector('svg')).toBeNull()
+      unmount()
+    }
+  })
+
+  it('says a drawn row’s trend in words to a screen reader when the row has no change line', () => {
+    const series = (step: number) =>
+      Array.from({ length: 6 }, (_, i) => ({ atMs: i, value: 300 + i * step }))
     const { container } = render(
       <SportRecords
-        rows={[row({ key: '1200' }), row({ key: 'distance-5000', label: '5 km' })]}
-        sparks={{
-          '1200': [
-            { atMs: 0, value: 3 },
-            { atMs: 10, value: 4 },
-          ],
-        }}
+        rows={[row({ key: '300' }), row({ key: '1200', label: '20 min' })]}
+        sparks={{ '300': series(10), '1200': series(0.1) }}
       />,
     )
-    const [withTrend, without] = Array.from(container.querySelectorAll('li'))
-    expect(withTrend?.querySelector(':scope > .row__spark > svg')).not.toBeNull()
-    expect(without?.querySelector('svg')).toBeNull()
+    const [up, flat] = Array.from(container.querySelectorAll('.row__spark'))
+    expect(up?.querySelector('.sr-only')).toHaveTextContent('Trend up')
+    expect(flat?.querySelector('.sr-only')).toHaveTextContent('Trend flat')
   })
 
   it('marks a run’s pace Flat, in words', () => {
@@ -321,7 +351,7 @@ describe('recordRow', () => {
     covered: null,
   }
 
-  it('tags a run’s pace GAP, since it is a grade-adjusted pace', () => {
+  it('leaves a run’s pace untagged: its list says once that paces are GAP', () => {
     expect(recordRow(record, { label: '20 min', grade: null }).tags).toEqual([])
   })
 

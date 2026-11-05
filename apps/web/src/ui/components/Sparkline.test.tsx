@@ -49,4 +49,19 @@ describe('Sparkline', () => {
     expect(container.querySelectorAll('polyline')).toHaveLength(1)
     expect(container.querySelector('circle, path, rect')).toBeNull()
   })
+
+  it('draws a wobble of 0.3% nearly flat: its range is never scaled tighter than 3% of the mean', () => {
+    const { container } = render(
+      <Sparkline
+        points={[
+          { atMs: 0, value: 300 },
+          { atMs: 10, value: 300.9 },
+          { atMs: 20, value: 300.45 },
+        ]}
+      />,
+    )
+    const ys = pointsOf(container).map(([, y]) => y)
+    // Filling the 24 px height would move it 20 px; a tenth of the floor's height moves it 2 px at most.
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(3)
+  })
 })

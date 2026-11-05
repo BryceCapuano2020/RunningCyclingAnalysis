@@ -87,7 +87,8 @@ describe('what changed, on a library whose period before holds too little', () =
         change: changeOf('none'),
       },
     })
-    expect(screen.getByRole('region', { name: 'What changed vs Jan to Mar 2023' })).toBeVisible()
+    // With nothing called, the one sentence names the window, so the region is named by its heading alone.
+    expect(screen.getByRole('region', { name: 'What changed' })).toBeVisible()
     expect(
       screen.getByText(wholeText('No clear change at 20 min from Jan to Mar 2023.')),
     ).toBeVisible()

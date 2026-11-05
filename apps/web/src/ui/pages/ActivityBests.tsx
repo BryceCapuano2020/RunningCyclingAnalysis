@@ -2,6 +2,7 @@ import { effortsCount } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { EarnedRecord } from '@rca/core/records'
+import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { INDOOR_NOTE } from '../analysis/indoorCopy'
 import { SportRecords } from '../components/SportRecords'
@@ -17,7 +18,7 @@ import {
 } from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
-import { recordRow } from '../recordRow'
+import { GAP_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   chipLabels,
@@ -59,6 +60,9 @@ const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
 
 /** The mark an all-time record carries, in the same chip as the marks of the figure. */
 const ALL_TIME_MARK = 'All-time record'
+
+/** The mark a duration best's figure carries on the activity page: a run's pace is a GAP, a ride's watts carry none. */
+const PACE_MARKS: Record<Sport, readonly string[]> = { run: [GAP_MARK], ride: [] }
 
 /**
  * The best efforts this activity set, as one records list: the bests it holds over the period the page
@@ -143,13 +147,15 @@ export function ActivityBests({
     if (allTime) return [ALL_TIME_MARK]
     return ofPeriod && periodMark !== null ? [periodMark] : []
   }
+  // A run's duration bests are paces graded for the hills, so each says GAP: this list has no Details to say it once.
+  const marks = PACE_MARKS[sport]
   // The page is the activity, so its rows name no activity of their own.
   const rows: RecordRow[] = [
     ...durationItems.map(({ record, outcome }) => {
       const row = recordRow(record, {
         label: `Best ${effortLabel(record.durationS)}`,
         grade: recordGradeCell(sport, outcome, 'row'),
-        tags: scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true),
+        tags: [...marks, ...scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true)],
       })
       row.activity = null
       return row

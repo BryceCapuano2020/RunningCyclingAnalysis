@@ -58,6 +58,18 @@ const RIDE_GRADED: GradeOutcome = {
   },
 }
 
+/** The line a threshold's figure rests on: the first line inside its How this was worked out, never under the figure. */
+function basisOf(container: HTMLElement): Element | null {
+  const basis = container.querySelector('.stat-tile__source details [role="note"] > .meta')
+  expect(basis?.closest('details')).not.toBeNull()
+  return basis
+}
+
+/** The range and method: the last line of the detail, after what the figure rests on. */
+function detailLine(): Element | null {
+  return screen.getByRole('note').lastElementChild
+}
+
 describe('ThresholdTile', () => {
   it('says a run’s range in words one tap down, and draws no shape or label beside the figure', () => {
     const runThreshold = makeRunThreshold(16, { low: 15.2, high: 16.8 })
@@ -66,7 +78,15 @@ describe('ThresholdTile', () => {
     expect(container.textContent).not.toMatch(/90% range|Estimated|At least/)
     expect(screen.queryByText('range')).toBeNull()
     openDetail()
-    expect(screen.getByRole('note')).toHaveTextContent(/^Range 4:10 to 4:39 \/km\. /)
+    expect(detailLine()).toHaveTextContent(/^Range 4:10 to 4:39 \/km\. /)
+  })
+
+  it('emits the figure, second-reading and trend cells even with no second reading, so its figure keeps the column', () => {
+    const { container } = renderTile('run', makeResult({ runThreshold: makeRunThreshold(16) }))
+    const tile = container.querySelector('.stat-tile')!
+    const cells = [...tile.children].map((child) => child.className.split(' ')[0])
+    expect(cells).toEqual(['row__body', 'row__figure', 'row__sub', 'row__spark'])
+    expect(tile.querySelector('.row__sub')).toBeEmptyDOMElement()
   })
 
   it('says “About” and prints no NaN when the range’s two ends print the same', () => {
@@ -75,7 +95,7 @@ describe('ThresholdTile', () => {
     expect(container.textContent).not.toMatch(/NaN/)
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
     openDetail()
-    expect(screen.getByRole('note')).toHaveTextContent(/^About 4:24 \/km\. /)
+    expect(detailLine()).toHaveTextContent(/^About 4:24 \/km\. /)
   })
 
   it('renders nothing when it would hold only its name: no figure, the headline says what it needs, no grade', () => {
@@ -111,7 +131,7 @@ describe('ThresholdTile', () => {
     )
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
     expect(container.textContent).not.toMatch(/At least|Estimated|From your best/)
-    expect(container.querySelector('.stat-tile__source')).toHaveTextContent(/^From 3 runs\. /)
+    expect(basisOf(container)).toHaveTextContent(/^From 3 runs\. /)
   })
 
   it('defines the threshold in place, with its meaning in plain words, for each sport, where there is no fit', () => {
@@ -161,13 +181,11 @@ describe('ThresholdTile', () => {
     const { container } = renderTile('ride', makeResult({ activities: [ride], rideThreshold }))
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('250')
     expect(container.querySelector('.stat-tile__side')).toHaveTextContent('3.3 W/kg')
-    expect(container.querySelector('.stat-tile__source')).toHaveTextContent(
-      /^From 5 rides\. Strongest: 12 min on 4 Mar/,
-    )
+    expect(basisOf(container)).toHaveTextContent(/^From 5 rides\. Strongest: 12 min on 4 Mar/)
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/Estimated|At least/)
     openDetail()
-    expect(screen.getByRole('note')).toHaveTextContent(/^Range 240 to 264 W\. /)
+    expect(detailLine()).toHaveTextContent(/^Range 240 to 264 W\. /)
     expect(screen.getByRole('note')).toHaveTextContent(
       'Here it was not used: your heart rate does not move with power.',
     )
@@ -188,11 +206,9 @@ describe('ThresholdTile', () => {
       },
     })
     const { container } = renderTile('run', makeResult({ activities: [run], runThreshold }))
-    expect(container.querySelector('.stat-tile__source')).toHaveTextContent(
-      /^From 4 runs\. Strongest: 40 min on 4 Mar/,
-    )
+    expect(basisOf(container)).toHaveTextContent(/^From 4 runs\. Strongest: 40 min on 4 Mar/)
     openDetail()
-    const note = screen.getByRole('note')
+    const note = detailLine()
     expect(note).toHaveTextContent(
       /^Range 4:\d\d to 4:\d\d \/km\. Worked out from the strongest effort of each run/,
     )
@@ -273,8 +289,8 @@ describe('ThresholdTile', () => {
     expect(tile).toHaveTextContent(
       'Add your weight on Profile to grade your rides and see their figures.',
     )
-    // Nothing is estimated, so the tile has no chip and no figure.
-    expect(container.querySelector('.stat-tile__figure')).toBeNull()
+    // Nothing is estimated, so the tile has no chip and its figure's cell is empty, keeping the column.
+    expect(container.querySelector('.stat-tile__figure')).toBeEmptyDOMElement()
   })
 
   it('leaves the facts out of a held tile for a sport with no activities, keeping the ask', () => {

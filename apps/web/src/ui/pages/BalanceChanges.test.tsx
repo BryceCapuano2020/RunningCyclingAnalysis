@@ -80,11 +80,13 @@ describe('BalanceChanges', () => {
     expect(container.querySelector('ol, ul')).toBeNull()
   })
 
-  it('names a window further back by its months, in the title and the no-change line', () => {
+  it('names a window further back by its months once, in the no-change line, with no meta line saying it first', () => {
     const { container } = render(
       <BalanceChanges changes={{ items: [] }} previousLabel="Jan to Mar" />,
     )
-    expect(screen.getByRole('region', { name: 'What changed vs Jan to Mar' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'What changed' })).toBeInTheDocument()
+    expect(container.querySelector('#balance-changes-against')).toBeNull()
+    expect(container.textContent?.match(/Jan to Mar/g)).toHaveLength(1)
     expect(
       screen.getByText(wholeText('No clear change at 20 min from Jan to Mar.')),
     ).toBeInTheDocument()

@@ -94,12 +94,14 @@ describe('Header', () => {
     expect(screen.queryByRole('navigation', { name: 'More pages' })).not.toBeInTheDocument()
   })
 
-  it('links History and Activities as text, and marks the current one', () => {
+  it('links History, Activities and Method as text, and marks the current one', () => {
     render(<Header route={{ page: 'history' }} />)
     const links = within(screen.getByRole('navigation', { name: 'More pages' })).getAllByRole(
       'link',
     )
-    expect(links.map((link) => link.textContent)).toEqual(['History', 'Activities'])
+    expect(links.map((link) => link.textContent)).toEqual(['History', 'Activities', 'Method'])
+    expect(screen.getByRole('link', { name: 'Method' })).toHaveAttribute('href', '#/method')
+    expect(screen.getByRole('link', { name: 'Method' })).toHaveClass('header__link--method')
     for (const link of links) expect(link.querySelector('svg')).toBeNull()
     expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'History' })).toHaveClass('header__link--current')
