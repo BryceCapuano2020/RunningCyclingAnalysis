@@ -83,8 +83,8 @@ export async function goToPage(page, target) {
         .getByRole('navigation', { name: 'Sections' })
         .getByRole('link', { name: target.link, exact: true })
   await link.click()
-  const handle = await link.elementHandle()
-  await page.waitForFunction((el) => el.hasAttribute('aria-current'), handle, { timeout: 30_000 })
+  // The link is found again once clicked: leaving Profile mounts a new rail, so the clicked element may be gone.
+  await link.and(page.locator('[aria-current]')).waitFor({ timeout: 30_000 })
   await page.mouse.move(0, 0)
 }
 
