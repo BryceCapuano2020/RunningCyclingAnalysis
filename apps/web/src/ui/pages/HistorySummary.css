@@ -1,0 +1,4 @@
+/* The totals are numbered rows (RowList.css); the figure column keeps the row's width. */
+.history-summary .row__title {
+  margin: 0;
+}

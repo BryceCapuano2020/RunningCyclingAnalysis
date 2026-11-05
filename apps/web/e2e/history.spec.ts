@@ -121,7 +121,7 @@ test('on a 390 px phone the History tab labels every bar, wraps its toggles and 
   await expect(page.getByText('Years on file')).toBeVisible()
 
   // Every year has its bar and its label under it.
-  const years = Number(await page.locator('.history-summary dd').first().textContent())
+  const years = Number(await page.locator('.history-summary .row__figure').first().textContent())
   expect(years).toBeGreaterThan(1)
   const hours = page.locator('[data-section="hours-per-year"]')
   await expect(hours.locator('.chart-x-axis__tick')).toHaveCount(years)
