@@ -1,11 +1,11 @@
 .accuracy-scatter__dot {
-  fill: var(--neutral-mark);
-  stroke: var(--surface-1);
+  fill: var(--ink-secondary);
+  stroke: var(--paper);
   stroke-width: 2;
 }
 
 .accuracy-scatter__reference {
-  stroke: var(--text-muted);
+  stroke: var(--ink-secondary);
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }

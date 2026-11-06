@@ -23,7 +23,7 @@
 }
 
 .intensity-key__label {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
   font-size: var(--text-xs);
 }
 

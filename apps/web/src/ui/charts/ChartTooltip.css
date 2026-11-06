@@ -6,11 +6,10 @@
   /* At most 280 px, and 24 px narrower than the chart, so a narrow chart keeps a margin either side. */
   max-width: min(280px, calc(100% - 24px));
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-pop);
-  color: var(--text-primary);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  color: var(--ink);
   font-size: var(--text-sm);
   line-height: 1.4;
   pointer-events: none;
@@ -44,15 +43,15 @@
 }
 
 .chart-tooltip__key--run {
-  background: var(--series-run);
+  background: var(--run-ink);
 }
 
 .chart-tooltip__key--ride {
-  background: var(--series-ride);
+  background: var(--ride-ink);
 }
 
 .chart-tooltip__key--neutral {
-  background: var(--neutral-mark);
+  background: var(--ink-secondary);
 }
 
 /* A dashed key is an estimate, in its series colour; the previous period's key is a solid line in its own mark. */
@@ -69,11 +68,11 @@
 }
 
 .chart-tooltip__key--dashed-run {
-  border-top-color: var(--series-run);
+  border-top-color: var(--run-ink);
 }
 
 .chart-tooltip__key--dashed-ride {
-  border-top-color: var(--series-ride);
+  border-top-color: var(--ride-ink);
 }
 
 .chart-tooltip__value {
@@ -81,13 +80,13 @@
 }
 
 .chart-tooltip__label {
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .chart-tooltip__note {
   width: 100%;
   padding-left: 18px;
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-xs);
   text-wrap: pretty;
 }

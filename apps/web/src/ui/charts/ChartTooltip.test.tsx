@@ -96,7 +96,7 @@ describe('ChartTooltip', () => {
       /border-top:\s*2px dashed var\(--previous-mark\)/,
     )
     expect(ruleBody(tooltipCss, '.chart-tooltip__key--dashed-ride')).toMatch(
-      /border-top-color:\s*var\(--series-ride\)/,
+      /border-top-color:\s*var\(--ride-ink\)/,
     )
   })
 

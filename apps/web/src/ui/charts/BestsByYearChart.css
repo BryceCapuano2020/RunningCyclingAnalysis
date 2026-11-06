@@ -5,7 +5,7 @@
 
 /* The line between a sport's years: thin, so the marks carry the values. It takes the sport's colour from data-sport. */
 .chart-series__line.bests-line {
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
   stroke-width: 2px;
 }
 

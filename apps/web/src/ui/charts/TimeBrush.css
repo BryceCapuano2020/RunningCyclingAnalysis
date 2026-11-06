@@ -8,9 +8,9 @@
 .ts-brush__track {
   position: relative;
   min-width: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: var(--paper-hover);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   touch-action: none;
   cursor: crosshair;
 }
@@ -36,7 +36,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: var(--surface-1);
+  background: var(--paper);
   opacity: 0.6;
   pointer-events: none;
 }
@@ -46,8 +46,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--selected) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 45%, transparent);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 45%, transparent);
   cursor: grab;
 }
 
@@ -69,9 +69,9 @@
 .ts-brush__grip {
   width: 6px;
   height: 22px;
-  border: 1.5px solid var(--text-secondary);
+  border: 1.5px solid var(--ink-secondary);
   border-radius: 3px;
-  background: var(--surface-1);
+  background: var(--paper);
 }
 
 .ts-brush__handle:focus-visible {
@@ -79,7 +79,7 @@
 }
 
 .ts-brush__handle:focus-visible .ts-brush__grip {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
 

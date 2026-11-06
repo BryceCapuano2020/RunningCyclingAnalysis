@@ -4,11 +4,11 @@
 }
 
 .ratio-chart__higher--run {
-  fill: var(--series-run-soft);
+  fill: var(--run-wash);
 }
 
 .ratio-chart__higher--ride {
-  fill: var(--series-ride-soft);
+  fill: var(--ride-wash);
 }
 
 /*
@@ -16,36 +16,36 @@
  * against the card). The outline does: solid for the calibrated band, dashed for the prior one.
  */
 .ratio-chart__band {
-  fill: var(--neutral-band);
+  fill: var(--rule);
 }
 
 .ratio-chart__band--prior {
-  stroke: var(--neutral-mark);
+  stroke: var(--ink-secondary);
   stroke-width: 1.5px;
   stroke-dasharray: 4 3;
 }
 
 .ratio-chart__band--calibrated {
-  stroke: var(--neutral-mark);
+  stroke: var(--ink-secondary);
   stroke-width: 1.5px;
 }
 
 .ratio-chart__median {
   fill: none;
-  stroke: var(--neutral-mark);
+  stroke: var(--ink-secondary);
   stroke-width: 3px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .ratio-chart__zero {
-  stroke: var(--text-muted);
+  stroke: var(--ink-secondary);
   stroke-width: 1;
 }
 
 .ratio-chart__marker {
-  fill: var(--neutral-mark);
-  stroke: var(--surface-1);
+  fill: var(--ink-secondary);
+  stroke: var(--paper);
   stroke-width: 2;
 }
 
@@ -54,10 +54,10 @@
  * the running and cycling tints, so they use secondary text, which holds 4.5:1 on either tint.
  */
 .ratio-chart__label {
-  fill: var(--text-secondary);
+  fill: var(--ink-secondary);
   font-size: var(--text-xs);
   paint-order: stroke;
-  stroke: var(--surface-0);
+  stroke: var(--paper);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

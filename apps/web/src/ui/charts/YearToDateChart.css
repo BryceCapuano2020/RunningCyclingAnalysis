@@ -9,7 +9,7 @@
 
 /* The past year under the pointer: heavier and in the text colour, so any of the grey lines can be told. */
 .year-to-date__line--read {
-  stroke: var(--text-primary);
+  stroke: var(--ink);
   stroke-width: 2.5px;
 }
 

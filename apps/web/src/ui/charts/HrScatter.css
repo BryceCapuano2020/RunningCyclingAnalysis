@@ -6,25 +6,25 @@
 }
 
 .hr-scatter__fit--run {
-  stroke: var(--series-run);
+  stroke: var(--run-ink);
 }
 
 .hr-scatter__fit--ride {
-  stroke: var(--series-ride);
+  stroke: var(--ride-ink);
 }
 
 /* Dots are fully opaque, with a 2 px surface ring so that overlapping dots stay separate. */
 .hr-scatter__dot {
-  stroke: var(--surface-0);
+  stroke: var(--paper);
   stroke-width: 2;
 }
 
 .hr-scatter__dot--run {
-  fill: var(--series-run);
+  fill: var(--run-ink);
 }
 
 .hr-scatter__dot--ride {
-  fill: var(--series-ride);
+  fill: var(--ride-ink);
 }
 
 /* In forced colours the tints go: a run dot is solid and a ride dot hollow, so the sports differ by more than colour. */

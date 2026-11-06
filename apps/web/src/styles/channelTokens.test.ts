@@ -22,7 +22,7 @@ describe('activity channel colours', () => {
   it.each(THEMES)('%s: each channel reaches 3:1 on the paper', (_theme, tokens) => {
     for (const channel of CHANNELS) {
       expect(
-        contrast(colour(tokens, `ch-${channel}`), colour(tokens, 'surface-1')),
+        contrast(colour(tokens, `ch-${channel}`), colour(tokens, 'paper')),
         channel,
       ).toBeGreaterThanOrEqual(GRAPHIC)
     }
@@ -33,7 +33,7 @@ describe('activity channel colours', () => {
     (_theme, tokens) => {
       const named = [
         ...CHANNELS.map((name) => [name, colour(tokens, `ch-${name}`)] as const),
-        ...SPORTS.map((name) => [name, colour(tokens, `series-${name}`)] as const),
+        ...SPORTS.map((name) => [name, colour(tokens, `${name}-ink`)] as const),
       ]
       for (const [index, [first, a]] of named.entries()) {
         for (const [second, b] of named.slice(index + 1)) {
@@ -55,15 +55,15 @@ describe('activity channel colours', () => {
   })
 })
 
-/** The route tile's ramp: its slow end is the neutral `--text-secondary` and its fast end `--ch-pace`. */
+/** The route tile's ramp: its slow end is the neutral `--ink-secondary` and its fast end `--ch-pace`. */
 describe('the route tile’s pace ramp', () => {
   it.each(THEMES)(
     '%s: its two ends are told apart, and each reaches 3:1 on the paper',
     (_theme, tokens) => {
-      const slow = colour(tokens, 'text-secondary')
+      const slow = colour(tokens, 'ink-secondary')
       const fast = colour(tokens, 'ch-pace')
-      expect(contrast(slow, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
-      expect(contrast(fast, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
+      expect(contrast(slow, colour(tokens, 'paper'))).toBeGreaterThanOrEqual(GRAPHIC)
+      expect(contrast(fast, colour(tokens, 'paper'))).toBeGreaterThanOrEqual(GRAPHIC)
       expect(deltaE(slow, fast)).toBeGreaterThanOrEqual(DISTINCT)
     },
   )
@@ -71,7 +71,7 @@ describe('the route tile’s pace ramp', () => {
   it.each(THEMES)(
     '%s: its two ends are still told apart with protan, deutan and tritan vision',
     (_theme, tokens) => {
-      const slow = colour(tokens, 'text-secondary')
+      const slow = colour(tokens, 'ink-secondary')
       const fast = colour(tokens, 'ch-pace')
       for (const deficiency of DEFICIENCIES) {
         expect(

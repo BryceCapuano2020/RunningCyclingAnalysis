@@ -1,7 +1,7 @@
 /* A year's line: 2 px, round, in the sport's colour (from data-sport) at the opacity its age sets. The named years are solid and heavier. */
 .year-curve {
   fill: none;
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
