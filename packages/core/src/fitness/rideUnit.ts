@@ -16,10 +16,27 @@ interface RideBlocks {
   /** The day's warmth as the file's sensor read it (revision 7), when it had a usable reading. */
   c?: number
   localDayShift: LocalDayShift | undefined
+  /** True when the ride carries HR spike flags that passed the isolated-spike rule: it needs more in-band blocks. */
+  spiked: boolean
   blocks: { hr: number; ln: number }[]
 }
 
 const cache = new WeakMap<ActivityDigest, RideBlocks | null>()
+
+/**
+ * Whether a ride's HR spike flags (none is fine) are isolated: at most `maxSpikesPerHour` per started hour of moving time, covering at most
+ * `maxSpikeShare` of it. The flags the digest keeps are the first 50, so a count the kept flags do not account for fails.
+ */
+function isolatedSpikes(digest: ActivityDigest): boolean {
+  const spikes = digest.flagCounts['hr-spike'] ?? 0
+  if (spikes === 0) return true
+  const moving = digest.movingS ?? digest.durationS
+  if (!(moving > 0) || spikes > R.maxSpikesPerHour * Math.ceil(moving / 3600)) return false
+  const kept = digest.flags.filter((f) => f.kind === 'hr-spike')
+  if (kept.length !== spikes) return false
+  const seconds = kept.reduce((sum, f) => sum + (f.end - f.start), 0)
+  return seconds <= R.maxSpikeShare * moving
+}
 
 /** The five-minute blocks of a ride with a power meter that are measured (not terms of a virtual model) and have power. */
 function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
@@ -29,7 +46,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
     digest.powerSource === 'measured' &&
     !digest.indoor &&
     digest.hasHeartRate &&
-    !digest.flagCounts['hr-spike'] &&
+    isolatedSpikes(digest) &&
     !digest.flagCounts['hr-cadence-lock'] &&
     !digest.flagCounts['hr-dropout']
   const found: RideBlocks | null = eligible
@@ -40,6 +57,7 @@ function rideBlocks(digest: ActivityDigest, sport: Sport): RideBlocks | null {
           ? {}
           : { c: digest.temperature.c }),
         localDayShift: digest.localDayShift,
+        spiked: (digest.flagCounts['hr-spike'] ?? 0) > 0,
         blocks: digest.hrBlocks
           .filter((b) => b.terms === null && b.value > 0 && Number.isFinite(b.heartRate))
           .map((b) => ({ hr: b.heartRate, ln: Math.log(b.value) })),
@@ -58,7 +76,7 @@ const RIDE_SLOPE: SlopeLimits = {
 
 /**
  * One value per ride with a power meter: the log of its watts at the reference heart rate, from the
- * five-minute blocks within 20 bpm of it (at least two), moved to the reference by the library's own
+ * five-minute blocks within 20 bpm of it (at least two, three when the ride carries an isolated HR spike flag), moved to the reference by the library's own
  * slope. Indoor rides are left out: a trainer reads differently from the road at the same heart rate, and
  * comparing the two would read the switch as fitness. Heart rate that is set aside is left out. Rides carry no
  * steadiness test, so their spread is wider than a run's (2.4% to 4.5% a ride in the research; the monitor reads
@@ -85,7 +103,7 @@ export function rideSeries(
   if (ref === null) return emptySeries('power')
   const rows = rides
     .map((r) => ({ r, blocks: r.blocks.filter((b) => Math.abs(b.hr - ref) <= R.hrHalfBand) }))
-    .filter((z) => z.blocks.length >= R.minBlocks)
+    .filter((z) => z.blocks.length >= (z.r.spiked ? R.minSpikedBlocks : R.minBlocks))
     .map((z) => ({
       id: z.r.id,
       startMs: z.r.startMs,
@@ -100,7 +118,9 @@ export function rideSeries(
   )
   return {
     points: rows
-      .map((r) => unitPoint(r.id, r.startMs, r.ln - beta * (r.hr - ref), r.localDayShift, r.c))
+      .map((r) =>
+        unitPoint(r.id, r.startMs, r.ln - beta * (r.hr - ref), r.localDayShift, r.c, r.hr),
+      )
       .sort(byTime),
     referenceHr: ref,
     method: {

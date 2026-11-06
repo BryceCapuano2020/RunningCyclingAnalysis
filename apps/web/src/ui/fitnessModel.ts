@@ -68,6 +68,8 @@ export interface FitnessView {
   support: string
   /** What a trend needs, for a status that cannot call one. Empty otherwise. */
   needs: string
+  /** The early trend of a ride waiting for its baseline, one line each. Empty otherwise. */
+  early: string[]
   /** How old the status is, once its newest activity is long ago by the clock: "Latest activity 9 months ago." Null while it is recent. */
   age: string | null
   /** A change that began to be shown within the last weeks: "the week of 12 Oct". Null otherwise. */
@@ -182,6 +184,7 @@ export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number):
     changes: lines.changes.map(tidy),
     support: tidy(lines.support),
     needs: tidy(lines.needs),
+    early: (lines.early ?? []).map(tidy),
     age: age === null ? null : `${age}.`,
     fresh,
     track: trackOf(status, units),

@@ -301,7 +301,7 @@ describe('How this works entries', () => {
     // Wherever a sport has a fitness status that is the trend, so the sentence reads right with or without a ride status.
     expect(lines).toContain('A fitness status comes from steady efforts at the same heart rate.')
     expect(lines).toContain('Where a sport has one, that status is the trend.')
-    expect(lines).toHaveLength(11)
+    expect(lines).toHaveLength(12)
   })
 
   it('says how a change is called, with the numbers from the test’s own constants', () => {

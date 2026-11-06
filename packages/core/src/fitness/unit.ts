@@ -19,6 +19,8 @@ export interface UnitPoint {
   localDayShift?: LocalDayShift
   /** The day's warmth as the file's sensor read it, when the digest carries one. */
   c?: number
+  /** The median heart rate the value was read at, when the unit keeps it (rides). */
+  hr?: number
 }
 
 /** A point, with the day shift and the warmth of its digest only when it has them. */
@@ -28,8 +30,10 @@ export function unitPoint(
   x: number,
   localDayShift: LocalDayShift | undefined,
   c?: number,
+  hr?: number,
 ): UnitPoint {
   const point: UnitPoint = { id, startMs, x }
+  if (hr !== undefined) point.hr = hr
   if (localDayShift !== undefined) point.localDayShift = localDayShift
   if (c !== undefined) point.c = c
   return point
