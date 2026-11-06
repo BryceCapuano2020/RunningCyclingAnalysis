@@ -5,7 +5,6 @@ import { makeActivity } from './components/fixtures'
 import { bucketLabel, bucketSpan, inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
 import { sampleProfileAt } from './sampleAthlete'
 import { groupByMonth } from './activitySort'
-import { periodWeekEnds } from './charts/periodWeeks'
 import { deviceZone } from '../worker/viewerZone'
 
 /**
@@ -92,19 +91,6 @@ describe('the list under its headings and the hours under the trend', () => {
       expect(groups[0]!.key).toBe([...monthTotals([late]).keys()][0])
       expect(groups[0]!.label).toMatch(/Mar/)
       expect(groups[1]!.label).toMatch(/Apr/)
-    }
-  })
-
-  it('starts the hours at the week of the period’s first local day', () => {
-    // Monday 9 March, 02:00 UTC is Sunday evening at UTC-7: the week before.
-    const sundayEnd = at(2026, 3, 9) - 1
-    const trendEnds = [sundayEnd + 7 * 86_400_000]
-    {
-      setViewerZone(() => -7 * 60)
-      expect(periodWeekEnds(trendEnds, at(2026, 3, 9, 2))).toEqual([
-        sundayEnd,
-        sundayEnd + 7 * 86_400_000,
-      ])
     }
   })
 })

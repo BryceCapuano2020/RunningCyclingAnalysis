@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '../../test/warmSample'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_WINDOW } from '@rca/core/answer'
 import type { AnswerWindow } from '@rca/core/answer'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
@@ -15,8 +15,13 @@ import { analysisStub, countedRunsStub } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
 import { ResultPage } from './ResultPage'
+import { preloadAllPages } from '../lazyPages'
 import { PERIOD_KEY } from '../periodPreference'
 import { wholeText } from '../test/wholeText'
+
+// ResultPage opens the activity, History, Profile and Method pages lazily: load them once, so no test's order decides
+// whether its page has arrived.
+beforeAll(preloadAllPages)
 
 afterEach(() => {
   cleanup()

@@ -11,13 +11,12 @@ import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
 import { countsOf, startedInPeriod } from '../activityCounts'
 import { sportEmptyText } from '../periodCopy'
-import { HistoryPage } from '../lazyPages'
+import { ActivityPage, HistoryPage } from '../lazyPages'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import type { CountedRunsController } from '../useCountedRuns'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
-import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { aboutNotesOf } from '../components/aboutNotes'
@@ -262,7 +261,6 @@ export function ResultPage({
           <MethodPage
             result={result}
             heartRateJudgement={analysis.state.heartRateJudgement}
-            units={units}
             profile={profile}
             period={period}
             weightKnown={weightKnown}

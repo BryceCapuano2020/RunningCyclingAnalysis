@@ -106,7 +106,7 @@ const BOTH_SPORTS = makeResult({
   equivalents: [makeEquivalence()],
 })
 
-/** Weeks with a run and a ride, each with a best, so the page has both sports' weeks to draw its hours on. */
+/** Weeks with a run and a ride, each with a best, so the page has both sports' weeks. */
 function trendWithRides(weeks: number): TrendPoint[] {
   return Array.from({ length: weeks }, (_, index) => {
     const endMs = new Date(2026, 0, 4 + index * 7, 23, 59).getTime()
@@ -366,7 +366,7 @@ describe('BalancePage', () => {
     expect(
       (tiles?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    // Not in a pair with anything: the hours strip is its own block below it.
+    // Not in a pair with anything.
     expect(chart.parentElement).not.toHaveClass('balance__pair')
     expect(container.querySelector('.balance__pair')).toBeNull()
   })
@@ -612,7 +612,7 @@ describe('BalancePage with no weight entered', () => {
 describe('BalancePage concept budget', () => {
   /** A both-sports page with a profile and a trend: every part the page can show. */
   function full() {
-    // Three weeks of training, on the weeks the trend ends on (UTC Sundays), so the page draws its hours strip.
+    // Three weeks of training, on the weeks the trend ends on (UTC Sundays).
     const trend = trendWithRides(3).map((week, i) =>
       Object.assign(week, { endMs: Date.UTC(2026, 0, 4 + i * 7, 23, 59, 59, 999) }),
     )
@@ -684,19 +684,12 @@ describe('BalancePage concept budget', () => {
   it('holds to a handful of headed parts above the charts, and no more', () => {
     const { container } = full()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const chartsAt = container.querySelector('[aria-labelledby="balance-volume"]')
-    const before = Array.from(container.querySelectorAll('h2, h3'))
-      .filter(
-        (heading) =>
-          chartsAt !== null &&
-          heading.compareDocumentPosition(chartsAt) & Node.DOCUMENT_POSITION_FOLLOWING,
-      )
-      .map((heading) => {
-        // A defined term's note sits in its heading's markup, shown on a press: it is not the heading's text.
-        const copy = heading.cloneNode(true) as HTMLElement
-        copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
-        return copy.textContent
-      })
+    const before = Array.from(container.querySelectorAll('h2, h3')).map((heading) => {
+      // A defined term's note sits in its heading's markup, shown on a press: it is not the heading's text.
+      const copy = heading.cloneNode(true) as HTMLElement
+      copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
+      return copy.textContent
+    })
     // The share sheet's heading and the three tiles: nothing else. The heart-rate check is a chip on a tile.
     expect(before).toEqual([
       'Share image',

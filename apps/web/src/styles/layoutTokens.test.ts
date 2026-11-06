@@ -28,7 +28,7 @@ const PROSE_SHEETS = [
  * Sheets that still cap prose in ch, because another package holds them (Balance, SportHero, the chart
  * sheets). Move each to --measure when its owner merges, and delete it here; the list may only shrink.
  */
-const PENDING_CH_CAPS = ['ChartAbout.css', 'ChartFrame.css', 'ChartHeadings.css']
+const PENDING_CH_CAPS = ['ChartFrame.css', 'ChartHeadings.css']
 
 describe('the layout tokens', () => {
   it('give one shell width, one rail, one reading measure, two gaps and one radius', () => {

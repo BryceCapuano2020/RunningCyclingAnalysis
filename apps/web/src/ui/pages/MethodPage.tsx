@@ -4,9 +4,7 @@ import type { Period } from '@rca/core/period'
 import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
-import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { standingOf } from '../standing'
 import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
@@ -31,7 +29,6 @@ import { periodDates } from '../components/rangeOptions'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
-import { activityNames } from '../records'
 import { answerVerdict, estimatesOf } from './methodAnswer'
 import { PAGE_HEADING_ID } from './pageHeading'
 import {
@@ -52,7 +49,6 @@ import { SECTION_NAME, contentsOf, focusSection } from './methodContents'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { HowThisWorks } from './HowThisWorks'
-import { EvidenceDisclosure } from './EvidenceDisclosure'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
@@ -63,7 +59,6 @@ export interface MethodPageProps {
   result: AnalysisResult | null
   /** What the heart rate set aside was judged against, the library's, which the line on it cites. */
   heartRateJudgement: HeartRateJudgement
-  units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
   /** The period the counts are over, named by its dates. */
@@ -91,7 +86,6 @@ function contributorsOf(curve: Curve): number {
 export function MethodPage({
   result,
   heartRateJudgement,
-  units,
   profile,
   period,
   weightKnown,
@@ -266,21 +260,10 @@ export function MethodPage({
                 ))}
                 <li>The range does not include every source of error.</li>
               </ul>
+              <p className="secondary">Everywhere else, each sport uses its own units.</p>
               <TopicBody id="unit" />
               <TopicBody id="range" />
             </MethodText>
-            <EvidenceDisclosure section="the energy view">
-              <RatioChart comparison={result.comparison} />
-              <h3>Energy rate by effort length</h3>
-              <p className="secondary">Everywhere else, each sport uses its own units.</p>
-              <CurveChart
-                runCurve={result.runCurve}
-                rideMetabolicCurve={result.rideMetabolicCurve}
-                rideCurve={result.rideCurve}
-                units={units}
-                activityNames={activityNames(result.activities)}
-              />
-            </EvidenceDisclosure>
           </>
         )}
       </section>
@@ -309,6 +292,14 @@ export function MethodPage({
                 <NumText text={setAside} />
               </li>
             )}
+            {hasResult && (
+              <li>
+                {`Heart rate is read in ${formatDuration(HR_BLOCK_S)} blocks of steady effort, taken after the first ${formatDuration(HR_SKIP_S)} of each activity.`}
+              </li>
+            )}
+            {hasResult && weightKnown && (
+              <li>Heart rate rises with energy rate at a different rate in each sport.</li>
+            )}
             {hardEfforts && (
               <>
                 <li>
@@ -326,22 +317,6 @@ export function MethodPage({
             </p>
           )}
         </MethodText>
-        {hasResult && (
-          <>
-            <EvidenceDisclosure section="the heart-rate check">
-              <MethodLines
-                lines={[
-                  `Each dot is a ${formatDuration(HR_BLOCK_S)} block of steady effort from this period’s files.`,
-                  `Each block is taken after the first ${formatDuration(HR_SKIP_S)} of each activity.`,
-                  weightKnown
-                    ? 'The two lines show how fast heart rate rises with energy rate in each sport.'
-                    : 'The line shows how fast heart rate rises with energy rate in running.',
-                ]}
-              />
-              <HrScatter hr={result.hr} includeRides={weightKnown} />
-            </EvidenceDisclosure>
-          </>
-        )}
       </section>
 
       {showAccuracy && (
@@ -364,11 +339,6 @@ export function MethodPage({
                 <p className="secondary">{HELD_NOTE}</p>
               ))}
           </MethodText>
-          {accuracy !== null && weightKnown && (
-            <EvidenceDisclosure section="the virtual power meter">
-              <AccuracyScatter accuracy={accuracy} />
-            </EvidenceDisclosure>
-          )}
         </section>
       )}
 

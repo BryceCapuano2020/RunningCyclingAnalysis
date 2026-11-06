@@ -18,7 +18,7 @@ import { HistoryPage } from './HistoryPage'
 afterEach(cleanup)
 
 /**
- * The twelve synthetic years, with a maximum heart rate for each sport so the intensity part has zones to cut by, and a
+ * The twelve synthetic years, with a maximum heart rate for each sport and a
  * year of steady runs for the fitness dots.
  */
 function everyChart() {
@@ -43,17 +43,13 @@ function everyChart() {
 }
 
 describe('HistoryPage with every chart', () => {
-  it('draws the eight sections in page order, each with a chart of the library and none empty', () => {
+  it('draws the four sections in page order, each with a chart of the library and none empty', () => {
     const sections = everyChart()
     expect(sections.map((section) => section.dataset.section)).toEqual([
       'balance-over-years',
-      'training-calendar',
       'hours-per-year',
-      'year-to-date',
       'bests-by-year',
-      'best-curve-by-year',
       'fitness-over-years',
-      'intensity-by-year',
     ])
     for (const section of sections) {
       expect(within(section).getAllByRole('figure'), section.dataset.section).toHaveLength(1)
@@ -61,13 +57,7 @@ describe('HistoryPage with every chart', () => {
     }
   })
 
-  it.each([
-    ['training-calendar', 'All'],
-    ['year-to-date', 'Run'],
-    ['bests-by-year', 'Run'],
-    ['best-curve-by-year', 'Run'],
-    ['intensity-by-year', 'Run'],
-  ])(
+  it.each([['bests-by-year', 'Run']])(
     'keeps the sport toggle of %s in its chart’s controls row, and the toggle through a change',
     (id, first) => {
       const section = everyChart().find((candidate) => candidate.dataset.section === id)!

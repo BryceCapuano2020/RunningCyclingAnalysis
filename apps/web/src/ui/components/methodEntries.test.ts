@@ -44,7 +44,6 @@ describe('How this works entries', () => {
       /The timeline in detail/,
       /Time in zones/,
       /reps held up/,
-      /Weekly hours by sport/,
       /Runs at walking pace/,
       /Dated settings and zones/,
     ]) {
