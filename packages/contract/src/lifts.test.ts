@@ -22,12 +22,21 @@ const set: LiftSet = {
 describe('LiftSetSchema', () => {
   it('agrees with readLiftSet on a sweep of edge values', () => {
     const edges: Record<string, unknown[]> = {
-      date: ['1970-01-01', '1969-12-31', '2100-12-31', '2101-01-01', '2026-02-30', '2026-3-2', 5],
+      date: [
+        '0069-01-01',
+        '1970-01-01',
+        '1969-12-31',
+        '2100-12-31',
+        '2101-01-01',
+        '2026-02-30',
+        '2026-3-2',
+        5,
+      ],
       exercise: ['a', '', 'a'.repeat(48), 'a'.repeat(49), 'a--b', '-a', 'A', 'a b', 7],
       equipment: ['barbell', 'other', 'rope', '', null],
       setOrder: [0, 1, 200, 201, 1.5, -1, '1'],
       reps: [0, 1, 100, 101, 2.5, Number.NaN, '5'],
-      loadKg: [-0.01, 0, 0.01, 62.555, 1000, 1000.01, Infinity, Number.NaN, '5'],
+      loadKg: [-0.01, -0, 0, 0.01, 62.555, 1000, 1000.01, Infinity, Number.NaN, '5'],
       rpe: [undefined, 0.5, 1, 7.25, 7.5, 10, 10.5, '8'],
       warmup: [undefined, true, false, 1],
       time: [undefined, '00:00', '23:59', '24:00', '12:60', '9:00', 900],
@@ -80,7 +89,13 @@ describe('LiftSetSchema', () => {
 
 describe('write, delete and page', () => {
   it('bounds the number of sets in a write', () => {
-    const many = (n: number) => ({ sets: Array.from({ length: n }, () => set) })
+    const many = (n: number) => ({
+      sets: Array.from({ length: n }, (_, i) => ({
+        ...set,
+        setOrder: (i % 200) + 1,
+        exercise: `lift-${Math.floor(i / 200)}`,
+      })),
+    })
     expect(LiftWriteSchema.safeParse(many(0)).success).toBe(false)
     expect(LiftWriteSchema.safeParse(many(1)).success).toBe(true)
     expect(LiftWriteSchema.safeParse(many(MAX_LIFT_SETS_PER_WRITE)).success).toBe(true)
@@ -89,11 +104,31 @@ describe('write, delete and page', () => {
   })
   it('bounds the keys in a delete and checks each', () => {
     const key = liftSetKey(set)
-    const many = (n: number) => ({ keys: Array.from({ length: n }, () => key) })
+    const many = (n: number) => ({
+      keys: Array.from({ length: n }, (_, i) =>
+        liftSetKey({ ...set, setOrder: (i % 200) + 1, exercise: `lift-${Math.floor(i / 200)}` }),
+      ),
+    })
     expect(LiftDeleteSchema.safeParse(many(0)).success).toBe(false)
     expect(LiftDeleteSchema.safeParse(many(MAX_LIFT_KEYS_PER_DELETE)).success).toBe(true)
     expect(LiftDeleteSchema.safeParse(many(MAX_LIFT_KEYS_PER_DELETE + 1)).success).toBe(false)
     expect(LiftDeleteSchema.safeParse({ keys: [key, 'not-a-key'] }).success).toBe(false)
+  })
+  it('refuses a repeated key at the second occurrence', () => {
+    const w = LiftWriteSchema.safeParse({ sets: [set, set] })
+    expect(w.success ? [] : w.error.issues.map((i) => i.path.join('.'))).toEqual(['sets.1'])
+    const other = { ...set, setOrder: 4 }
+    expect(LiftWriteSchema.safeParse({ sets: [set, other] }).success).toBe(true)
+    const key = liftSetKey(set)
+    const d = LiftDeleteSchema.safeParse({ keys: [key, liftSetKey(other), key] })
+    expect(d.success ? [] : d.error.issues.map((i) => i.path.join('.'))).toEqual(['keys.2'])
+    const d1 = LiftDeleteSchema.safeParse({ keys: [key, key] })
+    expect(d1.success ? [] : d1.error.issues.map((i) => i.path.join('.'))).toEqual(['keys.1'])
+    expect(LiftDeleteSchema.safeParse({ keys: [key, liftSetKey(other)] }).success).toBe(true)
+  })
+  it('takes insertOnly only as true', () => {
+    expect(LiftWriteSchema.safeParse({ sets: [set], insertOnly: true }).success).toBe(true)
+    expect(LiftWriteSchema.safeParse({ sets: [set], insertOnly: false }).success).toBe(false)
   })
   it('reads a page with and without a next cursor', () => {
     expect(LiftPageSchema.safeParse({ items: [set], next: 'abc' }).success).toBe(true)
