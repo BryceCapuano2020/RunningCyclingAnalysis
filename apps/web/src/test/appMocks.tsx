@@ -106,11 +106,7 @@ export function usePreferencesMock(): [Preferences, (next: Preferences) => void]
 
 /** The costly charts. */
 export const heavyChartStubs = {
-  CurveChart: () => null,
   SportCurveChart: () => null,
-  RatioChart: () => null,
-  HrScatter: () => null,
-  AccuracyScatter: () => null,
 }
 
 /** Signs the test user in (with the given options), out, or marks the account unavailable. */

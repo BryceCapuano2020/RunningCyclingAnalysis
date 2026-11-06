@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { readStylesheet, ruleBody } from '../components/stylesheet'
 
 const seriesCss = await readStylesheet(import.meta.url, './ChartSeries.css')
-const ratioCss = await readStylesheet(import.meta.url, './RatioChart.css')
-const scatterCss = await readStylesheet(import.meta.url, './HrScatter.css')
 const legendCss = await readStylesheet(import.meta.url, './ChartLegend.css')
 const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 const breakCss = await readStylesheet(import.meta.url, './AxisBreaks.css')
@@ -19,13 +17,6 @@ function forcedBody(css: string): string {
 }
 
 describe('forced colours keep the chart marks visible', () => {
-  it('gives the ratio chart bands an outline and the median a system colour', () => {
-    const forced = forcedBody(ratioCss)
-    expect(forced).toMatch(/\.ratio-chart__band \{[^}]*stroke: CanvasText/)
-    expect(forced).toMatch(/\.ratio-chart__median \{[^}]*stroke: CanvasText/)
-    expect(forced).toMatch(/\.ratio-chart__marker \{[^}]*fill: CanvasText/)
-  })
-
   it('gives the curve and trend markers a system fill and a ring the page colour', () => {
     const forced = forcedBody(seriesCss)
     expect(forced).toMatch(/\.chart-series__marker \{[^}]*fill: CanvasText/)
@@ -55,11 +46,6 @@ describe('forced colours keep the chart marks visible', () => {
     )
   })
 
-  it('gives the heart-rate dots a system fill, so they read without their tints', () => {
-    const forced = forcedBody(scatterCss)
-    expect(forced).toMatch(/\.hr-scatter__dot \{[^}]*fill: CanvasText/)
-  })
-
   it('gives the legend fills system colours, so the key reads without its tints', () => {
     const key = forcedBody(legendCss)
     expect(key).toMatch(/\.swatch-run,\s*\.chart-legend__key--run \{[^}]*background: CanvasText/)
@@ -84,15 +70,6 @@ describe('forced colours keep the chart marks visible', () => {
       expect(forced).toMatch(/\.chart-series__marker--ride \{[^}]*fill: Canvas/)
       expect(forced).toMatch(/\.chart-series__marker--ride \{[^}]*stroke: CanvasText/)
       expect(forced).toMatch(/\.chart-series__marker--run \{[^}]*fill: CanvasText/)
-    })
-  })
-
-  describe('forced colours tell the heart-rate dots apart by their edges', () => {
-    it('draws the run dots solid and the ride dots hollow, as the trend and curve markers do', () => {
-      const forced = forcedBody(scatterCss)
-      expect(forced).toMatch(/\.hr-scatter__dot--run \{[^}]*fill: CanvasText/)
-      expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*fill: Canvas/)
-      expect(forced).toMatch(/\.hr-scatter__dot--ride \{[^}]*stroke: CanvasText/)
     })
   })
 

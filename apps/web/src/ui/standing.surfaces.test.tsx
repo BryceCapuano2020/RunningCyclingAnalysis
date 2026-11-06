@@ -176,7 +176,6 @@ describe('one lead, printed the same on every surface', () => {
         <MethodPage
           result={after}
           heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-          units="metric"
           profile={SAMPLE_PROFILE}
           weightKnown
         />,

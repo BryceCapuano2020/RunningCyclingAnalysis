@@ -25,11 +25,6 @@ interface Box {
   height: number
 }
 
-/** Opens one section's "Show the evidence" disclosure on Method, so its chart is captured. */
-async function showEvidence(page: Page, section: string): Promise<void> {
-  await page.locator('summary', { hasText: `Show the evidence for the ${section}` }).click()
-}
-
 /** The section whose own level 2 heading has this name. */
 function sectionWith(page: Page, heading: string): Locator {
   return page
@@ -145,8 +140,6 @@ async function main(): Promise<void> {
       await capture(page, balanceTargets(page), 'screenshot-light.png')
       await page.getByRole('banner').getByRole('link', { name: 'Method' }).click()
       await page.getByRole('heading', { level: 1, name: 'Method' }).waitFor()
-      await showEvidence(page, 'heart-rate check')
-      await showEvidence(page, 'virtual power meter')
       await settle(page)
       await capture(
         page,
