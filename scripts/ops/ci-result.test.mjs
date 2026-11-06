@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { failures } from './ci-result.mjs'
@@ -118,4 +119,16 @@ test('pull requests audit production dependencies; the weekly run audits them al
   )
   assert.match(weekly, /run: npm audit --audit-level=high/)
   assert.match(weekly, /run: npm audit --omit=dev --audit-level=moderate/)
+})
+
+test('the size count adds a file’s lines and its removed lines only up to that', () => {
+  const size = blocks.get('size').join('\n')
+  const program = /awk '([^']+)'/.exec(size)?.[1]
+  assert.ok(program, 'the size job sums with awk')
+  // A binary file, a pure removal, a small edit and a rewrite that removes more than it adds.
+  const numstat = ['-\t-\tlogo.png', '0\t50\tdead.ts', '10\t3\tedit.ts', '5\t20\trewrite.ts'].join(
+    '\n',
+  )
+  const lines = execFileSync('awk', [program], { input: `${numstat}\n`, encoding: 'utf8' })
+  assert.equal(lines.trim(), String(0 + 0 + (10 + 3) + (5 + 5)))
 })
