@@ -57,13 +57,12 @@ export function dayOfLiftDate(date: string): number {
   return day
 }
 
-function inWindow(
-  sets: readonly LiftSet[],
-  asOf: string | undefined,
-): { sets: LiftSet[]; days: number[] } {
-  let end = asOf === undefined ? -Infinity : dayOfLiftDate(asOf)
-  const days = sets.map((s) => dayOfLiftDate(s.date))
-  if (asOf === undefined) for (const d of days) if (d > end) end = d
+interface Windowed {
+  sets: LiftSet[]
+  days: number[]
+}
+
+function windowEndingAt(sets: readonly LiftSet[], days: readonly number[], end: number): Windowed {
   const kept: LiftSet[] = []
   const keptDays: number[] = []
   sets.forEach((s, i) => {
@@ -81,7 +80,17 @@ export function liftBests(
   sets: readonly LiftSet[],
   asOf?: string,
 ): { floor: LiftBest | null; repBests: LiftBest[] } {
-  return bestsOf(inWindow(sets, asOf).sets)
+  const days = sets.map((s) => dayOfLiftDate(s.date))
+  const end = asOf === undefined ? Math.max(-Infinity, ...days) : dayOfLiftDate(asOf)
+  return bestsOf(windowEndingAt(sets, days, end).sets)
+}
+
+/** A better best: heavier, then more reps, then newer. */
+function beats(a: LiftBest, b: LiftBest | undefined): boolean {
+  if (!b) return true
+  if (a.loadKg !== b.loadKg) return a.loadKg > b.loadKg
+  if (a.reps !== b.reps) return a.reps > b.reps
+  return a.date > b.date
 }
 
 function bestsOf(windowed: readonly LiftSet[]): { floor: LiftBest | null; repBests: LiftBest[] } {
@@ -90,10 +99,9 @@ function bestsOf(windowed: readonly LiftSet[]): { floor: LiftBest | null; repBes
   const byReps = new Map<number, LiftBest>()
   for (const s of win) {
     const b: LiftBest = { loadKg: s.loadKg, reps: s.reps, date: s.date }
-    if (!floor || b.loadKg > floor.loadKg) floor = b
+    if (beats(b, floor ?? undefined)) floor = b
     if (s.reps > REP_BEST_MAX || !Number.isInteger(s.reps)) continue
-    const prev = byReps.get(s.reps)
-    if (!prev || b.loadKg > prev.loadKg) byReps.set(s.reps, b)
+    if (beats(b, byReps.get(s.reps))) byReps.set(s.reps, b)
   }
   const repBests = [...byReps.values()].sort((a, b) => a.reps - b.reps)
   return { floor, repBests }
@@ -102,6 +110,7 @@ function bestsOf(windowed: readonly LiftSet[]): { floor: LiftBest | null; repBes
 interface Session {
   day: number
   date: string
+  reps: number
   est: SetEstimate
 }
 
@@ -113,17 +122,32 @@ function sessionsOf(sets: readonly LiftSet[], days: readonly number[]): Session[
     if (!est) return
     const day = days[i] as number
     const prev = byDay.get(day)
-    if (!prev || est.point > prev.est.point) byDay.set(day, { day, date: s.date, est })
+    // Highest point; a tie goes to more reps, then the newer date.
+    const better =
+      !prev ||
+      est.point > prev.est.point ||
+      (est.point === prev.est.point &&
+        (s.reps > prev.reps || (s.reps === prev.reps && s.date > prev.date)))
+    if (better) byDay.set(day, { day, date: s.date, reps: s.reps, est })
   })
   return [...byDay.values()]
 }
 
 /**
- * The estimate on the date of the lift's newest session within the window, or null when no session is
- * eligible. `asOf` ends the window (default: the newest set) so a replay can score each date.
+ * The estimate on the date `t` of the lift's newest eligible session on or before `asOf` (default: no
+ * limit), from the sessions in the 56 days up to `t`; null when no session is eligible. A lift not trained
+ * for months still has an answer, dated; a trailing day of ineligible sets does not move the window.
  */
 export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstimate | null {
-  const win = inWindow(sets, asOf)
+  const allDays = sets.map((s) => dayOfLiftDate(s.date))
+  const bound = asOf === undefined ? Infinity : dayOfLiftDate(asOf)
+  let end = -Infinity
+  sets.forEach((s, i) => {
+    const d = allDays[i] as number
+    if (d <= bound && d > end && setEstimate(s)) end = d
+  })
+  if (end === -Infinity) return null
+  const win = windowEndingAt(sets, allDays, end)
   const sessions = sessionsOf(win.sets, win.days)
   if (sessions.length === 0) return null
   const { floor } = bestsOf(win.sets)
