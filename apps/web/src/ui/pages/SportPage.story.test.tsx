@@ -24,6 +24,7 @@ import { NO_FITNESS } from '@rca/core/fitness/types'
 import { RIDE_SLIPPING, SLIPPING, waitingStatus } from '../fitnessFixtures'
 import { SportPage } from './SportPage'
 import { openDetail } from '../test/openDetail'
+import { rowValue } from '../test/propertyRows'
 
 afterEach(cleanup)
 
@@ -469,9 +470,7 @@ describe('a sport page’s fitness', () => {
     })
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     expect(within(fitness).getAllByRole('listitem')).toHaveLength(1)
-    expect(fitness.querySelector('.fitness-card__headline')).toHaveTextContent(
-      /^\d+ W( \(\d+ to \d+\))? at 140 bpm/,
-    )
+    expect(rowValue(fitness, 'Power at 140 bpm')).toMatch(/^\d+ W$/)
     expect(fitness.textContent).not.toMatch(/\/km|\/mi/)
   })
 

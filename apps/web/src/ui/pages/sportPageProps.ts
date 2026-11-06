@@ -10,6 +10,7 @@ import type { LookBack } from '@rca/core/lookback'
 import type { MeasureTime, ZoneWindow } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
+import type { Property } from '../components/property'
 import type { AgeGap, AgeProfile } from '../grades'
 
 /** What a sport page is given: one sport's analysis, its period and the settings its figures need. */
@@ -59,17 +60,10 @@ export interface SportPageProps {
   periodEndMs?: number | null
   /** The library's judgement of its runs, which the race predictions read when they widen. Absent: the period alone. */
   heartRateJudgement?: HeartRateJudgement
-  /**
-   * The sport's activities on file that started in the period, counted or not: the number the period control gives. The
-   * header's count is this one, so the page says one count. Absent: the activities the analysis counted.
-   */
-  onFile?: number
   /** The period's status and Custom form, under the title. */
   controls: ReactNode
-  /** The period's dates and counts as one meta line, for the Details under the title. */
-  periodLine?: ReactNode
-  /** Whether that line gives the count, so the page's own line under the title leaves it out. */
-  periodCounts?: boolean
+  /** The period's dates, counts and notes as rows, for the Details under the title. */
+  periodRows?: readonly Property[]
   /** The line that says what the page is based on, at its foot. */
   footnote?: ReactNode
   /** What to say when the sport has nothing in the period, naming the period. */

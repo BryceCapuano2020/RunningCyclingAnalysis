@@ -5,7 +5,7 @@ import type { Period } from '@rca/core/period'
 import { persona } from '@rca/core/synthetic'
 import type { PersonaName } from '@rca/core/synthetic'
 import { fitnessViews } from '../fitnessModel'
-import { indoorSplitLine } from '../indoorCopy'
+import { indoorSplitRow } from '../indoorCopy'
 import { hasThreshold } from '../records'
 import { soleSportOf } from '../soleSport'
 import { thresholdNeedsLine } from '../thresholdNeeds'
@@ -32,7 +32,7 @@ function homeOf(name: PersonaName) {
     detail: held.detail,
     threshold: hasThreshold(result, sole),
     needs: hasThreshold(result, sole) ? null : thresholdNeedsLine(result, sole),
-    split: indoorSplitLine(result.activities, sole),
+    split: indoorSplitRow(result.activities, sole),
     fitnessCards: fitnessViews(fitness, 'metric', Date.UTC(2025, 5, 16)).length,
   }
 }
@@ -45,7 +45,7 @@ const EXPECTED = {
     sole: 'run',
     title: 'Your running so far',
     detail: '',
-    split: '20 treadmill runs: pace not used.',
+    split: { label: 'Treadmill runs', value: '20, pace not used' },
     cards: 1,
   },
   treadmillOnly: {

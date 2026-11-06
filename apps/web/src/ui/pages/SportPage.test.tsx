@@ -1488,7 +1488,7 @@ describe('SportPage depth', () => {
     expect(screen.queryByText(/Distance times are as run/)).toBeNull()
   })
 
-  it('gives the recent form in one line: the last run, the runs and their distance', () => {
+  it('gives the recent form as rows: the last run and its distance', () => {
     const run = makeActivity({
       id: 'run-1',
       sport: 'run',
@@ -1498,7 +1498,8 @@ describe('SportPage depth', () => {
     })
     renderPage('run', makeResult({ activities: [run] }))
 
-    expect(screen.getByText(wholeText('Last run 5 Jan · 1 run · 10.0 km'))).toBeInTheDocument()
+    expect(rowValue(document.body, 'Last run')).toBe('5 Jan')
+    expect(rowValue(document.body, 'Distance')).toBe('10.0 km')
   })
 
   it('groups the power-meter count and the ride count from a thousand on', () => {
@@ -1928,21 +1929,21 @@ describe('SportPage with activities held indoors', () => {
 
   it('says nothing of indoor rides, whose power counts like any other', () => {
     renderPage('ride', makeResult({ activities: rides(6, 40) }))
-    expect(screen.queryByTestId('indoor-split')).toBeNull()
+    expect(rowValue(document.body, 'Treadmill runs')).toBeNull()
     expect(screen.queryByText(/indoors|power counts/)).toBeNull()
   })
 
-  it('says how many treadmill runs a mixed run library leaves out, once, under the answer', () => {
+  it('says how many treadmill runs a mixed run library leaves out, once, in the Details', () => {
     const runs = Array.from({ length: 6 }, (_, i) =>
       makeActivity({ id: `run-${i}`, sport: 'run', indoor: i < 2 }),
     )
     renderPage('run', makeResult({ activities: runs }))
-    expect(screen.getByTestId('indoor-split')).toHaveTextContent('2 treadmill runs: pace not used.')
+    expect(rowValue(document.body, 'Treadmill runs')).toBe('2, pace not used')
   })
 
   it('says nothing of the split when no ride was indoors', () => {
     renderPage('ride', makeResult({ activities: rides(0, 5) }))
-    expect(screen.queryByTestId('indoor-split')).toBeNull()
+    expect(rowValue(document.body, 'Treadmill runs')).toBeNull()
   })
 
   it('tells a runner with only treadmill runs how many, not to add efforts', () => {

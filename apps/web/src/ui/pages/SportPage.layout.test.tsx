@@ -23,6 +23,7 @@ import type { AgeGap, AgeProfile } from '../grades'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { SportPage } from './SportPage'
 import { openDetail } from '../test/openDetail'
+import { rowValue } from '../test/propertyRows'
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({
@@ -198,7 +199,7 @@ describe('the answer: threshold and level in one card', () => {
     // Nothing small stands under the title: the recent-form line is in the Details.
     const details = head.lastElementChild!
     expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
-    expect(details.querySelector('.sport-page__form')).toHaveTextContent(/^Last run /)
+    expect(rowValue(details, 'Last run')).toMatch(/^\d+ \w+/)
     expect(head.contains(document.querySelector('.sport-hero'))).toBe(false)
   })
 })

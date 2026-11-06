@@ -3,7 +3,7 @@ import { FITNESS, fitnessLines } from '@rca/core/fitness'
 import type { FitnessBySport, FitnessState, FitnessStatus, Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { latestActivityText } from './periodCopy'
+import { latestActivityAge, latestActivityText } from './periodCopy'
 import { SPORT_FORMAT, SPORT_ORDER } from './sports'
 
 /** The shapes that say a state without colour: each is drawn by FitnessGlyph. */
@@ -70,6 +70,8 @@ export interface FitnessView {
   needs: string
   /** How old the status is, once its newest activity is long ago by the clock: "Latest activity 9 months ago." Null while it is recent. */
   age: string | null
+  /** How long ago the newest activity was, "9 months ago", once it is long ago; null while recent. */
+  ago: string | null
   /** A change that began to be shown within the last weeks: "the week of 12 Oct". Null otherwise. */
   fresh: string | null
   track: FitnessTrackModel | null
@@ -183,6 +185,7 @@ export function viewOf(status: FitnessStatus, units: UnitSystem, nowMs: number):
     support: tidy(lines.support),
     needs: tidy(lines.needs),
     age: age === null ? null : `${age}.`,
+    ago: latestActivityAge(status.asOfMs, nowMs),
     fresh,
     track: trackOf(status, units),
     status,

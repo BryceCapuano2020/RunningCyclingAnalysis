@@ -3,6 +3,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import { shortestEffortMin } from '@rca/core/display'
 import type { Sport } from '@rca/core/types'
 import { plural } from './components/plural'
+import type { Property } from './components/property'
 import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
 
 /*
@@ -15,9 +16,9 @@ import { SPORT_ACTIVITY, SPORT_PLURAL } from './sports'
 /** Where an indoor activity of the sport was. */
 const INDOOR_PLACE: Record<Sport, string> = { run: 'on a treadmill', ride: 'indoors' }
 
-/** The count of a sport's indoor activities that hold no best, for a sport whose indoor efforts do not count. */
-const INDOOR_UNCOUNTED: Partial<Record<Sport, (count: number) => string>> = {
-  run: (count) => `${plural(count, 'treadmill run')}: pace not used.`,
+/** The row for a sport's indoor activities that hold no best, for a sport whose indoor efforts do not count. */
+const INDOOR_UNCOUNTED: Partial<Record<Sport, (count: number) => Property>> = {
+  run: (count) => ({ label: 'Treadmill runs', value: `${count}, pace not used` }),
 }
 
 /** What the athlete adds to see the sport's efforts: only for a sport whose indoor efforts do not count. */
@@ -66,14 +67,14 @@ export function indoorNeedLine(
 }
 
 /**
- * The split once, for a sport with both kinds whose indoor efforts do not count: "5 treadmill runs: pace not used."
- * Null where none or all were indoors (all is `indoorNeedLine`'s), and for a sport whose indoor efforts count, which
- * has nothing to say.
+ * The split once, as a detail panel's row, for a sport with both kinds whose indoor efforts do not count: "Treadmill runs",
+ * "5, pace not used". Null where none or all were indoors (all is `indoorNeedLine`'s), and for a sport whose indoor efforts
+ * count, which has nothing to say.
  */
-export function indoorSplitLine(
+export function indoorSplitRow(
   activities: readonly ActivitySummary[],
   sport: Sport,
-): string | null {
+): Property | null {
   const { indoor, total } = indoorCount(activities, sport)
   const uncounted = INDOOR_UNCOUNTED[sport]
   if (indoor === 0 || indoor === total || uncounted === undefined || indoorEffortsCount(sport)) {

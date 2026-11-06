@@ -101,33 +101,25 @@ describe('the count of a period, out of what is on file', () => {
 
   it('says the same on a sport page, for its own runs', () => {
     const { container } = renderWindow({ page: 'run' }, 42)
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '3 of 5 runs, 1 not counted',
-    )
+    expect(rowValue(container, 'Runs')).toBe('3 of 5')
+    expect(rowValue(container, 'Not counted')).toBe('1')
   })
 
-  it('gives the count once, in the period line, and leaves it out of the recent-form line beside it in the Details', () => {
+  it('gives the count once, as the period’s row, beside the last run and distance rows in the one Details', () => {
     const { container } = renderWindow({ page: 'run' }, 42)
-    // Two of the three runs in the period are counted by the analysis: the period line still says three.
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '3 of 5 runs, 1 not counted',
-    )
-    const form = container.querySelector('.sport-page__form')
-    expect(form?.textContent).toMatch(/^Last run \d+ \w+ · [\d.]+ km$/)
-    // Both lines are behind the one Details under the title.
-    const details = form?.closest('details')
+    // Two of the three runs in the period are counted by the analysis: the period's row still says three.
+    expect(rowValue(container, 'Runs')).toBe('3 of 5')
+    expect(rowValue(container, 'Last run')).toMatch(/^\d+ \w+/)
+    expect(rowValue(container, 'Distance')).toMatch(/^[\d.]+ km$/)
+    const details = container.querySelector('.sport-page__head details')
     expect(details?.querySelector('summary')).toHaveTextContent(/^Details$/)
-    expect(details).toContainElement(
-      container.querySelector('.period-caption__line') as HTMLElement,
-    )
+    expect(details?.querySelectorAll('.props__row').length).toBeGreaterThanOrEqual(4)
   })
 
   it('says the same on the Ride page, for its own rides', () => {
     const { container } = renderWindow({ page: 'ride' }, 90)
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe('1 of 3 rides')
-    expect(container.querySelector('.sport-page__form')?.textContent).toMatch(
-      /^Last ride \d+ \w+ · [\d.]+ km$/,
-    )
+    expect(rowValue(container, 'Rides')).toBe('1 of 3')
+    expect(rowValue(container, 'Last ride')).toMatch(/^\d+ \w+/)
   })
 
   it('says every activity on file, and how many are not counted, for all time', () => {
@@ -151,10 +143,9 @@ describe('the count every page gives of the library', () => {
 
   it('gives a sport page the runs on file, with the runs not counted, linked to the list of them', () => {
     const { container } = renderPage({ page: 'run' }, [COUNTED_RUNS[0]!])
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '5 runs, 2 not counted',
-    )
-    expect(screen.getByRole('link', { name: '2 not counted' })).toHaveAttribute(
+    expect(rowValue(container, 'Runs')).toBe('5')
+    expect(rowValue(container, 'Not counted')).toBe('2')
+    expect(screen.getByRole('link', { name: '2' })).toHaveAttribute(
       'href',
       '#/activities?sport=run&show=not-counted',
     )

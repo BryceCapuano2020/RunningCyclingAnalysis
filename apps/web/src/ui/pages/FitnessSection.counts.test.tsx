@@ -5,6 +5,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { makeActivity } from '../components/fixtures'
 import { FITNESS_AS_OF_MS, SLIPPING, waitingStatus } from '../fitnessFixtures'
+import { rowValue } from '../test/propertyRows'
 import { FitnessSection } from './FitnessSection'
 
 afterEach(cleanup)
@@ -85,9 +86,7 @@ describe('the ride’s fitness line with too few rides measured', () => {
     )
     // A level to tell is the line, without its range; the range and the count are in the row's Details.
     expect(rideLine().textContent).toBe('200 W at 140 bpm.')
-    const details = rideLine().closest('li')!.querySelector('details')!.cloneNode(true) as Element
-    details.querySelectorAll('.definition__note').forEach((note) => note.remove())
-    expect(details.textContent).toContain('From 7 steady rides.')
+    expect(rowValue(rideLine().closest('li')!, 'Steady rides')).toBe('7')
   })
 
   it('says it for a library of rides alone when some have a meter but no steady one is on file', () => {

@@ -19,6 +19,14 @@ const card = (page: Page) => page.locator(CARD)
 /** Opens a fitness row's one Details, which holds the level, the basis, the track and the evidence. */
 const openDetails = (row: Locator) => row.locator('.fitness-card__evidence > summary').click()
 
+/** The value of the detail-panel row in `scope` whose label matches. */
+async function value(scope: Locator, label: RegExp): Promise<string> {
+  const row = scope
+    .locator('.props__row')
+    .filter({ has: scope.page().locator('dt', { hasText: label }) })
+  return (await row.locator('dd').first().innerText()).replace(/\s+/g, ' ').trim()
+}
+
 test('the sample’s Balance shows a fitness status that is new, with its one line and the runs behind it in Details', async ({
   page,
 }) => {
@@ -31,18 +39,12 @@ test('the sample’s Balance shows a fitness status that is new, with its one li
     /^\d+% off your (\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
   )
   // The rest waits in the row's Details: the level at its heart rate, the runs behind it, what is new and the track.
-  await expect(card(page).locator('.fitness-card__headline')).toBeHidden()
+  await expect(card(page).locator('.props')).toBeHidden()
   await openDetails(card(page))
-  expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(
-    /^\d+:\d{2}\s\/(km|mi) at \d+ bpm\.$/,
-  )
-  expect(await spoken(card(page).locator('.fitness-card__support'))).toMatch(
-    /^From \d+ steady runs, \d{1,2} [A-Z][a-z]{2} to \d{1,2} [A-Z][a-z]{2}\.$/,
-  )
+  expect(await value(card(page), /^Pace at \d+ bpm$/)).toMatch(/^\d+:\d{2}\s\/(km|mi)$/)
+  expect(await value(card(page), /^Steady runs$/)).toMatch(/^\d+$/)
   await expect(card(page).getByTestId('fitness-season')).toHaveCount(0)
-  await expect(page.getByTestId('fitness-new')).toHaveText(
-    /^New since the week of \d{1,2} [A-Z][a-z]{2}\.$/,
-  )
+  expect(await value(card(page), /^New since$/)).toMatch(/^the week of \d{1,2} [A-Z][a-z]{2}$/)
   // The change is a track, drawn and hidden from a screen reader, whose words are in the lines above it.
   await expect(card(page).locator('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
   await expect(card(page).locator('.fitness-track__ring')).toBeVisible()
@@ -176,12 +178,7 @@ test('a tap on the lower third of a term opens it and not the term on the line b
   await openDetails(card(page))
   await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
   let pairs = 0
-  for (const scope of [
-    `${CARD} .fitness-card__headline`,
-    `${CARD} [data-testid="fitness-change"]`,
-    `${CARD} .fitness-card__support`,
-    '.fitness-evidence',
-  ]) {
+  for (const scope of [`${CARD} .props`, '.fitness-evidence']) {
     const region = page.locator(scope)
     // A status with one change has no second change line in its Details.
     if ((await region.count()) === 0) continue
@@ -248,12 +245,9 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(ride).toHaveCount(1)
   await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
   await openDetails(ride)
-  expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(
-    /^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/,
-  )
-  await expect(ride.getByTestId('fitness-needs')).toHaveText(
-    /^\d+ more earlier rides? to see a trend\.$/,
-  )
+  expect(await value(ride, /^Power at \d+ bpm$/)).toMatch(/^\d+ W$/)
+  expect(await value(ride, /^Range$/)).toMatch(/^\d+\u2013\d+ W$/)
+  expect(await value(ride, /^Trend$/)).toMatch(/^Needs \d+ more earlier rides?$/)
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })
 
@@ -279,7 +273,7 @@ test('the landing page’s one sample card holds the finding under the balance, 
   await openSample(page)
   await expect(card(page).locator('.fitness-card__state')).toHaveText('Run · Slipping')
   await openDetails(card(page))
-  expect(await spoken(card(page).locator('.fitness-card__headline'))).toMatch(/ at 120 bpm\.$/)
+  await expect(card(page).locator('.props__row dt', { hasText: /at 120 bpm$/ })).toHaveCount(1)
 })
 
 test('a forced-colours reader still sees the row’s hairline, the track’s line and its mark', async ({

@@ -7,7 +7,9 @@ import { useHoldInputs } from '../holdContext'
 import { SPORT_LABEL } from '../sports'
 import { adjustedForWarmDays } from '../fitnessModel'
 import type { FitnessView } from '../fitnessModel'
-import { withDefinitions } from '../fitnessText'
+import { fitnessRows } from '../fitnessRows'
+import { SECTION_ID } from '../components/methodTopics'
+import { PropertyList } from '../components/PropertyList'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessTrack } from './FitnessTrack'
 import { fitnessLine } from '../fitnessLine'
@@ -75,16 +77,8 @@ export function FitnessCard({
   const line = bare?.text ?? fitnessLine(view)
   // The level is in Details with its range whenever the line is a change, or the line dropped a range from it.
   const levelInDetails = bare?.text == null && (view.changes.length > 0 || line !== view.headline)
-  const hasDetails =
-    levelInDetails ||
-    view.changes.length > 1 ||
-    view.support !== '' ||
-    view.age !== null ||
-    view.needs !== '' ||
-    warm ||
-    view.fresh !== null ||
-    view.track !== null ||
-    evidenceOf
+  const rows = fitnessRows(view, units, { level: levelInDetails, warm })
+  const hasDetails = rows.length > 0 || view.track !== null || evidenceOf
   return (
     <li className={rowClass} data-sport={view.sport} data-state={view.state}>
       {index === null ? null : <RowIndex index={index} />}
@@ -107,38 +101,12 @@ export function FitnessCard({
               {/* Two rows on Balance: a control list needs to tell them apart. */}
               <span className="sr-only">{` for ${SPORT_LABEL[view.sport].toLowerCase()}`}</span>
             </summary>
-            <div className="disclosure__body disclosure__lines fitness-card__details">
-              {levelInDetails ? (
-                <p className="fitness-card__headline">
-                  {withDefinitions(view.headline, status, units)}
-                </p>
-              ) : null}
-              {view.changes.slice(1).map((change) => (
-                <p key={change} data-testid="fitness-change">
-                  {withDefinitions(change, status, units)}
-                </p>
-              ))}
-              {view.support === '' ? null : (
-                <p className="fitness-card__support">
-                  {withDefinitions(view.support, status, units)}
-                </p>
-              )}
-              {view.age === null ? null : (
-                <p data-testid="fitness-age">
-                  <NumText text={view.age} />
-                </p>
-              )}
-              {view.needs === '' ? null : (
-                <p data-testid="fitness-needs">
-                  <NumText text={view.needs} />
-                </p>
-              )}
-              {warm ? <p data-testid="fitness-heat">Adjusted for warm days.</p> : null}
-              {view.fresh === null ? null : (
-                <p data-testid="fitness-new">
-                  <NumText text={`New since ${view.fresh}.`} />
-                </p>
-              )}
+            <div className="disclosure__body fitness-card__details">
+              <PropertyList
+                rows={rows}
+                method={SECTION_ID.how}
+                methodName={`how ${SPORT_LABEL[view.sport].toLowerCase()} fitness is worked out`}
+              />
               {view.track === null ? null : (
                 <div className="fitness-card__shape">
                   <FitnessTrack track={view.track} />
