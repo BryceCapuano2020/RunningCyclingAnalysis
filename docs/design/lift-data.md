@@ -1,6 +1,6 @@
 # Lift sets: record, storage and sync (design)
 
-Status: designed for stage X, reviewed once (approve with changes, all taken below); nothing built. Where
+Status: designed for stage X, reviewed twice (approve with changes, all taken below); nothing built. Where
 lifting lives is settled in [strength.md](strength.md); this note is the record, the server table and routes,
 the browser store and how the two agree. The estimator that reads the sets is [e1rm.md](e1rm.md). Synthetic
 values only.
@@ -29,7 +29,8 @@ entered. Exercise names come from the core catalog or a slug the athlete typed; 
 text, and the privacy page says so. Notes are not kept.
 
 Caps, in the contract with the other limits: 60,000 sets an account (about nine years of a heavy lifter's
-logging), 500 sets in one write, 500 keys in one delete.
+logging), 500 sets in one write, 500 keys in one delete. A write or delete that names one key twice is refused,
+with the index of the second.
 
 ## 2. Server
 
@@ -40,7 +41,8 @@ logging), 500 sets in one write, 500 keys in one delete.
   `(user_id, date, exercise, equipment, set_order)`. Foreign key `user_id` to `users(id)` on delete cascade, so
   account deletion needs no new statement. Checks hold the equipment and precision names, and `time` and
   `time_precision` null together;
-- `users.lift_count INTEGER NOT NULL DEFAULT 0 CHECK (lift_count BETWEEN 0 AND 60000)`;
+- `users.lift_count INTEGER NOT NULL DEFAULT 0 CONSTRAINT users_lift_count_cap CHECK (lift_count BETWEEN 0 AND
+60000)`;
 - `users.lift_revision INTEGER NOT NULL DEFAULT 0`.
 
 A new table and defaulted columns leave the rollback floor's Worker working. The cap lives in the check, so
@@ -51,15 +53,18 @@ about 12, so sets are bound as one JSON text and read with `json_each`. A write 
 one transaction:
 
 1. `UPDATE users SET lift_count = lift_count + <new keys>, lift_revision = lift_revision + 1 WHERE id = ?
-RETURNING lift_count, lift_revision`, where `<new keys>` counts the payload's keys with no stored row (one
-   primary-key lookup each). If the count would pass 60,000, the check fails and the whole batch rolls back:
-   the route answers 409 and refunds the budget.
+RETURNING lift_count, lift_revision`, where `<new keys>` counts the payload's distinct keys with no stored row
+   (one primary-key lookup each). If the count would pass 60,000, the check fails and the whole batch rolls
+   back. The route answers 409 and refunds only when the error names `users_lift_count_cap`; any other
+   constraint error is a 500, so the browser never holds sets for a cap it has not reached. An empty
+   `RETURNING` means the user row is gone: 401.
 2. `INSERT INTO lift_sets (...) SELECT ... FROM json_each(?) WHERE true ON CONFLICT (...) DO UPDATE SET ...`
    (insert or replace), or `DO NOTHING` in insert-only mode, whose answer lists the keys it skipped.
 
-A delete is the same pair: the update subtracts the payload's keys that have a row, then
-`DELETE ... WHERE (date, exercise, equipment, set_order) IN (SELECT ... FROM json_each(?))`. A test pins two
-statements per write, as LIMITS.md does for listing. Rows read per write are about the payload's size.
+A delete is the same pair: the update subtracts the payload's distinct keys that have a row, then
+`DELETE FROM lift_sets WHERE user_id = ?1 AND (date, exercise, equipment, set_order) IN (SELECT ... FROM
+json_each(?2))`. Every statement names `user_id`. A test pins two statements per write, as LIMITS.md does for
+listing, and an `EXPLAIN QUERY PLAN` test pins the delete to a primary-key search, not a scan of the account. Rows read per write are about the payload's size.
 
 **Routes**, each behind `requireUser`, a body limit and a daily budget of its own (`liftRead`, `liftWrite`),
 listed in `apps/api/LIMITS.md`:
@@ -134,7 +139,8 @@ only the last group is refused.
 ## 5. Tests the build adds
 
 - Contract: every bound at its edge, both ways; the key round-trips; the cursor orders `.2` before `.10`.
-- API: create, read, update, delete; a second account cannot read or touch the first's sets; two statements per
+- API: create, read, update, delete; a second account cannot read, replace or delete the first's sets;
+  duplicate keys refused; two statements per
   write; the 409 at the cap rolls back the whole batch and refunds; `insertOnly` returns skipped keys; 400 names
   the index; `lift_count` stays equal to the row count through inserts, replaces and deletes; `liftRevision`
   moves on every write and `libraryRevision` does not; account deletion leaves no `lift_sets` row.
