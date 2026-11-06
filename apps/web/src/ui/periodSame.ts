@@ -19,15 +19,14 @@ function startedWithinDays(
 }
 
 /**
- * Where a longer period holds nothing a shorter one does not, which it says rather than repeat in silence:
- * "Same 14 activities as the 6 weeks to your latest activity", naming the shortest period with the same activities. A period counts
- * back from the latest activity, not from today, which the words say so a library that has been idle for a year does not read as stale. Null for a custom range,
+ * The shortest period that holds the same activities as `period`, as its count and its length ("6 weeks"), where a longer period
+ * holds nothing a shorter one does not. A period counts back from the latest activity, not from today. Null for a custom range,
  * for the shortest period, and where a shorter period holds fewer.
  */
-export function sameAsShorterText(
+export function sameAsShorter(
   activities: readonly { startMs: number }[],
   period: Period,
-): string | null {
+): { count: number; length: string } | null {
   if (typeof period.choice === 'object') return null
   const here = FIXED_DAYS.findIndex((days) => days === period.days)
   if (here <= 0) return null
@@ -35,8 +34,22 @@ export function sameAsShorterText(
   if (count === 0) return null
   for (const days of FIXED_DAYS.slice(0, here)) {
     if (days !== null && startedWithinDays(activities, days) === count) {
-      return `Same ${formatCount(count)} ${count === 1 ? 'activity' : 'activities'} as the ${lengthOf(days)} to your latest activity`
+      return { count, length: lengthOf(days) }
     }
   }
   return null
+}
+
+/**
+ * Where a longer period holds nothing a shorter one does not, which it says rather than repeat in silence:
+ * "Same 14 activities as the 6 weeks to your latest activity", naming the shortest period with the same activities. The words
+ * say "to your latest activity" so a library that has been idle for a year does not read as stale. Null as `sameAsShorter` is.
+ */
+export function sameAsShorterText(
+  activities: readonly { startMs: number }[],
+  period: Period,
+): string | null {
+  const same = sameAsShorter(activities, period)
+  if (same === null) return null
+  return `Same ${formatCount(same.count)} ${same.count === 1 ? 'activity' : 'activities'} as the ${same.length} to your latest activity`
 }

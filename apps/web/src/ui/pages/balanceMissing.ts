@@ -28,7 +28,7 @@ export function fewEffortsText(result: AnalysisResult): string | null {
     (runs >= HEADLINE_MIN_ACTIVITIES && rides >= HEADLINE_MIN_ACTIVITIES)
   )
     return null
-  return `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}.`
+  return `${plural(runs, 'run')}, ${plural(rides, 'ride')}`
 }
 
 export interface Missing {

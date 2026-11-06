@@ -107,9 +107,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     name: 'Balance, a definition open',
     open: async (page) => {
       await openSample(page)
-      // The standards line is the last line of the answer's Details.
-      await page.locator('.balance-hero .page-details > summary').click()
-      await page.getByRole('button', { name: 'Age-graded', exact: true }).click()
+      await page.getByRole('button', { name: 'range', exact: true }).click()
       await expect(page.getByRole('note').first()).toBeVisible()
     },
   },

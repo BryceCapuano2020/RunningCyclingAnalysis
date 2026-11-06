@@ -73,10 +73,15 @@ const STALE_DAYS = SIX_WEEKS_DAYS
  * a parameter, so the line is tested at a fixed day.
  */
 export function latestActivityText(newestMs: number | null, nowMs = Date.now()): string | null {
+  const age = latestActivityAge(newestMs, nowMs)
+  return age === null ? null : `Latest activity ${age}`
+}
+
+/** How old the newest activity is ("17 months ago") once it is more than six weeks old; null while recent or when there is none. */
+export function latestActivityAge(newestMs: number | null, nowMs = Date.now()): string | null {
   if (newestMs === null) return null
   const days = Math.floor((nowMs - newestMs) / DAY_MS)
-  if (days <= STALE_DAYS) return null
-  return `Latest activity ${agoText(days)}`
+  return days <= STALE_DAYS ? null : agoText(days)
 }
 
 /**

@@ -128,22 +128,28 @@ export function notHardWords(sport: Sport, gate: EffortGate, settles: string): E
 }
 
 /**
- * Why a gate could not judge, and what would let it: the effort was not checked. `add` is what to add as a phrase that
+ * Why a gate could not judge, and what would let it: the effort was not checked. `short` is the reason as a detail panel's row value. `add` is what to add as a phrase that
  * follows "Add" where an activity mends it (no heart rate), and null where only the reference does (too few days).
  */
 export function uncheckedWords(
   sport: Sport,
   gate: EffortGate,
-): { why: string; action: string; add: string | null } | null {
+): { why: string; action: string; add: string | null; short: string } | null {
   switch (gate.unchecked) {
     case 'noHeartRate':
       return {
         why: `No heart rate on your best ${EFFORT_TEXT} ${SPORT_ACTIVITY[sport]}, so the effort was not checked.`,
         action: `Add a ${SPORT_ACTIVITY[sport]} with heart rate to check it.`,
         add: `a ${SPORT_ACTIVITY[sport]} with heart rate`,
+        short: 'No heart rate',
       }
     case 'thin':
-      return { why: THIN_WHY, action: THIN_ACTION, add: null }
+      return {
+        why: THIN_WHY,
+        action: THIN_ACTION,
+        add: null,
+        short: 'Too few days with heart rate',
+      }
     default:
       return null
   }

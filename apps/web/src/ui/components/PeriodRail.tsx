@@ -2,7 +2,8 @@ import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { CustomRangeForm } from './CustomRangeForm'
 import { PeriodCaptionLine, PeriodStatus } from './PeriodCaption'
-import { captionSays } from './periodCaptionWords'
+import { captionSays, periodRows } from './periodCaptionWords'
+import type { Property } from './property'
 import type { PeriodCaptionProps } from './periodCaptionWords'
 import { WAITS_FOR_IMPORT } from './RangePicker'
 import type { RangePickerProps } from './RangePicker'
@@ -10,7 +11,10 @@ import { CUSTOM_OPTION, RANGE_OPTIONS, choiceOfValue, optionValue } from './rang
 import { SegmentedControl } from './SegmentedControl'
 import { usePeriodPicks } from './usePeriodPicks'
 
-export type PeriodRailProps = Omit<RangePickerProps, 'options' | 'custom' | 'compact'>
+export type PeriodRailProps = Omit<RangePickerProps, 'options' | 'custom' | 'compact'> & {
+  /** The note as detail-panel rows, one fact each, for a page whose Details are rows. */
+  noteRows?: readonly Property[]
+}
 
 export interface PeriodRail {
   /** The periods as the rail's words: the group named Period, one radio for each, then Custom. */
@@ -21,7 +25,12 @@ export interface PeriodRail {
   line: ReactNode
   /** Whether the line gives a count, so a page that would give one too leaves its own out. */
   lineCounts: boolean
+  /** The same as a detail panel's rows. */
+  rows: Property[]
 }
+
+/** The row said while a pick waits behind an import. */
+const WAITING_ROW: Property = { label: 'Period', value: WAITS_FOR_IMPORT }
 
 /**
  * The period control set out of the page: the choices in the rail, and what they say: a status under the page's title
@@ -34,6 +43,7 @@ export function usePeriodRail({
   range = null,
   dates = '',
   note,
+  noteRows = [],
   shown,
   total,
   notCounted = 0,
@@ -115,5 +125,6 @@ export function usePeriodRail({
         </>
       ),
     lineCounts: said && counted,
+    rows: periodRows(words, waiting && busy ? [WAITING_ROW] : noteRows),
   }
 }

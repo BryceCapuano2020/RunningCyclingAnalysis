@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import type { Property } from '../components/property'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { periodDays, sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
@@ -14,6 +15,7 @@ import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { windowLine } from '../windowLine'
+import { periodNoteRows } from '../periodNoteRows'
 
 export interface ResultPeriodInput {
   route: Route
@@ -37,6 +39,8 @@ export interface ResultPeriod {
   line: ReactNode
   /** Whether that line gives a count, so a sport page's own line leaves its count out. */
   lineCounts: boolean
+  /** The period as a detail panel's rows. */
+  rows: Property[]
 }
 
 /** The notes after the period's dates, in the caption's one line: joined with a dot, with no full stops. */
@@ -98,6 +102,10 @@ export function useResultPeriod({
     resolved: analysis.state.answerWindow.choice,
     range: periodDays(period),
     dates: periodDates(period),
+    noteRows: periodNoteRows(
+      analysis.state.answerWindow,
+      sport === null ? { activities: analysed, period, newestMs } : undefined,
+    ),
     note:
       sport === null
         ? noteOf([windowNote, sameAsShorterText(analysed, period), latestActivityText(newestMs)])
@@ -118,5 +126,6 @@ export function useResultPeriod({
     caption: shown ? rail.caption : null,
     line: shown ? rail.line : null,
     lineCounts: shown && rail.lineCounts,
+    rows: shown ? rail.rows : [],
   }
 }
