@@ -11,28 +11,40 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { MEASUREMENT_KINDS } from '@rca/core/athlete'
+import { EQUIPMENT } from '@rca/core/lift'
 import { SPORTS } from '@rca/core/types'
 
-export const users = sqliteTable('users', {
-  id: text('id').primaryKey(),
-  email: text('email').notNull().unique(),
-  name: text('name').notNull(),
-  pictureUrl: text('picture_url'),
-  createdAt: integer('created_at').notNull(),
-  /** Stored activities, kept in step with activities rows by the same statements that change them. */
-  activityCount: integer('activity_count').notNull().default(0),
-  /** Set when account deletion starts. A deleting account can only finish its own deletion. */
-  deletingAt: integer('deleting_at'),
-  /** Digest JSON bytes this user stores, kept in step with activities rows. Capped per user. */
-  digestBytes: integer('digest_bytes').notNull().default(0),
-  /**
-   * Original-file bytes this user stores or has reserved: the sum of their activities' file_size.
-   * Triggers on activities (migration 0008) keep it in step, so no writer has to. Capped per user.
-   */
-  fileBytes: integer('file_bytes').notNull().default(0),
-  /** The last continuation cursor the server issued for this user's library, spent once. */
-  listCursor: text('list_cursor'),
-})
+export const users = sqliteTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    pictureUrl: text('picture_url'),
+    createdAt: integer('created_at').notNull(),
+    /** Stored activities, kept in step with activities rows by the same statements that change them. */
+    activityCount: integer('activity_count').notNull().default(0),
+    /** Set when account deletion starts. A deleting account can only finish its own deletion. */
+    deletingAt: integer('deleting_at'),
+    /** Digest JSON bytes this user stores, kept in step with activities rows. Capped per user. */
+    digestBytes: integer('digest_bytes').notNull().default(0),
+    /**
+     * Original-file bytes this user stores or has reserved: the sum of their activities' file_size.
+     * Triggers on activities (migration 0008) keep it in step, so no writer has to. Capped per user.
+     */
+    fileBytes: integer('file_bytes').notNull().default(0),
+    /** The last continuation cursor the server issued for this user's library, spent once. */
+    listCursor: text('list_cursor'),
+    /**
+     * Stored lift sets, kept in step with lift_sets by the same batch that changes them. The cap is the
+     * named check, so a write past it fails whole (migration 0012).
+     */
+    liftCount: integer('lift_count').notNull().default(0),
+    /** Raised by every lift write and delete. The browser pulls lifts only when it moves. */
+    liftRevision: integer('lift_revision').notNull().default(0),
+  },
+  (t) => [check('users_lift_count_cap', sql`${t.liftCount} BETWEEN 0 AND 60000`)],
+)
 
 export const oauthAccounts = sqliteTable(
   'oauth_accounts',
@@ -116,6 +128,42 @@ export const athleteMeasurements = sqliteTable(
       sql`${t.kind} IN ('massKg', 'maxHeartRate', 'thresholdPower', 'thresholdPace')`,
     ),
     check('athlete_measurements_sport_check', sql`${t.sport} IN ('', 'run', 'ride')`),
+  ],
+)
+
+/**
+ * One logged set (lift-data.md). The primary key is the set key: date, exercise, equipment and set
+ * order, so a second write of the same key replaces the first. `warmup` is 0 or 1.
+ */
+export const liftSets = sqliteTable(
+  'lift_sets',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(),
+    exercise: text('exercise').notNull(),
+    equipment: text('equipment', { enum: EQUIPMENT }).notNull(),
+    setOrder: integer('set_order').notNull(),
+    reps: integer('reps').notNull(),
+    loadKg: real('load_kg').notNull(),
+    rpe: real('rpe'),
+    warmup: integer('warmup').notNull().default(0),
+    time: text('time'),
+    timePrecision: text('time_precision', { enum: ['set', 'session'] }),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date, t.exercise, t.equipment, t.setOrder] }),
+    check(
+      'lift_sets_equipment_check',
+      sql`${t.equipment} IN ('barbell', 'dumbbell', 'machine', 'smith', 'cable', 'kettlebell', 'bodyweight', 'other')`,
+    ),
+    check(
+      'lift_sets_time_precision_check',
+      sql`${t.timePrecision} IS NULL OR ${t.timePrecision} IN ('set', 'session')`,
+    ),
+    check('lift_sets_time_pair_check', sql`(${t.time} IS NULL) = (${t.timePrecision} IS NULL)`),
   ],
 )
 
@@ -256,6 +304,7 @@ export const schema = {
   sessions,
   profiles,
   athleteMeasurements,
+  liftSets,
   activities,
   r2StorageBudget,
   dailyBudget,

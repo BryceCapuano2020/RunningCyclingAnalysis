@@ -85,6 +85,13 @@
       "when": 1793389539456,
       "tag": "0011_account_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794007918071,
+      "tag": "0012_lift_sets",
+      "breakpoints": true
     }
   ]
 }
