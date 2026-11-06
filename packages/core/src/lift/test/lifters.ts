@@ -164,7 +164,8 @@ export function simulate(spec: LifterSpec): Lifter {
       for (const p of [0.5, 0.7, 0.85]) {
         const wl = Math.round((load * p) / 2.5) * 2.5
         if (spec.flagsWarmups) push(p < 0.8 ? 5 : 3, wl, undefined, true)
-        else push(p < 0.8 ? 5 : 3, wl, r.next() < spec.rpeLogged ? 5 : undefined)
+        // Unflagged warm-ups carry no RPE, as in a CSV from an app with no set type.
+        else push(p < 0.8 ? 5 : 3, wl)
       }
       for (let i = 0; i < spec.workingSets; i++) {
         // Each earlier set costs about 0.7 of a rep to failure at the same load.

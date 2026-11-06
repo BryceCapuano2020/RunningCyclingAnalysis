@@ -3,7 +3,7 @@
  * held-out seeds, curve centre drawn per lifter from N(8.5, 1). It also logs the fixed-centre table, so
  * a change that moves it shows in the log.
  */
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { pooledCoverage, SCENARIO_NAMES, scoreScenario } from './test/score'
 import type { ScenarioScore } from './test/score'
 
@@ -25,8 +25,11 @@ const score = (centre: number): ScenarioScore[] =>
   SCENARIO_NAMES.map((name) => scoreScenario(name, LIFTERS, centre, HELD_OUT))
 
 describe('e1RM calibration on held-out synthetic lifters', () => {
-  const drawn = score(DRAWN_CENTRE)
-  console.log(table('drawn centre N(8.5, 1)', drawn))
+  let drawn: ScenarioScore[] = []
+  beforeAll(() => {
+    drawn = score(DRAWN_CENTRE)
+    console.log(table('drawn centre N(8.5, 1)', drawn))
+  })
 
   it('pooled coverage stays within 80% to 90%', () => {
     const pooled = pooledCoverage(drawn)
@@ -34,7 +37,7 @@ describe('e1RM calibration on held-out synthetic lifters', () => {
     expect(pooled).toBeLessThanOrEqual(0.9)
   })
 
-  it('no scenario falls under 75%, and the truth sits above the range rarely', () => {
+  it('no scenario falls under 75% (the two loss scenarios included), and the truth sits above the range rarely', () => {
     for (const s of drawn) {
       expect(s.coverage, `${s.name} coverage`).toBeGreaterThanOrEqual(0.75)
       expect(s.above, `${s.name} above`).toBeLessThanOrEqual(0.2)
@@ -47,12 +50,6 @@ describe('e1RM calibration on held-out synthetic lifters', () => {
     for (const s of drawn) {
       const limit = s.name === 'misspecified' ? 0.08 : 0.05
       expect(Math.abs(s.bias), `${s.name} bias`).toBeLessThanOrEqual(limit)
-    }
-  })
-
-  it('both strength-loss scenarios hold 75% in the weeks after the loss', () => {
-    for (const s of drawn.filter((d) => d.name.endsWith('drop'))) {
-      expect(s.coverage, s.name).toBeGreaterThanOrEqual(0.75)
     }
   })
 
