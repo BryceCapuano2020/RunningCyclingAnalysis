@@ -57,6 +57,8 @@ export const MeSchema = z.object({
    * changed it; absent from responses that do not read the library.
    */
   libraryRevision: z.string().max(64).optional(),
+  /** Raised by every lift write. Kept apart from libraryRevision so logging a set never reloads the library. */
+  liftRevision: z.number().int().nonnegative().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 /** GET /api/me answers a signed-out visitor with a null body, rather than an error. */

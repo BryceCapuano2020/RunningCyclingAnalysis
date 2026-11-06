@@ -24,6 +24,7 @@ import {
   MAX_STORED_BYTES_PER_USER,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
+import { MAX_LIFT_SETS_PER_USER } from '@rca/core/lift'
 import { UPLOAD_SLOT_LEASE_MS } from './budget.ts'
 import { MAX_HEALTH_PROBES_PER_DAY, MAX_HEALTH_PROBES_PER_MONTH } from './healthBudget.ts'
 import {
@@ -95,6 +96,8 @@ describe('the daily budget table', () => {
     profileWrite: 'Profile writes',
     measurementWrite: 'Dated-settings writes',
     measurementRead: 'Dated-settings reads',
+    liftRead: 'Lift reads',
+    liftWrite: 'Lift writes',
     activityDelete: 'Activity deletions',
     activityCreate: 'Activity creates',
     fileUpload: 'Original-file uploads',
@@ -135,6 +138,7 @@ describe('the per-user limits table', () => {
     expect(value('Digest JSON bytes stored')).toBe(`${MAX_DIGEST_BYTES_PER_USER / MIB} MiB`)
     expect(value('Original-file bytes stored')).toBe(`${MAX_STORED_BYTES_PER_USER / GIB} GiB`)
     expect(value('Dated settings stored')).toBe(n(MAX_MEASUREMENTS_PER_USER))
+    expect(value('Lift sets stored')).toBe(n(MAX_LIFT_SETS_PER_USER))
     expect(value('Concurrent original uploads')).toBe(String(MAX_CONCURRENT_UPLOADS_PER_USER))
     expect(value('Request body')).toBe(
       `${MAX_DIGEST_BYTES / 1024} KiB digest; ${MAX_FILE_BYTES / MIB} MiB file`,
