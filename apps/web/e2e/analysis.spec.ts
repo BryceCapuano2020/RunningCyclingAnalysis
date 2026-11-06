@@ -25,7 +25,7 @@ const BALANCE_METER =
 /**
  * The Balance page's last chart: the hours trained each week, found by its title.
  */
-const BEST_EFFORTS_CURVE = 'Best efforts'
+const BEST_EFFORTS_CURVE = 'Best effort by duration'
 /** The sport page's section of dated bests, which needs a season of activities. */
 const OPEN_SEASON_SECTION = 'Best efforts by day'
 /** The pace-at-heart-rate section is the weekly view, headed by what it draws: it claims no change. */
