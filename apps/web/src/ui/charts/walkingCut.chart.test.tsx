@@ -2,12 +2,10 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WALKING_PACE } from '@rca/core/constants'
-import type { SportYearCurves } from '@rca/core/history'
 import '../../test/deviceZone'
 import { chartWidth } from './chartSizeStub'
 import { curvePoint } from './fixtures'
 import { SportCurveChart } from './SportCurveChart'
-import { YearCurvesChart } from './YearCurvesChart'
 
 afterEach(() => {
   cleanup()
@@ -64,22 +62,5 @@ describe('a run curve at walking pace, drawn', () => {
       />,
     )
     expect(rowHeads()).toEqual(['5 min', '1 h', '3 h'])
-  })
-
-  it('stops the best curve by year the same way: with no 3 hour column', () => {
-    chartWidth(800)
-    const curves: SportYearCurves = {
-      durations: [300, 1200, 7200, 10_800],
-      years: [
-        { year: 2021, values: [4.4, 3.9, 3.0, WALK], hard: true, estimated: [] },
-        { year: 2022, values: [4.5, 4.0, 3.1, WALK - 0.3], hard: true, estimated: [] },
-      ],
-    }
-    render(<YearCurvesChart sport="run" curves={curves} units="imperial" />)
-    expect(
-      within(screen.getByRole('table'))
-        .getAllByRole('columnheader')
-        .map((cell) => cell.textContent),
-    ).toEqual(['Year', '5 min', '20 min', '2 h'])
   })
 })

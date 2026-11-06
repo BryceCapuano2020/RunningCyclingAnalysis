@@ -1,25 +1,12 @@
-import type { QuietGap } from '@rca/core/digest/trendSeries'
 import type { Sport } from '@rca/core/types'
 import { SPORT_ORDER } from '../sports'
 import { formatHours, hoursOf, totalSeconds } from '../weeklyVolume'
 import type { VolumeWeek } from '../weeklyVolume'
-import type { AxisTick, ChartSize, PlotBox } from './chartTypes'
+import type { ChartSize, PlotBox } from './chartTypes'
 import { labelWidthPx, rootFontPx } from './rootFont'
-import { linearScale, niceDomain, tickDecimals } from './scale'
-import { timeScale } from './timeScale'
-import type { TimeScale } from './timeScale'
-import { fitTicks } from './ticks'
-import { monthBarTicks } from './monthBarTicks'
-import { trendXTicks } from './trendTicks'
 
 /** The widest a bar is drawn, in px. */
 export const MAX_BAR_PX = 28
-/** The share of the room between two bars that a bar fills. */
-const BAR_FILL = 0.7
-/** The share of the room to its neighbour that a bar at either end of the plot fills: it sits against the plot's edge, not centred. */
-const EDGE_FILL = 0.6
-/** The narrowest a bar is drawn, so that a long period still shows each row. */
-const MIN_BAR_PX = 1
 /** The space between two stacked parts of a bar, in px. */
 export const STACK_GAP_PX = 2
 /** The corner radius of a bar's top, in px, kept under half its width and its height. */
@@ -61,19 +48,6 @@ export interface PeakLabel {
   index: number
 }
 
-export interface VolumeLayout {
-  /** The pixel x of each row, which is where the trend puts the same week. */
-  xs: number[]
-  bars: VolumeBar[]
-  /** Where each row's tooltip is anchored: the top of its bar, or the plot's bottom for a row without one. */
-  ys: number[]
-  xTicks: AxisTick[]
-  yTicks: AxisTick[]
-  peak: PeakLabel | null
-  /** Where the time axis skips a gap of a year or more, to mark it. */
-  breaks: TimeScale['breaks']
-}
-
 /** A rectangle from x to x + width and y to y + height, its top corners rounded by r (none when r is 0). */
 function pieceOf(x: number, y: number, width: number, height: number, r: number): string {
   const f = (n: number) => Math.round(n * 10) / 10
@@ -82,21 +56,6 @@ function pieceOf(x: number, y: number, width: number, height: number, r: number)
     `M${f(x)} ${f(y + r)}A${f(r)} ${f(r)} 0 0 1 ${f(x + r)} ${f(y)}H${f(x + width - r)}` +
     `A${f(r)} ${f(r)} 0 0 1 ${f(x + width)} ${f(y + r)}V${f(y + height)}H${f(x)}Z`
   )
-}
-
-/** The UTC calendar month a week ending at `endMs` is counted in (monthGroups), from its first day to the next month's. */
-export function monthSlotOf(endMs: number): { startMs: number; endMs: number } {
-  const at = new Date(endMs)
-  const year = at.getUTCFullYear()
-  const month = at.getUTCMonth()
-  return { startMs: Date.UTC(year, month, 1), endMs: Date.UTC(year, month + 1, 1) }
-}
-
-/** The middle of some numbers, which a few unusual ones do not move. */
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 === 1 ? sorted[mid]! : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
 }
 
 /**
@@ -154,78 +113,4 @@ export function peakOf(
   if (x - half < size.plot.left) return { text, anchor: 'start', x: bar.left, y, index }
   if (x + half > size.width - 2) return { text, anchor: 'end', x: bar.left + bar.width, y, index }
   return { text, anchor: 'middle', x, y, index }
-}
-
-/**
- * The drawn layout of the volume at a chart size. Its x scale is the trend's, from the first row's end to
- * the last at the plot's two edges, so a row's bar stands under that row's point. Null with fewer than two
- * rows, which has no scale. Where the rows are months (`monthly`), the scale runs over whole months instead, each bar
- * centred in its own month at one width, and each tick names its own bar's month.
- */
-export function weeklyVolumeLayout(
-  weeks: readonly VolumeWeek[],
-  size: ChartSize,
-  gaps: readonly QuietGap[] = [],
-  monthly = false,
-): VolumeLayout | null {
-  const first = weeks[0]
-  const last = weeks.at(-1)
-  if (weeks.length < 2 || first === undefined || last === undefined) return null
-  const { plot, width } = size
-  // A month's bar stands in its own month: the axis runs from the first month's first day to the day after the last
-  // month ends, each bar is centred in its month's slot, and all are one width, so none overlaps or leaves the plot.
-  const slots = monthly ? weeks.map((week) => monthSlotOf(week.endMs)) : null
-  const time = timeScale(
-    slots === null
-      ? { startMs: first.endMs, endMs: last.endMs, gaps }
-      : { startMs: slots[0]!.startMs, endMs: slots.at(-1)!.endMs, gaps },
-    [plot.left, plot.right],
-  )
-  const x = time.x
-  const peak = Math.max(...weeks.map((week) => hoursOf(totalSeconds(week))))
-  const { domain, ticks } = niceDomain([0, peak], 3, 0)
-  const y = linearScale(domain, [plot.bottom, plot.top + PEAK_GAP_PX + PEAK_ROOM_EM * rootFontPx()])
-  const xs =
-    slots === null
-      ? weeks.map((week) => x(week.endMs))
-      : slots.map((slot) => (x(slot.startMs) + x(slot.endMs)) / 2)
-  // The usual space between two rows sets how wide a bar is; a skipped gap is wider, and a partial month closer.
-  const room = median(xs.slice(1).map((at, i) => at - xs[i]!))
-  const barWidth = Math.min(MAX_BAR_PX, Math.max(MIN_BAR_PX, room * BAR_FILL))
-  const slotPx =
-    slots === null ? 0 : Math.min(...slots.map((slot) => x(slot.endMs) - x(slot.startMs)))
-  const monthWidth = Math.min(MAX_BAR_PX, Math.max(MIN_BAR_PX, slotPx * BAR_FILL))
-  const decimals = tickDecimals(ticks)
-  const bars = weeks.map((week, i) => {
-    if (slots !== null) return barOf(week, xs[i]!, monthWidth, y, plot)
-    // No bar is wider than the room to its nearer neighbour, so a row close to the last, as a partial month is, never overlaps it.
-    const near = Math.min(xs[i]! - (xs[i - 1] ?? -Infinity), (xs[i + 1] ?? Infinity) - xs[i]!)
-    // A bar at either end is moved in to lie inside the plot, off its centre, so it keeps less of the room.
-    const share = i === 0 || i === weeks.length - 1 ? EDGE_FILL : BAR_FILL
-    const own = Math.max(MIN_BAR_PX, Math.min(barWidth, near * share))
-    return barOf(week, xs[i]!, own, y, plot)
-  })
-  return {
-    xs,
-    bars,
-    ys: bars.map((bar) => bar.segments.at(-1)?.y ?? plot.bottom),
-    xTicks: monthly
-      ? monthBarTicks(
-          weeks.map((week) => week.endMs),
-          xs,
-          size,
-        )
-      : trendXTicks(
-          weeks.map((week) => week.endMs),
-          x,
-          size,
-          gaps,
-        ),
-    yTicks: fitTicks(
-      ticks.map((tick) => ({ position: y(tick), label: tick.toFixed(decimals) })),
-      { axis: 'y', width },
-    ),
-    peak: peakOf(weeks, bars, xs, size),
-    breaks: time.breaks,
-  }
 }
