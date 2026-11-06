@@ -267,7 +267,6 @@ export function ResultPage({
           <MethodPage
             result={result}
             heartRateJudgement={analysis.state.heartRateJudgement}
-            units={units}
             profile={profile}
             period={period}
             weightKnown={weightKnown}

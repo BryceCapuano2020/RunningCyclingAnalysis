@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -15,7 +15,6 @@ function page(result: AnalysisResult | null, profile: AgeProfile | null, weightK
     <MethodPage
       result={result}
       heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-      units="metric"
       profile={profile}
       weightKnown={weightKnown}
       restoring={false}
@@ -54,17 +53,6 @@ function sentencesOf(container: HTMLElement): string[] {
   return blocks.flatMap((text) => text.trim().split(SENTENCE_END)).filter((text) => text.length > 0)
 }
 
-/** Opens every chart disclosure, so the lines that sit above a chart are in the page too. */
-async function openEvidence(container: HTMLElement): Promise<void> {
-  for (const details of Array.from(
-    container.querySelectorAll<HTMLDetailsElement>('details.method__evidence'),
-  )) {
-    fireEvent.click(details.querySelector('summary')!)
-    await waitFor(() => expect(details).toHaveAttribute('open'))
-    await waitFor(() => expect(details.querySelector('figure')).not.toBeNull())
-  }
-}
-
 describe('the Method page sentences', () => {
   it.each([
     ['a graded library', () => page(makeResult(), MAN_BORN_1986)],
@@ -72,7 +60,6 @@ describe('the Method page sentences', () => {
     ['no files', () => page(null, null)],
   ])('keeps every sentence to 25 words or fewer for %s', async (_name, build) => {
     const { container } = render(build())
-    await openEvidence(container)
 
     const sentences = sentencesOf(container)
     expect(sentences.length).toBeGreaterThan(100)

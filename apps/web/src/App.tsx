@@ -347,7 +347,6 @@ export function App() {
               <MethodPage
                 result={null}
                 heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-                units={units}
                 profile={null}
                 weightKnown={weighted}
                 restoring={analysis.restoring}

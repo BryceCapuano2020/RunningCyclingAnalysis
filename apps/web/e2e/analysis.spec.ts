@@ -36,15 +36,6 @@ const SAME_HEART_RATE_SECTION = {
 } as const
 /** The durability section, headed by its finding. */
 const DURABILITY_SECTION = /^Durability: /
-const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
-const RATIO = /^Run compared with Ride by duration$/
-const HEART_RATE = /^Heart rate against energy rate$/
-const POWER_ACCURACY = /^Estimated against measured power on climbs$/
-
-/** Opens one section's "Show the evidence" disclosure on Method, so its chart is shown. */
-async function showEvidence(page: Page, section: string): Promise<void> {
-  await page.locator('summary', { hasText: `Show the evidence for the ${section}` }).click()
-}
 
 test('a sample athlete shows the balance, its charts, the activities and the sample notice', async ({
   page,
@@ -94,16 +85,10 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
 
   await goTo(page, 'Balance')
   await openMethod(page)
-  // A closed disclosure hides its chart, in every browser, until the reader opens it.
-  await expect(page.locator('details.method__evidence').first()).not.toHaveAttribute('open')
-  await expect(page.getByRole('figure', { name: RATIO })).toBeHidden()
-  await showEvidence(page, 'energy view')
-  await expect(page.getByRole('figure', { name: ENERGY_SCALE })).toBeVisible()
-  await expect(page.getByRole('figure', { name: RATIO })).toBeVisible()
-  await showEvidence(page, 'heart-rate check')
-  await expect(page.getByRole('figure', { name: HEART_RATE })).toBeVisible()
-  await showEvidence(page, 'virtual power meter')
-  await expect(page.getByRole('figure', { name: POWER_ACCURACY })).toBeVisible()
+  // Method keeps its words and constants, with no chart in any of its sections.
+  await expect(page.getByRole('region', { name: 'The energy view' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Heart-rate check' })).toBeVisible()
+  await expect(page.locator('.method').getByRole('figure')).toHaveCount(0)
 
   // The sample's season is longer than one page of the list.
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)

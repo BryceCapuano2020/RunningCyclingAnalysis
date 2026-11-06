@@ -39,7 +39,6 @@ function methodPage() {
     <MethodPage
       result={makeResult()}
       heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
-      units="metric"
       profile={null}
       weightKnown
     />

@@ -291,13 +291,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   large under the title, which then becomes a small caption and stays the chart's name, and an optional `focal` figure sits beside it.
   Pages opt in to the annotation primitive (`ChartAnnotations`: end labels, callouts, reference lines and brackets, each text
   on a card-coloured halo, placed so none overlaps another or the data) from their own charts.
-- The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
-  blue below it, so the side that is higher reads before the numbers do. Its zero line is labelled
-  "Even" on the axis, and its key names the bands "Before heart-rate check: 90% range" and "After
-  heart-rate check: 90% range".
-- **Evidence sits behind a disclosure.** On How sure is this? each chart is under a Show the evidence
-  disclosure, which reads Hide the evidence while it is open, and the claim it supports is in words
-  above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
+- **Method has no charts.** Each section states its claim in words and the constants it quotes.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom, on about 1,200 px of a desktop and in one column on a phone. The answer is one
