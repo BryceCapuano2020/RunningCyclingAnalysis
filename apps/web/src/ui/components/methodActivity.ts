@@ -64,14 +64,6 @@ export const ACTIVITY_ENTRIES: readonly MethodEntry[] = [
     ],
   },
   {
-    name: 'Durability',
-    state: 'calculated',
-    lines: [
-      'Your best 5 and 20 minute output after the first hour or two of a session.',
-      'It also shows how efficiency drifts across a steady effort of an hour or more.',
-    ],
-  },
-  {
     name: 'How your reps held up',
     state: 'calculated',
     lines: [

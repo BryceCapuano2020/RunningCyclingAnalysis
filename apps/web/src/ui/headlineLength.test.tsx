@@ -5,7 +5,6 @@ import type { TrendPoint } from '@rca/core/digest'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../test/analysisStub'
 import { makeActivity, makeResult } from './components/fixtures'
-import { entryNamed } from './components/methodEntries'
 import { BalancePage } from './pages/BalancePage'
 
 // The headline length is written once, as HEADLINE_LABEL. A different label must reach every place
@@ -72,8 +71,5 @@ describe('the headline length', () => {
     expect(
       screen.getByText(/Add one run or ride of 45 min or more to compare them\./),
     ).toBeInTheDocument()
-
-    // The method topic no longer names the length: its dots are 5, 20 or 60 minutes, and Balance has no trend of its own.
-    expect(entryNamed('Best efforts over time').lines.join(' ')).not.toContain('45 min')
   })
 })

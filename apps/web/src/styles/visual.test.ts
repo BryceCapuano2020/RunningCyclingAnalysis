@@ -13,7 +13,6 @@ const balanceMeter = await read('../ui/components/BalanceMeter.css')
 const ladder = await read('../ui/components/LevelLadder.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const sportHero = await read('../ui/pages/SportHero.css')
-const sectionDisclosure = await read('../ui/pages/SectionDisclosure.css')
 const racePredictions = await read('../ui/pages/RacePredictions.css')
 const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
@@ -750,13 +749,6 @@ describe('sport records, on the card and the page', () => {
     // The width is the shell's, 75rem (1,200 px) on every page, so the sport pages set none of their own.
     expect(rulesWith(components, '.page')).toMatch(/max-width:\s*var\(--page-width\)/)
     expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
-  })
-
-  it('sets a section’s fold as a serif summary with its finding, and no box', () => {
-    expect(rulesWith(sectionDisclosure, '.sport-disclosure__title')).toMatch(
-      /font-family:\s*var\(--font-serif\)/,
-    )
-    expect(sectionDisclosure).not.toMatch(/border-radius|background|border:/)
   })
 
   it('sets a sport page’s ▸ Details on its title’s line, at the right, centred on the title’s line box', () => {

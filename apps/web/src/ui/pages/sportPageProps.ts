@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react'
 import type { ChangeEvidence } from '@rca/core/change/types'
-import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
+import type { SportCurves } from '@rca/core/digest'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
-import type { DotsWithheld, EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import type { Curve, Sport } from '@rca/core/types'
+import type { Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { LookBack } from '@rca/core/lookback'
 import type { MeasureTime, ZoneWindow } from '@rca/core/zones'
@@ -22,23 +21,10 @@ export interface SportPageProps {
   previousLabel: string | null
   /** Whether each best effort differs from that period's by more than chance; null for all time. */
   change: ChangeEvidence | null
-  /** The weekly trend of each effort length over the period. */
-  trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
-  /** The effort lengths whose dots the effort gate left too few to draw: their empty state names the gate. Absent: none. */
-  dotsWithheld?: DotsWithheld
-  /** This sport's output at one heart rate, week by week over the period. */
-  sameHeartRate: SameHeartRate
   /** Each sport's fitness at the same heart rate over the whole library, whatever the period: the page leads with its own sport's. */
   fitness?: FitnessBySport
   /** Each sport's years in hindsight, whatever the period: the page's History row reads its own sport's. */
   lookBack?: LookBack
-  /** This sport's durability, and the heart rate drift of its steady efforts, over the period. */
-  lateEvidence: LateEvidence
-  /**
-   * This sport's best curve over the whole library, handed down when the period holds too few activities of some sport
-   * to judge its own bests: the best durations read it then. Absent or null: the period's curve is the one.
-   */
-  libraryBests?: Curve | null
   /** This sport's time in each zone over the period, one row for each measure. Absent: none counted. */
   zoneTimes?: readonly MeasureTime[]
   /** The same over the period before it, or null for all time or when it holds no activities. */
