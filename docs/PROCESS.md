@@ -169,9 +169,10 @@ timeout at random.
   push and one run each: the 12-week load, then a test timing out under coverage, then the body mass
   change.
 - While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
-- A pull request over 800 changed lines (`package-lock.json` aside) fails the size job unless it
-  carries the `integration` label, which marks a merge of pull requests already reviewed on their
-  own. Re-run the job after adding the label.
+- A pull request over 800 changed lines fails the size job unless it carries the `integration`
+  label, which marks a merge of pull requests already reviewed on their own. Re-run the job after
+  adding the label. `package-lock.json` does not count, nor does a removed line that no added line in
+  its file replaces, so a file deleted whole or a block of dead code cut out counts nothing.
 - Pull requests audit production dependencies; the weekly supply-chain run audits every dependency.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
   before the next change to it. Two ready pull requests never both grow one: each passes alone and

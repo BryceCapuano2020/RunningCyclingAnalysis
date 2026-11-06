@@ -1,5 +1,6 @@
 import { createElement, lazy } from 'react'
 import type { ComponentProps, ComponentType } from 'react'
+import type { ActivityPage as ActivityPageComponent } from './pages/ActivityPage'
 import type { HistoryPage as HistoryPageComponent } from './pages/HistoryPage'
 import type { MethodPage as MethodPageComponent } from './pages/MethodPage'
 import type { ProfilePage as ProfilePageComponent } from './pages/ProfilePage'
@@ -46,6 +47,10 @@ const result = lazyPage<ComponentProps<typeof ResultPageComponent>>(() =>
 const history = lazyPage<ComponentProps<typeof HistoryPageComponent>>(() =>
   import('./pages/HistoryPage').then((module) => module.HistoryPage),
 )
+// One activity's workbench (intervals, channels, laps) opens from a click on a list row, so it is its own chunk too.
+const activity = lazyPage<ComponentProps<typeof ActivityPageComponent>>(() =>
+  import('./pages/ActivityPage').then((module) => module.ActivityPage),
+)
 // Profile stands in the shell with the rail once there is a result (RailedProfilePage).
 const profile = lazyPage<ComponentProps<typeof ProfilePageComponent>>(() =>
   import('./pages/RailedProfilePage').then((module) => module.RailedProfilePage),
@@ -56,6 +61,7 @@ const method = lazyPage<ComponentProps<typeof MethodPageComponent>>(() =>
 
 export const ResultPage = result.Page
 export const HistoryPage = history.Page
+export const ActivityPage = activity.Page
 export const ProfilePage = profile.Page
 export const MethodPage = method.Page
 
@@ -69,5 +75,11 @@ export function preloadResultPages(): void {
 
 /** Loads every page now, for tests that render a page the moment its route is chosen. */
 export async function preloadAllPages(): Promise<void> {
-  await Promise.all([result.preload(), history.preload(), profile.preload(), method.preload()])
+  await Promise.all([
+    result.preload(),
+    history.preload(),
+    activity.preload(),
+    profile.preload(),
+    method.preload(),
+  ])
 }
