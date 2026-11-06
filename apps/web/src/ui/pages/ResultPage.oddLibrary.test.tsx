@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { preloadAllPages } from '../lazyPages'
 import { digestActivity } from '@rca/core/digest'
 import { AnalysisSession } from '@rca/core/session'
 import { oddLibraries } from '@rca/core/synthetic/odd'
@@ -43,6 +44,8 @@ function renderPage(
     />,
   )
 }
+
+beforeAll(preloadAllPages)
 
 describe.each(Object.entries(oddLibraries()))(
   'the pages for a library of %s',
