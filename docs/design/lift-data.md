@@ -1,8 +1,9 @@
 # Lift sets: record, storage and sync (design)
 
-Status: designed for stage X; nothing built. Where lifting lives is settled in [strength.md](strength.md); this
-note is the record, the server table and routes, the browser store and how the two agree. The estimator that
-reads the sets is [e1rm.md](e1rm.md). Synthetic values only.
+Status: designed for stage X, reviewed once (approve with changes, all taken below); nothing built. Where
+lifting lives is settled in [strength.md](strength.md); this note is the record, the server table and routes,
+the browser store and how the two agree. The estimator that reads the sets is [e1rm.md](e1rm.md). Synthetic
+values only.
 
 ## 1. The set record
 
@@ -16,90 +17,126 @@ reads those bounds, so the API, the browser store and a later CSV import refuse 
 | timePrecision | `'set' \| 'session'`, optional                                                          | Present exactly when `time` is.                                                             |
 | exercise      | slug                                                                                    | `^[a-z0-9]+(-[a-z0-9]+)*$`, 1 to 48 characters.                                             |
 | equipment     | `barbell \| dumbbell \| machine \| smith \| cable \| kettlebell \| bodyweight \| other` | One of these.                                                                               |
-| setOrder      | integer                                                                                 | 1 to 200: position within the date and lift.                                                |
+| setOrder      | integer                                                                                 | 1 to 200: position within the date and lift, across all sessions of that day.               |
 | reps          | integer                                                                                 | 1 to 100.                                                                                   |
 | loadKg        | number                                                                                  | 0 to 1,000, at most two decimals. Added load for `bodyweight`; one dumbbell for `dumbbell`. |
 | rpe           | number, optional                                                                        | 1 to 10 in steps of 0.5.                                                                    |
 | warmup        | `true`, optional                                                                        | Absent means a working set.                                                                 |
 
-The **set key** is date, exercise, equipment and set order, written `2026-03-02.back-squat.barbell.3`. A
-lift is exercise plus equipment (e1rm.md, section 6), so the key holds both. Pounds are converted to
-kilograms when a set is entered. No field holds free text: exercise names come from the core catalog or a
-slug the athlete typed, and notes are not kept.
+The **set key** is date, exercise, equipment and set order, written `2026-03-02.back-squat.barbell.3`
+([decisions/lift-set-key.md](decisions/lift-set-key.md)). Pounds are converted to kilograms when a set is
+entered. Exercise names come from the core catalog or a slug the athlete typed; a typed slug is close to free
+text, and the privacy page says so. Notes are not kept.
 
-Account-wide caps, in the contract with the other limits: 60,000 sets an account (about nine years of a
-heavy lifter's logging), 500 sets in one write, 500 keys in one delete.
+Caps, in the contract with the other limits: 60,000 sets an account (about nine years of a heavy lifter's
+logging), 500 sets in one write, 500 keys in one delete.
 
 ## 2. Server
 
-**Table `lift_sets`** (migration 0012, written by hand as 0009 is): `user_id`, `date`, `exercise`,
-`equipment`, `set_order`, `reps`, `load_kg`, `rpe` (null), `warmup` (0 or 1), `time` (null),
-`time_precision` (null), `updated_at`. Primary key `(user_id, date, exercise, equipment, set_order)`. Foreign
-key `user_id` to `users(id)` on delete cascade, so account deletion needs no new statement. Check constraints
-hold the equipment and precision names, and `time` and `time_precision` null together. The same migration
-adds `users.lift_revision INTEGER NOT NULL DEFAULT 0`. A new table and a defaulted column leave the rollback
-floor's Worker working.
+**Migration 0012** (by hand, as 0009 is):
+
+- table `lift_sets`: `user_id`, `date`, `exercise`, `equipment`, `set_order`, `reps`, `load_kg`, `rpe` (null),
+  `warmup` (0 or 1), `time` (null), `time_precision` (null), `updated_at`. Primary key
+  `(user_id, date, exercise, equipment, set_order)`. Foreign key `user_id` to `users(id)` on delete cascade, so
+  account deletion needs no new statement. Checks hold the equipment and precision names, and `time` and
+  `time_precision` null together;
+- `users.lift_count INTEGER NOT NULL DEFAULT 0 CHECK (lift_count BETWEEN 0 AND 60000)`;
+- `users.lift_revision INTEGER NOT NULL DEFAULT 0`.
+
+A new table and defaulted columns leave the rollback floor's Worker working. The cap lives in the check, so
+raising it is a migration.
+
+**Writes take two statements, whatever their size.** D1 allows 100 bound values a statement, and a set has
+about 12, so sets are bound as one JSON text and read with `json_each`. A write is one batch, which D1 runs as
+one transaction:
+
+1. `UPDATE users SET lift_count = lift_count + <new keys>, lift_revision = lift_revision + 1 WHERE id = ?
+RETURNING lift_count, lift_revision`, where `<new keys>` counts the payload's keys with no stored row (one
+   primary-key lookup each). If the count would pass 60,000, the check fails and the whole batch rolls back:
+   the route answers 409 and refunds the budget.
+2. `INSERT INTO lift_sets (...) SELECT ... FROM json_each(?) WHERE true ON CONFLICT (...) DO UPDATE SET ...`
+   (insert or replace), or `DO NOTHING` in insert-only mode, whose answer lists the keys it skipped.
+
+A delete is the same pair: the update subtracts the payload's keys that have a row, then
+`DELETE ... WHERE (date, exercise, equipment, set_order) IN (SELECT ... FROM json_each(?))`. A test pins two
+statements per write, as LIMITS.md does for listing. Rows read per write are about the payload's size.
 
 **Routes**, each behind `requireUser`, a body limit and a daily budget of its own (`liftRead`, `liftWrite`),
 listed in `apps/api/LIMITS.md`:
 
-| Route                    | Body                 | Does                                                                                                                                                                                                  |
-| ------------------------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/lifts?cursor=` |                      | One page of 1,000 sets in key order, and the next cursor. Also counts on the list-rows meter.                                                                                                         |
-| `PUT /api/lifts`         | `{ sets }`, 1 to 500 | Inserts or replaces each set by its key. The count check and the inserts are one batch: a write that would take the account past 60,000 sets is refused whole with 409, and a replace needs no place. |
-| `POST /api/lifts/delete` | `{ keys }`, 1 to 500 | Removes those sets. A key with no set is not an error, so a resent delete settles.                                                                                                                    |
+| Route                    | Body                              | Does                                                                                                                                                                                                                               |
+| ------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/lifts?cursor=` |                                   | `sameOriginReadGuard`. One page of 1,000 sets in key order, the next cursor and the account's `liftRevision`. Counts on the list-rows meter. The cursor is the last key's tuple, encoded opaque, so `.10` never sorts before `.2`. |
+| `PUT /api/lifts`         | `{ sets, insertOnly? }`, 1 to 500 | Inserts or replaces each set by key; with `insertOnly`, keeps stored sets and returns their keys. Answers with `liftRevision`.                                                                                                     |
+| `POST /api/lifts/delete` | `{ keys }`, 1 to 500              | Removes those sets. A key with no set is not an error, so a resent delete settles. Answers with `liftRevision`.                                                                                                                    |
 
-Every write bumps `users.lift_revision` in the same batch. `libraryRevision` in `routes/me.ts` becomes
-`<count>.<bytes>.<liftRevision>`, so another tab or device sees a lift change. Readers compare it for
-inequality only, so the longer form needs no client change. A refused write is refunded, as the dated
-settings are.
+A 400 names each refused set by its index (`sets.N`), so the browser drops only those.
+
+**`/api/me` gains `liftRevision`**, beside `libraryRevision`, and `libraryRevision` stays as it is. Folding the
+lift term into it would make every logged set reload the whole activity library (`libraryTabs.ts` lists the
+library on every change of that tag), which spends the list-rows meter set by set. The browser keeps a
+baseline for each and pulls lifts only when `liftRevision` moves. This replaces the strength.md budget line
+that said `libraryRevision` gains a lift term.
+
+Across devices the last write to arrive wins; the server's `updated_at` records it, and no client clock is
+trusted.
 
 ## 3. Browser
 
 **Store.** IndexedDB database `rca-lifts`, opened through `openIndexedDb`, one object store `rows` keyed
-`<scope>|<set key>` with an index on `scope`. The scope is `device` when signed out and the user id when signed
-in. A row holds the set, a state (`synced`, `put`, `delete`), `rev` (a counter raised on each local change)
-and `attempts`. A signed-out visitor's sets live only here. A signed-in account's server copy is the record,
-and the store holds a mirror plus the changes not yet sent, so a set logged without signal in a gym is kept.
+`<scope>|<set key>` with an index on `scope`. The scope is `device` when signed out and the user id when
+signed in. A row holds the set, `state` (`synced`, `put`, `delete`), `rev` (raised on each local change),
+`saved` (the last values the server confirmed, if any), `ackRevision` (the account revision of that
+confirmation) and `attempts`. A signed-out visitor's sets live only here. A signed-in account's server copy
+is the record; the store holds a mirror plus the changes not yet sent, so a set logged without signal is kept.
 
-**Transitions** of one row in an account's scope. "Ack r" is the server's answer to a send of `rev` r.
+**One flush per browser.** A flush takes the Web Lock `rca-lifts-flush` and has one request in flight, so two
+tabs, or a timed-out request and its resend, can never deliver an older `rev` after a newer one. It sends, in
+order: deletes; puts of keys that have `saved` values (replaces, which need no room); then new keys. At the cap
+only the last group is refused.
 
-| State \ event | Local save   | Local delete    | Ack r, r = rev | Ack r, r < rev | Refused (400)                | Cap (409) | Network, 5xx, 429    | Pull has the set        | Complete pull lacks the set |
-| ------------- | ------------ | --------------- | -------------- | -------------- | ---------------------------- | --------- | -------------------- | ----------------------- | --------------------------- |
-| absent        | put, rev 1   | absent          | n/a            | n/a            | n/a                          | n/a       | n/a                  | synced                  | absent                      |
-| synced        | put, rev + 1 | delete, rev + 1 | n/a            | n/a            | n/a                          | n/a       | n/a                  | synced, server's values | absent                      |
-| put           | put, rev + 1 | delete, rev + 1 | synced         | unchanged      | absent; counted as not saved | put, held | put, attempts + 1    | unchanged               | unchanged                   |
-| delete        | put, rev + 1 | delete          | absent         | unchanged      | absent                       | n/a       | delete, attempts + 1 | unchanged               | unchanged                   |
+**Transitions** of one row in an account's scope. "Ack r" answers a send of `rev` r.
 
-- **Restart** (tab, worker or browser): rows keep their state, and the next flush resends every `put` and
-  `delete`. A resend is safe: a put replaces, a delete of a missing set settles.
-- **Stale reply**: an ack applies only when `rev` still matches, checked in the transaction that writes it, so
-  an edit made while a send was out is never marked saved.
-- **Never dropped for retries.** Unlike the activity outbox, a set has no file to add again, so a row is only
-  let go on a 400. A 409 holds puts until a delete frees room or the next session.
-- **Pull** reads every page first, then applies them in one pass. Only a complete pull removes a `synced` row
-  the server lacks, so a cut-off pull never deletes.
-- **Two tabs** share the store. Each change is one transaction, so a tab never overwrites a newer `rev`.
-- **Sign-in with device sets** (adoption): each `device` row becomes a `put` in the account's scope unless the
-  account already has that key, in which case the account's set stays and the device row is counted as not
-  added. Device rows go once adopted.
+| State \ event | Local save   | Local delete    | Ack r, r = rev      | Ack r, r < rev | 400 naming the row                                                    | Cap (409)                           | Other failure               | Pull has the set        | Complete pull lacks the set                         |
+| ------------- | ------------ | --------------- | ------------------- | -------------- | --------------------------------------------------------------------- | ----------------------------------- | --------------------------- | ----------------------- | --------------------------------------------------- |
+| absent        | put, rev 1   | absent          | n/a                 | n/a            | n/a                                                                   | n/a                                 | n/a                         | synced                  | absent                                              |
+| synced        | put, rev + 1 | delete, rev + 1 | n/a                 | n/a            | n/a                                                                   | n/a                                 | n/a                         | synced, server's values | absent, unless `ackRevision` is newer than the pull |
+| put           | put, rev + 1 | delete, rev + 1 | synced, `saved` set | unchanged      | back to `saved` as synced, or absent without it; counted as not saved | held until room or the next session | held, attempts + 1, backoff | unchanged               | unchanged                                           |
+| delete        | put, rev + 1 | delete          | absent              | unchanged      | back to `saved` as synced                                             | n/a                                 | held, attempts + 1, backoff | unchanged               | unchanged                                           |
+
+- **Other failure** is any status but 2xx, 400, 401 and 409: network, 5xx, 429, 413, 403 while the account
+  is being deleted, 404. The row is held, never dropped; `attempts` paces the retries. A 400 that names no row
+  holds every row of that request. A 401 stops the flush.
+- **Restart** (tab, worker or browser): rows keep their state, and the next flush resends. A resend is safe: a
+  put replaces, a delete of a missing set settles.
+- **Stale reply**: an ack applies only when `rev` still matches, checked in the transaction that writes it.
+- **Pull** reads every page, then applies them in one pass. It is complete only when every page carried the
+  same `liftRevision`; otherwise nothing is removed and it runs again later. A row confirmed at a newer revision
+  than the pull is never removed by it. Pulls run when `liftRevision` moves, not on every view.
+- **Adoption** (sign-in with device sets) is part of the existing offer to add this browser's activities to the
+  account, never automatic. Accepted, device rows go up with `insertOnly`, so a set the account holds stays
+  ([lift-reimport.md](decisions/lift-reimport.md)); skipped keys are counted to the athlete, and device rows go
+  once sent.
 - **Sign-out** removes the account's `synced` rows and keeps its `put` and `delete` rows for its next sign-in.
-  **Sign-in of another account** removes every other account's rows, as the outbox sweep does, so a shared
-  browser never hands one person's log to another. Remove all clears the whole database.
-- **Account deleted elsewhere**: a 401 stops the flush; the next sign-in's sweep removes the rows.
+  The store reports how many are unsent, so sign-out can warn.
+- **Sign-in of another account** removes every other account's rows, unsent ones included, as the outbox sweep
+  does. A shared browser must never hand one person's log to another; the cost is that the first account's
+  unsent sets are lost, which the sign-out warning names. Remove all clears the whole database.
 
 ## 4. Export, privacy, revision
 
-- The account export moves to `EXPORT_VERSION` 3 and gains `lifts: LiftSet[]`, read from the server.
+- The account export moves to `EXPORT_VERSION` 3 and gains `lifts: LiftSet[]`, read page by page from the
+  server. LIMITS.md names its cost: up to 60 pages and 60,000 rows on the list-rows meter.
 - The privacy page names every `lift_sets` column, and `privacyFields.test.ts` maps each one to that sentence.
 - `LIFT_REVISION` (core, `lift/revision.ts`) names the estimator that made a `LiftState`. Sets store raw values
   and e1RM is computed on read, so a new revision needs no migration.
 
 ## 5. Tests the build adds
 
-- Contract: every bound at its edge, both ways; the key round-trips.
-- API: create, read, update, delete; a second account cannot read or touch the first's sets; the 409 at the
-  cap with the refund; the page cursor; `lift_revision` moves on every write and `libraryRevision` with it;
-  account deletion leaves no `lift_sets` row.
-- Browser: each cell of the table above, a restart mid-send, a stale ack, a cut-off pull, adoption with a
-  clashing key, sign-out and the sweep.
+- Contract: every bound at its edge, both ways; the key round-trips; the cursor orders `.2` before `.10`.
+- API: create, read, update, delete; a second account cannot read or touch the first's sets; two statements per
+  write; the 409 at the cap rolls back the whole batch and refunds; `insertOnly` returns skipped keys; 400 names
+  the index; `lift_count` stays equal to the row count through inserts, replaces and deletes; `liftRevision`
+  moves on every write and `libraryRevision` does not; account deletion leaves no `lift_sets` row.
+- Browser: each cell of the table, a restart mid-send, a stale ack, a pull with a revision change between pages,
+  the flush order at the cap, two tabs flushing, adoption with a clashing key, sign-out and the sweep.

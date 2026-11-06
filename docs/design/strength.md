@@ -86,7 +86,8 @@ Each of these is a line item with its own test, so none is found at the gate.
 - Account export: bump `EXPORT_VERSION` in `export/accountExport.ts`, since sets are the athlete's data.
 - Privacy wording: the privacy tests name every new column (`privacyDigestFields.test.ts`,
   `privacyPage.test.ts`), and the page says what is stored.
-- `libraryRevision` in `routes/me.ts` gains a lift term, so another tab sees a lift change.
+- `/api/me` gains `liftRevision` beside `libraryRevision`, so another tab sees a lift change without reloading
+  the activity library ([lift-data.md](lift-data.md), section 2).
 - Account deletion cascades already. The new table takes the same user foreign key with a cascade.
 
 ## 4. Settled questions
@@ -97,3 +98,4 @@ Each is logged with its reasons and how to reverse it in [decisions](decisions/)
   ([lift-reimport.md](decisions/lift-reimport.md)).
 - `timePrecision` is `set` or `session`; a CSV may set `session` only ([lift-time-precision.md](decisions/lift-time-precision.md)).
 - The connector may not save lift logs yet ([lift-connector-writes.md](decisions/lift-connector-writes.md)).
+- The set key is date, exercise, equipment and set order across the day ([lift-set-key.md](decisions/lift-set-key.md)).

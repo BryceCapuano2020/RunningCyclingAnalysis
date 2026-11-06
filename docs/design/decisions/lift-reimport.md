@@ -7,8 +7,8 @@ Stage X, 6 Nov 2026. Open question 1 of [strength.md](../strength.md), section 4
 When a set arrives with the date, exercise, equipment and set order of a stored set, the new set replaces it.
 The logger, a CSV import and an account adoption all write through the same `PUT /api/lifts`, which inserts or
 replaces by key ([lift-data.md](../lift-data.md)). A CSV import says before it writes how many sets it will
-replace. The one exception is adoption at sign-in: a set kept in the browser before sign-in never replaces one
-the account already holds.
+replace. The one exception is adoption at sign-in: a set kept in the browser before sign-in is sent with
+`insertOnly`, so it never replaces one the account already holds.
 
 ## Why
 
@@ -27,5 +27,6 @@ the account already holds.
 
 ## How to reverse
 
-Change the import to skip keys the account already holds (`INSERT ... ON CONFLICT DO NOTHING` for import
-writes). No stored data changes. If the import later needs both, a `mode` on the write request carries it.
+Send import writes with `insertOnly`, which adoption already uses, so they skip keys the account holds. No
+stored data changes. Values an earlier replace overwrote (an RPE a CSV row lacked) are not kept anywhere and
+cannot be brought back.
