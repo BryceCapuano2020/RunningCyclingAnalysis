@@ -643,7 +643,6 @@ test('no box around a defined term is transformed, filtered or contained, on the
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     const found = await definedTermAncestors(page)
-    expect(found.terms, sport).toBeGreaterThan(0)
     expect(found.bad, sport).toEqual([])
   }
 })

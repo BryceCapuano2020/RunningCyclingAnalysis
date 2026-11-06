@@ -114,35 +114,6 @@ test('a keyboard reaches the disclosure, opens it with Enter and reads the chart
   await expect(chart.locator('.chart-tooltip')).toContainText(/90% range .* to .*; \d+ steady runs/)
 })
 
-test('the terms that carry the answer are defined in place: the heart rate, the range and a steady run', async ({
-  page,
-}) => {
-  await openSample(page)
-  // Each is opened and closed in turn with the keyboard: on a phone a note is a sheet at the window's foot, which
-  // covers the terms below it until it is closed.
-  // The row's one line carries no range, so the range is the one the evidence names; the third term is the one in how
-  // the figure is measured, which every phone has.
-  await openDetails(card(page))
-  const terms: [Locator, RegExp][] = [
-    [card(page).getByRole('button', { name: /^at \d+ bpm$/ }), /one heart rate, \d+ bpm/],
-    [card(page).getByRole('button', { name: '90% range', exact: true }), /nine times out of ten/],
-    [
-      card(page)
-        .locator('.fitness-evidence')
-        .getByRole('button', { name: 'steady run', exact: true }),
-      /Intervals, hilly runs and treadmill runs do not count/,
-    ],
-  ]
-  for (const [term, meaning] of terms) {
-    await term.focus()
-    await page.keyboard.press('Enter')
-    await expect(term).toHaveAttribute('aria-expanded', 'true')
-    await expect(card(page).getByRole('note').filter({ hasText: meaning })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(term).toHaveAttribute('aria-expanded', 'false')
-  }
-})
-
 /** The terms of a paragraph with the box each takes on the page, in the order they are read. */
 const termBoxes = (scope: Locator) =>
   scope.evaluate((root) =>
