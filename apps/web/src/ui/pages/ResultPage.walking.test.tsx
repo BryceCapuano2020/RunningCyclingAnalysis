@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { preloadAllPages } from '../lazyPages'
 import { workoutKey } from '@rca/core/session'
 import { analysisStub } from '../../test/analysisStub'
 import { makeActivity, makeResult } from '../components/fixtures'
@@ -56,6 +57,8 @@ function renderOnly(route: Route, countedRuns = controller()) {
     />,
   )
 }
+
+beforeAll(preloadAllPages)
 
 describe('a library of runs at walking pace alone', () => {
   it('says on Balance that the run is at walking pace and left out, never that there are no runs', () => {

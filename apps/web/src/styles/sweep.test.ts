@@ -194,15 +194,6 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
     '.chart-legend__key--dashed-run',
     '.chart-legend__key--dashed-ride',
   ],
-  // Method's heart-rate check: a run fit and dots always, a ride fit and dots when the weight is known.
-  'ui/charts/HrScatter.css': [
-    '.hr-scatter__fit--run',
-    '.hr-scatter__fit--ride',
-    '.hr-scatter__dot--run',
-    '.hr-scatter__dot--ride',
-  ],
-  // Method's ratio chart: the run and ride higher-share bands.
-  'ui/charts/RatioChart.css': ['.ratio-chart__higher--run', '.ratio-chart__higher--ride'],
   // The static privacy page keeps its own copy of the two sport colours, in its root blocks, and draws
   // the brand mark's two strokes.
   'styles/privacy.css': [':root', '.brand-mark__run', '.brand-mark__ride'],

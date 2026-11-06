@@ -61,7 +61,6 @@ function renderPage(
     <MethodPage
       result={result}
       heartRateJudgement={judgement}
-      units="metric"
       profile={profile}
       period={period ?? undefined}
       weightKnown={weightKnown}
@@ -87,31 +86,6 @@ const GRADED: AnalysisResult = makeResult({
   rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')],
   equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
 })
-
-/** The evidence disclosure for one section of the page, found by its summary's words. */
-function disclosureFor(section: string): HTMLDetailsElement {
-  const disclosure = Array.from(
-    document.querySelectorAll<HTMLDetailsElement>('details.method__evidence'),
-  ).find((details) => details.querySelector('summary')?.textContent?.includes(section))
-  if (!disclosure) throw new Error(`No evidence disclosure for ${section}`)
-  return disclosure
-}
-
-/** Opens one evidence disclosure as a reader does, and waits for its chart to mount. */
-async function openEvidence(disclosure: HTMLDetailsElement): Promise<void> {
-  fireEvent.click(disclosure.querySelector('summary')!)
-  await waitFor(() => expect(disclosure).toHaveAttribute('open'))
-  await waitFor(() => expect(disclosure.querySelector('figure')).not.toBeNull())
-}
-
-/** Opens every evidence disclosure, so their charts are in the page for the copy checks. */
-async function openAllEvidence(container: HTMLElement): Promise<void> {
-  for (const disclosure of Array.from(
-    container.querySelectorAll<HTMLDetailsElement>('details.method__evidence'),
-  )) {
-    await openEvidence(disclosure)
-  }
-}
 
 /** The short answer: recorded and checks from behind Details, the verdict as the one line shown, then the estimates behind Details. */
 function answerLines(): HTMLElement[] {
@@ -449,7 +423,6 @@ describe('MethodPage contents', () => {
 
   it('keeps every heading in order: one h1, then no level skipped', async () => {
     const { container } = renderPage(makeResult(CONTRIBUTING))
-    await openAllEvidence(container)
 
     const levels = Array.from(container.querySelectorAll('h1, h2, h3, h4')).map((heading) =>
       Number(heading.tagName.slice(1)),
@@ -488,7 +461,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(
       /energy ratio|cross-check|90% model range|range does not/,
     )
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -521,7 +494,7 @@ describe('MethodPage energy view', () => {
     expect(
       screen.queryByText(wholeText(/^The 90% range for Run against Ride/)),
     ).not.toBeInTheDocument()
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -577,7 +550,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(
       /energy ratio|cross-check|90% model range|range does not/,
     )
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -733,7 +706,6 @@ describe('MethodPage energy view', () => {
         rideCurve: rideCurveFixture,
       }),
     )
-    await openAllEvidence(container)
     const text = container.textContent ?? ''
 
     expect(text.match(/The 90% range is the spread the model gives/g)).toHaveLength(1)
@@ -754,85 +726,6 @@ describe('MethodPage energy view', () => {
   })
 })
 
-describe('MethodPage evidence disclosures', () => {
-  it('starts every disclosure closed, and mounts its chart only once it is opened', async () => {
-    const { container } = renderPage(
-      makeResult({
-        runCurve: runCurveFixture,
-        rideMetabolicCurve: rideMetabolicCurveFixture,
-        rideCurve: rideCurveFixture,
-      }),
-    )
-
-    const disclosures = Array.from(container.querySelectorAll('details.method__evidence'))
-    expect(disclosures).toHaveLength(3)
-    for (const disclosure of disclosures) {
-      expect(disclosure).not.toHaveAttribute('open')
-    }
-    expect(
-      screen.queryByRole('figure', { name: /^Run compared with Ride by duration$/ }),
-    ).toBeNull()
-
-    const energy = disclosureFor('energy view')
-    await openEvidence(energy)
-    expect(
-      within(energy).getByRole('figure', { name: 'Run compared with Ride by duration' }),
-    ).toBeInTheDocument()
-    expect(
-      within(energy).getByRole('figure', {
-        name: 'Run and Ride energy rate (metabolic W/kg) by duration',
-      }),
-    ).toBeInTheDocument()
-  })
-
-  it('names its summary by the action it takes: Show while closed, and Hide while open', async () => {
-    renderPage(makeResult(CONTRIBUTING))
-
-    const energy = disclosureFor('energy view')
-    expect(energy.querySelector('summary')).toHaveTextContent(
-      'Show the evidence for the energy view',
-    )
-    await openEvidence(energy)
-    expect(energy.querySelector('summary')).toHaveTextContent(
-      'Hide the evidence for the energy view',
-    )
-    fireEvent.click(energy.querySelector('summary')!)
-    await waitFor(() => expect(energy).not.toHaveAttribute('open'))
-    expect(energy.querySelector('summary')).toHaveTextContent(
-      'Show the evidence for the energy view',
-    )
-  })
-
-  it('does not repeat the chart title in the energy disclosure', async () => {
-    renderPage(makeResult(CONTRIBUTING))
-    await openEvidence(disclosureFor('energy view'))
-
-    expect(disclosureFor('energy view')).not.toHaveTextContent('Each line shows one sport')
-    expect(disclosureFor('energy view')).toHaveTextContent(
-      'Everywhere else, each sport uses its own units.',
-    )
-  })
-
-  it('keeps the heart-rate and power-accuracy charts behind their own disclosures', async () => {
-    const { container } = renderPage()
-
-    expect(screen.queryByRole('figure', { name: 'Heart rate against energy rate' })).toBeNull()
-    await openEvidence(disclosureFor('heart-rate check'))
-    expect(
-      within(disclosureFor('heart-rate check')).getByRole('figure', {
-        name: 'Heart rate against energy rate',
-      }),
-    ).toBeInTheDocument()
-    await openEvidence(disclosureFor('virtual power meter'))
-    expect(
-      within(disclosureFor('virtual power meter')).getByRole('figure', {
-        name: 'Estimated against measured power on climbs',
-      }),
-    ).toBeInTheDocument()
-    expect(container.querySelectorAll('details.method__evidence[open]')).toHaveLength(2)
-  })
-})
-
 describe('MethodPage heart-rate check', () => {
   it('explains the 20 minute effort under the heart-rate check, where the evidence card links', () => {
     renderPage()
@@ -847,25 +740,20 @@ describe('MethodPage heart-rate check', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the heart-rate check, and its reading note once the evidence is open', async () => {
+  it('states the block length and the skipped start of each activity in the heart-rate check', () => {
     renderPage()
 
     const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    expect(within(section).queryByText(wholeText(/Each dot is a 5 min block/))).toBeNull()
-    await openEvidence(disclosureFor('heart-rate check'))
     expect(
       within(section).getByText(
-        wholeText('Each dot is a 5 min block of steady effort from this period’s files.'),
+        wholeText(
+          'Heart rate is read in 5 min blocks of steady effort, taken after the first 10 min of each activity.',
+        ),
       ),
     ).toBeInTheDocument()
     expect(
       within(section).getByText(
-        wholeText('Each block is taken after the first 10 min of each activity.'),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        wholeText('The two lines show how fast heart rate rises with energy rate in each sport.'),
+        wholeText('Heart rate rises with energy rate at a different rate in each sport.'),
       ),
     ).toBeInTheDocument()
   })
@@ -956,7 +844,6 @@ describe('MethodPage age grading', () => {
 describe('MethodPage copy', () => {
   it('writes durations one way: min for minutes, s for seconds, and the unit in full for days', async () => {
     const { container } = renderPage()
-    await openAllEvidence(container)
     const text = container.textContent ?? ''
 
     expect(text).not.toMatch(/\bminutes\b|\bseconds\b/)
@@ -968,14 +855,12 @@ describe('MethodPage copy', () => {
 
   it('spells British throughout', async () => {
     const { container } = renderPage()
-    await openAllEvidence(container)
 
     expect(container.textContent).not.toMatch(/\b(analyze|centered|summarizes|color|kilometer)\w*/i)
   })
 
   it('never calls the balance or a level weak, a limiter, ahead or a strength', async () => {
     const { container } = renderPage(makeResult(CONTRIBUTING))
-    await openAllEvidence(container)
 
     expect(container.textContent).not.toMatch(
       /\b(ahead|ahead of|limiter|weak|weakness|strength)\b/i,
@@ -985,14 +870,12 @@ describe('MethodPage copy', () => {
 
   it('does not say the median of the model draws, or any model draws', async () => {
     const { container } = renderPage()
-    await openAllEvidence(container)
 
     expect(container.textContent).not.toMatch(/model draws|draws/)
   })
 
   it('says each conversion once: the energy rate is defined in the unit topic, not in the energy view', async () => {
     const { container } = renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
-    await openAllEvidence(container)
     const text = container.textContent ?? ''
 
     expect(text.match(/the energy each sport costs per kilogram/g)).toHaveLength(1)
@@ -1001,7 +884,6 @@ describe('MethodPage copy', () => {
 
   it('does not put one sentence on the page twice', async () => {
     const { container } = renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
-    await openAllEvidence(container)
 
     // The contents list repeats the section headings on purpose, and each chart repeats its own
     // keyboard hint, so the prose outside the charts and the contents is what must not repeat. A paragraph
@@ -1049,7 +931,7 @@ describe('MethodPage without a weight', () => {
     )
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(within(section).queryByRole('list')).toBeNull()
     expect(section.textContent).not.toMatch(/90% range|cross-check|energy ratio|energy rate by/)
     expect(
@@ -1079,7 +961,7 @@ describe('MethodPage without a weight', () => {
     expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull()
   })
 
-  it('draws only the run blocks of the heart-rate check, with its reference and hard-efforts facts', async () => {
+  it('gives the heart-rate check its reference and hard-efforts facts with no weight', () => {
     renderPage(
       withEffort(
         { durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 },
@@ -1116,16 +998,6 @@ describe('MethodPage without a weight', () => {
         wholeText('Cycling uses the higher of its own and 6 bpm below running’s.'),
       ),
     ).toBeInTheDocument()
-
-    const disclosure = disclosureFor('heart-rate check')
-    await openEvidence(disclosure)
-    const chart = within(disclosure).getByRole('figure', { name: 'Heart rate against energy rate' })
-    const dots = within(chart).getAllByTestId('hr-dot')
-    expect(dots).toHaveLength(3)
-    expect(dots.every((dot) => dot.getAttribute('data-sport') === 'run')).toBe(true)
-    expect(disclosure).toHaveTextContent(
-      'The line shows how fast heart rate rises with energy rate in running.',
-    )
   })
 
   it('with no weight, takes the sex from a run grade only, never from a ride grade on the placeholder', () => {
@@ -1175,7 +1047,7 @@ describe('MethodPage without a weight', () => {
 
     const section = screen.getByRole('region', { name: 'Virtual power meter accuracy' })
     expect(within(section).queryByText(wholeText(/estimated power was within/))).toBeNull()
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(
       within(section).getByText(wholeText(/Rides without a power meter get an estimated power/)),
     ).toBeInTheDocument()
@@ -1184,8 +1056,8 @@ describe('MethodPage without a weight', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the energy view, its charts and its facts once the weight is known', async () => {
-    const { container } = renderPage(
+  it('shows the energy view and its facts once the weight is known', () => {
+    renderPage(
       makeResult({
         ...CONTRIBUTING,
         runCurve: runCurveFixture,
@@ -1202,7 +1074,9 @@ describe('MethodPage without a weight', () => {
       within(section).getByText(wholeText(/^The 90% range for Run against Ride/)),
     ).toBeInTheDocument()
     expect(within(section).queryByText(wholeText(/Add your weight on Profile/))).toBeNull()
-    expect(container.querySelector('details.method__evidence')).not.toBeNull()
+    expect(
+      within(section).getByText(wholeText('Everywhere else, each sport uses its own units.')),
+    ).toBeInTheDocument()
   })
 })
 
@@ -1226,7 +1100,7 @@ describe('MethodPage without a result', () => {
   it('shows one plain line under the energy view, where the charts would be, and no chart', () => {
     const { container } = renderPage(null)
 
-    expect(container.querySelector('details.method__evidence')).toBeNull()
+    expect(container.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
     expect(screen.getAllByText(wholeText('Add your files to see this evidence.'))).toHaveLength(1)
     expect(
