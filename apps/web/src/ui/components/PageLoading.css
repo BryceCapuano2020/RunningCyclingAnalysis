@@ -6,7 +6,7 @@
   margin: var(--space-5) 0;
   /* Holds about the height of a page, so the footer waits below the fold instead of jumping when the page arrives. */
   min-height: 70vh;
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   opacity: 0;
   animation: page-loading-show 0s linear 0.25s forwards;
 }

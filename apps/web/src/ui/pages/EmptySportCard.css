@@ -5,7 +5,7 @@
   align-content: start;
   justify-items: start;
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
 }
 
 .empty-sport__name {

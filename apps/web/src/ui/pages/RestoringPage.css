@@ -16,7 +16,7 @@
   display: block;
   height: 6.5rem;
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--paper-hover);
 }
 
 @media (min-width: 720px) {

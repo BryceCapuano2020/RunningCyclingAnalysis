@@ -1,6 +1,6 @@
 /*
  * The volume strip: hours trained, drawn on the page with no box. Its columns are buttons, so each is as wide as its slot and as
- * tall as the strip, which keeps a thin month easy to press. A sport's part takes --sport-colour from its
+ * tall as the strip, which keeps a thin month easy to press. A sport's part takes --sport-ink from its
  * data-sport (tokens.css). The phone layout shares the list's width, COMPACT_PHONE_MAX_WIDTH_PX in
  * ui/layoutBreakpoints.ts.
  */

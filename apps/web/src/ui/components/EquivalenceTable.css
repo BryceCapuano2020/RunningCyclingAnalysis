@@ -21,7 +21,7 @@
 .equivalence-list li + li {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
 }
 
 .equivalence-list dl {
@@ -38,7 +38,7 @@
 
 .equivalence-list__labels {
   display: none;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .equivalence-list dd {
