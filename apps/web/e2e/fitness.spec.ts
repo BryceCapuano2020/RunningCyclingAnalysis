@@ -208,7 +208,8 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(home.locator('.fitness-card__state')).toHaveText('Ride')
   const line = home.locator('.fitness-card__line')
   // The words as the eye reads them, so a collapsed space around a figure fails here.
-  expect(await line.evaluate((el) => (el as HTMLElement).innerText)).toMatch(/^\d+ W at \d+ bpm\.$/)
+  const homeLine = await line.evaluate((el) => (el as HTMLElement).innerText)
+  expect(homeLine).toMatch(/^\d+ W at \d+ bpm\.$/)
   await expect(line.getByRole('link')).toHaveCount(0)
   await goTo(page, 'Ride')
   const ride = page.locator('.fitness-card[data-sport="ride"]')
@@ -216,8 +217,11 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(ride).toHaveCount(1)
   await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
   await openDetails(ride)
-  expect(await value(ride, /^Power at \d+ bpm$/)).toMatch(/^\d+ W$/)
-  expect(await value(ride, /^Range$/)).toMatch(/^\d+\u2013\d+ W$/)
+  // The Ride page's level is the figure the home page's one line printed.
+  const level = await value(ride, /^Power at \d+ bpm$/)
+  expect(level).toMatch(/^\d+ W$/)
+  expect(homeLine).toContain(level)
+  expect(await value(ride, /^Range$/)).toMatch(/^\d+ to \d+ W$/)
   expect(await value(ride, /^Trend$/)).toMatch(/^Needs \d+ more earlier rides?$/)
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })

@@ -1,17 +1,12 @@
-import type { Sport } from '@rca/core/types'
-import { PACE_UNIT, formatPaceValue, formatWatts } from '@rca/core/units'
+import { fitnessFigures } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
 import type { Property } from './components/property'
 import type { FitnessView } from './fitnessModel'
 import { FITNESS_WORDS } from './fitnessWords'
-import { SPORT_FORMAT } from './sports'
+import { formatSpan } from './format/date'
 
-/** A level's range as its two ends in the sport's own unit, the faster pace first for a run. */
-const RANGE: Record<Sport, (low: number, high: number, units: UnitSystem) => string> = {
-  run: (low, high, units) =>
-    `${formatPaceValue(high, units)}–${formatPaceValue(low, units)} ${PACE_UNIT[units]}`,
-  ride: (low, high) => `${formatWatts(low)}–${formatWatts(high)} W`,
-}
+/** A row's label starts with a capital: "Steady runs". */
+const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 /** The ending every "what a trend needs" sentence carries; the row says it as "Needs ...". */
 const TREND_TAIL = / to see a trend\.$/
@@ -21,13 +16,6 @@ function trendValue(needs: string): string {
   return TREND_TAIL.test(needs)
     ? `Needs ${needs.charAt(0).toLowerCase()}${needs.slice(1).replace(TREND_TAIL, '')}`
     : needs
-}
-
-/** The month a break's level was taken in, "October", with its year when it is not the year of the status. */
-function monthOf(ms: number, asOfMs: number): string {
-  const month = new Date(ms).toLocaleString('en', { month: 'long', timeZone: 'UTC' })
-  const year = new Date(ms).getUTCFullYear()
-  return year === new Date(asOfMs).getUTCFullYear() ? month : `${month} ${year}`
 }
 
 /**
@@ -42,32 +30,26 @@ export function fitnessRows(
 ): Property[] {
   const { status, sport } = view
   const words = FITNESS_WORDS[sport]
-  const level = showLevel ? (status.now ?? status.level?.value ?? null) : null
-  const steady = status.evidence?.recent.runs ?? status.level?.runs ?? null
+  // The figures are core's, the ones its lines print.
+  const figures = fitnessFigures(status, units)
+  const recent = status.evidence?.recent
   return [
-    ...(level === null
+    ...(!showLevel || figures.level === null
       ? []
-      : [
-          {
-            label: `${words.output} at ${status.referenceHr} bpm`,
-            value: SPORT_FORMAT[sport].formatted(level, units),
-          },
-        ]),
-    ...(status.shortfall?.kind === 'break' && status.level !== undefined
-      ? [{ label: 'Level taken in', value: monthOf(status.level.toMs, status.asOfMs) }]
-      : []),
-    ...(!showLevel || status.level === undefined
+      : [{ label: `${words.output} at ${status.referenceHr} bpm`, value: figures.level }]),
+    ...(figures.month === null ? [] : [{ label: 'Level taken in', value: figures.month }]),
+    ...(!showLevel || figures.range === null
       ? []
-      : [{ label: 'Range', value: RANGE[sport](status.level.low, status.level.high, units) }]),
-    ...view.changes.slice(1).map((change) => ({ label: 'Also', value: change.replace(/\.$/, '') })),
-    ...(steady === null
+      : [{ label: 'Range', value: `${figures.range} ${figures.unit}` }]),
+    ...view.changes
+      .slice(1)
+      .map((change) => ({ label: `${words.output} change`, value: change.replace(/\.$/, '') })),
+    ...(figures.steady === null
       ? []
-      : [
-          {
-            label: words.steadyPlural.replace(/^./, (c) => c.toUpperCase()),
-            value: String(steady),
-          },
-        ]),
+      : [{ label: cap(words.steadyPlural), value: String(figures.steady) }]),
+    ...(recent === undefined || status.state === 'not-enough-evidence'
+      ? []
+      : [{ label: 'Between', value: formatSpan(recent.fromMs, recent.toMs) }]),
     ...(view.needs === '' ? [] : [{ label: 'Trend', value: trendValue(view.needs) }]),
     ...(view.ago === null ? [] : [{ label: 'Latest activity', value: view.ago }]),
     ...(warm ? [{ label: 'Warm days', value: 'Adjusted for' }] : []),

@@ -44,7 +44,9 @@ function linesOf(row: Element) {
   return {
     line: spoken(row.querySelector('[data-testid="fitness-line"]')!),
     level: value(/ at \d+ bpm$/),
-    changes: rows.filter(([name]) => name === 'Also').map(([, text]) => text),
+    changes: rows
+      .filter(([name]) => name === 'Pace change' || name === 'Power change')
+      .map(([, text]) => text),
     steady: value(/^Steady (runs|rides)$/),
   }
 }
