@@ -1,7 +1,6 @@
 /*
  * Custom properties only. The colour values are the table in docs/design/system.md, the type tokens its
  * scale, and tokens.test.ts keeps the two in step. One theme: paper and ink, no second value for any token.
- * The old names at the foot are each a var() of a token above, until every page moves to the new names.
  */
 :root {
   --paper: #fbfaf8;
@@ -72,7 +71,6 @@
   --zone-ink-long-7: #ffffff;
 
   --radius: 8px;
-  --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -116,16 +114,12 @@
   --tracking-meta: 0.12em;
   /* The display line height, set once in .display; forced colours takes 1 so a mark beside it is clear. */
   --lh-display: 1.1;
-  /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
-  --tracking-tab: 0.02em;
   /* The narrowest column a landing card or example is laid out at, before it wraps. */
   --column-landing: 360px;
   /* The narrowest column each other responsive grid wraps at, named by what it holds. */
   --column-steps: 240px;
   --column-stat: 9rem;
   --column-hero: 6.5rem;
-  --column-figure: 6rem;
-  --column-export: 8.5rem;
   --column-field: 10rem;
   --column-zones: 22rem;
   --font-serif: 'Newsreader', Georgia, serif;
@@ -199,59 +193,4 @@
   --level-3: #0a0a0a0d;
   --level-4: #0a0a0a11;
   --level-5: #0a0a0a14;
-}
-
-/*
- * Old names: every token name the pages still use, each a var() of a token above, so every page takes the
- * paper look at once. A page's pull request moves its sheets to the new names; the last one deletes this block.
- */
-:root {
-  --surface-0: var(--paper);
-  --surface-1: var(--paper);
-  --surface-2: var(--paper-hover);
-  --surface-pressed: var(--paper-pressed);
-  --border: var(--hairline);
-  --grid: var(--hairline);
-  --divider: var(--rule);
-  --text-primary: var(--ink);
-  --text-secondary: var(--ink-secondary);
-  --text-muted: var(--ink-secondary);
-  --brand: var(--ink);
-  --accent: var(--ink);
-  --selected: var(--ink);
-  --highlight: var(--ink);
-  --focus: var(--ink);
-  --link: var(--ink);
-  --accent-contrast: var(--paper);
-  --highlight-ink: var(--paper);
-  --selected-contrast: var(--paper);
-  --accent-hover: var(--ink-hover);
-  --accent-pressed: var(--ink);
-  --mark-tile: var(--ink);
-  --mark-ring: var(--ink);
-  --series-run: var(--run-ink);
-  --series-ride: var(--ride-ink);
-  --series-swim: var(--swim-ink);
-  --series-run-soft: var(--run-wash);
-  --series-ride-soft: var(--ride-wash);
-  --series-swim-soft: var(--hairline);
-  --ladder-run-band: var(--run-wash);
-  --ladder-ride-band: var(--ride-wash);
-  --neutral-mark: var(--ink-secondary);
-  --neutral-band: var(--rule);
-  --status-good-bg: var(--paper);
-  --status-warning-bg: var(--paper);
-  --status-critical-bg: var(--paper);
-  --radius-sm: var(--radius);
-  --text-label: var(--text-sm);
-  --display-3: var(--title);
-  --tracking-caps: var(--tracking-meta);
-  --font-display: var(--font-serif);
-  --shadow-pop: none;
-  --shadow: none;
-}
-
-[data-sport] {
-  --sport-colour: var(--sport-ink);
-  --sport-colour-soft: var(--sport-wash);
 }

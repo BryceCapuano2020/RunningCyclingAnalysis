@@ -155,7 +155,7 @@ describe('every stylesheet in the app', () => {
 })
 
 /*
- * Sport colour. A surface of one sport reads --sport-colour and --sport-colour-soft, which tokens.css
+ * Sport colour. A surface of one sport reads --sport-ink and --sport-wash, which tokens.css
  * sets once for each data-sport. A rule that draws both sports at once names the series tokens, and
  * only the selectors listed here do: each is drawn on a surface that shows both sports. A new rule
  * that names a series token for one sport fails, even in a file listed here, and so does a series
@@ -268,17 +268,14 @@ describe('sport colour', () => {
     expect(offenders).toEqual([])
   })
 
-  it('sets --sport-ink and --sport-wash once for each sport, in tokens.css, and the old --sport-colour names from them', () => {
+  it('sets --sport-ink and --sport-wash once for each sport, in tokens.css, and nowhere else', () => {
     for (const sport of ['run', 'ride'] as const) {
       const tokens = declarations(tokensCss, `[data-sport='${sport}']`)
       expect(tokens.get('--sport-ink')).toBe(`var(--${sport}-ink)`)
       expect(tokens.get('--sport-wash')).toBe(`var(--${sport}-wash)`)
     }
-    const old = declarations(tokensCss, '[data-sport]')
-    expect(old.get('--sport-colour')).toBe('var(--sport-ink)')
-    expect(old.get('--sport-colour-soft')).toBe('var(--sport-wash)')
     const declaring = sheets
-      .filter(({ css }) => /--sport-colour(?:-soft)?\s*:/.test(css))
+      .filter(({ css }) => /--sport-(?:ink|wash)\s*:/.test(css))
       .map(({ path }) => path)
     expect(declaring).toEqual(['styles/tokens.css'])
   })

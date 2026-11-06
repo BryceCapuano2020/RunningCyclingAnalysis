@@ -241,9 +241,9 @@ and the tests named at the foot of that page keep the two in step. A display siz
   Each sport glyph is cropped to its ink (`inkBox` in `iconPaths.ts`), so its box starts where the ink
   starts. Its left edge is the icon's edge in the tabs, the headings and the meter, and the gap to its label
   is the same for both sports.
-- Charts share one set of defaults: a visible but recessive grid (`--grid`, about 1.5:1 on the card in both schemes), 3 px lines
+- Charts share one set of defaults: a visible but recessive grid (`--hairline`, about 1.2:1 on the paper), 3 px lines
   with round caps and joins, an optional wash of the sport's colour at 12% under a line, markers that are a fill ringed in the
-  card colour, bars with rounded data ends and 2 px gaps, and axis text of 12 px or more in `--text-muted` (4.5:1 on the card).
+  card colour, bars with rounded data ends and 2 px gaps, and axis text of 12 px or more in `--ink-secondary` (4.5:1 on the paper).
   A chart also has an emphasised point: the latest value
   of a series, or the 20-minute effort of a best-effort curve. On a best-effort curve the 20-minute effort is called out
   with its value, such as "250 W". End labels are annotations of the annotation primitive (below): in the gutter right of

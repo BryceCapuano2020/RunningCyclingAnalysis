@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet, ruleBody } from '../ui/components/stylesheet'
+import {
+  readFilesUnder,
+  readStylesheet,
+  readStylesheetsUnder,
+  ruleBody,
+} from '../ui/components/stylesheet'
 import { contrast, over } from './contrastMath'
 import { colour, declarations, declared, resolved } from './tokenSheet'
 import { LABEL_REM } from '../ui/charts/rootFont'
@@ -91,28 +96,112 @@ describe('colour tokens', () => {
   })
 })
 
-describe('the old names', () => {
-  const start = tokensCss.indexOf('Old names:')
-  const block = tokensCss.slice(tokensCss.indexOf(':root {', start))
-  const old = declared(`\n${block}`, ':root')
+/**
+ * The names the paper system retired (Stage V, November 2026). Each was a var() of a paper token while the pages
+ * moved; none may come back, as a declaration or a read, in a sheet, a source or the privacy page.
+ */
+const RETIRED = [
+  'surface-0',
+  'surface-1',
+  'surface-2',
+  'surface-pressed',
+  'border',
+  'grid',
+  'divider',
+  'text-primary',
+  'text-secondary',
+  'text-muted',
+  'brand',
+  'accent',
+  'selected',
+  'highlight',
+  'focus',
+  'link',
+  'accent-contrast',
+  'highlight-ink',
+  'selected-contrast',
+  'accent-hover',
+  'accent-pressed',
+  'mark-tile',
+  'mark-ring',
+  'series-run',
+  'series-ride',
+  'series-swim',
+  'series-run-soft',
+  'series-ride-soft',
+  'series-swim-soft',
+  'ladder-run-band',
+  'ladder-ride-band',
+  'neutral-mark',
+  'neutral-band',
+  'status-good-bg',
+  'status-warning-bg',
+  'status-critical-bg',
+  'radius-sm',
+  'radius-pill',
+  'text-label',
+  'display-3',
+  'tracking-caps',
+  'tracking-tab',
+  'font-display',
+  'shadow-pop',
+  'shadow',
+  'sport-colour',
+  'sport-colour-soft',
+  'muted',
+  'page',
+]
+/**
+ * A retired name declared (`--name:`), read (`var(--name`) or quoted as a string (`'--name'`, as a script setting a
+ * property would), never a longer name that starts with it.
+ */
+const RETIRED_USE = new RegExp(
+  `(?:var\\(\\s*|^\\s*|['"\`])--(?:${RETIRED.join('|')})(?![a-z0-9-])`,
+  'm',
+)
 
-  it('are a block at the foot of tokens.css, and every one is a var() of a new token, or none', () => {
-    expect(old.size).toBeGreaterThan(30)
-    const own = [...old].filter(([, value]) => !/^(var\(--[a-z0-9-]+\)|none)$/.test(value))
-    expect(own).toEqual([])
+const sheets = await readStylesheetsUnder(import.meta.url, '../')
+const sources = (await readFilesUnder(import.meta.url, '../', '.ts'))
+  .concat(await readFilesUnder(import.meta.url, '../', '.tsx'))
+  .filter(({ path }) => !/\.test\.tsx?$/.test(path))
+/** What the app ships beside its sources, and the scripts that draw from the tokens (the social card). */
+const shipped = [
+  ...(await readFilesUnder(import.meta.url, '../../public/', '.html')),
+  ...(await readFilesUnder(import.meta.url, '../../public/', '.svg')),
+  ...(await readFilesUnder(import.meta.url, '../../public/', '.webmanifest')),
+  { path: 'index.html', text: await readStylesheet(import.meta.url, '../../index.html') },
+  { path: 'privacy.html', text: await readStylesheet(import.meta.url, '../../privacy.html') },
+  ...(await readFilesUnder(import.meta.url, '../../../../scripts/', '.ts')),
+  ...(await readFilesUnder(import.meta.url, '../../../../scripts/', '.mjs')),
+].filter(({ path }) => !/\.test\.m?ts$/.test(path))
+
+describe('the retired names', () => {
+  it('are declared nowhere: tokens.css holds only the paper tokens', () => {
+    expect(
+      [...declared(tokensCss, ':root').keys()].filter((name) => RETIRED.includes(name)),
+    ).toEqual([])
+    expect(tokensCss).not.toMatch(/Old names/)
   })
 
-  it('point at a token declared above the block, never at another old name', () => {
-    const above = declared(tokensCss.slice(0, start), ':root')
-    const dangling = [...old]
-      .map(([name, value]) => [name, /var\(--([a-z0-9-]+)\)/.exec(value)?.[1]] as const)
-      .filter(([, target]) => target !== undefined && !above.has(target))
-    expect(dangling).toEqual([])
+  it('are read by no stylesheet, source, public file or script, the privacy page included', () => {
+    expect(shipped.length).toBeGreaterThan(5)
+    const offenders = [
+      ...sheets.map(({ path, css }) => ({ path, text: css })),
+      ...sources,
+      ...shipped,
+    ]
+      .filter(({ text }) => RETIRED_USE.test(text))
+      .map(({ path }) => path)
+    expect(offenders).toEqual([])
   })
 
-  it('resolve every one to a colour or to none, so a page reading one gets paper and ink', () => {
-    for (const name of old.keys())
-      expect(paper.get(name), name).toMatch(/^(#[0-9a-f]{6,8}|none|\d+px|.+rem|.+em|.+, .+)$/)
+  it('catch a declaration and a read, and leave a longer name and a class modifier alone', () => {
+    expect(RETIRED_USE.test('  color: var(--text-secondary);')).toBe(true)
+    expect(RETIRED_USE.test('  stroke: var(--sport-colour, red);')).toBe(true)
+    expect(RETIRED_USE.test('  --series-run: #c2410c;')).toBe(true)
+    expect(RETIRED_USE.test("style.setProperty('--surface-1', paper)")).toBe(true)
+    expect(RETIRED_USE.test('  max-width: var(--page-width);')).toBe(false)
+    expect(RETIRED_USE.test('.pager__page--selected { color: var(--ink); }')).toBe(false)
   })
 })
 
@@ -149,10 +238,8 @@ describe('privacy page', () => {
 
 /** The marks that sit on a running or cycling tint in the ratio chart, and the least ratio each reaches. */
 const ON_TINT: [string, string, number][] = [
-  ['neutral-mark', 'series-run-soft', GRAPHIC],
-  ['neutral-mark', 'series-ride-soft', GRAPHIC],
-  ['text-secondary', 'series-run-soft', TEXT],
-  ['text-secondary', 'series-ride-soft', TEXT],
+  ['ink-secondary', 'run-wash', TEXT],
+  ['ink-secondary', 'ride-wash', TEXT],
 ]
 
 describe('contrast on the ratio chart’s tints', () => {
@@ -166,23 +253,23 @@ describe('contrast on the ratio chart’s tints', () => {
 
   it('keeps the neutral band visible over either tint', () => {
     for (const side of ['run', 'ride']) {
-      const tint = over(String(paper.get(`series-${side}-soft`)), colour(paper, 'paper'))
-      const band = over(String(paper.get('neutral-band')), tint)
+      const tint = over(String(paper.get(`${side}-wash`)), colour(paper, 'paper'))
+      const band = over(String(paper.get('rule')), tint)
       expect(contrast(band, tint)).toBeGreaterThanOrEqual(1.02)
     }
   })
 })
 
 describe('chart gridlines and axis text', () => {
-  it('draws --grid visible on the paper and well under the 3:1 of a mark that carries data', () => {
-    const ratio = contrast(colour(paper, 'grid'), colour(paper, 'paper'))
+  it('draws --hairline visible on the paper and well under the 3:1 of a mark that carries data', () => {
+    const ratio = contrast(colour(paper, 'hairline'), colour(paper, 'paper'))
     expect(ratio).toBeGreaterThanOrEqual(1.1)
     expect(ratio).toBeLessThanOrEqual(2)
   })
 
   it('sets axis text at 12 px or more, in the secondary ink that reads 4.5:1 on the paper', () => {
     expect(LABEL_REM * 16).toBeGreaterThanOrEqual(12)
-    expect(contrast(colour(paper, 'text-muted'), colour(paper, 'paper'))).toBeGreaterThanOrEqual(
+    expect(contrast(colour(paper, 'ink-secondary'), colour(paper, 'paper'))).toBeGreaterThanOrEqual(
       TEXT,
     )
   })
