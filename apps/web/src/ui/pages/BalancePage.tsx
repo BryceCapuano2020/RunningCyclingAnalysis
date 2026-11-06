@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { WeeklyVolumeChart } from '../charts'
 import { ShareImageButton } from '../components'
 import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
@@ -30,10 +29,8 @@ import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
 import { BalanceLevels } from './BalanceLevels'
-import { BalanceOverYears } from './BalanceOverYears'
 import { BalanceTiles } from './BalanceTiles'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
-import { useBalanceVolume } from './useBalanceVolume'
 import { GradeProfileSection } from './GradeProfileSection'
 import { SoleSportRecords } from './SoleSportRecords'
 import { SportInvitation } from './SportInvitation'
@@ -89,7 +86,6 @@ export function BalancePage({
     isSample,
     period,
     library: allActivities,
-    trend,
     previous: periodBefore,
     change: changeBefore,
     earlier,
@@ -176,11 +172,6 @@ export function BalancePage({
       }),
     [result, previous, previousLabel, change, units, weightKnown],
   )
-  const { volume, axis } = useBalanceVolume({
-    trend,
-    activities: result.activities,
-    periodStartMs: period.startMs,
-  })
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const gradeShown = gradedSexOf(headline, profile, weightKnown) !== null
@@ -243,14 +234,6 @@ export function BalancePage({
         levelShown={levels !== null}
       />
 
-      <BalanceOverYears
-        years={analysis.state.history.balance}
-        profile={profile}
-        missingAge={missingAge}
-        weightKnown={weightKnown}
-        placement="home"
-      />
-
       {soleSport === null ? null : (
         <SoleSportRecords
           sport={soleSport}
@@ -291,16 +274,6 @@ export function BalancePage({
         weightKnown={weightKnown}
         lean={reading?.lean ?? null}
       />
-
-      {volume === null ? null : (
-        <section className="section" aria-labelledby="balance-volume">
-          <h2 id="balance-volume" className="sr-only">
-            Training hours
-          </h2>
-          {/* Hours are counted, not estimated, so this strip states what the weeks held and no change test is needed. */}
-          <WeeklyVolumeChart weeks={volume} axis={axis} />
-        </section>
-      )}
 
       {soleSport === null ? null : (
         <SportInvitation sport={soleSport} onAddFiles={analysis.addFiles} />

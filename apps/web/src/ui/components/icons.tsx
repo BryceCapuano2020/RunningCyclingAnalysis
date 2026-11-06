@@ -134,14 +134,6 @@ export function CheckIcon({ className }: IconProps) {
   )
 }
 
-export function PlusIcon({ className }: IconProps) {
-  return (
-    <Icon className={className}>
-      <path d="M12 5v14M5 12h14" />
-    </Icon>
-  )
-}
-
 export function ArrowRightIcon({ className }: IconProps) {
   return (
     <Icon className={className}>
@@ -157,44 +149,6 @@ export function MoreIcon({ className }: IconProps) {
       <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    </Icon>
-  )
-}
-
-/** A person, for the account and profile link. The sliders glyph read as a filter. */
-export function PersonIcon({ className }: IconProps) {
-  return (
-    <Icon className={className}>
-      <circle cx="12" cy="8.5" r="3.5" />
-      <path d="M5 20c.9-3.7 3.7-5.8 7-5.8s6.1 2.1 7 5.8" />
-    </Icon>
-  )
-}
-
-/** A balance beam on a post, for the Balance tab: two pans hang level from the beam. */
-export function BalanceIcon({ className }: IconProps) {
-  return (
-    <Icon className={className}>
-      <path d="M3 7h18M12 4v16M8 20h8" />
-      <path d="M6 7l-2.5 6h5L6 7zM18 7l-2.5 6h5L18 7z" />
-    </Icon>
-  )
-}
-
-/** Bars of different heights on a baseline, for the History tab. */
-export function HistoryIcon({ className }: IconProps) {
-  return (
-    <Icon className={className}>
-      <path d="M4 20h16M7 20v-6M12 20V5M17 20v-9" />
-    </Icon>
-  )
-}
-
-/** A list with a mark at each line, for the Activities tab. */
-export function ActivitiesIcon({ className }: IconProps) {
-  return (
-    <Icon className={className}>
-      <path d="M4 6.5h.01M4 12h.01M4 17.5h.01M8.5 6.5H20M8.5 12H20M8.5 17.5H20" />
     </Icon>
   )
 }

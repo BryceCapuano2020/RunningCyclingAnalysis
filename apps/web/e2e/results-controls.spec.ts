@@ -113,28 +113,6 @@ test('a six-week period compares the best efforts with the six weeks before it',
   await expect(legend.getByText('Previous 12 weeks')).toHaveCount(0)
 })
 
-test('the weekly hours card shows for sample data, and its table toggles', async ({ page }) => {
-  await openSample(page)
-  const card = page.locator('section').filter({
-    has: page.getByRole('heading', { level: 2, name: 'Training hours' }),
-  })
-  await expect(card).toBeVisible()
-  await expect(card.getByRole('figure', { name: 'Training hours', exact: true })).toBeAttached()
-
-  // The hours have their own table view, which is checked here.
-  const details = card.locator('details').first()
-  await expect(details).not.toHaveAttribute('open')
-  await details.locator('summary').click()
-  await expect(details).toHaveAttribute('open')
-  await expect(details.getByRole('columnheader', { name: /Week ending|Month to/ })).toBeVisible()
-  await expect(details.getByRole('rowheader').first()).toHaveText(
-    /^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}( \d{4})?$/,
-  )
-
-  await details.locator('summary').click()
-  await expect(details).not.toHaveAttribute('open')
-})
-
 test('the period control offers 6 weeks, 12 weeks, 6 months, 12 months, All time and Custom, within 390 px', async ({
   page,
 }) => {

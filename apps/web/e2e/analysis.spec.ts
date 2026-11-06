@@ -25,7 +25,6 @@ const BALANCE_METER =
 /**
  * The Balance page's last chart: the hours trained each week, found by its title.
  */
-const BALANCE_HOURS = /Training hours/
 const BEST_EFFORTS_CURVE = 'Best efforts'
 /** The sport page's section of dated bests, which needs a season of activities. */
 const OPEN_SEASON_SECTION = 'Best efforts by day'
@@ -46,7 +45,6 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
-  await expect(page.locator('figure').filter({ hasText: BALANCE_HOURS })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
   // The sample's season is long and varied enough to fill every section of a sport page: best durations, best efforts
