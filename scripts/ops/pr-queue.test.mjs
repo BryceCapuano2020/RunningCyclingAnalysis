@@ -205,9 +205,10 @@ test('a re-run attempt that passed after a failed attempt counts as passed', () 
 })
 
 test('a draft-gate run followed by a full green run is green, and alone is stale', () => {
-  const draftRun = fullRun(10, { 'Statistical simulations': 'FAILURE' }).map((c) =>
-    c.name === 'Lint, typecheck, build' ? { ...c, conclusion: 'SKIPPED' } : c,
-  )
+  const draftRun = fullRun(10, {
+    'Statistical simulations': 'FAILURE',
+    'Lint, typecheck, build': 'SKIPPED',
+  })
   assert.equal(verdict(pr({ statusCheckRollup: draftRun })).kind, 'stale-draft-run')
   const both = [...draftRun, ...fullRun(11, {}, LATER)]
   assert.equal(verdict(pr({ statusCheckRollup: both })).kind, 'merging')
