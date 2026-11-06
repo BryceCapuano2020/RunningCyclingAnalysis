@@ -28,25 +28,24 @@ const rising = () =>
       perWeek: 2,
       seed: 1,
       ...NOISE,
-      planted: (w) => 0.05 * Math.max(0, Math.min(1, (w - 118) / 12)),
+      planted: (w) => Math.log1p(0.05 * Math.max(0, Math.min(1, (w - 117) / 12))),
     }),
     118,
   )
 
 describe('the early trend of a ride with a new power meter', () => {
-  // The spec's prototype gave +4.21% (-0.94% to +9.63%) for its own script, which is not in the repository; this is the
-  // figure of this fixture, pinned so a change to the groups, the level or the range is seen.
+  // The spec's fixed-seed figure: +4.21% (-0.94% to +9.63%), to 0.01 points. The rise runs over weeks 117 to 129, the meter from 118.
   it('reads the newest six steady rides against the first six: the fixed-seed golden', () => {
     const s = status(rising())
     expect(s.state).toBe('not-enough-evidence')
     expect(s.shortfall?.kind).toBe('history')
     expect(s.steady).toBe(24)
     const e = s.early!
-    expect(e.change.value).toBeCloseTo(0.0371, 4)
-    expect(e.change.low).toBeCloseTo(-0.0139, 4)
-    expect(e.change.high).toBeCloseTo(0.0908, 4)
+    expect(Math.abs(e.change.value - 0.0421)).toBeLessThan(0.0001)
+    expect(Math.abs(e.change.low + 0.0094)).toBeLessThan(0.0001)
+    expect(Math.abs(e.change.high - 0.0963)).toBeLessThan(0.0001)
     expect([e.first.runs, e.newest.runs]).toEqual([6, 6])
-    expect((e.newest.fromMs - e.first.fromMs) / DAY_MS).toBe(56)
+    expect((e.newest.fromMs - e.first.fromMs) / DAY_MS).toBe(63)
     expect(e.first.heartRate).toBe(145)
   })
 
@@ -67,6 +66,25 @@ describe('the early trend of a ride with a new power meter', () => {
       planted: () => 0.3,
     }).map((d) => Object.assign({}, d, { id: `virtual-${d.id}`, powerSource: 'virtual' as const }))
     expect(status([...rising(), ...extra]).early).toEqual(before)
+  })
+
+  it('says why a ride on modelled power only is not compared', () => {
+    const modelled = withMeterFrom(rideLibrary({ weeks: 20, perWeek: 2, seed: 1, ...NOISE }), 20)
+    const s = status(modelled)
+    expect(s.steady).toBe(0)
+    expect(s.virtualOnly).toBe(true)
+    expect(s.early).toBeUndefined()
+    expect(fitnessLines(s, 'metric')).toEqual({
+      headline: 'No outdoor rides with a power meter and heart rate yet.',
+      changes: [],
+      support: '',
+      needs: '',
+      early: ['Power worked out from speed moves with wind and drafting, so it is not compared.'],
+    })
+    expect(
+      status(withMeterFrom(rideLibrary({ weeks: 20, perWeek: 2, seed: 1, ...NOISE }), 0))
+        .virtualOnly,
+    ).toBeUndefined()
   })
 
   it('has none under six steady rides, and says how many more it needs', () => {
@@ -118,7 +136,7 @@ describe('the early trend in words', () => {
 
   it('tells the signed estimate and its range, and the two groups', () => {
     expect(lines.early).toEqual([
-      expect.stringMatching(/^\+4% on your first power-meter rides, \d+ \w+ \(-1% to \+9%\)\.$/),
+      expect.stringMatching(/^\+4% on your first power-meter rides, \d+ \w+ \(-1% to \+10%\)\.$/),
       expect.stringMatching(/^First: 6 rides, \d+ \w+ to \d+ \w+, 145 bpm median\.$/),
       expect.stringMatching(/^Newest: 6 rides, \d+ \w+ to \d+ \w+, 145 bpm median\.$/),
       'A season, the weather and a change of meter move this figure until the full trend.',

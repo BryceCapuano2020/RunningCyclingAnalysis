@@ -161,6 +161,8 @@ export interface FitnessStatus {
   level?: FitnessLevel
   /** Only with the `history` shortfall, for a sport that shows one: the early trend. Absent otherwise. */
   early?: FitnessEarly
+  /** Only with the `history` shortfall, no steady ride and outdoor rides with heart rate on modelled power: the card says why they are not compared. */
+  virtualOnly?: true
   /** When the state began and with what test; null for holding that was never interrupted and for no state. */
   entered: FitnessEntry | null
   /** Steady runs (or rides) in the whole library, whatever the state. */

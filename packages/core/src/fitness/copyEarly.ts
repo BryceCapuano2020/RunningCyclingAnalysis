@@ -40,3 +40,7 @@ export function earlyNeeds(s: FitnessStatus, shortfall: Shortfall): string {
     ? `${counted(need, 'more power-meter ride')} with heart rate for an early trend.`
     : ''
 }
+
+/** Why a ride with only modelled power is not compared. */
+export const VIRTUAL_ONLY =
+  'Power worked out from speed moves with wind and drafting, so it is not compared.'

@@ -3,7 +3,7 @@ import { counted, formatDay, formatRelative } from '../findings/copy'
 import type { Sport } from '../types'
 import { formatPace, formatPaceValue, formatPower, formatWatts } from '../units'
 import type { UnitSystem } from '../units'
-import { earlyLines, earlyNeeds } from './copyEarly'
+import { earlyLines, earlyNeeds, VIRTUAL_ONLY } from './copyEarly'
 import { FITNESS } from './params'
 import type { FitnessStatus, Ranged, Shortfall, SpokenState } from './types'
 
@@ -229,7 +229,13 @@ function waitingLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
   }
   const level = s.level
   if (level === undefined) {
-    return { headline: w.none(s.steady), changes: [], support: '', needs: '' }
+    return {
+      headline: w.none(s.steady),
+      changes: [],
+      support: '',
+      needs: '',
+      ...(s.virtualOnly === true ? { early: [VIRTUAL_ONLY] } : {}),
+    }
   }
   const on = s.shortfall!.kind === 'break' ? ` in ${monthOf(level.toMs, s.asOfMs)}` : ''
   return {

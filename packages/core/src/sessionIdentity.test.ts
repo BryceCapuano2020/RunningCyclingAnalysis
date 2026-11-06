@@ -341,7 +341,7 @@ import { setAsideLibrary } from './zones/test/setAsideLibrary'
  * which moves an activity into another local day. The custom range holds the Los Angeles change of 14
  * March. The zone is set in the test, which the forked workers apply to dates, and checked there.
  * Re-pinned for the ride early trend and spike rule (W5, docs/design/ride-early-trend.md). Only `fitness` and `lookBack` move, to one new
- * value under every period, under the three dated settings of the 400-activity library (the fixed setting does not move). 17 of its 200 rides carry one HR spike flag; the
+ * value under every period, under the three dated settings of the 400-activity library (the fixed setting does not move: its heart-rate judgement sets 17 rides aside and the ride status stays at 149 steady, checked). 17 of its 200 rides carry one HR spike flag; the
  * isolated-spike rule keeps them as steady rides (149 before, 166 after), so the ride status's `steady`, `now`, `before`, `change`,
  * `within`, `series` and evidence spans move, and the look-back reads the same rides. The ride has a baseline, so it gains no `early`
  * field, and the run status, which the rule and the early trend do not touch, is as it was. Every other field is as it was. The

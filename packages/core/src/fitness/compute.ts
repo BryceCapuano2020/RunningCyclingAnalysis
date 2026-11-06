@@ -8,7 +8,7 @@ import type { WeekRecord } from './machine'
 import { RIDE_FITNESS_ENABLED } from './params'
 import { rideSeries } from './rideUnit'
 import { withoutSeason } from './season'
-import { withEarly } from './early'
+import { withEarly, withVirtualOnly } from './early'
 import { withLevel } from './level'
 import { describe } from './status'
 import { noFitness } from './types'
@@ -105,10 +105,14 @@ function readSport(
   }
   return {
     status: withEarly(
-      withLevel(describe(sport, { ...series, method }, seen, records, asOfMs), seen),
+      withVirtualOnly(
+        withLevel(describe(sport, { ...series, method }, seen, records, asOfMs), seen),
+        digests,
+        sport,
+        setAside,
+      ),
       seen,
       sport,
-      asOfMs,
       new Map(series.points.flatMap((p) => (p.hr === undefined ? [] : [[p.id, p.hr] as const]))),
     ),
     // The runs as the unit read them, with the warm days added back when the term is on: the look-back reads what the card does.

@@ -1,6 +1,6 @@
 import { EARLY_TREND, FITNESS } from './params'
-import { dayOfWeekEnd, localWeekOf } from './machine'
 import { halfWidth, ranged } from './status'
+import type { ActivityDigest, Sport } from '../types'
 import type { EarlyGroup, FitnessEarly, FitnessStatus } from './types'
 import { instantOf, levelOf, sigmaAt, slice } from './windows'
 import type { RunPoint } from './windows'
@@ -66,10 +66,31 @@ export function withEarly(
   status: FitnessStatus,
   runs: readonly RunPoint[],
   sport: FitnessStatus['sport'],
-  asOfMs: number,
   hrOf: ReadonlyMap<string, number>,
 ): FitnessStatus {
   if (!EARLY_TREND[sport] || status.shortfall?.kind !== 'history') return status
-  const early = earlyTrendOf(runs, dayOfWeekEnd(localWeekOf(asOfMs + 1) - 1), hrOf)
+  const newest = runs.at(-1)
+  const early = newest === undefined ? null : earlyTrendOf(runs, newest.t + 1, hrOf)
   return early === null ? status : { ...status, early }
+}
+
+/** A ride status with no steady ride whose library holds outdoor rides with heart rate on modelled power only: it says so. */
+export function withVirtualOnly(
+  status: FitnessStatus,
+  digests: readonly ActivityDigest[],
+  sport: Sport,
+  setAside: ReadonlySet<string>,
+): FitnessStatus {
+  if (!EARLY_TREND[sport] || status.steady !== 0 || status.shortfall?.kind !== 'history') {
+    return status
+  }
+  const modelled = digests.some(
+    (d) =>
+      d.sport === sport &&
+      d.powerSource === 'virtual' &&
+      !d.indoor &&
+      d.hasHeartRate &&
+      !setAside.has(d.id),
+  )
+  return modelled ? { ...status, virtualOnly: true } : status
 }

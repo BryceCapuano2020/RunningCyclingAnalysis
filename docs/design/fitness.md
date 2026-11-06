@@ -274,7 +274,7 @@ structural coefficient needs a heart-rate model nobody has validated.
 
 ### Rides
 
-Proposed, not built: an early trend while there is no baseline, and rides an isolated HR spike no longer drops
+Built in #453: an early trend while there is no baseline, and rides an isolated HR spike no longer drops
 ([ride-early-trend.md](ride-early-trend.md)).
 
 The ride unit (measured power, outdoors, five-minute blocks within 20 bpm of the reference, moved to it by the library's own

@@ -95,6 +95,8 @@ export function rideSeries(
   if (rides.length === 0) return emptySeries('power')
   rides.sort(byTime)
   const newest = Math.max(...rides.map((r) => r.startMs))
+  // The reference counts every block of every ride, a spiked ride with too few in-band blocks included: which blocks are in the
+  // band depends on the reference, so the rule cannot be applied before it.
   const ref = referenceOf(
     rides
       .filter((r) => r.startMs > newest - FITNESS.unit.referenceWeeks * 7 * DAY_MS)

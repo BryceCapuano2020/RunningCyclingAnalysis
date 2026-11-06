@@ -108,7 +108,7 @@ export function worthShowing(status: FitnessStatus): boolean {
   if (status.state !== 'not-enough-evidence') return true
   if (shortfall === null || shortfall.kind === 'unavailable') return false
   // No steady run at all: a library of treadmill runs or of rides says nothing, so the page does not ask for more.
-  return status.steady > 0
+  return status.steady > 0 || status.virtualOnly === true
 }
 
 /**

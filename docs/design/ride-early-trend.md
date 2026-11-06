@@ -1,7 +1,7 @@
 # Ride fitness: an early trend, and rides a spike no longer drops (design)
 
 Status: spec and prototype, revised after the science review (Stage W, package W5, step 1 of "Formula and model changes" in
-[PROCESS.md](../PROCESS.md#formula-and-model-changes)). Not built. It changes the ride card of
+[PROCESS.md](../PROCESS.md#formula-and-model-changes)). Built in #453. It changes the ride card of
 [fitness.md](fitness.md) ("Rides"); the run unit and the monitor's alarm rules are unchanged. This note holds no owner data.
 
 ## Why
