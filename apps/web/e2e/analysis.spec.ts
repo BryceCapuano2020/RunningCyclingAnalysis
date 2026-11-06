@@ -347,7 +347,7 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   // The card comes after the tiles and before the grade by duration.
   const tiles = await edgesOf(page.locator('.balance-tiles'))
   const card = await edgesOf(page.locator(FITNESS_CARD))
-  const grades = await edgesOf(page.getByRole('region', { name: 'Grade by duration' }))
+  const grades = await edgesOf(page.getByRole('region', { name: 'Age grade by effort length' }))
   expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
   expect(card.bottom).toBeLessThanOrEqual(grades.top)
   await page.locator(FITNESS_CARD).scrollIntoViewIfNeeded()

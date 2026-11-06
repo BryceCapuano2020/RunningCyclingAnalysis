@@ -9,6 +9,10 @@ import { percentFits, segmentsOf, takeawayText, underLabels } from './zoneBars'
 import './ZoneTimeChart.css'
 
 /** One measure's stacked bar: the seconds in each zone, lowest effort first. */
+/** The chart's title where it is of a period, and where it is of an interval of one activity. */
+export const PERIOD_ZONES_TITLE = 'Share of time in each zone'
+export const INTERVAL_ZONES_TITLE = 'Share of the interval in each zone'
+
 export interface ZoneChartRow {
   /** "Heart rate", above its bar. */
   label: string

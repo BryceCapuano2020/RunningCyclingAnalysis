@@ -3,7 +3,7 @@ import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import { Crosshair } from './Crosshair'
-import { isHollow, titleOf } from './balanceYears'
+import { chartTitle, isHollow } from './balanceYears'
 import type { YearView } from './balanceYears'
 import { yearsLayout } from './balanceYearsLayout'
 import { DESCRIPTION, idleOf, legendOf, tableOf, tooltipFor } from './balanceYearsText'
@@ -22,7 +22,7 @@ export interface BalanceOverYearsChartProps {
 }
 
 /**
- * Each sport's age grade of its threshold in every calendar year, on one scale from 0 to 100, titled by who led.
+ * Each sport's age grade of its threshold in every calendar year, on one scale from 0 to 100, titled by what it plots.
  * Each threshold is an estimate, so its range is a band. A dot is solid for a best the gate found hard (or could not judge),
  * hollow for one that was not all-out, which the tooltip and the chart's description say and the key and the table
  * do not.
@@ -34,7 +34,7 @@ export function BalanceOverYearsChart({ views }: BalanceOverYearsChartProps) {
 
   return (
     <ChartFrame
-      title={titleOf(views)}
+      title={chartTitle(views)}
       description={DESCRIPTION}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}

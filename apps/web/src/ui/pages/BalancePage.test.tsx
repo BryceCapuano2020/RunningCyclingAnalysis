@@ -361,7 +361,7 @@ describe('BalancePage', () => {
       equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
     })
     const { container } = renderPage(result, {}, MAN_BORN_1986)
-    const chart = screen.getByRole('region', { name: 'Grade by duration' })
+    const chart = screen.getByRole('region', { name: 'Age grade by effort length' })
     const tiles = container.querySelector('.balance-tiles')
     expect(
       (tiles?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -373,7 +373,9 @@ describe('BalancePage', () => {
 
   it('leaves the grade by duration out when only one duration is graded in both sports', () => {
     renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    expect(screen.queryByRole('region', { name: 'Grade by duration' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Age grade by effort length' }),
+    ).not.toBeInTheDocument()
   })
 
   it('names only the missing field, in the prompt and on its button', () => {
