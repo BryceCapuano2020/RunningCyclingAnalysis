@@ -191,16 +191,22 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   // The name says the threshold is an estimate, so the tile carries no chip and no range shape; the runs it rests on
   // and how it was worked out are one tap down, with no line under the figure.
   await expect(run.locator('.stat-tile__number')).toBeVisible()
-  await expect(run.getByText(/^From 1 run\. Strongest: /)).toBeHidden()
+  await expect(run.locator('.props__row', { hasText: /^Runs used/ })).toBeHidden()
   await expect(run.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
   await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
-  const note = run.getByRole('note')
-  await expect(note).toContainText(
-    /^From 1 run\. Strongest: \d+ min on [^.]+\.Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /,
+  const panel = run.locator('.props')
+  await expect(panel.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
+    '1',
   )
-  await expect(note).toContainText('never under a backed hour you ran')
-  await expect(note).not.toContainText(/heart rate/i)
+  await expect(
+    panel.locator('.props__row', { hasText: /^Strongest effort/ }).locator('dd'),
+  ).toHaveText(/^\d+ min, [^.]+$/)
+  await expect(panel.locator('.props__row', { hasText: /^Range/ }).locator('dd')).toHaveText(
+    /^\d+:\d{2}\u2013\d+:\d{2} \/(km|mi)$/,
+  )
+  await expect(panel.getByRole('link', { name: 'Method' })).toBeVisible()
+  await expect(panel).not.toContainText(/heart rate/i)
 })
 
 test('a one-sport library never gets a request for a headline, whichever sport it holds', async ({

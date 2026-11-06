@@ -215,10 +215,13 @@ test('Method says that both best efforts were hard efforts', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
   const run = page.getByRole('article', { name: 'Run threshold' })
   await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
-  await expect(run.getByRole('note')).toContainText(
-    /^From \d+ runs?\. Strongest: \d+ min on [^.]+\.Range \d+:\d{2} to \d+:\d{2} \/(km|mi)\. /,
+  await expect(run.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
+    /^\d+$/,
   )
-  await expect(run.getByRole('note')).not.toContainText(/heart rate/i)
+  await expect(run.locator('.props__row', { hasText: /^Range/ }).locator('dd')).toHaveText(
+    /^\d+:\d{2}\u2013\d+:\d{2} \/(km|mi)$/,
+  )
+  await expect(run.locator('.props')).not.toContainText(/heart rate/i)
 
   await openMethod(page)
   await expect(page.getByText(/Both best efforts reached at least 90% of each sport/)).toBeVisible()
@@ -234,18 +237,20 @@ test('the ride threshold says what it rests on, and opens its range and method o
   await expect(ride.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(ride.locator('.chip')).toHaveCount(0)
   // What it rests on is the first line of its one disclosure, not a line under the figure.
-  await expect(ride.getByText(/^From \d+ rides\. Strongest: /)).toBeHidden()
+  await expect(ride.locator('.props__row', { hasText: /^Rides used/ })).toBeHidden()
   // The two tiles' terms are told apart by the threshold each opens.
   const term = ride.locator('summary', { hasText: 'How this was worked out for threshold power' })
   await term.click()
-  const note = ride.getByRole('note')
-  await expect(note).toBeVisible()
-  await expect(note).toContainText(
-    /^From \d+ rides\. Strongest: \d+ min on [^.]+\.Range \d+ to \d+ W\./,
+  const panel = ride.locator('.props')
+  await expect(panel).toBeVisible()
+  await expect(panel.locator('.props__row', { hasText: /^Rides used/ }).locator('dd')).toHaveText(
+    /^\d+$/,
   )
-  await expect(note).toContainText('Heart rate can raise the answer and never lowers it.')
-  await expect(note).toContainText(
-    /Here it (raised|did not raise) the answer|Here it was not used:/,
+  await expect(panel.locator('.props__row', { hasText: /^Range/ }).locator('dd')).toHaveText(
+    /^\d+\u2013\d+ W$/,
+  )
+  await expect(panel.locator('.props__row', { hasText: /^Heart rate/ }).locator('dd')).toHaveText(
+    /^(Raised it, from \d+ efforts?|Read, no change, from \d+ efforts?|Not used)$/,
   )
   await expect(
     page

@@ -41,6 +41,7 @@ vi.mock('../../share/renderCard', () => ({
 import { renderShareCard } from '../../share/renderCard'
 import { canvasFile } from '../../share/download'
 import { openDetail } from '../test/openDetail'
+import { rowValue } from '../test/propertyRows'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -294,14 +295,13 @@ describe('BalancePage', () => {
     expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
     // A run's estimate is worked out from pace alone, so its detail says nothing of heart rate.
     openDetail(run)
-    // The disclosure opens on what the figure rests on, then the range and the method.
-    const [basis, detail] = within(run).getByRole('note').querySelectorAll('p')
-    expect(basis).toHaveTextContent(/^From \d+ runs\. Strongest: /)
-    expect(detail).toHaveTextContent(/^Range \d+:\d{2} to \d+:\d{2} \/km\. /)
-    expect(within(run).getByRole('note')).not.toHaveTextContent(/heart rate/)
+    // The disclosure opens on what the figure rests on, then the range, as rows.
+    expect(rowValue(run, 'Runs used')).toMatch(/^\d+$/)
+    expect(rowValue(run, 'Range')).toMatch(/^\d+:\d{2}\u2013\d+:\d{2} \/km$/)
+    expect(run.querySelector('.props')).not.toHaveTextContent(/heart rate/i)
     // A ride's estimate does not read how hard its best 20 min was, so its detail does not say.
     openDetail(ride)
-    expect(within(ride).getByRole('note')).not.toHaveTextContent(/max heart rate|reached \d+%/)
+    expect(ride.querySelector('.props')).not.toHaveTextContent(/max heart rate|reached \d+%/)
     expect(screen.queryByRole('region', { name: /hard heart rate/ })).toBeNull()
   })
 
@@ -319,7 +319,10 @@ describe('BalancePage', () => {
         }),
       )
       expect(container.querySelector('.evidence-line')).toBeNull()
-      expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
+      // The only Method links are the ones that end a detail panel.
+      for (const link of document.querySelectorAll('a[href="#/method"]')) {
+        expect(link).toHaveClass('props__method')
+      }
       expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
       expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
     },
@@ -391,12 +394,13 @@ describe('BalancePage', () => {
     expect(levels.querySelectorAll('.balance-levels__row')).toHaveLength(0)
   })
 
-  it('links to the method page nowhere in its text: the header names it', () => {
+  it('links to the method page only from the end of a detail panel: the header names it otherwise', () => {
     renderPage()
     const links = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('href') === '#/method')
-    expect(links).toHaveLength(0)
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) expect(link).toHaveClass('props__method')
   })
 
   it('offers the share image while the analysis is idle', () => {

@@ -13,31 +13,51 @@ import { thresholdEstimate } from './thresholdEstimate'
  */
 const RANGE = 'Range'
 
-/**
- * The span between two thresholds as a line, in the sport's own unit, read from its faster end for a run.
- * When both ends print the same, "Range A to A" would say nothing, so it is "About A".
- */
-function rangeOf(
+/** A range's two ends in reading order, the last with its unit, or one figure when both ends print the same. */
+type Ends = { from: string; to: string } | { only: string }
+
+/** The span between two thresholds in the sport's own unit, read from its faster end for a run. */
+function endsOf(
   sport: Sport,
   lowCp: number,
   highCp: number,
   massKg: number,
   units: UnitSystem,
-): string {
+): Ends {
   const figureOf: Record<Sport, (cp: number) => Figure> = {
     run: (cp) => paceFigure(cp, units),
     ride: (cp) => powerFigure(ridePowerOfWkg(cp, massKg)),
   }
   const low = figureOf[sport](lowCp)
   const high = figureOf[sport](highCp)
+  if (low.number === high.number) return { only: low.value }
   // A faster pace is the higher work rate, so a running range reads from its faster end.
-  const ends: Record<Sport, [from: string, to: string]> = {
-    run: [high.number, low.value],
-    ride: [low.number, high.value],
-  }
-  if (low.number === high.number) return `About ${low.value}`
-  const [from, to] = ends[sport]
-  return `${RANGE} ${from} to ${to}`
+  return sport === 'run'
+    ? { from: high.number, to: low.value }
+    : { from: low.number, to: high.value }
+}
+
+/** The ends of a sport's estimate, or null without one. */
+function estimateEnds(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): Ends | null {
+  const estimate = thresholdEstimate(result, sport)
+  return estimate === null ? null : endsOf(sport, estimate.low, estimate.high, massKg, units)
+}
+
+/** The span alone, as a detail panel's value: "291–343 W", or the one figure. Null without an estimate. */
+export function thresholdSpan(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): string | null {
+  const ends = estimateEnds(result, sport, massKg, units)
+  if (ends === null) return null
+  return 'only' in ends ? ends.only : `${ends.from}\u2013${ends.to}`
 }
 
 /**
@@ -51,6 +71,7 @@ export function thresholdRange(
   massKg: number,
   units: UnitSystem,
 ): string | null {
-  const estimate = thresholdEstimate(result, sport)
-  return estimate === null ? null : rangeOf(sport, estimate.low, estimate.high, massKg, units)
+  const ends = estimateEnds(result, sport, massKg, units)
+  if (ends === null) return null
+  return 'only' in ends ? `About ${ends.only}` : `${RANGE} ${ends.from} to ${ends.to}`
 }

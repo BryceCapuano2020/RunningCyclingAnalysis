@@ -16,6 +16,7 @@ import { THRESHOLD_MEANING } from '../sports'
 import { ThresholdTile } from './ThresholdTile'
 import { thresholdTileIsBare } from './thresholdTileBare'
 import { detailSummaries, openDetail } from '../test/openDetail'
+import { rowValue } from '../test/propertyRows'
 
 afterEach(cleanup)
 
@@ -58,16 +59,11 @@ const RIDE_GRADED: GradeOutcome = {
   },
 }
 
-/** The line a threshold's figure rests on: the first line inside its How this was worked out, never under the figure. */
-function basisOf(container: HTMLElement): Element | null {
-  const basis = container.querySelector('.stat-tile__source details [role="note"] > .meta')
-  expect(basis?.closest('details')).not.toBeNull()
-  return basis
-}
-
-/** The range and method: the last line of the detail, after what the figure rests on. */
-function detailLine(): Element | null {
-  return screen.getByRole('note').lastElementChild
+/** The panel inside a tile's How this was worked out: the rows, never a line under the figure. */
+function panelOf(container: HTMLElement): Element {
+  const panel = container.querySelector('.stat-tile__source details .props')
+  expect(panel?.closest('details')).not.toBeNull()
+  return panel!
 }
 
 describe('ThresholdTile', () => {
@@ -78,7 +74,7 @@ describe('ThresholdTile', () => {
     expect(container.textContent).not.toMatch(/90% range|Estimated|At least/)
     expect(screen.queryByText('range')).toBeNull()
     openDetail()
-    expect(detailLine()).toHaveTextContent(/^Range 4:10 to 4:39 \/km\. /)
+    expect(rowValue(document.body, 'Range')).toBe('4:10\u20134:39 /km')
   })
 
   it('emits the figure, second-reading and trend cells even with no second reading, so its figure keeps the column', () => {
@@ -95,7 +91,7 @@ describe('ThresholdTile', () => {
     expect(container.textContent).not.toMatch(/NaN/)
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
     openDetail()
-    expect(detailLine()).toHaveTextContent(/^About 4:24 \/km\. /)
+    expect(rowValue(document.body, 'Range')).toBe('4:24 /km')
   })
 
   it('renders nothing when it would hold only its name: no figure, the headline says what it needs, no grade', () => {
@@ -131,7 +127,7 @@ describe('ThresholdTile', () => {
     )
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('4:24')
     expect(container.textContent).not.toMatch(/At least|Estimated|From your best/)
-    expect(basisOf(container)).toHaveTextContent(/^From 3 runs\. /)
+    expect(rowValue(panelOf(container), 'Runs used')).toBe('3')
   })
 
   it('defines the threshold in place, with its meaning in plain words, for each sport, where there is no fit', () => {
@@ -181,14 +177,14 @@ describe('ThresholdTile', () => {
     const { container } = renderTile('ride', makeResult({ activities: [ride], rideThreshold }))
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('250')
     expect(container.querySelector('.stat-tile__side')).toHaveTextContent('3.3 W/kg')
-    expect(basisOf(container)).toHaveTextContent(/^From 5 rides\. Strongest: 12 min on 4 Mar/)
+    const panel = panelOf(container)
+    expect(rowValue(panel, 'Rides used')).toBe('5')
+    expect(rowValue(panel, 'Strongest effort')).toBe('12 min, 4 Mar')
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.textContent).not.toMatch(/Estimated|At least/)
     openDetail()
-    expect(detailLine()).toHaveTextContent(/^Range 240 to 264 W\. /)
-    expect(screen.getByRole('note')).toHaveTextContent(
-      'Here it was not used: your heart rate does not move with power.',
-    )
+    expect(rowValue(panel, 'Range')).toBe('240\u2013264 W')
+    expect(rowValue(panel, 'Heart rate')).toBe('Not used')
   })
 
   it('gives a run the same one-tap detail as a ride: its range and method, and nothing about heart rate', () => {
@@ -206,14 +202,13 @@ describe('ThresholdTile', () => {
       },
     })
     const { container } = renderTile('run', makeResult({ activities: [run], runThreshold }))
-    expect(basisOf(container)).toHaveTextContent(/^From 4 runs\. Strongest: 40 min on 4 Mar/)
-    openDetail()
-    const note = detailLine()
-    expect(note).toHaveTextContent(
-      /^Range 4:\d\d to 4:\d\d \/km\. Worked out from the strongest effort of each run/,
-    )
-    expect(note).toHaveTextContent('never under a backed hour you ran')
-    expect(note).not.toHaveTextContent(/heart rate|max heart|not used|raise/i)
+    const panel = panelOf(container)
+    expect(rowValue(panel, 'Runs used')).toBe('4')
+    expect(rowValue(panel, 'Strongest effort')).toBe('40 min, 4 Mar')
+    expect(rowValue(panel, 'Range')).toMatch(/^4:\d\d\u20134:\d\d \/km$/)
+    expect(panel).not.toHaveTextContent(/heart rate|max heart|not used|raise/i)
+    // The method itself is one link to Method, not prose in the panel.
+    expect(panel.querySelector('.props__method')).toHaveTextContent('Method')
   })
 
   it('names each tile’s detail for its threshold, so two on a page are told apart', () => {
