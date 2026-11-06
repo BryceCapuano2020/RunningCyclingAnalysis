@@ -124,9 +124,10 @@ test('on a 390 px phone the History tab labels every bar, wraps its toggles and 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
   // A toggle sits inside its chart's control row, whether it shares the row with a key or wraps below it.
+  // Bests by year and fitness over the years each have a sport toggle.
   const rows = page.locator('[data-section] .chart-frame__controls')
   const count = await rows.count()
-  expect(count).toBeGreaterThan(3)
+  expect(count).toBeGreaterThanOrEqual(2)
   for (let i = 0; i < count; i++) {
     const fits = await rows.nth(i).evaluate((row) => row.scrollWidth <= row.clientWidth + 1)
     expect(fits).toBe(true)
