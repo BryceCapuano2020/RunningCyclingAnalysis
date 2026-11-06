@@ -41,8 +41,7 @@ describe('the zone ramp', () => {
 
       it(`keeps ${GRAPHIC}:1 against the card and the page in ${name} for every ${sport} step`, () => {
         for (const step of steps) {
-          expect(contrast(step, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
-          expect(contrast(step, colour(tokens, 'surface-0'))).toBeGreaterThanOrEqual(GRAPHIC)
+          expect(contrast(step, colour(tokens, 'paper'))).toBeGreaterThanOrEqual(GRAPHIC)
         }
       })
 
@@ -130,8 +129,7 @@ describe('the long zone ramp', () => {
 
     it(`keeps ${GRAPHIC}:1 against the card and the page in ${name} for every step`, () => {
       for (const step of steps) {
-        expect(contrast(step, colour(tokens, 'surface-1'))).toBeGreaterThanOrEqual(GRAPHIC)
-        expect(contrast(step, colour(tokens, 'surface-0'))).toBeGreaterThanOrEqual(GRAPHIC)
+        expect(contrast(step, colour(tokens, 'paper'))).toBeGreaterThanOrEqual(GRAPHIC)
       }
     })
 

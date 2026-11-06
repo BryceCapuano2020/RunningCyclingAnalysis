@@ -46,9 +46,9 @@ function stepColour(expression: string, tokens: Tokens, ink: string): string {
 
 describe('the calendar ramp', () => {
   it('takes the sport’s colour for its ink when a sport is filtered, and the neutral ink otherwise', () => {
-    expect(css).toMatch(/\.calendar \{[^}]*--calendar-ink:\s*var\(--neutral-mark\)/)
-    expect(css).toMatch(/\.calendar\[data-sport\] \{[^}]*--calendar-ink:\s*var\(--sport-colour\)/)
-    expect(css).toMatch(/--calendar-step-0:\s*var\(--surface-2\)/)
+    expect(css).toMatch(/\.calendar \{[^}]*--calendar-ink:\s*var\(--ink-secondary\)/)
+    expect(css).toMatch(/\.calendar\[data-sport\] \{[^}]*--calendar-ink:\s*var\(--sport-ink\)/)
+    expect(css).toMatch(/--calendar-step-0:\s*var\(--paper-hover\)/)
   })
 
   it('has five steps for neutral and for a sport, each set in the sheet', () => {
@@ -59,14 +59,14 @@ describe('the calendar ramp', () => {
 
   for (const [name, tokens] of schemes) {
     for (const [ink, selector, kind] of [
-      ['neutral-mark', '.calendar', 'neutral'],
-      ['series-run', '.calendar[data-sport]', 'sport'],
-      ['series-ride', '.calendar[data-sport]', 'sport'],
+      ['ink-secondary', '.calendar', 'neutral'],
+      ['run-ink', '.calendar[data-sport]', 'sport'],
+      ['ride-ink', '.calendar[data-sport]', 'sport'],
     ] as const) {
       const steps = stepsOf(selector).map((step) => stepColour(step, tokens, colour(tokens, ink)))
 
       it(`keeps the first ${ink} step ${FIRST_AGAINST_NONE}:1 from no training in ${name}`, () => {
-        expect(contrast(steps[0]!, colour(tokens, 'surface-2'))).toBeGreaterThanOrEqual(
+        expect(contrast(steps[0]!, colour(tokens, 'paper-hover'))).toBeGreaterThanOrEqual(
           FIRST_AGAINST_NONE,
         )
       })

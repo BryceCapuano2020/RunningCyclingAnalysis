@@ -117,7 +117,7 @@ describe('RatioChart', () => {
     expect(calibrated).not.toBeNull()
 
     const calibratedRule = cssRule('.ratio-chart__band--calibrated')
-    expect(calibratedRule).toMatch(/stroke:\s*var\(--neutral-mark\)/)
+    expect(calibratedRule).toMatch(/stroke:\s*var\(--ink-secondary\)/)
     expect(calibratedRule).toMatch(/stroke-width:\s*1\.5px/)
     expect(cssRule('.ratio-chart__band--prior')).toMatch(/stroke-dasharray/)
   })
@@ -143,8 +143,8 @@ describe('RatioChart', () => {
   })
 
   it('fills each tint with its sport’s soft series token, not a raw colour', () => {
-    expect(cssRule('.ratio-chart__higher--run')).toContain('var(--series-run-soft)')
-    expect(cssRule('.ratio-chart__higher--ride')).toContain('var(--series-ride-soft)')
+    expect(cssRule('.ratio-chart__higher--run')).toContain('var(--run-wash)')
+    expect(cssRule('.ratio-chart__higher--ride')).toContain('var(--ride-wash)')
   })
 
   it('says in the caption, and in each table row, which sport is higher', () => {

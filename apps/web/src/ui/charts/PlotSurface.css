@@ -13,7 +13,7 @@
 /* The focus ring sits outside the plot, so it never covers the values it lets a reader reach. */
 .plot-surface__ring {
   fill: none;
-  stroke: var(--focus);
+  stroke: var(--ink);
   stroke-width: 2px;
   visibility: hidden;
 }

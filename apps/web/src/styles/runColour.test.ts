@@ -21,12 +21,8 @@ function apart(first: string, second: string): { normal: number; worst: number }
 }
 
 describe('the run colour is coral, owned apart from the status red', () => {
-  it.each(schemes)('%s: coral clears the card and the page by 3:1', (_name, tokens) => {
-    for (const surface of ['surface-0', 'surface-1']) {
-      expect(
-        contrast(colour(tokens, 'series-run'), colour(tokens, surface)),
-      ).toBeGreaterThanOrEqual(3)
-    }
+  it.each(schemes)('%s: coral clears the paper by 3:1', (_name, tokens) => {
+    expect(contrast(colour(tokens, 'run-ink'), colour(tokens, 'paper'))).toBeGreaterThanOrEqual(3)
   })
 
   it.each(schemes)(
@@ -39,16 +35,12 @@ describe('the run colour is coral, owned apart from the status red', () => {
   )
 
   it.each(schemes)('%s: coral is 38 from the ride blue under every vision', (_name, tokens) => {
-    const { worst } = apart(colour(tokens, 'series-run'), colour(tokens, 'series-ride'))
+    const { worst } = apart(colour(tokens, 'run-ink'), colour(tokens, 'ride-ink'))
     expect(worst).toBeGreaterThanOrEqual(38)
   })
 
-  it.each(schemes)('%s: the run ink reads 4.5:1 on the page and on the card', (_name, tokens) => {
-    for (const surface of ['surface-0', 'surface-1']) {
-      expect(contrast(colour(tokens, 'run-ink'), colour(tokens, surface))).toBeGreaterThanOrEqual(
-        4.5,
-      )
-    }
+  it.each(schemes)('%s: the run ink reads 4.5:1 on the paper', (_name, tokens) => {
+    expect(contrast(colour(tokens, 'run-ink'), colour(tokens, 'paper'))).toBeGreaterThanOrEqual(4.5)
   })
 
   it('is no longer the crimson it replaced', () => {

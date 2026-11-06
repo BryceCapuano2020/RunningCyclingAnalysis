@@ -3,7 +3,7 @@
  * of the stack, the key and the table say which part is which, so the colour is never the only cue.
  */
 .volume-bar {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
 }
 
 /* In forced colours the sport tints go: running is the text colour and the other sports the highlight. */

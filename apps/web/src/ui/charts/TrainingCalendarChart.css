@@ -1,28 +1,28 @@
 /*
- * The ramp is one hue in five steps, each a clear step from the one before. Neutral (All) mixes its ink into --surface-0
+ * The ramp is one hue in five steps, each a clear step from the one before. Neutral (All) mixes its ink into --paper
  * for four tints and ends on the ink. A sport's colour is too close in lightness to its neighbours for that, so its
- * last two steps deepen it toward --text-primary (darker in light, lighter in dark). No training is the plain
- * --surface-2 cell. The first step keeps 2:1 against it for every ink in both schemes, and each step is darker (lighter,
- * in dark) than the one before by a clear margin; TrainingCalendarChart.css.test.ts checks both from these values.
+ * last two steps deepen it toward --ink. No training is the plain --paper-hover cell. The first step keeps 2:1 against
+ * it for every ink, and each step is darker than the one before by a clear margin; TrainingCalendarChart.css.test.ts
+ * checks both from these values.
  */
 .calendar {
-  --calendar-ink: var(--neutral-mark);
-  --calendar-step-0: var(--surface-2);
-  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 46%, var(--surface-0));
-  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 61%, var(--surface-0));
-  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 75%, var(--surface-0));
-  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 88%, var(--surface-0));
+  --calendar-ink: var(--ink-secondary);
+  --calendar-step-0: var(--paper-hover);
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 46%, var(--paper));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 61%, var(--paper));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 75%, var(--paper));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 88%, var(--paper));
   --calendar-step-5: var(--calendar-ink);
   min-width: 0;
 }
 
 .calendar[data-sport] {
-  --calendar-ink: var(--sport-colour);
-  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 62%, var(--surface-0));
-  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 76%, var(--surface-0));
-  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 92%, var(--surface-0));
-  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 84%, var(--text-primary));
-  --calendar-step-5: color-mix(in srgb, var(--calendar-ink) 66%, var(--text-primary));
+  --calendar-ink: var(--sport-ink);
+  --calendar-step-1: color-mix(in srgb, var(--calendar-ink) 62%, var(--paper));
+  --calendar-step-2: color-mix(in srgb, var(--calendar-ink) 76%, var(--paper));
+  --calendar-step-3: color-mix(in srgb, var(--calendar-ink) 92%, var(--paper));
+  --calendar-step-4: color-mix(in srgb, var(--calendar-ink) 84%, var(--ink));
+  --calendar-step-5: color-mix(in srgb, var(--calendar-ink) 66%, var(--ink));
 }
 
 .calendar__controls {
@@ -34,7 +34,7 @@
 }
 
 .calendar__label {
-  fill: var(--text-muted);
+  fill: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -65,7 +65,7 @@
 /* The cell under the pointer or the keys: a ring in the text colour, over the cell and its gap. */
 .calendar-cell-active {
   fill: none;
-  stroke: var(--text-primary);
+  stroke: var(--ink);
   stroke-width: 2;
   pointer-events: none;
 }
@@ -79,7 +79,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-2) var(--space-3);
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
   font-size: var(--text-sm);
   line-height: 1;
 }
@@ -105,7 +105,7 @@
   flex: none;
   width: 1.5em;
   height: 1em;
-  border-radius: calc(var(--radius-sm) / 3);
+  border-radius: calc(var(--radius) / 3);
   background: var(--calendar-step-0);
 }
 

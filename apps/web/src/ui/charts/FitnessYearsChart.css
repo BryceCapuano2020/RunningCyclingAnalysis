@@ -5,7 +5,7 @@
 
 /* One drawing for all the dots, in the sport's colour. */
 .fitness-years__dots {
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
 }
 
 /* A point of zero length with a round cap, so the stroke width is the dot's width. */
@@ -18,7 +18,7 @@
 
 /* A ride's dots are diamonds, filled: the sports differ in shape as well as colour. */
 .fitness-years__dots--diamond {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
   fill-opacity: 0.6;
   stroke: none;
 }
@@ -29,15 +29,15 @@
 
 /* The year the arrow keys or the pointer are on. */
 .fitness-years__year {
-  fill: var(--text-muted);
+  fill: var(--ink-secondary);
   fill-opacity: 0.1;
 }
 
 /* The slips and rises: a wash across the plot, told apart by shape and word (a slip has a dashed edge). */
 .fitness-years__span {
-  fill: var(--text-muted);
+  fill: var(--ink-secondary);
   fill-opacity: 0.1;
-  stroke: var(--text-muted);
+  stroke: var(--ink-secondary);
   stroke-opacity: 0.45;
   stroke-width: 1px;
 }

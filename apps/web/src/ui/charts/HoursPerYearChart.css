@@ -5,13 +5,13 @@
 
 /* A sport's part of a bar, in the sport's colour (tokens.css sets it for each data-sport). */
 .year-bar {
-  fill: var(--sport-colour);
+  fill: var(--sport-ink);
 }
 
 /* The year still going is pale with a dashed edge, so it does not read as a year that fell short. */
 .year-bar[data-partial] {
   fill-opacity: 0.35;
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
   stroke-width: 1.5px;
   stroke-dasharray: 3 2;
 }

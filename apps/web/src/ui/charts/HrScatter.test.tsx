@@ -111,7 +111,7 @@ describe('HrScatter', () => {
     const rule = cssRule('.hr-scatter__dot')
     expect(rule).not.toMatch(/fill-opacity/)
     // The ring is the surface the chart sits on, which is the page surface.
-    expect(rule).toMatch(/stroke:\s*var\(--surface-0\)/)
+    expect(rule).toMatch(/stroke:\s*var\(--paper\)/)
     expect(rule).toMatch(/stroke-width:\s*2(px)?;/)
   })
 
