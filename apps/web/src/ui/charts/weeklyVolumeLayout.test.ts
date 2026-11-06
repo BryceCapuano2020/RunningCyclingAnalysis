@@ -27,39 +27,6 @@ function weeksOf(...hours: [number, number][]): VolumeWeek[] {
   }))
 }
 
-describe('weeklyVolumeLayout over months with a partial final month', () => {
-  /** Month rows dated at the last Sunday of each, then a final row one week after the last. */
-  const monthly = (): VolumeWeek[] => {
-    const ends = [0, 4, 8, 13, 17, 21, 26, 30, 34, 39, 43, 47, 48]
-    return ends.map((week) => ({
-      endMs: FIRST_END + week * 7 * DAY_MS,
-      seconds: { run: 3 * HOUR, ride: HOUR },
-    }))
-  }
-
-  it('sizes bars by the usual spacing, the median, and not by the closest pair', () => {
-    const size = sizeOf(640)
-    const layout = weeklyVolumeLayout(monthly(), size)
-    const gaps = layout!.xs.slice(1).map((x, i) => x - layout!.xs[i]!)
-    const usual = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)]!
-    const widest = Math.max(...layout!.bars.map((bar) => bar.width))
-    expect(widest).toBeCloseTo(Math.min(MAX_BAR_PX, usual * 0.7), 5)
-    // The closest pair, the partial month, is a quarter of the usual space: sized by it every bar would be a sliver.
-    expect(Math.min(...gaps)).toBeLessThan(usual / 2)
-  })
-
-  it('keeps the partial month’s bar and its neighbour from overlapping', () => {
-    const layout = weeklyVolumeLayout(monthly(), sizeOf(640))!
-    const bars = layout.bars
-    for (let i = 1; i < bars.length; i++) {
-      const before = bars[i - 1]!
-      expect(before.left + before.width).toBeLessThanOrEqual(bars[i]!.left + 1e-9)
-    }
-    // The final bar is narrower than the others, for the room it has.
-    expect(bars.at(-1)!.width).toBeLessThan(bars[0]!.width)
-  })
-})
-
 describe('weeklyVolumeLayout', () => {
   it('stacks the sports from the bottom in their order, each as tall as its hours', () => {
     const size = sizeOf(640)
@@ -180,34 +147,5 @@ describe('weeklyVolumeLayout', () => {
 
   it('has no layout with fewer than two weeks', () => {
     expect(weeklyVolumeLayout(weeksOf([1, 0]), sizeOf(640))).toBeNull()
-  })
-})
-
-describe('weeklyVolumeLayout with month bars', () => {
-  /** One row a month dated at its last Sunday, then a final month of one week that ends on its 1st. */
-  const months = (): VolumeWeek[] => {
-    const ends = [
-      Date.UTC(2025, 0, 26, 23, 59, 59, 999),
-      Date.UTC(2025, 1, 23, 23, 59, 59, 999),
-      Date.UTC(2025, 2, 30, 23, 59, 59, 999),
-      Date.UTC(2025, 3, 27, 23, 59, 59, 999),
-      Date.UTC(2025, 5, 1, 23, 59, 59, 999),
-    ]
-    return ends.map((endMs) => ({ endMs, seconds: { run: 3 * HOUR, ride: HOUR } }))
-  }
-
-  it('keeps every bar inside the plot, one width, apart from its neighbours, the last month on its 1st included', () => {
-    for (const width of [320, 390, 640]) {
-      const size = sizeOf(width)
-      const layout = weeklyVolumeLayout(months(), size, [], true)!
-      const { bars } = layout
-      const last = bars.at(-1)!
-      expect(last.left).toBeGreaterThanOrEqual(size.plot.left)
-      expect(last.left + last.width).toBeLessThanOrEqual(size.plot.right)
-      expect(new Set(bars.map((bar) => bar.width)).size).toBe(1)
-      bars.slice(1).forEach((bar, i) => {
-        expect(bars[i]!.left + bars[i]!.width).toBeLessThan(bar.left)
-      })
-    }
   })
 })

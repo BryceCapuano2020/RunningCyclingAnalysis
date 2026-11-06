@@ -37,19 +37,10 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   expect(errors).toEqual([])
 })
 
-/** The eight charts of the History tab, in page order, each opening on the sample. */
-const SECTIONS = [
-  'balance-over-years',
-  'training-calendar',
-  'hours-per-year',
-  'year-to-date',
-  'bests-by-year',
-  'best-curve-by-year',
-  'fitness-over-years',
-  'intensity-by-year',
-]
+/** The four charts of the History tab, in page order, each opening on the sample. */
+const SECTIONS = ['balance-over-years', 'hours-per-year', 'bests-by-year', 'fitness-over-years']
 
-test('the History tab draws all eight charts in page order, and a sport toggle redraws its chart in place', async ({
+test('the History tab draws all four charts in page order, and a sport toggle redraws its chart in place', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -143,9 +134,7 @@ test('on a 390 px phone the History tab labels every bar, wraps its toggles and 
   expect(errors).toEqual([])
 })
 
-test('the History tab marks the year still going, tells the calendar’s tints apart, and names three years at most', async ({
-  page,
-}) => {
+test('the History tab marks the year still going', async ({ page }) => {
   const errors = trackErrors(page)
   await openSample(page)
   await goTo(page, 'History')
@@ -164,22 +153,5 @@ test('the History tab marks the year still going, tells the calendar’s tints a
     await page.keyboard.press('End')
     await expect(hours.getByRole('status')).toContainText('so far')
   }
-
-  // The calendar's steps each take a fill of their own, and the key ends with an open edge.
-  const calendar = page.locator('[data-section="training-calendar"]')
-  const painted = await calendar
-    .getByTestId('calendar-cell')
-    .evaluateAll((cells) =>
-      cells.map((cell) => [cell.getAttribute('data-step'), getComputedStyle(cell).fill]),
-    )
-  const steps = new Set(painted.map(([step]) => step))
-  expect(steps.size).toBeGreaterThanOrEqual(3)
-  expect(new Set(painted.map(([, fill]) => fill)).size).toBe(steps.size)
-  await expect(calendar.getByTestId('calendar-ramp-edge').last()).toHaveText(/\+$/)
-
-  // At most the current year, the best past year and the one before are named on the year-to-date chart.
-  const names = page.locator('[data-section="year-to-date"] text.chart-series__label')
-  expect(await names.count()).toBeLessThanOrEqual(3)
-  expect(await names.count()).toBeGreaterThan(0)
   expect(errors).toEqual([])
 })

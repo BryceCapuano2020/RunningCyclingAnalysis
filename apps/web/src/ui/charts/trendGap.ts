@@ -1,8 +1,6 @@
 import { DAY_MS } from '@rca/core/constants'
 import { BREAK_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import type { QuietGap } from '@rca/core/digest/trendSeries'
-import type { ChartTableData } from './chartTypes'
-import { weekDay } from './trendText'
 import type { Sport } from '@rca/core/types'
 import { formatSpan } from '../format/date'
 import { effortLabel } from '../records'
@@ -66,34 +64,4 @@ export function gapNote(sport: Sport, gap: Gap, effortS: number): string {
 /** The dates a gap in the time axis skips, such as "3 Dec 2019 to 17 Aug 2025". */
 export function gapSpanText(gap: QuietGap): string {
   return formatSpan(utcDayLocal(gap.fromMs), utcDayLocal(gap.toMs)).replace(' – ', ' to ')
-}
-
-/** What a gap is, by chart: a trend has no value in it, and the hours strip had no week of an hour of training. */
-export type GapKind = 'value' | 'training'
-
-const GAP_REASON: Record<GapKind, string> = {
-  value: 'where there is nothing to show',
-  training: 'where no week had an hour of training',
-}
-
-/** The note for the gaps the time axis skips: where they were, and that a break mark shows each. */
-export function axisGapNote(gaps: readonly QuietGap[], kind: GapKind = 'value'): string | null {
-  if (gaps.length === 0) return null
-  const spans = gaps.map(gapSpanText).join(' and ')
-  return `The axis skips ${spans}, ${GAP_REASON[kind]}; a break mark stands for each.`
-}
-
-/** The same said for the chart's description, so a reader of the figure alone has the skipped dates. */
-export function axisGapDescription(gaps: readonly QuietGap[]): string {
-  return gaps.length === 0 ? '' : ` The time axis skips ${gaps.map(gapSpanText).join(' and ')}.`
-}
-
-/** The skipped stretches as a small table for the text view of the chart, or none when there are none. */
-export function axisGapTable(gaps: readonly QuietGap[]): ChartTableData | undefined {
-  if (gaps.length === 0) return undefined
-  return {
-    caption: 'Stretches the time axis skips',
-    columns: ['Skipped from', 'Skipped to'],
-    rows: gaps.map((gap) => [weekDay(gap.fromMs), weekDay(gap.toMs)]),
-  }
 }
