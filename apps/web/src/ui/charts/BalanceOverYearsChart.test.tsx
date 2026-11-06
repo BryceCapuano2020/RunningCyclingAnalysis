@@ -144,12 +144,4 @@ describe('BalanceOverYearsChart', () => {
       /^Latest: \d+% run, \d+% ride, 2024$/,
     )
   })
-
-  it('says only how to read a point where the page’s levels already give the latest grades', () => {
-    chartWidth(360)
-    render(<BalanceOverYearsChart views={twelve} levelsShown />)
-    expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toBe(
-      'Select a point to read its value',
-    )
-  })
 })

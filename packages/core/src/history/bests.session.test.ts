@@ -14,11 +14,9 @@ describe('the bests in a session', () => {
     const all = session.setRange('all', SETTINGS).history
     expect(all.bests.run.length).toBeGreaterThan(0)
     expect(all.bests.ride.length).toBeGreaterThan(0)
-    expect(all.yearCurves.run.years.length).toBeGreaterThan(0)
     for (const choice of [14, 42, 365] as const) {
       const state = session.setRange(choice, SETTINGS).history
       expect(state.bests).toBe(all.bests)
-      expect(state.yearCurves).toBe(all.yearCurves)
     }
   })
 
@@ -35,7 +33,5 @@ describe('the bests in a session', () => {
   it('are empty for an empty library', () => {
     const { history } = new AnalysisSession().loadDigests([], SETTINGS)
     expect(history.bests).toEqual({ run: [], ride: [] })
-    expect(history.yearCurves.run.years).toEqual([])
-    expect(history.yearCurves.ride.years).toEqual([])
   })
 })

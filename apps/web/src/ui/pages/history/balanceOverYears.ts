@@ -6,5 +6,5 @@ export const balanceOverYears: HistorySection = {
   id: 'balance-over-years',
   order: 10,
   render: ({ history, grading }) =>
-    createElement(BalanceOverYears, { years: history.balance, ...grading, placement: 'history' }),
+    createElement(BalanceOverYears, { years: history.balance, ...grading }),
 }
