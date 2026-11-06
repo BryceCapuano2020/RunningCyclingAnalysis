@@ -57,6 +57,21 @@ describe('PropertyList', () => {
     expect(link.querySelector('.sr-only')).toHaveTextContent(', how it was worked out')
   })
 
+  it('keeps two rows with one label, which a list of changes can have', () => {
+    const { container } = render(
+      <PropertyList
+        rows={[
+          { label: 'Change', value: 'a' },
+          { label: 'Change', value: 'b' },
+        ]}
+      />,
+    )
+    expect(Array.from(container.querySelectorAll('dd')).map((dd) => dd.textContent)).toEqual([
+      'a',
+      'b',
+    ])
+  })
+
   it('keeps a value that is a link as a link', () => {
     render(<PropertyList rows={[{ label: 'Runs', value: <a href="#/activities">12</a> }]} />)
     expect(screen.getByRole('link', { name: '12' })).toHaveAttribute('href', '#/activities')
