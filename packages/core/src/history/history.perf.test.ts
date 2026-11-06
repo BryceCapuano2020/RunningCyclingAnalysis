@@ -12,7 +12,7 @@ import type { HistoryInput } from './types'
 
 /**
  * The History page's budget, for every part in parts.ts together: BUILD_BUDGET_MS to build, 2 ms again, and a posted size of
- * 33,700 bytes, which is the 28,035 that the parts post for this library with a fifth of headroom on top (10,043 of them
+ * 23,100 bytes, which is the 19,267 that the parts post for this library with a fifth of headroom on top (10,043 of them
  * the fitness dots, about 7 bytes for each steady activity).
  *
  * The build was 100 ms (the CI runner took 75 to 94) until Balance over the years graded each year by its threshold (U3): a
@@ -22,7 +22,7 @@ import type { HistoryInput } from './types'
  * (about 0.2 ms again), so the budget is 170, about a fifth over the runner's figure; a pass per activity per year would
  * cost several times that and still fail it.
  */
-const POSTED_BYTES_MAX = 33_700
+const POSTED_BYTES_MAX = 23_100
 const BUILD_BUDGET_MS = 170
 
 // A maximum heart rate for each sport, so the zone time cuts every activity into zones, as a real library does.
@@ -56,7 +56,7 @@ function readLikeTheSession(digests: ActivityDigest[], input: HistoryInput): voi
 }
 
 describe('the history of a long library', () => {
-  it(`builds 2,000 activities over 13 years in under ${BUILD_BUDGET_MS} ms, again in under 2 ms, and posts under 33.7 KB`, () => {
+  it(`builds 2,000 activities over 13 years in under ${BUILD_BUDGET_MS} ms, again in under 2 ms, and posts under 23.1 KB`, () => {
     const start = Date.UTC(2021, 0, 4)
     const digests = copiedLibrary(2000).map((digest, i) =>
       Object.assign({}, digest, { startMs: start + Math.round(i * 2.4 * DAY_MS) }),

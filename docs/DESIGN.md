@@ -449,7 +449,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   of its middle, neither from zero), a time axis from the first dot to the last, opacity by age (`opacityOf`), the last dot larger, a
   tooltip with the day, the value and for a ride its W/kg, and a table of the days and values. There is no smoothing, no wash, no
   monthly roll-up and no skipped-years axis: nothing is drawn between dots. One short line under the chart says that a dot is a best, not a
-  typical effort. The weekly hours of the Balance page sit on the weeks of the period alone, with no trend over them.
+  typical effort.
 - **"Pace at heart rate"** ("Power at heart rate" for a ride) is a section after "Best efforts by day" on each sport page, and shows the one
   signal built from easy and steady efforts (`docs/research/same-heart-rate.md`) as weekly dots. It claims no change. The
   older sentence ("At the same heart rate you run 6 s/km faster than in March") and the straight line and band fitted through the weeks
@@ -1077,7 +1077,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   entries in `methodCalculated.ts`, `methodActivity.ts` and `methodRecorded.ts`): _Calculated by this app_ (thresholds,
   best efforts and curves, best efforts over time, how a change is called, the default period, race
   predictions, pace at heart rate, History, best durations, splits, moving time and climb, the timeline in
-  In detail, time in zones, dated settings and zones, durability, how your reps held up, weekly hours by sport and
+  In detail, time in zones, dated settings and zones, durability, how your reps held up and
   runs at walking pace), _Recorded in your files_ (as the device recorded it: the sport, start time, distance,
   speed and route, heart rate, power from a meter, the timelines and laps, the data checks and treadmill and indoor
   data) and _Not available from activity files_ (readiness and recovery scores, vendor tests such as 4DP, and lab
@@ -1504,7 +1504,7 @@ one range to a sentence ("Slipped 9% (6 to 11) in May 2021. Back by January 2022
 
 A tab between Ride and Activities. It ignores the period and shows the whole library, built in the worker from the
 analysed digests (`packages/core/src/history`) and remembered like the look-back. All the parts together stay within
-100 ms to build 2,000 activities, 2 ms again and 33.7 KB of JSON, 20% over the 28.0 KB the parts post for that
+100 ms to build 2,000 activities, 2 ms again and 23.1 KB of JSON, 20% over the 19.3 KB the parts post for that
 library, 10 KB of it the fitness dots (`history.perf.test.ts`).
 
 **The page.** The title, one row of totals (years on file, total hours, each sport's distance in the units setting; a
