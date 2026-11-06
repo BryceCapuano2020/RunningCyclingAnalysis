@@ -477,7 +477,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   cross-sport durations (`EQUIVALENCE_DURATIONS_S`); the chart prices the rest itself, once for each result and
   body mass, wherever the ride curve has a best, so a combine does not pay for them. No point is invented: a duration where a sport has
   no best, or no standard (a run under a mile has none, so the shortest run grades are usually missing), has
-  no point for that sport, and the finding counts only the durations both sports are graded at. Drawing follows the age-grade
+  no point for that sport, and the balance counts only the durations both sports are graded at. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is a hollow ring with its 90% range
   as a band (never dashed), and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The 20 minute grades are named beside their marks where the labels fit clear of the lines, the band and the ticks. Where they do not, a chart 600 px or wider names each sport at the end of its line, in a gutter at the right ("Run 49%", "Ride 34%" with its range under it), placed by the annotation layout; a phone leaves out a label that cannot be placed, and the readout and the table carry the values. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
   The card is titled "Age grade by effort length", a label for what is plotted: no chart title states a result
@@ -494,7 +494,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   has such exceptions ("Running and cycling grade alike at most lengths" where the only leads are single durations). When the lead
   changes hands, each sport named has a stretch of two durations or more: "Cycling grades higher at 3 to 7 min, running at 10 to 60 min".
   When no duration separates the sports the chart is folded behind **Show by duration** (**Hide by
-  duration** while open), under the title and the finding where there is one; it mounts when first opened. When a duration
+  duration** while open), under the title; it mounts when first opened. When a duration
   separates them the chart is open, with the finding as its takeaway under the title. A ride's range is a band only over the
   durations both sports share: a duration where one sport has no grade shows its line and ring, not a band.
   The section is left out without a year of birth and sex,

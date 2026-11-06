@@ -112,10 +112,11 @@ const REMOVED_SOON = new Set([
 
 /** A sentence has a full stop, or a verb that states a result. */
 const FINITE_VERB =
-  /\b(is|are|was|were|led|peaked|grades|beat|beats|leans|rose|fell|has|have|held|shows?)\b/i
+  /\b(is|are|was|were|led|peaked|grades|beat|beats|leans|improved|slipped|dropped|gained|stronger|weaker|behind|ahead|rose|fell|has|have|held|shows?)\b/i
 /** A verdict on a change, or a result in a label: "No clear change at 20 min", "Best 20 min: 263 W". */
 const A_RESULT = /\bno clear change\b|:\s*\d/i
-const NAMES_A_WINNER = /^(Running|Cycling|Run|Ride)\b.*\b(higher|led|ahead|better|beat|more)\b/i
+const NAMES_A_WINNER =
+  /^(Running|Cycling|Run|Ride)\b.*\b(higher|led|ahead|behind|better|beat|more)\b/i
 
 function titlesOf(element: () => ReactElement): string[] {
   chartWidth(800)
@@ -137,6 +138,7 @@ const allTitles = (): Map<string, string[]> =>
   ])
 
 describe('chart titles', () => {
+  // The exact title list below is the main guard; the patterns catch a new title that slips past review.
   it('lists every chart component, so a new chart needs an entry here', () => {
     const files = Object.keys(import.meta.glob('./*Chart.tsx')).map((path) =>
       path.replace(/^\.\//, '').replace(/\.tsx$/, ''),
