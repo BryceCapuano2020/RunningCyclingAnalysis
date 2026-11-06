@@ -16,7 +16,6 @@ const SECONDS: Record<string, number> = {
   'src/fitness/rideSeason.sim.test.ts': 54,
   'src/fitness/heat.sim.test.ts': 46,
   'src/findings/protoEfficiency.sim.test.ts': 40,
-  'src/lift/e1rm.sim.test.ts': 15,
   'src/fitness/ride.sim.test.ts': 31,
   'src/change/change.sim.test.ts': 30,
   'src/predict/vo2max.gate.sim.test.ts': 28,
