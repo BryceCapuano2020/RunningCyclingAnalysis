@@ -75,9 +75,7 @@ test('the row’s Details open a chart with its table twin, the method, the limi
   const panel = page.locator('.fitness-evidence')
   expect(await value(panel, /^Read at$/)).toMatch(/^\d+ bpm$/)
   expect(await value(panel, /^Steady runs on file$/)).toMatch(/^\d+$/)
-  await expect(
-    panel.getByRole('link', { name: /^Method, how run fitness is measured$/ }),
-  ).toBeVisible()
+  await expect(panel.getByRole('link', { name: /how run fitness is measured/ })).toBeVisible()
   await expect(panel.getByRole('heading', { name: 'How it is measured' })).toHaveCount(0)
   // The runs it rests on are links to their activities, newest first.
   const links = panel.locator('.fitness-runs a')
