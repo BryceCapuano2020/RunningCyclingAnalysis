@@ -133,26 +133,6 @@ export interface TimeAxis {
   gaps: QuietGap[]
 }
 
-/**
- * The time axis of weeks that end at endsMs, `active` saying which of them hold anything to draw. Null when
- * none does. Two charts that share an axis pass the weeks active in either, so both skip the same stretches.
- */
-export function timeAxisOf(endsMs: readonly number[], active: readonly boolean[]): TimeAxis | null {
-  const first = active.indexOf(true)
-  const last = active.lastIndexOf(true)
-  if (first < 0) return null
-  const gaps: QuietGap[] = []
-  let before = first
-  for (let i = first + 1; i <= last; i++) {
-    if (!active[i]) continue
-    if (i - before - 1 >= COMPRESS_AFTER_WEEKS) {
-      gaps.push({ fromMs: endsMs[before]!, toMs: endsMs[i]! })
-    }
-    before = i
-  }
-  return { startMs: endsMs[first]!, endMs: endsMs[last]!, gaps }
-}
-
 /** Whether an instant lies strictly inside a gap, where the axis draws nothing. */
 export function inGap(gaps: readonly QuietGap[], ms: number): boolean {
   return gaps.some((gap) => ms > gap.fromMs && ms < gap.toMs)

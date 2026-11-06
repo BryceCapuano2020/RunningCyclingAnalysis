@@ -21,8 +21,13 @@ Decisions section. Status is one of designed, in progress or built.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
-  logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: designed
-  (stage F).
+  logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: designed;
+  stage X builds the core and data layer.
+- [e1rm.md](e1rm.md): the estimated one-rep max, its range, the floor, relative strength and weekly lifting
+  load, with the prototype on synthetic lifters. Status: spec, in science review (stage X).
+- [lift-data.md](lift-data.md): the set record, the `lift_sets` table and routes, the browser store and its
+  sync transitions. Status: designed (stage X).
+- [decisions/](decisions/README.md): one file per decision a design left open, with how to reverse it.
 - [model-ledger.md](model-ledger.md): every change to a model whose figures the athlete sees, with
   its pull request, its reason and its effect on synthetic athletes. Status: built (stage break).
 - [heldout-log.md](heldout-log.md): the synthetic generator's tuning and held-out configurations, and the log

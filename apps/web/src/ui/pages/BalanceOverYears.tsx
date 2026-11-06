@@ -13,23 +13,17 @@ export interface BalanceOverYearsProps {
   /** The year of birth or sex the grades still need; null when both are given. */
   missingAge: AgeGap | null
   weightKnown: boolean
-  /**
-   * Where it sits. On the History page it says in a line what is missing when there is nothing to draw. On the home
-   * page it is a card under the tiles and stays silent, since the page has its own prompts.
-   */
-  placement: 'history' | 'home'
 }
 
 /**
  * The age grade of each calendar year, run and ride, graded as the Balance hero grades its window: the threshold as an hour. It draws nothing
- * until a year has a grade; the History page then says what to add, and the home page stays silent.
+ * until a year has a grade; then it says what to add.
  */
 export function BalanceOverYears({
   years,
   profile,
   missingAge,
   weightKnown,
-  placement,
 }: BalanceOverYearsProps) {
   // The profile is built afresh on each render, so the views are kept on its two values.
   const birthYear = profile?.birthYear ?? null
@@ -39,12 +33,7 @@ export function BalanceOverYears({
       birthYear === null || sex === null ? [] : yearViews(years, { birthYear, sex }, weightKnown),
     [years, birthYear, sex, weightKnown],
   )
-  const home = placement === 'home'
-  if (hasGrades(views)) {
-    const chart = <BalanceOverYearsChart views={views} levelsShown={home} />
-    return home ? <div className="balance__panel">{chart}</div> : chart
-  }
-  if (home) return null
+  if (hasGrades(views)) return <BalanceOverYearsChart views={views} />
   if (profile === null && missingAge !== null) {
     return (
       <div className="history__prompt">

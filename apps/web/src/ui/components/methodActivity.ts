@@ -79,14 +79,6 @@ export const ACTIVITY_ENTRIES: readonly MethodEntry[] = [
     ],
   },
   {
-    name: 'Weekly hours by sport',
-    state: 'calculated',
-    lines: [
-      'Moving time each week for each sport, under the Balance trend.',
-      'It shows how the hours were shared.',
-    ],
-  },
-  {
     name: 'Runs at walking pace',
     state: 'calculated',
     lines: [

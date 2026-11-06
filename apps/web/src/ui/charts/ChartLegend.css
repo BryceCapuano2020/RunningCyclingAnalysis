@@ -166,8 +166,8 @@
 
 /*
  * In forced colours a fill's tint is dropped and its box would vanish, so each key takes the system colour
- * the chart's own marks take: running the text colour and the other sports the highlight (see
- * WeeklyVolumeChart.css). A line key's tint is dropped too, so it is drawn as a system-coloured rule.
+ * the chart's own marks take: running the text colour and the other sports the highlight.
+ * A line key's tint is dropped too, so it is drawn as a system-coloured rule.
  */
 @media (forced-colors: active) {
   .swatch-run,
