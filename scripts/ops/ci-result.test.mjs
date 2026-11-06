@@ -86,6 +86,8 @@ test('a pull request over 800 lines needs the integration label, read when the j
   assert.match(size, /':\(exclude\)package-lock\.json'/)
   // A file deleted whole is not counted.
   assert.match(size, /--numstat --no-renames --diff-filter=d /)
+  // A removed line counts only as far as added lines in its file replace it.
+  assert.match(size, /n \+= \$1 \+ \(\$2 < \$1 \? \$2 : \$1\)/)
   assert.match(size, /if \[ "\$lines" -le 800 \]; then exit 0; fi/)
   assert.match(size, /gh api "repos\/\$GITHUB_REPOSITORY\/issues\/\$PR\/labels"/)
   assert.doesNotMatch(size, /grep -q/, 'grep -q can exit early and trip pipefail')
