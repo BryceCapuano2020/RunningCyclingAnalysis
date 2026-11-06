@@ -2,15 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import {
   BREAK_AFTER_WEEKS,
-  COMPRESS_AFTER_WEEKS,
   MONTHLY_AFTER_DAYS,
-  inGap,
   isMonthly,
   lineBreaks,
   monthGroups,
   rowBreaks,
   thinTrend,
-  timeAxisOf,
 } from './trendSeries'
 
 const WEEK = 7 * DAY_MS
@@ -155,55 +152,5 @@ describe('rowBreaks', () => {
     expect(broken.filter(Boolean)).toHaveLength(1)
     const at = broken.indexOf(true)
     expect(rows[at]?.weeks).toContain(41)
-  })
-})
-
-describe('timeAxisOf', () => {
-  const ends = (n: number) => Array.from({ length: n }, (_, i) => START + i * WEEK)
-  const active = (n: number, on: (i: number) => boolean) =>
-    Array.from({ length: n }, (_, i) => on(i))
-
-  it('starts at the first active week and stops at the last, leaving a quiet start and end off', () => {
-    const axis = timeAxisOf(
-      ends(30),
-      active(30, (i) => i >= 5 && i <= 20),
-    )
-    expect(axis).toEqual({ startMs: START + 5 * WEEK, endMs: START + 20 * WEEK, gaps: [] })
-  })
-
-  it('is null with nothing active', () => {
-    expect(
-      timeAxisOf(
-        ends(10),
-        active(10, () => false),
-      ),
-    ).toBeNull()
-  })
-
-  it('skips a stretch of a year or more of inactive weeks, and keeps a shorter one', () => {
-    const quiet = (empty: number) =>
-      timeAxisOf(
-        ends(80 + empty),
-        active(80 + empty, (i) => i < 10 || i >= 10 + empty),
-      )
-    expect(COMPRESS_AFTER_WEEKS).toBe(52)
-    expect(quiet(COMPRESS_AFTER_WEEKS - 1)?.gaps).toEqual([])
-    expect(quiet(COMPRESS_AFTER_WEEKS)?.gaps).toEqual([
-      { fromMs: START + 9 * WEEK, toMs: START + (10 + COMPRESS_AFTER_WEEKS) * WEEK },
-    ])
-  })
-
-  it('finds several gaps, and the weeks inside one', () => {
-    const n = 300
-    const axis = timeAxisOf(
-      ends(n),
-      active(n, (i) => i < 5 || (i >= 80 && i < 90) || i >= 200),
-    )
-    expect(axis?.gaps).toHaveLength(2)
-    expect(inGap(axis?.gaps ?? [], START + 40 * WEEK)).toBe(true)
-    expect(inGap(axis?.gaps ?? [], START + 4 * WEEK)).toBe(false)
-    // The two ends of a gap are the weeks either side of it, and are drawn.
-    expect(inGap(axis?.gaps ?? [], START + 4 * WEEK)).toBe(false)
-    expect(inGap(axis?.gaps ?? [], START + 80 * WEEK)).toBe(false)
   })
 })

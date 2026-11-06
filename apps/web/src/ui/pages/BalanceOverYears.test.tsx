@@ -17,41 +17,34 @@ const BASE: BalanceOverYearsProps = {
   profile: PROFILE,
   missingAge: null,
   weightKnown: true,
-  placement: 'history',
 }
 
 describe('BalanceOverYears', () => {
-  it('draws the chart on the History page, bare, and on the home page as a card', () => {
-    const { container, rerender } = render(<BalanceOverYears {...BASE} />)
+  it('draws the chart bare', () => {
+    const { container } = render(<BalanceOverYears {...BASE} />)
     expect(screen.getByRole('figure')).toBeInTheDocument()
     expect(container.querySelector('.balance__panel')).toBeNull()
-    rerender(<BalanceOverYears {...BASE} placement="home" />)
-    expect(container.querySelector('.balance__panel')).toContainElement(screen.getByRole('figure'))
   })
 
-  it('names the year of birth or sex that grading needs, with a link to add it, on the History page only', () => {
+  it('names the year of birth or sex that grading needs, with a link to add it', () => {
     const missing = { ...BASE, profile: null, missingAge: 'year of birth' as const }
-    const { container, rerender } = render(<BalanceOverYears {...missing} />)
+    render(<BalanceOverYears {...missing} />)
     expect(screen.getByText('Age grade by year needs your year of birth.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Add your year of birth' })).toHaveAttribute(
       'href',
       '#/profile',
     )
     expect(screen.queryByRole('figure')).toBeNull()
-    rerender(<BalanceOverYears {...missing} placement="home" />)
-    expect(container).toBeEmptyDOMElement()
   })
 
-  it('says what to add when no year has a threshold, on the History page only', () => {
+  it('says what to add when no year has a threshold', () => {
     const none = { ...BASE, years: [] }
-    const { container, rerender } = render(<BalanceOverYears {...none} />)
+    render(<BalanceOverYears {...none} />)
     expect(
       screen.getByText(
         'Add a run effort of 8 min or more, or a ride effort of 3 min or more, to grade each year.',
       ),
     ).toBeInTheDocument()
-    rerender(<BalanceOverYears {...none} placement="home" />)
-    expect(container).toBeEmptyDOMElement()
   })
 
   it('waits for the weight to grade the rides, and plots the runs meanwhile', () => {
@@ -68,7 +61,7 @@ describe('BalanceOverYears', () => {
     expect(screen.getByRole('figure', { name: 'Running age grade by year' })).toBeInTheDocument()
   })
 
-  it('leaves the latest year to the levels row on the home page, and says it in a phone’s readout on History', () => {
+  it('leaves the latest year to the levels row ', () => {
     class Phone {
       callback: ResizeObserverCallback
       constructor(callback: ResizeObserverCallback) {
@@ -82,11 +75,7 @@ describe('BalanceOverYears', () => {
       disconnect() {}
     }
     vi.stubGlobal('ResizeObserver', Phone)
-    const { rerender } = render(<BalanceOverYears {...BASE} />)
+    render(<BalanceOverYears {...BASE} />)
     expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toMatch(/^Latest: /)
-    rerender(<BalanceOverYears {...BASE} placement="home" />)
-    expect(screen.getByTestId('chart-readout').getAttribute('data-idle')).toBe(
-      'Select a point to read its value',
-    )
   })
 })

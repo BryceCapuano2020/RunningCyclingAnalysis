@@ -8,6 +8,7 @@
     "./answer": "./src/answer/index.ts",
     "./workbench": "./src/workbench/index.ts",
     "./athlete": "./src/athlete/index.ts",
+    "./lift": "./src/lift/index.ts",
     "./change": "./src/change/index.ts",
     "./change/types": "./src/change/types.ts",
     "./types": "./src/types.ts",

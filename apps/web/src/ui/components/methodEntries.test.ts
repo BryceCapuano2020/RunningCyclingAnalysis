@@ -48,7 +48,6 @@ describe('How this works entries', () => {
       /Time in zones/,
       /Durability/,
       /reps held up/,
-      /Weekly hours by sport/,
       /Runs at walking pace/,
       /Dated settings and zones/,
     ]) {

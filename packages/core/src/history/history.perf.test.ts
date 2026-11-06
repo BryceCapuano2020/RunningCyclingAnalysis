@@ -7,13 +7,12 @@ import { lookBackOf } from '../lookback/compute'
 import { copiedLibrary } from '../test/libraryFixture'
 import { fastestMs } from '../test/timing'
 import type { ActivityDigest } from '../types'
-import { trainingWeeks } from './calendar'
 import { historyOf } from './compute'
 import type { HistoryInput } from './types'
 
 /**
  * The History page's budget, for every part in parts.ts together: BUILD_BUDGET_MS to build, 2 ms again, and a posted size of
- * 47,900 bytes, which is the 39,885 that the parts post for this library with a fifth of headroom on top (10,043 of them
+ * 23,100 bytes, which is the 19,267 that the parts post for this library with a fifth of headroom on top (10,043 of them
  * the fitness dots, about 7 bytes for each steady activity).
  *
  * The build was 100 ms (the CI runner took 75 to 94) until Balance over the years graded each year by its threshold (U3): a
@@ -21,12 +20,12 @@ import type { HistoryInput } from './types'
  * estimate), so an equal window grades to the same number, and that is 13 small analyses. The runner then took 142 ms to
  * build this library and 93 ms for the dots, both against 100. It is built once per change of the library and then kept
  * (about 0.2 ms again), so the budget is 170, about a fifth over the runner's figure; a pass per activity per year would
- * cost several times that and still fail it. The posted size grew by 752 bytes (the balance part), inside its headroom.
+ * cost several times that and still fail it.
  */
-const POSTED_BYTES_MAX = 47_900
+const POSTED_BYTES_MAX = 23_100
 const BUILD_BUDGET_MS = 170
 
-// A maximum heart rate for each sport, so the intensity part cuts every activity into zones, as a real library does.
+// A maximum heart rate for each sport, so the zone time cuts every activity into zones, as a real library does.
 const INPUT: HistoryInput = {
   settings: {
     massKg: 70,
@@ -57,7 +56,7 @@ function readLikeTheSession(digests: ActivityDigest[], input: HistoryInput): voi
 }
 
 describe('the history of a long library', () => {
-  it(`builds 2,000 activities over 13 years in under ${BUILD_BUDGET_MS} ms, again in under 2 ms, and posts under 47.9 KB`, () => {
+  it(`builds 2,000 activities over 13 years in under ${BUILD_BUDGET_MS} ms, again in under 2 ms, and posts under 23.1 KB`, () => {
     const start = Date.UTC(2021, 0, 4)
     const digests = copiedLibrary(2000).map((digest, i) =>
       Object.assign({}, digest, { startMs: start + Math.round(i * 2.4 * DAY_MS) }),
@@ -71,7 +70,6 @@ describe('the history of a long library', () => {
     const first = performance.now() - t0
     const again = fastestMs(() => void historyOf(digests, INPUT))
     const bytes = JSON.stringify(history).length
-    const calendarBytes = JSON.stringify(history.calendar).length
     const byPart = Object.entries(history)
       .map(([name, answer]) => `${name} ${JSON.stringify(answer).length}`)
       .join(', ')
@@ -79,10 +77,6 @@ describe('the history of a long library', () => {
       `2000 activities: ${first.toFixed(1)} ms, again ${again.toFixed(2)} ms, ${bytes} bytes (${byPart})`,
     )
     expect(history.years.length).toBeGreaterThanOrEqual(13)
-    expect(trainingWeeks(history.calendar).length).toBeGreaterThanOrEqual(13 * 52)
-    expect(history.yearCurves.ride.years.length).toBeGreaterThanOrEqual(13)
-    // Thirteen years of weeks of two sports, every week trained, at three characters a week and sport.
-    expect(calendarBytes).toBeLessThan(6000)
     expect(first).toBeLessThan(BUILD_BUDGET_MS)
     expect(again).toBeLessThan(2)
     expect(bytes).toBeLessThan(POSTED_BYTES_MAX)
