@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PRIORS } from '@rca/core/constants'
 import { thresholdRunSpeed } from '@rca/core/digest'
@@ -13,6 +13,7 @@ import {
   makeRideThreshold,
   makeRunThreshold,
 } from './components/fixtures'
+import { rowValue } from './test/propertyRows'
 import { levelTarget } from './levelTarget'
 import { CrossSportCard } from './pages/CrossSportCard'
 import { threshold } from './records'
@@ -51,7 +52,7 @@ describe.each(UNITS)('a ride threshold in %s units', (units) => {
     const printed = threshold(RIDE_LOWER, 'ride', MASS_KG, units)!.value
     const line = thresholdLine(RIDE_LOWER, 'ride', MASS_KG, units)!
     render(<CrossSportCard result={RIDE_LOWER} units={units} weighted massKg={MASS_KG} />)
-    expect(screen.getByText(`From your ${printed} threshold.`)).toBeInTheDocument()
+    expect(rowValue(document.body, 'From your threshold')).toBe(printed)
     expect(formatPower(line.value)).toBe(printed)
     expect(levelTarget(standing.match.ride, units)!.now).toBe(printed)
   })

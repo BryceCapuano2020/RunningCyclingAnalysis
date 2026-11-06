@@ -4,6 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { PACE_UNIT, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
+import { PropertyList } from '../components/PropertyList'
 import { StatTile } from './StatTile'
 import { standingOf } from '../standing'
 import { countSport, isEstimatedRecord } from '../records'
@@ -66,7 +67,7 @@ export function CrossSportCard({ result, units, weighted, massKg }: CrossSportCa
       <details className="disclosure cross-sport__details">
         <summary>See the pace curve</summary>
         {/* What the pace rests on, inside the fold rather than a line under the title. */}
-        <p className="meta stat-tile__basis">{`From your ${formatPower(watts)} threshold.`}</p>
+        <PropertyList rows={[{ label: 'From your threshold', value: formatPower(watts) }]} />
         <EquivalenceTable
           equivalents={result.equivalents}
           units={units}

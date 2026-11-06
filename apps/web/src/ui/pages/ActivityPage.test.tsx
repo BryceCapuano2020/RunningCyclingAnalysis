@@ -505,16 +505,10 @@ describe('ActivityPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
     // Each kind's line carries its count, so the page does not also say the total.
     expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Heart rate was missing or too low while moving 2 times. We left those out of your figures.',
-      ),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Heart rate missing or too low')).toBe('2 times, left out')
     expect(screen.getByText('from 1:05 to 2:05, 1 min')).toBeInTheDocument()
     expect(screen.getByText('from 10:00 to 10:30, 30 s')).toBeInTheDocument()
-    expect(
-      screen.getByText('GPS speed jumped suddenly once. We left that out of your figures.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'GPS speed jumps')).toBe('once, left out')
     expect(screen.queryByText(/impossible/)).not.toBeInTheDocument()
   })
 
@@ -532,14 +526,10 @@ describe('ActivityPage', () => {
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Data notes' })).toBeInTheDocument()
     expect(screen.queryByText(/readings? skipped/)).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Altitude jumped in a single second once. We left the climb and the slope-based figures near that jump out of your figures.',
-      ),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('No altitude was recorded, so climb and slope-based figures are not shown.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Altitude jumps')).toBe(
+      'once, climb and slope figures near it left out',
+    )
+    expect(rowValue(document.body, 'Altitude')).toBe('not recorded')
     expect(screen.queryByText(/from 0:00/)).not.toBeInTheDocument()
   })
 
@@ -557,12 +547,8 @@ describe('ActivityPage', () => {
       }),
     )
     expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Heart rate was missing or too low while moving 7 times. We left those out of your figures.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Showing the first 3 of 7.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Heart rate missing or too low')).toBe('7 times, left out')
+    expect(rowValue(document.body, 'Listed')).toBe('3 of 7')
   })
 
   it('hides the Climb figure when elevation gain is zero, so a missing altitude shows no climb', () => {
@@ -576,9 +562,7 @@ describe('ActivityPage', () => {
       }),
     )
     expect(screen.queryByText('Climb', { selector: 'dt' })).not.toBeInTheDocument()
-    expect(
-      screen.getByText('No altitude was recorded, so climb and slope-based figures are not shown.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Altitude')).toBe('not recorded')
   })
 
   it('lists no kind whose count is zero', () => {
@@ -590,10 +574,8 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 0, 'speed-spike': 1 },
       }),
     )
-    expect(screen.queryByText(/Heart rate was missing/)).not.toBeInTheDocument()
-    expect(
-      screen.getByText('GPS speed jumped suddenly once. We left that out of your figures.'),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/Heart rate missing/)).not.toBeInTheDocument()
+    expect(rowValue(document.body, 'GPS speed jumps')).toBe('once, left out')
   })
 
   it('names an indoor ride’s speed jump without GPS', () => {
@@ -607,9 +589,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'speed-spike': 1 },
       }),
     )
-    expect(
-      screen.getByText('Speed jumped suddenly once. We left that out of your figures.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Speed jumps')).toBe('once, left out')
     expect(screen.queryByText(/GPS/)).not.toBeInTheDocument()
   })
 
@@ -627,12 +607,8 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 1060 },
       }),
     )
-    expect(
-      screen.getByText(
-        'Heart rate was missing or too low while moving 1,060 times. We left those out of your figures.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Showing the first 1 of 1,060.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Heart rate missing or too low')).toBe('1,060 times, left out')
+    expect(rowValue(document.body, 'Listed')).toBe('1 of 1,060')
   })
 
   it('says how many are listed when there are more readings skipped than the digest keeps', () => {
@@ -645,7 +621,7 @@ describe('ActivityPage', () => {
       }),
     )
     expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
-    expect(screen.getByText('Showing the first 1 of 60.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Listed')).toBe('1 of 60')
   })
 
   it('links to the activities either side of this one in the library, and to its sport and method', () => {

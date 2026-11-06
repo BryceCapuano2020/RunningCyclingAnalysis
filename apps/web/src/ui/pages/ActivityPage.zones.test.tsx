@@ -90,12 +90,10 @@ describe('the activity page zones', () => {
     expect(screen.queryByText(/heart rate zone/)).toBeNull()
   })
 
-  it('says why in the data note, citing the reference the library was judged against', async () => {
+  it('notes the set-aside heart rate as a row in the data notes', async () => {
     const run = makeActivity({ id: 'run-c' })
     show(run, makeResult({ runCp: null, runMaxHeartRate: 200 }), settings(), true, ['run-c'])
-    expect(
-      await screen.findByText(/across all your activities \(190 bpm running\)/),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Left out of the checks')).toBeInTheDocument()
   })
 
   it('does not read the period’s own list: the library’s is the judgement', async () => {

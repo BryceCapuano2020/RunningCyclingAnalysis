@@ -3,7 +3,7 @@ import { formatRecordTime } from '@rca/core/units'
 import type { Property } from '../components/property'
 import { formatDayMonth, formatMonth } from '../format/date'
 import type { PastRun, RaceForecast, RaceWindow } from '../raceAnswer'
-import { METHOD_NAME, raceName } from '../racePredictions'
+import { raceName } from '../racePredictions'
 
 /**
  * The range under a prediction, from its 10th to 90th percentile of a typical error. The marathon's error is a
@@ -13,13 +13,22 @@ export function spreadText(prediction: RacePrediction): string {
   return `${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
 }
 
-/** Where one estimate came from, such as "From your best runs: 20:25, mostly from your best 10 km". */
-export function originText(method: MethodTime, vo2max: number | null): string {
+/** What each method is called in the label of its origin row. */
+const ORIGIN_LABEL: Record<MethodTime['method'], string> = {
+  performances: 'best runs',
+  heartRate: 'heart rate',
+}
+
+/** Where one estimate came from, as a row: "5 km, best runs" and "20:25, mostly from your best 10 km". */
+export function originRow(race: string, method: MethodTime, vo2max: number | null): Property {
   const time = formatRecordTime(method.seconds)
-  if (method.method === 'heartRate') {
-    return `${METHOD_NAME.heartRate}: ${time}, at a VO2max of ${Math.round(vo2max ?? 0)}`
+  return {
+    label: `${race}, ${ORIGIN_LABEL[method.method]}`,
+    value:
+      method.method === 'heartRate'
+        ? `${time}, VO2max ${Math.round(vo2max ?? 0)}`
+        : `${time}, mostly from your best ${raceName(method.fromM).toLowerCase()}`,
   }
-  return `${METHOD_NAME.performances}: ${time}, mostly from your best ${raceName(method.fromM).toLowerCase()}`
 }
 
 /** Where the runs of each window are, as the note says it. */

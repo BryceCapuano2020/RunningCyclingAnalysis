@@ -38,13 +38,3 @@ export function windowFacts({
     .join(' and ')
   return { length: lengthOf(shortest.days), lacked }
 }
-
-/**
- * The line under the period control when the default is not the 12 weeks it starts from: why the shortest window was
- * passed over. "Last 12 weeks had no hard runs." The window the page is on is the lit segment of the control, so the line
- * does not name it. Null when the athlete picked the period, or the first window was taken.
- */
-export function windowLine(window: AnswerWindow): string | null {
-  const facts = windowFacts(window)
-  return facts === null ? null : `Last ${facts.length} had ${facts.lacked}.`
-}

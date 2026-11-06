@@ -1,6 +1,5 @@
 import { windowEnding } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
-import { formatCount } from './format/count'
 import { RANGE_OPTIONS, lengthOf } from './components/rangeOptions'
 
 /** The fixed periods, shortest first, as the days they count back; all time (null) last. */
@@ -38,18 +37,4 @@ export function sameAsShorter(
     }
   }
   return null
-}
-
-/**
- * Where a longer period holds nothing a shorter one does not, which it says rather than repeat in silence:
- * "Same 14 activities as the 6 weeks to your latest activity", naming the shortest period with the same activities. The words
- * say "to your latest activity" so a library that has been idle for a year does not read as stale. Null as `sameAsShorter` is.
- */
-export function sameAsShorterText(
-  activities: readonly { startMs: number }[],
-  period: Period,
-): string | null {
-  const same = sameAsShorter(activities, period)
-  if (same === null) return null
-  return `Same ${formatCount(same.count)} ${same.count === 1 ? 'activity' : 'activities'} as the ${same.length} to your latest activity`
 }

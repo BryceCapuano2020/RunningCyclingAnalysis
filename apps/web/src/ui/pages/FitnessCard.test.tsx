@@ -15,7 +15,6 @@ import {
   waitingStatus,
 } from '../fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
-import { FITNESS_WORDS } from '../fitnessWords'
 import { HoldInputsContext } from '../holdContext'
 import type { HoldInputs } from '../resultHold'
 import { rowsIn, rowValue } from '../test/propertyRows'
@@ -282,28 +281,27 @@ describe('the evidence panel', () => {
     expect(container.querySelector('.fitness-evidence')).toBeNull()
   })
 
-  it('holds the chart with its table twin, how it is measured, the honest limit once, and why runs do not count', () => {
+  it('holds the chart with its table twin and the facts it is read at as rows, with its method on Method', () => {
     const { container } = open()
     const figure = screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })
     expect(figure.querySelector('.chart-frame__details table')).not.toBeNull()
     const panel = container.querySelector('.fitness-evidence')!
+    expect(rowValue(panel, 'Read at')).toBe('150 bpm')
+    expect(rowValue(panel, 'Runs on file')).toBe('12')
+    expect(rowValue(panel, 'Steady runs on file')).toBe('64')
     expect(
-      within(panel as HTMLElement).getByRole('heading', { name: 'How it is measured' }),
+      within(panel as HTMLElement).queryByRole('heading', { name: 'How it is measured' }),
+    ).toBeNull()
+    expect(panel.textContent).not.toMatch(/it usually sees|spread from one run/)
+    expect(
+      within(panel as HTMLElement).getByRole('link', {
+        name: /^Method, how run fitness is measured$/,
+      }),
     ).toBeInTheDocument()
-    expect(panel.textContent).toMatch(/A change of 8% it sees within weeks, reliably\./)
-    expect(panel.textContent).toMatch(
-      /A change of 5% it usually sees within a few months, and not always\./,
-    )
-    expect(panel.textContent).toMatch(/spread from one run to the next, about 4%/)
-    expect(spoken(panel).match(/usually sees within a few months/g)).toHaveLength(1)
-    expect(panel.textContent).toMatch(
-      /In your first two years, an athlete with a strong season can see about one false "Slipping" every two years, then about one every four\./,
-    )
-    expect(spoken(panel)).toMatch(/Of your 12 runs on file, 64 are steady runs\./)
     expect(spoken(panel)).not.toMatch(BANNED)
   })
 
-  it('keeps the athlete’s own seasonal swing in the evidence, off the card, and says "rode" for a ride', () => {
+  it('keeps the athlete’s own seasonal swing in the evidence, off the card', () => {
     const seasoned = (status: typeof SLIPPING) => ({
       ...status,
       evidence: { ...status.evidence!, method: { ...status.evidence!.method, seasonal: 0.021 } },
@@ -311,64 +309,13 @@ describe('the evidence panel', () => {
     renderSection({ run: seasoned(SLIPPING) })
     openDetails(rowsOf()[0]!)
     const panel = document.querySelector('.fitness-evidence')!
-    expect(spoken(panel)).toMatch(
-      /Your usual seasonal swing, up to 2\.1% either side of your usual, has been taken out of every steady run first\./,
-    )
+    expect(rowValue(panel, 'Seasonal swing taken out')).toBe('up to 2.1% either side')
     // The row's title and its one line say nothing of the season.
     expect(spoken(rowsOf()[0]!.querySelector('.row__title')!)).not.toMatch(/season/i)
     expect(spoken(rowsOf()[0]!.querySelector('[data-testid="fitness-line"]')!)).not.toMatch(
       /season/i,
     )
     expect(screen.queryByTestId('fitness-season')).toBeNull()
-    expect(spoken(panel)).toMatch(/the pace you ran at 150 bpm/)
-    cleanup()
-    render(
-      <FitnessSection
-        nowMs={FITNESS_AS_OF_MS}
-        fitness={{ run: NO_FITNESS.run, ride: RIDE_SLIPPING }}
-        units="metric"
-        library={FITNESS_RIDE_LIBRARY}
-      />,
-    )
-    openDetails(rowsOf()[0]!)
-    const ridePanel = document.querySelector('.fitness-evidence')!
-    expect(spoken(ridePanel)).toMatch(/the power you rode at 140 bpm/)
-    expect(spoken(ridePanel)).toMatch(/adjusted for the heart rate of each\./)
-    expect(spoken(ridePanel)).not.toMatch(/climb/)
-    expect(spoken(ridePanel)).toMatch(/from one ride to the next, 2% to 5%/)
-    expect(ridePanel.textContent).toMatch(
-      /Rides are not tested for steadiness, so any pace counts\./,
-    )
-    expect(ridePanel.textContent).toMatch(/A ride outdoors with a power meter/)
-    expect(spoken(ridePanel)).toMatch(/The others were indoors/)
-    expect(screen.queryByTestId('fitness-season')).toBeNull()
-    expect(spoken(ridePanel)).not.toMatch(/seasonal/)
-  })
-
-  it('says once that warm days were adjusted for, when they were, and not otherwise', () => {
-    const warmed = {
-      ...SLIPPING,
-      evidence: { ...SLIPPING.evidence!, method: { ...SLIPPING.evidence!.method, heat: 0.03 } },
-    }
-    renderSection({ run: warmed })
-    expect(screen.getAllByText('Warm days')).toHaveLength(1)
-    expect(rowValue(document.body, 'Warm days')).toBe('Adjusted for')
-    cleanup()
-    renderSection({ run: SLIPPING })
-    expect(rowValue(document.body, 'Warm days')).toBeNull()
-  })
-
-  it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {
-    renderSection({ units: 'imperial' })
-    openDetails(rowsOf()[0]!)
-    const panel = document.querySelector('.fitness-evidence')!
-    expect(spoken(panel)).toMatch(/kilometres 2 to 10 \(from 0\.6 to 6\.2 miles into the run\)/)
-    expect(spoken(panel)).toMatch(/changed pace from one kilometre \(0\.6 mi\) to the next/)
-    cleanup()
-    renderSection({ units: 'metric' })
-    openDetails(rowsOf()[0]!)
-    expect(spoken(document.querySelector('.fitness-evidence')!)).not.toMatch(/miles?\b| mi\b/)
-    expect(spoken(document.querySelector('.fitness-evidence')!)).toMatch(/kilometres 2 to 10/)
   })
 
   it('lists the runs it rests on as links to their activities, newest first, and counts those it compares with', () => {
@@ -378,9 +325,7 @@ describe('the evidence panel', () => {
     expect(links[0]!.getAttribute('href')).toBe('#/activities/run-12')
     expect(links[0]!.textContent).toMatch(/Morning run 12$/)
     expect(links[1]!.getAttribute('href')).toBe('#/activities/run-11')
-    expect(
-      screen.getByText(/28 steady runs, .* are what it is compared with\./),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Compared with')).toMatch(/^28 steady runs, /)
   })
 
   it('pages a long list: the newest eight, then all of them on a press, and back', () => {
@@ -395,17 +340,6 @@ describe('the evidence panel', () => {
     renderSection({ library: FITNESS_LIBRARY.slice(6) })
     openDetails(rowsOf()[0]!)
     expect(document.querySelectorAll('.fitness-runs a')).toHaveLength(6)
-  })
-})
-
-describe('the false-alarm rate in the first two years', () => {
-  it.each(['run', 'ride'] as const)('is told once in the %s promise, in plain words', (sport) => {
-    const { promise } = FITNESS_WORDS[sport]
-    expect(
-      promise.match(/one false "Slipping" every two years, then about one every four\./g),
-    ).toHaveLength(1)
-    expect(promise).not.toMatch(BANNED)
-    expect(promise).not.toContain('\u2014')
   })
 })
 

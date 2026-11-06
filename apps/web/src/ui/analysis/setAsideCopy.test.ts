@@ -3,7 +3,7 @@ import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_EFFORT_REFERENCE } from '@rca/core/effort'
 import { makeActivity, makeResult } from '../components/fixtures'
-import { setAsideActivityText, setAsideText } from './setAsideCopy'
+import { setAsideText } from './setAsideCopy'
 
 /** A library judged against 200 bpm running and 194 bpm cycling. */
 const JUDGED: HeartRateJudgement = {
@@ -48,21 +48,5 @@ describe('set-aside heart rate copy', () => {
     const text = setAsideText(makeResult({ activities, heartRateSetAside: ['r1'] }), JUDGED)
     expect(text).toContain('across all your activities (194 bpm cycling)')
     expect(text).not.toContain('running')
-  })
-
-  it('names the same rule on the activity, with that sport’s max heart rate', () => {
-    expect(setAsideActivityText('run', JUDGED)).toBe(
-      "We left this activity's heart rate out of the heart-rate and effort checks. Its heart rate " +
-        'stayed under 70% of your max heart rate across all your activities (200 bpm running) for 10 ' +
-        'min or more at or above your threshold, or was too low for the power.',
-    )
-  })
-
-  it('gives the rule without a max heart rate when the judgement holds none', () => {
-    expect(setAsideActivityText('ride', NO_HEART_RATE_JUDGEMENT)).toBe(
-      "We left this activity's heart rate out of the heart-rate and effort checks. Its heart rate " +
-        'stayed under 70% of your max heart rate for 10 min or more at or above your threshold, or ' +
-        'was too low for the power.',
-    )
   })
 })

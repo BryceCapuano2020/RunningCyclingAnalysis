@@ -27,7 +27,6 @@ import { useRunSplits } from '../useRunSplits'
 import { AWAITED, NO_DETAIL, useSplitsView, type TraceReport } from '../useSplitsView'
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
-import { setAsideActivityText } from '../analysis/setAsideCopy'
 import { powerCheckChip } from '../analysis/powerCheckCopy'
 import { isAnalysed } from '@rca/core/digest/analysed'
 import { WalkingPaceSection } from '../components/WalkingChoice'
@@ -350,14 +349,7 @@ export function ActivityPage({
           splitsView={splitsView.view}
         />
       )}
-      <ActivityIssues
-        activity={activity}
-        setAsideNote={
-          setAsideIds.includes(activity.id)
-            ? setAsideActivityText(activity.sport, heartRateJudgement)
-            : null
-        }
-      />
+      <ActivityIssues activity={activity} setAside={setAsideIds.includes(activity.id)} />
 
       {routeId !== null && onDelete && (
         <div className="activity-page__remove">

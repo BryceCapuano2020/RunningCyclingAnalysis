@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  flagKindRow,
   flagKindSentence,
   flagSpanText,
   skippedKinds,
@@ -176,5 +177,33 @@ describe('skippedReadingsText', () => {
 
   it('groups the count from a thousand on', () => {
     expect(skippedReadingsText(1204)).toBe('1,204 sensor dropouts')
+  })
+})
+
+describe('flagKindRow: a kind as a detail panel row', () => {
+  it('gives the kind, how often, and what was done, with GPS named only outdoors', () => {
+    expect(flagKindRow('hr-spike', 4)).toEqual({
+      label: 'Heart rate jumps',
+      value: '4 times, left out',
+    })
+    expect(flagKindRow('speed-spike', 1)).toEqual({
+      label: 'GPS speed jumps',
+      value: 'once, left out',
+    })
+    expect(flagKindRow('speed-spike', 1, true).label).toBe('Speed jumps')
+  })
+
+  it('gives a missing altitude no count, since it is flagged once for the whole activity', () => {
+    expect(flagKindRow('missing-altitude', 3)).toEqual({ label: 'Altitude', value: 'not recorded' })
+  })
+
+  it('says what was done about each kind that does not leave its readings out', () => {
+    expect(flagKindRow('altitude-jump', 2).value).toBe(
+      '2 times, climb and slope figures near it left out',
+    )
+    expect(flagKindRow('implausible-climb', 1).value).toBe('once, slope figures left out')
+    expect(flagKindRow('stream-disagreement', 2).value).toBe(
+      '2 times, counted only what both support',
+    )
   })
 })

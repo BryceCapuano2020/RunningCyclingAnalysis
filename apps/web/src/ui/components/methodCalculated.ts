@@ -1,5 +1,6 @@
 import { WINDOW_DAYS, HEADLINE_MIN_ACTIVITIES } from '@rca/core/answer'
 import { CHANGE } from '@rca/core/change'
+import { FITNESS } from '@rca/core/fitness'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { HOUR_AGREEMENT_PERCENT, runOxygenExcessPercent } from '@rca/core/display'
 import {
@@ -182,6 +183,34 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'Where no run in the window was shown hard, the times come from easier running and have no range.',
       'A race effort would be faster.',
       'All time uses your best period.',
+    ],
+  },
+  {
+    name: 'Fitness status',
+    state: 'calculated',
+    lines: [
+      'A fitness status sets your pace, or power for rides, at one heart rate against your own earlier level.',
+      `The heart rate is the one your steady activities most often sit at, to the nearest ${FITNESS.unit.referenceStepBpm} bpm.`,
+      'Each steady activity gives one figure at that heart rate.',
+      'A run’s figure is adjusted for the heart rate and the climb of each run.',
+      'A ride’s figure is adjusted for the heart rate of each ride.',
+      'Your level is the middle of your steady activities over the last 4 to 16 weeks.',
+      'The band round each point is its 90% range.',
+      'A change of 8% it sees within weeks for a run, and within three months for a ride.',
+      'A change of 5% it sees later, and not always.',
+      'Anything smaller sits inside the spread from one activity to the next, and is not reported.',
+    ],
+    detail: [
+      `A steady run is outdoors with heart rate on file, where pace changes by ${Math.round(FITNESS.unit.maxPaceChange * 100)}% or less from one kilometre to the next.`,
+      `Its kilometres ${FITNESS.unit.firstKm + 1} to ${FITNESS.unit.lastKm + 1} are read, those within ${FITNESS.unit.hrHalfBand} bpm of the heart rate and with little climb.`,
+      `At least ${FITNESS.unit.minKm} of them are needed.`,
+      'Intervals, hilly runs and treadmill runs do not count.',
+      'A steady ride is outdoors with a power meter and heart rate on file.',
+      `Its five-minute blocks within ${FITNESS.ride.hrHalfBand} bpm of the heart rate are read, at least ${FITNESS.ride.minBlocks} of them.`,
+      'Rides are not tested for steadiness, so any pace counts.',
+      'The others were indoors, had no sensor, or had too little riding or flat running near the heart rate.',
+      'In the first two years, a strong season can bring a false “Slipping” about every two years.',
+      'After that it is about every four years.',
     ],
   },
   {
