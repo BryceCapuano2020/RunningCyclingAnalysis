@@ -19,7 +19,7 @@
 
 .sample-settings__list dd {
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   font-size: var(--text-lead);
   font-weight: 700;
 }

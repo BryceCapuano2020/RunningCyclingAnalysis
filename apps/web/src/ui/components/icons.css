@@ -22,15 +22,15 @@
 
 /* The tile is ink in both schemes; the ring keeps it visible on the dark page. */
 .brand-mark__tile {
-  fill: var(--mark-tile);
-  stroke: var(--mark-ring);
+  fill: var(--ink);
+  stroke: var(--ink);
   stroke-width: 1px;
 }
 
 .brand-mark__run {
-  stroke: var(--series-run);
+  stroke: var(--run-ink);
 }
 
 .brand-mark__ride {
-  stroke: var(--series-ride);
+  stroke: var(--ride-ink);
 }

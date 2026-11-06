@@ -116,37 +116,34 @@ describe('the old names', () => {
   })
 })
 
-/** The privacy page's properties, mapped to the tokens they copy. */
-const PRIVACY_TOKENS: Record<string, string> = {
-  page: 'paper',
-  ink: 'ink',
-  muted: 'ink-secondary',
-  link: 'ink',
-  hairline: 'hairline',
-  rule: 'rule',
-  title: 'title',
-  'mark-tile': 'ink',
-  'mark-ring': 'ink',
-  'series-run': 'run-ink',
-  'series-ride': 'ride-ink',
-  'control-height': 'control-height',
-  'text-sm': 'text-sm',
-  'text-md': 'text-md',
-  'text-lead': 'text-lead',
-  'text-meta': 'text-meta',
-  'radius-sm': 'radius',
-  measure: 'measure',
-}
+/** The privacy page's properties: each a copy of the app token of the same name. */
+const PRIVACY_TOKENS = [
+  'paper',
+  'ink',
+  'ink-secondary',
+  'hairline',
+  'rule',
+  'title',
+  'run-ink',
+  'ride-ink',
+  'control-height',
+  'text-sm',
+  'text-md',
+  'text-lead',
+  'text-meta',
+  'radius',
+  'measure',
+]
 
 describe('privacy page', () => {
   const copies = declared(privacyCss, ':root')
 
   it('declares exactly the properties it copies', () => {
-    expect([...copies.keys()].sort()).toEqual(Object.keys(PRIVACY_TOKENS).sort())
+    expect([...copies.keys()].sort()).toEqual([...PRIVACY_TOKENS].sort())
   })
 
-  it.each(Object.entries(PRIVACY_TOKENS))('--%s matches --%s in tokens.css', (name, token) => {
-    expect(copies.get(name)).toBe(paper.get(token))
+  it.each(PRIVACY_TOKENS)('--%s matches the token of that name in tokens.css', (name) => {
+    expect(copies.get(name)).toBe(paper.get(name))
   })
 })
 

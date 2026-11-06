@@ -62,11 +62,10 @@ p .definition__term::after {
   width: max-content;
   max-width: min(20rem, calc(100vw - var(--space-5)));
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-pop);
-  color: var(--text-primary);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: 400;

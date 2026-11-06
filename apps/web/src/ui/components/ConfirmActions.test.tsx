@@ -119,16 +119,14 @@ describe('ConfirmActions', () => {
     expect(ruleBody(actionsCss, '.btn.confirm-actions__confirm')).toMatch(
       /background:\s*var\(--status-critical\)/,
     )
-    expect(ruleBody(actionsCss, '.btn.confirm-actions__confirm')).toMatch(
-      /color:\s*var\(--surface-1\)/,
-    )
+    expect(ruleBody(actionsCss, '.btn.confirm-actions__confirm')).toMatch(/color:\s*var\(--paper\)/)
   })
 
   it('keeps the critical fill and the white label while the pointer is over the confirm button', () => {
     const hover = declarationsFor(actionsCss, '.btn.confirm-actions__confirm:hover')
     expect(hover).toMatch(/background:\s*var\(--status-critical\)/)
     expect(hover).toMatch(/border-color:\s*var\(--status-critical\)/)
-    expect(hover).toMatch(/color:\s*var\(--surface-1\)/)
+    expect(hover).toMatch(/color:\s*var\(--paper\)/)
   })
 
   it('keeps the critical fill and the white label while the confirm button is pressed', () => {
@@ -138,7 +136,7 @@ describe('ConfirmActions', () => {
     )
     expect(pressed).toMatch(/background:\s*var\(--status-critical\)/)
     expect(pressed).toMatch(/border-color:\s*var\(--status-critical\)/)
-    expect(pressed).toMatch(/color:\s*var\(--surface-1\)/)
+    expect(pressed).toMatch(/color:\s*var\(--paper\)/)
   })
 
   it('changes the confirm button visibly on hover and on press, so the state shows on the red', () => {
