@@ -26,7 +26,7 @@ const SECONDS: Record<string, number> = {
   'src/tcx/parse.fuzz.sim.test.ts': 22,
   'src/fitness/rise.sim.test.ts': 21,
   'src/gpx/parse.fuzz.sim.test.ts': 19,
-  'src/lift/e1rm.sim.test.ts': 15,
+  'src/lift/e1rm.sim.test.ts': 25,
   'src/digest/referenceMax.cadenceLock.sim.test.ts': 11,
   'src/profile/standOut.sim.test.ts': 10,
   'src/threshold/threshold.sim.test.ts': 10,
