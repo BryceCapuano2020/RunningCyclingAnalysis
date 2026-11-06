@@ -10,6 +10,7 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { gate, UNKNOWN } from '../effortGateFixtures'
+import { rowValue } from '../test/propertyRows'
 import { SportPage } from './SportPage'
 
 beforeEach(() => {
@@ -99,14 +100,10 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     details.open = true
     fireEvent(details, new Event('toggle'))
     // The run the times were carried from is named inside the disclosure, not under the heading.
-    expect(within(details).getByText(/^From your 10 km on \d+ \w+( \d{4})?\.$/)).toBeInTheDocument()
+    expect(rowValue(details, 'Based on')).toMatch(/^Your 10 km, \d+ \w+( \d{4})?$/)
     expect(within(section).getByRole('columnheader', { name: 'Predicted' })).toBeInTheDocument()
     expect(within(section).queryByRole('columnheader', { name: 'Range' })).not.toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        /^No run in the last 12 months was shown hard, so these times come from easier running\. A race effort would be faster\. For a flat course on a good day\.$/,
-      ),
-    ).toBeInTheDocument()
+    expect(rowValue(section, 'Runs shown hard')).toBe('None in the last 12 months')
     expect(section.textContent).not.toMatch(/No slower than|was all-out/)
     expect(screen.queryByText('Needs a run of a mile or more.')).not.toBeInTheDocument()
     expect(view.container.textContent).not.toMatch(/Needs a hard run|reference heart rate/)
@@ -122,7 +119,7 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     fireEvent(details, new Event('toggle'))
     expect(within(section).getByRole('list', { name: 'Key' })).toBeInTheDocument()
     expect(within(section).getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
-    expect(section.textContent).not.toMatch(/was shown hard|easier running/)
+    expect(rowValue(section, 'Runs shown hard')).toBeNull()
   })
 
   it('tells a run older than 12 months as it was run, with no range, no forecast and no claim of now', () => {

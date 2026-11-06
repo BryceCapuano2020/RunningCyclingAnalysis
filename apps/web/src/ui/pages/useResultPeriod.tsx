@@ -7,14 +7,11 @@ import type { PeriodChoice } from '@rca/core/period'
 import { periodDates } from '../components/rangeOptions'
 import { usePeriodRail } from '../components/PeriodRail'
 import { countsOf, countsOfState, notCountedHref } from '../activityCounts'
-import { latestActivityText } from '../periodCopy'
 import { usePeriodChoice } from '../periodPreference'
-import { sameAsShorterText } from '../periodSame'
 import { countSport } from '../records'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
-import { windowLine } from '../windowLine'
 import { periodNoteRows } from '../periodNoteRows'
 
 export interface ResultPeriodInput {
@@ -35,20 +32,8 @@ export interface ResultPeriod {
   periods: ReactNode
   /** The period's status and Custom form for under the page title, on the same pages, else null. */
   caption: ReactNode
-  /** The period's dates and counts as one meta line, for the page's Details, else null. */
-  line: ReactNode
-  /** Whether that line gives a count, so a sport page's own line leaves its count out. */
-  lineCounts: boolean
-  /** The period as a detail panel's rows. */
+  /** The period's dates, counts and notes as a detail panel's rows, for the page's Details; none off those pages. */
   rows: Property[]
-}
-
-/** The notes after the period's dates, in the caption's one line: joined with a dot, with no full stops. */
-function noteOf(notes: (string | null)[]): string {
-  return notes
-    .filter((note): note is string => note !== null && note !== '')
-    .map((note) => note.replace(/\.$/, ''))
-    .join(' · ')
 }
 
 /**
@@ -86,8 +71,6 @@ export function useResultPeriod({
     sent.current = { choice, shownWas: period.choice }
     setRange(choice, answered)
   }
-  // Where the default is not the 12 weeks it starts from, one line says which window the page is on and why.
-  const windowNote = windowLine(analysis.state.answerWindow)
   const sport = route.page === 'run' || route.page === 'ride' ? route.page : null
   // Balance counts every activity on file and links the count to them; it says when a longer period repeats a
   // shorter one, and how old the newest activity is. A sport page counts its own sport's.
@@ -106,10 +89,6 @@ export function useResultPeriod({
       analysis.state.answerWindow,
       sport === null ? { activities: analysed, period, newestMs } : undefined,
     ),
-    note:
-      sport === null
-        ? noteOf([windowNote, sameAsShorterText(analysed, period), latestActivityText(newestMs)])
-        : noteOf([windowNote]),
     shown: sport === null ? inPeriod.length : countsOf(inPeriod, sport).onFile,
     total: counts.onFile,
     notCounted: counts.notCounted,
@@ -124,8 +103,6 @@ export function useResultPeriod({
     pickPeriod,
     periods: shown ? rail.periods : null,
     caption: shown ? rail.caption : null,
-    line: shown ? rail.line : null,
-    lineCounts: shown && rail.lineCounts,
     rows: shown ? rail.rows : [],
   }
 }

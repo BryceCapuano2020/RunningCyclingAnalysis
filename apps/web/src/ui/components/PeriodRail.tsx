@@ -1,8 +1,9 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { CustomRangeForm } from './CustomRangeForm'
-import { PeriodCaptionLine, PeriodStatus } from './PeriodCaption'
-import { captionSays, periodRows } from './periodCaptionWords'
+import { PeriodStatus } from './PeriodCaption'
+import { periodRows } from './periodCaptionWords'
+import { NO_ROWS } from './property'
 import type { Property } from './property'
 import type { PeriodCaptionProps } from './periodCaptionWords'
 import { WAITS_FOR_IMPORT } from './RangePicker'
@@ -21,16 +22,12 @@ export interface PeriodRail {
   periods: ReactNode
   /** Under the page title: the status a screen reader hears when the period changes, and the Custom form while it is open. */
   caption: ReactNode
-  /** The dates, the count and the note as one meta line, for the page's Details; null when it has nothing to say. */
-  line: ReactNode
-  /** Whether the line gives a count, so a page that would give one too leaves its own out. */
-  lineCounts: boolean
-  /** The same as a detail panel's rows. */
+  /** The dates, the counts and the notes as a detail panel's rows, for the page's Details. */
   rows: Property[]
 }
 
 /** The row said while a pick waits behind an import. */
-const WAITING_ROW: Property = { label: 'Period', value: WAITS_FOR_IMPORT }
+const WAITING_ROW: Property = { label: 'Period change', value: WAITS_FOR_IMPORT }
 
 /**
  * The period control set out of the page: the choices in the rail, and what they say: a status under the page's title
@@ -42,8 +39,7 @@ export function usePeriodRail({
   resolved,
   range = null,
   dates = '',
-  note,
-  noteRows = [],
+  noteRows = NO_ROWS,
   shown,
   total,
   notCounted = 0,
@@ -62,7 +58,6 @@ export function usePeriodRail({
   })
   const offered = [...RANGE_OPTIONS, CUSTOM_OPTION]
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
-  const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
   const shownValue = customOpen ? CUSTOM_OPTION.value : optionValue(checked)
   const periods = (
     <div className="period-rail" ref={root}>
@@ -113,18 +108,9 @@ export function usePeriodRail({
       )}
     </div>
   )
-  const { said, counted } = captionSays(words)
   return {
     periods,
     caption,
-    line:
-      !said && !noteText ? null : (
-        <>
-          {said ? <PeriodCaptionLine {...words} /> : null}
-          {noteText ? <p className="period-caption__note">{noteText}</p> : null}
-        </>
-      ),
-    lineCounts: said && counted,
     rows: periodRows(words, waiting && busy ? [WAITING_ROW] : noteRows),
   }
 }

@@ -3,6 +3,7 @@ import { hasEnoughZoneTime, mainZone, sameEnteredReferences } from '@rca/core/zo
 import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
+import type { Property } from './components/property'
 import { formatCount } from './format/count'
 import { SPORT_PLURAL } from './sports'
 
@@ -34,13 +35,6 @@ export const THRESHOLD_NEEDS: Record<ZoneMeasure, string> = {
   power: `A ride of ${shortestEffortMin('ride')} min or more sets your power zones.`,
 }
 
-/** What an activity has to record for a measure to count it. */
-const READING: Record<ZoneMeasure, string> = {
-  heartRate: 'heart rate',
-  power: 'measured power',
-  pace: 'pace',
-}
-
 /** A share as a whole percent. A share too small to round up reads "<1%", so it is not shown as none, and one
  * too close to all of it to round down reads ">99%", so it is not shown as all. */
 export function percentText(share: number): string {
@@ -65,10 +59,10 @@ export function describable(rows: readonly MeasureTime[], relaxed = false): Meas
   return rows.filter(enough).sort((a, b) => b.totalSeconds - a.totalSeconds)
 }
 
-/** The line that says which stretch the bars are of, when it is wider than the period. */
-export const ZONE_WINDOW_LINE: Record<ZoneWindow, string> = {
-  year: 'Last 12 months.',
-  all: 'All time.',
+/** The row that says which stretch the bars are of, when it is wider than the period. */
+export const ZONE_WINDOW_VALUE: Record<ZoneWindow, string> = {
+  year: 'Last 12 months',
+  all: 'All time',
 }
 
 /** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */
@@ -89,53 +83,55 @@ export function activityLede(
 }
 
 /**
- * Under the chart, one line for each measure that left activities out: how many, and why. An activity
- * with no reading of the measure is told apart from one with a reading but no zones for its date.
+ * The activities each measure left out, as a detail panel's rows: how many of how many, by why ("Heart rate: set aside",
+ * "3 of 12 runs"). Nothing for a measure that counted every activity.
  */
-export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string[] {
+export function leftOutRows(sport: Sport, rows: readonly MeasureTime[]): Property[] {
   return rows.flatMap((row) => {
     const total = row.counted + row.noData + row.setAside + row.noZones
-    const notes: string[] = []
     const of = (n: number) => `${formatCount(n)} of ${formatCount(total)} ${SPORT_PLURAL[sport]}`
-    if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
-    if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
-    if (row.noZones > 0) {
+    const name = ROW_LABEL[row.measure]
+    return [
+      ...(row.setAside > 0 ? [{ label: `${name}, set aside`, value: of(row.setAside) }] : []),
+      ...(row.noData > 0 ? [{ label: `${name}, no reading`, value: of(row.noData) }] : []),
       // A heart rate has zones from the highest on file, so it lacks them only with no heart rate to cut them from.
-      const need = ` ${THRESHOLD_NEEDS[row.measure]}`
-      notes.push(
-        `${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.${need}`,
-      )
-    }
-    return notes
+      ...(row.noZones > 0
+        ? [
+            { label: `${name}, no zones`, value: of(row.noZones) },
+            { label: `${name} zones need`, value: THRESHOLD_NEEDS[row.measure] },
+          ]
+        : []),
+    ]
   })
 }
 
 /**
- * A line for each measure whose zones changed between the periods, which is why they are not compared:
- * a change in shares could be the zones moving, not the athlete. Nothing when the zones match, or when
- * the period before has too little time to compare at all.
+ * A row for each measure whose zones changed between the periods, which is why they are not compared: a change in shares
+ * could be the zones moving, not the athlete. Nothing when the zones match, or when the period before has too little time.
  */
-export function zonesChangedNotes(
+export function zonesChangedRows(
   rows: readonly MeasureTime[],
   previous: readonly MeasureTime[] | null,
-): string[] {
+): Property[] {
   return rows.flatMap((row) => {
     const before = previous?.find((each) => each.measure === row.measure)
     return before !== undefined && hasEnoughZoneTime(before) && !sameEnteredReferences(before, row)
-      ? [
-          `${ROW_LABEL[row.measure]} zones changed since the previous period, so the two are not compared.`,
-        ]
+      ? [{ label: `${ROW_LABEL[row.measure]} zones`, value: 'Changed, not compared' }]
       : []
   })
 }
 
-/** Where the zones came from, over the measures shown, with where to change it. */
-export function zoneSourceNote(rows: readonly MeasureTime[]): string {
+/** Where the zones came from, over the measures shown, as a row. */
+export function zoneSourceRow(rows: readonly MeasureTime[]): Property {
   const counted = rows.reduce((n, row) => n + row.counted, 0)
   const entered = rows.reduce((n, row) => n + row.entered, 0)
-  if (entered === 0) return 'Zones estimated. Set your own on Profile.'
-  if (entered === counted) return 'Zones set on Profile.'
-  return 'Zones set on Profile where you have them, estimated elsewhere.'
+  const value =
+    entered === 0
+      ? 'Estimated, set yours on Profile'
+      : entered === counted
+        ? 'Set on Profile'
+        : 'Set on Profile where you have them, estimated elsewhere'
+  return { label: 'Zones', value }
 }
 
 /** What each sport needs to show its time in zones. */

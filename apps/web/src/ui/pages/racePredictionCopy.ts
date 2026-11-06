@@ -1,5 +1,6 @@
 import type { MethodTime, RacePrediction } from '@rca/core/predict'
 import { formatRecordTime } from '@rca/core/units'
+import type { Property } from '../components/property'
 import { formatDayMonth, formatMonth } from '../format/date'
 import type { PastRun, RaceForecast, RaceWindow } from '../raceAnswer'
 import { METHOD_NAME, raceName } from '../racePredictions'
@@ -21,25 +22,11 @@ export function originText(method: MethodTime, vo2max: number | null): string {
   return `${METHOD_NAME.performances}: ${time}, mostly from your best ${raceName(method.fromM).toLowerCase()}`
 }
 
-/** What every prediction is for. */
-const FLAT_COURSE = 'For a flat course on a good day.'
-
-/** What All time's predictions are of: the best period in the files, which a shorter period would not be. */
-const ALL_TIME_NOTE = 'All time uses your best period.'
-
 /** Where the runs of each window are, as the note says it. */
 const RUNS_IN: Record<RaceWindow, string> = {
   period: 'this period',
   year: 'the last 12 months',
   all: 'your files',
-}
-
-/**
- * What a forecast from runs none of which was shown hard says, one tap down. The time is a number a race effort can beat, so
- * the page draws it with no range, and this line says why.
- */
-function easyRunsNote(window: RaceWindow): string {
-  return `No run in ${RUNS_IN[window]} was shown hard, so these times come from easier running. A race effort would be faster.`
 }
 
 /** What a row says when its time was held to a time already run at the distance. */
@@ -53,15 +40,24 @@ export function pastText({ seconds, startMs }: PastRun): string {
   return `You ran ${formatRecordTime(seconds)} in ${formatMonth(startMs, true)}`
 }
 
-/** The one line under the title: the run the times were carried from, or the heart rate they came from. */
-export function basisLine(answer: Pick<RaceForecast, 'basis'>, openedAt: number): string {
+/** The rows that say what the forecast rests on: the run the times were carried from or the heart rate, and what it is for. */
+export function forecastRows(
+  answer: Pick<RaceForecast, 'basis'>,
+  window: RaceWindow,
+  bound: boolean,
+  openedAt: number,
+): Property[] {
   const { basis } = answer
-  if (basis === null) return 'From your heart rate.'
-  return `From your ${raceName(basis.distanceM).toLowerCase()} on ${formatDayMonth(basis.startMs, openedAt)}.`
-}
-
-/** What the predictions are for, and when the runs were not shown hard or the window is all time, that. */
-export function methodNote(window: RaceWindow, bound = false): string {
-  const easy = bound ? `${easyRunsNote(window)} ` : ''
-  return `${easy}${FLAT_COURSE}${window === 'all' ? ` ${ALL_TIME_NOTE}` : ''}`
+  return [
+    {
+      label: 'Based on',
+      value:
+        basis === null
+          ? 'Your heart rate'
+          : `Your ${raceName(basis.distanceM).toLowerCase()}, ${formatDayMonth(basis.startMs, openedAt)}`,
+    },
+    { label: 'For', value: 'A flat course on a good day' },
+    ...(bound ? [{ label: 'Runs shown hard', value: `None in ${RUNS_IN[window]}` }] : []),
+    ...(window === 'all' ? [{ label: 'All time', value: 'Your best period' }] : []),
+  ]
 }
