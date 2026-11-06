@@ -139,12 +139,9 @@ function trendWithWeeks(weeks: number): TrendPoint[] {
   })
 }
 
-/** The source line at the foot of the cards, as read aloud: its text without the definition's note. */
-function sourceText(): string | null {
-  const line = document.querySelector('.balance__source')?.cloneNode(true) as
-    HTMLElement | undefined
-  line?.querySelectorAll('.definition__note').forEach((note) => note.remove())
-  return line?.textContent?.replace(/\s+/g, ' ').trim() ?? null
+/** The standards the grades are read against: the "Graded on" row of the answer's Details, or null when it has none. */
+function gradedOn(): string | null {
+  return rowValue(document.body, 'Graded on')
 }
 
 describe('BalancePage', () => {
@@ -246,15 +243,15 @@ describe('BalancePage', () => {
     expect(levels.querySelector('svg')).toBeNull()
   })
 
-  it('sets the level as plain text, and says what a level is in the answer’s Details', () => {
+  it('sets the level as plain text, and leaves what a level is to Method, not the answer’s Details', () => {
     renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
     const levels = screen.getByRole('region', { name: 'Level in each sport' })
     // Nothing on the line is a control, so nothing reads as a link.
     expect(levels.querySelector('button, .definition__term')).toBeNull()
-    const meaning = document.querySelector('.balance__levels-meaning')!
-    expect(meaning.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details/)
-    expect(meaning).toHaveTextContent(/^A band of the age grade: .+ from \d+%\.$/)
-    expect(meaning.querySelector('.num')).not.toBeNull()
+    const details = document.querySelector('.balance-hero .page-details')!
+    expect(details.querySelector('summary')).toHaveTextContent(/^Details/)
+    expect(details).not.toHaveTextContent(/A band of the age grade/)
+    expect(document.querySelector('.balance__levels-meaning')).toBeNull()
   })
 
   it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the meter', () => {
@@ -340,20 +337,21 @@ describe('BalancePage', () => {
     ).toBeLessThanOrEqual(2)
   })
 
-  it('names the grading source as the last line of the answer’s Details, not under the tiles', () => {
+  it('names the grading source as a row of the answer’s Details, not under the tiles', () => {
     const { container } = renderPage(
       GRADED_RUN,
       { state: { trend: trendWithWeeks(2) } },
       MAN_BORN_1986,
     )
-    const source = container.querySelector('.balance__source')
-    expect(source).not.toBeNull()
-    const details = source?.closest('details')
+    expect(gradedOn()).toBe(ROAD_STANDARDS_SOURCE.shortName)
+    const row = Array.from(container.querySelectorAll('.props__row')).find(
+      (candidate) => candidate.firstElementChild?.textContent === 'Graded on',
+    )!
+    const details = row.closest('details')
     expect(details).toHaveClass('page-details')
     expect(details?.closest('.balance-hero')).not.toBeNull()
-    expect(source?.parentElement?.lastElementChild).toBe(source)
     const tiles = container.querySelector('.balance-tiles') as HTMLElement
-    expect(tiles.nextElementSibling).not.toBe(source)
+    expect(tiles.contains(row)).toBe(false)
   })
 
   it('puts the grade by duration after the tiles, with the width of the page to itself', () => {
@@ -460,19 +458,16 @@ describe('BalancePage age grades', () => {
     })
     renderPage(result, {}, MAN_BORN_1986)
 
-    expect(document.querySelectorAll('.balance__source')).toHaveLength(1)
-    expect(sourceText()).toBe('Age-graded on USATF road standards.')
+    expect(screen.getAllByText('Graded on')).toHaveLength(1)
+    expect(gradedOn()).toBe(ROAD_STANDARDS_SOURCE.shortName)
   })
 
-  it('says the standard on one line at the foot, not on each tile, defines age grade in place, and says no more', () => {
+  it('says the standard as one row, not on each tile, with no prose about age grade in the answer', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
     expect(screen.queryByText(/^Graded at age/)).not.toBeInTheDocument()
-    expect(sourceText()).toBe('Age-graded on USATF road standards.')
-    const term = screen.getByRole('button', { name: 'Age-graded' })
-    fireEvent.click(term)
-    const note = document.getElementById(term.getAttribute('aria-controls') ?? '')
-    expect(note).toHaveTextContent(/scored against the standard for your age and sex/)
+    expect(gradedOn()).toBe(ROAD_STANDARDS_SOURCE.shortName)
+    expect(screen.queryByRole('button', { name: 'Age-graded' })).not.toBeInTheDocument()
     expect(screen.queryByText(/not a ranking/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Alan Jones/)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: ROAD_STANDARDS_SOURCE.name })).not.toBeInTheDocument()
@@ -498,7 +493,7 @@ describe('BalancePage age grades', () => {
     expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
   })
 
-  it('names no ride grade and no standards line without a weight, though the ride is graded', () => {
+  it('names no ride grade and no standards row without a weight, though the ride is graded', () => {
     renderPage(
       makeResult({
         runThreshold: null,
@@ -510,16 +505,16 @@ describe('BalancePage age grades', () => {
       false,
     )
     // The ride's grade is held with its card, so nothing graded is on screen to cite a standard for.
-    expect(sourceText()).toBeNull()
+    expect(gradedOn()).toBeNull()
   })
 
-  it('shows the standards line only when a grade is shown', () => {
+  it('shows the standards row only when a grade is shown', () => {
     const { unmount } = renderPage(
       makeResult({ runThreshold: null, rideThreshold: null }),
       {},
       MAN_BORN_1986,
     )
-    expect(sourceText()).toBeNull()
+    expect(gradedOn()).toBeNull()
     unmount()
 
     renderPage(
@@ -530,12 +525,12 @@ describe('BalancePage age grades', () => {
       {},
       MAN_BORN_1986,
     )
-    expect(sourceText()).toBe('Age-graded on USATF road standards.')
+    expect(gradedOn()).toBe(ROAD_STANDARDS_SOURCE.shortName)
   })
 
-  it('shows no standards line without the year of birth and sex', () => {
+  it('shows no standards row without the year of birth and sex', () => {
     renderPage(GRADED_RUN)
-    expect(sourceText()).toBeNull()
+    expect(gradedOn()).toBeNull()
   })
 })
 

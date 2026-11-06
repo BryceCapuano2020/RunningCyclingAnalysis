@@ -129,11 +129,12 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
   await expect(page.locator('.balance-meter__number')).toHaveCount(1)
   // The target is the answer's Details, one press down, not a line under the lede.
-  const target = page.locator('.balance-hero').getByText(/^To match it on the /)
+  const target = page.locator('.balance-hero .props__row', { hasText: /^To match it on the / })
   await expect(target).toHaveCount(1)
   await expect(target).toBeHidden()
   await page.locator('.balance-hero .page-details > summary').click()
   await expect(target).toBeVisible()
+  await expect(target.locator('dd')).toHaveText(/^\d+ W( \(\d+\u2013\d+\))?$|^\d+:\d{2} \/(km|mi)$/)
   await expect(tiles.getByText(/^To match it/)).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
@@ -494,17 +495,22 @@ test('at 667 by 375 the balance headline is on the first screen', async ({ page 
   expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(foot)
 })
 
-test('the meter defines its range in place, and the level line is plain text whose meaning is in the Details', async ({
+test('the meter defines its range in place, and the level line is plain text whose bands are on Method', async ({
   page,
 }) => {
   await openSample(page)
   // Nothing on the level line is a control, so nothing there reads as a link.
   await expect(page.locator(LEVEL_ROWS).first().getByRole('button')).toHaveCount(0)
   await expect(page.locator(`${LEVEL_ROWS} .definition__term`)).toHaveCount(0)
-  const meaning = page.locator('.balance__levels-meaning')
-  await expect(meaning).toBeHidden()
-  await page.locator('details', { has: meaning }).locator('summary').click()
-  await expect(meaning).toHaveText(/^A band of the age grade: Recreational below 60%/)
+  // The answer's Details carry no prose on what a level is: Method lists the bands.
+  await expect(page.locator('.balance__levels-meaning')).toHaveCount(0)
+  await page.locator('.balance-hero .page-details > summary').click()
+  await expect(page.locator('.balance-hero .page-details')).not.toContainText(
+    /A band of the age grade/,
+  )
+  await page.locator('.balance-hero .props__method').click()
+  await expect(page.getByRole('main')).toContainText(/Recreational below 60%/)
+  await page.goBack()
   const range = page.getByRole('button', { name: 'range', exact: true })
   await range.click()
   await expect(range).toHaveAttribute('aria-expanded', 'true')
@@ -555,18 +561,12 @@ for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the range and age-grade notes are sheets at the window's foot`, async ({
+  test(`at ${width} by ${height} the range note is a sheet at the window's foot`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await openSample(page)
-    // The age grade is defined in the answer's Details, which open first.
-    await page
-      .locator('details', { has: page.locator('.balance__source') })
-      .locator('summary')
-      .click()
-    const ageGraded = page.getByRole('button', { name: 'Age-graded', exact: true })
-    const terms = [page.getByRole('button', { name: 'range', exact: true }), ageGraded]
+    const terms = [page.getByRole('button', { name: 'range', exact: true })]
     for (const term of terms) {
       await term.focus()
       await page.keyboard.press('Enter')
