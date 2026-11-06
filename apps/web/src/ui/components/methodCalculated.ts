@@ -105,6 +105,7 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'A line through best efforts shows how often you went hard as much as how fit you were.',
       'A fitness status comes from steady efforts at the same heart rate.',
       'Where a sport has one, that status is the trend.',
+      'A ride with no earlier level yet compares its newest and first power-meter rides; power worked out from speed stays out.',
     ],
     detail: [
       'A dot is the effort that led a trailing window ending on some Sunday in UTC.',

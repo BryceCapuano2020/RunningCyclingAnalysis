@@ -81,6 +81,7 @@ export function FitnessCard({
     view.support !== '' ||
     view.age !== null ||
     view.needs !== '' ||
+    view.early.length > 0 ||
     warm ||
     view.fresh !== null ||
     view.track !== null ||
@@ -128,6 +129,11 @@ export function FitnessCard({
                   <NumText text={view.age} />
                 </p>
               )}
+              {view.early.map((text) => (
+                <p key={text} data-testid="fitness-early">
+                  <NumText text={text} />
+                </p>
+              ))}
               {view.needs === '' ? null : (
                 <p data-testid="fitness-needs">
                   <NumText text={view.needs} />

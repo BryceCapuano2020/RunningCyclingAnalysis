@@ -61,7 +61,8 @@ const EXPECTED = {
     title: 'Your cycling so far',
     detail: 'Needs an effort of 3 min or longer',
     split: null,
-    cards: 0,
+    // The one card says why modelled power is not compared (ride-early-trend.md, "Only virtual power").
+    cards: 1,
   },
 } as const
 

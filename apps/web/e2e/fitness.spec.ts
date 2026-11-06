@@ -251,8 +251,11 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   expect(await spoken(ride.locator('.fitness-card__headline'))).toMatch(
     /^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/,
   )
+  await expect(ride.getByTestId('fitness-early').first()).toHaveText(
+    /^[+-]?\d+% on your first power-meter rides, \d+ \w+ \([+-]?\d+% to [+-]?\d+%\)\.$/,
+  )
   await expect(ride.getByTestId('fitness-needs')).toHaveText(
-    /^\d+ more earlier rides? to see a trend\.$/,
+    /^The full trend starts once 12 power-meter rides over 8 different weeks are 8 weeks old\. \d+ so far\.$/,
   )
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })

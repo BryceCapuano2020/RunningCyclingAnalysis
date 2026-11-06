@@ -57,6 +57,19 @@ export const FITNESS = {
     betaMax: 0.02,
     betaFallback: 0.008,
     minBlockRides: 3,
+    /** A ride with HR spike flags stays when it has at most this many per started hour of moving time (docs/design/ride-early-trend.md). */
+    maxSpikesPerHour: 1,
+    /** ... and its spike flags cover at most this share of its moving time ... */
+    maxSpikeShare: 0.02,
+    /** ... and it has at least this many blocks within the band, so a median of them out-votes one bad block. */
+    minSpikedBlocks: 3,
+  },
+  /** The early trend: while the monitor has no baseline, the newest steady rides against the first of the monitor's window. */
+  early: {
+    minGroup: 3,
+    maxGroup: 6,
+    /** The groups' median days are at least this far apart, else the groups shrink. */
+    minApartDays: 14,
   },
   /** The weekly monitor, evaluated at the end of each week from the first with enough history. */
   monitor: {
@@ -281,3 +294,6 @@ export const FITNESS = {
  * card and findings go, if those sims ever fail; calibrate `FITNESS.ride` on real power-meter libraries when there are some.
  */
 export const RIDE_FITNESS_ENABLED = true
+
+/** Which sports show an early trend while the monitor has no baseline (rides only: a run's lines are unchanged). */
+export const EARLY_TREND: Record<'run' | 'ride', boolean> = { run: false, ride: true }

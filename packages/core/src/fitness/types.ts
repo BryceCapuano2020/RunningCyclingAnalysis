@@ -112,6 +112,25 @@ export interface FitnessLevel {
   toMs: number
 }
 
+/** One end of an early trend: a group of steady rides, the stretch they span and the heart rate they sit at. */
+export interface EarlyGroup {
+  fromMs: number
+  toMs: number
+  runs: number
+  /** The median heart rate of the group's rides, bpm, when the unit carried it. */
+  heartRate: number | null
+}
+
+/**
+ * While the monitor has no baseline: the newest steady rides against the first of the last 44 weeks, as a change with its
+ * 90% range. A display state, never an alarm; it carries no direction.
+ */
+export interface FitnessEarly {
+  change: Ranged
+  first: EarlyGroup
+  newest: EarlyGroup
+}
+
 export interface FitnessStatus {
   sport: Sport
   state: FitnessState
@@ -140,6 +159,10 @@ export interface FitnessStatus {
   shortfall: Shortfall | null
   /** Only with a `shortfall` and 3 or more steady activities: the level now, with no slip or rise in it. Absent otherwise. */
   level?: FitnessLevel
+  /** Only with the `history` shortfall, for a sport that shows one: the early trend. Absent otherwise. */
+  early?: FitnessEarly
+  /** Only with the `history` shortfall, no steady ride and outdoor rides with heart rate on modelled power: the card says why they are not compared. */
+  virtualOnly?: true
   /** When the state began and with what test; null for holding that was never interrupted and for no state. */
   entered: FitnessEntry | null
   /** Steady runs (or rides) in the whole library, whatever the state. */

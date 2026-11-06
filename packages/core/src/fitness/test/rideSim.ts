@@ -22,6 +22,8 @@ export interface RideSpec {
   /** Slow wander of the athlete's level: the sd of an AR(1) with the measured weekly correlation. Default the measured 2%. */
   wanderSd?: number
   seasonal?: number
+  /** Weeks into the season at the library's first week, to start the meter at a chosen phase. Default 0. */
+  seasonStart?: number
   /** The planted change in the level (log) in a week. */
   planted?: (week: number) => number
 }
@@ -41,7 +43,9 @@ export function rideLibrary(spec: RideSpec): ActivityDigest[] {
   }
   const level = (startMs: number) => {
     const w = Math.max(0, Math.min(spec.weeks - 1, Math.floor((startMs - MONDAY) / WEEK_MS)))
-    const season = spec.seasonal ? spec.seasonal * Math.sin((2 * Math.PI * (w + 10)) / 52) : 0
+    const season = spec.seasonal
+      ? spec.seasonal * Math.sin((2 * Math.PI * (w + 10 + (spec.seasonStart ?? 0))) / 52)
+      : 0
     return Math.exp(wander[w]! + season + (spec.planted?.(w) ?? 0))
   }
   return weeksOf(

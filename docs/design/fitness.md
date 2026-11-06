@@ -274,6 +274,9 @@ structural coefficient needs a heart-rate model nobody has validated.
 
 ### Rides
 
+Built in #453: an early trend while there is no baseline, and rides an isolated HR spike no longer drops
+([ride-early-trend.md](ride-early-trend.md)).
+
 The ride unit (measured power, outdoors, five-minute blocks within 20 bpm of the reference, moved to it by the library's own
 slope) runs the run monitor. Indoor rides are left out: a trainer reads differently from the road at the same heart rate, and
 the evidence says so. A ride is adjusted for heart rate only (the power meter reads the hill itself) and is not tested for

@@ -38,7 +38,7 @@ describe('a status that cannot call a trend', () => {
       headline: '212 W (205 to 219) at 140 bpm.',
       changes: [],
       support: 'From 7 steady rides.',
-      needs: '5 more earlier rides to see a trend.',
+      needs: '5 more power-meter rides to see a trend.',
     })
     const run = waiting({ kind: 'history', have: 7, need: 12, weeks: 7, needWeeks: 8 }, 'run')
     expect(run.headline).toBe('5:30 /km (5:20 to 5:40) at 140 bpm.')
@@ -63,10 +63,10 @@ describe('a status that cannot call a trend', () => {
 
   it('says what a trend needs for each shortfall, in the sport’s own words', () => {
     expect(waiting({ kind: 'history', have: 11, need: 12, weeks: 8, needWeeks: 8 }).needs).toBe(
-      '1 more earlier ride to see a trend.',
+      '1 more power-meter ride to see a trend.',
     )
     expect(waiting({ kind: 'history', have: 14, need: 12, weeks: 5, needWeeks: 8 }).needs).toBe(
-      'Earlier rides in 3 more weeks to see a trend.',
+      'Power-meter rides over 8 different weeks to see a trend.',
     )
     expect(waiting({ kind: 'recent', have: 2, need: 4, weeks: 8 }, 'run').needs).toBe(
       '2 more runs in the last 8 weeks to see a trend.',
@@ -105,7 +105,7 @@ describe('a status that cannot call a trend', () => {
         'metric',
       )
     expect(none('ride', 0)).toEqual({
-      headline: 'No steady rides with a power meter yet.',
+      headline: 'No outdoor rides with a power meter and heart rate yet.',
       changes: [],
       support: '',
       needs: '',

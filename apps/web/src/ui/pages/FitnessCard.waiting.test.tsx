@@ -100,8 +100,47 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     expect(details).toContain('200 W (194 to 206) at 140 bpm.')
     expect(details).toContain('From 7 steady rides.')
     expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
-      '5 more earlier rides to see a trend.',
+      '5 more power-meter rides to see a trend.',
     )
+  })
+
+  it('shows a ride’s early trend in its Details, the level staying its one line and nothing said of a direction', () => {
+    const base = waitingStatus(
+      { kind: 'history', have: 5, need: 12, weeks: 4, needWeeks: 8 },
+      24,
+      'ride',
+    )
+    const group = (fromMs: number) => ({
+      fromMs,
+      toMs: fromMs + 14 * 86_400_000,
+      runs: 6,
+      heartRate: 141,
+    })
+    const early = {
+      change: { value: 0.02, low: -0.04, high: 0.08 },
+      first: group(FITNESS_AS_OF_MS - 120 * 86_400_000),
+      newest: group(FITNESS_AS_OF_MS - 30 * 86_400_000),
+    }
+    render(
+      <FitnessSection
+        nowMs={FITNESS_AS_OF_MS}
+        fitness={{ run: SLIPPING, ride: { ...base, early } }}
+        units="metric"
+        library={FITNESS_RIDE_LIBRARY}
+      />,
+    )
+    const ride = rowNamed('Ride')
+    expect(lineOf(ride).textContent).toBe('200 W at 140 bpm.')
+    const held = detailsOf(ride)
+    expect(held).toContain('+2% on your first power-meter rides,')
+    expect(held).toContain('(-4% to +8%)')
+    expect(held).toContain('First: 6 rides,')
+    expect(held).toContain('141 bpm median')
+    expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
+      'The full trend starts once 12 power-meter rides over 8 different weeks are 8 weeks old. 5 so far.',
+    )
+    expect(spoken(ride)).not.toMatch(BANNED)
+    expect(spoken(ride)).not.toMatch(/\b(up|down|rising|falling)\b/i)
   })
 
   it('tells a ride that has too few recent rides, or whose range is too wide, as its level on the home page too', () => {

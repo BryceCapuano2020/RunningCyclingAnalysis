@@ -118,7 +118,14 @@ describe('the sample athlete’s fitness story', () => {
     const lines = fitnessLines(rides, 'metric')
     expect(lines.headline).toMatch(/^\d+ W \(\d+ to \d+\) at \d+ bpm\.$/)
     expect(lines.support).toMatch(/^From \d+ steady rides\.$/)
-    expect(lines.needs).toMatch(/^\d+ more earlier rides? to see a trend\.$/)
+    // Its rides give an early trend, so what is missing is the full one.
+    expect(rides.early).toBeDefined()
+    expect(lines.early![0]).toMatch(
+      /^[+-]?\d+% on your first power-meter rides, \d+ \w+ \([+-]?\d+% to [+-]?\d+%\)\.$/,
+    )
+    expect(lines.needs).toMatch(
+      /^The full trend starts once 12 power-meter rides over 8 different weeks are 8 weeks old\. \d+ so far\.$/,
+    )
   })
 })
 

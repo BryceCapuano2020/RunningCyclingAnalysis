@@ -3,6 +3,7 @@ import { counted, formatDay, formatRelative } from '../findings/copy'
 import type { Sport } from '../types'
 import { formatPace, formatPaceValue, formatPower, formatWatts } from '../units'
 import type { UnitSystem } from '../units'
+import { earlyLines, earlyNeeds, VIRTUAL_ONLY } from './copyEarly'
 import { FITNESS } from './params'
 import type { FitnessStatus, Ranged, Shortfall, SpokenState } from './types'
 
@@ -43,6 +44,10 @@ interface Words {
   level: (output: number, system: UnitSystem) => string
   /** The ends of a range of output, as numbers and in the order the athlete reads them: a run's faster pace comes first. */
   range: (low: number, high: number, system: UnitSystem) => string
+  /** The earlier activities a full trend is read from, in the sport's words. */
+  earlier: { noun: string; plural: string }
+  /** What a full trend needs when only weeks are short: `weeks` of the `needWeeks` distinct ones are there. */
+  weeks: (weeks: number, needWeeks: number) => string
   /** The one line for a sport with fewer than three steady activities, `have` of them so far. */
   none: (have: number) => string
   /**
@@ -62,6 +67,9 @@ const WORDS: Record<Sport, Words> = {
     level: formatPace,
     range: (low, high, system) =>
       `${formatPaceValue(high, system)} to ${formatPaceValue(low, system)}`,
+    earlier: { noun: 'earlier run', plural: 'earlier runs' },
+    weeks: (weeks, needWeeks) =>
+      `Earlier runs in ${counted(needWeeks - weeks, 'more week')} to see a trend.`,
     none: (have) =>
       have === 0
         ? 'No steady runs with heart rate yet.'
@@ -75,9 +83,12 @@ const WORDS: Record<Sport, Words> = {
     steady: 'steady ride',
     level: (output) => formatPower(output),
     range: (low, high) => `${formatWatts(low)} to ${formatWatts(high)}`,
+    earlier: { noun: 'power-meter ride', plural: 'power-meter rides' },
+    weeks: (_weeks, needWeeks) =>
+      `Power-meter rides over ${needWeeks} different weeks to see a trend.`,
     none: (have) =>
       have === 0
-        ? 'No steady rides with a power meter yet.'
+        ? 'No outdoor rides with a power meter and heart rate yet.'
         : `${counted(have, 'steady ride')} with a power meter so far.`,
     shown: (change) => change,
   },
@@ -173,15 +184,13 @@ function against(s: FitnessStatus, dated = false): string {
 function needsText(sport: Sport, s: Shortfall): string {
   const adapter = SPORT_ADAPTERS[sport]
   const w = WORDS[sport]
-  const earlier = `More earlier ${adapter.nounPlural} to see a trend.`
+  const earlier = `More ${w.earlier.plural} to see a trend.`
   switch (s.kind) {
     case 'history':
       if (s.have < s.need) {
-        return `${counted(s.need - s.have, `more earlier ${adapter.noun}`)} to see a trend.`
+        return `${counted(s.need - s.have, `more ${w.earlier.noun}`, `more ${w.earlier.plural}`)} to see a trend.`
       }
-      return s.weeks < s.needWeeks
-        ? `Earlier ${adapter.nounPlural} in ${counted(s.needWeeks - s.weeks, 'more week')} to see a trend.`
-        : earlier
+      return s.weeks < s.needWeeks ? w.weeks(s.weeks, s.needWeeks) : earlier
     case 'recent':
       return s.have < s.need
         ? `${counted(s.need - s.have, `more ${adapter.noun}`)} in the last ${s.weeks} weeks to see a trend.`
@@ -204,6 +213,8 @@ export interface FitnessLines {
   support: string
   /** What a trend needs, for a status that cannot call one; empty otherwise. */
   needs: string
+  /** The early trend of a ride waiting for its baseline, one line each; empty otherwise. */
+  early?: string[]
 }
 
 /**
@@ -218,14 +229,21 @@ function waitingLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
   }
   const level = s.level
   if (level === undefined) {
-    return { headline: w.none(s.steady), changes: [], support: '', needs: '' }
+    return {
+      headline: w.none(s.steady),
+      changes: [],
+      support: '',
+      needs: '',
+      ...(s.virtualOnly === true ? { early: [VIRTUAL_ONLY] } : {}),
+    }
   }
   const on = s.shortfall!.kind === 'break' ? ` in ${monthOf(level.toMs, s.asOfMs)}` : ''
   return {
     headline: `${w.level(level.value, system)} (${w.range(level.low, level.high, system)}) at ${s.referenceHr} bpm${on}.`,
     changes: [],
     support: `From ${counted(level.runs, w.steady)}.`,
-    needs: needsText(s.sport, s.shortfall!),
+    needs: earlyNeeds(s, s.shortfall!) || needsText(s.sport, s.shortfall!),
+    ...(s.early === undefined ? {} : { early: earlyLines(s) }),
   }
 }
 
