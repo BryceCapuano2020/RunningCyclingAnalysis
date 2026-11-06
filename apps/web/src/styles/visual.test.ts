@@ -154,7 +154,7 @@ describe('brand mark', () => {
   })
 
   it('rings the tile with the mark ring token', () => {
-    expect(rulesWith(iconsCss, '.brand-mark__tile')).toMatch(/stroke:\s*var\(--mark-ring\)/)
+    expect(rulesWith(iconsCss, '.brand-mark__tile')).toMatch(/stroke:\s*var\(--ink\)/)
   })
 })
 
@@ -187,9 +187,8 @@ describe('buttons and links', () => {
     )
   })
 
-  it('sets the pressed fills to the paper and ink tokens', () => {
-    expect(declared(tokens, ':root').get('surface-pressed')).toBe('var(--paper-pressed)')
-    expect(declared(tokens, ':root').get('accent-pressed')).toBe('var(--ink)')
+  it('sets the pressed fill to its own paper token', () => {
+    expect(declared(tokens, ':root').get('paper-pressed')).toBe('#eae7e1')
   })
 
   it('changes the primary button visibly on hover', () => {
@@ -211,13 +210,6 @@ describe('buttons and links', () => {
 
   it('keeps disclosure summaries at the body size, since they are controls', () => {
     expect(rulesWith(base, 'summary')).not.toMatch(/font-size/)
-  })
-})
-
-describe('colour tokens the chrome uses', () => {
-  it('sets the accent hover and the brand ring from the ink tokens', () => {
-    expect(declared(tokens, ':root').get('accent-hover')).toBe('var(--ink-hover)')
-    expect(declared(tokens, ':root').get('mark-ring')).toBe('var(--ink)')
   })
 })
 
@@ -390,12 +382,10 @@ describe('footer', () => {
 })
 
 describe('type scale', () => {
-  it('defines the small sizes, the tab label and the caps tracking as tokens', () => {
+  it('defines the small sizes and the metadata tracking as tokens', () => {
     expect(tokens).toMatch(/--text-sm:\s*0\.875rem/)
     expect(tokens).toMatch(/--text-md:\s*1\.0625rem/)
-    expect(tokens).toMatch(/--text-label:\s*var\(--text-sm\)/)
-    expect(tokens).toMatch(/--tracking-caps:/)
-    expect(tokens).toMatch(/--tracking-tab:\s*0\.02em/)
+    expect(tokens).toMatch(/--tracking-meta:\s*0\.12em/)
   })
 
   it('defines the 12 px size the charts and the level ladder use as a token', () => {
@@ -661,7 +651,7 @@ describe('global controls', () => {
 
   it('keeps the current Pager page filled on hover and press, as its rule outranks the generic button rules', () => {
     expect(rulesWith(pagerCss, ".pager .pager__page[aria-current='page']")).toMatch(
-      /background:\s*var\(--highlight\)/,
+      /background:\s*var\(--ink\)/,
     )
   })
 

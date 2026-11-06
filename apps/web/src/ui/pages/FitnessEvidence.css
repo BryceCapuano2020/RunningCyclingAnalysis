@@ -75,7 +75,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: 6px 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline);
   font-size: var(--text-sm);
 }
 
@@ -92,7 +92,7 @@
 .fitness-runs__date {
   flex: none;
   min-width: 4.5rem;
-  color: var(--text-secondary);
+  color: var(--ink-secondary);
 }
 
 .fitness-runs__name {

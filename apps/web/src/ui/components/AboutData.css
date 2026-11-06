@@ -1,7 +1,7 @@
 /* One quiet line with the notes under it. No frame: it is information, not a fault. */
 .about-data {
-  color: var(--text-secondary);
-  font-size: var(--text-label);
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
 }
 
 .about-data > summary {

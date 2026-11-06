@@ -18,7 +18,7 @@
 }
 
 .route-shape:focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--ink);
   outline-offset: 4px;
 }
 
@@ -36,7 +36,7 @@
 
 .route-shape__line {
   fill: none;
-  stroke: var(--sport-colour);
+  stroke: var(--sport-ink);
   stroke-width: 3px;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -58,22 +58,22 @@
 }
 
 .route-shape__start-ring {
-  stroke: var(--text-primary);
+  stroke: var(--ink);
   stroke-width: 14px;
 }
 
 .route-shape__start-fill {
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-width: 8px;
 }
 
 .route-shape__finish-halo {
-  stroke: var(--surface-1);
+  stroke: var(--paper);
   stroke-width: 14px;
 }
 
 .route-shape__finish {
-  stroke: var(--text-primary);
+  stroke: var(--ink);
   stroke-width: 10px;
 }
 
@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--text-muted);
+  color: var(--ink-secondary);
   font-size: var(--text-xs);
 }
 
@@ -89,7 +89,7 @@
   flex: 1 1 auto;
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--text-secondary), var(--ch-pace));
+  background: linear-gradient(to right, var(--ink-secondary), var(--ch-pace));
 }
 
 @media (forced-colors: active) {
