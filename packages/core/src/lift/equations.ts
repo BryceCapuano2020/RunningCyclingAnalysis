@@ -24,7 +24,10 @@ export function logSlope(reps: number): number {
   return (1 / (30 + reps) + 1 / (37 - reps) + LOMBARDI_EXPONENT / reps) / 3
 }
 
-/** Half the spread of the three equations at `reps`, as a share of the median (log-ish units). */
+/**
+ * Half the spread of the three equations at `reps`, as a share of the median (log-ish units). Zero at one
+ * rep or fewer, where the point is the load itself and the equations are not read.
+ */
 export function equationsSpread(reps: number): number {
   if (reps <= 1) return 0
   const e = [epley(1, reps), brzycki(1, reps), lombardi(1, reps)]
