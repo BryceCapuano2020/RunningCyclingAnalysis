@@ -45,7 +45,11 @@
   align-self: center;
 }
 
+/* A link standing alone is a target of its own: a control's height, 44 px on a phone (target-size.spec.ts). */
 .props__method {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   font-family: var(--font-serif);
   font-size: var(--text-md);
   color: var(--ink);
