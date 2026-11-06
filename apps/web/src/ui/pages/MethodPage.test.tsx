@@ -461,7 +461,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(
       /energy ratio|cross-check|90% model range|range does not/,
     )
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -494,7 +494,7 @@ describe('MethodPage energy view', () => {
     expect(
       screen.queryByText(wholeText(/^The 90% range for Run against Ride/)),
     ).not.toBeInTheDocument()
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -550,7 +550,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(
       /energy ratio|cross-check|90% model range|range does not/,
     )
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
   })
 
@@ -751,6 +751,11 @@ describe('MethodPage heart-rate check', () => {
         ),
       ),
     ).toBeInTheDocument()
+    expect(
+      within(section).getByText(
+        wholeText('Heart rate rises with energy rate at a different rate in each sport.'),
+      ),
+    ).toBeInTheDocument()
   })
 
   it('says what the heart-rate check does and does not do, in plain words first', () => {
@@ -926,7 +931,7 @@ describe('MethodPage without a weight', () => {
     )
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(within(section).queryByRole('list')).toBeNull()
     expect(section.textContent).not.toMatch(/90% range|cross-check|energy ratio|energy rate by/)
     expect(
@@ -1042,7 +1047,7 @@ describe('MethodPage without a weight', () => {
 
     const section = screen.getByRole('region', { name: 'Virtual power meter accuracy' })
     expect(within(section).queryByText(wholeText(/estimated power was within/))).toBeNull()
-    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(section.querySelector('figure')).toBeNull()
     expect(
       within(section).getByText(wholeText(/Rides without a power meter get an estimated power/)),
     ).toBeInTheDocument()
@@ -1095,7 +1100,7 @@ describe('MethodPage without a result', () => {
   it('shows one plain line under the energy view, where the charts would be, and no chart', () => {
     const { container } = renderPage(null)
 
-    expect(container.querySelector('details.method__evidence')).toBeNull()
+    expect(container.querySelector('figure')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
     expect(screen.getAllByText(wholeText('Add your files to see this evidence.'))).toHaveLength(1)
     expect(

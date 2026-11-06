@@ -297,6 +297,9 @@ export function MethodPage({
                 {`Heart rate is read in ${formatDuration(HR_BLOCK_S)} blocks of steady effort, taken after the first ${formatDuration(HR_SKIP_S)} of each activity.`}
               </li>
             )}
+            {hasResult && weightKnown && (
+              <li>Heart rate rises with energy rate at a different rate in each sport.</li>
+            )}
             {hardEfforts && (
               <>
                 <li>
