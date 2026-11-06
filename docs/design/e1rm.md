@@ -1,9 +1,9 @@
 # Estimated one-rep max (spec)
 
 Status: spec, nothing built. It follows the formula rule in [PROCESS.md](../PROCESS.md#formula-and-model-changes):
-this spec, the prototype numbers below, then an Opus science review, then code. The first review asked for
-changes (curve-centre coverage, the near-top rule, the floor clamp, the eval); this version makes them, and a
-second review reads it. Where lifting lives is settled in [strength.md](strength.md), and the evidence is in
+this spec, the prototype numbers below, then an Opus science review, then code. Two review rounds asked for
+changes (curve-centre coverage, the near-top rule, the floor clamp, the slope, the two tails, the eval); this
+version makes them. Where lifting lives is settled in [strength.md](strength.md), and the evidence is in
 [research/strength.md](../research/strength.md). This note holds no owner data. Every lifter here is synthetic.
 
 ## What it answers
@@ -48,8 +48,9 @@ in reserve. A set is eligible when `R <= 15`.
 - Lombardi `w R^0.10`
 
 **Error, in log units, split by whether it averages out over sessions.** The slope
-`s = ln(p(R + 0.5) / p(R - 0.5))` turns an error in reps into one in load (one-sided, `ln(p(R + 1) / p(R))`,
-when `R - 0.5 < 1`).
+`s = (1 / (30 + R) + 1 / (37 - R) + 0.1 / R) / 3`, the mean of the three equations' log-slopes, turns an error
+in reps into one in load. It is smooth in `R`; the slope of the median would jump where the median changes
+equation (near 5.8 and 7.3 reps).
 
 - Systematic, the same for every session of one lifter on one lift:
   - curve: `0.023 sqrt(R - 1)`. The lifter's own reps-to-load curve is not the equations' curve. Fitted to
@@ -92,12 +93,17 @@ Then, with `q` each session's share of the weights:
 - `point = sum(q p)`;
 - `sd = hypot(sum(q sys), sqrt(sum(q^2 ind^2)))`: the systematic part does not shrink with more sessions; the
   independent part does;
-- range `[point exp(-1.2816 sd), point exp(1.2816 sd)]`, an 80% range;
+- range `[point exp(-1.1 sd), point exp(1.5 sd)]`, an 80% range with more of it above the point. A symmetric
+  range missed above 11 to 23% of the time and below 0 to 3% (section 7): the error has a long upper tail, and
+  the high end is the figure an athlete tries to beat;
 - a lift the catalog puts in the deadlift family widens the top by 5% more, for LeSuer's under-estimate. An
   exercise the catalog does not know never gets it;
 - the floor bounds it: `point`, `low` and `high` are each at least the floor, so `floor <= low <= point <= high`.
 
-**Worked example,** one session of 100 kg for 5 at RPE 8: `R = 7.5`. The tests pin the exact figures from code.
+**Worked example,** one session of 100 kg for 5 at RPE 8, by hand: `R = 5 + 1.25 x 2 = 7.5`; Epley 125.00,
+Brzycki 122.03, Lombardi 122.32 kg, so `p = 122.32`; `s = 0.02463`; curve 0.05864, centre 0.02600, equations
+0.01214, effort 0.01232, so `sys = 0.06644`; day 0.042 and RPE noise 0.02463, so `ind = 0.04869`;
+`sd = 0.08237`; range 111.7 to 138.4 kg. The unit test pins these hand figures.
 
 ## 3. Floor and rep bests
 
@@ -173,7 +179,7 @@ reserve. Each day's strength varies by 4.2%. Each earlier set costs 0.7 of a rep
 - deloads every fourth week, unflagged warm-ups and a 6-week break;
 - deadlift, at a curve centre of 7 (LeSuer's direction);
 - novice, gaining 1.5% a week;
-- a 5% loss over two weeks, scored from 2 to 4 weeks after it;
+- a 5% loss over two weeks, scored from 2 to 4 weeks after it, with and without RPE;
 - misspecified: a third curve shape (`f = R^-p`, Lombardi's family), 50% under-prediction and a day SD of 6%,
   none of which the estimator assumes.
 
@@ -183,49 +189,56 @@ tuning seeds and checked on held-out seeds.
 
 | Scenario (held-out)  |  Bias | 90th pct error | In range | True above range | True below | Range width |
 | -------------------- | ----: | -------------: | -------: | ---------------: | ---------: | ----------: |
-| strength 1 to 5      | +0.1% |           9.4% |  86 ± 6% |              14% |         1% |         13% |
-| hypertrophy 8 to 12  |  0.0% |          18.1% |  85 ± 7% |              15% |         1% |         25% |
-| high reps 12 to 15   | -0.6% |          20.7% |  86 ± 7% |              14% |         0% |         31% |
-| mixed 1 to 15        | -0.1% |          13.8% |  84 ± 6% |              15% |         1% |         19% |
-| no RPE               | +0.9% |          13.5% |  86 ± 7% |              13% |         1% |         20% |
-| half RPE, to failure | +2.1% |          12.2% |  86 ± 6% |              11% |         3% |         19% |
-| noisy RPE            | -1.7% |          15.6% |  79 ± 7% |              21% |         0% |         17% |
-| deload and break     | -0.3% |          12.2% |  83 ± 6% |              16% |         1% |         16% |
-| deadlift             | -2.6% |          14.7% |  82 ± 7% |              18% |         0% |         19% |
-| novice               | -1.6% |          14.6% |  81 ± 7% |              19% |         0% |         17% |
-| 5% loss              |  0.0% |          13.2% |  83 ± 7% |              15% |         2% |         16% |
-| misspecified         | -4.5% |          10.4% |  77 ± 6% |              23% |         0% |         15% |
+| strength 1 to 5      |  0.0% |           9.4% |  87 ± 6% |              12% |         2% |         14% |
+| hypertrophy 8 to 12  |  0.0% |          18.1% |  86 ± 6% |              13% |         1% |         26% |
+| high reps 12 to 15   | -0.6% |          20.7% |  87 ± 6% |              12% |         1% |         32% |
+| mixed 1 to 15        | -0.2% |          14.0% |  85 ± 6% |              13% |         2% |         20% |
+| no RPE               | +0.9% |          13.5% |  88 ± 6% |              11% |         1% |         20% |
+| half RPE, to failure | +2.1% |          12.3% |  81 ± 6% |              10% |         9% |         19% |
+| noisy RPE            | -1.6% |          15.6% |  82 ± 7% |              17% |         1% |         18% |
+| deload and break     | -0.3% |          12.3% |  85 ± 6% |              13% |         2% |         16% |
+| deadlift             | -2.6% |          14.8% |  84 ± 6% |              16% |         1% |         20% |
+| novice               | -1.5% |          14.5% |  84 ± 7% |              15% |         0% |         18% |
+| 5% loss              | +0.3% |          13.3% |  83 ± 7% |              13% |         4% |         17% |
+| 5% loss, no RPE      | +2.6% |          13.8% |  81 ± 7% |              10% |         9% |         21% |
+| misspecified         | -4.5% |          10.4% |  84 ± 5% |              16% |         0% |         16% |
 
-Pooled, 83% of held-out ranges hold the truth (82% on tuning seeds). Bias is the median signed error. Width is
-the range over the truth. Without the deadlift's extra 5%, the deadlift scenario holds 69%.
+Pooled, 84% of held-out ranges hold the truth (84% on tuning seeds). Bias is the median signed error. Width is
+the range over the truth. Without the deadlift's extra 5%, the deadlift scenario holds 72%. Every figure here
+comes from the prototype's raw tables, kept with the stage notes.
 
 **Alternatives, same held-out lifters:**
 
-| Rule                                                                                  | Pooled in range | Weakest scenario | Bias          | Width     |
-| ------------------------------------------------------------------------------------- | --------------: | ---------------- | ------------- | --------- |
-| This spec                                                                             |             83% | misspecified 77% | -4.5 to +2.1% | 13 to 31% |
-| Research note: highest set point, range from the highest low and highest high, cap 15 |             94% | 5% loss 87%      | +2.8 to +9.6% | 25 to 44% |
-| This spec, cap 10                                                                     |             79% | high reps 63%    | -5.7 to +1.7% | 13 to 22% |
-| This spec, near-top weight on every session                                           |             86% | 5% loss 74%      | +0.9 to +4.4% | 16 to 33% |
-| This spec, no under-prediction term (`R = reps + k`)                                  |             81% | misspecified 72% | -5.2 to +1.5% | 12 to 31% |
+| Rule                                                                                  | Pooled in range | Weakest scenario     | Bias          | Truth above | Width     |
+| ------------------------------------------------------------------------------------- | --------------: | -------------------- | ------------- | ----------- | --------- |
+| This spec                                                                             |             84% | 5% loss, no RPE, 81% | -4.5 to +2.6% | 10 to 17%   | 14 to 32% |
+| Same, symmetric range (z 1.28 both sides)                                             |             83% | misspecified 77%     | -4.5 to +2.6% | 11 to 23%   | 13 to 31% |
+| Research note: highest set point, range from the highest low and highest high, cap 15 |             94% | 5% loss 87%          | +2.8 to +9.6% | 0 to 9%     | 25 to 44% |
+| This spec, cap 10                                                                     |             81% | high reps 67%        | -5.7 to +2.6% | 10 to 26%   | 14 to 22% |
+| This spec, near-top weight on every session                                           |             80% | 5% loss 65%          | +0.9 to +4.5% | 2 to 11%    | 17 to 34% |
+| This spec, no under-prediction term (`R = reps + k`)                                  |             83% | noisy RPE 80%        | -5.1 to +2.6% | 10 to 20%   | 13 to 33% |
 
 - The research note's rule picks the luckiest set: it reads high everywhere and its range is wide.
 - A cap of 10 applied after reading RPE lets through only the sets whose reserve was under-reported, so high
   reps read 5.7% low.
 - The near-top weight on sessions with RPE kept the lucky ones and hid the low bias of RPE; it also held the
   old level after a loss.
+- The under-prediction term moves little once the slope is smooth. It stays because Halperin gives its
+  direction, and it lifts the weakest scenario.
 
 **Sensitivity to where real lifters sit,** held-out, with every lifter at one fixed centre:
 
-|                                 Centre (reps at 80%) | Pooled in range | Bias range    | Weakest scenario  |
-| ---------------------------------------------------: | --------------: | ------------- | ----------------- |
-| 7.0 (fewer reps per load, like LeSuer's deadlifters) |             69% | -6.8 to -1.5% | noisy RPE, 63%    |
-|                                                  8.5 |             86% | -4.4 to +2.2% | misspecified, 80% |
-|        10.0 (more reps per load, like Nuzzo's means) |             93% | -3.2 to +5.0% | half RPE, 88%     |
+|                                 Centre (reps at 80%) | Pooled in range | Bias range    | Weakest scenario         |
+| ---------------------------------------------------: | --------------: | ------------- | ------------------------ |
+| 7.0 (fewer reps per load, like LeSuer's deadlifters) |             74% | -6.8 to -1.5% | noisy RPE, 68%           |
+|                                                  8.5 |             88% | -4.4 to +3.0% | noisy RPE, 85%           |
+|        10.0 (more reps per load, like Nuzzo's means) |             89% | -3.3 to +6.1% | 5% loss with no RPE, 72% |
 
-If real lifters do fewer reps per load than the equations assume, the ranges are too narrow and the estimate
-reads low. Covering a centre of 7 as well would widen every range by about a third. The answer is the check on
-the athlete's own data in section 10, not a wider range for everyone.
+The 80% holds under the spec's own prior on where real lifters sit, normal(8.5, 1). The drawn-centre eval
+checks the spec against that prior; only the fixed-centre table tests outside it. If real lifters do fewer reps
+per load than the equations assume, the ranges are too narrow and the estimate reads low. A centre term of
+`0.008 (R - 1)` lifts centre 7 to 78% pooled and widens every range. The own-data check in section 10 decides
+whether to make that change.
 
 ## 8. Calibration evals
 
@@ -234,8 +247,10 @@ held-out seeds with the drawn centre, and fails when:
 
 - pooled coverage leaves 80% to 90%;
 - any scenario's coverage falls under 75%;
-- any scenario's median bias leaves -5% to +5%;
-- the 5% loss scenario's coverage, 2 to 4 weeks after the loss, falls under 75%;
+- any scenario's truth-above share passes 20%, or the pooled one passes 15%;
+- any scenario's median bias leaves -5% to +5%, except the misspecified one, held to -8% to +8% because it is
+  built to break the spec's assumptions;
+- either 5% loss scenario's coverage, 2 to 4 weeks after the loss, falls under 75%;
 - any estimate breaks `floor <= low <= point <= high`, or any figure is not finite.
 
 It also prints the fixed-centre table, so a change that moves it shows in the log.
@@ -262,8 +277,9 @@ underlying max.
 | RPE noise SD                |                                        `0.5 + 0.25 k` reps | Halperin 2022 shape; size a design value               |
 | Window                      |                                                    56 days | Research note                                          |
 | Recency half-life           |                                                    14 days | Design value                                           |
+| Slope `s`                   |                          mean of the equations' log-slopes | Second review                                          |
 | Near the top (no RPE only)  |                              0.96, 0.015, top from 28 days | threshold.md                                           |
-| Range                       |                                             80% (z 1.2816) | Design value                                           |
+| Range                       |                                80%: z 1.1 below, 1.5 above | Design value                                           |
 | Deadlift top                |                                                        +5% | LeSuer direction; size from the deadlift scenario      |
 | Allometric exponent         |                                                       0.67 | Jaric 2002                                             |
 | Mass SD                     | 0.01 + 0.005 per 30 days, at most 0.04; none past 365 days | Design value                                           |
@@ -275,7 +291,11 @@ decision 3).
 
 ## 10. Open
 
-- Which curve centre real lifters sit at (section 7). Once the athlete has logged for a while, predict each heavy
-  single from the sets before it and count how often it lands within `hypot(sd, 0.042)`. Run it as the first
-  check after release, before the estimate leads anything.
+- Which curve centre real lifters sit at (section 7). The check on the athlete's own data: every set at RPE 9.5
+  or higher, or taken to failure, is an event. Predict its reps from the estimate made before its day, with the
+  range widened by the day's variation (`hypot(sd, 0.042)` in load, turned into reps through `s`), and count
+  how often the reps done land in it. Heavy singles alone are too rare: at 20 events coverage has an SE of
+  about 9 points. Rule: after 30 events, if coverage is under 70% and most misses are above the range, move the
+  centre term to `0.008 (R - 1)`; if over 92%, take it down to `0.002 (R - 1)`. Either change is a new
+  `LIFT_REVISION` and a ledger row. Run it before the estimate leads anything.
 - The sizes of the effort terms (`0.25 k` both ways): Halperin gives the direction and a pooled mean only.
