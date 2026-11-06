@@ -49,10 +49,9 @@ volt, card and dark-mode system with this one.
 | `--status-warning`  | `#8a5300`   | A warning's words, always with a label                                                |
 | `--status-good`     | `#17753a`   | A success's words, always with a label                                                |
 
-**Old names.** Until each page moves to this system, the old token names (`--surface-0`, `--text-primary`, `--series-run`,
-`--brand`, `--highlight` and the rest) stay in one block at the foot of `tokens.css`, each a `var()` of a token above, so
-every page takes the paper look at once. A page's pull request moves its sheets to the new names, and the last one deletes
-the block. `tokens.test.ts` fails an old name that holds a value of its own.
+**Retired names.** The names of the volt system (`--surface-0`, `--text-primary`, `--series-run`, `--brand`, `--highlight`,
+`--radius-sm`, `--font-display` and the rest) were `var()` aliases of these tokens while the pages moved, and are gone.
+`tokens.test.ts` fails any sheet or source that declares or reads one.
 
 The zone ramps (`--zone-run-n`, `--zone-ride-n`, `--zone-ride-long-n` and their inks) and the activity page's channels
 (`--ch-*`) keep their light values and their tests. They are data, so they are the one place a page shows a range of colour.

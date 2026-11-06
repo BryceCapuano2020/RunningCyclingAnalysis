@@ -36,11 +36,8 @@ describe('the layout tokens', () => {
     expect(tokens.get('rail-width')).toBe('12rem')
     expect(tokens.get('measure')).toBe('36rem')
     expect(tokens.get('radius')).toBe('8px')
-    // The old small radius is the same token, so there is one corner for every box.
-    expect(tokens.get('radius-sm')).toBe('var(--radius)')
     expect(tokens.get('section-gap')).toBe('var(--space-7)')
     expect(tokens.get('stack-gap')).toBe('var(--space-5)')
-    expect(tokens.get('radius-pill')).toBe('999px')
   })
 
   it('size the header, the tabs and every page from the one shell width', () => {
@@ -66,9 +63,8 @@ describe('the layout tokens', () => {
     expect(capped.sort()).toEqual([...PENDING_CH_CAPS].sort())
   })
 
-  it('have no shadow: the old names are none, and no sheet blurs one', () => {
-    expect(tokens.get('shadow-pop')).toBe('none')
-    expect(tokens.get('shadow')).toBe('none')
+  it('have no shadow: no shadow token, and no sheet blurs one', () => {
+    expect([...tokens.keys()].filter((name) => name.includes('shadow'))).toEqual([])
     for (const { path, css } of sheets) {
       // A ring is a shadow with no offset or blur; anything with a blur radius is a lift.
       expect(css, path).not.toMatch(/box-shadow:\s*(inset\s+)?-?\d+(px)?\s+-?\d+(px)?\s+[1-9]\d*px/)
