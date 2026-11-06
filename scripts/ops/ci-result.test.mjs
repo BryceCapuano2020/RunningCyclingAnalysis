@@ -84,6 +84,8 @@ test('a pull request over 800 lines needs the integration label, read when the j
   assert.match(size, /^ {4}needs: changes$/m)
   assert.match(size, /draft != 'true' && github\.event_name == 'pull_request'/)
   assert.match(size, /':\(exclude\)package-lock\.json'/)
+  // A file deleted whole is not counted.
+  assert.match(size, /--numstat --no-renames --diff-filter=d /)
   assert.match(size, /if \[ "\$lines" -le 800 \]; then exit 0; fi/)
   assert.match(size, /gh api "repos\/\$GITHUB_REPOSITORY\/issues\/\$PR\/labels"/)
   assert.doesNotMatch(size, /grep -q/, 'grep -q can exit early and trip pipefail')

@@ -430,8 +430,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # Captured first, so a failing diff stops the job instead of counting as no lines.
-          numstat=$(git diff --numstat --no-renames HEAD^1 HEAD -- . ':(exclude)package-lock.json')
+          # Captured first, so a failing diff stops the job instead of counting as no lines. A file deleted whole
+          # is not counted (--diff-filter=d): there is nothing in it to review line by line, and deleting code is
+          # the point of a pull request that does it (docs/PROCESS.md, CI).
+          numstat=$(git diff --numstat --no-renames --diff-filter=d HEAD^1 HEAD -- . ':(exclude)package-lock.json')
           lines=$(printf '%s\n' "$numstat" | awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')
           echo "Changed lines, package-lock.json aside: $lines"
           if [ "$lines" -le 800 ]; then exit 0; fi
