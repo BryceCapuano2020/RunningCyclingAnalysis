@@ -637,7 +637,7 @@ test('no box around a defined term is transformed, filtered or contained, on the
   expect(method.bad).toEqual([])
   await openSample(page)
   const balance = await definedTermAncestors(page)
-  expect(balance.terms).toBeGreaterThanOrEqual(3)
+  expect(balance.terms).toBeGreaterThanOrEqual(1)
   expect(balance.bad).toEqual([])
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)

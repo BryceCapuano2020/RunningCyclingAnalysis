@@ -46,10 +46,13 @@ test('Custom applies the two days entered, and the caption dates the period they
   await form.getByLabel('From').fill('2000-01-01')
   await form.getByLabel('To').fill('2000-01-02')
   // The range applies on Apply, so the caption still dates the period on screen until then.
-  await expect(page.locator('.range-picker__dates')).not.toHaveText('1 Jan – 2 Jan 2000')
+  const dates = page.locator('.balance-hero .props__row', { hasText: /^Period/ }).locator('dd')
+  await expect(dates).not.toHaveText('1 Jan – 2 Jan 2000')
   await form.getByRole('button', { name: 'Apply' }).click()
-  await expect(page.locator('.range-picker__dates')).toHaveText('1 Jan – 2 Jan 2000')
-  await expect(page.locator('.range-picker__count')).toHaveText(/^0 of \d+ activities$/)
+  await expect(dates).toHaveText('1 Jan – 2 Jan 2000')
+  await expect(
+    page.locator('.balance-hero .props__row', { hasText: /^Activities/ }).locator('dd'),
+  ).toHaveText(/^0 of \d+$/)
   await expect(period.getByRole('radio', { name: 'Custom' })).toBeChecked()
 })
 
@@ -201,10 +204,13 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await period.getByText('6 wk', { exact: true }).click()
   // The count is in the answer's Details, one press down.
   await page.locator('.balance-hero .page-details > summary').click()
-  await expect(page.getByText(/^\d+ of \d+ activities$/)).toBeVisible()
+  const activities = page
+    .locator('.balance-hero .props__row', { hasText: /^Activities/ })
+    .locator('dd')
+  await expect(activities).toHaveText(/^\d+ of \d+$/)
   await period.getByText('All', { exact: true }).click()
-  // The count leaves the caption once the pick is answered; a slow runner can still be applying it.
-  await expect(page.getByText(/^\d+ of \d+ activities$/)).toHaveCount(0)
+  // The row gives the whole count once the pick is answered; a slow runner can still be applying it.
+  await expect(activities).toHaveText(/^\d+$/)
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
 })
 
