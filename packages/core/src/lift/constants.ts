@@ -59,3 +59,20 @@ export const DEADLIFT_EXTRA_HIGH = 0.05
 
 /** Rep bests run from 1 to this many reps. */
 export const REP_BEST_MAX = 15
+
+/** Allometric exponent for body mass: Jaric 2002. */
+export const ALLOMETRIC_EXPONENT = 0.67
+
+/** Mass error in log units: base, plus per 30 days since the entry, at most the cap. Design value (e1rm.md, section 4). */
+export const MASS_SD_BASE = 0.01
+export const MASS_SD_PER_30_DAYS = 0.005
+export const MASS_SD_MAX = 0.04
+
+/** A mass entry further than this from the estimate's date is not used. */
+export const MASS_MAX_AGE_DAYS = 365
+
+/** A working set at this RPE or higher is a hard set (3 or fewer in reserve). Design value. */
+export const HARD_RPE = 7
+
+/** An unmarked set lighter than this share of the session's top load, before the top set, is a warm-up. Design value. */
+export const WARMUP_SHARE = 0.7
