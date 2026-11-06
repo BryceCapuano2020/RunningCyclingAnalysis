@@ -19,11 +19,6 @@ import './BalanceOverYearsChart.css'
 export interface BalanceOverYearsChartProps {
   /** One view for each calendar year from the first with a best to the last, with at least one grade among them. */
   views: readonly YearView[]
-  /**
-   * Whether the page already says the latest grades, as the home page's levels row does just above. A phone's readout
-   * row then only says how to read a point, since the latest year would repeat that row.
-   */
-  levelsShown?: boolean
 }
 
 /**
@@ -32,7 +27,7 @@ export interface BalanceOverYearsChartProps {
  * hollow for one that was not all-out, which the tooltip and the chart's description say and the key and the table
  * do not.
  */
-export function BalanceOverYearsChart({ views, levelsShown = false }: BalanceOverYearsChartProps) {
+export function BalanceOverYearsChart({ views }: BalanceOverYearsChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const height = useChartHeight()
   const layoutOf = sizedOnce((size: ChartSize) => yearsLayout(views, size))
@@ -44,7 +39,7 @@ export function BalanceOverYearsChart({ views, levelsShown = false }: BalanceOve
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       legend={legendOf(views)}
-      idleReadout={levelsShown ? undefined : idleOf(views)}
+      idleReadout={idleOf(views)}
       table={tableOf(views)}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>

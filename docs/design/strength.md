@@ -1,7 +1,8 @@
 # Strength: where lifting lives
 
-Status: designed, nothing built. Stage F builds it (see [README.md](README.md)). The estimator, error
-bands and equipment rules are in [research/strength.md](../research/strength.md). This record settles
+Status: designed; stage X builds the core and the data layer, with no screens (see [README.md](README.md)). The
+estimator is specified in [e1rm.md](e1rm.md), from the evidence in [research/strength.md](../research/strength.md).
+The record, storage and sync are in [lift-data.md](lift-data.md). This record settles
 where lifting sits in the types, the storage and the screens, so the build does not reopen it.
 
 Principle: lifting has no shared currency with running and riding. Its numbers keep their own units,
@@ -85,12 +86,16 @@ Each of these is a line item with its own test, so none is found at the gate.
 - Account export: bump `EXPORT_VERSION` in `export/accountExport.ts`, since sets are the athlete's data.
 - Privacy wording: the privacy tests name every new column (`privacyDigestFields.test.ts`,
   `privacyPage.test.ts`), and the page says what is stored.
-- `libraryRevision` in `routes/me.ts` gains a lift term, so another tab sees a lift change.
+- `/api/me` gains `liftRevision` beside `libraryRevision`, so another tab sees a lift change without reloading
+  the activity library ([lift-data.md](lift-data.md), section 2).
 - Account deletion cascades already. The new table takes the same user foreign key with a cascade.
 
-## 4. Open
+## 4. Settled questions
 
-- Whether a re-import of a set with the same date, exercise and set order replaces the stored set or
-  keeps it.
-- The names of the two `timePrecision` values, and whether a CSV with a session time can set them.
-- Whether the connector may save lift logs (ROADMAP.md, Phase 3).
+Each is logged with its reasons and how to reverse it in [decisions](decisions/):
+
+- A re-import of a set with the same date, exercise and set order replaces the stored set
+  ([lift-reimport.md](decisions/lift-reimport.md)).
+- `timePrecision` is `set` or `session`; a CSV may set `session` only ([lift-time-precision.md](decisions/lift-time-precision.md)).
+- The connector may not save lift logs yet ([lift-connector-writes.md](decisions/lift-connector-writes.md)).
+- The set key is date, exercise, equipment and set order across the day ([lift-set-key.md](decisions/lift-set-key.md)).
