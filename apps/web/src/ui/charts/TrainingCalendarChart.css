@@ -1,9 +1,9 @@
 /*
- * The ramp is one hue in five steps, each a clear step from the one before. Neutral (All) mixes its ink into --surface-0
+ * The ramp is one hue in five steps, each a clear step from the one before. Neutral (All) mixes its ink into --paper
  * for four tints and ends on the ink. A sport's colour is too close in lightness to its neighbours for that, so its
- * last two steps deepen it toward --text-primary (darker in light, lighter in dark). No training is the plain
- * --surface-2 cell. The first step keeps 2:1 against it for every ink in both schemes, and each step is darker (lighter,
- * in dark) than the one before by a clear margin; TrainingCalendarChart.css.test.ts checks both from these values.
+ * last two steps deepen it toward --ink. No training is the plain --paper-hover cell. The first step keeps 2:1 against
+ * it for every ink, and each step is darker than the one before by a clear margin; TrainingCalendarChart.css.test.ts
+ * checks both from these values.
  */
 .calendar {
   --calendar-ink: var(--ink-secondary);

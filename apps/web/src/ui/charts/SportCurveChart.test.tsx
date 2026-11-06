@@ -200,7 +200,7 @@ describe('SportCurveChart', () => {
       expect(container.querySelectorAll('[data-testid="sport-curve-line"]')).toHaveLength(1)
       const area = container.querySelector('.chart-series__area')
       expect(area).toHaveClass(`chart-series__area--${sport}`)
-      // The wash takes its colour from --sport-colour, which data-sport sets for the sport.
+      // The wash takes its colour from --sport-ink, which data-sport sets for the sport.
       expect(area).toHaveAttribute('data-sport', sport)
       expect(area?.getAttribute('d')).toMatch(/Z$/)
       unmount()
