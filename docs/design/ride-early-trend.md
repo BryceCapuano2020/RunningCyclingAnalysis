@@ -29,24 +29,23 @@ The owner's standing direction: lead with the best estimate when the data can gi
 
 For rides only, `hr-spike` no longer drops a ride that passes all three of these:
 
-1. Its spike flags cover at most `maxSpikeShare` (2%) of its moving time. One merged flag (a reading over 230 bpm, or jumps
-   less than 10 s apart) can run for minutes, so the cap is on flagged seconds, not on the number of flags. A failing sensor
-   fails it.
-2. The five-minute blocks that overlap a flagged second, or start within `HR_BLOCK_S` of one, are left out. A strap reads
-   wrong just beside a spike as well as during it: a dry strap reads low, and a low reading inflates power at heart rate.
-3. At least `minCleanBlocks` (3) blocks within 20 bpm of the reference are left. With two, the ride's heart rate is the mean
-   of two blocks, and one block 10 bpm low moves the ride by about 3.5% (prototype, below).
+1. At most `maxSpikesPerHour` (1) spike flag per started hour of moving time.
+2. Its spike flags cover at most `maxSpikeShare` (2%) of its moving time. One merged flag (a reading over 230 bpm, or jumps
+   less than 10 s apart) can run for minutes, so the seconds are capped as well as the count. A failing sensor fails both.
+3. At least `minSpikedBlocks` (3) blocks within 20 bpm of the reference. The ride's value stays the unit's own: the median
+   heart rate and the median power of those blocks, moved to the reference by `beta`. With two blocks a median is their mean,
+   and one block 10 bpm low moves the ride by about 3.5%; with three or more, one bad block is out-voted, though not fully
+   (prototype, below).
 
-Inside the blocks the spike samples stay masked, as now. `hr-cadence-lock` and `hr-dropout` still drop the ride: a lock is a
-heart rate of no use for the whole stretch it covers, and the prototype gave no case for relaxing either.
-
-Rule 2 needs each block's start second. `DigestHrBlock` has none today, so the build adds `startS` to it (a digest
-revision). A ride digested before that revision keeps today's rule until it is read again.
+Inside the blocks the spike samples stay masked, as now. The blocks beside a flag are kept: leaving them out needs each
+block's start second in the digest, a digest revision this stage does not make. `hr-cadence-lock` and `hr-dropout` still
+drop the ride: a lock is a heart rate of no use for the whole stretch it covers, and the prototype gave no case for
+relaxing either.
 
 Precedent: intervals.icu detects heart-rate spikes and replaces them with a line between the readings either side, keeping
 the activity ([forum, "Heartrate spikes now automatically fixed"](https://forum.intervals.icu/t/heartrate-spikes-now-automatically-fixed/174)).
 TrainingPeaks computes efficiency factor on the whole file ([help: Aerobic Decoupling and Efficiency Factor](https://help.trainingpeaks.com/hc/en-us/articles/204071724-Aerobic-Decoupling-and-Efficiency-Factor)).
-Neither drops a ride for one spike. Both keep the seconds beside it, which rule 2 does not.
+Neither drops a ride for one spike.
 
 ### 2. An early trend while there is no baseline
 
@@ -86,16 +85,17 @@ card, which reads changes of a few per cent, cannot take that noise. The card sa
 
 ## Constants
 
-| Constant              | Value | Where                   | Why                                                                                             |
-| --------------------- | ----- | ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `ride.maxSpikeShare`  | 0.02  | new, `FITNESS.ride`     | Room for a few isolated spikes in any ride; a merged flag of minutes or a failing sensor fails. |
-| `ride.minCleanBlocks` | 3     | new, `FITNESS.ride`     | A median of three, so one block beside a flag cannot set the ride's heart rate.                 |
-| `early.minGroup`      | 3     | new, `FITNESS.early`    | The fewest rides `levelOf` takes a median of (`display.levelMinRuns`).                          |
-| `early.maxGroup`      | 6     | new                     | Sweep below: 3 widens the range, 10 spreads the groups in time and shrinks the estimate.        |
-| `early.minApartDays`  | 14    | new                     | Two weeks, as the monitor's `minRecentWeeks`; 21 changed nothing in the sweep.                  |
-| window                | 44 wk | `monitor.refStartWeeks` | The monitor's own window.                                                                       |
-| range                 | 90%   | `display.rangeZ`        | The app's one range.                                                                            |
-| model-error floor     | 2%    | `monitor.rangeTau`      | Once per group (step 4). It equals rideSim's own wander, so it is a floor, not a margin.        |
+| Constant                | Value | Where                   | Why                                                                                      |
+| ----------------------- | ----- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `ride.maxSpikesPerHour` | 1     | new, `FITNESS.ride`     | An isolated spike; a failing sensor spikes far more often.                               |
+| `ride.maxSpikeShare`    | 0.02  | new, `FITNESS.ride`     | A merged flag of minutes fails it.                                                       |
+| `ride.minSpikedBlocks`  | 3     | new, `FITNESS.ride`     | A median of three or more, so one block cannot set the ride's heart rate alone.          |
+| `early.minGroup`        | 3     | new, `FITNESS.early`    | The fewest rides `levelOf` takes a median of (`display.levelMinRuns`).                   |
+| `early.maxGroup`        | 6     | new                     | Sweep below: 3 widens the range, 10 spreads the groups in time and shrinks the estimate. |
+| `early.minApartDays`    | 14    | new                     | Two weeks, as the monitor's `minRecentWeeks`; 21 changed nothing in the sweep.           |
+| window                  | 44 wk | `monitor.refStartWeeks` | The monitor's own window.                                                                |
+| range                   | 90%   | `display.rangeZ`        | The app's one range.                                                                     |
+| model-error floor       | 2%    | `monitor.rangeTau`      | Once per group (step 4). It equals rideSim's own wander, so it is a floor, not a margin. |
 
 ## States and copy
 
@@ -151,19 +151,22 @@ Every seasonal row is over the 12% budget at every phase (best: 18%, at the peak
 On one week end, not held, the worst row reaches 59%. The meter starting 7 weeks before the
 season's fall is the worst phase; 7 weeks before its rise is 1 to 10 points under it.
 
-Spikes, one ride in four carrying one spike flag, 130 weeks, 40 libraries. The spiked rides' level against the clean rides of
-the same library, less the same contrast in the twin library without the artefact:
+Spikes, one ride in four carrying one spike flag and one block 10 bpm off, at the middle heart rate of the ride's blocks
+(where it moves the median most), 130 weeks, 40 libraries. The spiked rides' level against the clean rides of the same
+library, less the same contrast in the twin library without the artefact. "Today" drops every spiked ride.
 
-| Artefact on a spiked ride                            | Today        | v1 (spike count only) | Rules 1 to 3 |
-| ---------------------------------------------------- | ------------ | --------------------- | ------------ |
-| Middle block 10 bpm low, beside the flag (dry strap) | ride dropped | +3.0%                 | −0.3%        |
-| Middle block 10 bpm high, beside the flag            | ride dropped | −3.0%                 | −0.3%        |
-| Two in-band blocks, one 10 bpm low beside the flag   | ride dropped | +3.6%                 | ride dropped |
-| One merged flag of 400 s in a 90-min ride            | ride dropped | +3.0%                 | ride dropped |
-| Middle block 10 bpm low, away from any flag          | ride dropped | +3.0%                 | +3.0%        |
+| In-band blocks a ride | 10 bpm low (dry strap) | 10 bpm high (settling) |
+| --------------------- | ---------------------- | ---------------------- |
+| 2                     | +3.6%, ride dropped    | ride dropped           |
+| 3 (135 to 155 bpm)    | +2.0%                  | −2.0%                  |
+| 4 (130 to 160 bpm)    | +1.0%                  | −1.0%                  |
+| 5 (125 to 165 bpm)    | +3.0%                  | −3.0%                  |
+| 8 (128 to 163 bpm)    | +1.0%                  | −0.5%                  |
 
-The last row is a dry strap with no spike near it. Today's rule has the same exposure on every ride without a flag, and
-neither rule can see it.
+A 400 s merged flag in a 90-minute ride, or two flags in an hour, drops the ride. A median of the blocks each moved to the
+reference first did no better (+1.8%, +1.4% and +0.7% at 3, 4 and 8 blocks), so the unit is not changed. The shift is under
+the spread of one ride (2% to 4.5%) and touches only the spiked rides; a long ride has tens of blocks. The same artefact
+with no spike near it is in today's data on every ride, and no rule sees it.
 
 ## False-trend risk
 
@@ -178,7 +181,9 @@ neither rule can see it.
   step the data cannot tell from fitness.
 - **Route and riding.** The ride unit has no steadiness test. Solo rides first and group rides later can differ. Groups of
   6 dilute one odd ride; the clip in `levelOf` holds a far one.
-- **Spikes.** Rules 1 to 3 remove the artefact beside a flag. One away from every flag is unseen, as today.
+- **Spikes.** A wrong reading beside a flag stays in the ride's blocks and moves a spiked ride by up to 3% (table above),
+  low readings up. A rider whose spiked rides cluster in one stretch (a dry strap every winter morning) can read a small
+  rise. Leaving those blocks out waits for a digest revision.
 
 ## Acceptance tests (the build pull request's calibration case)
 
@@ -189,8 +194,9 @@ neither rule can see it.
 3. The fixed-seed golden estimate: +4.21% (−0.94% to +9.63%) from groups of 6, to 0.01 points.
 4. A 5% rise or slip over 12 weeks: the median estimate within 1 point of the planted change between the groups' median
    weeks; a 10% rise: the range above zero in at least 65%.
-5. The low artefact: the dry-strap row reads within 0.5 points of its twin; the two-block row and the 400 s merged flag
-   drop the ride; a ride with a cadence lock or a dropout stays out.
+5. The low artefact: one block 10 bpm low on one ride in four, at 3, 4 and 8 blocks, moves the spiked rides by at most
+   2.5 points (observed 2.0, 1.0, 1.0); a ride with 2 in-band blocks, two flags in an hour or a 400 s merged flag stays
+   out; a ride with a cadence lock or a dropout stays out.
 6. Virtual-power rides added to a library change nothing it says.
 7. A rider back after 60 weeks away: the first group comes from the return.
 8. With a baseline the early trend is absent, and every status matches today's (an identity test on the full-history rider).
