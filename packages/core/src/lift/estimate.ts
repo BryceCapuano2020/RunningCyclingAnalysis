@@ -14,7 +14,7 @@ import {
   Z_HIGH,
   Z_LOW,
 } from './constants'
-import { setEstimate } from './setEstimate'
+import { repsToFailure, setEstimate } from './setEstimate'
 import type { SetEstimate } from './setEstimate'
 import type { LiftSet } from './types'
 
@@ -144,7 +144,7 @@ export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstim
   let end = -Infinity
   sets.forEach((s, i) => {
     const d = allDays[i] as number
-    if (d <= bound && d > end && setEstimate(s)) end = d
+    if (d <= bound && d > end && repsToFailure(s) !== null) end = d
   })
   if (end === -Infinity) return null
   const win = windowEndingAt(sets, allDays, end)

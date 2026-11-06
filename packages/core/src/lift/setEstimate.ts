@@ -54,25 +54,24 @@ export function isLoadedWorkingSet(set: LiftSet): boolean {
   return set.equipment !== 'bodyweight' && !exerciseInfo(set.exercise).bodyweight
 }
 
-/** The estimate of one set, or null when it is not eligible (not working, not loaded, RPE below 6, R above 15). */
-export function setEstimate(set: LiftSet): SetEstimate | null {
+/** Reps to failure R the set is read as, or null when it is not eligible (not working, not loaded, RPE below 6, R above 15). */
+export function repsToFailure(set: LiftSet): number | null {
   if (!isLoadedWorkingSet(set)) return null
-  const hasRpe = set.rpe !== undefined
   let reps: number
-  let effortReps: number
-  let noiseReps: number
-  if (set.rpe === undefined) {
-    reps = set.reps + UNKNOWN_RIR
-    effortReps = UNKNOWN_RIR_SD
-    noiseReps = 0
-  } else {
-    if (set.rpe < RPE_FLOOR) return null
-    const k = 10 - set.rpe
-    reps = set.reps + k * (1 + UNDER_PREDICTION_PER_RIR)
-    effortReps = RPE_SYSTEMATIC_PER_RIR * k
-    noiseReps = RPE_NOISE_BASE + RPE_NOISE_PER_RIR * k
-  }
-  if (reps > REP_CAP) return null
+  if (set.rpe === undefined) reps = set.reps + UNKNOWN_RIR
+  else if (set.rpe < RPE_FLOOR) return null
+  else reps = set.reps + (10 - set.rpe) * (1 + UNDER_PREDICTION_PER_RIR)
+  return reps > REP_CAP ? null : reps
+}
+
+/** The estimate of one set, or null when it is not eligible. */
+export function setEstimate(set: LiftSet): SetEstimate | null {
+  const reps = repsToFailure(set)
+  if (reps === null) return null
+  const hasRpe = set.rpe !== undefined
+  const k = set.rpe === undefined ? 0 : 10 - set.rpe
+  const effortReps = hasRpe ? RPE_SYSTEMATIC_PER_RIR * k : UNKNOWN_RIR_SD
+  const noiseReps = hasRpe ? RPE_NOISE_BASE + RPE_NOISE_PER_RIR * k : 0
   const point = medianEquation(set.loadKg, reps)
   const slope = logSlope(reps)
   const parts: SetErrorParts = {
