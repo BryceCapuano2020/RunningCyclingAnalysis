@@ -53,6 +53,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(page.getByRole('figure', { name: BEST_EFFORTS_CURVE, exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'On this page' })).toHaveCount(0)
   }
 

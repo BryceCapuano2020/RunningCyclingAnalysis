@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
@@ -42,8 +41,6 @@ function renderPage(
   options: {
     profile?: AgeProfile | null
     missingAge?: AgeGap | null
-    sameHeartRate?: SameHeartRate
-    lateEvidence?: LateEvidence
     zoneTimes?: readonly MeasureTime[]
   } = {},
 ) {
@@ -217,20 +214,6 @@ describe('the sections and the layout', () => {
         }),
       ],
     })
-  const sameHeartRate: SameHeartRate = {
-    referenceHeartRate: 145,
-    weeks: [0, 1, 2, 3].map((i) => ({
-      endMs: Date.UTC(2025, 0, 12) + i * 7 * 86_400_000,
-      fit: { output: 3.2 + i * 0.05, low: 3.1 + i * 0.05, high: 3.3 + i * 0.05 },
-      lacks: null,
-      blocks: 14,
-      activities: 5,
-    })),
-    reportedWeeks: 4,
-    lacks: null,
-    latestWeekEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
-  }
-
   /**
    * The sections the page draws an answer for, by their anchors, in the order they are read: a section that is one line
    * of what to add (titled by its own element) is left out.
@@ -242,7 +225,7 @@ describe('the sections and the layout', () => {
       .filter((id) => document.getElementById(`${sport}-section-${id}-title`) === null)
 
   it('draws the open sections first and the closed ones after, only what the page has, with no jump list', () => {
-    renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
+    renderPage('run', full(), { zoneTimes: ZONES })
     expect(sectionsOf('run')).toEqual(['bestEfforts', 'racePredictions', 'timeInZones'])
     expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
   })
@@ -254,7 +237,7 @@ describe('the sections and the layout', () => {
   })
 
   it('sets race predictions and the zones side by side in one row, and every other section alone', () => {
-    renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
+    renderPage('run', full(), { zoneTimes: ZONES })
     const rows = Array.from(document.querySelectorAll('.sport-row'))
     const pair = rows.filter((row) => row.classList.contains('sport-row--pair'))
     expect(pair).toHaveLength(1)

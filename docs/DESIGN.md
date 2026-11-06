@@ -952,8 +952,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   "Threshold pace" on the app's cards and pages. "Grade" means an age grade and nothing else.
 - **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. In each
   unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
-  imperial, 1 km in metric. In All best efforts every distance row carries a "Finish time" chip beside its time, so the column reads
-  beside the duration rows, whose figures are paces. A run added before the half marathon was recorded gets it only when it is added again: the library
+  imperial, 1 km in metric. A run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter

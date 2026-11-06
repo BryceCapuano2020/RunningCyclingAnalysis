@@ -13,9 +13,10 @@ const SIZES = [
   { name: 'desktop', width: 1440, height: 900 },
 ] as const
 
-/** Waits for the sport page's curve, so the charts in its sections are checked. */
+/** Waits for the sport page's curve and its last section, so the charts in its sections are checked. */
 async function openSections(page: Page): Promise<void> {
   await expect(page.getByRole('figure', { name: 'Best efforts', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
 }
 
 /** Before the app starts, as a reader's own stylesheet is: the charts lay out their labels with the spacing in force. */
