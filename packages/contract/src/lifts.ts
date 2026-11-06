@@ -14,12 +14,14 @@ import {
   isLiftDate,
   isLiftLoad,
   isLiftRpe,
+  liftSetKey,
   parseLiftSetKey,
 } from '@rca/core/lift'
 
 /**
  * One logged set (lift-data.md, section 1). Every bound is read from core, so the API, the browser
- * store and a later CSV reader refuse the same things (`readLiftSet` is the same rule without zod).
+ * store and a later CSV reader refuse the same things (`readLiftSet` is the same rule without zod;
+ * the sweep in lifts.test.ts is the guard against the two drifting apart).
  */
 export const LiftSetSchema = z
   .strictObject({
@@ -51,18 +53,35 @@ export const LiftSetSchema = z
     message: 'time and timePrecision come together',
   })
 
-/** A write: 1 to MAX_LIFT_SETS_PER_WRITE sets, each inserted or replaced by its key. */
-export const LiftWriteSchema = z.strictObject({
-  sets: z.array(LiftSetSchema).min(1).max(MAX_LIFT_SETS_PER_WRITE),
-})
+/** Refuses a repeated key, flagging the second occurrence at `<field>.<index>`. */
+function refuseRepeats(field: 'sets' | 'keys', keys: string[], ctx: z.RefinementCtx): void {
+  const seen = new Set<string>()
+  keys.forEach((key, i) => {
+    if (seen.has(key)) ctx.addIssue({ code: 'custom', path: [field, i], message: 'Repeated key' })
+    seen.add(key)
+  })
+}
+
+/**
+ * A write: 1 to MAX_LIFT_SETS_PER_WRITE sets, each inserted or replaced by its key, no key twice.
+ * `insertOnly` asks the server to keep sets that already exist instead of replacing them.
+ */
+export const LiftWriteSchema = z
+  .strictObject({
+    sets: z.array(LiftSetSchema).min(1).max(MAX_LIFT_SETS_PER_WRITE),
+    insertOnly: z.literal(true).optional(),
+  })
+  .superRefine((write, ctx) => refuseRepeats('sets', write.sets.map(liftSetKey), ctx))
 
 /** A delete: 1 to MAX_LIFT_KEYS_PER_DELETE set keys. */
-export const LiftDeleteSchema = z.strictObject({
-  keys: z
-    .array(z.string().refine((key) => parseLiftSetKey(key) !== null, 'Not a set key'))
-    .min(1)
-    .max(MAX_LIFT_KEYS_PER_DELETE),
-})
+export const LiftDeleteSchema = z
+  .strictObject({
+    keys: z
+      .array(z.string().refine((key) => parseLiftSetKey(key) !== null, 'Not a set key'))
+      .min(1)
+      .max(MAX_LIFT_KEYS_PER_DELETE),
+  })
+  .superRefine((del, ctx) => refuseRepeats('keys', del.keys, ctx))
 
 /** One page of sets in key order; `next` is the cursor for the following page, null at the end. */
 export const LiftPageSchema = z.strictObject({

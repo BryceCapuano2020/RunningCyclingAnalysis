@@ -2,6 +2,9 @@ export { EQUIPMENT } from './types'
 export type { Equipment, ExerciseKey, LiftSet, LiftSetIdentity, TimePrecision } from './types'
 export * from './limits'
 export {
+  compareLiftSetKeys,
+  decodeLiftCursor,
+  encodeLiftCursor,
   exerciseKeyOf,
   isEquipment,
   isExerciseSlug,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   EQUIPMENT,
+  EXERCISE_CATALOG,
+  compareLiftSetKeys,
+  decodeLiftCursor,
+  encodeLiftCursor,
+  isExerciseSlug,
   LIFT_REVISION,
   exerciseInfo,
   exerciseKeyOf,
@@ -53,7 +58,50 @@ describe('key', () => {
   })
 })
 
+describe('order and cursor', () => {
+  it('sorts set order numerically, then by the earlier fields', () => {
+    const keys = [
+      '2026-03-02.back-squat.barbell.10',
+      '2026-03-02.back-squat.barbell.2',
+      '2026-03-01.deadlift.barbell.1',
+      '2026-03-02.back-squat.smith.1',
+      '2026-03-02.bench-press.barbell.1',
+    ]
+    expect([...keys].sort(compareLiftSetKeys)).toEqual([
+      '2026-03-01.deadlift.barbell.1',
+      '2026-03-02.back-squat.barbell.2',
+      '2026-03-02.back-squat.barbell.10',
+      '2026-03-02.back-squat.smith.1',
+      '2026-03-02.bench-press.barbell.1',
+    ])
+    expect(compareLiftSetKeys(keys[0] as string, keys[0] as string)).toBe(0)
+  })
+  it('round-trips a cursor and refuses garbage', () => {
+    const id = {
+      date: '2026-03-02',
+      exercise: 'back-squat',
+      equipment: 'barbell' as const,
+      setOrder: 10,
+    }
+    const cursor = encodeLiftCursor(id)
+    expect(cursor).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(decodeLiftCursor(cursor)).toEqual(id)
+    for (let setOrder = 1; setOrder <= 200; setOrder++)
+      for (const exercise of ['a', 'ab', 'abc'])
+        expect(decodeLiftCursor(encodeLiftCursor({ ...id, exercise, setOrder }))).toEqual({
+          ...id,
+          exercise,
+          setOrder,
+        })
+    for (const bad of ['', '!!!', 'abc', 'WzEsMl0', 'eyJhIjoxfQ', 'WyJ4IiwieSIsInoiLDFd'])
+      expect(decodeLiftCursor(bad), bad).toBeNull()
+  })
+})
+
 describe('catalog', () => {
+  it('has only valid slugs', () => {
+    for (const slug of Object.keys(EXERCISE_CATALOG)) expect(isExerciseSlug(slug), slug).toBe(true)
+  })
   it('knows common lifts and calls the rest other', () => {
     expect(exerciseInfo('sumo-deadlift')).toMatchObject({ region: 'lower', deadliftFamily: true })
     expect(exerciseInfo('pull-up')).toMatchObject({ region: 'upper', bodyweight: true })

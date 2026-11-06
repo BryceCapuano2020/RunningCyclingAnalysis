@@ -49,6 +49,8 @@ export function isLiftRpe(value: unknown): value is number {
 /**
  * The set when every field is within its bound, else null. Unknown fields refuse and an optional set to
  * undefined counts as absent, as in the contract's strict schema, so every reader agrees with the API.
+ * The contract's LiftSetSchema restates these rules in zod; its sweep test (contract lifts.test.ts) is the
+ * guard against the two drifting apart.
  */
 export function readLiftSet(value: unknown): LiftSet | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
