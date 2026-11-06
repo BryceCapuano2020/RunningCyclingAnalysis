@@ -32,17 +32,17 @@ describe('the worked example, by hand from docs/design/e1rm.md section 2', () =>
     expect(e.point).toBeCloseTo(122.32, 2)
     expect(e.parts.curve).toBeCloseTo(0.05864, 5)
     expect(e.parts.centre).toBeCloseTo(0.026, 5)
-    // The spec's 0.01214 was hand-rounded through 122.03; the exact figure is 0.012124.
-    expect(e.parts.equations).toBeCloseTo(0.01214, 4)
+    // The spec's first print (0.01214) was hand-rounded through 122.03; the exact figures are these.
+    expect(e.parts.equations).toBeCloseTo(0.012124, 6)
     expect(e.parts.effort).toBeCloseTo(0.01232, 5)
-    expect(e.sys).toBeCloseTo(0.06644, 4)
+    expect(e.sys).toBeCloseTo(0.066432, 6)
     expect(e.parts.rpeNoise).toBeCloseTo(0.02463, 5)
     expect(e.ind).toBeCloseTo(0.04869, 5)
   })
 
   it('gives sd 0.08237 and the range 111.7 to 138.4 kg', () => {
     const e = estimateLift([set()])!
-    expect(e.sd).toBeCloseTo(0.08237, 4)
+    expect(e.sd).toBeCloseTo(0.082365, 6)
     expect(e.point).toBeCloseTo(122.32, 2)
     expect(e.low).toBeCloseTo(111.7, 1)
     expect(e.high).toBeCloseTo(138.4, 1)
@@ -116,17 +116,115 @@ describe('sessions', () => {
     expect(e.point).toBeCloseTo(122.32, 2)
   })
 
-  it('weights the newer session more and reads only the 56 days up to the newest', () => {
+  it('reads only the 56 days up to the newest session', () => {
     const old = set({ date: '2025-01-06', loadKg: 150 }) // 56 days before 2025-03-03: out
     const inside = set({ date: '2025-01-07', loadKg: 60 }) // 55 days: in
-    const newest = set({ loadKg: 100 })
-    expect(estimateLift([old, newest])!.sessions).toBe(1)
-    const both = estimateLift([inside, newest])!
-    expect(both.sessions).toBe(2)
-    expect(both.point).toBeGreaterThan(medianEquation(60, 7.5))
-    expect(both.point).toBeLessThan(medianEquation(100, 7.5))
+    expect(estimateLift([old, set()])!.sessions).toBe(1)
+    expect(estimateLift([inside, set()])!.sessions).toBe(2)
   })
 
+  it('weights a session by 0.5^(days / 14) over its variance', () => {
+    // 55 days apart, different R: 5 at RPE 8 (R 7.5) and 3 at RPE 9 (R 4.25).
+    const older = set({ date: '2025-01-07', loadKg: 60 })
+    const newer = set({ reps: 3, rpe: 9 })
+    const a = setEstimate(older)!
+    const b = setEstimate(newer)!
+    expect(a.reps).not.toBe(b.reps)
+    const wa = Math.pow(0.5, 55 / 14) / (a.sys ** 2 + a.ind ** 2)
+    const wb = 1 / (b.sys ** 2 + b.ind ** 2)
+    const e = estimateLift([older, newer])!
+    expect(e.point).toBeCloseTo((wa * a.point + wb * b.point) / (wa + wb), 9)
+  })
+})
+
+// A session with no RPE is down-weighted by 1 / (1 + exp(-(p / top - 0.96) / 0.015)), top being the
+// second-highest session point in the 28 days up to the newest.
+describe('near the top, for sessions with no RPE', () => {
+  const logistic = (ratio: number): number => 1 / (1 + Math.exp(-(ratio - 0.96) / 0.015))
+  const bare = (date: string, loadKg: number): LiftSet => set({ date, loadKg, rpe: undefined })
+  const P = medianEquation(100, 7) // five reps, no RPE: R = 7
+
+  function mean(items: { age: number; set: LiftSet; near: number }[]): number {
+    let num = 0
+    let den = 0
+    for (const it of items) {
+      const e = setEstimate(it.set)!
+      const w = (Math.pow(0.5, it.age / 14) * it.near) / (e.sys ** 2 + e.ind ** 2)
+      num += w * e.point
+      den += w
+    }
+    return num / den
+  }
+
+  it('down-weights a deload to the logistic of its share of the top', () => {
+    const a = bare('2025-03-01', 100)
+    const b = bare('2025-03-02', 100)
+    const c = bare('2025-03-03', 95) // 0.95 of the top
+    expect(logistic(0.95)).toBeCloseTo(0.339, 3)
+    const e = estimateLift([a, b, c])!
+    const expected = mean([
+      { age: 2, set: a, near: logistic(1) },
+      { age: 1, set: b, near: logistic(1) },
+      { age: 0, set: c, near: logistic(0.95) },
+    ])
+    expect(e.point).toBeCloseTo(expected, 9)
+    // Unweighted by nearness it would sit lower.
+    expect(e.point).toBeGreaterThan(
+      mean([a, b, c].map((s, i) => ({ age: 2 - i, set: s, near: 1 }))),
+    )
+  })
+
+  it('keeps weight 1 for an RPE session at the same share of the top', () => {
+    const a = bare('2025-03-01', 100)
+    const b = bare('2025-03-02', 100)
+    const c = set({ loadKg: 70 }) // RPE 8, well under the top
+    const e = estimateLift([a, b, c])!
+    expect(setEstimate(c)!.point / P).toBeLessThan(0.9)
+    const expected = mean([
+      { age: 2, set: a, near: logistic(1) },
+      { age: 1, set: b, near: logistic(1) },
+      { age: 0, set: c, near: 1 },
+    ])
+    expect(e.point).toBeCloseTo(expected, 9)
+  })
+
+  it('takes the top from the last 28 days only', () => {
+    // Two older sessions, 30 and 35 days back, sit well above today's. Were they in the top it would
+    // be 120 kg's point and today's session would count for nothing.
+    const o1 = bare('2025-01-31', 130)
+    const o2 = bare('2025-01-26', 120)
+    const today = bare('2025-03-02', 100)
+    const e = estimateLift([o1, o2, today])!
+    const expected = mean([
+      { age: 30, set: o1, near: logistic(medianEquation(130, 7) / P) },
+      { age: 35, set: o2, near: logistic(medianEquation(120, 7) / P) },
+      { age: 0, set: today, near: logistic(1) },
+    ])
+    expect(e.point).toBeCloseTo(expected, 9)
+  })
+})
+
+describe('the window follows the newest eligible session', () => {
+  it('still answers 60 days after the last session, dated then', () => {
+    const e = estimateLift([set()], '2025-05-02')!
+    expect(e.date).toBe('2025-03-03')
+    expect(e.point).toBeCloseTo(122.32, 2)
+  })
+
+  it('is not moved by a trailing day of ineligible sets', () => {
+    const early = set({ date: '2025-01-07', loadKg: 60 }) // 55 days before the eligible session
+    const trailing = [
+      set({ date: '2025-03-10', rpe: 5 }),
+      set({ date: '2025-03-10', warmup: true }),
+    ]
+    const e = estimateLift([early, set(), ...trailing])!
+    expect(e).toEqual(estimateLift([early, set()]))
+    expect(e.sessions).toBe(2)
+    expect(e.date).toBe('2025-03-03')
+  })
+})
+
+describe('sessions, continued', () => {
   it('dates the answer at the newest session and ends the window at asOf', () => {
     const sets = [set({ date: '2025-02-03' }), set({ date: '2025-03-03', loadKg: 120 })]
     expect(estimateLift(sets)!.date).toBe('2025-03-03')
@@ -150,6 +248,18 @@ describe('sessions', () => {
   it('counts days through the calendar', () => {
     expect(dayOfLiftDate('2025-03-04') - dayOfLiftDate('2025-02-28')).toBe(4)
     expect(dayOfLiftDate('2024-03-01') - dayOfLiftDate('2024-02-28')).toBe(2)
+  })
+})
+
+describe('ties', () => {
+  it('goes to more reps, then the newer date', () => {
+    const sets = [
+      set({ date: '2025-03-01', reps: 3, loadKg: 100 }),
+      set({ date: '2025-03-02', reps: 5, loadKg: 100 }),
+      set({ date: '2025-03-03', reps: 5, loadKg: 100 }),
+    ]
+    expect(liftBests(sets).floor).toEqual({ loadKg: 100, reps: 5, date: '2025-03-03' })
+    expect(liftBests(sets).repBests.find((b) => b.reps === 5)?.date).toBe('2025-03-03')
   })
 })
 
