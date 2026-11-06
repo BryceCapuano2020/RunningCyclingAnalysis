@@ -29,32 +29,57 @@ const ORDER = [
   'draft',
 ]
 
-/** Each check's newest run: a commit keeps a cancelled run beside the one that replaced it. */
+const IDS = /\/runs\/(\d+)(?:\/job\/(\d+))?/
+
+/** One rollup item as a check, with the workflow run and job it came from (0 when unknown). */
+function toCheck(item) {
+  if (item.__typename === 'StatusContext') {
+    const failed = item.state === 'ERROR' ? 'FAILURE' : item.state
+    return {
+      name: item.context,
+      done: item.state !== 'PENDING' && item.state !== 'EXPECTED',
+      result: item.state === 'SUCCESS' ? 'SUCCESS' : failed,
+      at: item.startedAt ?? '',
+      workflow: null,
+      run: 0,
+      job: 0,
+    }
+  }
+  const [, run, job] = IDS.exec(item.detailsUrl ?? '') ?? []
+  return {
+    name: item.name,
+    done: item.status === 'COMPLETED',
+    result: item.conclusion,
+    at: item.startedAt ?? '',
+    workflow: item.workflowName ?? '',
+    run: Number(run ?? 0),
+    job: Number(job ?? 0),
+  }
+}
+
+/**
+ * Each check as the latest attempt of the latest run on the head commit. A commit keeps cancelled
+ * and draft-gate runs beside the run that replaced them; a job that only an older run has is
+ * dropped, so a stale failure never surfaces. A StatusContext keeps its newest report.
+ */
 export function latestChecks(rollup = []) {
+  const checks = rollup.map(toCheck)
+  const newestRun = new Map()
+  for (const c of checks) {
+    if (c.workflow !== null)
+      newestRun.set(c.workflow, Math.max(newestRun.get(c.workflow) ?? 0, c.run))
+  }
   const latest = new Map()
-  for (const item of rollup) {
-    const check =
-      item.__typename === 'StatusContext'
-        ? {
-            name: item.context,
-            done: item.state !== 'PENDING' && item.state !== 'EXPECTED',
-            result:
-              item.state === 'SUCCESS'
-                ? 'SUCCESS'
-                : item.state === 'ERROR'
-                  ? 'FAILURE'
-                  : item.state,
-            at: item.startedAt ?? '',
-          }
-        : {
-            name: item.name,
-            done: item.status === 'COMPLETED',
-            result: item.conclusion,
-            at: item.startedAt ?? '',
-          }
-    // A queued check may not have a start time yet, and it always belongs to the newest run.
+  for (const check of checks) {
+    if (check.workflow !== null && check.run < newestRun.get(check.workflow)) continue
     const seen = latest.get(check.name)
-    if (!seen || (seen.done && (!check.done || check.at >= seen.at))) latest.set(check.name, check)
+    // A re-run attempt has a higher job id. A queued check may lack a start time and then belongs
+    // to the newest attempt.
+    const newer =
+      check.job && seen?.job
+        ? check.job >= seen.job
+        : seen?.done && (!check.done || check.at >= seen.at)
+    if (!seen || newer) latest.set(check.name, check)
   }
   return latest
 }

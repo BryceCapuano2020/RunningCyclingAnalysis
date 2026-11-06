@@ -167,3 +167,49 @@ test('--action names only what needs someone, and is silent when nothing does', 
   )
   assert.match(actionText('main abc: RED (failure)', 'RED (failure)', []), /main abc: RED/)
 })
+
+/** A check in a numbered run and job, the way the rollup carries them. */
+const inRun = (run, job, name, conclusion, startedAt = AT) => ({
+  ...done(name, conclusion, startedAt),
+  workflowName: 'CI',
+  detailsUrl: `https://github.com/o/r/actions/runs/${run}/job/${job}`,
+})
+const fullRun = (run, results = {}, startedAt = AT) =>
+  CI.map((name, i) => inRun(run, run * 100 + i, name, results[name] ?? 'SUCCESS', startedAt))
+
+test('a cancelled superseded run beside a green newer run is not a failure', () => {
+  const rollup = [
+    ...fullRun(10, { 'Statistical simulations': 'CANCELLED', 'Performance budgets': 'FAILURE' }),
+    ...fullRun(11, {}, LATER),
+  ]
+  assert.equal(verdict(pr({ statusCheckRollup: rollup })).kind, 'merging')
+})
+
+test('a job that failed in an older run and is absent from the newer run is ignored', () => {
+  const rollup = [
+    ...fullRun(10, { 'Statistical simulations': 'FAILURE' }),
+    ...fullRun(11, {}, LATER).filter((c) => c.name !== 'Statistical simulations'),
+  ]
+  assert.equal(verdict(pr({ statusCheckRollup: rollup })).kind, 'merging')
+  assert.equal(latestChecks(rollup).has('Statistical simulations'), false)
+})
+
+test('a re-run attempt that passed after a failed attempt counts as passed', () => {
+  const rollup = [
+    ...fullRun(10, { 'Performance budgets': 'FAILURE' }),
+    inRun(10, 9999, 'Performance budgets', 'SUCCESS', LATER),
+  ]
+  assert.equal(verdict(pr({ statusCheckRollup: rollup })).kind, 'merging')
+  const rerun = [...fullRun(10), inRun(10, 9999, 'Performance budgets', 'FAILURE', LATER)]
+  assert.equal(verdict(pr({ statusCheckRollup: rerun })).kind, 'failing')
+})
+
+test('a draft-gate run followed by a full green run is green, and alone is stale', () => {
+  const draftRun = fullRun(10, {
+    'Statistical simulations': 'FAILURE',
+    'Lint, typecheck, build': 'SKIPPED',
+  })
+  assert.equal(verdict(pr({ statusCheckRollup: draftRun })).kind, 'stale-draft-run')
+  const both = [...draftRun, ...fullRun(11, {}, LATER)]
+  assert.equal(verdict(pr({ statusCheckRollup: both })).kind, 'merging')
+})
