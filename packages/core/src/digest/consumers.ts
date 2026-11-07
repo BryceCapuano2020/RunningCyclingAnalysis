@@ -22,7 +22,6 @@ export const CONSUMERS = {
   setAside: 'readable', // whose heart rate is set aside
   referenceHr: 'readable', // reference maxima, zones, observed max
   sameHeartRate: 'readable',
-  lateEvidence: 'readable', // durability, drift
   thresholdTimeline: 'readable',
   zones: 'readable', // zone estimates and time in zones
   records: 'readable',
@@ -48,8 +47,6 @@ const RULES: Readonly<Record<Consumer, 'readable' | 'current'>> = CONSUMERS
 export const INDIRECT = {
   previousPeriods: 'the previous period of the analysed digests',
   referenceHr: 'the analysed digests through the heart-rate judgement',
-  lateEvidence:
-    'the selected period of the analysed digests, and the analysed digests where the period holds too little',
   thresholdTimeline: 'the selected period of the analysed digests',
   zones: 'the analysed digests through the heart-rate judgement',
   splits: 'the one digest of the activity page',

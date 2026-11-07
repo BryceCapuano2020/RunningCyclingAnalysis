@@ -1,6 +1,4 @@
 import { DAY_MS, SAME_HEART_RATE } from '../constants'
-import { driftTrend } from '../digest/driftTrend'
-import { periodDurability } from '../digest/durabilityPeriod'
 import { sameHeartRate } from '../digest/sameHeartRate'
 import { weekEndFor, weekEndInstant, weekEndsSpan } from '../calendar'
 import type { ActivityDigest, Sport } from '../types'
@@ -159,8 +157,7 @@ function lazily<K extends keyof SharedTables>(
  * What the detectors share, worked out once for the library, whatever period the app shows, and only
  * when a detector reads it (the same-heart-rate fits are most of the cost). `digests` are the current
  * model's, in canonical order, none after asOfMs. The same-heart-rate fits are the library's own, read
- * at its reference heart rate; activities whose heart rate is set aside are left out of the drift
- * points as they are of the fits.
+ * at its reference heart rate.
  */
 export function buildTables(
   digests: ActivityDigest[],
@@ -178,15 +175,6 @@ export function buildTables(
   lazily(tables, 'sourceChanges', () =>
     perSport((sport) => sourceChangesOf(weeklyCoverage(mine(sport), asOfMs))),
   )
-  lazily(tables, 'drift', () =>
-    perSport((sport) =>
-      driftTrend(
-        mine(sport).filter((d) => !setAside.has(d.id)),
-        sport,
-      ),
-    ),
-  )
-  lazily(tables, 'durability', () => perSport((sport) => periodDurability(digests, sport)))
   lazily(tables, 'firstMs', () => perSport((sport) => mine(sport)[0]?.startMs ?? null))
   return tables
 }

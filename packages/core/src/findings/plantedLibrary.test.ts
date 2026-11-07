@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { sameHeartRate } from '../digest/sameHeartRate'
-import { driftTrend } from '../digest/driftTrend'
 import { weekEndMs } from '../digest/trendPoints'
 import type { ActivityDigest } from '../types'
 import { median } from './stats'
@@ -68,7 +67,7 @@ describe('plantedLibrary', () => {
     }
     // Long runs are the only ones long enough for drift and durability after an hour.
     const one = plantedLibrary({ ...BASE, perWeek: 1, weeks: 52 })
-    expect(driftTrend(one.digests, 'run').length).toBeGreaterThanOrEqual(13)
+    expect(one.digests.filter((d) => d.drift).length).toBeGreaterThanOrEqual(13)
   })
 
   describe('pins the size it plants', () => {
@@ -208,9 +207,18 @@ describe('plantedLibrary', () => {
         effects: [{ type: 'decoupling-change', atWeek: 20, size: 0.03 }],
       })
       const onset = lib.truths[0]!.onsetMs
-      const points = driftTrend(lib.digests, 'run')
-      const before = points.filter((p) => p.startMs < onset).map((p) => p.decouplingPct)
-      const after = points.filter((p) => p.startMs >= onset).map((p) => p.decouplingPct)
+      const points = lib.digests.flatMap((d) =>
+        d.drift
+          ? [
+              {
+                startMs: d.startMs,
+                pct: (100 * (d.drift.firstRatio - d.drift.secondRatio)) / d.drift.firstRatio,
+              },
+            ]
+          : [],
+      )
+      const before = points.filter((p) => p.startMs < onset).map((p) => p.pct)
+      const after = points.filter((p) => p.startMs >= onset).map((p) => p.pct)
       expect(Math.abs(mean(after) - mean(before) - 3)).toBeLessThan(1)
       expect(Math.abs(mean(before) - 4)).toBeLessThan(1)
     })

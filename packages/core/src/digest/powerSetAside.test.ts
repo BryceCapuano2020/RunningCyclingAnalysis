@@ -4,7 +4,6 @@ import { fixedMasses, massesOf } from './masses'
 import { judgedCurves } from './judgedCurves'
 import { powerCheckOf, powerSetAsideIds, trustedPower } from './powerCheck'
 import { AnalysisSession } from '../session'
-import { PeriodCache } from '../periodCache'
 import { heartRatePoints } from './rideCurves'
 import { DAY, SAMPLE_DIGESTS, START, meterRide, steadyRide } from './test/powerFixtures'
 import { MODEL_REVISION } from './modelRevision'
@@ -68,40 +67,13 @@ describe('a ride whose power is set aside is out of every ride computation', () 
     expect(withLong!.lines.size).toBe(without!.lines.size)
   })
 
-  it('is out of the durability bests and the ride fitness readings', async () => {
+  it('is out of the ride fitness readings', async () => {
     const { fitnessStatuses } = await import('../fitness/compute')
     const digests = [plateau, normal].map(current)
-    const state = new AnalysisSession().loadDigests(digests, settings)
-    const fresh = state.lateEvidence.ride.durability.find((row) => row.durationS === 300)
-    expect(fresh?.fresh?.activityId).toBe('normal')
+    new AnalysisSession().loadDigests(digests, settings)
     const passed = vi.mocked(fitnessStatuses).mock.calls.at(-1)?.[1]
     expect(passed?.has('plateau')).toBe(true)
     expect(passed?.has('normal')).toBe(false)
-  })
-
-  it('stays in when the athlete keeps it, in the durability bests too', () => {
-    const digests = [plateau, normal].map(current)
-    const state = new AnalysisSession().loadDigests(digests, {
-      ...settings,
-      keepPower: ['plateau'],
-    })
-    const row = state.lateEvidence.ride.durability.find((r) => r.durationS === 300)
-    expect(row?.fresh?.activityId).toBe('plateau')
-  })
-
-  it('hands the same-heart-rate reading the ids with the heart-rate list, and the drift reading the rest', () => {
-    const sameHeartRate = vi.spyOn(PeriodCache.prototype, 'sameHeartRate')
-    const late = vi.spyOn(PeriodCache.prototype, 'late')
-    const digests = [plateau, normal].map(current)
-    new AnalysisSession().loadDigests(digests, settings)
-    const held = sameHeartRate.mock.calls.at(-1)?.[3]
-    expect(held).toContain('plateau')
-    expect(held).not.toContain('normal')
-    const [drift, , heldForDrift] = late.mock.calls.at(-1) ?? []
-    expect(drift?.map((d) => d.id)).toEqual(['normal'])
-    expect(heldForDrift).toContain('plateau')
-    sameHeartRate.mockRestore()
-    late.mockRestore()
   })
 
   it('gives no heart-rate point from its blocks', () => {

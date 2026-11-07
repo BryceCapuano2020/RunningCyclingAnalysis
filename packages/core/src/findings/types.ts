@@ -1,11 +1,9 @@
 import type { SameHeartRateBySport } from '../digest/sameHeartRateTypes'
-import type { DriftPoint } from '../digest/driftTrend'
-import type { PeriodDurabilityRow } from '../digest/durabilityPeriod'
 import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import type { UnitSystem } from '../units'
 
 /** What a finding is about, which also decides how many may share the top of a list. */
-export type Kind = 'efficiency' | 'pattern' | 'discipline' | 'durability'
+export type Kind = 'efficiency' | 'pattern' | 'discipline'
 
 /** `better` and `worse` are about the athlete's output; `neutral` is a change with no side (a habit). Wording is neutral for all. */
 export type Direction = 'better' | 'worse' | 'neutral'
@@ -238,13 +236,6 @@ export interface SharedTables {
    * explanation, around it. A new strap or meter that leaves the share alone is not visible here.
    */
   sourceChanges: Record<Sport, SourceChange[]>
-  /** Each sport's steady-effort drift points, earliest first, heart rate not set aside. */
-  drift: Record<Sport, DriftPoint[]>
-  /**
-   * Each sport's best output fresh and after 1, 1.5 and 2 hours, over all time: a best never fades, so a
-   * detector that compares periods (late-output retention) works out its own bests inside each window.
-   */
-  durability: Record<Sport, PeriodDurabilityRow[]>
   /** The start of each sport's first activity, or null. */
   firstMs: Record<Sport, number | null>
 }

@@ -72,8 +72,6 @@ describe('AnalysisSession records', () => {
       [
         'answerWindow',
         'countedWalkingRuns',
-        'effortTrends',
-        'dotsWithheld',
         'fitness',
         'lookBack',
         'history',
@@ -94,9 +92,6 @@ describe('AnalysisSession records', () => {
         'rejected',
         'records',
         'result',
-        'sameHeartRate',
-        'libraryBests',
-        'lateEvidence',
         'syncIssues',
         'timeInZones',
         'totalActivities',

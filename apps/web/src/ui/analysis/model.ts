@@ -3,9 +3,6 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
-import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NONE_WITHHELD, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { NO_LOOKBACK } from '@rca/core/lookback'
@@ -149,11 +146,6 @@ export const EMPTY_SESSION: SessionState = {
   previousThresholds: null,
   change: null,
   earlier: null,
-  effortTrends: NO_TRENDS,
-  dotsWithheld: NONE_WITHHELD,
-  sameHeartRate: NO_SAME_HEART_RATE,
-  libraryBests: null,
-  lateEvidence: NO_LATE_EVIDENCE,
   heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
   fitness: NO_FITNESS,
   lookBack: NO_LOOKBACK,

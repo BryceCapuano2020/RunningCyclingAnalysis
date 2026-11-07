@@ -36,19 +36,13 @@ const library = plantedLibrary({
 const readsEverything = stubDetector('reads-everything', {
   sports: ['run', 'ride'],
   says: (input, sport) => {
-    const { sameHeartRate, weeklyMoving, coverage, sourceChanges, drift, durability } = input.tables
+    const { sameHeartRate, weeklyMoving, coverage, sourceChanges } = input.tables
     const seen =
       sameHeartRate[sport].weeks.length +
       weeklyMoving[sport].length +
       coverage[sport].length +
-      sourceChanges[sport].length +
-      drift[sport].length
-    return [
-      stubCandidate(
-        { numbers: [{ key: 'seen', value: seen + durability[sport].length, unit: '' }] },
-        input,
-      ),
-    ]
+      sourceChanges[sport].length
+    return [stubCandidate({ numbers: [{ key: 'seen', value: seen, unit: '' }] }, input)]
   },
 })
 

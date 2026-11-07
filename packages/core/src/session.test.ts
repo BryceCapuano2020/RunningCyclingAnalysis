@@ -15,9 +15,6 @@ import { NO_FITNESS } from './fitness/types'
 import { NO_LOOKBACK } from './lookback/compute'
 import { NO_HISTORY } from './history/compute'
 import { AnalysisSession, SyncFailure } from './session'
-import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
-import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_ZONE_TIMES } from './zones'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
@@ -427,11 +424,6 @@ describe('AnalysisSession', () => {
       library: [],
       syncIssues: [],
       trend: [],
-      effortTrends: NO_TRENDS,
-      dotsWithheld: NONE_WITHHELD,
-      sameHeartRate: NO_SAME_HEART_RATE,
-      libraryBests: null,
-      lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
       lookBack: NO_LOOKBACK,
@@ -533,11 +525,6 @@ describe('AnalysisSession', () => {
       library: [],
       syncIssues: [],
       trend: [],
-      effortTrends: NO_TRENDS,
-      dotsWithheld: NONE_WITHHELD,
-      sameHeartRate: NO_SAME_HEART_RATE,
-      libraryBests: null,
-      lateEvidence: NO_LATE_EVIDENCE,
       heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
       fitness: NO_FITNESS,
       lookBack: NO_LOOKBACK,

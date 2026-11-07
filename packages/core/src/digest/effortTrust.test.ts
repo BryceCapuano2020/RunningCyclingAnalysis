@@ -3,10 +3,7 @@ import { recordHolders } from '../records'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { combine, sportCurves } from './combine'
 import { digestActivity } from './digestActivity'
-import { periodDurability } from './durabilityPeriod'
-import { driftTrend } from './driftTrend'
 import { effortsCount } from './effortTrust'
-import { lateEvidence } from './lateEvidence'
 import { MEASURED_EFFORT } from '../hr/setAside'
 import { massesOf } from './masses'
 import { heartRatePoints } from './rideCurves'
@@ -105,11 +102,6 @@ describe('a treadmill run holds no best', () => {
     expect(withOutdoor.at(-1)?.runWkg).toBe(fitnessTrend([outdoor], settings).at(-1)?.runWkg)
   })
 
-  it('does not count towards durability', () => {
-    const rows = periodDurability([treadmill], 'run')
-    expect(rows.every((row) => row.fresh === null)).toBe(true)
-  })
-
   it('gives the heart-rate check no points, since treadmill pace is not a power', () => {
     const masses = massesOf(settings)
     const model = combine([], settings).bikeModel
@@ -122,24 +114,6 @@ describe('one rule everywhere', () => {
   it('is the rule the heart-rate set-aside uses for a run’s pace', () => {
     expect(MEASURED_EFFORT.run(treadmill)).toBe(effortsCount(treadmill))
     expect(MEASURED_EFFORT.run(outdoor)).toBe(effortsCount(outdoor))
-  })
-})
-
-describe('an indoor run’s drift and late bests are not read', () => {
-  const drift = { firstRatio: 1, secondRatio: 0.9, durationS: 3600 }
-  const withDrift = (digest: ActivityDigest): ActivityDigest => ({ ...digest, drift })
-
-  it('leaves its drift out of the drift trend', () => {
-    expect(
-      driftTrend([withDrift(outdoor), withDrift(treadmill)], 'run').map((p) => p.activityId),
-    ).toEqual(['outdoor'])
-  })
-
-  it('leaves its drift and its durability out of the late evidence', () => {
-    const late = lateEvidence([withDrift(treadmill)], new Set())
-    expect(late.run.drift).toEqual([])
-    expect(late.run.durability.every((row) => row.fresh === null)).toBe(true)
-    expect(lateEvidence([withDrift(outdoor)], new Set()).run.drift).toHaveLength(1)
   })
 })
 
