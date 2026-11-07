@@ -73,10 +73,16 @@ vi.mock('../api/client', async (importOriginal) => {
 })
 
 /** The lift pages an export reads: none unless a test sets some, so the fetch count stays the activities'. */
-const liftPages = vi.hoisted(() => ({ pages: [] as unknown[][] }))
+const liftPages = vi.hoisted(() => ({
+  pages: [] as unknown[][],
+  failure: null as Error | null,
+  endless: false,
+}))
 vi.mock('../api/lifts', () => ({
   createLiftTransport: () => ({
     page: async (cursor: string | null) => {
+      if (liftPages.failure !== null) throw liftPages.failure
+      if (liftPages.endless) return { items: [], next: 'more', liftRevision: 1 }
       const index = cursor === null ? 0 : Number(cursor)
       const next = index + 1 < liftPages.pages.length ? String(index + 1) : null
       return { items: liftPages.pages[index] ?? [], next, liftRevision: 1 }
@@ -223,6 +229,8 @@ function gpxFile(name = 'run.gpx'): File {
 
 beforeEach(() => {
   liftPages.pages = []
+  liftPages.failure = null
+  liftPages.endless = false
   vi.resetModules()
   vi.useRealTimers()
   vi.resetAllMocks()
@@ -2534,6 +2542,24 @@ describe('account export', () => {
     const text = await exportedText(await send(REQUEST))
     expect((JSON.parse(text) as { lifts: unknown }).lifts).toEqual(sets)
     expect(text.indexOf('"lifts":[')).toBeLessThan(text.indexOf('"activities":['))
+  })
+
+  it('fails the export, with no file, when a lift page fails', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    liftPages.failure = new Error('Lift request failed: other')
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+    expect(messages.some((message) => message.type === 'exportReady')).toBe(false)
+    expect(messages.at(-1)?.type).toBe('error')
+  })
+
+  it('fails the export when the lift cursor never ends', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    liftPages.endless = true
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+    expect(messages.some((message) => message.type === 'exportReady')).toBe(false)
+    expect(JSON.stringify(messages.at(-1))).toContain('The lift list did not end')
   })
 
   it('writes the file compactly, with no pretty-printing', async () => {

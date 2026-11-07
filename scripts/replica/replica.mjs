@@ -127,9 +127,11 @@ if (
 ) {
   inputError('not an RCA account download: it has no profile or no activity list')
 }
-if (download.version !== 2) {
+// Version 3 added `lifts`. The replica seeds activities, the profile and measurements only, so it
+// ignores them: a lift set has no effect on any figure it checks.
+if (download.version !== 3) {
   console.warn(
-    `warning: this tool reads download version 2; this one is version ${download.version}`,
+    `warning: this tool reads download version 3; this one is version ${download.version}`,
   )
 }
 

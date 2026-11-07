@@ -93,6 +93,22 @@ describe('createLiftTransport', () => {
     expect(error).toMatchObject({ kind: 'other', transient: false })
   })
 
+  it('also treats an oversize page as a contract break, not transient', async () => {
+    stub(reply(200, { items: [], next: null, liftRevision: 1 }, { 'content-length': '999999' }))
+    expect(await caught(createLiftTransport().page(null))).toMatchObject({
+      kind: 'other',
+      transient: false,
+    })
+  })
+
+  it('sends a cursor with + and = encoded', async () => {
+    const fetchMock = stub(reply(200, { items: [], next: null, liftRevision: 1 }))
+    await createLiftTransport().page('a+b=c')
+    expect((fetchMock.mock.calls as unknown as [string][])[0]?.[0]).toBe(
+      '/api/lifts?cursor=a%2Bb%3Dc',
+    )
+  })
+
   it('maps a 400 to invalid with the refused positions', async () => {
     stub(reply(400, failure('invalid_request', [0, 3])))
     const error = await caught(createLiftTransport().put([SET]))
