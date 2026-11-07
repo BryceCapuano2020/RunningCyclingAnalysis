@@ -31,6 +31,8 @@ export interface LiftEstimate {
   date: string
   /** Estimated one-rep max, kg. floor <= low <= point <= high. */
   point: number
+  /** The weighted mean before the floor lifts it: what the range is cut from (see `rangeOf`). */
+  point0: number
   low: number
   high: number
   /** The heaviest working set in the window. */
@@ -39,6 +41,27 @@ export interface LiftEstimate {
   sessions: number
   /** Combined error in log units; the range is point times exp(-1.1 sd) to exp(1.5 sd). */
   sd: number
+}
+
+/**
+ * The 80% range of a figure with centre `point0` and error `sd` (log units): z 1.1 below, 1.5 above, never under
+ * the floor, the top 5% wider for a deadlift. `point` is the figure's reported value, which the top never falls below.
+ * Used for the estimate and, divided by a body mass, for relative strength.
+ */
+export function rangeOf(
+  point0: number,
+  sd: number,
+  floor: number,
+  point: number,
+  deadlift: boolean,
+): { low: number; high: number } {
+  return {
+    low: Math.max(point0 * Math.exp(-Z_LOW * sd), floor),
+    high: Math.max(
+      point0 * Math.exp(Z_HIGH * sd) * (deadlift ? 1 + DEADLIFT_EXTRA_HIGH : 1),
+      point,
+    ),
+  }
 }
 
 const dayCache = new Map<string, number>()
@@ -181,11 +204,8 @@ export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstim
   return {
     date: newest.date,
     point,
-    low: Math.max(point0 * Math.exp(-Z_LOW * sd), floor.loadKg),
-    high: Math.max(
-      point0 * Math.exp(Z_HIGH * sd) * (deadlift ? 1 + DEADLIFT_EXTRA_HIGH : 1),
-      point,
-    ),
+    point0,
+    ...rangeOf(point0, sd, floor.loadKg, point, deadlift),
     floor,
     sessions: sessions.length,
     sd,

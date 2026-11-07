@@ -10,6 +10,7 @@ const DATE = '2026-03-10'
 const est: LiftEstimate = {
   date: DATE,
   point: 150,
+  point0: 150,
   low: 130,
   high: 175,
   floor: { loadKg: 100, reps: 3, date: DATE },
@@ -70,6 +71,13 @@ describe('relativeStrength', () => {
     }
   })
 
+  it('uses a mass entry dated after the estimate when it is the only one, by distance', () => {
+    const r = relativeStrength(est, settings(mass(75, '2026-04-09')))!
+    expect(r.massKg).toBe(75)
+    expect(r.massAgeDays).toBe(30)
+    expect(r.massSd).toBeCloseTo(0.015, 12)
+  })
+
   it('is absent when the entry is more than 365 days before the estimate', () => {
     expect(relativeStrength(est, settings(mass(75, before(365))))).not.toBeNull()
     expect(relativeStrength(est, settings(mass(75, before(366))))).toBeNull()
@@ -84,7 +92,7 @@ describe('relativeStrength', () => {
   })
 
   it('keeps the floor under the low end and widens a deadlift high end by 5%', () => {
-    const tight = { ...est, point: 141, sd: 0.2, floor: { ...est.floor, loadKg: 140 } }
+    const tight = { ...est, point: 141, point0: 141, sd: 0.2, floor: { ...est.floor, loadKg: 140 } }
     expect(relativeStrength(tight, settings(mass(70, DATE)))!.ratio.low).toBeCloseTo(2, 9)
     const plain = relativeStrength(est, settings(mass(75, DATE)))!
     const dead = relativeStrength(est, settings(mass(75, DATE)), true)!

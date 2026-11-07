@@ -1,5 +1,5 @@
 /** Weekly lifting load per body region (docs/design/e1rm.md, section 5). */
-import { civilOfDay, weekOfDay } from '../calendar'
+import { civilOfDay, mondayOfWeek, weekOfDay } from '../calendar'
 import { exerciseInfo } from './catalog'
 import type { LiftRegion } from './catalog'
 import { HARD_RPE, WARMUP_SHARE } from './constants'
@@ -43,7 +43,10 @@ function workingSets(sets: readonly LiftSet[]): LiftSet[] {
   }
   const work: LiftSet[] = []
   for (const group of sessions.values()) {
-    const top = group.reduce((a, s) => (s.loadKg > a.loadKg ? s : a)) // the first of equal loads
+    // The top set is the heaviest; of equal loads, the lowest setOrder.
+    const top = group.reduce((a, s) =>
+      s.loadKg > a.loadKg || (s.loadKg === a.loadKg && s.setOrder < a.setOrder) ? s : a,
+    )
     for (const s of group) {
       const warm = s.loadKg < WARMUP_SHARE * top.loadKg && s.setOrder < top.setOrder
       if (!warm) work.push(s)
@@ -75,7 +78,7 @@ export function weeklyLoad(sets: readonly LiftSet[]): LiftWeek[] {
   return [...weeks.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([week, regions]) => {
-      const c = civilOfDay(week * 7 + 4) // weeks count from Monday 5 January 1970, day number 4
+      const c = civilOfDay(mondayOfWeek(week))
       const pad = (n: number) => String(n).padStart(2, '0')
       return { weekStart: `${c.year}-${pad(c.month + 1)}-${pad(c.date)}`, regions }
     })

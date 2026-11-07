@@ -89,4 +89,18 @@ describe('weeklyLoad', () => {
     expect(weeks[1]!.regions.upper.workingSets).toBe(2)
     expect(weeks[1]!.regions.other.workingSets).toBe(1)
   })
+
+  it('counts a set under RPE 6 as working but neither hard nor unknown', () => {
+    const [w] = weeklyLoad([s('2026-03-03', 'back-squat', 'barbell', 5, 100, { rpe: 5 })])
+    expect(w!.regions.lower).toMatchObject({ workingSets: 1, hardSets: 0, effortUnknownSets: 0 })
+  })
+
+  it('takes the lowest setOrder among equal top loads as the top set', () => {
+    const light = { ...s('2026-03-03', 'back-squat', 'barbell', 5, 40), setOrder: 2 }
+    const topLate = { ...s('2026-03-03', 'back-squat', 'barbell', 5, 100), setOrder: 3 }
+    const topEarly = { ...s('2026-03-03', 'back-squat', 'barbell', 5, 100), setOrder: 1 }
+    // light (order 2) comes after the first top (order 1), so it is work, whatever the input order
+    const [w] = weeklyLoad([light, topLate, topEarly])
+    expect(w!.regions.lower.workingSets).toBe(3)
+  })
 })

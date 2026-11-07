@@ -70,11 +70,29 @@ describe('buildLiftState', () => {
     expect(dead!.flags).toEqual(['deadlift-may-read-low', 'effort-unknown'])
   })
 
-  it('carries weekly load and cuts a period by date', () => {
+  it('carries weekly load by week', () => {
     expect(state.weeks.map((w) => w.weekStart)).toEqual(['2026-03-02', '2026-03-09'])
+  })
+
+  it('a short period gives the same e1RM as all time and cuts only the weeks', () => {
+    const week = buildLiftState(sets, settings, { from: '2026-03-09', to: '2026-03-09' })
+    const squat = (st: typeof state) => st.lifts.find((l) => l.key === 'back-squat.barbell')!
+    expect(squat(week).estimate).toEqual(squat(state).estimate)
+    expect(week.weeks.map((w) => w.weekStart)).toEqual(['2026-03-09'])
+  })
+
+  it('lists a lift last trained before the period with its old date, and reads sets up to `to` only', () => {
+    const st = buildLiftState(sets, settings, { from: '2026-03-09', to: '2026-03-09' })
+    const dead = st.lifts.find((l) => l.key === 'deadlift.barbell')!
+    expect(dead.lastDate).toBe('2026-03-04')
+    expect(dead.estimate).not.toBeNull()
     const early = buildLiftState(sets, settings, { to: '2026-03-08' })
     expect(early.lifts.find((l) => l.key === 'back-squat.barbell')!.lastDate).toBe('2026-03-02')
-    expect(early.weeks).toHaveLength(1)
-    expect(buildLiftState(sets, settings, { from: '2026-03-09' }).lifts).toHaveLength(1)
+  })
+
+  it('flags unknown effort only on a lift that has an estimate', () => {
+    const bench = state.lifts.find((l) => l.key === 'bench-press.barbell')!
+    expect(bench.estimate).toBeNull()
+    expect(bench.flags).toEqual([])
   })
 })

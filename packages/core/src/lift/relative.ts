@@ -2,19 +2,16 @@
  * Relative strength: an estimate over the body mass in effect on its date (docs/design/e1rm.md, section 4).
  * Two figures, each with a range that carries the mass error.
  */
-import { entryAt, localDayStartMs } from '../athlete'
+import { bodyMassOn, entryAt, hasDatedMass, localDayStartMs } from '../athlete'
 import type { AthleteSettings } from '../athlete'
 import {
   ALLOMETRIC_EXPONENT,
-  DEADLIFT_EXTRA_HIGH,
   MASS_MAX_AGE_DAYS,
   MASS_SD_BASE,
   MASS_SD_MAX,
   MASS_SD_PER_30_DAYS,
-  Z_HIGH,
-  Z_LOW,
 } from './constants'
-import { dayOfLiftDate } from './estimate'
+import { dayOfLiftDate, rangeOf } from './estimate'
 import type { LiftEstimate } from './estimate'
 
 export interface RelativeFigure {
@@ -47,10 +44,13 @@ function massOn(
   settings: AthleteSettings,
   date: string,
 ): { massKg: number; ageDays: number | null } | null {
-  const entry = entryAt(settings.measurements ?? [], 'massKg', undefined, localDayStartMs(date))
-  if (entry) {
-    const age = Math.abs(dayOfLiftDate(date) - dayOfLiftDate(entry.from))
-    return age > MASS_MAX_AGE_DAYS ? null : { massKg: entry.value, ageDays: age }
+  const measurements = settings.measurements ?? []
+  const at = localDayStartMs(date)
+  const massKg = bodyMassOn(null, measurements, at)
+  if (hasDatedMass(settings)) {
+    const entry = entryAt(measurements, 'massKg', undefined, at)
+    const age = Math.abs(dayOfLiftDate(date) - dayOfLiftDate(entry?.from ?? date))
+    return massKg === null || age > MASS_MAX_AGE_DAYS ? null : { massKg, ageDays: age }
   }
   // The profile mass has no date. A placeholder (massAssumed) is not a mass the athlete entered.
   if (settings.massAssumed || !(settings.massKg > 0)) return null
@@ -59,12 +59,8 @@ function massOn(
 
 function figure(est: LiftEstimate, divisor: number, sd: number, deadlift: boolean): RelativeFigure {
   const point = est.point / divisor
-  const floor = est.floor.loadKg / divisor
-  return {
-    point,
-    low: Math.max(point * Math.exp(-Z_LOW * sd), floor),
-    high: Math.max(point * Math.exp(Z_HIGH * sd) * (deadlift ? 1 + DEADLIFT_EXTRA_HIGH : 1), point),
-  }
+  const range = rangeOf(est.point0 / divisor, sd, est.floor.loadKg / divisor, point, deadlift)
+  return { point, ...range }
 }
 
 /** Relative strength of an estimate, or null with no usable mass (none, a placeholder, or an entry over 365 days away). */

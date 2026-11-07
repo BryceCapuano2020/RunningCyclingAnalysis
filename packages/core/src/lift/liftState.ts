@@ -40,7 +40,7 @@ export interface LiftState {
   weeks: LiftWeek[]
 }
 
-/** Local dates, inclusive; either end may be open. Sets after `to` are not read, so a past period replays as it was. */
+/** Local dates, inclusive; either end may be open. */
 export interface LiftPeriod {
   from?: string
   to?: string
@@ -58,7 +58,7 @@ function summarize(
   const { floor, repBests } = liftBests(sets)
   const flags: LiftFlag[] = []
   if (estimate && info.deadliftFamily) flags.push('deadlift-may-read-low')
-  if (!sets.some((s) => !s.warmup && s.rpe !== undefined)) flags.push('effort-unknown')
+  if (estimate && !sets.some((s) => !s.warmup && s.rpe !== undefined)) flags.push('effort-unknown')
   return {
     key,
     exercise: first.exercise,
@@ -75,21 +75,18 @@ function summarize(
 }
 
 /**
- * The state of a log. `period` cuts the sets by local date (the default is everything). Each lift is read
- * as of its own newest set in the period, as the library's default period reads from the newest activity.
+ * The state of a log. Every lift with a set on or before `period.to` is listed and read from all its sets up to
+ * then, so a short period does not shrink the 56-day window and a lift last trained before `from` still answers,
+ * dated by `lastDate`. `from` and `to` choose only the weeks. No period means everything.
  */
 export function buildLiftState(
   sets: readonly LiftSet[],
   settings: AthleteSettings,
   period: LiftPeriod = {},
 ): LiftState {
-  const inPeriod = sets.filter(
-    (s) =>
-      (period.from === undefined || s.date >= period.from) &&
-      (period.to === undefined || s.date <= period.to),
-  )
+  const upTo = sets.filter((s) => period.to === undefined || s.date <= period.to)
   const byLift = new Map<ExerciseKey, LiftSet[]>()
-  for (const s of inPeriod) {
+  for (const s of upTo) {
     const key = exerciseKeyOf(s)
     byLift.set(key, [...(byLift.get(key) ?? []), s])
   }
@@ -98,5 +95,6 @@ export function buildLiftState(
     .sort((a, b) =>
       a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : a.key < b.key ? -1 : 1,
     )
-  return { revision: LIFT_REVISION, lifts, weeks: weeklyLoad(inPeriod) }
+  const weeks = weeklyLoad(upTo.filter((s) => period.from === undefined || s.date >= period.from))
+  return { revision: LIFT_REVISION, lifts, weeks }
 }
