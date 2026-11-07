@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import { combine } from './digest/combine'
-import * as lateModule from './digest/lateEvidence'
-import * as sameModule from './digest/sameHeartRate'
 import * as setAsideModule from './digest/setAside'
 import { AnalysisSession } from './session'
 import { SET_ASIDE_SETTINGS as SETTINGS, setAsideLibrary } from './zones/test/setAsideLibrary'
@@ -10,18 +8,8 @@ vi.mock('./digest/setAside', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./digest/setAside')>()
   return { ...actual, judgeHeartRate: vi.fn(actual.judgeHeartRate) }
 })
-vi.mock('./digest/sameHeartRate', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./digest/sameHeartRate')>()
-  return { ...actual, sameHeartRate: vi.fn(actual.sameHeartRate) }
-})
-vi.mock('./digest/lateEvidence', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./digest/lateEvidence')>()
-  return { ...actual, lateEvidence: vi.fn(actual.lateEvidence) }
-})
 
 const judged = vi.mocked(setAsideModule.judgeHeartRate)
-const sameHeartRate = vi.mocked(sameModule.sameHeartRate)
-const lateEvidence = vi.mocked(lateModule.lateEvidence)
 
 describe('whose heart rate is set aside', () => {
   const { digests } = setAsideLibrary()
@@ -82,22 +70,6 @@ describe('whose heart rate is set aside', () => {
     // A change of weight is a different judgement.
     session.setSettings({ ...SETTINGS, massKg: SETTINGS.massKg + 5 })
     expect(judged).toHaveBeenCalledTimes(1)
-  })
-
-  it('reads the same list in the heart-rate charts and the late evidence, activities outside the period included', () => {
-    const session = new AnalysisSession()
-    session.loadDigests([...digests], SETTINGS)
-    sameHeartRate.mockClear()
-    lateEvidence.mockClear()
-    const state = session.setRange(42, SETTINGS)
-    const list = state.heartRateJudgement.setAside
-    // 'sample-09' is set aside and is not in the last 42 days, but the reference heart rate is the library's.
-    expect(list).toContain('sample-09')
-    expect(state.result?.activities.map((activity) => activity.id)).not.toContain('sample-09')
-    expect(sameHeartRate).toHaveBeenCalled()
-    for (const [, setAside] of sameHeartRate.mock.calls) expect(setAside).toEqual(new Set(list))
-    expect(lateEvidence).toHaveBeenCalled()
-    for (const [, setAside] of lateEvidence.mock.calls) expect(setAside).toEqual(new Set(list))
   })
 
   it('leaves a set-aside ride out of the zones, in the period and the one before', () => {

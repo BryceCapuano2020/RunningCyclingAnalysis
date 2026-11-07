@@ -315,14 +315,14 @@ export const DISTRIBUTION_BINS = {
 export type DistributionMeasure = keyof typeof DISTRIBUTION_BINS
 
 /**
- * Durability: the best output at each of DURABILITY_DURATIONS_S, in windows that start after at least
+ * Durability: the digest records the best output at each of DURABILITY_DURATIONS_S, in windows that start after at least
  * each of DURABILITY_AFTER_S seconds of moving time (1, 1.5 and 2 hours). See docs/research/durability.md.
  */
 export const DURABILITY_AFTER_S = [3600, 5400, 7200] as const
 export const DURABILITY_DURATIONS_S = [300, 1200] as const
 
 /**
- * Steady-effort drift: the output per heart-rate ratio of the first half against the second half of
+ * Steady-effort drift: the digest records the output per heart-rate ratio of the first half against the second half of
  * an activity's moving time after the warm-up. It is reported only for a steady effort, which is one
  * whose 30 s outputs vary little (coefficient of variation at most maxCv for the sport) and whose two
  * halves hold about the same output (means within maxHalfGap of each other). Half the blocks of each
@@ -339,14 +339,6 @@ export const DRIFT = {
   maxCv: { run: 0.15, ride: 0.25 },
   maxHalfGap: 0.1,
 } as const
-
-/**
- * What the durability and drift views need before they show a figure, and the reference they draw.
- * minActivities is the activities behind a late best, or the steady efforts behind a drift reading.
- * referenceDecouplingPct is the coaching convention that under 5% reads as well-built endurance
- * (docs/research/durability.md): a light reference line, not a verdict.
- */
-export const LATE_IN_EFFORT = { minActivities: 3, referenceDecouplingPct: 5 } as const
 
 /**
  * A run at walking pace is not a run: a hike recorded as one. Its moving speed is under maxMovingSpeedMs

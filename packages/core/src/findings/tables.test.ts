@@ -63,19 +63,7 @@ describe('buildTables', () => {
     )
   })
 
-  it('has steady-effort drift without the activities whose heart rate is set aside', () => {
-    const drift = input.tables.drift.run
-    expect(drift.length).toBeGreaterThan(10)
-    const aside = drift[3]!.activityId
-    const without = buildTables(input.digests, new Set([aside]), input.asOfMs)
-    expect(without.drift.run.some((p) => p.activityId === aside)).toBe(false)
-    expect(without.drift.run).toHaveLength(drift.length - 1)
-    expect(without.drift.ride).toHaveLength(input.tables.drift.ride.length)
-  })
-
-  it("has each sport's durability rows and first activity", () => {
-    expect(input.tables.durability.run.map((r) => r.durationS)).toEqual([300, 1200])
-    expect(input.tables.durability.ride[1]!.after[0]!.retention).toBeGreaterThan(0.5)
+  it("has each sport's first activity", () => {
     expect(input.tables.firstMs.run).toBe(input.digests.find((d) => d.sport === 'run')!.startMs)
     const rideOnly = buildTables(
       input.digests.filter((d) => d.sport === 'ride'),

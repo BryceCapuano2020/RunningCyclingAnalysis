@@ -120,7 +120,7 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   const fitness = await edgesOf(card(page))
   const hero = await edgesOf(page.locator('.sport-hero'))
   expect(hero.bottom).toBeLessThanOrEqual(fitness.top)
-  await expect(page.getByTestId('hero-threshold')).toBeVisible()
+  await expect(page.getByTestId('hero-change')).toBeVisible()
   // The heading's own page title comes first.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })

@@ -52,13 +52,13 @@ describe('PeriodCache and the library’s ride gate', () => {
 
   it('keeps the trend for an equal gate and redoes it when the gate changes or goes', () => {
     const cache = new PeriodCache()
-    const trend = (g: typeof gate) => cache.trends(rides, SETTINGS, null, null, undefined, g)
+    const trend = (g: typeof gate) => cache.trend(rides, SETTINGS, null, null, undefined, g)
     const first = trend(gate)
-    expect(trend(sameGate)[300]).toBe(first[300])
-    expect(trend(otherGate)[300]).not.toBe(first[300])
-    expect(trend(null)[300]).not.toBe(first[300])
+    expect(trend(sameGate)).toBe(first)
+    expect(trend(otherGate)).not.toBe(first)
+    expect(trend(null)).not.toBe(first)
     // Each change replaced the cached trend, so the unchanged gate is worked out again, to the same points.
-    expect(trend(gate)[300]).toEqual(first[300])
+    expect(trend(gate)).toEqual(first)
   })
 
   it('keeps the previous period’s curves for an equal gate and redoes them when it changes or goes', () => {

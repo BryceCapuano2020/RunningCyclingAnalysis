@@ -40,6 +40,8 @@ function panel(sport: Sport, result: AnalysisResult) {
     <SportHero
       sport={sport}
       result={result}
+      previousThresholds={null}
+      previousLabel={null}
       massKg={75}
       units="metric"
       outcome={null}

@@ -36,7 +36,7 @@ describe('selectFindings', () => {
     const list = [
       finding('c:run:x', 0.5, { firstSeenMs: 1, ...kind('pattern') }),
       finding('b:run:x', 0.5, { firstSeenMs: 2, ...kind('discipline') }),
-      finding('a:run:x', 0.5, { firstSeenMs: 2, ...kind('durability') }),
+      finding('a:run:x', 0.5, { firstSeenMs: 2, ...kind('efficiency') }),
       finding('d:run:x', 0.7, { ...kind('pattern') }),
     ]
     expect(selectFindings(list).map((f) => f.id)).toEqual([
@@ -65,7 +65,7 @@ describe('selectFindings', () => {
       finding('a:run:1', 0.85, kind('pattern')),
       finding('b:run:2', 0.8, kind('pattern')),
       finding('c:run:3', 0.7, kind('discipline')),
-      finding('d:run:4', 0.6, kind('durability')),
+      finding('d:run:4', 0.6, kind('efficiency')),
       finding('e:run:5', 0.5, kind('pattern')),
     ]
     expect(selectFindings(list).map((f) => f.id)).toEqual([

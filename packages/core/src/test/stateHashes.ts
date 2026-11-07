@@ -34,9 +34,6 @@ const PLATFORM_DIGITS: Partial<Record<(typeof FIELDS)[number], number>> = { chan
 const FIELDS = [
   'result',
   'trend',
-  'effortTrends',
-  'sameHeartRate',
-  'lateEvidence',
   'heartRateJudgement',
   'fitness',
   'lookBack',
