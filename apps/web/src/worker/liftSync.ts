@@ -170,7 +170,7 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
             return false
           }
           if (failure.kind === 'invalid') {
-            const named = rows.filter((_, index) => failure.indexes.includes(index))
+            const named = rows.filter((_, index) => failure.refused.includes(index))
             if (named.length === 0) {
               await store.applyHeld(sentOf(rows))
               failed(rows)

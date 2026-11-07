@@ -5,12 +5,12 @@ export type LiftFailure = 'invalid' | 'unauthorized' | 'cap' | 'other'
 
 export class LiftTransportError extends Error {
   readonly kind: LiftFailure
-  /** For `invalid`: the positions in the request's list that the 400 names. Empty when it names none. */
-  readonly indexes: readonly number[]
-  constructor(kind: LiftFailure, indexes: readonly number[] = []) {
+  /** For `invalid`: the API's `refused` array, the sorted unique positions in the request's list the 400 names. Empty or missing names none, which holds every row of the request. */
+  readonly refused: readonly number[]
+  constructor(kind: LiftFailure, refused: readonly number[] = []) {
     super(`Lift request failed: ${kind}`)
     this.kind = kind
-    this.indexes = indexes
+    this.refused = refused
   }
 }
 
