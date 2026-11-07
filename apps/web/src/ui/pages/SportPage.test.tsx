@@ -868,7 +868,9 @@ describe('SportPage', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(records).getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(
+      within(records).getByRole('figure', { name: 'Best effort by duration' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Pace curve' })).not.toBeInTheDocument()
   })
 })
@@ -1071,7 +1073,7 @@ describe('SportPage age grades', () => {
     }
     renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
 
-    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText(wholeText('Previous 6 weeks'))).toBeInTheDocument()
   })
@@ -1664,7 +1666,7 @@ describe('SportPage depth', () => {
 
     expect(screen.getByRole('heading', { name: 'Best efforts by day' })).toBeInTheDocument()
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    const figure = within(records).getByRole('figure', { name: 'Best efforts' })
+    const figure = within(records).getByRole('figure', { name: 'Best effort by duration' })
     expect(figure.querySelector('svg')?.textContent).toContain('Power (W)')
   })
 

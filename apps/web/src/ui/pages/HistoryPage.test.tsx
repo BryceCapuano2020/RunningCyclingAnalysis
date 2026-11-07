@@ -21,7 +21,7 @@ describe('HistoryPage', () => {
     for (const label of ['Years on file', 'Total hours', 'Run distance', 'Ride distance']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
-    expect(screen.getByRole('figure', { name: 'Hours per year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Hours per year, run and ride' })).toBeInTheDocument()
     expect(screen.getByText(wholeText('1,850.0 km'))).toBeInTheDocument()
     rerender(
       <HistoryPage history={history} units="imperial" grading={GRADING} lookBack={NO_LOOKBACK} />,
@@ -35,15 +35,15 @@ describe('HistoryPage', () => {
       <HistoryPage history={history} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
     )
     const figures = screen.getAllByRole('figure')
-    const balance = screen.getByRole('figure', { name: 'Running led every year until 2019' })
-    const hours = screen.getByRole('figure', { name: 'Hours per year' })
+    const balance = screen.getByRole('figure', { name: 'Grade by year, run and ride' })
+    const hours = screen.getByRole('figure', { name: 'Hours per year, run and ride' })
     expect(figures.indexOf(balance)).toBeLessThan(figures.indexOf(hours))
     const missing = { profile: null, missingAge: 'sex' as const, weightKnown: true }
     rerender(
       <HistoryPage history={history} units="metric" grading={missing} lookBack={NO_LOOKBACK} />,
     )
     expect(screen.getByText('Age grade by year needs your sex.')).toBeInTheDocument()
-    expect(screen.getByRole('figure', { name: 'Hours per year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Hours per year, run and ride' })).toBeInTheDocument()
   })
 
   it('adds the fitness dots after the hours, with a toggle for the sport when both have some', () => {
@@ -60,8 +60,10 @@ describe('HistoryPage', () => {
     const names = screen
       .getAllByRole('figure')
       .map((figure) => figure.querySelector('figcaption')?.textContent)
-    expect(names.indexOf('Hours per year')).toBeGreaterThanOrEqual(0)
-    expect(names.indexOf('Fitness over the years')).toBeGreaterThan(names.indexOf('Hours per year'))
+    expect(names.indexOf('Hours per year, run and ride')).toBeGreaterThanOrEqual(0)
+    expect(names.indexOf('Fitness over the years')).toBeGreaterThan(
+      names.indexOf('Hours per year, run and ride'),
+    )
     const section = container.querySelector<HTMLElement>('[data-section="fitness-over-years"]')!
     expect(within(section).getByRole('radio', { name: 'Run' })).toBeChecked()
     expect(within(section).getByRole('radio', { name: 'Ride' })).toBeInTheDocument()

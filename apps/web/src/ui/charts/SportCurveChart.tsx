@@ -20,7 +20,6 @@ import { areaPath, linePath } from './paths'
 import { axisTitleWithin } from './sportAxis'
 import { curveMarks } from './sportCurveAnnotations'
 import { keyOf } from './sportCurveKey'
-import { curveTakeaway } from './sportCurveTakeaway'
 import {
   CURVE_TITLE,
   buildRows,
@@ -61,7 +60,7 @@ export interface SportCurveChartProps {
   activityMasses?: Record<string, number>
   /** The sport's threshold in its own number, drawn as a labelled line with its range as a band. */
   threshold?: ThresholdLine | null
-  /** The change test for the period before, which the finding reads; null where there is no period before. */
+  /** The change test for the period before, which marks the effort length it was judged at; null where there is no period before. */
   change: ChangeEvidence | null
 }
 
@@ -131,17 +130,6 @@ export function SportCurveChart({
   return (
     <ChartFrame
       title={CURVE_TITLE}
-      takeaway={
-        hasData
-          ? (curveTakeaway({
-              sport,
-              units,
-              rows,
-              previousLabel: shown?.label ?? null,
-              change,
-            }) ?? undefined)
-          : undefined
-      }
       description={`Best ${SPORT_FORMAT[sport].nativeLabel.toLowerCase()} for each duration. Duration is on a log scale.${shown ? ` Grey line: ${shown.label}.` : ''}`}
       legend={legend}
       keyNote={noPrevious}
