@@ -39,8 +39,9 @@ function ByDuration({ children }: { children: ReactNode }) {
 }
 
 /**
- * How the two sports' age grades compare from 3 min to 3 h, titled "Age grade by effort length". It is left out without the year of birth and sex, without a
- * weight, and with fewer than two durations graded in both sports, since a chart that would only repeat the
+ * How the two sports' age grades compare from 3 min to 3 h, titled "Age grade by effort length". It is left out
+ * without the year of birth and sex, without a weight, and with fewer than two durations graded in both sports,
+ * since a chart that would only repeat the
  * balance at 20 min says nothing more. The extra ride equivalents it needs are priced once for a result and
  * body mass, here, not in every combine. When no duration separates the sports the chart is folded;
  * otherwise it is open.
