@@ -101,15 +101,6 @@ const PASSED_IN: Record<string, string[]> = {
   ZoneTimeChart: [PERIOD_ZONES_TITLE, INTERVAL_ZONES_TITLE],
 }
 
-/** Charts the axed list removes (PR "Stage W2a"), whose titles are still findings until they go. */
-const REMOVED_SOON = new Set([
-  'BestsOverTimeChart',
-  'DriftChart',
-  'DurabilityChart',
-  'SameHeartRateChart',
-  'StandOutChart',
-])
-
 /** A sentence has a full stop, or a verb that states a result. */
 const FINITE_VERB =
   /\b(is|are|was|were|led|peaked|grades|beat|beats|leans|improved|slipped|dropped|gained|stronger|weaker|behind|ahead|rose|fell|has|have|held|shows?)\b/i
@@ -143,7 +134,7 @@ describe('chart titles', () => {
     const files = Object.keys(import.meta.glob('./*Chart.tsx')).map((path) =>
       path.replace(/^\.\//, '').replace(/\.tsx$/, ''),
     )
-    const listed = new Set([...Object.keys(CHARTS), ...Object.keys(PASSED_IN), ...REMOVED_SOON])
+    const listed = new Set([...Object.keys(CHARTS), ...Object.keys(PASSED_IN)])
     expect(files.filter((name) => !listed.has(name))).toEqual([])
   })
 

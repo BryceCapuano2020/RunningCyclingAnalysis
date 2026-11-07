@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
-import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
@@ -46,8 +42,6 @@ function renderPage(
   options: {
     profile?: AgeProfile | null
     missingAge?: AgeGap | null
-    sameHeartRate?: SameHeartRate
-    lateEvidence?: LateEvidence
     zoneTimes?: readonly MeasureTime[]
   } = {},
 ) {
@@ -58,9 +52,6 @@ function renderPage(
       result={result}
       previous={null}
       previousLabel={null}
-      trends={NO_TRENDS}
-      sameHeartRate={options.sameHeartRate ?? NO_SAME_HEART_RATE[sport]}
-      lateEvidence={options.lateEvidence ?? NO_LATE_EVIDENCE[sport]}
       zoneTimes={options.zoneTimes}
       change={null}
       units="metric"
@@ -144,10 +135,9 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     // A run is read as recorded, so it has no estimated chip.
     expect(within(level).queryByText('Estimated')).toBeNull()
@@ -168,27 +158,24 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     // The range reaches from Local into Regional, and the level is still the centre's.
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__range')).toBeNull()
-    expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).queryByText('Estimated')).toBeNull()
     expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local · 67%$/)
   })
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: 'year of birth' })
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(within(level).getByText('Age grades need your year of birth.')).toBeInTheDocument()
-    expect(level.querySelector('.level-ladder')).toBeNull()
   })
 
   it('leaves the level out, and the threshold alone in the card, with nothing to ask for', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: null })
-    expect(screen.queryByRole('region', { name: 'Age grade at threshold' })).toBeNull()
+    expect(screen.queryByTestId('hero-level')).toBeNull()
   })
 
   it('puts the period’s control under the title and one Details last in the page head, above the answer', () => {
@@ -205,127 +192,6 @@ describe('the answer: threshold and level in one card', () => {
 })
 
 describe('the records of the page', () => {
-  const at = new Date(2026, 0, 12, 9).getTime()
-  const withDistances = run({
-    id: 'run-d',
-    name: 'Track night',
-    startMs: at,
-    distanceBests: [
-      { distanceM: 1000, seconds: 200 },
-      { distanceM: 1609.344, seconds: 340 },
-      { distanceM: 5000, seconds: 1260 },
-      { distanceM: 10_000, seconds: 2700 },
-      { distanceM: 21_097.5, seconds: 6000 },
-    ],
-  })
-  /** The rows of "All best efforts", the one place the page lists its records. */
-  const rows = () =>
-    within(screen.getByRole('region', { name: 'All best efforts' })).getAllByRole('listitem')
-  const rowNamed = (label: string) =>
-    rows().find((row) => row.querySelector('.records__label')?.textContent === label)!
-
-  it('lists a run’s distances once, in All best efforts, with the finish time in the one figure column', () => {
-    renderPage('run', makeResult({ activities: [withDistances] }))
-    const labels = rows().map((row) => row.querySelector('.records__label')?.textContent)
-    for (const label of ['1 km', '1 mi', '5 km', '10 km']) expect(labels).toContain(label)
-    expect(new Set(labels).size).toBe(labels.length)
-    const values = Object.fromEntries(
-      ['1 km', '1 mi', '5 km', '10 km'].map((label) => [
-        label,
-        rowNamed(label).querySelector('.records__value')?.textContent?.trim(),
-      ]),
-    )
-    expect(values).toEqual({ '1 km': '3:20', '1 mi': '5:40', '5 km': '21:00', '10 km': '45:00' })
-    // A finish time has no second reading: its pace is on the activity, so every figure ends at one x.
-    for (const label of ['1 km', '1 mi', '5 km', '10 km']) {
-      expect(rowNamed(label).querySelector('.records__sub')).toBeNull()
-      expect(rowNamed(label).querySelector('.records__value .row__unit')).toBeEmptyDOMElement()
-    }
-  })
-
-  it('draws no strip of tiles under the curve, whose rows the list below holds', () => {
-    renderPage('run', makeResult({ activities: [withDistances] }))
-    // The curve's card is there, and the list has the rows; the strip that repeated them is not.
-    const curve = screen.getByRole('region', { name: 'Best efforts' })
-    expect(curve.querySelector('.sport-curve, figure')).not.toBeNull()
-    expect(curve.querySelector('.record-tiles')).toBeNull()
-    expect(document.querySelector('.record-tiles')).toBeNull()
-    expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
-    expect(rows().length).toBeGreaterThanOrEqual(4)
-  })
-
-  it('names the one activity every record was set in once, under the list, and not on each row', () => {
-    renderPage('run', makeResult({ activities: [withDistances] }))
-    expect(rows().every((row) => row.querySelector('a') === null)).toBe(true)
-    const all = screen.getByRole('region', { name: 'All best efforts' })
-    expect(
-      within(all)
-        .getByText(/^All set on/)
-        .closest('p')!
-        .querySelector('a'),
-    ).toHaveAttribute('href', '#/activities/run-d')
-  })
-
-  it('links each row to its own activity when they were set in different ones', () => {
-    const other = run({
-      id: 'run-o',
-      name: 'Long run',
-      startMs: at - 86_400_000 * 30,
-      distanceBests: [{ distanceM: 10_000, seconds: 2640 }],
-    })
-    renderPage('run', makeResult({ activities: [withDistances, other] }))
-    const links = rows().flatMap((row) => Array.from(row.querySelectorAll('a')))
-    expect(links.map((link) => link.getAttribute('href'))).toContain('#/activities/run-o')
-    expect(links.map((link) => link.getAttribute('href'))).toContain('#/activities/run-d')
-  })
-
-  it('gives a row a level where the distance has a standard, and none for the kilometre', () => {
-    renderPage('run', makeResult({ activities: [withDistances] }), { profile: MAN_BORN_1986 })
-    expect(rowNamed('1 km').querySelector('.records__grade')).toBeNull()
-    for (const label of ['1 mi', '5 km', '10 km']) {
-      expect(rowNamed(label).querySelector('.records__grade')?.textContent).toMatch(
-        /^(Recreational|Local|Regional|National|World)\u00a0\d+%$/,
-      )
-    }
-  })
-
-  it('lists a ride’s 1, 5, 20 and 60 minute bests in watts with watts a kilogram, once', () => {
-    const ride = makeActivity({
-      id: 'r',
-      sport: 'ride',
-      name: 'Hill ride',
-      powerSource: 'measured',
-    })
-    renderPage(
-      'ride',
-      makeResult({
-        activities: [ride],
-        rideCurve: [
-          curvePoint(60, 450, 'r'),
-          curvePoint(300, 330, 'r'),
-          curvePoint(1200, 260, 'r'),
-          curvePoint(3600, 240, 'r'),
-        ],
-      }),
-    )
-    const labels = rows().map((row) => row.querySelector('.records__label')?.textContent)
-    expect(labels).toEqual(expect.arrayContaining(['1 min', '5 min', '20 min', '60 min']))
-    expect(new Set(labels).size).toBe(labels.length)
-    expect(rowNamed('1 min').querySelector('.records__value')).toHaveTextContent('450 W')
-    expect(rowNamed('1 min').querySelector('.records__sub')).toHaveTextContent('6.0 W/kg')
-    expect(document.querySelector('.record-tiles')).toBeNull()
-  })
-
-  it('names the full list on its row and says no count or finding there, with a profile or without', () => {
-    renderPage('run', makeResult({ activities: [withDistances] }), { profile: MAN_BORN_1986 })
-    const row = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
-    expect(row.textContent).toBe('All best efforts')
-    cleanup()
-    renderPage('run', makeResult({ activities: [withDistances] }), { missingAge: 'sex' })
-    const bare = screen.getByRole('region', { name: 'All best efforts' }).querySelector('summary')!
-    expect(bare.textContent).toBe('All best efforts')
-  })
-
   it('has no strip of tiles, and no empty one, without a record', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] }))
     expect(screen.queryByRole('list', { name: 'Best efforts' })).toBeNull()
@@ -345,20 +211,6 @@ describe('the sections and the layout', () => {
         }),
       ],
     })
-  const sameHeartRate: SameHeartRate = {
-    referenceHeartRate: 145,
-    weeks: [0, 1, 2, 3].map((i) => ({
-      endMs: Date.UTC(2025, 0, 12) + i * 7 * 86_400_000,
-      fit: { output: 3.2 + i * 0.05, low: 3.1 + i * 0.05, high: 3.3 + i * 0.05 },
-      lacks: null,
-      blocks: 14,
-      activities: 5,
-    })),
-    reportedWeeks: 4,
-    lacks: null,
-    latestWeekEndMs: Date.UTC(2025, 0, 12) + 3 * 7 * 86_400_000,
-  }
-
   /**
    * The sections the page draws an answer for, by their anchors, in the order they are read: a section that is one line
    * of what to add (titled by its own element) is left out.
@@ -370,43 +222,19 @@ describe('the sections and the layout', () => {
       .filter((id) => document.getElementById(`${sport}-section-${id}-title`) === null)
 
   it('draws the open sections first and the closed ones after, only what the page has, with no jump list', () => {
-    renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    expect(sectionsOf('run')).toEqual([
-      'bestEfforts',
-      'racePredictions',
-      'timeInZones',
-      'bestsOverTime',
-      'sameHeartRate',
-      'evidence',
-    ])
+    renderPage('run', full(), { zoneTimes: ZONES })
+    expect(sectionsOf('run')).toEqual(['bestEfforts', 'racePredictions', 'timeInZones'])
     expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
   })
 
   it('leaves out a section the page has nothing for, and race predictions on a ride', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] }))
-    expect(sectionsOf('ride')).toEqual(['bestEfforts', 'bestsOverTime', 'evidence'])
+    expect(sectionsOf('ride')).toEqual(['bestEfforts'])
     expect(screen.queryByRole('navigation', { name: 'On this page' })).toBeNull()
   })
 
-  it('heads a chart section with its finding once, and says it still when the reader folds it', () => {
-    renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
-    const region = screen.getByRole('region', { name: 'Pace at 145 bpm, by week' })
-    const details = region.querySelector('details')!
-    // A section with content is open to start with, its heading the chart's title, which the chart does not repeat.
-    expect(details.open).toBe(true)
-    expect(within(region).getAllByText('Pace at 145 bpm, by week')).toHaveLength(2)
-    expect(
-      within(region).getByText('Pace at 145 bpm, by week', { selector: 'figcaption' }),
-    ).toHaveClass('sr-only')
-    expect(screen.queryByText('Pace at heart rate')).toBeNull()
-    details.open = false
-    fireEvent(details, new Event('toggle'))
-    expect(region.querySelector('summary')).toHaveTextContent('Pace at 145 bpm, by week')
-    expect(within(region).getByRole('figure', { hidden: true })).toBeInTheDocument()
-  })
-
   it('sets race predictions and the zones side by side in one row, and every other section alone', () => {
-    renderPage('run', full(), { zoneTimes: ZONES, sameHeartRate })
+    renderPage('run', full(), { zoneTimes: ZONES })
     const rows = Array.from(document.querySelectorAll('.sport-row'))
     const pair = rows.filter((row) => row.classList.contains('sport-row--pair'))
     expect(pair).toHaveLength(1)
@@ -424,29 +252,5 @@ describe('the sections and the layout', () => {
     })
     expect(document.querySelector('.sport-row--pair')).toBeNull()
     expect(screen.getByRole('region', { name: 'Time in zones' })).toBeInTheDocument()
-  })
-
-  it('gives every closed section a summary that heads it, and a finding wherever it has one to add', () => {
-    renderPage('run', full(), {
-      zoneTimes: ZONES,
-      sameHeartRate,
-      lateEvidence: NO_LATE_EVIDENCE.run,
-    })
-    const summaries = Array.from(document.querySelectorAll('.sport-disclosure__summary'))
-    expect(summaries.length).toBeGreaterThan(1)
-    for (const summary of summaries) {
-      expect(
-        summary.querySelector('.sport-disclosure__title')?.textContent?.length,
-      ).toBeGreaterThan(0)
-      const finding = summary.querySelector('.sport-disclosure__finding')
-      if (finding !== null) expect(finding.textContent!.length).toBeGreaterThan(10)
-    }
-    // A heading that is the finding needs nothing beside it, and the full list is its name alone: a count of its rows
-    // would say nothing the list does not.
-    expect(
-      summaries
-        .filter((summary) => summary.querySelector('.sport-disclosure__finding') === null)
-        .map((summary) => summary.textContent),
-    ).toEqual(['Pace at 145 bpm, by week', 'All best efforts'])
   })
 })

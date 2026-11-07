@@ -5,7 +5,6 @@ import type { Sport } from '@rca/core/types'
 import { SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
 import { LANDING_MIN_LEAD_POINTS } from '../../scripts/landingFigures'
 import { gapOfHeadline } from './balanceGap'
-import { profileOf } from './durationProfile'
 import { thresholdGrades } from './thresholdGrade'
 import { LANDING_EXAMPLE } from './landingExample'
 import { headlineEffort, sportRecords } from './records'
@@ -67,17 +66,6 @@ describe('the sample athlete fills every section of the app', () => {
       }
     },
   )
-
-  it.each(SPORTS)('has durability and drift evidence for %s', (sport) => {
-    const { durability, drift } = at('default').lateEvidence[sport]
-    expect(durability.length).toBeGreaterThan(0)
-    expect(drift.length).toBeGreaterThanOrEqual(5)
-  })
-
-  it.each(SPORTS)('has enough sessions for a %s stand-out profile', (sport) => {
-    const profile = profileOf(at('default').result!, sport)
-    expect(profile.status).toBe('ready')
-  })
 
   it('shows a ride that is getting stronger: the weekly best power rises through the season', () => {
     const rides = at('all').trend.flatMap((point) =>

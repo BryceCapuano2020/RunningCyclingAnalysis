@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeActivity, makeResult, makeRunThreshold } from './components/fixtures'
 import { gate, NO_HEART_RATE, THIN, UNKNOWN } from './effortGateFixtures'
-import { ThresholdPanel } from './pages/ThresholdPanel'
+import { SportHero } from './pages/SportHero'
 import { ThresholdTile } from './pages/ThresholdTile'
 import { rowValue } from './test/propertyRows'
 import { hasThreshold, paceFigure, threshold } from './records'
@@ -30,7 +30,14 @@ describe('a run threshold whatever the effort gate says', () => {
 
   it('is drawn on the sport page’s panel as the estimate, with no floor, reason, spread or best-named heading', () => {
     const { container } = render(
-      <ThresholdPanel sport="run" result={notHard()} massKg={70} units="metric" />,
+      <SportHero
+        sport="run"
+        result={notHard()}
+        massKg={70}
+        units="metric"
+        outcome={null}
+        missingAge={null}
+      />,
     )
     expect(screen.getByRole('heading', { name: 'Threshold pace' })).toBeInTheDocument()
     expect(container.querySelector('.sport-hero__number')).toHaveTextContent(ESTIMATE_PACE)
@@ -68,7 +75,14 @@ describe('a run threshold whatever the effort gate says', () => {
         effortGate: { run: unchecked, ride: UNKNOWN },
       })
       const panel = render(
-        <ThresholdPanel sport="run" result={result} massKg={70} units="metric" />,
+        <SportHero
+          sport="run"
+          result={result}
+          massKg={70}
+          units="metric"
+          outcome={null}
+          missingAge={null}
+        />,
       )
       expect(panel.container.querySelector('.sport-hero__number')).toHaveTextContent(ESTIMATE_PACE)
       expect(panel.container.textContent).not.toMatch(/not checked|with heart rate to check/)

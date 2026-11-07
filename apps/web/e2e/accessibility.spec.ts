@@ -58,9 +58,10 @@ function openEverySection(sport: 'Run' | 'Ride') {
     await openGradedSample(page)
     await goTo(page, sport)
     // The sections are open to start with, each with its content drawn.
-    const count = await page.locator('.sport-disclosure__summary').count()
-    expect(count).toBeGreaterThan(0)
-    await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
+    await expect(
+      page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
     const about = page.getByText('About these predictions')
     if ((await about.count()) > 0) {
       await about.click()
@@ -219,7 +220,7 @@ test('the activity workbench fits a 320 px screen with its tables expanded', asy
   expect(await violationsOf(page)).toEqual([])
 })
 
-test('the level ladder labels are at least 11 px, and the page does not scroll sideways at 320 px', async ({
+test('the sport hero’s labels and level are at least 11 px, and the page does not scroll sideways at 320 px', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -229,7 +230,7 @@ test('the level ladder labels are at least 11 px, and the page does not scroll s
   await openGradedSample(page)
   await goTo(page, 'Run')
   const sizes = await page
-    .locator('.level-ladder__pct, .level-ladder__name')
+    .locator('.sport-hero__label, .sport-hero__value, .sport-hero__level-name')
     .evaluateAll((labels) => labels.map((label) => parseFloat(getComputedStyle(label).fontSize)))
   expect(sizes.length).toBeGreaterThan(0)
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11)

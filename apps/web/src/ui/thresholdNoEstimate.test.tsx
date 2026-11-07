@@ -8,7 +8,7 @@ import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeResult, makeRunThreshold } from './components/fixtures'
 import { HARD, UNKNOWN } from './effortGateFixtures'
-import { ThresholdPanel } from './pages/ThresholdPanel'
+import { SportHero } from './pages/SportHero'
 import { ThresholdTile } from './pages/ThresholdTile'
 import { hasThreshold, paceFigure, powerFigure, threshold } from './records'
 import { thresholdNeedsLine } from './thresholdNeeds'
@@ -48,7 +48,16 @@ function tile(sport: Sport, result: AnalysisResult) {
 }
 
 function panel(sport: Sport, result: AnalysisResult) {
-  return render(<ThresholdPanel sport={sport} result={result} massKg={MASS_KG} units="metric" />)
+  return render(
+    <SportHero
+      sport={sport}
+      result={result}
+      massKg={MASS_KG}
+      units="metric"
+      outcome={null}
+      missingAge={null}
+    />,
+  )
 }
 
 /** A sport with bests that give no threshold estimate and a gate that judged them hard: it still shows no number. */

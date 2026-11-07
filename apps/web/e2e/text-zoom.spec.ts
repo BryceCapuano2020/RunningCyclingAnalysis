@@ -13,11 +13,12 @@ const SIZES = [
   { name: 'desktop', width: 1440, height: 900 },
 ] as const
 
-/** Waits for the sections of a sport page, which are open to start with, so the charts in them are checked. */
+/** Waits for the sport page's curve and its last section, so the charts in its sections are checked. */
 async function openSections(page: Page): Promise<void> {
-  const count = await page.locator('.sport-disclosure__summary').count()
-  expect(count).toBeGreaterThan(0)
-  await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(count)
+  await expect(
+    page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
 }
 
 /** Before the app starts, as a reader's own stylesheet is: the charts lay out their labels with the spacing in force. */

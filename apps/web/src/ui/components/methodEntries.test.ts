@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { CHANGE } from '@rca/core/change'
-import { DEFAULT_WINDOW_DAYS, MIN_WINDOW_DAYS } from '@rca/core/digest/trendPoints'
 import { runDurationRatio } from '@rca/core/threshold'
 import {
   METHOD_ENTRIES,
@@ -38,15 +37,12 @@ describe('How this works entries', () => {
       /Thresholds/,
       /Best efforts and curves/,
       /Race predictions/,
-      /Best efforts over time/,
+      /Fitness status/,
       /How a change is called/,
       /The default period/,
-      /Pace at heart rate/,
-      /Best durations/,
       /Splits/,
       /The timeline in detail/,
       /Time in zones/,
-      /Durability/,
       /reps held up/,
       /Runs at walking pace/,
       /Dated settings and zones/,
@@ -64,12 +60,7 @@ describe('How this works entries', () => {
       years: /History/,
       bestEfforts: /Best efforts and curves/,
       racePredictions: /Race predictions/,
-      bestsOverTime: /Best efforts over time/,
-      sameHeartRate: /Pace at heart rate/,
-      lateInEffort: /Durability/,
       timeInZones: /Time in zones/,
-      standOut: /Best durations/,
-      evidence: /Best efforts and curves/,
     }
     const calculated = namesIn('calculated')
     for (const id of Object.keys(entryFor) as SectionId[]) {
@@ -268,39 +259,13 @@ describe('How this works entries', () => {
   })
 
   it('says in the detail that a fitness status takes the seasonal swing out, and where its size is', () => {
-    const trend = entryNamed('Best efforts over time')
-    expect(trend.detail).toContain(
+    const status = entryNamed('Fitness status')
+    expect(status.detail).toContain(
       'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
     )
-    expect(trend.detail).toContain('The size taken out is under See the evidence on the card.')
+    expect(status.detail).toContain('The size taken out is under See the evidence on the card.')
     // The card no longer says it, and the main page holds none of it.
-    expect(trend.lines.join(' ')).not.toMatch(/seasonal/)
-  })
-
-  it('keeps the window and the bike model in the dated bests’ detail, with the days from the code', () => {
-    const detail = entryNamed('Best efforts over time').detail?.join(' ') ?? ''
-    expect(detail).toContain(
-      `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
-    )
-    expect(detail).toContain(
-      '6 weeks uses 14 days, 12 weeks uses 28 days, 6 months uses 42 days and 12 months uses 42 days.',
-    )
-    expect(detail).toContain('period’s one bike model')
-    expect(detail).not.toContain('running economy')
-  })
-
-  it('explains the dated bests in plain facts, with no line and no window in the plain text', () => {
-    const { lines } = entryNamed('Best efforts over time')
-    expect(lines).toContain('Each dot is the best effort of its stretch, on the day it was done.')
-    expect(lines).toContain('Each chart is for one length: 5 min, 20 min or 60 min.')
-    expect(lines).toContain('Running uses grade-adjusted pace (GAP).')
-    expect(lines).toContain('That is your pace allowing for hills, as if on level ground.')
-    expect(lines).toContain('Cycling uses power in watts.')
-    expect(lines).toContain('There is no line.')
-    // Wherever a sport has a fitness status that is the trend, so the sentence reads right with or without a ride status.
-    expect(lines).toContain('A fitness status comes from steady efforts at the same heart rate.')
-    expect(lines).toContain('Where a sport has one, that status is the trend.')
-    expect(lines).toHaveLength(11)
+    expect(status.lines.join(' ')).not.toMatch(/seasonal/)
   })
 
   it('says how a change is called, with the numbers from the test’s own constants', () => {

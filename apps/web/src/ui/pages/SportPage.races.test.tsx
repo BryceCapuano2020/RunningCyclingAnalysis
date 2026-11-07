@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { NO_EFFORT_REFERENCE } from '@rca/core/effort'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
@@ -52,9 +49,6 @@ function renderPage(library: ActivitySummary[], hardIds: string[]) {
       result={result}
       previous={null}
       previousLabel={null}
-      trends={NO_TRENDS}
-      sameHeartRate={NO_SAME_HEART_RATE.run}
-      lateEvidence={NO_LATE_EVIDENCE.run}
       change={null}
       units="metric"
       massKg={75}
