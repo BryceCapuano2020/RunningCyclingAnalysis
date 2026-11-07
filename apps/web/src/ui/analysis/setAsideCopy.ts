@@ -36,11 +36,6 @@ function rule(sports: readonly Sport[], judgement: HeartRateJudgement): string {
   )
 }
 
-/** The note on an activity whose heart rate is set aside. */
-export function setAsideActivityText(sport: Sport, judgement: HeartRateJudgement): string {
-  return `We left this activity's heart rate out of the heart-rate and effort checks. Its heart rate ${rule([sport], judgement)}`
-}
-
 /** The line on Method, or null when nothing is set aside. */
 export function setAsideText(result: AnalysisResult, judgement: HeartRateJudgement): string | null {
   const ids = new Set(result.heartRateSetAside)

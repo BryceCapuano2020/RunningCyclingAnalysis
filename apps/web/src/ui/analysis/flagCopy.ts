@@ -1,5 +1,6 @@
 import type { QualityFlag, QualityKind } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
+import type { Property } from '../components/property'
 import { formatCount } from '../format/count'
 
 /**
@@ -92,6 +93,43 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
 }
 
 const KINDS = Object.keys(KIND_COPY) as QualityKind[]
+
+/** What each kind is called as a row's label, and what was done about it as the end of the row's value. */
+const ROW_COPY: Record<QualityKind, { label: (indoor: boolean) => string; effect: string }> = {
+  'hr-implausible-for-power': { label: () => 'Heart rate too low for power', effect: 'left out' },
+  'hr-dropout': { label: () => 'Heart rate missing or too low', effect: 'left out' },
+  'hr-spike': { label: () => 'Heart rate jumps', effect: 'left out' },
+  'hr-cadence-lock': { label: () => 'Heart rate matched cadence', effect: 'left out' },
+  'power-spike': { label: () => 'Power spikes', effect: 'left out' },
+  'power-dropout': { label: () => 'Power meter dropouts', effect: 'left out' },
+  'speed-spike': {
+    label: (indoor) => (indoor ? 'Speed jumps' : 'GPS speed jumps'),
+    effect: 'left out',
+  },
+  'implausible-speed': { label: () => 'Speed too high to be real', effect: 'left out' },
+  'altitude-jump': {
+    label: () => 'Altitude jumps',
+    effect: 'climb and slope figures near it left out',
+  },
+  'implausible-climb': { label: () => 'Climb too fast', effect: 'slope figures left out' },
+  'stream-disagreement': {
+    label: () => 'Speed and distance disagree',
+    effect: 'counted only what both support',
+  },
+  'missing-altitude': { label: () => 'Altitude', effect: 'not recorded' },
+}
+
+/**
+ * A kind as a detail panel's row: "Heart rate jumps", "4 times, left out". The core flags a missing altitude once for the
+ * whole activity, so its row has no count.
+ */
+export function flagKindRow(kind: QualityKind, count: number, indoor = false): Property {
+  const { label, effect } = ROW_COPY[kind]
+  return {
+    label: label(indoor),
+    value: kind === 'missing-altitude' ? effect : `${timesText(count)}, ${effect}`,
+  }
+}
 
 /** The kinds with a count above zero, in the order the copy lists them. */
 export function skippedKinds(counts: Partial<Record<QualityKind, number>>): QualityKind[] {

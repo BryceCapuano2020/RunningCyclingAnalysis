@@ -12,7 +12,6 @@ import {
   waitingStatus,
 } from './fitnessFixtures'
 import { FITNESS_STATE, fitnessViews, lineOf, trackOf, viewOf, worthShowing } from './fitnessModel'
-import { fitnessDefinitions } from './fitnessText'
 
 const DAY_MS = 86_400_000
 /** The words the copy rules keep out: a cause, a ranking, a limit. */
@@ -38,11 +37,7 @@ describe('what each state is called, and the shape that says it', () => {
 
   it('words nothing the copy rules ban: no cause, no ranking, no hedge', () => {
     const labels = Object.values(FITNESS_STATE).map((state) => state.label)
-    const meanings = [
-      ...Object.values(fitnessDefinitions(SLIPPING, 'metric')),
-      ...Object.values(fitnessDefinitions(SLIPPING, 'imperial')),
-    ]
-    for (const text of [...labels, ...meanings]) expect(text).not.toMatch(BANNED)
+    for (const text of labels) expect(text).not.toMatch(BANNED)
   })
 })
 

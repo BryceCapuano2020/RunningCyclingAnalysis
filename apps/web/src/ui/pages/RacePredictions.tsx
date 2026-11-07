@@ -11,7 +11,7 @@ import { useScrollRegion } from '../useScrollRegion'
 import { PropertyList } from '../components/PropertyList'
 import { SECTION_ID } from '../components/methodTopics'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { FLOORED_TEXT, forecastRows, originText, spreadText } from './racePredictionCopy'
+import { FLOORED_TEXT, forecastRows, originRow, spreadText } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { NumText } from '../components/NumText'
@@ -306,23 +306,18 @@ export function RacePredictions({
         {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
         {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
         <PropertyList
-          rows={forecastRows({ basis }, window, bound, openedAt)}
+          rows={[
+            ...forecastRows({ basis }, window, bound, openedAt),
+            ...found.races.flatMap((prediction) =>
+              prediction.methods.map((method) =>
+                originRow(raceName(prediction.distanceM), method, found.vo2max?.vo2max ?? null),
+              ),
+            ),
+          ]}
           method={SECTION_ID.how}
           methodName="how the race predictions are worked out"
         />
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
-        <ul className="race-origins">
-          {found.races.map((prediction) => (
-            <li key={prediction.distanceM}>
-              <span className="race-origins__race">{raceName(prediction.distanceM)}</span>
-              {prediction.methods.map((method) => (
-                <span key={method.method} className="race-origins__method muted">
-                  {originText(method, found.vo2max?.vo2max ?? null)}
-                </span>
-              ))}
-            </li>
-          ))}
-        </ul>
       </EvidenceDisclosure>
     </section>
   )

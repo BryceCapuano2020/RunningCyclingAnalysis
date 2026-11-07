@@ -263,7 +263,7 @@ describe('How this works entries', () => {
     expect(status.detail).toContain(
       'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
     )
-    expect(status.detail).toContain('The size taken out is under See the evidence on the card.')
+    expect(status.detail).toContain('The size taken out is a row in the card’s Details.')
     // The card no longer says it, and the main page holds none of it.
     expect(status.lines.join(' ')).not.toMatch(/seasonal/)
   })

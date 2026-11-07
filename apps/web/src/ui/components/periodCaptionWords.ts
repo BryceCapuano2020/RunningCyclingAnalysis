@@ -58,15 +58,6 @@ export function captionWords({
   return { count, notCountedText, announcement, said }
 }
 
-/**
- * Whether the caption's line has anything to say, so a page can leave out the disclosure it would sit in, and whether it
- * gives a count, so the page does not give one too.
- */
-export function captionSays(props: PeriodCaptionProps): { said: boolean; counted: boolean } {
-  const { said, count } = captionWords(props)
-  return { said, counted: count !== '' }
-}
-
 /** What a count's row is called, by the noun the page counts. */
 const COUNT_LABEL: Record<keyof typeof NOUNS, string> = {
   activity: 'Activities',

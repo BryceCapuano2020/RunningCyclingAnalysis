@@ -70,9 +70,11 @@ test('the ride as a run tile names the ride threshold behind its pace and opens 
   // The threshold the pace rests on is inside the tile's one fold, not a line under its title.
   const details = card.locator('details')
   await expect(details).not.toHaveAttribute('open')
-  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeHidden()
+  const basis = card.locator('.props__row', { hasText: /^From your threshold/ }).locator('dd')
+  await expect(basis).toBeHidden()
   await details.locator('summary').click()
-  await expect(card.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
+  await expect(basis).toHaveText(/^\d+ W$/)
+  await expect(basis).toBeVisible()
   // A phone shows the efforts as a list, and a wider screen as a table.
   const rideEffort = isMobile
     ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()

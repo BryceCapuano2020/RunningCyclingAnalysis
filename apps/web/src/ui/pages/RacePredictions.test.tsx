@@ -173,12 +173,10 @@ describe('RacePredictions', () => {
     ).toEqual(['Race', 'Pace', 'Predicted', 'Range', 'From your best runs', 'From heart rate'])
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getAllByRole('cell')[2]!.textContent).toMatch(/^\d+:\d\d to \d+:\d\d$/)
-    expect(
-      screen.getByText(/^From your best runs: 2[01]:\d\d, mostly from your best 5 km$/),
-    ).toBeInTheDocument()
-    expect(
-      screen.getAllByText(/^From heart rate: \d+:\d\d, at a VO2max of 50$/).length,
-    ).toBeGreaterThan(0)
+    expect(rowValue(document.body, '5 km, best runs')).toMatch(
+      /^2[01]:\d\d, mostly from your best 5 km$/,
+    )
+    expect(rowValue(document.body, '5 km, heart rate')).toMatch(/^\d+:\d\d, VO2max 50$/)
     // How the two estimates are combined is the method page's: the note says only what the times are for.
     expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
     expect(screen.queryByText(/middle of two estimates/)).not.toBeInTheDocument()

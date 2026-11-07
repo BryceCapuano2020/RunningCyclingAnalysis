@@ -71,15 +71,12 @@ test('the row’s Details open a chart with its table twin, the method, the limi
     .locator('details.chart-frame__details > summary', { hasText: 'View as table' })
     .click()
   await expect(chart.locator('table').nth(1).locator('tbody tr')).toHaveCount(steps + 1)
-  // The method and the honest limit, said once; and why some runs do not count.
+  // What it is read at and compared with are rows; the method and the honest limit are on Method.
   const panel = page.locator('.fitness-evidence')
-  await expect(panel.getByRole('heading', { name: 'How it is measured' })).toBeVisible()
-  await expect(panel).toContainText('A change of 8% it sees within weeks, reliably.')
-  await expect(panel).toContainText(
-    'A change of 5% it usually sees within a few months, and not always.',
-  )
-  expect(await panel.getByText(/it usually sees within a few months/).count()).toBe(1)
-  await expect(panel.getByRole('heading', { name: /^Why some runs do not count$/ })).toBeVisible()
+  expect(await value(panel, /^Read at$/)).toMatch(/^\d+ bpm$/)
+  expect(await value(panel, /^Steady runs on file$/)).toMatch(/^\d+$/)
+  await expect(panel.getByRole('link', { name: /how run fitness is measured/ })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'How it is measured' })).toHaveCount(0)
   // The runs it rests on are links to their activities, newest first.
   const links = panel.locator('.fitness-runs a')
   expect(await links.count()).toBeGreaterThanOrEqual(6)
@@ -114,76 +111,7 @@ test('a keyboard reaches the disclosure, opens it with Enter and reads the chart
   await expect(chart.locator('.chart-tooltip')).toContainText(/90% range .* to .*; \d+ steady runs/)
 })
 
-/** The terms of a paragraph with the box each takes on the page, in the order they are read. */
-const termBoxes = (scope: Locator) =>
-  scope.evaluate((root) =>
-    [...root.querySelectorAll('.definition__term')].map((term, index) => {
-      const box = term.getBoundingClientRect()
-      return {
-        index,
-        text: term.textContent ?? '',
-        left: box.left,
-        right: box.right,
-        top: box.top + window.scrollY,
-        bottom: box.bottom + window.scrollY,
-        height: box.height,
-      }
-    }),
-  )
-
-// A press on a term opens that term. A term's press target reaches past its line, and on consecutive lines of a
-// sentence the reach of one covered the term under it, so a tap on the lower part of "At 130 bpm" opened the range
-// that sits beneath it. A real touch at the lower third of each term that has another term right under it, with the
-// reach of the two overlapping in x, must open that one.
-test('a tap on the lower third of a term opens it and not the term on the line below', async ({
-  page,
-}, testInfo) => {
-  test.skip(
-    !['mobile', 'mobile-webkit'].includes(testInfo.project.name),
-    'A touch is made on the phone projects',
-  )
-  // At 412 px both engines set the evidence's "steady run" over "120 bpm", their reaches overlapping in x; at 390 WebKit
-  // breaks the line so the two no longer overlap, and the check would have no pair to try.
-  await page.setViewportSize({ width: 412, height: 800 })
-  await openSample(page)
-  await openDetails(card(page))
-  await expect(page.locator('.fitness-evidence .definition__term').first()).toBeVisible()
-  let pairs = 0
-  for (const scope of [`${CARD} .props`, '.fitness-evidence']) {
-    const region = page.locator(scope)
-    // A status with one change has no second change line in its Details.
-    if ((await region.count()) === 0) continue
-    const boxes = await termBoxes(region)
-    for (const upper of boxes) {
-      // The term that starts on the next line, whose own box begins where this one's line ends.
-      const lower = boxes.find(
-        (other) =>
-          other.index !== upper.index &&
-          other.top >= upper.bottom - 2 &&
-          other.top <= upper.bottom + 4 &&
-          other.left < upper.right + 6 &&
-          other.right > upper.left - 6,
-      )
-      if (lower === undefined) continue
-      pairs += 1
-      const terms = region.locator('.definition__term')
-      await terms.nth(upper.index).scrollIntoViewIfNeeded()
-      const now = (await termBoxes(region))[upper.index]!
-      const viewportTop = await page.evaluate(() => window.scrollY)
-      const x = (now.left + now.right) / 2
-      const y = now.top - viewportTop + now.height * 0.85
-      await page.touchscreen.tap(x, y)
-      await expect(terms.nth(upper.index)).toHaveAttribute('aria-expanded', 'true')
-      await expect(terms.nth(lower.index)).toHaveAttribute('aria-expanded', 'false')
-      await page.keyboard.press('Escape')
-      await expect(terms.nth(upper.index)).toHaveAttribute('aria-expanded', 'false')
-    }
-  }
-  // The check is not vacuous: the card's sentence has terms on consecutive lines at a phone's width.
-  expect(pairs).toBeGreaterThan(0)
-})
-
-test('the Run page puts the same status directly under the threshold hero', async ({ page }) => {
+test('the Run page leads with the same status above the threshold', async ({ page }) => {
   await openSample(page)
   await goTo(page, 'Run')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()

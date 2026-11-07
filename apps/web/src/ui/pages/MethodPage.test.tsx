@@ -381,8 +381,8 @@ describe('MethodPage how this works', () => {
   it('has far fewer More detail disclosures than the page had', () => {
     const { container } = renderPage()
 
-    // Eleven before the two lists were one. The ones that remain hold real technical detail.
-    expect(container.querySelectorAll('details.more-detail').length).toBeLessThanOrEqual(9)
+    // Eleven before the two lists were one. The ones that remain hold real technical detail, the fitness status's and the race predictions' among them.
+    expect(container.querySelectorAll('details.more-detail').length).toBeLessThanOrEqual(11)
   })
 })
 

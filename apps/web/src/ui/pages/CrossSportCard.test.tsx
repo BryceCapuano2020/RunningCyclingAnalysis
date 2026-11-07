@@ -16,6 +16,7 @@ import {
   makeRunThreshold,
 } from '../components/fixtures'
 import { standingOf } from '../standing'
+import { rowValue } from '../test/propertyRows'
 import { CrossSportCard } from './CrossSportCard'
 import { ThresholdTile } from './ThresholdTile'
 
@@ -59,7 +60,7 @@ describe('CrossSportCard', () => {
 
   it('names the ride threshold in watts under the pace, and no best effort or activity', () => {
     const { container } = renderCard(resultWith(4, 230))
-    expect(screen.getByText('From your 230 W threshold.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'From your threshold')).toBe('230 W')
     expect(container.textContent).not.toMatch(/for 20 min|Set on|all-out|checked/)
     expect(container.querySelector('a')).toBeNull()
   })

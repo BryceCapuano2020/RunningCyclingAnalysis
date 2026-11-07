@@ -485,7 +485,7 @@ describe('BalancePage age grades', () => {
       MAN_BORN_1986,
     )
     expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
-    expect(screen.getByText(/^From your \d+ W threshold\.$/)).toBeInTheDocument()
+    expect(rowValue(document.body, 'From your threshold')).toMatch(/^\d+ W$/)
   })
 
   it('holds the ride as a run tile without a weight, with the same prompt as the other tiles', () => {
