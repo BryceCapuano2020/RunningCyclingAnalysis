@@ -19,7 +19,7 @@ value, so every rule below leans toward silence.
 - Digests also hold distributions, durability, drift, `hrBlocks`, `movingS` and `avgHeartRate`.
 - time-in-zones: `effortSplit`, `biggestShift`, `EASY_THROUGH` / `HARD_FROM` (easy = zones 1-2, hard
   = zone 4+), `ZoneTimeCache`.
-- `lateEvidence` (durability and drift), and course `progressFacts` (Theil-Sen), see
+- course `progressFacts` (Theil-Sen), see
   [same-route.md](same-route.md).
 - Gaps: no per-minute fade profile for rides (needs an optional digest field); no weather.
 - Reusable patterns: the worker IndexedDB scope pattern (`workbenchStore`), and the false-alarm test
@@ -28,7 +28,7 @@ value, so every rule below leans toward silence.
 ## a. Finding type
 
 ```ts
-type Kind = 'efficiency' | 'pattern' | 'discipline' | 'durability'
+type Kind = 'efficiency' | 'pattern' | 'discipline'
 ```
 
 A `Finding` has:
@@ -52,7 +52,7 @@ A `Finding` has:
 `FindingInput { digests, setAside, asOfMs, tables: SharedTables, zones? }`.
 
 `SharedTables` are built once per library: library-wide `sameHeartRate`, weekly moving seconds by
-sport, weekly easy/middle/hard split, per-run easy and hard shares, drift points, durability rows.
+sport, weekly easy/middle/hard split, per-run easy and hard shares, (the drift and durability tables were removed in Stage W2d; the digest still holds both blocks).
 Each detector is one module, `detectors/<id>.ts`, with its test and copy. The registry is
 `Record<Sport, Detector[]>`, and a `SportAdapter` per sport holds output reading, unit, the hard/easy
 measure and the formatter. Detectors read digests only.
@@ -114,7 +114,7 @@ No detector compares the levels of different sports or restates volume. Speak if
 - **hard-day-clustering** (discipline): a hard day has at least 10 min in zone 4+; back-to-back hard
   days per 8 weeks, recent 8 against prior 24 rescaled; Poisson rate-ratio p < .05; at least 5
   events.
-- **decoupling-change** (durability): `driftTrend`, sessions of 60 min or more, HR not set aside; last
+- Not built, and the drift and durability tables they read are gone (W2d). **decoupling-change** (durability): `driftTrend`, sessions of 60 min or more, HR not set aside; last
   8 against prior 8; rank p < .05; median change >= 2.5 points; bootstrap excludes 0.
 - **late-output-retention** (durability): best 20 min after 90 min over the fresh best 20 min; last 12
   weeks against the prior 26; at least 4 sessions of 90 min or more in each window; moved >= 6
