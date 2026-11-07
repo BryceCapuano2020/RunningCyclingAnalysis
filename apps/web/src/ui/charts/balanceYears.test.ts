@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../balanceFixtures'
-import { drawnIn, titleOf, yearViews } from './balanceYears'
-
-/** Rows from 2018 where each year's leader is the one named: the run at 3.6 m/s against a ride 0.8 m/s slower, or faster, or level. */
-const LEADERS = { run: 3.6 - 0.8, ride: 3.6 + 0.8, even: 3.6 }
-function titled(...leaders: (keyof typeof LEADERS)[]): string {
-  const rows = leaders.map((leader, i) => rowOf(2018 + i, 3.6, LEADERS[leader]))
-  return titleOf(yearViews(rows, PROFILE, true))
-}
+import { chartTitle, drawnIn, yearViews } from './balanceYears'
 
 describe('yearViews', () => {
   it('has a room for every year from the first to the last, an empty one for a year with no best', () => {
@@ -50,49 +43,16 @@ describe('yearViews', () => {
   })
 })
 
-describe('titleOf', () => {
-  it('names who led every year, or that they were level', () => {
-    expect(titled('run', 'run', 'run')).toBe('Running led every year you did both')
-    expect(titled('ride', 'ride')).toBe('Cycling led every year you did both')
-    expect(titled('even', 'even')).toBe('Running and cycling were level every year you did both')
+describe('chartTitle', () => {
+  it('names what is plotted, whoever led', () => {
+    const run = [rowOf(2018, 3.6, 2.8), rowOf(2019, 3.6, 2.8)]
+    const ride = [rowOf(2018, 3.6, 4.4), rowOf(2019, 3.6, 4.4)]
+    expect(chartTitle(yearViews(run, PROFILE, true))).toBe('Grade by year, run and ride')
+    expect(chartTitle(yearViews(ride, PROFILE, true))).toBe('Grade by year, run and ride')
   })
 
-  it('says "you did both", so a year of one sport is not claimed, and stays true when the lead flips', () => {
-    // The ride exists in two of the four years, as the run's lead in them does.
-    const rows = [
-      rowOf(2018, 3.6, null),
-      rowOf(2019, 3.6, null),
-      rowOf(2020, 3.6, 2.8),
-      rowOf(2021, 3.6, 2.8),
-    ]
-    expect(titleOf(yearViews(rows, PROFILE, true))).toBe('Running led every year you did both')
-    // The same years with the ride ahead say the same of the ride, in the same words.
-    const flipped = rows.map((row, i) => (i < 2 ? row : rowOf(row.year, 3.6, 4.4)))
-    expect(titleOf(yearViews(flipped, PROFILE, true))).toBe('Cycling led every year you did both')
-  })
-
-  it('names the year that ended a lead of two years or more', () => {
-    expect(titled('run', 'run', 'run', 'ride', 'ride')).toBe('Running led every year until 2021')
-    expect(titled('ride', 'ride', 'even')).toBe('Cycling led every year until 2020')
-  })
-
-  it('counts the years each led when the lead went back and forth', () => {
-    expect(titled('run', 'ride', 'run', 'ride', 'run')).toBe('Running led in 3 of 5 years')
-    expect(titled('run', 'ride')).toBe('Cycling led in 1 of 2 years')
-  })
-
-  it('is the metric with fewer than two years of both sports', () => {
-    expect(titled('run')).toBe('Age grade by year')
+  it('names the sport when only one is graded', () => {
     const runOnly = yearViews([rowOf(2018, 3.6, null), rowOf(2019, 3.7, null)], PROFILE, true)
-    expect(titleOf(runOnly)).toBe('Running age grade by year')
-    const mixed = yearViews([rowOf(2018, 3.6, null), rowOf(2019, 3.7, 3.2)], PROFILE, true)
-    expect(titleOf(mixed)).toBe('Age grade by year')
-  })
-
-  it('skips a year with one sport when it finds the lead, but keeps the year in the chart', () => {
-    const rows = [rowOf(2018, 3.6, 3.0), rowOf(2019, 3.6, null), rowOf(2020, 3.6, 4.4)]
-    const views = yearViews(rows, PROFILE, true)
-    expect(views).toHaveLength(3)
-    expect(titleOf(views)).toBe('Cycling led in 1 of 2 years')
+    expect(chartTitle(runOnly)).toBe('Run grade by year')
   })
 })

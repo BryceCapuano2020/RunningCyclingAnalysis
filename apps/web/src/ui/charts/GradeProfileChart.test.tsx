@@ -33,7 +33,6 @@ function chartWidth(width: number) {
 }
 
 const MIN = 60
-const FINDING = 'Your cycling grades higher up to 5 min, your running from 10 min on.'
 
 function grade(fraction: number): Grade {
   return { grade: fraction, level: 'Local' }
@@ -71,28 +70,22 @@ const PROFILE: GradeProfile = {
 }
 
 function renderChart(overrides: Partial<GradeProfileChartProps> = {}) {
-  return render(<GradeProfileChart profile={PROFILE} finding={FINDING} {...overrides} />)
+  return render(<GradeProfileChart profile={PROFILE} {...overrides} />)
 }
 
 describe('GradeProfileChart', () => {
-  it('is titled Grade by duration, with its finding as the one sentence it says under the title', () => {
+  it('is titled by what it plots, with nothing under the title', () => {
     const { container } = renderChart()
-    const figure = screen.getByRole('figure', { name: 'Grade by duration' })
-    expect(figure).toHaveAccessibleDescription(FINDING)
-    expect(screen.getByText(FINDING)).toHaveClass('chart-frame__takeaway')
-    expect(container.querySelector('.chart-frame__title')).toHaveTextContent('Grade by duration')
+    const figure = screen.getByRole('figure', { name: 'Age grade by effort length' })
+    expect(figure).not.toHaveAccessibleDescription()
+    expect(container.querySelector('.chart-frame__takeaway')).toBeNull()
+    expect(container.querySelector('.chart-frame__title')).toHaveTextContent(
+      'Age grade by effort length',
+    )
     expect(container.querySelector('.chart-frame__lede')).toBeNull()
     expect(screen.getByRole('img', { name: /age grades/i })).toHaveAccessibleName(
       /Duration is on a log scale/,
     )
-  })
-
-  it('is titled Grade by duration alone, with nothing under the title, without a finding to say', () => {
-    const { container } = renderChart({ finding: undefined })
-    expect(
-      screen.getByRole('figure', { name: 'Grade by duration' }),
-    ).not.toHaveAccessibleDescription()
-    expect(container.querySelector('.chart-frame__takeaway')).toBeNull()
   })
 
   it('labels the duration axis 3, 5, 10, 20, 30 and 60, in minutes, and the grade axis in per cent', () => {
@@ -391,10 +384,5 @@ describe('GradeProfileChart', () => {
       const { container } = renderChart({ profile })
       expect(container.querySelector('[data-testid="profile-band"]')?.getAttribute('d')).toBe('')
     })
-  })
-
-  it('has no lede without a finding', () => {
-    const { container } = renderChart({ finding: undefined })
-    expect(container.querySelector('.chart-frame__lede')).toBeNull()
   })
 })

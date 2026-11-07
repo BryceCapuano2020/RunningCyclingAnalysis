@@ -1,16 +1,8 @@
-/* The title and the finding, and the chart behind a disclosure when no duration separates the sports. */
+/* The title, and the chart behind a disclosure when no duration separates the sports. */
 .grade-profile {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
-}
-
-/* The sentence the chart would have as its takeaway, on the page's reading measure. */
-.grade-profile__finding {
-  max-width: var(--measure);
-  margin: 0;
-  color: var(--ink);
-  font-size: var(--text-md);
 }
 
 .grade-profile__details {

@@ -461,25 +461,23 @@ describe('the effort the title cites', () => {
       />,
     )
 
-  it('is marked on the curve when it is not one the curve calls out, so the title never cites an unlabelled length', () => {
+  it('is marked on the curve when it is not one the curve calls out, so the compared length is never left unlabelled', () => {
     chartWidth(900)
     const { container } = compare(NOW, BEFORE)
-    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
-      '15 min is 64 W higher than the previous 12 weeks',
-    )
+    expect(screen.getByRole('figure')).not.toHaveAccessibleDescription()
     const mark = container.querySelector('[data-annotation="best-900"]')
     expect(mark).not.toBeNull()
     expect(mark?.textContent).toContain('15 min')
     expect(mark?.textContent).toContain('280')
   })
 
-  it('is kept on a phone, where a callout the title does not cite gives way', () => {
+  it('is kept on a phone, where a callout the comparison does not read gives way', () => {
     chartWidth(288)
     const { container } = compare(NOW, BEFORE)
     expect(container.querySelector('[data-annotation="best-900"]')).not.toBeNull()
   })
 
-  it('adds nothing when the title cites the 20 minutes, which is always marked', () => {
+  it('adds nothing when the compared length is the 20 minutes, which is always marked', () => {
     chartWidth(900)
     const { container } = compare(NOW, [
       measured(60, 400),
@@ -492,26 +490,22 @@ describe('the effort the title cites', () => {
     expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
   })
 
-  it('marks the length a no-clear-change title names, and adds nothing else', () => {
+  it('marks the length a no-clear-change comparison is judged at, and adds nothing else', () => {
     chartWidth(900)
     const { container } = compare(NOW, NOW, changeOf('none'))
-    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
-      'No clear change at 20 min from the previous 12 weeks',
-    )
+    expect(screen.getByRole('figure')).not.toHaveAccessibleDescription()
     expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
     expect(container.querySelector('[data-annotation="best-900"]')).toBeNull()
   })
 
-  it('marks a 15 min effort that a no-clear-change title names when there is no 20 min in both periods', () => {
+  it('marks a 15 min effort that a no-clear-change comparison is judged at when there is no 20 min in both periods', () => {
     chartWidth(288)
     const { container } = compare(
       NOW,
       [...BEFORE.slice(0, 2), measured(900, 280)],
       changeOf('none'),
     )
-    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
-      'No clear change at 15 min from the previous 12 weeks',
-    )
+    expect(screen.getByRole('figure')).not.toHaveAccessibleDescription()
     expect(container.querySelector('[data-annotation="best-900"]')).not.toBeNull()
   })
 })

@@ -180,7 +180,7 @@ describe('a sport page with everything to show', () => {
   it('lists the records once, below the curve, and puts the best durations finding in its own section, not as a caption', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
-    const curve = within(section).getByRole('figure', { name: 'Best efforts' })
+    const curve = within(section).getByRole('figure', { name: 'Best effort by duration' })
     // No strip of tiles under the curve: the records are in All best efforts, further down the page.
     expect(within(section).queryByRole('list', { name: 'Best efforts' })).toBeNull()
     expect(section.querySelector('ol.records, .record-tiles')).toBeNull()
@@ -408,7 +408,7 @@ describe('the run threshold whatever the fit does', () => {
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(4))
     openDetail(section)
     // The range is the estimate's own 10th to 90th percentile, not a run up to the uneven fit's pace.
-    expect(within(section).getByRole('note')).not.toHaveTextContent(pace(4.4))
+    expect(section.querySelector('.props')).not.toHaveTextContent(pace(4.4))
   })
 })
 

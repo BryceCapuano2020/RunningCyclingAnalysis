@@ -10,7 +10,7 @@ import type { ChartTableData, TooltipContent, TooltipRow } from './chartTypes'
 import { drawnSports, isRanged } from './gradeProfileLayout'
 import type { ProfileRow } from './gradeProfileLayout'
 
-export const GRADE_PROFILE_TITLE = 'Grade by duration'
+export const GRADE_PROFILE_TITLE = 'Age grade by effort length'
 export const GRADE_PROFILE_EMPTY =
   'Add runs and rides of 3 minutes or more to compare them by duration.'
 

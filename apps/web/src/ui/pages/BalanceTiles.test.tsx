@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 import { headlineGrades } from '../balanceFixtures'
 import '../../test/warmSample'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
 import { makeActivity, makeResult, makeRunThreshold } from '../components/fixtures'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
-import { thresholdRange } from '../thresholdRange'
+import { thresholdSpan } from '../thresholdRange'
 import { BalanceTiles } from './BalanceTiles'
 import { detailSummaries, openDetail } from '../test/openDetail'
+import { rowValue, rowsIn } from '../test/propertyRows'
 
 afterEach(cleanup)
 
@@ -65,14 +66,13 @@ describe('BalanceTiles', () => {
       expect(tile.querySelector('.stat-tile__unit')).toHaveTextContent(figure?.unit ?? '')
       // The name says it is an estimate, and how it was worked out is one tap down: the tile carries no chip.
       expect(tile).not.toHaveTextContent(/Estimated|At least|Not all-out|Hard effort/)
-      const range = thresholdRange(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
-      expect(range).toMatch(/^Range /)
+      const range = thresholdSpan(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
+      expect(range).toMatch(/\u2013/)
       openDetail(tile)
-      // A range the page states is the range the tile's detail opens with, in the sport's own unit.
-      // What the figure rests on is the disclosure's first line, then the range, in the sport's own unit.
-      const [basis, detail] = within(tile).getByRole('note').querySelectorAll('p')
-      expect(basis).toHaveTextContent(/^From \d+ (runs|rides)\. Strongest: /)
-      expect(detail).toHaveTextContent(new RegExp(`^${range}\\. `))
+      // A range the page states is the range the tile's detail opens with, in the sport's own unit, as a row.
+      expect(rowValue(tile, 'Range')).toBe(range)
+      expect(rowValue(tile, sport === 'run' ? 'Runs used' : 'Rides used')).toMatch(/^\d+$/)
+      expect(rowValue(tile, 'Strongest effort')).toMatch(/^\d+ min, \d+ \w+( \d{4})?$/)
       // No line sits under the figure: the basis is inside the disclosure only.
       expect(tile.querySelectorAll('.stat-tile__source > p')).toHaveLength(0)
     }
@@ -88,17 +88,15 @@ describe('BalanceTiles', () => {
     expect(container.textContent).not.toMatch(/23:23/)
   })
 
-  it('says what a threshold rests on, in one line under its figure, for a ride and for a run', () => {
+  it('says what a threshold rests on in its detail’s rows, for a ride and for a run, and nothing under the figure', () => {
     renderTiles()
     const ride = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(ride.querySelector('.stat-tile__source .meta')).toHaveTextContent(
-      /^From \d+ rides\. Strongest: \d+ min on \d+ \w+( \d{4})?\.$/,
+    expect(rowsIn(ride).map(([label]) => label)).toEqual(
+      expect.arrayContaining(['Rides used', 'Strongest effort', 'Range']),
     )
     expect(detailSummaries(ride)).toEqual(['How this was worked out for threshold power'])
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(run.querySelector('.stat-tile__source .meta')).toHaveTextContent(
-      /^From \d+ runs\. Strongest: \d+ min on \d+ \w+( \d{4})?\.$/,
-    )
+    expect(rowsIn(run).map(([label]) => label)).toEqual(['Runs used', 'Strongest effort', 'Range'])
     expect(detailSummaries(run)).toEqual(['How this was worked out for threshold pace'])
   })
 

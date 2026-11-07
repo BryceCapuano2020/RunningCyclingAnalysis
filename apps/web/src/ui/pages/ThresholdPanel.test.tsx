@@ -10,6 +10,7 @@ import {
   makeRideThreshold,
   makeRunThreshold,
 } from '../components/fixtures'
+import { rowValue } from '../test/propertyRows'
 import { formatDayMonth } from '../format/date'
 import { ThresholdPanel } from './ThresholdPanel'
 import { detailSummaries, openDetail } from '../test/openDetail'
@@ -72,33 +73,33 @@ describe('ThresholdPanel for a ride', () => {
 
   it('says what it rests on under the figure: the rides and the strongest effort, with its length and day', () => {
     panel('ride', ridden(estimate()))
-    expect(
-      screen.getByText(`From 5 rides. Strongest: 12 min on ${formatDayMonth(DAY)}.`, {
-        exact: false,
-      }),
-    ).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Threshold power' })
+    expect(rowValue(section, 'Rides used')).toBe('5')
+    expect(rowValue(section, 'Strongest effort')).toBe(`12 min, ${formatDayMonth(DAY)}`)
   })
 
-  it('opens the range, the method and what heart rate did from one control', () => {
+  it('opens the range, the method link and what heart rate did from one control', () => {
     panel('ride', ridden(estimate()))
     const section = screen.getByRole('region', { name: 'Threshold power' })
     const details = section.querySelector('details.disclosure') as HTMLDetailsElement
     expect(details.open).toBe(false)
     openDetail(section)
     expect(details.open).toBe(true)
-    const note = within(section).getByRole('note')
-    expect(note).toHaveTextContent('Range 240 to 264 W.')
-    expect(note).toHaveTextContent('scaled to an hour and averaged')
-    expect(note).toHaveTextContent('Heart rate can raise the answer and never lowers it.')
-    expect(note).toHaveTextContent('Here it raised the answer, from 6 efforts.')
+    expect(rowValue(section, 'Range')).toBe('240\u2013264 W')
+    expect(rowValue(section, 'Heart rate')).toBe('Raised it, from 6 efforts')
+    // The method is one link to Method, not prose.
+    expect(
+      within(section).getByRole('link', {
+        name: /^Method, how threshold (power|pace) was worked out$/,
+      }),
+    ).toBeInTheDocument()
+    expect(section.querySelector('details')).not.toHaveTextContent(/scaled to an hour/)
   })
 
-  it('says why heart rate was not used, in one plain clause', () => {
+  it('says heart rate was not used as a row value, with no clause', () => {
     panel('ride', ridden(estimate({ heartRate: { refused: 'flat' } })))
     openDetail()
-    expect(screen.getByRole('note')).toHaveTextContent(
-      'Here it was not used: your heart rate rises too little with power to read.',
-    )
+    expect(rowValue(document.body, 'Heart rate')).toBe('Not used')
   })
 
   it('shows the estimate whatever the critical-power fit, and its heading stays plain with no chip', () => {
@@ -161,11 +162,9 @@ describe('ThresholdPanel for a run', () => {
 
   it('says what it rests on under the figure: the runs and the strongest effort, with its length and day', () => {
     panel('run', ran(runEstimate()))
-    expect(
-      screen.getByText(`From 4 runs. Strongest: 40 min on ${formatDayMonth(RUN_DAY)}.`, {
-        exact: false,
-      }),
-    ).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Threshold pace' })
+    expect(rowValue(section, 'Runs used')).toBe('4')
+    expect(rowValue(section, 'Strongest effort')).toBe(`40 min, ${formatDayMonth(RUN_DAY)}`)
   })
 
   it('opens the range and the method from one control, and says nothing of heart rate', () => {
@@ -175,11 +174,13 @@ describe('ThresholdPanel for a run', () => {
     expect(details.open).toBe(false)
     openDetail(section)
     expect(details.open).toBe(true)
-    const note = within(section).getByRole('note')
-    expect(note).toHaveTextContent('Range 4:10 to 4:39 /km.')
-    expect(note).toHaveTextContent('scaled to an hour and averaged')
-    expect(note).toHaveTextContent('never under a backed hour you ran')
-    expect(note).not.toHaveTextContent(/heart rate|not used|raise/i)
+    expect(rowValue(section, 'Range')).toBe('4:10\u20134:39 /km')
+    expect(
+      within(section).getByRole('link', {
+        name: /^Method, how threshold (power|pace) was worked out$/,
+      }),
+    ).toBeInTheDocument()
+    expect(section.querySelector('details')).not.toHaveTextContent(/heart rate|not used|raise/i)
   })
 
   it('shows the estimate whatever the critical-power fit, and asks for an 8 min effort with no estimate', () => {
