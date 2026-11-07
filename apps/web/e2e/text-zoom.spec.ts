@@ -15,7 +15,9 @@ const SIZES = [
 
 /** Waits for the sport page's curve and its last section, so the charts in its sections are checked. */
 async function openSections(page: Page): Promise<void> {
-  await expect(page.getByRole('figure', { name: 'Best efforts', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+  ).toBeVisible()
   await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
 }
 

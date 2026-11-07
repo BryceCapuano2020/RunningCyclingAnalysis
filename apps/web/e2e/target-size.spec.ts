@@ -63,7 +63,9 @@ async function smallTargets(page: Page, standardPx: number): Promise<Small[]> {
 
 /** Waits for the sport page's curve and its last section, so the controls in its sections are on the page to be measured. */
 async function openSections(page: Page): Promise<void> {
-  await expect(page.getByRole('figure', { name: 'Best efforts', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+  ).toBeVisible()
   await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
 }
 

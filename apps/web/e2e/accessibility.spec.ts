@@ -58,7 +58,9 @@ function openEverySection(sport: 'Run' | 'Ride') {
     await openGradedSample(page)
     await goTo(page, sport)
     // The sections are open to start with, each with its content drawn.
-    await expect(page.getByRole('figure', { name: 'Best efforts', exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+    ).toBeVisible()
     await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
     const about = page.getByText('About these predictions')
     if ((await about.count()) > 0) {

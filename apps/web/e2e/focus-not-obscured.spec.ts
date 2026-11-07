@@ -113,7 +113,9 @@ test.describe('focus clears the sticky bars', () => {
     test(`${sport} at 1440 px: the header leaves focus in view`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'desktop', 'A 1440 px window is a desktop case')
       await openPage(page, sport, 1440)
-      await expect(page.getByRole('figure', { name: 'Best efforts', exact: true })).toBeVisible()
+      await expect(
+        page.getByRole('figure', { name: 'Best effort by duration', exact: true }),
+      ).toBeVisible()
       await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
       await expectFocusClear(page)
     })
