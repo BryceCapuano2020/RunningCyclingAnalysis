@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { liftSetKey } from '@rca/core/lift'
+import type { LiftSet } from '@rca/core/lift'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearLifts, openLiftStore, sweepLifts } from './liftStore'
 import { make } from './liftTestKit'
@@ -62,7 +63,7 @@ describe('the lift store', () => {
     expect(await store.pendingCount()).toBe(2)
   })
 
-  it('the sweep removes every other scope, unsent rows included, and spares an empty scope', async () => {
+  it('the sweep removes every other account, unsent rows included, spares the device scope and an empty scope', async () => {
     await openLiftStore('u1').save(make(1))
     await openLiftStore('u2').save(make(1))
     await openLiftStore('device').save(make(1))
@@ -72,7 +73,25 @@ describe('the lift store', () => {
     await sweepLifts('u1')
     expect(await openLiftStore('u1').list()).toHaveLength(1)
     expect(await openLiftStore('u2').list()).toHaveLength(0)
-    expect(await openLiftStore('device').list()).toHaveLength(0)
+    expect(await openLiftStore('device').list()).toHaveLength(1)
+  })
+
+  it('a delete in the device scope removes the row, since no server needs telling', async () => {
+    const device = openLiftStore('device')
+    await device.save(make(1))
+    await device.remove(liftSetKey(make(1)))
+    expect(await device.list()).toEqual([])
+    const account = openLiftStore('u1')
+    await account.applyPull([make(1)], 2, true)
+    await account.remove(liftSetKey(make(1)))
+    expect((await account.list())[0]?.state).toBe('delete')
+  })
+
+  it('a save whose write aborts resolves false and leaves nothing', async () => {
+    const store = openLiftStore('u1')
+    const unclonable = { ...make(1), loadKg: () => 1 } as unknown as LiftSet
+    expect(await store.save(unclonable)).toBe(false)
+    expect(await store.list()).toEqual([])
   })
 
   it('clear all removes every scope', async () => {
