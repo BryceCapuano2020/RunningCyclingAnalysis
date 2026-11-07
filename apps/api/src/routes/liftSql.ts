@@ -15,12 +15,12 @@ const HAS_ROW = `EXISTS (SELECT 1 FROM lift_sets s WHERE s.user_id = ?1 AND s.da
 
 const COUNT_AND_REVISION = `RETURNING lift_count, lift_revision`
 
-/** Adds the payload's keys that have no stored row to the count, and raises the revision. */
+/** Adds the payload's keys that have no stored row to the count. The browser relies on every write raising lift_revision by exactly 1. */
 export const COUNT_NEW_KEYS = `UPDATE users SET
   lift_count = lift_count + (SELECT COUNT(*) FROM (${PAYLOAD_KEYS}) k WHERE NOT ${HAS_ROW}),
   lift_revision = lift_revision + 1 WHERE id = ?1 ${COUNT_AND_REVISION}`
 
-/** Takes the payload's keys that have a stored row off the count, and raises the revision. */
+/** Takes the payload's keys that have a stored row off the count. Raises lift_revision by exactly 1, even for a no-op (the browser relies on it). */
 export const COUNT_GONE_KEYS = `UPDATE users SET
   lift_count = lift_count - (SELECT COUNT(*) FROM (${PAYLOAD_KEYS}) k WHERE ${HAS_ROW}),
   lift_revision = lift_revision + 1 WHERE id = ?1 ${COUNT_AND_REVISION}`

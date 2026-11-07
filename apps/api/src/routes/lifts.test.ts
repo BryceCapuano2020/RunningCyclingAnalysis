@@ -60,6 +60,23 @@ describe('lift sets: create, read, update, delete', () => {
     expect((await me()).liftRevision).toBe(4)
   })
 
+  it('raises the revision by exactly 1 per request, whatever the request did', async () => {
+    const { put, del } = await liftAccount()
+    const steps: [string, () => Promise<Response>][] = [
+      ['a put of new sets', () => put([liftSet(1), liftSet(2)])],
+      ['a put that replaces', () => put([liftSet(1, { reps: 9 })])],
+      ['an insert-only that skips everything', () => put([liftSet(1), liftSet(2)], true)],
+      ['a delete of existing keys', () => del([keyOf(liftSet(1)), keyOf(liftSet(2))])],
+      ['a delete of missing keys', () => del([keyOf(liftSet(1)), keyOf(liftSet(7))])],
+    ]
+    let known = 0
+    for (const [label, send] of steps) {
+      const answer = await body<{ liftRevision: number }>(await send())
+      expect(answer.liftRevision, label).toBe(known + 1)
+      known = answer.liftRevision
+    }
+  })
+
   it('leaves libraryRevision alone', async () => {
     const { put, del, me } = await liftAccount()
     const before = (await me()).libraryRevision
