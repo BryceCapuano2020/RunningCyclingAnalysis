@@ -67,7 +67,7 @@ describe('the home page’s fitness', () => {
     const title = screen.getByRole('heading', { level: 1 })
     const picker = screen.getByText('Period picker')
     const tiles = screen.getByRole('region', { name: 'Headline numbers' })
-    const grades = screen.getByRole('region', { name: 'Grade by duration' })
+    const grades = screen.getByRole('region', { name: 'Age grade by effort length' })
     expect(follows(title, fitness)).toBe(true)
     expect(follows(picker, fitness)).toBe(true)
     expect(follows(tiles, fitness)).toBe(true)

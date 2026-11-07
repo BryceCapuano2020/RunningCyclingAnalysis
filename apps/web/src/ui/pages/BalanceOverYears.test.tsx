@@ -58,7 +58,7 @@ describe('BalanceOverYears', () => {
     expect(sports()).toEqual(new Set(['run', 'ride']))
     rerender(<BalanceOverYears {...BASE} weightKnown={false} />)
     expect(sports()).toEqual(new Set(['run']))
-    expect(screen.getByRole('figure', { name: 'Running age grade by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Run grade by year' })).toBeInTheDocument()
   })
 
   it('leaves the latest year to the levels row ', () => {

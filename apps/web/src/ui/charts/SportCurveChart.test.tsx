@@ -87,7 +87,7 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     expect(metric.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
       'Grade-adjusted pace (/km), faster up',
     )
@@ -103,7 +103,7 @@ describe('SportCurveChart', () => {
         units="imperial"
       />,
     )
-    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     expect(imperial.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
       'Grade-adjusted pace (/mi), faster up',
     )
@@ -119,7 +119,7 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('figure', { name: 'Best efforts' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     expect(ride.container.querySelector('.chart-y-axis__title')?.textContent).toBe('Power (W)')
   })
 
