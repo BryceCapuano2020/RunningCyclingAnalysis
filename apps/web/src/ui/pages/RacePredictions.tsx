@@ -8,8 +8,10 @@ import { Definition } from '../components/Definition'
 import type { RaceBasis, RaceWindow } from '../raceAnswer'
 import { DEFINITIONS } from './balanceDefinitions'
 import { useScrollRegion } from '../useScrollRegion'
+import { PropertyList } from '../components/PropertyList'
+import { SECTION_ID } from '../components/methodTopics'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { FLOORED_TEXT, basisLine, methodNote, originText, spreadText } from './racePredictionCopy'
+import { FLOORED_TEXT, forecastRows, originText, spreadText } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { NumText } from '../components/NumText'
@@ -303,8 +305,11 @@ export function RacePredictions({
         {/* The key to the bars' marks is read once, so it waits here with the rest of what the bars rest on. */}
         {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
         {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
-        <p className="meta">{basisLine({ basis }, openedAt)}</p>
-        <p className="muted">{methodNote(window, bound)}</p>
+        <PropertyList
+          rows={forecastRows({ basis }, window, bound, openedAt)}
+          method={SECTION_ID.how}
+          methodName="how the race predictions are worked out"
+        />
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
         <ul className="race-origins">
           {found.races.map((prediction) => (

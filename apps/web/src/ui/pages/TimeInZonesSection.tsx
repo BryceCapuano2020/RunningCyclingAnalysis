@@ -3,11 +3,11 @@ import type { Sport } from '@rca/core/types'
 import { PERIOD_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
 import {
   TIME_IN_ZONES_NAME,
-  ZONE_WINDOW_LINE,
+  ZONE_WINDOW_VALUE,
   describable,
-  leftOutNotes,
-  zoneSourceNote,
-  zonesChangedNotes,
+  leftOutRows,
+  zoneSourceRow,
+  zonesChangedRows,
 } from '../zoneTimeCopy'
 import { periodBars, periodTables } from '../zoneTimeRows'
 import { PageDetails } from './PageDetails'
@@ -43,7 +43,14 @@ export function TimeInZonesSection({
   const shown = describable(rows, relaxed)
   if (shown.length === 0) return null
   const { table, summary } = periodTables(shown, previous, previousLabel)
-  const notes = [...leftOutNotes(sport, shown), ...zonesChangedNotes(shown, previous)]
+  const details = [
+    ...(zoneWindow === undefined
+      ? []
+      : [{ label: 'Window', value: ZONE_WINDOW_VALUE[zoneWindow] }]),
+    ...leftOutRows(sport, shown),
+    ...zonesChangedRows(shown, previous),
+    zoneSourceRow(shown),
+  ]
   return (
     <section className="section" data-sport={sport} aria-labelledby={`${sport}-time-in-zones`}>
       <h2 id={`${sport}-time-in-zones`}>{TIME_IN_ZONES_NAME}</h2>
@@ -56,13 +63,7 @@ export function TimeInZonesSection({
         table={table}
         summary={summary}
       />
-      <PageDetails about="time in zones">
-        {zoneWindow === undefined ? null : <p>{ZONE_WINDOW_LINE[zoneWindow]}</p>}
-        {notes.map((note) => (
-          <p key={note}>{note}</p>
-        ))}
-        <p>{zoneSourceNote(shown)}</p>
-      </PageDetails>
+      <PageDetails about="time in zones" rows={details} />
     </section>
   )
 }

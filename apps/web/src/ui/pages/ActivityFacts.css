@@ -1,16 +1,4 @@
-/* The facts behind Details are one mono line, set off by dots; the sport's name takes its ink. */
-.activity-page__facts > span + span::before {
-  content: '\00b7\00a0';
-}
-
-.activity-page__facts > span + span {
-  margin-left: 0.5em;
-}
-
-.activity-page__facts > span:first-child {
-  color: var(--sport-ink);
-}
-
+/* The facts behind Details are a detail panel (PropertyList.css). */
 .activity-page__chips {
   display: flex;
   flex-wrap: wrap;

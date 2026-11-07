@@ -8,6 +8,7 @@ import { raceAnswerOf } from '../raceAnswer'
 import { forecastOf } from '../test/raceForecast'
 import { distanceRecords } from '../records'
 import type { DistanceRecord } from '../records'
+import { rowValue } from '../test/propertyRows'
 import { RacePredictions } from './RacePredictions'
 import { ranBests } from './raceRan'
 
@@ -179,17 +180,18 @@ describe('RacePredictions', () => {
       screen.getAllByText(/^From heart rate: \d+:\d\d, at a VO2max of 50$/).length,
     ).toBeGreaterThan(0)
     // How the two estimates are combined is the method page's: the note says only what the times are for.
-    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
     expect(screen.queryByText(/middle of two estimates/)).not.toBeInTheDocument()
   })
 
   it('says the run the times were carried from inside About these predictions, and no line under the title', () => {
     const dated = makeActivity({ ...withBests, startMs: RAN_AT })
     renderPredictions(makeResult({ activities: [dated] }))
-    expect(screen.queryByText('From your 5 km on 27 Nov.')).not.toBeInTheDocument()
+    expect(rowValue(document.body, 'Based on')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Race predictions' }).nextElementSibling).toBeNull()
     openAbout()
-    const line = screen.getByText('From your 5 km on 27 Nov.')
+    expect(rowValue(document.body, 'Based on')).toBe('Your 5 km, 27 Nov')
+    const line = screen.getByText('Based on')
     expect(line.closest('details')).toBe(
       screen.getByText('About these predictions').closest('details'),
     )
@@ -216,7 +218,7 @@ describe('RacePredictions', () => {
   it('says what the times are for, with or without heart rate behind them', () => {
     renderPredictions(makeResult({ activities: [withBests] }))
     openAbout()
-    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
     expect(screen.queryByText(/alone/)).not.toBeInTheDocument()
   })
 
@@ -227,23 +229,19 @@ describe('RacePredictions', () => {
     })
     const view = renderPredictions(result, 'all')
     openAbout()
-    expect(
-      screen.getByText('For a flat course on a good day. All time uses your best period.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'All time')).toBe('Your best period')
     view.unmount()
 
     renderPredictions(result)
     openAbout()
-    expect(screen.queryByText(/best period/)).not.toBeInTheDocument()
-    expect(screen.getByText('For a flat course on a good day.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'All time')).toBeNull()
+    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
   })
 
   it('says the same of All time with no heart rate behind the times', () => {
     renderPredictions(makeResult({ activities: [withBests] }), 'all')
     openAbout()
-    expect(
-      screen.getByText('For a flat course on a good day. All time uses your best period.'),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'All time')).toBe('Your best period')
   })
 
   describe('a forecast from runs none of which was shown hard', () => {
@@ -280,22 +278,16 @@ describe('RacePredictions', () => {
     })
 
     it.each([
-      ['period', 'No run in this period was shown hard'],
-      ['year', 'No run in the last 12 months was shown hard'],
-      ['all', 'No run in your files was shown hard'],
+      ['period', 'None in this period'],
+      ['year', 'None in the last 12 months'],
+      ['all', 'None in your files'],
     ] as const)(
       'says in the disclosure, for %s, that the runs were not shown hard',
       (window, start) => {
         renderBound(window)
-        expect(screen.queryByText(/was shown hard/)).not.toBeInTheDocument()
+        expect(rowValue(document.body, 'Runs shown hard')).toBeNull()
         openAbout()
-        expect(
-          screen.getByText(
-            new RegExp(
-              `^${start}, so these times come from easier running\\. A race effort would be faster\\. For a flat course on a good day\\.`,
-            ),
-          ),
-        ).toBeInTheDocument()
+        expect(rowValue(document.body, 'Runs shown hard')).toBe(start)
       },
     )
 
@@ -304,7 +296,7 @@ describe('RacePredictions', () => {
       expect(view.container.querySelectorAll('.race-bar')).toHaveLength(found.races.length)
       openAbout()
       expect(screen.getByRole('list', { name: 'Key' })).toBeInTheDocument()
-      expect(screen.queryByText(/was shown hard/)).not.toBeInTheDocument()
+      expect(rowValue(document.body, 'Runs shown hard')).toBeNull()
       expect(screen.getByRole('columnheader', { name: 'Range' })).toBeInTheDocument()
     })
   })

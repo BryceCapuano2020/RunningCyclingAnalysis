@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { rowValue } from '../test/propertyRows'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { TimeInZonesSection } from './TimeInZonesSection'
 
@@ -39,8 +40,8 @@ describe('TimeInZonesSection', () => {
     render(
       <TimeInZonesSection sport="run" rows={[hr, pace]} previous={null} previousLabel={null} />,
     )
-    expect(screen.getByText('3 of 8 runs had no pace to count.')).toBeInTheDocument()
-    expect(screen.getByText(/where you have them/)).toBeInTheDocument()
+    expect(rowValue(document.body, 'Pace, no reading')).toBe('3 of 8 runs')
+    expect(rowValue(document.body, 'Zones')).toMatch(/where you have them/)
   })
 
   it('leaves out a measure with too little time, and does not restate the change in a sentence', () => {
@@ -103,11 +104,7 @@ describe('TimeInZonesSection', () => {
         previousLabel="Previous 6 weeks"
       />,
     )
-    expect(
-      screen.getByText(
-        'Heart rate zones changed since the previous period, so the two are not compared.',
-      ),
-    ).toBeInTheDocument()
+    expect(rowValue(document.body, 'Heart rate zones')).toBe('Changed, not compared')
     expect(
       screen.queryByRole('columnheader', { name: 'Previous 6 weeks', hidden: true }),
     ).toBeNull()
@@ -116,8 +113,8 @@ describe('TimeInZonesSection', () => {
   it('says a heart rate was set aside, apart from one that was not recorded', () => {
     const row = { ...hr, setAside: 2, noData: 1 }
     render(<TimeInZonesSection sport="run" rows={[row]} previous={null} previousLabel={null} />)
-    expect(screen.getByText('2 of 11 runs had heart rate set aside.')).toBeInTheDocument()
-    expect(screen.getByText('1 of 11 runs had no heart rate to count.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Heart rate, set aside')).toBe('2 of 11 runs')
+    expect(rowValue(document.body, 'Heart rate, no reading')).toBe('1 of 11 runs')
   })
 
   it('says which stretch the bars are of when the period held too little, and compares with nothing', () => {
@@ -130,7 +127,7 @@ describe('TimeInZonesSection', () => {
         zoneWindow="year"
       />,
     )
-    expect(screen.getByText('Last 12 months.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Window')).toBe('Last 12 months')
     unmount()
     render(
       <TimeInZonesSection
@@ -142,8 +139,7 @@ describe('TimeInZonesSection', () => {
         relaxed
       />,
     )
-    expect(screen.getByText('All time.')).toBeInTheDocument()
-    expect(screen.queryByText('Last 12 months.')).toBeNull()
+    expect(rowValue(document.body, 'Window')).toBe('All time')
   })
 
   it('says nothing of a stretch for the period itself', () => {
@@ -181,7 +177,7 @@ describe('TimeInZonesSection', () => {
         previousLabel={null}
       />,
     )
-    expect(screen.getByText('Zones estimated. Set your own on Profile.')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Zones')).toBe('Estimated, set yours on Profile')
     expect(screen.queryByText(/are cut from/)).not.toBeInTheDocument()
   })
 })

@@ -14,6 +14,7 @@ import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../com
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'
+import { rowValue } from '../test/propertyRows'
 import { wholeText } from '../test/wholeText'
 
 // A fixed clock, so the year shown on the date does not depend on when the suite runs.
@@ -175,8 +176,9 @@ describe('ActivityPage', () => {
       'href',
       '#/activities',
     )
-    expect(screen.getByText('Run')).toBeInTheDocument()
-    // The sport, day and time are one mono line, behind Details: the title has no caption above or below it.
+    // The sport, day and time are rows behind Details: the title has no caption above or below it.
+    expect(rowValue(document.body, 'Sport')).toBe('Run')
+    expect(rowValue(document.body, 'Started')).toBe('Mon 5 Jan, 7:30 am')
     const facts = screen.getByText('Mon 5 Jan, 7:30 am')
     expect(facts.closest('details')).toHaveTextContent('Details')
     expect(heading.previousElementSibling?.className ?? '').not.toContain('meta')
@@ -274,7 +276,7 @@ describe('ActivityPage', () => {
         elevationGainM: 0,
       }),
     )
-    expect(screen.getByText('Indoor')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Setting')).toBe('Indoor')
     expect(screen.queryByText('Distance', { selector: 'dt' })).not.toBeInTheDocument()
     expect(screen.queryByText('Average speed', { selector: 'dt' })).not.toBeInTheDocument()
   })

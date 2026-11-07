@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   THRESHOLD_NEEDS,
-  ZONE_WINDOW_LINE,
+  ZONE_WINDOW_VALUE,
   activityLede,
   describable,
-  leftOutNotes,
+  leftOutRows,
   percentText,
   timeInZonesLack,
-  zoneSourceNote,
-  zonesChangedNotes,
+  zoneSourceRow,
+  zonesChangedRows,
   zoneTimeText,
 } from './zoneTimeCopy'
 import { measureTime } from './test/zoneTimeFixtures'
@@ -53,7 +53,7 @@ describe('describable', () => {
   })
 
   it('names the stretch a wider window is of in a few words', () => {
-    expect(ZONE_WINDOW_LINE).toEqual({ year: 'Last 12 months.', all: 'All time.' })
+    expect(ZONE_WINDOW_VALUE).toEqual({ year: 'Last 12 months', all: 'All time' })
   })
 })
 
@@ -87,28 +87,35 @@ describe('activityLede', () => {
   })
 })
 
-describe('leftOutNotes', () => {
-  it('counts the activities a measure left out and says why', () => {
+describe('leftOutRows', () => {
+  it('counts the activities a measure left out as a row each, with what mends the missing zones', () => {
     const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], {
       counted: 9,
       noData: 2,
       noZones: 1,
     })
-    expect(leftOutNotes('run', [row])).toEqual([
-      '2 of 12 runs had no heart rate to count.',
-      '1 of 12 runs had no heart rate zones for their date. Enter your max heart rate on Profile to get them.',
+    expect(leftOutRows('run', [row])).toEqual([
+      { label: 'Heart rate, no reading', value: '2 of 12 runs' },
+      { label: 'Heart rate, no zones', value: '1 of 12 runs' },
+      {
+        label: 'Heart rate zones need',
+        value: 'Enter your max heart rate on Profile to get them.',
+      },
     ])
   })
 
   it('groups the thousands of a long history, as the count above it does', () => {
     const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 1200, noData: 34 })
-    expect(leftOutNotes('run', [row])).toEqual(['34 of 1,234 runs had no heart rate to count.'])
+    expect(leftOutRows('run', [row])).toEqual([
+      { label: 'Heart rate, no reading', value: '34 of 1,234 runs' },
+    ])
   })
 
-  it('says what gives a pace or a power zones when a date has none', () => {
+  it('says what gives a pace zones when a date has none', () => {
     const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 5, noZones: 2 })
-    expect(leftOutNotes('run', [pace])).toEqual([
-      '2 of 7 runs had no pace zones for their date. A run of 8 min or more sets your pace zones.',
+    expect(leftOutRows('run', [pace]).map((row) => row.value)).toEqual([
+      '2 of 7 runs',
+      'A run of 8 min or more sets your pace zones.',
     ])
   })
 
@@ -118,31 +125,33 @@ describe('leftOutNotes', () => {
       noData: 1,
       setAside: 2,
     })
-    expect(leftOutNotes('run', [row])).toEqual([
-      '2 of 11 runs had heart rate set aside.',
-      '1 of 11 runs had no heart rate to count.',
+    expect(leftOutRows('run', [row])).toEqual([
+      { label: 'Heart rate, set aside', value: '2 of 11 runs' },
+      { label: 'Heart rate, no reading', value: '1 of 11 runs' },
     ])
   })
 
   it('has nothing to say when every activity counted', () => {
-    expect(leftOutNotes('ride', [measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1])])).toEqual([])
+    expect(leftOutRows('ride', [measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1])])).toEqual([])
   })
 
   it('names measured power for a ride without a power meter', () => {
     const row = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1], { counted: 4, noData: 6 })
-    expect(leftOutNotes('ride', [row])).toEqual(['6 of 10 rides had no measured power to count.'])
+    expect(leftOutRows('ride', [row])).toEqual([
+      { label: 'Measured power, no reading', value: '6 of 10 rides' },
+    ])
   })
 })
 
-describe('zonesChangedNotes', () => {
+describe('zonesChangedRows', () => {
   const now = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { enteredReferences: [180] })
 
   it('names a measure whose zones changed since the period before', () => {
     const before = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
       enteredReferences: [200],
     })
-    expect(zonesChangedNotes([now], [before])).toEqual([
-      'Heart rate zones changed since the previous period, so the two are not compared.',
+    expect(zonesChangedRows([now], [before])).toEqual([
+      { label: 'Heart rate zones', value: 'Changed, not compared' },
     ])
   })
 
@@ -154,23 +163,21 @@ describe('zonesChangedNotes', () => {
       counted: 1,
       enteredReferences: [200],
     })
-    expect(zonesChangedNotes([now], [same])).toEqual([])
-    expect(zonesChangedNotes([now], [thin])).toEqual([])
-    expect(zonesChangedNotes([now], null)).toEqual([])
+    expect(zonesChangedRows([now], [same])).toEqual([])
+    expect(zonesChangedRows([now], [thin])).toEqual([])
+    expect(zonesChangedRows([now], null)).toEqual([])
   })
 })
 
-describe('zoneSourceNote', () => {
+describe('zoneSourceRow', () => {
   it('says whether the zones were estimated, entered or both', () => {
-    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1])])).toBe(
-      'Zones estimated. Set your own on Profile.',
-    )
-    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 8 })])).toBe(
-      'Zones set on Profile.',
-    )
-    expect(zoneSourceNote([measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { entered: 3 })])).toBe(
-      'Zones set on Profile where you have them, estimated elsewhere.',
-    )
+    const value = (entered?: number) =>
+      zoneSourceRow([
+        measureTime('run', 'heartRate', [1, 1, 1, 1, 1], entered === undefined ? {} : { entered }),
+      ]).value
+    expect(value()).toBe('Estimated, set yours on Profile')
+    expect(value(8)).toBe('Set on Profile')
+    expect(value(3)).toBe('Set on Profile where you have them, estimated elsewhere')
   })
 })
 

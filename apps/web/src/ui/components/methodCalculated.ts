@@ -126,6 +126,10 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
       'A race prediction’s range is a typical prediction error for that distance.',
       'The marathon’s range comes from a published validation.',
       'The shorter races’ ranges are a judgement, scaled down with distance.',
+      'Times are for a flat course on a good day.',
+      'Where no run in the window was shown hard, the times come from easier running and have no range.',
+      'A race effort would be faster.',
+      'All time uses your best period.',
     ],
   },
   {
