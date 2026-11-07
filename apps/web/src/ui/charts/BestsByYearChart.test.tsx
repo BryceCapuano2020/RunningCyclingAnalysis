@@ -21,7 +21,7 @@ describe('BestsByYearChart', () => {
     const { container } = render(
       <BestsByYearChart sport="run" efforts={RUN_BESTS} units="imperial" />,
     )
-    expect(screen.getByRole('figure', { name: 'Run bests by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best times by year' })).toBeInTheDocument()
     expect(screen.getByText('Pace (/mi), faster up')).toBeInTheDocument()
     const panels = container.querySelectorAll('[data-testid="bests-panel"]')
     expect(Array.from(panels, (panel) => panel.getAttribute('data-length'))).toEqual([
@@ -113,7 +113,7 @@ describe('BestsByYearChart', () => {
     ).toEqual(['2021', '2022', '2023', '2024'])
     // The caption names the measure only: it does not explain a rewritten number.
     expect(table.querySelector('caption')?.textContent).toBe(
-      'Run bests by year, pace (/km), faster up.',
+      'Best times by year, pace (/km), faster up.',
     )
   })
 
@@ -130,7 +130,7 @@ describe('BestsByYearChart', () => {
     const { container } = render(
       <BestsByYearChart sport="ride" efforts={RIDE_BESTS} units="metric" />,
     )
-    expect(screen.getByRole('figure', { name: 'Ride bests by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best power by year' })).toBeInTheDocument()
     expect(screen.getByText('Power (W)')).toBeInTheDocument()
     const all = marks(container)
     expect(all.map((mark) => mark.getAttribute('data-shape'))).toEqual(Array(4).fill('diamond'))

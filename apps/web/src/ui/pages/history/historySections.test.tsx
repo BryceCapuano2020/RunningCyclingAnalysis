@@ -20,11 +20,11 @@ describe('bests by year', () => {
     chartWidth(800)
     render(<BestsByYearSection bests={BESTS} units="metric" />)
     expect(screen.getByRole('radio', { name: 'Run' })).toBeChecked()
-    expect(screen.getByRole('figure', { name: 'Run bests by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best times by year' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'Ride' }))
     expect(screen.getByRole('radio', { name: 'Ride' })).toBeChecked()
-    expect(screen.getByRole('figure', { name: 'Ride bests by year' })).toBeInTheDocument()
-    expect(screen.queryByRole('figure', { name: 'Run bests by year' })).toBeNull()
+    expect(screen.getByRole('figure', { name: 'Best power by year' })).toBeInTheDocument()
+    expect(screen.queryByRole('figure', { name: 'Best times by year' })).toBeNull()
   })
 
   it('clears a reading when the sport changes, since the other sport has other years', () => {
@@ -40,7 +40,7 @@ describe('bests by year', () => {
     chartWidth(800)
     render(<BestsByYearSection bests={{ run: [], ride: RIDE_BESTS }} units="metric" />)
     expect(screen.queryByRole('radio')).toBeNull()
-    expect(screen.getByRole('figure', { name: 'Ride bests by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Best power by year' })).toBeInTheDocument()
   })
 
   it('says what to add when neither sport has a best', () => {
@@ -68,7 +68,7 @@ describe('the History page', () => {
       .getAllByRole('figure')
       .map((figure) => figure.getAttribute('aria-labelledby'))
     const titles = names.map((id) => document.getElementById(id!)!.textContent)
-    const mine = ['Hours per year', 'Run bests by year']
+    const mine = ['Hours per year, run and ride', 'Best times by year']
     expect(titles.filter((title) => mine.includes(title ?? ''))).toEqual(mine)
   })
 

@@ -89,7 +89,9 @@ export function HoursPerYearChart({ years, current }: HoursPerYearChartProps) {
 
   return (
     <ChartFrame
-      title={only === undefined ? 'Hours per year' : `${SPORT_LABEL[only]} hours per year`}
+      title={
+        only === undefined ? 'Hours per year, run and ride' : `${SPORT_LABEL[only]} hours per year`
+      }
       description="Stacked bars of the hours trained each year, one colour for each sport."
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
