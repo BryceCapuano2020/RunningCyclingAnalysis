@@ -53,7 +53,7 @@ if (activities.length === 0) {
 
 const download = {
   format: 'rca-export',
-  version: 2,
+  version: 3,
   exportedAt: new Date().toISOString(),
   account: { name: 'Synthetic', email: 'synthetic@example.test' },
   profile: {
@@ -66,6 +66,7 @@ const download = {
     updatedAt: 0,
   },
   measurements: [{ kind: 'massKg', value: 75, from: '2025-01-01' }],
+  lifts: [],
   activities,
   unreadable: 0,
   notes: [],
