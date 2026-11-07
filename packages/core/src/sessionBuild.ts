@@ -22,6 +22,7 @@ import type { PeriodCache, PeriodChoice } from './period'
 import type { EarnedRecord } from './records'
 import type { SyncIssue } from './saveFailure'
 import type { HeldOutActivity } from './sessionLibrary'
+import { orderedFor } from './digest/consumers'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { RecordsCache } from './sessionRecords'
 import type { ActivityDigest, AthleteSettings } from './types'
@@ -224,6 +225,16 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
         ? periods.previousCurves(selected, previous, athlete, bikeModel, judgement.rideGate, {
             effortReference: judgement.effortReference,
             setAside,
+          })
+        : null,
+    // The period before read as an analysis of it alone is (the way a year of History is), not a second full analysis.
+    previousThresholds:
+      athlete !== null && previous.length > 0
+        ? periods.previousThresholds(orderedFor('combine', previous), athlete, {
+            gate: judgement.rideGate,
+            effortReference: judgement.effortReference,
+            setAside: new Set(setAside),
+            lines: judgedWorkOf(judgement)?.lines,
           })
         : null,
     change,
