@@ -126,7 +126,8 @@ figures:
 Mass error in log units: `0.01 + 0.005` per 30 days since the mass was entered, at most 0.04 (reached at 180
 days). This is a design value: about the daily swing of body mass, then growing with age. It joins the e1RM's
 `sd` in quadrature, times the exponent. With no mass entered, or the latest more than 365 days before the
-estimate, relative strength is absent.
+estimate, relative strength is absent. A profile mass with no date is used at the largest error (0.04) and
+its age is unknown; a placeholder mass the athlete never entered is not used.
 
 ## 5. Weekly load
 
