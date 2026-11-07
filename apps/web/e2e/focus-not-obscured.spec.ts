@@ -84,8 +84,11 @@ async function obscuredPresses(page: Page): Promise<{ failures: string[]; scroll
   return { failures, scrolled }
 }
 
-/** The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. */
-const MIN_SCROLLED = 15
+/**
+ * The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. A sport page
+ * scrolled 12 times once its axed charts went (Stage W), so the floor sits under that.
+ */
+const MIN_SCROLLED = 10
 
 /** The sport and activity pages, with the stuck bars each width has: the section row at 1440, the tab bar at 390. */
 async function openPage(page: Page, destination: 'Run' | 'Ride' | 'Activity', width: number) {
