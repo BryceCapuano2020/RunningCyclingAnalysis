@@ -1,9 +1,8 @@
 import type { Sport } from '@rca/core/types'
-import { SectionDisclosure } from './SectionDisclosure'
 import { anchorOf } from './sectionAnchor'
 import type { SectionId, SectionOutcome } from './sportSections'
 
-/** One cell of a row: a section's content as a card, or as a disclosure, open to start with, when it has a row of its own. */
+/** One cell of a row: a section's content as a band. */
 export function SectionCell({
   sport,
   id,
@@ -14,13 +13,6 @@ export function SectionCell({
   outcome: SectionOutcome
 }) {
   const anchor = anchorOf(sport, id)
-  if (outcome.closed) {
-    return (
-      <SectionDisclosure id={anchor} {...outcome.closed}>
-        {outcome.content}
-      </SectionDisclosure>
-    )
-  }
   return (
     <div id={anchor} className="band sport-panel" data-section={id}>
       {outcome.content}

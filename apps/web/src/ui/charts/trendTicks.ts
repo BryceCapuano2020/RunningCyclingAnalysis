@@ -1,13 +1,8 @@
-import {
-  civilOfDay,
-  localDayOfInstant,
-  noonOnLabelDate,
-  startOfDayNumber,
-} from '@rca/core/calendar'
+import { noonOnLabelDate } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
 import { MONTHLY_AFTER_DAYS, inGap } from '@rca/core/digest/trendSeries'
 import type { QuietGap } from '@rca/core/digest/trendSeries'
-import { formatDayMonth, formatMonth } from '../format/date'
+import { formatMonth } from '../format/date'
 import type { AxisTick, PlotBox } from './chartTypes'
 import type { Scale } from './scale'
 import { axisFontSize, fitTicks, labelWidth, rootScale } from './ticks'
@@ -33,27 +28,6 @@ export function shortDateWithYear(ms: number): string {
   return `${shortDate(ms)} ${new Date(ms).getUTCFullYear()}`
 }
 
-/**
- * The viewer's own day, month and year of an activity's moment, such as "12 Jan 2025". An activity is dated by
- * the viewer's day everywhere else (its list, its badges), so a chart naming the day an effort was done uses this;
- * shortDate names the UTC day of a trend's week end. The day is the one calendar.ts cuts, and it is named from
- * that day's noon, so the name is the same whichever zone the device is in.
- */
-export function activityDate(ms: number): string {
-  return `${activityDayMonth(ms)} ${civilOfDay(localDayOfInstant(ms)).year}`
-}
-
-/** Noon of the viewer's day that holds the moment: the browser names it as that day. */
-function activityNoon(ms: number): number {
-  return startOfDayNumber(localDayOfInstant(ms)) + 12 * 3_600_000
-}
-
-/** The viewer's day and month of an activity's moment, such as "12 Jan". */
-function activityDayMonth(ms: number): string {
-  const noon = activityNoon(ms)
-  return formatDayMonth(noon, noon)
-}
-
 /** How a date axis names an instant: its week-end day in UTC, or the viewer's day of an activity. */
 export interface DayNames {
   day: (ms: number) => string
@@ -66,13 +40,6 @@ const WEEK_END_NAMES: DayNames = {
   day: shortDate,
   dayWithYear: shortDateWithYear,
   month: (ms) => formatMonth(utcDayLocal(ms), true),
-}
-
-/** Moments of activities: named by the viewer's day, as the list, the badges and the chart's table are. */
-export const ACTIVITY_NAMES: DayNames = {
-  day: activityDayMonth,
-  dayWithYear: activityDate,
-  month: (ms) => formatMonth(activityNoon(ms), true),
 }
 
 /** The most month starts one axis lists: 500 years, far past any trend, so a bad bound cannot run the loop away. */

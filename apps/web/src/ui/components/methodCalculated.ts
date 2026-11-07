@@ -2,37 +2,12 @@ import { WINDOW_DAYS, HEADLINE_MIN_ACTIVITIES } from '@rca/core/answer'
 import { CHANGE } from '@rca/core/change'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { HOUR_AGREEMENT_PERCENT, runOxygenExcessPercent } from '@rca/core/display'
-import {
-  DEFAULT_WINDOW_DAYS,
-  EFFORT_LENGTHS_S,
-  MIN_WINDOW_DAYS,
-  trendWindowDays,
-} from '@rca/core/digest/trendPoints'
 import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
 import type { MethodEntry } from './methodEntryTypes'
-import { RANGE_OPTIONS } from './rangeOptions'
 
 /** "a, b and c", for a short list in a sentence. */
 const listWords = (items: readonly string[]) =>
   `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
-
-/** The effort lengths the trend offers, as copy: "5 min, 20 min or 60 min". */
-const EFFORT_PHRASE = (() => {
-  const lengths = EFFORT_LENGTHS_S.map((durationS) => effortLabel(durationS))
-  return `${lengths.slice(0, -1).join(', ')} or ${lengths.at(-1)}`
-})()
-
-/**
- * Each fixed period the picker offers, with the window the trend really uses for it, in days. All time has no
- * fixed length, so it is not listed.
- */
-const WINDOW_EXAMPLES = listWords(
-  RANGE_OPTIONS.flatMap((option) =>
-    typeof option.choice === 'number'
-      ? [`${option.label.toLowerCase()} uses ${trendWindowDays(option.choice)} days`]
-      : [],
-  ),
-)
 
 /** A window of the default period's tries, in the words the picker uses: whole weeks, else months. */
 const windowWords = (days: number) =>
@@ -97,33 +72,6 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     ],
   },
   {
-    name: 'Best efforts over time',
-    state: 'calculated',
-    lines: [
-      'Each dot is the best effort of its stretch, on the day it was done.',
-      `Each chart is for one length: ${EFFORT_PHRASE}.`,
-      'Running uses grade-adjusted pace (GAP).',
-      'That is your pace allowing for hills, as if on level ground.',
-      'Cycling uses power in watts.',
-      'Older dots are fainter.',
-      'There is no line.',
-      'The days between two dots hold no reading.',
-      'A line through best efforts shows how often you went hard as much as how fit you were.',
-      'A fitness status comes from steady efforts at the same heart rate.',
-      'Where a sport has one, that status is the trend.',
-    ],
-    detail: [
-      'A dot is the effort that led a trailing window ending on some Sunday in UTC.',
-      `Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days.`,
-      `So ${WINDOW_EXAMPLES}.`,
-      `All time uses ${DEFAULT_WINDOW_DAYS} days.`,
-      'Each effort is judged on energy rate.',
-      'It is converted with the period’s one bike model, which is fitted to its activities.',
-      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
-      'The size taken out is under See the evidence on the card.',
-    ],
-  },
-  {
     name: 'How a change is called',
     state: 'calculated',
     lines: [
@@ -181,11 +129,15 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     ],
   },
   {
-    name: 'Pace at heart rate',
+    name: 'Fitness status',
     state: 'calculated',
     lines: [
-      'Your pace, or power for rides, at one heart rate, week by week, from blocks of steady effort.',
-      'The weekly dots claim no change.',
+      'Your pace, or power for rides, at one heart rate, from blocks of steady effort.',
+      'A fitness status comes from steady efforts at the same heart rate.',
+    ],
+    detail: [
+      'A fitness status first takes your usual seasonal swing out of every steady run, when your runs show one.',
+      'The size taken out is under See the evidence on the card.',
     ],
   },
   {
@@ -194,14 +146,6 @@ export const ANALYSIS_ENTRIES: readonly MethodEntry[] = [
     lines: [
       'Your pace or power at one heart rate across the years, cut into plateaus.',
       'Each slip, return and rise is listed when the runs show it.',
-    ],
-  },
-  {
-    name: 'Best durations',
-    state: 'calculated',
-    lines: [
-      'Each best is set against your own curve.',
-      'A length that stands out from the rest is named.',
     ],
   },
 ]
