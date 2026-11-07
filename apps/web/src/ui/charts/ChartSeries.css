@@ -93,32 +93,10 @@
   fill: var(--previous-mark);
 }
 
-/*
- * A reading that is evidence for a trend, not the trend: a light dot, so the line in front says what the dots add up to.
- * It is 40% of the sport's tint.
- */
-.chart-series__marker--light {
-  fill-opacity: 0.4;
-  stroke-width: 1.5;
-}
-
-/*
- * A dot whose age is its opacity (--dot-opacity, set by the chart, from the oldest's floor to 1): older is fainter.
- */
-.chart-series__marker--aged {
-  fill-opacity: var(--dot-opacity, 1);
-}
-
 /* The band round a fitted trend: a wash of the sport, a little lighter than an area, since it is a range and not a total. */
 .chart-series__area--trend {
   fill: var(--sport-ink);
   fill-opacity: 0.14;
-}
-
-/* A week with no value: a short mark on the date axis, in the muted text colour. */
-.chart-series__gap {
-  stroke: var(--ink-secondary);
-  stroke-width: 1;
 }
 
 /* Surface-coloured halo keeps the label legible over gridlines and lines. */

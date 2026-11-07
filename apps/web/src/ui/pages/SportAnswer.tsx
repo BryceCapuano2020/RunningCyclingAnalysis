@@ -3,9 +3,8 @@ import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
 import { thresholdGrade } from '../thresholdGrade'
-import { LevelPanel } from './LevelPanel'
+import { SportHero } from './SportHero'
 import type { SportPageProps } from './sportPageProps'
-import { ThresholdPanel } from './ThresholdPanel'
 import './SportHero.css'
 
 export interface SportAnswerProps extends Pick<
@@ -66,9 +65,8 @@ function EmptySport({
 }
 
 /**
- * The sport page's answer, in one slot: the threshold with its range and what it means beside the level of
- * the threshold; or the prompt for an empty sport, or the note that a ride waits for a body weight. With no threshold
- * estimate, the panel asks for the effort that would give one.
+ * The sport page's answer, in one slot: the hero of current status (SportHero); or the prompt for an empty sport, or the note that a ride waits for
+ * a body weight.
  */
 export function SportAnswer(props: SportAnswerProps) {
   const { sport, result, massKg, units, profile, missingAge, count, held } = props
@@ -76,9 +74,13 @@ export function SportAnswer(props: SportAnswerProps) {
   if (held) return <WeightNote />
   const headline = profile === null ? null : thresholdGrade(result, sport, profile)
   return (
-    <div className="band sport-hero" data-sport={sport}>
-      <ThresholdPanel sport={sport} result={result} massKg={massKg} units={units} />
-      <LevelPanel sport={sport} outcome={headline} missingAge={missingAge} />
-    </div>
+    <SportHero
+      sport={sport}
+      result={result}
+      massKg={massKg}
+      units={units}
+      outcome={headline}
+      missingAge={missingAge}
+    />
   )
 }

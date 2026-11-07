@@ -357,12 +357,7 @@ describe('MethodPage how this works', () => {
     const names = Array.from(section.querySelectorAll('dt')).map((term) => term.textContent)
     expect(new Set(names).size).toBe(names.length)
     // The ideas the old two lists each said: one entry apiece, and no second section for them.
-    for (const name of [
-      'Best efforts over time',
-      'Thresholds',
-      'How a change is called',
-      'Dated settings and zones',
-    ]) {
+    for (const name of ['Thresholds', 'How a change is called', 'Dated settings and zones']) {
       expect(names.filter((candidate) => candidate === name)).toHaveLength(1)
       expect(screen.getAllByText(wholeText(name))).toHaveLength(1)
     }
@@ -850,7 +845,6 @@ describe('MethodPage copy', () => {
     expect(text).toMatch(/\b5 min\b/)
     expect(text).toMatch(/\b10 s either side\b/)
     expect(text).toMatch(/\b30 s\b/)
-    expect(text).toMatch(/\b42 days\b/)
   })
 
   it('spells British throughout', async () => {

@@ -44,6 +44,7 @@ const STATE = {
   countedWalkingRuns: [],
   trend: [],
   previous: null,
+  previousThresholds: null,
   change: null,
   earlier: null,
   effortTrends: NO_TRENDS,

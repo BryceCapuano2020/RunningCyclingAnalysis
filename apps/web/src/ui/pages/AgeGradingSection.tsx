@@ -72,7 +72,7 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         />
         <MethodLines
           lines={[
-            'Grade by duration on Balance grades each sport’s best effort at each duration.',
+            'Age grade by effort length on Balance grades each sport’s best effort at each duration.',
             'A ride comes with its range.',
             'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
             'Inside that range, the two are level.',

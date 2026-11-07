@@ -23,7 +23,9 @@ Rules that prose kept failing to hold are hooks in `.claude/settings.json`, whic
 this repository loads when it starts:
 
 - Before each prompt, `pr-queue.mjs --action` prints the pull requests that need someone (a failing
-  or stale run, a conflict, auto-merge off) and a red `main`. It prints nothing when all is well.
+  or stale run, a conflict, auto-merge off) and a red `main`. It prints nothing when all is well. It
+  reads only the latest run on the head commit, and a run that a push or the ready event cancelled,
+  or one that saw a draft, counts as running for ten minutes while the next run starts.
 - Before each shell command, `agent-guard.mjs` refuses: a vitest or Playwright run (directly, or
   through any `test`, `e2e`, `check` or `verify:release` script) outside the test slot;
   `gh pr checks`, `gh run watch`, watch loops and sleeps that wait on CI; `git stash`; a push to

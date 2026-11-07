@@ -37,12 +37,10 @@ const legend = () =>
     .map((item) => item.textContent)
 
 describe('BalanceOverYearsChart', () => {
-  it('is titled by who led, with a dot for each graded year, hollow where the best was not all-out', () => {
+  it('is titled by what it plots, with a dot for each graded year, hollow where the best was not all-out', () => {
     chartWidth(800)
     const { container } = render(<BalanceOverYearsChart views={twelve} />)
-    expect(
-      screen.getByRole('figure', { name: 'Running led every year until 2019' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Grade by year, run and ride' })).toBeInTheDocument()
     const all = dots(container)
     expect(all.filter((dot) => dot.getAttribute('data-sport') === 'run')).toHaveLength(11)
     expect(all.filter((dot) => dot.getAttribute('data-sport') === 'ride')).toHaveLength(10)
@@ -82,11 +80,11 @@ describe('BalanceOverYearsChart', () => {
     chartWidth(800)
     const one = yearViews([rowOf(2022, 3.8, 3.5)], PROFILE, true)
     const { container, rerender } = render(<BalanceOverYearsChart views={one} />)
-    expect(screen.getByRole('figure', { name: 'Age grade by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Grade by year, run and ride' })).toBeInTheDocument()
     expect(dots(container)).toHaveLength(2)
     const runOnly = yearViews([rowOf(2021, 3.6, null), rowOf(2022, 3.8, null)], PROFILE, true)
     rerender(<BalanceOverYearsChart views={runOnly} />)
-    expect(screen.getByRole('figure', { name: 'Running age grade by year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Run grade by year' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(dots(container)).toHaveLength(2)
   })

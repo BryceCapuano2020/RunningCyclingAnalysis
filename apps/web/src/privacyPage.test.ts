@@ -125,7 +125,7 @@ const ANALYSIS_FIGURES = [
 
 describe('privacy page date', () => {
   it('is dated 30 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 31 October 2026</p>')
+    expect(page).toContain('<p class="updated">Last updated 6 November 2026</p>')
   })
 })
 
@@ -224,6 +224,16 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('Signing out and deleting your account clear the account')
     expect(text).toContain('rca.importTab.v1')
     expect(manifestSource).toContain("TAB_KEY = 'rca.importTab.v1'")
+  })
+
+  it('names the lifting database this browser keeps and what clears it', () => {
+    // The store itself is built in Stage X3 (docs/design/lift-data.md section 3); until it lands the
+    // name is pinned to that design, and X3 must make its DB_NAME match.
+    expect(text).toContain('in a database named rca-lifts')
+    expect(text).toContain('never uploaded, and stay until you clear this')
+    expect(text).toContain('Signing out removes the copy and keeps the unsent changes')
+    expect(text).toContain("removes every other account's rows, unsent ones included")
+    expect(text).toContain('Notes are not kept.')
   })
 
   it('names the flags and choices this browser keeps beyond the summaries, as the app stores them', async () => {
@@ -746,10 +756,12 @@ describe('the code behind the page', () => {
       'account',
       'profile',
       'measurements',
+      'lifts',
       'activities',
       'unreadable',
       'notes',
     ])
+    expect(text).toContain('every lifting set you have logged')
     expect(Object.keys(exported.profile)).toEqual([
       'massKg',
       'bikeMassKg',

@@ -221,7 +221,11 @@ export function fitnessFigures(s: FitnessStatus, system: UnitSystem): FitnessFig
   const level = s.level
   const spoken = isSpoken(s)
   return {
-    level: spoken ? w.level(s.now, system) : level === undefined ? null : w.level(level.value, system),
+    level: spoken
+      ? w.level(s.now, system)
+      : level === undefined
+        ? null
+        : w.level(level.value, system),
     range: level === undefined ? null : w.range(level.low, level.high, system),
     month:
       s.shortfall?.kind === 'break' && level !== undefined ? monthOf(level.toMs, s.asOfMs) : null,

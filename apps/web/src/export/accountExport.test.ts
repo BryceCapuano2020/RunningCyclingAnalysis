@@ -1,5 +1,6 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
+import type { LiftSet } from '@rca/core/lift'
 import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { describe, expect, it } from 'vitest'
@@ -8,6 +9,8 @@ import {
   exportActivitiesJson,
   exportFooterJson,
   exportHeaderJson,
+  exportLiftsJson,
+  EXPORT_LIFTS_END_JSON,
 } from './accountExport'
 
 const [sample] = sampleDataset().activities
@@ -55,11 +58,12 @@ describe('buildAccountExport', () => {
       'account',
       'profile',
       'measurements',
+      'lifts',
       'activities',
       'unreadable',
       'notes',
     ])
-    expect(build()).toMatchObject({ format: 'rca-export', version: 2 })
+    expect(build()).toMatchObject({ format: 'rca-export', version: 3 })
   })
 
   it('writes the dated settings, field by field, and none when there are none', () => {
@@ -164,17 +168,71 @@ describe('buildAccountExport', () => {
 })
 
 /** The export as the writer streams it: header, each page's activities, then the footer. */
-function streamed(pages: ActivityRecord[][], unreadable = 0): string {
+function streamed(pages: ActivityRecord[][], unreadable = 0, liftPages: LiftSet[][] = []): string {
   const entries = pages
     .map((page) => exportActivitiesJson(page))
     .filter((text) => text !== '')
     .join(',')
   return (
     exportHeaderJson({ now: NOW, account: ACCOUNT, profile: PROFILE }) +
+    liftPages
+      .map((page) => exportLiftsJson(page))
+      .filter((text) => text !== '')
+      .join(',') +
+    EXPORT_LIFTS_END_JSON +
     entries +
     exportFooterJson(unreadable)
   )
 }
+
+const SETS: LiftSet[] = [
+  {
+    date: '2026-01-05',
+    exercise: 'squat',
+    equipment: 'barbell',
+    setOrder: 1,
+    reps: 5,
+    loadKg: 100,
+  },
+  {
+    date: '2026-01-05',
+    time: '18:30',
+    timePrecision: 'session',
+    exercise: 'squat',
+    equipment: 'barbell',
+    setOrder: 2,
+    reps: 3,
+    loadKg: 60.5,
+    rpe: 7.5,
+    warmup: true,
+  },
+]
+
+describe('lifts in the export', () => {
+  it('writes each set field by field, and none when there are none', () => {
+    expect(build().lifts).toEqual([])
+    const doc = build({ lifts: SETS.map((set) => ({ ...set, extra: 1 }) as LiftSet) })
+    expect(doc.lifts).toEqual(SETS)
+    expect(Object.keys(doc.lifts[1] ?? {})).toEqual([
+      'date',
+      'time',
+      'timePrecision',
+      'exercise',
+      'equipment',
+      'setOrder',
+      'reps',
+      'loadKg',
+      'rpe',
+      'warmup',
+    ])
+  })
+
+  it('streams to the same document, across pages and with an empty page', () => {
+    const text = streamed([[RECORD]], 0, [SETS.slice(0, 1), [], SETS.slice(1)])
+    expect(JSON.parse(text)).toEqual(JSON.parse(JSON.stringify(build({ lifts: SETS }))))
+    expect(JSON.parse(streamed([[RECORD]]))).toEqual(JSON.parse(JSON.stringify(build())))
+  })
+})
 
 describe('streamed export writers', () => {
   it('assemble to the same document the schema builder describes', () => {
@@ -197,6 +255,6 @@ describe('streamed export writers', () => {
   it('is compact, not pretty-printed', () => {
     const text = streamed([[RECORD]])
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":2,"exportedAt":')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":3,"exportedAt":')).toBe(true)
   })
 })

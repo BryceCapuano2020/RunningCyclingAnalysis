@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { BestEffort } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
+import { SPORT_FORMAT, SPORT_PLURAL } from '../sports'
 import { bestsModel, bestsNote, markCell, markNote } from './bestsByYearModel'
 import type { BestsModel } from './bestsByYearModel'
 import { bestsChartHeight, bestsLayout } from './bestsByYearLayout'
@@ -68,6 +68,12 @@ function tooltipFor(model: BestsModel, i: number, x: number, y: number): Tooltip
   return { x, y, title: String(year), rows }
 }
 
+/** The measure each sport's bests are in, as the title names it. */
+const BESTS_TITLE: Record<Sport, string> = {
+  run: 'Best times by year',
+  ride: 'Best power by year',
+}
+
 /**
  * A sport's best effort of each length in each year, as small charts on one run of years: a panel for each length with its
  * own axis (pace for a run, faster up; power for a ride), the all-time best large and labelled, and a best that heart rate
@@ -79,7 +85,7 @@ export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYea
   const layoutOf = sizedOnce((size: ChartSize) =>
     model === null ? null : bestsLayout(model, size),
   )
-  const title = `${SPORT_LABEL[sport]} bests by year`
+  const title = BESTS_TITLE[sport]
   const lede = bestsNote(sport, units)
   const empty = `Add outdoor ${SPORT_PLURAL[sport]} to see your bests by year`
   if (model === null) {

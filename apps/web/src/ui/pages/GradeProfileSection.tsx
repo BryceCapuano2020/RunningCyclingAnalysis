@@ -3,8 +3,7 @@ import type { ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { GradeProfileChart } from '../charts'
 import { GRADE_PROFILE_TITLE } from '../charts/gradeProfileText'
-import type { Lean } from '../../domain/lean'
-import { findingAgreeing, gradeProfile, profileComparable, profileSeparated } from '../gradeProfile'
+import { gradeProfile, profileComparable, profileSeparated } from '../gradeProfile'
 import type { AgeProfile } from '../grades'
 import './GradeProfileSection.css'
 
@@ -16,8 +15,6 @@ export interface GradeProfileSectionProps {
   massKg: number
   /** False while no body weight is entered: a ride's grade waits for it, so there is nothing to compare. */
   weightKnown: boolean
-  /** Which way the hero leans, or null while it states no balance: the finding is said only where it agrees. */
-  lean: Lean | null
 }
 
 /**
@@ -42,10 +39,9 @@ function ByDuration({ children }: { children: ReactNode }) {
 }
 
 /**
- * How the two sports' age grades compare from 3 min to 3 h, titled "Grade by duration". Its finding is a line
- * under the title, and only where it agrees with the hero's lean (`findingAgreeing`), so the card never says
- * the sports grade alike under a hero that leans. It is left out without the year of birth and sex, without a
- * weight, and with fewer than two durations graded in both sports, since a chart that would only repeat the
+ * How the two sports' age grades compare from 3 min to 3 h, titled "Age grade by effort length". It is left out
+ * without the year of birth and sex, without a weight, and with fewer than two durations graded in both sports,
+ * since a chart that would only repeat the
  * balance at 20 min says nothing more. The extra ride equivalents it needs are priced once for a result and
  * body mass, here, not in every combine. When no duration separates the sports the chart is folded;
  * otherwise it is open.
@@ -55,7 +51,6 @@ export function GradeProfileSection({
   profile,
   massKg,
   weightKnown,
-  lean,
 }: GradeProfileSectionProps) {
   // Memoised on the two profile values, not the object, which the caller builds afresh on each render.
   const birthYear = profile?.birthYear ?? null
@@ -68,7 +63,6 @@ export function GradeProfileSection({
     [result, birthYear, sex, massKg, weightKnown],
   )
   if (graded === null || !profileComparable(graded)) return null
-  const finding = findingAgreeing(graded, lean)
   const separated = profileSeparated(graded)
   return (
     <section className="balance__panel grade-profile" aria-labelledby="balance-profile">
@@ -77,13 +71,12 @@ export function GradeProfileSection({
         {GRADE_PROFILE_TITLE}
       </h2>
       {separated ? (
-        <GradeProfileChart profile={graded} finding={finding ?? undefined} />
+        <GradeProfileChart profile={graded} />
       ) : (
         <>
           <p className="meta" aria-hidden="true">
             {GRADE_PROFILE_TITLE}
           </p>
-          {finding === null ? null : <p className="grade-profile__finding">{finding}</p>}
           <ByDuration>
             <GradeProfileChart profile={graded} />
           </ByDuration>

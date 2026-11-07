@@ -116,10 +116,11 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await goTo(page, 'Run')
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
   await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
-  // Above the threshold, and the sport is not named twice: the row's title is the state alone (exact text above).
+  // Under the hero, and the sport is not named twice: the row's title is the state alone (exact text above).
   const fitness = await edgesOf(card(page))
-  const threshold = await edgesOf(page.getByRole('heading', { level: 2, name: /^Threshold pace/ }))
-  expect(fitness.bottom).toBeLessThanOrEqual(threshold.top)
+  const hero = await edgesOf(page.locator('.sport-hero'))
+  expect(hero.bottom).toBeLessThanOrEqual(fitness.top)
+  await expect(page.getByTestId('hero-threshold')).toBeVisible()
   // The heading's own page title comes first.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
 })

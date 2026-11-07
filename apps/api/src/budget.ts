@@ -56,7 +56,7 @@ function dailyLimitError(now: number, message = DEFAULT_LIMIT_MESSAGE): HttpErro
 /**
  * Takes `amount` units (one by default) of a user's daily budget. The upsert succeeds only while the
  * day's count plus the amount stays within the limit, so concurrent requests cannot admit more than
- * the limit between them. Throws 429 daily_limit with a Retry-After to the next UTC midnight when
+ * the limit between them. A refusal says `message`, by default the action's own. Throws 429 daily_limit with a Retry-After to the next UTC midnight when
  * the budget cannot cover the amount. `refund` gives the whole amount back.
  */
 export async function chargeDaily(
@@ -65,6 +65,7 @@ export async function chargeDaily(
   action: BudgetAction,
   now: number,
   amount = 1,
+  message = LIMIT_MESSAGES[action],
 ): Promise<DailyCharge> {
   const day = utcDay(now)
   const limit = LIMITS[action]
@@ -80,7 +81,7 @@ export async function chargeDaily(
     )
     .bind(userId, day, action, amount, amount, amount, limit)
     .first<{ used: number }>()
-  if (!admitted) throw dailyLimitError(now, LIMIT_MESSAGES[action])
+  if (!admitted) throw dailyLimitError(now, message)
   return {
     refund: async () => {
       await db
