@@ -40,6 +40,10 @@ export const DAILY_LIMITS = {
   measurementWrite: 200,
   /** Dated-settings reads. One read is at most MAX_MEASUREMENTS_PER_USER D1 rows. */
   measurementRead: 300,
+  /** Lift pages. A page is at most LIFT_PAGE_SIZE rows, also metered on the list-rows meter. */
+  liftRead: 300,
+  /** Lift writes and deletes, up to 500 sets each: 60,000 sets in 120 writes, with room to spare. */
+  liftWrite: 300,
 } as const
 export type DailyLimitAction = keyof typeof DAILY_LIMITS
 
@@ -57,6 +61,9 @@ export const LIST_ROWS_PER_DAY = 200_000
  */
 export const LIST_ROWS_LIMIT_MESSAGE =
   "You have listed as many activity rows as today's allowance covers. Try again after midnight UTC"
+
+/** Lift sets in one GET /api/lifts page; the account's 60,000 sets are 60 pages. */
+export const LIFT_PAGE_SIZE = 1000
 
 /** Most sessions one user keeps. Signing in beyond this ends the oldest ones. */
 export const MAX_SESSIONS_PER_USER = 10

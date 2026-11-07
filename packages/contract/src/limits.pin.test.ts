@@ -36,6 +36,8 @@ describe('contract limits', () => {
       read: 100,
       measurementWrite: 200,
       measurementRead: 300,
+      liftRead: 300,
+      liftWrite: 300,
     })
   })
 
@@ -107,5 +109,11 @@ describe('contract limits', () => {
     expect(limits.MAX_PAGE_BODY_BYTES).toBe(
       limits.MAX_PAGE_DIGEST_BYTES + limits.MAX_PAGE_SIZE * record + rest.length,
     )
+  })
+})
+
+describe('lift limits', () => {
+  it('pins the page size, which is also the export cost in LIMITS.md', () => {
+    expect(limits.LIFT_PAGE_SIZE).toBe(1000)
   })
 })

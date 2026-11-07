@@ -1,9 +1,10 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
+import type { LiftSet } from '@rca/core/lift'
 
 /** Identifies the file, and says which schema describes it. A later schema changes `version`. */
 export const EXPORT_FORMAT = 'rca-export' as const
-export const EXPORT_VERSION = 2 as const
+export const EXPORT_VERSION = 3 as const
 /** Written into every export, so a reader knows what the file leaves out and how values look. */
 export const EXPORT_NOTES = [
   'Original files are not included.',
@@ -34,6 +35,8 @@ export interface AccountExport {
   profile: Profile
   /** The dated settings: body mass, max heart rate and thresholds, each from a local date. */
   measurements: Measurement[]
+  /** Every logged lifting set, in key order. */
+  lifts: LiftSet[]
   activities: ExportActivity[]
   /** Stored activities that could not be read, so they are not in `activities`. */
   unreadable: number
@@ -49,6 +52,8 @@ export interface AccountExportHeaderInput {
 }
 
 export interface AccountExportInput extends AccountExportHeaderInput {
+  /** Absent reads as none. */
+  lifts?: readonly LiftSet[]
   activities: readonly ActivityRecord[]
   unreadable: number
 }
@@ -84,6 +89,22 @@ function measurementEntry(entry: Measurement): Measurement {
   }
 }
 
+/** One lifting set, with its fields in the order the file writes them and the optional ones only when set. */
+function liftEntry(set: LiftSet): LiftSet {
+  return {
+    date: set.date,
+    ...(set.time === undefined ? {} : { time: set.time }),
+    ...(set.timePrecision === undefined ? {} : { timePrecision: set.timePrecision }),
+    exercise: set.exercise,
+    equipment: set.equipment,
+    setOrder: set.setOrder,
+    reps: set.reps,
+    loadKg: set.loadKg,
+    ...(set.rpe === undefined ? {} : { rpe: set.rpe }),
+    ...(set.warmup === undefined ? {} : { warmup: set.warmup }),
+  }
+}
+
 /** One activity, with its fields in the order the file writes them. */
 function activityEntry(record: ActivityRecord): ExportActivity {
   return {
@@ -105,6 +126,7 @@ function activityEntry(record: ActivityRecord): ExportActivity {
 export function buildAccountExport(input: AccountExportInput): AccountExport {
   return {
     ...headerFields(input),
+    lifts: (input.lifts ?? []).map(liftEntry),
     activities: input.activities.map(activityEntry),
     unreadable: input.unreadable,
     notes: [...EXPORT_NOTES],
@@ -112,13 +134,21 @@ export function buildAccountExport(input: AccountExportInput): AccountExport {
 }
 
 /**
- * The start of the file, up to and including the opening of the activity list. It is compact JSON
+ * The start of the file, up to and including the opening of the lift list. It is compact JSON
  * with the same key order as the object above.
  */
 export function exportHeaderJson(input: AccountExportHeaderInput): string {
-  // Drop the closing brace of the header object, and open the activity list in its place.
-  return `${JSON.stringify(headerFields(input)).slice(0, -1)},"activities":[`
+  // Drop the closing brace of the header object, and open the lift list in its place.
+  return `${JSON.stringify(headerFields(input)).slice(0, -1)},"lifts":[`
 }
+
+/** Some lifting sets as comma-separated entries, with no brackets, like the activity pages. */
+export function exportLiftsJson(sets: readonly LiftSet[]): string {
+  return sets.map((set) => JSON.stringify(liftEntry(set))).join(',')
+}
+
+/** Between the lifts and the activities: the close of the lift list and the opening of the next. */
+export const EXPORT_LIFTS_END_JSON = '],"activities":['
 
 /**
  * Some activities as comma-separated entries, with no brackets, so pages can be joined with commas.

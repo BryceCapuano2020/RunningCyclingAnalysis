@@ -45,7 +45,14 @@
   align-self: center;
 }
 
-/* A link standing alone is a target of its own: a control's height, 44 px on a phone (target-size.spec.ts). */
+/* A link standing alone is a target of its own: a control's height, 44 px on a phone (target-size.spec.ts). A link
+   that is a row's value (a count that opens the list) is one too. */
+.props__row > dd a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
 .props__method {
   display: inline-flex;
   align-items: center;

@@ -5,7 +5,7 @@ import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import { traceTimeInZones } from '@rca/core/zones'
 import type { TraceZoneTime } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
-import { ZoneTimeChart } from '../charts/ZoneTimeChart'
+import { INTERVAL_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
 import { lowerFirst } from '../format/firstLetter'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
@@ -160,7 +160,7 @@ export function ActivityZoneTime({
     <div className="activity-workbench__zones" data-sport={trace.sport}>
       <h3>Time in zones</h3>
       <ZoneTimeChart
-        title="Share of the interval in each zone"
+        title={INTERVAL_ZONES_TITLE}
         lede={lede ?? ''}
         rows={rows.map(({ set, time }) =>
           zoneBar(

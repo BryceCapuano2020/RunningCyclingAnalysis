@@ -51,6 +51,7 @@ export function stateWith(totalActivities: number): SessionState {
     countedWalkingRuns: [],
     trend: [],
     previous: null,
+    previousThresholds: null,
     change: null,
     earlier: null,
     effortTrends: NO_TRENDS,

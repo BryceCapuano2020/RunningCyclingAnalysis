@@ -33,6 +33,7 @@ export async function errorFrom(response: Response): Promise<ApiRequestError> {
       parsed.data.error.code,
       parsed.data.error.message,
       retryAfterMs,
+      parsed.data.error.refused,
     )
   }
   const fallback = response.statusText || `Request failed with status ${response.status}`

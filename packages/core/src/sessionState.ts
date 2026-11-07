@@ -6,7 +6,8 @@ import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
-import type { Curve, SportCurves } from './types'
+import type { ThresholdEstimate } from './threshold'
+import type { Curve, Sport, SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 import type { EarnedRecord } from './records'
 import type { Rejection } from './import/result'
@@ -133,6 +134,11 @@ export interface SessionState {
    * all time, or when that period has no activities.
    */
   previous: SportCurves | null
+  /**
+   * Each sport's threshold estimate over the period before the selected one, the same estimate a period's result holds
+   * (`runThreshold`, `rideThreshold`), null for a sport without one. Null for all time, or when that period has no activities.
+   */
+  previousThresholds: Record<Sport, ThresholdEstimate | null> | null
   /**
    * Whether each best effort of the selected period differs from the previous period's by more than chance, for
    * both sports at every curve duration (see changeEvidence). Null where `previous` is.

@@ -20,6 +20,7 @@ const OPTIONAL_TABLES = [
   'athlete_measurements',
   'identity_budget',
   'account_tombstones',
+  'lift_sets',
 ]
 const TABLE_SET = new Set([...TABLES, ...OPTIONAL_TABLES])
 export const MAX_D1_EXPORT_BYTES = 64 * 1024 * 1024

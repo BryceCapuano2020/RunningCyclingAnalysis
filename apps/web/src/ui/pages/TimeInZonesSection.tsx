@@ -1,6 +1,6 @@
 import type { MeasureTime, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
-import { ZoneTimeChart } from '../charts/ZoneTimeChart'
+import { PERIOD_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
 import {
   TIME_IN_ZONES_NAME,
   ZONE_WINDOW_LINE,
@@ -50,7 +50,7 @@ export function TimeInZonesSection({
       {/* The section's heading names the chart, and its window, the activities left out and where the zones came from
           are one ▸ Details under the bars (docs/design/system.md, No subtitle lines). */}
       <ZoneTimeChart
-        title="Share of time in each zone"
+        title={PERIOD_ZONES_TITLE}
         titleHidden
         rows={periodBars(shown)}
         table={table}

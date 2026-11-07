@@ -72,6 +72,24 @@ vi.mock('../api/client', async (importOriginal) => {
   }
 })
 
+/** The lift pages an export reads: none unless a test sets some, so the fetch count stays the activities'. */
+const liftPages = vi.hoisted(() => ({
+  pages: [] as unknown[][],
+  failure: null as Error | null,
+  endless: false,
+}))
+vi.mock('../api/lifts', () => ({
+  createLiftTransport: () => ({
+    page: async (cursor: string | null) => {
+      if (liftPages.failure !== null) throw liftPages.failure
+      if (liftPages.endless) return { items: [], next: 'more', liftRevision: 1 }
+      const index = cursor === null ? 0 : Number(cursor)
+      const next = index + 1 < liftPages.pages.length ? String(index + 1) : null
+      return { items: liftPages.pages[index] ?? [], next, liftRevision: 1 }
+    },
+  }),
+}))
+
 /** The device library the worker opens. It outlives a fresh worker import, as IndexedDB does. */
 const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
 
@@ -210,6 +228,9 @@ function gpxFile(name = 'run.gpx'): File {
 }
 
 beforeEach(() => {
+  liftPages.pages = []
+  liftPages.failure = null
+  liftPages.endless = false
   vi.resetModules()
   vi.useRealTimers()
   vi.resetAllMocks()
@@ -2458,7 +2479,7 @@ describe('account export', () => {
     }
     expect(exported).toMatchObject({
       format: 'rca-export',
-      version: 2,
+      version: 3,
       account: ACCOUNT,
       profile: PROFILE,
     })
@@ -2506,12 +2527,47 @@ describe('account export', () => {
     expect(written).toEqual(JSON.parse(JSON.stringify(expected)))
   })
 
+  it('writes the account lifts page by page ahead of the activities', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const sets = [1, 2, 3].map((setOrder) => ({
+      date: '2026-01-05',
+      exercise: 'squat',
+      equipment: 'barbell',
+      setOrder,
+      reps: 5,
+      loadKg: 100,
+    }))
+    liftPages.pages = [sets.slice(0, 2), sets.slice(2)]
+    const { send } = await startWorker()
+    const text = await exportedText(await send(REQUEST))
+    expect((JSON.parse(text) as { lifts: unknown }).lifts).toEqual(sets)
+    expect(text.indexOf('"lifts":[')).toBeLessThan(text.indexOf('"activities":['))
+  })
+
+  it('fails the export, with no file, when a lift page fails', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    liftPages.failure = new Error('Lift request failed: other')
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+    expect(messages.some((message) => message.type === 'exportReady')).toBe(false)
+    expect(messages.at(-1)?.type).toBe('error')
+  })
+
+  it('fails the export when the lift cursor never ends', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    liftPages.endless = true
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+    expect(messages.some((message) => message.type === 'exportReady')).toBe(false)
+    expect(JSON.stringify(messages.at(-1))).toContain('The lift list did not end')
+  })
+
   it('writes the file compactly, with no pretty-printing', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     const text = await exportedText(await send(REQUEST))
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":2,')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":3,')).toBe(true)
   })
 
   it('counts the stored activities the server could not read', async () => {

@@ -39,22 +39,29 @@ meRoutes.get('/me', optionalUser, async (c) => {
   // listings, whose cost grows with the library; charging page loads here would lock people out.
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
   const me = await buildMe(db, deps, user, Boolean(c.env.FILES), units)
-  return c.json({ ...me, libraryRevision: await libraryRevision(db, user.id) }, 200)
+  const revisions = await revisionsOf(db, user.id)
+  return c.json({ ...me, ...revisions }, 200)
 })
 
 /**
- * A tag that changes whenever the library does: the count of stored activities and the bytes of their
+ * `libraryRevision` is a tag that changes whenever the library does: the count of stored activities and the bytes of their
  * digests, both kept by the same statements that insert, upgrade and delete rows. Another tab or device
  * compares it for inequality only, as a hint that its copy of the library may be out of date. It is
  * not a version: an edit that changes neither number is not seen, and nothing relies on it being exact.
+ * `liftRevision` is the lift sets' own counter and never feeds the tag: logging a set must not reload the library.
  */
-async function libraryRevision(db: AppEnv['Variables']['db'], userId: string): Promise<string> {
+async function revisionsOf(
+  db: AppEnv['Variables']['db'],
+  userId: string,
+): Promise<{ libraryRevision: string; liftRevision: number }> {
   const row = await db
-    .select({ count: users.activityCount, bytes: users.digestBytes })
+    .select({ count: users.activityCount, bytes: users.digestBytes, lifts: users.liftRevision })
     .from(users)
     .where(eq(users.id, userId))
     .get()
-  return row === undefined ? '0.0' : `${row.count}.${row.bytes}`
+  return row === undefined
+    ? { libraryRevision: '0.0', liftRevision: 0 }
+    : { libraryRevision: `${row.count}.${row.bytes}`, liftRevision: row.lifts }
 }
 
 meRoutes.put(

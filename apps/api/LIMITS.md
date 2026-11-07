@@ -54,6 +54,8 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | Profile writes                           | 50                          | Includes keepFiles toggles and each `PATCH /api/activities/labels` request, whatever it carries (at most 200 labels).                                    |
 | Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                 |
 | Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                              |
+| Lift reads                               | 300                         | `GET /api/lifts`: a page is at most 1,000 sets, also charged to the list-rows meter by the rows it returns. Refunded when the page is refused.           |
+| Lift writes                              | 300                         | `PUT /api/lifts` and `POST /api/lifts/delete`, up to 500 sets or keys each. Refunded when refused (cap reached, user gone).                              |
 | Activity deletions                       | 50                          |                                                                                                                                                          |
 | Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                |
 | Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                                                                  |
@@ -140,6 +142,21 @@ page reads alone scanned the user's whole library once per page, about N squared
 At 200,000 rows listed a day a user can make about 74 cold loads of a 2,700 library or 40 of a 5,000 library.
 Worst case billed reads for one user at the cap are about 800,000 rows, so six users all at their cap would
 approach the shared allowance; this is a bound on one account, not on the whole deployment.
+
+## Lift sets
+
+Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: docs/design/lift-data.md).
+
+- **A write is two statements in one batch**, whatever its size, up to 500 sets or keys. The first counts the
+  payload's new (or removed) keys with one primary-key lookup each and moves `users.lift_count` and
+  `users.lift_revision`; the second writes the rows. A 409 `lift_limit` answers only when the error names
+  `users_lift_count_cap`, and refunds the unit. Rows read per write are about the payload's size, and the
+  delete is a primary-key search per key, never a scan of the account (pinned by an `EXPLAIN QUERY PLAN` test).
+- **A page is at most 1,000 sets** in key order, with a stateless cursor. It takes one `liftRead` unit and is
+  charged the number of rows it returned (at least one) on the `listRows` meter, which it shares with the
+  activity list. A cross-site read is refused before anything is charged.
+- **The account export** reads lifts page by page: up to 60 pages and 60,000 rows of the 200,000-row
+  `listRows` meter, 60 of the 300 `liftRead` units, and about 60,000 D1 rows read.
 
 ## Activity list
 
@@ -269,14 +286,15 @@ charges keep running. How to use it, and the abuse runbook around it, are in doc
 
 ## Other per-user limits
 
-| Limit                       | Value                       | Enforcement                                                                                                                                            |
-| --------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                                            |
-| Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                                          |
-| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.                                   |
-| Dated settings stored       | 200                         | `PUT /api/measurements`: the count and the insert are one statement, so two requests cannot both take the last place. Replacing a date needs no place. |
-| Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job.                          |
-| Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                                            |
+| Limit                       | Value                       | Enforcement                                                                                                                                              |
+| --------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                                              |
+| Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                                            |
+| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.                                     |
+| Dated settings stored       | 200                         | `PUT /api/measurements`: the count and the insert are one statement, so two requests cannot both take the last place. Replacing a date needs no place.   |
+| Lift sets stored            | 60,000                      | `users.lift_count`, changed by the first statement of the batch that writes the rows. Past the cap the check fails and the whole batch rolls back (409). |
+| Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job.                            |
+| Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                                              |
 
 ## Deployment R2 ledger
 
