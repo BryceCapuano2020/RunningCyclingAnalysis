@@ -45,7 +45,10 @@ interface YearReads {
  * on the year's best 20 minutes is the one the analysis states beside its threshold. The hero reads a window the same way, so an
  * equal window grades to the same number.
  */
-function readYear(own: ActivityDigest[], input: HistoryInput): YearReads {
+export function readYear(
+  own: ActivityDigest[],
+  input: Pick<HistoryInput, 'settings' | 'setAside' | 'gate' | 'effortReference' | 'lines'>,
+): YearReads {
   const { settings } = input
   const masses = massesOf(settings)
   const bikeModel = fitBikeModelOver(own, masses).model
