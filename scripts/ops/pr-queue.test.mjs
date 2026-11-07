@@ -252,3 +252,30 @@ test('a run that saw a draft is waited on for the settle time, then flagged', ()
     'stale-draft-run',
   )
 })
+
+test('a real failure beside a timed-out (cancelled) job is reported as failing', () => {
+  const rollup = CI.map((name, i) =>
+    endedIn(
+      23,
+      2300 + i,
+      name,
+      i === 2 ? 'FAILURE' : i === 3 ? 'CANCELLED' : 'SUCCESS',
+      minutesBefore(20),
+    ),
+  )
+  const row = verdict(pr({ statusCheckRollup: rollup }), NOW)
+  assert.equal(row.kind, 'failing')
+  assert.match(row.detail, /Unit tests \(1 of 2\) \(failure\)/)
+})
+
+test('a cancelled job in a run with jobs still going is running, not flagged', () => {
+  const rollup = [
+    endedIn(24, 2400, 'Changed files', 'CANCELLED', minutesBefore(20)),
+    {
+      ...queued('Unit tests (1 of 2)'),
+      workflowName: 'CI',
+      detailsUrl: 'https://github.com/o/r/actions/runs/24/job/2401',
+    },
+  ]
+  assert.equal(verdict(pr({ statusCheckRollup: rollup }), NOW).kind, 'running')
+})

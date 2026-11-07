@@ -13,7 +13,8 @@ const COLLECTORS = ['Lint, typecheck, unit tests, build', 'End-to-end (Playwrigh
 export const OPTIONAL = ['Unit tests in shuffled order']
 /** CI skips this job only when its run decided the pull request was a draft. */
 const STATIC_JOB = 'Lint, typecheck, build'
-const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE'])
+// CANCELLED is read on its own (see verdict): a replaced run, or a timeout next to the real failure.
+const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE'])
 const FIELDS =
   'number,title,isDraft,mergeStateStatus,autoMergeRequest,headRefName,author,statusCheckRollup'
 
@@ -108,7 +109,14 @@ export function verdict(pr, now = Date.now()) {
   // A run that saw a draft, or one a newer push or ready event cancelled, is replaced by the run that
   // follows. Only when no newer run has shown up after SETTLE_MS does it need someone.
   const sawDraft = checks.get(STATIC_JOB)?.result === 'SKIPPED'
-  const cancelled = [...checks.values()].some((c) => c.result === 'CANCELLED')
+  const all = [...checks.values()]
+  // A timed-out job also reads CANCELLED: a real failure beside it wins, and a run with jobs still
+  // going is not finished yet.
+  const failedJob = all.some(
+    (c) => c.result === 'FAILURE' && !OPTIONAL.includes(c.name) && !COLLECTORS.includes(c.name),
+  )
+  const cancelled =
+    !failedJob && all.every((c) => c.done) && all.some((c) => c.result === 'CANCELLED')
   if ((sawDraft || cancelled) && settling(checks, now)) {
     return { kind: 'running', detail: 'its last run was replaced; the next one is starting' }
   }
