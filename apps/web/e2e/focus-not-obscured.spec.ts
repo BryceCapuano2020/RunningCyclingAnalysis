@@ -85,10 +85,11 @@ async function obscuredPresses(page: Page): Promise<{ failures: string[]; scroll
 }
 
 /**
- * The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. A sport page
- * scrolled 12 times once its axed charts went (Stage W), so the floor sits under that.
+ * The presses on a page that must have scrolled it, so a walk that never scrolls cannot pass. Since Stage W a
+ * sport page scrolls 12 times at 1440 px and 8 on a WebKit phone here (CI's fonts give a few more), so the
+ * floor sits under both.
  */
-const MIN_SCROLLED = 10
+const MIN_SCROLLED = 6
 
 /** The sport and activity pages, with the stuck bars each width has: the section row at 1440, the tab bar at 390. */
 async function openPage(page: Page, destination: 'Run' | 'Ride' | 'Activity', width: number) {
