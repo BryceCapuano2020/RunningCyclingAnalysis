@@ -102,7 +102,7 @@ Then, with `q` each session's share of the weights:
 
 **Worked example,** one session of 100 kg for 5 at RPE 8, by hand: `R = 5 + 1.25 x 2 = 7.5`; Epley 125.00,
 Brzycki 122.03, Lombardi 122.32 kg, so `p = 122.32`; `s = 0.02463`; curve 0.05864, centre 0.02600, equations
-0.01214, effort 0.01232, so `sys = 0.06644`; day 0.042 and RPE noise 0.02463, so `ind = 0.04869`;
+0.01212, effort 0.01232, so `sys = 0.06643`; day 0.042 and RPE noise 0.02463, so `ind = 0.04869`;
 `sd = 0.08237`; range 111.7 to 138.4 kg. The unit test pins these hand figures.
 
 ## 3. Floor and rep bests
@@ -176,7 +176,7 @@ reserve. Each day's strength varies by 4.2%. Each earlier set costs 0.7 of a rep
 - no RPE;
 - half the sets with RPE, and a last set to failure;
 - noisy RPE (double noise, 40% under-prediction);
-- deloads every fourth week, unflagged warm-ups and a 6-week break;
+- deloads every fourth week, warm-ups with no flag and no RPE (as a Strong CSV has them) and a 6-week break;
 - deadlift, at a curve centre of 7 (LeSuer's direction);
 - novice, gaining 1.5% a week;
 - a 5% loss over two weeks, scored from 2 to 4 weeks after it, with and without RPE;
@@ -196,7 +196,7 @@ tuning seeds and checked on held-out seeds.
 | no RPE               | +0.9% |          13.5% |  88 ± 6% |              11% |         1% |         20% |
 | half RPE, to failure | +2.1% |          12.3% |  81 ± 6% |              10% |         9% |         19% |
 | noisy RPE            | -1.6% |          15.6% |  82 ± 7% |              17% |         1% |         18% |
-| deload and break     | -0.3% |          12.3% |  85 ± 6% |              13% |         2% |         16% |
+| deload and break     | -0.3% |          12.1% |  84 ± 6% |              14% |         2% |         16% |
 | deadlift             | -2.6% |          14.8% |  84 ± 6% |              16% |         1% |         20% |
 | novice               | -1.5% |          14.5% |  84 ± 7% |              15% |         0% |         18% |
 | 5% loss              | +0.3% |          13.3% |  83 ± 7% |              13% |         4% |         17% |
