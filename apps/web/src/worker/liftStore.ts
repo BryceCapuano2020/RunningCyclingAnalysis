@@ -3,6 +3,7 @@ import type { LiftSet } from '@rca/core/lift'
 import { openIndexedDb } from './openIndexedDb'
 import {
   ackRow,
+  DEVICE_SCOPE,
   deleteSet,
   holdRow,
   lackedRow,
@@ -33,7 +34,7 @@ export interface LiftStore {
   signOut(): Promise<void>
   /** The server took the send of `rev`; applies only if the row still holds that rev. */
   applyAck(key: string, rev: number, liftRevision: number): Promise<void>
-  /** The server refused the send of `rev`. Resolves how many rows had logged-but-unsaved values (a put with nothing confirmed) go. */
+  /** The server refused the send of `rev`. Resolves how many rows it changed: reverted to their confirmed values or removed, so not saved. */
   applyRefused(sends: readonly SentRow[]): Promise<number>
   /** The send of `rev` failed: the row is held, attempts + 1. */
   applyHeld(sends: readonly SentRow[]): Promise<void>
@@ -94,8 +95,8 @@ export async function clearLifts(): Promise<boolean> {
 }
 
 /**
- * Removes the rows of every scope but `keepScope`, unsent ones included: a shared browser must not hand one person's
- * log to another. Nothing is swept for an empty scope. Best effort; never rejects.
+ * Removes the rows of every account scope but `keepScope`, unsent ones included: a shared browser must not hand one
+ * person's log to another. The `device` scope stays. Nothing is swept for an empty scope. Best effort; never rejects.
  */
 export async function sweepLifts(keepScope: string | null): Promise<void> {
   if (keepScope === null || keepScope === '') return
@@ -108,7 +109,9 @@ export async function sweepLifts(keepScope: string | null): Promise<void> {
       cursor.onsuccess = () => {
         const at = cursor.result
         if (at === null) return
-        if ((at.value as LiftRow).scope !== keepScope) at.delete()
+        const { scope } = at.value as LiftRow
+        // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
+        if (scope !== keepScope && scope !== DEVICE_SCOPE) at.delete()
         at.continue()
       }
       transaction.oncomplete = () => resolve()
@@ -146,7 +149,8 @@ export function openLiftStore(scope: string): LiftStore {
     const db = await database()
     if (db === null) return []
     const changes: RowChange[] = []
-    return inDatabase(
+    // An aborted transaction answers a fresh empty list, not the one the callbacks were filling.
+    return inDatabase<RowChange[]>(
       db,
       'readwrite',
       (store) => {
@@ -161,7 +165,7 @@ export function openLiftStore(scope: string): LiftStore {
         }
         return changes
       },
-      changes,
+      [],
     )
   }
   const mine = async (): Promise<LiftRow[]> => {
@@ -188,7 +192,11 @@ export function openLiftStore(scope: string): LiftStore {
       const key = liftSetKey(set)
       return (await mutate([key], (row) => saveSet(row, base(key), set))).length === 1
     },
-    remove: async (key) => void (await mutate([key], (row) => deleteSet(row))),
+    // The device has no server to tell: a deleted set is simply gone.
+    remove: async (key) =>
+      void (await mutate([key], (row) =>
+        scope === DEVICE_SCOPE ? (row === undefined ? undefined : null) : deleteSet(row),
+      )),
     list: mine,
     pendingCount: async () => (await mine()).filter((row) => row.state !== 'synced').length,
     signOut: async () => {
@@ -202,7 +210,7 @@ export function openLiftStore(scope: string): LiftStore {
       void (await mutate([key], (row) => ackRow(row, rev, liftRevision))),
     applyRefused: async (sends) => {
       const changes = await mutate(sentKeys(sends), (row, key) => refuseRow(row, revOf(sends, key)))
-      return changes.filter((change) => change === null).length
+      return changes.filter((change) => change !== undefined).length
     },
     applyHeld: async (sends) =>
       void (await mutate(sentKeys(sends), (row, key) => holdRow(row, revOf(sends, key)))),
