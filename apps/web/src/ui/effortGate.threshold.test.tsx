@@ -33,6 +33,8 @@ describe('a run threshold whatever the effort gate says', () => {
       <SportHero
         sport="run"
         result={notHard()}
+        previousThresholds={null}
+        previousLabel={null}
         massKg={70}
         units="metric"
         outcome={null}
@@ -78,6 +80,8 @@ describe('a run threshold whatever the effort gate says', () => {
         <SportHero
           sport="run"
           result={result}
+          previousThresholds={null}
+          previousLabel={null}
           massKg={70}
           units="metric"
           outcome={null}

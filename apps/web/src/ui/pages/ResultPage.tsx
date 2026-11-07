@@ -144,6 +144,7 @@ export function ResultPage({
             sport={route.page}
             result={result}
             previous={analysis.state.previous}
+            previousThresholds={analysis.state.previousThresholds}
             previousLabel={previousPeriodLabel(period.days)}
             change={analysis.state.change}
             fitness={analysis.state.fitness}

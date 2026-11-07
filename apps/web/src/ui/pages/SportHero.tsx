@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { thresholdChange } from '@rca/core/standing'
 import type { Sport } from '@rca/core/types'
+import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { UnitSystem } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import { gradeLevelText, notGradedText } from '../grades'
@@ -9,6 +11,8 @@ import { threshold } from '../records'
 import { hrefFor } from '../route'
 import { THRESHOLD_HEADING } from '../sports'
 import { thresholdProperties } from '../thresholdBasis'
+import { changeFigure } from '../thresholdChangeText'
+import { thresholdEstimate } from '../thresholdEstimate'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { thresholdSpan } from '../thresholdRange'
 import { ThresholdBasis } from './ThresholdBasis'
@@ -16,6 +20,10 @@ import { ThresholdBasis } from './ThresholdBasis'
 export interface SportHeroProps {
   sport: Sport
   result: AnalysisResult
+  /** Each sport's threshold over the period before, or null for all time or when that period holds nothing. */
+  previousThresholds: Record<Sport, ThresholdEstimate | null> | null
+  /** The label of that period, such as "Previous 12 weeks". */
+  previousLabel: string | null
   massKg: number
   units: UnitSystem
   /** The grade at the sport's threshold, or the reason there is none; null while the profile is missing. */
@@ -79,15 +87,27 @@ function LevelFigure({
 
 /**
  * The sport page's hero: its current status, with no chart. One serif title line over one row of three mono figures, each with
- * a small label: today's threshold with its range, the level and age grade it earns,. How the threshold was worked out stays as the panel under them. With no estimate the title is followed by
+ * a small label: today's threshold with its range, the level and age grade it earns, and the change against the previous period
+ * of the same length. How the threshold was worked out stays as the panel under them. With no estimate the title is followed by
  * the effort that would give one.
  */
 export function SportHero(props: SportHeroProps) {
-  const { sport, result, massKg, units, outcome, missingAge } = props
+  const { sport, result, previousThresholds, previousLabel, massKg, units, outcome, missingAge } =
+    props
   const hero = threshold(result, sport, massKg, units)
+  const estimate = thresholdEstimate(result, sport)
   // A range whose two ends print the same is one figure, which the threshold already is.
   const span = thresholdSpan(result, sport, massKg, units)
   const range = span?.includes('\u2013') ? span : null
+  const change =
+    estimate === null || previousLabel === null
+      ? null
+      : changeFigure(
+          sport,
+          thresholdChange(sport, estimate, previousThresholds?.[sport] ?? null, massKg, units),
+          previousLabel,
+          units,
+        )
   return (
     <section className="band sport-hero" data-sport={sport} aria-labelledby={`${sport}-threshold`}>
       <h2 id={`${sport}-threshold`} className="sport-hero__title">
@@ -111,6 +131,15 @@ export function SportHero(props: SportHeroProps) {
               {range && <p className="sport-hero__range">{range}</p>}
             </HeroFigure>
             <LevelFigure outcome={outcome} missingAge={missingAge} />
+            {change && (
+              <HeroFigure testId="hero-change" label="Change">
+                <p className="sport-hero__change">
+                  {change.amount && <span className="sport-hero__amount">{change.amount}</span>}
+                  {change.amount && ' '}
+                  <span className="sport-hero__words">{change.words}</span>
+                </p>
+              </HeroFigure>
+            )}
           </dl>
           <ThresholdBasis
             sport={sport}

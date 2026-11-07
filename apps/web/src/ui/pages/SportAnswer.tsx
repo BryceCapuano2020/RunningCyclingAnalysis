@@ -22,6 +22,9 @@ export interface SportAnswerProps extends Pick<
   | 'onShowAll'
   | 'onAddFiles'
 > {
+  /** The previous period's thresholds and label, which the hero's change reads. Absent: all time. */
+  previousThresholds?: SportPageProps['previousThresholds']
+  previousLabel?: string | null
   /** How many of the sport's activities the period holds. */
   count: number
   /** Whether the page holds the sport's figures for the body weight a ride needs. */
@@ -70,6 +73,7 @@ function EmptySport({
  */
 export function SportAnswer(props: SportAnswerProps) {
   const { sport, result, massKg, units, profile, missingAge, count, held } = props
+  const { previousThresholds = null, previousLabel = null } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
   const headline = profile === null ? null : thresholdGrade(result, sport, profile)
@@ -77,6 +81,8 @@ export function SportAnswer(props: SportAnswerProps) {
     <SportHero
       sport={sport}
       result={result}
+      previousThresholds={previousThresholds}
+      previousLabel={previousLabel}
       massKg={massKg}
       units={units}
       outcome={headline}
