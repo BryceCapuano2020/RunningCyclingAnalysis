@@ -47,6 +47,20 @@ export const INSERT_NEW_SETS = `${INSERT_SETS} DO NOTHING RETURNING date, exerci
 export const DELETE_SETS = `DELETE FROM lift_sets WHERE user_id = ?1
   AND (date, exercise, equipment, set_order) IN (SELECT d, x, q, o FROM (${PAYLOAD_KEYS}))`
 
+const PAGE_COLUMNS = `date, exercise, equipment, set_order, reps, load_kg, rpe, warmup, time, time_precision`
+
+/** The first page: the account's sets in key order, no cursor term. ?2 is the limit. */
+export const PAGE_FIRST = `SELECT ${PAGE_COLUMNS} FROM lift_sets WHERE user_id = ?1
+  ORDER BY date, exercise, equipment, set_order LIMIT ?2`
+
+/**
+ * A later page: the row-value term is top level, so SQLite searches the primary key from the cursor on
+ * (an `?x IS NULL OR` guard made it scan the account from the start). ?2 to ?5 are the cursor's key.
+ */
+export const PAGE_AFTER = `SELECT ${PAGE_COLUMNS} FROM lift_sets WHERE user_id = ?1
+  AND (date, exercise, equipment, set_order) > (?2, ?3, ?4, ?5)
+  ORDER BY date, exercise, equipment, set_order LIMIT ?6`
+
 /** The JSON text bound as ?2 for a write. */
 export const setsJson = (sets: readonly LiftSet[]): string => JSON.stringify(sets)
 

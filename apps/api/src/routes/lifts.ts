@@ -13,14 +13,16 @@ import {
 import type { LiftSetIdentity } from '@rca/core/lift'
 import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
-import { apiError, HttpError } from '../errors.ts'
-import { limitBody } from '../http.ts'
+import { HttpError } from '../errors.ts'
+import { limitBody, validationMessage } from '../http.ts'
 import { currentUser, requireUser, sameOriginReadGuard } from '../middleware.ts'
 import {
   COUNT_GONE_KEYS,
   COUNT_NEW_KEYS,
   DELETE_SETS,
   INSERT_NEW_SETS,
+  PAGE_AFTER,
+  PAGE_FIRST,
   UPSERT_SETS,
   identitiesJson,
   setsJson,
@@ -32,10 +34,11 @@ import type { LiftRow } from './liftSql.ts'
 const WRITE_BODY_BYTES = 256 * 1024
 const DELETE_BODY_BYTES = 64 * 1024
 const CURSOR_CHARS = 256
-/** Under ApiError.message's bound of 4,096 characters. */
-const MESSAGE_CHARS = 4000
-/** Refused sets that get their reason; the rest are named by index alone so all fit. */
-const REASONS_SHOWN = 5
+/** Refused sets whose reason the message gives; `refused` carries every index. */
+const REASONS_SHOWN = 3
+/** What a refused lift page says: the rows meter is shared with the activity list. */
+const LIFT_ROWS_LIMIT_MESSAGE =
+  "You have read as many rows as today's allowance covers. Try again after midnight UTC"
 
 interface Counters {
   lift_count: number
@@ -43,19 +46,24 @@ interface Counters {
 }
 
 /**
- * A 400 that names every refused set by its index (`sets.3`, or `keys.3` for a delete), once each, so
- * the browser drops only those. Only the first few give a reason, so up to 500 indexes fit the error's bound.
+ * A 400 that names every refused set by its index in `refused` (sorted, once each), so the browser drops
+ * only those. The message is a short summary with the first few reasons.
  */
 function refusal(error: z.core.$ZodError) {
-  const byIndex = new Map<string, string>()
+  const reasons = new Map<number, string>()
   for (const issue of error.issues) {
-    const where = issue.path.slice(0, 2).map(String).join('.')
-    if (!byIndex.has(where)) byIndex.set(where, issue.message.slice(0, 40))
+    const at = issue.path[1]
+    if (typeof at === 'number' && !reasons.has(at)) reasons.set(at, issue.message.slice(0, 60))
   }
-  const parts = [...byIndex].map(([where, message], i) =>
-    i < REASONS_SHOWN ? `${where}: ${message}` : where,
-  )
-  return apiError('invalid_request', parts.join('; ').slice(0, MESSAGE_CHARS))
+  const refused = [...reasons.keys()].sort((a, b) => a - b)
+  const where = String(error.issues[0]?.path[0] ?? 'body')
+  const shown = refused.slice(0, REASONS_SHOWN).map((i) => `${where}.${i}: ${reasons.get(i)}`)
+  const more = refused.length - shown.length
+  const message =
+    refused.length === 0
+      ? validationMessage(error)
+      : [...shown, ...(more > 0 ? [`and ${more} more`] : [])].join('; ')
+  return { error: { code: 'invalid_request', message, refused: refused.slice(0, 500) } }
 }
 
 /** Whether the error chain names `text`, whatever layer of D1 wrapped it. */
@@ -78,6 +86,20 @@ function brokeCap(error: unknown): boolean {
  */
 export const liftRoutes = new Hono<AppEnv>()
 
+/**
+ * One page in key order. The first page has no cursor term and the next ones a top-level row-value
+ * term, so SQLite searches the primary key from the cursor on. One statement with an `?2 IS NULL OR`
+ * guard made it use only user_id and re-read the account from the start on every page.
+ */
+function pageStatement(db: D1Database, userId: string, after: LiftSetIdentity | null) {
+  if (after === null) {
+    return db.prepare(PAGE_FIRST).bind(userId, LIFT_PAGE_SIZE + 1)
+  }
+  return db
+    .prepare(PAGE_AFTER)
+    .bind(userId, after.date, after.exercise, after.equipment, after.setOrder, LIFT_PAGE_SIZE + 1)
+}
+
 liftRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
   const userId = currentUser(c).id
   const now = c.var.deps.now()
@@ -91,19 +113,7 @@ liftRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
   try {
     const [revision, page] = await c.env.DB.batch([
       c.env.DB.prepare('SELECT lift_revision FROM users WHERE id = ?').bind(userId),
-      c.env.DB.prepare(
-        `SELECT date, exercise, equipment, set_order, reps, load_kg, rpe, warmup, time, time_precision
-         FROM lift_sets WHERE user_id = ?1
-           AND (?2 IS NULL OR (date, exercise, equipment, set_order) > (?2, ?3, ?4, ?5))
-         ORDER BY date, exercise, equipment, set_order LIMIT ?6`,
-      ).bind(
-        userId,
-        after?.date ?? null,
-        after?.exercise ?? '',
-        after?.equipment ?? '',
-        after?.setOrder ?? 0,
-        LIFT_PAGE_SIZE + 1,
-      ),
+      pageStatement(c.env.DB, userId, after),
     ])
     const row = revision?.results[0] as { lift_revision: number } | undefined
     if (!row) throw new HttpError(401, 'unauthenticated', 'Sign in required')
@@ -111,7 +121,14 @@ liftRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
     const items = rows.slice(0, LIFT_PAGE_SIZE).map(toLiftSet)
     const last = items[items.length - 1]
     // The rows read are paid for after the read, by what it returned, so a short library is cheap.
-    await chargeDaily(c.env.DB, userId, 'listRows', now, Math.max(items.length, 1))
+    await chargeDaily(
+      c.env.DB,
+      userId,
+      'listRows',
+      now,
+      Math.max(items.length, 1),
+      LIFT_ROWS_LIMIT_MESSAGE,
+    )
     const body: LiftPageAnswer = {
       items,
       next: rows.length > LIFT_PAGE_SIZE && last ? encodeLiftCursor(last) : null,

@@ -2,7 +2,7 @@ import { MAX_LIFT_SETS_PER_USER } from '@rca/core/lift'
 import { describe, expect, it } from 'vitest'
 import { countingDb, testEnv } from '../test/harness.ts'
 import { keyOf, liftAccount, liftSet } from '../test/lifts.ts'
-import { DELETE_SETS, identitiesJson } from './liftSql.ts'
+import { DELETE_SETS, PAGE_AFTER, identitiesJson } from './liftSql.ts'
 
 const touchesLifts = (sql: string) =>
   /^(UPDATE users SET lift_count|INSERT INTO lift_sets|DELETE FROM lift_sets)/.test(sql)
@@ -64,6 +64,23 @@ describe('what a lift write costs', () => {
       ),
     ).toBe(true)
     expect(details.filter((d) => /SCAN lift_sets/.test(d))).toEqual([])
+  })
+})
+
+describe('what a page costs', () => {
+  it('searches the primary key from the cursor, not the account from its start', async () => {
+    const plan = await testEnv()
+      .DB.prepare(`EXPLAIN QUERY PLAN ${PAGE_AFTER}`)
+      .bind('u1', '2026-03-02', 'back-squat', 'barbell', 1, 1001)
+      .all<{ detail: string }>()
+    const details = plan.results.map((row) => row.detail)
+    const search = details.find((d) => /SEARCH lift_sets/.test(d)) ?? ''
+    expect(search).toMatch(/sqlite_autoindex_lift_sets_1/)
+    // The range names the cursor columns, so rows before the cursor are never read.
+    expect(search).toMatch(
+      /\(user_id=\? AND \(date,exercise,equipment,set_order\)>\(\?,\?,\?,\?\)\)/,
+    )
+    expect(details.filter((d) => /SCAN lift_sets|USE TEMP B-TREE/.test(d))).toEqual([])
   })
 })
 

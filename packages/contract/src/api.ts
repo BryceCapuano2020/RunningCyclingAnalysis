@@ -119,6 +119,8 @@ export const ApiErrorSchema = z.object({
   error: z.object({
     code: z.string().max(64),
     message: z.string().max(4096),
+    /** A refused lift write or delete: the indexes of the sets or keys it named, sorted, each once. */
+    refused: z.array(z.number().int().nonnegative()).max(500).optional(),
   }),
 })
 export type ApiError = z.infer<typeof ApiErrorSchema>

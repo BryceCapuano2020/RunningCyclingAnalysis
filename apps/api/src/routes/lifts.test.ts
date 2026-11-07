@@ -1,4 +1,4 @@
-import { DAILY_LIMITS, LIFT_PAGE_SIZE } from '@rca/contract'
+import { DAILY_LIMITS, LIFT_PAGE_SIZE, LIST_ROWS_PER_DAY } from '@rca/contract'
 import { compareLiftSetKeys } from '@rca/core/lift'
 import { describe, expect, it } from 'vitest'
 import { testEnv } from '../test/harness.ts'
@@ -152,7 +152,7 @@ describe('lift sets: two accounts', () => {
 })
 
 describe('lift sets: refusals', () => {
-  it('names the index of each refused set and writes none', async () => {
+  it('names each refused set by index in `refused`, and writes none', async () => {
     const { put, page, me } = await liftAccount()
     const res = await put([
       liftSet(1),
@@ -161,24 +161,36 @@ describe('lift sets: refusals', () => {
       liftSet(4, { rpe: 7.3 }),
     ])
     expect(res.status).toBe(400)
-    const { error } = await body<{ error: { code: string; message: string } }>(res)
+    const { error } = await body<{ error: { code: string; message: string; refused: number[] } }>(
+      res,
+    )
     expect(error.code).toBe('invalid_request')
+    expect(error.refused).toEqual([1, 3])
     expect(error.message).toContain('sets.1')
-    expect(error.message).toContain('sets.3')
-    expect(error.message).not.toContain('sets.0')
-    expect(error.message).not.toContain('sets.2')
     expect((await body<Page>(await page())).items).toEqual([])
     expect((await me()).liftRevision).toBe(0)
+  })
+
+  it('names all 500 refused sets, each whole, whatever the message length', async () => {
+    const { put } = await liftAccount()
+    const sets = Array.from({ length: 500 }, (_, i) =>
+      liftSet((i % 200) + 1, { exercise: `lift-${Math.floor(i / 200)}`, reps: 0, loadKg: -1 }),
+    )
+    const res = await put(sets)
+    expect(res.status).toBe(400)
+    const { error } = await body<{ error: { message: string; refused: number[] } }>(res)
+    expect(error.refused).toEqual(Array.from({ length: 500 }, (_, i) => i))
+    expect(error.message.length).toBeLessThan(500)
   })
 
   it('refuses a key named twice, with the index of the second', async () => {
     const { put, del } = await liftAccount()
     const res = await put([liftSet(1), liftSet(2), liftSet(1, { reps: 9 })])
     expect(res.status).toBe(400)
-    expect((await body<{ error: { message: string } }>(res)).error.message).toContain('sets.2')
+    expect((await body<{ error: { refused: number[] } }>(res)).error.refused).toEqual([2])
     const gone = await del([keyOf(liftSet(1)), keyOf(liftSet(2)), keyOf(liftSet(1))])
     expect(gone.status).toBe(400)
-    expect((await body<{ error: { message: string } }>(gone)).error.message).toContain('keys.2')
+    expect((await body<{ error: { refused: number[] } }>(gone)).error.refused).toEqual([2])
   })
 
   it('refuses an empty write, an oversized one and a malformed key', async () => {
@@ -189,7 +201,7 @@ describe('lift sets: refusals', () => {
     )
     const res = await del(['not-a-key'])
     expect(res.status).toBe(400)
-    expect((await body<{ error: { message: string } }>(res)).error.message).toContain('keys.0')
+    expect((await body<{ error: { refused: number[] } }>(res)).error.refused).toEqual([0])
   })
 
   /** An account whose user row vanishes just before its next batch, as a deletion finishing between requests. */
@@ -213,13 +225,10 @@ describe('lift sets: refusals', () => {
     return account
   }
 
-  it('answers 401 to a delete whose RETURNING comes back empty, and gives the unit back', async () => {
+  // The refund itself is pinned where the user row survives: the cap test in lifts.sql.test.ts.
+  it('answers 401 to a delete whose RETURNING comes back empty', async () => {
     const { del } = await accountGoneAtBatch()
     expect((await del([keyOf(liftSet(1))])).status).toBe(401)
-    const rows = await testEnv()
-      .DB.prepare('SELECT COUNT(*) AS n FROM daily_budget')
-      .first<{ n: number }>()
-    expect(rows?.n).toBe(0)
   })
 
   it('answers 401 to a write for a user row that is gone, and stores nothing', async () => {
@@ -262,6 +271,20 @@ describe('the daily budgets', () => {
     expect(await used('liftWrite')).toBe(1)
     expect(await used('liftRead')).toBe(1)
     expect(await used('listRows')).toBe(1)
+  })
+
+  it('refuses a page over the rows meter with copy that does not name activities', async () => {
+    const { page, me } = await liftAccount()
+    const uid = (await me()).user.id
+    await testEnv()
+      .DB.prepare(
+        `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, '2026-01-15', 'listRows', ?)`,
+      )
+      .bind(uid, LIST_ROWS_PER_DAY)
+      .run()
+    const res = await page()
+    expect(res.status).toBe(429)
+    expect(JSON.stringify(await res.json())).not.toMatch(/activit/i)
   })
 
   it('answers 429 over the write budget', async () => {
