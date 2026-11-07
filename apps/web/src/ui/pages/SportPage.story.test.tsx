@@ -242,7 +242,7 @@ describe('the run threshold whatever the fit does', () => {
     expect(section.querySelector('.sport-hero__number')).toHaveTextContent(pace(4))
     openDetail(section)
     // The range is the estimate's own 10th to 90th percentile, not a run up to the uneven fit's pace.
-    expect(within(section).getByRole('note')).not.toHaveTextContent(pace(4.4))
+    expect(section.querySelector('.props')).not.toHaveTextContent(pace(4.4))
   })
 })
 

@@ -354,7 +354,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
 - A period's comparison is the same length before it, drawn as a solid mid-grey line (2 px) and named
   "Previous 6 weeks", "Previous 12 weeks", "Previous 6 months", "Previous 12 months" or, for a custom range, "Previous N
   days" (or the word for its length when it is one of the named lengths). All time has none.
-- **Grade by duration** sits on Balance after the cards and the grading source line, and before the evidence
+- **Age grade by effort length** sits on Balance after the cards and the grading source line, and before the evidence
   and the trend. It answers one question the 20 minute balance cannot: is one sport better at every duration,
   or only at 20 minutes? Each sport's age grade is drawn at every best-curve duration from 3 minutes to 3 hours
   (3, 4, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120 and 180 minutes, `PROFILE_DURATIONS_S` in `constants.ts`, taken
@@ -363,13 +363,11 @@ and the tests named at the foot of that page keep the two in step. A display siz
   cross-sport durations (`EQUIVALENCE_DURATIONS_S`); the chart prices the rest itself, once for each result and
   body mass, wherever the ride curve has a best, so a combine does not pay for them. No point is invented: a duration where a sport has
   no best, or no standard (a run under a mile has none, so the shortest run grades are usually missing), has
-  no point for that sport, and the finding counts only the durations both sports are graded at. Drawing follows the age-grade
+  no point for that sport, and the balance counts only the durations both sports are graded at. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is a hollow ring with its 90% range
   as a band (never dashed), and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The 20 minute grades are named beside their marks where the labels fit clear of the lines, the band and the ticks. Where they do not, a chart 600 px or wider names each sport at the end of its line, in a gutter at the right ("Run 49%", "Ride 34%" with its range under it), placed by the annotation layout; a phone leaves out a label that cannot be placed, and the readout and the table carry the values. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
-  The card is titled "Grade by duration". Its finding, one plain clause, is the line under the title, and only where it agrees with the
-  hero's lean (`findingAgreeing`): "grade alike" under a level balance, and for a lean a clause that names the sport the hero names
-  and does not call the other higher at 20 min. A finding that would contradict the hero is left out, and the card keeps its title
-  and the chart. The chart supports the finding. It is read from the
+  The card is titled "Age grade by effort length", a label for what is plotted: no chart title states a result
+  (`chartTitles.test.tsx`). The chart is read from the
   grades the headline uses: the ride's heart-rate-adjusted equivalence, through the balance's own `balanceGap`,
   so its gap at 20 minutes is the headline's. The headline leans by the estimate (`leanOfLead`) and states the
   range beside it; the chart separates by the range alone (`leanOfRange`), so a duration can be inside the other
@@ -382,7 +380,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   has such exceptions ("Running and cycling grade alike at most lengths" where the only leads are single durations). When the lead
   changes hands, each sport named has a stretch of two durations or more: "Cycling grades higher at 3 to 7 min, running at 10 to 60 min".
   When no duration separates the sports the chart is folded behind **Show by duration** (**Hide by
-  duration** while open), under the title and the finding where there is one; it mounts when first opened. When a duration
+  duration** while open), under the title; it mounts when first opened. When a duration
   separates them the chart is open, with the finding as its takeaway under the title. A ride's range is a band only over the
   durations both sports share: a duration where one sport has no grade shows its line and ring, not a band.
   The section is left out without a year of birth and sex,
@@ -978,7 +976,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   that adopted it, `ZoneSet.windowEndMs`: its last week's end, or the day of the newest activity where the week is still running, so it never
   names a day to come), and the figure is the tile's when the period is those weeks. An entered one reads "Zones cut from
   240 W, entered by you".
-- **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
+- **How sure is this? says how Age grade by effort length is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
   age they used ("6:28 /mi at age 40."), and the Balance source line says the age its cards use, naming

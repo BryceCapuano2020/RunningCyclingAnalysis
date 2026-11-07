@@ -17,10 +17,10 @@ volt, card and dark-mode system with this one.
 - **The removal test.** Every element must carry information the page would lose without it. A label that repeats its
   heading, an icon in a circle, a chip, a badge or a pill, and a second emphasis in one row all fail it and are not drawn.
 - **No subtitle lines.** A page title, a section heading or a row has no small line under it unless that line is the
-  content itself. Context goes behind one ▸ Details disclosure where it is: the period's dates and counts, "not counted",
-  why a window was chosen, what a figure rests on ("From 130 runs. Strongest: ..."), a target ("To match it on the bike"),
-  a caveat. A line that repeats a heading, the rail or another line is deleted. A row keeps one meta line at most, and only
-  for what tells it apart (its date or activity). The owner called the stacked small lines slop (4 Nov 2026).
+  content itself. Context goes behind one ▸ Details disclosure where it is, as a detail panel (Detail panels, below): the
+  period's dates and counts, "not counted", why a window was chosen, what a figure rests on, a target, a caveat. A line
+  that repeats a heading, the rail or another line is deleted. A row keeps one meta line at most, and only for what tells
+  it apart (its date or activity). The owner called the stacked small lines slop (4 Nov 2026).
 - **One thing under the answer.** A page's answer has exactly one line under it, the one fact the reader should look at
   ("Running grades 9 points higher at threshold."). Everything else about it waits in the Details.
 - **Almost no colour.** Ink and paper do the work. The run ink and the ride ink mark which sport a figure or a line belongs
@@ -116,7 +116,7 @@ third-party font request is made.
   optional ▸ disclosure, small outlined buttons, and at the right a sparkline where the row has a trend. A row has one
   emphasis, its title. A list's rows sit `--space-5` apart with the hairline between.
 - **Disclosure.** "How this was worked out" and every fold is a native `<details>` with a ▸ that turns to ▾. No box, no
-  chevron icon, no background.
+  chevron icon, no background. What it holds is a detail panel, never a block of prose.
 - **Two gaps.** `--section-gap` (48 px) between a page's sections and `--stack-gap` (24 px) inside a stack. Spacing steps are
   `--space-1` to `--space-7` (4 to 48 px).
 - **Radius.** `--radius` (8 px) for buttons and inputs, which are the only boxes. A raw radius in a sheet is counted and the
@@ -129,6 +129,29 @@ third-party font request is made.
   shape follow this system.
 - **Breakpoints** are named constants in `ui/layoutBreakpoints.ts`; a sheet that repeats one says so in a comment, and a
   test ties it to the constant.
+
+## Detail panels
+
+Every disclosure or Details that would hold prose holds a detail panel instead (`ui/components/PropertyList.tsx`). The
+owner banned walls of small conditional prose in disclosures (6 Nov 2026).
+
+Rules:
+
+- **One fact a row.** A row is a label and a value. A condition is a row value, not a clause: `Heart rate`, `Not used`; never
+  "Here it was not used because ...".
+- **Nothing longer than one sentence** appears in an app view. A value is a figure, a date or a few words.
+- **Method and caveat prose lives on Method.** The panel ends with one "Method" link (`MethodSectionLink`) to the section that
+  explains its figures. Add the lines to Method if its entry lacks them.
+- **An empty or insufficient state is one row** with the reason, not a paragraph. A panel with no rows is not drawn.
+- **No figure changes.** A panel says what the page said before, in rows: the same values, the same formulas.
+
+Layout:
+
+- The label is serif at `--text-md` in `--ink-secondary`, left. The value is mono at `--text-sm` in `--ink`, right, with
+  tabular figures. Labels share one column (`--column-props`, at least 9rem) so the values align down the panel.
+- Rows sit between `--hairline` rules at `--space-2` above and below; the first row has no rule above it.
+- The "Method" link is serif at `--text-md` in `--ink`, under the last row, once.
+- A value that is a count may link to the list it counts. A panel is as wide as `--measure` and wraps on a phone.
 
 ## The Balance meter
 

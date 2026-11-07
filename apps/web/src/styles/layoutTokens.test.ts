@@ -14,7 +14,6 @@ const sheet = (name: string) => {
 const PROSE_SHEETS = [
   'App.css',
   'components.css',
-  'GradeProfileSection.css',
   'ExportGuides.css',
   'FitnessCard.css',
   'HowThisWorks.css',

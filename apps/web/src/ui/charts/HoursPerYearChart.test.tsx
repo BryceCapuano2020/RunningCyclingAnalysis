@@ -36,7 +36,7 @@ describe('HoursPerYearChart', () => {
   it('is named by its measure, with one part of a bar for each sport that trained, and the tallest year labelled', () => {
     chartWidth(800)
     const { container } = render(<HoursPerYearChart years={THREE_YEARS} />)
-    expect(screen.getByRole('figure', { name: 'Hours per year' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Hours per year, run and ride' })).toBeInTheDocument()
     expect(parts(container)).toEqual(['run', 'ride', 'run', 'run', 'ride'])
     const labels = container.querySelectorAll('[data-testid="year-peak"]')
     expect(labels).toHaveLength(1)

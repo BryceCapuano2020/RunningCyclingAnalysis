@@ -75,12 +75,6 @@ function comparedRow(
   return both.find((row) => row.durationS === HEADLINE_DURATION_S) ?? both.at(-1)
 }
 
-/** The best measured 20 minutes, or the longest measured effort when there is none. */
-function bestRow(rows: readonly CurveRow[]): CurveRow | undefined {
-  const measured = rows.filter((row) => measuredIn(row, 'value'))
-  return measured.find((row) => row.durationS === HEADLINE_DURATION_S) ?? measured.at(-1)
-}
-
 /** The comparison a curve's finding makes: the sentence, and the effort length it cites. */
 interface Comparison {
   text: string
@@ -144,15 +138,6 @@ function comparison(input: TakeawayInput): Comparison | null {
 }
 
 /**
- * The sentence for one effort length, as the curve's title would say it: how far it moved against the period
- * before when the change test calls it, or that there is no clear change at it. Null without a period before, when either
- * period has no measured effort of that length, or when the test could not judge it.
- */
-export function takeawayAt(input: TakeawayInput, durationS: number): string | null {
-  return changeAt(input, durationS)?.text ?? null
-}
-
-/**
  * The sentence for one effort length when it names a change, null when it is the finding of no change (or not
  * judged). A second chart of the same finding cites it only when it adds a change, so the page does not say
  * "no clear change" twice.
@@ -183,19 +168,4 @@ function changeAt(input: TakeawayInput, durationS: number): Comparison | null {
  */
 export function citedDurationS(input: TakeawayInput): number | null {
   return comparison(input)?.durationS ?? null
-}
-
-/**
- * The curve's finding, as the sentence its title carries. With a period before, it says how far the 20 minute
- * effort (or the longest effort both periods have measured) moved, when the move clears the floor above, or that
- * there is no clear change at that length. Without one, it names the best. A carried value is never read
- * as a finding. Null when the curve has no measured effort to name.
- */
-export function curveTakeaway(input: TakeawayInput): string | null {
-  const { sport, units, rows } = input
-  const compared = comparison(input)
-  if (compared !== null) return compared.text
-  const best = bestRow(rows)
-  if (best === undefined) return null
-  return `Best ${effortLabel(best.durationS)}: ${formatNative(sport, best.value, units)}`
 }

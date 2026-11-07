@@ -1,0 +1,56 @@
+/* A detail panel: label in serif, value in mono, one fact a row between hairlines (docs/design/system.md). */
+.props {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  max-width: var(--measure);
+  width: 100%;
+}
+
+.props__list {
+  display: grid;
+  grid-template-columns: minmax(min(100%, var(--column-props)), max-content) 1fr;
+  column-gap: var(--space-6);
+  margin: 0;
+  width: 100%;
+}
+
+.props__row {
+  display: contents;
+}
+
+.props__row > dt,
+.props__row > dd {
+  margin: 0;
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--hairline);
+}
+
+.props__row:first-child > dt,
+.props__row:first-child > dd {
+  border-top: 0;
+}
+
+.props__row > dt {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--ink-secondary);
+}
+
+.props__row > dd {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  align-self: center;
+}
+
+/* A link standing alone is a target of its own: a control's height, 44 px on a phone (target-size.spec.ts). */
+.props__method {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--ink);
+}

@@ -185,4 +185,4 @@ export function tooltipFor(row: CurveRow, x: number, y: number, view: View): Too
 }
 
 /** The name of the chart. The axis says the unit, and the finding is its headline. */
-export const CURVE_TITLE = 'Best efforts'
+export const CURVE_TITLE = 'Best effort by duration'

@@ -50,7 +50,7 @@ function renderPage(
 }
 
 describe('the level on the sport page', () => {
-  it('is the threshold’s alone: the curve names its best 20 min by its figure, with no level beside it', () => {
+  it('is the threshold’s alone: the curve states its best 20 min by its figure, with no level beside it', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(
       'run',
@@ -69,8 +69,9 @@ describe('the level on the sport page', () => {
     // The level panel states the grade at the threshold, with its level.
     const panel = screen.getByRole('region', { name: 'Age grade at threshold' })
     expect(panel).toHaveTextContent(/Recreational|Local|Regional|National|World/)
-    const figure = screen.getByRole('figure', { name: 'Best efforts' })
-    expect(figure).toHaveTextContent(/Best 20 min: \d+:\d{2} \/km/)
+    const figure = screen.getByRole('figure', { name: 'Best effort by duration' })
+    expect(figure).toHaveTextContent(/\d+:\d{2} \/km/)
+    expect(figure).not.toHaveAccessibleDescription()
     expect(figure).not.toHaveTextContent(
       /Best 20 min: [^A-Z]*(Recreational|Local|Regional|National|World)/,
     )
