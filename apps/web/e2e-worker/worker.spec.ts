@@ -45,7 +45,8 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await expect(onFoot.locator('.stat-tile__number')).toHaveText(/^\d+:\d{2}$/)
   // The basis line sits in the row's disclosure (docs/design/system.md, No subtitle lines).
   await onFoot.getByText('See the pace curve').click()
-  await expect(onFoot.getByText(/^From your \d+ W threshold\.$/)).toBeVisible()
+  const basis = onFoot.locator('.props__row').filter({ hasText: 'From your threshold' })
+  await expect(basis.locator('dd')).toHaveText(/^\d+ W$/)
   await page.getByRole('button', { name: 'Share image' }).click()
   const sheet = page.getByRole('dialog', { name: 'Share image' })
   await expect(sheet).toBeVisible()
