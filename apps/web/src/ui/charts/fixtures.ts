@@ -1,6 +1,5 @@
 import { DURATIONS_S } from '@rca/core/constants'
 import type {
-  Comparison,
   ComparisonPoint,
   Curve,
   CurvePoint,
@@ -45,13 +44,6 @@ export const calibratedFixture: ComparisonPoint[] = [
   comparisonPoint({ durationS: 300, ratio: interval(1.0, 1.05, 1.1) }),
   comparisonPoint({ durationS: 1200, ratio: interval(0.99, 1.01, 1.04) }),
 ]
-
-export function comparisonFixture(calibrated: boolean): Comparison {
-  return {
-    prior: priorFixture,
-    calibrated: calibrated ? calibratedFixture : null,
-  }
-}
 
 function fit(slope: number, intercept: number, r2: number, n: number): LinearFit {
   return { slope, intercept, slopeSe: 0.5, r2, n }

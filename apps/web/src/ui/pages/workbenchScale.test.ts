@@ -49,3 +49,16 @@ describe('valueTicks', () => {
     expect(valueTicks('heartRate', 'run', 'metric', 119, 129, 2).length).toBeLessThanOrEqual(3)
   })
 })
+
+describe('valueTicks for temperature', () => {
+  it('labels the ticks in Fahrenheit when imperial and places them back on the Celsius axis', () => {
+    const ticks = valueTicks('temperature', 'ride', 'imperial', 10, 30, 3)
+    expect(ticks.length).toBeGreaterThan(1)
+    for (const tick of ticks) {
+      const fahrenheit = Number(tick.label)
+      expect(fahrenheit).toBeGreaterThanOrEqual(50)
+      expect(fahrenheit).toBeLessThanOrEqual(86)
+      expect(tick.value).toBeCloseTo((fahrenheit - 32) / 1.8, 6)
+    }
+  })
+})

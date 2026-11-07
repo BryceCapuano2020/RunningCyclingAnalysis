@@ -80,11 +80,6 @@ export function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   }
 }
 
-/** A running value (gross metabolic W/kg) as its flat pace. The one place a pace is formatted. */
-export function runPace(metabolicWkg: number, units: UnitSystem): string {
-  return paceFigure(metabolicWkg, units).value
-}
-
 /** A cycling value as mechanical watts. */
 export function powerFigure(watts: number): Figure {
   return { value: formatPower(watts), number: formatWatts(watts), unit: 'W' }
