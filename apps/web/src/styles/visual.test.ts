@@ -734,11 +734,15 @@ describe('sport records, on the card and the page', () => {
     )
   })
 
-  it('sets the sport page’s threshold and level 60 and 40 on a desktop, and stacked below it', () => {
+  it('sets the change’s amount in the mono and its words in the serif', () => {
+    expect(rulesWith(sportHero, '.sport-hero__amount')).toMatch(/font-family:\s*var\(--font-mono\)/)
+    expect(rulesWith(sportHero, '.sport-hero__words')).toMatch(/font-family:\s*var\(--font-serif\)/)
+  })
+
+  it('sets the sport hero’s three figures in one row that wraps to fewer columns when they do not fit', () => {
     expect(rulesWith(sportHero, '.sport-hero')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/)
-    const desktop = mediaOf(sportHero, '(min-width: 1081px)')
-    expect(rulesWith(desktop, '.sport-hero')).toMatch(
-      /grid-template-columns:\s*minmax\(0, 3fr\) minmax\(0, 2fr\)/,
+    expect(rulesWith(sportHero, '.sport-hero__stats')).toMatch(
+      /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, var\(--column-stat\)\), 1fr\)\)/,
     )
   })
 

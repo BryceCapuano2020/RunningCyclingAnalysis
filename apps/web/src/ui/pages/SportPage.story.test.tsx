@@ -447,11 +447,11 @@ describe('a sport page’s fitness', () => {
       />,
     )
 
-  it('leads the run page with its status, above the threshold, and does not name the sport twice', () => {
+  it('puts the run page’s status directly under the hero, and does not name the sport twice', () => {
     withFitness('run', fullRun())
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const threshold = screen.getByRole('heading', { name: 'Threshold pace' })
-    expect(follows(fitness, threshold)).toBe(true)
+    expect(follows(threshold, fitness)).toBe(true)
     // The row's title is the state alone: the page's own title names the sport.
     expect(within(fitness).getByRole('heading', { level: 3, name: 'Slipping' })).toBeInTheDocument()
     expect(within(fitness).queryByText(/^Run( ·|$)/)).not.toBeInTheDocument()

@@ -964,7 +964,7 @@ describe('SportPage age grades', () => {
       MAN_BORN_1986,
     )
 
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local · \d+%$/)
     expect(level.querySelector('.sport-hero__grades')).toBeNull()
     expect(level).not.toHaveTextContent(/at age 40|\/km/)
@@ -983,7 +983,7 @@ describe('SportPage age grades', () => {
     )
 
     expect(screen.queryByText(/not a ranking/)).not.toBeInTheDocument()
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(level).not.toHaveTextContent(/USATF|standards|graded at/)
   })
 
@@ -1022,13 +1022,11 @@ describe('SportPage age grades', () => {
       'metric',
       MAN_BORN_1986,
     )
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(level.querySelector('.sport-hero__grades')).toBeNull()
     expect(level).not.toHaveTextContent(/at age/)
-    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__range')).toBeNull()
     expect(level.textContent).not.toMatch(/estimated/i)
-    expect(level.querySelector('.level-ladder__key')).toBeNull()
     expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
   })
 
@@ -1371,7 +1369,7 @@ describe('SportPage cycling figures without a weight', () => {
 })
 
 describe('SportPage depth', () => {
-  it('draws the level ladder under the threshold, graded at threshold', () => {
+  it('says the level in words beside the threshold, graded at threshold', () => {
     renderPage(
       'run',
       makeResult({
@@ -1382,11 +1380,8 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    // The level sits beside the threshold, in the same card, as its own named section.
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
-    expect(
-      within(level).getByRole('img', { name: /Age grade 67%, Local, at threshold/ }),
-    ).toBeInTheDocument()
+    // The level is the second figure of the hero's row, in words.
+    const level = screen.getByTestId('hero-level')
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
     expect(level.querySelector('.sport-hero__grades')).toBeNull()
@@ -1423,7 +1418,7 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    expect(screen.getByRole('region', { name: 'Age grade at threshold' })).toBeInTheDocument()
+    expect(screen.getByTestId('hero-level')).toBeInTheDocument()
     expect(screen.queryByText(wholeText(/ at age \d+\.$/))).toBeNull()
   })
 

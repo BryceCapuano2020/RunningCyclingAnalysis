@@ -12,7 +12,7 @@ import {
 } from '../components/fixtures'
 import { rowValue } from '../test/propertyRows'
 import { formatDayMonth } from '../format/date'
-import { ThresholdPanel } from './ThresholdPanel'
+import { SportHero } from './SportHero'
 import { detailSummaries, openDetail } from '../test/openDetail'
 
 afterEach(cleanup)
@@ -36,7 +36,16 @@ function estimate(over: Partial<ThresholdEstimate> = {}): ThresholdEstimate {
 }
 
 function panel(sport: Sport, result: AnalysisResult) {
-  return render(<ThresholdPanel sport={sport} result={result} massKg={75} units="metric" />)
+  return render(
+    <SportHero
+      sport={sport}
+      result={result}
+      massKg={75}
+      units="metric"
+      outcome={null}
+      missingAge={null}
+    />,
+  )
 }
 
 const ridden = (rideThreshold: ThresholdEstimate | null) =>
@@ -45,7 +54,7 @@ const ridden = (rideThreshold: ThresholdEstimate | null) =>
     rideThreshold,
   })
 
-describe('ThresholdPanel for a ride', () => {
+describe('SportHero for a ride', () => {
   it('is one number with its W/kg, named by its words, with no period tag and no chip', () => {
     const { container } = panel('ride', ridden(estimate()))
     const section = screen.getByRole('region', { name: 'Threshold power' })
@@ -122,7 +131,7 @@ describe('ThresholdPanel for a ride', () => {
   })
 })
 
-describe('ThresholdPanel for a run', () => {
+describe('SportHero for a run', () => {
   const RUN_DAY = new Date(2026, 5, 10, 12).getTime()
 
   /** 4:24 /km, from four runs, the strongest a 40 min effort on 10 June. */
