@@ -12,6 +12,8 @@ const NOUNS: Record<DailyLimitAction, string> = {
   profileWrite: 'profile changes',
   measurementWrite: 'changes to your dated settings',
   measurementRead: 'loads of your dated settings',
+  liftRead: 'loads of your lift sets',
+  liftWrite: 'changes to your lift sets',
 }
 
 const LOCAL_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })

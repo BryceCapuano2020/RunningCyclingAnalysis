@@ -13,14 +13,15 @@ import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
-import type { ThresholdLine } from './threshold'
 import type { LateReference } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
+import { linesKey, setAsideAmong } from './periodKeys'
+import { PreviousThresholdMemo } from './previousThresholdMemo'
+import type { PreviousThresholdInput } from './previousThresholdMemo'
 import { EvidenceMemo } from './evidenceMemo'
 import type { TrendPoint } from './digest/trend'
 import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
-import { SPORTS } from './types'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -48,47 +49,10 @@ function sameInputs(
   return sameAnalysisSettings(cached.settings, settings) && sameDigests(cached.selected, selected)
 }
 
-/** The ids of a set among these digests, sorted and joined: what in a library's set-aside can move their analysis. */
-function setAsideAmong(digests: ActivityDigest[], setAside: readonly string[]): string {
-  const named = new Set(setAside)
-  return digests
-    .filter((digest) => named.has(digest.id))
-    .map((digest) => digest.id)
-    .sort()
-    .join(',')
-}
-
 /** A calibration as a key: equal calibrations are the same key; none, and the period's own, are each their own. */
 function calibrationKey(calibration: HrCalibration | null | undefined): string {
   if (calibration === undefined) return 'own'
   return calibration === null ? 'none' : `${calibration.kappa}|${calibration.lnKappaSe}`
-}
-
-/**
- * A sport's heart-rate line as a key for the analysis of `selected`: what the period reads of it, which is the line's slope,
- * spread and pooled offset and highest block, and the offset, highest block and exclusion of each of the period's own
- * activities. A line fitted again over the same activities (a change of mass and back) is the same key, and an activity added
- * outside the period that leaves these as they were does not redo the period.
- */
-function lineKey(line: ThresholdLine, selected: readonly ActivityDigest[]): string {
-  if ('refused' in line) return line.refused
-  const rides = selected.flatMap(({ id }) => {
-    const offset = line.offsets.get(id)
-    const excluded = line.excluded.has(id)
-    return offset === undefined && !excluded
-      ? []
-      : [[id, offset ?? null, line.rideHighest.get(id) ?? null, excluded]]
-  })
-  return JSON.stringify([line.slope, line.spread, line.offset, line.highest, rides])
-}
-
-/** The lines of every sport as one key (`lineKey`); 'own' where the period fits its own. */
-function linesKey(
-  lines: Record<Sport, ThresholdLine> | undefined,
-  selected: readonly ActivityDigest[],
-): string {
-  if (lines === undefined) return 'own'
-  return SPORTS.map((sport) => lineKey(lines[sport], selected)).join('|')
 }
 
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
@@ -105,6 +69,7 @@ export class PeriodCache {
   private moved = { trend: calendarWatch() }
   private evidence = new EvidenceMemo()
   private trendMemo = new TrendMemo()
+  private thresholdMemo = new PreviousThresholdMemo()
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
   private changeEntries: (Inputs & {
     previous: ActivityDigest[]
@@ -199,6 +164,7 @@ export class PeriodCache {
       entry.selected.every((digest) => held.has(digest)),
     )
     this.evidence.releaseAbsent(held)
+    this.thresholdMemo.releaseAbsent(held)
     // The previous period's curves and the change test hold both periods' digests.
     const heldBoth = (entry: { selected: ActivityDigest[]; previous: ActivityDigest[] }) =>
       entry.selected.every((digest) => held.has(digest)) &&
@@ -264,6 +230,15 @@ export class PeriodCache {
     judged?: LateReference,
   ): LateEvidenceBySport {
     return this.evidence.late(selected, library, setAside, judged)
+  }
+
+  /** The thresholds of the period before, read as an analysis of it alone; see `PreviousThresholdMemo`. */
+  previousThresholds(
+    previous: ActivityDigest[],
+    settings: AthleteSettings,
+    input: PreviousThresholdInput,
+  ) {
+    return this.thresholdMemo.get(previous, settings, input)
   }
 
   /** The curves of the period before, priced with the selected period's bike model. */

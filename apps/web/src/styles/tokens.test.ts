@@ -1,19 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import {
-  readFilesUnder,
-  readStylesheet,
-  readStylesheetsUnder,
-  ruleBody,
-} from '../ui/components/stylesheet'
+import { readFilesUnder, readStylesheet, readStylesheetsUnder } from '../ui/components/stylesheet'
 import { contrast, over } from './contrastMath'
-import { colour, declarations, declared, resolved } from './tokenSheet'
+import { colour, declared, resolved } from './tokenSheet'
 import { LABEL_REM } from '../ui/charts/rootFont'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const systemMd = await readStylesheet(import.meta.url, '../../../../docs/design/system.md')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
 const privacyCss = await readStylesheet(import.meta.url, './privacy.css')
-const ladderCss = await readStylesheet(import.meta.url, '../ui/components/LevelLadder.css')
 
 /** The Colour section of docs/design/system.md, up to its Type section. */
 function colourSection(markdown: string): string {
@@ -282,7 +276,7 @@ describe('contrast', () => {
   })
 })
 
-describe('level ladder', () => {
+describe('marks and sport fills on the page', () => {
   it('reaches 3:1 for every mark against what it sits on', () => {
     const page = colour(paper, 'paper')
     const pairs: [string, string, string][] = [
@@ -299,15 +293,6 @@ describe('level ladder', () => {
       const painted = over(String(paper.get(`${sport}-wash`)), colour(paper, 'paper'))
       expect(contrast(colour(paper, 'ink'), painted), sport).toBeGreaterThanOrEqual(TEXT)
     }
-  })
-
-  it('fills its column, draws no wash for a range, and paints its marks in ink', () => {
-    expect(ruleBody(ladderCss, '.level-ladder')).not.toMatch(/max-width/)
-    expect(ladderCss).not.toMatch(/level-ladder__range/)
-    expect(declarations(ladderCss, '.level-ladder__dot').get('background')).toBe('var(--ink)')
-    expect(declarations(ladderCss, '.level-ladder__edge').get('background')).toBe(
-      'var(--ink-secondary)',
-    )
   })
 })
 

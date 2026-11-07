@@ -2,9 +2,6 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
-import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { wordsOf } from '../../test/wordsOf'
 import { changeOf } from '../charts/changeFixtures'
 import { curvePoint } from '../charts/fixtures'
@@ -42,9 +39,6 @@ describe('a sport page’s first screen', () => {
         result={RESULT}
         previous={null}
         previousLabel={null}
-        trends={NO_TRENDS}
-        sameHeartRate={NO_SAME_HEART_RATE[sport]}
-        lateEvidence={NO_LATE_EVIDENCE[sport]}
         change={changeOf('higher')}
         units="metric"
         massKg={75}

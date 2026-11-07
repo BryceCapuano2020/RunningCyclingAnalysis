@@ -25,16 +25,7 @@ const BALANCE_METER =
 /**
  * The Balance page's last chart: the hours trained each week, found by its title.
  */
-const BEST_EFFORTS_CURVE = 'Best efforts'
-/** The sport page's section of dated bests, which needs a season of activities. */
-const OPEN_SEASON_SECTION = 'Best efforts by day'
-/** The pace-at-heart-rate section is the weekly view, headed by what it draws: it claims no change. */
-const SAME_HEART_RATE_SECTION = {
-  Run: /^Pace at \d+ bpm, by week$/,
-  Ride: /^Power at \d+ bpm, by week$/,
-} as const
-/** The durability section, headed by its finding. */
-const DURABILITY_SECTION = /^Durability: /
+const BEST_EFFORTS_CURVE = 'Best effort by duration'
 
 test('a sample athlete shows the balance, its charts, the activities and the sample notice', async ({
   page,
@@ -47,38 +38,12 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
-  // The sample's season is long and varied enough to fill every section of a sport page: best durations, best efforts
-  // by day, pace at heart rate, durability. Every long session counts toward a late best, so durability has both its charts.
+  // The sample's season is long enough to draw each sport's best efforts curve. No jump list stands over the sections.
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     await expect(page.getByRole('figure', { name: BEST_EFFORTS_CURVE, exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
-    // The dated bests are drawn: a figure named for the effort, with at least two dots in its plot.
-    const dated = page.locator('section').filter({
-      has: page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION }),
-    })
-    await expect(dated.getByRole('figure', { name: /20 min/ })).toBeVisible()
-    expect(await dated.locator('[data-testid^="bests-"]').count()).toBeGreaterThanOrEqual(2)
-    // The sample's bests name no duration that stands out, so that section is not drawn: no region, no anchor, and no
-    // line that says nothing stands out. No jump list stands over the sections.
+    await expect(page.getByRole('region', { name: 'Time in zones' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'On this page' })).toHaveCount(0)
-    await expect(page.locator(`[id="${sport.toLowerCase()}-section-standOut"]`)).toHaveCount(0)
-    await expect(page.locator('section.sport-disclosure')).toHaveCount(3)
-    await expect(page.getByText(/Nothing stands out/)).toHaveCount(0)
-    // The sections that need a season: each is headed by its finding, and open to its chart.
-    for (const section of [SAME_HEART_RATE_SECTION[sport], DURABILITY_SECTION]) {
-      const region = page.getByRole('region', { name: section })
-      await expect(region.locator('.sport-disclosure__details')).toHaveAttribute('open', '')
-      await expect(region.getByRole('figure').first()).toBeVisible()
-    }
-    // The finding on a row that the section's charts already say is left off while it is open, and a fold brings it back.
-    const durability = page.getByRole('region', { name: DURABILITY_SECTION })
-    await expect(durability.locator('.sport-disclosure__finding')).toBeHidden()
-    await durability.locator('.sport-disclosure__summary').click()
-    await expect(durability.locator('.sport-disclosure__finding')).toBeVisible()
-    await durability.locator('.sport-disclosure__summary').click()
-    // Both of durability's readings are drawn.
-    await expect(durability.getByRole('figure')).toHaveCount(2)
   }
 
   await goTo(page, 'Balance')
@@ -278,56 +243,6 @@ test('removing all activities on the Profile page clears the sample and returns 
   ).toBeVisible()
 })
 
-test('a record link opened from Run keeps the Run tab lit and offers Back to Run', async ({
-  page,
-}) => {
-  await openSample(page)
-  await goTo(page, 'Run')
-
-  // The records are listed once, in All best efforts; the curve's card above holds no strip of them.
-  await expect(page.getByRole('region', { name: 'Best efforts', exact: true })).toBeVisible()
-  await expect(
-    page.getByRole('region', { name: 'Best efforts', exact: true }).locator('.record-tiles'),
-  ).toHaveCount(0)
-  await page
-    .getByRole('region', { name: 'All best efforts', exact: true })
-    .locator('a.records__link, .records__shared a')
-    .first()
-    .click()
-
-  await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(BALANCE_TITLE)
-  await expect(
-    page
-      .getByRole('navigation', { name: 'Pages', exact: true })
-      .getByRole('link', { name: 'Run', exact: true }),
-  ).toHaveClass(/rail__link--current/)
-  await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
-})
-
-test('the sport page opens a section the reader folded from its own row, and names it when folded', async ({
-  page,
-}) => {
-  await openSample(page)
-  await goTo(page, 'Run')
-  // A section with content is open to start with, and its row says its name alone.
-  const all = page.getByRole('region', { name: 'All best efforts', exact: true })
-  const row = all.locator('.sport-disclosure__summary')
-  const fold = all.locator('details.sport-disclosure__details')
-  await expect(row).toHaveText('All best efforts')
-  await expect(fold).toHaveAttribute('open', '')
-  await expect(all.locator('ol.records')).toBeVisible()
-  // Folded, the row is still its name, and pressing it again opens it.
-  await row.click()
-  await expect(fold).not.toHaveAttribute('open', '')
-  await expect(row).toHaveText('All best efforts')
-  await expect(all.locator('ol.records')).toBeHidden()
-  await row.click()
-  await expect(fold).toHaveAttribute('open', '')
-  await expect(all.locator('ol.records')).toBeVisible()
-  // The address is the page's own: pressing the row did not move the app's hash route.
-  await expect(page).toHaveURL(/#\/run$/)
-})
-
 /** The meter's track, its value under the dot, and the two sports' level lines. */
 const TRACK = '.balance-meter [role="img"]'
 const VALUE = '.balance-meter__value'
@@ -354,7 +269,7 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   // The card comes after the tiles and before the grade by duration.
   const tiles = await edgesOf(page.locator('.balance-tiles'))
   const card = await edgesOf(page.locator(FITNESS_CARD))
-  const grades = await edgesOf(page.getByRole('region', { name: 'Grade by duration' }))
+  const grades = await edgesOf(page.getByRole('region', { name: 'Age grade by effort length' }))
   expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
   expect(card.bottom).toBeLessThanOrEqual(grades.top)
   await page.locator(FITNESS_CARD).scrollIntoViewIfNeeded()

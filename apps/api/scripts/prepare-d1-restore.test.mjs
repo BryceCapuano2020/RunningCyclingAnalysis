@@ -163,6 +163,8 @@ test('accepts exports from the current schema, orders its new tables after their
   CREATE TABLE upload_slots (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slot_id TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (user_id, slot_id));
   CREATE TABLE pending_account_deletions (user_id TEXT PRIMARY KEY NOT NULL, requested_at INTEGER NOT NULL, sweep_pending INTEGER NOT NULL DEFAULT 1);
   CREATE TABLE athlete_measurements (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL, sport TEXT NOT NULL DEFAULT '', from_date TEXT NOT NULL, value REAL NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, kind, sport, from_date));
+  CREATE TABLE lift_sets (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, date TEXT NOT NULL, exercise TEXT NOT NULL, equipment TEXT NOT NULL, set_order INTEGER NOT NULL, reps INTEGER NOT NULL, load_kg REAL NOT NULL, rpe REAL, warmup INTEGER NOT NULL DEFAULT 0, time TEXT, time_precision TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, date, exercise, equipment, set_order));
+  INSERT INTO lift_sets VALUES ('user-1', '2031-03-03', 'back-squat', 'barbell', 1, 5, 100, 8, 0, NULL, NULL, 0);
   INSERT INTO users VALUES ('user-1', 'a@example.test', 'Alex', NULL, 1, 0, NULL);
   INSERT INTO athlete_measurements VALUES ('user-1', 'massKg', '', '2026-01-01', 80, 0);
   INSERT INTO daily_budget VALUES ('user-1', '2026-10-22', 'read', 3);
@@ -178,7 +180,9 @@ test('accepts exports from the current schema, orders its new tables after their
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
     assert.equal(db.prepare('SELECT used FROM daily_budget').get().used, 3)
     assert.equal(db.prepare('SELECT value FROM athlete_measurements').get().value, 80)
+    assert.equal(db.prepare('SELECT load_kg FROM lift_sets').get().load_kg, 100)
   })
+  assert.ok(prepared.indexOf('INSERT INTO "users"') < prepared.indexOf('INSERT INTO "lift_sets"'))
   // Exports from before the budget and deletion tables existed still restore.
   assert.doesNotThrow(() => prepareD1RestoreSql(schema))
 })

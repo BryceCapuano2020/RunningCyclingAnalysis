@@ -83,6 +83,7 @@ describe('GET /api/me', () => {
       },
       fileRetentionAvailable: true,
       libraryRevision: '0.0',
+      liftRevision: 0,
     })
   })
 

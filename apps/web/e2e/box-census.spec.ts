@@ -31,13 +31,6 @@ for (const size of SIZES) {
         // Sections are open to start with, and a section is a band: no box remains on the page.
         expect(census.boxes).toEqual([])
         expect(census.share).toBeLessThanOrEqual(size.cap)
-        // A folded disclosure is a row under its rule, not a card: folding one adds no box.
-        const fold = page.locator('details.sport-disclosure__details').first()
-        await page.locator('.sport-disclosure__summary').first().click()
-        await expect(fold).not.toHaveAttribute('open', '')
-        const folded = await boxCensus(page)
-        expect(folded.boxes).toEqual([])
-        expect(folded.share).toBeLessThanOrEqual(size.cap)
         // The census is not blind: a bordered block put on the page is counted.
         await page.evaluate(() => {
           const card = document.createElement('div')

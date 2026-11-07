@@ -193,6 +193,11 @@ export function dayOfCivil(year: number, month: number, date: number): number {
   return Math.floor(at.getTime() / DAY_MS)
 }
 
+/** The Monday that starts a week counted by `weekOfDay`, as a day number. */
+export function mondayOfWeek(week: number): number {
+  return week * 7 + MONDAY_DAY_NUMBER
+}
+
 /** The Monday on or before a day number: weeks start there. */
 export function mondayOnOrBefore(day: number): number {
   return day - ((((day - MONDAY_DAY_NUMBER) % 7) + 7) % 7)

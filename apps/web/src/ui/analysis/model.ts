@@ -146,6 +146,7 @@ export const EMPTY_SESSION: SessionState = {
   countedWalkingRuns: [],
   trend: [],
   previous: null,
+  previousThresholds: null,
   change: null,
   earlier: null,
   effortTrends: NO_TRENDS,

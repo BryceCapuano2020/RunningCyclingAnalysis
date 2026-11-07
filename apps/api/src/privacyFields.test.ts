@@ -148,6 +148,41 @@ const UNUSED = new Set(['users.list_cursor'])
 /** The deployment-wide row holds counters and a listing cursor for object keys: nothing about a person. */
 const DEPLOYMENT_WIDE = 'r2_storage_budget'
 
+/**
+ * What lifting stores, from docs/design/lift-data.md section 2 (migration 0012, Stage X2). The schema does
+ * not have these yet, so they are listed here and checked against the page. X2's schema must match this list:
+ * once it lands, `schema.ts` is compared with it, so whichever of the two lands second fails if they differ.
+ */
+const LIFT_COLUMNS = [
+  'lift_sets.user_id',
+  'lift_sets.date',
+  'lift_sets.exercise',
+  'lift_sets.equipment',
+  'lift_sets.set_order',
+  'lift_sets.reps',
+  'lift_sets.load_kg',
+  'lift_sets.rpe',
+  'lift_sets.warmup',
+  'lift_sets.time',
+  'lift_sets.time_precision',
+  'lift_sets.updated_at',
+  'users.lift_count',
+  'users.lift_revision',
+]
+
+/** The phrases of the page that disclose the lift columns, one per group of columns. */
+const LIFT_PHRASES = [
+  "each set you log, with its date, exercise, equipment, its place in that day's order, reps, load in kilograms, effort (rpe), whether it was a warm-up, an optional time of day with how exact it is, and when it last changed",
+  'the exercise is a short name you may type yourself, so it can hold any words',
+  'notes are not kept',
+  'your account also holds a count of its sets and a number that changes with each write',
+  'deleting your account removes them all',
+]
+
+function isLiftColumn(column: string): boolean {
+  return column.startsWith('lift_sets.') || column.startsWith('users.lift_')
+}
+
 const HINT_COLUMN =
   'The schema and DISCLOSED disagree: map the new column to the sentence of apps/web/privacy.html that lists it, or remove the entry for a column that is gone.'
 const HINT_PHRASE =
@@ -161,7 +196,8 @@ const stored = Object.values(schema).flatMap((table) => {
 describe('the privacy page and the stored columns', () => {
   it('discloses every column the schema stores, and maps no column the schema lost', () => {
     const personal = stored.filter(
-      (column) => !column.startsWith(`${DEPLOYMENT_WIDE}.`) && !UNUSED.has(column),
+      (column) =>
+        !column.startsWith(`${DEPLOYMENT_WIDE}.`) && !UNUSED.has(column) && !isLiftColumn(column),
     )
     expect(
       personal.filter((column) => !(column in DISCLOSED)),
@@ -178,6 +214,24 @@ describe('the privacy page and the stored columns', () => {
       .filter(([, phrase]) => !page.includes(phrase))
       .map(([column, phrase]) => `${column}: "${phrase}"`)
     expect(missing, HINT_PHRASE).toEqual([])
+  })
+})
+
+describe('the privacy page and the lifting columns', () => {
+  it('says each thing lifting stores', () => {
+    expect(
+      LIFT_PHRASES.filter((phrase) => !page.includes(phrase)),
+      HINT_PHRASE,
+    ).toEqual([])
+  })
+
+  it('matches the schema once it has lifting columns', () => {
+    const inSchema = stored.filter(isLiftColumn)
+    // Empty until migration 0012 lands. Then X2's columns must be exactly the ones the page was written for.
+    if (inSchema.length === 0) return
+    expect([...inSchema].sort(), 'X2 schema and LIFT_COLUMNS disagree').toEqual(
+      [...LIFT_COLUMNS].sort(),
+    )
   })
 })
 

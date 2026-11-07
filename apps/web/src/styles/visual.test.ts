@@ -10,10 +10,8 @@ const tokens = await read('./tokens.css')
 const app = await read('../App.css')
 const dropzone = await read('../ui/components/Dropzone.css')
 const balanceMeter = await read('../ui/components/BalanceMeter.css')
-const ladder = await read('../ui/components/LevelLadder.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const sportHero = await read('../ui/pages/SportHero.css')
-const sectionDisclosure = await read('../ui/pages/SectionDisclosure.css')
 const racePredictions = await read('../ui/pages/RacePredictions.css')
 const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
@@ -33,7 +31,6 @@ const privacyCss = await read('./privacy.css')
 const icons = await read('../ui/components/icons.tsx')
 const iconsCss = await read('../ui/components/icons.css')
 const balanceMeterTsx = await read('../ui/components/BalanceMeter.tsx')
-const ladderTsx = await read('../ui/components/LevelLadder.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
@@ -248,21 +245,6 @@ describe('forced colours', () => {
     expect(rulesWith(forced, '.balance-meter__track::after')).toMatch(/border-color:\s*CanvasText/)
   })
 
-  it('keeps the level ladder line, its ticks, its mark and chevrons in the system colours', () => {
-    const forced = mediaOf(ladder, FORCED)
-    for (const selector of [
-      '.level-ladder__track::before',
-      '.level-ladder__edge',
-      '.level-ladder__dot',
-    ]) {
-      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
-    }
-    expect(rulesWith(forced, '.level-ladder__name--current')).toMatch(
-      /text-decoration:\s*underline/,
-    )
-    expect(rulesWith(forced, '.level-ladder__beyond')).toMatch(/stroke:\s*CanvasText/)
-  })
-
   it('keeps the two chart lines apart in the system colours', () => {
     const forced = mediaOf(chartSeries, FORCED)
     expect(rulesWith(forced, '.chart-series__line--run')).toMatch(/stroke:\s*CanvasText/)
@@ -402,7 +384,6 @@ describe('type scale', () => {
     ['App.css', app],
     ['Header.css', header],
     ['BalanceMeter.css', balanceMeter],
-    ['LevelLadder.css', ladder],
     ['StatTile.css', statTile],
     ['SportPage.css', sportPage],
     ['BalancePage.css', balancePage],
@@ -418,12 +399,10 @@ describe('type scale', () => {
 })
 
 describe('shared layout', () => {
-  it('draws the meter and the ladder on one figure rule, so neither keeps its own margin', () => {
+  it('draws the meter on the figure rule, so it keeps no margin of its own', () => {
     expect(components).toMatch(/\.scale-figure \{/)
     expect(balanceMeterTsx).toContain('scale-figure')
-    expect(ladderTsx).toContain('scale-figure')
     expect(balanceMeter).not.toMatch(/\.balance-meter \{/)
-    expect(rulesWith(ladder, '.level-ladder')).not.toMatch(/margin:\s*0/)
   })
 
   it('takes the landing columns from a column token, not a literal width', () => {
@@ -734,11 +713,15 @@ describe('sport records, on the card and the page', () => {
     )
   })
 
-  it('sets the sport page’s threshold and level 60 and 40 on a desktop, and stacked below it', () => {
+  it('sets the change’s amount in the mono and its words in the serif', () => {
+    expect(rulesWith(sportHero, '.sport-hero__amount')).toMatch(/font-family:\s*var\(--font-mono\)/)
+    expect(rulesWith(sportHero, '.sport-hero__words')).toMatch(/font-family:\s*var\(--font-serif\)/)
+  })
+
+  it('sets the sport hero’s three figures in one row that wraps to fewer columns when they do not fit', () => {
     expect(rulesWith(sportHero, '.sport-hero')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/)
-    const desktop = mediaOf(sportHero, '(min-width: 1081px)')
-    expect(rulesWith(desktop, '.sport-hero')).toMatch(
-      /grid-template-columns:\s*minmax\(0, 3fr\) minmax\(0, 2fr\)/,
+    expect(rulesWith(sportHero, '.sport-hero__stats')).toMatch(
+      /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, var\(--column-stat\)\), 1fr\)\)/,
     )
   })
 
@@ -750,13 +733,6 @@ describe('sport records, on the card and the page', () => {
     // The width is the shell's, 75rem (1,200 px) on every page, so the sport pages set none of their own.
     expect(rulesWith(components, '.page')).toMatch(/max-width:\s*var\(--page-width\)/)
     expect(sportPage).not.toMatch(/max-width:\s*(1080|1200)px/)
-  })
-
-  it('sets a section’s fold as a serif summary with its finding, and no box', () => {
-    expect(rulesWith(sectionDisclosure, '.sport-disclosure__title')).toMatch(
-      /font-family:\s*var\(--font-serif\)/,
-    )
-    expect(sectionDisclosure).not.toMatch(/border-radius|background|border:/)
   })
 
   it('sets a sport page’s ▸ Details on its title’s line, at the right, centred on the title’s line box', () => {

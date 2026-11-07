@@ -11,11 +11,4 @@ describe('the faded marks', () => {
     expect(paper.has('mark-fade')).toBe(false)
     expect(seriesCss).not.toMatch(/--mark-fade/)
   })
-
-  it('set the light dot at 40% and an aged dot at its own opacity', () => {
-    expect(seriesCss).toMatch(/\.chart-series__marker--light \{[^}]*fill-opacity: 0\.4;/)
-    expect(seriesCss).toMatch(
-      /\.chart-series__marker--aged \{[^}]*fill-opacity: var\(--dot-opacity, 1\);/,
-    )
-  })
 })

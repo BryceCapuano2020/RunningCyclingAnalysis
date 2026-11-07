@@ -272,7 +272,6 @@ export function BalancePage({
         profile={profile}
         massKg={settings.massKg}
         weightKnown={weightKnown}
-        lean={reading?.lean ?? null}
       />
 
       {soleSport === null ? null : (

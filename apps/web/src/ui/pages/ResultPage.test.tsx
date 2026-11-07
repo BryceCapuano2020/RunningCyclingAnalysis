@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '../../test/warmSample'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_WINDOW } from '@rca/core/answer'
 import type { AnswerWindow } from '@rca/core/answer'
@@ -106,46 +106,6 @@ describe('ResultPage age grades', () => {
     renderPage({ page: 'method' }, 1986, 'male')
 
     expect(screen.getByText('Your grades are for a man.')).toBeInTheDocument()
-  })
-})
-
-describe('ResultPage sport trend', () => {
-  it('starts each sport on the 20-minute trend, so a choice on Run does not carry over to Ride', () => {
-    const result = makeResult({
-      activities: [makeActivity({ id: 'run-1' }), makeActivity({ id: 'ride-1', sport: 'ride' })],
-    })
-    const page = (route: Route) => (
-      <ResultPage
-        countedRuns={countedRunsStub()}
-        signedIn={false}
-        route={route}
-        analysis={analysisStub()}
-        result={result}
-        settings={{ massKg: 75, bikeMassKg: 9 }}
-        weightKnown
-        units="metric"
-        birthYear={null}
-        sex={null}
-      />
-    )
-    const view = render(page({ page: 'run' }))
-    fireEvent.click(
-      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
-        name: '5 min',
-      }),
-    )
-    expect(
-      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
-        name: '5 min',
-      }),
-    ).toBeChecked()
-
-    view.rerender(page({ page: 'ride' }))
-    expect(
-      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
-        name: '20 min',
-      }),
-    ).toBeChecked()
   })
 })
 
