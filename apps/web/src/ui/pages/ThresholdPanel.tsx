@@ -3,7 +3,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { threshold } from '../records'
 import { THRESHOLD_HEADING } from '../sports'
-import { thresholdBasisLine, thresholdDetail } from '../thresholdBasis'
+import { thresholdProperties } from '../thresholdBasis'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { ThresholdBasis } from './ThresholdBasis'
 
@@ -51,8 +51,7 @@ export function ThresholdPanel({
       {hero && (
         <ThresholdBasis
           sport={sport}
-          basis={thresholdBasisLine(result, sport)}
-          detail={thresholdDetail(result, sport, massKg, units)}
+          rows={thresholdProperties(result, sport, massKg, units)}
           className="sport-hero__basis"
         />
       )}

@@ -63,7 +63,12 @@ test('a reload on a deep link stays on it while the kept library restores, once 
   // The run is too short for a fit but not for an estimate, so the card shows its pace and the one run it rests on.
   const threshold = page.getByRole('region', { name: 'Threshold pace' })
   await expect(threshold).toBeVisible()
-  await expect(threshold).toContainText(/From 1 run\. Strongest: \d+ min on /)
+  await expect(
+    threshold.locator('.props__row', { hasText: /^Runs used/ }).locator('dd'),
+  ).toHaveText('1')
+  await expect(
+    threshold.locator('.props__row', { hasText: /^Strongest effort/ }).locator('dd'),
+  ).toHaveText(/^\d+ min, /)
   await expect(threshold).toContainText(/\d+:\d{2}/)
   await expect(threshold).not.toContainText(/Best \d+ min|At least/)
 
