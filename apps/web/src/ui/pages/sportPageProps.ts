@@ -3,6 +3,7 @@ import type { ChangeEvidence } from '@rca/core/change/types'
 import type { SportCurves } from '@rca/core/digest'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
 import type { LookBack } from '@rca/core/lookback'
@@ -17,6 +18,8 @@ export interface SportPageProps {
   result: AnalysisResult
   /** The best efforts of the period before the selected one, or null for all time. */
   previous: SportCurves | null
+  /** Each sport's threshold over that period, for the hero's change; absent or null for all time or when it holds nothing. */
+  previousThresholds?: Record<Sport, ThresholdEstimate | null> | null
   /** The label of that period, such as "Previous 6 weeks". */
   previousLabel: string | null
   /** Whether each best effort differs from that period's by more than chance; null for all time. */
