@@ -1,26 +1,53 @@
 /*
- * The sport page's answer: the threshold on the left, the age grade at threshold on the right, in one .band (a rule
- * across the top, no box). Below 1080 px the two stack, the threshold first, so it keeps the first screen.
+ * The sport page's hero: current status with no chart, in one .band (a rule across the top, no box). A serif title line, then one
+ * row of three figures, each a small label over its value. The row wraps to fewer columns when a figure needs the width.
  */
 .sport-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
   min-width: 0;
+  padding-bottom: var(--space-5);
 }
 
-.sport-hero__panel {
+.sport-hero__stats {
   display: grid;
-  /* One track the panel's width: an auto track grows to its widest line, which a large text size sends past the card. */
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: 0 0 var(--space-5);
+  /* Three across where each has --column-stat, fewer where it has not; a long figure wraps inside its column. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-stat)), 1fr));
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
 }
 
-.sport-hero__levelpanel {
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--hairline);
+.sport-hero__stat {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sport-hero__label {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.sport-hero__value {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The range under the threshold and the change's amount are figures: the mono. The words around them are the serif. */
+.sport-hero__range,
+.sport-hero__amount {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
+}
+
+.sport-hero__range {
+  color: var(--ink-secondary);
 }
 
 .sport-hero__title {
@@ -67,23 +94,19 @@
   color: var(--ink-secondary);
 }
 
-@media (min-width: 1081px) {
-  .sport-hero {
-    /* 60/40: the threshold figure leads. */
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  }
-
-  .sport-hero__levelpanel {
-    border-top: 0;
-    border-left: 1px solid var(--hairline);
-    padding-top: 0;
-    padding-left: var(--space-6);
-  }
-}
-
 /* Forced colours paint a backplate behind each run of text, as tall as the font: a full line keeps it off the title. */
 @media (forced-colors: active) {
   .sport-hero__number {
     line-height: 1;
   }
+}
+
+.sport-hero__change {
+  margin: 0;
+  font-size: var(--text-lead);
+}
+
+.sport-hero__words {
+  font-family: var(--font-serif);
+  color: var(--ink-secondary);
 }

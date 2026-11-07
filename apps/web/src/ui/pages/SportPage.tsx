@@ -65,11 +65,11 @@ export function SportPage(props: SportPageProps) {
           )}
         </PageDetails>
       </div>
-      {/* The fitness status leads: it is the finding that moves, and it is library-wide, so it does not wait on the period. */}
+      <SportAnswer {...props} count={count} held={held} />
+      {/* The fitness status sits directly under the hero: it is library-wide, so it does not wait on the period. */}
       {fitness && !held && count > 0 ? (
         <FitnessSection fitness={fitness} units={units} library={library} sport={sport} />
       ) : null}
-      <SportAnswer {...props} count={count} held={held} />
       {rows.map(({ key, cells }) => (
         <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>
           {cells.map(({ id, node }) => (

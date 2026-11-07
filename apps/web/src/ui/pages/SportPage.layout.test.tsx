@@ -143,10 +143,9 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__dot')).toBeNull()
     // A run is read as recorded, so it has no estimated chip.
     expect(within(level).queryByText('Estimated')).toBeNull()
@@ -167,27 +166,24 @@ describe('the answer: threshold and level in one card', () => {
       }),
       { profile: MAN_BORN_1986 },
     )
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     // The range reaches from Local into Regional, and the level is still the centre's.
     expect(level.querySelector('.sport-hero__level-name')).toHaveTextContent('Local')
     expect(level.querySelector('.sport-hero__level-value')).toHaveTextContent('67%')
-    expect(level.querySelector('.level-ladder__ring')).not.toBeNull()
     expect(level.querySelector('.level-ladder__range')).toBeNull()
-    expect(level.querySelector('.level-ladder__dot')).toBeNull()
     expect(within(level).queryByText('Estimated')).toBeNull()
     expect(level.querySelector('.sport-hero__level')).toHaveTextContent(/^Local · 67%$/)
   })
 
   it('asks for what the level needs where the profile is missing, and has no ladder', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: 'year of birth' })
-    const level = screen.getByRole('region', { name: 'Age grade at threshold' })
+    const level = screen.getByTestId('hero-level')
     expect(within(level).getByText('Age grades need your year of birth.')).toBeInTheDocument()
-    expect(level.querySelector('.level-ladder')).toBeNull()
   })
 
   it('leaves the level out, and the threshold alone in the card, with nothing to ask for', () => {
     renderPage('run', makeResult({ activities: [run()] }), { missingAge: null })
-    expect(screen.queryByRole('region', { name: 'Age grade at threshold' })).toBeNull()
+    expect(screen.queryByTestId('hero-level')).toBeNull()
   })
 
   it('puts the period’s control under the title and one Details last in the page head, above the answer', () => {
