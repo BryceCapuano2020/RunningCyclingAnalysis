@@ -3,6 +3,7 @@ import '../test/deviceZone'
 import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
+import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import { activityMasses } from './activityMasses'
 import { curvePoint } from './charts/fixtures'
 import {
@@ -23,6 +24,7 @@ import {
   curveOf,
   distanceRecords,
   effortLabel,
+  effortOf,
   EFFORT_OPTIONS,
   featuredEquivalence,
   isEstimatedRecord,
@@ -598,5 +600,13 @@ describe('latestStartOf and countEfforts', () => {
     ]
     expect(countEfforts(activities, 'run')).toBe(1)
     expect(countEfforts(activities, 'ride')).toBe(1)
+  })
+})
+
+describe('effortOf', () => {
+  it('reads a segment value as one of the effort lengths, and nothing else', () => {
+    for (const durationS of EFFORT_LENGTHS_S) expect(effortOf(String(durationS))).toBe(durationS)
+    expect(effortOf('7')).toBeUndefined()
+    expect(effortOf('')).toBeUndefined()
   })
 })
