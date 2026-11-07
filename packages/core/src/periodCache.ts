@@ -13,25 +13,19 @@ import { rideGateKey } from './digest/estimatedRide'
 import type { JudgedWork } from './digest/judgedWork'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import type { EffortReference } from './effort'
-import type { LateReference } from './digest/lateEvidence'
-import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
-import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { linesKey, setAsideAmong } from './periodKeys'
 import { PreviousThresholdMemo } from './previousThresholdMemo'
 import type { PreviousThresholdInput } from './previousThresholdMemo'
-import { EvidenceMemo } from './evidenceMemo'
 import type { TrendPoint } from './digest/trend'
-import type { DotsWithheld, EffortLengthS } from './digest/trendPoints'
 import type {
   ActivityDigest,
   AthleteSettings,
   BikeModel,
   HrCalibration,
-  Sport,
   SportCurves,
 } from './types'
 
-/* The cache behind a session's periods: each period's analysis, trends and same-heart-rate points, reused while their inputs hold. */
+/* The cache behind a session's periods: each period's analysis and trend, reused while their inputs hold. */
 
 export { sameDigests }
 
@@ -67,7 +61,6 @@ const ANALYSES_KEPT = 4
  */
 export class PeriodCache {
   private moved = { trend: calendarWatch() }
-  private evidence = new EvidenceMemo()
   private trendMemo = new TrendMemo()
   private thresholdMemo = new PreviousThresholdMemo()
   // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
@@ -163,7 +156,6 @@ export class PeriodCache {
     this.analysisEntries = this.analysisEntries.filter((entry) =>
       entry.selected.every((digest) => held.has(digest)),
     )
-    this.evidence.releaseAbsent(held)
     this.thresholdMemo.releaseAbsent(held)
     // The previous period's curves and the change test hold both periods' digests.
     const heldBoth = (entry: { selected: ActivityDigest[]; previous: ActivityDigest[] }) =>
@@ -174,10 +166,9 @@ export class PeriodCache {
   }
 
   /**
-   * The weekly trend of each effort length over the selected period, reused while its inputs are the same, and which lengths
-   * the dots' rule left too few dots to draw (see `TrendMemo.withheld`).
+   * The weekly headline trend over the selected period, reused while its inputs are the same.
    */
-  trends(
+  trend(
     selected: ActivityDigest[],
     settings: AthleteSettings,
     rangeDays: number | null,
@@ -185,51 +176,12 @@ export class PeriodCache {
     bikeModel: BikeModel | undefined,
     rideGate?: EstimatedRideGate | null,
     rule?: KeyedReadingRule,
-  ): Record<EffortLengthS, TrendPoint[]> {
+  ): TrendPoint[] {
     if (this.moved.trend()) this.trendMemo.clear()
-    return this.trendMemo.trends(
+    return this.trendMemo.trend(
       { selected, settings, rangeDays, startMs, bikeModel },
       { rideGate, rule },
     )
-  }
-
-  /** The lengths the rule left without dots that the period has without it: asked after `trends`, with the same inputs. */
-  dotsWithheld(
-    selected: ActivityDigest[],
-    settings: AthleteSettings,
-    rangeDays: number | null,
-    startMs: number | null,
-    bikeModel: BikeModel | undefined,
-    shown: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>,
-    rideGate?: EstimatedRideGate | null,
-    rule?: KeyedReadingRule,
-  ): DotsWithheld {
-    return this.trendMemo.withheld(
-      { selected, settings, rangeDays, startMs, bikeModel },
-      { rideGate, rule },
-      shown,
-    )
-  }
-
-  /** Output at the same heart rate over the selected period; see `EvidenceMemo`. */
-  sameHeartRate(
-    selected: ActivityDigest[],
-    library: ActivityDigest[],
-    fromMs: number | null,
-    setAside: readonly string[],
-    referenceHr: Readonly<Record<Sport, number | null>>,
-  ): SameHeartRateBySport {
-    return this.evidence.sameHeartRate(selected, library, fromMs, setAside, referenceHr)
-  }
-
-  /** Late-effort evidence over the selected period, pooled with the library where the period holds too little; see `EvidenceMemo`. */
-  late(
-    selected: ActivityDigest[],
-    library: ActivityDigest[],
-    setAside: readonly string[],
-    judged?: LateReference,
-  ): LateEvidenceBySport {
-    return this.evidence.late(selected, library, setAside, judged)
   }
 
   /** The thresholds of the period before, read as an analysis of it alone; see `PreviousThresholdMemo`. */

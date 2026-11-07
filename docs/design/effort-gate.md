@@ -112,7 +112,7 @@ way out, and the message says so. The rest of RCA-005 is on the zone tables (D6c
   mode. The change test needs evidence of a hard effort, so it leaves out a point heart rate cannot judge (no heart rate, set aside, a thin
   library, a reference that cannot certify a maximum). The dots withhold only what heart rate shows was not hard (`shownNotHard`), so those points
   stay; a sprint stays in both. They differ in nothing else. The set-aside list is the heart-rate one, as the change test takes it. A length the
-  gate leaves with fewer than two dots while the period has two without it is flagged (`dotsWithheld` in the state), and the empty state names the gate.
+  gate leaves with fewer than two dots while the period has two without it was flagged (`dotsWithheld`) and its empty state named the gate; the dots charts and that state field were removed in Stage W2.
 - **Durability** (RCA-043, answered in A4a): a late best counts every session. A session that was not hard, or whose reference cannot be
   trusted, no longer keeps its late best out, since that left a library of easy long runs with no answer; with no hard session behind it the figure is a floor and the
   stat says "at least", and the note says a lower figure late on can mean the run never asked for more. The note labels the ruler in a short line. A period with under

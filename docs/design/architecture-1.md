@@ -150,19 +150,19 @@ Core inputs:
 
 ### 2.2 Migration of existing features
 
-| Module          | Inputs                                                           | Args                 | Cost     | Replaces                                                   |
-| --------------- | ---------------------------------------------------------------- | -------------------- | -------- | ---------------------------------------------------------- |
-| `judgement`     | library, zoneSettings                                            | none                 | moderate | `HeartRateJudge`                                           |
-| `balance`       | selected, massSettings, setAsideAmongSelected                    | none                 | heavy    | `result` (`combine`)                                       |
-| `trend`         | selected, massSettings, periodBounds; uses `balance`             | `{durationS, grade}` | moderate | `trend`, `effortTrends` (`gradeTrend` flag becomes an arg) |
-| `previous`      | selected, previousSet, massSettings; uses `balance`              | none                 | moderate | `previous`                                                 |
-| `sameHeartRate` | selected, library, periodStart, setAsideFull                     | none                 | moderate | same                                                       |
-| `lateEvidence`  | selected, setAsideAmongSelected                                  | none                 | moderate | same                                                       |
-| `timeInZones`   | selected, previousSet, zoneSettings; uses `balance`, `judgement` | none                 | moderate | `ZoneTimeCache`                                            |
-| `records`       | library, massSettings                                            | none                 | moderate | `RecordsCache`                                             |
-| `activities`    | library, massSettings                                            | none                 | cheap    | `library` (summaries)                                      |
-| `splits`        | library                                                          | `{id}`               | cheap    | the `activitySplits` request                               |
-| `weeklyVolume`  | `activities`, trend weeks                                        | none                 | cheap    | main-thread function (optional move)                       |
+| Module          | Inputs                                                           | Args                 | Cost     | Replaces                                |
+| --------------- | ---------------------------------------------------------------- | -------------------- | -------- | --------------------------------------- |
+| `judgement`     | library, zoneSettings                                            | none                 | moderate | `HeartRateJudge`                        |
+| `balance`       | selected, massSettings, setAsideAmongSelected                    | none                 | heavy    | `result` (`combine`)                    |
+| `trend`         | selected, massSettings, periodBounds; uses `balance`             | `{durationS, grade}` | moderate | `trend` (`effortTrends` removed in W2d) |
+| `previous`      | selected, previousSet, massSettings; uses `balance`              | none                 | moderate | `previous`                              |
+| `sameHeartRate` | selected, library, periodStart, setAsideFull                     | none                 | moderate | same                                    |
+| `lateEvidence`  | (removed in W2d)                                                 | none                 | moderate | same                                    |
+| `timeInZones`   | selected, previousSet, zoneSettings; uses `balance`, `judgement` | none                 | moderate | `ZoneTimeCache`                         |
+| `records`       | library, massSettings                                            | none                 | moderate | `RecordsCache`                          |
+| `activities`    | library, massSettings                                            | none                 | cheap    | `library` (summaries)                   |
+| `splits`        | library                                                          | `{id}`               | cheap    | the `activitySplits` request            |
+| `weeklyVolume`  | `activities`, trend weeks                                        | none                 | cheap    | main-thread function (optional move)    |
 
 New modules:
 

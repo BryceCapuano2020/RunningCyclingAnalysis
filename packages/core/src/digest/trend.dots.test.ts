@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { NO_EFFORT_REFERENCE } from '../effort'
 import type { EffortReference } from '../effort'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { PeriodCache } from '../periodCache'
 import { dotsRule, hardEffortRule, shownNotHard } from './hardEffortRule'
 import { fitnessTrend } from './trend'
-import { dotCount } from './trendPoints'
 import { levelRun } from './test/runLibrary'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
@@ -100,38 +98,5 @@ describe('the dots and the change test read the one gate', () => {
     }
     const thin = [dotsRule(reference('thin'), []), hardEffortRule(reference('thin'), [])] as const
     expect([outcomes(thin[0], NOT_HARD), outcomes(thin[1], NOT_HARD)]).toEqual([true, false])
-  })
-})
-
-describe('which lengths the dots rule left empty', () => {
-  const EASY_ONLY = [run('e1', 0, 1.1, 140), run('e2', 35, 1.0, 140)]
-  const cache = new PeriodCache()
-  const read = (rule?: ReturnType<typeof dotsRule>) => {
-    const shown = cache.trends(EASY_ONLY, SETTINGS, 42, null, undefined, undefined, rule)
-    const withheld = cache.dotsWithheld(
-      EASY_ONLY,
-      SETTINGS,
-      42,
-      null,
-      undefined,
-      shown,
-      undefined,
-      rule,
-    )
-    return { shown, withheld }
-  }
-
-  it('names the gate when it leaves a length too few dots that the period has without it', () => {
-    const { shown, withheld } = read(dotsRule(reference('trusted'), []))
-    expect(dotCount(shown[1200], 'run')).toBe(0)
-    expect(withheld.run[1200]).toBe(true)
-    expect(withheld.ride[1200]).toBe(false)
-  })
-
-  it('names nothing without the rule, or where the dots still draw', () => {
-    expect(read().withheld.run[1200]).toBe(false)
-    const kept = read(dotsRule(reference('thin'), []))
-    expect(dotCount(kept.shown[1200], 'run')).toBeGreaterThanOrEqual(2)
-    expect(kept.withheld.run[1200]).toBe(false)
   })
 })

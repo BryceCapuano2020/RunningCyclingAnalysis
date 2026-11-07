@@ -2,7 +2,6 @@ import './test/warmSample'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as trend from './digest/trend'
 import { AnalysisSession } from './session'
-import { EFFORT_LENGTHS_S } from './digest/trendPoints'
 import { sampleDataset } from './synthetic'
 import { combine, digestActivity, sportCurves } from './digest'
 import { DAY_MS, DEFAULT_BIKE_MODEL } from './constants'
@@ -25,12 +24,7 @@ const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const SAMPLE_DIGESTS = sampleDataset().activities.map(digestActivity)
 const sampleDigests = () => [...SAMPLE_DIGESTS]
 const fitnessTrend = vi.mocked(trend.fitnessTrend)
-/** The trend is computed once for each effort length, so each recomputation calls fitnessTrend this often. */
-const EFFORTS = EFFORT_LENGTHS_S.length
-/**
- * How often the trends the session shows were computed: the calls that carry the dots' rule. The same period read
- * without it, to tell whether the rule is why a length has too few dots, is a separate, rarer call.
- */
+/** How often the trend the session shows was computed: the calls that carry the dots' rule. */
 const shownCalls = () =>
   fitnessTrend.mock.calls.filter(([, , options]) => options?.rule !== undefined).length
 
@@ -54,7 +48,7 @@ describe('AnalysisSession trend', () => {
     session.setRange({ from: day(first, -10), to: dayOf(last.getTime()) }, SETTINGS)
     fitnessTrend.mockClear()
     session.setRange({ from: day(first, -9), to: day(last, 1) }, SETTINGS)
-    expect(fitnessTrend).toHaveBeenCalledTimes(EFFORTS)
+    expect(fitnessTrend).toHaveBeenCalledTimes(1)
   })
 
   it('recomputes the trend when the period changes, and reuses it for the same period', () => {
@@ -64,11 +58,11 @@ describe('AnalysisSession trend', () => {
     expect(computed).toBeGreaterThan(0)
 
     session.setRange(42, SETTINGS)
-    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1)
     session.setRange(42, SETTINGS)
-    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1)
     session.setRange('all', SETTINGS)
-    expect(shownCalls()).toBe(computed + 2 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 2)
   })
 
   it('computes the trend of a period from windows that stay inside it', () => {
@@ -94,34 +88,12 @@ describe('AnalysisSession trend', () => {
     expect(fitnessTrend.mock.calls.length).toBe(computed)
 
     const state = session.setSettings({ ...SETTINGS, massKg: 80 })
-    expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
+    expect(fitnessTrend.mock.calls.length).toBe(computed + 1)
     const changed = { ...SETTINGS, massKg: 80 }
     expect(state.trend).toEqual(trend.fitnessTrend(sampleDigests(), changed))
   })
 
-  it('gives the trend of each effort length over the period, with the 20-minute one as trend', () => {
-    const session = new AnalysisSession()
-    session.loadDigests(sampleDigests(), SETTINGS)
-    const state = session.setRange(42, SETTINGS)
-    const digests = sampleDigests()
-    const newest = Math.max(...digests.map((digest) => digest.startMs))
-    const cutoff = newest - 42 * DAY_MS
-    const selected = digests.filter((digest) => digest.startMs >= cutoff)
-    const { bikeModel } = combine(selected, SETTINGS)
-    for (const durationS of EFFORT_LENGTHS_S) {
-      expect(state.effortTrends[durationS]).toEqual(
-        trend.fitnessTrend(selected, SETTINGS, {
-          durationS,
-          windowDays: 14,
-          fromMs: cutoff,
-          bikeModel,
-        }),
-      )
-    }
-    expect(state.trend).toBe(state.effortTrends[1200])
-  })
-
-  it('recomputes every effort length when the bike mass changes, and matches a fresh trend', () => {
+  it('recomputes the trend when the bike mass changes, and matches a fresh trend', () => {
     const session = new AnalysisSession()
     session.loadDigests(sampleDigests(), SETTINGS)
     session.setRange('all', SETTINGS)
@@ -129,7 +101,7 @@ describe('AnalysisSession trend', () => {
 
     const bigger = { ...SETTINGS, bikeMassKg: 12 }
     const state = session.setSettings(bigger)
-    expect(fitnessTrend.mock.calls.length).toBe(computed + EFFORT_LENGTHS_S.length)
+    expect(fitnessTrend.mock.calls.length).toBe(computed + 1)
     expect(state.trend).toEqual(trend.fitnessTrend(sampleDigests(), bigger))
   })
 
@@ -139,7 +111,7 @@ describe('AnalysisSession trend', () => {
     const computed = shownCalls()
 
     session.loadDigests(sampleDigests().slice(0, 3), SETTINGS)
-    expect(shownCalls()).toBe(computed + 1 * EFFORTS)
+    expect(shownCalls()).toBe(computed + 1)
   })
 })
 

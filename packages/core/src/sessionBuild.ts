@@ -1,14 +1,10 @@
 import { resolveWindow } from './answer'
 import { earlierComparison } from './change/earlier'
-import { DAY_MS, HEADLINE_DURATION_S } from './constants'
+import { DAY_MS } from './constants'
 import { isAnalysed, leftOutCounts } from './digest/analysed'
 import { activitySummaries } from './digest'
 import { dotsRule, hardEffortRule } from './digest/hardEffortRule'
-import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
-import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
-import { libraryBestsOf } from './libraryBests'
-import { NONE_WITHHELD, NO_TRENDS } from './digest/trendPoints'
 import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
@@ -128,55 +124,19 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   const fromMs = period.days === null ? null : period.startMs
   // The dots leave out an effort heart rate shows was not hard: the library's set-aside list is the heart-rate one, as the change test takes it.
   const dots = dotsRule(judgement.effortReference, setAside)
-  const efforts =
+  const trend =
     athlete === null
-      ? NO_TRENDS
-      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate, dots)
-  const dotsWithheld =
-    athlete === null
-      ? NONE_WITHHELD
-      : periods.dotsWithheld(
-          selected,
-          athlete,
-          period.days,
-          fromMs,
-          bikeModel,
-          efforts,
-          judgement.rideGate,
-          dots,
-        )
+      ? []
+      : periods.trend(selected, athlete, period.days, fromMs, bikeModel, judgement.rideGate, dots)
   // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
   // As of the newest activity, not the clock: an export that ended months ago is not a long break.
   const statuses = fitnessStatuses(analysed, new Set(held))
   const histories = fitnessHistories(analysed, new Set(held))
-  // The weeks are read at the heart rate the fitness card names, so the card, the look-back and the weeks agree.
-  const sameHeartRate =
-    analysis === null
-      ? NO_SAME_HEART_RATE
-      : periods.sameHeartRate(selected, analysed, fromMs, held, {
-          run: statuses.run.referenceHr,
-          ride: statuses.ride.referenceHr,
-        })
   // The runs and rides the card is read from: heart rate set aside, and power set aside.
   const lookBack =
     athlete === null
       ? NO_LOOKBACK
       : lookBackOf(analysed, athlete, new Set(held), judgement.rideGate)
-  // The stand-out reads the library's bests while the period holds too few activities of a sport to judge them.
-  const libraryBests =
-    athlete === null || analysis === null || period.days === null
-      ? null
-      : libraryBestsOf(selected, analysed, athlete)
-  const late =
-    analysis === null
-      ? NO_LATE_EVIDENCE
-      : periods.late(
-          selected.filter((digest) => !powerAside.has(digest.id)),
-          // A period with too little to say a late best or drift reads the whole library's, set aside alike.
-          analysed.filter((digest) => !powerAside.has(digest.id)),
-          held,
-          { effortReference: judgement.effortReference },
-        )
   // The test reads the efforts the effort gate does not show easy, so a swing in how many hard efforts a period holds is no change.
   const effortRule = hardEffortRule(judgement.effortReference, setAside)
   const change =
@@ -185,12 +145,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
       : null
   return {
     result: analysis,
-    trend: efforts[HEADLINE_DURATION_S],
-    effortTrends: efforts,
-    dotsWithheld,
-    sameHeartRate,
-    libraryBests,
-    lateEvidence: late,
+    trend,
     heartRateJudgement: judgement,
     // The card names its episode by the dates of the look-back's, so the two tell one episode.
     fitness: datedByLookBack(statuses, lookBack, histories),
