@@ -53,6 +53,15 @@ describe('adoption', () => {
     expect(await device.list()).toEqual([])
   })
 
+  it('holds the rows of a failure that will not repeat (413) and is not done', async () => {
+    const device = openLiftStore('device')
+    await device.save(make(1))
+    const { transport } = fakeTransport({ put: () => new LiftTransportError('other', [], false) })
+    const result = await createLiftSync({ store: openLiftStore('u1'), transport }).adopt(device)
+    expect(result).toMatchObject({ sent: 0, held: 1, done: false })
+    expect((await device.list())[0]).toMatchObject({ state: 'put', attempts: 1 })
+  })
+
   it('reports a 409 apart, keeps those rows and finishes the later chunks', async () => {
     const device = openLiftStore('device')
     for (let order = 1; order <= 501; order++) await device.save(make(order))
@@ -123,13 +132,15 @@ describe('which revision the store is at', () => {
     let round = 0
     const { transport, calls } = fakeTransport({
       pages: (cursor) => {
-        if (cursor === null) return { items: [], next: 'p2', liftRevision: 5 }
-        return { items: [], next: null, liftRevision: round++ === 0 ? 6 : 5 }
+        // The account moves from 5 to 6 while the first pull reads; the second pull sees 6 throughout.
+        if (cursor === null) return { items: [], next: 'p2', liftRevision: round === 0 ? 5 : 6 }
+        round++
+        return { items: [], next: null, liftRevision: 6 }
       },
     })
     const sync = createLiftSync({ store, transport })
     expect((await sync.sync()).pull).toMatchObject({ complete: false })
-    expect((await sync.sync()).pull).toMatchObject({ complete: true, liftRevision: 5 })
+    expect((await sync.sync()).pull).toMatchObject({ complete: true, liftRevision: 6 })
     expect(calls.filter((call) => call.type === 'page')).toHaveLength(4)
   })
 })

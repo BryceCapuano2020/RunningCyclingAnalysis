@@ -70,7 +70,9 @@ export interface AdoptResult {
   capped: number
   /** The sign-in ended. */
   unauthorized: boolean
-  /** False when a request failed and the rest was not tried: the device rows not yet sent stay. */
+  /** Device rows held after a failure or a 400 naming none; they stay on the device. */
+  held: number
+  /** False when a row was held or a request failed and the rest was not tried: some device rows stay unsent. */
   done: boolean
 }
 
@@ -214,7 +216,8 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
       refused: tally.refused,
       capped: tally.capped,
       unauthorized: tally.unauthorized,
-      done: !tally.stopped,
+      held: tally.held,
+      done: !tally.stopped && tally.held === 0,
     }
   }
 

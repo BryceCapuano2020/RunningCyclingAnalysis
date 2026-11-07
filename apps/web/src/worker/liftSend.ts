@@ -19,6 +19,8 @@ export interface Tally {
   refused: number
   /** Rows a 409 turned away for want of room (adoption only; a flush stops at the first). */
   capped: number
+  /** Rows held after a failure or a 400 naming none. */
+  held: number
   /** Sets the account already held when adopting with insertOnly. */
   skipped: number
   /** The wait before the next flush, from the most failed row held by a failure; null when none. */
@@ -35,6 +37,7 @@ export const newTally = (): Tally => ({
   sent: 0,
   refused: 0,
   capped: 0,
+  held: 0,
   skipped: 0,
   retryInMs: null,
   unauthorized: false,
@@ -73,6 +76,7 @@ export async function sendChunk(
   const { store, tally } = target
   const hold = async (rows: readonly LiftRow[]) => {
     await store.applyHeld(sentOf(rows))
+    tally.held += rows.length
     tally.retryInMs = Math.max(
       tally.retryInMs ?? 0,
       ...rows.map((row) => retryDelayMs(row.attempts + 1)),
