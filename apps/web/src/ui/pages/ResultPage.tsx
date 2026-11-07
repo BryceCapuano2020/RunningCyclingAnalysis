@@ -9,7 +9,7 @@ import { judgedDetail } from '../analysis/detailCoverage'
 import { leftOutRuns, withoutWalking, workoutKeyOf } from '../analysis/walkingPaceCopy'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
-import { countsOf, startedInPeriod } from '../activityCounts'
+import { startedInPeriod } from '../activityCounts'
 import { sportEmptyText } from '../periodCopy'
 import { ActivityPage, HistoryPage } from '../lazyPages'
 import type { Route } from '../route'
@@ -108,7 +108,7 @@ export function ResultPage({
   // too, which then says what the page is based on.
   const askingForAge = missingAge === 'year of birth and sex' && !weightKnown
   const balanceFootnote = askingForAge ? null : footnote
-  const { pickPeriod, periods, caption, line, lineCounts, rows } = useResultPeriod({
+  const { pickPeriod, periods, caption, rows } = useResultPeriod({
     route,
     analysis,
     library,
@@ -119,15 +119,6 @@ export function ResultPage({
   // the title, so nothing stands above it and the title does not move between Balance, Run and Ride.
   const notes = aboutNotesOf(analysis.state, route.page)
   const detailRows = [...rows, ...notes.map(noteRow)]
-  const details =
-    line === null && notes.length === 0 ? null : (
-      <>
-        {line}
-        {notes.map((note) => (
-          <p key={note.id}>{note.text}</p>
-        ))}
-      </>
-    )
   return (
     <Shell route={route} periods={periods}>
       {pageOf()}
@@ -167,10 +158,8 @@ export function ResultPage({
             rangeDays={period.days}
             periodEndMs={period.endMs}
             heartRateJudgement={analysis.state.heartRateJudgement}
-            onFile={countsOf(inPeriod, route.page).onFile}
             controls={caption}
-            periodLine={details}
-            periodCounts={lineCounts}
+            periodRows={detailRows}
             emptyText={sportEmptyText(
               route.page,
               period,

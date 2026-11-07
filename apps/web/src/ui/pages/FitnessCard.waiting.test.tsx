@@ -9,6 +9,7 @@ import {
   SLIPPING,
   waitingStatus,
 } from '../fitnessFixtures'
+import { rowValue } from '../test/propertyRows'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'
 
@@ -50,12 +51,12 @@ const lineOf = (row: Element) => row.querySelector('[data-testid="fitness-line"]
 const textOf = (node: Element) => (node.textContent ?? '').replace(/\u00a0/g, ' ')
 
 /** What a row's Details hold, opened as a press opens them; empty when the row has none. */
-function detailsOf(row: Element): string {
-  const details = row.querySelector('details')
-  if (details === null) return ''
+/** Opens a row's Details, as a press does, and returns the card for its rows. */
+function opened<T extends Element>(row: T): T {
+  const details = row.querySelector('details')!
   details.open = true
   fireEvent(details, new Event('toggle'))
-  return spoken(details.querySelector('.disclosure__body')!)
+  return row
 }
 
 /** A status that cannot call a trend tells its level, and what a trend needs, in place of a change. */
@@ -78,11 +79,13 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     const ride = rowNamed('Ride')
     // The level without its range, every figure with its spaces, and no link: the rail has Ride.
     expect(lineOf(ride).textContent).toBe('200 W at 140 bpm.')
-    expect(within(ride).queryByRole('link')).toBeNull()
+    for (const link of within(ride).queryAllByRole('link'))
+      expect(link).toHaveClass('props__method')
     expect(spoken(ride)).not.toMatch(/Ride fitness|not enough|of 12/)
-    const held = detailsOf(ride)
-    expect(held).toContain('200 W (194 to 206) at 140 bpm.')
-    expect(held).toContain('From 7 steady rides.')
+    opened(ride)
+    expect(rowValue(ride, 'Power at 140 bpm')).toBe('200 W')
+    expect(rowValue(ride, 'Range')).toBe('194 to 206 W')
+    expect(rowValue(ride, 'Steady rides')).toBe('7')
     cleanup()
     // The Ride page titles the row by its state, with the level and what a trend needs in its Details.
     render(
@@ -96,12 +99,11 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     const card = rowNamed('No trend yet')
     expect(lineOf(card).textContent).toBe('200 W at 140 bpm.')
-    const details = detailsOf(card)
-    expect(details).toContain('200 W (194 to 206) at 140 bpm.')
-    expect(details).toContain('From 7 steady rides.')
-    expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
-      '5 more earlier rides to see a trend.',
-    )
+    opened(card)
+    expect(rowValue(card, 'Power at 140 bpm')).toBe('200 W')
+    expect(rowValue(card, 'Range')).toBe('194 to 206 W')
+    expect(rowValue(card, 'Steady rides')).toBe('7')
+    expect(rowValue(card, 'Trend')).toBe('Needs 5 more earlier rides')
   })
 
   it('tells a ride that has too few recent rides, or whose range is too wide, as its level on the home page too', () => {
@@ -116,7 +118,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     expect(rowsOf()).toHaveLength(1)
     expect(lineOf(rowNamed('Ride')).textContent).toBe('200 W at 140 bpm.')
-    expect(detailsOf(rowNamed('Ride'))).toContain('From 30 steady rides.')
+    expect(rowValue(opened(rowNamed('Ride')), 'Steady rides')).toBe('30')
     cleanup()
     const imprecise = waitingStatus({ kind: 'imprecise', within: 0.07 }, 33, 'ride')
     render(
@@ -129,7 +131,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     const ride = rowNamed('Ride')
     expect(lineOf(ride).textContent).toBe('200 W at 140 bpm.')
-    expect(detailsOf(ride)).toContain('From 33 steady rides.')
+    expect(rowValue(opened(ride), 'Steady rides')).toBe('33')
     expect(spoken(ride)).not.toMatch(/uncertain|not enough|of \d+ /)
   })
 
@@ -147,12 +149,11 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     )
     const card = rowNamed('Run · No trend yet')
     expect(textOf(lineOf(card))).toMatch(/^\d:\d{2} \/km at 150 bpm in October\.$/)
-    const details = detailsOf(card)
-    expect(details).toContain('(4:54 to 5:13) at 150 bpm in October.')
-    expect(details).toContain('From 40 steady runs.')
-    expect(screen.getByTestId('fitness-needs')).toHaveTextContent(
-      'A steady run in the last 4 weeks to see a trend.',
-    )
+    opened(card)
+    expect(rowValue(card, 'Range')).toBe('4:54 to 5:13 /km')
+    expect(rowValue(card, 'Level taken in')).toBe('October')
+    expect(rowValue(card, 'Steady runs')).toBe('40')
+    expect(rowValue(card, 'Trend')).toBe('Needs a steady run in the last 4 weeks')
     expect(spoken(card)).not.toMatch(BANNED)
   })
 
@@ -209,10 +210,11 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     })
     const card = rowNamed('Run · No trend yet')
     expect(textOf(lineOf(card))).toBe('5:03 /km at 150 bpm.')
-    const words = detailsOf(card)
-    expect(words).toContain('5:03 /km (4:54 to 5:13) at 150 bpm.')
-    expect(words).toContain('From 7 steady runs.')
-    expect(words).toContain('5 more earlier runs to see a trend.')
+    opened(card)
+    expect(rowValue(card, 'Pace at 150 bpm')).toBe('5:03 /km')
+    expect(rowValue(card, 'Range')).toBe('4:54 to 5:13 /km')
+    expect(rowValue(card, 'Steady runs')).toBe('7')
+    expect(rowValue(card, 'Trend')).toBe('Needs 5 more earlier runs')
     expect(spoken(card)).not.toMatch(BANNED)
     expect(spoken(card)).not.toMatch(/slower|faster|%/)
     expect(container.querySelector('.fitness-progress')).toBeNull()
@@ -220,15 +222,12 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     expect(container.querySelector('.fitness-evidence')).toBeNull()
   })
 
-  it('defines the heart rate and the range of a level in place, in its Details', () => {
+  it('has no defined terms or prose in a level’s Details: its rows and one Method link', () => {
     renderSection({
       run: waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
     })
-    const card = rowsOf()[0]!
-    detailsOf(card)
-    const terms = within(card.querySelector('details')!)
-      .getAllByRole('button', { expanded: false })
-      .map((button) => button.textContent)
-    expect(terms).toEqual(['(4:54 to 5:13)', 'at 150 bpm', 'steady runs'])
+    const card = opened(rowsOf()[0]!)
+    expect(within(card.querySelector('details')!).queryAllByRole('button')).toHaveLength(0)
+    expect(within(card).getAllByRole('link')).toHaveLength(1)
   })
 })

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NumText } from '../components/NumText'
-import { indoorSplitLine } from '../indoorCopy'
+import { NO_ROWS } from '../components/property'
+import type { Property } from '../components/property'
+import { indoorSplitRow } from '../indoorCopy'
 import { countSport } from '../records'
-import { formLine } from '../sportForm'
+import { formRows } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { PageDetails } from './PageDetails'
@@ -25,14 +26,12 @@ export function SportPage(props: SportPageProps) {
     result,
     weighted,
     controls,
-    periodLine = null,
-    periodCounts = false,
+    periodRows = NO_ROWS,
     footnote = null,
     inLibrary,
     units,
     fitness,
     library,
-    onFile,
   } = props
   const count = countSport(result.activities, sport)
   // The time the page was opened at, read once so a later render does not move a record's age.
@@ -40,12 +39,14 @@ export function SportPage(props: SportPageProps) {
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
   const rows = held || count === 0 ? [] : layoutOf(sport, { ...props, count, openedAt })
-  // The period's line gives the count when it has one, so the page's own line does not say it twice.
-  const form =
-    count === 0
-      ? null
-      : formLine(result.activities, sport, units, openedAt, periodCounts ? null : onFile)
-  const split = count === 0 ? null : indoorSplitLine(result.activities, sport)
+  // The Details under the title: the last activity and the distance, the period's rows (which give the count), and the
+  // split between indoor and outdoor, which qualifies the answer, so it is said here, once.
+  const split = count === 0 || held ? null : indoorSplitRow(result.activities, sport)
+  const details: Property[] = [
+    ...(count === 0 || held ? [] : formRows(result.activities, sport, units, openedAt)),
+    ...(inLibrary > 0 ? periodRows : []),
+    ...(split === null ? [] : [split]),
+  ]
   return (
     <div className="page-stack sport-page" data-sport={sport}>
       <div className="sport-page__head">
@@ -53,17 +54,7 @@ export function SportPage(props: SportPageProps) {
           {SPORT_LABEL[sport]}
         </h1>
         {inLibrary > 0 ? controls : null}
-        {/* The last activity, the distance and the period's dates and counts are one press down, not lines under the title. */}
-        <PageDetails>
-          {form && !held ? <p className="meta sport-page__form">{form}</p> : null}
-          {inLibrary > 0 ? periodLine : null}
-          {/* The split between indoor and outdoor qualifies the answer, so it is said here, once. */}
-          {split === null || held ? null : (
-            <p data-testid="indoor-split">
-              <NumText text={split} />
-            </p>
-          )}
-        </PageDetails>
+        <PageDetails rows={details} />
       </div>
       <SportAnswer {...props} count={count} held={held} />
       {/* The fitness status sits directly under the hero: it is library-wide, so it does not wait on the period. */}

@@ -18,6 +18,7 @@ import { fitnessViews } from '../fitnessModel'
 import { FITNESS_WORDS } from '../fitnessWords'
 import { HoldInputsContext } from '../holdContext'
 import type { HoldInputs } from '../resultHold'
+import { rowsIn, rowValue } from '../test/propertyRows'
 import { FitnessCard } from './FitnessCard'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'
@@ -34,16 +35,19 @@ function spoken(node: Element): string {
 }
 
 /**
- * A row's words as read: its one line under the title, then what its Details hold: the level with its range, a line
- * for each change after the first, and the steady activities behind them.
+ * A row's words as read: its one line under the title, then what its Details hold as rows: the level at its heart rate, the
+ * other changes, and the steady activities behind them.
  */
 function linesOf(row: Element) {
-  const text = (selector: string) => spoken(row.querySelector(selector)!)
+  const rows = rowsIn(row)
+  const value = (label: RegExp) => rows.find(([name]) => label.test(name))?.[1] ?? null
   return {
-    line: text('[data-testid="fitness-line"]'),
-    headline: text('.fitness-card__headline'),
-    changes: [...row.querySelectorAll('[data-testid="fitness-change"]')].map(spoken),
-    support: text('.fitness-card__support'),
+    line: spoken(row.querySelector('[data-testid="fitness-line"]')!),
+    level: value(/ at \d+ bpm$/),
+    changes: rows
+      .filter(([name]) => name === 'Pace change' || name === 'Power change')
+      .map(([, text]) => text),
+    steady: value(/^Steady (runs|rides)$/),
   }
 }
 
@@ -129,9 +133,9 @@ describe('FitnessSection', () => {
     const ride = linesOf(rows[1]!)
     // The one line is the change, without its range; the level is in the Details.
     expect(ride.line).toMatch(/^\d+% off your level before \d+ [A-Z][a-z]{2}\.$/)
-    expect(ride.headline).toMatch(/^\d+ W at 140 bpm\.$/)
+    expect(rowValue(rows[1]!, 'Power at 140 bpm')).toMatch(/^\d+ W$/)
     expect(ride.changes).toHaveLength(0)
-    expect(ride.support).toMatch(/^From 12 steady rides, /)
+    expect(ride.steady).toBe('12')
     expect(spoken(rows[1]!)).not.toMatch(BANNED)
     both.unmount()
     render(
@@ -161,12 +165,11 @@ describe('FitnessSection', () => {
     const card = rowNamed('Run · Slipping')
     const lines = linesOf(card)
     expect(lines.line).toMatch(/^\d+% off your level before \d+ [A-Z][a-z]{2}\.$/)
-    expect(lines.headline).toMatch(/^\d:\d{2} \/km at 150 bpm\.$/)
-    expect(
-      card.querySelector('details')?.contains(card.querySelector('.fitness-card__headline')),
-    ).toBe(true)
+    expect(lines.level).toMatch(/^\d:\d{2} \/km$/)
+    expect(rowValue(card, 'Pace at 150 bpm')).toBe(lines.level)
+    expect(card.querySelector('details')?.contains(card.querySelector('.props'))).toBe(true)
     expect(lines.changes).toHaveLength(0)
-    expect(lines.support).toMatch(/^From 12 steady runs, \d+ [A-Z][a-z]{2} to \d+ [A-Z][a-z]{2}\.$/)
+    expect(lines.steady).toBe('12')
     expect(spoken(card)).not.toMatch(BANNED)
   })
 
@@ -176,46 +179,38 @@ describe('FitnessSection', () => {
     const { line, changes } = linesOf(rowsOf()[0]!)
     expect(line).toMatch(/^Up \d+% from your \w+ low\.$/)
     expect(changes).toHaveLength(1)
-    expect(changes[0]).toMatch(/^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}\.$/)
+    expect(changes[0]).toMatch(/^\d+% \(\d+ to \d+\) off your level before \d+ [A-Z][a-z]{2}$/)
     expect(screen.queryByTestId('fitness-season')).toBeNull()
   })
 
-  it('defines the terms that carry the answer in place, in its Details: the heart rate, the range and a steady run', () => {
+  it('keeps prose out of its Details: rows and one Method link, no defined terms', () => {
     renderSection({ run: RECOVERING })
     const card = rowsOf()[0]!
     openDetails(card)
-    // The one line under the title carries no defined term: its figures are plain.
     expect(card.querySelector('[data-testid="fitness-line"] .definition')).toBeNull()
-    const terms = within(card)
-      .getAllByRole('button', { expanded: false })
-      .map((button) => button.textContent)
-    expect(terms).toContain('at 150 bpm')
-    expect(terms.some((text) => /^\(\d+ to \d+\)$/.test(text ?? ''))).toBe(true)
-    expect(terms).toContain('steady runs')
-    const heartRate = within(card).getByRole('button', { name: 'at 150 bpm' })
-    fireEvent.click(heartRate)
-    expect(card.querySelector('.definition__note')?.textContent).toMatch(/one heart rate, 150 bpm/)
+    expect(card.querySelector('details .props')).not.toBeNull()
+    expect(
+      within(card).getByRole('link', { name: /^Method, how run fitness is worked out$/ }),
+    ).toBeInTheDocument()
   })
 
   it('wears a New marker with the week the state began, only while it is new', () => {
     renderSection()
-    expect(screen.getByTestId('fitness-new').textContent).toBe('New since the week of 12 Oct.')
-    expect(screen.getByTestId('fitness-new').closest('details')).not.toBeNull()
+    expect(rowValue(document.body, 'New since')).toBe('the week of 12 Oct')
     cleanup()
     renderSection({ run: HOLDING })
-    expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
+    expect(rowValue(document.body, 'New since')).toBeNull()
   })
 
   it('says how old the status is once its newest activity is long ago by the clock, and drops the New marker', () => {
     renderSection({ nowMs: FITNESS_AS_OF_MS + 280 * 86_400_000 })
-    expect(screen.getByTestId('fitness-age')).toHaveTextContent('Latest activity 9 months ago.')
-    expect(screen.queryByTestId('fitness-new')).not.toBeInTheDocument()
+    expect(rowValue(document.body, 'Latest activity')).toBe('9 months ago')
+    expect(rowValue(document.body, 'New since')).toBeNull()
     expect(spoken(rowsOf()[0]!)).not.toMatch(BANNED)
-    expect(screen.getByTestId('fitness-age').closest('details')).not.toBeNull()
     cleanup()
     renderSection()
-    expect(screen.queryByTestId('fitness-age')).not.toBeInTheDocument()
-    expect(screen.getByTestId('fitness-new')).toBeInTheDocument()
+    expect(rowValue(document.body, 'Latest activity')).toBeNull()
+    expect(rowValue(document.body, 'New since')).not.toBeNull()
   })
 
   it('has a title and a track in its Details for each state that has a change, and the track stays out of the reading order', () => {
@@ -356,11 +351,11 @@ describe('the evidence panel', () => {
       evidence: { ...SLIPPING.evidence!, method: { ...SLIPPING.evidence!.method, heat: 0.03 } },
     }
     renderSection({ run: warmed })
-    expect(screen.getAllByTestId('fitness-heat')).toHaveLength(1)
-    expect(screen.getByTestId('fitness-heat')).toHaveTextContent('Adjusted for warm days.')
+    expect(screen.getAllByText('Warm days')).toHaveLength(1)
+    expect(rowValue(document.body, 'Warm days')).toBe('Adjusted for')
     cleanup()
     renderSection({ run: SLIPPING })
-    expect(screen.queryByTestId('fitness-heat')).toBeNull()
+    expect(rowValue(document.body, 'Warm days')).toBeNull()
   })
 
   it('counts in the athlete’s unit: miles beside the kilometres it reads, none for a metric athlete', () => {

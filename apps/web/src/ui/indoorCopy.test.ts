@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { effortsCount } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
 import { makeActivity } from './components/fixtures'
-import { indoorCount, indoorNeedLine, indoorSplitLine } from './indoorCopy'
+import { indoorCount, indoorNeedLine, indoorSplitRow } from './indoorCopy'
 
 /** n activities of a sport, the first `indoor` of them indoors. */
 function some(sport: Sport, n: number, indoor: number) {
@@ -43,22 +43,28 @@ describe('indoorNeedLine', () => {
   })
 })
 
-describe('indoorSplitLine', () => {
+describe('indoorSplitRow', () => {
   it('says nothing of indoor rides, whose power counts like any other', () => {
-    expect(indoorSplitLine(some('ride', 40, 6), 'ride')).toBeNull()
-    expect(indoorSplitLine(some('ride', 3, 3), 'ride')).toBeNull()
+    expect(indoorSplitRow(some('ride', 40, 6), 'ride')).toBeNull()
+    expect(indoorSplitRow(some('ride', 3, 3), 'ride')).toBeNull()
   })
 
   it('says the treadmill split of a mixed run library once, and leaves an all-treadmill one to the need line', () => {
-    expect(indoorSplitLine(some('run', 20, 5), 'run')).toBe('5 treadmill runs: pace not used.')
-    expect(indoorSplitLine(some('run', 20, 1), 'run')).toBe('1 treadmill run: pace not used.')
-    expect(indoorSplitLine(some('run', 20, 20), 'run')).toBeNull()
-    expect(indoorSplitLine(some('run', 20, 0), 'run')).toBeNull()
+    expect(indoorSplitRow(some('run', 20, 5), 'run')).toEqual({
+      label: 'Treadmill runs',
+      value: '5, pace not used',
+    })
+    expect(indoorSplitRow(some('run', 20, 1), 'run')).toEqual({
+      label: 'Treadmill runs',
+      value: '1, pace not used',
+    })
+    expect(indoorSplitRow(some('run', 20, 20), 'run')).toBeNull()
+    expect(indoorSplitRow(some('run', 20, 0), 'run')).toBeNull()
   })
 
   it('has a line for each sport exactly when the one rule leaves its indoor efforts out', () => {
     for (const sport of ['run', 'ride'] as const) {
-      const says = indoorSplitLine(some(sport, 10, 4), sport)
+      const says = indoorSplitRow(some(sport, 10, 4), sport)
       expect(says !== null).toBe(!effortsCount({ sport, indoor: true }))
     }
   })

@@ -87,21 +87,13 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
-    name: 'Balance, a fitness definition open',
+    name: 'Balance, the run fitness evidence open',
     open: async (page) => {
       await openSample(page)
-      await page
-        .locator('.fitness-card[data-sport="run"] .fitness-card__evidence > summary')
-        .click()
-      // By keyboard: a term that wraps over two lines has no one point to click.
-      await page
-        .locator('.fitness-card')
-        .getByRole('button', { name: /^at \d+ bpm$/ })
-        .focus()
-      await page.keyboard.press('Enter')
-      await expect(
-        page.locator('.fitness-card[data-sport="run"] .definition__note').first(),
-      ).toBeVisible()
+      const evidence = page.locator('.fitness-card[data-sport="run"] .fitness-card__evidence')
+      await evidence.locator('> summary').click()
+      // The evidence is a detail panel: its rows are what is scanned.
+      await expect(evidence.locator('.props__list').first()).toBeVisible()
     },
   },
   {

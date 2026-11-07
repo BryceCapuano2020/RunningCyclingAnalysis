@@ -1,7 +1,7 @@
 import { SPORT_ADAPTERS } from '../findings/adapters'
 import { counted, formatDay, formatRelative } from '../findings/copy'
 import type { Sport } from '../types'
-import { formatPace, formatPaceValue, formatPower, formatWatts } from '../units'
+import { PACE_UNIT, formatPace, formatPaceValue, formatPower, formatWatts } from '../units'
 import type { UnitSystem } from '../units'
 import { FITNESS } from './params'
 import type { FitnessStatus, Ranged, Shortfall, SpokenState } from './types'
@@ -195,6 +195,45 @@ function needsText(sport: Sport, s: Shortfall): string {
   }
 }
 
+/** The figures a status prints, as text in the athlete's units: the level, its range and the steady activities behind it. */
+export interface FitnessFigures {
+  /** The level now, or the level a status that cannot call a trend has; null with neither. */
+  level: string | null
+  /** The level's range, "194 to 206 W" (a run's faster pace first); null without a level. */
+  range: string | null
+  /** The month a break's level was taken in, "October", or null when the sport is not on a break. */
+  month: string | null
+  /** The unit the range is in, "/km" or "W". */
+  unit: string
+  /** The steady activities the level rests on; null with none. */
+  steady: number | null
+}
+
+/** The unit a range is in, by sport. */
+const UNIT: Record<Sport, (system: UnitSystem) => string> = {
+  run: (system) => PACE_UNIT[system],
+  ride: () => 'W',
+}
+
+/** One source for the figures of the lines and of the Details rows: the status's level, range and steady count. */
+export function fitnessFigures(s: FitnessStatus, system: UnitSystem): FitnessFigures {
+  const w = WORDS[s.sport]
+  const level = s.level
+  const spoken = isSpoken(s)
+  return {
+    level: spoken
+      ? w.level(s.now, system)
+      : level === undefined
+        ? null
+        : w.level(level.value, system),
+    range: level === undefined ? null : w.range(level.low, level.high, system),
+    month:
+      s.shortfall?.kind === 'break' && level !== undefined ? monthOf(level.toMs, s.asOfMs) : null,
+    unit: UNIT[s.sport](system),
+    steady: spoken ? (s.evidence?.recent.runs ?? null) : (level?.runs ?? null),
+  }
+}
+
 export interface FitnessLines {
   /** The level, number first: "5:30 /km at 150 bpm." */
   headline: string
@@ -220,19 +259,20 @@ function waitingLines(s: FitnessStatus, system: UnitSystem): FitnessLines {
   if (level === undefined) {
     return { headline: w.none(s.steady), changes: [], support: '', needs: '' }
   }
-  const on = s.shortfall!.kind === 'break' ? ` in ${monthOf(level.toMs, s.asOfMs)}` : ''
+  const figures = fitnessFigures(s, system)
+  const on = figures.month === null ? '' : ` in ${figures.month}`
   return {
-    headline: `${w.level(level.value, system)} (${w.range(level.low, level.high, system)}) at ${s.referenceHr} bpm${on}.`,
+    headline: `${figures.level} (${figures.range}) at ${s.referenceHr} bpm${on}.`,
     changes: [],
-    support: `From ${counted(level.runs, w.steady)}.`,
+    support: `From ${counted(figures.steady!, w.steady)}.`,
     needs: needsText(s.sport, s.shortfall!),
   }
 }
 
 /** The support line: the steady activities in the recent stretch, with the days they span. */
-function support(s: FitnessStatus): string {
+function support(s: FitnessStatus, system: UnitSystem): string {
   const { recent } = s.evidence!
-  return `From ${counted(recent.runs, WORDS[s.sport].steady)}, ${formatDay(recent.fromMs)} to ${formatDay(recent.toMs)}.`
+  return `From ${counted(fitnessFigures(s, system).steady!, WORDS[s.sport].steady)}, ${formatDay(recent.fromMs)} to ${formatDay(recent.toMs)}.`
 }
 
 /** A status that calls a state: it has a change and a level to say. */
@@ -251,11 +291,11 @@ export function fitnessLines(s: FitnessStatus, system: UnitSystem): FitnessLines
 }
 
 function spokenLines(s: Spoken, system: UnitSystem): FitnessLines {
-  const headline = `${WORDS[s.sport].level(s.now, system)} at ${s.referenceHr} bpm.`
+  const headline = `${fitnessFigures(s, system).level} at ${s.referenceHr} bpm.`
   return {
     headline,
     changes: changesOf(s).map((line) => `${line}.`),
-    support: support(s),
+    support: support(s, system),
     needs: '',
   }
 }

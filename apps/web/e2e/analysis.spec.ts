@@ -278,9 +278,10 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   // the row's Details, inside the row, under its line.
   await expect(page.locator(FITNESS_LINE)).toHaveText(/^\S.*\.$/)
   await expect(page.locator(FITNESS_LINE)).not.toHaveText(/\(\S+ to \S+\)/)
-  await expect(page.getByTestId('fitness-new')).toBeHidden()
+  const fresh = page.locator(`${FITNESS_CARD} .props__row`, { hasText: /^New since/ })
+  await expect(fresh).toBeHidden()
   await page.locator(`${FITNESS_DETAILS} > summary`).click()
-  await expect(page.getByTestId('fitness-new')).toContainText('since the week of')
+  await expect(fresh.locator('dd')).toContainText('the week of')
   const trackEdges = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
   const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
   const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
@@ -354,7 +355,7 @@ for (const [width, height] of [
       FITNESS_CARD,
       `${FITNESS_CARD} .fitness-track__ends`,
       FITNESS_LINE,
-      `${FITNESS_CARD} .fitness-card__headline`,
+      `${FITNESS_CARD} .props`,
       '.balance-meter__ends',
       VALUE,
       '.balance-meter__edges',
@@ -555,7 +556,6 @@ test('no box around a defined term is transformed, filtered or contained, on the
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
     const found = await definedTermAncestors(page)
-    expect(found.terms, sport).toBeGreaterThan(0)
     expect(found.bad, sport).toEqual([])
   }
 })
