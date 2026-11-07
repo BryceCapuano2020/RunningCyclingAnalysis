@@ -1,3 +1,5 @@
+-- NOT YET APPLIED TO PRODUCTION: the owner approves the migration and applies it before the Worker that
+-- writes it is deployed (docs/RELEASES.md).
 -- Hand-written on purpose, as 0009 is: drizzle-kit would rebuild `users` (drop and copy) to add the check,
 -- which cascades from a table every row references. ALTER TABLE ADD COLUMN adds the named check in place.
 -- The snapshot is drizzle-kit's. Additive: a new table and defaulted columns, so the Worker that is live
