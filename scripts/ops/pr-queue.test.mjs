@@ -213,3 +213,42 @@ test('a draft-gate run followed by a full green run is green, and alone is stale
   const both = [...draftRun, ...fullRun(11, {}, LATER)]
   assert.equal(verdict(pr({ statusCheckRollup: both })).kind, 'merging')
 })
+
+/** A finished check in run `run`, ended at `end`, as the rollup carries it. */
+const endedIn = (run, job, name, conclusion, end) => ({
+  ...done(name, conclusion),
+  completedAt: end,
+  workflowName: 'CI',
+  detailsUrl: `https://github.com/o/r/actions/runs/${run}/job/${job}`,
+})
+const NOW = Date.parse('2026-10-31T02:00:00Z')
+const minutesBefore = (m) => new Date(NOW - m * 60_000).toISOString()
+
+test('a run that a push or the ready event just cancelled reads as running, not failing', () => {
+  const rollup = [
+    ...CI.map((name, i) => endedIn(20, 2000 + i, name, 'CANCELLED', minutesBefore(2))),
+    endedIn(20, 2099, 'CI result', 'FAILURE', minutesBefore(2)),
+  ]
+  const row = verdict(pr({ statusCheckRollup: rollup }), NOW)
+  assert.equal(row.kind, 'running')
+  assert.equal(actionText('main abc: green', 'green', [{ number: 1, title: 't', ...row }]), '')
+})
+
+test('a cancelled run with no newer run after the settle time needs someone', () => {
+  const rollup = CI.map((name, i) => endedIn(21, 2100 + i, name, 'CANCELLED', minutesBefore(20)))
+  const row = verdict(pr({ statusCheckRollup: rollup }), NOW)
+  assert.equal(row.kind, 'stale-draft-run')
+  assert.match(row.detail, /cancelled/)
+})
+
+test('a run that saw a draft is waited on for the settle time, then flagged', () => {
+  const draftRun = (end) =>
+    CI.map((name, i) =>
+      endedIn(22, 2200 + i, name, name === 'Lint, typecheck, build' ? 'SKIPPED' : 'FAILURE', end),
+    )
+  assert.equal(verdict(pr({ statusCheckRollup: draftRun(minutesBefore(3)) }), NOW).kind, 'running')
+  assert.equal(
+    verdict(pr({ statusCheckRollup: draftRun(minutesBefore(15)) }), NOW).kind,
+    'stale-draft-run',
+  )
+})

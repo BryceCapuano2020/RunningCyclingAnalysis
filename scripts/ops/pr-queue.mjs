@@ -40,6 +40,7 @@ function toCheck(item) {
       done: item.state !== 'PENDING' && item.state !== 'EXPECTED',
       result: item.state === 'SUCCESS' ? 'SUCCESS' : failed,
       at: item.startedAt ?? '',
+      end: '',
       workflow: null,
       run: 0,
       job: 0,
@@ -51,6 +52,7 @@ function toCheck(item) {
     done: item.status === 'COMPLETED',
     result: item.conclusion,
     at: item.startedAt ?? '',
+    end: item.completedAt ?? '',
     workflow: item.workflowName ?? '',
     run: Number(run ?? 0),
     job: Number(job ?? 0),
@@ -84,18 +86,40 @@ export function latestChecks(rollup = []) {
   return latest
 }
 
+/**
+ * How long a finished run may stand as the latest before it counts: marking a pull request ready or
+ * pushing cancels the old run, and the new run's checks reach the rollup a little later.
+ */
+export const SETTLE_MS = 10 * 60 * 1000
+
+/** Whether the latest run finished within SETTLE_MS of now, so a newer run may still be on its way. */
+function settling(checks, now) {
+  const ends = [...checks.values()].map((c) => Date.parse(c.end)).filter(Number.isFinite)
+  return ends.length > 0 && now - Math.max(...ends) < SETTLE_MS
+}
+
 /** What one pull request needs next: { kind, detail }. */
-export function verdict(pr) {
+export function verdict(pr, now = Date.now()) {
   if (pr.isDraft) {
     return { kind: 'draft', detail: pr.mergeStateStatus === 'DIRTY' ? 'conflict with main' : '' }
   }
   const checks = latestChecks(pr.statusCheckRollup)
   if (pr.mergeStateStatus === 'DIRTY') return { kind: 'conflict', detail: 'rebase on main' }
-  if (checks.get(STATIC_JOB)?.result === 'SKIPPED') {
+  // A run that saw a draft, or one a newer push or ready event cancelled, is replaced by the run that
+  // follows. Only when no newer run has shown up after SETTLE_MS does it need someone.
+  const sawDraft = checks.get(STATIC_JOB)?.result === 'SKIPPED'
+  const cancelled = [...checks.values()].some((c) => c.result === 'CANCELLED')
+  if ((sawDraft || cancelled) && settling(checks, now)) {
+    return { kind: 'running', detail: 'its last run was replaced; the next one is starting' }
+  }
+  if (sawDraft) {
     return {
       kind: 'stale-draft-run',
       detail: 'its run saw a draft: re-run all jobs or push a commit',
     }
+  }
+  if (cancelled) {
+    return { kind: 'stale-draft-run', detail: 'its run was cancelled and none followed: re-run it' }
   }
   if (checks.size === 0) return { kind: 'no-checks', detail: 'no CI run yet' }
   const failed = [...checks.values()].filter((c) => c.done && FAILED.has(c.result))
