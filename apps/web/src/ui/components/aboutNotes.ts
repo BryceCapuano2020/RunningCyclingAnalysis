@@ -1,3 +1,5 @@
+import { formatCount } from '../format/count'
+import type { Property } from './property'
 import type { SessionState } from '@rca/core/session'
 import {
   WALKING_NOTE_PAGES,
@@ -34,4 +36,19 @@ export function aboutNotesOf(
       ? [{ id: 'labelled', count: labelled, text: labelledText(labelled) }]
       : []),
   ]
+}
+
+/** What each note's row is called in a page's Details. */
+const NOTE_LABEL: Record<string, string> = {
+  copies: 'Copies hidden',
+  walking: 'At walking pace',
+  labelled: 'Hikes and walks',
+}
+
+/** A note as a detail panel's row: what it is, and how many, which stay in the activities and out of the analysis. */
+export function noteRow(note: AboutNote): Property {
+  return {
+    label: NOTE_LABEL[note.id] ?? note.id,
+    value: note.id === 'copies' ? formatCount(note.count) : `${formatCount(note.count)}, left out`,
+  }
 }

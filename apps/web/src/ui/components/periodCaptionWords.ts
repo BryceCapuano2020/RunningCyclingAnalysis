@@ -1,3 +1,6 @@
+import { createElement } from 'react'
+import type { ReactNode } from 'react'
+import type { Property } from './property'
 import { formatCount } from '../format/count'
 import { plural } from './plural'
 import { NOUNS, SWAPPED_NOTE } from './periodNouns'
@@ -62,4 +65,41 @@ export function captionWords({
 export function captionSays(props: PeriodCaptionProps): { said: boolean; counted: boolean } {
   const { said, count } = captionWords(props)
   return { said, counted: count !== '' }
+}
+
+/** What a count's row is called, by the noun the page counts. */
+const COUNT_LABEL: Record<keyof typeof NOUNS, string> = {
+  activity: 'Activities',
+  run: 'Runs',
+  ride: 'Rides',
+}
+
+/**
+ * The period as a detail panel's rows (docs/design/system.md, Detail panels): its dates, how many of the total it holds,
+ * how many are not counted, each linked where the page gives a link, then the notes on why the window was chosen, each its own
+ * row.
+ */
+export function periodRows(props: PeriodCaptionProps, notes: readonly Property[]): Property[] {
+  const { dates, shown, total, notCounted, noun, countHref, notCountedHref, swapped } = props
+  const link = (text: string, href: string | undefined): ReactNode =>
+    href === undefined ? text : createElement('a', { href }, text)
+  return [
+    ...(dates === '' ? [] : [{ label: 'Period', value: dates }]),
+    ...(total === 0
+      ? []
+      : [
+          {
+            label: COUNT_LABEL[noun],
+            value: link(
+              shown < total ? `${formatCount(shown)} of ${formatCount(total)}` : formatCount(total),
+              countHref,
+            ),
+          },
+        ]),
+    ...(notCounted > 0
+      ? [{ label: 'Not counted', value: link(formatCount(notCounted), notCountedHref) }]
+      : []),
+    ...(swapped ? [{ label: 'Dates', value: SWAPPED_NOTE }] : []),
+    ...notes,
+  ]
 }

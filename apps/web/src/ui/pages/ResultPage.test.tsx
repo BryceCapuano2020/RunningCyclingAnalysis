@@ -17,6 +17,7 @@ import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fi
 import { ResultPage } from './ResultPage'
 import { preloadAllPages } from '../lazyPages'
 import { PERIOD_KEY } from '../periodPreference'
+import { rowValue, rowsIn } from '../test/propertyRows'
 import { wholeText } from '../test/wholeText'
 
 // ResultPage opens the activity, History, Profile and Method pages lazily: load them once, so no test's order decides
@@ -73,9 +74,7 @@ describe('ResultPage age grades', () => {
     expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*67%\s*Local/,
     )
-    const source = document.querySelector('.balance__source')
-    source?.querySelectorAll('.definition__note').forEach((note) => note.remove())
-    expect(source).toHaveTextContent(/^Age-graded on USATF road standards\.$/)
+    expect(rowValue(document.body, 'Graded on')).toBe('USATF road standards')
   })
 
   it('asks once for the year of birth alone when only that is missing', () => {
@@ -655,18 +654,17 @@ describe('ResultPage period', () => {
     )
   }
 
-  it('puts the latest activity, once it is old, in the period’s note, a line of its own under the dates in the Details', () => {
+  it('puts the latest activity, once it is old, in a row of its own under the dates in the Details', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(false)
-      // The dates and counts are one meta line in the Details under the answer, and the note the line after it.
-      const caption = container.querySelector('.period-caption__line')
-      const note = container.querySelector('.period-caption__note')
-      expect(note).toHaveTextContent(/ · Latest activity 17 months ago$/)
-      expect(caption?.textContent).not.toMatch(/Latest activity/)
-      expect(caption?.nextElementSibling).toBe(note)
-      expect(note?.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
+      expect(rowValue(container, 'Latest activity')).toBe('17 months ago')
+      expect(rowValue(container, 'Period')).not.toMatch(/Latest activity/)
+      const labels = rowsIn(container).map(([label]) => label)
+      expect(labels.indexOf('Latest activity')).toBeGreaterThan(labels.indexOf('Period'))
+      const row = container.querySelector('.props__row')!
+      expect(row.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
     } finally {
       vi.useRealTimers()
     }
@@ -685,8 +683,14 @@ describe('ResultPage period', () => {
         reason: 'all-time',
         passed,
       })
-      expect(container.querySelector('.period-caption__note')).toHaveTextContent(
-        'Last 12 weeks had too few rides · Same 2 activities as the 6 months to your latest activity · Latest activity 17 months ago',
+      expect(
+        rowsIn(container).filter(([label]) => label !== 'Period' && label !== 'Activities'),
+      ).toEqual(
+        expect.arrayContaining([
+          ['Last 12 weeks', 'Too few rides'],
+          ['Same activities as', '6 months to latest'],
+          ['Latest activity', '17 months ago'],
+        ]),
       )
       // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
       expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
@@ -708,9 +712,7 @@ describe('ResultPage period', () => {
     const { container } = renderOldLibrary(false, true, window)
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
-    expect(container.querySelector('.period-caption__note')).toHaveTextContent(
-      'Last 12 weeks had no 20 min runs',
-    )
+    expect(rowValue(container, 'Last 12 weeks')).toBe('No 20 min runs')
   })
 
   it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {
@@ -719,9 +721,9 @@ describe('ResultPage period', () => {
     try {
       const { container } = renderOldLibrary(true)
       // A longer period that holds nothing a shorter one does not says so, in place of repeating itself.
-      expect(container.querySelector('.period-caption__note')).toHaveTextContent(
-        /^Same 1 activity as the 6 weeks to your latest activity · Latest activity 17 months ago$/,
-      )
+      expect(rowValue(container, 'Same activities as')).toBe('6 weeks to latest')
+      expect(rowValue(container, 'Latest activity')).toBe('17 months ago')
+      expect(rowValue(container, 'Last 12 weeks')).toBeNull()
     } finally {
       vi.useRealTimers()
     }

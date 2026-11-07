@@ -19,7 +19,7 @@ import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthle
 import { ActivitiesPage } from './ActivitiesPage'
 import { BalancePage } from './BalancePage'
 import { ProfileFootnote } from '../components/ProfileFootnote'
-import { aboutNotesOf } from '../components/aboutNotes'
+import { aboutNotesOf, noteRow } from '../components/aboutNotes'
 import { MethodPage } from './MethodPage'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
@@ -108,7 +108,7 @@ export function ResultPage({
   // too, which then says what the page is based on.
   const askingForAge = missingAge === 'year of birth and sex' && !weightKnown
   const balanceFootnote = askingForAge ? null : footnote
-  const { pickPeriod, periods, caption, line, lineCounts } = useResultPeriod({
+  const { pickPeriod, periods, caption, line, lineCounts, rows } = useResultPeriod({
     route,
     analysis,
     library,
@@ -118,6 +118,7 @@ export function ResultPage({
   // The notes about the data (copies hidden, runs at walking pace) sit with the period's line in the one Details under
   // the title, so nothing stands above it and the title does not move between Balance, Run and Ride.
   const notes = aboutNotesOf(analysis.state, route.page)
+  const detailRows = [...rows, ...notes.map(noteRow)]
   const details =
     line === null && notes.length === 0 ? null : (
       <>
@@ -282,7 +283,7 @@ export function ResultPage({
             profile={profile}
             missingAge={missingAge}
             controls={caption}
-            periodLine={details}
+            periodRows={detailRows}
             leftOut={leftOut ?? undefined}
             onShowAll={() => pickPeriod('all')}
             footnote={balanceFootnote}

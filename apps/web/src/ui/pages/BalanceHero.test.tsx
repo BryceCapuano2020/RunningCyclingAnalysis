@@ -351,28 +351,27 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
   })
 
-  it('keeps the level target in the Details under the lede, the lede the one line under the answer', () => {
-    const target = 'To match it on the bike: 270 W for 20 min (245 to 295). You’re at 230 W.'
+  it('keeps the level target in the Details under the lede as rows, the lede the one line under the answer', () => {
+    const rows = [
+      { label: 'To match it on the bike', value: '270 W (245\u2013295)' },
+      { label: 'Your ride threshold', value: '230 W' },
+    ]
     const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
-    const { container, rerender } = render(<Hero {...props} gap={gradedGap()} target={target} />)
-    const line = screen.getByText(wholeText(target))
-    expect(line).toHaveClass('balance-hero__line')
-    // Its figures are mono, set as .num inside the sentence.
-    expect(Array.from(line.querySelectorAll('.num')).map((num) => num.textContent)).toEqual([
-      '270',
-      '20',
-      '245',
-      '295',
-      '230',
-    ])
+    const { container, rerender } = render(<Hero {...props} gap={gradedGap()} details={rows} />)
+    const label = screen.getByText('To match it on the bike')
+    expect(label.tagName).toBe('DT')
+    expect(label.nextElementSibling).toHaveTextContent('270 W (245\u2013295)')
+    expect(screen.getByText('Your ride threshold').nextElementSibling).toHaveTextContent('230 W')
     // One line under the answer: the lede, then the Details that hold the target, closed to start with.
-    const details = line.closest('details')!
+    const details = label.closest('details')!
     expect(details).toHaveClass('page-details')
     expect(details).not.toHaveAttribute('open')
     expect(details.previousElementSibling).toHaveClass('balance-hero__lede')
     expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
-    rerender(<Hero {...props} gap={gradedGap()} target={null} />)
-    expect(container.querySelector('.balance-hero__line')).toBeNull()
+    // The panel ends with the one Method link to the grades.
+    expect(details.querySelector('.props__method')).toHaveTextContent('Method')
+    rerender(<Hero {...props} gap={gradedGap()} />)
+    expect(container.querySelector('.page-details')).toBeNull()
     expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
   })
 
@@ -722,7 +721,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(screen.getByText('From 1 run and 2 rides.')).toBeInTheDocument()
+    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 2 rides')
     expect(screen.queryByText(/Add more runs or rides/)).not.toBeInTheDocument()
   })
 
@@ -741,7 +740,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(screen.getByText('From 1 run and 3 rides.')).toBeInTheDocument()
+    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 3 rides')
   })
 
   it('leaves that count off once each sport has three efforts', () => {
@@ -755,7 +754,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(screen.queryByText(/^From \d+ runs? and \d+ rides?\./)).not.toBeInTheDocument()
+    expect(screen.queryByText('Efforts used')).not.toBeInTheDocument()
   })
 
   it('says under an energy balance’s range that heart rate informed it, when the check used it', () => {

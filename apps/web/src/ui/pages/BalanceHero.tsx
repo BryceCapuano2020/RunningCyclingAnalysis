@@ -6,9 +6,11 @@ import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BalanceMeter } from '../components/BalanceMeter'
-import { uncheckedNote } from '../components/headlineNeed'
+import { uncheckedRows } from '../components/headlineNeed'
 import { levelsTitle } from '../components/headlineText'
-import { NumText } from '../components/NumText'
+import { SECTION_ID } from '../components/methodTopics'
+import { NO_ROWS } from '../components/property'
+import type { Property } from '../components/property'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
@@ -32,8 +34,6 @@ export interface BalanceHeroProps {
    * missing. The page works it out once, so the headline, the tiles and the changes cannot disagree.
    */
   reading: BalanceReading | null
-  /** What the lower sport would need to match the higher, as a sentence, under the lede; null when nothing would. */
-  target?: string | null
   /** The period on screen, named in the eyebrow and when it holds nothing to compare. */
   period: Period
   /** Shows all time, for when the period on screen holds nothing to compare. */
@@ -51,10 +51,11 @@ export interface BalanceHeroProps {
   levels?: ReactNode
   /** The period's status and Custom form, under the title. */
   controls?: ReactNode
-  /** The period's dates and counts as one meta line, which goes in the Details under the answer. */
-  periodLine?: ReactNode
-  /** The standards the grades are read against, the last line of the Details. */
-  standards?: ReactNode
+  /**
+   * The Details under the answer as a detail panel's rows: the period's dates and counts, what the lower sport would need
+   * to match the higher, and the standards the grades are read against.
+   */
+  details?: readonly Property[]
   /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
   leftOut?: LeftOutRuns
 }
@@ -70,7 +71,6 @@ export function BalanceHero({
   library,
   pick,
   reading,
-  target = null,
   period,
   onShowAll,
   weightKnown,
@@ -80,8 +80,7 @@ export function BalanceHero({
   rideLeftOut = null,
   levels = null,
   controls = null,
-  periodLine = null,
-  standards = null,
+  details = NO_ROWS,
   leftOut,
 }: BalanceHeroProps) {
   const hold = useHoldInputs()
@@ -105,10 +104,11 @@ export function BalanceHero({
           <WeightPrompt />
         </p>
         {controls}
-        <PageDetails>
-          {periodLine}
-          {standards}
-        </PageDetails>
+        <PageDetails
+          rows={details}
+          method={SECTION_ID.grades}
+          methodName="how the balance is graded"
+        />
         {action}
       </section>
     )
@@ -128,10 +128,11 @@ export function BalanceHero({
           {head(title)}
           {controls}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
-          <PageDetails>
-            {periodLine}
-            {standards}
-          </PageDetails>
+          <PageDetails
+            rows={details}
+            method={SECTION_ID.grades}
+            methodName="how the balance is graded"
+          />
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>
@@ -153,7 +154,7 @@ export function BalanceHero({
   const few = fewEffortsText(result)
   // The points rest on each sport's threshold, so no line says a best was not all-out. An energy balance still rests on the best
   // 20 min, and one nothing could check (no heart rate on it) is shown, with that said beside it.
-  const unchecked = reading.unit === 'percent' ? uncheckedNote(result) : null
+  const unchecked = reading.unit === 'percent' ? uncheckedRows(result) : []
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
@@ -173,17 +174,15 @@ export function BalanceHero({
             />
           </p>
           {/* The answer is the sentence and this one line; the period, the target and any caveat are one press down. */}
-          <PageDetails>
-            {periodLine}
-            {target !== null && (
-              <p className="balance-hero__line">
-                <NumText text={target} />
-              </p>
-            )}
-            {few !== null && <p className="balance-hero__line">{few}</p>}
-            {unchecked !== null && <p className="balance-hero__line">{unchecked}</p>}
-            {standards}
-          </PageDetails>
+          <PageDetails
+            rows={[
+              ...details,
+              ...(few === null ? [] : [{ label: 'Efforts used', value: few }]),
+              ...unchecked,
+            ]}
+            method={SECTION_ID.grades}
+            methodName="how the balance is graded"
+          />
         </div>
       </section>
       <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />

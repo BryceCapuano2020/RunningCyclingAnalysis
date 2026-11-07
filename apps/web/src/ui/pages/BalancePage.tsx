@@ -3,14 +3,14 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { ShareImageButton } from '../components'
-import { Definition } from '../components/Definition'
-import { NumText } from '../components/NumText'
 import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import { formatMonths } from '../format/date'
-import { levelTarget } from '../levelTarget'
+import { levelTarget, targetRows } from '../levelTarget'
+import { NO_ROWS } from '../components/property'
+import type { Property } from '../components/property'
 import { standingOf } from '../standing'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
@@ -25,7 +25,6 @@ import { soleSportOf } from '../soleSport'
 import { BALANCE_PAIR } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { balanceChanges } from './balanceChangeItems'
-import { DEFINITIONS } from './balanceDefinitions'
 import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
@@ -48,8 +47,8 @@ export interface BalancePageProps {
   missingAge: AgeGap | null
   /** The period's status and Custom form, shown under the answer it changes. */
   controls: ReactNode
-  /** The period's dates and counts, for the Details under the answer. */
-  periodLine?: ReactNode
+  /** The period's dates, counts and notes as rows, for the Details under the answer. */
+  periodRows?: readonly Property[]
   /** False while no body weight is entered, so the share card leaves out what needs one. */
   weightKnown: boolean
   /** The line that says what the page is based on, at its foot. */
@@ -77,7 +76,7 @@ export function BalancePage({
   profile,
   missingAge,
   controls,
-  periodLine = null,
+  periodRows = NO_ROWS,
   weightKnown,
   onShowAll,
   footnote = null,
@@ -179,22 +178,13 @@ export function BalancePage({
   // A library of one sport is that sport's home: no comparison slots, an invitation to add the other at the foot.
   const only = soleSportOf(library)
   const soleSport = only !== null && inPeriod[only] > 0 ? only : null
-  // The standards the grades are read against: what the answer rests on, so it is the last line of its Details.
-  // What a level is goes with them, where the line under the meter names one.
-  const levelNamed = levels?.rows.some((row) => row.level !== null) ?? false
-  const sourceLine = !gradeShown ? null : (
-    <>
-      {levelNamed ? (
-        <p className="balance__levels-meaning">
-          <NumText text={DEFINITIONS.level} />
-        </p>
-      ) : null}
-      <p className="balance__source">
-        <Definition meaning={DEFINITIONS.ageGrade}>Age-graded</Definition>
-        {` on ${ROAD_STANDARDS_SOURCE.shortName}.`}
-      </p>
-    </>
-  )
+  // The Details under the answer: the period, the level target, and the standards the grades are read against, which are
+  // shown only when a grade is on screen, so they never cite grades that are not there.
+  const details: Property[] = [
+    ...periodRows,
+    ...(target === null ? [] : targetRows(target)),
+    ...(gradeShown ? [{ label: 'Graded on', value: ROAD_STANDARDS_SOURCE.shortName }] : []),
+  ]
 
   return (
     <div className="page-stack balance-page">
@@ -203,7 +193,6 @@ export function BalancePage({
         library={library}
         pick={pick}
         reading={reading}
-        target={target?.sentence ?? null}
         period={period}
         onShowAll={onShowAll}
         weightKnown={weightKnown}
@@ -212,8 +201,7 @@ export function BalancePage({
         rideLeftOut={rideOut}
         levels={levels === null ? null : <BalanceLevels model={levels} />}
         controls={controls}
-        periodLine={periodLine}
-        standards={sourceLine}
+        details={details}
         leftOut={leftOut}
         action={
           <ShareImageButton

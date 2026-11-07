@@ -14,13 +14,12 @@ export interface AgeGradingSectionProps {
   gradedSex: Sex | null
 }
 
-/** The bands that have a lower bound: every level except Recreational, lowest first. */
-const BANDS = LEVEL_BANDS.filter((band) => band.min > 0)
-
-const BAND_TEXT = BANDS.map((band) => `${band.name} from ${Math.round(band.min * 100)}%`).join(', ')
-
-/** Recreational is everything below the lowest band. */
-const RECREATIONAL_BELOW = Math.round(BANDS[0]!.min * 100)
+/** Every level and where it starts, lowest first, from the grade constants: the lowest is everything below the next band. */
+const BAND_TEXT = LEVEL_BANDS.map((band, index) =>
+  index === 0
+    ? `${band.name} below ${Math.round(LEVEL_BANDS[1]!.min * 100)}%`
+    : `${band.name} from ${Math.round(band.min * 100)}%`,
+).join(', ')
 
 /** What the grade does not cover, in plain words: one fact a line. */
 const LIMITS = [
@@ -50,7 +49,6 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
             `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and sex, divided by your time.`,
             '70% means 70% of standard pace.',
             `Levels are bands of the grade: ${BAND_TEXT}.`,
-            `Below ${RECREATIONAL_BELOW}% is Recreational.`,
             'A ride’s level is the band of its best estimate.',
             'Its range, drawn on the ladder, can reach a neighbouring band.',
             'A run’s grade uses its grade-adjusted pace (GAP).',

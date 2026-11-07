@@ -33,11 +33,10 @@ describe('AgeGradingSection', () => {
     expect(
       within(section()).getByText(
         wholeText(
-          'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
+          'Levels are bands of the grade: Recreational below 60%, Local from 60%, Regional from 70%, National from 80%, World from 90%.',
         ),
       ),
     ).toBeInTheDocument()
-    expect(within(section()).getByText(wholeText('Below 60% is Recreational.'))).toBeInTheDocument()
   })
 
   it('says a ride’s level is the band of its best estimate, and that its range can reach a neighbouring band', () => {

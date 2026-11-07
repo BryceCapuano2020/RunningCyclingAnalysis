@@ -5,6 +5,7 @@ import { analysisStub, countedRunsStub } from '../../test/analysisStub'
 import { windowLibrary, windowPeriod } from '../../test/windowLibrary'
 import { makeActivity, makeResult } from '../components/fixtures'
 import type { Route } from '../route'
+import { rowValue } from '../test/propertyRows'
 import { ResultPage } from './ResultPage'
 
 afterEach(() => {
@@ -94,9 +95,8 @@ function renderWindow(route: Route, choice: number | 'all') {
 describe('the count of a period, out of what is on file', () => {
   it('counts what started in the period on file, the activity at walking pace with the rest', () => {
     const { container } = renderWindow({ page: 'balance' }, 42)
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '3 of 8 activities, 1 not counted',
-    )
+    expect(rowValue(container, 'Activities')).toBe('3 of 8')
+    expect(rowValue(container, 'Not counted')).toBe('1')
   })
 
   it('says the same on a sport page, for its own runs', () => {
@@ -132,23 +132,18 @@ describe('the count of a period, out of what is on file', () => {
 
   it('says every activity on file, and how many are not counted, for all time', () => {
     const { container } = renderWindow({ page: 'balance' }, 'all')
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '8 activities, 1 not counted',
-    )
+    expect(rowValue(container, 'Activities')).toBe('8')
+    expect(rowValue(container, 'Not counted')).toBe('1')
   })
 })
 
 describe('the count every page gives of the library', () => {
   it('gives Balance the activities on file, with the two numbers linked to where they are', () => {
     const { container } = renderPage({ page: 'balance' }, [COUNTED_RUNS[0]!, COUNTED_RIDE])
-    expect(container.querySelector('.range-picker__count')?.textContent).toBe(
-      '7 activities, 3 not counted',
-    )
-    expect(screen.getByRole('link', { name: '7 activities' })).toHaveAttribute(
-      'href',
-      '#/activities',
-    )
-    expect(screen.getByRole('link', { name: '3 not counted' })).toHaveAttribute(
+    expect(rowValue(container, 'Activities')).toBe('7')
+    expect(rowValue(container, 'Not counted')).toBe('3')
+    expect(screen.getByRole('link', { name: '7' })).toHaveAttribute('href', '#/activities')
+    expect(screen.getByRole('link', { name: '3' })).toHaveAttribute(
       'href',
       '#/activities?show=not-counted',
     )
