@@ -155,7 +155,7 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
 - **A page is at most 1,000 sets** in key order, with a stateless cursor. It takes one `liftRead` unit and is
   charged the number of rows it returned (at least one) on the `listRows` meter, which it shares with the
   activity list. A cross-site read is refused before anything is charged.
-- **The account export (planned; no export code reads lifts yet)** will read lifts page by page: up to 60 pages and 60,000 rows of the 200,000-row
+- **The account export** reads lifts page by page: up to 60 pages and 60,000 rows of the 200,000-row
   `listRows` meter, 60 of the 300 `liftRead` units, and about 60,000 D1 rows read.
 
 ## Activity list
