@@ -756,10 +756,12 @@ describe('the code behind the page', () => {
       'account',
       'profile',
       'measurements',
+      'lifts',
       'activities',
       'unreadable',
       'notes',
     ])
+    expect(text).toContain('every lifting set you have logged')
     expect(Object.keys(exported.profile)).toEqual([
       'massKg',
       'bikeMassKg',
