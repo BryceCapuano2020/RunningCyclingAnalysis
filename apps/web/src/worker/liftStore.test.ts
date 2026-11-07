@@ -49,6 +49,28 @@ describe('the lift store', () => {
     expect(await store.list()).toEqual([])
   })
 
+  it('holds a failed send with attempts + 1; a new edit starts again, and a stale hold leaves it', async () => {
+    const store = openLiftStore('u1')
+    const key = liftSetKey(make(1))
+    await store.save(make(1))
+    await store.applyHeld([{ key, rev: 1 }])
+    expect((await store.list())[0]).toMatchObject({ state: 'put', rev: 1, attempts: 1 })
+    await store.save(make(1, 70))
+    await store.applyHeld([{ key, rev: 1 }])
+    expect((await store.list())[0]).toMatchObject({ state: 'put', rev: 2, attempts: 0 })
+  })
+
+  it('settles a row only while it still holds that rev', async () => {
+    const store = openLiftStore('device')
+    const key = liftSetKey(make(1))
+    await store.save(make(1))
+    await store.save(make(1, 70))
+    await store.settle(key, 1)
+    expect(await store.list()).toHaveLength(1)
+    await store.settle(key, 2)
+    expect(await store.list()).toEqual([])
+  })
+
   it('sign-out removes synced rows and keeps unsent ones', async () => {
     const store = openLiftStore('u1')
     await store.applyPull([make(1), make(2)], 4, true)
