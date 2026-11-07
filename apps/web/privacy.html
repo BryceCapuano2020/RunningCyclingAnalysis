@@ -168,6 +168,14 @@
           does Remove all my activities, which is offered only when signed out.
         </li>
         <li>
+          Lifting sets you log are kept in this browser, in a database named rca-lifts. Signed out,
+          they live only there, are never uploaded, and stay until you clear this site's data.
+          Signed in, the same database holds a copy of your account's sets and the changes not yet
+          sent. Signing out removes the copy and keeps the unsent changes for your next sign-in.
+          Signing in as someone else removes every other account's rows, unsent ones included. Notes
+          are not kept.
+        </li>
+        <li>
           The name printed on a shared card stays in this browser: it is kept in local storage under
           rca.card-name.v1, and it is never uploaded, signed in or not. It is printed only on a card
           you share or save, and clearing this site's data removes it.
@@ -301,6 +309,14 @@
           outline is drawn from your original only when you ask for it, with Show route.
         </li>
         <li>
+          <strong>Lifting sets:</strong> each set you log, with its date, exercise, equipment, its
+          place in that day's order, reps, load in kilograms, effort (RPE), whether it was a
+          warm-up, an optional time of day with how exact it is, and when it last changed. The
+          exercise is a short name you may type yourself, so it can hold any words. Notes are not
+          kept. Your account also holds a count of its sets and a number that changes with each
+          write. Deleting your account removes them all.
+        </li>
+        <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
           changes, dated-setting changes and library reads, kept about a week, up to eight UTC days.
           When you create or delete an account, a one-way code made from your Google ID with a
@@ -393,10 +409,10 @@
       <h2>Your data file</h2>
       <p>
         Signed in, <strong>Download my data</strong> on the Profile page gives one JSON file: its
-        format and time, your account name and email, profile settings, your dated settings, and
-        each saved activity's ID, sport, start, name, file name, whether an original is stored, save
-        time and summary. It has no original files, and it says how many saved activities could not
-        be read.
+        format and time, your account name and email, profile settings, your dated settings, every
+        lifting set you have logged with all its stored fields, and each saved activity's ID, sport,
+        start, name, file name, whether an original is stored, save time and summary. It has no
+        original files, and it says how many saved activities could not be read.
       </p>
 
       <h2>Rights and changes</h2>
@@ -406,7 +422,7 @@
         policy.
       </p>
 
-      <p class="updated">Last updated 31 October 2026</p>
+      <p class="updated">Last updated 6 November 2026</p>
     </main>
 
     <footer class="footer">
