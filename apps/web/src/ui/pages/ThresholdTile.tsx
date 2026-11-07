@@ -7,7 +7,7 @@ import type { GradeOutcome } from '../grades'
 import { threshold } from '../records'
 import { THRESHOLD_MEANING } from '../sports'
 import { THRESHOLD_NAME } from '../thresholdName'
-import { thresholdBasisLine, thresholdDetail } from '../thresholdBasis'
+import { thresholdProperties } from '../thresholdBasis'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { gradeLine, needsWeight } from './thresholdTileBare'
 import { StatTile } from './StatTile'
@@ -93,8 +93,7 @@ export function ThresholdTile({
     >
       <ThresholdBasis
         sport={sport}
-        basis={thresholdBasisLine(result, sport)}
-        detail={thresholdDetail(result, sport, massKg, units)}
+        rows={thresholdProperties(result, sport, massKg, units)}
         className="stat-tile__source"
       />
       {line === null ? null : <p className="stat-tile__line">{line}</p>}

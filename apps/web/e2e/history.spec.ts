@@ -25,7 +25,7 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
   await expect(page).toHaveTitle(/^History · /)
   await expect(page.getByText('Years on file')).toBeVisible()
   await expect(page.getByText('Ride distance')).toBeVisible()
-  const chart = page.getByRole('figure', { name: 'Hours per year' })
+  const chart = page.getByRole('figure', { name: 'Hours per year, run and ride' })
   expect(await chart.getByTestId('year-bar').count()).toBeGreaterThan(0)
 
   // The keyboard reads the last year: each sport's hours, and the total.
@@ -57,9 +57,9 @@ test('the History tab draws all four charts in page order, and a sport toggle re
 
   // The toggle sits in the chart's control row, and choosing the ride redraws the chart around it.
   const bests = page.locator('[data-section="bests-by-year"]')
-  await expect(bests.getByRole('figure', { name: 'Run bests by year' })).toBeVisible()
+  await expect(bests.getByRole('figure', { name: 'Best times by year' })).toBeVisible()
   await bests.locator('.chart-frame__controls').getByText('Ride', { exact: true }).click()
-  await expect(bests.getByRole('figure', { name: 'Ride bests by year' })).toBeVisible()
+  await expect(bests.getByRole('figure', { name: 'Best power by year' })).toBeVisible()
   await expect(
     bests.locator('.chart-frame__controls').getByRole('radio', { name: 'Ride' }),
   ).toBeChecked()

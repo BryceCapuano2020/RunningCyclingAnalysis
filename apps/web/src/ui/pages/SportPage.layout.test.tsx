@@ -121,7 +121,7 @@ describe('the answer: threshold and level in one card', () => {
     expect(within(threshold).queryByRole('button', { name: 'Hard effort' })).toBeNull()
     expect(threshold.querySelector('.sport-hero__head .chip')).toBeNull()
     openDetail(threshold)
-    expect(within(threshold).getByRole('note')).not.toHaveTextContent(
+    expect(threshold.querySelector('.props')).not.toHaveTextContent(
       /close to your highest heart rate|heart rate/,
     )
   })

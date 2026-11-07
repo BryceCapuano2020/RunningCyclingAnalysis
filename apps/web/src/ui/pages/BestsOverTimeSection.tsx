@@ -7,8 +7,8 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { BestsOverTimeChart } from '../charts/BestsOverTimeChart'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { namedChangeAt } from '../charts/sportCurveTakeaway'
-import type { TakeawayInput } from '../charts/sportCurveTakeaway'
+import { namedChangeAt } from '../charts/sportCurveCited'
+import type { TakeawayInput } from '../charts/sportCurveCited'
 import { EFFORT_OPTIONS, effortOf } from '../records'
 
 /** The section's name, in its heading. */

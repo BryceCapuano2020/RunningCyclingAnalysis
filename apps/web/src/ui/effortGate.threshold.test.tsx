@@ -5,6 +5,7 @@ import { makeActivity, makeResult, makeRunThreshold } from './components/fixture
 import { gate, NO_HEART_RATE, THIN, UNKNOWN } from './effortGateFixtures'
 import { ThresholdPanel } from './pages/ThresholdPanel'
 import { ThresholdTile } from './pages/ThresholdTile'
+import { rowValue } from './test/propertyRows'
 import { hasThreshold, paceFigure, threshold } from './records'
 
 afterEach(cleanup)
@@ -53,7 +54,8 @@ describe('a run threshold whatever the effort gate says', () => {
     expect(screen.getByRole('article', { name: 'Run threshold' })).toBeInTheDocument()
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent(ESTIMATE_PACE)
     expect(container.querySelector('.stat-tile__effort')).toBeNull()
-    expect(container.textContent?.match(/From 3 runs\./g)).toHaveLength(1)
+    expect(container.textContent?.match(/Runs used/g)).toHaveLength(1)
+    expect(rowValue(container, 'Runs used')).toBe('3')
     expect(container.textContent).not.toMatch(
       /At least|From your best|90%|reference heart rate|would give a threshold/,
     )
