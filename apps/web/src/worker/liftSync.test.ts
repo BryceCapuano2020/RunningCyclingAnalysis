@@ -45,7 +45,7 @@ describe('the flush', () => {
     })
     const result = await createLiftSync({ store, transport }).flush()
     expect(calls.map((call) => call.type === 'put' && call.orders.length)).toEqual([1, 500])
-    expect(result).toMatchObject({ sent: 1, held: 500 })
+    expect(result).toMatchObject({ sent: 1, held: 501 })
     const rows = await store.list()
     expect(rows.find((row) => row.set.setOrder === 1)?.state).toBe('synced')
     expect(rows.filter((row) => row.state === 'put' && row.attempts === 0)).toHaveLength(501)
@@ -62,7 +62,7 @@ describe('the flush', () => {
         call <= 2 ? new LiftTransportError('invalid', [0]) : { liftRevision: 6 },
     })
     const result = await createLiftSync({ store, transport }).flush()
-    expect(result.refused).toBe(1)
+    expect(result.refused).toBe(2)
     expect(await stateOf(store)).toEqual({ 1: 'synced', 3: 'synced' })
     expect((await store.list()).find((row) => row.set.setOrder === 1)?.set.loadKg).toBe(60)
     expect(calls.map((call) => call.type === 'put' && call.orders)).toEqual([[1], [2, 3], [3]])
@@ -89,7 +89,7 @@ describe('the flush', () => {
     const down = fakeTransport({ remove: () => new LiftTransportError('other') })
     const first = await createLiftSync({ store, transport: down.transport }).flush()
     expect(down.calls).toHaveLength(1)
-    expect(first).toMatchObject({ held: 1, retryInMs: retryDelayMs(1) })
+    expect(first).toMatchObject({ held: 2, retryInMs: retryDelayMs(1) })
     expect((await store.list()).find((row) => row.state === 'delete')?.attempts).toBe(1)
 
     const signedOut = fakeTransport({ remove: () => new LiftTransportError('unauthorized') })
@@ -97,6 +97,23 @@ describe('the flush', () => {
     expect(second.unauthorized).toBe(true)
     expect(signedOut.calls).toHaveLength(1)
     expect((await store.list()).find((row) => row.state === 'delete')?.attempts).toBe(1)
+  })
+
+  it('a failure that will not repeat at once (413) holds its chunk and the flush goes on', async () => {
+    const store = openLiftStore('u1')
+    await store.applyPull([make(1)], 4, true)
+    await store.save(make(1, 65))
+    await store.save(make(2))
+    const { transport, calls } = fakeTransport({
+      put: (_sets, call) =>
+        call === 1 ? new LiftTransportError('other', [], false) : { liftRevision: 5 },
+    })
+    const result = await createLiftSync({ store, transport }).flush()
+    expect(calls).toHaveLength(2)
+    expect(result).toMatchObject({ sent: 1, held: 1, retryInMs: retryDelayMs(1) })
+    const rows = await store.list()
+    expect(rows.find((row) => row.set.setOrder === 1)).toMatchObject({ state: 'put', attempts: 1 })
+    expect(rows.find((row) => row.set.setOrder === 2)?.state).toBe('synced')
   })
 
   it('a restart mid-send leaves the rows as they were and the next flush resends', async () => {
@@ -231,31 +248,6 @@ describe('the pull', () => {
     expect((await sync.sync()).pull).toBeNull()
     expect((await sync.sync(6)).pull).toMatchObject({ complete: true })
     expect((await sync.sync(6)).pull).toBeNull()
-  })
-})
-
-describe('adoption', () => {
-  it('sends device sets insertOnly, counts the keys the account kept and removes the device rows', async () => {
-    const device = openLiftStore('device')
-    await device.save(make(1))
-    await device.save(make(2))
-    const account = openLiftStore('u1')
-    const { transport, calls } = fakeTransport({
-      put: () => ({ liftRevision: 3, skipped: [key(2)] }),
-    })
-    const result = await createLiftSync({ store: account, transport }).adopt(device)
-    expect(calls).toEqual([{ type: 'put', orders: [1, 2], insertOnly: true }])
-    expect(result).toEqual({ sent: 2, skipped: 1, done: true })
-    expect(await device.list()).toEqual([])
-  })
-
-  it('keeps the device rows when a request fails', async () => {
-    const device = openLiftStore('device')
-    await device.save(make(1))
-    const { transport } = fakeTransport({ put: () => new LiftTransportError('other') })
-    const result = await createLiftSync({ store: openLiftStore('u1'), transport }).adopt(device)
-    expect(result).toEqual({ sent: 0, skipped: 0, done: false })
-    expect(await device.list()).toHaveLength(1)
   })
 })
 

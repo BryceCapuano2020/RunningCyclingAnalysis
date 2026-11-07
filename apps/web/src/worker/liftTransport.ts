@@ -7,10 +7,13 @@ export class LiftTransportError extends Error {
   readonly kind: LiftFailure
   /** For `invalid`: the API's `refused` array, the sorted unique positions in the request's list the 400 names. Empty or missing names none, which holds every row of the request. */
   readonly refused: readonly number[]
-  constructor(kind: LiftFailure, refused: readonly number[] = []) {
+  /** For `other`: whether it will likely fail again at once (network, 429, 5xx), so the run stops. 413 and the like are false: one bad chunk must not block the sets after it. */
+  readonly transient: boolean
+  constructor(kind: LiftFailure, refused: readonly number[] = [], transient = true) {
     super(`Lift request failed: ${kind}`)
     this.kind = kind
     this.refused = refused
+    this.transient = transient
   }
 }
 

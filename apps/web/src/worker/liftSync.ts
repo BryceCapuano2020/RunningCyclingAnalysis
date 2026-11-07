@@ -3,20 +3,15 @@ import {
   MAX_LIFT_KEYS_PER_DELETE,
   MAX_LIFT_SETS_PER_WRITE,
 } from '@rca/core/lift'
-import type { LiftStore, SentRow } from './liftStore'
-import { LiftTransportError } from './liftTransport'
+import type { LiftStore } from './liftStore'
+import { newTally, sendChunk } from './liftSend'
+import type { SendTarget } from './liftSend'
 import type { LiftTransport } from './liftTransport'
 import type { LiftRow } from './liftTransitions'
 
 export const FLUSH_LOCK = 'rca-lifts-flush'
 
-const BACKOFF_BASE_MS = 2_000
-const BACKOFF_CAP_MS = 5 * 60_000
-
-/** How long to wait before the next flush after a row's `attempts` failures: doubling from two seconds, capped at five minutes. */
-export function retryDelayMs(attempts: number): number {
-  return Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** Math.max(0, attempts - 1))
-}
+export { retryDelayMs } from './liftSend'
 
 /** The part of the Web Locks API the engine uses. */
 export interface LockProvider {
@@ -44,11 +39,11 @@ function defaultLocks(): LockProvider {
 export interface FlushResult {
   /** Rows the server took. */
   sent: number
-  /** Rows a 400 sent back to their confirmed values, or removed; the athlete is told these were not saved. */
+  /** Rows a 400 changed: sent back to their confirmed values or removed. The athlete is told these were not saved. */
   refused: number
-  /** Rows left for later: held after a failure, or new sets the account has no room for. */
+  /** Every row left unsent: held after a failure, turned away for room, or not reached because the flush stopped. */
   held: number
-  /** Rows held by a failure; the wait before the next flush (retryDelayMs of the most failed), null when none. */
+  /** The wait before the next flush (retryDelayMs of the most failed row held by a failure), null when none. */
   retryInMs: number | null
   /** The sign-in ended: the flush stopped. */
   unauthorized: boolean
@@ -69,7 +64,13 @@ export interface AdoptResult {
   sent: number
   /** Sets the account already held, which stayed. */
   skipped: number
-  /** False when a request failed: the device rows not yet sent stay. */
+  /** Device rows a 400 removed. */
+  refused: number
+  /** Device rows the account had no room for; they stay on the device. */
+  capped: number
+  /** The sign-in ended. */
+  unauthorized: boolean
+  /** False when a request failed and the rest was not tried: the device rows not yet sent stay. */
   done: boolean
 }
 
@@ -86,7 +87,7 @@ export interface LiftSync {
   flush(): Promise<FlushResult>
   /** Reads the account's sets and applies them. */
   pull(): Promise<PullResult>
-  /** Flushes, then pulls if the account's revision is not the one last pulled (or `seen`, when given, differs from it). */
+  /** Flushes, then pulls while the newest revision seen (from answers, or `seen`) is not the one last pulled. */
   sync(seen?: number): Promise<{ flush: FlushResult; pull: PullResult | null }>
   /** Sends the device store's sets with insertOnly and removes the ones sent. */
   adopt(device: LiftStore): Promise<AdoptResult>
@@ -112,89 +113,50 @@ export function sendOrder(rows: readonly LiftRow[]): Record<Group, LiftRow[]> {
   }
 }
 
-const failureOf = (error: unknown): LiftTransportError =>
-  error instanceof LiftTransportError ? error : new LiftTransportError('other')
-
 export function createLiftSync(options: LiftSyncOptions): LiftSync {
   const { store, transport } = options
   const locks = options.locks ?? defaultLocks()
+  /** The revision the store last matched the account at, by a complete pull or by an ack that only our write moved. */
   let pulled = options.pulledRevision ?? null
+  /** The newest revision any answer or caller reported. */
+  let latest: number | null = pulled
 
-  const sentOf = (rows: readonly LiftRow[]): SentRow[] =>
-    rows.map((row) => ({ key: row.key, rev: row.rev }))
+  const noteRevision = (liftRevision: number) => {
+    // An answer one past the last known revision means only our own write happened: nothing to pull.
+    if (pulled !== null && liftRevision === pulled + 1 && latest === pulled) pulled = liftRevision
+    latest = Math.max(latest ?? liftRevision, liftRevision)
+  }
 
   const flushLocked = async (): Promise<FlushResult> => {
-    const result: FlushResult = {
-      sent: 0,
-      refused: 0,
-      held: 0,
-      retryInMs: null,
-      unauthorized: false,
-      liftRevision: null,
-    }
     const groups = sendOrder(await store.list())
-    const note = (liftRevision: number) => {
-      result.liftRevision = Math.max(result.liftRevision ?? liftRevision, liftRevision)
+    const waiting = groups.delete.length + groups.replace.length + groups.new.length
+    const tally = newTally()
+    const target: SendTarget = {
+      store,
+      tally,
+      onRevision: noteRevision,
+      settle: async (rows, answer) => {
+        await Promise.all(rows.map((row) => store.applyAck(row.key, row.rev, answer.liftRevision)))
+      },
+      stopOnCap: true,
     }
-    const failed = (rows: readonly LiftRow[]) => {
-      result.held += rows.length
-      result.retryInMs = Math.max(
-        result.retryInMs ?? 0,
-        ...rows.map((row) => retryDelayMs(row.attempts + 1)),
-      )
-    }
-    /** Sends one chunk; resolves false when the flush must stop. */
-    const sendChunk = async (group: Group, start: LiftRow[]): Promise<boolean> => {
-      let rows = start
-      while (rows.length > 0) {
-        try {
-          const answer =
-            group === 'delete'
-              ? await transport.remove(rows.map((row) => row.key))
-              : await transport.put(rows.map((row) => row.set))
-          note(answer.liftRevision)
-          await Promise.all(
-            rows.map((row) => store.applyAck(row.key, row.rev, answer.liftRevision)),
-          )
-          result.sent += rows.length
-          return true
-        } catch (error) {
-          const failure = failureOf(error)
-          if (failure.kind === 'unauthorized') {
-            result.unauthorized = true
-            return false
-          }
-          if (failure.kind === 'cap' && group === 'new') {
-            // Only new keys are refused for room: they wait for room or the next session, with no attempt counted.
-            result.held += rows.length
-            return false
-          }
-          if (failure.kind === 'invalid') {
-            const named = rows.filter((_, index) => failure.refused.includes(index))
-            if (named.length === 0) {
-              await store.applyHeld(sentOf(rows))
-              failed(rows)
-              return true
-            }
-            // The server took none of this request: revert the rows it names and send the rest again.
-            result.refused += await store.applyRefused(sentOf(named))
-            rows = rows.filter((row) => !named.includes(row))
-            continue
-          }
-          await store.applyHeld(sentOf(rows))
-          failed(rows)
-          return false
-        }
-      }
-      return true
-    }
-    for (const group of ['delete', 'replace', 'new'] as const) {
+    run: for (const group of ['delete', 'replace', 'new'] as const) {
       const size = group === 'delete' ? MAX_LIFT_KEYS_PER_DELETE : MAX_LIFT_SETS_PER_WRITE
-      for (const chunk of chunksOf(groups[group], size)) {
-        if (!(await sendChunk(group, chunk))) return result
-      }
+      const send = (rows: readonly LiftRow[]) =>
+        group === 'delete'
+          ? transport.remove(rows.map((row) => row.key))
+          : transport.put(rows.map((row) => row.set))
+      for (const chunk of chunksOf(groups[group], size))
+        if (!(await sendChunk(target, send, chunk))) break run
     }
-    return result
+    return {
+      sent: tally.sent,
+      refused: tally.refused,
+      held: waiting - tally.sent - tally.refused,
+      retryInMs: tally.retryInMs,
+      unauthorized: tally.unauthorized,
+      liftRevision: tally.liftRevision,
+    }
   }
 
   const pullLocked = async (): Promise<PullResult> => {
@@ -214,8 +176,46 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
     const complete = revisions.size === 1
     const liftRevision = Math.max(...revisions)
     await store.applyPull(items, liftRevision, complete)
+    latest = Math.max(latest ?? liftRevision, liftRevision)
     if (complete) pulled = liftRevision
     return { complete, liftRevision, failed: false }
+  }
+
+  const adoptLocked = async (device: LiftStore): Promise<AdoptResult> => {
+    const all = await device.list()
+    // The device has no server, so a delete row there (left by an earlier version) has nothing to send.
+    await Promise.all(
+      all.filter((row) => row.state === 'delete').map((row) => device.settle(row.key, row.rev)),
+    )
+    const rows = all.filter((row) => row.state === 'put').sort(byKey)
+    const tally = newTally()
+    const target: SendTarget = {
+      store: device,
+      tally,
+      // Adopted sets are on the account and not in the store: the revision moved for more than our own write.
+      onRevision: (liftRevision) => {
+        latest = Math.max(latest ?? liftRevision, liftRevision)
+      },
+      settle: async (sent) => {
+        await Promise.all(sent.map((row) => device.settle(row.key, row.rev)))
+      },
+      stopOnCap: false,
+    }
+    const send = (chunk: readonly LiftRow[]) =>
+      transport.put(
+        chunk.map((row) => row.set),
+        { insertOnly: true },
+      )
+    for (const chunk of chunksOf(rows, MAX_LIFT_SETS_PER_WRITE))
+      if (!(await sendChunk(target, send, chunk))) break
+    return {
+      sent: tally.sent,
+      skipped: tally.skipped,
+      refused: tally.refused,
+      capped: tally.capped,
+      unauthorized: tally.unauthorized,
+      done: !tally.stopped,
+    }
   }
 
   const flush = () => locks.request(FLUSH_LOCK, flushLocked)
@@ -226,33 +226,10 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
     pull,
     sync: async (seen) => {
       const flushed = await flush()
-      const latest = flushed.liftRevision ?? seen ?? null
-      const moved = latest !== null && latest !== pulled
-      const needsFirst = pulled === null && latest === null
-      return {
-        flush: flushed,
-        pull: !flushed.unauthorized && (moved || needsFirst) ? await pull() : null,
-      }
+      if (seen !== undefined) latest = Math.max(latest ?? seen, seen)
+      const stale = pulled === null || latest !== pulled
+      return { flush: flushed, pull: !flushed.unauthorized && stale ? await pull() : null }
     },
-    adopt: (device) =>
-      locks.request(FLUSH_LOCK, async () => {
-        const rows = (await device.list()).filter((row) => row.state === 'put').sort(byKey)
-        const result: AdoptResult = { sent: 0, skipped: 0, done: true }
-        for (const chunk of chunksOf(rows, MAX_LIFT_SETS_PER_WRITE)) {
-          try {
-            const answer = await transport.put(
-              chunk.map((row) => row.set),
-              { insertOnly: true },
-            )
-            result.skipped += answer.skipped?.length ?? 0
-            result.sent += chunk.length
-            await Promise.all(chunk.map((row) => device.settle(row.key, row.rev)))
-          } catch {
-            result.done = false
-            return result
-          }
-        }
-        return result
-      }),
+    adopt: (device) => locks.request(FLUSH_LOCK, () => adoptLocked(device)),
   }
 }
