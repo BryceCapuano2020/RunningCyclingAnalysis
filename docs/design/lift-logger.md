@@ -1,7 +1,7 @@
 # Lift logger (design)
 
-Status: designed, building (stage X, Lift UI package 1). The owner does not track lifts anywhere else and will use this
-logger (9 Nov 2026), so CSV import is deferred with no date. The record, store and sync it uses are on main ([lift-data.md](lift-data.md)). This
+Status: designed, building (stage X, Lift UI package 1). The owner has no lift history yet. He will log here and in Hevy
+(9 Nov 2026), so a Hevy import is package 3, after the Lift card. The record, store and sync it uses are on main ([lift-data.md](lift-data.md)). This
 package shows no estimate: the Lift card and the e1RM figures come in package 2, after the own-data check in
 [e1rm.md](e1rm.md), section 10. The rules are [system.md](system.md): one primary button a screen, rows not
 cards, detail panels, no subtitle lines. App text never says "strength".
@@ -45,8 +45,8 @@ One form, inline under the button. No dialog, so a phone keeps its place.
 - **Reps** and **Load** are number fields (`NumberField`), the load in the profile's unit (pounds are converted to
   kilograms on save, rounded to 0.01 kg). For a bodyweight lift the load's label is "Added load".
 - **Effort (RPE).** A select: "Not rated", then 6 to 10 in halves. Optional, but kept one choice away and
-  remembered from the last set: the own-data check in e1rm.md section 10 counts sets at RPE 9.5 or 10, and with
-  no imported history every one of them comes from this form.
+  remembered from the last set: the own-data check in e1rm.md section 10 counts sets at RPE 9.5 or 10, and until a
+  Hevy import exists every one of them comes from this form.
 - **Warm-up.** A checkbox.
 - **Save** (outlined, since "Log a set" is the primary) saves the set at the next set order for that day and lift,
   with `timePrecision: 'set'` and the local time. The form then stays open, with the same values ready for the next
