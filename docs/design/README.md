@@ -27,6 +27,8 @@ Decisions section. Status is one of designed, in progress or built.
   load, with the prototype on synthetic lifters. Status: spec, in science review (stage X).
 - [lift-data.md](lift-data.md): the set record, the `lift_sets` table and routes, the browser store and its
   sync transitions. Status: designed (stage X).
+- [lift-logger.md](lift-logger.md): the Lift page and its manual set logger, and `useLiftLog`, which wires the
+  store and sync into sign-in, sign-out and the device offer. Status: designed, building (stage X, Lift UI 1).
 - [decisions/](decisions/README.md): one file per decision a design left open, with how to reverse it.
 - [model-ledger.md](model-ledger.md): every change to a model whose figures the athlete sees, with
   its pull request, its reason and its effect on synthetic athletes. Status: built (stage break).
