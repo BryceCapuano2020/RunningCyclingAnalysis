@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import '../test/deviceZone'
 import { dayOfCivil } from '@rca/core/calendar'
+import type { LiftSet } from '@rca/core/lift'
 import { makeActivity } from './components/test/fixtures'
 import { liftDaysInBucket, liftDaysInPeriod, liftDaysOf } from './activitiesLift'
 import {
@@ -99,33 +100,53 @@ describe('monthTotals and countsText with lifting', () => {
 })
 
 describe('lifting days of the page', () => {
-  const sets = (date: string, count: number) =>
+  const sets = (date: string, count: number, exercise = 'back-squat'): LiftSet[] =>
     Array.from({ length: count }, (_, index) => ({
       date,
-      exercise: 'squat',
+      exercise,
       equipment: 'barbell' as const,
       setOrder: index + 1,
       reps: 5,
       loadKg: 60,
     }))
-
-  it('makes a day number and estimated seconds for each day with sets', () => {
-    expect(liftDaysOf([...sets('2025-06-03', 2), ...sets('2025-06-05', 1)])).toEqual([
-      { day: dayOfCivil(2025, 5, 3), seconds: 360, measured: false },
-      { day: dayOfCivil(2025, 5, 5), seconds: 180, measured: false },
-    ])
+  const stamped = (time: string, setOrder: number): LiftSet => ({
+    ...sets('2025-06-03', 1)[0]!,
+    setOrder,
+    time,
+    timePrecision: 'set',
   })
 
-  it('takes measured seconds from live stamps', () => {
-    const stamped = (time: string, setOrder: number) => ({
-      ...sets('2025-06-03', 1)[0]!,
-      setOrder,
-      time,
-      timePrecision: 'set' as const,
-    })
-    expect(liftDaysOf([stamped('17:30', 1), stamped('18:10', 2)])).toEqual([
-      { day: dayOfCivil(2025, 5, 3), seconds: 40 * 60 + 180, measured: true },
+  it('makes a day number and estimated seconds for each day with sets', () => {
+    const days = liftDaysOf([...sets('2025-06-03', 2), ...sets('2025-06-05', 1)])
+    expect(
+      days.map(({ day, seconds, measured, sets }) => ({ day, seconds, measured, sets })),
+    ).toEqual([
+      { day: dayOfCivil(2025, 5, 3), seconds: 360, measured: false, sets: 2 },
+      { day: dayOfCivil(2025, 5, 5), seconds: 180, measured: false, sets: 1 },
     ])
+    expect(days[0]).toMatchObject({ date: '2025-06-03', timed: false, name: 'Back squat' })
+    expect(days[0]?.startMs).toBe(new Date(2025, 5, 3).getTime())
+  })
+
+  it('takes measured seconds and the start from live stamps', () => {
+    const [day] = liftDaysOf([stamped('17:30', 1), stamped('18:10', 2)])
+    expect(day).toMatchObject({ seconds: 40 * 60 + 180, measured: true, timed: true })
+    expect(day?.startMs).toBe(new Date(2025, 5, 3, 17, 30).getTime())
+  })
+
+  it('names the two lifts with most sets, then counts the rest', () => {
+    const day = (...lifts: LiftSet[][]) => liftDaysOf(lifts.flat())[0]?.name
+    expect(day(sets('2025-06-03', 2, 'back-squat'), sets('2025-06-03', 4, 'bench-press'))).toBe(
+      'Bench press, back squat',
+    )
+    expect(
+      day(
+        sets('2025-06-03', 5, 'bench-press'),
+        sets('2025-06-03', 3, 'incline-bench-press'),
+        sets('2025-06-03', 2, 'back-squat'),
+        sets('2025-06-03', 1, 'leg-press'),
+      ),
+    ).toBe('Bench press, incline bench press +2')
   })
 
   it('leaves out a date that is not a real day, rather than rolling it into another', () => {
@@ -135,7 +156,9 @@ describe('lifting days of the page', () => {
       ...sets('2025-6-3', 1),
       ...sets('2025-06-03', 1),
     ])
-    expect(days).toEqual([{ day: dayOfCivil(2025, 5, 3), seconds: 180, measured: false }])
+    expect(days.map(({ day, seconds }) => ({ day, seconds }))).toEqual([
+      { day: dayOfCivil(2025, 5, 3), seconds: 180 },
+    ])
   })
 
   it('keeps the days in the period that ends on the newest activity, or all for all time', () => {

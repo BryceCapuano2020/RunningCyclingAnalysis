@@ -62,7 +62,7 @@ describe('VolumeStrip with lifting', () => {
     expect(container.querySelector('.volume-strip__key [data-sport="lift"]')).toBeNull()
   })
 
-  it('leaves lifting out of the picked bucket chip, which counts the listed activities', async () => {
+  it('counts the lifting days in the picked bucket chip, as the list shows them as rows', async () => {
     const lifts = [3, 4, 5].map((date) => ({
       day: dayOfCivil(2025, 5, date),
       seconds: 1800,
@@ -76,6 +76,6 @@ describe('VolumeStrip with lifting', () => {
         onSelect={() => undefined}
       />,
     )
-    expect(screen.getByText(/Showing week of 2 Jun 2025: 2 activities/)).toBeTruthy()
+    expect(screen.getByText(/Showing week of 2 Jun 2025: 5 activities/)).toBeTruthy()
   })
 })

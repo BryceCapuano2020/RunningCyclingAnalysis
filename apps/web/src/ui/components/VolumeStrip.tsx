@@ -4,8 +4,8 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { formatSpan } from '../format/date'
 import { useNarrowScreen } from '../useNarrowScreen'
+import { liftDaysInBucket } from '../activitiesLift'
 import {
-  activityCountOf,
   addTotals,
   bucketLabel,
   bucketSpan,
@@ -125,10 +125,10 @@ export function VolumeStrip({ activities, selected, onSelect, lifts }: VolumeStr
   const pickedSpan = selected === null ? null : bucketSpan(selected)
   const pickedBucket = buckets.find((bucket) => bucket.key === selected)
   // The picked bucket may be of another grain than the strip draws (a quarter from a phone, on a desktop), so
-  // its count is taken from the activities themselves. Lifting days are not listed, so they are not in it.
+  // its count is taken from the activities and lifting days themselves. Both are listed, so both are in it.
   const pickedCount = pickedBucket
-    ? activityCountOf(pickedBucket.totals)
-    : inBucket(activities, selected).length
+    ? countOf(pickedBucket.totals)
+    : inBucket(activities, selected).length + liftDaysInBucket(lifts ?? [], selected).length
 
   const move = (event: KeyboardEvent, from: VolumeBucket) => {
     const at = trained.indexOf(from)

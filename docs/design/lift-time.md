@@ -1,6 +1,6 @@
 # Lifting time
 
-Lifts store no duration. A set is a load, reps, an effort and a time of day at most. The Activities page sums hours by kind, so lifting needs a time to be counted with runs and rides.
+Lifts store no duration. A set is a load, reps, an effort and a time of day at most. The Activities page sums hours by kind and lists each lifting day as a row, so lifting needs a time to be counted with runs and rides.
 
 Core `liftSessionsOf(sets)` (`packages/core/src/lift/liftSessions.ts`) gives one entry per day with any set: its date, its set count, its seconds, whether those seconds were measured (`measured`) and the earliest time of day a set carries (`start`). Only live sets are passed in.
 
@@ -29,6 +29,7 @@ A day of 20 working sets and 4 warm-ups reads as 68 min.
 
 ## Where it shows
 
+- The Activities list: a row per lifting day, named by its two lifts with most sets ("Bench press, incline bench press +6"), with its time and sets. It opens the Lift page at that day. An estimated day's time is "~50 min" and its row says "Estimated time".
 - The Activities hours chart: a lift part in each column, keyed "Lift", or "Lift, estimated" when any day in view is estimated.
 - The month totals: "4 lifts · 4.9 h", written "~4.9 h" when a day of them is estimated. A total that includes an estimated day is "~36 h total".
 - Nothing else reads it: no grade, load or fitness figure.

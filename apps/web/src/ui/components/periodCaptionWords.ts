@@ -63,6 +63,7 @@ const COUNT_LABEL: Record<keyof typeof NOUNS, string> = {
   activity: 'Activities',
   run: 'Runs',
   ride: 'Rides',
+  lift: 'Lifts',
 }
 
 /**

@@ -7,7 +7,9 @@ import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions
 import type { Span } from './components/rangeOptions'
 import { leftOutNote } from './analysis/walkingPaceCopy'
 import { agoText } from './format/ago'
-import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from './sports'
+import { SPORT_NOUN, SPORT_PLURAL } from './sports'
+import { VOLUME_NOUN, VOLUME_PLURAL } from './volumeKinds'
+import type { VolumeKind } from './volumeKinds'
 
 /**
  * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or "on 20 Oct 2026" for a span
@@ -24,17 +26,17 @@ export function betweenClause(span: Span | undefined): string {
  * What an activity list says when its period and sport leave nothing: "No runs between 21 Apr and 1
  * Jun 2026.", over the window the list counts back over. With no window, the files have none.
  */
-export function listEmptyText(sport: Sport | 'all', window: Span | null): string {
-  const noun = sport === 'all' ? 'activities' : SPORT_PLURAL[sport]
+export function listEmptyText(sport: VolumeKind | 'all', window: Span | null): string {
+  const noun = sport === 'all' ? 'activities' : VOLUME_PLURAL[sport]
   if (window === null) return `No ${noun} in your files.`
   return `No ${noun} ${betweenClause(window)}.`
 }
 
 /** What the list of activities not counted says when the period and sport hold some, and the analysis counts every one. */
-export function allCountedText(sport: Sport | 'all'): string {
+export function allCountedText(sport: VolumeKind | 'all'): string {
   return sport === 'all'
     ? 'Every activity here is counted.'
-    : `Every ${SPORT_ACTIVITY[sport]} here is counted.`
+    : `Every ${VOLUME_NOUN[sport]} here is counted.`
 }
 
 /**
