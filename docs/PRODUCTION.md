@@ -336,11 +336,11 @@ CPU cap. It refuses `*` and a list without the set. No scheduled trigger compute
 lost or exhausted message leaves an account dirty for a day at most; the report counts them as `stateResent`.
 
 **Compute cost.** A write sends one message, delayed 10 s, unless one for the account is on its way already
-(`state_jobs.pending_until`), so an import of thousands of files sends a handful of messages, not one per file. The job
+(`state_jobs.pending_until`), so an import of thousands of files sends tens of messages, not one per file. The job
 clears that marker before it reads the account, so a write after that sends its own and none is missed; a marker lapses
 2 minutes after its message's delay, so a lost message holds back writes no longer. A job that finds the account's last
 compute began less than 30 s ago, a failed one included (`attempted_at`), computes nothing and sends one message delayed
-30 s in place of the one it spent (whatever the marker holds: the marker may be that message's own), so an import computes about once per 30 s, not once per file. The R2 ledger is
+30 s in place of the one it spent (whatever the marker holds: the marker may be that message's own), so an account computes at most once per 30 s, and about once a minute through a long import (a deferred message waits 30 s again): a 2,000-file import is tens of full computes, not one per file. The R2 ledger is
 checked before any digest is read, so a full ledger costs no compute. When a job fails, one of the account's messages is
 retried and the rest acknowledged, so a failing account computes once per retry (at most four times, the first try and
 `max_retries = 3`) however many messages named it; writes during the retry's wait send nothing. The consumer runs one batch at a time (`max_concurrency = 1`) of at most two messages, one account after another. An

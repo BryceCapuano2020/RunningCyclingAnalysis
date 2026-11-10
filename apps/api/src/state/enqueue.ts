@@ -16,8 +16,7 @@ const READS = new Set(['GET', 'HEAD', 'OPTIONS'])
  * After a write that changed an input, tells the state job whose results to compute, delayed so a burst is one compute
  * (design: server-compute.md, section 1). The counter the job reads is raised by triggers in the same transaction as the
  * write, so a message that is lost or sent for a write that changed nothing costs nothing worse than a skipped job. A lost
- * message leaves the account dirty until its next write or the daily re-send (resend.ts): the hourly refresh (S6 in the
- * design) is not built. Only for the
+ * message leaves the account dirty until its next write or the daily re-send (resend.ts). Only for the
  * accounts on the allowlist (SERVER_COMPUTE_USERS); for any other nothing is sent. Nor when a message for the account is
  * on its way already (pending.ts): the job it starts reads this write too, so a burst sends one message, not one per write.
  * Sending never fails the request, and a marker that cannot be read sends, so a D1 error costs a duplicate, never a write.
