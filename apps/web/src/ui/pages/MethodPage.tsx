@@ -154,7 +154,7 @@ export function MethodPage({
         runs={runs}
         rides={rides}
         weightKnown={weightKnown}
-        period={period}
+        period={period ?? null}
       />
 
       <nav className="method__contents" aria-label="On this page">
