@@ -1,5 +1,5 @@
 /*
- * Still, like the restoring placeholder: the text arrives after a short wait with no motion. The step
+ * Still: the text arrives after a short wait with no motion. The step
  * animation holds the text hidden for the wait; reduced-motion users get the same, since nothing moves.
  */
 .page-loading {

@@ -63,7 +63,7 @@ export function pageKeyOf(route: Route, page: LibraryPage): string {
 export function libraryPageTitle(
   page: LibraryPage,
   held: string,
-  restoringName = '',
+  restoringName: string,
 ): string | null {
   const name =
     page === 'held'

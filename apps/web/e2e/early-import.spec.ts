@@ -16,7 +16,7 @@ const NAME = 'Ada Lovelace'
 const IMPORT = { timeout: 30_000 }
 
 function restoring(page: Page) {
-  return page.locator('main [aria-busy="true"]')
+  return page.locator('[data-loading="library"]')
 }
 
 /** Holds the signed-in library's first read until released, so the loading state stays up. */

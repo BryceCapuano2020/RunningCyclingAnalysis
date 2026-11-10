@@ -50,6 +50,36 @@ describe('restoring kept results on a reload', () => {
     ).not.toBeNull()
   })
 
+  it('keeps the status outside any busy region, so it is announced', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    render(<App />)
+    const status = within(screen.getByRole('main'))
+      .getAllByRole('status')
+      .find((el) => el.textContent === 'Loading')
+    expect(status?.closest('[aria-busy="true"]')).toBeNull()
+    expect(status?.closest('[data-loading="library"]')).not.toBeNull()
+  })
+
+  it.each([
+    ['#/', '.balance-hero__head'],
+    ['#/run', '.sport-page > .sport-page__head'],
+    ['#/ride', '.sport-page > .sport-page__head'],
+    ['#/history', '.page-stack > .page-title'],
+    ['#/activities', '.page-stack > .page-title'],
+    ['#/activities/x', '.page-stack > .page-title'],
+  ])(
+    'puts the title of %s in the block its page uses, so it stays put when results arrive',
+    (hash, block) => {
+      setAccount('loading')
+      app.analysis.restoring = true
+      window.location.hash = hash
+      render(<App />)
+      const h1 = screen.getByRole('heading', { level: 1 })
+      expect(h1.parentElement?.matches(block)).toBe(true)
+    },
+  )
+
   it('shows the page links and Add files in the header while the results restore', () => {
     setAccount('loading')
     app.analysis.restoring = true
