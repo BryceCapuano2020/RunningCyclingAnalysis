@@ -1,3 +1,4 @@
+import { startOfDayText } from '@rca/core/calendar'
 import { hashQuery } from '../route'
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -32,10 +33,14 @@ export function shiftDay(day: string, days: number): string {
   return `${String(at.getUTCFullYear()).padStart(4, '0')}-${month}-${date}`
 }
 
-/** Local noon of a day in ms, which the date formatters read in the viewer's zone; noon keeps a clock change off its date. */
+const NOON_MS = 12 * 60 * 60 * 1000
+
+/**
+ * Noon of a day in the viewer's zone, in ms, which the date formatters read in that zone; noon keeps a clock change
+ * off its date. The day's start comes from core's calendar, which alone reads the zone.
+ */
 export function dayNoonMs(day: string): number | null {
-  const parts = partsOf(day)
-  return parts === null ? null : new Date(parts[0], parts[1] - 1, parts[2], 12).getTime()
+  return partsOf(day) === null ? null : startOfDayText(day) + NOON_MS
 }
 
 /** The day '#/lift?day=YYYY-MM-DD' names; no day, an invalid one or one after today is today. */
