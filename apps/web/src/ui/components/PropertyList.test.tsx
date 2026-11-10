@@ -1,10 +1,28 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PropertyList } from './PropertyList'
 import { SECTION_ID } from './methodTopics'
 
 afterEach(cleanup)
+
+describe('PropertyList, a row with an action', () => {
+  it('sets the label as a named button inside the term and leaves the value alone', async () => {
+    const onActivate = vi.fn()
+    const { container } = render(
+      <PropertyList
+        rows={[{ label: 'Set 2', value: '100 kg × 5', action: { name: 'Edit set 2', onActivate } }]}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'Edit set 2' })
+    expect(button.parentElement?.tagName).toBe('DT')
+    expect(button).toHaveTextContent('Set 2')
+    expect(container.querySelector('dd button')).toBeNull()
+    await userEvent.click(button)
+    expect(onActivate).toHaveBeenCalledOnce()
+  })
+})
 
 describe('PropertyList', () => {
   it('draws one row a fact, the label first and the value after it, in the order given', () => {
