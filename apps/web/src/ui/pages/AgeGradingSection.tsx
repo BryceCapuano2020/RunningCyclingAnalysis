@@ -6,6 +6,7 @@ import { MethodText } from '../components/MethodText'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { SECTION_ID } from '../components/methodTopics'
 import { LEVEL_BANDS, SEX_NOUN } from '../grades'
+import { OWN_LEVEL_MEANING, OWN_LEVELS_NOTE } from '../levelMeaning'
 import { hrefFor } from '../route'
 import './AgeGradingSection.css'
 
@@ -14,12 +15,10 @@ export interface AgeGradingSectionProps {
   gradedSex: Sex | null
 }
 
-/** Every level and where it starts, lowest first, from the grade constants: the lowest is everything below the next band. */
-const BAND_TEXT = LEVEL_BANDS.map((band, index) =>
-  index === 0
-    ? `${band.name} below ${Math.round(LEVEL_BANDS[1]!.min * 100)}%`
-    : `${band.name} from ${Math.round(band.min * 100)}%`,
-).join(', ')
+/** The WMA levels and where each starts, lowest first. The bands below them are in OWN_LEVEL_MEANING. */
+const BAND_TEXT = LEVEL_BANDS.filter((band) => band.min >= 0.6)
+  .map((band) => `${band.name} from ${Math.round(band.min * 100)}%`)
+  .join(', ')
 
 /** What the grade does not cover, in plain words: one fact a line. */
 const LIMITS = [
@@ -49,6 +48,8 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
             `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and sex, divided by your time.`,
             '70% means 70% of standard pace.',
             `Levels are bands of the grade: ${BAND_TEXT}.`,
+            OWN_LEVELS_NOTE,
+            ...OWN_LEVEL_MEANING.map((level) => level.meaning),
             'A ride’s level is the band of its best estimate.',
             'Its range, drawn on the ladder, can reach a neighbouring band.',
             'A run’s grade uses its grade-adjusted pace (GAP).',

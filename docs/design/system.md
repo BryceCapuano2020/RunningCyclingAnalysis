@@ -161,7 +161,7 @@ at that sport's age grade, 0 at the centre and 100% at the outer ring. The outer
 axes are `--hairline`. The shape through the dots is `--ink` at 7% with a 2 px edge, never a sport colour. A sport's dot is its
 ink with a 3 px paper ring, and its 90% range is a 12 px band of its wash along its axis. No glow, no tick, no total and no
 area. A sport with no grade keeps a lighter axis with a short cap and no dot. The corners are HTML text over the SVG
-(label in the sport's ink, whole percent in mono, level word in `--ink-secondary`). Lift is never told apart by colour alone,
+(label in the sport's ink, whole percent in mono, level word in `--ink-secondary`; the levels are Recreational, Active, Trained, Club, Local, Regional, National and World, see [finer-levels](decisions/finer-levels.md)). Lift is never told apart by colour alone,
 so its ink always sits beside its name. The share card and the landing example still draw the old one-line meter (a hairline
 track, the sport inks at its ends, one ink mark) until they take the triangle.
 

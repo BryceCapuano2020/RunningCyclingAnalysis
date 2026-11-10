@@ -146,7 +146,7 @@ grade = e1RM / S(lift, sex, age, mass)
   at `ageAt - 0.5 + f`, `f = (dayOfYear - 0.5) / 365`, with a spread of 0.289 years (a uniform year). The flat
   `- 0.5` of the first draft is right only at mid-year.
 - **Mass.** `bodyMassOn` at the estimate's date, as relative strength does, with its dated-mass rules.
-- **Level.** `levelOf` and `gradePercent` as for run and ride.
+- **Level.** `levelOf` and `gradePercent` as for run and ride, with the same finer bands below 60%.
 - **Display.** `min(grade, 100%)`, shown as "top of scale" at the cap, as a ride is. A grade over 110% is not graded.
   Entries at or above 100% are 0 to 0.02% of competitors and the 99.99th percentile is 0.96 to 1.04 (bench for women
   the top), so 100% is about one lifter-year in 10,000.
@@ -196,7 +196,7 @@ the floor term gives 28.7%, lower, so 33.1%. High `36.0 x exp(0.210) = 44.5%`. S
 
 ## 6. Calibration against the run scale
 
-The run grade's levels are WMA: about 60 local, 70 regional, 80 national, 90 world class; 100 is the age standard,
+The run grade's levels are WMA from 60 up, and below that the app's own Club (50), Trained (40) and Active (30): about 60 local, 70 regional, 80 national, 90 world class; 100 is the age standard,
 near the best of that age and sex. The ride grade is a share of the best riders' hour. The lift grade is a share of
 the best lifters' lift.
 

@@ -37,7 +37,7 @@ recommendation there matters most.
 - **Scale.** Linear from 0 at the centre to 100% at each outer corner, the same scale as the grade. The outer triangle
   is 100% (hairline `--rule`). Two inner triangles, 80 and 60, are hairlines (`--hairline`), the lower edges of National
   and Local. Their numbers (12 px mono, `--ink-secondary`, paper halo) sit left of the run axis just above each ring.
-  Below 60 is Recreational, so the inner third needs no ring. The three axes are hairlines.
+  Below 60 is Recreational, Active, Trained or Club (50 and up), so the inner third needs no ring. The three axes are hairlines.
 - **The range** of a grade is a 12 px band along its own axis from its low to its high end, in the sport's wash
   (`--run-wash`, `--ride-wash`, and a lift wash), layered twice as the meter's was, with no edge and never dashed. The
   band is 90% like every other range. A recorded effort would be a dot with no band, as on the ladders.

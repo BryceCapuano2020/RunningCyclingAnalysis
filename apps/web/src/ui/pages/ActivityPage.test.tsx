@@ -307,7 +307,7 @@ describe('ActivityPage', () => {
       }),
     )
     expect(bestRow('Best 5 km').querySelector('.records__grade')?.textContent).toMatch(
-      /^(Recreational|Local|Regional|National|World)\u00a0\d+%$/,
+      /^(Recreational|Active|Trained|Club|Local|Regional|National|World)\u00a0\d+%$/,
     )
     expect(screen.queryByRole('link', { name: 'How is this graded?' })).not.toBeInTheDocument()
   })
@@ -353,7 +353,7 @@ describe('ActivityPage', () => {
     )
     expect(within(bestsSection()).queryByText(/running equivalent/)).not.toBeInTheDocument()
     expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).toMatch(
-      /Recreational|Local|Regional|National|World/,
+      /Recreational|Active|Trained|Club|Local|Regional|National|World/,
     )
     expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).not.toMatch(
       /running equivalent/,
@@ -394,7 +394,7 @@ describe('ActivityPage', () => {
   it('names the level each best effort earned, with its grade', () => {
     renderPage(morningRun)
     expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).toMatch(
-      /Recreational|Local|Regional|National|World/,
+      /Recreational|Active|Trained|Club|Local|Regional|National|World/,
     )
   })
 
