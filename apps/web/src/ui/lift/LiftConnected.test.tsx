@@ -202,13 +202,13 @@ describe('the Lift page on the log', () => {
 })
 
 describe('the lead and the lifts list', () => {
-  it('lead with the estimate once a lift has one, above the day, and list the lift with its graph', () => {
+  it('lead with the estimate once a lift has one, above the day, and list a lift with one session compactly', () => {
     useHook([logged(TODAY, set())])
     render(view())
     const lead = screen.getByTestId('lift-max')
     const day = screen.getByRole('button', { name: 'Log a set' })
     expect(lead.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'One-rep max by lift' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Other lifts' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Weekly load' })).toBeInTheDocument()
   })
 

@@ -4,6 +4,7 @@ import {
   buildLiftState,
   exerciseKeyOf,
   gradedLiftOf,
+  LIFTS,
   liftChange,
   liftGrade,
   liftHistory,
@@ -20,7 +21,7 @@ import type {
   LiftSummary,
   LiftWeek,
 } from '@rca/core/lift'
-import { formatLoad } from '@rca/core/units'
+import { formatLoad, formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import type { Property } from '../components/property'
 import { plural } from '../components/plural'
@@ -44,6 +45,8 @@ export interface LiftEntry {
   history: LiftHistoryPoint[]
   /** e1RM and range, floor, times body mass, last session, sets and effort. */
   rows: Property[]
+  /** One row for the compact list of lifts with one session: name, one-rep max, floor and last session. */
+  compact: Property
   /** The heaviest working set at each rep count, as rows. */
   bests: Property[]
 }
@@ -63,7 +66,10 @@ export interface LiftLead {
 
 export interface LiftOverview {
   lead: LiftLead | null
+  /** The lifts with a line (two or more sessions with an estimate): big three first, then the most recent. */
   entries: LiftEntry[]
+  /** The lifts with one session with an estimate, in the same order: a compact list, not a chart. */
+  others: LiftEntry[]
   /** The last LOAD_WEEKS weeks to the newest with a working set, a week with none included as zeros. */
   weeks: LiftWeek[]
 }
@@ -75,9 +81,16 @@ export function loadParts(kg: number, units: UnitSystem): { number: string; unit
   return { number: text.slice(0, at), unit: text.slice(at + 1) }
 }
 
-/** A range with the unit once: "270 to 330 lb". */
+/** An estimate in whole units as its number and its unit, the way Balance's Big three row writes it. */
+export function massParts(kg: number, units: UnitSystem): { number: string; unit: string } {
+  const text = formatMass(kg, units)
+  const at = text.lastIndexOf(' ')
+  return { number: text.slice(0, at), unit: text.slice(at + 1) }
+}
+
+/** An estimate's range in whole units with the unit once: "270 to 330 lb". */
 export function rangeText(low: number, high: number, units: UnitSystem): string {
-  const [a, b] = [loadParts(low, units), loadParts(high, units)]
+  const [a, b] = [massParts(low, units), massParts(high, units)]
   return `${a.number} to ${b.number} ${b.unit}`
 }
 
@@ -105,7 +118,7 @@ function rowsOf(
   return [
     {
       label: 'One-rep max',
-      value: `${formatLoad(estimate.point, units)}, ${rangeText(estimate.low, estimate.high, units)}`,
+      value: `${formatMass(estimate.point, units)}, ${rangeText(estimate.low, estimate.high, units)}`,
     },
     { label: 'Floor', value: bestText(estimate.floor, units, today) },
     ...(ratio === undefined
@@ -150,9 +163,28 @@ function filledWeeks(weeks: readonly LiftWeek[]): LiftWeek[] {
   })
 }
 
+/** Where a lift stands in the big three's order (squat, bench, deadlift); the others follow. */
+function bigThreeRank(summary: LiftSummary): number {
+  const graded = gradedLiftOf(summary.exercise, summary.equipment)
+  return graded === null ? LIFTS.length : LIFTS.indexOf(graded)
+}
+
+/** The most recently trained first; of equal dates the larger estimate, never the name. */
+function newerThan(a: LiftEntry, b: LiftEntry): number {
+  if (a.summary.lastDate !== b.summary.lastDate)
+    return a.summary.lastDate < b.summary.lastDate ? 1 : -1
+  return b.estimate.point - a.estimate.point
+}
+
+/** The lead lift: a big-three lift when one has an estimate, else the most recently trained lift. */
+function leadOf(entries: readonly LiftEntry[]): LiftEntry | undefined {
+  const big = entries.filter((entry) => bigThreeRank(entry.summary) < LIFTS.length)
+  return [...(big.length > 0 ? big : entries)].sort(newerThan)[0]
+}
+
 /**
  * What the Lift page leads with, from the log's sets: core's state (one summary per lift, the weekly load), each
- * estimated lift's history, and the top lift: the most recently trained one with an estimate. Every figure is core's.
+ * estimated lift's history, and the top lift: the a big-three lift when one has an estimate, else the most recently trained. Every figure is core's.
  */
 export function liftOverviewOf(
   sets: readonly LiftSet[],
@@ -162,7 +194,7 @@ export function liftOverviewOf(
   today: string,
 ): LiftOverview {
   const state = buildLiftState(sets, settings)
-  const entries = state.lifts.flatMap((summary): LiftEntry[] => {
+  const all = state.lifts.flatMap((summary): LiftEntry[] => {
     if (summary.estimate === null) return []
     const own = sets.filter((s) => exerciseKeyOf(s) === summary.key)
     return [
@@ -173,6 +205,10 @@ export function liftOverviewOf(
         estimate: summary.estimate,
         history: liftHistory(own),
         rows: rowsOf(summary, summary.estimate, own, units, today),
+        compact: {
+          label: titleOf(summary),
+          value: `${formatMass(summary.estimate.point, units)} · floor ${bestText(summary.estimate.floor, units, today)} · ${dateText(summary.lastDate, today)}`,
+        },
         bests: summary.repBests.map((best) => ({
           label: plural(best.reps, 'rep'),
           value: bestText(best, units, today),
@@ -180,7 +216,12 @@ export function liftOverviewOf(
       },
     ]
   })
-  const top = entries[0]
+  const top = leadOf(all)
+  const ordered = [...all].sort(
+    (a, b) => bigThreeRank(a.summary) - bigThreeRank(b.summary) || newerThan(a, b),
+  )
+  const entries = ordered.filter((entry) => entry.history.length >= 2)
+  const others = ordered.filter((entry) => entry.history.length < 2)
   let lead: LiftLead | null = null
   if (top) {
     const own = sets.filter((s) => exerciseKeyOf(s) === top.summary.key)
@@ -197,5 +238,5 @@ export function liftOverviewOf(
           : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings.massKg),
     }
   }
-  return { lead, entries, weeks: filledWeeks(state.weeks) }
+  return { lead, entries, others, weeks: filledWeeks(state.weeks) }
 }

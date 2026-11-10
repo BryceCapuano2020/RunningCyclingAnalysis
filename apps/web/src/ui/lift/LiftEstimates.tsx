@@ -11,7 +11,7 @@ import { WeeklyLoadChart } from './WeeklyLoadChart'
  * it rests on (the rows and the rep bests). Then the weekly load, apart from run and ride and never summed with their hours.
  */
 export function LiftEstimates({ overview, units }: { overview: LiftOverview; units: UnitSystem }) {
-  const { entries, weeks } = overview
+  const { entries, others, weeks } = overview
   return (
     <>
       {entries.length > 0 && (
@@ -44,6 +44,14 @@ export function LiftEstimates({ overview, units }: { overview: LiftOverview; uni
               </details>
             </div>
           ))}
+        </section>
+      )}
+      {others.length > 0 && (
+        <section className="section" aria-labelledby="lift-others">
+          <div className="section__head">
+            <h2 id="lift-others">Other lifts</h2>
+          </div>
+          <PropertyList rows={others.map((entry) => entry.compact)} />
         </section>
       )}
       {weeks.length > 0 && (

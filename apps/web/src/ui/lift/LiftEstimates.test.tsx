@@ -40,10 +40,15 @@ describe('LiftEstimates', () => {
     expect(screen.getAllByRole('status')[0]).toHaveTextContent(/80% range .* to .* kg; floor/)
   })
 
-  it('says a line needs two sessions when a lift has one, and gives it in the table', () => {
+  it('lists a lift with one session in Other lifts, with no chart and no placeholder', () => {
     chartWidth(800)
-    render(<LiftEstimates overview={overviewOf([squat('2031-03-02', 100)])} units="metric" />)
-    expect(screen.getByText('A line needs two sessions with an estimate')).toBeInTheDocument()
+    const { container } = render(
+      <LiftEstimates overview={overviewOf([squat('2031-03-02', 100)])} units="metric" />,
+    )
+    expect(screen.getByRole('heading', { name: 'Other lifts' })).toBeInTheDocument()
+    expect(screen.getByText('Back squat, barbell')).toBeInTheDocument()
+    expect(container.querySelector('.lift__estimate')).toBeNull()
+    expect(screen.queryByText(/A line needs two sessions/)).toBeNull()
   })
 
   it('draws the weekly load as a bar a week, with the hard sets and regional volume in the table', () => {

@@ -3,7 +3,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import { hrefFor } from '../route'
 import { HeroFigure } from '../pages/SportHero'
-import { WINDOW_WEEKS, loadParts, rangeText } from './liftEntries'
+import { WINDOW_WEEKS, loadParts, massParts, rangeText } from './liftEntries'
 import type { LiftLead as LiftLeadModel } from './liftEntries'
 import '../pages/SportHero.css'
 
@@ -43,7 +43,7 @@ function LevelFigure({ grade }: { grade: LiftGrade | null }) {
  * the 8 weeks before (core's word) and, for the big three, its level and age grade.
  */
 export function LiftLead({ lead, units }: { lead: LiftLeadModel; units: UnitSystem }) {
-  const max = loadParts(lead.estimate.point, units)
+  const max = massParts(lead.estimate.point, units)
   const floor = loadParts(lead.floor.loadKg, units)
   return (
     <section className="band sport-hero" data-sport="lift" aria-labelledby="lift-lead">

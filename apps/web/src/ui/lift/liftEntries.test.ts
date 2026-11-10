@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildLiftState, liftChange, liftGrade, liftHistory, WINDOW_DAYS } from '@rca/core/lift'
-import { formatLoad } from '@rca/core/units'
+import { formatMass } from '@rca/core/units'
 import { LAST_SQUAT_DAY, risingSquats, squat } from './liftFixtures'
 import { LOAD_WEEKS, liftOverviewOf, loadParts, rangeText } from './liftEntries'
 
@@ -54,7 +54,7 @@ describe('liftOverviewOf', () => {
       'Effort',
     ])
     expect(rows[0]!.value).toBe(
-      `${formatLoad(overview.lead!.estimate.point, 'metric')}, ${rangeText(
+      `${formatMass(overview.lead!.estimate.point, 'metric')}, ${rangeText(
         overview.lead!.estimate.low,
         overview.lead!.estimate.high,
         'metric',
@@ -91,6 +91,77 @@ describe('liftOverviewOf', () => {
     )
     expect(gap.weeks.some((week) => week.regions.lower.workingSets === 0)).toBe(true)
     expect(liftOverviewOf([], SETTINGS, PROFILE, 'metric', '2031-02-25').weeks).toEqual([])
+  })
+
+  it('breaks a tie of dates by the larger estimate, not the name, and leads with a big-three lift', () => {
+    const day = '2031-03-02'
+    const curl = (name: string, load: number) =>
+      squat(day, load, { exercise: name, equipment: 'dumbbell' })
+    const others = liftOverviewOf(
+      [curl('aaa-curl', 20), curl('zzz-curl', 40)],
+      SETTINGS,
+      PROFILE,
+      'metric',
+      day,
+    )
+    expect(others.lead?.title).toBe('Zzz curl, dumbbell')
+    const mixed = liftOverviewOf(
+      [curl('aaa-curl', 90), squat(day, 60), bench(day, 80)],
+      SETTINGS,
+      PROFILE,
+      'metric',
+      day,
+    )
+    // Both big-three lifts were trained on the day: the larger estimate leads, and the curl never does.
+    expect(mixed.lead?.title).toBe('Bench press, barbell')
+    const big = liftOverviewOf(
+      [curl('aaa-curl', 90), squat(day, 60)],
+      SETTINGS,
+      PROFILE,
+      'metric',
+      day,
+    )
+    expect(big.lead?.title).toBe('Back squat, barbell')
+  })
+
+  it('charts lifts with a line, big three first in squat, bench, deadlift order, and lists the rest compactly', () => {
+    const deadlift = (date: string, load: number) =>
+      squat(date, load, { exercise: 'deadlift', equipment: 'barbell' })
+    const curl = (date: string, load: number) =>
+      squat(date, load, { exercise: 'biceps-curl', equipment: 'dumbbell' })
+    const sets = [
+      curl('2031-03-01', 20),
+      curl('2031-03-02', 21),
+      deadlift('2031-02-01', 140),
+      deadlift('2031-02-08', 142),
+      bench('2031-02-02', 70),
+      bench('2031-02-09', 72),
+      squat('2031-03-02', 100),
+    ]
+    const got = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2031-03-02')
+    expect(got.entries.map((entry) => entry.title)).toEqual([
+      'Bench press, barbell',
+      'Deadlift, barbell',
+      'Biceps curl, dumbbell',
+    ])
+    expect(got.others.map((entry) => entry.title)).toEqual(['Back squat, barbell'])
+    expect(got.others[0]!.compact.value).toMatch(/ kg · floor .* kg × 5 · /)
+  })
+
+  it('writes estimates in whole units and logged loads as they were logged', () => {
+    const got = liftOverviewOf(
+      [squat('2031-03-02', 61.25, { reps: 11 })],
+      SETTINGS,
+      PROFILE,
+      'imperial',
+      '2031-03-02',
+    )
+    expect(got.lead?.title).toBe('Back squat, barbell')
+    expect(got.entries[0] ?? got.others[0]).toBeDefined()
+    const value = (got.others[0]!.rows[0]!.value as string).split(', ')
+    expect(value[0]).toMatch(/^\d+ lb$/)
+    expect(value[1]).toMatch(/^\d+ to \d+ lb$/)
+    expect(got.others[0]!.rows[1]!.value).toContain('135 lb')
   })
 
   it('writes loads in the athlete’s unit', () => {

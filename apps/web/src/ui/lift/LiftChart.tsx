@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { LiftHistoryPoint } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
-import { formatLoad } from '@rca/core/units'
+import { formatLoad, formatMass } from '@rca/core/units'
 import { ChartFrame } from '../charts/ChartFrame'
 import { ChartXAxis } from '../charts/ChartXAxis'
 import { ChartYAxis } from '../charts/ChartYAxis'
@@ -52,7 +52,7 @@ export function LiftChart({ title, history, units }: LiftChartProps) {
         {
           kind: 'neutral',
           label: 'One-rep max',
-          value: formatLoad(p.point, units),
+          value: formatMass(p.point, units),
           note: `80% range ${rangeText(p.low, p.high, units)}; floor ${formatLoad(p.floor, units)}`,
         },
       ],
@@ -71,7 +71,7 @@ export function LiftChart({ title, history, units }: LiftChartProps) {
         columns: ['Date', 'One-rep max', '80% range', 'Floor'],
         rows: history.map((p) => [
           shortDateWithYear(utcMsOf(p.date)),
-          formatLoad(p.point, units),
+          formatMass(p.point, units),
           rangeText(p.low, p.high, units),
           formatLoad(p.floor, units),
         ]),
