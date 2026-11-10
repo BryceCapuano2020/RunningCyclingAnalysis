@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildLiftState, bigThreeTotal, gradedLiftOf, liftGrade } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
-import { formatLoad } from '@rca/core/units'
+import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import { liftTileOf } from './liftTile'
@@ -40,7 +40,7 @@ describe('the lifting row', () => {
     const big = bigThreeTotal(parts)
     if (big.kind !== 'total') throw new Error('total')
     expect(tile.heading).toBe('Big three total')
-    expect(`${tile.figure?.number} ${tile.figure?.unit}`).toBe(formatLoad(big.kg, 'metric'))
+    expect(`${tile.figure?.number} ${tile.figure?.unit}`).toBe(formatMass(big.kg, 'metric'))
     expect(tile.rows.map((row) => row.label)).toEqual(['Squat', 'Bench', 'Deadlift'])
     for (const [index, row] of tile.rows.entries()) {
       const part = big.parts[index]!
@@ -51,7 +51,7 @@ describe('the lifting row', () => {
       )
       if (grade.kind !== 'graded') throw new Error('graded')
       expect(row.value).toBe(
-        `${formatGrade(grade.grade.centre.grade)} · ${NB(formatLoad(part.kg, 'metric'))}`,
+        `${formatGrade(grade.grade.centre.grade)} · ${NB(formatMass(part.kg, 'metric'))}`,
       )
     }
   })

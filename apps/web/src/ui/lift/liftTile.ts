@@ -1,7 +1,7 @@
 import { bigThreeTotal, gradedLiftOf, liftGrade } from '@rca/core/lift'
 import type { GradedEstimate, GradedLift, LiftSummary } from '@rca/core/lift'
 import type { AgeProfile } from '@rca/core/grade'
-import { formatLoad } from '@rca/core/units'
+import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import type { Property } from '../components/property'
 import { formatGrade } from '../gradeFormat'
@@ -22,9 +22,9 @@ export interface LiftTileModel {
 
 const unbroken = (text: string) => text.replaceAll(' ', ' ')
 
-/** A load as its number and its unit, from the one formatter every surface uses. */
+/** An estimate as its number and its unit, whole: a projected one-rep max is not known to a tenth of a pound. */
 function loadParts(kg: number, units: UnitSystem): { number: string; unit: string } {
-  const text = formatLoad(kg, units)
+  const text = formatMass(kg, units)
   const at = text.lastIndexOf(' ')
   return { number: text.slice(0, at), unit: text.slice(at + 1) }
 }
@@ -47,7 +47,7 @@ export function liftTileOf(
   const big = bigThreeTotal(estimates)
   const rows = big.parts.map((part) => {
     const grade = liftGrade({ lift: part.lift, estimate: part.estimate }, profile, massKg)
-    const load = unbroken(formatLoad(part.kg, units))
+    const load = unbroken(formatMass(part.kg, units))
     return {
       label: LIFT_LABEL[part.lift],
       value: grade.kind === 'graded' ? `${formatGrade(grade.grade.centre.grade)} · ${load}` : load,
