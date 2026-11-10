@@ -76,3 +76,13 @@ export const HARD_RPE = 7
 
 /** An unmarked set lighter than this share of the session's top load, before the top set, is a warm-up. Design value. */
 export const WARMUP_SHARE = 0.7
+
+/** An own-data check event is a working set at this RPE or higher (e1rm.md, section 10). */
+export const CHECK_RPE = 9.5
+
+/** The check reads nothing under this many events: at 20 coverage has an SE near 9 points (e1rm.md, section 10). */
+export const CHECK_MIN_EVENTS = 30
+
+/** Coverage under this, with most misses above the range, says widen the centre term; over CHECK_NARROW_ABOVE, narrow it (e1rm.md, section 10). */
+export const CHECK_WIDEN_BELOW = 0.7
+export const CHECK_NARROW_ABOVE = 0.92
