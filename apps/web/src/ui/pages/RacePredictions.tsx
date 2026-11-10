@@ -11,7 +11,7 @@ import { useScrollRegion } from '../useScrollRegion'
 import { PropertyList } from '../components/PropertyList'
 import { SECTION_ID } from '../components/methodTopics'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { FLOORED_TEXT, forecastRows, originRow, spreadText } from './racePredictionCopy'
+import { FLOORED_TEXT, forecastRows, originRow, spreadText, vo2maxRows } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { NumText } from '../components/NumText'
@@ -34,13 +34,19 @@ const KEY_NAME: Record<PredictionMethod, string> = {
   heartRate: METHOD_NAME.heartRate,
 }
 
+/** Each estimate as a screen reader hears it on a bar. */
+const SPOKEN_METHOD: Record<PredictionMethod, string> = {
+  performances: 'from your best runs',
+  heartRate: 'from heart rate',
+}
+
 /** No recorded best faster than its prediction: a stable default for the prop. */
 const NONE_RAN: readonly RanBest[] = []
 
 /** What a bar says to a screen reader: the time, its range and each estimate. */
 function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string {
   const estimates = prediction.methods
-    .map((m) => `${METHOD_NAME[m.method].toLowerCase()} ${formatRecordTime(m.seconds)}`)
+    .map((m) => `${SPOKEN_METHOD[m.method]} ${formatRecordTime(m.seconds)}`)
     .join(', ')
   return `${raceName(prediction.distanceM)} predicted ${formatRecordTime(prediction.seconds)}, range ${spreadText(prediction)}${estimates ? `. ${estimates}` : ''}.${ran ? ` ${ranText(ran)}.` : ''}${prediction.floored && !ran ? ` ${FLOORED_TEXT}.` : ''}`
 }
@@ -144,7 +150,7 @@ function RaceKey({ found, anyRan }: { found: RunPredictions; anyRan: boolean }) 
     { shape: 'dot', text: 'Prediction' },
     ...(used.has('performances') ? [{ shape: 'above', text: KEY_NAME.performances }] : []),
     ...(used.has('heartRate') ? [{ shape: 'below', text: heartRate }] : []),
-    ...(anyRan ? [{ shape: 'ran', text: 'Run: your recorded best' }] : []),
+    ...(anyRan ? [{ shape: 'ran', text: 'Your best' }] : []),
     { shape: 'band', text: 'Range' },
   ]
   return (
@@ -207,7 +213,7 @@ function RaceTable({
             ))}
             {ran.length > 0 && (
               <th scope="col" className="num">
-                Recorded best, off the prediction
+                Your best
               </th>
             )}
           </tr>
@@ -249,7 +255,7 @@ function RaceTable({
  * A sport's race predictions, as raceAnswerOf found them: one line under the title names the run they were carried
  * from, and each race is a bar of its range with the prediction on it and the two estimates it sits between. Where no
  * run was shown hard (`bound`) each race is its time alone, with no bar or key, and a line in the disclosure says so.
- * How they were reached, where each estimate came from and the figures as a table are in "About these predictions". A
+ * Where each estimate came from, as numbers, and the figures as a table are in "About these predictions". A
  * race the window holds a faster recorded best for says so on its row.
  */
 export function RacePredictions({
@@ -288,6 +294,8 @@ export function RacePredictions({
       <div className="section-head">
         <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
       </div>
+      {/* The key is always in view: the marks mean nothing until a reader knows them. */}
+      {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
       <ol className="race-rows">
         {found.races.map((prediction, index) => (
           <RaceRow
@@ -302,16 +310,13 @@ export function RacePredictions({
         ))}
       </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
-        {/* The key to the bars' marks is read once, so it waits here with the rest of what the bars rest on. */}
-        {!bound && <RaceKey found={found} anyRan={ran.some((best) => best.side === 'faster')} />}
         {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
         <PropertyList
           rows={[
             ...forecastRows({ basis }, window, bound, openedAt),
+            ...vo2maxRows(found),
             ...found.races.flatMap((prediction) =>
-              prediction.methods.map((method) =>
-                originRow(raceName(prediction.distanceM), method, found.vo2max?.vo2max ?? null),
-              ),
+              prediction.methods.map((method) => originRow(raceName(prediction.distanceM), method)),
             ),
           ]}
           method={SECTION_ID.how}
