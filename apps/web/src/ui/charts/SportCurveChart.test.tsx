@@ -182,7 +182,7 @@ describe('SportCurveChart', () => {
     expect(yTickLabels(container)[0]).toBe('0')
   })
 
-  it('washes the area under the line in the sport colour, for pace as well as power', () => {
+  it('draws one line and no wash under it, for pace as well as power', () => {
     for (const [sport, curve] of [
       ['run', RUN_SPEEDS],
       ['ride', RIDE_WATTS],
@@ -198,11 +198,7 @@ describe('SportCurveChart', () => {
         />,
       )
       expect(container.querySelectorAll('[data-testid="sport-curve-line"]')).toHaveLength(1)
-      const area = container.querySelector('.chart-series__area')
-      expect(area).toHaveClass(`chart-series__area--${sport}`)
-      // The wash takes its colour from --sport-ink, which data-sport sets for the sport.
-      expect(area).toHaveAttribute('data-sport', sport)
-      expect(area?.getAttribute('d')).toMatch(/Z$/)
+      expect(container.querySelector('.chart-series__area')).toBeNull()
       unmount()
     }
   })
@@ -580,7 +576,7 @@ describe('the series’ end label', () => {
 
   const endOf = (container: HTMLElement) => container.querySelector('[data-annotation="end"]')
 
-  it('names the last effort’s value and where it is, in the right margin of a wide chart', () => {
+  it('draws no end label: the line ends where the efforts do, and a point reads its value', () => {
     chartWidth(900)
     const { container } = render(
       <SportCurveChart
@@ -592,32 +588,7 @@ describe('the series’ end label', () => {
         units="metric"
       />,
     )
-    const end = endOf(container)
-    expect(end?.textContent).toBe('230 Wat 30 min')
-    const x = Number(end?.querySelector('text')?.getAttribute('x'))
-    // The plot ends 180 px before the chart does, and the label starts in that margin.
-    expect(x).toBeGreaterThan(900 - 180)
-    expect(end?.querySelector('text')?.getAttribute('text-anchor')).toBe('start')
-  })
-
-  it('moves left of its point on a chart with no margin to hold it', () => {
-    chartWidth(300)
-    // No 5, 20 or 60 minute effort, so nothing else is called out and the label has the room.
-    const { container } = render(
-      <SportCurveChart
-        sport="ride"
-        curve={[
-          curvePoint(60, 400, 'ride-1'),
-          curvePoint(120, 360, 'ride-1'),
-          curvePoint(1800, 230, 'ride-1'),
-        ]}
-        previous={null}
-        change={null}
-        massKg={MASS_KG}
-        units="metric"
-      />,
-    )
-    expect(endOf(container)?.querySelector('text')?.getAttribute('text-anchor')).toBe('end')
+    expect(endOf(container)).toBeNull()
   })
 
   it('is left out, with the other bests it would crowd, where a phone’s plot has no room, and the headline stays', () => {

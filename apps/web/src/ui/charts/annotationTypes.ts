@@ -123,12 +123,15 @@ export const END_NUDGES = [0, -16, 16, -32, 32]
 export const LABEL_LINE = 14
 /** A character of a callout's value in em of its size: IBM Plex Mono's advance width, 600 of 1000 units. */
 export const DISPLAY_EM = 0.6
-/** A reference line's value is smaller than a callout's: it is the line's label, not a finding. */
-export const REFERENCE_VALUE_PX = 22
+/** A reference line's value, the size of a callout's: a label on the line, not a headline. */
+export const REFERENCE_VALUE_PX = 18
 
-/** A callout's value size in px at 16 px root: display size, a step smaller on a phone. */
+/**
+ * A callout's value size in px at 16 px root: a label beside its point, a step above the axis text, so the curve and not
+ * its labels carries the chart; a step smaller on a phone.
+ */
 export function valuePx(phone: boolean): number {
-  return phone ? 24 : 30
+  return phone ? 16 : 18
 }
 
 export function scaleOf(rootPx: number): number {

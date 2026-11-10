@@ -79,7 +79,7 @@ describe('ChartAnnotations', () => {
     expect(callout?.querySelector('.annot__leader')).not.toBeNull()
     // The value is set at display size, in rem so it follows the reader's text size.
     expect(callout?.querySelector<SVGTextElement>('.annot__text--value')?.style.fontSize).toBe(
-      '1.875rem',
+      '1.125rem',
     )
   })
 
@@ -99,7 +99,7 @@ describe('ChartAnnotations', () => {
     expect(
       container.querySelector<SVGTextElement>('[data-annotation="best"] .annot__text--value')?.style
         .fontSize,
-    ).toBe('1.5rem')
+    ).toBe('1rem')
   })
 
   it('draws nothing for no annotations', () => {

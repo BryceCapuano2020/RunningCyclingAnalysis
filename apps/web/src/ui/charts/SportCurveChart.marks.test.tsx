@@ -143,7 +143,7 @@ describe('a stretch of the curve that carries a longer effort', () => {
 })
 
 describe('the threshold line', () => {
-  it('is a labelled rule across the plot at the threshold, with its range as a band', () => {
+  it('is one thin labelled rule across the plot at the threshold, with no band and no range text', () => {
     chartWidth(900)
     const { container } = ride(SPARSE, {
       value: 225,
@@ -153,8 +153,8 @@ describe('the threshold line', () => {
     })
     const mark = container.querySelector('[data-annotation="threshold"]')
     expect(mark?.querySelector('.annot__rule')).not.toBeNull()
-    expect(mark?.querySelector('.annot__band')).not.toBeNull()
-    expect(mark?.textContent).toBe('Threshold225 WRange 215 to 235 W')
+    expect(mark?.querySelector('.annot__band')).toBeNull()
+    expect(mark?.textContent).toBe('Threshold225 W')
     // The line sits where 225 W is on the axis: between the 250 W and 210 W efforts' heights.
     const y = Number(mark?.querySelector('.annot__rule')?.getAttribute('y1'))
     const y20 = Number(
@@ -369,8 +369,8 @@ describe('annotations on a realistic curve', () => {
     expect(
       container.querySelector('[data-annotation="best-300"] .annot__text--caption'),
     ).not.toBeNull()
-    // Its whole text is above the threshold's band, by at least the leader line's length: not touching it.
-    const bandTop = Number(container.querySelector('.annot__band')?.getAttribute('y'))
+    // Its whole text is above the threshold's rule, by at least the leader line's length: not touching it.
+    const bandTop = Number(container.querySelector('.annot__rule')?.getAttribute('y1'))
     const callout = container.querySelector('[data-annotation="best-3600"]')
     const value = Number(callout?.querySelector('.annot__text--value')?.getAttribute('y'))
     const eyebrow = Number(callout?.querySelector('.annot__text--eyebrow')?.getAttribute('y'))
