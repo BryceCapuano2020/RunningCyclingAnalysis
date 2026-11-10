@@ -96,7 +96,9 @@ for (const size of SIZES) {
     await expect(chart.getByTestId('fitness-span').first()).toBeAttached()
     // The episodes are listed under the chart, each with its size.
     const episodes = page.getByRole('region', { name: 'Episodes' })
-    await expect(episodes).toContainText(/Slipped \d+% \(\d+ to \d+\), then back/)
+    // Each episode is label over number: what happened, then its size with its range.
+    await expect(episodes).toContainText(/Slipped, then back/)
+    await expect(episodes).toContainText(/\d+% \(-?\d+ to -?\d+\)/)
     expect((await edgesOf(episodes)).top).toBeGreaterThanOrEqual((await edgesOf(chart)).bottom)
     expect((await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations).toEqual([])
     const overflow = await horizontalOverflow(page)
