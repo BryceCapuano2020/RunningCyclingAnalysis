@@ -5,8 +5,10 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   page,
 }) => {
   await openSample(page)
-  // A card's "Details" note holds a pace too and stays hidden until opened, so only visible text counts.
+  // Balance leads with the half marathon, so the pace is read where it is the headline: the Run page. A card's
+  // "Details" note holds a pace too and stays hidden until opened, so only visible text counts.
   const shownPace = (unit: RegExp) => page.getByText(unit).filter({ visible: true }).first()
+  await goTo(page, 'Run')
   await expect(shownPace(/\d+:\d{2}\s\/mi/)).toBeVisible()
 
   await goTo(page, 'Profile')
@@ -14,7 +16,7 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   await page.getByText('Metric', { exact: true }).click()
   await expect(page.getByRole('radio', { name: 'Metric' })).toBeChecked()
 
-  await goTo(page, 'Balance')
+  await goTo(page, 'Run')
   await expect(shownPace(/\d+:\d{2}\s\/km/)).toBeVisible()
   await expect(page.getByRole('main').getByText(/\/mi\b/)).toHaveCount(0)
 
@@ -23,6 +25,7 @@ test('switching to metric changes pace to per kilometre and the choice survives 
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
   await expect(page.getByRole('radio', { name: 'Metric' })).toBeChecked()
   await openSample(page)
+  await goTo(page, 'Run')
   await expect(shownPace(/\d+:\d{2}\s\/km/)).toBeVisible()
 })
 
@@ -36,7 +39,7 @@ test('a visitor’s own ride W/kg follows the body weight they enter on Profile'
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
-  const ride = page.getByRole('article', { name: 'Ride threshold' })
+  const ride = page.getByRole('article', { name: 'Functional threshold power' })
   await expect(ride).toContainText('W/kg')
   const before = await ride.innerText()
 
@@ -56,7 +59,7 @@ test('the sample keeps its own 75 kg whatever weight the visitor has entered, an
   page,
 }) => {
   await openSample(page)
-  const ride = page.getByRole('article', { name: 'Ride threshold' })
+  const ride = page.getByRole('article', { name: 'Functional threshold power' })
   await expect(ride).toContainText('W/kg')
   const before = await ride.innerText()
 

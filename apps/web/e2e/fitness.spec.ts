@@ -83,7 +83,11 @@ test('the Run page draws the level as a graph with its table twin, and its Detai
   const panel = page.locator('.fitness-evidence')
   expect(await value(panel, /^Read at$/)).toMatch(/^\d+ bpm$/)
   expect(await value(panel, /^Steady runs on file$/)).toMatch(/^\d+$/)
-  await expect(panel.getByRole('link', { name: /how run fitness is measured/ })).toBeVisible()
+  // One Method link, for the section, above the panel.
+  await expect(
+    section(page).getByRole('link', { name: /how run fitness is worked out/ }),
+  ).toBeVisible()
+  await expect(panel.getByRole('link', { name: /^Method/ })).toHaveCount(0)
   await expect(panel.getByRole('heading', { name: 'How it is measured' })).toHaveCount(0)
   // The runs it rests on are links to their activities, newest first.
   const links = panel.locator('.fitness-runs a')

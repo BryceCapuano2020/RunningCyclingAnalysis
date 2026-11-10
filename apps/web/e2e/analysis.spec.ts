@@ -99,8 +99,8 @@ test('uploading a GPX ride and a TCX run shows the results', async ({ page }) =>
   // The 12 min run has no 20 min effort or threshold to set against the ride, so the balance is held.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not enough to compare yet')
   await expect(page.getByText(/^From 1 run and 1 ride\./)).toBeVisible()
-  await expect(page.getByRole('article', { name: 'Run threshold' })).toBeVisible()
-  await expect(page.getByRole('article', { name: 'Ride threshold' })).toBeVisible()
+  await expect(page.getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Functional threshold power' })).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(2)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)
@@ -119,7 +119,7 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   await expect(page.getByTestId('sport-invitation')).toContainText(
     'Add rides to compare them with your running.',
   )
-  const run = page.getByRole('article', { name: 'Run threshold' })
+  const run = page.getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })
   await expect(run).toBeVisible()
   // The name says the threshold is an estimate, so the tile carries no chip and no range shape; the runs it rests on
   // and how it was worked out are one tap down, with no line under the figure.

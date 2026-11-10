@@ -42,7 +42,9 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
-  const defaultRide = await defaults.getByRole('article', { name: 'Ride threshold' }).innerText()
+  const defaultRide = await defaults
+    .getByRole('article', { name: 'Functional threshold power' })
+    .innerText()
   await baseline.close()
 
   await page.goto('/')
@@ -56,7 +58,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
-  const ride = page.getByRole('article', { name: 'Ride threshold' })
+  const ride = page.getByRole('article', { name: 'Functional threshold power' })
   await expect(ride).toContainText('W/kg')
   await expect.poll(() => ride.innerText()).not.toBe(defaultRide)
   await goTo(page, 'Profile')
@@ -82,7 +84,7 @@ test('skipping the weight holds the balance until one is entered, and asks for i
       hasText: 'Add your weight on Profile to grade your rides and compare them with your runs.',
     }),
   ).toBeVisible()
-  await expect(page.getByRole('article', { name: 'Run threshold' })).toBeVisible()
+  await expect(page.getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })).toBeVisible()
 })
 
 test('skipping the setup dialog keeps a weight typed before it, as a valid answer', async ({
