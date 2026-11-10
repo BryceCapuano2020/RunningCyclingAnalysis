@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { combine } from '../digest/combine'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { fitnessStatuses } from '../fitness/compute'
 import { lookBackOf } from '../lookback/compute'
 import { copiedLibrary } from '../test/libraryFixture'

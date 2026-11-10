@@ -1,4 +1,3 @@
-import { DAY_MS } from '../constants'
 import { memoByDigests } from '../digestMemo'
 import type { MaxHeartRates } from '../effort'
 import { estimateOver, thresholdBasis } from '../threshold'
@@ -11,9 +10,7 @@ import type { ActivityEfforts, ThresholdLibrary } from './thresholdEfforts'
 import { eachSport, librariesOf, thresholdReferenceOf } from './thresholdLibraries'
 import { THRESHOLD_WINDOW_WEEKS } from './thresholdTimelineTypes'
 import type { ThresholdFit, ThresholdStep, ThresholdTimeline } from './thresholdTimelineTypes'
-import { weekEndFor } from '../calendar'
-
-const WEEK_MS = 7 * DAY_MS
+import { WEEK_MS, weekEndFor } from '../calendar'
 
 /** Where an activity falls in the weeks, and whether it has an effort that dates the threshold of its window. */
 interface Placed {

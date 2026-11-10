@@ -37,7 +37,7 @@ export function copyOfDigest(digest: ActivityDigest): Copy {
 }
 
 /** The copy of an activity read from a file, before it is digested. Matches copyOfDigest. */
-export function copyOfActivity(activity: Activity, fileName: string): Copy {
+function copyOfActivity(activity: Activity, fileName: string): Copy {
   return {
     id: activity.id,
     rank: formatRank(fileName),

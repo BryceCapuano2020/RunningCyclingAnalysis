@@ -1,7 +1,7 @@
-import { DURABILITY_AFTER_S, DURATIONS_S } from '../../constants'
-import { normal } from '../../math'
-import { flatSpeedToMetabolic } from '../../metabolic'
-import { withBlocks, heartRatesOf } from '../../digest/test/sameHeartRateFixture'
+import { DURABILITY_AFTER_S, DURATIONS_S } from '../constants'
+import { normal } from '../math'
+import { flatSpeedToMetabolic } from '../metabolic'
+import { withBlocks, heartRatesOf } from '../digest/test/sameHeartRateFixture'
 import type {
   ActivityDigest,
   DigestCurvePoint,
@@ -9,8 +9,23 @@ import type {
   DigestDurabilityPoint,
   DigestSplit,
   Sport,
-} from '../../types'
-import { normalCdf } from '../stats'
+} from '../types'
+
+/** The standard normal cumulative distribution (Marsaglia's series). */
+function normalCdf(z: number): number {
+  if (z < -8) return 0
+  if (z > 8) return 1
+  let sum = z
+  let term = z
+  const square = z * z
+  for (let i = 3; i < 300; i += 2) {
+    term *= square / i
+    const next = sum + term
+    if (next === sum) break
+    sum = next
+  }
+  return 0.5 + sum * Math.exp(-0.5 * square - 0.9189385332046728)
+}
 
 /** A session in an athlete's week: easy most days, one hard day, one long one. */
 export type SessionKind = 'easy' | 'hard' | 'long'

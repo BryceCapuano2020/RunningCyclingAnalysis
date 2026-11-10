@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
-import type { Effect } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
+import type { Effect } from '../test/plantedLibrary'
 import { fitnessStatuses } from '../fitness/compute'
 import type { AthleteSettings } from '../types'
 import { lookBackOf } from './compute'

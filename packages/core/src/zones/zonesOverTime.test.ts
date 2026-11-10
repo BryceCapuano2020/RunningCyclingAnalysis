@@ -12,9 +12,9 @@ import { secondsByZone } from './timeInZones'
 import { estimatesOf } from './test/estimates'
 import { missingThresholdZones } from './missingZones'
 import { zoneEstimatesOf, zonesAt } from './zones'
+import { WEEK_MS } from '../calendar'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
-const WEEK_MS = 7 * DAY_MS
 const at = (week: number) => FIRST_MONDAY_MS + week * WEEK_MS + 2 * DAY_MS
 
 const pace = (sets: ReturnType<typeof zonesAt>) =>

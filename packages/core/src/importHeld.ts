@@ -1,3 +1,4 @@
+import { fnv1a32 } from './math'
 import type { GarminList } from './import/garminList'
 import type { ListedActivity } from './import/activitiesCsv'
 import type { Sport } from './types'
@@ -32,13 +33,8 @@ export interface HeldFiles {
 
 /** FNV-1a over the text, 64 bits as hex: a signature for telling two lists apart, not a defence against anyone. */
 export function signatureOf(text: string): string {
-  let a = 0x811c9dc5
-  let b = 0xcbf29ce4
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i)
-    a = Math.imul(a ^ c, 0x01000193) >>> 0
-    b = Math.imul(b ^ c, 0x0100019d) >>> 0
-  }
+  const a = fnv1a32(text)
+  const b = fnv1a32(text, 0xcbf29ce4, 0x0100019d)
   return `${a.toString(16).padStart(8, '0')}${b.toString(16).padStart(8, '0')}`
 }
 

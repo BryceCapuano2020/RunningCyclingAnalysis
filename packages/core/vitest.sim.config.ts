@@ -6,7 +6,6 @@ import { defineConfig } from 'vitest/config'
  * shards: a file not listed counts as UNLISTED_S, and a stale figure costs some imbalance, never a skipped file.
  */
 const SECONDS: Record<string, number> = {
-  'src/findings/detectors/fitnessStatus.sim.test.ts': 290,
   'src/effort/gate.passing.sim.test.ts': 286,
   'src/effort/gate.held.sim.test.ts': 195,
   'src/effort/gate.limits.sim.test.ts': 191,
@@ -15,11 +14,9 @@ const SECONDS: Record<string, number> = {
   'src/fitness/episode.sim.test.ts': 87,
   'src/fitness/rideSeason.sim.test.ts': 54,
   'src/fitness/heat.sim.test.ts': 46,
-  'src/findings/protoEfficiency.sim.test.ts': 40,
   'src/fitness/ride.sim.test.ts': 31,
   'src/change/change.sim.test.ts': 30,
   'src/predict/vo2max.gate.sim.test.ts': 28,
-  'src/findings/registry.sim.test.ts': 26,
   'src/fitness/monitor.sim.test.ts': 25,
   'src/lookback/hindsight.sim.test.ts': 24,
   'src/synthetic/noise/personas.sim.test.ts': 24,
@@ -29,7 +26,6 @@ const SECONDS: Record<string, number> = {
   'src/lift/e1rm.sim.test.ts': 40,
   'src/lift/liftChange.sim.test.ts': 2,
   'src/digest/referenceMax.cadenceLock.sim.test.ts': 11,
-  'src/profile/standOut.sim.test.ts': 10,
   'src/threshold/threshold.sim.test.ts': 10,
   'src/threshold/runThreshold.sim.test.ts': 10,
   'src/synthetic/sampleSeason.sim.test.ts': 9,

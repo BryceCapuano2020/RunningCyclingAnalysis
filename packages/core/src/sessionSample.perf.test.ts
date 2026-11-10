@@ -8,6 +8,7 @@ import {
   samplePlan,
 } from './synthetic'
 import { fastestMs } from './test/timing'
+import { WEEK_MS } from './calendar'
 
 /**
  * What "See a sample athlete" costs: the season is drawn second by second and digested in the worker
@@ -22,7 +23,6 @@ import { fastestMs } from './test/timing'
 const COLD_LOAD_BUDGET_MS = 1150
 const WARM_LOAD_BUDGET_MS = 150
 const PLAN_BUDGET_MS = 50
-const WEEK_MS = 7 * 86_400_000
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 /** A clock with a zone of its own, as the app's is. Each week is a new season, so a load of it is cold. */
 const appClock = (week: number) => ({

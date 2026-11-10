@@ -17,6 +17,22 @@ import type { LocalDayShift } from './types'
 
 export const WEEK_MS = 7 * DAY_MS
 
+/** The English month names, January first, for dates written out in copy. */
+export const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const
+
 /** The day number of a Monday: 5 January 1970, from which weeks count, so they line up for every library. */
 const MONDAY_DAY_NUMBER = 4
 

@@ -6,7 +6,7 @@ import {
 } from './readLimits'
 
 /** The temperature summary of revision 7 (D12 section 2.1). */
-export const TEMPERATURE = {
+const TEMPERATURE = {
   /** Seconds at the start left out: the warm-up, and the time a wrist sensor takes to equilibrate. */
   warmupS: 600,
   /** Whole minutes of eligible time that must be there. */

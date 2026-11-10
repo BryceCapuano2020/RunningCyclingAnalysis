@@ -10,9 +10,8 @@ import {
   easyWobbleOn,
   samplePlan,
 } from './synthetic'
+import { WEEK_MS } from './calendar'
 
-const DAY_MS = 86_400_000
-const WEEK_MS = 7 * DAY_MS
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 
 /** The sample's run status on a clock, drawn by the real analysis: nothing in the season says what the status is. */

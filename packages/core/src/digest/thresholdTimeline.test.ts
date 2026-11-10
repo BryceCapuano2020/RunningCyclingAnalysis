@@ -14,9 +14,9 @@ import { weekEndMs } from './trendPoints'
 import { FIRST_MONDAY_MS, levelRun, shortRun, strideRun, weeklyRuns } from './test/runLibrary'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import type { ThresholdStep } from './thresholdTimelineTypes'
+import { WEEK_MS } from '../calendar'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
-const WEEK_MS = 7 * DAY_MS
 
 function timelineOf(digests: ActivityDigest[]) {
   const ordered = orderedCurrent(digests)

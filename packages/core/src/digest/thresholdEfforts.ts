@@ -124,7 +124,7 @@ export function thresholdHeartRate(referenceMax: number | null): number | null {
 }
 
 /** The newest start among the digests, ms: the activity the rides of a set are aged from. */
-export function newestStart(ordered: readonly ActivityDigest[]): number {
+function newestStart(ordered: readonly ActivityDigest[]): number {
   return ordered.reduce((newest, digest) => Math.max(newest, digest.startMs), -Infinity)
 }
 
@@ -132,10 +132,7 @@ export function newestStart(ordered: readonly ActivityDigest[]): number {
  * The heart-rate line of a library's activities, fitted once over all their blocks and aged from the newest activity of the
  * digests. A period and every zone window read this line, so the headline and the zones agree.
  */
-export function thresholdLineOf(
-  activities: readonly ActivityEfforts[],
-  newestMs: number,
-): ThresholdLine {
+function thresholdLineOf(activities: readonly ActivityEfforts[], newestMs: number): ThresholdLine {
   return fitThresholdLine(
     activities.map((each) => each.prepared),
     agesOf(activities, newestMs),

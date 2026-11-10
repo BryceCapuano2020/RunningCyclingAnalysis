@@ -1,15 +1,15 @@
-import { DAY_MS } from '../../constants'
-import { DAYS, MONDAY } from '../../digest/test/sameHeartRateFixture'
-import { mulberry32, normal } from '../../math'
-import type { ActivityDigest, Sport } from '../../types'
-import type { FindingSource } from '../input'
-import { seedFrom } from '../stats'
-import type { ZoneTables } from '../types'
+import { WEEK_MS } from '../calendar'
+import { DAY_MS } from '../constants'
+import { DAYS, MONDAY } from '../digest/test/sameHeartRateFixture'
+import { fnv1a32, mulberry32, normal } from '../math'
+import type { ActivityDigest, Sport } from '../types'
 import { BASELINE, plantedActivity } from './plantedActivity'
 import type { Conditions, SessionKind } from './plantedActivity'
-import { zonesFromDigests } from './zonesFixture'
 
-const WEEK_MS = 7 * DAY_MS
+/** A seed from the parts it should depend on, so that no two streams share one and the same spec gives the same data. */
+function seedFrom(...parts: (string | number)[]): number {
+  return fnv1a32(parts.join('|'))
+}
 
 /**
  * What can be planted in a library, with `size` read as:
@@ -51,18 +51,11 @@ export interface Effect {
 
 /**
  * Things that are not changes in the athlete and should not read as one: a new heart-rate strap (+6 bpm
- * from mid-library), a new power meter (+4% from mid-library), zones reset to a lower reference
- * (mid-library), 5% of activities with a heart-rate spike, 5% duplicated, a yearly swing in fitness and
+ * from mid-library), a new power meter (+4% from mid-library), 5% of activities with a heart-rate spike, 5% duplicated, a yearly swing in fitness and
  * volume, and 30% of activities without heart rate.
  */
 export type Nuisance =
-  | 'strap-change'
-  | 'meter-change'
-  | 'zone-change'
-  | 'hr-spikes'
-  | 'duplicates'
-  | 'seasonal'
-  | 'missing-hr'
+  'strap-change' | 'meter-change' | 'hr-spikes' | 'duplicates' | 'seasonal' | 'missing-hr'
 
 /**
  * How the athlete varies beyond the independent noise of a day. `autocorrelation` makes fitness wander
@@ -105,10 +98,11 @@ export interface Truth {
   realised: number
 }
 
-export interface PlantedLibrary extends FindingSource {
+export interface PlantedLibrary {
+  digests: ActivityDigest[]
+  setAside: ReadonlySet<string>
   spec: PlantedSpec
   truths: Truth[]
-  zones: ZoneTables
   firstMs: number
   lastMs: number
 }
@@ -267,8 +261,7 @@ function realisedSize(
  * from its own seed (seed, week, slot), so planting an effect or dropping a week never moves another
  * activity's noise: two libraries differing in an effect differ in what it touches only, and the same
  * seed without effects is the effect's paired null. Ids are `${sport}-${week}-${slot}`; a duplicate's
- * ends in -dup; the name says the kind of session ("easy run"). Zones are those of a fixed reference
- * heart rate (reset mid-library by the zone-change nuisance).
+ * ends in -dup; the name says the kind of session ("easy run").
  */
 export function plantedLibrary(spec: PlantedSpec): PlantedLibrary {
   const days = DAYS[spec.perWeek]
@@ -304,7 +297,6 @@ export function plantedLibrary(spec: PlantedSpec): PlantedLibrary {
     digests: sorted,
     setAside: new Set<string>(),
     truths: spec.effects.map((effect) => truthOf(effect, sorted, spec)),
-    zones: zonesFromDigests(sorted, has(spec, 'zone-change') ? spec.weeks / 2 : null),
     firstMs: sorted[0]?.startMs ?? MONDAY,
     lastMs: sorted.at(-1)?.startMs ?? MONDAY,
   }

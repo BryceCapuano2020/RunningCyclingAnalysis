@@ -1,5 +1,5 @@
 import { HALF_MARATHON_M, MARATHON_M } from '../constants'
-import { civilOfDay, localDayOfInstant } from '../calendar'
+import { MONTH_NAMES, civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
 import type { UnitSystem } from '../units'
@@ -16,44 +16,29 @@ import type { EffortMilestones, HindsightEpisode, HindsightFitness, Span } from 
  * Plain, in the reader's voice; no cause is ever given.
  */
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-
 /** "May 2021". */
 export const monthYear = (ms: number): string => {
   const date = new Date(ms)
-  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+  return `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`
 }
 
 /** "14 May 2021". */
 export const dayMonthYear = (ms: number): string => {
   const date = new Date(ms)
-  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+  return `${date.getUTCDate()} ${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`
 }
 
 /** "14 May 2021" in the viewer's own zone, for a moment of the wall clock (an import) rather than of a workout. */
 export const localDayMonthYear = (ms: number): string => {
   const { year, month, date } = civilOfDay(localDayOfInstant(ms))
-  return `${date} ${MONTHS[month]} ${year}`
+  return `${date} ${MONTH_NAMES[month]} ${year}`
 }
 
 /** A stretch of months: "January to April 2020", "November 2019 to February 2020". */
 export function monthsBetween(fromMs: number, toMs: number): string {
   const [a, b] = [new Date(fromMs), new Date(toMs)]
   return a.getUTCFullYear() === b.getUTCFullYear()
-    ? `${MONTHS[a.getUTCMonth()]} to ${monthYear(toMs)}`
+    ? `${MONTH_NAMES[a.getUTCMonth()]} to ${monthYear(toMs)}`
     : `${monthYear(fromMs)} to ${monthYear(toMs)}`
 }
 

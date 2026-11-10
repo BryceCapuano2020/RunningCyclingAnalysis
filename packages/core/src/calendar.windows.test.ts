@@ -3,9 +3,7 @@ import { localAxisMs, setViewerZone, weekEndFor, weekEndInstant, weekEndsSpan } 
 import type { Zone } from './calendar'
 import { DAY_MS } from './constants'
 import { fitnessTrend } from './digest/trend'
-import { inputAt, weeklyMarks } from './findings/input'
-import { buildTables } from './findings/tables'
-import { plantedLibrary } from './findings/test/plantedLibrary'
+import { plantedLibrary } from './test/plantedLibrary'
 import type { ActivityDigest } from './types'
 
 /**
@@ -143,28 +141,6 @@ describe('a Sunday evening at UTC-7', () => {
           : d,
       )
       expect(count(fitnessTrend(midday, SETTINGS))).toEqual(count(points))
-    }
-  })
-
-  it('is cut into weeks by the weekly marks and tables with the same end', () => {
-    const evening = withSundayEvening()
-    {
-      const restore = setViewerZone(east(-7))
-      try {
-        const marks = weeklyMarks(evening)
-        expect(marks.at(-1)).toBe(weekEndInstant(SUNDAY_END))
-        const asOf = marks.at(-1)!
-        const last = buildTables(evening, new Set(), asOf).weeklyMoving
-        const ends = [...last.run, ...last.ride].map((w) => w.endMs)
-        expect(Math.max(...ends)).toBe(SUNDAY_END)
-        const row = [...last.run, ...last.ride].find((w) => w.endMs === SUNDAY_END && w.complete)
-        expect(row?.activities).toBe(1)
-        // The activity is in the input at that mark, which an instant compared with the label would drop.
-        const input = inputAt({ digests: evening, setAside: new Set() }, asOf)
-        expect(input.digests.some((d) => d.startMs === SUNDAY_EVENING_LOCAL)).toBe(true)
-      } finally {
-        setViewerZone(restore)
-      }
     }
   })
 })

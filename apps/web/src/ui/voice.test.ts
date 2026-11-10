@@ -59,7 +59,6 @@ const CORE_COPY = [
   'lookback/copy.ts',
   'lookback/checkInCopy.ts',
   'lookback/sectionCopy.ts',
-  'profile/sentence.ts',
 ]
 
 /** Files under the UI that hold no user text: tests, the helpers and fixtures they use, and declarations. */

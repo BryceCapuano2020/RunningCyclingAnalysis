@@ -7,20 +7,20 @@ import { localDayNumber } from './localDay'
  * artefact, and a wrist sensor gives them in runs of a minute or two, but a value reached on three different days
  * within a few beats of each other is a heart rate the athlete's body gave.
  */
-export const CORROBORATING_DAYS = 3
+const CORROBORATING_DAYS = 3
 
 /**
  * How near each other, in bpm, the days that corroborate a maximum must lie. A real maximum is reached on several
  * days within a few beats of it; an artefact lands anywhere above, so two of them rarely agree to within this.
  */
-export const SUPPORT_SPREAD_BPM = 3
+const SUPPORT_SPREAD_BPM = 3
 
 /**
  * How far down the days, highest first, a corroborated maximum is looked for: the larger of this many days and this
  * share of them. Further down, three days within a few beats are only easy days that happen to agree.
  */
-export const SUPPORT_MIN_DAYS = 6
-export const SUPPORT_SHARE = 0.08
+const SUPPORT_MIN_DAYS = 6
+const SUPPORT_SHARE = 0.08
 
 /** The trailing window a maximum is taken over, so a maximum from many years ago does not set today's zones. */
 export const REFERENCE_WINDOW_DAYS = 3 * 365

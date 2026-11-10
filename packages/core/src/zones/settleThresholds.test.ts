@@ -4,8 +4,8 @@ import type { ThresholdStep, ThresholdTimeline } from '../digest/thresholdTimeli
 import { thresholdAt } from '../digest/thresholdTimelineTypes'
 import type { CriticalPowerFit } from '../types'
 import { settledThresholds } from './settleThresholds'
+import { WEEK_MS } from '../calendar'
 
-const WEEK_MS = 7 * DAY_MS
 const START = Date.UTC(2024, 0, 7)
 
 const fitOf = (cp: number, cpSe = 0.1): CriticalPowerFit => ({

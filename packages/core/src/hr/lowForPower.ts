@@ -12,7 +12,7 @@ import { MEASURED_EFFORT } from './setAside'
  * fitted, so the line is never extrapolated. Under maxShare of that heart rate sets it aside. A sport with fewer
  * than minActivities such activities is not judged.
  */
-export const HR_LOW_FOR_POWER = {
+const HR_LOW_FOR_POWER = {
   minMovingS: 1200,
   minBlocks: 3,
   minActivities: 12,

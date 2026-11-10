@@ -5,24 +5,11 @@ import { PACE_UNIT, formatPace, formatPaceValue, formatPower, formatWatts } from
 import type { UnitSystem } from '../units'
 import { FITNESS } from './params'
 import type { FitnessStatus, Ranged, Shortfall, SpokenState } from './types'
+import { MONTH_NAMES } from '../calendar'
 
 const M = FITNESS.monitor
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-const month = (ms: number) => MONTHS[new Date(ms).getUTCMonth()]!
+const month = (ms: number) => MONTH_NAMES[new Date(ms).getUTCMonth()]!
 
 /**
  * A date names its year when it is not in the year the status is as of, so a low that fell in an earlier year reads
