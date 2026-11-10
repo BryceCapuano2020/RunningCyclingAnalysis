@@ -1,0 +1,120 @@
+import { StateSnapshotSchema } from '@rca/contract'
+import type { Bindings } from '../env.ts'
+import type { Deps } from '../deps.ts'
+import { reserveR2Put } from '../storage.ts'
+import { computeFor } from './compute.ts'
+import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
+import { InputsMoved, readInputs } from './inputs.ts'
+import { stateKey } from './key.ts'
+import { contentHash, encodeSnapshot } from './store.ts'
+
+/** What one run of an account's job did. */
+export type JobOutcome =
+  | 'gone' // no account, or one being deleted
+  | 'current' // already computed at this version or a later one
+  | 'too_large' // more activities than the server computes for; the browser does
+  | 'moved' // a write landed while reading; its own job follows
+  | 'unchanged' // computed, the same figures: the version is recorded and nothing is written
+  | 'written' // a new snapshot object, and the old one deleted
+
+interface JobRow {
+  library_version: number
+  activity_count: number
+  computed_version: number | null
+  snapshot_hash: string | null
+}
+
+async function jobRow(db: D1Database, userId: string): Promise<JobRow | null> {
+  return db
+    .prepare(
+      `SELECT u.library_version, u.activity_count, j.computed_version, j.snapshot_hash
+       FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
+       WHERE u.id = ? AND u.deleting_at IS NULL`,
+    )
+    .bind(userId)
+    .first<JobRow>()
+}
+
+/**
+ * Records that the inputs at `version` were computed, and, when `hash` is given, that the snapshot it names is the
+ * latest. The snapshot columns move only to a newer version than the stored one, so two jobs that overlap cannot put an
+ * older snapshot over a newer one (decision 6). Returns the hash the row holds afterwards.
+ */
+async function record(
+  db: D1Database,
+  userId: string,
+  version: number,
+  now: number,
+  hash: string | null,
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `INSERT INTO state_jobs (user_id, computed_version, computed_at, snapshot_hash, snapshot_version)
+       VALUES (?1, ?2, ?3, ?4, CASE WHEN ?4 IS NULL THEN 0 ELSE ?2 END)
+       ON CONFLICT(user_id) DO UPDATE SET
+         computed_version = max(computed_version, ?2),
+         computed_at = ?3,
+         snapshot_hash = CASE WHEN ?4 IS NOT NULL AND snapshot_version < ?2 THEN ?4 ELSE snapshot_hash END,
+         snapshot_version = CASE WHEN ?4 IS NOT NULL THEN max(snapshot_version, ?2) ELSE snapshot_version END
+       RETURNING snapshot_hash`,
+    )
+    .bind(userId, version, now, hash)
+    .first<{ snapshot_hash: string | null }>()
+  return row?.snapshot_hash ?? null
+}
+
+/**
+ * Computes one account's snapshot if its inputs have moved since the last compute, and stores it only if the figures
+ * changed. The same `AnalysisSession.loadDigests` path the browser runs, on the digests D1 holds. Throws on a failure the
+ * Queue should retry (R2 budget, a D1 error).
+ */
+export async function runStateJob(
+  env: Bindings,
+  deps: Deps,
+  userId: string,
+  /** The library size the job computes for: the limit, unless a measurement raises it. */
+  { maxActivities = SERVER_STATE_MAX_ACTIVITIES }: { maxActivities?: number } = {},
+): Promise<JobOutcome> {
+  const db = env.DB
+  const bucket = env.FILES
+  if (bucket === undefined) throw new Error('state job: no file storage bound')
+  const before = await jobRow(db, userId)
+  if (before === null) return 'gone'
+  if ((before.computed_version ?? 0) >= before.library_version) return 'current'
+  if (before.activity_count > maxActivities) return 'too_large'
+  let inputs
+  try {
+    inputs = await readInputs(db, userId)
+  } catch (error) {
+    if (error instanceof InputsMoved) return 'moved'
+    throw error
+  }
+  if (inputs === null) return 'gone'
+  const nowMs = deps.now()
+  const snapshot = computeFor(inputs, nowMs)
+  // A snapshot this build writes is one it reads: the envelope is the contract's own.
+  const envelope = StateSnapshotSchema.safeParse(snapshot)
+  if (!envelope.success) throw new Error('state job: snapshot does not fit its envelope')
+  const hash = await contentHash(snapshot)
+  if (hash === before.snapshot_hash) {
+    await record(db, userId, inputs.version, nowMs, null)
+    return 'unchanged'
+  }
+  const bytes = await encodeSnapshot(snapshot)
+  await reserveR2Put(db, deps.now, bytes.byteLength)
+  await bucket.put(stateKey(userId, hash), bytes, {
+    httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
+  })
+  let held: string | null
+  try {
+    held = await record(db, userId, inputs.version, nowMs, hash)
+  } catch (error) {
+    // The row did not take it (the account went, say): the object has no owner, so it goes rather than wait for the sweep.
+    await bucket.delete(stateKey(userId, hash)).catch(() => undefined)
+    throw error
+  }
+  // The old object goes in the same job. If a newer job won the row, ours is the one with no owner.
+  const stale = held === hash ? before.snapshot_hash : hash
+  if (stale !== null && stale !== held) await bucket.delete(stateKey(userId, stale))
+  return 'written'
+}

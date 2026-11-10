@@ -15,6 +15,8 @@ export { bodyMassOn, currentMass, hasDatedMass, massAtFor, sameMasses } from './
 export type { MassAt } from './mass'
 export { isCountableKey, MAX_COUNTED_RUNS, sameCountedRuns } from './countedRuns'
 export type { AthleteSettings } from './settings'
+export { PLACEHOLDER_BODY_KG, analysisSettings } from './analysisSettings'
+export type { WeightSettings } from './analysisSettings'
 export {
   NO_REFERENCE_SETTINGS,
   referenceSettingsOf,

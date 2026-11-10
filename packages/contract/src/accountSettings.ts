@@ -17,6 +17,16 @@ const PeriodSchema = z.custom<Exclude<PeriodChoice, 'default'>>(
   'Not a period',
 )
 
+/** Whether the text names a time zone this runtime knows (an IANA name such as "Europe/Paris"). */
+function isZoneName(text: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: text })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
  * The choices an athlete makes that are not activity data and used to live in one browser: the rides
  * whose implausible power is kept, the runs counted at walking pace and the period on screen. A field
@@ -30,6 +40,11 @@ export const AccountSettingsSchema = z.strictObject({
     .max(MAX_COUNTED_RUNS)
     .nullable(),
   period: PeriodSchema.nullable(),
+  /**
+   * The athlete's zone, as the browser last reported it: the server cuts the days of the results it computes there
+   * (docs/design/server-compute.md, decision 3). Left out, the saved zone stays; the server reads UTC while none is saved.
+   */
+  zone: z.string().min(1).max(64).refine(isZoneName, 'Not a time zone').optional(),
 })
 export type AccountSettings = z.infer<typeof AccountSettingsSchema>
 

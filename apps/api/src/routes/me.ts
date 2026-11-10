@@ -48,20 +48,31 @@ meRoutes.get('/me', optionalUser, async (c) => {
  * digests, both kept by the same statements that insert, upgrade and delete rows. Another tab or device
  * compares it for inequality only, as a hint that its copy of the library may be out of date. It is
  * not a version: an edit that changes neither number is not seen, and nothing relies on it being exact.
+ * `libraryVersion` is the exact counter the server's results are built against (users.library_version); the web moves to it
+ * from the tag in the stage that reads the server's snapshot.
  * `liftRevision` is the lift sets' own counter and never feeds the tag: logging a set must not reload the library.
  */
 async function revisionsOf(
   db: AppEnv['Variables']['db'],
   userId: string,
-): Promise<{ libraryRevision: string; liftRevision: number }> {
+): Promise<{ libraryRevision: string; libraryVersion: number; liftRevision: number }> {
   const row = await db
-    .select({ count: users.activityCount, bytes: users.digestBytes, lifts: users.liftRevision })
+    .select({
+      count: users.activityCount,
+      bytes: users.digestBytes,
+      lifts: users.liftRevision,
+      version: users.libraryVersion,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .get()
   return row === undefined
-    ? { libraryRevision: '0.0', liftRevision: 0 }
-    : { libraryRevision: `${row.count}.${row.bytes}`, liftRevision: row.lifts }
+    ? { libraryRevision: '0.0', libraryVersion: 0, liftRevision: 0 }
+    : {
+        libraryRevision: `${row.count}.${row.bytes}`,
+        libraryVersion: row.version,
+        liftRevision: row.lifts,
+      }
 }
 
 meRoutes.put(
@@ -102,7 +113,7 @@ meRoutes.put(
     const bucket = c.env.FILES
     // Sweep before the profile changes, so a failed sweep leaves the profile and files as they were.
     if (sweepFiles && bucket) {
-      await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
+      await sweepUserFiles(c.env.DB, bucket, userId, deps.now, true)
       await db
         .update(activities)
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })
@@ -118,7 +129,7 @@ meRoutes.put(
       .get()
     if (sweepFiles && bucket) {
       // An upload that passed the keepFiles check before the change can still land its object.
-      await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
+      await sweepUserFiles(c.env.DB, bucket, userId, deps.now, true)
       await db
         .update(activities)
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })

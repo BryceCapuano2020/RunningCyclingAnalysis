@@ -14,6 +14,7 @@ const NOUNS: Record<DailyLimitAction, string> = {
   measurementRead: 'loads of your dated settings',
   settingsWrite: 'changes to your account settings',
   settingsRead: 'loads of your account settings',
+  stateRead: 'loads of your saved results',
   liftRead: 'loads of your lift sets',
   liftWrite: 'changes to your lift sets',
 }

@@ -64,3 +64,57 @@ test('allows an unconfigured origin only in explicit bootstrap mode', () => {
 test('accepts ordinary comments and single quoted values', () => {
   assert.doesNotThrow(() => validateDeployConfig(valid.replaceAll('"', "'") + ' # public origin\n'))
 })
+
+const producer = `
+[[queues.producers]]
+binding = "STATE_QUEUE"
+queue = "rca-state"`
+const consumer = `
+[[queues.consumers]]
+queue = "rca-state"
+max_batch_size = 2
+max_retries = 3
+dead_letter_queue = "rca-state-dlq"`
+const limits = `
+[limits]
+cpu_ms = 10000`
+test('results on the server stay off: with the list empty or absent, no queue or limits may be bound', () => {
+  assert.doesNotThrow(() => validateDeployConfig(`${valid}\nSERVER_COMPUTE_USERS = ""`))
+  assert.doesNotThrow(() => validateDeployConfig(`${valid}\n# [[queues.producers]]`))
+  for (const extra of [producer, consumer, limits, producer + consumer + limits]) {
+    for (const list of ['', 'SERVER_COMPUTE_USERS = ""\n', 'SERVER_COMPUTE_USERS = " , "\n']) {
+      assert.throws(
+        () => validateDeployConfig(list + valid + extra),
+        /SERVER_COMPUTE_USERS is empty/,
+      )
+    }
+    assert.throws(
+      () => validateDeployConfig(valid + extra, { allowUnconfiguredOrigin: true }),
+      /SERVER_COMPUTE_USERS is empty/,
+    )
+  }
+})
+test('a list of accounts binds the producer, a bounded consumer with a dead-letter queue, and a CPU cap', () => {
+  const on = `${valid}\nSERVER_COMPUTE_USERS = "u1, u2"`
+  assert.doesNotThrow(() => validateDeployConfig(on + producer + consumer + limits))
+  assert.throws(() => validateDeployConfig(on), /must bind/)
+  assert.throws(() => validateDeployConfig(on + producer + consumer), /cpu_ms/)
+  assert.throws(() => validateDeployConfig(on + consumer + limits), /must bind/)
+  assert.throws(() => validateDeployConfig(on + producer + limits), /must bind/)
+  for (const key of ['max_batch_size', 'max_retries', 'dead_letter_queue']) {
+    const lacking = consumer.replace(new RegExp(`\\n${key}.*`), '')
+    assert.throws(() => validateDeployConfig(on + producer + lacking + limits), new RegExp(key))
+  }
+})
+test('production never lists everyone', () => {
+  const star = `${valid}\nSERVER_COMPUTE_USERS = "*"`
+  assert.throws(() => validateDeployConfig(star + producer + consumer + limits), /not \*/)
+})
+test('the committed production configuration lists no account and binds no queue or limit', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const config = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8')
+  assert.match(config, /^SERVER_COMPUTE_USERS = ""/m)
+  assert.doesNotMatch(config, /^\[\[queues\./m)
+  assert.doesNotMatch(config, /^\[limits\]/m)
+  assert.doesNotThrow(() => validateDeployConfig(config))
+})

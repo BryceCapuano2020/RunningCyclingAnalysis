@@ -44,6 +44,8 @@ export const DAILY_LIMITS = {
   settingsWrite: 200,
   /** Account-settings reads, one D1 row each. */
   settingsRead: 300,
+  /** State snapshot reads: one D1 row and one R2 object each (docs/design/server-compute.md). */
+  stateRead: 300,
   /** Lift pages. A page is at most LIFT_PAGE_SIZE rows, also metered on the list-rows meter. */
   liftRead: 300,
   /** Lift writes and deletes, up to 500 sets each: 60,000 sets in 120 writes, with room to spare. */

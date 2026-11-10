@@ -28,11 +28,13 @@ function migrated(): DatabaseSync {
 }
 
 describe('migration 0013', () => {
-  it('is the last migration, so the next one is 0014', () => {
+  it('is in the journal, and 0014 is the next one', () => {
     const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
       entries: { tag: string }[]
     }
-    expect(journal.entries.at(-1)?.tag).toBe('0013_account_settings')
+    const tags = journal.entries.map((entry) => entry.tag)
+    expect(tags.at(13)).toBe('0013_account_settings')
+    expect(tags.at(14)).toBe('0014_server_state')
   })
 
   it('leaves an existing user with no row, and a new row with every choice never set', () => {

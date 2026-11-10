@@ -539,6 +539,7 @@ describe('shared limits', () => {
       measurementRead: 300,
       settingsWrite: 200,
       settingsRead: 300,
+      stateRead: 300,
       liftRead: 300,
       liftWrite: 300,
     })

@@ -6,6 +6,7 @@ import {
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
 import { HttpError } from './errors.ts'
+import { isStateKey } from './state/key.ts'
 
 const DEFAULT_PAGE_SIZE = 1000
 /** At most 5,000 activities per user, so each of two cleanup sweeps needs at most 5 pages. */
@@ -307,6 +308,7 @@ export async function deleteByPrefixWithBudget(
   prefix: string,
   budget: R2CleanupBudget,
   pageSize = DEFAULT_PAGE_SIZE,
+  keep: (key: string) => boolean = () => false,
 ): Promise<number> {
   let deleted = 0
   let cursor: string | undefined
@@ -334,7 +336,7 @@ export async function deleteByPrefixWithBudget(
       reservedPeriod = await reserveR2Budget(budget.db, budget.now(), 1, 0, true)
     }
     const page = await bucket.list({ prefix, cursor, limit: pageSize })
-    const keys = page.objects.map((object) => object.key)
+    const keys = page.objects.map((object) => object.key).filter((key) => !keep(key))
     if (keys.length > 0) {
       await bucket.delete(keys)
       deleted += keys.length
@@ -359,16 +361,24 @@ export async function hasStoredFiles(db: D1Database, userId: string): Promise<bo
 /**
  * Removes every object under the user's prefix, reserving cleanup LIST headroom first. Callers
  * decide whether the user has objects at all, so accounts without files never spend the budget.
+ * `keepState` leaves the account's results snapshot, which turning original files off does not touch.
  */
 export async function sweepUserFiles(
   db: D1Database,
   bucket: R2Bucket,
   userId: string,
   now: () => number,
+  keepState = false,
 ): Promise<number> {
   const budget = await reserveR2CleanupBudget(db, now(), undefined, now)
   try {
-    return await deleteByPrefixWithBudget(bucket, userFilePrefix(userId), budget)
+    return await deleteByPrefixWithBudget(
+      bucket,
+      userFilePrefix(userId),
+      budget,
+      DEFAULT_PAGE_SIZE,
+      keepState ? isStateKey : undefined,
+    )
   } finally {
     await releaseR2CleanupBudget(db, budget)
   }

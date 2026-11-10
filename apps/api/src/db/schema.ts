@@ -42,6 +42,11 @@ export const users = sqliteTable(
     liftCount: integer('lift_count').notNull().default(0),
     /** Raised by every lift write and delete. The browser pulls lifts only when it moves. */
     liftRevision: integer('lift_revision').notNull().default(0),
+    /**
+     * One counter for every input of the account's results: raised by triggers (migration 0014) on every change to an
+     * activity's digest, the profile, a dated setting or the account settings. The server's state job reads it.
+     */
+    libraryVersion: integer('library_version').notNull().default(0),
   },
   (t) => [check('users_lift_count_cap', sql`${t.liftCount} BETWEEN 0 AND 60000`)],
 )
@@ -112,7 +117,24 @@ export const athleteSettings = sqliteTable('athlete_settings', {
   keepPower: text('keep_power'),
   countedRuns: text('counted_runs'),
   period: text('period'),
+  /** The athlete's zone, an IANA name, as the browser last reported it; null until it does (the server then cuts days in UTC). */
+  zone: text('zone'),
   updatedAt: integer('updated_at').notNull(),
+})
+
+/**
+ * The state job of an account (docs/design/server-compute.md, decisions 5, 6 and 9). The job is dirty while
+ * `users.library_version` is above `computed_version`. `snapshot_hash` names the R2 object that holds the latest
+ * snapshot, built from the inputs at `snapshot_version`; the row is written only to a newer version.
+ */
+export const stateJobs = sqliteTable('state_jobs', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  computedVersion: integer('computed_version').notNull().default(0),
+  computedAt: integer('computed_at').notNull().default(0),
+  snapshotHash: text('snapshot_hash'),
+  snapshotVersion: integer('snapshot_version').notNull().default(0),
 })
 
 /**
@@ -320,6 +342,7 @@ export const schema = {
   profiles,
   athleteMeasurements,
   athleteSettings,
+  stateJobs,
   liftSets,
   activities,
   r2StorageBudget,

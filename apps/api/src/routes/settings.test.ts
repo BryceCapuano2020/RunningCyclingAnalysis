@@ -143,6 +143,27 @@ describe('PUT /api/settings', () => {
     expect(await res.json()).toMatchObject({ error: { code: 'daily_limit' } })
   })
 
+  it('keeps the zone the browser reports until another is sent, and shows none before one', async () => {
+    const { put, get } = await signedIn()
+    expect(await get()).not.toHaveProperty('zone')
+    expect(await (await put({ ...SAVED, zone: 'Pacific/Auckland' })).json()).toMatchObject({
+      zone: 'Pacific/Auckland',
+    })
+    // A write that leaves the zone out keeps the saved one.
+    expect(await (await put(NONE)).json()).toEqual({ ...NONE, zone: 'Pacific/Auckland' })
+    expect(await get()).toEqual({ ...NONE, zone: 'Pacific/Auckland' })
+    expect(await (await put({ ...NONE, zone: 'Europe/Paris' })).json()).toMatchObject({
+      zone: 'Europe/Paris',
+    })
+  })
+
+  it('refuses a zone that is not a zone name', async () => {
+    const { put } = await signedIn()
+    for (const zone of ['Not/AZone', '', 5, 'x'.repeat(65)]) {
+      expect((await put({ ...NONE, zone })).status, String(zone)).toBe(400)
+    }
+  })
+
   it('is removed with the account', async () => {
     const { put, h, cookies } = await signedIn()
     await put(SAVED)
