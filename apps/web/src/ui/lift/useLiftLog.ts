@@ -108,6 +108,8 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const retry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const askedAt = useRef(-Infinity)
+  // The retry timer calls the latest syncNow through this ref, so the callback never names itself while it is made.
+  const syncAgain = useRef<() => Promise<void>>(() => Promise.resolve())
 
   const syncNow = useCallback(
     async (seen?: number) => {
@@ -126,7 +128,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
         clearTimeout(retry.current)
         if (flush.retryInMs !== null)
           retry.current = setTimeout(() => {
-            if (alive.current === engine) void syncNow().catch(() => undefined)
+            if (alive.current === engine) void syncAgain.current().catch(() => undefined)
           }, flush.retryInMs)
       } finally {
         // Once an engine left behind settles, its store is closed again: its own reads and writes reopened it.
@@ -136,6 +138,9 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     },
     [engine, reload, scope, store],
   )
+  useEffect(() => {
+    syncAgain.current = () => syncNow()
+  }, [syncNow])
   const trySync = useCallback(
     () => void syncNow(liftRevision).catch(() => undefined),
     [syncNow, liftRevision],
