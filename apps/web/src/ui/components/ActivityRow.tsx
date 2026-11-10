@@ -94,7 +94,7 @@ function heroOf(activity: ActivitySummary, units: UnitSystem): Hero | null {
 }
 
 /** One labelled figure, in its own column: the label is for screen readers, the unit says the rest. */
-function Stat({ label, value, column }: { label: string; value: string; column: string }) {
+export function Stat({ label, value, column }: { label: string; value: string; column: string }) {
   return (
     <div className={`activity-list__stat activity-list__stat--${column}`}>
       <dt className="sr-only">{label}</dt>
