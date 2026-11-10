@@ -1,5 +1,6 @@
 import { liftSetKey } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
+import { committed } from './idb'
 import { openIndexedDb } from './openIndexedDb'
 import { databaseExists } from './workbenchExists'
 import {
@@ -69,13 +70,9 @@ async function inDatabase<R>(
   fallback: R,
 ): Promise<R> {
   try {
-    return await new Promise<R>((resolve) => {
-      const transaction = db.transaction(STORE, mode)
-      const result = work(transaction.objectStore(STORE))
-      transaction.oncomplete = () => resolve(result)
-      transaction.onerror = () => resolve(fallback)
-      transaction.onabort = () => resolve(fallback)
-    })
+    const transaction = db.transaction(STORE, mode)
+    const result = work(transaction.objectStore(STORE))
+    return (await committed(transaction)) ? result : fallback
   } catch {
     return fallback
   }
@@ -96,12 +93,9 @@ export async function clearLifts(): Promise<boolean> {
   const db = await openDatabase()
   if (db === null) return true
   try {
-    return await new Promise<boolean>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      transaction.objectStore(STORE).clear()
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = transaction.onabort = () => resolve(false)
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    transaction.objectStore(STORE).clear()
+    return await committed(transaction)
   } catch {
     return false
   } finally {
@@ -114,18 +108,15 @@ export async function clearScope(scope: string): Promise<boolean> {
   const db = await openDatabase()
   if (db === null) return true
   try {
-    return await new Promise<boolean>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      const cursor = transaction.objectStore(STORE).index('scope').openKeyCursor(scope)
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        transaction.objectStore(STORE).delete(at.primaryKey)
-        at.continue()
-      }
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = transaction.onabort = () => resolve(false)
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    const cursor = transaction.objectStore(STORE).index('scope').openKeyCursor(scope)
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      transaction.objectStore(STORE).delete(at.primaryKey)
+      at.continue()
+    }
+    return await committed(transaction)
   } catch {
     return false
   } finally {
@@ -144,25 +135,22 @@ export async function sweepLifts(keepScope: string | null): Promise<void> {
   const db = await openDatabase()
   if (db === null) return
   try {
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      const cursor = transaction.objectStore(STORE).openCursor()
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        const { scope, state } = at.value as LiftRow
-        // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
-        if (
-          scope !== keepScope &&
-          scope !== DEVICE_SCOPE &&
-          (keepScope !== null || state === 'synced')
-        )
-          at.delete()
-        at.continue()
-      }
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = transaction.onabort = () => resolve()
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    const cursor = transaction.objectStore(STORE).openCursor()
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      const { scope, state } = at.value as LiftRow
+      // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
+      if (
+        scope !== keepScope &&
+        scope !== DEVICE_SCOPE &&
+        (keepScope !== null || state === 'synced')
+      )
+        at.delete()
+      at.continue()
+    }
+    await committed(transaction)
   } catch {
     // The rows stay until a later load tries again.
   } finally {

@@ -1,3 +1,4 @@
+import { committed, yieldToOtherTabs } from './idb'
 import { databaseExists } from './workbenchExists'
 
 /**
@@ -44,10 +45,7 @@ export function openCheckinDb(): Promise<IDBDatabase | null> {
     request.onsuccess = () => {
       const db = request.result
       // Another tab upgrading or deleting the database must not be held up by this connection.
-      db.onversionchange = () => {
-        db.close()
-        opening = null
-      }
+      yieldToOtherTabs(db, () => (opening = null))
       resolve(db)
     }
     request.onerror = () => resolve(null)
@@ -62,14 +60,6 @@ export function openCheckinDb(): Promise<IDBDatabase | null> {
 /** Forgets the open connection, for a test that replaces the whole of IndexedDB. */
 export function resetCheckinDb(): void {
   opening = null
-}
-
-function settle(transaction: IDBTransaction): Promise<boolean> {
-  return new Promise((resolve) => {
-    transaction.oncomplete = () => resolve(true)
-    transaction.onerror = () => resolve(false)
-    transaction.onabort = () => resolve(false)
-  })
 }
 
 /** The key range of a scope's rows in a store keyed `<scope>|<rest>`. */
@@ -100,7 +90,7 @@ export async function clearCheckinScope(
       epoch.onsuccess = () =>
         marks.put((typeof epoch.result === 'number' ? epoch.result : 0) + 1, epochKey(scope))
     }
-    return await settle(tx)
+    return await committed(tx)
   } catch {
     return false
   }

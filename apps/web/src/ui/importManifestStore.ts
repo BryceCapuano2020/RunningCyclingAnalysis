@@ -1,3 +1,4 @@
+import { committed, yieldToOtherTabs } from '../worker/idb'
 import { openIndexedDb } from '../worker/openIndexedDb'
 import type { ImportManifest, ManifestScope } from './importManifest'
 
@@ -42,12 +43,7 @@ export function openManifestStore(): ManifestStore {
       db.createObjectStore(STORE, { keyPath: 'id' })
     }).then((db) => {
       // Never stand in the way of another tab deleting or upgrading the database.
-      if (db !== null) {
-        db.onversionchange = () => {
-          db.close()
-          opened = null
-        }
-      }
+      if (db !== null) yieldToOtherTabs(db, () => (opened = null))
       return db
     })
     return opened
@@ -60,13 +56,9 @@ export function openManifestStore(): ManifestStore {
     const db = await database()
     if (db === null) return
     try {
-      await new Promise<void>((resolve) => {
-        const transaction = db.transaction(STORE, mode)
-        transaction.oncomplete = () => resolve()
-        transaction.onerror = () => resolve()
-        transaction.onabort = () => resolve()
-        work(transaction.objectStore(STORE))
-      })
+      const transaction = db.transaction(STORE, mode)
+      work(transaction.objectStore(STORE))
+      await committed(transaction)
     } catch {
       opened = null
     }

@@ -4,6 +4,7 @@ import type { ActivityDigest, AthleteType } from '@rca/core/types'
 import { LibraryReplaced } from './deviceFile'
 import type { DeviceFile } from './deviceFile'
 import { fromNewerVersion, readRow } from './deviceRows'
+import { commitOrThrow, requestResult, yieldToOtherTabs } from './idb'
 import { OPEN_TIMEOUT_MS } from './openIndexedDb'
 
 export type { DeviceFile }
@@ -180,20 +181,7 @@ function openDatabase(): Promise<IDBDatabase> {
   })
 }
 
-function done<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('Device storage failed'))
-  })
-}
-
-function committed(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error ?? new Error('Device storage failed'))
-    transaction.onabort = () => reject(transaction.error ?? new Error('Device storage aborted'))
-  })
-}
+const done = <T>(request: IDBRequest<T>): Promise<T> => requestResult(request, 'Device storage')
 
 /**
  * The library in IndexedDB. Storage can be missing, refused or closed by the browser (a private
@@ -209,13 +197,7 @@ export function openDeviceLibrary(): DeviceLibrary {
     opened ??= openDatabase().then(
       (db) => {
         // Another tab upgrading, or the browser closing the database, ends this connection.
-        db.onversionchange = () => {
-          db.close()
-          opened = null
-        }
-        db.onclose = () => {
-          opened = null
-        }
+        yieldToOtherTabs(db, () => (opened = null), true)
         return db
       },
       (error: unknown) =>
@@ -244,7 +226,7 @@ export function openDeviceLibrary(): DeviceLibrary {
     try {
       const transaction = db.transaction(STORE, mode)
       const result = await work(transaction.objectStore(STORE))
-      if (mode === 'readwrite') await committed(transaction)
+      if (mode === 'readwrite') await commitOrThrow(transaction, 'Device storage')
       return result
     } catch (error) {
       // A refused write is the library's news, not a fault in the connection.
