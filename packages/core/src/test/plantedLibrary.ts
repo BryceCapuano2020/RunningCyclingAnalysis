@@ -1,6 +1,6 @@
 import { WEEK_MS } from '../calendar'
 import { DAY_MS } from '../constants'
-import { DAYS, MONDAY } from '../digest/test/sameHeartRateFixture'
+import { DAYS, MONDAY } from '../digest/test/plantedBlocks'
 import { fnv1a32, mulberry32, normal } from '../math'
 import type { ActivityDigest, Sport } from '../types'
 import { BASELINE, plantedActivity } from './plantedActivity'

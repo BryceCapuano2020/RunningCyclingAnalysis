@@ -1,4 +1,4 @@
-import { MONDAY, weeksOf } from '../../digest/test/sameHeartRateFixture'
+import { MONDAY, weeksOf } from '../../digest/test/plantedBlocks'
 import { mulberry32, normal } from '../../math'
 import { NOISE_PRESETS } from '../../synthetic/noise/presets'
 import type { ActivityDigest } from '../../types'

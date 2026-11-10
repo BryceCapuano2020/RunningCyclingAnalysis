@@ -1,6 +1,6 @@
 # Output at the same heart rate
 
-Status: implemented 2026-10-27 (`packages/core/src/digest/sameHeartRate.ts`, `theilSen.ts`). The model
+Status: removed in the cut (10 Nov 2026); `digest/sameHeartRate.ts` and `theilSen.ts` no longer exist, and only the constants remain, for the mixing study. Implemented 2026-10-27. The model
 revision is unchanged: nothing it adds enters a digest, a best effort or a threshold. **Unverified** marks
 a citation whose text was not re-read when this note was written.
 

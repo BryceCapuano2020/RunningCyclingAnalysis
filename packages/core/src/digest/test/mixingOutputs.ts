@@ -1,6 +1,6 @@
 import { FITNESS } from '../../fitness'
 import type { SessionState } from '../../sessionState'
-import { SAME_HEART_RATE } from '../../constants'
+import { SAME_HEART_RATE } from '../../sameHeartRateConstants'
 import type { Curve, Sport } from '../../types'
 
 /**
