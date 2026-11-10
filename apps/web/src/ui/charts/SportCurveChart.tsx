@@ -16,7 +16,7 @@ import type { ChartSize } from './chartTypes'
 import { Crosshair } from './Crosshair'
 import { captionOf, columnsOf, tableRow } from './curveTable'
 import type { View } from './curveTable'
-import { areaPath, linePath } from './paths'
+import { linePath } from './paths'
 import { axisTitleWithin } from './sportAxis'
 import { curveMarks } from './sportCurveAnnotations'
 import { keyOf } from './sportCurveKey'
@@ -66,9 +66,9 @@ export interface SportCurveChartProps {
 
 /**
  * A sport's best efforts by duration, in its own unit: pace for running, faster up, and power for
- * cycling, on a wash of the sport's colour. The 5, 20 and 60 minute bests are called out with their
- * values, the threshold is a labelled line, and a stretch with no effort on file is drawn lighter and
- * labelled once. The period before is a dashed line when given.
+ * cycling, as one line. The 5, 20 and 60 minute bests carry their values beside their dots, the threshold
+ * is one thin labelled line, and a stretch with no effort on file is drawn lighter. The period before is a
+ * thin grey line when given.
  */
 export function SportCurveChart({
   sport,
@@ -190,11 +190,6 @@ export function SportCurveChart({
               fontSize={axisFontSize(size.width)}
             />
             {activeX !== undefined ? <Crosshair x={activeX} plot={size.plot} /> : null}
-            <path
-              className={`chart-series__area chart-series__area--${sport}`}
-              data-sport={sport}
-              d={areaPath(m.points, size.plot.bottom)}
-            />
             {shown ? (
               <path
                 data-testid="sport-curve-previous"

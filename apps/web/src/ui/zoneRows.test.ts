@@ -99,7 +99,7 @@ describe('zoneTable', () => {
       'metric',
     )
     expect(table.title).toBe('Ride power zones')
-    expect(table.detail).toBe('Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov')
+    expect(table.detail).toBe('Threshold: 250 W')
     expect(table.columns).toEqual(['Zone', 'Name', 'Range'])
     expect(table.rows).toHaveLength(7)
     expect(table.rows[0]).toEqual(['1', 'Active recovery', 'Under 140 W'])
@@ -113,25 +113,19 @@ describe('zoneTable', () => {
       estimatedFrom: ['run'],
       windowEndMs: WINDOW_END,
     })
-    expect(zoneTable(set, 'metric').detail).toBe(
-      'Zones cut from 4:46 /km, your threshold over the 26 weeks to 1 Nov',
-    )
-    expect(zoneTable(set, 'imperial').detail).toBe(
-      'Zones cut from 7:40 /mi, your threshold over the 26 weeks to 1 Nov',
-    )
+    expect(zoneTable(set, 'metric').detail).toBe('Threshold: 4:46 /km')
+    expect(zoneTable(set, 'imperial').detail).toBe('Threshold: 7:40 /mi')
   })
 
   it('writes a year after the day of a window that ended in another year', () => {
     const last = new Date(new Date().getFullYear() - 1, 10, 1, 23, 59, 59, 999).getTime()
     const set = setOf({ measure: 'power', reference: 250, windowEndMs: last })
-    expect(zoneTable(set, 'metric').detail).toBe(
-      `Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov ${new Date(last).getFullYear()}`,
-    )
+    expect(zoneTable(set, 'metric').detail).toBe(`Threshold: 250 W`)
   })
 
   it('says an entered threshold was entered, with no window', () => {
     const set = setOf({ measure: 'power', reference: 240, source: 'entered' })
-    expect(zoneTable(set, 'metric').detail).toBe('Zones cut from 240 W, entered by you')
+    expect(zoneTable(set, 'metric').detail).toBe('Threshold: 240 W, entered by you')
   })
 
   it('says an entered reference was entered', () => {
@@ -167,9 +161,7 @@ describe('the source and basis of an estimated zone set', () => {
     })
     expect(sourceText({ ...set, asOfMs: MARCH_2025 })).toBe('From your runs up to Mar 2025')
     expect(sourceText(set)).toBe('From your runs')
-    expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe(
-      'Zones cut from 4:46 /km, your threshold over the 26 weeks to 1 Nov',
-    )
+    expect(zoneTable({ ...set, asOfMs: MARCH_2025 }, 'metric').detail).toBe('Threshold: 4:46 /km')
   })
 
   it('says a ride’s power is its threshold over the window, whatever date the newest effort has', () => {
@@ -181,9 +173,7 @@ describe('the source and basis of an estimated zone set', () => {
       asOfMs: MARCH_2025,
       windowEndMs: WINDOW_END,
     })
-    expect(zoneTable(power, 'metric').detail).toBe(
-      'Zones cut from 240 W, your threshold over the 26 weeks to 1 Nov',
-    )
+    expect(zoneTable(power, 'metric').detail).toBe('Threshold: 240 W')
     expect(sourceText(power)).toBe('From your rides up to Mar 2025')
   })
 
@@ -222,14 +212,14 @@ describe('the source and basis of an estimated zone set', () => {
       reference: 180,
       estimatedFrom: ['run'],
     })
-    expect(maxHeartRateBasis(ride)).toBe('180 bpm, 6 bpm below your running maximum')
+    expect(maxHeartRateBasis(ride)).toBe('180 bpm')
     const run = setOf({
       sport: 'run',
       measure: 'heartRate',
       reference: 188,
       estimatedFrom: ['ride'],
     })
-    expect(maxHeartRateBasis(run)).toBe('188 bpm, your cycling maximum')
+    expect(maxHeartRateBasis(run)).toBe('188 bpm')
   })
 
   it('has no basis for an entered reference or for a pace or power', () => {

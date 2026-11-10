@@ -1009,10 +1009,10 @@ describe('ProfilePage zones and dated settings', () => {
       expect(screen.getByRole('table', { name })).toBeInTheDocument()
     }
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /Zones cut from \d+:\d{2} \/km, your threshold over the 26 weeks to \d+ Oct( 2025)?\./,
+      /Threshold: \d+:\d{2} \/km\./,
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
-      /Zones cut from \d+ W, your threshold over the 26 weeks to \d+ Oct( 2025)?\./,
+      /Threshold: \d+ W\./,
     )
   })
 
@@ -1044,7 +1044,7 @@ describe('ProfilePage zones and dated settings', () => {
     }
     renderProfile({}, { state: { result, zoneEstimates: earlier } })
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).toHaveAccessibleName(
-      /Zones cut from \d+:\d{2} \/km, your threshold over the 26 weeks to \d+ Sep( 2025)?\./,
+      /Threshold: \d+:\d{2} \/km\./,
     )
     expect(screen.getByRole('table', { name: /^Run pace zones/ })).not.toHaveAccessibleName(
       /keep this threshold|newest fit/,
@@ -1126,7 +1126,7 @@ describe('ProfilePage zones and dated settings', () => {
       { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     const table = screen.getByRole('table', { name: /^Ride power zones/ })
-    expect(table).toHaveAccessibleName(/Zones cut from 250 W, entered by you/)
+    expect(table).toHaveAccessibleName(/Threshold: 250 W, entered by you/)
     expect(within(table).getByText('375 W or more')).toBeInTheDocument()
     expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
     const rows = within(screen.getByRole('list', { name: 'Your dated settings' })).getAllByRole(
@@ -1177,7 +1177,7 @@ describe('ProfilePage zones and dated settings', () => {
       { state: { result: makeResult(), zoneEstimates: estimatesFrom(makeResult()) } },
     )
     expect(screen.getByRole('table', { name: /^Ride power zones/ })).toHaveAccessibleName(
-      /Zones cut from 250 W, entered by you/,
+      /Threshold: 250 W, entered by you/,
     )
   })
 

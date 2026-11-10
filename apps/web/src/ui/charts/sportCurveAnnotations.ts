@@ -1,5 +1,5 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { formatDuration, formatWkg } from '@rca/core/units'
+import { formatWkg } from '@rca/core/units'
 import { effortLabel } from '../records'
 import { SPORT_FORMAT } from '../sports'
 import { lineObstacles, markerObstacle } from './annotations'
@@ -37,7 +37,7 @@ export interface CurveMarks {
   ticks: Box[]
 }
 
-/** What the curve says outright: its bests with their values, its end and its threshold. */
+/** What the curve says outright: its bests with their values and its threshold, nothing more. */
 export function curveMarks(
   rows: CurveRow[],
   m: Layout,
@@ -90,20 +90,6 @@ export function curveMarks(
       prefer: 'above',
     })
   }
-  const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
-  const last = rows[lastIndex]
-  const lastAt = m.points[lastIndex]
-  if (last !== undefined && lastAt && !calloutIndexes.includes(lastIndex)) {
-    annotations.push({
-      kind: 'end',
-      id: 'end',
-      optional: true,
-      tone: sport,
-      at: lastAt,
-      text: formatNative(sport, last.value, units),
-      sub: `at ${formatDuration(last.durationS)}`,
-    })
-  }
   if (threshold !== null) {
     annotations.push({
       kind: 'reference',
@@ -111,15 +97,8 @@ export function curveMarks(
       y: m.yOf(threshold.value),
       label: threshold.estimated === true ? 'Threshold (estimated)' : 'Threshold',
       estimated: threshold.estimated,
+      // One thin line and its value: the range is in the table and on Balance, not a band across the curve.
       value: formatNative(sport, threshold.value, units),
-      detail: threshold.detail,
-      band:
-        threshold.low !== undefined && threshold.high !== undefined
-          ? {
-              top: Math.min(m.yOf(threshold.low), m.yOf(threshold.high)),
-              bottom: Math.max(m.yOf(threshold.low), m.yOf(threshold.high)),
-            }
-          : undefined,
     })
   }
   const markers = m.points.flatMap((point, i) =>

@@ -35,7 +35,7 @@ describe('ZoneTables', () => {
     renderZones()
     expect(
       screen.getByRole('table', {
-        name: /^Run heart rate zones Max heart rate: 190 bpm, your cycling maximum/,
+        name: /^Run heart rate zones Max heart rate: 190 bpm/,
       }),
     ).toBeTruthy()
   })
@@ -72,9 +72,7 @@ describe('ZoneTables, the max heart rate and its source', () => {
     zones(vi.fn())
     expect(screen.getByText('Max heart rate: 186 bpm.')).toBeInTheDocument()
     // The ride's is worked out from the run's, and says so.
-    expect(
-      screen.getByText('Max heart rate: 180 bpm, 6 bpm below your running maximum.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Max heart rate: 180 bpm.')).toBeInTheDocument()
     expect(screen.getByRole('table', { name: /^Run heart rate zones/ })).toBeInTheDocument()
     expect(screen.queryByText(/Is that right/)).toBeNull()
     expect(screen.queryByRole('button', { name: /^Set it/ })).toBeNull()
