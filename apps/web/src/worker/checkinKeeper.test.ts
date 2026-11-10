@@ -20,8 +20,6 @@ function snap(days: number[], atMs: number): CheckInSnapshot {
     keys: { run: encodeSeconds(seconds), ride: '' },
     counts: { run: seconds.length, ride: 0 },
     bests: { run: [], ride: [] },
-    fitness: { run: null, ride: null },
-    episodes: { run: [], ride: [] },
   }
 }
 

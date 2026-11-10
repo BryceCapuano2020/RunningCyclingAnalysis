@@ -28,7 +28,7 @@ async function openFitnessEvidence(page: Page): Promise<void> {
   // The graph is the Run page's; its one Details mounts the runs it rests on once opened.
   await goTo(page, 'Run')
   const section = page.getByRole('region', { name: 'Your fitness' })
-  await expect(section.getByRole('figure', { name: 'Slipping' })).toBeVisible()
+  await expect(section.getByRole('figure', { name: 'Run', exact: true })).toBeVisible()
   await section.locator('.chart-frame__details > summary').click()
   await expect(page.locator('.fitness-runs a').first()).toBeVisible()
 }

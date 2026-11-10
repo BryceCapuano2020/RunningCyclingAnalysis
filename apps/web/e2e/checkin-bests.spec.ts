@@ -37,8 +37,8 @@ test('a faster second run is not called a new best by the summary while the row 
 
   const row = page.locator('[data-testid="checkin-row"]')
   await row.locator('summary').click()
-  await expect(row.locator('.checkin-row__item').first()).toContainText('Fitness moved')
-  await expect(row.locator('.checkin-row__item').first()).toContainText('Nothing')
+  // No best is told, and nothing else of this import is: the panel holds no row.
+  await expect(row.locator('.checkin-row__item')).toHaveCount(0)
   // The summary above names no best the row denies.
   await expect(page.locator('.app__notices').getByText(/New best/)).toHaveCount(0)
 })

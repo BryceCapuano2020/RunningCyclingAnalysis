@@ -108,7 +108,6 @@ export function FitnessSection({
             library={library}
             // A list of one row is not numbered: an index of 01 alone counts nothing.
             index={rows.length > 1 ? index : null}
-            showSport={sport === undefined}
             graphs={graphs}
             evidence={sport !== undefined}
             bare={

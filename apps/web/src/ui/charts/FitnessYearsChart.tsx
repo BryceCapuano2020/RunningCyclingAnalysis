@@ -13,8 +13,7 @@ import type { ChartSize } from './chartTypes'
 import { useChartHeight } from './chartHeight'
 import { formatNative } from './sportAxis'
 import { fitnessYearsLayout, yearAtX } from './fitnessYearsLayout'
-import type { SpanBox } from './fitnessYearsLayout'
-import { atText, axisTitleOf, spansTable, yearTooltip, yearsTable } from './fitnessYearsText'
+import { atText, axisTitleOf, yearTooltip, yearsTable } from './fitnessYearsText'
 import { idleFrom } from './idleReadout'
 import { linePath } from './paths'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
@@ -29,7 +28,7 @@ export interface FitnessYearsChartProps {
   units: UnitSystem
   /** The sport toggle, which the chart puts in its frame's controls row. */
   controls?: ReactNode
-  /** Names the chart where the page's own heading is not "Fitness over the years": the sport page's state, "Recovering". */
+  /** Names the chart where the page's own heading is not "Fitness over the years": the sport page's sport. */
   title?: string
   /** The title is the chart's accessible name only, where a heading over it says it. */
   titleHidden?: boolean
@@ -37,34 +36,27 @@ export interface FitnessYearsChartProps {
   lede?: string
   /** Today's level in the sport's own unit, marked on the plot at the last dot. */
   now?: number | null
-  /** A short strip for a sport page's row, with no key: the dots and the shading alone. */
+  /** A short strip for a sport page's row, with no key: the dots alone. */
   compact?: boolean
   /** The rest of a sport page's section, for the chart's one Details; `onOpen` is called when it opens. */
   extra?: ReactNode
   onOpen?: () => void
-  /** Whether the slips and rises are shaded. A fitness row that has no history to tell leaves them out. */
-  showSpans?: boolean
 }
-
-/** The narrowest a slip's or rise's shading can be, px, and still carry its word. */
-const WORD_ROOM_PX = 34
 
 /** The plot's height in a sport page's strip, px. */
 const COMPACT_PLOT_PX = { phone: 130, wide: 170 }
-
-const SPAN_WORD = { slip: 'Slip', rise: 'Rise' } as const
 
 const upper = (text: string): string => `${text[0]!.toUpperCase()}${text.slice(1)}`
 
 /**
  * Every steady run or ride of the library as a dot: its pace or power at the fitness card's heart rate. A line runs
- * through their median, and the slips and rises the look-back lists are shaded behind them. The dots are one drawing,
+ * through their median. The dots are one drawing,
  * not a node each, so a library of thousands stays smooth. The keyboard reads one year at a time, and the table
  * holds the same years.
  */
 export function FitnessYearsChart({
   sport,
-  dots: given,
+  dots,
   units,
   controls,
   title = 'Fitness over the years',
@@ -72,17 +64,13 @@ export function FitnessYearsChart({
   lede,
   now = null,
   compact = false,
-  showSpans = true,
   extra,
   onOpen,
 }: FitnessYearsChartProps) {
-  const dots = useMemo(() => (showSpans ? given : { ...given, spans: [] }), [given, showSpans])
   // The year being read belongs to the sport it was read in: the other sport starts with none.
   const [read, setRead] = useState<{ sport: Sport; year: number | null }>({ sport, year: null })
   const active = read.sport === sport ? read.year : null
   const setActive = (year: number | null) => setRead({ sport, year })
-  // Where the pointer is across the plot, so the slip or rise under it can lead the reading.
-  const [pointerX, setPointerX] = useState<number | null>(null)
   const height = useChartHeight(compact ? COMPACT_PLOT_PX : undefined)
   // The layout is kept between renders, so reading a year does not lay the dots out again.
   const layoutOf = useMemo(
@@ -91,8 +79,6 @@ export function FitnessYearsChart({
   )
   const words = FITNESS_WORDS[sport]
   const last = dots.years.length - 1
-  const under = (spans: readonly SpanBox[]) =>
-    pointerX === null ? [] : spans.filter((s) => pointerX >= s.x0 && pointerX <= s.x1)
   return (
     <ChartFrame
       title={title}
@@ -101,7 +87,7 @@ export function FitnessYearsChart({
       onOpen={onOpen}
       lede={lede ?? `${words.output} at ${atText(dots)} on ${words.steadyPlural}`}
       controls={controls}
-      description={`${dots.levels.length} ${words.steadyPlural} from ${dots.years[0]?.year} to ${dots.years[last]?.year}, each ${words.output.toLowerCase()} at ${atText(dots)}, with a line through their median and the slips and rises shaded.`}
+      description={`${dots.levels.length} ${words.steadyPlural} from ${dots.years[0]?.year} to ${dots.years[last]?.year}, each ${words.output.toLowerCase()} at ${atText(dots)}, with a line through their median.`}
       height={height}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       legend={
@@ -114,28 +100,21 @@ export function FitnessYearsChart({
       }
       idleReadout={idleFrom(yearTooltip(dots, sport, units, last, 0, 0))}
       table={yearsTable(dots, sport, units)}
-      summary={spansTable(dots)}
       surface={(size) => {
         const layout = layoutOf(size)
-        return plotSurface(
-          size,
-          layout?.xs ?? null,
-          active,
-          setActive,
-          (_xs, x) => (layout === null ? null : yearAtX(layout.rooms, x)),
-          (point) => setPointerX(point === null ? null : point.x),
+        return plotSurface(size, layout?.xs ?? null, active, setActive, (_xs, x) =>
+          layout === null ? null : yearAtX(layout.rooms, x),
         )
       }}
       overlay={(size) => {
         const layout = layoutOf(size)
-        const bands = under(layout?.spans ?? []).map((s) => s.index)
         return tooltipOverlay(
           size,
           tooltipAt(
             size,
             layout?.xs ?? null,
             active,
-            (i, x, y) => yearTooltip(dots, sport, units, i, x, y, bands),
+            (i, x, y) => yearTooltip(dots, sport, units, i, x, y),
             layout?.ys,
           ),
         )
@@ -146,7 +125,6 @@ export function FitnessYearsChart({
         if (m === null) return null
         const { plot } = size
         const room = active === null ? undefined : m.rooms[active]
-        const reading = new Set(under(m.spans).map((s) => s.index))
         return (
           <g data-sport={sport}>
             <ChartXAxis
@@ -170,26 +148,6 @@ export function FitnessYearsChart({
                 height={plot.bottom - plot.top}
               />
             )}
-            {m.spans.map((span) => (
-              <g key={`${span.kind}-${span.x0}`} data-testid="fitness-span">
-                <rect
-                  className={`fitness-years__span fitness-years__span--${span.kind}${reading.has(span.index) ? ' fitness-years__span--read' : ''}`}
-                  x={span.x0}
-                  y={plot.top}
-                  width={Math.max(2, span.x1 - span.x0)}
-                  height={plot.bottom - plot.top}
-                />
-                {span.x1 - span.x0 >= WORD_ROOM_PX ? (
-                  <text
-                    className="annot__text annot__text--label"
-                    x={span.x0 + 4}
-                    y={plot.top + 12}
-                  >
-                    {SPAN_WORD[span.kind]}
-                  </text>
-                ) : null}
-              </g>
-            ))}
             <path
               data-testid="fitness-dots"
               className={`fitness-years__dots fitness-years__dots--${SPORT_FORMAT[sport].glyph}`}

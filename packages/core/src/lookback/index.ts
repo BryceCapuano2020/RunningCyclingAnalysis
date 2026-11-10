@@ -4,51 +4,21 @@
  */
 export { hindsightOf, horizonDay, shortOf } from './hindsight'
 export type { HindsightInput } from './hindsight'
-export { meetsLeadBar } from './lead'
 export { LOOKBACK } from './params'
-export type {
-  EpisodeKind,
-  HindsightEpisode,
-  HindsightFitness,
-  Plateau,
-  QuietStretch,
-  SportYears,
-  Span,
-  TooShort,
-} from './types'
+export type { HindsightFitness, Plateau, QuietStretch, SportYears, Span, TooShort } from './types'
 export { hindsightsOf, lookBackOf, NO_LOOKBACK } from './compute'
-export { datedAt, datedByLookBack } from './cardDates'
-export type { CardRuns } from './cardDates'
 export type { LookBack, SportLookBack } from './compute'
-export { leadKey, leadOf, mayStateHeld } from './lead'
-export type { Lead, LiveState } from './lead'
+export { mayStateHeld } from './lead'
+export type { LiveState } from './lead'
 export { milestonesOf } from './milestones'
-export {
-  bestValue,
-  dayMonthYear,
-  effortName,
-  episodeFigure,
-  episodeSentence,
-  leadSentence,
-  monthYear,
-  monthsBetween,
-  stoodText,
-  tooShortText,
-} from './copy'
-export type { EpisodeFigure } from './copy'
+export { bestValue, dayMonthYear, effortName, monthYear, monthsBetween, tooShortText } from './copy'
 export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'
 export { checkInBetween, beatsShown, OLDER_DAYS } from './checkIn'
-export type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
-export { episodeFinding, yearsFinding } from './sectionCopy'
+export type { CheckIn, NewBest } from './checkIn'
+export { yearsFinding } from './sectionCopy'
 export { checkInText } from './checkInCopy'
 export type { CheckInFigure, CheckInText } from './checkInCopy'
 export { beginImport, endImport, joins, JOIN_WINDOW_MS, usableBaseline } from './marks'
 export type { BaselineCheck, ImportEnd, Marks } from './marks'
 export { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'
-export type {
-  CheckInSnapshot,
-  SnapshotBest,
-  SnapshotEpisode,
-  SnapshotFitness,
-  SnapshotInputs,
-} from './snapshot'
+export type { CheckInSnapshot, SnapshotBest, SnapshotInputs } from './snapshot'

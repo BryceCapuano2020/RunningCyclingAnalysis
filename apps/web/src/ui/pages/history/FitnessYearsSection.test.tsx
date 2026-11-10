@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NO_HISTORY } from '@rca/core/history'
-import { NO_LOOKBACK } from '@rca/core/lookback'
-import { episodeFigure } from '@rca/core/lookback'
-import type { HindsightFitness } from '@rca/core/lookback'
 import '../../../test/deviceZone'
 import { dotsFixture } from '../../test/fitnessYearsFixtures'
-import { YEARS_LOOKBACK } from '../../test/yearsFixtures'
 import { FitnessYearsSection } from './FitnessYearsSection'
 
 class SizedObserver {
@@ -31,49 +27,9 @@ const run = dotsFixture({ years: [2021, 2022] })
 const ride = dotsFixture({ sport: 'ride', years: [2022, 2023] })
 
 describe('FitnessYearsSection', () => {
-  it('lists the sport’s episodes under its chart, each with its size, and none for a sport that has none', () => {
-    vi.stubGlobal('ResizeObserver', SizedObserver)
-    render(<FitnessYearsSection fitness={{ run, ride }} units="metric" lookBack={YEARS_LOOKBACK} />)
-    const chart = screen.getByRole('figure', { name: 'Fitness over the years' })
-    const episodes = screen.getByRole('region', { name: 'Episodes' })
-    // Under the chart, in the page's order.
-    expect(chart.compareDocumentPosition(episodes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const rows = within(episodes).getAllByRole('listitem')
-    const block = YEARS_LOOKBACK.sports.run
-    const years = block.fitness as HindsightFitness
-    // Each row is its figure from the core, label over value, with the dates and steady activities beneath.
-    expect(rows).toHaveLength(years.episodes.length)
-    years.episodes.forEach((episode, i) => {
-      const figure = episodeFigure(episode, block, years)
-      expect(rows[i]!.querySelector('.row__title')).toHaveTextContent(figure.label)
-      expect(rows[i]!.querySelector('.row__figure')).toHaveTextContent(figure.value)
-      expect(rows[i]).toHaveTextContent(figure.span)
-    })
-    // The ride has no years to tell in this look-back.
-    fireEvent.click(screen.getByRole('radio', { name: 'Ride' }))
-    expect(screen.queryByRole('region', { name: 'Episodes' })).toBeNull()
-  })
-
-  it('counts the smaller changes the list left out', () => {
-    vi.stubGlobal('ResizeObserver', SizedObserver)
-    const block = YEARS_LOOKBACK.sports.run
-    const lookBack = {
-      ...YEARS_LOOKBACK,
-      sports: {
-        ...YEARS_LOOKBACK.sports,
-        run: { ...block, fitness: { ...(block.fitness as HindsightFitness), omittedEpisodes: 3 } },
-      },
-    }
-    render(<FitnessYearsSection fitness={{ run, ride }} units="metric" lookBack={lookBack} />)
-    const row = within(screen.getByRole('region', { name: 'Episodes' }))
-      .getByText('Smaller changes')
-      .closest('li')!
-    expect(row.querySelector('.row__figure')).toHaveTextContent('3')
-  })
-
   it('toggles between the sports that have dots, and starts on the first', () => {
     vi.stubGlobal('ResizeObserver', SizedObserver)
-    render(<FitnessYearsSection fitness={{ run, ride }} units="metric" lookBack={NO_LOOKBACK} />)
+    render(<FitnessYearsSection fitness={{ run, ride }} units="metric" />)
     expect(screen.getByRole('radio', { name: 'Run' })).toBeChecked()
     expect(screen.getByRole('figure')).toHaveTextContent('Pace at 142 bpm on steady runs')
     fireEvent.click(screen.getByRole('radio', { name: 'Ride' }))
@@ -84,13 +40,7 @@ describe('FitnessYearsSection', () => {
 
   it('has no toggle for one sport, and shows that sport', () => {
     vi.stubGlobal('ResizeObserver', SizedObserver)
-    render(
-      <FitnessYearsSection
-        fitness={{ ...NO_HISTORY.fitness, ride }}
-        units="metric"
-        lookBack={NO_LOOKBACK}
-      />,
-    )
+    render(<FitnessYearsSection fitness={{ ...NO_HISTORY.fitness, ride }} units="metric" />)
     expect(screen.queryByRole('radio')).toBeNull()
     expect(screen.getByRole('figure')).toHaveTextContent('Power at 142 bpm on steady rides')
   })
@@ -98,27 +48,17 @@ describe('FitnessYearsSection', () => {
   it('leaves a sport out until it has enough steady activities to draw, and says what to add when none does', () => {
     vi.stubGlobal('ResizeObserver', SizedObserver)
     const few = dotsFixture({ sport: 'ride', years: [2023], perYear: 7 })
-    const { rerender } = render(
-      <FitnessYearsSection fitness={{ run, ride: few }} units="metric" lookBack={NO_LOOKBACK} />,
-    )
+    const { rerender } = render(<FitnessYearsSection fitness={{ run, ride: few }} units="metric" />)
     expect(screen.queryByRole('radio')).toBeNull()
     expect(screen.getByRole('figure')).toHaveTextContent('on steady runs')
-    rerender(
-      <FitnessYearsSection
-        fitness={{ ...NO_HISTORY.fitness, ride: few }}
-        units="metric"
-        lookBack={NO_LOOKBACK}
-      />,
-    )
+    rerender(<FitnessYearsSection fitness={{ ...NO_HISTORY.fitness, ride: few }} units="metric" />)
     expect(screen.getByText(/^Add steady runs with heart rate/)).toBeInTheDocument()
     expect(screen.queryByTestId('fitness-dots')).toBeNull()
   })
 
   it('says what to add when neither sport has a steady activity', () => {
     vi.stubGlobal('ResizeObserver', SizedObserver)
-    render(
-      <FitnessYearsSection fitness={NO_HISTORY.fitness} units="metric" lookBack={NO_LOOKBACK} />,
-    )
+    render(<FitnessYearsSection fitness={NO_HISTORY.fitness} units="metric" />)
     expect(screen.queryByRole('radio')).toBeNull()
     expect(screen.getByText(/^Add steady runs with heart rate/)).toBeInTheDocument()
   })

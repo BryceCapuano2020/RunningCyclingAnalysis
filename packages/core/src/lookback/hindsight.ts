@@ -1,20 +1,15 @@
 import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
-import type { WeekRecord } from '../fitness/machine'
 import { fitSeason, withoutSeason } from '../fitness/season'
 import { pointOf } from '../fitness/series'
 import { slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
-import { episodesOf } from './episodes'
-import { anchorsOf, liveEpisodes } from './live'
-import type { Anchor } from './anchors'
-import type { WeekEpisode, WeekSpan } from './episodes'
 import { LOOKBACK } from './params'
 import { quietLevels } from './quiet'
-import { sig, sigRanged } from './round'
+import { sig } from './round'
 import { segmentLevels, sigmaOver } from './segments'
 import type { Level, Segmented } from './segments'
-import type { HindsightEpisode, HindsightFitness, Plateau, Span, TooShort } from './types'
+import type { HindsightFitness, Plateau, Span, TooShort, WeekSpan } from './types'
 
 const L = LOOKBACK
 // A week boundary on the day clock, a label read in UTC (monthYear): the local week's own date, in any zone.
@@ -29,11 +24,6 @@ export interface HindsightInput {
   activeDays: readonly number[]
   /** The newest activity's day: the years are told through `horizonWeeks` before it. */
   asOfDay: number
-  /**
-   * What the fitness monitor said week by week (`FitnessHistory.records`). Without it nothing is known of what the card
-   * said; with it a recovery the card confirmed is not called less than back.
-   */
-  records?: readonly WeekRecord[]
 }
 
 /** The days since the origin of the horizon, a whole number of weeks. */
@@ -91,16 +81,13 @@ function plateausOf(
   runs: readonly RunPoint[],
   endDay: number,
   bar: { delta: number; z: number },
-  anchors: readonly Anchor[],
 ): Segmented | null {
   const season = fitSeason(runs, endDay)
-  if (season === null) return segmentLevels(runs, endDay, bar, undefined, anchors)
+  if (season === null) return segmentLevels(runs, endDay, bar)
   const first = segmentLevels(
     withoutSeason(runs, season, Number.NEGATIVE_INFINITY, Infinity),
     endDay,
     bar,
-    undefined,
-    anchors,
   )
   if (first === null || first.levels.length < 2) return first
   const centre =
@@ -115,27 +102,10 @@ function plateausOf(
   const again = fitSeason(flat, endDay)
   if (again === null) return first
   return (
-    segmentLevels(
-      withoutSeason(runs, again, Number.NEGATIVE_INFINITY, Infinity),
-      endDay,
-      bar,
-      undefined,
-      anchors,
-    ) ?? first
+    segmentLevels(withoutSeason(runs, again, Number.NEGATIVE_INFINITY, Infinity), endDay, bar) ??
+    first
   )
 }
-
-const dated = (e: WeekEpisode): HindsightEpisode => ({
-  kind: e.kind,
-  fromMs: msOfWeek(e.fromWeek),
-  toMs: e.toWeek === null ? null : msOfWeek(e.toWeek),
-  change: sigRanged(e.change),
-  regained: sigRanged(e.regained),
-  remaining: sigRanged(e.remaining),
-  z: sig(e.z, 4),
-  steps: e.steps,
-  runs: e.runs,
-})
 
 /** The longest `cap` of the spans, kept in date order, and how many were dropped. */
 function longest<T extends Span>(spans: T[], cap: number): { kept: T[]; dropped: number } {
@@ -147,8 +117,7 @@ function longest<T extends Span>(spans: T[], cap: number): { kept: T[]; dropped:
 }
 
 /**
- * A sport's years in hindsight, told through the horizon: its plateaus, the slips, returns and improvements between
- * them, the stretches that were quiet, and the stretches with no steady runs and none at all. A library short of
+ * A sport's years in hindsight, told through the horizon: its plateaus, the stretches that were quiet, and the stretches with no steady runs and none at all. A library short of
  * `minimum` has only the counts it lacks. Under `list.shortWeeks` of data no season can be told from change, so only
  * a step of `list.shortDelta` or more is listed.
  */
@@ -162,20 +131,15 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     delta: weeks < L.list.shortWeeks ? L.list.shortDelta : L.list.delta,
     z: L.list.z,
   }
-  const live = liveEpisodes(input.records ?? [], Math.floor(endDay / 7) - 1)
-  const plateaus = plateausOf(runs, endDay, bar, anchorsOf(live))
+  const plateaus = plateausOf(runs, endDay, bar)
   if (plateaus === null) return counts
-  const { levels, sigma, floor } = plateaus
+  const { levels, sigma } = plateaus
   const active = input.activeDays.filter((d) => d < endDay)
   const breaks = gapsIn(active, L.gapWeeks)
   const thin = gapsIn(
     runs.map((r) => r.t),
     L.gapWeeks,
   ).filter((g) => holdsActivity(g, active))
-  const episodes = episodesOf(levels, breaks, floor, bar.delta, live).map(dated)
-  const keepEpisodes = [...episodes]
-    .sort((a, b) => Math.abs(b.change.value) - Math.abs(a.change.value) || b.fromMs - a.fromMs)
-    .slice(0, L.caps.episodes)
   const quiet = quietLevels(levels, runs, sigma, [...breaks, ...thin]).map(({ index, within }) => ({
     fromMs: msOfWeek(levels[index]!.fromWeek),
     toMs: msOfWeek(levels[index]!.toWeek),
@@ -203,8 +167,6 @@ export function hindsightOf(input: HindsightInput): HindsightFitness | TooShort 
     toMs,
     runs: runs.length,
     levels: levels.map(plateau),
-    episodes: episodes.filter((e) => keepEpisodes.includes(e)),
-    omittedEpisodes: episodes.length - keepEpisodes.length,
     quiet: quietCut.kept,
     thin: thinCut.kept,
     breaks: breakCut.kept,

@@ -37,20 +37,11 @@ export function daysOf(dots: Pick<FitnessDots, 'firstDay' | 'gaps'>): number[] {
 /** A dot's value in the sport's own unit: m/s for a run, watts for a ride. */
 export const outputOf = (dots: FitnessDots, steps: number): number => steps * dots.step
 
-export interface SpanBox {
-  kind: 'slip' | 'rise'
-  x0: number
-  x1: number
-  /** Where the span sits in the dots' `spans`, which hold its dates. */
-  index: number
-}
-
 export interface FitnessYearsLayout {
   /** Every dot as one path: a point of zero length with a round cap for a run, a closed diamond for a ride. */
   dots: string
   /** The middle line, a null where the core had too few dots to say, so the pen lifts there. */
   line: (Point | null)[]
-  spans: SpanBox[]
   /** The pixel x of the middle of each year's room, in the order the arrow keys step through the years. */
   xs: number[]
   /** Each year's room on the plot, for the band drawn behind the year that is read. */
@@ -126,7 +117,7 @@ function xTicksOf(
 }
 
 /**
- * Where the dots, the middle line, the slips and rises and the years sit on a plot. Time runs left to right from the
+ * Where the dots, the middle line and the years sit on a plot. Time runs left to right from the
  * first dot to the last, each year has its room in proportion to its days, and the vertical axis is fitted to the dots
  * (faster up for a run). Null without a dot.
  */
@@ -163,12 +154,6 @@ export function fitnessYearsLayout(
           y: onPlot(plottedValue(sport, outputOf(dots, steps), units)),
         },
   )
-  // A span is drawn from where it began to where it ended, or the look-back's horizon while it lasts, within the plot.
-  const horizon = dots.horizonDay ?? to
-  const spans = dots.spans.flatMap(({ kind, fromDay, toDay }, index): SpanBox[] => {
-    const [a, b] = [Math.max(fromDay, from), Math.min(toDay ?? horizon, to)]
-    return b > a ? [{ kind, x0: x(a), x1: x(b), index }] : []
-  })
   const rooms = dots.years.map(({ year }) => ({
     x0: x(Math.max(yearStartDay(year), from)),
     x1: x(Math.min(yearStartDay(year + 1), to)),
@@ -177,7 +162,6 @@ export function fitnessYearsLayout(
   return {
     dots: dotsPath(points, glyph),
     line,
-    spans,
     xs,
     rooms,
     ys: dots.years.map((year) =>

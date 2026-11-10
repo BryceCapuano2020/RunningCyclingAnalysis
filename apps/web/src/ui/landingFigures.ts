@@ -1,4 +1,3 @@
-import type { Ranged } from '@rca/core/fitness'
 import type { Sport } from '@rca/core/types'
 import { declared, resolved } from '../styles/tokenSheet'
 import type { SportGrade } from './grades'
@@ -12,13 +11,6 @@ import { SPORT_NOUN } from '../domain/sportNoun'
 export interface LandingFigures {
   gap: { centre: number; low: number; high: number; lean: Sport }
   grades: Record<Sport, SportGrade>
-  /**
-   * The run's fitness status as the example draws it: the heart rate it is read at and the change as a track. The
-   * size of the change is not here: the sample's fitness model reads its weeks from a fixed origin, so its size moves
-   * by a point as the visit day moves through a 12 week cycle, and a figure made at build time would sometimes differ
-   * from the one the sample's own Balance page gives. The state and the heart rate hold on every day (sampleSections.test.ts).
-   */
-  fitness: { referenceHr: number; change: Ranged }
 }
 
 /** What the share image's description says of the figures: the two levels and which way the balance leans. */

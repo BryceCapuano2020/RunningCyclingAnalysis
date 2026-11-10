@@ -4,14 +4,14 @@ import { edgesOf, goTo, openSample, trackErrors } from './helpers.js'
 
 const CARD = '.fitness-card[data-sport="run"]'
 
-/** The sport pages' fitness section and its graph, titled by the sample run's state. */
+/** The sport pages' fitness section and its graph, titled by the sport. */
 const section = (page: Page) => page.getByRole('region', { name: 'Your fitness' })
-const graph = (page: Page) => section(page).getByRole('figure', { name: 'Slipping' })
+const graph = (page: Page) => section(page).getByRole('figure', { name: 'Run', exact: true })
 const openRun = async (page: Page) => {
   await openSample(page)
   await goTo(page, 'Run')
 }
-/** Opens the Run page's one Details, which holds the level, the track and the runs it rests on. */
+/** Opens the Run page's one Details, which holds the level and the runs it rests on. */
 const openRunDetails = (page: Page) =>
   section(page).locator('.chart-frame__details > summary').click()
 
@@ -26,7 +26,7 @@ const spoken = (line: Locator) =>
 /** The sample's run fitness row, on the page the test is on. */
 const card = (page: Page) => page.locator(CARD)
 
-/** Opens a fitness row's one Details, which holds the level, the basis, the track and the evidence. */
+/** Opens a fitness row's one Details, which holds the basis and the evidence. */
 const openDetails = (row: Locator) => row.locator('.fitness-card__evidence > summary').click()
 
 /** The value of the detail-panel row in `scope` whose label matches. */
@@ -37,26 +37,26 @@ async function value(scope: Locator, label: RegExp): Promise<string> {
   return (await row.locator('dd').first().innerText()).replace(/\s+/g, ' ').trim()
 }
 
-test('the sample’s Balance shows a fitness status that is new, with its one line and the runs behind it in Details', async ({
+test('the sample’s Balance shows the run by its sport, with its level as one line and the runs behind it in Details', async ({
   page,
 }) => {
   const errors = trackErrors(page)
   await openSample(page)
   await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run · Slipping')
-  // One line under the title: the change, with no range.
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run')
+  // One line under the title: the level at its heart rate, with no range and no change.
   expect(await spoken(card(page).locator('.fitness-card__line'))).toMatch(
-    /^\d+% off your (\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
+    /^\d+:\d{2} \/(km|mi) at \d+ bpm\.$/,
   )
-  // The rest waits in the row's Details: the level at its heart rate, the runs behind it, what is new and the track.
+  // The rest waits in the row's Details: the runs behind the level.
   await expect(card(page).locator('.props')).toBeHidden()
   await openDetails(card(page))
-  expect(await value(card(page), /^Pace at \d+ bpm$/)).toMatch(/^\d+:\d{2}\s\/(km|mi)$/)
   expect(await value(card(page), /^Steady runs$/)).toMatch(/^\d+$/)
   await expect(card(page).getByTestId('fitness-season')).toHaveCount(0)
-  expect(await value(card(page), /^New since$/)).toMatch(/^the week of \d{1,2} [A-Z][a-z]{2}$/)
-  // Balance holds no graph and no track: those are the Run and Ride pages'.
+  // No state word, no change and no track anywhere on the row.
+  await expect(card(page)).not.toContainText(/Slipping|Recovering|Holding|Improv|New since|\blow\b/)
   await expect(card(page).locator('.fitness-track__bar')).toHaveCount(0)
+  // Balance holds no graph: that is the Run and Ride pages'.
   await expect(card(page).getByRole('figure')).toHaveCount(0)
   expect(errors).toEqual([])
 })
@@ -70,11 +70,13 @@ test('the Run page draws the level as a graph with its table twin, and its Detai
   // One disclosure for the section, closed: the evidence is not mounted yet.
   await expect(section(page).locator('details')).toHaveCount(1)
   await expect(page.locator('.fitness-evidence')).toHaveCount(0)
-  // The chart: a ring and a range for each four-week step, the line it is read against, the month it began, and now.
+  // The chart: a ring and a range for each four-week step, the earlier level it is read against, and now.
   expect(await chart.locator('[data-testid="fitness-point"]').count()).toBeGreaterThanOrEqual(5)
   await expect(chart.locator('[data-testid="fitness-now"]')).toHaveCount(1)
-  await expect(chart.locator('[data-annotation="before"]')).toContainText(/^Before /)
-  await expect(chart.locator('[data-testid="fitness-onset"]')).toContainText(/^Began /)
+  await expect(chart.locator('[data-annotation="before"]')).toContainText(/^Earlier level/)
+  await expect(
+    chart.locator('[data-testid="fitness-onset"], [data-testid="fitness-low"]'),
+  ).toHaveCount(0)
   // Its table twin has a row for each step.
   const steps = await chart.locator('[data-testid="fitness-point"]').count()
   await expect(chart.locator('table').nth(1).locator('tbody tr')).toHaveCount(steps + 1)
@@ -122,8 +124,8 @@ test('the Run page leads with the same status above the threshold', async ({ pag
   await goTo(page, 'Run')
   const section = page.getByRole('region', { name: 'Your fitness' })
   await expect(section).toBeVisible()
-  // A graph of the level over time, titled by the state alone, with today marked.
-  const graph = section.getByRole('figure', { name: 'Slipping' })
+  // A graph of the level over time, titled by the sport, with today marked.
+  const graph = section.getByRole('figure', { name: 'Run', exact: true })
   await expect(graph.getByTestId('fitness-now')).toBeAttached()
   // Under the hero, and the sport is not named twice.
   const fitness = await edgesOf(graph)
@@ -153,7 +155,7 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   const ride = page.getByRole('region', { name: 'Your fitness' })
   await expect(ride).toBeVisible()
   // The steady rides it rests on as dots, today's level across them, and no trend drawn.
-  const graph = ride.getByRole('figure', { name: 'No trend yet' })
+  const graph = ride.getByRole('figure', { name: 'Ride', exact: true })
   await expect(graph.getByTestId('fitness-dots')).toBeAttached()
   await expect(graph.getByTestId('fitness-now-mark')).toContainText(/^Now \d+ W$/)
   await ride.locator('.chart-frame__details > summary').click()
@@ -166,34 +168,22 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   await expect(page.locator('.fitness-card[data-sport="run"]')).toHaveCount(0)
 })
 
-test('the landing page’s one sample card holds the finding under the balance, with no size to differ from the sample’s', async ({
+test('the landing page’s one sample card holds the balance and no fitness finding', async ({
   page,
 }) => {
   await page.goto('/')
   const example = page.locator('.landing-example')
   await expect(example).toHaveCount(1)
   await expect(example.locator('figcaption .landing-example__name')).toHaveText('Sample athlete')
-  await expect(example.locator('.landing-example__state')).toHaveText('Slipping')
-  await expect(example.locator('.landing-example__sentence')).toHaveText(
-    /^Slower than your old level at 120 bpm\.$/,
-  )
-  await expect(example.locator('.fitness-track__ring')).toBeVisible()
-  // The triangle comes first; the finding is under it, in the same card.
-  const levels = await edgesOf(example.locator('.level-triangle'))
-  const panel = await edgesOf(example.locator('.landing-example__fitness'))
-  expect(levels.bottom).toBeLessThanOrEqual(panel.top)
-  const frame = await edgesOf(example)
-  expect(panel.bottom).toBeLessThanOrEqual(frame.bottom)
-  // The sample's own Balance page says the same state at the same heart rate.
+  await expect(example.locator('.level-triangle')).toBeVisible()
+  await expect(example).not.toContainText(/Slipping|Slower than your old level/)
+  await expect(example.locator('.fitness-track__ring')).toHaveCount(0)
+  // The sample's own Balance page titles the run by its sport.
   await openSample(page)
-  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run · Slipping')
-  await openDetails(card(page))
-  await expect(card(page).locator('.props__row dt', { hasText: /at 120 bpm$/ })).toHaveCount(1)
+  await expect(card(page).locator('.fitness-card__state')).toHaveText('Run')
 })
 
-test('a forced-colours reader still sees the row’s hairline, and the Run page’s track line and its mark', async ({
-  page,
-}, testInfo) => {
+test('a forced-colours reader still sees the row’s hairline', async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop',
     'Media emulation is checked on the desktop project',
@@ -205,17 +195,6 @@ test('a forced-colours reader still sees the row’s hairline, and the Run page�
     return { width: style.borderTopWidth, style: style.borderTopStyle }
   })
   expect(edge).toEqual({ width: '1px', style: 'solid' })
-  await goTo(page, 'Run')
-  await openRunDetails(page)
-  // The track's line and its mark are fills in colour; they take the system's text colour, so both are still drawn.
-  const line = await section(page)
-    .locator('.fitness-track__bar')
-    .evaluate((el) => getComputedStyle(el, '::before').backgroundColor)
-  expect(line).not.toBe('rgba(0, 0, 0, 0)')
-  const mark = await section(page)
-    .locator('.fitness-track__ring')
-    .evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(mark).not.toBe('rgba(0, 0, 0, 0)')
 })
 
 // The one thing in the evidence panel that moves is the phone's readout sheet, which opens with a short animation
@@ -251,9 +230,7 @@ test('no label of the evidence chart is written over another', async ({ page }) 
   await expect(chart.locator('[data-annotation="before"]')).toBeVisible()
   const boxes = await chart.evaluate((root) => {
     const texts = [
-      ...root.querySelectorAll(
-        '.chart-y-axis__tick, .chart-x-axis__tick, [data-annotation] text, [data-testid="fitness-onset"] text, [data-testid="fitness-low"] text',
-      ),
+      ...root.querySelectorAll('.chart-y-axis__tick, .chart-x-axis__tick, [data-annotation] text'),
     ]
     return texts
       .filter((t) => (t.textContent ?? '').trim() !== '')
@@ -282,29 +259,3 @@ test('no label of the evidence chart is written over another', async ({ page }) 
     }
   }
 })
-
-// The row's title grows with the text size. At 200% text on a phone every state, not only the sample's, must stay inside
-// the row (Slipping overflowed by 36 px at 390 once).
-for (const width of [320, 390]) {
-  test(`every fitness state word fits the card at 200% text and ${width} px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 800 })
-    await openSample(page)
-    await page.addStyleTag({ content: ':root { font-size: 200%; }' })
-    const labels = ['Slipping', 'Holding', 'Holding below', 'Recovering', 'Back']
-    const over = await card(page).evaluate((el, words) => {
-      const state = el.querySelector('.fitness-card__state')!
-      const style = getComputedStyle(el)
-      const inner =
-        el.getBoundingClientRect().right -
-        parseFloat(style.paddingRight) -
-        parseFloat(style.borderRightWidth)
-      return words.map((word) => {
-        state.textContent = `Run · ${word}`
-        const range = document.createRange()
-        range.selectNodeContents(state)
-        return { word, over: Math.round(range.getBoundingClientRect().right - inner) }
-      })
-    }, labels)
-    expect(over.filter(({ over: past }) => past > 0)).toEqual([])
-  })
-}

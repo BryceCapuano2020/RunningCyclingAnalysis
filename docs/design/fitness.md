@@ -4,6 +4,11 @@ Status: core built (`packages/core/src/fitness/`), exposed on `SessionState.fitn
 pages (see DESIGN.md, "Fitness at the same heart rate"). Written from a research study whose method, tables and tuning are
 summarised here; the episode, season and ride work of Stage D (D2) is in "Stage D" below.
 
+**What the page shows (10 Nov 2026).** The monitor below still reads a state for each sport, and the status keeps it, but the
+page tells none of it: no slipping, recovering or back word, no "up 5% from your low", no onset or low marked on the chart, no
+slips or rises on the History chart or listed under it, and the look-back lists no episodes. The card gives the level at its
+heart rate and the steady runs behind it. The model, its tests and its figures are unchanged.
+
 ## What it says
 
 For each sport, one of: **slipping**, **holding** (level with the weeks before), **holding below** the

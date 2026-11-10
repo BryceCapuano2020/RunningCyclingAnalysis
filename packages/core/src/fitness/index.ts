@@ -1,8 +1,8 @@
 /**
- * Fitness at the same effort, per sport: slipping, holding, holding below the old level, recovering,
- * back, or not enough evidence yet. See docs/design/fitness.md.
+ * Fitness at the same effort, per sport: the level now at one heart rate, or what a trend still needs.
+ * See docs/design/fitness.md.
  */
-export { fitnessFigures, fitnessFindingHeadline, fitnessLines } from './copy'
+export { fitnessFigures, fitnessLines } from './copy'
 export type { FitnessFigures, FitnessLines } from './copy'
 export { fitnessHistories, fitnessOfSport, fitnessStatuses } from './compute'
 export type { FitnessHistory, FitnessOptions } from './compute'

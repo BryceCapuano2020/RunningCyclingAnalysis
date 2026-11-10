@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../test/balanceFixtures'
 import { RIDE_SLIPPING, SLIPPING } from '../test/fitnessFixtures'
-import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
+import { dotsFixture } from '../test/fitnessYearsFixtures'
 import type { GradeProfile } from '../gradeProfile'
 import { THREE_YEARS } from '../test/historyFixtures'
 import { RIDE_BESTS, RUN_BESTS } from '../test/historyBestsFixtures'
@@ -73,16 +73,12 @@ const CHARTS: Record<string, (() => ReactElement)[]> = {
   ],
   FitnessYearsChart: [
     () => (
-      <FitnessYearsChart
-        sport="run"
-        dots={dotsFixture({ years: [2021, 2022], spans: slipAndRise(2021) })}
-        units="metric"
-      />
+      <FitnessYearsChart sport="run" dots={dotsFixture({ years: [2021, 2022] })} units="metric" />
     ),
     () => (
       <FitnessYearsChart
         sport="ride"
-        dots={dotsFixture({ sport: 'ride', years: [2021, 2022], spans: slipAndRise(2021) })}
+        dots={dotsFixture({ sport: 'ride', years: [2021, 2022] })}
         units="metric"
       />
     ),

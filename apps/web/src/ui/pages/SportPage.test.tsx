@@ -118,12 +118,14 @@ describe('SportPage: history', () => {
   it('is the first row after the answer: its finding and a link to the History tab, with no body of its own', () => {
     page(YEARS_LOOKBACK)
     const years = screen.getByRole('region', { name: 'History' })
-    expect(years).toHaveTextContent('Slipped in 2021, then came back. See History')
+    expect(years).toHaveTextContent(
+      'Pace stayed within 3% from January 2022 to June 2023. See History',
+    )
     expect(within(years).getByRole('link', { name: 'See History' })).toHaveAttribute(
       'href',
       '#/history',
     )
-    // One line: no fold, no list of episodes, no picture. Those are the History tab's.
+    // One line: no fold, no list of episodes, no picture. The picture is the History tab's.
     expect(years.closest('details')).toBeNull()
     expect(years.querySelector('details')).toBeNull()
     expect(within(years).queryByRole('region', { name: 'Episodes' })).toBeNull()
@@ -154,7 +156,7 @@ describe('SportPage: history', () => {
       sports: { ...YEARS_LOOKBACK.sports, run: { ...run, milestones: [best] } },
     })
     const years = screen.getByRole('region', { name: 'History' })
-    expect(years).toHaveTextContent('Slipped in 2021, then came back.')
+    expect(years).toHaveTextContent('Pace stayed within 3% from January 2022 to June 2023')
     expect(years.textContent).not.toMatch(/By year|Bests by year|No clear change|Faster in|stood/i)
     expect(screen.queryByRole('region', { name: 'Bests by year' })).toBeNull()
   })

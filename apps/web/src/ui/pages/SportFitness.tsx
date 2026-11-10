@@ -16,7 +16,6 @@ import { fitnessRows } from '../fitnessRows'
 import { SPORT_LABEL } from '../sports'
 import { FitnessEvidence } from './FitnessEvidence'
 import { FitnessSection } from './FitnessSection'
-import { FitnessTrack } from './FitnessTrack'
 import './FitnessCard.css'
 import './FitnessSection.css'
 
@@ -41,8 +40,7 @@ const hasSeries = (view: FitnessView) =>
   view.status.before !== null
 
 /**
- * A sport page's "Your fitness" as a graph: the level over time titled by its state, with today and a recovery's low
- * marked, or, for a status with no trend yet, the steady activities it rests on as dots with today's level across them.
+ * A sport page's "Your fitness" as a graph: the level over time titled by the sport, or, for a status with no trend yet, the steady activities it rests on as dots with today's level across them.
  * The status's sentence is the graph's text, and the rest (the level's range, what it rests on, the runs) stays behind
  * ▸ Details. A sport with nothing to draw keeps the section's one line. The Balance page's card is not this one.
  */
@@ -74,7 +72,7 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
   const sentence = fitnessLine(view)
   const rows = fitnessRows(view, units, { level: true, warm: adjustedForWarmDays(status) })
   const evidenceOf = status.evidence !== null && status.series.length > 1
-  // The section's one Details is the chart's: its sentence and table, then the level's rows, the track and the runs.
+  // The section's one Details is the chart's: its sentence and table, then the level's rows and the runs.
   const details = (
     <div className="fitness-card__details">
       <PropertyList
@@ -82,11 +80,6 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
         method={SECTION_ID.how}
         methodName={`how ${SPORT_LABEL[sport].toLowerCase()} fitness is worked out`}
       />
-      {view.track === null ? null : (
-        <div className="fitness-card__shape">
-          <FitnessTrack track={view.track} />
-        </div>
-      )}
       {evidenceOf && mounted ? (
         <FitnessEvidence status={status} units={units} library={library} chart={false} />
       ) : null}
@@ -105,7 +98,7 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
         <FitnessChart
           status={status}
           units={units}
-          title={view.label}
+          title={SPORT_LABEL[sport]}
           lede={sentence}
           extra={details}
           onOpen={open}
@@ -115,10 +108,9 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
           sport={sport}
           dots={dots!}
           units={units}
-          title={view.label}
+          title={SPORT_LABEL[sport]}
           lede={sentence}
           now={status.level?.value ?? status.now}
-          showSpans={false}
           compact
           extra={details}
           onOpen={open}

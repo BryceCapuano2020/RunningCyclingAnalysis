@@ -197,15 +197,14 @@ the browser. Storage that cannot be opened behaves as a first visit. The sample 
 
 **The look-back and the check-in**
 
-Both are computed in `packages/core/src/lookback` from the digests already in the session. The look-back, "Your years",
+Both are computed in `packages/core/src/lookback` from the digests already in the session. The look-back
 tells a sport's fitness at the same effort in hindsight, through a horizon 12 weeks before the newest activity (the
 weeks after belong to the fitness card). It needs 52 weeks and 40 steady runs before the horizon, cuts the steady-run
-series into plateaus, lists the steps between them as episodes, and adds the card's own declared changes where the runs
-do not contradict them, so it never says a different thing from the card. Its best efforts over the years are in
+series into plateaus and lists the quiet stretches, the stretches with no steady run and the breaks. It lists no
+episodes. Its best efforts over the years are in
 `milestonesOf`. Every number is in `lookback/params.ts` and was set on the synthetic harness. The check-in, "Since your
 last import", compares the library with the snapshot the last import left in `marks` (`lookback/snapshot.ts`, small
-whatever the library's size) and lists only facts: workouts added, new best efforts, and episodes the card's rules
-changed. It makes no level contrast of its own. A baseline from another model revision, or from before the library was last rebuilt, is dropped, so the check-in never sets one model beside another. The
+whatever the library's size) and lists only facts: workouts added, new best efforts and files older than the baseline. It makes no level contrast of its own. A baseline from another model revision, or from before the library was last rebuilt, is dropped, so the check-in never sets one model beside another. The
 worker's `CheckInKeeper` holds the baselines and the seen flags and tells the page only the check-in and whether it
 has been seen; `ui/checkInRow.ts` shows one of the two rows, never both, and neither during a partial import.
 

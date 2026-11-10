@@ -5,8 +5,8 @@ Decisions section. Status is one of designed, in progress, built or cut.
 
 - [findings.md](../archive/findings.md): a findings engine that speaks only when something non-obvious is well
   supported. Status: cut (10 Nov 2026). Built partway, never wired to the app, removed in the cut stage.
-- [fitness.md](fitness.md): fitness at the same effort per sport, slipping to back, with its evidence. Status:
-  built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.
+- [fitness.md](fitness.md): fitness at the same effort per sport, with its evidence. Status:
+  built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness. The page shows the level alone.
 - [effort-gate.md](effort-gate.md): a best becomes a capability only when it was a hard effort, with the reference checked
   against itself. Status: built.
 - [change-test.md](change-test.md): the one rule that decides whether the app says a best effort changed, from the

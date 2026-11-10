@@ -1270,82 +1270,48 @@ translucent band for its 90% range, never a dashed line. On Balance's meter the 
 
 ## Fitness at the same heart rate
 
-The finding that leads: whether the athlete is slipping, holding, recovering or back at one heart rate, against their own
-earlier level. The analysis is in [design/fitness.md](design/fitness.md); this is how it shows.
+The athlete's level at one heart rate: the pace or power they hold at it, and the steady activities it rests on. The
+analysis is in [design/fitness.md](design/fitness.md); this is how it shows. The card names no state and tells no change
+(no slip, recovery or rise, no "up 5% from your low"): the level is the figure, and its chart shows where it has been.
 
-**Where.** A "Your fitness" section on Balance under the balance's hero, period control and tiles and above the grade by duration (the balance is the page's hero, so fitness never sits above its headline), and the same card above the threshold on a sport's page
-(without the sport's name, which the title says). One card for each sport that has a status, run first; the Ride page holds the ride's card
+**Where.** A "Your fitness" section on Balance under the balance's hero, period control and tiles and above the grade by duration (the balance is the page's hero, so fitness never sits above its headline), and the same card above the threshold on a sport's page. One card for each sport that has a status, run first; the Ride page holds the ride's card
 alone. A ride that cannot call a trend yet is one line on Balance, its level ("212 W (205 to 219) at 140 bpm. From 7 steady rides.", linking to the Ride page), not a card of its own; its full card is on the Ride page. A sport with only 1 or 2 steady
 activities is one line and no card, worded by sport ("2 steady rides with a power meter so far.", "1 steady run with heart rate so far."); where only some of the sport's activities have the sensor it says why with the library's counts, from one table keyed by sport (`fitnessCountLine`): "4 of 31 rides have a power meter. Fitness needs more.", "9 of 26 runs have heart rate. Fitness needs more." A sport with no steady
-run, or no outdoor ride with a power meter, has no card. The status and the look-back are as of the newest activity, not the clock, so an export that ended months ago is told as it stood and is not a long break. The card reads the clock for display only: the New marker counts from today, and once the newest activity is more than six weeks old the card says so under its sentence ("Latest activity 9 months ago."). The landing page's example shows the same
-finding for the sample athlete inside its one sample card, under the levels (`LANDING_EXAMPLE.fitness`, checked against the sample's analysis by a test). It says the state, the direction and the heart rate, and no size: the sample's fitness model reads weeks from a fixed origin, so the size moves by a point over a 12 week cycle of visit days, and a build-time figure would sometimes differ from the one the sample's own Balance page gives.
+run, or no outdoor ride with a power meter, has no card. The status is as of the newest activity, not the clock, so an export that ended months ago is told as it stood and is not a long break. The card reads the clock for display only: once the newest activity is more than six weeks old the card says so in its Details ("Latest activity 9 months ago."). The landing page's example is the balance alone, drawn from the sample athlete's own figures (`LANDING_EXAMPLE`, checked against the sample's analysis by a test); it carries no fitness finding.
 
-**The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness" and the card by its state). A sport edge on the left, the sport's name, and a **New** marker, "since the week of 12 Oct", when the state began to be
-shown in the last six weeks. The state is a word at display size (Slipping, Holding, Holding below, Recovering, Back,
-Improving, Improved) beside its own shape on a soft sport tile: a descending line, a level arrow, a level arrow under a bar, a
-rise from a dip, a ring with a tick, a rising line, a rising line that ends in a level run. A state is never colour alone. Under it the level first ("5:30 /km at 150 bpm."), then one line for each change, the number first
-("10% (5 to 15) off your level before 28 Feb."; a recovery has two, "Up 5% (3 to 7) from your July low." and the line against the old level; no line holds two
-ranges), with the heart rate, the range and "steady run" defined in place (Definition), and the support line ("From 14 steady runs, 14 Apr to 8 Jun."). A
-change is written off the old level when it is below it, "faster than" or "more power than" it when above, and "At your 2019 level, within 3.5%." when its range crosses it. A finding is kept, so it names the day and the year of the level it is against ("10% (5 to 15) off your level before 28 Feb 2019 at 150 bpm."). The athlete's own seasonal swing is not on the card: its size is under See the evidence, and How sure is this? says a status takes it out. Right of it, the change as a
-**track**: "before" at the middle, "slower" and "faster" at the ends, the 90% range as a band and a hollow ring for the
-estimate (an estimate is a ring and a band, never a dash); a recovery marks the low it fell to, so the way back reads along the
-track. The track's scale holds at 12% either way and widens in 4% steps. It is hidden from assistive technology; the sentence
-carries the figures. A status that cannot call a trend says "No trend yet" in the state's place and gives the level where the change would
+**The card.** It adds no heading, so a page's own title stays first in the outline (the region is named "Your fitness"). A sport edge on the left and the sport's name as the title, nothing else beside it. Under it one line, the level at its heart rate ("5:30 /km at 150 bpm."), with the heart rate and "steady run" defined in place (Definition). The rest is behind one ▸ Details: the level with its range, the steady activities it rests on and the days they span ("From 14 steady runs, 14 Apr to 8 Jun."), how old the status is, and what a trend needs. The athlete's own seasonal swing is not on the card: its size is under See the evidence, and How sure is this? says a status takes it out. A status that cannot call a trend gives the level where the change would
 be: "5:30 /km (5:20 to 5:40) at 140 bpm." with "From 7 steady runs." under it, and one line for what a trend needs ("5 more earlier runs to see a trend.",
-"A steady run in the last 4 weeks to see a trend."). It has no track and no evidence panel, and no slip or rise in it. Every shortfall gets this: too few earlier runs, too few recent runs, a range
+"A steady run in the last 4 weeks to see a trend."). It has no evidence panel. Every shortfall gets this: too few earlier runs, too few recent runs, a range
 too wide to call level, and a break, which dates the level ("in March"). The level is the shortest of the last 8, 12, 16, 26 or 52 weeks that holds 3 steady runs, else all of them, read like the
-status's own levels. It changes none of the monitor's tests or the false-alarm budget.
+status's own levels.
 
-**See the evidence.** A native disclosure that mounts its panel when opened; with two cards on Balance, a screen reader hears the sport after it. The chart (`FitnessChart`) is named "Pace at 150 bpm
-over time" and has a table twin: the level at four-week steps, each a hollow ring with its 90% range as a shaded band, the
-level before the change as a labelled reference line ("Before February", with its value), a rule where the change began
-("Began February", left out when the chart starts after it), and now as the largest ring with its value. The axis is tight to
-the ranges, faster up. On a short phone (the page's own tighter-gaps test) the card gives up what the evidence repeats: the support line and the sport's tag go, and the marker keeps its word and not its week, so the balance's headline is still above the tabs at 320 by 640. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once and in the sport's own spread ("A change of 8% it sees within weeks,
+**See the evidence.** A native disclosure that mounts its panel when opened; with two cards on Balance, a screen reader hears the sport after it. The chart (`FitnessChart`) is named for the sport on its own page and has a table twin: the level at four-week steps, each a hollow ring with its 90% range as a shaded band, the
+earlier level as a labelled reference line ("Earlier level", with its value), and now as the largest ring with its value. It marks no onset and no low. The axis is tight to
+the ranges, faster up. Under it, in two columns on a wide screen: how it is measured, with the honest limit said once and in the sport's own spread ("A change of 8% it sees within weeks,
 reliably. A change of 5% it usually sees within a few months, and not always."; a ride's smaller changes sit inside 2% to 5%
 a ride, a run's inside about 4%; a ride is adjusted for heart rate only, a run for heart rate and climb); the steady runs it rests on as links to their activities (the newest eight,
 then all on a press); and why some runs do not count. The level series is `FitnessStatus.series`: at most 20 points, no per-run data; a step is named by the weeks it is read over and dated by the last day it includes ("the 8 weeks to 25 Oct"). The copy is in the athlete's units: a run is read in whole kilometres, so for miles it gives the distance in miles beside them. The older weekly same-heart-rate section is the weekly view only: it is titled "Pace at heart rate" ("Power at heart rate" for a ride) and claims no change for either sport, so there is one voice on the signal.
-
-**One episode.** The card follows one episode of the monitor, and dates its onset and its low from the runs up to then (the low is the middle of the lowest 20-week level of the whole episode). The look-back cuts the same runs into plateaus once it sees both sides of every change, so it can split a long episode in two slips, and the card's low could fall past the end of the slip it names, in the next year. Where the look-back lists the episode, the card takes its dates (`datedByLookBack`, `lookback/cardDates.ts`, applied in `buildState`): the onset becomes the start of the slip or rise that begins within 14 weeks of it, and the low is kept when it lies inside the deepest slip from there on and moved to the middle of that slip when it does not. An episode the look-back does not list keeps the card's dates. The count of runs the level before is read from is taken again over the weeks before the new onset, so "N in the 32 weeks before March" counts the weeks it names. A finding about the episode takes the same dates (`datedAt`, only when it speaks). The History chart shades the look-back's episodes, so the card, the look-back and the chart name the same ones.
 
 **Terms in a sentence.** A defined term in a paragraph reaches a pixel past its line (`p .definition__term::after`), as wide as
 its text and as tall as the line. Consecutive lines of a sentence touch, so the 12 px reach a term keeps elsewhere let a press on
 the lower half of one term open the term on the line below it. A term outside a paragraph keeps its 44 px target.
 
-## History on Balance and the sport pages
+## History on the sport pages
 
-The look-back tells a sport's years in hindsight: the slips, returns and rises of its level at the same heart rate, the
-stretches that were quiet, and the bests over the years. It is told through 12 weeks before the newest activity; those weeks
-belong to the fitness card. The words, with every date carrying its year, are in `packages/core/src/lookback/copy.ts`; the
-analysis is in D9_DESIGN.md. This is how it shows.
+The look-back tells a sport's years in hindsight: its level at the same heart rate as plateaus, the stretches that were
+quiet, and the bests over the years. It is told through 12 weeks before the newest activity. It lists no episodes: no
+slip, return or rise is named, drawn or dated anywhere. The words, with every date carrying its year, are in
+`packages/core/src/lookback/copy.ts`.
 
-**The row (Balance).** One line under the fitness card, region "History", 48 px or less closed at 1440, 390 and 320
-wide. The line is the look-back's lead: the largest episode that ended (7% or more, whenever it happened) and how it ended, dated by
-its months and year, else a quiet stretch the fitness card allows. It never leads with a best that has stood ("your best 5 min is 8 years old" is true and tells nothing); a library whose
-only lead is a best has no row, and its bests are on the History tab. It is cut after two lines; opened ("Show history" for a
-screen reader), the panel gives it whole, the other episodes that ended, newest first ("And 3 smaller changes"
-past four), and **Hide**. A slip still open at the horizon is the card's to tell and is not listed. It is a region, not a
-heading: the page's title stays first in the outline. It takes the place the check-in ("Since your last import") leaves: the
-check-in first while it is unseen, then the years. It stands first in the fitness section only when there is no card. It is seen when
-opened, hidden, or shown for 3 s in view on two page loads (once a page load); a seen row gives up the place until the look-back
-has a new lead (named by its sport, kind of episode and the months it is dated by), which is shown once in its turn. Its content
-stays on the History tab, under the fitness chart. When both sports have years to tell the line names its sport ("Run: Slipped 9% (6 to 11) in May 2021. Back by January 2022."), as the rows do. Hide moves focus to the page's heading, and the row stays hidden for the page load even when
-nothing is stored to remember it. Never while an import is known partial, and never for the sample (56 weeks, under the 64
-the years need).
+**The row (Run and Ride).** A row named "History" directly after the hero row: a short strip of the sport's steady
+activities by year as dots, a finding where there is one, and a link to the History tab ("See History"). The finding is a
+quiet stretch ("Pace stayed within 3% from June 2021 to July 2024"), only while the card allows saying a level held; else,
+with only bests, "Best efforts by year"; else the strip says what it plots. A short library keeps the axes with the dots it has and says what it lacks ("Not enough steady runs for a fitness history.";
+"steady rides" on the Ride page) with no link. A sport with no dots and nothing to say gets "Needs a year of runs." (rides). The strip is shaded nowhere.
 
-**The row (Run and Ride).** A row named "History" directly after the hero row, with the finding of the sport's years and a
-link to the History tab ("Slipped in 2021, then came back. See History"). The finding is the latest episode that ended; else one
-still open, as the year it began; else a quiet stretch, only while the card allows saying a level held; else, with only bests,
-"Best efforts by year". It has no body: the picture of the years is the History tab's ("Fitness over the years"), and the episodes
-are listed under it, oldest first, each with its size and the steady runs it rests on ("And 3 smaller changes" past the cap). A short
-library gets one line and no link ("Not enough steady runs for a fitness history."; "steady rides" on the Ride page), never on
-Balance. A sport with nothing to say gets "Needs a year of runs." (rides).
+**Copy.** It never leads with a standing best, says nothing of now (the card does), gives no cause, and does not hedge.
 
-**Copy.** It leads with an episode or a recovery, never a standing best. It says nothing of now (the card does), gives no
-cause, and does not hedge: a change is listed or it is not. A rise or a slip the card showed and the runs did not contradict is
-listed at the size the runs show it, so a small one reads as small. An episode is told in short sentences, the size first and
-one range to a sentence ("Slipped 9% (6 to 11) in May 2021. Back by January 2022."; a part return adds "Up 3% (1 to 5) by August 2021. Still 2% (0 to 4) off.").
-
-**Graphs on the sport pages.** On the Run and Ride pages the fitness section and the History row are graphs, not sentences. Fitness is the level over time (`FitnessChart`) titled by the state ("Recovering"), with today ringed and a recovery's low marked; a status that cannot call a trend yet is the steady activities it rests on as dots with today's level across them, titled "No trend yet", and no trend line is drawn. History is a short strip of the same dots by year with the slips and rises shaded, its finding as the strip's text, and "See History" under it; a sport too short for a history keeps the axes with the dots it has and says what it lacks. The sentence is each graph's text equivalent, kept in its Details beside the table. The level over time and the track are on these pages only: Balance's fitness Details hold the figures and the runs.
+**Graphs on the sport pages.** On the Run and Ride pages the fitness section and the History row are graphs, not sentences. Fitness is the level over time (`FitnessChart`) titled by the sport, with today ringed; a status that cannot call a trend yet is the steady activities it rests on as dots with today's level across them, and no trend line is drawn. History is a short strip of the same dots by year, with "See History" under it. The sentence is each graph's text equivalent, kept in its Details beside the table. The level over time is on these pages only: Balance's fitness Details hold the figures and the runs.
 
 ## History
 
@@ -1387,17 +1353,12 @@ not a power meter (`isEstimatedRecord`'s rule, from the activity's power source)
 prefixed "At least" or suffixed ", estimated". An estimate is never the labelled all-time best while a measured value exists in the panel.
 
 **Fitness over the years.** Every steady run or ride of the library as one dot, its pace or power at the fitness card's heart
-rate, with a line through their median and the look-back's slips and rises shaded behind (a slip has a dashed edge; each
-carries its word). A toggle picks the sport when both have at least 8 steady activities; a sport with fewer is left out, and a library with neither gets one line saying what to add. The vertical axis is fitted to the dots, from the 1st to the 99th percentile once there are 100 of them, and a dot past it sits on the edge of the plot, so a few runs read wrong do not squeeze the years into a band. The title is "Fitness over the years" and one line under it
+rate, with a line through their median. Nothing is shaded. A toggle picks the sport when both have at least 8 steady activities; a sport with fewer is left out, and a library with neither gets one line saying what to add. The vertical axis is fitted to the dots, from the 1st to the 99th percentile once there are 100 of them, and a dot past it sits on the edge of the plot, so a few runs read wrong do not squeeze the years into a band. The title is "Fitness over the years" and one line under it
 names the measure ("Pace at 142 bpm on steady runs"). The core part (`history/fitness.ts`) reads the dots from the card's
-own memory of the runs (`fitnessHistories`) and the spans from the look-back's (`hindsightsOf`), so the dots are the steady
-runs the card counts, at its heart rate, over the episodes the look-back lists, and the session replays each sport once for
-the card, the look-back and this chart. It posts compact arrays: the first dot's day and the days between dots, each value in steps (0.01 m/s for a run,
+own memory of the runs (`fitnessHistories`), so the dots are the steady runs the card counts, at its heart rate. It posts compact arrays: the first dot's day and the days between dots, each value in steps (0.01 m/s for a run,
 1 W for a ride), the median every 28 days over the 6 weeks either side (null where fewer than 4 dots fall in them, so a long
-gap breaks the line), the middle 80% of each calendar year, and the spans. About 7 bytes a dot: 1,750 steady activities of
+gap breaks the line), and the middle 80% of each calendar year. About 7 bytes a dot: 1,750 steady activities of
 2,000 post in 12 KB. The dots are one path (a point of zero length with a round cap for a run, a closed diamond for a ride),
-not a node each, so 2,000 stay smooth. The keyboard reads one calendar year at a time (median, middle 80%, count, and any
-slip or rise in it), and the table twin lists the same years, with the slips and rises in a second table. The pointer reads the
-year whose room it is in (rooms are in proportion to their days, so the nearest middle is not always that year) and, when it is
-over a slip or rise, the band goes firmer and that band's months lead the reading. Each band is drawn from the pixel of its first
-day to the pixel of its last on the dots' own time scale, so its edges sit on the same days the look-back's dates name.
+not a node each, so 2,000 stay smooth. The keyboard reads one calendar year at a time (median, middle 80%, count), and the
+table twin lists the same years. The pointer reads the year whose room it is in (rooms are in proportion to their days, so the
+nearest middle is not always that year).

@@ -1,25 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
 import { plantedLibrary } from '../test/plantedLibrary'
-import { fitnessStatuses } from '../fitness/compute'
 import { workoutKey } from '../duplicates'
 import { MODEL_REVISION } from '../digest'
 import type { AthleteSettings } from '../types'
 import { beatsShown, checkInBetween, OLDER_DAYS } from './checkIn'
 import { lookBackOf } from './compute'
 import { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'
-import type { SnapshotEpisode, SnapshotFitness } from './snapshot'
 import { ago, runBest, second, snap } from './test/snapshotFixture'
 
 const SETTINGS: AthleteSettings = { massKg: 70, bikeMassKg: 9 }
-const holding = (extra: Partial<SnapshotFitness> = {}): SnapshotFitness => ({
-  state: 'holding',
-  referenceHr: 148,
-  enteredMs: null,
-  within: 0.02,
-  ...extra,
-})
-
 describe('the snapshot', () => {
   it('writes the start seconds as differences in base 36 and reads them back', () => {
     const seconds = [1_700_000_000, 1_700_000_050, 1_700_086_400, 1_700_086_401]
@@ -32,9 +22,8 @@ describe('the snapshot', () => {
   const planted = plantedLibrary({ seed: 3, weeks: 120, perWeek: 3, noise: 0.03, effects: [] })
   const nowMs = planted.lastMs + DAY_MS
   const look = lookBackOf(planted.digests, SETTINGS, new Set())
-  const fitness = fitnessStatuses(planted.digests, new Set())
   const taken = snapshotOf(
-    { digests: planted.digests, fitness, lookBack: look, revision: MODEL_REVISION },
+    { digests: planted.digests, lookBack: look, revision: MODEL_REVISION },
     nowMs + 12_345,
   )
 
@@ -61,7 +50,6 @@ describe('the snapshot', () => {
     const again = snapshotOf(
       {
         digests: [...planted.digests].reverse(),
-        fitness,
         lookBack: look,
         revision: MODEL_REVISION,
       },
@@ -144,82 +132,14 @@ describe('new bests', () => {
   })
 })
 
-describe('the fitness card', () => {
-  const quietRuns = { run: [ago(60)] }
-  const between = (was: SnapshotFitness | null, now: SnapshotFitness | null) =>
-    checkInBetween(
-      snap(quietRuns, { fitness: { run: was, ride: null } }),
-      snap({ run: [ago(60), ago(1)] }, { fitness: { run: now, ride: null } }),
-    )!
+describe('a quiet check-in', () => {
+  const was = snap({ run: [ago(60)] })
 
-  it('tells a change of state, and nothing is computed beyond the states', () => {
-    const c = between(holding(), holding({ state: 'slipping', enteredMs: ago(5), within: null }))
-    expect(c.fitness).toEqual([{ sport: 'run', kind: 'moved', from: 'holding', to: 'slipping' }])
-    expect(c.quiet).toBe(false)
-    expect(JSON.stringify(c)).not.toMatch(/level|referenceHr/)
+  it('is quiet when workouts were added and nothing else was told', () => {
+    expect(checkInBetween(was, snap({ run: [ago(60), ago(1)] }))!.quiet).toBe(true)
   })
 
-  it('tells a recovery that was confirmed', () => {
-    const c = between(holding({ state: 'recovering', within: null }), holding({ state: 'back' }))
-    expect(c.fitness[0]).toMatchObject({ kind: 'moved', from: 'recovering', to: 'back' })
-  })
-
-  it('tells a state that began again since, but not one the baseline already showed', () => {
-    const began = between(
-      holding({ state: 'slipping', enteredMs: ago(400), within: null }),
-      holding({ state: 'slipping', enteredMs: ago(-3), within: null }),
-    )
-    expect(began.fitness[0]).toEqual({
-      sport: 'run',
-      kind: 'began',
-      state: 'slipping',
-      sinceMs: ago(-3),
-    })
-    const shown = holding({ state: 'slipping', enteredMs: ago(-3), within: null })
-    expect(between(shown, shown).fitness[0]!.kind).toBe('same')
-  })
-
-  it('quotes the card as it is when nothing moved, and is quiet', () => {
-    const c = between(holding(), holding({ within: 0.031 }))
-    expect(c.fitness).toEqual([{ sport: 'run', kind: 'same', state: 'holding', within: 0.031 }])
-    expect(c.quiet).toBe(true)
-  })
-
-  it('tells a sport that has become readable, and says nothing of one with no fitness or a reference that changed', () => {
-    expect(between(null, holding()).fitness).toEqual([])
-    expect(between(holding({ state: 'not-enough-evidence' }), holding()).fitness).toEqual([
-      { sport: 'run', kind: 'moved', from: 'not-enough-evidence', to: 'holding' },
-    ])
-    expect(between(holding(), holding({ state: 'not-enough-evidence' })).fitness).toEqual([])
-    expect(between(holding(), holding({ referenceHr: 151 })).fitness[0]!.kind).toBe('same')
-  })
-})
-
-describe('new episodes', () => {
-  const was = { kind: 'slip-back', fromMs: ago(900), toMs: ago(700) } as const
-  const base = snap({ run: [ago(10)] }, { episodes: { run: [was], ride: [] } })
-  const found = { kind: 'slip-back', fromMs: ago(400), toMs: ago(300) } as const
-  const live = (episodes: SnapshotEpisode[], run: number[]) =>
-    snap({ run: [ago(10), ...run] }, { episodes: { run: episodes, ride: [] } })
-
-  it('tells an episode only when older files put a workout inside it', () => {
-    const c = checkInBetween(base, live([was, found], [ago(350), ago(2)]))!
-    expect(c.episodes).toEqual([{ sport: 'run', ...found }])
-    expect(checkInBetween(base, live([was, found], [ago(2)]))!.episodes).toEqual([])
-    expect(checkInBetween(base, live([was, found], [ago(600)]))!.episodes).toEqual([])
-  })
-
-  it('does not tell a slip that was open and has since come back as a new one', () => {
-    const open: SnapshotEpisode = { kind: 'slip-open', fromMs: ago(400), toMs: null }
-    const before = snap({ run: [ago(10)] }, { episodes: { run: [open], ride: [] } })
-    const closed: SnapshotEpisode = { kind: 'slip-back', fromMs: ago(390), toMs: ago(300) }
-    expect(checkInBetween(before, live([closed], [ago(350)]))!.episodes).toEqual([])
-  })
-
-  it('does not tell an episode the baseline already had, or a recent one', () => {
-    const moved = { ...was, fromMs: ago(880) }
-    expect(checkInBetween(base, live([moved], [ago(800)]))!.episodes).toEqual([])
-    const recent = { kind: 'improvement', fromMs: ago(10), toMs: null } as const
-    expect(checkInBetween(base, live([recent], [ago(5)]))!.episodes).toEqual([])
+  it('is not quiet with older files', () => {
+    expect(checkInBetween(was, snap({ run: [ago(60), ago(90)] }))!.quiet).toBe(false)
   })
 })

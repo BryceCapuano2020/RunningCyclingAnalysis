@@ -59,29 +59,6 @@ describe('fitness over the years: the dots', () => {
     expect(days.at(-1)).toBe(Math.floor(runs.at(-1)!.t))
   })
 
-  it('shades the slips and rises the look-back lists, on the same days', () => {
-    const listed = state.lookBack.sports.run.fitness
-    expect(listed.kind).toBe('ok')
-    if (listed.kind !== 'ok') return
-    const shaded = listed.episodes.filter((e) => e.kind !== 'after-break')
-    expect(shaded.length).toBeGreaterThan(0)
-    expect(dots.spans).toEqual(
-      shaded.map((e) => ({
-        kind: e.kind === 'improvement' ? 'rise' : 'slip',
-        fromDay: dayOf(e.fromMs),
-        toDay: e.toMs === null ? null : dayOf(e.toMs),
-      })),
-    )
-    expect(dots.horizonDay).toBe(dayOf(listed.toMs))
-  })
-
-  it('names the slip the card names: the card’s onset is the start of a shaded slip', () => {
-    const card = state.fitness.run
-    expect(['holding-below', 'recovering', 'back', 'slipping']).toContain(card.state)
-    const onset = dayOf(card.onsetMs!)
-    expect(dots.spans.some((s) => s.kind === 'slip' && Math.abs(s.fromDay - onset) <= 1)).toBe(true)
-  })
-
   it('sums each calendar year to its dots, with a middle that sits among them', () => {
     expect(dots.years.reduce((n, y) => n + y.n, 0)).toBe(dots.levels.length)
     for (const year of dots.years) {

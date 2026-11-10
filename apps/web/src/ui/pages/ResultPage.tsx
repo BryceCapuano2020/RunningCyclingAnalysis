@@ -190,7 +190,6 @@ export function ResultPage({
             history={analysis.state.history}
             units={units}
             grading={{ profile, missingAge, weightKnown }}
-            lookBack={analysis.state.lookBack}
           />
         )
       case 'activities':

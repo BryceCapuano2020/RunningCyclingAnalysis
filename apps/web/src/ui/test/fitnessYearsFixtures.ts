@@ -1,6 +1,6 @@
 import { WEEK_ORIGIN_MS } from '@rca/core/calendar'
 import { DAY_MS } from '@rca/core/constants'
-import type { DotsSpan, DotsYear, FitnessDots } from '@rca/core/history'
+import type { DotsYear, FitnessDots } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 
 /** What a step is worth, and where a synthetic sport's level sits: 3.2 m/s (5:12 a kilometre) for a run, 200 W for a ride. */
@@ -17,7 +17,6 @@ export interface DotsOptions {
   /** The calendar years with dots: one for each, `perYear` spread through it. A year left out between two is a gap. */
   years: number[]
   perYear?: number
-  spans?: DotsSpan[]
   /** The dots' level (in steps) at a day count, to draw a shape. A gentle wave by default. */
   level?: (index: number) => number
 }
@@ -27,7 +26,6 @@ export function dotsFixture({
   sport = 'run',
   years,
   perYear = 40,
-  spans = [],
   level,
 }: DotsOptions): FitnessDots {
   const { step, base } = SHAPE[sport]
@@ -66,18 +64,5 @@ export function dotsFixture({
     levels,
     line,
     years: rows,
-    spans,
-    horizonDay: days.at(-1)!,
   }
 }
-
-/** A slip from March to October of `year`, and a rise that began in the January after. */
-export const slipAndRise = (year: number): DotsSpan[] => [
-  { kind: 'slip', fromDay: startOf(year) + 60, toDay: startOf(year) + 280 },
-  { kind: 'rise', fromDay: startOf(year + 1) + 10, toDay: startOf(year + 1) + 120 },
-]
-
-/** A slip that began in `year` and lasts to the horizon. */
-export const openSlip = (year: number): DotsSpan[] => [
-  { kind: 'slip', fromDay: startOf(year) + 90, toDay: null },
-]
