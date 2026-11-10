@@ -55,7 +55,7 @@ describe('restoring kept results on a reload', () => {
       within(rail)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Balance', 'Run', 'Ride', 'Lift'])
+    ).toEqual(['Balance', 'Run', 'Ride'])
     expect(rail.closest('.shell')).toContainElement(
       screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
     )

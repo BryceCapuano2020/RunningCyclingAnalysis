@@ -7,7 +7,6 @@ export const SIMPLE_PAGES = [
   'balance',
   'run',
   'ride',
-  'lift',
   'history',
   'activities',
   'method',
@@ -21,10 +20,10 @@ export type PageName = SimplePage | 'activity'
 
 /**
  * A page that has content of its own and stands in the main area without endurance files. It is also
- * a kind of LibraryPage. Lift is one that opens with no files. A page like it is added here and in
+ * a kind of LibraryPage. A page that opens with no files, such as a lifting log, is added here and in
  * PAGE_RULES, and nowhere else.
  */
-export type OwnPage = 'profile' | 'method' | 'lift'
+export type OwnPage = 'profile' | 'method'
 
 export interface PageRule {
   /**
@@ -46,7 +45,6 @@ export const PAGE_RULES: Record<PageName, PageRule> = {
   history: { needsResult: true, ownPage: null, ownOverResult: false },
   activities: { needsResult: true, ownPage: null, ownOverResult: false },
   activity: { needsResult: true, ownPage: null, ownOverResult: false },
-  lift: { needsResult: false, ownPage: 'lift', ownOverResult: true },
   method: { needsResult: false, ownPage: 'method', ownOverResult: false },
   profile: { needsResult: false, ownPage: 'profile', ownOverResult: true },
 }

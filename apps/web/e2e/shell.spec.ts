@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { BALANCE_TITLE, goTo, openSample, uploadFixtures } from './helpers.js'
 import type { Destination } from './helpers.js'
 
-const DESTINATIONS: Destination[] = ['Balance', 'Run', 'Ride', 'Lift', 'Activities', 'Profile']
+const DESTINATIONS: Destination[] = ['Balance', 'Run', 'Ride', 'Activities', 'Profile']
 
 /** Where the header's brand, the tabs and the page's column sit, in CSS pixels from the window's left edge. */
 async function shellEdges(page: Page) {

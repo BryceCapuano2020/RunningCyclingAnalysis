@@ -20,9 +20,7 @@ import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
 import { heldViewFor } from './ui/pages/heldLibraryView'
 import { useLibraryPage } from './ui/useLibraryPage'
 import { HoldInputsContext } from './ui/holdContext'
-import { LiftPage, MethodPage, ProfilePage, ResultPage } from './ui/lazyPages'
-import { liftPagePlaceholder } from './ui/lift/liftPagePlaceholder'
-import { useLiftDay } from './ui/lift/useLiftDay'
+import { MethodPage, ProfilePage, ResultPage } from './ui/lazyPages'
 import { PageFrame } from './ui/components/PageLoading'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { hrefFor, useRoute } from './ui/route'
@@ -71,7 +69,6 @@ export function App() {
   // The weight today is the dated weight in effect today, whatever the saved profile holds, so a weight
   // dated for a later day takes effect on that day with no edit. Without dated weights it is the profile's.
   const now = useNow()
-  const liftDay = useLiftDay(now)
   const settings = {
     ...athleteValues.settings,
     massKg: bodyMassOn(athleteValues.settings.massKg, measurements.entries, now),
@@ -319,8 +316,6 @@ export function App() {
                 onDeleteAccount={deleteAccount}
                 onRemoveAll={removeAll}
               />
-            ) : page === 'lift' ? (
-              <LiftPage {...liftPagePlaceholder(liftDay)} units={units} />
             ) : page === 'result' && analysis.state.result ? (
               <ResultPage
                 route={route}

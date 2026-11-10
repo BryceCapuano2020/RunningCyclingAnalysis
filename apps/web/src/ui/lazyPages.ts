@@ -2,7 +2,6 @@ import { createElement, lazy } from 'react'
 import type { ComponentProps, ComponentType } from 'react'
 import type { ActivityPage as ActivityPageComponent } from './pages/ActivityPage'
 import type { HistoryPage as HistoryPageComponent } from './pages/HistoryPage'
-import type { LiftPage as LiftPageComponent } from './lift/LiftPage'
 import type { MethodPage as MethodPageComponent } from './pages/MethodPage'
 import type { ProfilePage as ProfilePageComponent } from './pages/ProfilePage'
 import type { ResultPage as ResultPageComponent } from './pages/ResultPage'
@@ -59,16 +58,12 @@ const profile = lazyPage<ComponentProps<typeof ProfilePageComponent>>(() =>
 const method = lazyPage<ComponentProps<typeof MethodPageComponent>>(() =>
   import('./pages/MethodPage').then((module) => module.MethodPage),
 )
-const lift = lazyPage<ComponentProps<typeof LiftPageComponent>>(() =>
-  import('./lift/RailedLiftPage').then((module) => module.RailedLiftPage),
-)
 
 export const ResultPage = result.Page
 export const HistoryPage = history.Page
 export const ActivityPage = activity.Page
 export const ProfilePage = profile.Page
 export const MethodPage = method.Page
-export const LiftPage = lift.Page
 
 /**
  * Starts loading the pages a visitor reaches once they have results, in parallel with the analysis
@@ -86,6 +81,5 @@ export async function preloadAllPages(): Promise<void> {
     activity.preload(),
     profile.preload(),
     method.preload(),
-    lift.preload(),
   ])
 }

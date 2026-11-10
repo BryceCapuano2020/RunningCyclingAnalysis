@@ -19,7 +19,6 @@ describe('PAGE_RULES', () => {
       history: needs,
       activities: needs,
       activity: needs,
-      lift: { needsResult: false, ownPage: 'lift', ownOverResult: true },
       method: { needsResult: false, ownPage: 'method', ownOverResult: false },
       profile: { needsResult: false, ownPage: 'profile', ownOverResult: true },
     })
