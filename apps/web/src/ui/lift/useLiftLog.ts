@@ -13,7 +13,7 @@ import { tellOtherTabs, useTabMessages } from '../tabSync'
 import type { TabMessage } from '../tabSync'
 import type { AccountStatus } from '../useAccount'
 import { groupDays, recentLifts } from './liftDays'
-import { lastLiftAccount } from './lastAccount'
+import { useLiftScope } from './liftScope'
 import { onLiftsCleared } from './liftsCleared'
 
 /** The least time between two reads of the account that a tab coming into view makes. */
@@ -65,14 +65,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     latest.current = account
   })
   const confirmed = status === 'signed-in' && userId !== null
-  // Read again whenever the status changes, so a lookup that lapses after a sign-in finds the account kept then.
-  const [remembered, setRemembered] = useState({ status, id: lastLiftAccount() })
-  if (remembered.status !== status) setRemembered({ status, id: lastLiftAccount() })
-  const scope = confirmed
-    ? userId
-    : status === 'signed-out'
-      ? DEVICE_SCOPE
-      : (remembered.id ?? DEVICE_SCOPE)
+  const scope = useLiftScope(status, userId)
   const store = useMemo(() => openLiftStore(scope), [scope])
   useEffect(() => () => store.close(), [store])
   const engine = useMemo(
