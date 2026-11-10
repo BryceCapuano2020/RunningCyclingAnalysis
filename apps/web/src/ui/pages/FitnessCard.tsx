@@ -28,6 +28,11 @@ export interface FitnessCardProps {
    * tell, `text` is its one line (why there is none, with the library's counts).
    */
   bare?: { text: string | null }
+  /**
+   * Whether the Details hold the level's graph and the track. Only a sport's own page draws them; Balance's Details
+   * hold the figures and the runs alone.
+   */
+  graphs?: boolean
 }
 
 /**
@@ -42,6 +47,7 @@ export function FitnessCard({
   index = 0,
   showSport = true,
   bare,
+  graphs = false,
 }: FitnessCardProps) {
   const id = useId()
   const [mounted, setMounted] = useState(false)
@@ -78,7 +84,8 @@ export function FitnessCard({
   // The level is in Details with its range whenever the line is a change, or the line dropped a range from it.
   const levelInDetails = bare?.text == null && (view.changes.length > 0 || line !== view.headline)
   const rows = fitnessRows(view, units, { level: levelInDetails, warm })
-  const hasDetails = rows.length > 0 || view.track !== null || evidenceOf
+  const track = graphs ? view.track : null
+  const hasDetails = rows.length > 0 || track !== null || evidenceOf
   return (
     <li className={rowClass} data-sport={view.sport} data-state={view.state}>
       {index === null ? null : <RowIndex index={index} />}
@@ -107,13 +114,13 @@ export function FitnessCard({
                 method={SECTION_ID.how}
                 methodName={`how ${SPORT_LABEL[view.sport].toLowerCase()} fitness is worked out`}
               />
-              {view.track === null ? null : (
+              {track === null ? null : (
                 <div className="fitness-card__shape">
-                  <FitnessTrack track={view.track} />
+                  <FitnessTrack track={track} />
                 </div>
               )}
               {evidenceOf && mounted ? (
-                <FitnessEvidence status={status} units={units} library={library} />
+                <FitnessEvidence status={status} units={units} library={library} chart={graphs} />
               ) : null}
             </div>
           </details>

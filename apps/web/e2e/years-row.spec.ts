@@ -80,11 +80,12 @@ for (const size of SIZES) {
     await goTo(page, 'Run')
     const section = page.getByRole('region', { name: 'History' })
     await expect(section).toBeVisible()
-    // One line: the finding and a link. The list and the picture of the years are the History tab's.
+    // A strip of the years with the slip shaded, its finding as the strip's text, and a link. The episodes are the History tab's.
     await expect(section).toContainText(/Slipped in 2023, then came back/)
-    await expect(section.locator('details')).toHaveCount(0)
+    await expect(
+      section.getByRole('figure', { name: 'History' }).getByTestId('fitness-span').first(),
+    ).toBeAttached()
     await expect(section.getByRole('region', { name: 'Episodes' })).toHaveCount(0)
-    await expect(section.getByRole('figure')).toHaveCount(0)
     const link = section.getByRole('link', { name: 'See History' })
     await expect(link).toHaveAttribute('href', '#/history')
     expect((await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations).toEqual([])

@@ -130,6 +130,8 @@ export interface FitnessStatus {
   /** The month the change began (the start of the estimated onset week), and the month of the low. */
   onsetMs: number | null
   lowMs: number | null
+  /** The level at that low, in the status's unit (m/s, W), for a recovering or back status. Absent otherwise. */
+  lowLevel?: number
   evidence: FitnessEvidence | null
   /**
    * The level at four-weekly steps, oldest first, for the evidence chart: a point every `FITNESS.display.seriesStepWeeks` back from the

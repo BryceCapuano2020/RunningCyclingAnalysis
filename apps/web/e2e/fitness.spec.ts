@@ -3,7 +3,17 @@ import type { Locator, Page } from '@playwright/test'
 import { edgesOf, goTo, openSample, trackErrors } from './helpers.js'
 
 const CARD = '.fitness-card[data-sport="run"]'
-const CHART = /^Pace at \d+ bpm over time$/
+
+/** The sport pages' fitness section and its graph, titled by the sample run's state. */
+const section = (page: Page) => page.getByRole('region', { name: 'Your fitness' })
+const graph = (page: Page) => section(page).getByRole('figure', { name: 'Slipping' })
+const openRun = async (page: Page) => {
+  await openSample(page)
+  await goTo(page, 'Run')
+}
+/** Opens the Run page's one Details, which holds the level, the track and the runs it rests on. */
+const openRunDetails = (page: Page) =>
+  section(page).locator('.chart-frame__details > summary').click()
 
 /** A line's words as read, without the notes its defined terms keep in the markup. */
 const spoken = (line: Locator) =>
@@ -45,21 +55,21 @@ test('the sample’s Balance shows a fitness status that is new, with its one li
   expect(await value(card(page), /^Steady runs$/)).toMatch(/^\d+$/)
   await expect(card(page).getByTestId('fitness-season')).toHaveCount(0)
   expect(await value(card(page), /^New since$/)).toMatch(/^the week of \d{1,2} [A-Z][a-z]{2}$/)
-  // The change is a track, drawn and hidden from a screen reader, whose words are in the lines above it.
-  await expect(card(page).locator('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
-  await expect(card(page).locator('.fitness-track__ring')).toBeVisible()
+  // Balance holds no graph and no track: those are the Run and Ride pages'.
+  await expect(card(page).locator('.fitness-track__bar')).toHaveCount(0)
+  await expect(card(page).getByRole('figure')).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
-test('the row’s Details open a chart with its table twin, the method, the limit once and the runs as links', async ({
+test('the Run page draws the level as a graph with its table twin, and its Details give the method and the runs as links', async ({
   page,
 }) => {
-  await openSample(page)
-  // Closed, the panel draws and measures nothing.
-  await expect(page.getByRole('figure', { name: CHART })).toHaveCount(0)
-  await openDetails(card(page))
-  const chart = page.getByRole('figure', { name: CHART })
+  await openRun(page)
+  const chart = graph(page)
   await expect(chart).toBeVisible()
+  // One disclosure for the section, closed: the evidence is not mounted yet.
+  await expect(section(page).locator('details')).toHaveCount(1)
+  await expect(page.locator('.fitness-evidence')).toHaveCount(0)
   // The chart: a ring and a range for each four-week step, the line it is read against, the month it began, and now.
   expect(await chart.locator('[data-testid="fitness-point"]').count()).toBeGreaterThanOrEqual(5)
   await expect(chart.locator('[data-testid="fitness-now"]')).toHaveCount(1)
@@ -67,10 +77,8 @@ test('the row’s Details open a chart with its table twin, the method, the limi
   await expect(chart.locator('[data-testid="fitness-onset"]')).toContainText(/^Began /)
   // Its table twin has a row for each step.
   const steps = await chart.locator('[data-testid="fitness-point"]').count()
-  await chart
-    .locator('details.chart-frame__details > summary', { hasText: 'View as table' })
-    .click()
   await expect(chart.locator('table').nth(1).locator('tbody tr')).toHaveCount(steps + 1)
+  await openRunDetails(page)
   // What it is read at and compared with are rows; the method and the honest limit are on Method.
   const panel = page.locator('.fitness-evidence')
   expect(await value(panel, /^Read at$/)).toMatch(/^\d+ bpm$/)
@@ -88,19 +96,13 @@ test('the row’s Details open a chart with its table twin, the method, the limi
   await expect(page.getByRole('link', { name: /^Back to/ })).toBeVisible()
 })
 
-test('a keyboard reaches the disclosure, opens it with Enter and reads the chart with the arrow keys', async ({
-  page,
-}, testInfo) => {
+test('a keyboard reads the Run page’s graph with the arrow keys', async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop',
     'Keyboard reading is checked on the desktop project',
   )
-  await openSample(page)
-  const summary = card(page).locator('.fitness-card__evidence > summary')
-  await summary.focus()
-  await expect(summary).toBeFocused()
-  await page.keyboard.press('Enter')
-  const chart = page.getByRole('figure', { name: CHART })
+  await openRun(page)
+  const chart = graph(page)
   await expect(chart).toBeVisible()
   const plot = chart.locator('.plot-surface')
   await plot.focus()
@@ -114,10 +116,13 @@ test('a keyboard reaches the disclosure, opens it with Enter and reads the chart
 test('the Run page leads with the same status above the threshold', async ({ page }) => {
   await openSample(page)
   await goTo(page, 'Run')
-  await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(card(page).locator('.fitness-card__state')).toHaveText('Slipping')
-  // Under the hero, and the sport is not named twice: the row's title is the state alone (exact text above).
-  const fitness = await edgesOf(card(page))
+  const section = page.getByRole('region', { name: 'Your fitness' })
+  await expect(section).toBeVisible()
+  // A graph of the level over time, titled by the state alone, with today marked.
+  const graph = section.getByRole('figure', { name: 'Slipping' })
+  await expect(graph.getByTestId('fitness-now')).toBeAttached()
+  // Under the hero, and the sport is not named twice.
+  const fitness = await edgesOf(graph)
   const hero = await edgesOf(page.locator('.sport-hero'))
   expect(hero.bottom).toBeLessThanOrEqual(fitness.top)
   await expect(page.getByTestId('hero-change')).toBeVisible()
@@ -141,11 +146,13 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   expect(homeLine).toMatch(/^\d+ W at \d+ bpm\.$/)
   await expect(line.getByRole('link')).toHaveCount(0)
   await goTo(page, 'Ride')
-  const ride = page.locator('.fitness-card[data-sport="ride"]')
-  await expect(page.getByRole('region', { name: 'Your fitness' })).toBeVisible()
-  await expect(ride).toHaveCount(1)
-  await expect(ride.locator('.fitness-card__state')).toHaveText('No trend yet')
-  await openDetails(ride)
+  const ride = page.getByRole('region', { name: 'Your fitness' })
+  await expect(ride).toBeVisible()
+  // The steady rides it rests on as dots, today's level across them, and no trend drawn.
+  const graph = ride.getByRole('figure', { name: 'No trend yet' })
+  await expect(graph.getByTestId('fitness-dots')).toBeAttached()
+  await expect(graph.getByTestId('fitness-now-mark')).toContainText(/^Now \d+ W$/)
+  await ride.locator('.chart-frame__details > summary').click()
   // The Ride page's level is the figure the home page's one line printed.
   const level = await value(ride, /^Power at \d+ bpm$/)
   expect(level).toMatch(/^\d+ W$/)
@@ -180,7 +187,7 @@ test('the landing page’s one sample card holds the finding under the balance, 
   await expect(card(page).locator('.props__row dt', { hasText: /at 120 bpm$/ })).toHaveCount(1)
 })
 
-test('a forced-colours reader still sees the row’s hairline, the track’s line and its mark', async ({
+test('a forced-colours reader still sees the row’s hairline, and the Run page’s track line and its mark', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -194,13 +201,14 @@ test('a forced-colours reader still sees the row’s hairline, the track’s lin
     return { width: style.borderTopWidth, style: style.borderTopStyle }
   })
   expect(edge).toEqual({ width: '1px', style: 'solid' })
-  await openDetails(card(page))
+  await goTo(page, 'Run')
+  await openRunDetails(page)
   // The track's line and its mark are fills in colour; they take the system's text colour, so both are still drawn.
-  const line = await card(page)
+  const line = await section(page)
     .locator('.fitness-track__bar')
     .evaluate((el) => getComputedStyle(el, '::before').backgroundColor)
   expect(line).not.toBe('rgba(0, 0, 0, 0)')
-  const mark = await card(page)
+  const mark = await section(page)
     .locator('.fitness-track__ring')
     .evaluate((el) => getComputedStyle(el).backgroundColor)
   expect(mark).not.toBe('rgba(0, 0, 0, 0)')
@@ -220,9 +228,8 @@ for (const [preference, animation] of [
       'The readout sheet is the phone’s',
     )
     await page.emulateMedia({ reducedMotion: preference })
-    await openSample(page)
-    await openDetails(card(page))
-    const chart = page.getByRole('figure', { name: CHART })
+    await openRun(page)
+    const chart = graph(page)
     await chart.locator('.plot-surface').focus()
     await page.keyboard.press('ArrowRight')
     const title = chart.locator('.chart-tooltip__title')
@@ -235,14 +242,13 @@ for (const [preference, animation] of [
 // On a phone the level's labels sit inside the plot, where the reference line's label could land on one: no two of
 // the chart's texts may share ground, whatever the width.
 test('no label of the evidence chart is written over another', async ({ page }) => {
-  await openSample(page)
-  await openDetails(card(page))
-  const chart = page.getByRole('figure', { name: CHART })
+  await openRun(page)
+  const chart = graph(page)
   await expect(chart.locator('[data-annotation="before"]')).toBeVisible()
   const boxes = await chart.evaluate((root) => {
     const texts = [
       ...root.querySelectorAll(
-        '.chart-y-axis__tick, .chart-x-axis__tick, [data-annotation] text, [data-testid="fitness-onset"] text',
+        '.chart-y-axis__tick, .chart-x-axis__tick, [data-annotation] text, [data-testid="fitness-onset"] text, [data-testid="fitness-low"] text',
       ),
     ]
     return texts

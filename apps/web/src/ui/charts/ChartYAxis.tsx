@@ -15,6 +15,8 @@ export interface ChartYAxisProps {
    * more on top of them, so a line that crosses an inside label does not strike it through (the halo hides it).
    */
   labelsOnly?: boolean
+  /** Draws the gridlines and the title but not the labels, which a later `labelsOnly` axis draws over the marks: each label is then in the page once. */
+  gridOnly?: boolean
 }
 
 /**
@@ -29,6 +31,7 @@ export function ChartYAxis({
   title,
   fontSize = 12,
   labelsOnly = false,
+  gridOnly = false,
 }: ChartYAxisProps) {
   const { inside, gap, reachesTitle } = yLabelLayout(ticks, plot, title, fontSize)
   return (
@@ -44,7 +47,7 @@ export function ChartYAxis({
               y2={tick.position}
             />
           )}
-          {reachesTitle(tick) ? null : (
+          {gridOnly || reachesTitle(tick) ? null : (
             <text
               className={
                 inside ? 'chart-y-axis__tick chart-y-axis__tick--inside' : 'chart-y-axis__tick'

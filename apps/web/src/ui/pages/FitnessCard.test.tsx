@@ -212,9 +212,9 @@ describe('FitnessSection', () => {
     expect(rowValue(document.body, 'New since')).not.toBeNull()
   })
 
-  it('has a title and a track in its Details for each state that has a change, and the track stays out of the reading order', () => {
+  it('has a title and a track in its Details for each state that has a change, on a sport’s own page, and the track stays out of the reading order', () => {
     for (const run of [SLIPPING, RECOVERING, HOLDING, IMPROVING, IMPROVED]) {
-      const { container } = renderSection({ run })
+      const { container } = renderSection({ run, graphs: true })
       expect(container.querySelector('details .fitness-track')).not.toBeNull()
       expect(container.querySelector('.fitness-track__bar')).toHaveAttribute('aria-hidden', 'true')
       // The state is its word alone: no glyph or icon box beside it.
@@ -269,10 +269,20 @@ describe('the home page’s rows, read as text', () => {
 
 describe('the evidence panel', () => {
   const open = () => {
-    const view = renderSection()
+    const view = renderSection({ graphs: true })
     openDetails(rowsOf()[0]!)
     return view
   }
+
+  it('draws no chart and no track on Balance, whose Details hold the figures and the runs alone', () => {
+    const { container } = renderSection()
+    openDetails(rowsOf()[0]!)
+    expect(container.querySelector('.fitness-evidence')).not.toBeNull()
+    expect(container.querySelector('.chart-frame')).toBeNull()
+    expect(screen.queryByRole('figure')).toBeNull()
+    expect(container.querySelector('.fitness-track')).toBeNull()
+    expect(rowValue(container.querySelector('.fitness-evidence')!, 'Read at')).toBe('150 bpm')
+  })
 
   it('is a disclosure that mounts only once opened, so a closed card measures and draws nothing', () => {
     const { container } = renderSection()

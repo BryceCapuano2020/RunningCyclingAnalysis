@@ -257,27 +257,18 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   await expect(fresh).toBeHidden()
   await page.locator(`${FITNESS_DETAILS} > summary`).click()
   await expect(fresh.locator('dd')).toContainText('the week of')
-  const trackEdges = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
+  // Balance's Details hold the rows alone: the track and the graph are the Run and Ride pages'.
+  await expect(page.locator(`${FITNESS_CARD} .fitness-track`)).toHaveCount(0)
+  await expect(page.locator(`${FITNESS_CARD} .chart-frame`)).toHaveCount(0)
   const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
-  const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
-  const trackBox = (await page.locator(`${FITNESS_CARD} .fitness-track`).boundingBox())!
-  expect(trackEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
-  expect(trackBox.x + trackBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width)
-  expect(trackEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
-  // The triangle is the first drawing on the page, and the card's track comes after it.
-  const order = await page.evaluate(() => {
-    const track = document.querySelector('.fitness-card[data-sport="run"] .fitness-track__bar')
-    const first = document.querySelector('main svg:not(.icon)')
-    return {
-      trackAfter:
-        track !== null &&
-        first !== null &&
-        (first.compareDocumentPosition(track) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-      first: first?.getAttribute('class') ?? '',
-    }
-  })
-  expect(order.trackAfter).toBe(true)
-  expect(order.first).toContain('level-triangle__plot')
+  const rowsEdges = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
+  expect(rowsEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
+  expect(rowsEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
+  // The triangle is the first drawing on the page.
+  const first = await page.evaluate(
+    () => document.querySelector('main svg:not(.icon)')?.getAttribute('class') ?? '',
+  )
+  expect(first).toContain('level-triangle__plot')
   // The corners say the sample's own levels, with no meter and no ladder.
   await expect(page.locator(CORNERS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
   await expect(page.locator(CORNERS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
@@ -315,21 +306,20 @@ for (const [width, height] of [
     expect(ride.y).toBeGreaterThan(run.y + run.height)
     expect(lift.y).toBeGreaterThan(run.y + run.height)
     expect(lift.x + lift.width).toBeLessThanOrEqual(ride.x + 1)
-    // The row is under the tiles, and its title, its line and, once opened, its track follow one another.
+    // The row is under the tiles, and its title, its line and, once opened, its rows follow one another.
     await page.locator(`${FITNESS_DETAILS} > summary`).click()
     const tiles = await edgesOf(page.locator('.balance-tiles'))
     const card = await edgesOf(page.locator(FITNESS_CARD))
     const state = await edgesOf(page.locator(FITNESS_STATE))
     const sentence = await edgesOf(page.locator(FITNESS_LINE))
-    const track = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
+    const rows = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
     expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
     expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
-    expect(track.top).toBeGreaterThanOrEqual(sentence.bottom)
-    expect(track.bottom).toBeLessThanOrEqual(card.bottom)
+    expect(rows.top).toBeGreaterThanOrEqual(sentence.bottom)
+    expect(rows.bottom).toBeLessThanOrEqual(card.bottom)
     // Nothing collides, and the page does not scroll sideways.
     for (const selector of [
       FITNESS_CARD,
-      `${FITNESS_CARD} .fitness-track__ends`,
       FITNESS_LINE,
       `${FITNESS_CARD} .props`,
       ...CORNER_PARTS,
@@ -344,8 +334,8 @@ for (const [width, height] of [
   })
 }
 
-// On a wide screen the headline runs the answer's full width and the triangle is centred on the tiles' column at 440 px at most.
-test('at 1280 the headline runs the full width and the triangle is centred on the tiles', async ({
+// On a wide screen the headline sits above the triangle, inside the column, and the triangle is centred on the tiles' column at 440 px at most.
+test('at 1280 the headline sits above the triangle, and the triangle is centred on the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -356,7 +346,7 @@ test('at 1280 the headline runs the full width and the triangle is centred on th
   if (headline === null || tiles === null || triangle === null) {
     throw new Error('no box for the headline, tiles or triangle')
   }
-  expect(headline.width).toBeGreaterThan(triangle.width)
+  expect(headline.width).toBeLessThanOrEqual(tiles.width)
   expect(triangle.y).toBeGreaterThanOrEqual(headline.y + headline.height)
   expect(triangle.width).toBeLessThanOrEqual(441)
   expect(triangle.x + triangle.width / 2).toBeCloseTo(tiles.x + tiles.width / 2, 0)

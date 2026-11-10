@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
 import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
-import { missingText } from './balanceMissing'
+import { fewEffortsText, missingText } from './balanceMissing'
 
 const ALL_TIME: Period = { choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }
 
@@ -85,5 +85,21 @@ describe('missingText for a library of one sport', () => {
       expect(missing.title).toBe('Your cycling so far')
       expect(missing.detail).toBe('Needs an effort of 3 min or longer')
     })
+  })
+})
+
+describe('fewEffortsText', () => {
+  const of = (runs: number, rides: number) =>
+    makeResult({
+      activities: [
+        ...Array.from({ length: runs }, () => makeActivity({ sport: 'run' })),
+        ...Array.from({ length: rides }, () => makeActivity({ sport: 'ride' })),
+      ],
+    })
+
+  it('counts runs and rides when either sport has few efforts, and is null otherwise', () => {
+    expect(fewEffortsText(of(0, 5))).toBeNull()
+    expect(fewEffortsText(of(5, 5))).toBeNull()
+    expect(fewEffortsText(of(1, 5))).toBe('1 run, 5 rides')
   })
 })
