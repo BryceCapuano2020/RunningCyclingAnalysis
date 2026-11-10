@@ -27,6 +27,7 @@ import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
 import { noteUploadTitles } from '../api/uploadPolicy'
 import { labelWorker } from './labelWorker'
+import { renameRequest, type RenameContext } from './renameRequest'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { WireRequest, WorkerRequest, WorkerResponse } from './protocol'
 import { observeRequests } from '../api/requestActivity'
@@ -158,6 +159,15 @@ function finishLoad(state: SessionState, userId: string): SessionState {
   return state
 }
 
+const renameContext: RenameContext = {
+  session,
+  deviceLibrary,
+  device,
+  savedRecords,
+  view,
+  reportLibrary,
+}
+
 const deleteContext: DeleteGroupContext = {
   session,
   savedRecords,
@@ -274,6 +284,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       workbench.clearMemory()
       await forgetHeldKeys('device', [request.id])
       return device.remove(request.id, request.settings)
+    case 'renameActivity':
+      return renameRequest(renameContext, request)
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
       throw new Error('An export is not a session request')

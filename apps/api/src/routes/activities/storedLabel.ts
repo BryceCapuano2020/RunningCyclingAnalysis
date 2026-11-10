@@ -23,3 +23,18 @@ export function keepStoredLabel(
     return incomingJson
   }
 }
+
+/**
+ * The text of a digest that replaces a stored one, with the name the athlete gave the activity. The name is set by
+ * `PATCH /api/activities/:id/name` and kept in the row's `name_override`; the original file cannot give it, so a
+ * rebuilt or re-imported digest of the same file carries the file's name and this puts the athlete's back.
+ * Without an override the digest is returned as it is.
+ */
+export function keepStoredName(nameOverride: string | null, incomingJson: string): string {
+  if (nameOverride === null) return incomingJson
+  try {
+    return JSON.stringify({ ...(JSON.parse(incomingJson) as object), name: nameOverride })
+  } catch {
+    return incomingJson
+  }
+}

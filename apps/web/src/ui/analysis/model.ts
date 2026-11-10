@@ -67,6 +67,11 @@ export function isDeletion(kind: WorkerRequest['type']): boolean {
   return kind === 'deleteActivity' || kind === 'deleteDeviceActivity'
 }
 
+/** A change to one saved activity that the page answers beside it, with the library's notice or error. */
+export function isActivityChange(kind: WorkerRequest['type']): boolean {
+  return isDeletion(kind) || kind === 'renameActivity'
+}
+
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
 export interface Pending {
   /** The request's number, which its reply carries back as `replyTo`. Unique for the page's life. */

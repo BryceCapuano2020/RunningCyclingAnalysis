@@ -673,9 +673,12 @@ describe('privacy page states the limits the code sets', () => {
 describe('the code behind the page', () => {
   it('stores the digest, its route outline and its file’s name and hash on this device, with no coordinates', () => {
     expect(device).toContain('async save({ digest, route, fileName, fileHash })')
+    // The row is the digest, the route outline, the file and, when the athlete renamed the workout, that name.
     expect(deviceLibrary).toContain(
-      'store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)',
+      'digest: serializeDigest(named === null ? digest : { ...digest, name: named }),',
     )
+    expect(deviceLibrary).toContain('...(file ?? {}),')
+    expect(deviceLibrary).toContain('...(named === null ? {} : { nameOverride: named }),')
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''
     expect(digest).not.toBe('')

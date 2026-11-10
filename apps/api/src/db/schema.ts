@@ -220,6 +220,11 @@ export const activities = sqliteTable(
     sport: text('sport', { enum: SPORTS }).notNull(),
     startMs: integer('start_ms').notNull(),
     name: text('name').notNull(),
+    /**
+     * The name the athlete gave the activity, or null while it still has the one its file gave. It is also
+     * written into the digest and `name`; a rebuilt digest does not carry it, so a rebuild puts it back.
+     */
+    nameOverride: text('name_override'),
     digestVersion: integer('digest_version').notNull(),
     digestJson: text('digest_json').notNull(),
     fileName: text('file_name').notNull(),

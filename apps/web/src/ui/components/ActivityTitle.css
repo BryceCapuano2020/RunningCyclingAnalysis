@@ -1,0 +1,47 @@
+/* The field takes the title's place: the name, then Save and Cancel, wrapping on a phone. */
+.activity-title__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.activity-title__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.activity-title__input {
+  box-sizing: border-box;
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-lead);
+}
+
+.activity-title__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.activity-title__problem {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+/* The edit control keeps its size beside a long title, and is a finger target on a phone. */
+.activity-title__edit {
+  flex: none;
+  min-height: var(--control-height);
+}

@@ -184,7 +184,7 @@ export function useWorkerTransport({
               provisional: request.provisional === true,
               saveToDevice: request.saveToDevice === true,
             }
-          : request.type === 'undoLabels'
+          : request.type === 'undoLabels' || request.type === 'renameActivity'
             ? { saveToDevice: request.userId === null }
             : request.type === 'clear'
               ? { forgetDevice: request.forgetDevice === true }
