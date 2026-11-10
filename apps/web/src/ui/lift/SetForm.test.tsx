@@ -7,7 +7,8 @@ import type { SetFormProps } from './SetForm'
 
 function setup(props: Partial<SetFormProps> = {}) {
   const onSave = vi.fn()
-  const now = () => new Date(2030, 2, 4, 7, 5)
+  // The viewer zone is UTC in tests, so the clock reads the UTC time.
+  const now = () => new Date(Date.UTC(2030, 2, 4, 7, 5))
   const user = userEvent.setup()
   render(
     <SetForm

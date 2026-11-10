@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { EQUIPMENT, exerciseInfo, isLiftRpe } from '@rca/core/lift'
 import type { Equipment, LiftSet } from '@rca/core/lift'
+import { localClockText } from '@rca/core/calendar'
 import type { UnitSystem } from '@rca/core/units'
 import { NumberField } from '../components/NumberField'
 import { equipmentName, loadText, readSetForm, rpeChoicesFor, snapRpe } from './setFormValues'
@@ -38,9 +39,6 @@ function rpeText(rpe: number | undefined): string {
   if (rpe === undefined) return ''
   return String(isLiftRpe(rpe) ? rpe : (snapRpe(rpe) ?? ''))
 }
-
-const pad = (n: number) => String(n).padStart(2, '0')
-const localTime = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`
 
 /** The entry fields for one set: equipment, reps, load, effort and warm-up. */
 export function SetForm(props: SetFormProps) {
@@ -81,7 +79,7 @@ export function SetForm(props: SetFormProps) {
     const stamp = onDelete
       ? stored
       : now
-        ? { time: localTime(now()), timePrecision: 'set' as const }
+        ? { time: localClockText(now().getTime()), timePrecision: 'set' as const }
         : {}
     const result = readSetForm(fields, units, { date, exercise, setOrder, ...stamp }, bodyweight)
     if ('errors' in result) return setErrors(result.errors)
