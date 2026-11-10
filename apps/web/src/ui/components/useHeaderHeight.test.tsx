@@ -23,11 +23,14 @@ describe('useHeaderHeight', () => {
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(120)
     const header = { current: document.createElement('header') }
     header.current.style.position = 'sticky'
+    // jsdom 31 computes styles only for elements in the document.
+    document.body.append(header.current)
 
     const view = renderHook(() => useHeaderHeight(header))
     expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('120px')
 
     view.unmount()
+    header.current.remove()
     expect(disconnected).toHaveBeenCalledTimes(1)
     expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('')
   })

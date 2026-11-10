@@ -12,9 +12,9 @@ import { SkipLink } from './ui/components/SkipLink'
 import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
-import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
+import { documentTitleFor, routeName, useDocumentTitle } from './ui/documentTitle'
 import { Shell } from './ui/components/Rail'
-import { RestoringPage } from './ui/pages/RestoringPage'
+import { LibraryLoadingPage } from './ui/pages/LibraryLoadingPage'
 import { HeldLibraryPage, UnavailableLibraryPage } from './ui/pages/HeldLibraryPage'
 import { libraryPageTitle, pageKeyOf } from './ui/libraryPage'
 import { heldViewFor } from './ui/pages/heldLibraryView'
@@ -143,7 +143,7 @@ export function App() {
   const heldView = page === 'held' ? heldViewFor(analysis, signedIn, fileRetentionAvailable) : null
   const heldTitle = heldView?.title ?? ''
   useDocumentTitle(
-    libraryPageTitle(page, heldTitle) ??
+    libraryPageTitle(page, heldTitle, routeName(route)) ??
       documentTitleFor(route, analysis.state.result, analysis.state.library),
   )
   // The account and a signed-in library must answer before the landing page is the true state.
@@ -224,12 +224,11 @@ export function App() {
     <HoldInputsContext.Provider value={holdInputs}>
       <div className="page">
         <SkipLink />
-        {/* While results restore, the tabs show and Add files is left to the restoring page. */}
         <Header
           route={route}
           showTabs={hasResult || analysis.restoring || knowledge === 'present'}
           addFiles={
-            restoringPage || onLanding ? null : (
+            onLanding ? null : (
               <AddFilesButton
                 onFiles={setup.requestImport}
                 // The library page's own buttons (Update now, else its Add files) are its one primary action.
@@ -332,7 +331,7 @@ export function App() {
             ) : restoringPage ? (
               // The rail is there while results restore, so the page does not jump sideways when they arrive.
               <Shell route={route}>
-                <RestoringPage onFiles={setup.requestImport} />
+                <LibraryLoadingPage route={route} />
               </Shell>
             ) : page === 'unavailable' ? (
               <UnavailableLibraryPage canRetry={signedIn} />

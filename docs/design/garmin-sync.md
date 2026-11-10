@@ -1,6 +1,8 @@
 # Garmin sync: new activities without a file
 
-Status: designed (research and design only, no code), waiting on the owner's go and Garmin's answers. Written 9 Nov 2026 against main
+Status: designed (research and design only, no code). To be revised before any build: with [server-compute.md](server-compute.md)
+the Worker parses pushed files itself (its decision 14), so the browser inbox and pickup below go away. The provider
+verdicts, Garmin's open questions and the security and deletion rules still stand. Waiting on Garmin's answers. Written 9 Nov 2026 against main
 34de84bc. Garmin's mechanics are not yet confirmed (section 9); the parts that depend on them are marked.
 
 ## Why

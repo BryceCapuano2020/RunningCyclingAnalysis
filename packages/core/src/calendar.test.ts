@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  localClockText,
   localDayNumber,
   setViewerZone,
   shiftFromZone,
@@ -65,6 +66,17 @@ describe('shiftFromZone and localDayNumber', () => {
     expect(localDayNumber({ startMs: start, localDayShift: 1 }, east(0))).toBe(day + 1)
     expect(localDayNumber({ startMs: start }, east(9))).toBe(day + 1)
     expect(localDayNumber({ startMs: start }, east(0))).toBe(day)
+  })
+
+  it('writes the local clock time in the viewer’s zone, across midnight', () => {
+    const start = at(2026, 3, 14, 20)
+    expect(localClockText(start + 5 * 60_000)).toBe('20:05')
+    const before = setViewerZone(east(9))
+    try {
+      expect(localClockText(start + 5 * 60_000)).toBe('05:05')
+    } finally {
+      setViewerZone(before)
+    }
   })
 
   it('reads the viewer’s zone, set once, and puts the old one back', () => {

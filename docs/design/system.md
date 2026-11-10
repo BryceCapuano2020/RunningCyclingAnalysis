@@ -108,7 +108,7 @@ third-party font request is made.
   page and the current period are ink; the others `--ink-secondary`. No icon, box or bar marks them. Below 1024 px the rail
   is two lines across the top of the page, the pages over the periods with a rule between, the periods by their short
   names (6 wk, 12 wk, 6 mo, 12 mo, All, Custom) with the full names kept as their accessible names, so nothing scrolls
-  sideways at 320 px. Strength joins the rail when lifting ships.
+  sideways at 320 px. Lift joins the rail after Ride with the lift logger ([lift-logger.md](lift-logger.md)); it shows no periods.
 - **The header** is one line: the wordmark in serif, the other pages (History, Activities, Method) as text links, and the
   account and Add files at the right.
 - **Rows, not cards.** A list (records, best efforts, history, What changed) is a numbered list of rows between hairlines.

@@ -19,7 +19,9 @@ Decisions section. Status is one of designed, in progress or built.
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
 - [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to a Worker inbox and imported by the browser's
-  own pipeline; Strava's API stays out. Status: designed, waiting on Garmin's answers.
+  own pipeline; Strava's API stays out. Status: designed, to be revised for server-side parsing (server-compute.md decision 14) before any build.
+- [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
+  code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
@@ -29,6 +31,8 @@ Decisions section. Status is one of designed, in progress or built.
   load, with the prototype on synthetic lifters. Status: spec, in science review (stage X).
 - [lift-data.md](lift-data.md): the set record, the `lift_sets` table and routes, the browser store and its
   sync transitions. Status: designed (stage X).
+- [lift-logger.md](lift-logger.md): the Lift page and its manual set logger, and `useLiftLog`, which wires the
+  store and sync into sign-in, sign-out and the device offer. Status: designed, building (stage X, Lift UI 1).
 - [decisions/](decisions/README.md): one file per decision a design left open, with how to reverse it.
 - [model-ledger.md](model-ledger.md): every change to a model whose figures the athlete sees, with
   its pull request, its reason and its effect on synthetic athletes. Status: built (stage break).

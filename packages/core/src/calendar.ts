@@ -161,6 +161,14 @@ export function dayZoneKey(): string {
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
 
+/** The local clock time of an instant, as `HH:MM` (24-hour), in the viewer's zone. */
+export function localClockText(ms: number): string {
+  const minutes = Math.floor(
+    ((((ms + dayZone()(ms) * 60_000) % DAY_MS) + DAY_MS) % DAY_MS) / 60_000,
+  )
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
+}
+
 /** The local calendar date of an instant, as `YYYY-MM-DD`. */
 export function localDateText(ms: number): string {
   const date = new Date(localDayOfInstant(ms) * DAY_MS)
