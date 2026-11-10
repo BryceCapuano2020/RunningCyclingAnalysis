@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LiftPicker } from './LiftPicker'
@@ -79,7 +80,7 @@ describe('LiftPicker', () => {
     expect(onChoose).toHaveBeenCalledWith(null)
   })
 
-  it('on blur keeps an exact name and otherwise reverts to the chosen lift', async () => {
+  it('on blur keeps an exact name and otherwise reverts to the last chosen lift', async () => {
     const onChoose = vi.fn()
     const user = userEvent.setup()
     render(<LiftPicker recent={[]} selected="deadlift" onChoose={onChoose} />)
@@ -91,7 +92,7 @@ describe('LiftPicker', () => {
     expect(input).toHaveValue('Bench press')
     await user.type(input, ' x')
     await user.tab()
-    expect(input).toHaveValue('Deadlift')
+    expect(input).toHaveValue('Bench press')
   })
 
   it('moves to the first and last option with Home and End', async () => {
@@ -102,5 +103,39 @@ describe('LiftPicker', () => {
     expect(input.getAttribute('aria-activedescendant')).toBe(options[options.length - 1]!.id)
     await user.keyboard('{Home}')
     expect(input.getAttribute('aria-activedescendant')).toBe(options[0]!.id)
+  })
+
+  it('restores the chosen lift on blur even when the parent nulls selected on edit', async () => {
+    const onChoose = vi.fn()
+    const user = userEvent.setup()
+    function Parent() {
+      const [selected, setSelected] = useState<string | null>('deadlift')
+      return (
+        <LiftPicker
+          recent={[]}
+          selected={selected}
+          onChoose={(choice) => {
+            onChoose(choice)
+            setSelected(choice ? choice.exercise : null)
+          }}
+        />
+      )
+    }
+    render(<Parent />)
+    const input = screen.getByRole('combobox', { name: 'Lift' })
+    await user.type(input, 'x')
+    expect(onChoose).toHaveBeenLastCalledWith(null)
+    await user.tab()
+    expect(input).toHaveValue('Deadlift')
+    expect(onChoose).toHaveBeenLastCalledWith({ exercise: 'deadlift' })
+  })
+
+  it('scrolls the active option into view', async () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { user, input } = setup()
+    await user.click(input)
+    await user.keyboard('{ArrowDown}')
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' })
   })
 })

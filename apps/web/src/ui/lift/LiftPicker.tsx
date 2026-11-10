@@ -19,11 +19,27 @@ export function LiftPicker({ recent, selected = null, onChoose }: LiftPickerProp
   const listId = `${baseId}-list`
   const [text, setText] = useState(selected ? liftName(selected) : '')
   const [chosen, setChosen] = useState(selected !== null)
+  // The last choice, kept in state because a parent may null `selected` as soon as the text is edited.
+  const [lastChoice, setLastChoice] = useState<{
+    exercise: string
+    equipment?: LiftOption['equipment']
+  } | null>(selected ? { exercise: selected } : null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const options = liftOptions(text, recent)
   const shown = open && options.length > 0
   const activeIndex = Math.min(active, options.length - 1)
+
+  // A new `selected` from the parent replaces what is shown (adjusted during render, not in an effect).
+  const [seenSelected, setSeenSelected] = useState(selected)
+  if (seenSelected !== selected) {
+    setSeenSelected(selected)
+    if (selected !== null) {
+      setLastChoice({ exercise: selected })
+      setChosen(true)
+      setText(liftName(selected))
+    }
+  }
 
   useEffect(() => {
     if (shown)
@@ -37,11 +53,11 @@ export function LiftPicker({ recent, selected = null, onChoose }: LiftPickerProp
     setText(liftName(option.exercise))
     setOpen(false)
     setActive(0)
-    onChoose(
-      option.equipment
-        ? { exercise: option.exercise, equipment: option.equipment }
-        : { exercise: option.exercise },
-    )
+    const choice = option.equipment
+      ? { exercise: option.exercise, equipment: option.equipment }
+      : { exercise: option.exercise }
+    setLastChoice(choice)
+    onChoose(choice)
   }
 
   // Leaving the field keeps a lift typed in full, else goes back to the chosen lift.
@@ -51,8 +67,10 @@ export function LiftPicker({ recent, selected = null, onChoose }: LiftPickerProp
     const typed = text.trim().toLowerCase()
     const exact = options.find((o) => !o.isNew && liftName(o.exercise).toLowerCase() === typed)
     if (exact) return choose(exact)
-    setText(selected ? liftName(selected) : '')
-    setChosen(selected !== null)
+    const last = lastChoice
+    setText(last ? liftName(last.exercise) : '')
+    setChosen(last !== null)
+    if (last) onChoose(last)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
