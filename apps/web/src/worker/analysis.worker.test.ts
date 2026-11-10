@@ -643,7 +643,8 @@ describe('analysis worker', () => {
       undefined,
       expect.any(Function),
     )
-    expect(messages).toEqual([
+    // The count of what this browser kept (none here) is said apart from any request.
+    expect(messages.filter((m) => m.type !== 'deviceOffer')).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
       {
@@ -1353,7 +1354,7 @@ describe('analysis worker', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST, false)])
     const { send } = await startWorker()
     const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
-    expect(loaded).toEqual([
+    expect(loaded.filter((m) => m.type !== 'deviceOffer')).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
       { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
@@ -2924,7 +2925,7 @@ describe('request numbers', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     const request = { type: 'loadServer', settings: SETTINGS, userId: USER_ID, requestId: 41 }
-    const messages = await send(request as WorkerRequest)
+    const messages = (await send(request as WorkerRequest)).filter((m) => m.type !== 'deviceOffer')
 
     expect(messages[0]).toEqual({ type: 'started', during: 41 })
     const reply = messages.at(-1)
@@ -3654,14 +3655,16 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     expect(posted.filter((m) => m.type === 'deviceOffer').every((m) => !('during' in m))).toBe(true)
   })
 
-  it('says nothing when the kept library is empty', async () => {
+  it('says it holds none when the kept library is empty, so the page can stop waiting', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send, posted } = await startWorker()
 
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
     await new Promise((resolve) => setTimeout(resolve, 20))
 
-    expect(posted.some((m) => m.type === 'deviceOffer')).toBe(false)
+    expect(posted.filter((m) => m.type === 'deviceOffer')).toEqual([
+      { type: 'deviceOffer', adoptable: 0, again: 0, held: 0 },
+    ])
   })
 
   it('adds the kept activities to the account, removes them from the kept library and reads the library again', async () => {

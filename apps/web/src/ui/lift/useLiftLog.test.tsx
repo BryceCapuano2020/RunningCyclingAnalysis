@@ -347,4 +347,65 @@ describe('the lift log, signed in', () => {
     expect(view.result.current.refused).toBe(0)
     expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(80)
   })
+
+  it('leaves no connection open when an answer comes after it closed', async () => {
+    const factory = new IDBFactory()
+    const live = new Set<IDBDatabase>()
+    const open = factory.open.bind(factory)
+    factory.open = ((name: string, version?: number) => {
+      const request = open(name, version)
+      request.addEventListener('success', () => {
+        const db = request.result
+        const close = db.close.bind(db)
+        live.add(db)
+        db.close = () => {
+          live.delete(db)
+          close()
+        }
+      })
+      return request
+    }) as typeof factory.open
+    vi.stubGlobal('indexedDB', factory)
+    const seed = openLiftStore('u1')
+    await seed.save(make(1))
+    seed.close()
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const fake = fakeTransport({ put: () => new LiftTransportError('other'), gate: () => gate })
+    const view = setup(signedIn(), fake)
+    await waitFor(() => expect(fake.calls.some((c) => c.type === 'put')).toBe(true))
+    view.unmount()
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(live.size).toBe(0)
+  })
+
+  it('forgets what the last account refused when the scope changes', async () => {
+    await openLiftStore('u1').save(make(1))
+    const refusing = fakeTransport({ put: () => new LiftTransportError('invalid', [0]) })
+    // The second account's sends never answer, so only the reset can clear what the first one refused.
+    const quiet = fakeTransport({ gate: () => new Promise<void>(() => undefined) })
+    const view = renderHook(
+      (props: LiftLogAccount) =>
+        useLiftLog(props, { transportFor: (id) => (id === 'u1' ? refusing : quiet).transport }),
+      { initialProps: signedIn() },
+    )
+    await waitFor(() => expect(view.result.current.refused).toBe(1))
+    view.rerender(signedIn({ userId: 'u2' }))
+    await waitFor(() => expect(view.result.current.ready).toBe(true))
+    expect(view.result.current.refused).toBe(0)
+  })
+
+  it('reads the remembered account again when the status changes', async () => {
+    await openLiftStore('u1').save(make(1, 90))
+    await openLiftStore('u2').save(make(1, 70))
+    noteLiftAccount('u1')
+    const view = setup({ ...SIGNED_OUT, status: 'unavailable' })
+    await waitFor(() => expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(90))
+    noteLiftAccount('u2')
+    view.rerender({ ...SIGNED_OUT, status: 'loading' })
+    await waitFor(() => expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(70))
+  })
 })

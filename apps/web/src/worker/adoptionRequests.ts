@@ -36,17 +36,19 @@ export function keptTraceDropper(workbench: Pick<Workbench, 'remove'>) {
   }
 }
 
-/** Tells the page what the library kept in this browser holds for the account, when it holds something. */
+/**
+ * Tells the page what the library kept in this browser holds for the account, zeros included: the page waits for
+ * this count before it asks about the kept library, so an offer of lifting sets alone is not held back by it. A
+ * library that cannot be read counts as none.
+ */
 export async function offerDevice(ctx: AdoptionRequestContext, userId: string): Promise<void> {
   const standing = await standingOf(ctx.deviceLibrary, ctx.savedRecords)
-  if (standing === null) return
-  const { adoptable, again, held } = standing.offer
+  const { adoptable, again, held } = standing?.offer ?? { adoptable: 0, again: 0, held: 0 }
   const current = ctx.view.activeScope
   // The account may have changed while the kept library was read.
   if (current?.kind !== 'account' || current.userId !== userId) return
   // Apart from any request: stamped with one, the page would drop it as late.
-  if (adoptable + again + held > 0)
-    self.postMessage({ type: 'deviceOffer', adoptable, again, held } satisfies WorkerResponse)
+  self.postMessage({ type: 'deviceOffer', adoptable, again, held } satisfies WorkerResponse)
 }
 
 /** After the kept library changed under a signed-in page: what it holds now, and what is still offered. */
