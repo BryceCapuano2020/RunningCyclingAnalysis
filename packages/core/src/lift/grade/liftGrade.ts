@@ -4,10 +4,10 @@
  */
 import type { AgeProfile, Grade, SportGrade } from '../../grade/effortGrade'
 import { levelOf } from '../../grade/ageGrade'
-import { DEADLIFT_EXTRA_HIGH } from '../constants'
+import { DEADLIFT_EXTRA_HIGH, MASS_SD_BASE } from '../constants'
 import type { LiftEstimate } from '../estimate'
 import { liftAgeOn, liftStandard } from './liftStandard'
-import { GRADE_CEILING, Z_HIGH, Z_LOW, Z_STANDARD, standardSd } from './standard'
+import { BIRTH_YEAR_SD, GRADE_CEILING, Z_HIGH, Z_LOW, Z_STANDARD, standardSd } from './standard'
 import type { GradedLift } from './standard'
 
 export type LiftGradeGap = 'no-profile' | 'no-mass' | 'no-graded-lift' | 'out-of-range'
@@ -36,18 +36,45 @@ interface Measured {
   high: number
 }
 
+/** d ln S / d ln mass and d ln S / d age (per year) by a centred difference; each is nil where S is held (the clamps). */
+function slopes(
+  lift: GradedLift,
+  sex: AgeProfile['sex'],
+  age: number,
+  massKg: number,
+): { mass: number; age: number } {
+  const dm = 0.01
+  const da = 0.5
+  const lnS = (a: number, m: number) => Math.log(liftStandard(lift, sex, a, m).kg)
+  return {
+    mass: (lnS(age, massKg * Math.exp(dm)) - lnS(age, massKg * Math.exp(-dm))) / (2 * dm),
+    age: (lnS(age + da, massKg) - lnS(age - da, massKg)) / (2 * da),
+  }
+}
+
+/**
+ * The estimate's own error (log units) with the standard's error, the mass error and the age's spread added in
+ * quadrature (section 5): `sd'` for the range, and `sdT` for the floor term.
+ */
 function measure(
   { lift, estimate }: GradedEstimate,
   profile: AgeProfile,
   massKg: number,
+  massSd: number,
 ): Measured | 'out-of-range' {
   const age = liftAgeOn(profile.birthYear, estimate.date)
   const standard = liftStandard(lift, profile.sex, age, massKg)
   if (!Number.isFinite(age) || standard.outOfRange) return 'out-of-range'
-  const spread = Math.hypot(estimate.sd, standardSd(age, massKg))
+  const slope = slopes(lift, profile.sex, age, massKg)
+  const sdT = Math.hypot(
+    standardSd(profile.sex, age, massKg),
+    slope.mass * massSd,
+    slope.age * BIRTH_YEAR_SD,
+  )
+  const spread = Math.hypot(estimate.sd, sdT)
   const point = estimate.point
   const wide = lift === 'deadlift' ? 1 + DEADLIFT_EXTRA_HIGH : 1
-  const lowest = estimate.floor.loadKg * Math.exp(-Z_STANDARD * standardSd(age, massKg))
+  const lowest = estimate.floor.loadKg * Math.exp(-Z_STANDARD * sdT)
   return {
     age,
     standardKg: standard.kg,
@@ -82,17 +109,18 @@ function gapOf(profile: AgeProfile | null, massKg: number): LiftGradeGap | null 
 /**
  * One lift's age grade at the date of its estimate. The range is the estimate's own error and the standard's, in quadrature,
  * on the log scale, never under the floor's share. A centre over 110% is not graded; one at 100% or more is held at 100% and
- * flagged `top`. `massKg` is the body mass on the estimate's date.
+ * flagged `top`. `massKg` is the body mass on the estimate's date and `massSd` its error (log units, `massSdFor`).
  */
 export function liftGrade(
   graded: GradedEstimate | null,
   profile: AgeProfile | null,
   massKg: number,
+  massSd: number = MASS_SD_BASE,
 ): LiftGrade {
   const gap = gapOf(profile, massKg)
   if (gap !== null) return { kind: 'gap', why: gap }
   if (graded === null) return { kind: 'gap', why: 'no-graded-lift' }
-  const m = measure(graded, profile as AgeProfile, massKg)
+  const m = measure(graded, profile as AgeProfile, massKg, massSd)
   if (m === 'out-of-range') return { kind: 'gap', why: 'out-of-range' }
   const out = shown(m, m.standardKg)
   return out === null ? { kind: 'gap', why: 'out-of-range' } : { kind: 'graded', ...out }
@@ -106,6 +134,7 @@ export function liftCornerGrade(
   lifts: readonly GradedEstimate[],
   profile: AgeProfile | null,
   massKg: number,
+  massSd: number = MASS_SD_BASE,
 ): LiftCornerGrade {
   const gap = gapOf(profile, massKg)
   if (gap !== null) return { kind: 'gap', why: gap }
@@ -113,7 +142,7 @@ export function liftCornerGrade(
   const sum = { age: 0, point: 0, low: 0, high: 0, standardKg: 0 }
   let first: LiftGradeGap = 'no-graded-lift'
   for (const l of lifts) {
-    const m = measure(l, profile as AgeProfile, massKg)
+    const m = measure(l, profile as AgeProfile, massKg, massSd)
     if (m === 'out-of-range' || shown(m, m.standardKg) === null) {
       if (first === 'no-graded-lift') first = 'out-of-range'
       continue

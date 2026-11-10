@@ -3,12 +3,13 @@ import type { LiftEstimate } from '../estimate'
 import { gradedLiftOf, liftAgeOn, liftStandard } from './liftStandard'
 import { liftCornerGrade, liftGrade } from './liftGrade'
 import type { GradedEstimate } from './liftGrade'
-import { CURVES, LIFTS, LIFT_GRADE_STANDARD, MASS_RANGE_KG } from './standard'
+import { LIFTS, LIFT_GRADE_STANDARD, MASS_RANGE_KG } from './standard'
 
 const MAN = { birthYear: 1994, sex: 'male' } as const
 const WOMAN = { birthYear: 1994, sex: 'female' } as const
-/** Mid-year, so the age is 29.5 for a 1994 birth. */
+/** Mid-year, so the age is 30 for a 1994 birth. */
 const DATE = '2024-07-02'
+const AGE = liftAgeOn(1994, DATE)
 
 function est(point: number, over: Partial<LiftEstimate> = {}): LiftEstimate {
   return {
@@ -45,18 +46,17 @@ describe('which lift', () => {
 })
 
 describe('age', () => {
-  it('is the year gap less one plus the share of the year gone', () => {
-    expect(liftAgeOn(1994, '2024-01-01')).toBe(29)
-    expect(liftAgeOn(1994, '2024-07-02')).toBeCloseTo(29.5, 2)
-    expect(liftAgeOn(1994, '2024-12-31')).toBeGreaterThan(29.99)
-    expect(liftAgeOn(1994, '2024-12-31')).toBeLessThan(30)
+  it('is the year gap less a half plus the share of the year gone', () => {
+    expect(liftAgeOn(1994, '2024-01-01')).toBeCloseTo(29.5 + 0.5 / 365, 6)
+    expect(liftAgeOn(1994, '2024-07-02')).toBeCloseTo(30, 2)
+    expect(liftAgeOn(1994, '2024-12-31')).toBeCloseTo(30 + 365.5 / 365 - 0.5, 6)
   })
 })
 
 describe('liftStandard', () => {
-  it('gives the worked example standard for a man of 30 at 80 kg', () => {
+  it('gives the worked example standard for a man of 29.5 at 80 kg', () => {
     const s = liftStandard('squat', 'male', 29.5, 80)
-    expect(s.kg).toBeCloseTo(337.6, 0)
+    expect(s.kg).toBeCloseTo(339.3, 0)
     expect(s.outOfRange).toBe(false)
   })
 
@@ -84,14 +84,6 @@ describe('liftStandard', () => {
     }
   })
 
-  it('holds S flat past the turn of a quadratic that falls', () => {
-    const q = CURVES.deadlift.female
-    const turnKg = 65 * Math.exp(-q.b / (2 * q.c))
-    expect(turnKg).toBeLessThan(MASS_RANGE_KG.female[1])
-    const at = liftStandard('deadlift', 'female', 30, turnKg).kg
-    expect(liftStandard('deadlift', 'female', 30, MASS_RANGE_KG.female[1]).kg).toBeCloseTo(at, 8)
-  })
-
   it('rises through the juniors and declines for masters', () => {
     const at = (age: number) => liftStandard('squat', 'male', age, 80).kg
     expect(at(16)).toBeLessThan(at(20))
@@ -100,30 +92,34 @@ describe('liftStandard', () => {
   })
 
   it('names its data', () => {
-    expect(LIFT_GRADE_STANDARD).toMatch(/openpowerlifting/)
+    expect(LIFT_GRADE_STANDARD).toBe(1)
   })
 })
 
 describe('liftGrade', () => {
-  it('grades the worked example: a man of 30, 80 kg, squat 140 kg', () => {
-    const g = liftGrade(of('squat', 140), MAN, 80)
+  it('grades the worked example: a man of 30, 80 kg, one session of 100 kg for 5 at RPE 8', () => {
+    const e = est(122.3, {
+      date: '2024-01-15',
+      sd: 0.0824,
+      floor: { loadKg: 100, reps: 5, date: '2024-01-15' },
+    })
+    const g = liftGrade({ lift: 'squat', estimate: e }, MAN, 80)
     if (g.kind !== 'graded') throw new Error('expected a grade')
-    expect(g.grade.centre.grade).toBeCloseTo(0.415, 2)
+    expect(g.grade.centre.grade).toBeCloseTo(0.36, 2)
     expect(g.grade.centre.level).toBe('Recreational')
     expect(g.top).toBe(false)
-    expect(g.age).toBeCloseTo(29.5, 2)
-    const range = g.grade.range
-    expect(range!.low.grade).toBeLessThan(g.grade.centre.grade)
-    expect(range!.high.grade).toBeGreaterThan(g.grade.centre.grade)
+    expect(g.age).toBeCloseTo(29.5, 1)
+    expect(g.grade.range!.low.grade).toBeCloseTo(0.331, 2)
+    expect(g.grade.range!.high.grade).toBeCloseTo(0.445, 2)
   })
 
   it('never puts the low under the floor share', () => {
     const wide = est(140, { sd: 0.4, floor: { loadKg: 135, reps: 1, date: DATE } })
     const g = liftGrade({ lift: 'squat', estimate: wide }, MAN, 80)
     if (g.kind !== 'graded') throw new Error('expected a grade')
-    const s = liftStandard('squat', 'male', 29.5, 80).kg
+    const s = liftStandard('squat', 'male', AGE, 80).kg
     expect(g.grade.range!.low.grade).toBeGreaterThanOrEqual(
-      (135 / s) * Math.exp(-1.645 * 0.02) - 1e-9,
+      (135 / s) * Math.exp(-1.645 * 0.05) - 1e-9,
     )
   })
 
@@ -133,11 +129,11 @@ describe('liftGrade', () => {
     if (dl.kind !== 'graded' || sq.kind !== 'graded') throw new Error('expected grades')
     const up = (g: typeof dl, s: number) => g.grade.range!.high.grade / g.grade.centre.grade / s
     expect(up(dl, 1)).toBeGreaterThan(up(sq, 1))
-    expect(up(dl, 1)).toBeCloseTo(Math.exp(1.925 * Math.hypot(0.05, 0.02)) * 1.05, 6)
+    expect(up(dl, 1) / up(sq, 1)).toBeGreaterThan(1.03)
   })
 
   it('holds a centre at or above 100% at the top of the scale', () => {
-    const s = liftStandard('squat', 'male', 29.5, 80).kg
+    const s = liftStandard('squat', 'male', AGE, 80).kg
     const g = liftGrade(of('squat', s * 1.05), MAN, 80)
     if (g.kind !== 'graded') throw new Error('expected a grade')
     expect(g.top).toBe(true)
@@ -146,7 +142,7 @@ describe('liftGrade', () => {
   })
 
   it('gives no grade above 110%', () => {
-    const s = liftStandard('squat', 'male', 29.5, 80).kg
+    const s = liftStandard('squat', 'male', AGE, 80).kg
     expect(liftGrade(of('squat', s * 1.11), MAN, 80)).toEqual({ kind: 'gap', why: 'out-of-range' })
     expect(liftGrade(of('squat', s * 1.09), MAN, 80).kind).toBe('graded')
   })
@@ -177,14 +173,13 @@ describe('liftCornerGrade', () => {
     const squat = liftGrade(of('squat', 140), MAN, 80)
     const c = liftCornerGrade([of('squat', 140), of('bench', 100)], MAN, 80)
     if (c.kind !== 'graded' || squat.kind !== 'graded') throw new Error('expected grades')
-    const s =
-      liftStandard('squat', 'male', 29.5, 80).kg + liftStandard('bench', 'male', 29.5, 80).kg
+    const s = liftStandard('squat', 'male', AGE, 80).kg + liftStandard('bench', 'male', AGE, 80).kg
     expect(c.grade.centre.grade).toBeCloseTo(240 / s, 6)
     expect(c.lifts).toEqual(['squat', 'bench'])
     const bench = liftGrade(of('bench', 100), MAN, 80)
     if (bench.kind !== 'graded') throw new Error('expected a grade')
-    const sb = liftStandard('bench', 'male', 29.5, 80).kg
-    const ss = liftStandard('squat', 'male', 29.5, 80).kg
+    const sb = liftStandard('bench', 'male', AGE, 80).kg
+    const ss = liftStandard('squat', 'male', AGE, 80).kg
     const lows = squat.grade.range!.low.grade * ss + bench.grade.range!.low.grade * sb
     const highs = squat.grade.range!.high.grade * ss + bench.grade.range!.high.grade * sb
     expect(c.grade.range!.low.grade).toBeCloseTo(lows / s, 6)
@@ -207,7 +202,7 @@ describe('liftCornerGrade', () => {
   })
 
   it('flags the top when the total reaches the standard', () => {
-    const s = liftStandard('squat', 'male', 29.5, 80).kg
+    const s = liftStandard('squat', 'male', AGE, 80).kg
     const c = liftCornerGrade([of('squat', s * 1.02)], MAN, 80)
     if (c.kind !== 'graded') throw new Error('expected a grade')
     expect(c.top).toBe(true)

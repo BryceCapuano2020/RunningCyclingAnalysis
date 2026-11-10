@@ -4,7 +4,7 @@
  */
 import type { Sex } from '../../grade/ageGrade'
 
-export const LIFT_GRADE_STANDARD = 'openpowerlifting-2026-11-07-raw-tau999'
+export const LIFT_GRADE_STANDARD = 1
 
 export const LIFTS = ['squat', 'bench', 'deadlift'] as const
 export type GradedLift = (typeof LIFTS)[number]
@@ -35,28 +35,41 @@ export const AGE_RANGE: readonly [number, number] = [14, 80]
 
 export const CURVES: Record<GradedLift, Record<Sex, LiftCurve>> = {
   squat: {
-    male: { a: 5.7188, b: 0.636, c: -0.0933, k: 3.1886, P: 34.1798, d1: 0.00474, d2: 0.00012 },
-    female: { a: 5.3271, b: 0.6121, c: -0.1838, k: 3.0996, P: 33.0, d1: 0.00616, d2: 0 },
+    male: { a: 5.7231, b: 0.6114, c: -0.2038, k: 3.0097, P: 34.6018, d1: 0.00626, d2: 0.0001 },
+    female: { a: 5.3264, b: 0.5747, c: -0.1185, k: 2.9397, P: 30.5579, d1: 0.00681, d2: 7e-5 },
   },
   bench: {
-    male: { a: 5.4299, b: 0.4718, c: 0.1524, k: 4.1741, P: 40.5166, d1: 0.00636, d2: 0.00014 },
-    female: { a: 4.94, b: 0.4435, c: -0.2073, k: 3.6641, P: 44.5418, d1: 0.0103, d2: 0 },
+    male: { a: 5.3366, b: 0.5927, c: -0.2856, k: 3.3554, P: 35.9999, d1: 0.00483, d2: 0.00014 },
+    female: { a: 4.8797, b: 0.514, c: -0.3195, k: 3.5451, P: 26.3489, d1: 0.0042, d2: 0.00011 },
   },
   deadlift: {
-    male: { a: 5.8429, b: 0.5004, c: -0.2773, k: 3.0633, P: 33.0, d1: 0.0051, d2: 6e-5 },
-    female: { a: 5.4557, b: 0.4995, c: -0.4074, k: 3.2513, P: 39.5944, d1: 0.0055, d2: 0 },
+    male: { a: 5.859, b: 0.4248, c: -0.3196, k: 3.1212, P: 30.2986, d1: 0.00485, d2: 8e-5 },
+    female: { a: 5.4586, b: 0.4377, c: -0.2599, k: 3.1927, P: 34.2422, d1: 0.00751, d2: 0 },
   },
 }
 
-/** The standard's own error in log units for an athlete of this age and mass: the fit's bootstrap error (section 7). */
-export function standardSd(_age: number, _massKg: number): number {
-  return 0.02
+/**
+ * The standard's own error, from bootstrap refits (section 5): sdS^2 = s0^2 + (sa u)^2 + (sm x)^2, with
+ * u = (age - 30) / 30 above 30 and (30 - age) / 10 below, x = ln(mass / ref).
+ */
+export const SD_STANDARD: Record<Sex, { s0: number; sa: number; sm: number }> = {
+  male: { s0: 0.015, sa: 0.0106, sm: 0.0298 },
+  female: { s0: 0.015, sa: 0.0181, sm: 0.0366 },
 }
 
-/** z for the 5th and 95th percentile ends: the e1RM's own 1.1 and 1.5 widened by 1.645 / 1.2816 (section 5). */
-export const Z_LOW = 1.412
-export const Z_HIGH = 1.925
-/** The z of the 90 percent range on the standard's own error. */
+export function standardSd(sex: Sex, age: number, massKg: number): number {
+  const { s0, sa, sm } = SD_STANDARD[sex]
+  const u = age > 30 ? (age - 30) / 30 : (30 - age) / 10
+  const x = Math.log(massKg / REF_MASS_KG[sex])
+  return Math.hypot(s0, sa * u, sm * x)
+}
+
+/** z of the grade range's ends on the combined error (section 5, retuned on the e1RM simulation). */
+export const Z_LOW = 1
+export const Z_HIGH = 2.5
+/** The z of the 90 percent range on the standard's own error, for the floor term. */
 export const Z_STANDARD = 1.645
-/** No grade is shown above this: beyond all but a few lifters in 50,000. */
+/** The age spread of a birth year alone: a uniform year, years. */
+export const BIRTH_YEAR_SD = 0.289
+/** Shown grades stop at 100 percent ("top of scale"); none is shown above this. */
 export const GRADE_CEILING = 1.1
