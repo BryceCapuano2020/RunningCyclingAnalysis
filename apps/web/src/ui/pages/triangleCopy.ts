@@ -97,9 +97,13 @@ export function triangleRows(view: TriangleView): Property[] {
   return [...rows, { label: 'Gap', value: gap }]
 }
 
+/** The title when the triangle itself shows the lean: the figure says which way, so the words only name it (owner, 10 Nov 2026). */
+export const FIGURE_TITLE: TriangleTitle = { lead: 'Your athletic balance', sports: [] }
+
 /**
- * The answer in words, for the page and the share card alike: the headline and the one line under it. A balance of grades reads the
- * triangle's rules (with run and ride, the page's own words); an energy balance, which has no grades, reads its own sentence.
+ * The answer in words, for the page, the share card and the landing example alike: the headline and the one line under it. When two
+ * or more sports are graded the triangle shows the lean and the gap, so the title is `FIGURE_TITLE` and there is no line; the gap
+ * and its range stay in the Details. An energy balance draws no grades, so it keeps its own headline and sentence.
  */
 export function triangleAnswer(
   reading: BalanceReading,
@@ -108,10 +112,9 @@ export function triangleAnswer(
 ): { title: TriangleTitle; line: string | null } {
   const graded = triangleReading(comparedGrades(view.grades))
   if (reading.unit === 'points') {
-    return {
-      title: triangleTitle(graded) ?? titleParts(reading),
-      line: triangleLine(graded),
-    }
+    return triangleTitle(graded) === null
+      ? { title: titleParts(reading), line: triangleLine(graded) }
+      : { title: FIGURE_TITLE, line: null }
   }
   return {
     title: titleParts(reading),

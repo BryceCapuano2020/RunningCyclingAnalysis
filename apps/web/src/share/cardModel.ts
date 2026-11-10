@@ -66,7 +66,7 @@ export interface ShareCardModel {
 
 /** A graded card names the standard its grades come from. */
 const ROAD_FOOTNOTE = ROAD_STANDARDS_SOURCE.shortName
-const LIFT_FOOTNOTE = LIFT_STANDARDS_SOURCE.shortName
+const LIFT_FOOTNOTE = LIFT_STANDARDS_SOURCE.cardName
 /** Without a grade, the card says the figures are estimates. */
 const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
@@ -200,7 +200,7 @@ export function buildShareCard(
     alt: [`${headline}.`, answer.line, cornersSentence(triangle)].filter(Boolean).join(' '),
     heroes,
     period: periodDates(period),
-    footnote: sources.length > 0 ? `Age-graded on ${sources.join(' and ')}.` : ESTIMATE_FOOTNOTE,
+    footnote: sources.length > 0 ? `Graded on ${sources.join(' and ')}.` : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,
     name: cardNameShown(name ?? ''),

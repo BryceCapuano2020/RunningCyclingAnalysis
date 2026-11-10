@@ -79,6 +79,8 @@ export const LIFT_STANDARDS_SOURCE = {
   name: 'OpenPowerlifting meet results',
   /** The name for a short citation: "Lifting on judged meet lifts from OpenPowerlifting". */
   shortName: 'judged meet lifts, OpenPowerlifting',
+  /** The name on a share card's sources line, beside the road standards: "Graded on USATF road standards and OpenPowerlifting." */
+  cardName: 'OpenPowerlifting',
   url: 'https://www.openpowerlifting.org',
   attribution:
     'Lift standards are fitted to results from the OpenPowerlifting project, https://www.openpowerlifting.org. You may download a copy of the data at https://data.openpowerlifting.org.',

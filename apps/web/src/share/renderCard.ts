@@ -36,7 +36,7 @@ const RULE_HEIGHT = 2
 const RULE_GAP = 20
 /** Between the app name and the metadata beside it, and between the metadata's own items. */
 const ROW_GAP = 24
-/** The footer: the period's dates and the standard, as one line of metadata. */
+/** The footer: the period's dates on one line and the standards the grades come from on the next. */
 export const FOOTER: TextStyle = metaStyle(20, 28)
 export const ORIGIN: TextStyle = metaStyle(22, 28)
 const HEADLINE_LINE_RATIO = 1.08
@@ -131,9 +131,13 @@ function cardBlocks(
     ...textBlock(ctx, line, x, lineStyle, CARD_COLORS.secondary),
     triangleBlock(ctx, model.triangle, x, contentWidth, triangle),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
+    // The dates, then the sources on a line of their own, so a long sources line never breaks the dates' line mid-phrase.
     ...textBlock(
       ctx,
-      wrapIn(ctx, `${model.period} · ${model.footnote}`.toUpperCase(), FOOTER, contentWidth),
+      [
+        ...wrapIn(ctx, model.period.toUpperCase(), FOOTER, contentWidth),
+        ...wrapIn(ctx, model.footnote.toUpperCase(), FOOTER, contentWidth),
+      ],
       x,
       FOOTER,
       CARD_COLORS.secondary,
