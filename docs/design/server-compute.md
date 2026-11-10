@@ -1,6 +1,6 @@
 # Server compute: results ready before the page opens
 
-Status: designed (research and design only, no code), waiting on the owner's go on section 7. Written 9 Nov 2026
+Status: designed and approved by the owner on 9 Nov 2026 (section 7); no code yet. Written 9 Nov 2026
 against main 34de84bc.
 
 ## Why
@@ -154,10 +154,12 @@ the answers in section 7.
 
 No model ledger row: no model changes.
 
-## 7. For the owner
+## 7. Owner decisions (9 Nov 2026)
 
-1. Upgrade to Workers Paid ($5 a month) before S4. Approved 9 Nov; the upgrade is in the Cloudflare dashboard.
-2. The privacy page changes from "Analysis runs in your browser" to: signed out, analysis runs in your browser; signed
-   in, the server also computes your results from the summaries it already holds. Yes or no.
-3. `keepPower`, `countedRuns` and the period choice move into the account (decision 10). Yes or no.
-4. Order: S1 to S6, then Garmin on the revised design, then the connector. Yes or no.
+All four approved.
+
+1. Workers Paid ($5 a month), upgraded by the owner in the Cloudflare dashboard before S4.
+2. The privacy page says: signed out, analysis runs in your browser; signed in, the server also computes your results
+   from the summaries it already holds.
+3. `keepPower`, `countedRuns` and the period choice move into the account (decision 10).
+4. Order: S1 to S6, then Garmin on the revised design, then the connector.

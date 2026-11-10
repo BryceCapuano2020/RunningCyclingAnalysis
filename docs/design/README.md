@@ -19,7 +19,7 @@ Decisions section. Status is one of designed, in progress or built.
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
 - [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
-  code, and the browser shows its last copy at once. Status: designed, waiting on the owner's go.
+  code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
