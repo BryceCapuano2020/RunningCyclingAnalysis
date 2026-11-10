@@ -31,15 +31,14 @@ export function gradedLiftOf(exercise: string, equipment: Equipment): GradedLift
 }
 
 /**
- * The age on a date from the birth year alone: the calendar year's difference less one, plus the share of the year gone.
- * The birthday is unknown, so this is the middle of the year or two the age could be.
+ * The age on a date from the birth year alone: the calendar years' difference less a half, plus the share of the year gone
+ * (day of year less a half, over 365). The mean age for a birthday uniform in the year.
  */
 export function liftAgeOn(birthYear: number, date: string): number {
   const day = dayOfLiftDate(date)
   const year = civilOfDay(day).year
-  const start = dayOfCivil(year, 0, 1)
-  const length = dayOfCivil(year + 1, 0, 1) - start
-  return year - birthYear - 1 + (day - start) / length
+  const dayOfYear = day - dayOfCivil(year, 0, 1) + 1
+  return year - birthYear - 0.5 + (dayOfYear - 0.5) / 365
 }
 
 export interface LiftStandard {
@@ -66,10 +65,8 @@ export function liftStandard(
   const a = clamp(age, AGE_RANGE)
   const m = clamp(massKg, massRange)
   let x = Math.log(m / REF_MASS_KG[sex])
-  if (q.c !== 0) {
-    const turn = -q.b / (2 * q.c)
-    x = q.c < 0 ? Math.min(x, turn) : Math.max(x, turn)
-  }
+  // Past the peak of a falling quadratic S is held flat (no fitted curve peaks inside the fitted masses; this is a guard).
+  if (q.c < 0) x = Math.min(x, -q.b / (2 * q.c))
   const past = Math.max(a - q.P, 0)
   const lnS =
     q.a +
