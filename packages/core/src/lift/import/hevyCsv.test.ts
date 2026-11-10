@@ -134,7 +134,7 @@ describe('rows', () => {
     ])
   })
 
-  it('drops an RPE off the half steps and says so, keeping the set', () => {
+  it('drops an RPE off the half steps into adjusted, and reads 0 as none', () => {
     const r = read(
       fileB(
         b(T1, SQ, 1, 'normal', '100', '5', { rpe: '8.3' }),
@@ -143,8 +143,9 @@ describe('rows', () => {
         b(T1, SQ, 4, 'normal', '100', '5', { rpe: '7.5' }),
       ),
     )
-    expect(r.sets.map((s) => s.rpe)).toEqual([undefined, undefined, undefined, 7.5])
-    expect(r.skipped.map((s) => s.row)).toEqual([2, 3, 4])
+    expect(r.sets.map((s) => s.rpe)).toEqual([undefined, undefined, 10, 7.5])
+    expect(r.adjusted.map((s) => s.row)).toEqual([2, 3])
+    expect(r.skipped).toEqual([])
   })
 
   it('skips rows that are not sets, each with its reason', () => {
@@ -160,20 +161,40 @@ describe('rows', () => {
         b(T1, SQ, 1, 'normal', '100', '5.5'),
         b(T1, SQ, 1, 'normal', '-20', '5'),
         b(T1, SQ, 1, 'normal', '100', ''),
+        b('2031-03-02T07:30:00Z', SQ, 1, 'normal', '100', '5'),
       ),
     )
     expect(r.sets).toHaveLength(1)
-    expect(r.skipped.map((s) => s.row)).toEqual([2, 3, 5, 6, 7, 8, 9, 10, 11])
+    expect(r.skipped.map((s) => s.row)).toEqual([2, 3, 5, 6, 7, 8, 9, 10, 11, 12])
     const why = r.skipped.map((s) => s.reason)
     expect(why[0]).toContain('distance or duration')
     expect(why[1]).toContain('distance or duration')
     expect(why[2]).toContain('date')
     expect(why[3]).toContain('set type')
     expect(why[4]).toContain('limits')
+    expect(why[9]).toContain('time zone')
   })
 })
 
 describe('set order', () => {
+  it('starts a second exercise with a warm-up after the first exercise', () => {
+    const rows = [`1,${SQ},100,5`, `W,Bench Press (Barbell),40,10`, `1,Bench Press (Barbell),60,8`]
+    const r = read(
+      [
+        HEADER_A,
+        ...rows.map((x) => {
+          const [i, e, w, n] = x.split(',')
+          return `${T1},Day,${e},${i},${w},${n},,,,`
+        }),
+      ].join('\n'),
+    )
+    expect(r.sets.map((s) => [s.exercise, s.warmup, s.setOrder])).toEqual([
+      ['back-squat', undefined, 1],
+      ['bench-press', true, 1],
+      ['bench-press', undefined, 2],
+    ])
+  })
+
   it('renumbers across two workouts on one day, in time order, whatever the file order', () => {
     const r = read(
       fileB(

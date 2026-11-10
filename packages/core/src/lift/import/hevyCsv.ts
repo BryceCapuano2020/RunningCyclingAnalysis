@@ -57,7 +57,9 @@ const WEIGHT_HEADERS = [
 ]
 
 const KG_PER_LB = 0.45359237
+// A decimal comma ("22,5") is not read and skips the row; check the real export's number format when pinning.
 const NUMBER = /^\d+(\.\d+)?$/
+const ZONE = /\d(?:Z|[+-]\d{2}:?\d{2})$/i
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100
@@ -85,7 +87,7 @@ function setType(raw: string): 'normal' | 'warmup' | 'failure' | 'other' {
  * Reads Hevy CSV text into lift sets. Layout is found from the header; an unknown header is refused with
  * the columns it lacks. A file past a limit (text size, cells in a row, field length, more rows than an
  * account may keep) is refused whole. A row that is not a set is skipped with its reason: cardio,
- * an unknown set type, a bad date, number or weight. A bad RPE keeps the set and drops the RPE, and says so.
+ * an unknown set type, a bad date, number or weight. A bad RPE keeps the set, drops the RPE and lists the row in `adjusted`.
  * Set order restarts in every Hevy workout, so it is renumbered from 1 within date, exercise and equipment
  * in the order of session time, then the file's own set index, as decisions/lift-set-key.md says. A time is
  * the session's start, so it is written with precision `session`.
@@ -96,6 +98,7 @@ export function readHevyCsv(
 ): HevyCsvResult | HevyCsvRefusal {
   if (text.length > MAX_ACTIVITY_LIST_BYTES) return { refused: 'The file is too large to read.' }
   const skipped: HevySkip[] = []
+  const adjusted: HevySkip[] = []
   const staged: Staged[] = []
   const state: { layout: HevyLayout | null; refused: string | null } = {
     layout: null,
@@ -157,22 +160,24 @@ export function readHevyCsv(
       return true
     }
 
+    if (ZONE.test(cell(names.start))) return skip('The time zone is not supported.')
     const start = parseHevyTime(cell(names.start))
     if (start === null) return skip('The date is not one Hevy writes.')
     const mapped = mapHevyExercise(cell(names.exercise))
-    if (mapped === null) return skip('The exercise has no name.')
+    if (mapped === null) return skip('The exercise name has no letters or digits.')
 
     let type = setType(names.setType === undefined ? '' : cell(names.setType))
     const indexText = cell(names.setIndex)
     const sessionId = `${cell(names.start)}\0${cell(names.session)}`
-    // A W, F or D keeps the place after the set before it.
-    let index = lastIndex.get(sessionId) ?? 0
+    // A W, F or D keeps the place after the set before it, in the same session and lift.
+    const placeId = `${sessionId}\0${mapped.exercise}\0${mapped.equipment}`
+    let index = lastIndex.get(placeId) ?? 0
     if (NUMBER.test(indexText)) index = Number(indexText)
     else if (names.setType === undefined && indexText !== '') {
       // Strong-style files write W, F or D in place of the number.
       type = setType(indexText)
     }
-    lastIndex.set(sessionId, index)
+    lastIndex.set(placeId, index)
     if (type === 'other') return skip('The set type is not warm-up, normal, drop or failure.')
 
     const reps = readNumber(cell('reps'))
@@ -188,9 +193,11 @@ export function readHevyCsv(
     let rpe: number | undefined
     if (rpeText !== '') {
       const r = readNumber(rpeText)
-      if (r !== null && isLiftRpe(r)) rpe = r
+      // An RPE of 0 is how a logger writes none: no entry, and a failure set still reads as 10.
+      if (r === 0) rpe = type === 'failure' ? LIFT_RPE.max : undefined
+      else if (r !== null && isLiftRpe(r)) rpe = r
       else
-        skipped.push({
+        adjusted.push({
           row: rowNumber,
           reason: 'The RPE is not 1 to 10 in halves; set kept without it.',
         })
@@ -213,5 +220,5 @@ export function readHevyCsv(
   if (state.refused !== null) return { refused: state.refused }
   if (!ok) return { refused: 'The file is not readable CSV, or a row or field is past its limit.' }
   if (state.layout === null) return { refused: 'The file is empty.' }
-  return assembleHevySets(staged, skipped, state.layout)
+  return assembleHevySets(staged, skipped, adjusted, state.layout)
 }

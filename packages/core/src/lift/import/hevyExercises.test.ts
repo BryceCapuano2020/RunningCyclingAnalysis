@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mapHevyExercise, slugify } from './hevyExercises'
-
-describe('slugify', () => {
-  it('lowers, hyphenates and drops accents, and is null with nothing to keep', () => {
-    expect(slugify('  Cable  Crossover! ')).toBe('cable-crossover')
-    expect(slugify('Écarté (Haltère)')).toBe('ecarte-haltere')
-    expect(slugify(' -- ')).toBeNull()
-  })
-})
+import { mapHevyExercise } from './hevyExercises'
 
 describe('mapHevyExercise', () => {
   it.each([
@@ -23,6 +15,7 @@ describe('mapHevyExercise', () => {
     ['Bent Over Row (Barbell)', 'barbell-row', 'barbell', false],
     ['Pull-Up', 'pull-up', 'bodyweight', false],
     ['Hip-Thrust (Barbell)', 'hip-thrust', 'barbell', false],
+    ['Pull Up (Assisted)', 'assisted-pull-up', 'other', true],
     ['Zottman Curl', 'zottman-curl', 'other', true],
     ['Pendlay Row (Barbell)', 'pendlay-row', 'barbell', true],
   ])('%s', (title, exercise, equipment, custom) => {

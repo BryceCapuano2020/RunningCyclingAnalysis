@@ -1,23 +1,6 @@
 import { EXERCISE_CATALOG, exerciseInfo } from '../catalog'
-import { LIFT_EXERCISE_LENGTH } from '../limits'
+import { slugify } from '../slug'
 import type { Equipment } from '../types'
-
-/**
- * A slug from free text: lower case, accents dropped, every other run of characters a single hyphen,
- * cut to the slug length. Null when nothing is left. The web logger's custom slugs should import this,
- * so a typed name and an imported one land on the same lift.
- */
-export function slugify(name: string): string | null {
-  const slug = name
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .slice(0, LIFT_EXERCISE_LENGTH.max)
-    .replace(/-+$/, '')
-  return slug === '' ? null : slug
-}
 
 /** Hevy's equipment names, normalised, to ours. Any other name is `other`. */
 const EQUIPMENT_NAMES: Readonly<Record<string, Equipment>> = {
@@ -77,7 +60,10 @@ export function mapHevyExercise(title: string): HevyExercise | null {
   const equipment: Equipment | null = suffix === null ? null : (named ?? 'other')
   const rule = HEVY_NAMES[normalise(base)]
   let slug: string | null
-  if (rule === undefined) slug = slugify(base)
+  // An assisted lift is not the plain lift: its load is the help, so it gets a slug of its own.
+  if (suffix !== null && normalise(suffix[2] as string) === 'assisted')
+    slug = slugify(`assisted ${base}`)
+  else if (rule === undefined) slug = slugify(base)
   else
     slug =
       typeof rule === 'string' ? rule : equipment === 'dumbbell' ? rule.dumbbell : rule.otherwise

@@ -4,7 +4,7 @@ import type { Equipment, LiftSet } from '../types'
 
 export type HevyLayout = 'A' | 'B'
 
-/** A data row left out, or whose RPE was set aside. `row` counts the header as 1, as a spreadsheet does. */
+/** A data row left out, or kept with a value set aside. `row` counts the CSV records, the header as 1: a blank line or a line break inside a quoted field is not counted, so it can differ from the file's line number. */
 export interface HevySkip {
   row: number
   reason: string
@@ -13,14 +13,8 @@ export interface HevySkip {
 export interface HevyCsvResult {
   sets: LiftSet[]
   skipped: HevySkip[]
-  /** Slugs the catalog does not hold, in file order, each once. */
-  customExercises: string[]
-  layout: HevyLayout
-}
-
-export interface HevyCsvResult {
-  sets: LiftSet[]
-  skipped: HevySkip[]
+  /** Sets kept with a value set aside: an RPE that is not 1 to 10 in halves. */
+  adjusted: HevySkip[]
   /** Slugs the catalog does not hold, in file order, each once. */
   customExercises: string[]
   layout: HevyLayout
@@ -50,6 +44,7 @@ export interface Staged {
 export function assembleHevySets(
   staged: Staged[],
   skipped: HevySkip[],
+  adjusted: HevySkip[],
   layout: HevyLayout,
 ): HevyCsvResult {
   const first = new Map<string, number>()
@@ -106,5 +101,5 @@ export function assembleHevySets(
     if (!Object.hasOwn(EXERCISE_CATALOG, s.exercise)) custom.add(s.exercise)
   }
   skipped.sort((a, b) => a.row - b.row)
-  return { sets, skipped, customExercises: [...custom], layout }
+  return { sets, skipped, adjusted, customExercises: [...custom], layout }
 }

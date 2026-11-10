@@ -1,4 +1,10 @@
-import { EXERCISE_CATALOG, LIFT_EXERCISE_LENGTH, exerciseInfo } from '@rca/core/lift'
+import {
+  EXERCISE_CATALOG,
+  LIFT_EXERCISE_LENGTH,
+  exerciseInfo,
+  slugify,
+  slugifyFull,
+} from '@rca/core/lift'
 import type { Equipment } from '@rca/core/lift'
 
 /** One row of the picker: a lift to choose, or the typed name offered as a new lift. */
@@ -16,26 +22,10 @@ export interface RecentLift {
   equipment: Equipment
 }
 
-/** Lower-case words joined by hyphens, a-z and 0-9 only, at most 48 characters. Empty when nothing is left. */
-export function slugify(text: string): string {
-  return fullSlug(text).slice(0, LIFT_EXERCISE_LENGTH.max).replace(/-+$/, '')
-}
-
-/** The slug of the whole name, before any cut to the length limit. */
-function fullSlug(text: string): string {
-  const parts = text
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-  return parts.join('-')
-}
-
 /** Why a typed name cannot become a lift, or null when it can (or nothing is typed). */
 export function nameProblem(text: string): string | null {
   if (text.trim() === '') return null
-  const slug = fullSlug(text)
+  const slug = slugifyFull(text)
   if (slug === '') return 'Use letters or numbers in the name'
   if (slug.length > LIFT_EXERCISE_LENGTH.max)
     return `Use a name of ${LIFT_EXERCISE_LENGTH.max} characters or fewer`
@@ -97,7 +87,7 @@ export function liftOptions(query: string, recent: readonly RecentLift[]): LiftO
   const rows = typed ? [...catalogRows, ...recentRows] : [...recentRows, ...catalogRows]
   if (rows.length === 0 && nameProblem(query) === null) {
     const slug = slugify(query)
-    if (slug) rows.push({ exercise: slug, label: `Add ‘${liftName(slug)}’`, isNew: true })
+    if (slug !== null) rows.push({ exercise: slug, label: `Add ‘${liftName(slug)}’`, isNew: true })
   }
   return rows
 }
