@@ -7,7 +7,7 @@ test.use({ forcedColors: 'active' })
 const ONLY_DESKTOP = 'Forced colours is the same in each browser'
 
 /** The areas where a big figure sits beside a chip, an eyebrow or a unit. */
-const HERO_AREAS = '.balance-hero, .sport-hero, .activity-page__top'
+const HERO_AREAS = '.balance-hero, .level-triangle, .sport-hero, .activity-page__top'
 
 test.describe('forced colours', () => {
   for (const destination of ['Balance', 'Run', 'Ride'] as const) {

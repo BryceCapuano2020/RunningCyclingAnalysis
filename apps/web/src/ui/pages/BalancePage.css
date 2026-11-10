@@ -1,6 +1,6 @@
 /*
- * The answer: the sentence in the serif at --display-2, the one lead line under it, and its ▸ Details. The meter, the
- * levels and the share button stack under it.
+ * The answer: the sentence in the serif at --display-2, the one lead line under it, and its ▸ Details. The level triangle
+ * and the share button stack under it.
  */
 .balance-hero {
   display: grid;
@@ -28,15 +28,15 @@
   text-wrap: balance;
 }
 
-/* The answer, the meter, the levels and the share button stack with the gap inside a stack. */
+/* The answer, the level triangle and the share button stack with the gap inside a stack. */
 .balance-hero__pair {
   display: grid;
   gap: var(--stack-gap);
   min-width: 0;
 }
 
-/* What sits under the levels, such as the share button, keeps its own width. */
-.balance-hero__pair > :not(.balance-hero, .scale-figure, .balance-levels) {
+/* What sits under the figure, such as the share button, keeps its own width. */
+.balance-hero__pair > :not(.balance-hero, .level-triangle) {
   justify-self: start;
 }
 

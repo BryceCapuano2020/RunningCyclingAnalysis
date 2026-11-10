@@ -22,13 +22,11 @@ import { gradesOfStanding } from '../thresholdGrade'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
-import { BALANCE_PAIR } from '../sports'
+import { triangleViewOf } from '../triangleSports'
 import type { AnalysisController } from '../useAnalysis'
 import { balanceChanges } from './balanceChangeItems'
-import { balanceLevels } from './levelsModel'
 import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
-import { BalanceLevels } from './BalanceLevels'
 import { BalanceTiles } from './BalanceTiles'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 import { GradeProfileSection } from './GradeProfileSection'
@@ -143,15 +141,11 @@ export function BalancePage({
     () => ({ run: runCount, ride: rideCount }),
     [runCount, rideCount],
   )
-  // The levels under the meter: both sports with the balance. With one sport in the period, its level stands alone
-  // when it has one; with two but no balance, the headline already names the levels.
-  const hasReading = reading !== null
-  const levels = useMemo(() => {
-    const sports = BALANCE_PAIR.filter((sport) => hasReading || inPeriod[sport] > 0)
-    if (!hasReading && sports.length !== 1) return null
-    const model = balanceLevels({ grades, sports, inPeriod, missingAge })
-    return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
-  }, [hasReading, grades, inPeriod, missingAge])
+  // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
+  const triangle = useMemo(() => triangleViewOf(grades), [grades])
+  const weightHeld = !weightKnown && inPeriod.run > 0 && inPeriod.ride > 0
+  const levelShown =
+    !weightHeld && Object.values(triangle.grades).some((corner) => corner.kind === 'graded')
   // What moved since the previous period, or since the latest earlier window when the previous one holds too little to
   // test; graded as this period is, and the previous gap is priced once here.
   const previous = earlier?.previous ?? periodBefore
@@ -199,7 +193,7 @@ export function BalancePage({
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
         rideLeftOut={rideOut}
-        levels={levels === null ? null : <BalanceLevels model={levels} />}
+        triangle={triangle}
         controls={controls}
         details={details}
         leftOut={leftOut}
@@ -231,7 +225,7 @@ export function BalancePage({
         onAddFiles={analysis.addFiles}
         soleSport={soleSport}
         leftOut={leftOut}
-        levelShown={levels !== null}
+        levelShown={levelShown}
       />
 
       {soleSport === null ? null : (

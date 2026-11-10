@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import '../test/warmSample'
+import { triangleViewOf } from './triangleSports'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
@@ -163,6 +164,7 @@ describe('one lead, printed the same on every surface', () => {
         library={state.library}
         pick={pick}
         reading={reading}
+        triangle={triangleViewOf(gradesAfter)}
         period={ALL_TIME}
         onShowAll={() => {}}
         weightKnown

@@ -8,3 +8,15 @@ export { standingOfYears } from './years'
 export type { YearGrade, YearStanding } from './years'
 export { thresholdChange } from './thresholdChange'
 export type { ThresholdChange } from './thresholdChange'
+export { NO_TRIANGLE_GRADES, TRIANGLE_SPORTS, triangleGeometry } from './triangle'
+export type {
+  Point,
+  TriangleCorner,
+  TriangleGeometry,
+  TriangleGrade,
+  TriangleGrades,
+  TriangleRing,
+  TriangleSport,
+} from './triangle'
+export { triangleReading } from './triangleLean'
+export type { TriangleReading } from './triangleLean'

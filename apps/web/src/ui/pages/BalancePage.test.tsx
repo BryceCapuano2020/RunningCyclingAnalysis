@@ -214,39 +214,39 @@ describe('BalancePage', () => {
     expect(screen.queryByRole('region', { name: 'Ride' })).toBeNull()
   })
 
-  it('draws the meter under the answer once both sports are graded, named for a screen reader', () => {
-    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+  it('draws the level triangle under the answer once both sports are graded, no meter', () => {
+    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
 
-    expect(
-      screen.getByRole('img', { name: /^Running grades \d+ points? higher/ }),
-    ).toBeInTheDocument()
-    expect(document.querySelector('.balance-meter__value')).not.toBeNull()
+    expect(container.querySelectorAll('.level-triangle')).toHaveLength(1)
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(2)
+    expect(container.querySelector('.level-triangle__plot')).toHaveAttribute('aria-hidden', 'true')
+    expect(container.querySelector('.balance-meter')).toBeNull()
   })
 
-  it('writes each sport’s level as one line under the meter: its grade, then its level', () => {
-    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    const levels = screen.getByRole('region', { name: 'Level in each sport' })
-    const rows = [...levels.querySelectorAll('.balance-levels__row')].map((row) => {
-      const copy = row.cloneNode(true) as HTMLElement
-      copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
-      return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
-    })
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toMatch(/^Running \d+% \w+/)
-    expect(rows[1]).toMatch(/^Cycling \d+% \w+/)
-    // The levels come after the meter; the period's line is under the headline, before both.
-    const meter = container.querySelector('.balance-meter') as Node
+  it('writes each sport’s grade and level on its corner, the sports’ pages one link away', () => {
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    const corners = screen.getByRole('group', { name: 'Level in each sport' })
+    const words = [...corners.querySelectorAll('.level-triangle__corner')].map((corner) =>
+      (corner.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    )
+    expect(words).toHaveLength(3)
+    expect(words[0]).toMatch(/^Running \d+% \w+/)
+    expect(words[1]).toMatch(/^Cycling \d+% \w+/)
+    expect(words[2]).toBe('Lifting No grade yet')
+    expect(screen.getByRole('link', { name: /^Running \d+% \w+/ })).toHaveAttribute('href', '#/run')
+    expect(screen.getByRole('link', { name: /^Cycling \d+% \w+/ })).toHaveAttribute(
+      'href',
+      '#/ride',
+    )
+    // The figure is under the period's line, which is under the headline.
     const picker = screen.getByText('Period picker')
-    expect(meter.compareDocumentPosition(levels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(picker.compareDocumentPosition(meter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(rows[0]).not.toMatch(/RUNNING/)
-    expect(levels.querySelector('svg')).toBeNull()
+    expect(picker.compareDocumentPosition(corners) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('sets the level as plain text, and leaves what a level is to Method, not the answer’s Details', () => {
     renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    const levels = screen.getByRole('region', { name: 'Level in each sport' })
-    // Nothing on the line is a control, so nothing reads as a link.
+    const levels = screen.getByRole('group', { name: 'Level in each sport' })
+    // Nothing on a corner is a button or a defined term, so nothing nests a control in its link.
     expect(levels.querySelector('button, .definition__term')).toBeNull()
     const details = document.querySelector('.balance-hero .page-details')!
     expect(details.querySelector('summary')).toHaveTextContent(/^Details/)
@@ -254,9 +254,9 @@ describe('BalancePage', () => {
     expect(document.querySelector('.balance__levels-meaning')).toBeNull()
   })
 
-  it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the meter', () => {
+  it('draws no level scale, key or scoreboard figure: the answer is the headline, one sentence and the triangle', () => {
     const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    for (const gone of ['.balance-scale', '.balance-hero__gap', '.balance-meter__key']) {
+    for (const gone of ['.balance-scale', '.balance-hero__gap', '.balance-meter']) {
       expect(container.querySelector(gone), gone).toBeNull()
     }
     expect(container.querySelector('.balance-hero svg:not(.icon)')).toBeNull()
@@ -386,12 +386,15 @@ describe('BalancePage', () => {
     expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
   })
 
-  it('draws the energy meter in percent while the age and sex are unknown, and says the levels wait for them once', () => {
+  it('draws an empty triangle while the age and sex are unknown, and the energy balance is the sentence', () => {
     const { container } = renderPage(BOTH_SPORTS)
-    expect(container.querySelector('.balance-meter__value')).toHaveTextContent('%')
-    const levels = screen.getByRole('region', { name: 'Level in each sport' })
-    expect(levels).toHaveTextContent('Needs your year of birth and sex')
-    expect(levels.querySelectorAll('.balance-levels__row')).toHaveLength(0)
+    expect(container.querySelector('.balance-meter')).toBeNull()
+    expect(container.querySelector('.balance-hero__lede')).toHaveTextContent(
+      /as energy per kilogram/,
+    )
+    const levels = screen.getByRole('group', { name: 'Level in each sport' })
+    expect(levels.querySelectorAll('.level-triangle__none')).toHaveLength(3)
+    expect(levels.querySelectorAll('.level-triangle__dot')).toHaveLength(0)
   })
 
   it('links to the method page only from the end of a detail panel: the header names it otherwise', () => {
@@ -429,10 +432,10 @@ describe('BalancePage age grades', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
     const tile = screen.getByRole('article', { name: 'Run threshold' })
-    // The levels row says the level and grade; the tile does not say them again, nor the best 20 min they rest on.
+    // The corner says the level and grade; the tile does not say them again, nor the best 20 min they rest on.
     expect(tile).not.toHaveTextContent(/Best 20 min/)
     expect(tile).not.toHaveTextContent(/Local|67%/)
-    expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
+    expect(screen.getByRole('group', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*67%\s*Local/,
     )
   })
@@ -637,9 +640,9 @@ describe('BalancePage concept budget', () => {
     return renderPage(trained, { state: { trend } }, MAN_BORN_1986)
   }
 
-  it('draws the one meter and no ladders', () => {
+  it('draws the one triangle and no ladders', () => {
     const { container } = full()
-    expect(container.querySelectorAll('.balance-meter')).toHaveLength(1)
+    expect(container.querySelectorAll('.level-triangle')).toHaveLength(1)
     for (const gone of ['.balance-scale', '.level-ladder', '.balance-strip', '.sport-card']) {
       expect(container.querySelector(gone), gone).toBeNull()
     }
@@ -738,7 +741,8 @@ describe('BalancePage while the headline is held for too few activities', () => 
     )
     expect(container.querySelector('.balance-meter')).toBeNull()
     expect(screen.queryByText(/^To match your/)).toBeNull()
-    expect(screen.queryByRole('region', { name: 'Level in each sport' })).toBeNull()
+    // The figure is the grades, which the held headline does not wait for: both are on their corners.
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(2)
   })
 })
 
@@ -755,10 +759,12 @@ describe('BalancePage with one sport', () => {
       screen.getByRole('heading', { level: 1, name: 'Your running is at Local level' }),
     ).toBeInTheDocument()
     expect(screen.getByTestId('sport-invitation')).toBeInTheDocument()
-    const rows = container.querySelectorAll('.balance-levels__row')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toHaveAttribute('data-sport', 'run')
-    expect(rows[0]).toHaveTextContent(/^Running\s*\d+%\s*Local/)
+    const dots = container.querySelectorAll('.level-triangle__dot')
+    expect(dots).toHaveLength(1)
+    expect(dots[0]?.closest('[data-sport]')).toHaveAttribute('data-sport', 'run')
+    expect(container.querySelector('.level-triangle__corner[data-sport="run"]')).toHaveTextContent(
+      /^Running\s*\d+%\s*Local/,
+    )
     expect(container.querySelector('.balance-meter')).toBeNull()
   })
 
@@ -780,10 +786,13 @@ describe('BalancePage with one sport', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your cycling is at Local level' }),
     ).toBeInTheDocument()
-    const rows = container.querySelectorAll('.balance-levels__row')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toHaveTextContent(/^Cycling\s*67%\s*Local/)
-    expect(container.querySelector('.balance-levels')).not.toHaveTextContent('63 to 71')
+    expect(container.querySelector('.level-triangle__corner[data-sport="ride"]')).toHaveTextContent(
+      /^Cycling\s*67%\s*Local/,
+    )
+    // The range is not written on the corner: a screen reader gets it after the level, and the Details state it.
+    const corner = container.querySelector('.level-triangle__corner[data-sport="ride"]')!
+    expect(corner.querySelector('.level-triangle__level')).toHaveTextContent(/^Local$/)
+    expect(corner.querySelector('.sr-only')).toHaveTextContent(', range 63 to 71')
   })
 
   it('asks for the year of birth and sex as the level’s need, not the balance’s', () => {
@@ -822,7 +831,7 @@ describe('BalancePage with one sport', () => {
     expect(document.body.textContent).not.toMatch(/W\/kg/)
   })
 
-  it('writes no level line for the one sport while its grade is missing', () => {
+  it('says no grade yet on the one sport’s corner while its grade is missing', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = renderPage(
       makeResult({ activities: [run], comparison: { prior: [], calibrated: null } }),
@@ -830,6 +839,9 @@ describe('BalancePage with one sport', () => {
         state: { library: [run] },
       },
     )
-    expect(container.querySelector('.balance-levels')).toBeNull()
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(0)
+    expect(container.querySelector('.level-triangle__corner[data-sport="run"]')).toHaveTextContent(
+      'Running No grade yet',
+    )
   })
 })

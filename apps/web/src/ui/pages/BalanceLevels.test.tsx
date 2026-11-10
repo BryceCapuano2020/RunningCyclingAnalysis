@@ -73,3 +73,42 @@ describe('the level on each sport’s line', () => {
     expect(run).not.toMatch(/hard|all-out|checked|confirmed/)
   })
 })
+
+describe('the line of a sport with no grade', () => {
+  const none = { run: 3, ride: 3 }
+
+  it('says in a few words what the grade waits for', () => {
+    const gap: GradeOutcome = { kind: 'gap', reason: 'A reason of its own.' }
+    const top: GradeOutcome = { kind: 'top-of-scale', age: 37 }
+    const model = balanceLevels({
+      grades: { run: gap, ride: top },
+      inPeriod: none,
+      missingAge: null,
+    })
+    expect(model.rows.map((row) => row.missing)).toEqual([
+      'A reason of its own.',
+      'At the top of the age tables',
+    ])
+    const waiting = balanceLevels({
+      grades: { run: null, ride: null },
+      inPeriod: { run: 0, ride: 3 },
+      missingAge: 'sex',
+    })
+    expect(waiting.rows.map((row) => row.missing)).toEqual([
+      'No runs in this period',
+      'Needs your sex',
+    ])
+  })
+
+  it('says it once when both wait for the same thing', () => {
+    const model = balanceLevels({
+      grades: { run: null, ride: null },
+      inPeriod: none,
+      missingAge: 'year of birth and sex',
+    })
+    expect(model).toEqual({ rows: [], note: 'Needs your year of birth and sex' })
+    cleanup()
+    render(<BalanceLevels model={model} />)
+    expect(screen.getByText('Needs your year of birth and sex')).toBeInTheDocument()
+  })
+})
