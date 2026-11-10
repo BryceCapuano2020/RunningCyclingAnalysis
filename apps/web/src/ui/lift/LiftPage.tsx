@@ -10,7 +10,7 @@ import { dayNoonMs, shiftDay } from './liftDay'
 import type { EarlierDay, LiftOfDay, LiftStatus } from './liftPageTypes'
 import { liftId } from './liftPageTypes'
 import { LiftSection } from './LiftSection'
-import { useFocusAfterDelete } from './useLiftFocus'
+import { useFocusAfterEdit } from './useLiftFocus'
 import '../components/RowList.css'
 import './LiftPage.css'
 
@@ -87,13 +87,16 @@ export function LiftPage({
   const root = useRef<HTMLDivElement>(null)
   const dayHeadingRef = useRef<HTMLHeadingElement>(null)
   const laterClicked = useRef(false)
-  useFocusAfterDelete(root, lifts, editingKey)
+  useFocusAfterEdit(root, lifts, editingKey, day)
   // "Later day" leaves with today; the focus it held goes to the day's heading, not to the page.
   useEffect(() => {
-    if (laterClicked.current && day === today) dayHeadingRef.current?.focus()
+    // Only when focus was lost with the button: a reader who moved on keeps their place.
+    const lost = document.activeElement === null || document.activeElement === document.body
+    if (laterClicked.current && day === today && lost) dayHeadingRef.current?.focus()
     laterClicked.current = false
   }, [day, today])
-  const formOpen = form !== null || editingKey !== null
+  // A slot is open when it holds something: false, null and undefined are a closed one.
+  const formOpen = (form != null && form !== false) || editingKey !== null
   const notKept = status === null ? [] : statusRows(status)
   return (
     <div ref={root} className="page-stack lift">
@@ -104,7 +107,7 @@ export function LiftPage({
       </div>
       <section className="section">
         <div className="lift__day">
-          <h2 className="lift__day-name" ref={dayHeadingRef} tabIndex={-1}>
+          <h2 className="lift__day-name" ref={dayHeadingRef} tabIndex={-1} aria-live="polite">
             {dayHeading(day, today)}
           </h2>
           <div className="lift__day-nav">
@@ -147,7 +150,12 @@ export function LiftPage({
             />
           ))
         )}
-        <PropertyList rows={notKept} />
+        {notKept.length > 0 && (
+          // A refusal or a full account is news, so it is announced; a count of waiting sets is not.
+          <div role={status && (status.refused > 0 || status.full) ? 'status' : undefined}>
+            <PropertyList rows={notKept} />
+          </div>
+        )}
       </section>
       {earlier.length > 0 && (
         <section className="section" aria-labelledby="lift-earlier">

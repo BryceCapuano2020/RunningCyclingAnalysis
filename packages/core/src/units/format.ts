@@ -172,6 +172,19 @@ export function formatMass(kg: number, system: UnitSystem): string {
   return system === 'imperial' ? `${whole(kgToLb(kg))} lb` : `${whole(kg)} kg`
 }
 
+/**
+ * A lifted load with its unit: kilograms to 0.01 and pounds to 0.1, trailing zeros dropped ("62.5 kg", "225 lb"). A barbell
+ * moves in small steps that formatMass's whole numbers would hide, and a load saved from whole pounds reads back as them.
+ */
+export function formatLoad(kg: number, system: UnitSystem): string {
+  if (!Number.isFinite(kg)) {
+    return DASH
+  }
+  const imperial = system === 'imperial'
+  const text = (imperial ? kgToLb(kg) : kg).toFixed(imperial ? 1 : 2)
+  return `${groupThousands(String(Number(text)))} ${imperial ? 'lb' : 'kg'}`
+}
+
 /** Watts as a whole number, without the unit. */
 export function formatWatts(watts: number): string {
   if (!Number.isFinite(watts)) {
