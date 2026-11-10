@@ -49,6 +49,7 @@ import { SECTION_NAME, contentsOf, focusSection } from './methodContents'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { HowThisWorks } from './HowThisWorks'
+import { LiftMethodSections } from './LiftMethodSections'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
@@ -269,6 +270,8 @@ export function MethodPage({
       </section>
 
       <AgeGradingSection gradedSex={gradedSex} />
+
+      <LiftMethodSections />
 
       <section className="section band" aria-labelledby={SECTION_ID.heart}>
         <h2 id={SECTION_ID.heart} tabIndex={-1}>

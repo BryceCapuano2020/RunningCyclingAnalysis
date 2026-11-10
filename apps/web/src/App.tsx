@@ -325,7 +325,13 @@ export function App() {
                 onRemoveAll={removeAll}
               />
             ) : page === 'lift' ? (
-              <LiftPage account={account} units={units} {...liftDay} />
+              <LiftPage
+                account={account}
+                units={units}
+                settings={analysisAthlete}
+                profile={ageProfile}
+                {...liftDay}
+              />
             ) : page === 'result' && analysis.state.result ? (
               <ResultPage
                 route={route}
