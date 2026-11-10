@@ -2,6 +2,7 @@ import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import type { User } from '@rca/contract'
 import type { Deps } from './deps.ts'
 import type { schema } from './db/schema.ts'
+import type { StateMessage } from './state/message.ts'
 
 /** Worker bindings and variables. Secrets live in .dev.vars locally and in `wrangler secret put`. */
 export interface Bindings {
@@ -29,6 +30,14 @@ export interface Bindings {
    * change data with 503 `read_only` (see readOnly.ts and docs/PRODUCTION.md). Unset or anything else is off.
    */
   READ_ONLY?: string
+  /**
+   * The accounts whose results are computed on the server (docs/design/server-compute.md): user ids, comma separated.
+   * Empty or unset is off for everyone; the Queue producer, the consumer and `GET /api/state` all answer only for these.
+   * Production ships it empty and binds no queue (the deploy-config check). See state/flag.ts.
+   */
+  SERVER_COMPUTE_USERS?: string
+  /** The Queue the state job's messages go to. Bound only where SERVER_COMPUTE_USERS is not empty. */
+  STATE_QUEUE?: Queue<StateMessage>
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
   SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */

@@ -25,6 +25,7 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
       'Configure the dedicated production R2 bucket as binding="FILES" and bucket_name="rca-files" in apps/api/wrangler.toml.',
     )
   }
+  checkServerState(config, readString('SERVER_COMPUTE_USERS'))
   if (allowUnconfiguredOrigin) return
   const origin = readString('APP_URL')
   let url
@@ -47,6 +48,49 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
   ) {
     throw new Error(
       'Set ENVIRONMENT="production" and APP_URL to the real HTTPS origin (no path or trailing slash). Use deploy:bootstrap only for the initial address discovery.',
+    )
+  }
+}
+
+/**
+ * Results computed on the server (docs/design/server-compute.md) need Workers Paid, which the owner has not upgraded to, and
+ * run for the accounts listed in SERVER_COMPUTE_USERS only. While the list is empty the production configuration binds no
+ * queue at all (no producer, no consumer, no limits block), so a deploy cannot create or consume one. A list that names
+ * accounts must bind the STATE_QUEUE producer, a consumer with a small batch, a retry limit and a dead-letter queue, and
+ * cap CPU; `*` (everyone) is for local tests and never goes in production.
+ */
+function checkServerState(config, value) {
+  const accounts = (value ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  const queues = /^\[\[queues\./m.test(config) || /^\[queues\b/m.test(config)
+  if (accounts.length === 0) {
+    if (queues || /^\[limits\]/m.test(config)) {
+      throw new Error(
+        'SERVER_COMPUTE_USERS is empty, so apps/api/wrangler.toml must bind no queue and set no [limits]. Remove them, or list the accounts with Workers Paid.',
+      )
+    }
+    return
+  }
+  if (accounts.includes('*')) {
+    throw new Error('SERVER_COMPUTE_USERS must list account ids in production, not *.')
+  }
+  const producer =
+    /^\[\[queues\.producers\]\]\s*\n(?:(?!\[\[).)*?^binding\s*=\s*["']STATE_QUEUE["']/ms.test(
+      config,
+    )
+  const consumer = config.match(/^\[\[queues\.consumers\]\]\s*\n((?:(?!\[\[).)*)/ms)?.[1] ?? null
+  const hasKey = (key) => consumer !== null && new RegExp(`^${key}\\s*=`, 'm').test(consumer)
+  const cpu = /^\[limits\]\s*\n(?:(?!\[).)*?^cpu_ms\s*=\s*\d+/ms.test(config)
+  if (!(producer && consumer !== null && cpu)) {
+    throw new Error(
+      'SERVER_COMPUTE_USERS names accounts, so apps/api/wrangler.toml must bind the STATE_QUEUE producer and its consumer, and set [limits] cpu_ms.',
+    )
+  }
+  if (!(hasKey('max_batch_size') && hasKey('max_retries') && hasKey('dead_letter_queue'))) {
+    throw new Error(
+      'The state queue consumer must set max_batch_size, max_retries and dead_letter_queue.',
     )
   }
 }

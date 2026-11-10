@@ -90,6 +90,7 @@ describe('GET /api/auth/google/callback', () => {
       },
       fileRetentionAvailable: true,
       libraryRevision: '0.0',
+      libraryVersion: 1,
       liftRevision: 0,
     })
     const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))

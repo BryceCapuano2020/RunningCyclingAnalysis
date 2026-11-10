@@ -60,6 +60,25 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
+# Results computed on the server (docs/design/server-compute.md): off for everyone. The list is user ids, comma
+# separated; empty means no account. Turning it on needs Workers Paid (Queues, limits.cpu_ms), the two queues created
+# (docs/PRODUCTION.md, "Results computed on the server"), and the blocks below uncommented in the same change, which the
+# deploy-config check requires of any configuration with a non-empty list. `*` (everyone) is for local tests only.
+SERVER_COMPUTE_USERS = ""
+
+# [limits]
+# cpu_ms = 10000
+#
+# [[queues.producers]]
+# binding = "STATE_QUEUE"
+# queue = "rca-state"
+#
+# [[queues.consumers]]
+# queue = "rca-state"
+# max_batch_size = 2
+# max_batch_timeout = 5
+# max_retries = 3
+# dead_letter_queue = "rca-state-dlq"
 
 # Requests under /api always run the Worker. Other requests are served from the built web app when a
 # file matches. The web app has hash routes, so nothing falls back to index.html; not_found_handling is

@@ -56,6 +56,7 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                              |
 | Account-settings writes                  | 200                         | `PUT /api/settings`: one row replaced a write; the body is at most 512 KiB (20,000 counted runs).                                                        |
 | Account-settings reads                   | 300                         | `GET /api/settings`: one row a read.                                                                                                                     |
+| State reads                              | 300                         | `GET /api/state`: one row a read, and one stored snapshot unless the tag matches (304). A 404 unless the account is on `SERVER_COMPUTE_USERS`.           |
 | Lift reads                               | 300                         | `GET /api/lifts`: a page is at most 1,000 sets, also charged to the list-rows meter by the rows it returns. Refunded when the page is refused.           |
 | Lift writes                              | 300                         | `PUT /api/lifts` and `POST /api/lifts/delete`, up to 500 sets or keys each. Refunded when refused (cap reached, user gone).                              |
 | Activity deletions                       | 50                          |                                                                                                                                                          |
@@ -285,6 +286,29 @@ an account could spend its 64 MiB on names. The API now refuses a create or repl
 The plain variable `READ_ONLY` ("true", "1" or "on") makes the API answer every write and new sign-in with
 **503 `read_only`**. Reads, the health checks and ending a session still work. The scheduled job and the daily read
 charges keep running. How to use it, and the abuse runbook around it, are in docs/PRODUCTION.md.
+
+## Results computed on the server (switched off)
+
+Off for everyone unless the plain variable `SERVER_COMPUTE_USERS` lists the account (user ids, comma separated; `*` for
+local tests only). Every Wrangler configuration ships it empty and the deploy-config check holds production to it, so
+the state Queue is not bound and for an unlisted account nothing is computed, sent or served (`GET /api/state` is a 404).
+No scheduled trigger computes. Compute is bounded by `limits.cpu_ms = 10000`, a consumer batch of 2 accounts, 3 tries and
+a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is docs/design/server-compute.md.
+
+- **Which libraries:** up to 2,000 activities (`SERVER_STATE_MAX_ACTIVITIES`). A larger library gets no snapshot and the
+  browser computes, as before. Measured in Node on synthetic libraries (`state/memory.sim.test.ts`): the peak V8 heap of
+  one job was 16.8 MiB for 1,000 activities, 26.1 MiB for 2,000, 57.2 MiB for 3,000 and 68.8 MiB for 5,000, against the
+  isolate's 128 MB. That is the heap alone, without workerd's own overhead, so it is a floor: the cap moves only after
+  the same libraries are run in workerd (the Cloudflare Vitest pool is not in the repository yet).
+- **One job at a time:** the consumer runs the accounts of a batch one after another, never together, so the memory
+  is one library's.
+- **R2:** a snapshot object is put only when its content hash changes, and the old object is deleted in the same job
+  (deletes are unmetered). Each put reserves from the ledger below like any put, at least 64 KiB of the 4 GiB lifetime
+  write cap, so a refused reservation fails the job and the Queue retries it. Under `users/{id}/state/`, so the account
+  sweep and the orphan scan cover it. Turning original files off leaves it; deleting the account removes it.
+- **Queue:** one message per write by a listed account, delayed 10 seconds; three tries, 30 seconds apart, then the dead-letter queue. A lost or exhausted message
+  leaves the account dirty (`users.library_version` above `state_jobs.computed_version`) until the next write or the
+  hourly pass of a later package.
 
 ## Other per-user limits
 

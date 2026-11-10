@@ -5,6 +5,7 @@ import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
 import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
+import { STATE_KEY, stateKey } from './state/key.ts'
 
 /** Objects younger than this may still be mid-upload, so the orphan sweep leaves them alone. */
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000
@@ -41,6 +42,8 @@ interface Candidate {
   key: string
   userId: string | undefined
   activityId: string | undefined
+  /** Set on a results snapshot, which state_jobs (not an activity row) references. */
+  stateHash?: string
 }
 
 /**
@@ -236,6 +239,9 @@ async function sweepOrphanObjects(env: Bindings, deps: Deps): Promise<number> {
       const candidates: Candidate[] = listing.objects
         .filter((object) => object.uploaded.getTime() <= cutoff)
         .map((object) => {
+          const state = STATE_KEY.exec(object.key)
+          if (state)
+            return { key: object.key, userId: state[1], activityId: undefined, stateHash: state[2] }
           const match = OBJECT_KEY.exec(object.key)
           return { key: object.key, userId: match?.[1], activityId: match?.[2] }
         })
@@ -283,6 +289,19 @@ async function unreferencedKeys(
     for (const row of rows.results) {
       if (row.file_key !== null) referenced.add(row.file_key)
     }
+  }
+  // A results snapshot is referenced by its account's job row, and only the one the row names: an older one is an orphan.
+  const stateOwners = [...new Set(candidates.flatMap((c) => (c.stateHash ? [c.userId!] : [])))]
+  if (stateOwners.length > 0) {
+    const placeholders = stateOwners.map(() => '?').join(', ')
+    const rows = await db
+      .prepare(
+        `SELECT user_id, snapshot_hash FROM state_jobs
+         WHERE snapshot_hash IS NOT NULL AND user_id IN (${placeholders})`,
+      )
+      .bind(...stateOwners)
+      .all<{ user_id: string; snapshot_hash: string }>()
+    for (const row of rows.results) referenced.add(stateKey(row.user_id, row.snapshot_hash))
   }
   const unreferenced = candidates.filter((c) => !referenced.has(c.key))
   const owners = [...new Set(unreferenced.flatMap((c) => (c.userId ? [c.userId] : [])))]

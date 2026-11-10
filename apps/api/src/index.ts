@@ -2,11 +2,21 @@ import { createApp } from './app.ts'
 import type { Bindings } from './env.ts'
 import { systemDeps } from './deps.ts'
 import { runMaintenance } from './maintenance.ts'
+import { handleStateBatch } from './state/consumer.ts'
+import type { StateMessage } from './state/message.ts'
 
 const app = createApp()
 
 export default {
   fetch: (request: Request, env: Bindings, ctx: ExecutionContext) => app.fetch(request, env, ctx),
+  /**
+   * The state job's Queue (wrangler.toml [[queues.consumers]], bound only where SERVER_COMPUTE_USERS is not empty): computes the results of
+   * each account a write named. Not bound in production while the owner is off Workers Paid.
+   */
+  async queue(batch: MessageBatch<StateMessage>, env: Bindings): Promise<void> {
+    const report = await handleStateBatch(batch, env, systemDeps)
+    console.log(JSON.stringify({ event: 'state_batch', ...report }))
+  },
   /** Daily cron (wrangler.toml [triggers]): expired rows, pending deletions and orphaned objects. */
   scheduled(_controller: ScheduledController, env: Bindings, ctx: ExecutionContext): void {
     ctx.waitUntil(
@@ -22,4 +32,4 @@ export default {
       ),
     )
   },
-} satisfies ExportedHandler<Bindings>
+} satisfies ExportedHandler<Bindings, StateMessage>

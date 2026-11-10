@@ -1,6 +1,8 @@
 # Server compute: results ready before the page opens
 
-Status: designed and approved by the owner on 9 Nov 2026 (section 7); no code yet. Written 9 Nov 2026
+Status: designed and approved by the owner on 9 Nov 2026 (section 7). S1 to S3 built; S4 (server) built and off for
+everyone (`SERVER_COMPUTE_USERS` empty, no queue bound in production) until the owner is on Workers Paid; then it runs for
+listed accounts only. Written 9 Nov 2026
 against main 34de84bc.
 
 ## Why
