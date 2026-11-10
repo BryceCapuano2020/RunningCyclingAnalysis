@@ -1,10 +1,7 @@
-import type { Sport } from '@rca/core/types'
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
-import { THRESHOLD_WINDOW_WEEKS } from '@rca/core/display'
-import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDayMonth, formatMonth } from './format/date'
+import { formatMonth } from './format/date'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
 /** What each measure is called in a table's title. */
@@ -24,12 +21,6 @@ const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   },
 }
 
-/** The sport whose maximum a sport's other-sport reference is worked out from, as a phrase. */
-const OTHER_MAX: Record<Sport, string> = {
-  run: 'your cycling maximum',
-  ride: `${RIDE_MAX_OFFSET_BPM} bpm below your running maximum`,
-}
-
 /**
  * The figure an estimated max heart rate is shown with, as the start of a sentence. Its own sport's is the
  * highest value reached on separate days, so the figure stands alone; the other sport's is worked out from
@@ -40,7 +31,7 @@ export function maxHeartRateBasis(set: ZoneSet): string | null {
   const bpm = `${Math.round(set.reference)} bpm`
   // No effort reached near a maximum, so the zones are cut from the highest there is.
   if (set.fromHighest) return `${bpm}, your highest on file`
-  if (set.maxHeartRateFrom === null) return `${bpm}, ${OTHER_MAX[set.sport]}`
+  // One worked out from the other sport's maximum is the number alone: the reader sees both on the page.
   return bpm
 }
 
@@ -112,7 +103,7 @@ const REFERENCE_TEXT: Record<ZoneMeasure, (reference: number, units: UnitSystem)
 export interface ZoneTable {
   /** "Ride power zones". */
   title: string
-  /** The reference and where it came from: "Zones cut from 250 W, your threshold over the 26 weeks to 1 Nov". */
+  /** The reference the zones are cut from: "Threshold: 250 W", or "Max heart rate: 186 bpm". */
   detail: string
   citation: string
   columns: string[]
@@ -120,18 +111,16 @@ export interface ZoneTable {
 }
 
 /**
- * The line under a zone table: what the reference is, after its figure. A max heart rate says where it came from. A power or
- * pace is cut per week from the settled timeline of thresholds, so it is the sport's threshold over the window that ends then
- * (`windowEndMs`), which is the period tile's threshold only when the period is those weeks: the line names the window, and the
- * figure is the display module's, as the tile's is.
+ * The line under a zone table: the reference the zones are cut from, as its figure. A max heart rate taken as the highest on
+ * file says so; an entered one says it is the athlete's. The figure is the display module's, as the tile's is.
  */
 function detailText(set: ZoneSet, reference: string): string {
   if (set.measure === 'heartRate') {
     return `Max heart rate: ${maxHeartRateBasis(set) ?? `${reference}, entered by you`}`
   }
-  if (set.source === 'entered') return `Zones cut from ${reference}, entered by you`
-  const window = set.windowEndMs === null ? '' : ` to ${formatDayMonth(set.windowEndMs)}`
-  return `Zones cut from ${reference}, your threshold over the ${THRESHOLD_WINDOW_WEEKS} weeks${window}`
+  return set.source === 'entered'
+    ? `Threshold: ${reference}, entered by you`
+    : `Threshold: ${reference}`
 }
 
 /** A zone set as a table: one row a zone, with its number, name and range. */

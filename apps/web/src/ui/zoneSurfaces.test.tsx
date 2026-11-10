@@ -8,7 +8,6 @@ import { endOfLocalDay, weekEndFor, weekEndInstant } from '@rca/core/calendar'
 import { AnalysisSession } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDayMonth } from './format/date'
 import { SAMPLE_SETTINGS } from './sampleAthlete'
 import { ThresholdTile } from './pages/ThresholdTile'
 import { zoneTable } from './zoneRows'
@@ -69,9 +68,8 @@ describe.each(['metric', 'imperial'] as const)('the zones and the tile, in %s un
       expect(set.windowEndMs!).toBeLessThanOrEqual(weekEndInstant(end))
       // And it does not end on a day after the newest activity, which a week that has not ended would otherwise name.
       expect(set.windowEndMs!).toBeLessThanOrEqual(endOfLocalDay(newest))
-      expect(line).toBe(
-        `Zones cut from ${printed}, your threshold over the ${THRESHOLD_WINDOW_WEEKS} weeks to ${formatDayMonth(set.windowEndMs!)}`,
-      )
+      // The line gives the reference alone; the window is the data's, not words under the table.
+      expect(line).toBe(`Threshold: ${printed}`)
     },
   )
 })
