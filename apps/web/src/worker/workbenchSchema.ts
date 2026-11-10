@@ -1,5 +1,6 @@
 import { parseActivityTrace } from '@rca/core/workbench'
 import type { ActivityTrace } from '@rca/core/workbench'
+import { commitOrThrow, requestResult as requestResultOf, yieldToOtherTabs } from './idb'
 import { openDatabase, WorkbenchOpenError } from './workbenchOpen'
 export { WorkbenchOpenError } from './workbenchOpen'
 export type TraceScope = { kind: 'device' } | { kind: 'account'; userId: string }
@@ -107,25 +108,16 @@ export function entryKey(scope: TraceScope, activityId: string): string {
   return JSON.stringify([scopeKey(scope), activityId])
 }
 
-export function requestResult<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('Workbench storage failed'))
-  })
-}
+export const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
+  requestResultOf(request, 'Workbench storage')
 
 /**
  * Resolves when the transaction commits, and rejects when it fails or aborts. A caller that can throw
  * before it awaits the result should also call `.catch(() => undefined)` on it, so that an abort
  * nobody is waiting for yet is not reported as an unhandled rejection.
  */
-export function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error ?? new Error('Workbench storage failed'))
-    transaction.onabort = () => reject(transaction.error ?? new Error('Workbench storage aborted'))
-  })
-}
+export const transactionDone = (transaction: IDBTransaction): Promise<void> =>
+  commitOrThrow(transaction, 'Workbench storage')
 
 /** Aborts a transaction that may already be over; either way it can no longer commit. */
 export function abortQuietly(transaction: IDBTransaction | null): void {
@@ -228,13 +220,7 @@ export function workbenchDatabase(fresh = false): Promise<IDBDatabase> {
   failed = null
   opened ??= openDatabase(DB_NAME, DB_VERSION, upgradeDatabase)
     .then((db) => {
-      db.onversionchange = () => {
-        db.close()
-        opened = null
-      }
-      db.onclose = () => {
-        opened = null
-      }
+      yieldToOtherTabs(db, () => (opened = null), true)
       return db
     })
     .catch((error) => {
