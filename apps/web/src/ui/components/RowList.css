@@ -101,6 +101,9 @@
   .row--figures .row__figure {
     grid-column: 3;
     grid-row: 1;
+    /* Held to the screen's width, not the text size, so a long figure (a half marathon's 1:31:57) fits a phone at 200%
+       text beside its title rather than widening the page. */
+    font-size: min(var(--title), 7vw);
   }
 
   .row--figures .row__sub,
