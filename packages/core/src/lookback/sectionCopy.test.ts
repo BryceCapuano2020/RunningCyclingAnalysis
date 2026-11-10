@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SportLookBack } from './compute'
-import { episodeRow, tooShortText } from './copy'
+import { episodeFigure, tooShortText } from './copy'
 import { episodeFinding, yearsFinding } from './sectionCopy'
 import type { EffortMilestones, HindsightEpisode, HindsightFitness } from './types'
 
@@ -133,8 +133,8 @@ describe("the finding a sport's years are named by", () => {
         quiet: [{ fromMs: T(2022, 1), toMs: T(2023, 1), within: 0.03, runs: 90 }],
       }),
     )
-    expect(episodeRow(episode({}), ride, ride.fitness as HindsightFitness)).toMatch(
-      /60 steady rides\.$/,
+    expect(episodeFigure(episode({}), ride, ride.fitness as HindsightFitness).steady).toBe(
+      '60 steady rides',
     )
   })
 

@@ -13,8 +13,8 @@ export interface CheckInRowProps {
 }
 
 /**
- * "Since your last import", one line below the fitness card. The line is what the import added; the disclosure opens
- * what else it told (a new best, a change of fitness, older files). It is a region, not a heading: the page's own
+ * "Since your last import", one line below the fitness card: what the import added, as a label over its figure. The
+ * disclosure opens what else it told, as label and figure rows (a new best, a change of fitness, older files). It is a region, not a heading: the page's own
  * title stays first in the outline. It is counted shown after 3 s in view on a visible page, once a page load, and
  * once it has been opened or hidden, or shown on two page loads, it gives up the place. A row that has appeared stays
  * until it is hidden, so opening it does not take it away.
@@ -39,17 +39,27 @@ export function CheckInRow({ words, onSeen }: CheckInRowProps) {
         }}
       >
         <summary className="checkin-row__summary">
-          <span className="checkin-row__line">{words.headline}</span>
+          <span className="checkin-row__line">
+            <span className="checkin-row__label">{words.headline.label}</span>
+            <span className="checkin-row__value">{words.headline.value}</span>
+          </span>
           {/* The disclosure's mark is drawn in the stylesheet; the summary is already a button with an open state. */}
         </summary>
         <div className="checkin-row__panel">
-          <p className="checkin-row__full">{words.headline}</p>
-          {words.lines.length === 0 ? null : (
-            <ul className="checkin-row__list">
-              {words.lines.map((line) => (
-                <li key={line}>{line}</li>
+          {words.rows.length === 0 ? null : (
+            <dl className="checkin-row__list">
+              {words.rows.map((figure) => (
+                <div key={`${figure.label}-${figure.value}`} className="checkin-row__item">
+                  <dt>{figure.label}</dt>
+                  <dd>
+                    {figure.value}
+                    {figure.detail === undefined ? null : (
+                      <span className="checkin-row__detail">{figure.detail}</span>
+                    )}
+                  </dd>
+                </div>
               ))}
-            </ul>
+            </dl>
           )}
           <button
             type="button"
