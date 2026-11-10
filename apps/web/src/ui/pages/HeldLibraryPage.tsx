@@ -3,7 +3,7 @@ import { HeldBackList } from '../components/HeldBackList'
 import { heldViewFor } from './heldLibraryView'
 import type { AnalysisController } from '../useAnalysis'
 import { PAGE_HEADING_ID } from './pageHeading'
-import './RestoringPage.css'
+import './HeldLibraryPage.css'
 
 export interface HeldLibraryPageProps {
   analysis: AnalysisController
@@ -26,14 +26,14 @@ export function HeldLibraryPage({
 }: HeldLibraryPageProps) {
   const view = heldViewFor(analysis, signedIn, fileRetentionAvailable)
   return (
-    <section className="restoring" aria-busy={analysis.busy && view.update}>
+    <section className="held" aria-busy={analysis.busy && view.update}>
       <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
         {view.title}
       </h1>
       {view.lines.map((line) => (
         <p key={line}>{line}</p>
       ))}
-      <div className="restoring__actions">
+      <div className="held__actions">
         {view.update && (
           <button
             type="button"
@@ -59,7 +59,7 @@ export function HeldLibraryPage({
 /** The library could not be loaded or read. The message above the page has the retry; this says what the page is. */
 export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
   return (
-    <section className="restoring">
+    <section className="held">
       <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
         Your library is not showing yet
       </h1>

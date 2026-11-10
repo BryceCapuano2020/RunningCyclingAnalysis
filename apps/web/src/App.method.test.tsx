@@ -71,10 +71,10 @@ describe('Method with no result loaded', () => {
     window.location.hash = '#/method'
     render(<App />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual([
+      'Method',
+    ])
     expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
-    expect(
-      screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).not.toBeInTheDocument()
+    expect(document.querySelector('[data-loading]')).toBeNull()
   })
 })

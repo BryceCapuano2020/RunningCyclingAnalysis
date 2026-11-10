@@ -100,9 +100,7 @@ describe('focus when a page changes by itself', () => {
     setAccount('loading')
     app.analysis.restoring = true
     const view = render(<App />)
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
 
     // The library replies with nothing kept, so the landing page takes the restoring page's place.
     app.analysis.restoring = false
@@ -202,7 +200,7 @@ describe('focus after an action completes', () => {
     ).toHaveFocus()
   })
 
-  it('moves focus to the restoring heading when a library retry starts loading', () => {
+  it('moves focus to the page heading when a library retry starts loading', () => {
     app.analysis.libraryStatus = 'failed'
     app.analysis.retryLibrary = vi.fn(() => {
       app.analysis.libraryStatus = 'loading'
@@ -213,7 +211,7 @@ describe('focus after an action completes', () => {
     fireEvent.click(retry)
 
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'Restoring your results' })).toHaveFocus()
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toHaveFocus()
   })
 
   it('moves focus to the rebuild notice when a rebuild ends and its button goes away', () => {

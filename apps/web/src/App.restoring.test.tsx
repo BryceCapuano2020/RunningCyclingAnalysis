@@ -28,22 +28,65 @@ beforeEach(() => {
 })
 
 describe('restoring kept results on a reload', () => {
-  it('shows the restoring state in place of the landing page while the account and library load', () => {
+  it('shows the page title in place of the landing page, with a loading status, while the account and library load', () => {
     setAccount('loading')
     app.analysis.restoring = true
     render(<App />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).toBeInTheDocument()
+      within(screen.getByRole('main'))
+        .getAllByRole('status')
+        .map((status) => status.textContent),
+    ).toContain('Loading')
   })
 
-  it('shows the page links, and no Add files in the header, while the results restore', () => {
+  it('names the page the address holds, not the landing page, while its results restore', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    window.location.hash = '#/run'
+    render(<App />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Run' }).closest('[aria-busy="true"]'),
+    ).not.toBeNull()
+  })
+
+  it('keeps the status outside any busy region, so it is announced', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    render(<App />)
+    const status = within(screen.getByRole('main'))
+      .getAllByRole('status')
+      .find((el) => el.textContent === 'Loading')
+    expect(status?.closest('[aria-busy="true"]')).toBeNull()
+    expect(status?.closest('[data-loading="library"]')).not.toBeNull()
+  })
+
+  it.each([
+    ['#/', '.balance-hero__head'],
+    ['#/run', '.sport-page > .sport-page__head'],
+    ['#/ride', '.sport-page > .sport-page__head'],
+    ['#/history', '.page-stack > .page-title'],
+    ['#/activities', '.page-stack > .page-title'],
+    ['#/activities/x', '.page-stack > .page-title'],
+  ])(
+    'puts the title of %s in the block its page uses, so it stays put when results arrive',
+    (hash, block) => {
+      setAccount('loading')
+      app.analysis.restoring = true
+      window.location.hash = hash
+      render(<App />)
+      const h1 = screen.getByRole('heading', { level: 1 })
+      expect(h1.parentElement?.matches(block)).toBe(true)
+    },
+  )
+
+  it('shows the page links and Add files in the header while the results restore', () => {
     setAccount('loading')
     app.analysis.restoring = true
     render(<App />)
     const header = within(screen.getByRole('banner'))
     expect(header.getByRole('navigation', { name: 'More pages' })).toBeInTheDocument()
-    expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
+    expect(header.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
   })
 
   it('keeps the rail beside the restoring state, so the page does not move when the results arrive', () => {
@@ -57,7 +100,7 @@ describe('restoring kept results on a reload', () => {
         .map((link) => link.textContent),
     ).toEqual(['Balance', 'Run', 'Ride'])
     expect(rail.closest('.shell')).toContainElement(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+      screen.getByRole('heading', { level: 1, name: 'Balance' }),
     )
   })
 
@@ -90,9 +133,7 @@ describe('restoring kept results on a reload', () => {
       act(() => {
         vi.advanceTimersByTime(60_000)
       })
-      expect(
-        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-      ).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
       expect(
         within(screen.getByRole('banner')).getByRole('navigation', { name: 'More pages' }),
       ).toBeInTheDocument()
@@ -107,9 +148,7 @@ describe('restoring kept results on a reload', () => {
     const view = render(<App />)
     app.analysis.restoring = false
     view.rerender(<App />)
-    expect(
-      screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).not.toBeInTheDocument()
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull()
   })
 
   it('shows the landing page once the library has loaded with nothing in it', () => {
@@ -120,18 +159,14 @@ describe('restoring kept results on a reload', () => {
         name: 'Are you a better runner or a better cyclist?',
       }),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('heading', { name: 'Restoring your results' }),
-    ).not.toBeInTheDocument()
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull()
   })
 
   it('shows the results, not the restoring state, when they have loaded while restoring', () => {
     app.analysis.restoring = true
     showResult()
     render(<App />)
-    expect(
-      screen.queryByRole('heading', { name: 'Restoring your results' }),
-    ).not.toBeInTheDocument()
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull()
   })
 })
 

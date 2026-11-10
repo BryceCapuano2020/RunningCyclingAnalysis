@@ -149,36 +149,30 @@ describe('a library made only by a newer app', () => {
 })
 
 describe('a library that has not answered', () => {
-  it('shows the restoring page while a signed-in library loads, never the landing page', () => {
+  it('shows the page title and a loading line while a signed-in library loads, never the landing page', () => {
     setAccount('signed-in')
     app.analysis.libraryStatus = 'loading'
     render(<App />)
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: LANDING })).not.toBeInTheDocument()
   })
 
-  it('keeps the restoring page while the worker has listed the saved runs but not counted them, signed in', () => {
+  it('keeps the page title while the worker has listed the saved runs but not counted them, signed in', () => {
     setAccount('signed-in')
     app.analysis.libraryStatus = 'loading'
     app.analysis.savedActivities = [savedRun('s0')]
     render(<App />)
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Your library is here' })).not.toBeInTheDocument()
     expect(screen.queryByText(/holds no runs or rides yet/)).not.toBeInTheDocument()
   })
 
-  it('keeps the restoring page while the worker has listed the saved runs but not counted them, signed out', () => {
+  it('keeps the page title while the worker has listed the saved runs but not counted them, signed out', () => {
     setAccount('signed-out')
     app.analysis.restoring = true
     app.analysis.savedActivities = [savedRun('s0')]
     render(<App />)
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toBeInTheDocument()
     expect(screen.queryByText(/holds no runs or rides yet/)).not.toBeInTheDocument()
   })
 
@@ -193,11 +187,11 @@ describe('a library that has not answered', () => {
     expect(screen.queryByRole('heading', { name: LANDING })).not.toBeInTheDocument()
   })
 
-  it('has its own document title while it restores', () => {
+  it('names the page in the document title while it restores', () => {
     setAccount('signed-in')
     app.analysis.libraryStatus = 'loading'
     render(<App />)
-    expect(document.title).toMatch(/^Restoring your results · /)
+    expect(document.title).toMatch(/^Balance · /)
   })
 
   it('says to reload, with no Retry, when this browser’s library could not be read', () => {

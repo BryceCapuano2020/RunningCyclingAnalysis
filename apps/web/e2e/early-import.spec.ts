@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
 import {
   activitiesRows,
@@ -17,10 +16,10 @@ const NAME = 'Ada Lovelace'
 const IMPORT = { timeout: 30_000 }
 
 function restoring(page: Page) {
-  return page.getByRole('heading', { name: 'Restoring your results' })
+  return page.locator('[data-loading="library"]')
 }
 
-/** Holds the signed-in library's first read until released, so the restoring page stays up. */
+/** Holds the signed-in library's first read until released, so the loading state stays up. */
 async function holdLibrary(page: Page): Promise<() => void> {
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
@@ -53,28 +52,6 @@ test('a file chosen while the library restores is imported once it has loaded', 
   const release = await openRestoring(page)
   await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
   release()
-  await expectOneImported(page)
-})
-
-test('a file chosen on the restoring page after it has been replaced is not lost', async ({
-  page,
-}) => {
-  const release = await openRestoring(page)
-  const input = await page.locator('input[type="file"]').first().elementHandle()
-  if (input === null) throw new Error('the restoring page has no file input')
-  release()
-  await expect(restoring(page)).toBeHidden()
-  // The chooser was open while the page changed: its choice lands on an input that has left the page.
-  const bytes = (await readFile(fixturePath('one-run.fit'))).toString('base64')
-  await input.evaluate((element, data) => {
-    const field = element as HTMLInputElement
-    const transfer = new DataTransfer()
-    transfer.items.add(
-      new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], 'one-run.fit'),
-    )
-    field.files = transfer.files
-    field.dispatchEvent(new Event('change', { bubbles: true }))
-  }, bytes)
   await expectOneImported(page)
 })
 
