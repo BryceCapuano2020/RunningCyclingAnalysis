@@ -4,8 +4,7 @@ Paper and ink. The values are `apps/web/src/styles/tokens.css`; this page says w
 end keep the two in step. Pages and charts are in [DESIGN.md](../DESIGN.md); the level bands (a colour table of their own) stay
 there under Level bands.
 
-Owner calls this system keeps: run and ride each have one colour; one primary action a screen; Balance is a single meter
-line; fitness sits above Balance; the answer is the one thing on a page with weight. Stage V (November 2026) replaced the
+Owner calls this system keeps: run and ride each have one colour; one primary action a screen; Balance is the level triangle; fitness sits above Balance; the answer is the one thing on a page with weight. Stage V (November 2026) replaced the
 volt, card and dark-mode system with this one.
 
 ## Rules
@@ -42,8 +41,10 @@ volt, card and dark-mode system with this one.
 | `--run-ink`         | `#c2410c`   | Run: its index numbers, its chart lines and marks, its end of the meter (4.5:1)       |
 | `--ride-ink`        | `#1d4ed8`   | Ride: the same jobs for a ride (4.5:1)                                                |
 | `--swim-ink`        | `#0e7490`   | Swim, reserved (4.5:1)                                                                |
+| `--lift-ink`        | `#86198f`   | Lift: its corner of the level triangle, never told apart by colour alone (7.9:1)      |
 | `--run-wash`        | `#c2410c1f` | A run band or area fill under a line, never behind text                               |
 | `--ride-wash`       | `#1d4ed81f` | A ride band or area fill under a line, never behind text                              |
+| `--lift-wash`       | `#86198f1f` | A lift band on its axis of the level triangle, never behind text                      |
 | `--previous-mark`   | `#8a847c`   | The previous period's line, under the current one (3:1)                               |
 | `--status-critical` | `#991b1b`   | An error's words and a removal's confirm button, always with a label                  |
 | `--status-warning`  | `#8a5300`   | A warning's words, always with a label                                                |
@@ -57,7 +58,7 @@ The zone ramps (`--zone-run-n`, `--zone-ride-n`, `--zone-ride-long-n` and their 
 (`--ch-*`) keep their light values and their tests. They are data, so they are the one place a page shows a range of colour.
 
 **Sport colour.** A sport surface sets `data-sport`, and `tokens.css` points `--sport-ink` and `--sport-wash` at that sport's
-pair, so a row, a line or a meter end takes its own sport's colour. A sport's figure is set in ink; its index number and its
+pair, so a row, a line or a triangle corner takes its own sport's colour. A sport's figure is set in ink; its index number and its
 marks carry the colour. A list that mixes sports gives each row its own sport's ink, and a row with no sport takes
 `--ink-secondary`. The run ink is kept at least 14 from the critical red in CIEDE2000 (10 under the worst colour vision),
 and no zone step within 10 of it (`runColour.test.ts`, `zoneRamp.test.ts`).
@@ -115,7 +116,7 @@ third-party font request is made.
   A row is: the mono index (01, 02 ...) in its sport's ink, the serif title at `--heading`, a mono meta line under it, an
   optional ▸ disclosure, small outlined buttons, and at the right a sparkline where the row has a trend. A row has one
   emphasis, its title. A list's rows sit `--space-5` apart with the hairline between.
-- **Disclosure.** "How this was worked out" and every fold is a native `<details>` with a ▸ that turns to ▾. No box, no
+- **Disclosure.** "Details" and every fold is a native `<details>` with a ▸ that turns to ▾. No box, no
   chevron icon, no background. What it holds is a detail panel, never a block of prose.
 - **Two gaps.** `--section-gap` (48 px) between a page's sections and `--stack-gap` (24 px) inside a stack. Spacing steps are
   `--space-1` to `--space-7` (4 to 48 px).
@@ -153,10 +154,16 @@ Layout:
 - The "Method" link is serif at `--text-md` in `--ink`, under the last row, once.
 - A value that is a count may link to the list it counts. A panel is as wide as `--measure` and wraps on a phone.
 
-## The Balance meter
+## The level triangle
 
-A hairline track in `--hairline`, the run ink at the left end and the ride ink at the right, and one ink mark for the
-reading. The value is mono under the mark. No band, fill, glow or tick. The range is words under it, as now.
+Three hairline axes at 120 degrees (run at the top, cycling at the lower right, lifting at the lower left), a corner on each
+at that sport's age grade, 0 at the centre and 100% at the outer ring. The outer ring is `--rule`; the 80 and 60 rings and the
+axes are `--hairline`. The shape through the dots is `--ink` at 7% with a 2 px edge, never a sport colour. A sport's dot is its
+ink with a 3 px paper ring, and its 90% range is a 12 px band of its wash along its axis. No glow, no tick, no total and no
+area. A sport with no grade keeps a lighter axis with a short cap and no dot. The corners are HTML text over the SVG
+(label in the sport's ink, whole percent in mono, level word in `--ink-secondary`; the levels are Recreational, Active, Trained, Club, Local, Regional, National and World, see [finer-levels](decisions/finer-levels.md)). Lift is never told apart by colour alone,
+so its ink always sits beside its name. The share card and the landing example still draw the old one-line meter (a hairline
+track, the sport inks at its ends, one ink mark) until they take the triangle.
 
 ## Accessibility the suite checks
 
@@ -168,7 +175,7 @@ on paper and a control's edge 3:1. Beyond axe:
 - **Reflow at 320 x 256 (1.4.10).** The `reflow-320x256` project loads each page at 320 x 256 and fails on a horizontal scroll
   or a clipped primary control. The rail's two lines fit 320 px with no sideways scroll.
 - **Forced colours.** `forced-colours.spec.ts` runs `assertNoTextOverlap` over the heroes of Balance, Run, Ride and an
-  activity. The meter's mark and track take the system text colour.
+  activity. The triangle's shape, axes and dots take the system text colour.
 - **Large text and text spacing (1.4.4, 1.4.12).** `text-zoom.spec.ts` sets the root font to 200% and injects the 1.4.12
   spacing sheet, then checks that chart labels do not overlap and the page does not scroll sideways.
 

@@ -14,6 +14,9 @@ import {
   makeRunThreshold,
 } from '../components/fixtures'
 import { balanceOfPick } from '../components/balanceScale'
+import { EMPTY_TRIANGLE } from '../triangleSports'
+import type { TriangleView } from '../triangleSports'
+import { viewOfGap } from '../test/triangleView'
 import { BalanceHero, type BalanceHeroProps } from './BalanceHero'
 import { wholeText } from '../test/wholeText'
 
@@ -45,15 +48,20 @@ const ALL_TIME = {
   weightKnown: true,
 }
 
-type HeroProps = Omit<BalanceHeroProps, 'reading'> & { gap?: BalanceGap | null }
+type HeroProps = Omit<BalanceHeroProps, 'reading' | 'triangle'> & {
+  gap?: BalanceGap | null
+  triangle?: TriangleView
+}
 
 /**
  * The hero as the page renders it: the page works the balance out once, from the grade gap and the headline's
- * comparison, and hands the hero the reading. The tests give the two and let the same rule decide.
+ * comparison, and hands the hero the reading. The tests give the two and let the same rule decide. The triangle's
+ * grades are the run and ride grades that give the gap, so the words and the figure agree as they do on the page.
  */
-function Hero({ gap = null, ...props }: HeroProps) {
+function Hero({ gap = null, triangle, ...props }: HeroProps) {
   const reading = props.weightKnown ? balanceOfPick(gap, props.pick) : null
-  return <BalanceHero {...props} reading={reading} />
+  const view = triangle ?? (gap === null ? EMPTY_TRIANGLE : viewOfGap(gap))
+  return <BalanceHero {...props} reading={reading} triangle={view} />
 }
 
 function pickFor(ratio: Interval): HeadlinePick {
@@ -93,6 +101,35 @@ describe('BalanceHero answer on the energy ratio', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
+  it('draws lifting on its corner but compares run and ride only, however lifting grades', () => {
+    const base = viewOfGap({ centre: 6, low: 2, high: 10 })
+    const lifting = {
+      centre: { grade: 0.95, level: 'World class' },
+      range: {
+        low: { grade: 0.9, level: 'World class' },
+        high: { grade: 0.99, level: 'World class' },
+      },
+    }
+    const triangle: TriangleView = {
+      ...base,
+      grades: { ...base.grades, lift: { kind: 'graded', grade: lifting } },
+    }
+    const { container } = render(
+      <Hero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+        triangle={triangle}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
+    ).toBeInTheDocument()
+    expect(container.querySelector('.balance-hero__lede')).toBeNull()
+    expect(screen.getByRole('link', { name: /^Lifting 95%/ })).toHaveAttribute('href', '#/lift')
+  })
+
   it('summarises the energy gap in one sentence under the heading', () => {
     render(
       <Hero
@@ -111,8 +148,8 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
   })
 
-  it('draws the energy gap as a meter named by the balance sentence', () => {
-    render(
+  it('draws the figure with no grades, and the energy balance is the sentence alone', () => {
+    const { container } = render(
       <Hero
         {...ALL_TIME}
         result={makeResult()}
@@ -120,11 +157,9 @@ describe('BalanceHero answer on the energy ratio', () => {
         gap={null}
       />,
     )
-    expect(
-      screen.getByRole('img', {
-        name: 'Running 12% higher, as energy per kilogram (range 5% to 20%)',
-      }),
-    ).toBeInTheDocument()
+    expect(container.querySelector('.balance-meter')).toBeNull()
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(0)
+    expect(container.querySelectorAll('.level-triangle__none')).toHaveLength(3)
   })
 
   it('titles the balance as leaning toward cycling when cycling leads', () => {
@@ -152,7 +187,7 @@ describe('BalanceHero answer on the energy ratio', () => {
   })
 
   it('draws a cycling lead as positive percentages of cycling, with the range from the inverse', () => {
-    render(
+    const { container } = render(
       <Hero
         {...ALL_TIME}
         result={makeResult()}
@@ -160,15 +195,13 @@ describe('BalanceHero answer on the energy ratio', () => {
         gap={null}
       />,
     )
-    expect(
-      screen.getByRole('img', {
-        name: 'Cycling 25% higher, as energy per kilogram (range 11% to 33%)',
-      }),
-    ).toBeInTheDocument()
+    expect(ledeOf(container)).toBe(
+      'Over 20 min, your cycling is 25% higher than your running, within 11% to 33%, as energy per kilogram.',
+    )
   })
 
   it('says the two are in balance when the range spans 1', () => {
-    render(
+    const { container } = render(
       <Hero
         {...ALL_TIME}
         result={makeResult()}
@@ -182,11 +215,7 @@ describe('BalanceHero answer on the energy ratio', () => {
         name: 'Your running and cycling are in balance',
       }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('img', {
-        name: 'Level as energy per kilogram (running against cycling -5% to +5%)',
-      }),
-    ).toBeInTheDocument()
+    expect(ledeOf(container)).toMatch(/level as energy per kilogram, within .*5% to \+5%/)
   })
 
   it('draws no card of its own, since the page supplies the card', () => {
@@ -215,7 +244,7 @@ describe('BalanceHero answer on the energy ratio', () => {
 })
 
 describe('BalanceHero visual', () => {
-  it('draws the meter for a grade gap and for an energy balance alike, and nothing but the meter', () => {
+  it('draws the level triangle for a grade gap and for an energy balance alike, and no meter', () => {
     const { container, rerender } = render(
       <Hero
         {...ALL_TIME}
@@ -224,20 +253,20 @@ describe('BalanceHero visual', () => {
         gap={gradedGap()}
       />,
     )
-    expect(container.querySelectorAll('.balance-meter')).toHaveLength(1)
+    expect(container.querySelectorAll('.level-triangle')).toHaveLength(1)
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(2)
     rerender(<Hero {...ALL_TIME} result={makeResult()} pick={pickFor(interval(1.05, 1.12, 1.2))} />)
-    expect(container.querySelectorAll('.balance-meter')).toHaveLength(1)
-    expect(container.querySelector('.balance-scale, .balance-hero__gap')).toBeNull()
+    expect(container.querySelectorAll('.level-triangle')).toHaveLength(1)
+    expect(container.querySelector('.balance-meter, .balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('sets the period line under the headline, then the lede, the meter, the levels and the action', () => {
+  it('sets the period line under the headline, then the triangle and the action', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
         result={makeResult()}
         pick={pickFor(interval(1.05, 1.12, 1.2))}
         gap={gradedGap()}
-        levels={<p data-testid="levels" />}
         controls={<div data-testid="controls" />}
         action={<button type="button">Share image</button>}
       />,
@@ -245,9 +274,7 @@ describe('BalanceHero visual', () => {
     const order = [
       screen.getByRole('heading', { level: 1 }),
       screen.getByTestId('controls'),
-      container.querySelector('.balance-hero__lede'),
-      container.querySelector('.balance-meter'),
-      screen.getByTestId('levels'),
+      container.querySelector('.level-triangle'),
       screen.getByRole('button', { name: 'Share image' }),
     ]
     for (const [index, node] of order.entries()) {
@@ -263,7 +290,7 @@ describe('BalanceHero visual', () => {
 })
 
 describe('BalanceHero answer', () => {
-  it('writes the gap once, in the meter at the dot: no separate scoreboard figure', () => {
+  it('writes each grade once, on its corner: no separate scoreboard figure', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -273,11 +300,18 @@ describe('BalanceHero answer', () => {
       />,
     )
     expect(container.querySelector('.balance-hero__number, .balance-hero__unit')).toBeNull()
-    expect(container.querySelector('.balance-meter__value')).toHaveTextContent('+6pts')
-    expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
+    expect(container.querySelector('.level-triangle__corner[data-sport="run"]')).toHaveTextContent(
+      'Running 56% Club',
+    )
+    expect(container.querySelector('.level-triangle__corner[data-sport="ride"]')).toHaveTextContent(
+      'Cycling 50% Club',
+    )
+    expect(container.querySelector('.level-triangle__corner[data-sport="lift"]')).toHaveTextContent(
+      'Lifting No grade yet',
+    )
   })
 
-  it('names the sport the balance leans toward in plain words, with no underline or colour', () => {
+  it('titles a graded balance the same whichever sport leads, with no underline or colour', () => {
     const { container, rerender } = render(
       <Hero
         {...ALL_TIME}
@@ -287,7 +321,7 @@ describe('BalanceHero answer', () => {
       />,
     )
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent(/cycling$/)
+    expect(heading).toHaveTextContent('Your athletic balance')
     expect(heading.querySelector('em, [data-sport]')).toBeNull()
     rerender(
       <Hero
@@ -314,7 +348,7 @@ describe('BalanceHero answer', () => {
     expect(container).not.toHaveTextContent(/Last 6 weeks/)
   })
 
-  it('defines the range in place, as a button with its note', () => {
+  it('defines age grade once, at the foot of the page, not in the lede', () => {
     render(
       <Hero
         {...ALL_TIME}
@@ -323,20 +357,12 @@ describe('BalanceHero answer', () => {
         gap={gradedGap()}
       />,
     )
-    const button = screen.getByRole('button', { name: 'range' })
-    expect(button).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(button)
-    expect(button).toHaveAttribute('aria-expanded', 'true')
-    const note = document.getElementById(button.getAttribute('aria-controls') ?? '')
-    expect(note).toHaveAttribute('role', 'note')
-    expect(note?.textContent?.length).toBeGreaterThan(40)
-    // Age grade is defined once, at the foot of the page, not in the lede.
     expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
   })
 })
 
 describe('BalanceHero on the age-grade gap', () => {
-  it('titles the answer from the gap, and says the gap in points for the headline duration', () => {
+  it('titles the answer from the grades and leaves the gap to the triangle, with no line under the title', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -346,47 +372,11 @@ describe('BalanceHero on the age-grade gap', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
-  })
-
-  it('keeps the level target in the Details under the lede as rows, the lede the one line under the answer', () => {
-    const rows = [
-      { label: 'To match it on the bike', value: '270 W (245\u2013295)' },
-      { label: 'Your ride threshold', value: '230 W' },
-    ]
-    const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
-    const { container, rerender } = render(<Hero {...props} gap={gradedGap()} details={rows} />)
-    const label = screen.getByText('To match it on the bike')
-    expect(label.tagName).toBe('DT')
-    expect(label.nextElementSibling).toHaveTextContent('270 W (245\u2013295)')
-    expect(screen.getByText('Your ride threshold').nextElementSibling).toHaveTextContent('230 W')
-    // One line under the answer: the lede, then the Details that hold the target, closed to start with.
-    const details = label.closest('details')!
-    expect(details).toHaveClass('page-details')
-    expect(details).not.toHaveAttribute('open')
-    expect(details.previousElementSibling).toHaveClass('balance-hero__lede')
-    expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
-    // The panel ends with the one Method link to the grades.
-    expect(details.querySelector('.props__method')).toHaveTextContent('Method')
-    rerender(<Hero {...props} gap={gradedGap()} />)
+    expect(container.querySelector('.balance-hero__lede')).toBeNull()
     expect(container.querySelector('.page-details')).toBeNull()
-    expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
-  })
-
-  it('draws the gap as the meter, named by the gap and its range', () => {
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(
-      screen.getByRole('img', { name: /Running grades 6 points higher than cycling/ }),
-    ).toHaveAccessibleName(/range 2 to 10\u00a0points/)
+    expect(container).not.toHaveTextContent(/leans toward|points higher|in balance/)
   })
 
   it('answers from the gap, not the energy ratio, when both are there', () => {
@@ -399,9 +389,9 @@ describe('BalanceHero on the age-grade gap', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Running grades 6 points/ })).toBeInTheDocument()
+    expect(screen.queryByText(/energy per kilogram/)).toBeNull()
   })
 
   it('holds the answer, gap and all, while nothing picks a headline comparison', () => {
@@ -409,41 +399,28 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: /Running grades/ })).toBeNull()
+    expect(screen.queryByText(/Running grades/)).toBeNull()
   })
 
-  it('leans on a 9 point estimate whose range reaches below zero, with the range stated and no word of balance', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' })}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
-    ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 9 points higher at threshold.')
-    expect(screen.queryByText(/in balance/)).toBeNull()
-    expect(screen.getByRole('img', { name: /Running grades 9 points/ })).toHaveAccessibleName(
-      /range −4 to \+18\u00a0points/,
-    )
-  })
-
-  it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' })}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Your running and cycling are in balance' }),
-    ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 2 points higher at threshold.')
+  it('titles a gap whose range reaches below zero, or one near level, the same way', () => {
+    for (const lead of [
+      gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' }),
+      gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' }),
+    ]) {
+      const { unmount } = render(
+        <Hero
+          {...ALL_TIME}
+          result={makeResult()}
+          pick={pickFor(interval(1.05, 1.12, 1.2))}
+          gap={lead}
+        />,
+      )
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/in balance/)).toBeNull()
+      unmount()
+    }
   })
 
   it('never says ahead of, limiter, weak or strength', () => {
@@ -704,76 +681,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.getByRole('button', { name: 'Show all time' })).toBeInTheDocument()
   })
 
-  it('counts each sport under the lede when either has few efforts, so the answer shows what it rests on', () => {
-    const activities = [
-      makeActivity({ id: 'run-1', sport: 'run' }),
-      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'run-3', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'ride-1', sport: 'ride' }),
-      makeActivity({ id: 'ride-2', sport: 'ride' }),
-      makeActivity({ id: 'ride-3', sport: 'ride', durationS: 600 }),
-    ]
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 2 rides')
-    expect(screen.queryByText(/Add more runs or rides/)).not.toBeInTheDocument()
-  })
-
-  it('counts only the efforts as long as the headline effort, so a short run does not count as one', () => {
-    const runs = [
-      makeActivity({ id: 'run-1', sport: 'run' }),
-      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'run-3', sport: 'run', durationS: 900 }),
-    ]
-    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities: [...runs, ...rides] })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 3 rides')
-  })
-
-  it('leaves that count off once each sport has three efforts', () => {
-    const runs = [1, 2, 3].map((n) => makeActivity({ id: `run-${n}`, sport: 'run' }))
-    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities: [...runs, ...rides] })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.queryByText('Efforts used')).not.toBeInTheDocument()
-  })
-
-  it('says under an energy balance’s range that heart rate informed it, when the check used it', () => {
-    const calibrated = {
-      point: comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) }),
-      calibrated: true,
-    }
-    const { container, rerender } = render(
-      <Hero {...ALL_TIME} result={makeResult()} pick={calibrated} />,
-    )
-    expect(container.querySelector('.balance-meter__basis')?.textContent).toBe(
-      'informed by heart rate',
-    )
-    // A grade gap's range is the grades', and says nothing of heart rate.
-    rerender(<Hero {...ALL_TIME} result={makeResult()} pick={calibrated} gap={gradedGap()} />)
-    expect(container.querySelector('.balance-meter__basis')).toBeNull()
-  })
-
-  it('leaves the dates out of the lede when the period is not all time, since the caption names them', () => {
+  it('leaves the dates out of the answer when the period is not all time, since the caption names them', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -783,21 +691,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
-    expect(ledeOf(container)).not.toMatch(/12 May/)
-  })
-
-  it('leaves the dates out of the lede under all time', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
-    expect(ledeOf(container)).not.toMatch(/Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar/)
+    expect(container).not.toHaveTextContent(/12 May/)
   })
 
   it('sets the action under the lede, on the text column, so the share button sits with the answer', () => {
@@ -814,9 +708,10 @@ describe('BalanceHero without a comparison yet', () => {
     const action = screen.getByRole('button', { name: 'Download square image' })
     expect(heading.parentElement).toHaveClass('balance-hero__head')
     expect(heading.parentElement).not.toContainElement(action)
-    expect(action.parentElement).toHaveClass('balance-hero')
-    expect(action.previousElementSibling).toBe(
-      screen.getByText('Your files have no running or cycling activities yet.'),
+    // The figure is always there, so the action sits under it, and the line that says what is missing sits above the figure.
+    expect(action.previousElementSibling).toHaveClass('level-triangle')
+    expect(action.parentElement?.querySelector('.balance-hero')).toHaveTextContent(
+      'Your files have no running or cycling activities yet.',
     )
   })
 })
@@ -961,32 +856,7 @@ describe('BalanceHero while no weight is entered', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-  })
-})
-
-describe('BalanceHero sentence on a phone', () => {
-  const GAPPED = {
-    ...ALL_TIME,
-    result: makeResult(),
-    pick: pickFor(interval(1.05, 1.12, 1.2)),
-    gap: gradedGap(),
-  }
-
-  it('says the one whole sentence at every width, with the range left to the meter', () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === '(max-width: 479px)',
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }))
-    try {
-      const { container } = render(<Hero {...GAPPED} />)
-      expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
-      expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
-      expect(container.querySelector('.balance-meter__edges')).toHaveTextContent('2 to 10')
-    } finally {
-      vi.unstubAllGlobals()
-    }
   })
 })

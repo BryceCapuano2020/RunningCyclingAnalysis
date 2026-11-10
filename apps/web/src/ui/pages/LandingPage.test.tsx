@@ -5,8 +5,6 @@ import { analysisStub } from '../../test/analysisStub'
 import { landingText } from '../../test/landingText'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
-import { balanceTitle } from '../components/headlineText'
-import { gapReading } from '../components/balanceScale'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { LandingPage } from './LandingPage'
 
@@ -215,23 +213,19 @@ describe('LandingPage', () => {
     expect(screen.getByRole('region', { name: 'How to get your files' })).toBeInTheDocument()
   })
 
-  it('shows the example result as Balance’s meter and levels: the lean, its range, and each sport’s grade and level', () => {
+  it('shows the example result as Balance’s triangle: the lean and each sport’s grade and level, with lifting not graded yet', () => {
     render(<LandingPage analysis={analysisStub()} signedIn={false} onFiles={vi.fn()} />)
 
     const example = exampleFigure()
     const text = landingText(LANDING_EXAMPLE)
+    expect(within(example).getByText('Your athletic balance')).toBeInTheDocument()
+    const corners = [...example.querySelectorAll('.level-triangle__corner')].map(spoken)
     expect(
-      within(example).getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap))),
-    ).toBeInTheDocument()
-    expect(example.querySelector('.balance-meter__value')?.textContent).toBe(text.value)
-    expect(example.querySelector('.balance-meter__edges')?.textContent).toBe(text.edges)
-    const rows = [...example.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(text.rows)
+      corners.slice(0, 2).map((corner, order) => corner.startsWith(text.rows[order]!)),
+    ).toEqual([true, true])
+    expect(corners[2]).toBe('Lifting No grade yet')
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
-    // The line is named for a screen reader.
-    expect(
-      within(example).getByRole('img', { name: new RegExp(`^${text.name}`) }),
-    ).toBeInTheDocument()
+    expect(example.querySelector('.balance-meter, .balance-levels')).toBeNull()
   })
 
   it('explains the result in one line, with a link to the full method', () => {

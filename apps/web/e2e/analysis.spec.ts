@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { SAMPLE_TEXT, rowPattern } from './sampleText.js'
 import {
+  ANSWERED_TITLE,
   BALANCE_TITLE,
   LANDING_TITLE,
   LIST_PAGE_SIZE,
@@ -17,12 +18,6 @@ import {
 } from './helpers.js'
 
 /**
- * The charts by their figure titles. Balance's meter is named by the balance's own sentence, in points when both
- * sports are graded and in percent of energy while the grades are missing.
- */
-const BALANCE_METER =
-  /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
-/**
  * The Balance page's last chart: the hours trained each week, found by its title.
  */
 const BEST_EFFORTS_CURVE = 'Best effort by duration'
@@ -35,7 +30,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
-  await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Level in each sport' })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
   // The sample's season is long enough to draw each sport's best efforts curve. No jump list stands over the sections.
@@ -58,31 +53,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('the ride as a run tile names the ride threshold behind its pace and opens to every duration', async ({
-  page,
-  isMobile,
-}) => {
-  await openSample(page)
-
-  const card = page.getByRole('article', { name: 'Your ride as a run' })
-  await expect(card.getByRole('link')).toHaveCount(0)
-
-  // The threshold the pace rests on is inside the tile's one fold, not a line under its title.
-  const details = card.locator('details')
-  await expect(details).not.toHaveAttribute('open')
-  const basis = card.locator('.props__row', { hasText: /^From your threshold/ }).locator('dd')
-  await expect(basis).toBeHidden()
-  await details.locator('summary').click()
-  await expect(basis).toHaveText(/^\d+ W$/)
-  await expect(basis).toBeVisible()
-  // A phone shows the efforts as a list, and a wider screen as a table.
-  const rideEffort = isMobile
-    ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
-    : details.getByRole('columnheader', { name: 'Ride effort' })
-  await expect(rideEffort).toBeVisible()
-})
-
-test('Balance says the lean once: no lean tile, three tiles at most, and the level target in the answer’s Details', async ({
+test('Balance says the lean once: no lean tile, three tiles at most, lifting the third, and no Details under the answer', async ({
   page,
 }) => {
   await openSample(page)
@@ -90,17 +61,13 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   await expect(page.getByRole('article', { name: 'Lean' })).toHaveCount(0)
   const tiles = page.locator('.balance-tiles')
   await expect(tiles.getByRole('article')).toHaveCount(3)
+  await expect(tiles.getByRole('article').nth(2)).toHaveAccessibleName('Big three total')
   await expect(tiles).not.toContainText(/\bpts\b/)
-  // The gap in points is the meter's figure, once; the target is a line of the hero, not of a tile.
-  await expect(page.locator('.balance-meter__number')).toHaveCount(1)
-  // The target is the answer's Details, one press down, not a line under the lede.
-  const target = page.locator('.balance-hero .props__row', { hasText: /^To match it on the / })
-  await expect(target).toHaveCount(1)
-  await expect(target).toBeHidden()
-  await page.locator('.balance-hero .page-details > summary').click()
-  await expect(target).toBeVisible()
-  await expect(target.locator('dd')).toHaveText(/^\d+ W( \(\d+\u2013\d+\))?$|^\d+:\d{2} \/(km|mi)$/)
-  await expect(tiles.getByText(/^To match it/)).toHaveCount(0)
+  // The grades are the triangle's corners, once each; the period, counts and standards are on each sport's page.
+  await expect(page.locator('.level-triangle__corner')).toHaveCount(3)
+  await expect(page.locator('.balance-meter')).toHaveCount(0)
+  await expect(page.locator('.balance-hero .page-details')).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 2, name: 'What changed' })).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
     return parseFloat(getComputedStyle(el).fontSize)
@@ -118,7 +85,7 @@ test('uploading the Strava export zip shows the results, including its GPX run',
   await page.goto('/')
   await uploadFixtures(page, ['sample-export.zip'])
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE)
   // Fourteen FIT activities and one GPX run.
   await expect(await activitiesRows(page)).toHaveCount(15)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
@@ -160,7 +127,7 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   await expect(run.locator('.props__row', { hasText: /^Runs used/ })).toBeHidden()
   await expect(run.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
-  await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
+  await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
   const panel = run.locator('.props')
   await expect(panel.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     '1',
@@ -187,7 +154,7 @@ test('a one-sport library never gets a request for a headline, whichever sport i
   await expect(page.getByTestId('sport-invitation')).toContainText(
     'Add runs to compare them with your cycling.',
   )
-  // No empty card for the other sport, and no cross-sport tile.
+  // No empty card for the other sport.
   await expect(page.getByRole('region', { name: 'Run' })).toHaveCount(0)
 })
 
@@ -245,10 +212,16 @@ test('removing all activities on the Profile page clears the sample and returns 
   ).toBeVisible()
 })
 
-/** The meter's track, its value under the dot, and the two sports' level lines. */
-const TRACK = '.balance-meter [role="img"]'
-const VALUE = '.balance-meter__value'
-const LEVEL_ROWS = '.balance-levels__row'
+/** The level triangle's plot and its three corners, which say each sport's grade and level. */
+const PLOT = '.level-triangle__plot'
+const CORNERS = '.level-triangle__corner'
+/** The parts of a corner, which stay inside the window. */
+const CORNER_PARTS = [
+  '.level-triangle__label',
+  '.level-triangle__figure',
+  '.level-triangle__level',
+  '.level-triangle__none',
+]
 
 /** The run's fitness row: its title (the sport and its state), its one line, and the Details that hold the rest. */
 const FITNESS_CARD = '.fitness-card[data-sport="run"]'
@@ -256,7 +229,7 @@ const FITNESS_STATE = `${FITNESS_CARD} .fitness-card__state`
 const FITNESS_LINE = `${FITNESS_CARD} .fitness-card__line`
 const FITNESS_DETAILS = `${FITNESS_CARD} details.fitness-card__evidence`
 
-// The balance leads the home page: at 1440 by 900 its headline, meter and levels are on the first screen, and the
+// The balance leads the home page: at 1440 by 900 its headline, triangle and corners are on the first screen, and the
 // fitness card sits under the tiles, whole, with its track beside the words.
 test('at 1440 by 900 the balance leads the first screen, and the fitness card sits under its tiles', async ({
   page,
@@ -264,10 +237,10 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   await page.setViewportSize({ width: 1440, height: 900 })
   await openSample(page)
   const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
-  const meter = await edgesOf(page.locator(TRACK))
-  const levels = await edgesOf(page.locator(LEVEL_ROWS).last())
-  expect(headline.bottom).toBeLessThan(meter.top)
-  expect(levels.bottom).toBeLessThanOrEqual(900)
+  const plot = await edgesOf(page.locator(PLOT))
+  const corners = await edgesOf(page.locator(CORNERS).last())
+  expect(headline.bottom).toBeLessThan(plot.top)
+  expect(corners.bottom).toBeLessThanOrEqual(900)
   // The card comes after the tiles and before the grade by duration.
   const tiles = await edgesOf(page.locator('.balance-tiles'))
   const card = await edgesOf(page.locator(FITNESS_CARD))
@@ -284,40 +257,32 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   await expect(fresh).toBeHidden()
   await page.locator(`${FITNESS_DETAILS} > summary`).click()
   await expect(fresh.locator('dd')).toContainText('the week of')
-  const trackEdges = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
+  // Balance's Details hold the rows alone: the track and the graph are the Run and Ride pages'.
+  await expect(page.locator(`${FITNESS_CARD} .fitness-track`)).toHaveCount(0)
+  await expect(page.locator(`${FITNESS_CARD} .chart-frame`)).toHaveCount(0)
   const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
-  const cardBox = (await page.locator(FITNESS_CARD).boundingBox())!
-  const trackBox = (await page.locator(`${FITNESS_CARD} .fitness-track`).boundingBox())!
-  expect(trackEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
-  expect(trackBox.x + trackBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width)
-  expect(trackEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
-  // The meter is the first drawing on the page, and the card's track comes after it.
-  const order = await page.evaluate(() => {
-    const track = document.querySelector('.fitness-card[data-sport="run"] .fitness-track__bar')
-    const firstImage = document.querySelector('main [role="img"]')
-    return {
-      trackAfter:
-        track !== null &&
-        firstImage !== null &&
-        (firstImage.compareDocumentPosition(track) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-      firstImage: firstImage?.parentElement?.className ?? '',
-    }
-  })
-  expect(order.trackAfter).toBe(true)
-  expect(order.firstImage).toContain('balance-meter')
-  // The answer is still a line: no scale drawing, no ladder, and the meter is in its place.
-  await expect(page.locator('.balance-meter__value')).toHaveText(SAMPLE_TEXT.value)
-  await expect(page.locator('.balance-hero__pair .balance-meter')).toHaveCount(1)
-  await expect(page.locator('.balance-hero__pair svg:not(.icon)')).toHaveCount(0)
+  const rowsEdges = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
+  expect(rowsEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
+  expect(rowsEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
+  // The triangle is the first drawing on the page.
+  const first = await page.evaluate(
+    () => document.querySelector('main svg:not(.icon)')?.getAttribute('class') ?? '',
+  )
+  expect(first).toContain('level-triangle__plot')
+  // The corners say the sample's own levels, with no meter and no ladder.
+  await expect(page.locator(CORNERS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+  await expect(page.locator(CORNERS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
+  await expect(page.locator('.balance-hero__pair .level-triangle')).toHaveCount(1)
+  await expect(page.locator('.balance-meter, .balance-levels')).toHaveCount(0)
 })
 
-// A phone opens on the balance, the sample notice and all: at 390 by 844 and at 320 by 640 the headline, the meter
-// and its value end on the first screen, under the header and the rail, and the fitness row follows the tiles.
+// A phone opens on the balance, the sample notice and all: at 390 by 844 and at 320 by 640 the headline and the
+// triangle end on the first screen, under the header and the rail, and the fitness row follows the tiles.
 for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the balance headline, meter and value are on the first screen, and the fitness row follows the tiles`, async ({
+  test(`at ${width} by ${height} the balance headline and triangle are on the first screen, and the fitness row follows the tiles`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
@@ -325,42 +290,39 @@ for (const [width, height] of [
     await expect(page.getByText('Sample athlete', { exact: false }).first()).toBeVisible()
     const foot = await firstScreenFoot(page)
     const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
-    const meter = await edgesOf(page.locator(TRACK))
-    const value = await edgesOf(page.locator(VALUE))
-    expect(headline.bottom).toBeLessThan(meter.top)
-    expect(value.top).toBeGreaterThanOrEqual(meter.bottom)
-    expect(value.bottom).toBeLessThanOrEqual(foot)
-    // The period is the rail's, above the title; then both levels follow the value, in order.
+    const plot = await edgesOf(page.locator(PLOT))
+    expect(headline.bottom).toBeLessThan(plot.top)
+    // The vertices are on the first screen; the two lower corners hang under them, so the first screen holds the plot.
+    expect(plot.top).toBeLessThanOrEqual(foot)
+    const top = await edgesOf(page.locator(CORNERS).first())
+    expect(top.bottom).toBeLessThanOrEqual(foot)
+    // The period is the rail's, above the title; the three corners follow, run at the top, then the two below it.
     const period = await edgesOf(page.getByRole('group', { name: 'Period' }))
     expect(period.bottom).toBeLessThanOrEqual(headline.top)
-    let previous = value.bottom
-    const rows = await page.locator(LEVEL_ROWS).all()
-    expect(rows).toHaveLength(2)
-    for (const row of rows) {
-      const box = await edgesOf(row)
-      expect(box.top).toBeGreaterThanOrEqual(previous)
-      previous = box.bottom
-    }
-    // The row is under the tiles, and its title, its line and, once opened, its track follow one another.
+    const corners = await page.locator(CORNERS).all()
+    expect(corners).toHaveLength(3)
+    const [run, ride, lift] = await Promise.all(corners.map((corner) => corner.boundingBox()))
+    if (!run || !ride || !lift) throw new Error('no box for a corner')
+    expect(ride.y).toBeGreaterThan(run.y + run.height)
+    expect(lift.y).toBeGreaterThan(run.y + run.height)
+    expect(lift.x + lift.width).toBeLessThanOrEqual(ride.x + 1)
+    // The row is under the tiles, and its title, its line and, once opened, its rows follow one another.
     await page.locator(`${FITNESS_DETAILS} > summary`).click()
     const tiles = await edgesOf(page.locator('.balance-tiles'))
     const card = await edgesOf(page.locator(FITNESS_CARD))
     const state = await edgesOf(page.locator(FITNESS_STATE))
     const sentence = await edgesOf(page.locator(FITNESS_LINE))
-    const track = await edgesOf(page.locator(`${FITNESS_CARD} .fitness-track`))
+    const rows = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
     expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
     expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
-    expect(track.top).toBeGreaterThanOrEqual(sentence.bottom)
-    expect(track.bottom).toBeLessThanOrEqual(card.bottom)
+    expect(rows.top).toBeGreaterThanOrEqual(sentence.bottom)
+    expect(rows.bottom).toBeLessThanOrEqual(card.bottom)
     // Nothing collides, and the page does not scroll sideways.
     for (const selector of [
       FITNESS_CARD,
-      `${FITNESS_CARD} .fitness-track__ends`,
       FITNESS_LINE,
       `${FITNESS_CARD} .props`,
-      '.balance-meter__ends',
-      VALUE,
-      '.balance-meter__edges',
+      ...CORNER_PARTS,
     ]) {
       const box = await page.locator(selector).first().boundingBox()
       expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
@@ -372,38 +334,25 @@ for (const [width, height] of [
   })
 }
 
-// On a wide screen the headline runs the answer's full width, the lede keeps the prose measure, and the meter and the
-// tiles span the same width.
-test('at 1280 the headline runs the full width, the lede keeps its measure, and the meter spans the tiles', async ({
+// On a wide screen the headline sits above the triangle, inside the column, and the triangle is centred on the tiles' column at 440 px at most.
+test('at 1280 the headline sits above the triangle, and the triangle is centred on the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSample(page)
   const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
-  const lede = await page.locator('.balance-hero__lede').boundingBox()
   const tiles = await page.locator('.balance-tiles').boundingBox()
-  const meter = await page.locator('.balance-meter').boundingBox()
-  if (headline === null || lede === null || tiles === null || meter === null) {
-    throw new Error('no box for the headline, lede, tiles or meter')
+  const triangle = await page.locator('.level-triangle').boundingBox()
+  if (headline === null || tiles === null || triangle === null) {
+    throw new Error('no box for the headline, tiles or triangle')
   }
-  // The lede keeps the prose measure (--measure, 36rem), which a probe of that width measures.
-  const measure = await page.locator('.balance-hero__lede').evaluate((el) => {
-    const probe = document.createElement('div')
-    probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--measure)'
-    el.parentElement!.appendChild(probe)
-    const width = probe.getBoundingClientRect().width
-    probe.remove()
-    return width
-  })
-  expect(measure).toBeGreaterThan(400)
-  expect(headline.width).toBeGreaterThan(lede.width)
-  expect(lede.width).toBeLessThanOrEqual(measure + 1)
-  expect(meter.y).toBeGreaterThanOrEqual(lede.y + lede.height)
-  expect(meter.x).toBeCloseTo(tiles.x, 0)
-  expect(meter.x + meter.width).toBeCloseTo(tiles.x + tiles.width, 0)
+  expect(headline.width).toBeLessThanOrEqual(tiles.width)
+  expect(triangle.y).toBeGreaterThanOrEqual(headline.y + headline.height)
+  expect(triangle.width).toBeLessThanOrEqual(441)
+  expect(triangle.x + triangle.width / 2).toBeCloseTo(tiles.x + tiles.width / 2, 0)
 })
 
-// A landscape phone has too little height for the meter and a card: the balance's headline is what is on screen.
+// A landscape phone has too little height for the triangle and a card: the balance's headline is what is on screen.
 test('at 667 by 375 the balance headline is on the first screen', async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await openSample(page)
@@ -411,47 +360,34 @@ test('at 667 by 375 the balance headline is on the first screen', async ({ page 
   expect((await edgesOf(page.getByRole('heading', { level: 1 }))).bottom).toBeLessThanOrEqual(foot)
 })
 
-test('the meter defines its range in place, and the level line is plain text whose bands are on Method', async ({
-  page,
-}) => {
+test('the corners are plain text in links, and the bands are on Method', async ({ page }) => {
   await openSample(page)
-  // Nothing on the level line is a control, so nothing there reads as a link.
-  await expect(page.locator(LEVEL_ROWS).first().getByRole('button')).toHaveCount(0)
-  await expect(page.locator(`${LEVEL_ROWS} .definition__term`)).toHaveCount(0)
-  // The answer's Details carry no prose on what a level is: Method lists the bands.
-  await expect(page.locator('.balance__levels-meaning')).toHaveCount(0)
-  await page.locator('.balance-hero .page-details > summary').click()
-  await expect(page.locator('.balance-hero .page-details')).not.toContainText(
-    /A band of the age grade/,
+  // A corner is a link to its sport's page; nothing inside it is a control or a defined term.
+  await expect(page.locator(CORNERS).first().getByRole('button')).toHaveCount(0)
+  await expect(page.locator(`${CORNERS} .definition__term`)).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /^Running \d+% \w+/ })).toHaveAttribute(
+    'href',
+    '#/run',
   )
-  await page.locator('.balance-hero .props__method').click()
-  await expect(page.getByRole('main')).toContainText(/Recreational below 60%/)
-  await page.goBack()
-  const range = page.getByRole('button', { name: 'range', exact: true })
-  await range.click()
-  await expect(range).toHaveAttribute('aria-expanded', 'true')
-  await expect(page.getByRole('note').filter({ hasText: /nine times out of ten/ })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(range).toHaveAttribute('aria-expanded', 'false')
-  await range.focus()
-  await page.keyboard.press('Enter')
-  await expect(range).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('link', { name: /^Cycling \d+% \w+/ })).toHaveAttribute(
+    'href',
+    '#/ride',
+  )
+  // No prose on what a level is under the answer: Method lists the bands.
+  await expect(page.locator('.balance__levels-meaning')).toHaveCount(0)
+  await expect(page.locator('.balance-hero')).not.toContainText(/A band of the age grade/)
+  await openMethod(page)
+  await expect(page.getByRole('main')).toContainText(/Club is 50% to 59%/)
 })
 
-test('the meter is named in words and its value and levels are text, none under the meta size', async ({
-  page,
-}) => {
+test('the corners are named in words and are text, none under the meta size', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
-  await expect(page.locator(TRACK)).toHaveAccessibleName(
-    new RegExp(`^${SAMPLE_TEXT.name} \\(range `),
-  )
-  await expect(page.locator(LEVEL_ROWS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
-  await expect(page.locator(LEVEL_ROWS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
+  await expect(page.locator(CORNERS).nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+  await expect(page.locator(CORNERS).nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
+  await expect(page.getByRole('link', { name: /^Running \d+% \w+/ })).toBeVisible()
   const sizes = await page
-    .locator(
-      '.balance-meter__value > *, .balance-meter__range, .balance-meter__ends, .balance-levels__row > *',
-    )
+    .locator(`${CORNERS} > *:not(.sr-only)`)
     .evaluateAll((nodes) => nodes.map((node) => parseFloat(getComputedStyle(node).fontSize)))
   expect(sizes.length).toBeGreaterThan(6)
   // The smallest step of the type scale is --text-meta, 11 px (docs/design/system.md, Type): nothing is set under it.
@@ -477,12 +413,14 @@ for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the range note is a sheet at the window's foot`, async ({
+  test(`at ${width} by ${height} a defined term's note is a sheet at the window's foot`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
-    await openSample(page)
-    const terms = [page.getByRole('button', { name: 'range', exact: true })]
+    // Method defines its terms in place; the landing example no longer defines any (its triangle has no range).
+    await page.goto('/#/method')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const terms = [page.locator('.definition button').first()]
     for (const term of terms) {
       await term.focus()
       await page.keyboard.press('Enter')
@@ -540,11 +478,11 @@ test('no box around a defined term is transformed, filtered or contained, on the
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  // The landing example defines the range (its level is plain text); Method defines its own term.
+  // The landing example defines no term now (its triangle has no range), so its boxes cannot trap a note; Method defines its own.
   await page.goto('/')
-  await expect(page.locator('.landing-example .definition')).toHaveCount(1)
+  await expect(page.locator('.landing-example .level-triangle')).toBeVisible()
+  await expect(page.locator('.landing-example .definition')).toHaveCount(0)
   const landing = await definedTermAncestors(page)
-  expect(landing.terms).toBeGreaterThanOrEqual(1)
   expect(landing.bad).toEqual([])
   await page.goto('/#/method')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -552,8 +490,8 @@ test('no box around a defined term is transformed, filtered or contained, on the
   expect(method.terms).toBeGreaterThanOrEqual(1)
   expect(method.bad).toEqual([])
   await openSample(page)
+  // Balance's hero has no defined term of its own now (the corners are links), so only the boxes are checked.
   const balance = await definedTermAncestors(page)
-  expect(balance.terms).toBeGreaterThanOrEqual(1)
   expect(balance.bad).toEqual([])
   for (const sport of ['Run', 'Ride'] as const) {
     await goTo(page, sport)
@@ -562,124 +500,39 @@ test('no box around a defined term is transformed, filtered or contained, on the
   }
 })
 
-/**
- * Sets the meter's reading to a lead the sample does not give: where its dot sits, and the words and the character
- * counts the stylesheet keeps clear of the track's ends, as the component sets them.
- */
-async function setReading(
-  page: Page,
-  reading: { at: string; number: string; unit: string; range: string; basis?: boolean },
-): Promise<void> {
-  await page.evaluate((r) => {
-    const root = document.querySelector<HTMLElement>('.balance-meter__reading')
-    const dot = document.querySelector<HTMLElement>('.balance-meter__dot')
-    if (root === null || dot === null) throw new Error('no meter')
-    dot.style.setProperty('--at', r.at)
-    root.style.setProperty('--at', r.at)
-    root.style.setProperty('--number-chars', String(r.number.length))
-    root.style.setProperty('--unit-chars', String(r.unit.length))
-    root.style.setProperty('--range-chars', String(r.range === '' ? 0 : r.range.length + 6))
-    const text = 'informed by heart rate'
-    root.style.setProperty('--basis-chars', String(r.basis === true ? text.length : 0))
-    const set = (selector: string, value: string) => {
-      const node = root.querySelector(selector)
-      if (node !== null) node.textContent = value
-    }
-    set('.balance-meter__number', r.number)
-    set('.balance-meter__unit', r.unit)
-    set('.balance-meter__edges', r.range)
-    const range = root.querySelector<HTMLElement>('.balance-meter__range')
-    if (range !== null) range.style.display = r.range === '' ? 'none' : ''
-    let basis = root.querySelector<HTMLElement>('.balance-meter__basis')
-    if (basis === null) {
-      basis = document.createElement('p')
-      basis.className = 'balance-meter__basis'
-      basis.textContent = text
-      root.append(basis)
-    }
-    basis.style.display = r.basis === true ? '' : 'none'
-  }, reading)
-}
-
-// The reading under the dot stays whole inside the plot, and so inside the window, at either end of the scale, with a
-// long range, and with the heart-rate line alone: its number, its hanging unit, its range line and that line.
+// The landing example draws the level triangle: run and ride graded, lifting with no grade yet. Its three corners stay whole
+// inside the window at a phone's width and a desktop's, and the page does not scroll sideways.
 for (const [width, height] of [
   [1440, 900],
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} the reading stays inside the window at the ends of the scale and with a long range`, async ({
+  test(`at ${width} the landing example's triangle and its corners stay inside the window`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
-    await openSample(page)
-    const cases = [
-      { at: '2.5%', number: '+100', unit: 'pts', range: '84 to 120' },
-      { at: '97.5%', number: '+100', unit: 'pts', range: '84 to 120' },
-      { at: '2.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
-      { at: '97.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
-      { at: '50%', number: '+12', unit: '%', range: '-12.4% to +130.5%' },
-      // No range line, as when the range rounds to one value: the heart-rate line alone holds the clamp.
-      { at: '2.5%', number: '+12', unit: '%', range: '', basis: true },
-      { at: '97.5%', number: '+12', unit: '%', range: '', basis: true },
-      { at: '2.5%', number: '+12', unit: '%', range: '5% to 20%', basis: true },
-    ]
-    for (const reading of cases) {
-      await setReading(page, reading)
-      const found = await page.evaluate(() => {
-        const rect = (node: Element | null) => {
-          const box = node?.getBoundingClientRect()
-          return box === undefined || box.width === 0 ? null : { left: box.left, right: box.right }
-        }
-        const reading = document.querySelector('.balance-meter__reading')
-        return {
-          plot: rect(document.querySelector('.balance-meter__plot')),
-          parts: [
-            '.balance-meter__number',
-            '.balance-meter__unit',
-            '.balance-meter__range',
-            '.balance-meter__basis',
-          ].map((selector) => {
-            const node = reading?.querySelector(selector) ?? null
-            return node !== null && getComputedStyle(node).display === 'none' ? null : rect(node)
-          }),
-        }
-      })
-      if (found.plot === null) throw new Error('no plot')
-      // The plot runs from gutter to gutter: a part inside it is inside the window with the page's margin to spare.
-      expect(found.parts.filter((box) => box !== null).length).toBeGreaterThanOrEqual(2)
-      for (const box of found.parts) {
-        if (box === null) continue
-        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(found.plot.left - 0.5)
-        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(found.plot.right + 0.5)
-        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(width)
-      }
-      // Each line stays one line: the range does not wrap into a column, and the page does not scroll sideways.
-      const heights = await page.evaluate(() =>
-        ['.balance-meter__number', '.balance-meter__range'].map(
-          (selector) =>
-            (document.querySelector(selector)?.getBoundingClientRect().height ?? 0) /
-            parseFloat(getComputedStyle(document.querySelector(selector) as Element).lineHeight),
-        ),
-      )
-      for (const lines of heights) expect(lines, JSON.stringify(reading)).toBeLessThan(1.6)
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
-        JSON.stringify(reading),
-      ).toBeLessThanOrEqual(0)
+    await page.goto('/')
+    const figure = page.locator('.landing-example .level-triangle')
+    await expect(figure).toBeVisible()
+    const corners = figure.locator('.level-triangle__corner')
+    await expect(corners).toHaveCount(3)
+    await expect(corners.nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+    await expect(corners.nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
+    await expect(corners.nth(2)).toContainText('Lifting')
+    await expect(corners.nth(2)).toContainText('No grade yet')
+    // The example is a picture of the sample, so its corners lead nowhere, and the old meter and levels are gone.
+    await expect(figure.locator('a')).toHaveCount(0)
+    await expect(
+      page.locator('.landing-example .balance-meter, .landing-example .balance-levels'),
+    ).toHaveCount(0)
+    for (const box of await corners.evaluateAll((nodes) =>
+      nodes.map((node) => node.getBoundingClientRect().toJSON() as { left: number; right: number }),
+    )) {
+      expect(box.left).toBeGreaterThanOrEqual(0)
+      expect(box.right).toBeLessThanOrEqual(width)
     }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0)
   })
 }
-
-test('the number is centred under the dot, with its unit hanging off to the right', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await openSample(page)
-  const dot = await page.locator('.balance-meter__dot').boundingBox()
-  const number = await page.locator('.balance-meter__number').boundingBox()
-  const unit = await page.locator('.balance-meter__unit').boundingBox()
-  if (dot === null || number === null || unit === null) throw new Error('no meter boxes')
-  expect(number.x + number.width / 2).toBeCloseTo(dot.x + dot.width / 2, 0)
-  expect(unit.x).toBeGreaterThanOrEqual(number.x + number.width)
-})

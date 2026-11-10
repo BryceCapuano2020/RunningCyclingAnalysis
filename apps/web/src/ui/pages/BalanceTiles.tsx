@@ -6,11 +6,12 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { countSport } from '../records'
 import type { GradeOutcome } from '../grades'
+import type { LiftTileModel } from '../lift/liftTile'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { BALANCE_PAIR } from '../sports'
 import { RowIndex } from '../components/RowList'
-import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
+import { LiftTile } from './LiftTile'
 import { ThresholdTile } from './ThresholdTile'
 import { thresholdTileIsBare } from './thresholdTileBare'
 import './BalanceTiles.css'
@@ -32,12 +33,16 @@ export interface BalanceTilesProps {
   leftOut?: LeftOutRuns
   /** True where the levels row already gives each sport's level and grade, so a tile does not say them again. */
   levelShown?: boolean
+  /** The lifting row: the big three's total and each lift's grade; its figure is null when no lift has an estimate. */
+  lift?: LiftTileModel
 }
 
+const NO_LIFT_TILE: LiftTileModel = { heading: 'Big three total', figure: null, rows: [] }
+
 /**
- * The headline numbers, at most three, as numbered rows: each sport's threshold, and what the ride is worth as a run. The lean
- * between the sports is the headline and the meter's to say, once, so it has no tile. A sport with nothing in
- * the period is a prompt in its place; the ride as a run needs both sports, so it is left out with one.
+ * The headline numbers, at most three, as numbered rows: each sport's threshold, and lifting (the big three's projected one-rep max as one figure,
+ * each lift's grade in Details). The lean between the sports is the headline and the triangle's to say, once, so it has no tile. A sport with
+ * nothing in the period is a prompt in its place; the lifting row needs both sports or a lift, so it is left out with one sport and no lift.
  */
 export function BalanceTiles({
   result,
@@ -51,6 +56,7 @@ export function BalanceTiles({
   soleSport = null,
   leftOut,
   levelShown = false,
+  lift = NO_LIFT_TILE,
 }: BalanceTilesProps) {
   const both = BALANCE_PAIR.every((sport) => countSport(result.activities, sport) > 0)
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
@@ -66,8 +72,8 @@ export function BalanceTiles({
     levelShown,
     defineTerm: sport === firstThreshold,
   })
-  // Each row: its sport, whose ink its index takes (the ride as a run is a ride's), and what it shows.
-  const tiles: { key: string; sport: Sport; node: ReactNode }[] = [
+  // Each row: its sport, whose ink its index takes (lifting has none), and what it shows.
+  const tiles: { key: string; sport?: Sport; node: ReactNode }[] = [
     ...BALANCE_PAIR.flatMap((sport) =>
       countSport(result.activities, sport) > 0
         ? thresholdTileIsBare(thresholdProps(sport))
@@ -91,17 +97,7 @@ export function BalanceTiles({
               },
             ],
     ),
-    ...(both
-      ? [
-          {
-            key: 'foot',
-            sport: 'ride' as const,
-            node: (
-              <CrossSportCard result={result} units={units} weighted={weighted} massKg={massKg} />
-            ),
-          },
-        ]
-      : []),
+    ...(both || lift.rows.length > 0 ? [{ key: 'lift', node: <LiftTile tile={lift} /> }] : []),
   ]
   // A sport's tile that would hold only its name is left out, and with nothing else there is no section either.
   if (tiles.length === 0) return null

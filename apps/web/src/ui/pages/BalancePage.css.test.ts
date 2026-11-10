@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { readStylesheet, ruleBody } from '../components/stylesheet'
 
 const page = await readStylesheet(import.meta.url, './BalancePage.css')
-const meter = await readStylesheet(import.meta.url, '../components/BalanceMeter.css')
-const levels = await readStylesheet(import.meta.url, './BalanceLevels.css')
 
 describe('Balance page stylesheet', () => {
   it('sets the answer in the serif at --display-2 at every width, with no size of its own on a phone', () => {
@@ -19,7 +17,7 @@ describe('Balance page stylesheet', () => {
     expect(page).not.toMatch(/\.balance-hero__line/)
   })
 
-  it('stacks the answer, the meter, the levels and the share button in one column, the stack gap apart', () => {
+  it('stacks the answer, the triangle and the share button in one column, the stack gap apart', () => {
     expect(page).toMatch(
       /\.balance-hero__pair \{[^}]*display:\s*grid;[^}]*gap:\s*var\(--stack-gap\)/,
     )
@@ -29,12 +27,6 @@ describe('Balance page stylesheet', () => {
 
   it('has no eyebrow, highlight or underline on the sport word', () => {
     expect(page).not.toMatch(/eyebrow|balance-hero__sport|linear-gradient/)
-  })
-
-  it('draws the levels as one wrapping line, with no icon or column grid', () => {
-    expect(ruleBody(levels, '.balance-levels__list')).toMatch(/flex-wrap:\s*wrap/)
-    expect(levels).not.toMatch(/glyph|grid-template-columns|border-top/)
-    expect(ruleBody(meter, '.balance-meter__number')).toMatch(/font-size:\s*var\(--title\)/)
   })
 
   it('leaves the headline’s focus to the base rule, which underlines no page title', () => {

@@ -5,6 +5,7 @@ import type { Locator, Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
 import { lbToKg } from '@rca/core/units'
 import {
+  ANSWERED_TITLE,
   CLIENT_HEADERS,
   LANDING_TITLE,
   activitiesRows,
@@ -21,7 +22,7 @@ import { LEGACY_REVISION, legacyEmail } from './legacySeed.js'
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
-const RUNNING_HEADLINE = /leans toward running/
+const RUNNING_HEADLINE = ANSWERED_TITLE
 const SAVED_NOTICE = 'Saved 15 activities to your library'
 const KEEP_FILES = 'Keep original files in my library'
 /** An import saves each activity and its file in turn, which takes longer than the default. */

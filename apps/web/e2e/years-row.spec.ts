@@ -6,7 +6,6 @@ import {
   BALANCE_TITLE,
   completeSetup,
   edgesOf,
-  firstScreenFoot,
   goTo,
   horizontalOverflow,
   importSummaryShown,
@@ -15,13 +14,10 @@ import {
 } from './helpers.js'
 
 /**
- * History (D9): the row under the fitness card on Balance, the row on the Run page that links to the History tab, and the
- * episodes the tab lists under its fitness chart. The first-screen
- * contracts of analysis.spec.ts run on the sample, which has too few weeks for a row; this runs them with one. The library
+ * History (D9): the row on the Run page that links to the History tab, and the
+ * episodes the tab lists under its fitness chart. The sample has too few weeks for a row; this runs them with a library that has one. (The row under the fitness card on Balance was cut on 10 Nov 2026.) The library
  * is generated here (96 steady runs nine days apart, a slower stretch in the middle), so it is a slip that came back.
  */
-
-const ROW = '[data-testid="years-row"]'
 
 /** A run of 25 minutes at `speed` m/s and about `hr` bpm, a point every 5 s: steady, and small. */
 function gpx(startMs: number, speed: number, hr: number): string {
@@ -62,7 +58,9 @@ async function openWithYears(page: Page): Promise<void> {
   // The heading shows before the worker has saved the library; a reload that cuts the save short keeps nothing to tell.
   await importSummaryShown(page, /^Added 96 runs/, 60_000)
   await page.reload()
-  await expect(page.locator(ROW)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, {
+    timeout: 30_000,
+  })
 }
 
 const SIZES = [
@@ -72,27 +70,6 @@ const SIZES = [
 ] as const
 
 for (const size of SIZES) {
-  test(`at ${size.width} by ${size.height} the row is 48 px or less, the headline is above it and on the first screen, and nothing overflows`, async ({
-    page,
-  }) => {
-    test.setTimeout(120_000)
-    const errors = trackErrors(page)
-    await page.setViewportSize(size)
-    await openWithYears(page)
-    const row = page.locator(ROW)
-    const box = (await row.boundingBox())!
-    expect(box.height).toBeLessThanOrEqual(48)
-    const rowEdges = await edgesOf(row)
-    const headline = await edgesOf(page.getByRole('heading', { level: 1 }))
-    expect(rowEdges.top).toBeGreaterThanOrEqual(headline.bottom)
-    expect(headline.bottom).toBeLessThanOrEqual(await firstScreenFoot(page))
-    const overflow = await horizontalOverflow(page)
-    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth)
-    expect(box.x).toBeGreaterThanOrEqual(0)
-    expect(box.x + box.width).toBeLessThanOrEqual(size.width)
-    expect(errors).toEqual([])
-  })
-
   test(`at ${size.width} by ${size.height} the Run page's History row says its finding and links to the History tab, which lists the episodes under its chart`, async ({
     page,
   }) => {
@@ -103,11 +80,12 @@ for (const size of SIZES) {
     await goTo(page, 'Run')
     const section = page.getByRole('region', { name: 'History' })
     await expect(section).toBeVisible()
-    // One line: the finding and a link. The list and the picture of the years are the History tab's.
+    // A strip of the years with the slip shaded, its finding as the strip's text, and a link. The episodes are the History tab's.
     await expect(section).toContainText(/Slipped in 2023, then came back/)
-    await expect(section.locator('details')).toHaveCount(0)
+    await expect(
+      section.getByRole('figure', { name: 'History' }).getByTestId('fitness-span').first(),
+    ).toBeAttached()
     await expect(section.getByRole('region', { name: 'Episodes' })).toHaveCount(0)
-    await expect(section.getByRole('figure')).toHaveCount(0)
     const link = section.getByRole('link', { name: 'See History' })
     await expect(link).toHaveAttribute('href', '#/history')
     expect((await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations).toEqual([])
@@ -126,22 +104,3 @@ for (const size of SIZES) {
     expect(errors).toEqual([])
   })
 }
-
-test('opening the row shows the whole sentence, and Hide takes the row away for good', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
-  await page.setViewportSize({ width: 390, height: 844 })
-  await openWithYears(page)
-  const row = page.locator(ROW)
-  await row.locator('summary').click()
-  await expect(row.locator('.checkin-row__full')).toBeVisible()
-  await row.getByRole('button', { name: 'Hide' }).click()
-  await expect(row).toHaveCount(0)
-  // Opened and hidden is seen: a reload brings no row back, and the History row is still on the Run page.
-  await page.reload()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  await expect(page.locator(ROW)).toHaveCount(0)
-  await goTo(page, 'Run')
-  await expect(page.getByRole('region', { name: 'History' })).toBeVisible()
-})

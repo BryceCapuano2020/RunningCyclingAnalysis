@@ -4,10 +4,9 @@ import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { saveCardName, storedCardName } from '../../share/cardName'
-import { cardFileName, type CardFormat } from '../../share/cardLayout'
+import type { CardFormat } from '../../share/cardLayout'
 import {
   canShareImage,
-  canvasFile,
   previewUrl,
   releasePreview,
   saveFile,
@@ -17,9 +16,10 @@ import {
 import { hasShareableContent } from '../../share/hasShareableContent'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
+import type { TriangleView } from '../triangleSports'
 import { useHoldInputs } from '../holdContext'
-import type { HoldInputs } from '../resultHold'
 import { rideHoldInputs } from '../rideLeftOut'
+import { loadCardModules, makeFile, type CardInputs, type CardModules } from './shareImageCard'
 import { CardNameField } from './CardNameField'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
 import { useModalDialog } from './useModalDialog'
@@ -38,17 +38,18 @@ export interface ShareImageButtonProps {
   gap: BalanceGap | null
   /** Each sport's grade as the page shows it, so the card's levels match the cards. A ride's waits for the weight. */
   grades: Record<Sport, GradeOutcome | null>
+  /** The level triangle the page draws, lifting's corner included, so the card shows the same figure. */
+  triangle: TriangleView
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
-
-/** What the card is drawn from: the page's inputs, without the analysis state. */
-type CardInputs = Omit<ShareImageButtonProps, 'disabled'> & { name: string; hold: HoldInputs }
 
 interface Preview {
   format: CardFormat
   /** The PNG file of the card, or null when it could not be drawn. The action shares or saves this file. */
   file: File | null
+  /** The card's description: the headline, the line and the three corners in one sentence. */
+  alt: string
   /** The card as a picture, or null when it could not be drawn. */
   url: string | null
 }
@@ -84,50 +85,6 @@ function deliveredText(format: CardFormat, delivery: CanvasDelivery): string {
 }
 
 /**
- * The card's code and its fonts. The card loads on the first use, so it is not in the app's first
- * download. The canvas only draws a web font that has loaded, so the faces are waited for first.
- */
-async function loadCardModules() {
-  const [cardModel, renderCard] = await Promise.all([
-    import('../../share/cardModel'),
-    import('../../share/renderCard'),
-  ])
-  await renderCard.loadCardFonts()
-  return { buildShareCard: cardModel.buildShareCard, renderShareCard: renderCard.renderShareCard }
-}
-
-type CardModules = Awaited<ReturnType<typeof loadCardModules>>
-
-/**
- * Draws the card in a shape and encodes it as a PNG file, or gives null when there is no card to
- * draw.
- */
-async function makeFile(
-  inputs: CardInputs,
-  format: CardFormat,
-  when: Date,
-  loadCard: () => Promise<CardModules>,
-): Promise<File | null> {
-  const { buildShareCard, renderShareCard } = await loadCard()
-  const card = buildShareCard(
-    inputs.result,
-    inputs.settings,
-    inputs.units,
-    inputs.period,
-    inputs.isSample,
-    inputs.weightKnown,
-    inputs.gap,
-    inputs.grades,
-    inputs.name,
-    inputs.hold,
-  )
-  if (card === null) return null
-  const canvas = document.createElement('canvas')
-  if (!renderShareCard(card, canvas, format)) return null
-  return canvasFile(canvas, cardFileName(format, inputs.period, when))
-}
-
-/**
  * Shares the balance on screen as a PNG, through a sheet with a preview of the card, a choice of
  * shape, and one action: the device's share sheet where it can take this image, or a download. The
  * card is drawn and encoded once for the preview, so the action can start the share straight away.
@@ -135,7 +92,18 @@ async function makeFile(
  * entered.
  */
 export function ShareImageButton(props: ShareImageButtonProps) {
-  const { result, settings, units, period, isSample, weightKnown, gap, grades, disabled } = props
+  const {
+    result,
+    settings,
+    units,
+    period,
+    isSample,
+    weightKnown,
+    gap,
+    grades,
+    triangle,
+    disabled,
+  } = props
   const hold = useHoldInputs()
   const [open, setOpen] = useState(false)
   const [format, setFormat] = useState<CardFormat>('square')
@@ -191,6 +159,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     weightKnown,
     gap,
     grades,
+    triangle,
     name,
   ]
   const [seenFrom, setSeenFrom] = useState<readonly unknown[]>(drawnFrom)
@@ -239,15 +208,23 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       weightKnown,
       gap,
       grades,
+      triangle,
       name,
       hold,
     }
     makeFile(source, format, new Date(), loadCard).then(
-      (file) => {
-        if (current) setPreview({ format, file, url: file === null ? null : previewUrl(file) })
+      (made) => {
+        if (current) {
+          setPreview({
+            format,
+            file: made?.file ?? null,
+            alt: made?.alt ?? '',
+            url: made === null ? null : previewUrl(made.file),
+          })
+        }
       },
       () => {
-        if (current) setPreview({ format, file: null, url: null })
+        if (current) setPreview({ format, file: null, alt: '', url: null })
       },
     )
     return () => {
@@ -264,6 +241,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     weightKnown,
     gap,
     grades,
+    triangle,
     name,
     hold,
     loadCard,
@@ -347,7 +325,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
               <img
                 className={preview.format === format ? undefined : 'share-sheet__picture--stale'}
                 src={preview.url}
-                alt={`Preview of the ${SHAPE[preview.format].name.toLowerCase()} card`}
+                alt={`Preview of the ${SHAPE[preview.format].name.toLowerCase()} card. ${preview.alt}`}
               />
             ) : (
               <p className="muted">{shown === null ? PREVIEW_WAITING : PREVIEW_FAILED}</p>

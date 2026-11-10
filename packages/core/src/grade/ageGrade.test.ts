@@ -225,7 +225,13 @@ describe('levelOf', () => {
     [0.7, 'Regional'],
     [0.6999, 'Local'],
     [0.6, 'Local'],
-    [0.5999, 'Recreational'],
+    [0.5999, 'Club'],
+    [0.5, 'Club'],
+    [0.4999, 'Trained'],
+    [0.4, 'Trained'],
+    [0.3999, 'Active'],
+    [0.3, 'Active'],
+    [0.2999, 'Recreational'],
     [0, 'Recreational'],
   ])('labels grade %s as %s', (grade, label) => {
     expect(levelOf(grade)).toBe(label)
@@ -239,7 +245,7 @@ describe('levelOf', () => {
   )
 
   it('lists the bands highest first', () => {
-    expect(GRADE_LEVELS.map((level) => level.min)).toEqual([0.9, 0.8, 0.7, 0.6, 0])
+    expect(GRADE_LEVELS.map((level) => level.min)).toEqual([0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0])
   })
 })
 
@@ -257,7 +263,10 @@ describe('gradePercent', () => {
     [0.7, 70, 'Regional'],
     [0.6999, 69.9, 'Local'],
     [0.6, 60, 'Local'],
-    [0.5999, 59.9, 'Recreational'],
+    [0.5999, 59.9, 'Club'],
+    [0.5, 50, 'Club'],
+    [0.4999, 49.9, 'Trained'],
+    [0.2999, 29.9, 'Recreational'],
   ])('shows grade %s as %s%%, labelled %s', (grade, percent, label) => {
     expect(gradePercent(grade)).toBe(percent)
     expect(levelOf(grade)).toBe(label)
@@ -318,6 +327,9 @@ describe('grade names and ages', () => {
       'National',
       'Regional',
       'Local',
+      'Club',
+      'Trained',
+      'Active',
       'Recreational',
     ])
   })

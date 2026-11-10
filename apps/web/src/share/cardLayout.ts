@@ -19,6 +19,17 @@ export interface CardLayout {
   groupGap?: number
   headline: readonly number[]
   figure: readonly number[]
+  /** The side of the triangle's square in px, largest first; the card takes the first that fits. The corner words hang outside it. */
+  triangle: readonly number[]
+  /** The triangle keeps at least this size while the origin and the type sizes can still give way; below it, it shrinks last. */
+  triangleMin: number
+  /** The size of the line under the headline, which is cut to one line. */
+  line: number
+}
+
+/** Sizes from `high` down to `low` in steps of 20, largest first. */
+function sizesFrom(high: number, low: number): number[] {
+  return Array.from({ length: Math.floor((high - low) / 20) + 1 }, (_, index) => high - 20 * index)
 }
 
 /** A story's top and bottom are covered by the app's own bars, so its margins are wider. */
@@ -29,8 +40,11 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     marginX: 80,
     marginY: 80,
     headlineLines: 2,
-    headline: [96, 88, 80, 72, 64, 56],
-    figure: [96, 88, 80, 72, 64, 56],
+    headline: [80, 76, 72, 68, 64, 56],
+    figure: [64, 60, 56, 52, 48, 44],
+    triangle: sizesFrom(520, 200),
+    triangleMin: 380,
+    line: 36,
   },
   story: {
     width: 1080,
@@ -39,8 +53,11 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     marginY: 240,
     headlineLines: 3,
     groupGap: 48,
-    headline: [120, 112, 104, 96, 88, 80],
-    figure: [128, 120, 112, 104, 96, 88],
+    headline: [96, 92, 88, 84, 80, 72],
+    figure: [88, 84, 80, 76, 72, 64],
+    triangle: sizesFrom(880, 300),
+    triangleMin: 440,
+    line: 40,
   },
 }
 

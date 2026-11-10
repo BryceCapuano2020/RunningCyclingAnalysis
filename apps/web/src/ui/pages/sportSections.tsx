@@ -7,6 +7,7 @@ import { BestEffortsSection } from './BestEffortsSection'
 import { racePredictionsContent } from './racePredictionsSection'
 import { SectionCell } from './SectionCell'
 import { SectionLine } from './SectionLine'
+import { SportHistory } from './SportHistory'
 import { TimeInZonesSection } from './TimeInZonesSection'
 import { hrefFor } from '../route'
 import { SPORT_PLURAL } from '../sports'
@@ -66,12 +67,38 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
   // The row says the finding of the sport's years and links to the History tab, which holds the chart and the episodes.
   // A sport with no years to tell, or no look-back to read, says what it needs; one too short for them says so.
   years: (context) => {
-    const { sport, lookBack, fitness } = context
+    const { sport, lookBack, fitness, fitnessDots, units } = context
     const block = lookBack?.sports[sport]
+    const link = { href: hrefFor({ page: 'history' }), text: 'See History' }
+    const dots = fitnessDots?.[sport]
+    // A graph needs a dot to draw: with none the row is its sentence, as before.
+    const drawn = dots !== undefined && dots.levels.length > 0
     if (block === undefined) return emptyOf(context, 'years', nothingToTell(sport))
-    if (block.fitness.kind === 'too-short') return emptyOf(context, 'years', tooShortText(sport))
+    if (block.fitness.kind === 'too-short') {
+      const reason = tooShortText(sport)
+      if (!drawn) return emptyOf(context, 'years', reason)
+      return {
+        content: (
+          <SportHistory
+            sport={sport}
+            dots={dots}
+            units={units}
+            finding={reason}
+            reason={reason}
+            link={link}
+          />
+        ),
+      }
+    }
     const finding = yearsFinding(block, fitness?.[sport].state ?? null)
     if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
+    if (drawn) {
+      return {
+        content: (
+          <SportHistory sport={sport} dots={dots} units={units} finding={finding} link={link} />
+        ),
+      }
+    }
     return {
       content: (
         <SectionLine
@@ -79,7 +106,7 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
           id="years"
           title={SECTION_NAME.years(sport)}
           line={finding}
-          link={{ href: hrefFor({ page: 'history' }), text: 'See History' }}
+          link={link}
         />
       ),
     }

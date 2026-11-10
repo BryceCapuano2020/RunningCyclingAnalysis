@@ -408,6 +408,9 @@ describe('level bands and sex', () => {
   it('lists the bands lowest first, named as the UI writes them, with their lower bounds', () => {
     expect(LEVEL_BANDS).toEqual([
       { name: 'Recreational', min: 0 },
+      { name: 'Active', min: 0.3 },
+      { name: 'Trained', min: 0.4 },
+      { name: 'Club', min: 0.5 },
       { name: 'Local', min: 0.6 },
       { name: 'Regional', min: 0.7 },
       { name: 'National', min: 0.8 },

@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { energyReading } from '../ui/components/balanceScale'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
 import {
   LONG_FOOTNOTE,
   LONG_HEADLINE,
   LONG_NAME,
-  RIDE_GRADE,
   cardModel,
   render,
   type RecordedText,
@@ -17,19 +15,19 @@ const FORMATS: CardFormat[] = ['square', 'story']
 const ORIGIN_URL = 'example.test'
 
 /**
- * The worst case the card must hold: a long headline, the longest level name on both sports, a name that fills the
- * top row, the sample label, a long footnote and an energy balance with the heart-rate line on its range.
+ * The worst case the card must hold: a long headline and line, a name that fills the top row, the sample label and the
+ * longest footnote, over the triangle with every corner graded.
  */
 function worstCase(): ShareCardModel {
   const base = cardModel()
   return {
     ...base,
     headline: LONG_HEADLINE,
-    footnote: LONG_FOOTNOTE,
+    // The longest footnote the model writes: both standards, which the footer sets on a line of its own under the dates.
+    footnote: 'Graded on USATF road standards and OpenPowerlifting.',
     badge: 'Sample data',
     name: LONG_NAME,
-    informedByHeartRate: true,
-    heroes: base.heroes.map((hero) => Object.assign(hero, { grade: RIDE_GRADE })),
+    line: LONG_HEADLINE,
   }
 }
 
@@ -155,20 +153,5 @@ describe('the story layout', () => {
     expect(find(ctx.texts, 'RunningCyclingAnalysis').y).toBe(marginY)
     expect(find(ctx.texts, ORIGIN_URL).y + ORIGIN.lineHeight).toBeCloseTo(height - marginY, 6)
     expect(NAME.lineHeight).toBeGreaterThan(0)
-  })
-})
-
-describe('the balance mark at the end of the scale', () => {
-  it('stays inside the track when the lead is zero or runs past the scale', () => {
-    for (const meter of [
-      energyReading({ p05: 1, p50: 1, p95: 1 }),
-      energyReading({ p05: 0.4, p50: 0.45, p95: 0.5 }),
-    ]) {
-      const { ok, ctx } = render(cardModel({ meter }), 'square')
-      expect(ok).toBe(true)
-      const mark = ctx.rects.find((rect) => rect.w === 4)
-      expect(mark?.x ?? 0).toBeGreaterThanOrEqual(80)
-      expect((mark?.x ?? 0) + 4).toBeLessThanOrEqual(1000)
-    }
   })
 })

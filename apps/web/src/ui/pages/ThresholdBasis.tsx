@@ -5,10 +5,10 @@ import type { Property } from '../components/property'
 import { SECTION_ID } from '../components/methodTopics'
 
 /** What the disclosure that opens a threshold's detail says. */
-export const DETAIL_TERM = 'How this was worked out'
+export const DETAIL_TERM = 'Details'
 
 /**
- * The one disclosure under a threshold's figure, "How this was worked out": a detail panel of what the figure rests on,
+ * The one disclosure under a threshold's figure, "Details": a detail panel of what the figure rests on,
  * its range and, for a ride, what heart rate did, with a link to the method on Method. Nothing is drawn without rows.
  * Balance has two of them, so each is named for its threshold to a screen reader.
  */

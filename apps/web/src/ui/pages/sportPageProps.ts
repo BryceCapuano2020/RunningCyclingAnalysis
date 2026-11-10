@@ -6,6 +6,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { Sport } from '@rca/core/types'
 import type { FitnessBySport } from '@rca/core/fitness'
+import type { History } from '@rca/core/history'
 import type { LookBack } from '@rca/core/lookback'
 import type { MeasureTime, ZoneWindow } from '@rca/core/zones'
 import type { UnitSystem } from '@rca/core/units'
@@ -29,6 +30,8 @@ export interface SportPageProps {
   fitness?: FitnessBySport
   /** Each sport's years in hindsight, whatever the period: the page's History row reads its own sport's. */
   lookBack?: LookBack
+  /** Each sport's steady activities as dots over the whole library, which the Fitness and History rows draw. */
+  fitnessDots?: History['fitness']
   /** This sport's time in each zone over the period, one row for each measure. Absent: none counted. */
   zoneTimes?: readonly MeasureTime[]
   /** The same over the period before it, or null for all time or when it holds no activities. */

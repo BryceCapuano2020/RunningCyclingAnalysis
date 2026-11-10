@@ -68,12 +68,14 @@ describe('the level on the sport page', () => {
 
     // The level panel states the grade at the threshold, with its level.
     const panel = screen.getByTestId('hero-level')
-    expect(panel).toHaveTextContent(/Recreational|Local|Regional|National|World/)
+    expect(panel).toHaveTextContent(
+      /Recreational|Active|Trained|Club|Local|Regional|National|World/,
+    )
     const figure = screen.getByRole('figure', { name: 'Best effort by duration' })
     expect(figure).toHaveTextContent(/\d+:\d{2} \/km/)
     expect(figure).not.toHaveAccessibleDescription()
     expect(figure).not.toHaveTextContent(
-      /Best 20 min: [^A-Z]*(Recreational|Local|Regional|National|World)/,
+      /Best 20 min: [^A-Z]*(Recreational|Active|Trained|Club|Local|Regional|National|World)/,
     )
   })
 })

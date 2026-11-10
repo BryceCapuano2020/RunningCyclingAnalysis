@@ -15,8 +15,10 @@
   --run-ink: #c2410c;
   --ride-ink: #1d4ed8;
   --swim-ink: #0e7490;
+  --lift-ink: #86198f;
   --run-wash: #c2410c1f;
   --ride-wash: #1d4ed81f;
+  --lift-wash: #86198f1f;
   --previous-mark: #8a847c;
   --status-critical: #991b1b;
   --status-warning: #8a5300;
@@ -165,6 +167,11 @@
   --zone-3: var(--zone-ride-3);
   --zone-4: var(--zone-ride-4);
   --zone-5: var(--zone-ride-5);
+}
+
+[data-sport='lift'] {
+  --sport-ink: var(--lift-ink);
+  --sport-wash: var(--lift-wash);
 }
 
 /* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone or a finger is the pointer: 44 px targets. */

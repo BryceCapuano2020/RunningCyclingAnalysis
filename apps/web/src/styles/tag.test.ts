@@ -8,7 +8,6 @@ const sheets = await readStylesheetsUnder(import.meta.url, '../')
 const TAGGED = [
   '.stat-tile__name',
   '.sport-hero__period',
-  '.balance-levels__name',
   '.fitness-card__sport',
   '.fitness-track__tag',
 ]

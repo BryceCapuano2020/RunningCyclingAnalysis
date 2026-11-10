@@ -9,7 +9,6 @@ const base = await read('./base.css')
 const tokens = await read('./tokens.css')
 const app = await read('../App.css')
 const dropzone = await read('../ui/components/Dropzone.css')
-const balanceMeter = await read('../ui/components/BalanceMeter.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const sportHero = await read('../ui/pages/SportHero.css')
 const racePredictions = await read('../ui/pages/RacePredictions.css')
@@ -17,7 +16,6 @@ const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
-const crossSport = await read('../ui/pages/CrossSportCard.css')
 const activityPage = await read('../ui/pages/ActivityPage.css')
 const activityFacts = await read('../ui/pages/ActivityFacts.css')
 const activityList = await read('../ui/components/ActivityList.css')
@@ -30,14 +28,12 @@ const exportGuides = await read('../ui/components/ExportGuides.css')
 const privacyCss = await read('./privacy.css')
 const icons = await read('../ui/components/icons.tsx')
 const iconsCss = await read('../ui/components/icons.css')
-const balanceMeterTsx = await read('../ui/components/BalanceMeter.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
 const statTile = await read('../ui/pages/StatTile.css')
 const statTileTsx = await read('../ui/pages/StatTile.tsx')
 const balanceTiles = await read('../ui/pages/BalanceTiles.css')
-const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
 const weightNote = await read('../ui/components/WeightNote.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
@@ -233,18 +229,6 @@ describe('page chrome', () => {
 })
 
 describe('forced colours', () => {
-  it('keeps the meter line, its end caps, its tick and its mark in the system colours', () => {
-    const forced = mediaOf(balanceMeter, FORCED)
-    for (const selector of [
-      '.balance-meter__track::before',
-      '.balance-meter__even',
-      '.balance-meter__dot',
-    ]) {
-      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
-    }
-    expect(rulesWith(forced, '.balance-meter__track::after')).toMatch(/border-color:\s*CanvasText/)
-  })
-
   it('keeps the two chart lines apart in the system colours', () => {
     const forced = mediaOf(chartSeries, FORCED)
     expect(rulesWith(forced, '.chart-series__line--run')).toMatch(/stroke:\s*CanvasText/)
@@ -383,7 +367,6 @@ describe('type scale', () => {
     ['base.css', base],
     ['App.css', app],
     ['Header.css', header],
-    ['BalanceMeter.css', balanceMeter],
     ['StatTile.css', statTile],
     ['SportPage.css', sportPage],
     ['BalancePage.css', balancePage],
@@ -399,25 +382,18 @@ describe('type scale', () => {
 })
 
 describe('shared layout', () => {
-  it('draws the meter on the figure rule, so it keeps no margin of its own', () => {
-    expect(components).toMatch(/\.scale-figure \{/)
-    expect(balanceMeterTsx).toContain('scale-figure')
-    expect(balanceMeter).not.toMatch(/\.balance-meter \{/)
-  })
-
   it('takes the landing columns from a column token, not a literal width', () => {
     expect(app).not.toMatch(/minmax\(min\(100%, 360px\)/)
     expect(app).toMatch(/var\(--column-landing\)/)
     expect(tokens).toMatch(/--column-landing:\s*360px/)
   })
 
-  it('lets the ride on foot row shrink, so the page does not widen', () => {
+  it('lets a headline row shrink, so the page does not widen', () => {
     expect(statTileTsx).toContain('className="row__body stat-tile__body"')
-    expect(rulesWith(crossSport, '.cross-sport__details')).toMatch(/min-width:\s*0/)
   })
 })
 
-describe('balance hero, meter and evidence', () => {
+describe('balance hero and evidence', () => {
   it('sets the headline as a block, and balances its line', () => {
     expect(rulesWith(balancePage, '.balance-hero__head')).not.toMatch(/flex/)
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
@@ -428,84 +404,11 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-page > .band')).toMatch(/margin-top:\s*0;/)
   })
 
-  it('gives the value room under the track, clear of the line, for the number and its range', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-bottom:\s*3\.5rem/)
-    expect(rulesWith(balanceMeter, '.balance-meter__track')).toMatch(/height:\s*1\.5rem/)
-    expect(rulesWith(balanceMeter, '.balance-meter__reading')).toMatch(/top:\s*1\.875rem/)
-  })
-
-  it('clamps the mark and the value to an edge inside the plot, so each stays whole at either end of the scale', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--dot-edge:\s*1px/)
-    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(
-      /left:\s*clamp\(var\(--dot-edge\),\s*var\(--at\),\s*calc\(100% - var\(--dot-edge\)\)\)/,
-    )
-    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
-    expect(reading).toMatch(
-      /left:\s*clamp\(var\(--edge-left\),\s*var\(--at\),\s*calc\(100% - var\(--edge-right\)\)\)/,
-    )
-    // The room each side comes from the reading's own characters, so a long range keeps clear of the gutter.
-    expect(reading).toMatch(/--edge-left:[^;]*var\(--number-chars[^;]*var\(--range-chars/)
-    expect(reading).toMatch(/--edge-right:[^;]*var\(--unit-chars[^;]*var\(--range-chars/)
-  })
-
-  it('centres the value with a zero-width anchor and flex, never a transform, which would trap a definition’s fixed sheet on a phone', () => {
-    const reading = rulesWith(balanceMeter, '.balance-meter__reading')
-    expect(reading).toMatch(/width:\s*0;/)
-    expect(reading).toMatch(/align-items:\s*center/)
-    for (const selector of [
-      '.balance-meter',
-      '.balance-meter__plot',
-      '.balance-meter__reading',
-      '.balance-meter__value',
-      '.balance-meter__range',
-    ]) {
-      expect(rulesWith(balanceMeter, selector), selector).not.toMatch(
-        /(^|[;{\s])(transform|filter|backdrop-filter|perspective|contain|will-change|container-type):/,
-      )
-    }
-  })
-
-  it('gives "range" a little room, since it sits against the figures, and prose terms none', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__range .definition__term')).toMatch(
-      /margin:\s*-4px 2px 0/,
-    )
-  })
-
-  it('sets the value in the mono, tabular, with its unit quieter beside it and the range as meta', () => {
-    const value = rulesWith(balanceMeter, '.balance-meter__value')
-    expect(value).toMatch(/font-family:\s*var\(--font-mono\)/)
-    expect(value).toMatch(/tabular-nums/)
-    expect(rulesWith(balanceMeter, '.balance-meter__unit')).toMatch(
-      /color:\s*var\(--ink-secondary\)/,
-    )
-    const range = rulesWith(balanceMeter, '.balance-meter__range')
-    expect(range).toMatch(/font-size:\s*var\(--text-meta\)/)
-    expect(range).toMatch(/text-transform:\s*uppercase/)
-  })
-
-  it('draws one ink mark, an upright with no ring, halo or sport colour', () => {
-    const mark = rulesWith(balanceMeter, '.balance-meter__dot')
-    expect(mark).toMatch(/background:\s*var\(--ink\)/)
-    expect(mark).toMatch(/width:\s*2px/)
-    expect(balanceMeter).not.toMatch(/box-shadow|balance-meter__band|border-radius/)
-  })
-
   it('gives the held note’s Profile link the control height on a phone', () => {
     const phone = '(max-width: 760px), (pointer: coarse)'
     expect(mediaOf(weightNote, phone)).toMatch(
       /\.weight-note__link \{[^}]*min-height:\s*var\(--control-height\)/,
     )
-  })
-
-  it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
-    const phone = mediaOf(equivalenceCss, '(max-width: 479px)')
-    expect(phone).toMatch(/\.equivalence-list__labels \{[^}]*display:\s*grid/)
-    // The base columns, above 379 px: the phone's own columns are pinned with its own width.
-    const base = outsideMedia(equivalenceCss)
-    const columns =
-      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.75fr\)\s*minmax\(0,\s*1\.25fr\)/
-    expect(rulesWith(base, '.equivalence-list__labels')).toMatch(columns)
-    expect(rulesWith(base, '.equivalence-list dl')).toMatch(columns)
   })
 })
 

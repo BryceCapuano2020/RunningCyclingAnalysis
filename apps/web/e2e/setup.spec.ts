@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { SETUP_DIALOG_NAME, activitiesRows, fixturePath, goTo, uploadFixtures } from './helpers.js'
+import {
+  ANSWERED_TITLE,
+  SETUP_DIALOG_NAME,
+  activitiesRows,
+  fixturePath,
+  goTo,
+  uploadFixtures,
+} from './helpers.js'
 
 // The questions asked before a first analysis: asked once, answered or skipped, and what each leaves behind.
 
@@ -32,7 +39,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   const defaults = await baseline.newPage()
   await defaults.goto('/')
   await uploadFixtures(defaults, ['sample-export.zip'], '165')
-  await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
+  await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
   const defaultRide = await defaults.getByRole('article', { name: 'Ride threshold' }).innerText()
@@ -46,7 +53,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await setup.getByLabel('Body weight').fill('185')
   await setup.getByRole('button', { name: 'Analyse my files' }).click()
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
   const ride = page.getByRole('article', { name: 'Ride threshold' })

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { canShareImage, shareFile } from '../../share/download'
 import { loadCardFonts } from '../../share/renderCard'
+import { EMPTY_TRIANGLE } from '../triangleSports'
 import { makeResult } from './fixtures'
 import { ShareImageButton } from './ShareImageButton'
 
@@ -39,6 +40,7 @@ function renderButton() {
       weightKnown
       gap={null}
       grades={{ run: null, ride: null }}
+      triangle={EMPTY_TRIANGLE}
       disabled={false}
     />,
   )
@@ -47,7 +49,7 @@ function renderButton() {
 async function openSheet(): Promise<HTMLElement> {
   fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
   const dialog = screen.getByRole('dialog', { name: 'Share image' })
-  await screen.findByRole('img', { name: 'Preview of the square card' })
+  await screen.findByRole('img', { name: /^Preview of the square card/ })
   return dialog
 }
 

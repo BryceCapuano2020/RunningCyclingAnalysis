@@ -143,7 +143,7 @@ describe('a run whose critical-power fit is refused', () => {
     expect(container.querySelector('.chip')).toBeNull()
     expect(container.querySelector('.stat-tile__effort')).toBeNull()
     expect(screen.queryByRole('button', { name: /all-out|effort/i })).toBeNull()
-    // The basis is the first row inside How this was worked out, not a line under the figure.
+    // The basis is the first row inside Details, not a line under the figure.
     const basis = container.querySelector('.stat-tile__source details .props__row')
     expect(basis).toHaveTextContent(/^Runs used3$/)
     expect(container.querySelectorAll('.stat-tile__source > p')).toHaveLength(0)

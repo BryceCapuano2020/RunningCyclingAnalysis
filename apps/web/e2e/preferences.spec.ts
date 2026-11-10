@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { goTo, openSample, uploadFixtures } from './helpers.js'
+import { ANSWERED_TITLE, goTo, openSample, uploadFixtures } from './helpers.js'
 
 test('switching to metric changes pace to per kilometre and the choice survives a reload', async ({
   page,
 }) => {
   await openSample(page)
-  // A card's "How this was worked out" note holds a pace too and stays hidden until opened, so only visible text counts.
+  // A card's "Details" note holds a pace too and stays hidden until opened, so only visible text counts.
   const shownPace = (unit: RegExp) => page.getByText(unit).filter({ visible: true }).first()
   await expect(shownPace(/\d+:\d{2}\s\/mi/)).toBeVisible()
 
@@ -33,7 +33,7 @@ test('a visitor’s own ride W/kg follows the body weight they enter on Profile'
   // The units are imperial by default, so the setup dialog's weight is 165 lb, about 74.8 kg.
   await page.goto('/')
   await uploadFixtures(page, ['sample-export.zip'], '165')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE, {
     timeout: 30_000,
   })
   const ride = page.getByRole('article', { name: 'Ride threshold' })

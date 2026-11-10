@@ -18,6 +18,7 @@ import type { CountedRunsController } from '../useCountedRuns'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
 import { BalancePage } from './BalancePage'
+import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { aboutNotesOf, noteRow } from '../components/aboutNotes'
 import { MethodPage } from './MethodPage'
@@ -38,6 +39,8 @@ export interface ResultPageProps {
   sex: Sex | null
   /** Whether the visitor is signed in, which says where a removal takes an activity from. */
   signedIn: boolean
+  /** Who is signed in, so Balance's lifting corner reads the Lift page's sets; signed out when not given. */
+  liftAccount?: LiftSummaryAccount
   /** The runs at walking pace the athlete counts as runs, and how to change that. */
   countedRuns: CountedRunsController
 }
@@ -53,6 +56,7 @@ export function ResultPage({
   birthYear,
   sex,
   signedIn,
+  liftAccount,
   countedRuns,
 }: ResultPageProps) {
   const { period, library, isSample } = analysis.state
@@ -140,6 +144,7 @@ export function ResultPage({
             change={analysis.state.change}
             fitness={analysis.state.fitness}
             lookBack={analysis.state.lookBack}
+            fitnessDots={analysis.state.history.fitness}
             zoneTimes={
               analysis.state.timeInZones.widened?.[route.page]?.rows ??
               analysis.state.timeInZones.current[route.page]
@@ -268,10 +273,10 @@ export function ResultPage({
             profile={profile}
             missingAge={missingAge}
             controls={caption}
-            periodRows={detailRows}
             leftOut={leftOut ?? undefined}
             onShowAll={() => pickPeriod('all')}
             footnote={balanceFootnote}
+            liftAccount={liftAccount}
           />
         )
     }

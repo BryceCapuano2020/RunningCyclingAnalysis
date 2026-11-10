@@ -186,3 +186,34 @@ describe('the year under the pointer', () => {
     expect(yearAtX([], 100)).toBeNull()
   })
 })
+
+describe('fitnessYearsLayout: today', () => {
+  const dots = dotsFixture({ sport: 'ride', years: [2022, 2023] })
+
+  it('marks no level without one, and marks one at the last dot, held by the axis', () => {
+    expect(fitnessYearsLayout(dots, 'ride', 'metric', SIZE)!.now).toBeNull()
+    const high = fitnessYearsLayout(dots, 'ride', 'metric', SIZE, 400)!
+    expect(high.now!.y).toBeGreaterThanOrEqual(SIZE.plot.top)
+    expect(high.now!.y).toBeLessThanOrEqual(SIZE.plot.bottom)
+    // A level far above the dots makes room: it sits higher than the same level among them.
+    const among = fitnessYearsLayout(dots, 'ride', 'metric', SIZE, 200)!
+    expect(high.now!.y).toBeLessThan(among.now!.y)
+  })
+})
+
+describe('fitnessYearsLayout: the date axis', () => {
+  it('names the months of a library that spans under a year, and the years of a longer one', () => {
+    const short = dotsFixture({ sport: 'ride', years: [2025], perYear: 8 })
+    // Eight dots through one year: month ticks, which carry a month word and not a bare year.
+    const months = fitnessYearsLayout(short, 'ride', 'metric', SIZE)!.xTicks.map((t) => t.label)
+    expect(months.length).toBeGreaterThan(1)
+    expect(months.some((label) => !/^\d{4}$/.test(label))).toBe(true)
+    const years = fitnessYearsLayout(
+      dotsFixture({ years: [2020, 2021, 2022] }),
+      'run',
+      'metric',
+      SIZE,
+    )!.xTicks.map((t) => t.label)
+    expect(years).toEqual(['2020', '2021', '2022'])
+  })
+})

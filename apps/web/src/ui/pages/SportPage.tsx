@@ -7,7 +7,7 @@ import { formRows } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { PageDetails } from './PageDetails'
-import { FitnessSection } from './FitnessSection'
+import { SportFitness } from './SportFitness'
 import { SportAnswer } from './SportAnswer'
 import type { SportPageProps } from './sportPageProps'
 import { layoutOf } from './sportSections'
@@ -59,7 +59,13 @@ export function SportPage(props: SportPageProps) {
       <SportAnswer {...props} count={count} held={held} />
       {/* The fitness status sits directly under the hero: it is library-wide, so it does not wait on the period. */}
       {fitness && !held && count > 0 ? (
-        <FitnessSection fitness={fitness} units={units} library={library} sport={sport} />
+        <SportFitness
+          fitness={fitness}
+          dots={props.fitnessDots?.[sport]}
+          units={units}
+          library={library}
+          sport={sport}
+        />
       ) : null}
       {rows.map(({ key, cells }) => (
         <div key={key} className={cells.length > 1 ? 'sport-row sport-row--pair' : 'sport-row'}>

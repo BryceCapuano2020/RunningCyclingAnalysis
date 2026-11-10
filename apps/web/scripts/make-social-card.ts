@@ -5,12 +5,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
-import { formatGrade } from '../src/ui/gradeFormat.ts'
-import { gapReading, meterFraction } from '../src/ui/components/balanceScale.ts'
-import { RANGE_WORD, meterRange, meterValue } from '../src/ui/components/meterReading.ts'
-import type { SportGrade } from '../src/ui/grades.ts'
+import { TRIANGLE_SPORTS, triangleGeometry } from '@rca/core/standing'
+import type { Point } from '@rca/core/standing'
+import { gapReading } from '../src/ui/components/balanceScale.ts'
 import { cardInk, cardStamp } from '../src/ui/landingFigures.ts'
-import { BALANCE_PAIR, SPORT_TITLE } from '../src/ui/sports.ts'
+import { triangleAnswer, triangleTitleText } from '../src/ui/pages/triangleCopy.ts'
+import { TRIANGLE_TITLE } from '../src/ui/triangleSports.ts'
+import type { TriangleView } from '../src/ui/triangleSports.ts'
+import { cornerLines } from '../src/share/cardTriangle.ts'
 import { computeLandingFigures } from './landingFigures.ts'
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url))
@@ -27,21 +29,85 @@ function font(family: string, file: string, weight: number): string {
   return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/woff2;base64,${data}) format('woff2')}`
 }
 
-/** The meter's plot: the app's own reading of the sample's gap, so the image cannot differ from Balance. */
-const READING = gapReading(FIGURES.gap)
-const PLOT = { x: 720, width: 408 }
-const TRACK_Y = 300
-const markX = PLOT.x + meterFraction(READING.lead.centre) * PLOT.width
-const VALUE = meterValue(READING)
-const RANGE = meterRange(READING)
+/** The sample's triangle as the landing page holds it: run and ride graded, lifting with no grade yet. */
+const VIEW: TriangleView = {
+  grades: {
+    run: { kind: 'graded', grade: FIGURES.grades.run },
+    ride: { kind: 'graded', grade: FIGURES.grades.ride },
+    lift: { kind: 'gap' },
+  },
+  notes: {},
+}
+const ANSWER = triangleAnswer(gapReading(FIGURES.gap), VIEW, undefined)
+const TITLE = triangleTitleText(ANSWER.title)
 
-/** One sport's level on the line under the meter: its name, its grade in mono, its level. */
-function level(x: number, sport: 'run' | 'ride', grade: SportGrade): string {
-  return `<text x="${x}" y="588" fill="${INK.ink}" font-size="30">${SPORT_TITLE[sport]} <tspan class="num" font-size="26">${formatGrade(grade.centre.grade)}</tspan> <tspan fill="${INK.secondary}">${grade.centre.level}</tspan></text>`
+/** The headline in lines of at most `limit` characters, broken at spaces, so it sets at one size left of the triangle. */
+function wrap(text: string, limit: number): string[] {
+  const lines: string[] = []
+  for (const word of text.split(' ')) {
+    const last = lines.at(-1)
+    if (last !== undefined && `${last} ${word}`.length <= limit)
+      lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines
+}
+
+/** The triangle's square: its left edge, top edge and side, in px. The corner words hang above and below it. */
+const PLOT = { x: 722, y: 198, size: 380 }
+const geometry = triangleGeometry(VIEW.grades, PLOT.size)
+const at = (point: Point): string =>
+  `${(PLOT.x + point.x).toFixed(1)},${(PLOT.y + point.y).toFixed(1)}`
+const SPORT_INK = { run: INK.run, ride: INK.ride, lift: INK.lift }
+const UNIT = PLOT.size / 300
+
+/** The rings, the axes and the shape through the dots, from the same geometry as the app's figure and its share card. */
+function plot(): string {
+  const rings = geometry.rings
+    .map(
+      (ring, order) =>
+        `<polygon points="${ring.points.map(at).join(' ')}" fill="none" stroke="${order === 0 ? INK.rule : INK.hairline}" stroke-width="${UNIT}"/>`,
+    )
+    .join('')
+  const axes = TRIANGLE_SPORTS.map((sport) => {
+    const corner = geometry.corners[sport]
+    const cap =
+      corner.cap === null
+        ? ''
+        : `<polyline points="${corner.cap.map(at).join(' ')}" fill="none" stroke="${INK.control}" stroke-width="${2 * UNIT}" stroke-linecap="round"/>`
+    return `<polyline points="${[geometry.centre, corner.tip].map(at).join(' ')}" fill="none" stroke="${corner.dot === null ? INK.hairline : INK.rule}" stroke-width="${UNIT}"/>${cap}`
+  }).join('')
+  const { points, closed } = geometry.shape
+  const shape =
+    points.length < 2
+      ? ''
+      : `<${closed ? 'polygon' : 'polyline'} points="${points.map(at).join(' ')}" fill="${closed ? INK.ink : 'none'}" fill-opacity="0.07" stroke="${INK.ink}" stroke-width="${2 * UNIT}" stroke-linejoin="round" stroke-linecap="round"/>`
+  const dots = TRIANGLE_SPORTS.flatMap((sport) => {
+    const { dot } = geometry.corners[sport]
+    if (dot === null) return []
+    const [x, y] = at(dot).split(',')
+    return [
+      `<circle cx="${x}" cy="${y}" r="${6 * UNIT}" fill="${SPORT_INK[sport]}" stroke="${INK.paper}" stroke-width="${3 * UNIT}"/>`,
+    ]
+  }).join('')
+  return rings + axes + shape + dots
+}
+
+/** One corner's three lines: its name in its ink, its percent, then its level or "No grade yet". */
+function words(sport: (typeof TRIANGLE_SPORTS)[number]): string {
+  const corner = geometry.corners[sport]
+  const [first, second] = cornerLines(corner)
+  const x = PLOT.x + corner.tip.x
+  const top = sport === 'run' ? PLOT.y + corner.tip.y - 10 - 82 : PLOT.y + corner.tip.y + 10
+  const name = `<text class="meta" x="${x}" y="${top + 16}" text-anchor="middle" fill="${SPORT_INK[sport]}">${TRIANGLE_TITLE[sport]}</text>`
+  const percent =
+    corner.percent === null
+      ? `<text class="num" x="${x}" y="${top + 48}" text-anchor="middle" fill="${INK.secondary}" font-size="22">${first}</text>`
+      : `<text class="num" x="${x}" y="${top + 52}" text-anchor="middle" fill="${INK.ink}" font-size="34" font-weight="500">${first}</text><text class="num" x="${x}" y="${top + 78}" text-anchor="middle" fill="${INK.secondary}" font-size="22">${second}</text>`
+  return name + percent
 }
 
 function card(): string {
-  const [left, right] = BALANCE_PAIR
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${font('newsreader', 'newsreader-latin-400-normal.woff2', 400)}
 ${font('newsreader', 'newsreader-latin-500-normal.woff2', 500)}
@@ -55,28 +121,16 @@ svg{display:block}
 <svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${WIDTH}" height="${HEIGHT}" fill="${INK.paper}"/>
   <text x="72" y="96" fill="${INK.ink}" font-size="32" font-weight="500">Running Cycling Analysis</text>
+  <text class="meta" x="1128" y="94" text-anchor="end" fill="${INK.secondary}">Sample athlete</text>
   <rect x="72" y="120" width="1056" height="2" fill="${INK.rule}"/>
-  <g fill="${INK.ink}" font-size="80" font-weight="500">
-    <text x="72" y="236">Are you a better</text>
-    <text x="72" y="320">runner or a</text>
-    <text x="72" y="404">better cyclist?</text>
+  <g fill="${INK.ink}" font-size="68" font-weight="500">
+    ${wrap(TITLE, 18)
+      .map((line, row) => `<text x="72" y="${270 + row * 74}">${line}</text>`)
+      .join('')}
   </g>
-  <g fill="${INK.secondary}" font-size="28">
-    <text x="72" y="480">Your level in each sport for your age.</text>
-  </g>
-  <text class="meta" x="${PLOT.x + PLOT.width}" y="172" text-anchor="end" fill="${INK.secondary}">Sample athlete</text>
-  <text class="meta" x="${PLOT.x}" y="262" fill="${INK.run}">${SPORT_TITLE[left]}</text>
-  <text class="meta" x="${PLOT.x + PLOT.width}" y="262" text-anchor="end" fill="${INK.ride}">${SPORT_TITLE[right]}</text>
-  <rect x="${PLOT.x}" y="${TRACK_Y - 1.5}" width="${PLOT.width}" height="3" fill="${INK.hairline}"/>
-  <rect x="${PLOT.x}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.run}"/>
-  <rect x="${PLOT.x + PLOT.width - 3}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.ride}"/>
-  <rect x="${PLOT.x + PLOT.width / 2 - 1.5}" y="${TRACK_Y - 14}" width="3" height="28" fill="${INK.secondary}"/>
-  <rect x="${markX - 2}" y="${TRACK_Y - 28}" width="4" height="56" fill="${INK.ink}"/>
-  <text class="num" x="${markX}" y="${TRACK_Y + 94}" fill="${INK.ink}" font-size="64" font-weight="500" text-anchor="middle">${VALUE.number}<tspan font-size="24" font-weight="400" fill="${INK.secondary}" dx="10">${VALUE.unit}</tspan></text>
-  ${RANGE === null ? '' : `<text class="meta" x="${markX}" y="${TRACK_Y + 132}" text-anchor="middle" fill="${INK.secondary}">${RANGE_WORD} ${RANGE}</text>`}
-  <rect x="72" y="540" width="1056" height="2" fill="${INK.rule}"/>
-  ${level(72, 'run', FIGURES.grades.run)}
-  ${level(420, 'ride', FIGURES.grades.ride)}
+  <text fill="${INK.secondary}" font-size="28" x="72" y="${270 + wrap(TITLE, 18).length * 74 + 12}">${ANSWER.line ?? ''}</text>
+  ${plot()}
+  ${TRIANGLE_SPORTS.map(words).join('')}
 </svg></body></html>`
 }
 

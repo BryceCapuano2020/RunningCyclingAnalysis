@@ -14,7 +14,7 @@ function section(): HTMLElement {
 }
 
 describe('AgeGradingSection', () => {
-  it('is a heading that moves focus, and says how a run is graded, with Below 60% as Recreational', () => {
+  it('is a heading that moves focus, and says how a run is graded, with the own bands below 60%', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
@@ -33,7 +33,7 @@ describe('AgeGradingSection', () => {
     expect(
       within(section()).getByText(
         wholeText(
-          'Levels are bands of the grade: Recreational below 60%, Local from 60%, Regional from 70%, National from 80%, World from 90%.',
+          'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
         ),
       ),
     ).toBeInTheDocument()

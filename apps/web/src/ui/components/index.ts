@@ -1,7 +1,5 @@
 export { Dropzone } from './Dropzone'
 export type { DropzoneProps } from './Dropzone'
-export { EquivalenceTable } from './EquivalenceTable'
-export type { EquivalenceTableProps } from './EquivalenceTable'
 export { Header } from './Header'
 export type { HeaderProps } from './Header'
 export { pickHeadline } from './pickHeadline'

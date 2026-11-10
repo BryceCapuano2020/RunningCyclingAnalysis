@@ -11,6 +11,8 @@ const INK: CardInk = {
   secondary: '#000005',
   run: '#000006',
   ride: '#000007',
+  lift: '#000008',
+  control: '#000009',
 }
 
 describe('the landing figures', () => {

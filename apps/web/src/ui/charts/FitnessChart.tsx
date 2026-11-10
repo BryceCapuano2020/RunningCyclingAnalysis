@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { noonOnLabelDate } from '@rca/core/calendar'
 import type { FitnessPoint, FitnessStatus } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
@@ -17,7 +18,7 @@ import { fitnessLayout } from './fitnessChartLayout'
 import { bandPath, linePath } from './paths'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisTitle, formatNative, nativeLabel, plottedValue } from './sportAxis'
-import { axisFontSize } from './ticks'
+import { axisFontSize, labelWidth, rootScale } from './ticks'
 import { shortDate } from './trendTicks'
 import './ChartSeries.css'
 import './FitnessChart.css'
@@ -25,6 +26,13 @@ import './FitnessChart.css'
 export interface FitnessChartProps {
   status: FitnessStatus
   units: UnitSystem
+  /** Names the chart by the status, "Recovering", where a sport page leads with the graph. Left out: what it plots. */
+  title?: string
+  /** The status's sentence, which the chart keeps in its Details. */
+  lede?: string
+  /** The rest of a sport page's section, for the chart's one Details; `onOpen` is called when it opens. */
+  extra?: ReactNode
+  onOpen?: () => void
 }
 
 /** A chart at least this wide, px, keeps a right gutter for the reference line's value and the end label. */
@@ -40,6 +48,33 @@ const ONSET_LABEL_GAP = 6
 const ONSET_LABEL_LIFT = 8
 /** The room a label needs left of its rule, px. */
 const ONSET_LABEL_ROOM_PX = 90
+
+/** How far under the low's marker its label sits, px, and how near the plot's left edge it starts there instead of centring. */
+const LOW_LABEL_DROP = 18
+const LOW_LABEL_ROOM_PX = 30
+
+/**
+ * The baseline for a label of `text` at `at.x` (it ends there when `at.right` is false), moved up until it is clear of the
+ * labels a phone sets inside the plot, or at the top when none is clear.
+ */
+function clearOfBoxes(
+  at: { x: number; right: boolean },
+  text: string,
+  y: number,
+  fontSize: number,
+  boxes: readonly { left: number; right: number; top: number; bottom: number }[],
+  top: number,
+): number {
+  const width = labelWidth(text, fontSize, rootScale())
+  const [left, right] = at.right ? [at.x, at.x + width] : [at.x - width, at.x]
+  for (let base = y; base - fontSize > top; base -= fontSize + 2) {
+    const hit = boxes.some(
+      (b) => right > b.left && left < b.right && base + 3 > b.top && base - fontSize < b.bottom,
+    )
+    if (!hit) return base
+  }
+  return y
+}
 
 /** The two ends of a point's range as text, the faster first as the axis reads: "7:12 /km to 7:40 /km". */
 function rangeText(p: FitnessPoint, status: FitnessStatus, units: UnitSystem): string {
@@ -82,7 +117,7 @@ function emptyText(steps: number, before: number | null): string | undefined {
  * read against as a labelled line, the month the change began as a rule, and now as the largest ring with
  * its value. The chart is named by what it plots, the status's own sentence is the finding.
  */
-export function FitnessChart({ status, units }: FitnessChartProps) {
+export function FitnessChart({ status, units, title, lede, extra, onOpen }: FitnessChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { series, sport, referenceHr: hr, before, now } = status
   const layoutOf = sizedOnce((size: ChartSize) => fitnessLayout(status, units, size))
@@ -108,7 +143,10 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={`${word} at ${hr} bpm over time`}
+      title={title ?? `${word} at ${hr} bpm over time`}
+      lede={lede}
+      extra={extra}
+      onOpen={onOpen}
       description={`${nativeLabel(sport)} at ${hr} bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change${status.onsetMs === null ? '' : ` began in ${onsetMonth(status, status.onsetMs)}`} and the level now.`}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : EDGE_PX)}
       summary={{
@@ -155,7 +193,36 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
         const { marker: markerR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         // The label sits at the foot of the plot, left of its rule, where the earlier level (higher up) leaves it clear, unless there is no room there.
-        const onsetRight = m.onsetX !== null && m.onsetX - plot.left < ONSET_LABEL_ROOM_PX
+        const inside = insideLabelBoxes(
+          m.yTicks,
+          plot,
+          axisTitle(sport, units),
+          axisFontSize(size.width),
+        )
+        const onsetText =
+          status.onsetMs === null ? '' : `Began ${onsetMonth(status, status.onsetMs)}`
+        // Left of the rule when the words fit between it and the plot's edge at the reader's text size, else right of it.
+        const onsetRight =
+          m.onsetX !== null &&
+          m.onsetX - plot.left <
+            Math.max(
+              ONSET_LABEL_ROOM_PX,
+              labelWidth(onsetText, axisFontSize(size.width), rootScale()) + ONSET_LABEL_GAP,
+            )
+        const onsetY =
+          m.onsetX === null
+            ? plot.bottom
+            : clearOfBoxes(
+                {
+                  x: m.onsetX + (onsetRight ? ONSET_LABEL_GAP : -ONSET_LABEL_GAP),
+                  right: !onsetRight,
+                },
+                onsetText,
+                plot.bottom - ONSET_LABEL_LIFT,
+                axisFontSize(size.width),
+                inside,
+                plot.top,
+              )
         return (
           <g data-sport={sport}>
             <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={axisFontSize(size.width)} />
@@ -164,6 +231,7 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
               plot={plot}
               title={axisTitle(sport, units)}
               fontSize={axisFontSize(size.width)}
+              gridOnly
             />
             {m.onsetX === null ? null : (
               <g data-testid="fitness-onset">
@@ -177,10 +245,10 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                 <text
                   className="annot__text annot__text--label"
                   x={m.onsetX + (onsetRight ? ONSET_LABEL_GAP : -ONSET_LABEL_GAP)}
-                  y={plot.bottom - ONSET_LABEL_LIFT}
+                  y={onsetY}
                   textAnchor={onsetRight ? 'start' : 'end'}
                 >
-                  {`Began ${onsetMonth(status, status.onsetMs!)}`}
+                  {onsetText}
                 </text>
               </g>
             )}
@@ -205,6 +273,24 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                 r={i === active ? markerR + 2 : markerR}
               />
             ))}
+            {m.low === null || !('point' in m.low) || status.lowMs === null ? null : (
+              <g data-testid="fitness-low">
+                <circle
+                  className={`chart-series__ring--${sport} fitness-chart__low`}
+                  cx={m.low.point.x}
+                  cy={m.low.point.y}
+                  r={markerR + 1}
+                />
+                <text
+                  className="annot__text annot__text--label"
+                  x={m.low.point.x}
+                  y={m.low.point.y + LOW_LABEL_DROP}
+                  textAnchor={m.low.point.x < plot.left + LOW_LABEL_ROOM_PX ? 'start' : 'middle'}
+                >
+                  {`${onsetMonth(status, status.lowMs)} low`}
+                </text>
+              </g>
+            )}
             <circle
               data-testid="fitness-now"
               className={`chart-series__ring--${sport} fitness-chart__now`}
@@ -231,6 +317,22 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                   estimated: true,
                   value: formatNative(sport, before, units),
                 },
+                // A low before the chart's first step is a level across the plot, named as the earlier level is.
+                ...(m.low === null ||
+                'point' in m.low ||
+                status.lowMs === null ||
+                status.lowLevel === undefined
+                  ? []
+                  : [
+                      {
+                        kind: 'reference' as const,
+                        id: 'low',
+                        y: m.low.y,
+                        label: `${onsetMonth(status, status.lowMs)} low`,
+                        estimated: true,
+                        value: formatNative(sport, status.lowLevel, units),
+                      },
+                    ]),
                 {
                   kind: 'end',
                   id: 'now',

@@ -1,25 +1,20 @@
 // @vitest-environment jsdom
 import '../test/warmSample'
+import { triangleViewOf } from './triangleSports'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { Period } from '@rca/core/period'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { AnalysisSession } from '@rca/core/session'
-import { formatPaceValue } from '@rca/core/units'
 import { buildShareCard } from '../share/cardModel'
-import { meterValue } from './components/meterReading'
-import { SPORT_TITLE } from './sports'
 import { whatMoved } from './analysis/whatMoved'
 import { balanceOfPick } from './components/balanceScale'
 import { formatGrade } from './gradeFormat'
 import { heldPick } from './resultHold'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
-import { balanceLevels } from './pages/levelsModel'
 import { BalanceHero } from './pages/BalanceHero'
-import { BalanceLevels } from './pages/BalanceLevels'
-import { BalanceTiles } from './pages/BalanceTiles'
-import { CrossSportCard } from './pages/CrossSportCard'
+import { LevelTriangle } from './components/LevelTriangle'
 import { MethodPage } from './pages/MethodPage'
 import { SportAnswer } from './pages/SportAnswer'
 import { standingOf } from './standing'
@@ -36,13 +31,17 @@ const standing = standingOf(result, SAMPLE_PROFILE, {
 const grades = gradesOfStanding(result, standing)
 
 describe('one standing, read by every surface', () => {
-  it('prints the same threshold grade on the levels under the meter and on each sport page', () => {
-    const rows = balanceLevels({ grades, inPeriod: { run: 3, ride: 3 }, missingAge: null }).rows
+  it('prints the same threshold grade on the triangle’s corners and on each sport page', () => {
+    const { container } = render(<LevelTriangle view={triangleViewOf(grades)} />)
+    const corner = (sport: string) =>
+      container.querySelector(`[data-sport="${sport}"] .level-triangle__figure`)?.textContent
+    const corners = { run: corner('run'), ride: corner('ride') }
+    cleanup()
     for (const sport of ['run', 'ride'] as const) {
       const outcome = standing.grades[sport]
       if (outcome.kind !== 'graded') throw new Error(`${sport} is graded in the sample`)
       const printed = formatGrade(outcome.grade.centre.grade)
-      expect(rows.find((row) => row.sport === sport)?.grade).toBe(printed)
+      expect(corners[sport]).toBe(printed)
       cleanup()
       render(
         <SportAnswer
@@ -65,35 +64,8 @@ describe('one standing, read by every surface', () => {
     }
   })
 
-  it('prints the same ride as a run on the cross-sport card and on the balance tile', () => {
-    const pace = formatPaceValue(standing.rideAsRun!.p50, 'metric')
-    render(
-      <CrossSportCard result={result} units="metric" weighted massKg={SAMPLE_SETTINGS.massKg} />,
-    )
-    const alone = screen.getByRole('article', { name: 'Your ride as a run' }).textContent
-    expect(alone).toContain(pace)
-    cleanup()
-    render(
-      <BalanceTiles
-        result={result}
-        library={state.library}
-        units="metric"
-        massKg={SAMPLE_SETTINGS.massKg}
-        grades={grades}
-        weighted
-        period={{ choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }}
-        onAddFiles={() => {}}
-      />,
-    )
-    expect(screen.getByRole('article', { name: 'Your ride as a run' }).textContent).toBe(alone)
-  })
-
-  it('prints the levels from the same grades the lead is made of', () => {
-    render(
-      <BalanceLevels
-        model={balanceLevels({ grades, inPeriod: { run: 3, ride: 3 }, missingAge: null })}
-      />,
-    )
+  it('prints the corners from the same grades the lead is made of', () => {
+    render(<LevelTriangle view={triangleViewOf(grades)} />)
     const run = standing.grades.run
     if (run.kind !== 'graded' || standing.lead === null) throw new Error('graded')
     expect(document.body).toHaveTextContent(formatGrade(run.grade.centre.grade))
@@ -115,7 +87,7 @@ interface PrintedLead {
   toward: string
 }
 
-/** The lead as the hero, the Method page and the share card word it: "Running grades 9 points higher (2 to 16)". */
+/** The lead as the Method page words it: "Running grades 9 points higher (2 to 16)". */
 function printedGrades(text: string): PrintedLead {
   const found = /(running|cycling) grades (\d+) points? higher/i.exec(text)
   if (found === null) throw new Error(`no lead printed in: ${text}`)
@@ -147,7 +119,7 @@ describe('one lead, printed the same on every surface', () => {
     fellBack: false,
   }
 
-  it('prints the same points and direction on the hero, the import notice, the Method page and the share card', () => {
+  it('prints the same points and direction on the import notice and the Method page, and none on the hero or the share card, which leave the lead to the triangle', () => {
     // The lead worth comparing leans, and has moved from the earlier result without changing its lean.
     const leadBefore = standingOf(before, SAMPLE_PROFILE).lead!
     expect(lead.lean).toBe('run')
@@ -163,12 +135,14 @@ describe('one lead, printed the same on every surface', () => {
         library={state.library}
         pick={pick}
         reading={reading}
+        triangle={triangleViewOf(gradesAfter)}
         period={ALL_TIME}
         onShowAll={() => {}}
         weightKnown
       />,
     )
-    const hero = printedGrades(document.querySelector('.balance-hero__lede')!.textContent ?? '')
+    expect(document.querySelector('.balance-hero__lede')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your athletic balance')
     cleanup()
 
     const method = (() => {
@@ -196,20 +170,14 @@ describe('one lead, printed the same on every surface', () => {
       gradesAfter,
     )
     if (card === null) throw new Error('the sample offers a card')
-    // The card's meter writes the lead as a number under its mark, toward the sport its mark leans to.
-    const meter = card.meter
-    if (meter === null || meter.lean === 'even') throw new Error('the sample leans')
-    const share: PrintedLead = {
-      points: Number(meterValue(meter).number.replace('+', '')),
-      toward: SPORT_TITLE[meter.lean].toLowerCase(),
-    }
+    // The card, like the hero, has the title and no line.
+    expect(card.headline).toBe('Your athletic balance')
+    expect(card.line).toBeNull()
 
     const moves = whatMoved(before, after, SAMPLE_SETTINGS, 'metric', SAMPLE_PROFILE)
     const notice = printedMove(moves.map((item) => item.text).join(' '))
 
-    expect(hero).toEqual(expected)
     expect(method).toEqual(expected)
-    expect(share).toEqual(expected)
     expect(notice).toEqual(expected)
   })
 })

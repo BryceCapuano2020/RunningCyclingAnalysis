@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
+import { levelOf } from '@rca/core/grade'
+import { LIFT_STANDARDS_SOURCE } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../ui/balanceGap'
-import { energyReading, gapReading } from '../ui/components/balanceScale'
+import { energyReading } from '../ui/components/balanceScale'
 import { makeActivity, makeResult, makeRunThreshold } from '../ui/components/fixtures'
-import { balanceTitle } from '../ui/components/headlineText'
+import { balanceTitle, energySummary } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
-import { heldPick } from '../ui/resultHold'
+import type { TriangleView } from '../ui/triangleSports'
 import { THRESHOLD_NAME } from '../ui/thresholdName'
 import { BALANCE_PAIR } from '../ui/sports'
 import { buildShareCard, shareableHost } from './cardModel'
+import { gradedCorner } from './fixtures'
 
 /** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
 /** A period of the given days, or all time for null, with no dates: the card's own tests pass days. */
@@ -30,6 +33,7 @@ function cardFor(
   gap: BalanceGap | null = null,
   grades: Record<Sport, GradeOutcome | null> = NO_GRADES,
   name: string | null = null,
+  triangle?: TriangleView,
 ) {
   return buildShareCard(
     result,
@@ -41,6 +45,8 @@ function cardFor(
     gap,
     grades,
     name,
+    {},
+    triangle,
   )
 }
 
@@ -61,7 +67,7 @@ const RIDE_GRADE: GradeOutcome = {
     range: { low: { grade: 0.55, level: 'Recreational' }, high: { grade: 0.67, level: 'Local' } },
   },
 }
-const GRADED_FOOTNOTE = 'Age-graded on USATF road standards.'
+const GRADED_FOOTNOTE = 'Graded on USATF road standards.'
 const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
 describe('buildShareCard', () => {
@@ -78,18 +84,17 @@ describe('buildShareCard', () => {
     if (!point) return
     expect(card?.headline).toBe(balanceTitle(energyReading(point.ratio)))
     expect(card?.headline).toBe('Your balance leans toward running')
-    expect(card?.meter).toEqual(energyReading(point.ratio))
+    expect(card?.line).toBe(energySummary(energyReading(point.ratio), point.durationS))
   })
 
-  it('states the headline and the meter from the grade gap when there is one', () => {
+  it('states the headline from the grade gap when there is one', () => {
     const result = makeResult()
     const gap: BalanceGap = { centre: -6, low: -10, high: -2, lean: 'ride' }
     const card = cardFor(result, SETTINGS, 'metric', 42, false, true, gap)
     expect(card?.headline).toBe('Your balance leans toward cycling')
-    expect(card?.meter).toEqual(gapReading(gap))
   })
 
-  it('lists the heroes in the order of the balance pair, so the columns match the meter', () => {
+  it('lists the heroes in the order of the balance pair, so the columns match the corners', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.sport)).toEqual([...BALANCE_PAIR])
   })
@@ -104,12 +109,6 @@ describe('buildShareCard', () => {
       true,
     )
     expect(card).toBeNull()
-  })
-
-  it('says whether the heart-rate check informed the balance, as the page’s meter is told', () => {
-    const result = makeResult()
-    const card = cardFor(result, SETTINGS, 'metric', 42, false)
-    expect(card?.informedByHeartRate).toBe(heldPick(result, {}).pick?.calibrated ?? false)
   })
 
   it('uses the page units for the running threshold pace', () => {
@@ -191,33 +190,72 @@ describe('buildShareCard', () => {
     expect(card).toBeNull()
   })
 
-  it('names each sport level and whole percent on its hero, as the levels line under the meter does', () => {
-    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, null, {
-      run: RUN_GRADE,
-      ride: RIDE_GRADE,
-    })
-    expect(card?.heroes.map((hero) => hero.grade)).toEqual([
-      { percent: '64%', level: 'Local' },
-      { percent: '61%', level: 'Recreational' },
-    ])
-  })
-
-  it('leaves a grade off its hero while the page holds it, and the level line empty', () => {
+  it('carries the triangle from the page grades, with lifting in its state before it has a grade', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, null, {
       run: RUN_GRADE,
       ride: null,
     })
-    expect(card?.heroes.map((hero) => hero.grade)).toEqual([
-      { percent: '64%', level: 'Local' },
-      null,
-    ])
+    expect(card?.triangle.grades.run).toMatchObject({ kind: 'graded' })
+    expect(card?.triangle.grades.ride).toEqual({ kind: 'gap' })
+    expect(card?.triangle.grades.lift).toEqual({ kind: 'gap' })
   })
 
-  it('leans on a 9 point estimate whose range reaches below zero, and says the lead', () => {
+  it('credits the lift standard in the footnote when the lift corner is graded, and only then', () => {
+    const view = (run: TriangleView['grades']['run'], lift: TriangleView['grades']['lift']) =>
+      cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, null, NO_GRADES, null, {
+        grades: { run, ride: { kind: 'gap' }, lift },
+        notes: {},
+      })?.footnote
+    const gap = { kind: 'gap' } as const
+    expect(view(gradedCorner(64, 'x'), gradedCorner(48, 'x'))).toBe(
+      `Graded on USATF road standards and ${LIFT_STANDARDS_SOURCE.cardName}.`,
+    )
+    expect(view(gradedCorner(64, 'x'), gap)).toBe(GRADED_FOOTNOTE)
+    expect(view(gap, gradedCorner(48, 'x'))).toBe(`Graded on ${LIFT_STANDARDS_SOURCE.cardName}.`)
+    expect(view(gap, gap)).toBe(ESTIMATE_FOOTNOTE)
+  })
+
+  it('takes the triangle the page draws, so lifting’s grade reaches the card and its description, and stays out of the sentence', () => {
+    const triangle: TriangleView = {
+      grades: {
+        run: gradedCorner(64, 'Local'),
+        ride: gradedCorner(61, 'Recreational'),
+        lift: gradedCorner(48, 'Active'),
+      },
+      notes: {},
+    }
+    const gap: BalanceGap = { centre: 3, low: -1, high: 7, lean: 'run' }
+    const card = cardFor(
+      makeResult(),
+      SETTINGS,
+      'metric',
+      42,
+      false,
+      true,
+      gap,
+      NO_GRADES,
+      null,
+      triangle,
+    )
+    expect(card?.triangle).toBe(triangle)
+    expect(card?.alt).toBe(
+      `Your athletic balance. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting 48% ${levelOf(0.4804)}.`,
+    )
+  })
+
+  it('describes the image with the headline, the line and the corners, as the page reads them', () => {
+    const gap: BalanceGap = { centre: 3, low: -1, high: 7, lean: 'run' }
+    const both = { run: RUN_GRADE, ride: RIDE_GRADE }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, gap, both)
+    expect(card?.alt).toBe(
+      `Your athletic balance. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting no grade yet.`,
+    )
+  })
+
+  it('leans on a 9 point estimate whose range reaches below zero', () => {
     const gap: BalanceGap = { centre: 9, low: -4, high: 18, lean: 'run' }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, gap)
     expect(card?.headline).toBe('Your balance leans toward running')
-    expect(card?.meter).toEqual(gapReading(gap))
   })
 
   it('says in balance only for an estimate within two points', () => {
@@ -231,23 +269,11 @@ describe('buildShareCard', () => {
     const both = { run: RUN_GRADE, ride: RIDE_GRADE }
     const graded = () => cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, gap, both)
 
-    it('gives each hero its grade line and the card the graded footnote, with the meter as the balance', () => {
-      const card = graded()
-      expect(card?.heroes.map((hero) => hero.grade)).toEqual([
-        { percent: '64%', level: 'Local' },
-        { percent: '61%', level: 'Recreational' },
-      ])
-      expect(card?.meter).toEqual(gapReading(gap))
-      expect(card?.footnote).toBe(GRADED_FOOTNOTE)
-    })
-
-    it('gives a grade to the sport that has one to the sport that has one, while the other has none', () => {
-      const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, gap, {
-        run: RUN_GRADE,
-        ride: null,
-      })
-      expect(card?.heroes[0]?.grade).toEqual({ percent: '64%', level: 'Local' })
-      expect(card?.heroes[1]?.grade).toBeNull()
+    it('gives the card the graded footnote', () => {
+      expect(graded()?.footnote).toBe(GRADED_FOOTNOTE)
+      // The triangle shows the lean, so the card has the title and no line.
+      expect(graded()?.headline).toBe('Your athletic balance')
+      expect(graded()?.line).toBeNull()
     })
   })
 
@@ -328,16 +354,17 @@ describe('buildShareCard', () => {
     // The name is the one the visitor types for the card, kept on this device; it is no account data.
     expect(Object.keys(card ?? {}).sort()).toEqual(
       [
+        'alt',
         'badge',
         'footnote',
         'headline',
         'heroes',
-        'informedByHeartRate',
-        'meter',
+        'line',
         'name',
         'origin',
         'period',
         'title',
+        'triangle',
       ].sort(),
     )
   })
@@ -468,7 +495,7 @@ describe('buildShareCard while no weight is entered', () => {
   it('shows the ride estimate and the balance once a weight is entered', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.find((hero) => hero.sport === 'ride')?.figure).not.toBeNull()
-    expect(card?.meter).not.toBeNull()
+    expect(card?.line).not.toBeNull()
   })
 })
 

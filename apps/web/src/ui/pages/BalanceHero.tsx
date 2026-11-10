@@ -1,27 +1,22 @@
 import type { ReactNode } from 'react'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
-import { BalanceMeter } from '../components/BalanceMeter'
-import { uncheckedRows } from '../components/headlineNeed'
+import { LevelTriangle } from '../components/LevelTriangle'
 import { levelsTitle } from '../components/headlineText'
-import { SECTION_ID } from '../components/methodTopics'
-import { NO_ROWS } from '../components/property'
-import type { Property } from '../components/property'
+import { NumText } from '../components/NumText'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { holdWithRideOut } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
-import { titleParts } from './balanceCopy'
+import { triangleAnswer, triangleTitleText } from './triangleCopy'
+import type { TriangleView } from '../triangleSports'
 import { useHoldInputs } from '../holdContext'
-import { fewEffortsText, missingText } from './balanceMissing'
-import { BalanceLede } from './BalanceLede'
+import { missingText } from './balanceMissing'
 import { PAGE_HEADING_ID } from './pageHeading'
-import { PageDetails } from './PageDetails'
 
 export interface BalanceHeroProps {
   result: AnalysisResult
@@ -47,24 +42,21 @@ export interface BalanceHeroProps {
   rideLevel?: string | null
   /** Why the ride is out of the comparison when it is not for want of efforts, so the held balance says so. */
   rideLeftOut?: RideLeftOut | null
-  /** Each sport's level, as one line under the meter; with the meter's grades missing, the one sport on file's. */
-  levels?: ReactNode
+  /**
+   * The grades of the level triangle, the figure under the answer. The headline and the line read the same grades, so the words
+   * and the figure cannot disagree.
+   */
+  triangle: TriangleView
   /** The period's status and Custom form, under the title. */
   controls?: ReactNode
-  /**
-   * The Details under the answer as a detail panel's rows: the period's dates and counts, what the lower sport would need
-   * to match the higher, and the standards the grades are read against.
-   */
-  details?: readonly Property[]
   /** Runs that are all at walking pace and left out: the headline says so and offers to count them. */
   leftOut?: LeftOutRuns
 }
 
 /**
- * The answer: a headline that names it, one plain sentence, and the meter, a single line with the gap and its
- * range written at the dot. Each sport's level is one line under the meter. The period's dates and counts, the target
- * and any caveat are behind one ▸ Details under the sentence.
- * Where the two sports cannot be compared yet, the headline says what is missing.
+ * The answer: a headline that names it, one plain sentence where the triangle does not show the lean, and the level triangle,
+ * each sport's grade on its own corner. The period's dates, counts, ranges and standards live on each sport's page (the owner cut
+ * the hero's Details on 10 Nov 2026). Where the two sports cannot be compared yet, the headline says what is missing.
  */
 export function BalanceHero({
   result,
@@ -78,9 +70,8 @@ export function BalanceHero({
   runLevel = null,
   rideLevel = null,
   rideLeftOut = null,
-  levels = null,
+  triangle,
   controls = null,
-  details = NO_ROWS,
   leftOut,
 }: BalanceHeroProps) {
   const hold = useHoldInputs()
@@ -104,11 +95,6 @@ export function BalanceHero({
           <WeightPrompt />
         </p>
         {controls}
-        <PageDetails
-          rows={details}
-          method={SECTION_ID.grades}
-          methodName="how the balance is graded"
-        />
         {action}
       </section>
     )
@@ -128,11 +114,6 @@ export function BalanceHero({
           {head(title)}
           {controls}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
-          <PageDetails
-            rows={details}
-            method={SECTION_ID.grades}
-            methodName="how the balance is graded"
-          />
           {canShowAll && (
             <p>
               <button type="button" className="btn" onClick={onShowAll}>
@@ -143,50 +124,28 @@ export function BalanceHero({
           {leftOut !== undefined && (
             <CountWalkingRuns count={leftOut.count} onCount={leftOut.onCount} />
           )}
-          {levels === null ? action : null}
         </section>
-        {levels}
-        {levels === null ? null : action}
+        <LevelTriangle view={triangle} />
+        {action}
       </div>
     )
   }
-  const { lead, sport, noun } = titleParts(reading)
-  const few = fewEffortsText(result)
-  // The points rest on each sport's threshold, so no line says a best was not all-out. An energy balance still rests on the best
-  // 20 min, and one nothing could check (no heart rate on it) is shown, with that said beside it.
-  const unchecked = reading.unit === 'percent' ? uncheckedRows(result) : []
+  // The grades' headline and line, by the rules of three sports (with two it is the page's own words); an energy balance has none.
+  const { title, line } = triangleAnswer(reading, triangle, pick?.point.durationS)
   return (
     <div className="balance-hero__pair">
       <section className="balance-hero balance-hero--answer">
         <div className="balance-hero__text">
-          {head(
-            <>
-              {lead}
-              {sport === null ? null : noun}
-            </>,
-            'balance-hero__title',
-          )}
+          {head(triangleTitleText(title), 'balance-hero__title')}
           {controls}
-          <p className="balance-hero__lede">
-            <BalanceLede
-              reading={reading}
-              durationS={pick?.point.durationS ?? HEADLINE_DURATION_S}
-            />
-          </p>
-          {/* The answer is the sentence and this one line; the period, the target and any caveat are one press down. */}
-          <PageDetails
-            rows={[
-              ...details,
-              ...(few === null ? [] : [{ label: 'Efforts used', value: few }]),
-              ...unchecked,
-            ]}
-            method={SECTION_ID.grades}
-            methodName="how the balance is graded"
-          />
+          {line === null ? null : (
+            <p className="balance-hero__lede">
+              <NumText text={line} />
+            </p>
+          )}
         </div>
       </section>
-      <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
-      {levels}
+      <LevelTriangle view={triangle} />
       {action}
     </div>
   )

@@ -43,7 +43,7 @@ function render20(run: EffortGate, ride: EffortGate) {
 describe('the balance when a best 20 min was not shown hard', () => {
   it('states the same balance whether the bests were hard or not, and never holds it', () => {
     const hard = render20(HARD, HARD)
-    expect(hard).toMatch(/Your balance leans toward|Your running and cycling are in balance/)
+    expect(hard).toBe('Your athletic balance')
     cleanup()
     expect(render20(gate(), gate())).toBe(hard)
     cleanup()
@@ -81,7 +81,7 @@ describe('the balance when a best 20 min was not shown hard', () => {
     expect(screen.queryByText(/Add heart rate to sharpen this/)).not.toBeInTheDocument()
   })
 
-  it('keeps every line of the answer the same whatever the gate said, the level target among them', () => {
+  it('keeps the answer the same whatever the gate said: the title alone, with no line under it', () => {
     const lines = () =>
       Array.from(document.querySelectorAll('.balance-hero__text p')).map((p) => p.textContent)
     render20(HARD, HARD)
@@ -89,7 +89,6 @@ describe('the balance when a best 20 min was not shown hard', () => {
     cleanup()
     render20(gate(), gate())
     expect(lines()).toEqual(hard)
-    // The lede says it at threshold.
-    expect(hard.join(' ')).toMatch(/at\u00a0threshold|at threshold/)
+    expect(hard).toEqual([])
   })
 })

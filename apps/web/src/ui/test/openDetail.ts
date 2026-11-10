@@ -2,7 +2,7 @@ import { act } from '@testing-library/react'
 import { DETAIL_TERM } from '../pages/ThresholdBasis'
 
 /**
- * Opens a threshold's "How this was worked out" disclosure inside `scope`, as a press on its summary does, and returns
+ * Opens a threshold's "Details" disclosure inside `scope`, as a press on its summary does, and returns
  * the summary, which is named for its threshold. Throws when there is none, or more than one.
  */
 export function openDetail(scope: ParentNode = document): HTMLElement {

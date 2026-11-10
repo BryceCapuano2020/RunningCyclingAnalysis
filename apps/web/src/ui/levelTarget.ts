@@ -33,10 +33,8 @@ const OWN_TEXT: Record<Sport, (centre: number, units: UnitSystem) => string> = {
 }
 
 /** A ride's levelled range as its low and high watts, from the match figures. A run has one pace, so it names no range. */
-const RANGE_TEXT: Record<Sport, (levelled: Range) => string> = {
-  run: () => '',
-  ride: (levelled) => `${formatWatts(levelled.low)}\u2013${formatWatts(levelled.high)}`,
-}
+const rideRange = (levelled: Range) =>
+  `${formatWatts(levelled.low)}\u2013${formatWatts(levelled.high)}`
 
 /** The match figure as words, or null when there is none. */
 export function levelTarget(match: MatchFigure | null, units: UnitSystem): LevelTarget | null {
@@ -47,7 +45,7 @@ export function levelTarget(match: MatchFigure | null, units: UnitSystem): Level
     higher,
     lower,
     centre: OWN_TEXT[lower](match.centre, units),
-    range: match.low === match.high ? null : RANGE_TEXT[lower](match),
+    range: lower === 'run' || match.low === match.high ? null : rideRange(match),
     now: nowText,
   }
 }
@@ -66,7 +64,10 @@ export function targetRows(target: LevelTarget): Property[] {
   ]
 }
 
-/** The target's rows as one text, or null when there is no target. The owner's eval reads the words a surface prints from this. */
+/**
+ * The target's rows as one text, or null when there is no target. Balance no longer prints the target (the hero's Details were cut,
+ * 10 Nov 2026); the owner's home-screen eval (evals/owner-caught) still reads it.
+ */
 export function levelTargetText(match: MatchFigure | null, units: UnitSystem): string | null {
   const target = levelTarget(match, units)
   return target === null ? null : rowsAsText(targetRows(target))

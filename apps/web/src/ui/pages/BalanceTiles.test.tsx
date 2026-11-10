@@ -43,13 +43,13 @@ function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
 }
 
 describe('BalanceTiles', () => {
-  it('shows three tiles with both sports, each threshold and the ride as a run, and none for the lean', () => {
+  it('shows three tiles with both sports, each threshold and lifting, and none for the lean', () => {
     const { container } = renderTiles()
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '3')
     expect(screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))).toEqual([
       'Run threshold',
       'Ride threshold',
-      'Your ride as a run',
+      'Big three total',
     ])
   })
 
@@ -94,10 +94,10 @@ describe('BalanceTiles', () => {
     expect(rowsIn(ride).map(([label]) => label)).toEqual(
       expect.arrayContaining(['Rides used', 'Strongest effort', 'Range']),
     )
-    expect(detailSummaries(ride)).toEqual(['How this was worked out for threshold power'])
+    expect(detailSummaries(ride)).toEqual(['Details for threshold power'])
     const run = screen.getByRole('article', { name: 'Run threshold' })
     expect(rowsIn(run).map(([label]) => label)).toEqual(['Runs used', 'Strongest effort', 'Range'])
-    expect(detailSummaries(run)).toEqual(['How this was worked out for threshold pace'])
+    expect(detailSummaries(run)).toEqual(['Details for threshold pace'])
   })
 
   it('gives the ride’s threshold its watts per kilogram beside the figure', () => {
@@ -124,8 +124,9 @@ describe('BalanceTiles', () => {
     expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
       /Add your weight on/,
     )
-    expect(screen.getByRole('article', { name: 'Your ride as a run' })).toHaveTextContent(
-      /Add your weight on/,
+    // Lifting needs no weight to ask for a first lift.
+    expect(screen.getByRole('article', { name: 'Big three total' })).toHaveTextContent(
+      /Log a squat/,
     )
     // Only the run's threshold has a figure, so it alone has a detail to open, and no tile has a chip.
     expect(container.textContent).not.toMatch(/Estimated|At least/)
@@ -133,7 +134,7 @@ describe('BalanceTiles', () => {
     expect(detailSummaries(container)).toHaveLength(1)
   })
 
-  it('puts a prompt in the empty sport’s place, and leaves the ride as a run out', () => {
+  it('puts a prompt in the empty sport’s place, and leaves lifting out with one sport and no lift', () => {
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const { container } = render(
       <BalanceTiles
@@ -150,7 +151,7 @@ describe('BalanceTiles', () => {
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '2')
     expect(screen.getByRole('region', { name: 'Ride' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add rides' })).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: 'Your ride as a run' })).toBeNull()
+    expect(screen.queryByRole('article', { name: 'Big three total' })).toBeNull()
   })
 
   it('draws no tile, and no empty section, for a lone sport whose headline already says what it needs', () => {
@@ -198,7 +199,7 @@ describe('BalanceTiles', () => {
     expect(container.querySelectorAll('.stat-tile__number')).toHaveLength(0)
   })
 
-  it('gives each threshold no chip, one detail one tap down, and the ride as a run needs none', () => {
+  it('gives each threshold no chip, and one detail one tap down', () => {
     const { container } = renderTiles()
     expect(container.textContent).not.toMatch(/Estimated|At least/)
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
@@ -207,8 +208,47 @@ describe('BalanceTiles', () => {
       expect(detailSummaries(tile)).toHaveLength(1)
       expect(tile.querySelectorAll('.definition__term, .chip')).toHaveLength(0)
     }
-    const asRun = screen.getByRole('article', { name: 'Your ride as a run' })
-    expect(asRun).not.toHaveTextContent(/Estimated|At least/)
-    expect(asRun.querySelector('.stat-tile__effort')).toBeNull()
+  })
+
+  it('gives lifting the third row with the big three as its figure and each lift in Details', () => {
+    renderTiles({
+      lift: {
+        heading: 'Big three total',
+        figure: { number: '310', unit: 'kg' },
+        rows: [
+          { label: 'Squat', value: '40% · 100\u00a0kg' },
+          { label: 'Bench', value: '39% · 70\u00a0kg' },
+        ],
+      },
+    })
+    const tile = screen.getByRole('article', { name: 'Big three total' })
+    expect(tile.querySelector('.stat-tile__number')).toHaveTextContent('310')
+    expect(tile).toHaveTextContent('Squat40% · 100 kg')
+    expect(tile.closest('li')).not.toHaveAttribute('data-sport')
+  })
+
+  it('gives a lone sport the lifting row when a lift has an estimate', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    render(
+      <BalanceTiles
+        result={makeResult({ activities: [run] })}
+        library={[run]}
+        units="metric"
+        massKg={75}
+        grades={{ run: null, ride: null }}
+        weighted
+        period={PERIOD}
+        onAddFiles={vi.fn()}
+        soleSport="run"
+        lift={{
+          heading: 'Deadlift, projected 1RM',
+          figure: { number: '140', unit: 'kg' },
+          rows: [{ label: 'Deadlift', value: '39% · 140\u00a0kg' }],
+        }}
+      />,
+    )
+    expect(screen.getByRole('article', { name: 'Deadlift, projected 1RM' })).toHaveTextContent(
+      '140',
+    )
   })
 })

@@ -17,7 +17,6 @@ import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fi
 import { ResultPage } from './ResultPage'
 import { preloadAllPages } from '../lazyPages'
 import { PERIOD_KEY } from '../periodPreference'
-import { rowValue, rowsIn } from '../test/propertyRows'
 import { wholeText } from '../test/wholeText'
 
 // ResultPage opens the activity, History, Profile and Method pages lazily: load them once, so no test's order decides
@@ -71,10 +70,11 @@ describe('ResultPage age grades', () => {
 
     const run = screen.getByRole('article', { name: 'Run threshold' })
     expect(run).not.toHaveTextContent(/Local|67%/)
-    expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
+    expect(screen.getByRole('group', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*67%\s*Local/,
     )
-    expect(rowValue(document.body, 'Graded on')).toBe('USATF road standards')
+    // The standards are named on Method, not under the answer.
+    expect(screen.queryByText('Graded on')).toBeNull()
   })
 
   it('asks once for the year of birth alone when only that is missing', () => {
@@ -614,53 +614,7 @@ describe('ResultPage period', () => {
     )
   }
 
-  it('puts the latest activity, once it is old, in a row of its own under the dates in the Details', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 25, 12))
-    try {
-      const { container } = renderOldLibrary(false)
-      expect(rowValue(container, 'Latest activity')).toBe('17 months ago')
-      expect(rowValue(container, 'Period')).not.toMatch(/Latest activity/)
-      const labels = rowsIn(container).map(([label]) => label)
-      expect(labels.indexOf('Latest activity')).toBeGreaterThan(labels.indexOf('Period'))
-      const row = container.querySelector('.props__row')!
-      expect(row.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('says which window the default settled on and why, and the latest activity, in the same note', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 25, 12))
-    try {
-      const passed = [84, 182, 365].map((days) => ({
-        days,
-        lacks: [{ sport: 'ride' as const, lack: 'few' as const }],
-      }))
-      const { container } = renderOldLibrary(true, true, {
-        choice: 'all',
-        reason: 'all-time',
-        passed,
-      })
-      expect(
-        rowsIn(container).filter(([label]) => label !== 'Period' && label !== 'Activities'),
-      ).toEqual(
-        expect.arrayContaining([
-          ['Last 12 weeks', 'Too few rides'],
-          ['Same activities as', '6 months to latest'],
-          ['Latest activity', '17 months ago'],
-        ]),
-      )
-      // The segment in force is All time, the window the default resolved to, and not the 12 weeks.
-      expect(screen.getByRole('radio', { name: 'All time' })).toBeChecked()
-      expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('checks the segment of the window the default settled on, and puts the reason in the note', () => {
+  it('checks the segment of the window the default settled on', () => {
     const window: AnswerWindow = {
       choice: 365,
       reason: 'qualified',
@@ -669,24 +623,9 @@ describe('ResultPage period', () => {
         { days: 182, lacks: [{ sport: 'run', lack: 'none' }] },
       ],
     }
-    const { container } = renderOldLibrary(false, true, window)
+    renderOldLibrary(false, true, window)
     expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
-    expect(rowValue(container, 'Last 12 weeks')).toBe('No 20 min runs')
-  })
-
-  it('has no fallback note for a library shorter than 12 weeks, and keeps the latest activity', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 25, 12))
-    try {
-      const { container } = renderOldLibrary(true)
-      // A longer period that holds nothing a shorter one does not says so, in place of repeating itself.
-      expect(rowValue(container, 'Same activities as')).toBe('6 weeks to latest')
-      expect(rowValue(container, 'Latest activity')).toBe('17 months ago')
-      expect(rowValue(container, 'Last 12 weeks')).toBeNull()
-    } finally {
-      vi.useRealTimers()
-    }
   })
 })
 
@@ -718,7 +657,7 @@ describe('ResultPage sample athlete', () => {
     )
     const run = screen.getByRole('article', { name: 'Run threshold' })
     expect(run).not.toHaveTextContent(/Local/)
-    expect(screen.getByRole('region', { name: 'Level in each sport' })).toHaveTextContent(
+    expect(screen.getByRole('group', { name: 'Level in each sport' })).toHaveTextContent(
       /Running\s*\d+%\s*Local/,
     )
     expect(screen.queryByText(PROFILE_PROMPT)).not.toBeInTheDocument()
@@ -784,7 +723,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
       <ResultPage
         countedRuns={countedRunsStub()}
         signedIn={false}
-        route={{ page: 'balance' }}
+        route={{ page: 'ride' }}
         analysis={analysisStub({ state: { result, library: [ride], period: DATED }, busy: true })}
         result={result}
         settings={SETTINGS}

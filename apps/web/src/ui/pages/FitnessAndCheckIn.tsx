@@ -4,17 +4,12 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { AnalysisController } from '../analysis/controller'
 import { checkInWords, firstRowOf } from '../checkInRow'
-import { yearsWords } from '../yearsRow'
 import { hasFitnessView } from '../fitnessModel'
 import { CheckInRow } from './CheckInRow'
-import { YearsRow } from './YearsRow'
 import { FitnessSection } from './FitnessSection'
 
 export interface FitnessAndCheckInProps {
-  analysis: Pick<
-    AnalysisController,
-    'state' | 'checkIn' | 'markCheckInSeen' | 'markLookBackSeen' | 'incompleteImport'
-  >
+  analysis: Pick<AnalysisController, 'state' | 'checkIn' | 'markCheckInSeen' | 'incompleteImport'>
   units: UnitSystem
   library: readonly ActivitySummary[]
   /** The one sport the library holds, which the cards then name once instead of on each. */
@@ -22,10 +17,9 @@ export interface FitnessAndCheckInProps {
 }
 
 /**
- * The fitness cards and, one line under them, "Since your last import" or, when that has nothing new or has been seen,
- * "Your years". The row leads only when there is no card to lead (a library with no steady run). The years take the place
- * until their lead has been seen, and a new lead is shown once; a row that has appeared in this visit stays until it is
- * hidden, so opening it does not take it away.
+ * The fitness cards and, one line under them, "Since your last import" while it has not been seen. The row leads only when
+ * there is no card to lead (a library with no steady run); a row that has appeared in this visit stays until it is hidden, so
+ * opening it does not take it away. (The owner cut "Your years" from Balance on 10 Nov 2026; the History tab keeps the episodes.)
  */
 export function FitnessAndCheckIn({
   analysis,
@@ -33,13 +27,11 @@ export function FitnessAndCheckIn({
   library,
   soleSport = null,
 }: FitnessAndCheckInProps) {
-  const { fitness, isSample, lookBack } = analysis.state
+  const { fitness, isSample } = analysis.state
   // What the section draws: a card, or for a library of one sport the quiet line that says what would give one.
   const hasCard = useMemo(() => hasFitnessView(fitness) || soleSport !== null, [fitness, soleSport])
-  const years = useMemo(() => yearsWords(lookBack, fitness, units), [lookBack, fitness, units])
   const first = firstRowOf({
     checkIn: analysis.checkIn,
-    yearsLead: years?.key ?? null,
     importIncomplete: analysis.incompleteImport !== null,
     isSample,
   })
@@ -47,16 +39,11 @@ export function FitnessAndCheckIn({
   const [appeared, setAppeared] = useState(false)
   if (first === 'checkIn' && !appeared) setAppeared(true)
   if (first !== 'checkIn' && analysis.checkIn.checkIn === null && appeared) setAppeared(false)
-  const [yearsAppeared, setYearsAppeared] = useState(false)
-  if (first === 'lookBack' && !yearsAppeared) setYearsAppeared(true)
-  if (years === null && yearsAppeared) setYearsAppeared(false)
   const words = checkInWords(analysis.checkIn, units)
   const shown = analysis.incompleteImport === null && !isSample
   const row =
     appeared && words !== null && shown ? (
       <CheckInRow words={words} onSeen={analysis.markCheckInSeen} />
-    ) : yearsAppeared && years !== null && shown ? (
-      <YearsRow words={years} onSeen={(event) => analysis.markLookBackSeen(event, years.key)} />
     ) : null
   const section = (
     <FitnessSection fitness={fitness} units={units} library={library} soleSport={soleSport} />

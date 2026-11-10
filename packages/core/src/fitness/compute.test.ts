@@ -240,6 +240,11 @@ describe('a dip and a return, week by week', () => {
     const recovering = weekly[first('recovering')]!
     expect(recovering.gain!.value).toBeGreaterThan(0.03)
     expect(recovering.lowMs).toBeGreaterThan(recovering.onsetMs!)
+    // The low is a level, under the one now (the gain is the climb from it) and under the earlier level.
+    expect(recovering.lowLevel).toBeGreaterThan(0)
+    expect(recovering.lowLevel!).toBeLessThan(recovering.now!)
+    expect(recovering.lowLevel!).toBeLessThan(recovering.before!)
+    expect(weekly[first('slipping')]!.lowLevel).toBeUndefined()
     expect(recovering.entered!.z).toBeGreaterThan(4)
     const back = weekly[first('back')]!
     expect(Math.abs(back.change!.value)).toBeLessThan(0.04)

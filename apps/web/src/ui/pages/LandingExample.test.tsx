@@ -4,8 +4,6 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { landingText } from '../../test/landingText'
-import { gapReading } from '../components/balanceScale'
-import { balanceTitle } from '../components/headlineText'
 import { gapOfHeadline } from '../balanceGap'
 import { thresholdGrades } from '../thresholdGrade'
 import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
@@ -67,11 +65,13 @@ describe('LandingExample', () => {
       `Slower than your old level at ${LANDING_EXAMPLE.fitness.referenceHr} bpm.`,
     )
     expect(finding.querySelector('.fitness-track__ring')).not.toBeNull()
-    // One card: the finding is not a figure of its own, and it follows the balance and the levels.
+    // One card: the finding is not a figure of its own, and it follows the triangle.
     expect(container.querySelectorAll('figure.landing-example')).toHaveLength(1)
     expect(finding.closest('figure')).toBe(card)
-    const levels = card.querySelector('.balance-levels')!
-    expect(levels.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const triangle = card.querySelector('.level-triangle')!
+    expect(
+      triangle.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('says no size for the slip, which reads a point either way as the visit day moves', () => {
@@ -88,7 +88,7 @@ describe('LandingExample', () => {
       `Sample athlete: ${SAMPLE_DESCRIPTION}`,
     )
     expect(container.querySelectorAll('figcaption')).toHaveLength(1)
-    expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()
+    expect(screen.getByText('Your athletic balance')).toBeInTheDocument()
     // The old label chain is gone: nothing says illustrative, and the fitness finding has no label of its own.
     expect(container.textContent).not.toMatch(/illustrative|Fitness at the same heart rate/i)
   })
@@ -98,21 +98,32 @@ describe('LandingExample', () => {
     expect(screen.getByText('a 37-year-old man at 165.3 lb')).toBeInTheDocument()
   })
 
-  it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
+  it('draws the level triangle from the sample’s figures: run and ride at their grades and levels, and lifting with no grade yet', () => {
     const { container } = render(<LandingExample />)
     const text = landingText(LANDING_EXAMPLE)
+    const corners = [...container.querySelectorAll('.level-triangle__corner')].map(spoken)
+    // Each graded corner also carries its range for a screen reader, after the words the page prints.
     expect(
-      screen.getByRole('img', { name: new RegExp(`^${text.name} \\(range `) }),
-    ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe(text.value)
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe(text.edges)
-    const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(text.rows)
+      corners.map((corner, order) => corner.startsWith(text.rows[order] ?? 'Lifting No grade yet')),
+    ).toEqual([true, true, true])
+    expect(corners[2]).toBe('Lifting No grade yet')
+    // Two graded sports are an open line with their two dots, and lifting's axis has a cap and no dot.
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(2)
+    expect(container.querySelector('.level-triangle__line')).not.toBeNull()
+    expect(container.querySelector('.level-triangle__shape')).toBeNull()
+    expect(container.querySelectorAll('.level-triangle__cap')).toHaveLength(1)
   })
 
-  it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {
+  it('leaves the lean to the triangle, with no line under the headline, as Balance does', () => {
     const { container } = render(<LandingExample />)
-    expect(container.querySelector('svg:not(.icon):not(.fitness-glyph)')).toBeNull()
+    expect(container.querySelector('.landing-example__line')).toBeNull()
+    expect(container).not.toHaveTextContent(/leans toward|points higher/)
+  })
+
+  it('leads nowhere from its corners, and shows no meter or levels line', () => {
+    const { container } = render(<LandingExample />)
+    expect(container.querySelectorAll('.level-triangle a')).toHaveLength(0)
+    expect(container.querySelector('.balance-meter, .balance-levels')).toBeNull()
     expect(container.querySelector('details')).toBeNull()
   })
 

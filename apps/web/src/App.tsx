@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header } from './ui/components'
@@ -55,6 +55,12 @@ export function App() {
   const route = useRoute()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
+  const liftUserId = account.me?.user.id ?? null
+  // The lifting corner on Balance reads the sets the Lift page logs, from the same scope.
+  const liftAccount = useMemo(
+    () => ({ status: account.status, userId: liftUserId }),
+    [account.status, liftUserId],
+  )
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
   const athleteValues: AthleteValues = profile
@@ -331,6 +337,7 @@ export function App() {
                 birthYear={athleteValues.birthYear}
                 sex={athleteValues.sex}
                 signedIn={signedIn}
+                liftAccount={liftAccount}
                 countedRuns={countedRuns}
               />
             ) : restoringPage ? (

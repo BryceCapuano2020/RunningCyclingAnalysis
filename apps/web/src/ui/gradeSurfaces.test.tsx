@@ -6,18 +6,19 @@ import type { Period } from '@rca/core/period'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { AnalysisSession } from '@rca/core/session'
 import type { Sport } from '@rca/core/types'
+import { triangleGeometry } from '@rca/core/standing'
 import { buildShareCard } from '../share/cardModel'
-import { balanceLevels } from './pages/levelsModel'
-import { BalanceLevels } from './pages/BalanceLevels'
+import { LevelTriangle } from './components/LevelTriangle'
 import { SportAnswer } from './pages/SportAnswer'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 import { standingOf } from './standing'
 import { gradesOfStanding } from './thresholdGrade'
+import { triangleViewOf } from './triangleSports'
 
 afterEach(cleanup)
 
 /*
- * A sport's age grade at its threshold is one figure shown on the Balance levels, on the sport's page and on the share card
+ * A sport's age grade at its threshold is one figure shown on the Balance triangle, on the sport's page and on the share card
  * (docs/ENGINEERING.md, "One figure, one function"). Each test renders all three from one result and compares the level and the
  * percent they print, so a surface that works out a grade of its own fails here.
  */
@@ -45,19 +46,16 @@ interface Printed {
   percent: string
 }
 
-/** The levels under the balance meter, by sport. */
+/** The corners of the level triangle, by sport. */
 function onLevels(result: AnalysisResult): Record<Sport, Printed> {
   const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT)
   const grades = gradesOfStanding(result, standing)
-  const model = balanceLevels({ grades, inPeriod: { run: 3, ride: 3 }, missingAge: null })
-  render(<BalanceLevels model={model} />)
+  render(<LevelTriangle view={triangleViewOf(grades)} />)
   const read = (sport: Sport): Printed => {
-    const row = document.querySelector(`.balance-levels__row[data-sport="${sport}"]`)!
-    // The first row's level is a term with its definition beside it; the level is the term the button wears.
-    const level = row.querySelector('.balance-levels__level')!
+    const corner = document.querySelector(`.level-triangle__corner[data-sport="${sport}"]`)!
     return {
-      level: (level.querySelector('button') ?? level).textContent!,
-      percent: row.querySelector('.balance-levels__grade')!.textContent!,
+      level: corner.querySelector('.level-triangle__level')!.textContent!,
+      percent: corner.querySelector('.level-triangle__figure')!.textContent!,
     }
   }
   const printed = { run: read('run'), ride: read('ride') }
@@ -92,7 +90,7 @@ function onSportPage(result: AnalysisResult, sport: Sport): Printed {
   return printed
 }
 
-/** A sport's level and percent on the share card's levels line. */
+/** A sport's level and percent on the share card's triangle. */
 function onShareCard(result: AnalysisResult, sport: Sport): Printed {
   const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT)
   const card = buildShareCard(
@@ -105,9 +103,9 @@ function onShareCard(result: AnalysisResult, sport: Sport): Printed {
     standing.lead,
     gradesOfStanding(result, standing),
   )
-  const grade = card?.heroes.find((hero) => hero.sport === sport)?.grade
-  if (grade === null || grade === undefined) throw new Error(`no grade on the ${sport} hero`)
-  return grade
+  const corner = triangleGeometry(card!.triangle.grades, 1).corners[sport]
+  if (corner.percent === null) throw new Error(`no grade on the ${sport} corner`)
+  return { level: corner.level!, percent: `${corner.percent}%` }
 }
 
 describe.each([
@@ -118,7 +116,7 @@ describe.each([
   const levels = onLevels(result)
 
   it.each(SPORTS)(
-    'is the same level and percent for %s on the levels, the sport page and the share card',
+    'is the same level and percent for %s on the triangle, the sport page and the share card',
     (sport) => {
       expect(levels[sport].percent).toMatch(/^\d+%$/)
       expect(onSportPage(result, sport)).toEqual(levels[sport])

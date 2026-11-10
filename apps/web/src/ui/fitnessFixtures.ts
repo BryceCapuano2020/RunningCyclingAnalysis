@@ -105,10 +105,16 @@ const DIPPED = (i: number) =>
 
 export const SLIPPING = fitnessStatus('slipping', FALLING)
 
-export const RECOVERING = fitnessStatus('recovering', DIPPED, {
+const RECOVERING_BASE = fitnessStatus('recovering', DIPPED, {
   gain: { value: 0.07, low: 0.03, high: 0.11 },
   entered: { atMs: Date.UTC(2026, 9, 4, 23, 59, 59, 999), z: 5 },
 })
+
+/** A recovery, with the low it fell to at the lowest step of its series. */
+export const RECOVERING: FitnessStatus = {
+  ...RECOVERING_BASE,
+  lowLevel: Math.min(...RECOVERING_BASE.series.map((p) => p.value)),
+}
 
 export const HOLDING = fitnessStatus('holding', (i) => 0.006 * Math.sin(i * 1.7), {
   onsetMs: null,

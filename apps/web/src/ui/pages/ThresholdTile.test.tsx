@@ -59,7 +59,7 @@ const RIDE_GRADED: GradeOutcome = {
   },
 }
 
-/** The panel inside a tile's How this was worked out: the rows, never a line under the figure. */
+/** The panel inside a tile's Details: the rows, never a line under the figure. */
 function panelOf(container: HTMLElement): Element {
   const panel = container.querySelector('.stat-tile__source details .props')
   expect(panel?.closest('details')).not.toBeNull()
@@ -213,14 +213,14 @@ describe('ThresholdTile', () => {
 
   it('names each tile’s detail for its threshold, so two on a page are told apart', () => {
     renderTile('run', makeResult())
-    expect(detailSummaries()).toEqual(['How this was worked out for threshold pace'])
+    expect(detailSummaries()).toEqual(['Details for threshold pace'])
     // The words that tell the two apart are for a screen reader; the eye reads the title above.
     expect(document.querySelector('details > summary .sr-only')).toHaveTextContent(
       'for threshold pace',
     )
     cleanup()
     renderTile('ride', makeResult())
-    expect(detailSummaries()).toEqual(['How this was worked out for threshold power'])
+    expect(detailSummaries()).toEqual(['Details for threshold power'])
   })
 
   describe('one status to a card', () => {

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { EffortGate } from '@rca/core/effort'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeResult } from './components/fixtures'
-import { heldAction, heldReason, uncheckedRows } from './components/headlineNeed'
+import { heldAction, heldReason } from './components/headlineNeed'
 import { headlinePick } from './components/pickHeadline'
 import { gate, HARD, NO_HEART_RATE, THIN, UNKNOWN } from './effortGateFixtures'
 import { heldPick, heldTexts, holdOf } from './resultHold'
@@ -38,36 +38,11 @@ describe('a best 20 minutes the effort gate did not show hard, on the Balance he
     }
   })
 
-  it('holds nothing for a best that was only not checked: the comparison is shown, and the note says so', () => {
+  it('holds nothing for a best that was only not checked: the comparison is shown', () => {
     for (const result of [base(NO_HEART_RATE, HARD), base(HARD, THIN), base(UNKNOWN, HARD)]) {
       expect(holdOf(result)).toBeNull()
       expect(heldPick(result).pick).not.toBeNull()
     }
-    expect(uncheckedRows(base(NO_HEART_RATE, HARD))).toEqual([
-      {
-        label: 'Best 20 min run',
-        value: 'Not checked: no heart rate. Add a run with heart rate to check it.',
-      },
-    ])
-    expect(uncheckedRows(base(HARD, THIN))).toEqual([
-      {
-        label: 'Best 20 min ride',
-        value: expect.stringMatching(/^Not checked: too few days with heart rate\. Add /),
-      },
-    ])
-    expect(uncheckedRows(base(HARD, HARD))).toEqual([])
-    // A sport with no 20 minute effort at all has nothing to check: the note is of a comparison that is shown.
-    expect(uncheckedRows(base(UNKNOWN, HARD))).toEqual([])
-  })
-
-  it('names the sport whose best was not checked, whatever the other’s best was', () => {
-    const result = base(gate(), NO_HEART_RATE)
-    expect(uncheckedRows(result)).toEqual([
-      {
-        label: 'Best 20 min ride',
-        value: 'Not checked: no heart rate. Add a ride with heart rate to check it.',
-      },
-    ])
   })
 
   it('leaves a sport with no 20 minute effort to the need, which an effort of that length mends', () => {

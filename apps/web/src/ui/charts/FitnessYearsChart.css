@@ -78,3 +78,16 @@
     stroke: CanvasText;
   }
 }
+
+/* Today's level: a dashed rule across the plot, in the neutral ink, named by its label. */
+.fitness-years__now {
+  stroke: var(--ink-secondary);
+  stroke-width: 1px;
+  stroke-dasharray: 5 3;
+}
+
+@media (forced-colors: active) {
+  .fitness-years__now {
+    stroke: CanvasText;
+  }
+}

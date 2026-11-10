@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { gradedLiftOf, liftCornerGrade } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -6,29 +7,22 @@ import { ShareImageButton } from '../components'
 import { useHoldInputs } from '../holdContext'
 import { heldPick } from '../resultHold'
 import { balanceOfPick } from '../components/balanceScale'
-import { previousPeriodLabel } from '../components/rangeOptions'
-import { formatMonths } from '../format/date'
-import { levelTarget, targetRows } from '../levelTarget'
-import { NO_ROWS } from '../components/property'
-import type { Property } from '../components/property'
 import { standingOf } from '../standing'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { countSport } from '../records'
-import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import { gradeLevelText, gradedSexOf } from '../grades'
+import { gradeLevelText } from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
-import { BALANCE_PAIR } from '../sports'
+import { triangleViewOf } from '../triangleSports'
+import { liftTileOf } from '../lift/liftTile'
+import { useLiftSummary } from '../lift/useLiftSummary'
+import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import type { AnalysisController } from '../useAnalysis'
-import { balanceChanges } from './balanceChangeItems'
-import { balanceLevels } from './levelsModel'
-import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
-import { BalanceLevels } from './BalanceLevels'
 import { BalanceTiles } from './BalanceTiles'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 import { GradeProfileSection } from './GradeProfileSection'
@@ -47,8 +41,6 @@ export interface BalancePageProps {
   missingAge: AgeGap | null
   /** The period's status and Custom form, shown under the answer it changes. */
   controls: ReactNode
-  /** The period's dates, counts and notes as rows, for the Details under the answer. */
-  periodRows?: readonly Property[]
   /** False while no body weight is entered, so the share card leaves out what needs one. */
   weightKnown: boolean
   /** The line that says what the page is based on, at its foot. */
@@ -57,7 +49,11 @@ export interface BalancePageProps {
   onShowAll: () => void
   /** Runs that are all at walking pace and left out, which the page says instead of that it has no runs. */
   leftOut?: LeftOutRuns
+  /** Who is signed in, so the lifting corner reads the same sets as the Lift page; signed out when not given. */
+  liftAccount?: LiftSummaryAccount
 }
+
+const SIGNED_OUT_LIFTS: LiftSummaryAccount = { status: 'signed-out', userId: null }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
 function gradedLevel(outcome: GradeOutcome | null): string | null {
@@ -76,20 +72,13 @@ export function BalancePage({
   profile,
   missingAge,
   controls,
-  periodRows = NO_ROWS,
   weightKnown,
   onShowAll,
   footnote = null,
   leftOut,
+  liftAccount = SIGNED_OUT_LIFTS,
 }: BalancePageProps) {
-  const {
-    isSample,
-    period,
-    library: allActivities,
-    previous: periodBefore,
-    change: changeBefore,
-    earlier,
-  } = analysis.state
+  const { isSample, period, library: allActivities } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   const hold = useHoldInputs()
@@ -123,19 +112,10 @@ export function BalancePage({
   const rideOut = rideLeftOut(grades.ride, result)
   const { pick } = heldPick(result, holdWithRideOut(rideOut, hold))
   // The balance is stated once the headline can compare the sports; without a pick it is held, and the gap is
-  // held with it. This is the one gate: the headline, the tiles, the level target and the changes all read it.
+  // held with it. This is the one gate: the headline and the tiles read it.
   const reading = useMemo(
     () => (weightKnown ? balanceOfPick(gap, pick) : null),
     [weightKnown, gap, pick],
-  )
-  const heldGap = pick === null ? null : gap
-  // The level target, a line of the hero, waits for the same things as the balance: both grades, and so the weight.
-  const target = useMemo(
-    () =>
-      heldGap === null || standing === null
-        ? null
-        : levelTarget(standing.match.run ?? standing.match.ride, units),
-    [heldGap, standing, units],
   )
   const runCount = countSport(result.activities, 'run')
   const rideCount = countSport(result.activities, 'ride')
@@ -143,49 +123,32 @@ export function BalancePage({
     () => ({ run: runCount, ride: rideCount }),
     [runCount, rideCount],
   )
-  // The levels under the meter: both sports with the balance. With one sport in the period, its level stands alone
-  // when it has one; with two but no balance, the headline already names the levels.
-  const hasReading = reading !== null
-  const levels = useMemo(() => {
-    const sports = BALANCE_PAIR.filter((sport) => hasReading || inPeriod[sport] > 0)
-    if (!hasReading && sports.length !== 1) return null
-    const model = balanceLevels({ grades, sports, inPeriod, missingAge })
-    return !hasReading && model.rows.every((row) => row.grade === null) ? null : model
-  }, [hasReading, grades, inPeriod, missingAge])
-  // What moved since the previous period, or since the latest earlier window when the previous one holds too little to
-  // test; graded as this period is, and the previous gap is priced once here.
-  const previous = earlier?.previous ?? periodBefore
-  const change = earlier?.change ?? changeBefore
-  const previousLabel =
-    earlier === null
-      ? previousPeriodLabel(period.days)
-      : formatMonths(earlier.startMs, earlier.endMs, period.endMs ?? earlier.endMs)
-  const changes = useMemo(
-    () =>
-      balanceChanges({
-        result,
-        previous,
-        previousLabel,
-        change,
-        units,
-        rideShown: weightKnown,
-      }),
-    [result, previous, previousLabel, change, units, weightKnown],
+  // Lifting's corner: the share-of-total grade of the graded lifts (back squat, bench press, deadlift) the Lift page logs. The
+  // sample library is someone else's, so it shows no lifts of this browser's.
+  const { lifts } = useLiftSummary(liftAccount, settings)
+  const liftGrade = useMemo(() => {
+    if (isSample || birthYear === null || sex === null) return null
+    const graded = lifts.flatMap((lift) => {
+      const which = gradedLiftOf(lift.exercise, lift.equipment)
+      return which === null || lift.estimate === null
+        ? []
+        : [{ lift: which, estimate: lift.estimate }]
+    })
+    return liftCornerGrade(graded, { birthYear, sex }, settings.massKg)
+  }, [isSample, birthYear, sex, lifts, settings.massKg])
+  // The lifting row: the big three's total and each lift's grade, from the same estimates and grade function as the corner.
+  const liftTile = useMemo(
+    () => liftTileOf(isSample ? [] : lifts, profile, settings.massKg, units),
+    [isSample, lifts, profile, settings.massKg, units],
   )
-  // The standards line is shown only when a grade is on screen, so it never cites grades that are not
-  // there: a ride's grade is on screen only once the weight is entered.
-  const gradeShown = gradedSexOf(headline, profile, weightKnown) !== null
+  // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
+  const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])
+  const weightHeld = !weightKnown && inPeriod.run > 0 && inPeriod.ride > 0
+  const levelShown =
+    !weightHeld && Object.values(triangle.grades).some((corner) => corner.kind === 'graded')
   // A library of one sport is that sport's home: no comparison slots, an invitation to add the other at the foot.
   const only = soleSportOf(library)
   const soleSport = only !== null && inPeriod[only] > 0 ? only : null
-  // The Details under the answer: the period, the level target, and the standards the grades are read against, which are
-  // shown only when a grade is on screen, so they never cite grades that are not there.
-  const details: Property[] = [
-    ...periodRows,
-    ...(target === null ? [] : targetRows(target)),
-    ...(gradeShown ? [{ label: 'Graded on', value: ROAD_STANDARDS_SOURCE.shortName }] : []),
-  ]
-
   return (
     <div className="page-stack balance-page">
       <BalanceHero
@@ -199,9 +162,8 @@ export function BalancePage({
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
         rideLeftOut={rideOut}
-        levels={levels === null ? null : <BalanceLevels model={levels} />}
+        triangle={triangle}
         controls={controls}
-        details={details}
         leftOut={leftOut}
         action={
           <ShareImageButton
@@ -213,12 +175,11 @@ export function BalancePage({
             weightKnown={weightKnown}
             gap={gap}
             grades={grades}
+            triangle={triangle}
             disabled={analysis.busy}
           />
         }
       />
-
-      <BalanceChanges changes={changes} previousLabel={previousLabel} />
 
       <BalanceTiles
         result={result}
@@ -231,7 +192,8 @@ export function BalancePage({
         onAddFiles={analysis.addFiles}
         soleSport={soleSport}
         leftOut={leftOut}
-        levelShown={levels !== null}
+        levelShown={levelShown}
+        lift={liftTile}
       />
 
       {soleSport === null ? null : (

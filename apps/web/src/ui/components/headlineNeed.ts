@@ -4,8 +4,6 @@ import type { Period } from '@rca/core/period'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL } from '../grades'
-import { EFFORT_TEXT, uncheckedWords } from '../effortWords'
-import type { Property } from './property'
 import { BALANCE_PAIR, SPORT_ACTIVITY, SPORT_NOUN, SPORT_PLURAL } from '../sports'
 import { hasEvidence, headlineShortfall } from './pickHeadline'
 
@@ -53,27 +51,6 @@ export function needLine(
 function lackingSports(result: AnalysisResult): Sport[] {
   const short = headlineShortfall(result.activities)
   return BALANCE_PAIR.filter((sport) => short[sport] === 0 && !hasEvidence(result, sport))
-}
-
-/**
- * The rows that go in the Details of a comparison that rests on a sport whose best 20 minutes was not checked, because it has no
- * heart rate or too few days with one to set a reference: "Best 20 min run" and "Not checked, no heart rate". The comparison is
- * shown, not held: a rider with a power meter and no strap would otherwise never have one. Empty when every sport it rests on
- * was checked.
- */
-export function uncheckedRows(result: AnalysisResult): Property[] {
-  return BALANCE_PAIR.flatMap((sport) => {
-    const gate = result.effortGate[sport]
-    const words = gate.verdict === 'unknown' ? uncheckedWords(sport, gate) : null
-    return words === null || !hasEvidence(result, sport)
-      ? []
-      : [
-          {
-            label: `Best ${EFFORT_TEXT} ${SPORT_ACTIVITY[sport]}`,
-            value: `Not checked: ${words.short.toLowerCase()}. ${words.action}`,
-          },
-        ]
-  })
 }
 
 /** "one run and one ride of 20 min or more": the activities to add, said once for all the sports. */

@@ -146,6 +146,7 @@ function episodic(
       recent: spanOf(recent),
       baseline: onsetDay === null ? null : baselineBefore(runs, onsetDay),
     },
+    ...(gain === null || trough === null ? {} : { lowLevel: exp(trough.m) }),
     series: levelSeries(runs, day, ep.reference, pointOf(level, nowMs(base, day), level.weeks)),
     shortfall: null,
   }

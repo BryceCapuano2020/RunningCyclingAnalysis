@@ -1,34 +1,31 @@
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { LIFT_STANDARDS_SOURCE } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_WORDS } from '../appName'
 import type { BalanceGap } from '../ui/balanceGap'
-import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
-import { balanceTitle } from '../ui/components/headlineText'
+import { balanceOfPick } from '../ui/components/balanceScale'
 import { heldPick } from '../ui/resultHold'
 import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
-import { gradeLevelText, type GradeOutcome } from '../ui/grades'
-import { formatGrade } from '../ui/gradeFormat'
+import type { GradeOutcome } from '../ui/grades'
 import { threshold } from '../ui/records'
 import { BALANCE_PAIR } from '../ui/sports'
 import { THRESHOLD_NAME } from '../ui/thresholdName'
+import { triangleAnswer, triangleTitleText } from '../ui/pages/triangleCopy'
+import { triangleViewOf } from '../ui/triangleSports'
+import type { TriangleView } from '../ui/triangleSports'
 import { cardNameShown } from './cardName'
+import { cornersSentence } from './cardTriangle'
 import { hasShareableContent } from './hasShareableContent'
 
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
 export interface ShareFigure {
   number: string
   unit: string
-}
-
-/** A sport's age grade and its level, as the levels line under the meter writes them. */
-export interface ShareLevel {
-  percent: string
-  level: string
 }
 
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
@@ -39,12 +36,7 @@ export interface ShareHero {
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
   sub: string | null
-  /** The sport's level and whole-percent age grade at threshold, or null when it is not on the card. */
-  grade: ShareLevel | null
 }
-
-/** The balance between the sports, read the same way as the page's meter. */
-export type ShareMeter = BalanceReading
 
 /**
  * Everything the share card shows. Built from the analysis on screen; it holds no account, file,
@@ -54,10 +46,12 @@ export interface ShareCardModel {
   title: string
   /** The answer in an athlete's words, as the page states it. */
   headline: string
-  /** The balance, or null when the card has no meter. */
-  meter: ShareMeter | null
-  /** True when the heart-rate check informed an energy balance's range, which the meter's range line says. */
-  informedByHeartRate: boolean
+  /** The one line under the headline, as the page states it, or null when there is none. */
+  line: string | null
+  /** The level triangle's grades, the figure the page draws: run, cycling and lifting, each graded or with no grade yet. */
+  triangle: TriangleView
+  /** The image's description: the headline, the line and the three corners in one sentence. */
+  alt: string
   /** Running first, then cycling. */
   heroes: ShareHero[]
   /** The selected period's dates, such as "12 May – 3 Aug 2025". */
@@ -71,7 +65,8 @@ export interface ShareCardModel {
 }
 
 /** A graded card names the standard its grades come from. */
-const GRADED_FOOTNOTE = `Age-graded on ${ROAD_STANDARDS_SOURCE.shortName}.`
+const ROAD_FOOTNOTE = ROAD_STANDARDS_SOURCE.shortName
+const LIFT_FOOTNOTE = LIFT_STANDARDS_SOURCE.cardName
 /** Without a grade, the card says the figures are estimates. */
 const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
@@ -136,7 +131,6 @@ function heroFor(
   sport: Sport,
   settings: AthleteSettings,
   units: UnitSystem,
-  outcome: GradeOutcome | null,
 ): ShareHero | null {
   const estimate = threshold(result, sport, settings.massKg, units)
   if (estimate === null) return null
@@ -145,10 +139,6 @@ function heroFor(
     label: THRESHOLD_NAME[sport],
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
-    grade:
-      outcome?.kind === 'graded'
-        ? { percent: formatGrade(outcome.grade.centre.grade), level: gradeLevelText(outcome.grade) }
-        : null,
   }
 }
 
@@ -157,11 +147,10 @@ function heroesFor(
   result: AnalysisResult,
   settings: AthleteSettings,
   units: UnitSystem,
-  grades: Record<Sport, GradeOutcome | null>,
 ): ShareHero[] | null {
   const heroes: ShareHero[] = []
   for (const sport of BALANCE_PAIR) {
-    const hero = heroFor(result, sport, settings, units, grades[sport])
+    const hero = heroFor(result, sport, settings, units)
     if (hero === null) return null
     heroes.push(hero)
   }
@@ -171,7 +160,8 @@ function heroesFor(
 /**
  * The card for the balance on screen, or null when it is not offered: a weight, a balance, and a
  * threshold for each sport are all needed, so the card never asks the reader for anything. Reads the
- * same results, grades, grade gap and lead as the page, so the card cannot disagree with it.
+ * same results, grades, grade gap and lead as the page, so the card cannot disagree with it. The
+ * triangle is the one the page draws, so lifting's corner is on the card as it is on the page.
  */
 export function buildShareCard(
   result: AnalysisResult,
@@ -184,22 +174,33 @@ export function buildShareCard(
   grades: Record<Sport, GradeOutcome | null>,
   name: string | null = null,
   hold: HoldInputs = {},
+  triangle: TriangleView = triangleViewOf(grades),
 ): ShareCardModel | null {
   // The ride's own reason to be out of the comparison joins what the app holds, as it does on screen.
   const held = rideHoldInputs(grades.ride, result, hold)
   if (!hasShareableContent(result, gap, weightKnown, held)) return null
   const { pick } = heldPick(result, held)
   const reading = balanceOfPick(gap, pick)
-  const heroes = heroesFor(result, settings, units, grades)
+  const heroes = heroesFor(result, settings, units)
   if (reading === null || heroes === null) return null
+  const answer = triangleAnswer(reading, triangle, pick?.point.durationS)
+  const headline = triangleTitleText(answer.title)
+  // The footnote names the standard each graded corner comes from: the road standards for run and cycling, the meet lifts for lifting.
+  const sources = [
+    ...(BALANCE_PAIR.some((sport) => triangle.grades[sport].kind === 'graded')
+      ? [ROAD_FOOTNOTE]
+      : []),
+    ...(triangle.grades.lift.kind === 'graded' ? [LIFT_FOOTNOTE] : []),
+  ]
   return {
     title: APP_WORDS,
-    headline: balanceTitle(reading),
-    meter: reading,
-    informedByHeartRate: pick?.calibrated ?? false,
+    headline,
+    line: answer.line,
+    triangle,
+    alt: [`${headline}.`, answer.line, cornersSentence(triangle)].filter(Boolean).join(' '),
     heroes,
     period: periodDates(period),
-    footnote: heroes.some((hero) => hero.grade !== null) ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
+    footnote: sources.length > 0 ? `Graded on ${sources.join(' and ')}.` : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,
     name: cardNameShown(name ?? ''),
