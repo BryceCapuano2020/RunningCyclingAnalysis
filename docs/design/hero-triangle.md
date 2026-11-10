@@ -18,7 +18,7 @@ Why this replaces the meter:
   [strength.md](strength.md) decision 8 ("no lift number goes on the meter"): that rule was about a pair's gap, and
   nothing here is a gap. It also meets [VISION](../VISION.md) commitment 5 (no universal score): the three grades stay
   side by side, **never summed, averaged or reduced to an area**. The page prints no total and no shape size.
-- It tells the athlete one thing the meter could not: where lifting sits against the two sports he already grades.
+- It tells the athlete one thing the meter could not: where lifting sits against the two sports already graded.
 
 **Blocker the coordinator must see.** Lift has no age grade today. `GRADE_LEVELS` and `gradeEffort` cover run and ride
 only, and lifting has e1RM and relative strength, which are not a percent of an age-graded record. A lift corner on this
