@@ -11,6 +11,7 @@ import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './a
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
 import { keepProvisional } from './keepProvisional'
+import { clearLifts } from './liftStore'
 import { clearOutbox } from './outbox'
 import { FailedOriginals } from './failedOriginals'
 import { SendingKeys } from './sendingKeys'
@@ -263,7 +264,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
         // signed out has no account on screen to ask about them.
         const outboxCleared = await clearOutbox()
-        if ((!tracesCleared || !outboxCleared) && forgotten)
+        // The logged lifting sets are nothing kept here either.
+        const liftsCleared = await clearLifts()
+        if ((!tracesCleared || !outboxCleared || !liftsCleared) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()

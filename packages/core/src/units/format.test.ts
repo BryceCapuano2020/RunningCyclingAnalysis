@@ -13,6 +13,7 @@ import {
   formatPartialDistance,
   formatElevation,
   formatLoad,
+  formatLoadValue,
   formatMass,
   formatPace,
   formatRecordTime,
@@ -278,6 +279,20 @@ describe('formatLoad', () => {
 
   it('returns a dash for NaN', () => {
     expect(formatLoad(Number.NaN, 'metric')).toBe('—')
+  })
+})
+
+describe('formatLoadValue', () => {
+  it('gives the number formatLoad shows, so a load saved from whole pounds comes back as them', () => {
+    // 80 lb is saved as 36.29 kg, which is 80.006 lb: two decimals would offer 80.01 back.
+    expect(formatLoadValue(36.29, 'imperial')).toBe('80')
+    expect(formatLoadValue(125.87, 'imperial')).toBe('277.5')
+    expect(formatLoadValue(62.5, 'metric')).toBe('62.5')
+  })
+
+  it('leaves out thousands commas, which a load field refuses', () => {
+    expect(formatLoadValue(1234.25, 'metric')).toBe('1234.25')
+    expect(formatLoad(1234.25, 'metric')).toBe('1,234.25 kg')
   })
 })
 

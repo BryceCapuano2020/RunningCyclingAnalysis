@@ -19,17 +19,23 @@ export interface LockProvider {
 }
 
 let memoryTail: Promise<unknown> = Promise.resolve()
+const settled = () => undefined
+
+/** Tests only (test/setup.ts): a fresh queue, so a flush one test left hanging never holds the next test's. */
+export function resetMemoryLock(): void {
+  memoryTail = Promise.resolve()
+}
 
 /** Where `navigator.locks` is missing: one queue per page, which still keeps one flush in flight there. */
 const memoryLock: LockProvider = {
   request: (_name, work) => {
     const run = memoryTail.then(work, work)
-    memoryTail = run.catch(() => undefined)
+    memoryTail = run.then(settled, settled)
     return run
   },
 }
 
-function defaultLocks(): LockProvider {
+export function defaultLocks(): LockProvider {
   const manager = typeof navigator === 'undefined' ? undefined : navigator.locks
   return manager === undefined
     ? memoryLock
@@ -41,6 +47,8 @@ export interface FlushResult {
   sent: number
   /** Rows a 400 changed: sent back to their confirmed values or removed. The athlete is told these were not saved. */
   refused: number
+  /** Rows a 409 turned away for want of room: they wait for room or the next session. */
+  capped: number
   /** Every row left unsent: held after a failure, turned away for room, or not reached because the flush stopped. */
   held: number
   /** The wait before the next flush (retryDelayMs of the most failed row held by a failure), null when none. */
@@ -154,6 +162,7 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
     return {
       sent: tally.sent,
       refused: tally.refused,
+      capped: tally.capped,
       held: waiting - tally.sent - tally.refused,
       retryInMs: tally.retryInMs,
       unauthorized: tally.unauthorized,

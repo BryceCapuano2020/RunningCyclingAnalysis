@@ -62,6 +62,14 @@
   color: var(--ink);
 }
 
+/* A row whose term holds a control is as tall as the control. Its value stretches to the row with its text centred,
+   so the value's rule lines up with the term's; a centred value would sit lower and break the hairline. */
+.props__row--action > dd {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
 /* A label that opens something (a logged set's form): a button in the term, at a control's height, set as the label. */
 .props__action {
   margin: 0;

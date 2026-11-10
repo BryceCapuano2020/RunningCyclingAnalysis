@@ -106,6 +106,11 @@ describe('SetForm', () => {
     expect(onSave.mock.calls[0]![0].loadKg).toBe(102.06)
   })
 
+  it('offers a load saved from whole pounds back as the row shows it, not 80.01', () => {
+    setup({ units: 'imperial', initial: { reps: 10, loadKg: 36.29 } })
+    expect(field('Load')).toHaveValue('80')
+  })
+
   it('bounds the load in pounds when imperial', async () => {
     const { user } = setup({ units: 'imperial' })
     await user.type(field('Reps'), '3')

@@ -62,22 +62,24 @@ export const BALANCE_TITLE =
 /** The axe tags checked: WCAG 2.0, 2.1 and 2.2 A and AA, and axe's best practices. */
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
 
-export type Destination = 'Balance' | 'Run' | 'Ride' | 'History' | 'Activities' | 'Profile'
+export type Destination = 'Balance' | 'Run' | 'Ride' | 'Lift' | 'History' | 'Activities' | 'Profile'
 
 const HEADINGS: Record<Destination, string | RegExp> = {
   Balance: BALANCE_TITLE,
   Run: 'Run',
   Ride: 'Ride',
+  Lift: 'Lifting',
   History: 'History',
   Activities: 'Activities',
   Profile: 'Profile',
 }
 
-/** Where each page's link is: the rail ("Pages") for Balance, Run and Ride, the header for the rest. */
+/** Where each page's link is: the rail ("Pages") for Balance, Run, Ride and Lift, the header for the rest. */
 const NAV_OF: Record<Destination, string | null> = {
   Balance: 'Pages',
   Run: 'Pages',
   Ride: 'Pages',
+  Lift: 'Pages',
   History: 'More pages',
   Activities: 'More pages',
   Profile: null,

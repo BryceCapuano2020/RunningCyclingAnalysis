@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openManifestStore } from '../ui/importManifestStore'
 import { forgetAccountDetails } from './forgetAccountDetails'
+import { signOutLifts } from './liftAccount'
 import { clearWorkbenchScope } from './workbenchStore'
 
+vi.mock('./liftAccount', () => ({ signOutLifts: vi.fn(async () => undefined) }))
 vi.mock('./workbenchStore', () => ({ clearWorkbenchScope: vi.fn() }))
 
 const outboxes = vi.hoisted(() => new Map<string, { forget: ReturnType<typeof vi.fn> }>())
@@ -87,5 +89,26 @@ describe('the record of the account’s imports', () => {
     await forgetAccountDetails('alice')
 
     expect(openManifestStore().forget).toHaveBeenCalledExactlyOnceWith('account:alice')
+  })
+})
+
+describe('the account’s lifting sets', () => {
+  it('go at sign-out, after the recordings are cleared', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+
+    await forgetAccountDetails('alice')
+
+    expect(signOutLifts).toHaveBeenCalledExactlyOnceWith('alice')
+    expect(vi.mocked(clearWorkbenchScope).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(signOutLifts).mock.invocationCallOrder[0]!,
+    )
+  })
+
+  it('go when a session ended on its own, too', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(clearWorkbenchScope).mockResolvedValue(true)
+    await forgetAccountDetails('alice', true)
+    expect(signOutLifts).toHaveBeenCalledExactlyOnceWith('alice')
   })
 })

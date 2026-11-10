@@ -1,4 +1,5 @@
 import {
+  EQUIPMENT,
   EXERCISE_CATALOG,
   LIFT_EXERCISE_LENGTH,
   exerciseInfo,
@@ -16,7 +17,10 @@ export interface LiftOption {
   isNew?: true
 }
 
-/** A lift the athlete used lately, newest first. */
+/** How many used lifts the picker lists before anything is typed. Typing searches every one. */
+export const RECENT_LIFTS = 12
+
+/** A lift the athlete used, newest first. */
 export interface RecentLift {
   exercise: string
   equipment: Equipment
@@ -58,33 +62,54 @@ export function matchesName(name: string, query: string): boolean {
   return typed.every((word) => have.some((candidate) => candidate.startsWith(word)))
 }
 
+const EQUIPMENT_WORDS: ReadonlySet<string> = new Set(EQUIPMENT)
+
 /**
- * The rows for what is typed. With nothing typed, recent lifts lead and the catalog follows. Typed, catalog
- * names match first, then recent lifts. When nothing matches, the last option is "Add ‘name’", unless the
- * name cannot become a valid slug.
+ * The rows for what is typed. With nothing typed, the 12 lifts used last lead and the catalog follows. Typed, catalog
+ * names match first, then every lift used, matched with its equipment ("curl cable"), then catalog names found by
+ * leaving out an equipment word ("bench press dumbbell"), one such word picking that equipment. When nothing matches,
+ * the last option is "Add ‘name’", unless the name cannot become a valid slug.
  */
 export function liftOptions(query: string, recent: readonly RecentLift[]): LiftOption[] {
+  const typed = query.trim() !== ''
   const recentRows: LiftOption[] = []
   const seen = new Set<string>()
   for (const lift of recent) {
+    if (!typed && recentRows.length === RECENT_LIFTS) break
     const key = `${lift.exercise}.${lift.equipment}`
     if (seen.has(key)) continue
     seen.add(key)
     const name = liftName(lift.exercise)
-    if (!matchesName(name, query)) continue
+    if (!matchesName(`${name} ${lift.equipment}`, query)) continue
     recentRows.push({
       exercise: lift.exercise,
       equipment: lift.equipment,
       label: `${name}, ${lift.equipment}`,
     })
   }
+  const all = words(query)
+  const named = all.filter((word) => !EQUIPMENT_WORDS.has(word))
+  const gear = all.filter((word) => EQUIPMENT_WORDS.has(word)) as Equipment[]
+  const withGear = named.length > 0 && named.length < all.length
+  const listed = new Set(recentRows.map((row) => `${row.exercise}.${row.equipment}`))
   const catalogRows: LiftOption[] = []
+  const gearRows: LiftOption[] = []
   for (const slug of Object.keys(EXERCISE_CATALOG)) {
     const name = liftName(slug)
     if (matchesName(name, query)) catalogRows.push({ exercise: slug, label: name })
+    else if (withGear && matchesName(name, named.join(' '))) {
+      const equipment = gear.length === 1 ? gear[0] : undefined
+      if (equipment && listed.has(`${slug}.${equipment}`)) continue
+      gearRows.push(
+        equipment
+          ? { exercise: slug, equipment, label: `${name}, ${equipment}` }
+          : { exercise: slug, label: name },
+      )
+    }
   }
-  const typed = query.trim() !== ''
-  const rows = typed ? [...catalogRows, ...recentRows] : [...recentRows, ...catalogRows]
+  const rows = typed
+    ? [...catalogRows, ...recentRows, ...gearRows]
+    : [...recentRows, ...catalogRows]
   if (rows.length === 0 && nameProblem(query) === null) {
     const slug = slugify(query)
     if (slug !== null) rows.push({ exercise: slug, label: `Add ‘${liftName(slug)}’`, isNew: true })

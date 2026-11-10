@@ -79,7 +79,8 @@ export function AccountSection({
       <div className="account-section__danger">
         <h3>Delete account</h3>
         <p className="secondary">
-          Removes your profile, every activity and every stored file. This cannot be undone.
+          Removes your profile, every activity, every lifting set and every stored file. This cannot
+          be undone.
         </p>
         <button
           type="button"

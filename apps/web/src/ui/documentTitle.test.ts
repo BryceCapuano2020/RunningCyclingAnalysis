@@ -10,6 +10,7 @@ describe('documentTitleFor', () => {
     [{ page: 'balance' }, 'Balance'],
     [{ page: 'run' }, 'Run'],
     [{ page: 'ride' }, 'Ride'],
+    [{ page: 'lift' }, 'Lifting'],
     [{ page: 'history' }, 'History'],
     [{ page: 'activities' }, 'Activities'],
     [{ page: 'method' }, 'Method'],

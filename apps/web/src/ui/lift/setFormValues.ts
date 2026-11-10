@@ -8,7 +8,7 @@ import {
   readLiftSet,
 } from '@rca/core/lift'
 import type { Equipment, LiftSet } from '@rca/core/lift'
-import { kgToLb, lbToKg } from '@rca/core/units'
+import { formatLoadValue, kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 
 /** What the form shows: the typed texts, as the athlete left them. */
@@ -53,10 +53,9 @@ export function equipmentName(equipment: Equipment): string {
 
 const roundKg = (kg: number) => Math.round(kg * 100) / 100
 
-/** A load in kilograms as the profile's unit shows it, without trailing zeros. */
+/** A load in kilograms as the set's row shows it, in the profile's unit, for the load field. */
 export function loadText(kg: number, units: UnitSystem): string {
-  const value = units === 'imperial' ? kgToLb(kg) : kg
-  return String(Math.round(value * 100) / 100)
+  return formatLoadValue(kg, units)
 }
 
 /** The athlete's text as kilograms to 0.01, or null when it is not a number. */

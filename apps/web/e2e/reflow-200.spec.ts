@@ -53,7 +53,7 @@ async function expectTabsApart(page: Page): Promise<void> {
       )
   const rail = await boxesOf('Pages')
   const header = await boxesOf('More pages')
-  expect(rail).toHaveLength(3)
+  expect(rail).toHaveLength(4)
   expect(header.length).toBeGreaterThanOrEqual(2)
   const boxes = [...rail, ...header]
   for (const [i, a] of boxes.entries()) {

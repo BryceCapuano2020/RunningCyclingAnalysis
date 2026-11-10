@@ -1,3 +1,4 @@
+import { signOutLifts } from './liftAccount'
 import { openOutbox } from './outbox'
 import { accountScope, clearCheckinScope } from './checkinStore'
 import { openManifestStore } from '../ui/importManifestStore'
@@ -23,6 +24,9 @@ export async function forgetAccountDetails(
   // The record of this account's imports names the files it was given: it goes with the recordings.
   await openManifestStore().forget(`account:${userId}`)
   const cleared = await clearWorkbenchScope({ kind: 'account', userId }).catch(() => false)
+  // Last, so the privacy cleanup above never waits on a send in flight.
+  // The account's confirmed lifting sets go; unsent ones stay for its next sign-in (another account's sign-in sweeps them).
+  await signOutLifts(userId)
   return cleared
     ? null
     : 'You were signed out, but this account’s detail recordings could not be cleared from this browser. Clear this site’s browser data to remove them.'
