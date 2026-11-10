@@ -199,6 +199,43 @@ describe('LiftPage', () => {
     expect(screen.getByRole('heading', { name: 'Back squat, barbell' })).toHaveFocus()
   })
 
+  it('draws a closed form slot (false) as no form', () => {
+    render(<LiftPage {...props({ form: false, rowForm: false })} />)
+    expect(screen.getByRole('button', { name: 'Log a set' })).toBeInTheDocument()
+  })
+
+  it('moves focus to the day heading when the only set of the only lift is deleted', () => {
+    const only = { ...pullUp }
+    const { rerender } = render(
+      <LiftPage {...props({ lifts: [only], editingKey: 'p1', rowForm: <p>f</p> })} />,
+    )
+    rerender(<LiftPage {...props({ lifts: [], editingKey: null })} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Today' })).toHaveFocus()
+  })
+
+  it('returns focus to the row button after Cancel or Save', () => {
+    const { rerender } = render(<LiftPage {...props({ editingKey: 's2', rowForm: <p>f</p> })} />)
+    rerender(<LiftPage {...props({ editingKey: null })} />)
+    expect(screen.getAllByRole('button', { name: 'Edit set 2' })[0]).toHaveFocus()
+  })
+
+  it('does not move focus when the day changes with a form open', () => {
+    const { rerender } = render(<LiftPage {...props({ editingKey: 's2', rowForm: <p>f</p> })} />)
+    rerender(
+      <LiftPage {...props({ day: '2026-03-09', today: TODAY, lifts: [], editingKey: null })} />,
+    )
+    expect(document.body).toHaveFocus()
+  })
+
+  it('announces a refusal or a full account as a status', () => {
+    const { rerender } = render(
+      <LiftPage {...props({ status: { notSent: 2, refused: 0, full: false } })} />,
+    )
+    expect(screen.queryByRole('status')).toBeNull()
+    rerender(<LiftPage {...props({ status: { notSent: 0, refused: 1, full: false } })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Refused')
+  })
+
   it('has no word "strength" in its text', () => {
     const { container } = render(
       <LiftPage {...props({ status: { notSent: 2, refused: 1, full: true }, onMore: vi.fn() })} />,

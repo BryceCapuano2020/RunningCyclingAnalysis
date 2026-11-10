@@ -1,5 +1,5 @@
+import { formatLoad } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { formatLoad } from '../format/load'
 import type { LiftSetRow } from './liftPageTypes'
 
 /** "100 kg × 5 · RPE 8", with "warm-up" among the parts for a warm-up set, and "Bodyweight × 10" for no added load. */
