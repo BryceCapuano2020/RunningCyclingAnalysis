@@ -27,7 +27,7 @@ import {
 import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 import { requestMethodSection } from '../components/methodSection'
-import { TWENTY_MINUTE_ID } from './TwentyMinuteEffort'
+import { SECTION_ID } from '../components/methodTopics'
 
 afterEach(() => {
   cleanup()
@@ -283,117 +283,26 @@ describe('MethodPage answer', () => {
   })
 })
 
-describe('MethodPage how this works', () => {
-  it('lists what the app shows in three states, in one section with one heading in the contents', () => {
-    renderPage(null)
-
-    const section = screen.getByRole('region', { name: 'How this works' })
-    expect(
-      within(section)
-        .getAllByRole('heading', { level: 3 })
-        .map((heading) => heading.textContent),
-    ).toEqual([
-      'Calculated by this app',
-      'Recorded in your files',
-      'Not available from activity files',
-    ])
-    const unavailable = screen.getByRole('region', { name: 'Not available from activity files' })
-    expect(
-      within(unavailable).getByText(wholeText('Readiness and recovery scores')),
-    ).toBeInTheDocument()
-    expect(within(unavailable).getByText(wholeText('Vendor tests such as 4DP'))).toBeInTheDocument()
-    const calculated = screen.getByRole('region', { name: 'Calculated by this app' })
-    expect(within(calculated).getByText(wholeText('Race predictions'))).toBeInTheDocument()
-    expect(within(calculated).getByText(wholeText('Thresholds'))).toBeInTheDocument()
-    const recorded = screen.getByRole('region', { name: 'Recorded in your files' })
-    expect(within(recorded).getByText(wholeText('Data checks'))).toBeInTheDocument()
-  })
-
-  it('is one section: the old What is calculated and the assumptions heading are gone', () => {
-    renderPage(makeResult())
-
-    expect(screen.queryByRole('heading', { name: 'What is calculated' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'How this works and what it assumes' })).toBeNull()
-    expect(screen.getAllByRole('heading', { level: 2, name: 'How this works' })).toHaveLength(1)
-    const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(within(nav).queryByRole('button', { name: 'What is calculated' })).toBeNull()
-  })
-
-  it('moves focus to the section from the contents', () => {
-    renderPage(null)
-
-    const nav = screen.getByRole('navigation', { name: 'On this page' })
-    fireEvent.click(within(nav).getByRole('button', { name: 'How this works' }))
-    expect(document.activeElement).toBe(
-      screen.getByRole('heading', { level: 2, name: 'How this works' }),
-    )
-  })
-
-  it('comes last, after the sections that hold a chart, with the results or without them', () => {
-    renderPage(makeResult())
-
-    const how = screen.getByRole('region', { name: 'How this works' })
-    for (const name of ['The energy view', 'Age grades and levels', 'Heart-rate check']) {
-      const section = screen.getByRole('region', { name })
-      expect(section.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    }
-    expect(how.nextElementSibling).toBeNull()
-  })
-
-  it('says each idea once: every entry has one name, and no topic repeats an entry', () => {
-    renderPage(makeResult(CONTRIBUTING))
-
-    const section = screen.getByRole('region', { name: 'How this works' })
-    const names = Array.from(section.querySelectorAll('dt')).map((term) => term.textContent)
-    expect(new Set(names).size).toBe(names.length)
-    // The ideas the old two lists each said: one entry apiece, and no second section for them.
-    for (const name of ['Thresholds', 'How a change is called', 'Dated settings and zones']) {
-      expect(names.filter((candidate) => candidate === name)).toHaveLength(1)
-      expect(screen.getAllByText(wholeText(name))).toHaveLength(1)
-    }
-    expect(screen.getAllByRole('heading', { name: 'Heart-rate check' })).toHaveLength(1)
-    // Estimated power is the accuracy section's, not a second entry here.
-    expect(names.some((name) => /virtual power/i.test(name ?? ''))).toBe(false)
-    expect(screen.getAllByRole('heading', { name: 'Virtual power meter accuracy' })).toHaveLength(1)
-  })
-
-  it('keeps the technical detail of an entry behind a More detail disclosure named for it', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'How this works' })
-    const details = Array.from(section.querySelectorAll('details.more-detail'))
-    expect(details.length).toBeGreaterThan(0)
-    for (const detail of details) expect(detail).not.toHaveAttribute('open')
-    const thresholds = within(section).getByText(wholeText('Thresholds')).closest('.how__entry')
-    expect(thresholds?.querySelector('summary')).toHaveTextContent('More detail: Thresholds')
-  })
-
-  it('has far fewer More detail disclosures than the page had', () => {
-    const { container } = renderPage()
-
-    // Eleven before the two lists were one. The ones that remain hold real technical detail, the fitness status's and the race predictions' among them.
-    expect(container.querySelectorAll('details.more-detail').length).toBeLessThanOrEqual(11)
-  })
-})
-
-describe('MethodPage contents', () => {
-  it('lists the sections on the page, and moves focus to the one chosen', async () => {
+describe('MethodPage sections', () => {
+  it('lists the sections in the contents, in page order, and moves focus to the one chosen', () => {
     renderPage(makeResult({ virtualAccuracy: { nSegments: 3, mape: 0.06, bias: 0, segments: [] } }))
 
     const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((button) => button.textContent),
-    ).toEqual([
-      'The energy view',
+    const names = within(nav)
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names).toEqual([
+      'Thresholds and race times',
       'Age grades and levels',
-      'Estimated one-rep max',
+      'The energy view',
+      'Lifting',
       'Lift age grade',
       'Heart-rate check',
-      'Virtual power meter accuracy',
+      'Virtual power meter',
       'How this works',
     ])
+    // Each entry names a section heading, in the same order down the page.
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(names)
 
     fireEvent.click(within(nav).getByRole('button', { name: 'Age grades and levels' }))
     expect(document.activeElement).toBe(
@@ -401,14 +310,36 @@ describe('MethodPage contents', () => {
     )
   })
 
-  it('leaves out the accuracy entry when there is no virtual power accuracy', () => {
+  it('gives every section the id its links name, on a heading that takes focus', () => {
+    renderPage()
+
+    for (const id of Object.values(SECTION_ID)) {
+      const heading = document.getElementById(id)
+      expect(heading?.tagName, id).toBe('H2')
+      expect(heading).toHaveAttribute('tabindex', '-1')
+    }
+  })
+
+  it('leads each section with one line, then its facts as a list', () => {
+    const { container } = renderPage()
+
+    const sections = Array.from(container.querySelectorAll('section.band'))
+    expect(sections.length).toBe(Object.keys(SECTION_ID).length)
+    for (const section of sections.filter((node) => !node.classList.contains('how'))) {
+      expect(section.querySelector('.method__lead'), section.id).not.toBeNull()
+      expect(section.querySelectorAll('.method__facts li').length).toBeGreaterThan(2)
+    }
+  })
+
+  it('leaves out the virtual power meter when there is no accuracy to show', () => {
     renderPage(makeResult({ virtualAccuracy: null }))
 
     const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(within(nav).queryByRole('button', { name: 'Virtual power meter accuracy' })).toBeNull()
+    expect(within(nav).queryByRole('button', { name: 'Virtual power meter' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Virtual power meter' })).toBeNull()
   })
 
-  it('keeps every heading in order: one h1, then no level skipped', async () => {
+  it('keeps every heading in order: one h1, then no level skipped', () => {
     const { container } = renderPage(makeResult(CONTRIBUTING))
 
     const levels = Array.from(container.querySelectorAll('h1, h2, h3, h4')).map((heading) =>
@@ -421,20 +352,62 @@ describe('MethodPage contents', () => {
     })
   })
 
-  it('opens an age-grading request by focusing its section heading, after the page mounts', async () => {
-    requestMethodSection('method-grades')
+  it('opens a request from another page by focusing its section heading, after the page mounts', async () => {
+    requestMethodSection(SECTION_ID.thresholds)
     renderPage()
 
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        screen.getByRole('heading', { level: 2, name: 'Age grades and levels' }),
+        screen.getByRole('heading', { level: 2, name: 'Thresholds and race times' }),
       ),
     )
+  })
+
+  it('puts How this works last, in three states', () => {
+    renderPage(null)
+
+    const how = screen.getByRole('region', { name: 'How this works' })
+    expect(how.nextElementSibling).toBeNull()
+    expect(
+      within(how)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      'Calculated by this app',
+      'Recorded in your files',
+      'Not available from activity files',
+    ])
+  })
+})
+
+describe('MethodPage thresholds and race times', () => {
+  it('says what a threshold is, how each sport scales its best, and what the half marathon rests on', () => {
+    renderPage()
+
+    const section = screen.getByRole('region', { name: 'Thresholds and race times' })
+    expect(section).toHaveTextContent(
+      'A threshold is what you could hold for about an hour: a pace for a run, functional threshold power for a ride.',
+    )
+    expect(section).toHaveTextContent('from 3 min for a ride, or 8 min for a run')
+    expect(section).toHaveTextContent('A ride’s threshold from a 20 min best is 95% of it')
+    expect(section).toHaveTextContent('Heart rate can raise a ride’s threshold, never lower it.')
+    expect(section).toHaveTextContent('Balance’s run row leads with your predicted half marathon')
+    expect(section).toHaveTextContent('Riegel’s formula (exponent 1.07)')
+    expect(section).toHaveTextContent('a 5.5% spread for the half')
   })
 })
 
 describe('MethodPage energy view', () => {
-  it('says a run-only library needs a ride to compare, with no ratio, facts or evidence', () => {
+  it('says how both sports reach one scale, with the method’s numbers, with or without files', () => {
+    renderPage(null)
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(section).toHaveTextContent('21.5% gross efficiency')
+    expect(section).toHaveTextContent('3.9 J/kg/m (Minetti et al. 2002, plus 0.3)')
+    expect(section).toHaveTextContent('in efficiency by about 7% and in running economy by 8%')
+  })
+
+  it('says a run-only library needs a ride to compare, with no range', () => {
     const { container } = renderPage(
       makeResult({ runCurve: [curvePoint(HEADLINE_DURATION_S, 4, 'run-1')], rideCurve: [] }),
       null,
@@ -445,26 +418,35 @@ describe('MethodPage energy view', () => {
     expect(
       within(section).getByText(wholeText('Needs a ride to compare with running.')),
     ).toBeInTheDocument()
-    expect(section.textContent).not.toMatch(
-      /energy ratio|cross-check|90% model range|range does not/,
-    )
-    expect(section.querySelector('figure')).toBeNull()
+    expect(section.textContent).not.toMatch(/cross-check|The 90% range for|range does not/)
     expect(container.querySelector('figure')).toBeNull()
   })
 
-  it('holds the comparison when a sport has no 20 min effort or threshold, with no ratio chart or fallback copy', () => {
-    const short = [curvePoint(300, 4, 'run-1')]
-    // Rides a meter measured: what they lack is length, so the general line stands.
+  it('says a ride-only library needs a run to compare', () => {
+    renderPage(
+      makeResult({ runCurve: [], rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')] }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(
+      within(section).getByText(wholeText('Needs a run to compare with cycling.')),
+    ).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/cross-check|The 90% range for/)
+  })
+
+  it('holds the comparison when a sport has no 20 min effort, with Balance’s reason', () => {
     const metered = makeResult().activities.map((a) =>
       Object.assign({}, a, a.sport === 'ride' ? { powerSource: 'measured' as const } : {}),
     )
-    const { container } = renderPage(
+    renderPage(
       makeResult({
         activities: metered,
         runCp: null,
         rideCp: null,
         rideThreshold: null,
-        runCurve: short,
+        runCurve: [curvePoint(300, 4, 'run-1')],
         rideCurve: [curvePoint(300, 250, 'ride-1')],
       }),
       null,
@@ -477,15 +459,10 @@ describe('MethodPage energy view', () => {
         wholeText('The comparison is held. Your running and cycling have no 20 min effort yet.'),
       ),
     ).toBeInTheDocument()
-    expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
-    expect(
-      screen.queryByText(wholeText(/^The 90% range for Run against Ride/)),
-    ).not.toBeInTheDocument()
-    expect(section.querySelector('figure')).toBeNull()
-    expect(container.querySelector('figure')).toBeNull()
+    expect(section.textContent).not.toMatch(/cross-check|The 90% range for/)
   })
 
-  it('names the climb a ride needs when its rides have no power meter, not another ride', () => {
+  it('names the climb a ride needs when its rides have no power meter', () => {
     renderPage(
       makeResult({
         runCp: null,
@@ -498,9 +475,8 @@ describe('MethodPage energy view', () => {
       DATED_SIX_WEEKS,
     )
 
-    const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
-      within(section).getByText(
+      within(screen.getByRole('region', { name: 'The energy view' })).getByText(
         wholeText(
           'The comparison is held. Your rides have no power meter, so a ride compares only on a climb of 3% or steeper that holds for 20 min without a break.',
         ),
@@ -515,77 +491,34 @@ describe('MethodPage energy view', () => {
     ]
     renderPage(makeResult({ activities, ...CONTRIBUTING }), null, DATED_SIX_WEEKS)
 
-    const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
-      within(section).getByText(
+      within(screen.getByRole('region', { name: 'The energy view' })).getByText(
         wholeText('The comparison is held. Needs 2 more runs in this period.'),
       ),
     ).toBeInTheDocument()
   })
 
-  it('says a ride-only library needs a run to compare, with no ratio, facts or evidence', () => {
-    const { container } = renderPage(
-      makeResult({ runCurve: [], rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')] }),
-      null,
-      DATED_SIX_WEEKS,
-    )
-
-    const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(
-      within(section).getByText(wholeText('Needs a run to compare with cycling.')),
-    ).toBeInTheDocument()
-    expect(section.textContent).not.toMatch(
-      /energy ratio|cross-check|90% model range|range does not/,
-    )
-    expect(section.querySelector('figure')).toBeNull()
-    expect(container.querySelector('figure')).toBeNull()
-  })
-
-  it('is a cross-check of the age-grade gap when Balance shows one', () => {
+  it('is a cross-check of the age-grade gap when Balance shows one, in grade points there', () => {
     renderPage(GRADED, MAN_BORN_1986)
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(
-      within(section).getByText(
-        wholeText('The energy view is a cross-check of the age-grade gap on Balance.'),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        wholeText('Near even, the energy check can lean the other way from the age-grade gap.'),
-      ),
-    ).toBeInTheDocument()
-    expect(section.textContent).not.toMatch(/energy ratio/)
+    expect(section).toHaveTextContent('It cross-checks the age-grade gap on Balance')
+    expect(section).toHaveTextContent('Balance gives the same range in grade points')
+    expect(section.textContent).not.toMatch(/With no age-grade gap/)
   })
 
-  it('falls back to the energy ratio, in neutral words, when Balance has no age-grade gap', () => {
-    renderPage(makeResult(CONTRIBUTING), null)
+  it('is the ratio Balance shows when Balance has no age-grade gap, as when one sport is graded', () => {
+    renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(section.textContent).not.toMatch(/cross-check of the age-grade gap/)
-    expect(
-      within(section).getByText(
-        wholeText('When Balance has no age-grade gap to show, it shows the energy ratio instead.'),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        wholeText('The ratio is running’s energy rate as a percentage of cycling’s.'),
-      ),
-    ).toBeInTheDocument()
-    expect(within(section).getByText(wholeText('This view is that ratio.'))).toBeInTheDocument()
-  })
-
-  it('falls back when only one sport is graded', () => {
-    renderPage(makeResult({ ...CONTRIBUTING, runCurve: CONTRIBUTING.runCurve }), MAN_BORN_1986)
-
-    expect(screen.getByRole('region', { name: 'The energy view' }).textContent).not.toMatch(
-      /cross-check of the age-grade gap/,
+    expect(section).toHaveTextContent(
+      'With no age-grade gap, Balance shows this ratio: running’s energy rate as a percentage of cycling’s.',
     )
+    expect(section.textContent).not.toMatch(/cross-checks|grade points/)
   })
 
-  it('states the 90% range, the basis and what the range leaves out', () => {
-    renderPage(makeResult(CONTRIBUTING))
+  it('states the 90% range once, its basis, and what it leaves out', () => {
+    const { container } = renderPage(makeResult(CONTRIBUTING))
 
     const facts = within(factsOf())
     expect(
@@ -597,15 +530,10 @@ describe('MethodPage energy view', () => {
     expect(
       facts.getByText(wholeText('The range does not include every source of error.')),
     ).toBeInTheDocument()
+    expect(container.textContent?.match(/every source of error/g)).toHaveLength(1)
   })
 
-  it('reuses the headline range text rather than writing its own', () => {
-    renderPage(makeResult(CONTRIBUTING))
-
-    expect(screen.getAllByText(wholeText(/^The 90% range for Run against Ride/))).toHaveLength(1)
-  })
-
-  it('says the range was adjusted when the heart-rate comparison is used', () => {
+  it('says the range was informed by heart rate when the calibrated comparison is used', () => {
     const point = comparisonPoint()
     renderPage(makeResult({ ...CONTRIBUTING, comparison: { prior: [point], calibrated: [point] } }))
 
@@ -616,7 +544,7 @@ describe('MethodPage energy view', () => {
     ).toBeInTheDocument()
   })
 
-  it('says the heart-rate check could not support an adjustment, and uses the population range', () => {
+  it('says when heart rate could not support an adjustment', () => {
     const point = comparisonPoint()
     renderPage(
       makeResult({
@@ -634,12 +562,43 @@ describe('MethodPage energy view', () => {
         wholeText('The heart-rate check could not support a reliable adjustment.'),
       ),
     ).toBeInTheDocument()
-    expect(
-      within(factsOf()).getByText(wholeText('The range is the population-based model range.')),
-    ).toBeInTheDocument()
   })
 
-  it('names the heart-rate maxima the best efforts were judged against', () => {
+  it('shows no range when there is no comparison to check', () => {
+    renderPage(makeResult({ comparison: { prior: [], calibrated: null } }))
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(within(section).queryByText(wholeText(/^The 90% range for/))).not.toBeInTheDocument()
+  })
+})
+
+describe('MethodPage heart-rate check', () => {
+  it('says what heart rate is for, defines the max in place, and states the hard line', () => {
+    const { container } = renderPage()
+
+    const section = screen.getByRole('region', { name: 'Heart-rate check' })
+    expect(section).toHaveTextContent(
+      'Heart rate says whether a best effort was hard. It does not measure fitness.',
+    )
+    expect(section.querySelector('.definition')).toHaveTextContent('max heart rate')
+    expect(section).toHaveTextContent('A best counts as hard at 90% of your max heart rate')
+    expect(container.querySelectorAll('.definition')).toHaveLength(1)
+  })
+
+  it('says how the max is set, the cycling offset, the age fallback and what cannot be trusted', () => {
+    renderPage()
+
+    const section = screen.getByRole('region', { name: 'Heart-rate check' })
+    expect(section).toHaveTextContent('several separate days reached in the last three years')
+    expect(section).toHaveTextContent('the higher of its own and 6 bpm under running’s')
+    expect(section).toHaveTextContent('With under 12 days of heart rate, it is the usual max')
+    expect(section).toHaveTextContent('25 bpm over its usual max')
+    expect(section).toHaveTextContent(
+      'Heart rate is read in 5 min steady blocks, after each activity’s first 10 min.',
+    )
+  })
+
+  it('names the maxima this library’s best efforts were judged against', () => {
     renderPage(
       makeResult({
         runMaxHeartRate: 188,
@@ -676,118 +635,20 @@ describe('MethodPage energy view', () => {
       screen.queryByText(wholeText(/Both best efforts reached at least 90%/)),
     ).not.toBeInTheDocument()
   })
-
-  it('shows no facts when there is no comparison to check', () => {
-    renderPage(makeResult({ comparison: { prior: [], calibrated: null } }))
-
-    const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(within(section).queryByRole('list')).not.toBeInTheDocument()
-    expect(within(section).queryByText(wholeText(/90% range/))).not.toBeInTheDocument()
-  })
-
-  it('defines the 90% range once, and what the range leaves out once', async () => {
-    const { container } = renderPage(
-      makeResult({
-        runCurve: runCurveFixture,
-        rideMetabolicCurve: rideMetabolicCurveFixture,
-        rideCurve: rideCurveFixture,
-      }),
-    )
-    const text = container.textContent ?? ''
-
-    expect(text.match(/The 90% range is the spread the model gives/g)).toHaveLength(1)
-    expect(text.match(/does not include every source of error/g)).toHaveLength(1)
-    // Paraphrases of the same limit are caught too: the sentence is named once, the rest refer back.
-    expect(
-      text.match(/every source of|sensor error|error in virtual power|other errors/g),
-    ).toHaveLength(1)
-  })
-
-  it('keeps the explanation of how the energy rate is worked out in a More detail disclosure', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'The energy view' })
-    const detail = section.querySelector('details.more-detail')
-    expect(detail).toHaveTextContent('Gross efficiency averages about 21.5%.')
-    expect(detail).toHaveTextContent('Minetti et al. (2002)')
-  })
-})
-
-describe('MethodPage heart-rate check', () => {
-  it('explains the 20 minute effort under the heart-rate check, where the evidence card links', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 min effort' })
-    expect(heading).toHaveAttribute('id', TWENTY_MINUTE_ID)
-    expect(
-      within(section).getByText(
-        wholeText(/^Balance’s changes and energy view read your best 20 min in each sport/),
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('states the block length and the skipped start of each activity in the heart-rate check', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    expect(
-      within(section).getByText(
-        wholeText(
-          'Heart rate is read in 5 min blocks of steady effort, taken after the first 10 min of each activity.',
-        ),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        wholeText('Heart rate rises with energy rate at a different rate in each sport.'),
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('says what the heart-rate check does and does not do, in plain words first', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    for (const line of [
-      'Heart rate checks the model.',
-      'It does not measure fitness.',
-      'If the data are consistent enough to inform the range, the range is shifted to match.',
-      'If not, the population range is kept.',
-      'This is a consistency check on your own data.',
-      'It is not a validated correction.',
-    ]) {
-      expect(within(section).getByText(wholeText(line))).toBeInTheDocument()
-    }
-  })
-
-  it('has the reason for the cycling offset behind More detail', () => {
-    renderPage()
-
-    const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    expect(section.querySelector('details.more-detail')).toHaveTextContent(
-      'A cycling maximum usually runs about 6 bpm lower',
-    )
-  })
 })
 
 describe('MethodPage virtual power meter', () => {
-  it('says how many climbs the virtual power accuracy rests on', () => {
+  it('says how its watts are made and checked, and how many climbs the accuracy rests on', () => {
     renderPage()
 
-    const section = screen.getByRole('region', { name: 'Virtual power meter accuracy' })
+    const section = screen.getByRole('region', { name: 'Virtual power meter' })
+    expect(section).toHaveTextContent('Rides without a power meter get estimated watts on climbs')
+    expect(section).toHaveTextContent('estimated watts count 40% as much as measured ones')
     expect(
       within(section).getByText(
         wholeText('On 3 climbs, estimated power was within 6% of your power meter on average.'),
       ),
     ).toBeInTheDocument()
-  })
-
-  it('says rides without a power meter get an estimate, not a price', () => {
-    const { container } = renderPage()
-
-    expect(container.textContent).toMatch(/Rides without a power meter get an estimated power/)
-    expect(container.textContent).not.toMatch(/priced/)
   })
 
   it('uses the singular for one climb', () => {
@@ -800,135 +661,80 @@ describe('MethodPage virtual power meter', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps the accuracy section but leaves out the sentence when no climb was scored', () => {
+  it('keeps the section but leaves out the sentence when no climb was scored', () => {
     renderPage(makeResult({ virtualAccuracy: { nSegments: 0, mape: 0, bias: 0, segments: [] } }))
 
-    expect(screen.getByRole('region', { name: 'Virtual power meter accuracy' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Virtual power meter' })).toBeInTheDocument()
     expect(screen.queryByText(wholeText(/estimated power was within/))).not.toBeInTheDocument()
-  })
-
-  it('omits the accuracy section when there is no virtual power accuracy', () => {
-    renderPage(makeResult({ virtualAccuracy: null }))
-
-    expect(
-      screen.queryByRole('region', { name: 'Virtual power meter accuracy' }),
-    ).not.toBeInTheDocument()
-  })
-})
-
-describe('MethodPage age grading', () => {
-  it('puts the age grading method on the page, and the grade it is for when one shows', () => {
-    const graded = makeResult({
-      runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-    })
-    renderPage(graded, MAN_BORN_1986)
-
-    const section = screen.getByRole('region', { name: 'Age grades and levels' })
-    expect(within(section).getByText(wholeText(/^Your grades are for a man\./))).toBeInTheDocument()
   })
 })
 
 describe('MethodPage copy', () => {
-  it('writes durations one way: min for minutes, s for seconds, and the unit in full for days', async () => {
+  it('writes durations one way: min for minutes, s for seconds', () => {
     const { container } = renderPage()
     const text = container.textContent ?? ''
 
     expect(text).not.toMatch(/\bminutes\b|\bseconds\b/)
     expect(text).toMatch(/\b5 min\b/)
-    expect(text).toMatch(/\b10 s either side\b/)
-    expect(text).toMatch(/\b30 s\b/)
   })
 
-  it('spells British throughout', async () => {
+  it('spells British throughout', () => {
     const { container } = renderPage()
 
     expect(container.textContent).not.toMatch(/\b(analyze|centered|summarizes|color|kilometer)\w*/i)
   })
 
-  it('never calls the balance or a level weak, a limiter, ahead or a strength', async () => {
+  it('never uses the words the app avoids, a hedge or an em dash', () => {
     const { container } = renderPage(makeResult(CONTRIBUTING))
 
     expect(container.textContent).not.toMatch(
-      /\b(ahead|ahead of|limiter|weak|weakness|strength)\b/i,
+      /\b(ahead|limiter|weak|weakness|strength|quietly|because|caused)\b/i,
     )
-    expect(container.textContent).not.toMatch(/holding you back/i)
+    expect(container.textContent).not.toMatch(/holding you back|important to note|may be|might/i)
+    expect(container.textContent).not.toContain('—')
   })
 
-  it('does not say the median of the model draws, or any model draws', async () => {
-    const { container } = renderPage()
-
-    expect(container.textContent).not.toMatch(/model draws|draws/)
-  })
-
-  it('says each conversion once: the energy rate is defined in the unit topic, not in the energy view', async () => {
-    const { container } = renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
-    const text = container.textContent ?? ''
-
-    expect(text.match(/the energy each sport costs per kilogram/g)).toHaveLength(1)
-    expect(text).not.toMatch(/running and cycling on one scale: the energy rate/)
-  })
-
-  it('does not put one sentence on the page twice', async () => {
+  it('does not put one sentence on the page twice', () => {
     const { container } = renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
 
-    // The contents list repeats the section headings on purpose, and each chart repeats its own
-    // keyboard hint, so the prose outside the charts and the contents is what must not repeat. A paragraph
-    // of method lines is read a line at a time, so a sentence repeated inside two paragraphs is caught.
     const sentences = Array.from(container.querySelectorAll('p, li, h2, h3, dt'))
-      .filter((node) => !node.closest('nav, figure'))
+      .filter((node) => !node.closest('nav'))
       .flatMap((node) => {
         const lines = Array.from(node.querySelectorAll(':scope > .method__line'))
         return lines.length > 0 ? lines.map((line) => line.textContent) : [node.textContent]
       })
       .map((text) => text?.trim() ?? '')
       .filter((text) => text.length > 0)
-    expect(sentences.length).toBeGreaterThan(150)
+    expect(sentences.length).toBeGreaterThan(80)
     expect(new Set(sentences).size).toBe(sentences.length)
   })
 })
 
 describe('MethodPage without a weight', () => {
-  it('asks for the weight once, in the one prompt Balance uses, linked to Profile', () => {
+  it('asks for the weight once, in the energy view, in the one prompt Balance uses', () => {
     const { container } = renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
     const links = screen.getAllByRole('link', { name: 'Profile' })
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute('href', '#/profile')
     expect(links[0]?.closest('p')).toHaveTextContent(
-      'Add your weight on Profile to grade your rides and compare them with your runs.',
+      'Waits for your weight, as Balance does. Add your weight on Profile to grade your rides and compare them with your runs.',
     )
     expect(container.textContent?.match(/Add your weight on Profile/g)).toHaveLength(1)
-    expect(
-      screen.getByRole('region', { name: 'Heart-rate check' }).contains(links[0] ?? null),
-    ).toBe(true)
+    expect(screen.getByRole('region', { name: 'The energy view' }).contains(links[0] ?? null)).toBe(
+      true,
+    )
   })
 
-  it('holds the energy view: no ratio, no energy-rate chart, no energy facts and no sentence about them', () => {
-    const { container } = renderPage(
-      makeResult({
-        ...CONTRIBUTING,
-        runCurve: runCurveFixture,
-        rideMetabolicCurve: rideMetabolicCurveFixture,
-        rideCurve: rideCurveFixture,
-      }),
-      null,
-      DATED_SIX_WEEKS,
-      false,
-    )
+  it('holds the energy view: the method reads, with no range and no cross-check', () => {
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(section.querySelector('figure')).toBeNull()
-    expect(within(section).queryByRole('list')).toBeNull()
-    expect(section.textContent).not.toMatch(/90% range|cross-check|energy ratio|energy rate by/)
-    expect(
-      within(section).getByText(wholeText('Waits for your weight, as Balance does.')),
-    ).toBeInTheDocument()
-    expect(within(section).queryByRole('link', { name: 'Profile' })).toBeNull()
-    expect(container.querySelector('figure')).not.toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/The 90% range for|cross-check/)
+    expect(section).toHaveTextContent('21.5% gross efficiency')
   })
 
   it('says a one-run library needs a ride to compare, and asks for no weight', () => {
-    // A library with no ride has no virtual power accuracy either, since the check rests on rides.
     renderPage(
       makeResult({
         runCurve: [curvePoint(HEADLINE_DURATION_S, 4, 'run-1')],
@@ -939,9 +745,10 @@ describe('MethodPage without a weight', () => {
       false,
     )
 
-    const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
-      within(section).getByText(wholeText('Needs a ride to compare with running.')),
+      within(screen.getByRole('region', { name: 'The energy view' })).getByText(
+        wholeText('Needs a ride to compare with running.'),
+      ),
     ).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/[Ww]aits for your weight/)
     expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull()
@@ -970,19 +777,6 @@ describe('MethodPage without a weight', () => {
     ).toBeInTheDocument()
     expect(
       within(section).getByText(wholeText(/Both best efforts reached at least 90%/)),
-    ).toBeInTheDocument()
-    // The max heart rate is defined in plain words, where the heart-rate check is explained.
-    expect(
-      within(section).getByText(
-        wholeText(
-          'Your max heart rate is the highest sustained heart rate that several separate days reached.',
-        ),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        wholeText('Cycling uses the higher of its own and 6 bpm below running’s.'),
-      ),
     ).toBeInTheDocument()
   })
 
@@ -1028,21 +822,18 @@ describe('MethodPage without a weight', () => {
     expect(within(section).getByText(wholeText(/^Your grades are for a man\./))).toBeInTheDocument()
   })
 
-  it('holds the virtual power check: no estimate sentence and no chart, but the method still reads', () => {
+  it('holds the virtual power check: no accuracy sentence, but the method still reads', () => {
     renderPage(makeResult(), null, DATED_SIX_WEEKS, false)
 
-    const section = screen.getByRole('region', { name: 'Virtual power meter accuracy' })
+    const section = screen.getByRole('region', { name: 'Virtual power meter' })
     expect(within(section).queryByText(wholeText(/estimated power was within/))).toBeNull()
-    expect(section.querySelector('figure')).toBeNull()
-    expect(
-      within(section).getByText(wholeText(/Rides without a power meter get an estimated power/)),
-    ).toBeInTheDocument()
+    expect(section).toHaveTextContent('Rides without a power meter get estimated watts')
     expect(
       within(section).getByText(wholeText('Waits for your weight, as the energy view does.')),
     ).toBeInTheDocument()
   })
 
-  it('shows the energy view and its facts once the weight is known', () => {
+  it('shows the energy range once the weight is known, with no prompt', () => {
     renderPage(
       makeResult({
         ...CONTRIBUTING,
@@ -1060,61 +851,46 @@ describe('MethodPage without a weight', () => {
       within(section).getByText(wholeText(/^The 90% range for Run against Ride/)),
     ).toBeInTheDocument()
     expect(within(section).queryByText(wholeText(/Add your weight on Profile/))).toBeNull()
-    expect(
-      within(section).getByText(wholeText('Everywhere else, each sport uses its own units.')),
-    ).toBeInTheDocument()
   })
 })
 
 describe('MethodPage without a result', () => {
-  it('shows the method, the age grades and the topics, with no period line', () => {
+  it('shows every section’s method, with no period line', () => {
     renderPage(null)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Age grades and levels' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'How this works' })).toBeInTheDocument()
-    const energy = screen.getByRole('region', { name: 'The energy view' })
-    expect(energy).toHaveTextContent(
-      'Once your files load, this view puts running and cycling on one scale',
-    )
-    expect(energy).not.toHaveTextContent('This view is that ratio')
+    expect(screen.getByRole('region', { name: 'Thresholds and race times' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Lifting' })).toBeInTheDocument()
     expect(answerLine()).toHaveTextContent('Thresholds, ride levels and the balance are estimates.')
     expect(document.body.textContent).not.toMatch(/\(last 6 weeks\)|\(all time\)|estimates from \d/)
   })
 
-  it('shows one plain line under the energy view, where the charts would be, and no chart', () => {
+  it('says once, in the energy view, that the files bring the figures', () => {
     const { container } = renderPage(null)
 
     expect(container.querySelector('figure')).toBeNull()
-    expect(container.querySelector('figure')).toBeNull()
-    expect(screen.getAllByText(wholeText('Add your files to see this evidence.'))).toHaveLength(1)
     expect(
       within(screen.getByRole('region', { name: 'The energy view' })).getByText(
-        wholeText('Add your files to see this evidence.'),
+        wholeText('Add your files to see your own figures here.'),
       ),
     ).toBeInTheDocument()
+    expect(
+      screen.getAllByText(wholeText('Add your files to see your own figures here.')),
+    ).toHaveLength(1)
   })
 
-  it('says saved results are loading once, under the energy view, while a kept library restores', () => {
+  it('says saved results are loading once while a kept library restores', () => {
     renderPage(null, null, DATED_SIX_WEEKS, true, true)
 
     expect(screen.getAllByText(wholeText('Your saved results are loading.'))).toHaveLength(1)
-    expect(screen.queryByText(wholeText('Add your files to see this evidence.'))).toBeNull()
+    expect(screen.queryByText(wholeText('Add your files to see your own figures here.'))).toBeNull()
   })
 
-  it('has no Back to Balance link, which would only show the landing page', () => {
-    renderPage(null)
-
-    expect(screen.queryByRole('link', { name: /Back to Balance/ })).toBeNull()
-  })
-
-  it('keeps the accuracy entry in the contents, with no results too', () => {
+  it('keeps the virtual power meter in the contents, with no results too', () => {
     renderPage(null)
 
     const nav = screen.getByRole('navigation', { name: 'On this page' })
-    expect(
-      within(nav).getByRole('button', { name: 'Virtual power meter accuracy' }),
-    ).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Virtual power meter' })).toBeInTheDocument()
   })
 })
 

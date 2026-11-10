@@ -44,7 +44,7 @@ test('a Method link in Details lands with its section heading at the top, focuse
   await ride.getByRole('link', { name: /^Method/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Method' })).toBeVisible()
 
-  const heading = page.getByRole('heading', { level: 2, name: 'How this works' })
+  const heading = page.getByRole('heading', { level: 2, name: 'Thresholds and race times' })
   await expect(heading).toBeFocused()
   await scrollSettled(page)
   const id = await heading.getAttribute('id')

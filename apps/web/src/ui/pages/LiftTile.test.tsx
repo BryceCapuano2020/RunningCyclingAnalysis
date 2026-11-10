@@ -25,7 +25,8 @@ describe('LiftTile', () => {
     expect(tile.querySelector('details')).not.toHaveAttribute('open')
     expect(screen.getByText('Squat').nextElementSibling).toHaveTextContent('40% · 100 kg')
     expect(screen.getByText('Deadlift').nextElementSibling).toHaveTextContent('39% · 140 kg')
-    expect(screen.queryByRole('link')).toBeNull()
+    // One link, to the Lifting section of Method, under the rows.
+    expect(screen.getByRole('link', { name: /^Method/ })).toHaveAttribute('href', '#/method')
   })
 
   it('asks for a first lift, linking to the Lift page, when there is no figure', () => {

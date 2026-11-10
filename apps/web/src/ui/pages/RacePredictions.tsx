@@ -314,7 +314,7 @@ export function RacePredictions({
               ),
             ),
           ]}
-          method={SECTION_ID.how}
+          method={SECTION_ID.thresholds}
           methodName="how the race predictions are worked out"
         />
         <RaceTable found={found} units={units} ran={ran} bound={bound} />

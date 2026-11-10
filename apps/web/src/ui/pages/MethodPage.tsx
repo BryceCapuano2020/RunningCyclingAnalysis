@@ -1,50 +1,35 @@
 import { useEffect } from 'react'
-import { HR_BLOCK_S, HR_SKIP_S } from '@rca/core/constants'
 import type { Period } from '@rca/core/period'
-import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve } from '@rca/core/types'
-import { formatDuration, formatPercent } from '@rca/core/units'
+import { formatPercent } from '@rca/core/units'
 import { standingOf } from '../standing'
 import { useHoldInputs } from '../holdContext'
 import { heldPick, heldTexts } from '../resultHold'
 import { rideHoldInputs } from '../rideLeftOut'
 import { balanceOfPick } from '../components/balanceScale'
-import {
-  headlineBasis,
-  headlineText,
-  referenceDefinition,
-  referenceText,
-} from '../components/headlineText'
+import { headlineBasis, headlineText, referenceText } from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
-import { HEADLINE_LABEL } from '../grades'
 import { NumText } from '../components/NumText'
-import { MethodLines } from '../components/MethodLines'
-import { MethodText } from '../components/MethodText'
-import { TopicBody } from '../components/TopicBody'
-import { SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
-import { WeightPrompt } from '../components/WeightPrompt'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { MethodAnswer } from './MethodAnswerBlock'
 import {
-  ENERGY_BRIDGE,
-  ENERGY_CROSS_CHECK,
-  ENERGY_FALLBACK,
-  ENERGY_RANGE,
   HELD_COMPARISON,
   HELD_ENERGY,
   HELD_NOTE,
   NEEDS_RIDE,
   NEEDS_RUN,
-  NO_FILES_ENERGY,
   NO_FILES_EVIDENCE,
   RESTORING_EVIDENCE,
 } from './methodEnergyCopy'
+import { RACE_FACTS, THRESHOLD_FACTS, THRESHOLD_LEAD } from './methodCopy'
 import { contentsOf, focusSection } from './methodContents'
-import { TwentyMinuteEffort } from './TwentyMinuteEffort'
+import { MethodFacts, MethodSection } from './MethodSection'
+import { EnergySection, HeartSection, VirtualPowerSection } from './MethodResultSections'
+import type { EnergyReading } from './MethodResultSections'
 import { AgeGradingSection } from './AgeGradingSection'
 import { HowThisWorks } from './HowThisWorks'
 import { LiftMethodSections } from './LiftMethodSections'
@@ -82,7 +67,7 @@ function contributorsOf(curve: Curve): number {
   return new Set(ids).size
 }
 
-/** The model's own checks: the answer first, then the energy view, the grades and the evidence. */
+/** How each figure is worked out: the answer first, then one section a figure, each led by the line a reader wants. */
 export function MethodPage({
   result,
   heartRateJudgement,
@@ -119,7 +104,6 @@ export function MethodPage({
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)
   const gap = standing?.lead ?? null
-  const gradeGapShown = gap !== null
   // The balance is the one Balance states, so the answer and the headline cannot disagree.
   const balance = weightKnown ? balanceOfPick(gap, pick) : null
   const hardEfforts = hardEffortsOnFile(effort)
@@ -140,6 +124,26 @@ export function MethodPage({
       window.setTimeout(clearRequestedMethodSection, 0)
     }
   }, [])
+
+  const energy: EnergyReading = !hasResult
+    ? { kind: 'line', text: noResultLine }
+    : !weightKnown
+      ? rides > 0
+        ? { kind: 'line', text: HELD_ENERGY, askWeight: true }
+        : { kind: 'line', text: NEEDS_RIDE }
+      : runs === 0 || rides === 0
+        ? { kind: 'line', text: rides === 0 ? NEEDS_RIDE : NEEDS_RUN }
+        : pick === null
+          ? { kind: 'line', text: `${HELD_COMPARISON} ${reason}` }
+          : {
+              kind: 'range',
+              gapShown: gap !== null,
+              facts: [
+                headlineText(pick.point).range,
+                ...headlineBasis(result.comparison, pick.calibrated),
+              ],
+            }
+  const heartFacts = [reference, setAside].filter((line): line is string => line !== null)
 
   return (
     <div className="page-stack method">
@@ -169,136 +173,34 @@ export function MethodPage({
         </ul>
       </nav>
 
-      <section className="section band" aria-labelledby={SECTION_ID.energy}>
-        <h2 id={SECTION_ID.energy} tabIndex={-1}>
-          The energy view
-        </h2>
-        {!hasResult ? (
-          <MethodText>
-            <MethodLines lines={NO_FILES_ENERGY} />
-            <TopicBody id="unit" />
-            <TopicBody id="range" />
-            <p className="secondary">{noResultLine}</p>
-          </MethodText>
-        ) : !weightKnown ? (
-          <p className="secondary">{rides > 0 ? HELD_ENERGY : NEEDS_RIDE}</p>
-        ) : runs === 0 || rides === 0 ? (
-          <MethodText>
-            <p className="secondary">{rides === 0 ? NEEDS_RIDE : NEEDS_RUN}</p>
-            <TopicBody id="unit" />
-            <TopicBody id="range" />
-          </MethodText>
-        ) : pick === null ? (
-          <MethodText>
-            <p className="secondary">
-              <NumText text={`${HELD_COMPARISON} ${reason}`} />
-            </p>
-            <TopicBody id="unit" />
-            <TopicBody id="range" />
-          </MethodText>
-        ) : (
-          <>
-            <MethodText>
-              <MethodLines
-                lines={[
-                  ...(gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK),
-                  ...(gradeGapShown ? ENERGY_BRIDGE : []),
-                  ...ENERGY_RANGE,
-                ]}
-              />
-              <ul className="method__facts">
-                <li>
-                  <NumText text={headlineText(pick.point).range} />
-                </li>
-                {headlineBasis(result.comparison, pick.calibrated).map((line) => (
-                  <li key={line}>
-                    <NumText text={line} />
-                  </li>
-                ))}
-                <li>The range does not include every source of error.</li>
-              </ul>
-              <p className="secondary">Everywhere else, each sport uses its own units.</p>
-              <TopicBody id="unit" />
-              <TopicBody id="range" />
-            </MethodText>
-          </>
-        )}
-      </section>
+      <MethodSection section="thresholds" lead={THRESHOLD_LEAD} facts={THRESHOLD_FACTS}>
+        <h3>Race times</h3>
+        <MethodFacts facts={RACE_FACTS} />
+      </MethodSection>
 
       <AgeGradingSection gradedSex={gradedSex} />
 
+      <EnergySection reading={energy} />
+
       <LiftMethodSections />
 
-      <section className="section band" aria-labelledby={SECTION_ID.heart}>
-        <h2 id={SECTION_ID.heart} tabIndex={-1}>
-          Heart-rate check
-        </h2>
-        <MethodText>
-          <TopicBody id="heart" />
-          <ul className="method__facts">
-            {referenceDefinition().map((line) => (
-              <li key={line}>
-                <NumText text={line} />
-              </li>
-            ))}
-            {reference && (
-              <li>
-                <NumText text={reference} />
-              </li>
-            )}
-            {setAside && (
-              <li>
-                <NumText text={setAside} />
-              </li>
-            )}
-            {hasResult && (
-              <li>
-                {`Heart rate is read in ${formatDuration(HR_BLOCK_S)} blocks of steady effort, taken after the first ${formatDuration(HR_SKIP_S)} of each activity.`}
-              </li>
-            )}
-            {hasResult && weightKnown && (
-              <li>Heart rate rises with energy rate at a different rate in each sport.</li>
-            )}
-            {hardEfforts && (
-              <>
-                <li>
-                  Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-                  sport&rsquo;s max heart rate.
-                </li>
-                <li>Heart rate cannot tell a hard {HEADLINE_LABEL} from an all-out one.</li>
-              </>
-            )}
-          </ul>
-          <TwentyMinuteEffort />
-          {hasResult && !weightKnown && rides > 0 && (
-            <p className="secondary">
-              <WeightPrompt />
-            </p>
-          )}
-        </MethodText>
-      </section>
+      <HeartSection facts={heartFacts} hardEfforts={hardEfforts} />
 
       {showAccuracy && (
-        <section className="section band" aria-labelledby={SECTION_ID.accuracy}>
-          <h2 id={SECTION_ID.accuracy} tabIndex={-1}>
-            Virtual power meter accuracy
-          </h2>
-          <MethodText>
-            <TopicBody id="virtual" />
-            {accuracy !== null &&
-              (weightKnown ? (
-                accuracy.nSegments > 0 && (
-                  <p>
-                    <NumText
-                      text={`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
-                    />
-                  </p>
-                )
-              ) : (
-                <p className="secondary">{HELD_NOTE}</p>
-              ))}
-          </MethodText>
-        </section>
+        <VirtualPowerSection>
+          {accuracy !== null &&
+            (weightKnown ? (
+              accuracy.nSegments > 0 && (
+                <p>
+                  <NumText
+                    text={`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                  />
+                </p>
+              )
+            ) : (
+              <p className="secondary">{HELD_NOTE}</p>
+            ))}
+        </VirtualPowerSection>
       )}
 
       <HowThisWorks />

@@ -1,51 +1,51 @@
 import {
+  AGE_RANGE,
   CHANGE_Z,
   DEADLIFT_EXTRA_HIGH,
+  GRADE_CEILING,
   HALF_LIFE_DAYS,
+  LIFT_STANDARDS_SOURCE,
   LOMBARDI_EXPONENT,
+  MASS_RANGE_KG,
   REP_CAP,
   RPE_FLOOR,
   UNDER_PREDICTION_PER_RIR,
   UNKNOWN_RIR,
+  WARMUP_SET_SECONDS,
   WINDOW_DAYS,
+  WORKING_SET_SECONDS,
+  WORLD_SHARE,
   Z_HIGH,
   Z_LOW,
-  LIFT_STANDARDS_SOURCE,
-  WORLD_SHARE,
 } from '@rca/core/lift'
+import { formatDuration } from '@rca/core/units'
 
-/** The method of the estimated one-rep max, every number quoted from core (docs/design/e1rm.md). One fact a line. */
-export const ONE_REP_MAX_LINES: readonly string[] = [
-  'Each set becomes a one-rep max with three equations: Epley, Brzycki and Lombardi.',
-  'The middle of the three is the set’s estimate.',
-  `Lombardi raises the reps to the power ${LOMBARDI_EXPONENT}.`,
-  `With an RPE, reps to failure are the reps plus ${1 + UNDER_PREDICTION_PER_RIR} for each rep in reserve.`,
-  `With no RPE, reps to failure are the reps plus ${UNKNOWN_RIR}.`,
-  `A set rated below RPE ${RPE_FLOOR} is not read.`,
-  `A set more than ${REP_CAP} reps from failure is not read.`,
-  'A warm-up, a bodyweight lift and a lift with no eligible set have no estimate.',
-  `A lift’s estimate uses the ${WINDOW_DAYS} days to its latest session.`,
-  `A session’s weight halves every ${HALF_LIFE_DAYS} days.`,
+const percent = (share: number) => `${Math.round(share * 100)}%`
+
+/** The projected one-rep max, the big three total and lifting time, every number from core (docs/design/e1rm.md). */
+export const LIFT_LEAD = 'Each lift’s one-rep max is projected from your working sets.'
+
+export const LIFT_FACTS: readonly string[] = [
+  `A set’s estimate is the middle of Epley, Brzycki and Lombardi (reps to the power ${LOMBARDI_EXPONENT}).`,
+  `Reps to failure add ${1 + UNDER_PREDICTION_PER_RIR} per rep in reserve from your RPE, or ${UNKNOWN_RIR} without one.`,
+  `Sets under RPE ${RPE_FLOOR} or over ${REP_CAP} reps to failure, warm-ups and bodyweight lifts are not read.`,
+  `Each lift reads the ${WINDOW_DAYS} days to its latest session, and a session’s weight halves every ${HALF_LIFE_DAYS} days.`,
+  `The 80% range runs ${Z_LOW} standard errors below and ${Z_HIGH} above, ${percent(DEADLIFT_EXTRA_HIGH)} more on top for a deadlift.`,
+  'It never drops below your heaviest working set in the window.',
+  `Change compares the last ${WINDOW_DAYS / 7} weeks with the ${WINDOW_DAYS / 7} before, and is called past ${CHANGE_Z} standard errors.`,
+  'The big three total adds squat, bench press and deadlift, or shows the heaviest when one is missing.',
+  `Activities counts ${formatDuration(WORKING_SET_SECONDS)} per working set and ${formatDuration(WARMUP_SET_SECONDS)} per warm-up, rest included, as lifts store no duration.`,
 ]
 
-export const ONE_REP_MAX_RANGE_LINES: readonly string[] = [
-  'The range is an 80% range for the underlying max, not for one day’s test.',
-  `It reaches ${Z_LOW} standard errors below the estimate and ${Z_HIGH} above.`,
-  `The top of a deadlift’s range is ${Math.round(DEADLIFT_EXTRA_HIGH * 100)}% wider: the equations read deadlifts low.`,
-  'The floor is the heaviest working set in the window. It was lifted, so it has no range.',
-  'Times body mass is the estimate over the body weight in effect on its date.',
-  `Change compares the ${WINDOW_DAYS / 7} weeks to the latest session with the ${WINDOW_DAYS / 7} weeks before.`,
-  `It says up or down only when the two differ by more than ${CHANGE_Z} standard errors of the error they do not share.`,
-  'Otherwise it says no clear change.',
-]
+/** The lift age grade, with its standard's source and ranges from core (docs/design/lift-grade.md). */
+export const LIFT_GRADE_LEAD =
+  'A lift’s grade is its projected one-rep max as a share of world class for your age, sex and body weight.'
 
-/** The method of the lift age grade, with the standard's source and the anchor from core (docs/design/lift-grade.md). */
-export const LIFT_GRADE_LINES: readonly string[] = [
-  'A lift’s grade is its estimated one-rep max as a share of the standard for your age, sex and body weight.',
-  'Squat, bench press and deadlift are graded.',
-  `The standard is fitted to ${LIFT_STANDARDS_SOURCE.shortName}, raw lifts.`,
-  `The 99.9th percentile of lifters at your age, sex and weight is set at ${Math.round(WORLD_SHARE * 100)}%, world class.`,
-  'The grade has a range that carries the estimate’s range and the standard’s own error.',
+export const LIFT_GRADE_FACTS: readonly string[] = [
+  `Squat, bench press and deadlift are graded on ${LIFT_STANDARDS_SOURCE.cardName} raw results, with the 99.9th percentile lifter at ${percent(WORLD_SHARE)}.`,
+  `It covers ages ${AGE_RANGE[0]} to ${AGE_RANGE[1]}, and ${MASS_RANGE_KG.male[0]} to ${MASS_RANGE_KG.male[1]} kg for men, ${MASS_RANGE_KG.female[0]} to ${MASS_RANGE_KG.female[1]} kg for women.`,
+  `Grades stop at 100%, and over ${percent(GRADE_CEILING)} of the standard is not graded.`,
+  'The lift corner on Balance is the big three’s maxes over the sum of their standards.',
 ]
 
 export const LIFT_STANDARDS_CREDIT: string = LIFT_STANDARDS_SOURCE.attribution

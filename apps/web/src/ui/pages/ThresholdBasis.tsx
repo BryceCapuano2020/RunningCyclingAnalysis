@@ -32,7 +32,7 @@ export function ThresholdBasis({
         <div className="disclosure__body">
           <PropertyList
             rows={rows}
-            method={SECTION_ID.how}
+            method={SECTION_ID.thresholds}
             methodName={`how ${THRESHOLD_HEADING[sport].toLowerCase()} was worked out`}
           />
         </div>
