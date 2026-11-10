@@ -18,6 +18,8 @@ Decisions section. Status is one of designed, in progress or built.
   analysis, zones and screens that read it come next).
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
+- [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to a Worker inbox and imported by the browser's
+  own pipeline; Strava's API stays out. Status: designed, waiting on Garmin's answers.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
