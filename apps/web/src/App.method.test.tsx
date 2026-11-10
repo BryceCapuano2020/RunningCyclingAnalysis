@@ -73,8 +73,6 @@ describe('Method with no result loaded', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Method' })).toBeInTheDocument()
     expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
-    expect(
-      screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Balance' })).not.toBeInTheDocument()
   })
 })

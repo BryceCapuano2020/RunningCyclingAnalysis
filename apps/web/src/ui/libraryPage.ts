@@ -57,14 +57,19 @@ export function pageKeyOf(route: Route, page: LibraryPage): string {
 
 /**
  * The tab title of a page that has no route name of its own: the held, restoring and error pages. Null for the
- * others, whose titles come from the route. `held` is the held page's heading, which says which state it is in.
+ * others, whose titles come from the route. `held` is the held page's heading, which says which state it is in;
+ * a restoring page carries the name of the page it holds the place of.
  */
-export function libraryPageTitle(page: LibraryPage, held: string): string | null {
+export function libraryPageTitle(
+  page: LibraryPage,
+  held: string,
+  restoringName = '',
+): string | null {
   const name =
     page === 'held'
       ? held
       : page === 'restoring'
-        ? 'Restoring your results'
+        ? restoringName
         : page === 'unavailable'
           ? 'Your library is not showing yet'
           : null
