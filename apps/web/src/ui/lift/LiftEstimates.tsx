@@ -32,7 +32,7 @@ export function LiftEstimates({ overview, units }: { overview: LiftOverview; uni
             <h2 id="lift-estimates">One-rep max by lift</h2>
           </div>
           <div className="lift__choose">
-            <label htmlFor={selectId}>Lift shown</label>
+            <label htmlFor={selectId}>Showing</label>
             <select
               id={selectId}
               value={entry.id}

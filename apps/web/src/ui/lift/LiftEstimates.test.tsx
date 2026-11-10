@@ -61,7 +61,7 @@ describe('LiftEstimates', () => {
       <LiftEstimates overview={overviewOf([...curls, squat('2031-03-02', 100)])} units="metric" />,
     )
     const shown = () => container.querySelector('.lift__estimate')?.getAttribute('data-lift')
-    const select = screen.getByLabelText('Lift shown') as HTMLSelectElement
+    const select = screen.getByLabelText('Showing') as HTMLSelectElement
     // The squat leads (a big-three lift), even though only the curl has a line.
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Back squat, barbell')
     expect([...select.options].map((option) => option.text)).toEqual([
