@@ -97,11 +97,12 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
-    // The range is defined on the landing example; Balance's hero has no defined term now.
-    name: 'Landing, a definition open',
+    // The landing example and Balance's hero define no term now (the triangle has no range); Method defines its own.
+    name: 'Method, a definition open',
     open: async (page) => {
-      await page.goto('/')
-      await page.getByRole('button', { name: 'range', exact: true }).click()
+      await page.goto('/#/method')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await page.locator('.definition button').first().click()
       await expect(page.getByRole('note').first()).toBeVisible()
     },
   },
