@@ -28,7 +28,7 @@ export interface SetFormProps {
   primary?: boolean
   /** A valid set. The values stay for the next one. */
   onSave: (set: LiftSet) => void
-  /** Present only when editing a saved set. */
+  /** Present only when editing a saved set: its presence is what makes the form an edit. */
   onDelete?: () => void
   onDone: () => void
 }
@@ -72,13 +72,17 @@ export function SetForm(props: SetFormProps) {
 
   const save = (event: FormEvent) => {
     event.preventDefault()
-    // An edited set keeps its own time; a new one is stamped only when the page gave a clock.
-    const stamp =
+    // Editing (onDelete given) uses only the stored time and never stamps; a new set ignores the
+    // initial time and is stamped only when the page gave a clock.
+    const stored =
       initial?.time !== undefined && initial.timePrecision !== undefined
         ? { time: initial.time, timePrecision: initial.timePrecision }
-        : now
-          ? { time: localTime(now()), timePrecision: 'set' as const }
-          : {}
+        : {}
+    const stamp = onDelete
+      ? stored
+      : now
+        ? { time: localTime(now()), timePrecision: 'set' as const }
+        : {}
     const result = readSetForm(fields, units, { date, exercise, setOrder, ...stamp }, bodyweight)
     if ('errors' in result) return setErrors(result.errors)
     setErrors({})

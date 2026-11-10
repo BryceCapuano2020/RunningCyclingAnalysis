@@ -121,12 +121,27 @@ describe('SetForm', () => {
     expect(onSave.mock.calls[0]![0]).toMatchObject({ equipment: 'bodyweight', loadKg: 0, reps: 8 })
   })
 
-  it('keeps the original time of an edited set', async () => {
+  it('keeps the original time of an edited set and never stamps it, even with a clock', async () => {
     const { user, onSave } = setup({
+      onDelete: vi.fn(),
       initial: { reps: 5, loadKg: 60, time: '18:30', timePrecision: 'session' },
     })
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSave.mock.calls[0]![0]).toMatchObject({ time: '18:30', timePrecision: 'session' })
+  })
+
+  it('does not stamp an edit that has no stored time', async () => {
+    const { user, onSave } = setup({ onDelete: vi.fn(), initial: { reps: 5, loadKg: 60 } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty('time')
+  })
+
+  it('stamps a new set from the clock and ignores a time in initial', async () => {
+    const { user, onSave } = setup({
+      initial: { reps: 5, loadKg: 60, time: '18:30', timePrecision: 'session' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ time: '07:05', timePrecision: 'set' })
   })
 
   it('moves an off-grid initial effort to the nearest half and drops one out of range', () => {
