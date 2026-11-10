@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import { NO_EFFORT_GATE } from '@rca/core/effort'
-import { makeActivity, makeResult, makeRideThreshold } from '../components/fixtures'
+import { makeActivity, makeResult, makeRideThreshold } from '../components/test/fixtures'
 import { fewEffortsText, missingText } from './balanceMissing'
 
 const ALL_TIME: Period = { choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }

@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
-import { makeActivity } from './fixtures'
+import { makeActivity } from './test/fixtures'
 import { wholeText } from '../test/wholeText'
 import type { EarnedRecord } from '@rca/core/records'
 import { ActivityList, type ActivityListProps } from './ActivityList'
-import { readStylesheet, ruleBody } from './stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 
 const listCss = await readStylesheet(import.meta.url, './ActivityList.css')
 

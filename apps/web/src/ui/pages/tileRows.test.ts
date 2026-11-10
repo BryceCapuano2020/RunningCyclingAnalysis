@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { SPORT_ORDER } from '../sports'
 import type { RecordRow } from '../recordRow'
-import { RECORD_TILE_KEYS, sharedTileActivity, tileRows } from './tileRows'
-import { makeActivity } from '../components/fixtures'
+import { RECORD_TILE_KEYS, tileRows } from './tileRows'
 
-const row = (key: string, activityId: string | null = null): RecordRow => ({
+const row = (key: string): RecordRow => ({
   key,
   label: key,
   value: '1',
@@ -12,7 +11,7 @@ const row = (key: string, activityId: string | null = null): RecordRow => ({
   grade: null,
   tags: [],
   setDays: null,
-  activity: activityId === null ? null : makeActivity({ id: activityId }),
+  activity: null,
 })
 
 describe('tileRows', () => {
@@ -64,17 +63,5 @@ describe('tileRows', () => {
 
   it('has no tiles without records', () => {
     expect(tileRows('ride', [])).toEqual([])
-  })
-})
-
-describe('sharedTileActivity', () => {
-  it('is the activity every tile was set in, when there are several', () => {
-    expect(sharedTileActivity([row('a', 'x'), row('b', 'x')])?.id).toBe('x')
-  })
-
-  it('is none for one tile, for different activities, or for a tile with no activity', () => {
-    expect(sharedTileActivity([row('a', 'x')])).toBeNull()
-    expect(sharedTileActivity([row('a', 'x'), row('b', 'y')])).toBeNull()
-    expect(sharedTileActivity([row('a'), row('b')])).toBeNull()
   })
 })

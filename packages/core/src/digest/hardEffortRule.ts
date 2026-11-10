@@ -41,7 +41,7 @@ export function effortVerdict(
 }
 
 /** Whether one point of an activity's curve was a hard effort (see `effortVerdict`), at its duration. */
-export function pointVerdict(
+function pointVerdict(
   digest: ActivityDigest,
   point: DigestCurvePoint,
   reference: EffortReference,

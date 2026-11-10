@@ -8,7 +8,7 @@ import {
   FITNESS_RIDE_LIBRARY,
   SLIPPING,
   waitingStatus,
-} from '../fitnessFixtures'
+} from '../test/fitnessFixtures'
 import { rowValue } from '../test/propertyRows'
 import { FitnessSection } from './FitnessSection'
 import type { FitnessSectionProps } from './FitnessSection'

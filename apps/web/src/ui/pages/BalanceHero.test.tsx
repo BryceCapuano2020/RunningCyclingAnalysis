@@ -3,16 +3,16 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../balanceGap'
-import type { HeadlinePick } from '../components'
+import type { HeadlinePick } from '../components/pickHeadline'
 import type { Interval } from '@rca/core/types'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   comparisonPoint,
   interval,
   makeActivity,
   makeResult,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { balanceOfPick } from '../components/balanceScale'
 import { EMPTY_TRIANGLE } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'
@@ -260,7 +260,7 @@ describe('BalanceHero visual', () => {
     expect(container.querySelector('.balance-meter, .balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('sets the period line under the headline, then the triangle and the action', () => {
+  it('puts the action in the header line, then the period line and the triangle', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -273,9 +273,9 @@ describe('BalanceHero visual', () => {
     )
     const order = [
       screen.getByRole('heading', { level: 1 }),
+      screen.getByRole('button', { name: 'Share image' }),
       screen.getByTestId('controls'),
       container.querySelector('.level-triangle'),
-      screen.getByRole('button', { name: 'Share image' }),
     ]
     for (const [index, node] of order.entries()) {
       const next = order[index + 1]
@@ -694,7 +694,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(container).not.toHaveTextContent(/12 May/)
   })
 
-  it('sets the action under the lede, on the text column, so the share button sits with the answer', () => {
+  it('sets the action in the heading’s line, with the figure under the line that says what is missing', () => {
     render(
       <Hero
         {...ALL_TIME}
@@ -706,11 +706,10 @@ describe('BalanceHero without a comparison yet', () => {
     )
     const heading = screen.getByRole('heading', { level: 1 })
     const action = screen.getByRole('button', { name: 'Download square image' })
-    expect(heading.parentElement).toHaveClass('balance-hero__head')
-    expect(heading.parentElement).not.toContainElement(action)
-    // The figure is always there, so the action sits under it, and the line that says what is missing sits above the figure.
-    expect(action.previousElementSibling).toHaveClass('level-triangle')
-    expect(action.parentElement?.querySelector('.balance-hero')).toHaveTextContent(
+    expect(heading.parentElement).toHaveClass('page-heading')
+    expect(heading.parentElement).toContainElement(action)
+    expect(heading.closest('.balance-hero__head')).not.toBeNull()
+    expect(document.querySelector('.balance-hero')).toHaveTextContent(
       'Your files have no running or cycling activities yet.',
     )
   })

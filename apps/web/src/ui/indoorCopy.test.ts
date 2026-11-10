@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { effortsCount } from '@rca/core/digest'
 import type { Sport } from '@rca/core/types'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import { indoorCount, indoorNeedLine, indoorSplitRow } from './indoorCopy'
 
 /** n activities of a sport, the first `indoor` of them indoors. */

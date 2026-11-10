@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as pipeline from '@rca/core/pipeline'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   MAN_BORN_1986,
   flatWkg,
@@ -11,7 +11,7 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { GradeProfileSection } from './GradeProfileSection'
 
 vi.mock('@rca/core/pipeline', async (importOriginal) => {

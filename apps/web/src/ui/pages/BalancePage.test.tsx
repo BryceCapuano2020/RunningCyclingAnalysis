@@ -10,7 +10,7 @@ import { BALANCE_PAIR, SPORT_LABEL } from '../sports'
 import { flatSpeedToMetabolic } from '@rca/core/metabolic'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -18,7 +18,7 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
 import type { LiftSummary } from '@rca/core/lift'

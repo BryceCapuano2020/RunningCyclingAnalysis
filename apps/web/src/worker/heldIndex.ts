@@ -1,6 +1,7 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { FileId, HeldFiles } from '@rca/core/session'
 import { openCheckinDb, scopeRange } from './checkinStore'
+import { committed, resultOrUndefined } from './idb'
 import type { CheckinScope } from './checkinStore'
 
 /** What the index remembers of a file already read. The file's own name is not kept: the library says which file holds a workout. */
@@ -29,13 +30,6 @@ export interface HeldIndexHandle {
 const INERT: HeldIndexHandle = {
   files: { skip: () => Promise.resolve(null), note: () => undefined },
   flush: () => Promise.resolve(true),
-}
-
-function request<T>(r: IDBRequest<T>): Promise<T | undefined> {
-  return new Promise((resolve) => {
-    r.onsuccess = () => resolve(r.result)
-    r.onerror = () => resolve(undefined)
-  })
 }
 
 const isEntry = (value: unknown): value is HeldEntry =>
@@ -90,7 +84,7 @@ export async function openHeldIndex(options: {
     const known = memory.get(hash)
     if (known !== undefined || bulk) return known
     try {
-      const stored = await request(
+      const stored = await resultOrUndefined(
         db.transaction('held', 'readonly').objectStore('held').get(key(hash)),
       )
       return isEntry(stored) ? stored : undefined
@@ -133,11 +127,7 @@ export async function openHeldIndex(options: {
         const tx = db.transaction('held', 'readwrite')
         const store = tx.objectStore('held')
         for (const [hash, entry] of batch) store.put(entry, key(hash))
-        return await new Promise<boolean>((resolve) => {
-          tx.oncomplete = () => resolve(true)
-          tx.onerror = () => resolve(false)
-          tx.onabort = () => resolve(false)
-        })
+        return await committed(tx)
       } catch {
         return false
       }
@@ -151,21 +141,17 @@ export async function forgetHeldKeys(scope: CheckinScope, keys: readonly string[
   const db = await openCheckinDb()
   if (db === null || keys.length === 0) return
   const drop = new Set(keys)
-  await new Promise<void>((resolve) => {
-    try {
-      const tx = db.transaction('held', 'readwrite')
-      const cursor = tx.objectStore('held').openCursor(scopeRange(scope))
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        if (isEntry(at.value) && at.value.keys.some((k) => drop.has(k))) at.delete()
-        at.continue()
-      }
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => resolve()
-      tx.onabort = () => resolve()
-    } catch {
-      resolve()
+  try {
+    const tx = db.transaction('held', 'readwrite')
+    const cursor = tx.objectStore('held').openCursor(scopeRange(scope))
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      if (isEntry(at.value) && at.value.keys.some((k) => drop.has(k))) at.delete()
+      at.continue()
     }
-  })
+    await committed(tx)
+  } catch {
+    // The entries stay; the file is skipped as before.
+  }
 }

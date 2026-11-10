@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { wordsOf } from '../../test/wordsOf'
-import { MAN_BORN_1986, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, makeResult } from '../components/test/fixtures'
 import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 
@@ -23,7 +23,7 @@ function page(result: AnalysisResult | null, profile: AgeProfile | null, weightK
 }
 
 /** The most words the page may hold with every disclosure closed. */
-const BUDGET = 2360
+const BUDGET = 2345
 
 describe('the Method page', () => {
   it('stays within its word budget', () => {

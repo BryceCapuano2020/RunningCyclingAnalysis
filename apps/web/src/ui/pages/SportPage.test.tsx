@@ -6,8 +6,8 @@ import type { SportCurves } from '@rca/core/digest'
 import type { EffortMilestones, LookBack } from '@rca/core/lookback'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { curvePoint } from '../charts/fixtures'
-import { HARD, UNKNOWN } from '../effortGateFixtures'
+import { curvePoint } from '../charts/test/fixtures'
+import { HARD, UNKNOWN } from '../test/effortGateFixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -18,14 +18,14 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { formatDayMonth } from '../format/date'
 import { THRESHOLD_HEADING } from '../sports'
 import { RangePicker } from '../components/RangePicker'
 import { SportPage } from './SportPage'
-import { changeOf } from '../charts/changeFixtures'
-import { YEARS_LOOKBACK } from '../yearsFixtures'
+import { changeOf } from '../charts/test/changeFixtures'
+import { YEARS_LOOKBACK } from '../test/yearsFixtures'
 import { openDetail } from '../test/openDetail'
 import { rowValue } from '../test/propertyRows'
 import { wholeText } from '../test/wholeText'

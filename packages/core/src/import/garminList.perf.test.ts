@@ -6,7 +6,7 @@ import {
   parseGarminSummaries,
   readGarminList,
 } from './garminList'
-import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './garminTestFiles'
+import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './test/garminTestFiles'
 
 /** The largest summary a real account is allowed: about 5,000 activities, 15.6 MiB, read from a zip. */
 

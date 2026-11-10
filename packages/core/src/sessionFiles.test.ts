@@ -1,7 +1,7 @@
 import { hashedFileName } from './import/minimise'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { buildFit, secondly } from './fit/fitTestFiles'
+import { buildFit, secondly } from './fit/test/fitTestFiles'
 import { AnalysisSession } from './session'
 import type { RejectedFile } from './session'
 import type { AthleteSettings } from './types'

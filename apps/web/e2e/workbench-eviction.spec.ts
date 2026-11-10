@@ -23,7 +23,7 @@ const MIB = 1024 * 1024
 const SLOW = { timeout: 30_000 }
 
 /** The summary of an import of one activity: the app shows it once the saves are done. */
-const ADDED_ONE = /^Added 1 (run|ride), on /
+const ADDED_ONE = /^1 (run|ride)$/
 
 /**
  * Imports one file, so the app creates the cache, then leaves a page that holds no connection to it.
@@ -33,7 +33,7 @@ const ADDED_ONE = /^Added 1 (run|ride), on /
 async function createCacheWith(page: Page, fixture: string): Promise<void> {
   await page.goto('/')
   await uploadFixtures(page, [fixture])
-  await importSummaryShown(page, ADDED_ONE)
+  await importSummaryShown(page, 'Added', ADDED_ONE)
   await expect(await activitiesRows(page)).toHaveCount(1, SLOW)
   await page.goto('/privacy')
 }
@@ -43,7 +43,7 @@ async function importAgain(page: Page, fixture: string, rows: number): Promise<v
   await page.goto('/')
   await libraryLoaded(page, rows - 1)
   await uploadFixtures(page, [fixture])
-  await importSummaryShown(page, ADDED_ONE)
+  await importSummaryShown(page, 'Added', ADDED_ONE)
   await expect(await activitiesRows(page)).toHaveCount(rows, SLOW)
   await page.goto('/privacy')
 }
@@ -94,7 +94,7 @@ test('an older activity added to a cache full of newer ones is not stored, and s
   await page.goto('/')
   await libraryLoaded(page, 1)
   await uploadFixtures(page, ['one-run.tcx'])
-  await importSummaryShown(page, ADDED_ONE)
+  await importSummaryShown(page, 'Added', ADDED_ONE)
   const rows = await activitiesRows(page)
   await expect(rows).toHaveCount(2, SLOW)
   // The older run is the second row. Its recording lasts for this visit.

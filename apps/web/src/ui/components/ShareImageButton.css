@@ -1,27 +1,15 @@
-/* The share button sits beside the headline. Its sheet is a native dialog, sized for a phone. */
+/* The share icon sits in the page header (PageHeading). Its sheet is a native dialog, sized for a phone. */
 .share-image {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-2);
+  flex: none;
 }
 
 .share-sheet {
   width: min(36rem, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100vh - 2 * var(--space-4));
-  padding: var(--space-5);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
   overflow: auto;
-  overflow-wrap: anywhere;
   /* The picture's height cap, named once: the preview reserves it and the picture is held to it. */
   --share-picture-vh: 55vh;
   --share-picture-max: min(var(--share-picture-vh), calc(100vh - 24rem));
-}
-
-.share-sheet::backdrop {
-  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 .share-sheet__body {

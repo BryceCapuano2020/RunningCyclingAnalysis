@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * The headers Workers Static Assets sends with every page, read from the file that sets them. The

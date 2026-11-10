@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { copiedLibrary } from '../test/libraryFixture'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { lookBackOf } from './compute'

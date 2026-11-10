@@ -11,7 +11,7 @@ import {
   draw,
   gradedCorner,
   type RecordedText,
-} from './fixtures'
+} from './test/fixtures'
 import type { TriangleView } from '../ui/triangleSports'
 
 const FORMATS: CardFormat[] = ['square', 'story']

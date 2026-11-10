@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import { inBucket, monthTotals, volumeBuckets, volumeColumns } from './activitiesVolume'
 import { sortActivities } from './activitySort'
 

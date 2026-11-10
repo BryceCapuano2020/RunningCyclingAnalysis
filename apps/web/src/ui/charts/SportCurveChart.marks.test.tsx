@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { changeOf } from './changeFixtures'
+import { changeOf } from './test/changeFixtures'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CurvePoint } from '@rca/core/types'
-import { readStylesheet } from '../components/stylesheet'
-import { curvePoint } from './fixtures'
+import { readStylesheet } from '../test/stylesheet'
+import { curvePoint } from './test/fixtures'
 import { SportCurveChart } from './SportCurveChart'
 
 const MASS_KG = 75

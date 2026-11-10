@@ -110,7 +110,7 @@ export function DeleteAccountDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="delete-dialog"
+      className="dialog delete-dialog"
       role="alertdialog"
       aria-labelledby={titleId}
       aria-describedby={bodyId}

@@ -1,6 +1,6 @@
 import ts from '@typescript/typescript6'
 import { describe, expect, it } from 'vitest'
-import { readFilesUnder, readStylesheet } from './components/stylesheet'
+import { readFilesUnder, readStylesheet } from './test/stylesheet'
 
 /**
  * The voice rules in docs/DESIGN.md (Voice) as a ratchet. Every string the athlete can read, in the web
@@ -59,7 +59,6 @@ const CORE_COPY = [
   'lookback/copy.ts',
   'lookback/checkInCopy.ts',
   'lookback/sectionCopy.ts',
-  'profile/sentence.ts',
 ]
 
 /** Files under the UI that hold no user text: tests, the helpers and fixtures they use, and declarations. */

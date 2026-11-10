@@ -75,7 +75,7 @@ export function fitBikeModelOver(ordered: ActivityDigest[], masses: Masses) {
  * One ride point priced: its mechanical watts, NaN when it is an estimate the athlete's heart rate does not back
  * (see ESTIMATED_RIDE), and whether it stands at its own duration only, as an unbacked estimate does.
  */
-export function ridePriced(
+function ridePriced(
   point: DigestCurvePoint,
   digest: ActivityDigest,
   masses: Masses,

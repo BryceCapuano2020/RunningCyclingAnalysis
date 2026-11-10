@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet, readStylesheetsUnder, ruleBody } from '../ui/components/stylesheet'
+import { readStylesheet, readStylesheetsUnder, ruleBody } from '../ui/test/stylesheet'
 import { declared } from './tokenSheet'
 
 const tokens = declared(await readStylesheet(import.meta.url, './tokens.css'), ':root')
@@ -27,7 +27,7 @@ const PROSE_SHEETS = [
  * Sheets that still cap prose in ch, because another package holds them (Balance, SportHero, the chart
  * sheets). Move each to --measure when its owner merges, and delete it here; the list may only shrink.
  */
-const PENDING_CH_CAPS = ['ChartFrame.css', 'ChartHeadings.css']
+const PENDING_CH_CAPS = ['ChartFrame.css']
 
 describe('the layout tokens', () => {
   it('give one shell width, one rail, one reading measure, two gaps and one radius', () => {

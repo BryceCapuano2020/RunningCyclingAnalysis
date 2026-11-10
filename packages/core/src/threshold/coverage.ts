@@ -4,11 +4,9 @@
  * Every range that is built from a threshold's ends goes through here, so a sport's grade range and the lead's agree in coverage.
  */
 
-/** The z of the 95th percentile of a normal, and so, mirrored, of the 5th. */
-export const Z_P95 = 1.645
+import { Z_P90, Z_P95 } from '../math'
 
-/** The z of the 90th percentile, and so, mirrored, of the 10th: the ends a threshold estimate carries. */
-export const Z_P90 = 1.2816
+export { Z_P90, Z_P95 }
 
 /** How much farther the 5th and 95th percentiles sit from the centre than the 10th and 90th, on a normal. */
 export const P90_TO_P95 = Z_P95 / Z_P90

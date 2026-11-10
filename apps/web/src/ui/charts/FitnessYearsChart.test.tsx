@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { dotsFixture, openSlip, slipAndRise, startOf } from '../fitnessYearsFixtures'
+import { dotsFixture, openSlip, slipAndRise, startOf } from '../test/fitnessYearsFixtures'
 import { FitnessYearsChart } from './FitnessYearsChart'
 
 /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */

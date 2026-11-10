@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet } from '../ui/test/stylesheet'
 import { CARD_COLORS, CARD_TOKEN, type CardColor } from './cardColors'
 import { contrast } from '../styles/contrastMath'
 import { declared, resolved } from '../styles/tokenSheet'

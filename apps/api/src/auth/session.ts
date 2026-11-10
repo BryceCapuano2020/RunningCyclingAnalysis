@@ -102,15 +102,6 @@ async function verifiedToken(c: Ctx): Promise<string | undefined> {
 }
 
 /**
- * The id of the session row the request's cookie names, when the cookie is signed and well formed.
- * It does not check that the row exists.
- */
-export async function currentSessionId(c: Ctx): Promise<string | undefined> {
-  const token = await verifiedToken(c)
-  return token === undefined ? undefined : sha256Hex(token)
-}
-
-/**
  * Creates a session row for the user and sets the signed cookie. The row stores only sha-256(token).
  * The token is signed before the row is written, so a signing failure leaves no orphan row. The
  * same batch ends the user's sessions beyond the MAX_SESSIONS_PER_USER most recently inserted, so

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { definition, fitFile, int } from './fitBytes'
+import { definition, fitFile, int } from './test/fitBytes'
 import { scanFit } from './reader'
 import type { FitMessage } from './reader'
 

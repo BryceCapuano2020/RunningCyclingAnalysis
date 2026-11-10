@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { layoutOf } from '../charts/timeSeriesLayout'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { runTrace, steadyTrace } from './workbenchFixtures'
+import { runTrace, steadyTrace } from './test/workbenchFixtures'
 
 function show(trace: ActivityTrace) {
   return render(
@@ -198,9 +198,9 @@ describe('the stack’s laps and notes on the timeline', () => {
   it('says what the line and the band are, with the average’s length for the window', async () => {
     show(steadyTrace(3600))
     await surface()
-    expect(screen.getByRole('figure')).toHaveTextContent(
-      'Lines show 21 s averages; bands show the usual spread (10th to 90th percentile).',
-    )
+    const figure = screen.getByRole('figure')
+    expect(figure).toHaveTextContent('Lines 21 s averages')
+    expect(figure).toHaveTextContent('Bands 10th to 90th percentile')
   })
 
   it('keeps the table twin for every measure shown', async () => {

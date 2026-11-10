@@ -15,7 +15,7 @@ import {
   MAX_SUMMARY_FILES,
 } from '@rca/core/import'
 import { METRES_PER_MILE } from '@rca/core/units'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * The facts docs/ARCHITECTURE.md states about the analysis core, pinned to the constants that set them.

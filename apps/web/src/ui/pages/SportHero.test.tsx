@@ -9,7 +9,7 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { rowValue } from '../test/propertyRows'
 import { formatDayMonth } from '../format/date'
 import { SportHero } from './SportHero'

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 import { rowValue } from '../test/propertyRows'
 import { ActivityIssues } from './ActivityIssues'
 

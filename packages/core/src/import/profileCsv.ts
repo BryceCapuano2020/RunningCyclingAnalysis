@@ -17,7 +17,7 @@ const PROFILE_PATH = new RegExp(`(^|[\\\\/])${LIST_NAME.replace(/\./g, '\\.')}$`
 /** A profile is a line of text: a file larger than this is not one. */
 const MAX_PROFILE_BYTES = 64 * 1024
 /** The weights the app accepts for a body, kg: the contract's limits. */
-export const PROFILE_WEIGHT_KG = { min: 30, max: 200 } as const
+const PROFILE_WEIGHT_KG = { min: 30, max: 200 } as const
 
 /** The Weight column of the first data row of a profile.csv's text, in kg, or null when it holds no usable weight. */
 export function parseProfileWeightKg(text: string): number | null {

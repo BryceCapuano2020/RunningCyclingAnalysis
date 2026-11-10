@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet, ruleBody } from '../components/stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 import { PlotSurface } from './PlotSurface'
 import type { PlotSurfaceProps } from './PlotSurface'
 import type { ChartSize } from './chartTypes'

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 import { wholeText } from '../test/wholeText'
 import { ActivitiesPage } from './ActivitiesPage'
 

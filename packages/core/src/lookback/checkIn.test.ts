@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { fitnessStatuses } from '../fitness/compute'
 import { workoutKey } from '../duplicates'
 import { MODEL_REVISION } from '../digest'

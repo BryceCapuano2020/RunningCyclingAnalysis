@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { seedBaseline } from './checkinSeed.js'
-import { BALANCE_TITLE, uploadFixtures } from './helpers.js'
+import { BALANCE_TITLE, importSummaryShown, uploadFixtures } from './helpers.js'
 
 /**
  * "Since your last import" and the import summary tell one story about bests. A second, faster run in a small library
@@ -33,10 +33,12 @@ test('a faster second run is not called a new best by the summary while the row 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
 
   await page.locator('input[type="file"]').first().setInputFiles(fastRun())
-  await expect(page.getByText(/Added 1 run/).first()).toBeVisible({ timeout: 30_000 })
+  await importSummaryShown(page, 'Added', /^1 run$/)
 
   const row = page.locator('[data-testid="checkin-row"]')
-  await expect(row).toContainText('Nothing moved.')
+  await row.locator('summary').click()
+  await expect(row.locator('.checkin-row__item').first()).toContainText('Fitness moved')
+  await expect(row.locator('.checkin-row__item').first()).toContainText('Nothing')
   // The summary above names no best the row denies.
   await expect(page.locator('.app__notices').getByText(/New best/)).toHaveCount(0)
 })

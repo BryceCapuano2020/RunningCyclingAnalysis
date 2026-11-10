@@ -12,9 +12,3 @@ export function openSection(name: string | RegExp): HTMLElement {
   fireEvent(details, new Event('toggle'))
   return region
 }
-
-/** What a closed section's row says: its name and its finding. */
-export function closedRow(name: string | RegExp): string {
-  const summary = screen.getByRole('region', { name }).querySelector('summary')
-  return summary?.textContent ?? ''
-}

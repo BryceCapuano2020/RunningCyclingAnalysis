@@ -6,7 +6,7 @@ import { zonesFor } from '@rca/core/zones'
 import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { ActivityZoneTime } from './ActivityZoneTime'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 afterEach(cleanup)
 
@@ -56,10 +56,15 @@ function show(
   )
 }
 
+/** The zone that held most of the time is a label and a value, not a sentence. */
+function expectMost(value: string) {
+  expect(screen.getByText('Most time').nextSibling).toHaveTextContent(value)
+}
+
 describe('ActivityZoneTime', () => {
   it('leads with pace, then heart rate, and says where most of the interval was', () => {
     show(steadyTrace(120), [heartRate200, pace35])
-    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expectMost('Pace zone 2, 100%')
     const bars = screen.getByRole('img')
     expect(bars).toHaveAccessibleName(/Pace: zone 2 100%\. Heart rate: zone 3 100%/)
   })
@@ -67,24 +72,24 @@ describe('ActivityZoneTime', () => {
   it('follows the interval: each part of the run is read in its own zones', () => {
     const trace = twoPartRun()
     const { unmount } = show(trace, [heartRate200], 0, 60)
-    expect(screen.getByText('All of this run was in heart rate zone 1 (100%).')).toBeInTheDocument()
+    expectMost('Heart rate zone 1, 100%')
     unmount()
     show(trace, [heartRate200], 60, 120)
-    expect(screen.getByText('All of this run was in heart rate zone 3 (100%).')).toBeInTheDocument()
+    expectMost('Heart rate zone 3, 100%')
   })
 
   it('says no zone held half when the time is spread', () => {
     show(twoPartRun(), [heartRate200])
-    expect(
-      screen.getByText('This run spent the most time in heart rate zone 1 (50%).'),
-    ).toBeInTheDocument()
+    expectMost('Heart rate zone 1, 50%')
   })
 
-  it('keeps every zone, its range and its share in the table behind a disclosure, with the chart’s lede', () => {
+  it('keeps every zone, its range and its share in the table behind a disclosure, with the chart’s facts', () => {
     show(twoPartRun(), [heartRate200])
-    // The chart has a lede, so its disclosure is its Details: the lede, then the table.
+    // The chart has a fact, so its disclosure is its Details: the fact, then the table.
     const details = screen.getByText('Details', { selector: 'summary' }).closest('details')!
-    expect(details).toHaveTextContent('This run spent the most time in heart rate zone 1 (50%).')
+    expect(within(details).getByText('Most time').nextSibling).toHaveTextContent(
+      'Heart rate zone 1, 50%',
+    )
     const table = within(details).getByRole('table', { hidden: true })
     expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(6)
     const row = within(table)
@@ -116,7 +121,7 @@ describe('ActivityZoneTime', () => {
       },
     }
     show(trace, [setOf('ride', 'power', 250), setOf('ride', 'heartRate', 190)])
-    expect(screen.getByText('All of this ride was in power zone 3 (100%).')).toBeInTheDocument()
+    expectMost('Measured power zone 3, 100%')
     expect(screen.getByRole('img')).toHaveAccessibleName(/Measured power: zone 3 100%/)
   })
 
@@ -147,7 +152,7 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
     speed.fill(0.2, 0, 30)
     show({ ...base, streams: { speed } }, [pace35])
     expect(screen.getByRole('cell', { name: '30 s', hidden: true })).toBeInTheDocument()
-    expect(screen.getByText('Most of this run was in pace zone 2 (75%).')).toBeInTheDocument()
+    expectMost('Pace zone 2, 75%')
     expect(screen.getByRole('img')).toHaveAccessibleName(/Pace: zone 1 25%, zone 2 75%/)
   })
 
@@ -174,7 +179,7 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
 
   it('says it beside the zones that remain', () => {
     show(steadyTrace(120), [pace35], 0, 120, true)
-    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expectMost('Pace zone 2, 100%')
     expect(screen.getByText(/Heart rate is set aside for this activity/)).toBeInTheDocument()
   })
 })
@@ -206,7 +211,7 @@ describe('ActivityWorkbench zones', () => {
     const heading = await screen.findByRole('heading', { name: 'Time in zones' })
     const summary = screen.getByRole('heading', { name: 'Interval summary' })
     expect(summary.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('All of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expectMost('Pace zone 2, 100%')
   })
 })
 

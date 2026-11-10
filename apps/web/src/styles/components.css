@@ -262,3 +262,18 @@
   margin-right: 6px;
   vertical-align: baseline;
 }
+
+/* The shell every modal dialog shares: its own width and height sit with the dialog; the box and the backdrop sit here. */
+.dialog {
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  /* Long email addresses have no spaces to break on, so text wraps anywhere to stay in 320 px. */
+  overflow-wrap: anywhere;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}

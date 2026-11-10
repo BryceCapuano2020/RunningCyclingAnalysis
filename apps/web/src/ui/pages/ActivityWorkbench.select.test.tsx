@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 afterEach(() => vi.useRealTimers())
 

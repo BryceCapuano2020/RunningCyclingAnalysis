@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import { ActivityBests } from './ActivityBests'
 
 afterEach(() => {

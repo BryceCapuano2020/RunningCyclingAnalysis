@@ -1,5 +1,5 @@
 import { queryFromView, DEFAULT_VIEW } from '../activitiesView'
-import { SportCurveChart } from '../charts'
+import { SportCurveChart } from '../charts/SportCurveChart'
 import { ArrowRightIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { formatCount } from '../format/count'

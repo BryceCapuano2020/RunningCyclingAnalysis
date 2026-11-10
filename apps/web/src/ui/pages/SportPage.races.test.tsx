@@ -5,8 +5,8 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_EFFORT_REFERENCE } from '@rca/core/effort'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
-import { makeActivity, makeResult } from '../components/fixtures'
-import { gate, UNKNOWN } from '../effortGateFixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
+import { gate, UNKNOWN } from '../test/effortGateFixtures'
 import { rowValue } from '../test/propertyRows'
 import { SportPage } from './SportPage'
 
@@ -121,9 +121,9 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     renderPage([SHORT, run], [run.id])
     const section = screen.getByRole('region', { name: 'Race predictions' })
     const year = new Date(run.startMs).getFullYear()
-    expect(
-      within(section).getByText(new RegExp(`^You ran 50:00 in [A-Z][a-z]{2} ${year}$`)),
-    ).toBeInTheDocument()
+    expect(section.querySelector('.race-row__ran')?.textContent).toMatch(
+      new RegExp(`^Ran 50:00, [A-Z][a-z]{2} ${year}$`),
+    )
     expect(within(section).getByText('No run of a mile or more in 12 months.')).toBeInTheDocument()
     expect(section.querySelectorAll('.race-row')).toHaveLength(1)
     expect(section.querySelector('.race-bar, .race-row__time')).toBeNull()

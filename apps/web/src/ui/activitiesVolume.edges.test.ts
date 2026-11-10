@@ -1,6 +1,6 @@
 import { COMPRESS_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import { describe, expect, it } from 'vitest'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import {
   bucketSpan,
   countOf,

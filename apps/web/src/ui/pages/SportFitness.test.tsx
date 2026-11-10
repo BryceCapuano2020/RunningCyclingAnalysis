@@ -9,8 +9,8 @@ import {
   RECOVERING,
   RIDE_SLIPPING,
   waitingStatus,
-} from '../fitnessFixtures'
-import { dotsFixture } from '../fitnessYearsFixtures'
+} from '../test/fitnessFixtures'
+import { dotsFixture } from '../test/fitnessYearsFixtures'
 import { SportFitness } from './SportFitness'
 
 afterEach(cleanup)

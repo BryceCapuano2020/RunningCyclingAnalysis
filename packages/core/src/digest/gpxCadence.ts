@@ -7,7 +7,7 @@ import { SPORT_TRACE } from '../workbench/sportTrace'
  * steps a minute from some phone apps, so the parsed Activity says `unknown`. The digest resolves it for one
  * decision at a time and never writes it back (D12 section 2.3).
  */
-export const GPX_CADENCE = {
+const GPX_CADENCE = {
   /** The median is taken over moving seconds at this speed or faster, where a runner's cadence is steady. */
   minSpeedMs: 1.2,
   minSamples: 60,

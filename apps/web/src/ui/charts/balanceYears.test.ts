@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../balanceFixtures'
+import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../test/balanceFixtures'
 import { chartTitle, drawnIn, yearViews } from './balanceYears'
 
 describe('yearViews', () => {

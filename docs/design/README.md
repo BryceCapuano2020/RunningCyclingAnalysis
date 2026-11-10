@@ -1,12 +1,10 @@
 # Design records
 
 Designs written before the code, kept so later work follows the same decisions. Each ends with a
-Decisions section. Status is one of designed, in progress or built.
+Decisions section. Status is one of designed, in progress, built or cut.
 
-- [same-route.md](same-route.md): repeat routes and climbs, matched on device, with progress on a
-  fixed course. Status: in progress, branches parked until Architecture I.
 - [findings.md](findings.md): a findings engine that speaks only when something non-obvious is well
-  supported. Status: in progress.
+  supported. Status: cut (10 Nov 2026). Built partway, never wired to the app, removed in the cut stage.
 - [fitness.md](fitness.md): fitness at the same effort per sport, slipping to back, with its evidence. Status:
   built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.
 - [effort-gate.md](effort-gate.md): a best becomes a capability only when it was a hard effort, with the reference checked
@@ -16,8 +14,6 @@ Decisions section. Status is one of designed, in progress or built.
 - [threshold.md](threshold.md): the ride threshold from every effort in the window, with heart rate as a second
   estimate that can lift the answer and never vetoes it. Status: in progress (the estimator in core is built; the
   analysis, zones and screens that read it come next).
-- [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
-  designed (research only, no code); stage E checks where files land first.
 - [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to the Worker, read on the server with the same core
   parser and saved through the same create path; Strava's API stays out. Status: designed, revised 10 Nov for
   server-side parsing; waits on server compute S4.
@@ -28,14 +24,14 @@ Decisions section. Status is one of designed, in progress or built.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
-  logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: designed;
-  stage X builds the core and data layer.
+  logger and CSV import, `LiftState`, and the Strength card beside the Balance meter. Status: built (stage X: the
+  core and data layer; the Lift page is [lift-logger.md](lift-logger.md)).
 - [e1rm.md](e1rm.md): the estimated one-rep max, its range, the floor, relative strength and weekly lifting
   load, with the prototype on synthetic lifters. Status: spec, in science review (stage X).
 - [lift-data.md](lift-data.md): the set record, the `lift_sets` table and routes, the browser store and its
-  sync transitions. Status: designed (stage X).
+  sync transitions. Status: built (stage X).
 - [lift-logger.md](lift-logger.md): the Lift page and its manual set logger, and `useLiftLog`, which wires the
-  store and sync into sign-in, sign-out and the device offer. Status: designed, building (stage X, Lift UI 1).
+  store and sync into sign-in, sign-out and the device offer. Status: package 1 (the manual logger) built; the Lift card and Hevy import follow.
 - [decisions/](decisions/README.md): one file per decision a design left open, with how to reverse it.
 - [model-ledger.md](model-ledger.md): every change to a model whose figures the athlete sees, with
   its pull request, its reason and its effect on synthetic athletes. Status: built (stage break).
@@ -43,8 +39,6 @@ Decisions section. Status is one of designed, in progress or built.
   that a held-out re-pin must add a row to. Status: built (stage D, D10).
 - [system.md](system.md): the visual system as built: colour roles and table, type and display scales, shell width, gaps,
   radius and shadow, panel and band surfaces, and the accessibility checks. Status: built (stage D, D10).
-- [architecture-1.md](architecture-1.md): a local originals store, an analysis-module registry and a
-  unified local storage layer. Status: designed, deferred until findings need it.
 
 ## Stage plan
 
@@ -59,12 +53,12 @@ committed), hardening, performance and accessibility gates. Fix what is material
 | A     | Shipped (release 3e17b541, see [RELEASES.md](../RELEASES.md)): dated settings and zones, time in zones, the activity workbench, durability and drift, weekly volume, walking pace, performance, audit fixes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | B     | Shipped (releases c9d9cb9b and 9fdb7f91): the visual system, the Balance home screen, the first impression, and operations quick wins.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | C     | Shipped (release 96043823): fitness at the same heart rate per sport ([fitness.md](fitness.md)), reference max heart rate from three days, zones from current fitness.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| D     | In progress: the 29 Oct audit fixes (effort evidence, one calibrated change test, capped ride levels, screened max heart rate, sign-up allowlist, sync integrity), then the "your years" look-back and the "since your last import" check-in, the realistic athlete generator, and model revisions that never hide a library.                                                                                                                                                                                                                                                                                                                                                  |
+| D     | Shipped (release ddafc89e, 1 Nov 2026): the 29 Oct audit fixes (effort evidence, one calibrated change test, capped ride levels, screened max heart rate, sign-up allowlist, sync integrity), then the "your years" look-back and the "since your last import" check-in, the realistic athlete generator, and model revisions that never hide a library.                                                                                                                                                                                                                                                                                                                       |
 | E     | The athlete's own assistant reads checked evidence (in parallel with F; [VISION.md](../VISION.md#the-coaching-loop)): the evidence ledger in core (each claim with its interval, the activities behind it and the model revision, synced with the library), a watched folder with incremental import where the browser and the watch allow it (checked first, with periodic re-import as the fallback), a remote MCP connector on the Worker (Google sign-in, allowlisted accounts, read tools plus saving a weekly plan, its own consent line, off until connected), and eval v0 on synthetic athletes (every stated number must match a tool result; no evidence, no claim). |
 | F     | Lifting, the third dimension (in parallel with E): a discipline registry (the sport seam, so shared code has no run or ride literals), the in-app logger first with optional session effort (RPE), earlier history through a plain lifting CSV, then Hevy CSV and FIT strength sets, estimated one-rep max with intervals, weekly load by system shown per sport, lifting tools in the connector, and an interference analysis, for example long runs grouped by hours since the last lower-body lift.                                                                                                                                                                         |
 | G     | Plan and check: each saved plan compared with the athlete's own history (for example "3 hard days; the most in any week this year was 2"), with no rest advice or readiness score; a weekly plan-against-actual review; eval v1 (how often assistant-written plans contradict the athlete's evidence, with and without the connector).                                                                                                                                                                                                                                                                                                                                         |
 | H     | Experiments: templates (lower-body lift timing before long runs, an easy-volume block, easy-day discipline), the weeks needed from the athlete's own noise, A and B weeks scheduled through saved plans, adherence, and a result with an interval or "not detectable at this size". Friends can run the same protocol and pool summaries only.                                                                                                                                                                                                                                                                                                                                 |
-| Later | Publishing the benchmark (the synthetic athlete generator and its scores) after G, same-route ([same-route.md](same-route.md)), race ranges once races are tagged, and swimming when a swimmer asks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Later | Publishing the benchmark (the synthetic athlete generator and its scores) after G, same-route ([same-route.md](../archive/same-route.md), parked), race ranges once races are tagged, and swimming when a swimmer asks.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## Deferred
 
@@ -72,5 +66,10 @@ committed), hardening, performance and accessibility gates. Fix what is material
   derived data, AI use and third-party MCP servers over Strava API data, and caps caching at seven
   days. The athlete's own file export stays the main input.
 - **Architecture I** (a local originals store, an analysis-module registry, a unified local storage
-  layer; [architecture-1.md](architecture-1.md)) is built when findings need it, not before. Until
-  then the bespoke IndexedDB stores stay.
+  layer) is parked with the findings engine gone. The bespoke IndexedDB stores stay.
+
+## Archived
+
+Parked designs, kept in [../archive/](../archive/): [architecture-1.md](../archive/architecture-1.md),
+[same-route.md](../archive/same-route.md), [watched-folder.md](../archive/watched-folder.md) and the
+[Stage D retro](../archive/RETRO_STAGE_D.md).

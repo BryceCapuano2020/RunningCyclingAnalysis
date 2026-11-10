@@ -366,17 +366,12 @@ the production `workers.dev` origin.
 
 ## 11. Costs and hard free-plan limits
 
-Figures below are the documented free-plan allowances at review time. See
-[Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and
-[Workers limits](https://developers.cloudflare.com/workers/platform/limits/), plus each storage
-product's pricing page, before relying on them.
-
-| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                                                                                                                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                                                                                                                                                                                 |
-| Static assets | Storage is free, and requests for existing files are served without running the Worker. Requests for unknown paths run it.                          | The web app's HTML, JavaScript, CSS and images                                                                                                                                                                                                                                                    |
-| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                                                                                                                                                                                 |
-| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; code caps charged PUT bytes at 4 GiB lifetime and 2 GiB per UTC month (at least 64 KiB per attempt), standard operations at 90,000/month with 10,000 reserved for cleanup, and deep-health probes at 300/day and 9,300/month (plus one per minute per address). |
+The free-plan figures, with their sources and review dates, are in [apps/api/LIMITS.md](../apps/api/LIMITS.md). The app
+uses them like this: every `/api` call runs the Worker; the web app's files are static assets and run no Worker unless
+the path is unknown; D1 holds accounts, sessions, profiles and activity digests; R2 holds original files, only when a
+user keeps them. The code caps charged R2 PUT bytes at 4 GiB lifetime and 2 GiB per UTC month (at least 64 KiB per
+attempt), standard operations at 90,000 a month with 10,000 reserved for cleanup, and deep-health probes at 300 a day
+and 9,300 a month (plus one per minute per address).
 
 Cloudflare documents that Workers Free and D1 Free operations fail when daily usage limits are
 exceeded; D1 queries stay unavailable until the daily reset and writes also fail if the storage cap

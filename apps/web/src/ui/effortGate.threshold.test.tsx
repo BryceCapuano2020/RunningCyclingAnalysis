@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { makeActivity, makeResult, makeRunThreshold } from './components/fixtures'
-import { gate, NO_HEART_RATE, THIN, UNKNOWN } from './effortGateFixtures'
+import { makeActivity, makeResult, makeRunThreshold } from './components/test/fixtures'
+import { gate, NO_HEART_RATE, THIN, UNKNOWN } from './test/effortGateFixtures'
 import { SportHero } from './pages/SportHero'
 import { ThresholdTile } from './pages/ThresholdTile'
 import { rowValue } from './test/propertyRows'

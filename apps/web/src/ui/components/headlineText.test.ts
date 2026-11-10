@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Comparison } from '@rca/core/types'
 import type { BalanceGap } from '../balanceGap'
-import { comparisonPoint, interval, makeResult } from './fixtures'
+import { comparisonPoint, interval, makeResult } from './test/fixtures'
 import { energyReading, gapReading } from './balanceScale'
 import {
   balanceSentence,

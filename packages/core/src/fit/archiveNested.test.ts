@@ -2,7 +2,7 @@ import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
 import type { ExtractLimits, FitFile, FitSource } from './archive'
-import { streamedZip, toZip64 } from './zipTestFiles'
+import { streamedZip, toZip64 } from './test/zipTestFiles'
 
 /** A zip inside a zip is read as its bytes arrive, so its size is bounded by the budgets, not held whole. */
 

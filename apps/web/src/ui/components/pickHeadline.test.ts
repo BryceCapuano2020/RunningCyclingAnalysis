@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Comparison } from '@rca/core/types'
-import { comparisonPoint, interval, makeActivity, makeResult } from './fixtures'
+import { comparisonPoint, interval, makeActivity, makeResult } from './test/fixtures'
 import { headlinePick, headlineShortfall, pickHeadline } from './pickHeadline'
 
 describe('pickHeadline', () => {

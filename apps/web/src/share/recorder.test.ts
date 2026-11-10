@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FakeContext } from './fixtures'
+import { FakeContext } from './test/fixtures'
 
 describe('the recording canvas', () => {
   it('records a filled and a stroked path with its commands, so a card drawing one fails the no-marks check', () => {

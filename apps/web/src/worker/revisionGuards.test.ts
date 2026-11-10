@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CONSUMERS, INDIRECT } from '@rca/core/digest/consumers'
 import { REVISIONS } from '@rca/core/digest/revisions'
-import { readFilesUnder } from '../ui/components/stylesheet'
+import { readFilesUnder } from '../ui/test/stylesheet'
 
 /** Source outside tests, fixtures and test helpers, with its path from the repository root. */
 async function sourceUnder(...dirs: string[]): Promise<{ path: string; text: string }[]> {

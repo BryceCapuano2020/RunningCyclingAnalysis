@@ -80,7 +80,6 @@ export const ActivityCreateSchema = z
       })
     }
   })
-export type ActivityCreate = z.input<typeof ActivityCreateSchema>
 
 export const ActivityRecordSchema = z.object({
   id: z.string().max(MAX_RECORD_ID_CHARS),
@@ -133,4 +132,3 @@ export const DevLoginSchema = z.object({
     .transform((s) => s.toLowerCase()),
   name: z.string().trim().min(1).max(100),
 })
-export type DevLogin = z.input<typeof DevLoginSchema>

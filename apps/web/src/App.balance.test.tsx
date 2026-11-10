@@ -2,14 +2,14 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { render, screen } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { curvePoint } from './ui/charts/fixtures'
+import { curvePoint } from './ui/charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   interval,
   makeActivity,
   makeEquivalence,
   makeResult,
-} from './ui/components/fixtures'
+} from './ui/components/test/fixtures'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
 import { app, resetAppMocks, setAccount, setSession, showResult } from './test/appMocks'
@@ -122,7 +122,9 @@ describe('the import summary for an athlete with a birth year, a sex and a weigh
 
     render(<App />)
 
-    expect(screen.getByText(/^Added 1 ride/)).toBeInTheDocument()
+    expect(screen.getByText('Added', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
+      '1 ride',
+    )
     expect(screen.queryByText(/Your balance now leans/)).toBeNull()
   })
 })

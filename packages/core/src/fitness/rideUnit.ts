@@ -1,5 +1,5 @@
 import { DAY_MS } from '../constants'
-import { median } from '../findings/stats'
+import { median } from '../math'
 import { revisionStatus } from '../digest/revisions'
 import type { ActivityDigest, LocalDayShift, Sport } from '../types'
 import { fitHeartRateSlope } from './fit'

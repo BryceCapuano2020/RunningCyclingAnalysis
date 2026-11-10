@@ -142,6 +142,15 @@ export function ArrowRightIcon({ className }: IconProps) {
   )
 }
 
+/** A tray with an arrow leaving it, for sharing an image. */
+export function ShareIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6" />
+    </Icon>
+  )
+}
+
 /** Three dots in a row, for a row's overflow button. */
 export function MoreIcon({ className }: IconProps) {
   return (

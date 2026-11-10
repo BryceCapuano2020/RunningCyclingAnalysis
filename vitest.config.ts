@@ -17,10 +17,8 @@ export default defineConfig({
         'apps/web/src/main.tsx',
         'apps/web/src/**/*.d.ts',
         'packages/core/src/types.ts',
-        'packages/core/src/fit/fitTestFiles.ts',
         'packages/core/src/gpx/encode.ts',
         'packages/core/src/tcx/encode.ts',
-        'packages/core/src/virtualPower/syntheticRides.ts',
       ],
       // A CI shard (COVERAGE_SHARD set) only records its part; the merge step applies the thresholds
       // to the whole run, so a shard's partial coverage never fails on its own.

@@ -5,9 +5,9 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../ui/components/fixtures'
-import { curvePoint } from '../ui/charts/fixtures'
-import { gate } from '../ui/effortGateFixtures'
+} from '../ui/components/test/fixtures'
+import { curvePoint } from '../ui/charts/test/fixtures'
+import { gate } from '../ui/test/effortGateFixtures'
 import { heldPick } from '../ui/resultHold'
 import { hasShareableContent } from './hasShareableContent'
 

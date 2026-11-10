@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { headlineGrades } from './balanceFixtures'
+import { headlineGrades } from './test/balanceFixtures'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { equivalentRunSpeed } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import { gapOfHeadline } from './balanceGap'
-import { curvePoint } from './charts/fixtures'
-import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
+import { curvePoint } from './charts/test/fixtures'
+import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/test/fixtures'
 import {
   TOP_OF_SCALE_SHORT,
   TOP_OF_SCALE_TEXT,

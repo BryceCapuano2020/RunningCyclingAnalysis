@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mediaBlock, readStylesheet, ruleBody } from './stylesheet'
+import { mediaBlock, readStylesheet, ruleBody } from '../test/stylesheet'
 import { Definition } from './Definition'
 
 const css = await readStylesheet(import.meta.url, './Definition.css')

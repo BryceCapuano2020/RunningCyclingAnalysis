@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import type { AthleteSettings, Sport } from '../types'
 import { leadKey, leadOf, meetsLeadBar } from './lead'
 import type { Lead, LiveState } from './lead'
-import { episodeRow, episodeSentence, leadSentence, stoodText, tooShortText } from './copy'
+import { episodeFigure, episodeSentence, leadSentence, stoodText, tooShortText } from './copy'
 import { lookBackOf, NO_LOOKBACK } from './compute'
 import type { LookBack, SportLookBack } from './compute'
 import { fitnessHistories } from '../fitness/compute'
@@ -409,28 +409,24 @@ describe('the words', () => {
     for (const sentence of partly.split('. ')) expect(sentence.match(/\(/g)).toHaveLength(1)
   })
 
-  it('writes each row of the list with the size first and one range to a sentence', () => {
+  it('gives each row of the list as a label, dates, steady count and one size', () => {
     const slip = { value: -0.12, low: -0.15, high: -0.09 }
-    const row = (over: Partial<HindsightEpisode>) => episodeRow(episode(over), sport, fit)
-    expect(row({ kind: 'slip-back', change: slip })).toMatch(
-      /^January to \w+ 2023\. Slipped 14% \(10 to 18\), then back\. 90 steady runs\.$/,
-    )
-    expect(
-      row({
-        kind: 'slip-partly-back',
-        change: slip,
-        regained: { value: 0.06, low: 0.03, high: 0.09 },
-      }),
-    ).toMatch(
-      /^January to \w+ 2023\. Slipped 14% \(10 to 18\)\. Then up 6% \(3 to 8\)\. 90 steady runs\.$/,
-    )
-    expect(row({ kind: 'improvement' })).toMatch(
-      /^January to \w+ 2023\. Improved 9% \(7 to 12\)\. 90 steady runs\.$/,
-    )
+    const regained = { value: 0.06, low: 0.03, high: 0.09 }
+    const row = (over: Partial<HindsightEpisode>) => episodeFigure(episode(over), sport, fit)
+    expect(row({ kind: 'slip-back', change: slip })).toMatchObject({
+      label: 'Slipped, then back',
+      value: '14% (10 to 18)',
+      steady: '90 steady runs',
+      then: '',
+    })
+    expect(row({ kind: 'slip-back', change: slip }).span).toMatch(/^January to \w+ 2023$/)
+    const partly = row({ kind: 'slip-partly-back', change: slip, regained })
+    expect(partly).toMatchObject({ label: 'Slipped, part way back', value: '14% (10 to 18)' })
+    expect(partly.then).toMatch(/^Up 6% \(3 to 8\)/)
+    expect(row({ kind: 'improvement' })).toMatchObject({ label: 'Improved', value: '9% (7 to 12)' })
+    // A figure is one value: its range sits in the value, never in a second reading beside it.
     for (const kind of ['slip-back', 'slip-partly-back', 'slip-open', 'improvement'] as const) {
-      const said = row({ kind, change: slip, regained: { value: 0.06, low: 0.03, high: 0.09 } })
-      for (const sentence of said.split('. '))
-        expect(sentence.match(/\(/g)?.length ?? 0).toBeLessThan(2)
+      expect(row({ kind, change: slip, regained }).value.match(/\(/g)).toHaveLength(1)
     }
   })
 
@@ -504,15 +500,19 @@ describe('the words', () => {
 
   it('tells a slip that was followed by a further fall as lower until then, not as still lower', () => {
     const closed = { ...fit.episodes[0]!, kind: 'slip-open' as const, toMs: Date.UTC(2023, 2, 1) }
-    const said = [episodeSentence(closed, sport, fit), episodeRow(closed, sport, fit)].join(' ')
-    expect(said).toContain('stayed lower until it fell again')
+    const said = [
+      episodeSentence(closed, sport, fit),
+      JSON.stringify(episodeFigure(closed, sport, fit)),
+    ].join(' ')
+    expect(said).toContain('Stayed lower until it fell again')
+    expect(episodeFigure(closed, sport, fit).label).toBe('Slipped, fell again')
     expect(said).not.toMatch(/still lower/)
   })
 
   it('uses none of the words the copy rules ban, and no cause', () => {
     const everything = [
       leadSentence(leadOf(look(fit), live('holding'))!, look(fit), 'metric'),
-      episodeRow(fit.episodes[0]!, sport, fit),
+      JSON.stringify(episodeFigure(fit.episodes[0]!, sport, fit)),
       tooShortText('run'),
       tooShortText('ride'),
     ].join(' ')

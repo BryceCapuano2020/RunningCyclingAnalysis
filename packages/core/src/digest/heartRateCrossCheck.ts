@@ -28,7 +28,7 @@ export function atOrBelowCriticalPower(points: HrPoint[], cp: CriticalPowerFit |
 export const MATCH_SLACK_DAYS = 56
 
 /** Activities of each sport the shared stretch has to hold before a ratio is read from it: fewer is one day's weather. */
-export const MIN_MATCHED_ACTIVITIES = 3
+const MIN_MATCHED_ACTIVITIES = 3
 
 /**
  * The days both sports were done in: each sport's first to last day (by the activity each point is from, and only the

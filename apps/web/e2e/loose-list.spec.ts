@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { appSettled, completeSetup, fixturePath } from './helpers.js'
+import { appSettled, completeSetup, fixturePath, importSummaryShown } from './helpers.js'
 
 /** One ride as Strava wrote the oldest files: a track with no type. */
 async function untypedRide(): Promise<{ name: string; mimeType: string; buffer: Buffer }> {
@@ -31,7 +31,7 @@ test('a loose activities.csv gives untyped files their sport', async ({ page }) 
   ])
 
   const notice = page.locator('.import-notice')
-  await expect(notice.getByText(/Added 1 ride/)).toBeVisible({ timeout: 30_000 })
+  await importSummaryShown(page, 'Added', /^1 ride$/)
   await expect(
     notice.getByText('Your activities.csv lists 2 files; 1 was in this import.'),
   ).toBeVisible()
@@ -47,5 +47,5 @@ test('untyped files with no list are refused, and the import says to add the lis
   await expect(
     notice.getByText('Add activities.csv from the same export to give these their sport.'),
   ).toBeVisible({ timeout: 30_000 })
-  await expect(notice.getByText(/Added 1 ride/)).toHaveCount(0)
+  await expect(notice.getByText('Added', { exact: true })).toHaveCount(0)
 })

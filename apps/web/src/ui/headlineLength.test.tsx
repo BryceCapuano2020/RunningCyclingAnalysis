@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TrendPoint } from '@rca/core/digest'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../test/analysisStub'
-import { makeActivity, makeResult } from './components/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { BalancePage } from './pages/BalancePage'
 
 // The headline length is written once, as HEADLINE_LABEL. A different label must reach every place

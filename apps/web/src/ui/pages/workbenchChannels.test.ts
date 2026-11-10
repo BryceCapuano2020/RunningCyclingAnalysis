@@ -9,7 +9,7 @@ import {
 } from './workbenchChannels'
 import { edgeReadings } from '../charts/timeSeriesEdge'
 import { movingAverageSpeed, selectionOf } from './workbenchData'
-import { repsTrace, runTrace, steadyTrace } from './workbenchFixtures'
+import { repsTrace, runTrace, steadyTrace } from './test/workbenchFixtures'
 import { readingOf } from './workbenchScale'
 
 describe('timelineMarks', () => {

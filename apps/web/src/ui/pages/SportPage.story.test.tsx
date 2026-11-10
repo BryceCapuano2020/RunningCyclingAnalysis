@@ -9,14 +9,14 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../components/fixtures'
-import { NO_HEART_RATE, UNKNOWN } from '../effortGateFixtures'
-import { profileActivities, profileCurve } from '../profileFixtures'
+} from '../components/test/fixtures'
+import { NO_HEART_RATE, UNKNOWN } from '../test/effortGateFixtures'
+import { profileActivities, profileCurve } from '../test/profileFixtures'
 import { paceFigure } from '../records'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { openSection } from '../test/openSection'
 import { NO_FITNESS } from '@rca/core/fitness/types'
-import { RIDE_SLIPPING, SLIPPING } from '../fitnessFixtures'
+import { RIDE_SLIPPING, SLIPPING } from '../test/fitnessFixtures'
 import { SportPage } from './SportPage'
 import { openDetail } from '../test/openDetail'
 import { rowValue } from '../test/propertyRows'

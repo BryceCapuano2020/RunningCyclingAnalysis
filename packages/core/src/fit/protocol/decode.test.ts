@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { definition, fitFile, int } from './fitBytes'
+import { definition, fitFile, int } from './test/fitBytes'
 import { decodeFit, DEFAULT_MAX_RECORDS } from './decode'
 import { FIELD, MESG } from './profile'
 

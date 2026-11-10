@@ -1,5 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { PropertyList } from '../components/PropertyList'
+import type { Property } from '../components/property'
 import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTable } from './ChartTable'
@@ -8,13 +10,6 @@ import { PHONE_CHART_HEIGHT, geometryScale, isPhoneWidth, plotBoxOf } from './pl
 import { ReadoutContext } from './readoutContext'
 import { useSize } from './useSize'
 import './ChartFrame.css'
-
-/** The one number a chart is about, with what it is and its unit: "20 min best", "6:37", "/mi". */
-export interface ChartFocal {
-  value: string
-  unit?: string
-  label?: string
-}
 
 /** A chart's disclosure: its table alone, or its table under the lines that say what it shows. */
 const CHART_TABLE_TERM = 'View as table'
@@ -27,15 +22,10 @@ export interface ChartFrameProps {
   description: string
   /** One sentence under the title that says what the chart shows, such as its finding. */
   lede?: string
+  /** Label and value rows for the chart's Details, the figures a lede would have said in a sentence. */
+  facts?: readonly Property[]
   /** A row of controls under the title and its sentence, such as a sport filter, kept above the key and the plot. */
   controls?: ReactNode
-  /**
-   * The finding as a sentence, set large under the title: the chart's headline. The title stays the chart's
-   * name (and its accessible name), set small above it; the takeaway describes the figure.
-   */
-  takeaway?: string
-  /** The chart's one figure at display size, beside the takeaway. */
-  focal?: ChartFocal
   /**
    * Height of the whole SVG in px, axis labels included, or a function of the chart's width for one whose rows
    * stack when it is narrow. A given height is final, so it already holds the reader's text size (geometryScale).
@@ -105,27 +95,13 @@ const SELECT_HINT = 'Select a point to read its value'
 /** How far the hint sits below the top of the chart, in px: in the margin above the plot, which holds no data. */
 const HINT_INSET = 2
 
-/** The focal figure: its label small above, the value at display size, its unit smaller beside it. */
-function ChartFocalFigure({ value, unit, label }: ChartFocal) {
-  return (
-    <p className="chart-frame__focal">
-      {label ? <span className="chart-frame__focal-label">{label}</span> : null}
-      <span className="chart-frame__focal-value">
-        {value}
-        {unit ? <span className="chart-frame__focal-unit">{unit}</span> : null}
-      </span>
-    </p>
-  )
-}
-
 export function ChartFrame({
   title,
   titleHidden = false,
   description,
   lede,
+  facts,
   controls,
-  takeaway,
-  focal,
   height: givenHeight,
   legend,
   table,
@@ -146,7 +122,6 @@ export function ChartFrame({
   const id = useId()
   const titleId = `${id}-title`
   const hintId = `${id}-hint`
-  const takeawayId = `${id}-takeaway`
   const [readout, setReadout] = useState<HTMLElement | null>(null)
   const phone = isPhoneWidth(width)
   // The default is laid out for a 16 px root: larger text gets a taller chart, so bigger axis labels do not eat the plot.
@@ -169,35 +144,13 @@ export function ChartFrame({
   )
 
   return (
-    <figure
-      className="chart-frame"
-      aria-labelledby={titleId}
-      aria-describedby={takeaway ? takeawayId : undefined}
-    >
-      {/* With a takeaway, the finding is the heading on screen and the chart's name stays its accessible name only:
-          a small name over the finding would repeat the section's heading (docs/design/system.md, No subtitle lines). */}
+    <figure className="chart-frame" aria-labelledby={titleId}>
       <figcaption
         id={titleId}
-        className={
-          takeaway
-            ? 'chart-frame__title chart-frame__title--eyebrow sr-only'
-            : titleHidden
-              ? 'chart-frame__title sr-only'
-              : 'chart-frame__title'
-        }
+        className={titleHidden ? 'chart-frame__title sr-only' : 'chart-frame__title'}
       >
         {title}
       </figcaption>
-      {takeaway || focal ? (
-        <div className="chart-frame__headline">
-          {takeaway ? (
-            <p id={takeawayId} className="chart-frame__takeaway">
-              {takeaway}
-            </p>
-          ) : null}
-          {focal ? <ChartFocalFigure {...focal} /> : null}
-        </div>
-      ) : null}
       {/* A chart with a plot keeps its lede and its note in its Details (docs/design/system.md, No subtitle lines). */}
       {lede && empty ? <p className="chart-frame__lede">{lede}</p> : null}
       {controls ? <div className="chart-frame__controls">{controls}</div> : null}
@@ -261,8 +214,9 @@ export function ChartFrame({
             onOpen === undefined ? undefined : (event) => event.currentTarget.open && onOpen()
           }
         >
-          <summary>{lede || note ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
+          <summary>{lede || note || facts?.length ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
           {lede ? <p className="chart-frame__lede">{lede}</p> : null}
+          {facts ? <PropertyList rows={facts} /> : null}
           {note ? <p className="chart-frame__note">{note}</p> : null}
           {summary ? <ChartTable {...summary} /> : null}
           <ChartTable {...table} />

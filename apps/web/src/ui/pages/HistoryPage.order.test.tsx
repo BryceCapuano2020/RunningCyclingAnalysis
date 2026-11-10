@@ -11,8 +11,8 @@ import {
 } from '@rca/core/history/test/balanceLibrary'
 import { afterEach, describe, expect, it } from 'vitest'
 import '../../test/deviceZone'
-import { chartWidth } from '../charts/chartSizeStub'
-import { GRADING } from '../balanceFixtures'
+import { chartWidth } from '../charts/test/chartSizeStub'
+import { GRADING } from '../test/balanceFixtures'
 import { HistoryPage } from './HistoryPage'
 
 afterEach(cleanup)

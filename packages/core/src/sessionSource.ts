@@ -101,7 +101,7 @@ export interface SourceImport {
  * sessions. Where crypto.subtle is unavailable, as on an origin that is not secure (a phone reached over
  * http on a LAN), there is no hash: the legs then share no session, and the import still reads.
  */
-export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefined> {
+async function sessionHashOf(bytes: Uint8Array): Promise<string | undefined> {
   if ((globalThis.crypto as Crypto | undefined)?.subtle === undefined) return undefined
   return sha256Hex(bytes)
 }

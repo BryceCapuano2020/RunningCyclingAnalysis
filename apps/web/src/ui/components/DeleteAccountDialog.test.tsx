@@ -4,9 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiRequestError } from '../../api/client'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
-import { readStylesheet, ruleBody } from './stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 
 const dialogCss = await readStylesheet(import.meta.url, './DeleteAccountDialog.css')
+const shellCss = await readStylesheet(import.meta.url, '../../styles/components.css')
 
 afterEach(() => {
   cleanup()
@@ -391,7 +392,7 @@ describe('DeleteAccountDialog', () => {
   })
 
   it('wraps a long email address inside the dialog at 320 px', () => {
-    const rule = ruleBody(dialogCss, '.delete-dialog')
-    expect(rule).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(ruleBody(shellCss, '.dialog')).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(ruleBody(dialogCss, '.delete-dialog')).toMatch(/width:\s*min\(28rem/)
   })
 })

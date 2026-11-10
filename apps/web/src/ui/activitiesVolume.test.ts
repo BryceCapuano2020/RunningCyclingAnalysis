@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import '../test/deviceZone'
 import { MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import {
   bucketInPhrase,
   bucketLabel,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet, ruleBody } from '../components/stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 import { ChartFrame } from './ChartFrame'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, X_TICK_BASELINE_PX } from './plotBox'
 import { PlotSurface } from './PlotSurface'

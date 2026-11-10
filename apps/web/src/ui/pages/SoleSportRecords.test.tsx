@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { curvePoint } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import { SoleSportRecords } from './SoleSportRecords'
 
 afterEach(cleanup)
@@ -38,7 +38,7 @@ describe('SoleSportRecords', () => {
     const strip = screen.getByRole('list', { name: 'Best efforts' })
     const labels = within(strip)
       .getAllByRole('listitem')
-      .map((tile) => tile.querySelector('.record-tiles__label')?.textContent)
+      .map((row) => row.querySelector('.records__label')?.textContent)
     expect(labels).toEqual(['1 min', '5 min', '60 min'])
   })
 

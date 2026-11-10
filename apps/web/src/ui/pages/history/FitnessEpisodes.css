@@ -1,4 +1,4 @@
-/* The episodes under the fitness chart: numbered rows (RowList.css) of one sentence each. */
+/* The episodes under the fitness chart: numbered rows (RowList.css), the label over its dates and the size at the right. */
 .fitness-episodes {
   margin-top: var(--stack-gap);
   min-width: 0;
@@ -8,11 +8,7 @@
   margin: 0;
 }
 
-.fitness-episodes__text {
-  font-size: var(--text-md);
-}
-
-.fitness-episodes__more {
-  margin-top: var(--space-3);
+.fitness-episodes__span {
   color: var(--ink-secondary);
+  font-size: var(--text-sm);
 }

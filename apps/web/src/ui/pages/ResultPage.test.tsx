@@ -12,8 +12,8 @@ import type { Route } from '../route'
 import type { SavedActivity } from '../../worker/protocol'
 import type { RouteReply } from '../routeReply'
 import { analysisStub, countedRunsStub } from '../../test/analysisStub'
-import { curvePoint } from '../charts/fixtures'
-import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
+import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/test/fixtures'
 import { ResultPage } from './ResultPage'
 import { preloadAllPages } from '../lazyPages'
 import { PERIOD_KEY } from '../periodPreference'
@@ -691,7 +691,9 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         sex={null}
       />,
     )
-    expect(screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.'))).toBeInTheDocument()
+    expect(
+      screen.getByText('Counted over', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('12 May – 3 Aug 2025')
     expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 

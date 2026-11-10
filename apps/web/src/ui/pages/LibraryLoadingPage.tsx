@@ -1,18 +1,14 @@
 import { PageLoading } from '../components/PageLoading'
 import { routeName } from '../documentTitle'
 import type { Route } from '../route'
-import { PAGE_HEADING_ID } from './pageHeading'
+import { PageHeading } from '../components/PageHeading'
 
 /**
  * The title block each page puts its h1 in, so the title stays where it is when the result arrives. Balance and
  * the sport pages have their own heads; the others share `page-title`. Keyed by page, as the routes are.
  */
 function titleBlock(route: Route, title: string) {
-  const h1 = (className?: string) => (
-    <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={className}>
-      {title}
-    </h1>
-  )
+  const h1 = (className?: string) => <PageHeading className={className}>{title}</PageHeading>
   switch (route.page) {
     case 'balance':
       return <div className="balance-hero__head">{h1()}</div>

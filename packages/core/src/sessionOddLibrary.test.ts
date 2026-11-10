@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from './constants'
 import { digestActivity } from './digest'
-import { buildFit, secondly } from './fit/fitTestFiles'
+import { buildFit, secondly } from './fit/test/fitTestFiles'
 import { AnalysisSession } from './session'
 import type { SessionState } from './session'
 import type { PeriodChoice } from './period'

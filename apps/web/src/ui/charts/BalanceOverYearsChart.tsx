@@ -62,9 +62,7 @@ export function BalanceOverYearsChart({ views }: BalanceOverYearsChartProps) {
         const fontSize = axisFontSize(size.width)
         return (
           <>
-            <g className="balance-years__x">
-              <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
-            </g>
+            <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} grid={false} />
             <ChartYAxis ticks={m.yTicks} plot={size.plot} title="Age grade" fontSize={fontSize} />
             {active === null ? null : <Crosshair x={m.xs[active]!} plot={size.plot} />}
             {m.marks

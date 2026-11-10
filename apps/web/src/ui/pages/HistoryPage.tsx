@@ -5,8 +5,8 @@ import { summaryOf } from '../historySummary'
 import { listedSections } from './history/sectionList'
 import type { GradingInputs } from './history/types'
 import { HistorySummary } from './HistorySummary'
-import { PAGE_HEADING_ID } from './pageHeading'
 import './HistoryPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface HistoryPageProps {
   /** The whole library's history, whatever period is picked. */
@@ -26,9 +26,7 @@ export function HistoryPage({ history, units, grading, lookBack }: HistoryPagePr
   return (
     <div className="page-stack history">
       <div className="page-title">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          History
-        </h1>
+        <PageHeading>History</PageHeading>
         {stats.length === 0 && <p className="secondary">{EMPTY_TEXT}</p>}
       </div>
       {stats.length > 0 && (

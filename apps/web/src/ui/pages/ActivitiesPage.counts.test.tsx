@@ -6,7 +6,7 @@ import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
 import { windowLibrary } from '../../test/windowLibrary'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 import { ActivitiesPage } from './ActivitiesPage'
 
 beforeEach(() => {

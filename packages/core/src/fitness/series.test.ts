@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
-import type { PlantedSpec } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
+import type { PlantedSpec } from '../test/plantedLibrary'
 import { fitnessStatuses } from './compute'
 
 const NONE: ReadonlySet<string> = new Set()

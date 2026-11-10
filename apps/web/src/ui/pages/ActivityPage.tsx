@@ -39,8 +39,9 @@ import { ActivityWorkbench } from './ActivityWorkbench'
 import { routeSegmentPace } from './routePace'
 import { BackLink } from './ActivityBackLink'
 import { backToList, originOf } from './activityBack'
-import { PAGE_HEADING_ID } from './pageHeading'
 import './ActivityPage.css'
+import { PageDetails } from './PageDetails'
+import { PageHeading } from '../components/PageHeading'
 
 export interface ActivityPageProps {
   /** The activity the URL names, or null when the library does not hold it. The period never hides one. */
@@ -205,9 +206,7 @@ export function ActivityPage({
   if (!activity) {
     return (
       <div className="page-title">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          Activity not found
-        </h1>
+        <PageHeading>Activity not found</PageHeading>
         <p className="secondary">It may have been deleted, or it is not in this library.</p>
         <p>
           <a href={hrefFor({ page: 'activities' })} onClick={backToList}>
@@ -267,9 +266,7 @@ export function ActivityPage({
   return (
     <div className="page-stack">
       <div className="page-title">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
-          {activity.name}
-        </h1>
+        <PageHeading className="activity-page__title">{activity.name}</PageHeading>
         <ActivityFacts activity={activity} power={power} />
       </div>
 
@@ -290,9 +287,10 @@ export function ActivityPage({
       )}
       {/* Said where an estimated power is shown, which is where a figure for it is. */}
       {activity.powerSource === 'virtual' && typeof activity.avgPowerW === 'number' && (
-        <p className="secondary">
-          Power here is estimated from speed and climbs. No power meter recorded it.
-        </p>
+        <PageDetails
+          about="power source"
+          rows={[{ label: 'Power source', value: 'Estimated from speed and climbs, no meter' }]}
+        />
       )}
       <PowerCheck activity={activity} />
       <ActivityNav activity={activity} library={library} />

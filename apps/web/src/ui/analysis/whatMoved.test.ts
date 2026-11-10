@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Comparison, Interval } from '@rca/core/types'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -11,7 +11,7 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { formatGrade } from '../gradeFormat'
 import { standingOf } from '../standing'
 import { thresholdGrade } from '../thresholdGrade'

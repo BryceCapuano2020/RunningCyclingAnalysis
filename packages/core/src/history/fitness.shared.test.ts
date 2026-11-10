@@ -12,7 +12,7 @@ vi.mock('../fitness/machine', async (importOriginal) => {
   }
 })
 
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { AnalysisSession } from '../session'
 
 it('reads the runs the card and the look-back read, so the session replays each sport once for all three', () => {

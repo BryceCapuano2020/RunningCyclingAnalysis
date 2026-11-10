@@ -3,7 +3,7 @@ import type { Activity } from '../types'
 import { isSport } from './sportTrace'
 import type { ActivityLap, ActivityTrace, MaskedMetric, TraceMetric } from './types'
 
-export const MAX_TRACE_DURATION_S = 48 * 60 * 60
+const MAX_TRACE_DURATION_S = 48 * 60 * 60
 
 const METRICS: readonly TraceMetric[] = [
   'speed',

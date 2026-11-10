@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFilesUnder, readStylesheet, readStylesheetsUnder } from '../ui/components/stylesheet'
+import { readFilesUnder, readStylesheet, readStylesheetsUnder } from '../ui/test/stylesheet'
 import { declarations } from './tokenSheet'
 
 const sheets = await readStylesheetsUnder(import.meta.url, '../')

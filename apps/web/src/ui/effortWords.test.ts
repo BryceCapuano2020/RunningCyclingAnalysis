@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gate } from './effortGateFixtures'
+import { gate } from './test/effortGateFixtures'
 import { notHardWords } from './effortWords'
 
 describe('notHardWords, where the reference a share is of comes from', () => {

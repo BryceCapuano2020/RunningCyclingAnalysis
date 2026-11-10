@@ -94,7 +94,7 @@ function differentDays(points: readonly Point[]): number {
  * reading beats every earlier one), the best of each year, the largest jumps. `better` says which value is better.
  * Null with too few readings or too few different days to say how a best moved.
  */
-export function milestonesFor(
+function milestonesFor(
   effort: MilestoneEffort,
   unit: MilestoneUnit,
   readings: readonly Point[],

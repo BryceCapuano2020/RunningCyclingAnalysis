@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { GradeProfileChart } from '../charts'
+import { GradeProfileChart } from '../charts/GradeProfileChart'
 import { GRADE_PROFILE_TITLE } from '../charts/gradeProfileText'
 import { gradeProfile, profileComparable, profileSeparated } from '../gradeProfile'
 import type { AgeProfile } from '../grades'

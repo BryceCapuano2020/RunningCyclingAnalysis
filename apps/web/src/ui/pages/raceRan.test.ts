@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RunPredictions } from '@rca/core/predict'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 import { ranBests, ranMeta, ranText } from './raceRan'
 
 const OPENED = new Date(2026, 10, 30, 12).getTime()

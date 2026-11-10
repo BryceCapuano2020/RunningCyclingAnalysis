@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headlineGrades } from './balanceFixtures'
+import { headlineGrades } from './test/balanceFixtures'
 import {
   EQUIVALENCE_DURATIONS_S,
   HEADLINE_DURATION_S,
@@ -7,7 +7,7 @@ import {
 } from '@rca/core/constants'
 import { analyze, profileEquivalents } from '@rca/core/pipeline'
 import { sampleDataset } from '@rca/core/synthetic'
-import { curvePoint } from './charts/fixtures'
+import { curvePoint } from './charts/test/fixtures'
 import {
   MAN_BORN_1986,
   flatWkg,
@@ -15,7 +15,7 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
-} from './components/fixtures'
+} from './components/test/fixtures'
 import { gapOfHeadline } from './balanceGap'
 import { gradeProfile, profileDurations, profileLeans, profileSeparated } from './gradeProfile'
 import type { GradeProfile } from './gradeProfile'

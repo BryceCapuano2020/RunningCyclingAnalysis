@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { makeActivity } from './fixtures'
+import { makeActivity } from './test/fixtures'
 import { HeldSportFacts } from './HeldSportFacts'
 
 afterEach(() => {

@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet } from '../components/stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 import { ChartFrame } from './ChartFrame'
 import type { ChartFrameProps } from './ChartFrame'
 import type { ChartSize } from './chartTypes'
@@ -222,59 +222,5 @@ describe('the phone readout row at rest', () => {
     expect(readout).toHaveClass('chart-frame__readout', 'chart-frame__readout--compact')
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     expect(within(readout).getByRole('status')).toHaveTextContent('Week 1')
-  })
-})
-
-describe('ChartFrame’s takeaway and focal figure', () => {
-  it('writes the takeaway under the title, which stays the chart’s name', () => {
-    const { container } = render(
-      <ChartFrame
-        title="Pace by duration"
-        description="d"
-        table={table}
-        takeaway="Running grades higher from 10 to 20 min"
-      >
-        {() => null}
-      </ChartFrame>,
-    )
-    const figure = screen.getByRole('figure', { name: 'Pace by duration' })
-    expect(figure).toHaveAccessibleDescription('Running grades higher from 10 to 20 min')
-    expect(container.querySelector('figcaption')).toHaveClass('chart-frame__title--eyebrow')
-    expect(container.querySelector('.chart-frame__takeaway')).toHaveTextContent(
-      'Running grades higher from 10 to 20 min',
-    )
-  })
-
-  it('shows the one figure the chart is about, with its label and unit', () => {
-    const { container } = render(
-      <ChartFrame
-        title="Pace by duration"
-        description="d"
-        table={table}
-        focal={{ label: '20 min best', value: '6:37', unit: '/mi' }}
-      >
-        {() => null}
-      </ChartFrame>,
-    )
-    expect(container.querySelector('.chart-frame__focal-label')).toHaveTextContent('20 min best')
-    expect(container.querySelector('.chart-frame__focal-value')).toHaveTextContent('6:37/mi')
-    expect(container.querySelector('.chart-frame__focal-unit')).toHaveTextContent('/mi')
-    // A figure alone does not make a takeaway.
-    expect(container.querySelector('.chart-frame__takeaway')).toBeNull()
-    expect(container.querySelector('figcaption')).not.toHaveClass('chart-frame__title--eyebrow')
-  })
-
-  it('keeps the table twin and the keyboard hint with a takeaway', () => {
-    chartWidth(900)
-    render(<Readable takeaway="Output rose" focal={{ value: '6' }} />)
-    expect(screen.getByText('View as table')).toBeInTheDocument()
-    expect(screen.getByTestId('plot-surface').getAttribute('aria-labelledby')).toBeTruthy()
-    expect(screen.getByText('Left and right arrows read values')).toBeInTheDocument()
-  })
-
-  it('sets the takeaway in the serif and the focal figure in the mono, the takeaway a size down on a phone', () => {
-    expect(css).toMatch(/\.chart-frame__takeaway \{[^}]*font-family: var\(--font-serif\)/)
-    expect(css).toMatch(/\.chart-frame__focal-value \{[^}]*font-family: var\(--font-mono\)/)
-    expect(css).toMatch(/@media \(max-width: 480px\) \{[^}]*\.chart-frame__takeaway/)
   })
 })

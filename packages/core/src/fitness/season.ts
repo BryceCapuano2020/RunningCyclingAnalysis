@@ -1,7 +1,7 @@
 import { FITNESS } from './params'
 import { slice } from './windows'
 import type { RunPoint } from './windows'
-import { medianInPlace } from '../math'
+import { MAD_TO_SD, medianInPlace } from '../math'
 
 const S = FITNESS.season
 
@@ -91,7 +91,8 @@ export function fitSeason(runs: readonly RunPoint[], day: number): Season | null
   if (fit === null) return null
   const residual = (r: RunPoint, f: Fit) =>
     r.x - f.mean - f.cos * Math.cos(OMEGA * r.t) - f.sin * Math.sin(OMEGA * r.t)
-  const spread = 1.4826 * medianInPlace(Float64Array.from(rs, (r) => Math.abs(residual(r, fit!))))
+  const spread =
+    MAD_TO_SD * medianInPlace(Float64Array.from(rs, (r) => Math.abs(residual(r, fit!))))
   const refit = leastSquares(rs, (i) => Math.abs(residual(rs[i]!, fit!)) <= S.clip * spread)
   if (refit === null) return null
   fit = refit

@@ -9,7 +9,7 @@ import {
 } from '../layoutBreakpoints'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { Header } from './Header'
-import { readStylesheet } from './stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 
 const headerCss = await readStylesheet(import.meta.url, './Header.css')
 const tokensCss = await readStylesheet(import.meta.url, '../../styles/tokens.css')
