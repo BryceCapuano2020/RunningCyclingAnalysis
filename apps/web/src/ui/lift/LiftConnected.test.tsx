@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LiftSet } from '@rca/core/lift'
 import type { AccountController } from '../useAccount'
 import { LiftConnected } from './LiftConnected'
+import { RailedLiftPage } from './RailedLiftPage'
 import type { LoggedDay } from './liftDays'
 
 const hook = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
@@ -194,5 +195,22 @@ describe('the Lift page on the log', () => {
     expect(list().getAllByRole('listitem')).toHaveLength(12)
     await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
     expect(list().getAllByRole('listitem')).toHaveLength(13)
+  })
+})
+
+describe('the Lift page in the shell', () => {
+  it('draws the rail beside the log, with Lift among the pages', () => {
+    useHook([])
+    render(
+      <RailedLiftPage
+        account={account('signed-out')}
+        units="metric"
+        day={TODAY}
+        today={TODAY}
+        openDay={() => undefined}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Lift' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Lifting' })).toBeInTheDocument()
   })
 })

@@ -19,6 +19,9 @@ import { onLiftsCleared } from './liftsCleared'
 /** The least time between two reads of the account that a tab coming into view makes. */
 const RE_ASK_FLOOR_MS = 30_000
 
+/** What a sync or read that failed leaves: nothing, since the next one tries again. Also what a write queue waits on. */
+const ignore = () => undefined
+
 /** The parts of the account controller the log reads. */
 export interface LiftLogAccount {
   status: AccountStatus
@@ -109,7 +112,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
   const retry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const askedAt = useRef(-Infinity)
   // The retry timer calls the latest syncNow through this ref, so the callback never names itself while it is made.
-  const syncAgain = useRef<() => Promise<void>>(() => Promise.resolve())
+  const syncAgain = useRef<(() => Promise<void>) | null>(null)
 
   const syncNow = useCallback(
     async (seen?: number) => {
@@ -128,7 +131,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
         clearTimeout(retry.current)
         if (flush.retryInMs !== null)
           retry.current = setTimeout(() => {
-            if (alive.current === engine) void syncAgain.current().catch(() => undefined)
+            if (alive.current === engine) void syncAgain.current?.().catch(ignore)
           }, flush.retryInMs)
       } finally {
         // Once an engine left behind settles, its store is closed again: its own reads and writes reopened it.
@@ -142,16 +145,13 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     syncAgain.current = () => syncNow()
   }, [syncNow])
   const trySync = useCallback(
-    () => void syncNow(liftRevision).catch(() => undefined),
+    () => void syncNow(liftRevision).catch(ignore),
     [syncNow, liftRevision],
   )
 
   useEffect(() => {
     let live = true
-    store.list().then(
-      (rows) => live && setRead({ scope, rows }),
-      () => undefined,
-    )
+    store.list().then((rows) => live && setRead({ scope, rows }), ignore)
     return () => {
       live = false
     }
@@ -167,14 +167,14 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
   useTabMessages(
     useCallback(
       (message: TabMessage) => {
-        if (message.type === 'lifts') void reload().catch(() => undefined)
+        if (message.type === 'lifts') void reload().catch(ignore)
       },
       [reload],
     ),
   )
 
   // Remove all in this tab cleared the store from the worker.
-  useEffect(() => onLiftsCleared(() => void reload().catch(() => undefined)), [reload])
+  useEffect(() => onLiftsCleared(() => void reload().catch(ignore)), [reload])
 
   useEffect(() => {
     if (engine === null) return
@@ -185,9 +185,9 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
       let seen: number | undefined
       if (Date.now() - askedAt.current >= RE_ASK_FLOOR_MS) {
         askedAt.current = Date.now()
-        seen = (await latest.current.refresh().catch(() => null))?.liftRevision
+        seen = (await latest.current.refresh().catch(ignore))?.liftRevision
       }
-      await syncNow(seen).catch(() => undefined)
+      await syncNow(seen).catch(ignore)
     }
     const onVisibleEvent = () => void onVisible()
     window.addEventListener('online', trySync)
@@ -201,7 +201,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
   const write = useCallback(
     <R>(work: () => Promise<R>): Promise<R> => {
       const run = queue.current.then(work, work)
-      queue.current = run.catch(() => undefined)
+      queue.current = run.then(ignore, ignore)
       return run.then(async (result) => {
         await reload()
         tellOtherTabs({ type: 'lifts' })

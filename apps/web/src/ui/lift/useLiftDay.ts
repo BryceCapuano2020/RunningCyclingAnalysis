@@ -16,11 +16,8 @@ export function useLiftDay(now: number): {
   today: string
   openDay: (day: string) => void
 } {
-  const hash = useSyncExternalStore(
-    subscribe,
-    () => window.location.hash,
-    () => '',
-  )
+  // The app renders in the browser only, so there is no server snapshot.
+  const hash = useSyncExternalStore(subscribe, () => window.location.hash)
   const today = localDateOf(now)
   const openDay = useCallback(
     (day: string) => {

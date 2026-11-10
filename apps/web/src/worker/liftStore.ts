@@ -100,8 +100,7 @@ export async function clearLifts(): Promise<boolean> {
       const transaction = db.transaction(STORE, 'readwrite')
       transaction.objectStore(STORE).clear()
       transaction.oncomplete = () => resolve(true)
-      transaction.onerror = () => resolve(false)
-      transaction.onabort = () => resolve(false)
+      transaction.onerror = transaction.onabort = () => resolve(false)
     })
   } catch {
     return false
@@ -125,8 +124,7 @@ export async function clearScope(scope: string): Promise<boolean> {
         at.continue()
       }
       transaction.oncomplete = () => resolve(true)
-      transaction.onerror = () => resolve(false)
-      transaction.onabort = () => resolve(false)
+      transaction.onerror = transaction.onabort = () => resolve(false)
     })
   } catch {
     return false
@@ -163,8 +161,7 @@ export async function sweepLifts(keepScope: string | null): Promise<void> {
         at.continue()
       }
       transaction.oncomplete = () => resolve()
-      transaction.onerror = () => resolve()
-      transaction.onabort = () => resolve()
+      transaction.onerror = transaction.onabort = () => resolve()
     })
   } catch {
     // The rows stay until a later load tries again.

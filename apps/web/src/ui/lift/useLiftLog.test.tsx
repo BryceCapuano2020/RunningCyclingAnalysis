@@ -425,3 +425,51 @@ describe('Remove all in this tab', () => {
     await waitFor(() => expect(view.result.current.days).toHaveLength(0))
   })
 })
+
+describe('the lift log, paths a session meets less often', () => {
+  it('removes a set by its key', async () => {
+    const view = setup(SIGNED_OUT)
+    await ready(view)
+    await act(async () => void (await view.result.current.save(draft())))
+    const key = view.result.current.days[0]!.lifts[0]!.sets[0]!.key
+    await act(async () => view.result.current.remove(key))
+    expect(view.result.current.days).toEqual([])
+  })
+
+  it('reads the store again when another tab says it wrote', async () => {
+    const view = setup(SIGNED_OUT)
+    await ready(view)
+    await openLiftStore('device').save(make(1))
+    const other = new BroadcastChannel('rca-sync-v1')
+    other.postMessage({ type: 'lifts' })
+    other.close()
+    await waitFor(() => expect(view.result.current.days).toHaveLength(1))
+  })
+
+  it('sends again when the wait a held flush names runs out', async () => {
+    let fire: (() => void) | undefined
+    const real = globalThis.setTimeout
+    const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number,
+    ) => {
+      if (ms === 2_000) {
+        fire = fn
+        return 0 as unknown as ReturnType<typeof setTimeout>
+      }
+      return real(fn, ms)
+    }) as typeof setTimeout)
+    let puts = 0
+    const fake = fakeTransport({
+      put: () => (puts++ === 0 ? new LiftTransportError('other') : { liftRevision: 1 }),
+    })
+    const view = setup(signedIn(), fake)
+    await ready(view)
+    await act(async () => void (await view.result.current.save(draft())))
+    await waitFor(() => expect(fire).toBeDefined())
+    spy.mockRestore()
+    expect(puts).toBe(1)
+    await act(async () => fire!())
+    await waitFor(() => expect(puts).toBe(2))
+  })
+})

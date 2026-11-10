@@ -19,6 +19,7 @@ export interface LockProvider {
 }
 
 let memoryTail: Promise<unknown> = Promise.resolve()
+const settled = () => undefined
 
 /** Tests only (test/setup.ts): a fresh queue, so a flush one test left hanging never holds the next test's. */
 export function resetMemoryLock(): void {
@@ -29,7 +30,7 @@ export function resetMemoryLock(): void {
 const memoryLock: LockProvider = {
   request: (_name, work) => {
     const run = memoryTail.then(work, work)
-    memoryTail = run.catch(() => undefined)
+    memoryTail = run.then(settled, settled)
     return run
   },
 }

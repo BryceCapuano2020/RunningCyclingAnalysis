@@ -38,6 +38,9 @@ describe('the lifting sets kept on the device', () => {
     expect(view.result.current.result).toMatchObject({ sent: 2, skipped: 0, total: 2 })
     expect(mine.refresh).toHaveBeenCalledOnce()
     expect(view.result.current.adopting).toBe(false)
+
+    act(() => view.result.current.dismissResult())
+    expect(view.result.current.result).toBeNull()
   })
 
   it('ends the session on a 401, and ignores a second press while it runs', async () => {
