@@ -1,13 +1,20 @@
 import { useState } from 'react'
-import { adoptionText, offerText, removeText } from '../analysis/adoptionCopy'
+import { adoptionSummary, offerText, removeText } from '../analysis/adoptionCopy'
+import type { LiftAdoption } from '../lift/useDeviceLifts'
 import type { AdoptionOutcome, DeviceOfferStatus } from '../analysis/model'
-import { dismissedOfferCount, dismissOffer } from '../analysis/offerDismissal'
+import { dismissedOffer, dismissOffer, offerKey } from '../analysis/offerDismissal'
 import { ConfirmDialog } from './ConfirmDialog'
 import './DeviceOffer.css'
+
+const NOTHING_KEPT: DeviceOfferStatus = { adoptable: 0, again: 0, held: 0 }
 
 export interface DeviceOfferProps {
   offer: DeviceOfferStatus | null
   adoption: AdoptionOutcome | null
+  /** Lifting sets kept in this browser, which the offer adds and removes with the activities; null until counted, when nothing is offered. */
+  lifts?: number | null
+  /** How adding the lifting sets ended. */
+  liftResult?: LiftAdoption | null
   /** The signed-in account, which the offer names so the question says whose library it adds to. */
   account: { userId: string; email: string }
   /** Adding is running, or something else is: the buttons wait. */
@@ -27,6 +34,8 @@ export interface DeviceOfferProps {
 export function DeviceOffer({
   offer,
   adoption,
+  lifts = 0,
+  liftResult = null,
   account,
   busy,
   onAdd,
@@ -34,17 +43,22 @@ export function DeviceOffer({
   onDismissResult,
   runThenFocus,
 }: DeviceOfferProps) {
-  const [dismissed, setDismissed] = useState(() => dismissedOfferCount(account.userId))
+  const [dismissed, setDismissed] = useState(() => dismissedOffer(account.userId))
   const [asking, setAsking] = useState<HTMLElement | null | undefined>(undefined)
-  const kept = offer === null ? 0 : offer.adoptable + offer.again + offer.held
-  // Asked again when the number kept changes. What cannot be added is still said, and can still be removed.
-  const offered = offer !== null && kept > 0 && dismissed !== kept
+  const standing = offer ?? NOTHING_KEPT
+  const sets = lifts ?? 0
+  const activities = standing.adoptable + standing.again + standing.held
+  const kept = activities + sets
+  const key = offerKey(activities, sets)
+  // Asked again when what is kept changes. What cannot be added is still said, and can still be removed. It waits
+  // until the activities and the lifting sets are counted, so the question is asked once, whole.
+  const offered = offer !== null && lifts !== null && kept > 0 && dismissed !== key
   return (
     <>
-      {adoption !== null && (
+      {(adoption !== null || liftResult !== null) && (
         <div className="notice device-offer">
           {/* The notice region says it (AppNotices), so a screen reader is not given it a second time here. */}
-          <p aria-hidden="true">{adoptionText(adoption)}</p>
+          <p aria-hidden="true">{adoptionSummary(adoption, liftResult)}</p>
           <div className="device-offer__actions">
             <button
               type="button"
@@ -57,10 +71,15 @@ export function DeviceOffer({
         </div>
       )}
       {offered && (
-        <section className="notice device-offer" aria-label="Activities kept in this browser">
-          <p>{offerText(offer, account.email)}</p>
+        <section
+          className="notice device-offer"
+          aria-label={
+            activities > 0 ? 'Activities kept in this browser' : 'Lifting sets kept in this browser'
+          }
+        >
+          <p>{offerText(standing, account.email, sets)}</p>
           <div className="device-offer__actions">
-            {offer.adoptable > 0 && (
+            {standing.adoptable + sets > 0 && (
               <button
                 type="button"
                 className="btn"
@@ -77,8 +96,8 @@ export function DeviceOffer({
               className="btn"
               onClick={(event) =>
                 runThenFocus(() => {
-                  dismissOffer(account.userId, kept)
-                  setDismissed(kept)
+                  dismissOffer(account.userId, key)
+                  setDismissed(key)
                 }, event.currentTarget)
               }
             >
@@ -98,9 +117,9 @@ export function DeviceOffer({
         </section>
       )}
       <ConfirmDialog
-        open={asking !== undefined && offer !== null}
+        open={asking !== undefined && kept > 0}
         title="Remove these from this browser?"
-        description={offer === null ? '' : removeText(offer)}
+        description={kept === 0 ? '' : removeText(standing, sets)}
         confirmLabel="Remove"
         opener={asking ?? null}
         onConfirm={() => {

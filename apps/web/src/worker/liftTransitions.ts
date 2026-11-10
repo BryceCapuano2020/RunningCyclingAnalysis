@@ -1,3 +1,4 @@
+import { exerciseKeyOf, LIFT_SET_ORDER } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 
 /** Where a set stands against the account: confirmed, waiting to be sent, or waiting to be deleted. */
@@ -98,4 +99,17 @@ export function pulledRow(
 export function lackedRow(row: LiftRow, liftRevision: number): RowChange {
   if (row.state !== 'synced') return undefined
   return (row.ackRevision ?? 0) > liftRevision ? undefined : null
+}
+
+/** The set order a new set takes: one past the highest stored for its date and lift, delete rows counted. Null when no room is left. */
+export function nextSetOrder(
+  rows: readonly LiftRow[],
+  set: Pick<LiftSet, 'date' | 'exercise' | 'equipment'>,
+): number | null {
+  const key = exerciseKeyOf(set)
+  let last = 0
+  for (const row of rows)
+    if (row.set.date === set.date && exerciseKeyOf(row.set) === key)
+      last = Math.max(last, row.set.setOrder)
+  return last + 1 > LIFT_SET_ORDER.max ? null : last + 1
 }

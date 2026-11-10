@@ -1,6 +1,6 @@
 const KEY = 'rca.deviceOffer.dismissed.v1'
 
-type Dismissed = Record<string, number>
+type Dismissed = Record<string, number | string>
 
 function read(): Dismissed {
   try {
@@ -11,19 +11,23 @@ function read(): Dismissed {
   }
 }
 
+/** What the offer held: the activities and the lifting sets, which differ even when their sum does not. */
+export const offerKey = (activities: number, lifts: number) => `${activities}:${lifts}`
+
 /**
- * How many kept activities the account's holder said "Not now" to, so the offer does not ask again for the same
- * number. A different number (more were kept since) asks again. A convenience of this browser: where storage is
- * refused, the offer is simply made each visit.
+ * What the account's holder said "Not now" to (see `offerKey`), so the offer does not ask again for the same
+ * contents. Different contents (more were kept since) ask again. A count saved before lifting sets counted
+ * activities only. A convenience of this browser: where storage is refused, the offer is simply made each visit.
  */
-export function dismissedOfferCount(userId: string): number | null {
-  const count = read()[userId]
-  return typeof count === 'number' ? count : null
+export function dismissedOffer(userId: string): string | null {
+  const kept = read()[userId]
+  if (typeof kept === 'number') return offerKey(kept, 0)
+  return typeof kept === 'string' ? kept : null
 }
 
-export function dismissOffer(userId: string, count: number): void {
+export function dismissOffer(userId: string, key: string): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...read(), [userId]: count }))
+    localStorage.setItem(KEY, JSON.stringify({ ...read(), [userId]: key }))
   } catch {
     // The offer comes back next visit.
   }

@@ -7,6 +7,7 @@ import { ApiRequestError } from '../api/client'
 import { useAccount } from './useAccount'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
+import { lastLiftAccount } from './lift/lastAccount'
 import { sweepAccountDetails } from '../worker/sweepAccountDetails'
 
 vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
@@ -985,5 +986,30 @@ describe('useAccount', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('the account the lift log reopens as', () => {
+  it('is kept from sign-in until sign-out', async () => {
+    localStorage.clear()
+    const { result } = await renderSignedIn()
+    expect(lastLiftAccount()).toBe('u1')
+    mocked.logout.mockResolvedValue(undefined)
+    await act(async () => result.current.signOut())
+    expect(lastLiftAccount()).toBeNull()
+  })
+
+  it('is forgotten when the session expires', async () => {
+    const { result } = await renderSignedIn()
+    expect(lastLiftAccount()).toBe('u1')
+    act(() => result.current.markExpired())
+    expect(lastLiftAccount()).toBeNull()
+  })
+
+  it('is forgotten when the account is deleted', async () => {
+    const { result } = await renderSignedIn()
+    mocked.deleteAccount.mockResolvedValue(undefined)
+    await act(async () => result.current.deleteAccount())
+    expect(lastLiftAccount()).toBeNull()
   })
 })

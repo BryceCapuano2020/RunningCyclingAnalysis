@@ -14,6 +14,7 @@ export {
   formatEnergyRateValue,
   PACE_UNIT,
   formatLoad,
+  formatLoadValue,
   formatMass,
   formatPace,
   formatPaceValue,
