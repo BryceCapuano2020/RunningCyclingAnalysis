@@ -24,7 +24,7 @@ is no gate on the athlete's own data.
 ## Cost
 
 - If real lifters do fewer reps per load than the equations assume, the estimate reads low for them, and its range
-  holds the truth less often than 80% (section 7, centre 7: 73%).
+  holds the truth less often than 80% (section 7, centre 7: 74%).
 - A lifter whose own curve sits far from the equations can be off in the same direction on every session, and
   nothing on the page says so, because no check exists yet.
 - The change between periods (section 10) cancels this error when the two periods' rep ranges match, so a
