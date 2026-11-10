@@ -5,13 +5,14 @@ import type { LiftSet } from '@rca/core/lift'
 import { createLiftTransport } from '../../api/lifts'
 import { openLiftStore } from '../../worker/liftStore'
 import { createLiftSync } from '../../worker/liftSync'
+import type { LiftSync } from '../../worker/liftSync'
 import type { LiftTransport } from '../../worker/liftTransport'
 import { DEVICE_SCOPE } from '../../worker/liftTransitions'
 import type { LiftRow } from '../../worker/liftTransitions'
 import { tellOtherTabs, useTabMessages } from '../tabSync'
 import type { TabMessage } from '../tabSync'
 import type { AccountStatus } from '../useAccount'
-import { groupDays, nextSetOrder, recentLifts } from './liftDays'
+import { groupDays, recentLifts } from './liftDays'
 import { lastLiftAccount } from './lastAccount'
 
 /** The least time between two reads of the account that a tab coming into view makes. */
@@ -60,12 +61,14 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     latest.current = account
   })
   const confirmed = status === 'signed-in' && userId !== null
-  const [remembered] = useState(lastLiftAccount)
+  // Read again whenever the status changes, so a lookup that lapses after a sign-in finds the account kept then.
+  const [remembered, setRemembered] = useState({ status, id: lastLiftAccount() })
+  if (remembered.status !== status) setRemembered({ status, id: lastLiftAccount() })
   const scope = confirmed
     ? userId
     : status === 'signed-out'
       ? DEVICE_SCOPE
-      : (remembered ?? DEVICE_SCOPE)
+      : (remembered.id ?? DEVICE_SCOPE)
   const store = useMemo(() => openLiftStore(scope), [scope])
   useEffect(() => () => store.close(), [store])
   const engine = useMemo(
@@ -73,11 +76,28 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     [store, confirmed, userId, transportFor],
   )
   const [read, setRead] = useState<{ scope: string; rows: LiftRow[] } | null>(null)
-  const [sent, setSent] = useState<LiftSendStatus>({ refused: 0, full: false })
+  const [sent, setSent] = useState<LiftSendStatus & { scope: string }>({
+    scope,
+    refused: 0,
+    full: false,
+  })
+
+  // What an answer that comes late must not write: the scope it was asked for is no longer the one on screen.
+  const scopeRef = useRef(scope)
+  useEffect(() => {
+    scopeRef.current = scope
+  }, [scope])
+  const alive = useRef<LiftSync | null>(null)
+  useEffect(() => {
+    alive.current = engine
+    return () => {
+      if (alive.current === engine) alive.current = null
+    }
+  }, [engine])
 
   const reload = useCallback(async () => {
     const rows = await store.list()
-    setRead({ scope, rows })
+    if (scopeRef.current === scope) setRead({ scope, rows })
   }, [store, scope])
 
   // Writes wait for one another, so two quick saves never take the same set order.
@@ -91,15 +111,24 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
       clearTimeout(retry.current)
       try {
         const { flush } = await engine.sync(seen ?? latest.current.liftRevision)
+        // The scope changed, or the hook closed, while it ran: the answer belongs to no one.
+        if (alive.current !== engine) return
         if (flush.unauthorized) latest.current.markExpired()
-        setSent((was) => ({ refused: was.refused + flush.refused, full: flush.capped > 0 }))
+        setSent((was) => ({
+          scope,
+          refused: (was.scope === scope ? was.refused : 0) + flush.refused,
+          full: flush.capped > 0,
+        }))
+        clearTimeout(retry.current)
         if (flush.retryInMs !== null)
-          retry.current = setTimeout(() => void syncNow(), flush.retryInMs)
+          retry.current = setTimeout(() => {
+            if (alive.current === engine) void syncNow().catch(() => undefined)
+          }, flush.retryInMs)
       } finally {
         await reload()
       }
     },
-    [engine, reload],
+    [engine, reload, scope],
   )
   const trySync = useCallback(
     () => void syncNow(liftRevision).catch(() => undefined),
@@ -171,13 +200,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
 
   /** Logs a set at the next set order of its date and lift. Resolves the set as kept, or null when the lift has no room or storage refused. */
   const save = useCallback(
-    (draft: NewLiftSet): Promise<LiftSet | null> =>
-      write(async () => {
-        const order = nextSetOrder(await store.list(), draft)
-        if (order === null) return null
-        const set: LiftSet = { ...draft, setOrder: order }
-        return (await store.save(set)) ? set : null
-      }),
+    (draft: NewLiftSet): Promise<LiftSet | null> => write(() => store.saveNext(draft)),
     [store, write],
   )
   /**
@@ -193,11 +216,8 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
           const set: LiftSet = { ...next, setOrder: previous.setOrder }
           return (await store.save(set)) ? set : null
         }
-        const order = nextSetOrder(await store.list(), next)
-        if (order === null) return null
-        const set: LiftSet = { ...next, setOrder: order }
-        if (!(await store.save(set))) return null
-        await store.remove(liftSetKey(previous))
+        const set = await store.saveNext(next)
+        if (set !== null) await store.remove(liftSetKey(previous))
         return set
       }),
     [store, write],
@@ -223,6 +243,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     pendingCount,
     recentLifts: recent,
     ready: rows !== null,
-    ...sent,
+    refused: sent.scope === scope ? sent.refused : 0,
+    full: sent.scope === scope && sent.full,
   }
 }

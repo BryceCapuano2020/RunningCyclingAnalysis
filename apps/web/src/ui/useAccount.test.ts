@@ -998,4 +998,18 @@ describe('the account the lift log reopens as', () => {
     await act(async () => result.current.signOut())
     expect(lastLiftAccount()).toBeNull()
   })
+
+  it('is forgotten when the session expires', async () => {
+    const { result } = await renderSignedIn()
+    expect(lastLiftAccount()).toBe('u1')
+    act(() => result.current.markExpired())
+    expect(lastLiftAccount()).toBeNull()
+  })
+
+  it('is forgotten when the account is deleted', async () => {
+    const { result } = await renderSignedIn()
+    mocked.deleteAccount.mockResolvedValue(undefined)
+    await act(async () => result.current.deleteAccount())
+    expect(lastLiftAccount()).toBeNull()
+  })
 })
