@@ -9,6 +9,7 @@ import {
   countsText,
   monthTotals,
   secondsOf,
+  totalHoursText,
   VOLUME_KINDS,
   volumeBuckets,
   volumeColumns,
@@ -17,9 +18,10 @@ import {
 const at = (year: number, month: number, day: number) => new Date(year, month, day, 8).getTime()
 const run = (startMs: number) =>
   makeActivity({ id: `run-${startMs}`, sport: 'run', startMs, durationS: 3600, distanceM: 10000 })
-const liftOn = (year: number, month: number, date: number, seconds = 1800) => ({
+const liftOn = (year: number, month: number, date: number, seconds = 1800, measured = false) => ({
   day: dayOfCivil(year, month, date),
   seconds,
+  measured,
 })
 
 describe('volume kinds', () => {
@@ -34,7 +36,12 @@ describe('volumeBuckets with lifting', () => {
       liftOn(2025, 5, 3),
       liftOn(2025, 5, 5, 900),
     ])
-    expect(bucket?.totals.lift).toEqual({ count: 2, seconds: 2700, distanceM: 0 })
+    expect(bucket?.totals.lift).toEqual({
+      count: 2,
+      seconds: 2700,
+      distanceM: 0,
+      estimatedSeconds: 2700,
+    })
     expect(secondsOf(bucket!.totals)).toBe(3600 + 2700)
     expect(countOf(bucket!.totals)).toBe(3)
     expect(activityCountOf(bucket!.totals)).toBe(1)
@@ -80,6 +87,15 @@ describe('monthTotals and countsText with lifting', () => {
   it('makes a month for lifting alone', () => {
     expect(monthTotals([], [liftOn(2025, 6, 1)]).get('2025-6')?.lift.count).toBe(1)
   })
+
+  it('marks a total "~" only when it holds an estimated lifting day', () => {
+    const measured = monthTotals([run(at(2025, 5, 2))], [liftOn(2025, 5, 9, 3600, true)])
+    expect(measured.get('2025-5')?.lift).toEqual({ count: 1, seconds: 3600, distanceM: 0 })
+    expect(totalHoursText(measured.get('2025-5')!)).toBe('2.0 h')
+    const mixed = monthTotals([], [liftOn(2025, 5, 9, 3600, true), liftOn(2025, 5, 12, 1800)])
+    expect(mixed.get('2025-5')?.lift.estimatedSeconds).toBe(1800)
+    expect(totalHoursText(mixed.get('2025-5')!)).toBe('~1.5 h')
+  })
 })
 
 describe('lifting days of the page', () => {
@@ -95,8 +111,20 @@ describe('lifting days of the page', () => {
 
   it('makes a day number and estimated seconds for each day with sets', () => {
     expect(liftDaysOf([...sets('2025-06-03', 2), ...sets('2025-06-05', 1)])).toEqual([
-      { day: dayOfCivil(2025, 5, 3), seconds: 360 },
-      { day: dayOfCivil(2025, 5, 5), seconds: 180 },
+      { day: dayOfCivil(2025, 5, 3), seconds: 360, measured: false },
+      { day: dayOfCivil(2025, 5, 5), seconds: 180, measured: false },
+    ])
+  })
+
+  it('takes measured seconds from live stamps', () => {
+    const stamped = (time: string, setOrder: number) => ({
+      ...sets('2025-06-03', 1)[0]!,
+      setOrder,
+      time,
+      timePrecision: 'set' as const,
+    })
+    expect(liftDaysOf([stamped('17:30', 1), stamped('18:10', 2)])).toEqual([
+      { day: dayOfCivil(2025, 5, 3), seconds: 40 * 60 + 180, measured: true },
     ])
   })
 
@@ -107,7 +135,7 @@ describe('lifting days of the page', () => {
       ...sets('2025-6-3', 1),
       ...sets('2025-06-03', 1),
     ])
-    expect(days).toEqual([{ day: dayOfCivil(2025, 5, 3), seconds: 180 }])
+    expect(days).toEqual([{ day: dayOfCivil(2025, 5, 3), seconds: 180, measured: false }])
   })
 
   it('keeps the days in the period that ends on the newest activity, or all for all time', () => {

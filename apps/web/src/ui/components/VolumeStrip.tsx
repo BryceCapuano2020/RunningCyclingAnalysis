@@ -6,12 +6,14 @@ import { formatSpan } from '../format/date'
 import { useNarrowScreen } from '../useNarrowScreen'
 import {
   activityCountOf,
+  addTotals,
   bucketLabel,
   bucketSpan,
   countOf,
   countsText,
   emptyTotals,
   inBucket,
+  isEstimated,
   secondsOf,
   totalHoursText,
   volumeBuckets,
@@ -26,7 +28,7 @@ import './VolumeStrip.css'
 export interface VolumeStripProps {
   /** The activities the list is narrowed to by period and sport, before any week or month is picked. */
   activities: readonly ActivitySummary[]
-  /** The days with lifting, estimated in time; drawn as a part of each column. None while a filter leaves lifting out. */
+  /** The days with lifting, drawn as a part of each column. None while a filter leaves lifting out. */
   lifts?: readonly LiftDay[]
   /** The key of the week or month the list is narrowed to, or null for the whole period. */
   selected: string | null
@@ -104,12 +106,7 @@ export function VolumeStrip({ activities, selected, onSelect, lifts }: VolumeStr
   const columns = useMemo(() => volumeColumns(buckets), [buckets])
   const totals = useMemo(() => {
     const all = emptyTotals()
-    for (const bucket of buckets) {
-      for (const kind of VOLUME_KINDS) {
-        all[kind].count += bucket.totals[kind].count
-        all[kind].seconds += bucket.totals[kind].seconds
-      }
-    }
+    for (const bucket of buckets) addTotals(all, bucket.totals)
     return all
   }, [buckets])
   const [pointed, setPointed] = useState<string | null>(null)
@@ -166,7 +163,7 @@ export function VolumeStrip({ activities, selected, onSelect, lifts }: VolumeStr
         <ul className="volume-strip__key" aria-label="Sports">
           {VOLUME_KINDS.filter((kind) => totals[kind].count > 0).map((kind) => (
             <li key={kind} data-sport={kind} data-slot={VOLUME_KINDS.indexOf(kind)}>
-              {VOLUME_LABEL[kind]}
+              {`${VOLUME_LABEL[kind]}${isEstimated(totals[kind]) ? ', estimated' : ''}`}
             </li>
           ))}
         </ul>

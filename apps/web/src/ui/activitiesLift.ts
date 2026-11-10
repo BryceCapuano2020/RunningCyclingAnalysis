@@ -6,7 +6,7 @@ import { bucketSpan } from './activitiesVolume'
 import type { LiftDay } from './volumeKinds'
 
 /**
- * The lifting days of the live sets: one per day with a set, in estimated seconds. A date that is not a real day (2025-13-45,
+ * The lifting days of the live sets: one per day with a set, in seconds measured or estimated (core `liftSessionsOf`). A date that is not a real day (2025-13-45,
  * which Date would roll into another) is left out: a day counts only when it reads back as the same date.
  */
 export function liftDaysOf(sets: readonly LiftSet[]): LiftDay[] {
@@ -18,7 +18,7 @@ export function liftDaysOf(sets: readonly LiftSet[]): LiftDay[] {
       Number(session.date.slice(8, 10)),
     )
     return Number.isFinite(day) && dateTextOfDay(day) === session.date
-      ? [{ day, seconds: session.seconds }]
+      ? [{ day, seconds: session.seconds, measured: session.measured }]
       : []
   })
 }
