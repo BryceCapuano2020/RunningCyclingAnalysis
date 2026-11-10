@@ -9,7 +9,7 @@ and the coordinator's own transcript). When a retro finds a better way, change t
 
 - **Coordinator.** One session per wave. It owns the plan and the queue, briefs agents, and merges.
   It edits little code itself.
-- **Builder** (`rca-builder`): one scoped change in its own worktree, with tests.
+- **Builder** (`rca-builder`): one scoped change (a slice) in its own worktree, with tests.
 - **Reviewer** (`rca-reviewer`): read-only, with ranked findings at `file:line`.
 - **Gate** (`rca-gate`): one stage-gate check on a built `main` between stages.
 
@@ -23,9 +23,10 @@ Rules that prose kept failing to hold are hooks in `.claude/settings.json`, whic
 this repository loads when it starts:
 
 - Before each prompt, `pr-queue.mjs --action` prints the pull requests that need someone (a failing
-  or stale run, a conflict, auto-merge off) and a red `main`. It prints nothing when all is well. It
-  reads only the latest run on the head commit, and a run that a push or the ready event cancelled,
-  or one that saw a draft, counts as running for ten minutes while the next run starts.
+  or stale run, a conflict, auto-merge off), a red `main`, and a line when more than six pull
+  requests are open, Dependabot's aside. It prints nothing when all is well. It reads only the
+  latest run on the head commit, and a run that a push or the ready event cancelled, or one that saw
+  a draft, counts as running for ten minutes while the next run starts.
 - Before each shell command, `agent-guard.mjs` refuses: a vitest or Playwright run (directly, or
   through any `test`, `e2e`, `check` or `verify:release` script) outside the test slot;
   `gh pr checks`, `gh run watch`, watch loops and sleeps that wait on CI; `git stash`; a push to
@@ -61,7 +62,9 @@ A refused command is a signal, not an obstacle: do not route around it with anot
   To see the queue, run `npm run pr:queue` once: one line per open pull request with what it needs
   next (a run that saw a draft, failing checks, a conflict, auto-merge off, running, merging, draft)
   and whether `main` is green.
-- Keep about six pull requests open. Start a new builder when one merges, not before.
+- Keep at most six pull requests open, Dependabot's aside; `pr:queue` says when there are more.
+  The cap is on pull requests, not builders: slices on a feature branch open none
+  ([Features and slices](#features-and-slices)), so builders are limited only by the test slots.
 - Never end a turn on a question while queued work is unblocked. Ask, then carry on with the work
   the answer does not affect.
 - The queue lives in the stage plan (`.claude/stage-<x>/PLAN.md`) and its status file, so "what
@@ -106,12 +109,48 @@ read the spec.
 Why: formula proposals reached the owner unreviewed, and a grade anchor shipped without
 calibration. The owner caught both on their own data.
 
+## Features and slices
+
+Review is sized by the slice. CI and the merge are sized by the feature: the smallest change an
+athlete can use or another package can call.
+
+- A change that fits one review (about 600 changed lines) is one slice. It goes to `main` as its
+  own pull request, under the rules in the next section.
+- A larger feature gets a feature branch cut from `main` and pushed by the coordinator (for example
+  `lift-logger`). Each builder cuts a slice branch from it in its own worktree, keeps the slice at
+  about 600 changed lines, pushes it and opens no pull request.
+- A slice is reviewed as a diff against the feature branch (`git diff <feature>...<slice>`). The
+  reviewer needs no pull request.
+- When review has no blockers, the coordinator merges the slice into the feature branch
+  (`git merge --no-ff <slice>`) and pushes it. A slice that builds on another is cut from the
+  feature branch once that one is in, so slices never stack.
+- The slice that wires the feature into the app goes last. Its review reads the whole feature
+  branch at the seams between slices.
+- When the last slice is in, the coordinator opens one pull request from the feature branch to
+  `main`: ready, labelled at creation (`gh pr create --label integration`), with auto-merge and
+  Auto-fix on. Its body lists the slices and each review's verdict. That run is the feature's one
+  full CI run.
+- A red run gets one complete fix, pushed to the feature branch. To find the slice at fault, test
+  the merge commits on the feature branch in order.
+- When `main` moves under a feature branch and conflicts, merge `main` into it. Never rebase a
+  feature branch: its slice branches are cut from it.
+- A feature branch lives for one wave. A feature too large for that is cut at a point where `main`
+  still works, and each part is a feature.
+
+Why: over three days in November there were 169 pull request runs for about 31 merges. Only 27 runs
+were green, 61 were drafts failing on purpose and 46 were cancelled by a newer push. The lift
+logger, one feature of about 3,500 lines that no page showed until its last slice, was seven pull
+requests, five of them in two stacks. Each needed its own ready flip, monitor and 17-minute run,
+and the coordinator split and restacked them by hand. The line limit was sizing merges when it was
+meant to size reviews.
+
 ## Branches and pull requests
 
-- One package per pull request, at about 600 changed lines or fewer, tests included. Split a large
-  package by finding.
-- Open a draft pull request as soon as the first commit builds, so review can start. A draft runs
-  no long CI jobs; the full suite runs when it is marked ready.
+- One package per pull request. A package of about 600 changed lines or fewer, tests included, is
+  one slice and one pull request. A larger one is built as slices on a feature branch
+  ([Features and slices](#features-and-slices)), not split into several pull requests.
+- For a change that is one slice, open a draft pull request as soon as the first commit builds, so
+  review can start. A draft runs no long CI jobs; the full suite runs when it is marked ready.
 - Mark a pull request ready before its final push, never in the same moment after one. A push and
   `gh pr ready` seconds apart gave #213, #227 and #232 a single run that saw a draft and failed on
   purpose. CI now reads the draft state when it runs, so re-running all jobs fixes such a run.
@@ -119,7 +158,8 @@ calibration. The owner caught both on their own data.
   merge it before the next one starts. Two at once re-pin against each other until one is held.
 - Builders open drafts and never mark one ready or set auto-merge. The coordinator does both once
   review has no blockers.
-- A stacked pull request does not wait for its base to merge, since a merge wakes no one. When the
+- Slices of one feature never stack; a stack is only for two features where one needs the other.
+  A stacked pull request does not wait for its base to merge, since a merge wakes no one. When the
   base is marked ready, rebase the stacked one onto the base's tip, retarget it to `main`, mark it
   ready and set auto-merge. `main` does not require branches to be up to date, so either may land
   first. If the stacked one lands first it carries the base, which is then closed as included. One
@@ -172,8 +212,9 @@ timeout at random.
   change.
 - While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
 - A pull request over 800 changed lines fails the size job unless it carries the `integration`
-  label, which marks a merge of pull requests already reviewed on their own. Re-run the job after
-  adding the label. `package-lock.json` does not count, nor does a removed line that no added line in
+  label, which marks a feature branch whose slices were each reviewed on their own
+  ([Features and slices](#features-and-slices)). The label is read when the job runs, so set it
+  when the pull request is created, or re-run the job after adding it. `package-lock.json` does not count, nor does a removed line that no added line in
   its file replaces, so a file deleted whole or a block of dead code cut out counts nothing.
 - Pull requests audit production dependencies; the weekly supply-chain run audits every dependency.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
