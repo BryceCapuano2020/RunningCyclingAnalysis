@@ -12,6 +12,7 @@ import {
 import type { LibraryState } from './libraryState'
 import type { Pending } from './model'
 import { requestPersistence } from './storagePersistence'
+import { DEVICE_STATE_SCOPE, clearSnapshot } from '../../worker/stateStore'
 
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
 export type ReplyResponse = Exclude<
@@ -57,6 +58,7 @@ export function rememberKeptLibrary(
       if (!kept) {
         clearCountedRuns()
         clearKeptPower()
+        void clearSnapshot(DEVICE_STATE_SCOPE)
       }
     }
     return

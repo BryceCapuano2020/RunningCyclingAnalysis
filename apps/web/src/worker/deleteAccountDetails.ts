@@ -2,6 +2,7 @@ import { dropLiftScope } from './liftAccount'
 import { openOutbox } from './outbox'
 import { accountScope, clearCheckinScope } from './checkinStore'
 import { openManifestStore } from '../ui/importManifestStore'
+import { clearSnapshot } from './stateStore'
 import { deleteWorkbenchScope } from './workbenchStore'
 
 /** Server deletion has succeeded; a refused local cleanup must be reported separately. */
@@ -12,6 +13,7 @@ export async function deleteAccountDetails(userId: string | undefined): Promise<
   await dropLiftScope(userId)
   await clearCheckinScope(accountScope(userId), { dropEpoch: true }).catch(() => false)
   await openManifestStore().forget(`account:${userId}`)
+  await clearSnapshot(userId)
   const removed = await deleteWorkbenchScope({ kind: 'account', userId }).catch(() => false)
   return removed
     ? null
