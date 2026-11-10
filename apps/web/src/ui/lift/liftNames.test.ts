@@ -58,6 +58,46 @@ describe('liftOptions', () => {
     expect(labels).toContain('Bench press')
     expect(labels).not.toContain('Deadlift')
   })
+  it('lists 12 used lifts before typing, and searches every one once typing', () => {
+    const used = Array.from({ length: 14 }, (_, n) => ({
+      exercise: `zzq-lift-${n}`,
+      equipment: 'machine' as const,
+    }))
+    expect(liftOptions('', used).filter((row) => row.equipment)).toHaveLength(12)
+    expect(liftOptions('zzq lift 13', used).map((row) => row.label)).toEqual([
+      'Zzq lift 13, machine',
+    ])
+  })
+  it('matches a used lift with its equipment, so "curl cable" finds it rather than adding a lift', () => {
+    const recent = [
+      { exercise: 'curl', equipment: 'cable' as const },
+      { exercise: 'zzq-press', equipment: 'dumbbell' as const },
+    ]
+    // The lift used leads; catalog names found by leaving out "cable" follow it, and it is listed once.
+    const labels = liftOptions('curl cable', recent).map((row) => row.label)
+    expect(labels[0]).toBe('Curl, cable')
+    expect(labels).toContain('Leg curl, cable')
+    expect(labels.filter((label) => label === 'Curl, cable')).toHaveLength(1)
+    expect(liftOptions('zzq press, dumbbell', recent)).toEqual([
+      { exercise: 'zzq-press', equipment: 'dumbbell', label: 'Zzq press, dumbbell' },
+    ])
+  })
+  it('finds a catalog name typed with an equipment word, with that equipment', () => {
+    expect(liftOptions('bench press dumbbell', [])[0]).toEqual({
+      exercise: 'bench-press',
+      equipment: 'dumbbell',
+      label: 'Bench press, dumbbell',
+    })
+    expect(liftOptions('deadlift barbell', []).map((row) => row.label)).not.toContain(
+      'Add ‘Deadlift barbell’',
+    )
+    // Two equipment words name no one equipment, and an equipment word alone lists nothing extra.
+    expect(liftOptions('curl cable dumbbell', []).find((row) => row.exercise === 'curl')).toEqual({
+      exercise: 'curl',
+      label: 'Curl',
+    })
+    expect(liftOptions('cable', []).map((row) => row.label)).toEqual(['Cable row'])
+  })
   it('offers the typed name as the last and only option when nothing matches', () => {
     expect(liftOptions('Zercher squat x', [])).toEqual([
       { exercise: 'zercher-squat-x', label: 'Add ‘Zercher squat x’', isNew: true },

@@ -2,6 +2,7 @@ import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { limitReached, listingLimitReached } from '../limitCopy'
 import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
 import type { ErrorReply } from './copy'
+import { announceLiftsCleared } from '../lift/liftsCleared'
 import { rememberKeptLibrary } from './rememberKept'
 import type { ReplyResponse } from './rememberKept'
 import { baselineOf, comparableBefore } from './importState'
@@ -193,6 +194,8 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   }
   const changed = changedLibrary(pending)
   if (changed !== null) deps.libraryChanged(changed)
+  // Remove all also cleared the lifting sets the log on screen holds.
+  if (pending?.kind === 'clear' && pending.forgetDevice === true) announceLiftsCleared()
   imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)

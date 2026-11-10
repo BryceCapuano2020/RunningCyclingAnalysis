@@ -7,12 +7,13 @@ test('the History tab opens on the sample with its totals, hours chart, keyboard
 }) => {
   const errors = trackErrors(page)
   await openSample(page)
-  // Balance, Run and Ride are the rail's pages; History sits first among the header's, before Activities and Method.
+  // Balance, Run, Ride and Lift are the rail's pages; History sits first among the header's, before Activities and Method.
   const rail = page.getByRole('navigation', { name: 'Pages', exact: true }).getByRole('link')
   expect((await rail.allTextContents()).map((tab) => tab.trim())).toEqual([
     'Balance',
     'Run',
     'Ride',
+    'Lift',
   ])
   const more = page.getByRole('navigation', { name: 'More pages' }).getByRole('link')
   expect((await more.allTextContents()).map((tab) => tab.trim())).toEqual([

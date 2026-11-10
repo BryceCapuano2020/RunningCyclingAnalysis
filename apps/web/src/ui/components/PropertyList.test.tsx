@@ -22,6 +22,23 @@ describe('PropertyList, a row with an action', () => {
     await userEvent.click(button)
     expect(onActivate).toHaveBeenCalledOnce()
   })
+
+  it('marks only rows with an action, so their value stretches to the row and the hairlines line up', () => {
+    const { container } = render(
+      <PropertyList
+        rows={[
+          {
+            label: 'Set 1',
+            value: '100 kg × 5',
+            action: { name: 'Edit set 1', onActivate: vi.fn() },
+          },
+          { label: 'Runs used', value: '4' },
+        ]}
+      />,
+    )
+    const rows = Array.from(container.querySelectorAll('.props__row'))
+    expect(rows.map((row) => row.classList.contains('props__row--action'))).toEqual([true, false])
+  })
 })
 
 describe('PropertyList', () => {

@@ -166,3 +166,25 @@ describe('sweeping the saves other accounts left waiting', () => {
     expect(await openOutbox('bob').pending()).toEqual([])
   })
 })
+
+describe('sweeping lifting sets', () => {
+  it('removes every other account’s sets, unsent ones included, and keeps the device and the signed-in account', async () => {
+    const { sweepAccountDetails } = await fresh()
+    const { openLiftStore } = await import('./liftStore')
+    const set = {
+      date: '2031-01-05',
+      exercise: 'squat',
+      equipment: 'barbell',
+      setOrder: 1,
+      reps: 5,
+      loadKg: 60,
+    } as const
+    for (const scope of ['alice', 'bob', 'device']) await openLiftStore(scope).save(set)
+
+    await sweepAccountDetails('bob')
+
+    expect(await openLiftStore('alice').list()).toHaveLength(0)
+    expect(await openLiftStore('bob').list()).toHaveLength(1)
+    expect(await openLiftStore('device').list()).toHaveLength(1)
+  })
+})

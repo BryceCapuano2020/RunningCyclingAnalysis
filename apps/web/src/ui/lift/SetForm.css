@@ -49,3 +49,8 @@
   color: var(--status-critical);
   font-size: var(--text-sm);
 }
+
+/* A load converted from kilograms can show two decimals in pounds (220.46): room for six figures beside the unit. */
+.set-form .number-field__input {
+  width: 13ch;
+}

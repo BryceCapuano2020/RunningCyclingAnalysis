@@ -1,0 +1,72 @@
+/* The Lift page: a day heading with its two day buttons, the one primary button, then each lift as a heading and a
+   detail panel. No boxes: hairlines and type only (docs/design/system.md). */
+.lift {
+  gap: var(--stack-gap);
+}
+
+.lift__day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.lift__day-name {
+  min-width: 0;
+}
+
+.lift__day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lift__log {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+  min-width: 0;
+}
+
+.lift__name {
+  font-family: var(--font-serif);
+  font-size: var(--heading);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.lift__empty {
+  margin: 0;
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--hairline);
+  max-width: var(--measure);
+  color: var(--ink-secondary);
+}
+
+/* A session's date is the row's title and opens that day; it reads as the title, at a control's height. */
+.lift__open {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+}
+
+.lift__open:hover {
+  text-decoration: underline;
+}
+
+.lift__more {
+  justify-self: start;
+}
+
+.lift__error {
+  margin: 0;
+}

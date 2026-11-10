@@ -644,14 +644,15 @@ describe('what the browser kept before sign-in', () => {
 
   beforeEach(() => localStorage.clear())
 
-  it('is offered to the signed-in account, which it names', () => {
+  it('is offered to the signed-in account, which it names', async () => {
     render(
       <AppNotices
         {...noticesProps({ deviceOffer: OFFER }, { signedIn: true, accountUser: ACCOUNT })}
       />,
     )
+    // The offer waits for the lifting sets to be counted.
     expect(
-      screen.getByRole('region', { name: 'Activities kept in this browser' }),
+      await screen.findByRole('region', { name: 'Activities kept in this browser' }),
     ).toHaveTextContent('Add them to ada@example.com?')
   })
 

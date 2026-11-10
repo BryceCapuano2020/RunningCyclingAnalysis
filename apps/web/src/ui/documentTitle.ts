@@ -10,6 +10,7 @@ const PAGE_NAMES: Record<SimplePage, string> = {
   balance: 'Balance',
   run: SPORT_LABEL.run,
   ride: SPORT_LABEL.ride,
+  lift: 'Lifting',
   history: 'History',
   activities: 'Activities',
   method: 'Method',

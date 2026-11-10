@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { liftSetKey } from '@rca/core/lift'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { openLiftStore } from './liftStore'
-import { createLiftSync, retryDelayMs } from './liftSync'
+import { createLiftSync, defaultLocks, FLUSH_LOCK, retryDelayMs } from './liftSync'
 import type { LockProvider } from './liftSync'
 import { fakeTransport, make } from './liftTestKit'
 import { LiftTransportError } from './liftTransport'
@@ -255,5 +255,23 @@ describe('the backoff', () => {
   it('doubles from two seconds up to five minutes', () => {
     expect([1, 2, 3, 4].map(retryDelayMs)).toEqual([2_000, 4_000, 8_000, 16_000])
     expect(retryDelayMs(50)).toBe(300_000)
+  })
+})
+
+describe('the default lock', () => {
+  it('uses the browser’s Web Locks where there are some, by the flush lock’s name', async () => {
+    const request = vi.fn((_name: string, work: () => Promise<unknown>) => work())
+    vi.stubGlobal('navigator', { locks: { request } })
+    expect(await defaultLocks().request(FLUSH_LOCK, async () => 'ran')).toBe('ran')
+    expect(request).toHaveBeenCalledWith(FLUSH_LOCK, expect.any(Function))
+  })
+
+  it('queues work in the page where there are none, so a failed run does not stop the next', async () => {
+    vi.stubGlobal('navigator', {})
+    const locks = defaultLocks()
+    await expect(
+      locks.request(FLUSH_LOCK, async () => Promise.reject(new Error('x'))),
+    ).rejects.toThrow('x')
+    expect(await locks.request(FLUSH_LOCK, async () => 'next')).toBe('next')
   })
 })
