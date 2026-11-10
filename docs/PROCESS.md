@@ -130,6 +130,10 @@ athlete can use or another package can call.
   `main`: ready, labelled at creation (`gh pr create --label integration`), with auto-merge and
   Auto-fix on. Its body lists the slices and each review's verdict. That run is the feature's one
   full CI run.
+- A slice has no CI run. Its builder runs the slice's tests in the test slot, and the coordinator
+  runs the tests for the wiring on the feature branch before opening the pull request.
+- The coordinator removes a slice's worktree and its remote branch when it merges the slice. The
+  startup sweep does not see them, since they have no pull request.
 - A red run gets one complete fix, pushed to the feature branch. To find the slice at fault, test
   the merge commits on the feature branch in order.
 - When `main` moves under a feature branch and conflicts, merge `main` into it. Never rebase a
@@ -146,9 +150,10 @@ meant to size reviews.
 
 ## Branches and pull requests
 
-- One package per pull request. A package of about 600 changed lines or fewer, tests included, is
-  one slice and one pull request. A larger one is built as slices on a feature branch
-  ([Features and slices](#features-and-slices)), not split into several pull requests.
+- One package of work (one feature or one fix) per pull request. A package of about 600 changed
+  lines or fewer, tests included, is one slice and one pull request. A larger one is built as slices
+  on a feature branch ([Features and slices](#features-and-slices)), not split into several pull
+  requests. It is still one package, and it is released as one.
 - For a change that is one slice, open a draft pull request as soon as the first commit builds, so
   review can start. A draft runs no long CI jobs; the full suite runs when it is marked ready.
 - Mark a pull request ready before its final push, never in the same moment after one. A push and
@@ -212,10 +217,11 @@ timeout at random.
   change.
 - While `main` is red, no pull request is marked ready until a fix is open, and the fix merges first.
 - A pull request over 800 changed lines fails the size job unless it carries the `integration`
-  label, which marks a feature branch whose slices were each reviewed on their own
-  ([Features and slices](#features-and-slices)). The label is read when the job runs, so set it
-  when the pull request is created, or re-run the job after adding it. `package-lock.json` does not count, nor does a removed line that no added line in
-  its file replaces, so a file deleted whole or a block of dead code cut out counts nothing.
+  label, which marks a feature branch whose slices were each reviewed on their own ([Features and
+  slices](#features-and-slices)). The label is read when the job runs, so set it when the pull
+  request is created, or re-run the job after adding it. `package-lock.json` does not count, nor
+  does a removed line that no added line in its file replaces, so a file deleted whole or a block of
+  dead code cut out counts nothing.
 - Pull requests audit production dependencies; the weekly supply-chain run audits every dependency.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
   before the next change to it. Two ready pull requests never both grow one: each passes alone and
