@@ -386,7 +386,13 @@ test('Download my data on the Profile page saves the account as one rca-export f
     version: number
     activities: unknown[]
   }
-  expect(exported).toMatchObject({ format: 'rca-export', version: 3, measurements: [], lifts: [] })
+  expect(exported).toMatchObject({
+    format: 'rca-export',
+    version: 4,
+    measurements: [],
+    settings: { keepPower: null, countedRuns: null, period: null },
+    lifts: [],
+  })
   expect(exported.activities).toHaveLength(1)
   await expect(page.getByText('Your data was downloaded')).toBeVisible()
 })
