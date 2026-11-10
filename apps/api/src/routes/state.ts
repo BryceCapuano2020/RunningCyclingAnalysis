@@ -55,9 +55,12 @@ stateRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
   // The row names an object that is gone (swept, or the put was lost): there is no snapshot to serve.
   if (object === null) throw NOT_FOUND()
   const gzip = /\bgzip\b/i.test(c.req.header('Accept-Encoding') ?? '')
-  return c.body(gzip ? object.body : inflate(object.body), 200, {
-    ...headers,
-    'Content-Type': 'application/json',
-    ...(gzip ? { 'Content-Encoding': 'gzip' } : {}),
+  const contentHeaders = { ...headers, 'Content-Type': 'application/json' }
+  if (!gzip) return c.body(inflate(object.body), 200, contentHeaders)
+  // Sent as stored, and said to be: `encodeBody: 'manual'` keeps the runtime from compressing the gzipped bytes again (it
+  // would otherwise read the header as a promise to encode a plain body, and the browser would unzip to a second layer).
+  return new Response(object.body, {
+    encodeBody: 'manual',
+    headers: { ...contentHeaders, 'Content-Encoding': 'gzip' },
   })
 })

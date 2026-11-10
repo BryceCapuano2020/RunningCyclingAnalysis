@@ -136,11 +136,17 @@ export function fixturePath(name: string): string {
   return join(FIXTURE_DIR, name)
 }
 
-/** Collects console errors and uncaught page errors. Attach before navigating. */
+/**
+ * Collects console errors and uncaught page errors. Attach before navigating. A 404 from `GET /api/state` is not one: it is
+ * how the server says it has no snapshot for the account (results off, or none made yet), which the page handles, but the
+ * browser logs every failed request.
+ */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text())
+    const answerOfState =
+      /\/api\/state$/.test(message.location().url) && /\b404\b/.test(message.text())
+    if (message.type() === 'error' && !answerOfState) errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
   return errors

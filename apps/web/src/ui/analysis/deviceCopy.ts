@@ -10,6 +10,7 @@ import {
 import { browserZone, copyIsStale } from './copyAge'
 import type { Account, LibraryStatus } from './model'
 import { accountPending } from './model'
+import { newerServerCopy } from './serverCopy'
 
 /** How long the state must stand still before it is kept, so an import's replies cost one write. */
 const KEEP_AFTER_MS = 1_500
@@ -20,6 +21,8 @@ type CopyAccount = Pick<Account, 'status' | 'lookupPending' | 'me'>
 export interface PaintedCopy {
   scope: string
   state: SessionState
+  /** The instant the analysis behind it treated as now. */
+  madeAt: number
   /** Made on an earlier local day (or in another zone): shown at once, replaced as soon as the live analysis is ready. */
   stale: boolean
 }
@@ -34,7 +37,12 @@ async function loadCopy(scope: string): Promise<PaintedCopy | null> {
   const snapshot = await readSnapshot(scope)
   if (snapshot === null) return null
   try {
-    return { scope, state: fromSnapshot(snapshot), stale: copyIsStale(snapshot, Date.now()) }
+    return {
+      scope,
+      state: fromSnapshot(snapshot),
+      madeAt: snapshot.nowMs,
+      stale: copyIsStale(snapshot, Date.now()),
+    }
   } catch {
     // A copy that does not decode is never read, so it goes.
     await clearSnapshot(scope)
@@ -43,7 +51,9 @@ async function loadCopy(scope: string): Promise<PaintedCopy | null> {
 }
 
 /**
- * The device copy of the results (`rca-state`): painted at once on open, kept after each live analysis. The device's copy
+ * The device copy of the results (`rca-state`): painted at once on open, kept after each live analysis. For an account the
+ * server's snapshot replaces it when the server has a newer one (`./serverCopy`); where the server has none the copy stands.
+ * The device's copy
  * is read as the page mounts, an account's as soon as it is known to be signed in; a copy of another scope is dropped, and
  * so is the copy once the live analysis answers (or the library cannot be read). Returns the copy to show, or null.
  */
@@ -73,8 +83,20 @@ export function useDeviceCopy(
     if (liveArrived) answered.current = wanted
     if (liveArrived || answered.current === wanted) return
     let current = true
-    void loadCopy(wanted).then((found) => {
-      if (current) setCopy(found)
+    void loadCopy(wanted).then(async (found) => {
+      if (!current) return
+      setCopy(found)
+      // An account's server snapshot, when it has one and it is newer: shown and kept as the device copy.
+      if (scope === null || scope === DEVICE_STATE_SCOPE) return
+      const server = await newerServerCopy(scope, found?.madeAt ?? null)
+      if (server === null || !current) return
+      setCopy({
+        scope,
+        state: server.state,
+        madeAt: server.snapshot.nowMs,
+        stale: copyIsStale(server.snapshot, Date.now()),
+      })
+      void writeSnapshot(scope, server.snapshot)
     })
     return () => {
       current = false

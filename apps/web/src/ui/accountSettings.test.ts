@@ -10,20 +10,25 @@ import {
   SETTINGS_OWNER_KEY,
   settle,
 } from './accountSettings'
+import { browserZone } from './analysis/copyAge'
 import { loadCountedRuns, storeCountedRuns } from './countedRunsStore'
 import { resetKeptPowerCache, useKeptPower } from './keptPowerStore'
 import { storedPeriodChoice } from './periodPreference'
 import { useAccountSettings } from './useAccountSettings'
 import { settingsChosen } from './settingsChosen'
+import { resetUnsent, settingsUnsent } from './settingsUnsent'
 
 vi.mock('../api/settings', () => ({ getAccountSettings: vi.fn(), putAccountSettings: vi.fn() }))
 
-const NONE: AccountSettings = { keepPower: null, countedRuns: null, period: null }
-const ACCOUNT: AccountSettings = {
+const ZONE = browserZone()
+// An account that already holds this browser's zone, so only the choices decide what is saved.
+const NONE: AccountSettings = { keepPower: null, countedRuns: null, period: null, zone: ZONE }
+const CHOICES: AccountSettings = {
   keepPower: ['ride-a'],
   countedRuns: ['run-1700000000'],
   period: 182,
 }
+const ACCOUNT: AccountSettings = { ...CHOICES, zone: ZONE }
 
 const get = vi.mocked(api.getAccountSettings)
 const put = vi.mocked(api.putAccountSettings)
@@ -37,6 +42,7 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   resetKeptPowerCache()
+  resetUnsent()
 })
 
 /** Puts the choices a signed-out visit made into this browser. */
@@ -51,23 +57,25 @@ describe('settle', () => {
   const browser: AccountSettings = { keepPower: ['ride-z'], countedRuns: null, period: 'all' }
 
   it('takes the account value for every field it holds, whatever the browser has', () => {
-    expect(settle(ACCOUNT, browser, true, new Set())).toEqual(ACCOUNT)
+    expect(settle(CHOICES, browser, true, new Set())).toEqual(CHOICES)
   })
 
   it('fills a field the account never had from the browser, once, when the copy predates sign-in', () => {
-    expect(settle({ ...ACCOUNT, period: null }, browser, true, new Set())).toEqual({
-      ...ACCOUNT,
+    expect(settle({ ...CHOICES, period: null }, browser, true, new Set())).toEqual({
+      ...CHOICES,
       period: 'all',
     })
   })
 
   it('does not offer a copy that already mirrors the account, so a clear elsewhere stays cleared', () => {
-    expect(settle(NONE, browser, false, new Set())).toEqual(NONE)
+    expect(
+      settle({ keepPower: null, countedRuns: null, period: null }, browser, false, new Set()),
+    ).toEqual({ keepPower: null, countedRuns: null, period: null })
   })
 
   it('keeps a choice made while the account was loading', () => {
-    expect(settle(ACCOUNT, browser, false, new Set(['period']))).toEqual({
-      ...ACCOUNT,
+    expect(settle(CHOICES, browser, false, new Set(['period']))).toEqual({
+      ...CHOICES,
       period: 'all',
     })
   })
@@ -80,7 +88,7 @@ describe('useAccountSettings', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put).toHaveBeenCalledWith(
-      { keepPower: ['ride-z'], countedRuns: ['run-1700000500'], period: 'all' },
+      { keepPower: ['ride-z'], countedRuns: ['run-1700000500'], period: 'all', zone: ZONE },
       'u1',
     )
     expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBe('u1')
@@ -143,7 +151,7 @@ describe('useAccountSettings', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBe('u1'))
     expect(put).not.toHaveBeenCalled()
-    expect(browserSettings()).toEqual(NONE)
+    expect(browserSettings()).toEqual({ keepPower: null, countedRuns: null, period: null })
   })
 
   it('sends nothing until the account has been read, so a stale copy cannot overwrite it', async () => {
@@ -167,5 +175,77 @@ describe('useAccountSettings', () => {
     await Promise.resolve()
     expect(get).not.toHaveBeenCalled()
     expect(put).not.toHaveBeenCalled()
+  })
+})
+
+describe('the zone', () => {
+  it('is sent to the account when it holds none or another, with the choices as they stand', async () => {
+    get.mockResolvedValue({ ...ACCOUNT, zone: 'Pacific/Apia' })
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put).toHaveBeenCalledWith({ ...ACCOUNT, zone: ZONE }, 'u1')
+  })
+
+  it('is sent when the account has never had one', async () => {
+    const { zone: _zone, ...noZone } = ACCOUNT
+    get.mockResolvedValue(noZone)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]![0].zone).toBe(ZONE)
+  })
+
+  it('is not sent again when the account already holds it', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('rides along with a later save', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    act(() => settingsChosen('period'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]![0].zone).toBe(ZONE)
+  })
+})
+
+describe('settings not yet sent', () => {
+  it('are reported from the choice until the account has them', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    expect(settingsUnsent()).toBe(false)
+    let release: (settings: AccountSettings) => void = () => undefined
+    put.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    act(() => settingsChosen('period'))
+    expect(settingsUnsent()).toBe(true)
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    await act(async () => release(ACCOUNT))
+    await waitFor(() => expect(settingsUnsent()).toBe(false))
+    view.unmount()
+  })
+
+  it('stay reported when the save fails', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    put.mockRejectedValueOnce(new Error('offline'))
+    act(() => settingsChosen('period'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    await Promise.resolve()
+    expect(settingsUnsent()).toBe(true)
+  })
+
+  it('are forgotten when the account goes', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    put.mockRejectedValueOnce(new Error('offline'))
+    act(() => settingsChosen('period'))
+    expect(settingsUnsent()).toBe(true)
+    view.unmount()
+    expect(settingsUnsent()).toBe(false)
   })
 })
