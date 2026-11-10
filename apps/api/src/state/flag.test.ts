@@ -19,6 +19,23 @@ describe('the server compute allowlist', () => {
 
   it('is on for everyone with *, which production configuration may not hold', () => {
     expect(serverStateFor({ SERVER_COMPUTE_USERS: '*' }, 'anyone')).toBe(true)
+    expect(serverStateFor({ SERVER_COMPUTE_ACCOUNTS: '*', ENVIRONMENT: 'development' }, 'x')).toBe(
+      true,
+    )
+  })
+
+  it('ignores * in production, from the secret the deploy check cannot read as from the variable', () => {
+    for (const env of [
+      { SERVER_COMPUTE_ACCOUNTS: '*', ENVIRONMENT: 'production' },
+      { SERVER_COMPUTE_USERS: '*', ENVIRONMENT: 'production' },
+    ]) {
+      expect(serverStateFor(env, 'anyone')).toBe(false)
+      expect(serverStateAnyone(env)).toBe(false)
+    }
+    // A listed id beside it still counts.
+    const mixed = { SERVER_COMPUTE_ACCOUNTS: '*, u1', ENVIRONMENT: 'production' }
+    expect(serverStateFor(mixed, 'u1')).toBe(true)
+    expect(serverStateFor(mixed, 'u2')).toBe(false)
   })
 
   it('reads the Worker secret when one is set, and the secret wins over the variable, even empty', () => {

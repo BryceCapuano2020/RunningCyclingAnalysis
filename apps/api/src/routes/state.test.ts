@@ -91,9 +91,16 @@ describe('GET /api/state', () => {
     expect((await w.get()).status).toBe(200)
   })
 
-  it('needs a session when an account is listed, and a 404 for an account with no snapshot', async () => {
+  it('answers a signed-out request 404 with an account listed, as with none, and a 404 for an account with no snapshot', async () => {
     const w = await ready()
-    expect((await w.h.send({ path: '/api/state' })).status).toBe(401)
+    expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
+    // A cross-site signed-out request, and a stale session, give nothing away either.
+    expect(
+      (await w.h.send({ path: '/api/state', headers: { 'Sec-Fetch-Site': 'cross-site' } })).status,
+    ).toBe(404)
+    expect(
+      (await w.h.send({ path: '/api/state', cookies: { rca_session: 'not-a-session' } })).status,
+    ).toBe(404)
     const other = await stateWorld({ email: 'other@example.com' })
     expect((await other.h.send({ path: '/api/state', cookies: other.cookies })).status).toBe(404)
   })

@@ -1,12 +1,13 @@
 import { StateSnapshotSchema } from '@rca/contract'
 import type { Bindings } from '../env.ts'
 import type { Deps } from '../deps.ts'
-import { reserveR2Put } from '../storage.ts'
+import { checkR2PutBudget, reserveR2Put } from '../storage.ts'
 import { computeFor } from './compute.ts'
 import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
 import { InputsMoved, readInputs } from './inputs.ts'
 import { stateKey } from './key.ts'
 import { STATE_MIN_INTERVAL_SECONDS } from './message.ts'
+import { clearPending } from './pending.ts'
 import { contentHash, encodeSnapshot } from './store.ts'
 
 /** What one run of an account's job did. */
@@ -24,18 +25,39 @@ interface JobRow {
   activity_count: number
   computed_version: number | null
   computed_at: number | null
+  attempted_at: number | null
   snapshot_hash: string | null
 }
 
 async function jobRow(db: D1Database, userId: string): Promise<JobRow | null> {
   return db
     .prepare(
-      `SELECT u.library_version, u.activity_count, j.computed_version, j.computed_at, j.snapshot_hash
+      `SELECT u.library_version, u.activity_count, j.computed_version, j.computed_at, j.attempted_at,
+              j.snapshot_hash
        FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
        WHERE u.id = ? AND u.deleting_at IS NULL`,
     )
     .bind(userId)
     .first<JobRow>()
+}
+
+/** Whether the account has inputs no compute covered, and a library the server computes for. */
+const dirty = (row: JobRow, maxActivities: number) =>
+  (row.computed_version ?? 0) < row.library_version && row.activity_count <= maxActivities
+
+/** When the account's last compute began, a failed one included. */
+const lastStart = (row: JobRow) =>
+  Math.max(row.computed_at ?? -Infinity, row.attempted_at ?? -Infinity)
+
+/** Records that a compute began, before it reads anything, so a compute that then fails still counts for coalescing. */
+async function markAttempt(db: D1Database, userId: string, now: number): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO state_jobs (user_id, attempted_at) VALUES (?1, ?2)
+       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2`,
+    )
+    .bind(userId, now)
+    .run()
 }
 
 /**
@@ -69,7 +91,8 @@ async function record(
 /**
  * Computes one account's snapshot if its inputs have moved since the last compute, and stores it only if the figures
  * changed. The same `AnalysisSession.loadDigests` path the browser runs, on the digests D1 holds. Throws on a failure the
- * Queue should retry (R2 budget, a D1 error).
+ * Queue should retry (R2 budget, a D1 error). The caller has a message for the account in hand: the job clears the
+ * account's pending marker (pending.ts) unless it defers.
  */
 export async function runStateJob(
   env: Bindings,
@@ -81,13 +104,26 @@ export async function runStateJob(
   const db = env.DB
   const bucket = env.FILES
   if (bucket === undefined) throw new Error('state job: no file storage bound')
+  // Coalescing first, before the marker is touched: the last compute began too recently for another (a burst of writes,
+  // an import, a retry waiting out a failure), so the caller sends one delayed message if no other is on its way. A failed
+  // compute counts as recent too, so a burst of messages after a failure waits rather than computing once per message.
+  const first = await jobRow(db, userId)
+  if (first === null) return 'gone'
+  if (
+    dirty(first, maxActivities) &&
+    deps.now() - lastStart(first) < STATE_MIN_INTERVAL_SECONDS * 1000
+  ) {
+    return 'deferred'
+  }
+  // The message has arrived: a write from here sends its own, and one the marker held back is in the row read next.
+  await clearPending(db, userId)
   const before = await jobRow(db, userId)
   if (before === null) return 'gone'
   if ((before.computed_version ?? 0) >= before.library_version) return 'current'
   if (before.activity_count > maxActivities) return 'too_large'
-  // Coalescing: the last compute is too recent for another (a burst of writes, an import), so wait for the next one.
-  const sinceLast = deps.now() - (before.computed_at ?? -Infinity)
-  if (sinceLast < STATE_MIN_INTERVAL_SECONDS * 1000) return 'deferred'
+  // Before any digest is read: a ledger that would refuse the snapshot's PUT costs no compute (the retry finds it the same).
+  await checkR2PutBudget(db, deps.now(), 0)
+  await markAttempt(db, userId, deps.now())
   let inputs
   try {
     inputs = await readInputs(db, userId)

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
-import { currentUser, requireUser, sameOriginReadGuard } from '../middleware.ts'
+import { currentUser, requireUserOrNotFound, sameOriginReadGuard } from '../middleware.ts'
 import { getOriginalFile } from '../storage.ts'
 import { serverStateAnyone, serverStateFor } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
@@ -33,11 +33,16 @@ stateRoutes.use('*', async (c, next) => {
   await next()
 })
 
-stateRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
+// A signed-out request and an account off the list get the answer they would get with the list empty, before the
+// cross-site check and before any budget is spent: no status tells an outsider the feature is on for someone.
+stateRoutes.use('*', requireUserOrNotFound, async (c, next) => {
+  if (!serverStateFor(c.env, currentUser(c).id)) throw NOT_FOUND()
+  await next()
+})
+
+stateRoutes.get('/', sameOriginReadGuard, async (c) => {
   const bucket = c.env.FILES!
   const userId = currentUser(c).id
-  // An account off the allowlist gets the answer it would get with the feature off, before any budget is spent.
-  if (!serverStateFor(c.env, userId)) throw NOT_FOUND()
   await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
   const row = await c.env.DB.prepare(
     'SELECT snapshot_hash, computed_version FROM state_jobs WHERE user_id = ?',

@@ -33,10 +33,12 @@ export const sameOriginReadGuard = createMiddleware<AppEnv>(async (c, next) => {
   await next()
 })
 
-function signedIn(options: { allowDeleting: boolean }) {
+function signedIn(options: { allowDeleting: boolean; signedOut?: () => HttpError }) {
+  const signedOut =
+    options.signedOut ?? (() => new HttpError(401, 'unauthenticated', 'Sign in required'))
   return createMiddleware<AppEnv>(async (c, next) => {
     const user = await loadSession(c, options)
-    if (!user) throw new HttpError(401, 'unauthenticated', 'Sign in required')
+    if (!user) throw signedOut()
     assertAccountScope(c, user)
     c.set('user', user)
     await accountWriteLimit(c, next)
@@ -45,6 +47,15 @@ function signedIn(options: { allowDeleting: boolean }) {
 
 /** Requires a live session. An account being deleted reads as signed out. */
 export const requireUser = signedIn({ allowDeleting: false })
+
+/**
+ * The same, answering a signed-out request 404 instead of 401: for a route that is not there for most accounts, where a
+ * 401 would tell an outsider it exists (GET /api/state).
+ */
+export const requireUserOrNotFound = signedIn({
+  allowDeleting: false,
+  signedOut: () => new HttpError(404, 'not_found', 'Not found'),
+})
 
 /**
  * Sets the signed-in user when there is one, and lets a signed-out request through with none. Only

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createHarness, digestFixture } from '../test/harness.ts'
 import { liftSet } from '../test/lifts.ts'
-import { stateWorld, type StateWorld } from '../test/stateKit.ts'
+import { failingDb, stateWorld, type StateWorld } from '../test/stateKit.ts'
+import { clearPending } from './pending.ts'
 import { sha256Hex } from '../util.ts'
 
 const FILE_HASH = 'b'.repeat(64)
@@ -50,7 +51,47 @@ const WRITES: [string, (w: StateWorld) => Promise<Response>][] = [
   ],
 ]
 
+/** The job has picked up the message the last write sent, so the next write sends its own. */
+async function arrived(w: StateWorld) {
+  await clearPending(w.env.DB, w.userId)
+  w.sent.length = 0
+}
+
 describe('the state job producer', () => {
+  it('sends one message for a burst of writes while it is on its way, and the next once the job has it', async () => {
+    const w = await stateWorld()
+    for (let i = 0; i < 5; i += 1)
+      expect((await create(w, 1_700_000_000_000 + i * 60_000)).status).toBe(201)
+    expect(w.sent).toHaveLength(1)
+    await arrived(w)
+    expect((await create(w, 1_700_000_900_000)).status).toBe(201)
+    expect(w.sent).toHaveLength(1)
+  })
+
+  it('sends again once a marker has outlived its message, which the Queue may have lost', async () => {
+    const w = await stateWorld()
+    await create(w, 1_700_000_000_000)
+    w.h.clock.now += (10 + 120) * 1000 - 1
+    await create(w, 1_700_000_060_000)
+    expect(w.sent).toHaveLength(1)
+    w.h.clock.now += 1
+    await create(w, 1_700_000_120_000)
+    expect(w.sent).toHaveLength(2)
+  })
+
+  it('sends when the marker cannot be read, so a D1 error costs a duplicate message, never a write', async () => {
+    const w = await stateWorld()
+    const db = w.env.DB
+    w.env.DB = failingDb(db, /pending_until/)
+    try {
+      await create(w, 1_700_000_000_000)
+      await create(w, 1_700_000_060_000)
+    } finally {
+      w.env.DB = db
+    }
+    expect(w.sent).toHaveLength(2)
+  })
+
   it.each(WRITES)('%s sends the account to the queue, delayed', async (_name, write) => {
     const w = await stateWorld()
     expect((await write(w)).status).toBeLessThan(300)
@@ -60,7 +101,7 @@ describe('the state job producer', () => {
   it('sends one for an activity delete, and none for a delete that finds nothing', async () => {
     const w = await stateWorld()
     const id = ((await (await create(w, 1_700_000_000_000)).json()) as { id: string }).id
-    w.sent.length = 0
+    await arrived(w)
     expect(
       (await w.h.send({ method: 'DELETE', path: '/api/activities/nope', cookies: w.cookies }))
         .status,
