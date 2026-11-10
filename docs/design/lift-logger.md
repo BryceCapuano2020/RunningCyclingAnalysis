@@ -1,6 +1,6 @@
 # Lift logger (design)
 
-Status: designed and reviewed once (all findings taken), building (stage X, Lift UI package 1). The owner has no
+Status: reviewed once (all findings taken). Package 1, the manual logger, is built. The owner has no
 lift history yet. He will log here and in Hevy (9 Nov 2026), so a Hevy import is package 3, after the Lift card.
 The record, store and sync it uses are on main ([lift-data.md](lift-data.md)). This package shows no estimate: the
 Lift card and the e1RM figures come in package 2 ([e1rm.md](e1rm.md)). The

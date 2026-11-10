@@ -118,8 +118,6 @@ repeated network failures one save is the probe and the others wait for its answ
 **Other account routes**
 
 - `POST /api/auth/logout` ends the current session.
-- `GET /api/sessions` lists the account's sessions (dates and which one is current). `DELETE /api/sessions`
-  ends all of them, or with `?keep=current` all but the one asking.
 - `GET /api/me` returns the signed-in user and profile. `PUT /api/profile` saves the profile.
   `GET /api/measurements` lists the account's dated settings, `PUT /api/measurements` sets the value in
   effect from a date, and `DELETE /api/measurements/:key` removes one (`maxHeartRate.run.2026-03-01`).
@@ -583,8 +581,7 @@ R2 files can be downloaded by the browser to drive the first; no database migrat
   `SESSION_SIGNING_KEY`. A database leak does not expose live sessions, because only the token's
   SHA-256 hash is stored. Cookies are `HttpOnly`, `Secure` and `SameSite=Lax`. A session lasts
   30 days and is extended when it is used with less than 15 days left, but never beyond 90 days
-  after it was created. A user keeps at most ten sessions. Sign-out deletes the session row, and
-  `DELETE /api/sessions` ends them as a set.
+  after it was created. A user keeps at most ten sessions. Sign-out deletes the session row.
 - **CSRF**: `SameSite=Lax` stops cross-site requests from carrying the cookie on unsafe methods.
   As a second layer, every non-GET `/api` request must send `X-RCA-Client: web`. A cross-site form
   cannot set that header, and a cross-origin fetch needs a CORS preflight that the API does not
@@ -651,17 +648,9 @@ The only third-party request the app makes is for a signed-in user's profile pic
 
 ## Cost model
 
-Cloudflare's plans and limits can change. Check the current [Workers
-pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1
-pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [R2
-pricing](https://developers.cloudflare.com/r2/pricing/) before relying on a cost estimate.
-
-| Service       | Pricing reference | What the app uses                                  |
-| ------------- | ----------------- | -------------------------------------------------- |
-| Static assets | Workers pricing   | The web app build, served by Workers Static Assets |
-| Workers       | Workers pricing   | API calls and JSON responses; no analysis          |
-| D1            | D1 pricing        | Users, sessions, profiles and activity digests     |
-| R2            | R2 pricing        | Original files, only when a user keeps them        |
+The plan figures, with their sources and review dates, are in [apps/api/LIMITS.md](../apps/api/LIMITS.md). The
+app uses Workers for API calls and JSON responses (no analysis), Workers Static Assets for the web build, D1 for
+users, sessions, profiles and activity digests, and R2 for original files, only when a user keeps them.
 
 CPU time per request is the binding constraint. The open risk is `GET /api/activities` for a large
 library, which sends hundreds of stored digests in one request. Measure it with a realistic library

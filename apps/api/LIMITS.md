@@ -400,9 +400,7 @@ The key must be at least 32 bytes, counted as the UTF-8 bytes of the secret stri
 cookies were valid, so existing users must sign in again after the first deploy.
 
 Sessions are capped at **10 per user** (`MAX_SESSIONS_PER_USER`). Signing in beyond that ends the sessions
-beyond the ten most recently created, in the same batch as the insert. `GET /api/sessions` lists a user's
-sessions (dates and which one is current, no identifiers) and `DELETE /api/sessions` ends them as a set: all
-of them, or with `?keep=current` all but this one.
+beyond the ten most recently created, in the same batch as the insert.
 
 ## Sign-up list
 

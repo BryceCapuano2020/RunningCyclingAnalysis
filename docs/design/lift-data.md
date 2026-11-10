@@ -1,6 +1,6 @@
 # Lift sets: record, storage and sync (design)
 
-Status: designed for stage X, reviewed twice (approve with changes, all taken below); nothing built. Where
+Status: built (stage X), after two reviews (approve with changes, all taken below). Where
 lifting lives is settled in [strength.md](strength.md); this note is the record, the server table and routes,
 the browser store and how the two agree. The estimator that reads the sets is [e1rm.md](e1rm.md). Synthetic
 values only.

@@ -89,6 +89,4 @@ export const LiftPageSchema = z.strictObject({
   next: z.string().nullable(),
 })
 
-export type LiftWrite = z.infer<typeof LiftWriteSchema>
-export type LiftDelete = z.infer<typeof LiftDeleteSchema>
 export type LiftPage = z.infer<typeof LiftPageSchema>

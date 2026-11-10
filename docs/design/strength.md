@@ -1,6 +1,6 @@
 # Strength: where lifting lives
 
-Status: designed; stage X builds the core and the data layer, with no screens (see [README.md](README.md)). The
+Status: built for the core and the data layer (stage X); the Lift page is in [lift-logger.md](lift-logger.md). The
 estimator is specified in [e1rm.md](e1rm.md), from the evidence in [research/strength.md](../research/strength.md).
 The record, storage and sync are in [lift-data.md](lift-data.md). This record settles
 where lifting sits in the types, the storage and the screens, so the build does not reopen it.

@@ -1,8 +1,8 @@
 # Findings engine: design
 
-Status: in progress (stage C in the [plan](README.md)). The contract, statistics, scoring, shared
-tables, evaluation and replay, and the planted and null test harness exist on an unmerged branch
-(phase 1 below). The detectors, ledger, worker wiring and UI are designed only.
+Status: cut (10 Nov 2026). The statistics, scoring, shared tables, evaluation and replay were built
+(phase 1 below) but never wired to the app, and the engine code was removed in the cut stage. The detectors, ledger,
+worker wiring and UI were designed only. This record stays for the reasoning.
 
 Goal: speak only when something non-obvious is well supported. Deterministic, templated copy, no LLM,
 runs in the analysis worker, nothing leaves the device. Code in `packages/core/src/findings/`; the UI
@@ -20,7 +20,7 @@ value, so every rule below leans toward silence.
 - time-in-zones: `effortSplit`, `biggestShift`, `EASY_THROUGH` / `HARD_FROM` (easy = zones 1-2, hard
   = zone 4+), `ZoneTimeCache`.
 - course `progressFacts` (Theil-Sen), see
-  [same-route.md](same-route.md).
+  [same-route.md](../archive/same-route.md).
 - Gaps: no per-minute fade profile for rides (needs an optional digest field); no weather.
 - Reusable patterns: the worker IndexedDB scope pattern (`workbenchStore`), and the false-alarm test
   model in `sameHeartRate.falseAlarm.test.ts`.
@@ -213,7 +213,7 @@ of the series with the compared windows shaded; up to 12 activity links (expand 
 5. **Later:** swim and lifting adapters.
 
 In the [stage plan](README.md) this is stage C. Course-progress reads route groups, which are scheduled
-later, so it ships without that evidence gap; the module registry of [architecture-1.md](architecture-1.md)
+later, so it ships without that evidence gap; the module registry of [architecture-1.md](../archive/architecture-1.md)
 is built when findings need it, rather than adding another field to `SessionState` first.
 
 ## Decisions
