@@ -40,15 +40,50 @@ describe('LiftEstimates', () => {
     expect(screen.getAllByRole('status')[0]).toHaveTextContent(/80% range .* to .* kg; floor/)
   })
 
-  it('lists a lift with one session in Other lifts, with no chart and no placeholder', () => {
+  it('says a lift with one session has no line yet, with no empty chart', () => {
     chartWidth(800)
     const { container } = render(
       <LiftEstimates overview={overviewOf([squat('2031-03-02', 100)])} units="metric" />,
     )
-    expect(screen.getByRole('heading', { name: 'Other lifts' })).toBeInTheDocument()
-    expect(screen.getByText('Back squat, barbell')).toBeInTheDocument()
-    expect(container.querySelector('.lift__estimate')).toBeNull()
+    const entry = container.querySelector('.lift__estimate') as HTMLElement
+    expect(entry).toHaveTextContent('One session so far')
+    expect(entry.querySelector('[data-testid="lift-point"]')).toBeNull()
     expect(screen.queryByText(/A line needs two sessions/)).toBeNull()
+  })
+
+  it('shows the lead lift first, and another chosen from the select or from its row in the table', () => {
+    chartWidth(800)
+    const curls = [
+      squat('2031-02-01', 20, { exercise: 'curl', equipment: 'cable' }),
+      squat('2031-02-08', 21, { exercise: 'curl', equipment: 'cable' }),
+    ]
+    const { container } = render(
+      <LiftEstimates overview={overviewOf([...curls, squat('2031-03-02', 100)])} units="metric" />,
+    )
+    const shown = () => container.querySelector('.lift__estimate')?.getAttribute('data-lift')
+    const select = screen.getByLabelText('Lift shown') as HTMLSelectElement
+    // The squat leads (a big-three lift), even though only the curl has a line.
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Back squat, barbell')
+    expect([...select.options].map((option) => option.text)).toEqual([
+      'Back squat, barbell',
+      'Curl, cable',
+    ])
+    fireEvent.change(select, { target: { value: select.options[1]!.value } })
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Curl, cable')
+    expect(container.querySelectorAll('[data-testid="lift-point"]')).toHaveLength(2)
+    const table = screen.getByRole('table', { name: 'Every lift with its one-rep max' })
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Lift', 'One-rep max', 'Heaviest set', 'Last session'])
+    fireEvent.click(within(table).getByRole('button', { name: 'Back squat, barbell' }))
+    expect(shown()).toBe(select.options[0]!.value)
+    expect(within(table).getByRole('button', { name: 'Back squat, barbell' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(document.activeElement).toBe(select)
   })
 
   it('draws the weekly load as a bar a week, with the hard sets and regional volume in the table', () => {

@@ -196,6 +196,21 @@ describe('SetForm', () => {
     expect(onSave).not.toHaveBeenCalled()
   })
 
+  it('starts a lift not used yet on its usual equipment, and a lift used before on what it used', () => {
+    const equipment = () => (screen.getByLabelText('Equipment') as HTMLSelectElement).value
+    setup({ exercise: 'seated-dumbbell-shoulder-press' })
+    expect(equipment()).toBe('dumbbell')
+    cleanup()
+    setup({ exercise: 'face-pull' })
+    expect(equipment()).toBe('cable')
+    cleanup()
+    setup({ exercise: 'leg-curl' })
+    expect(equipment()).toBe('machine')
+    cleanup()
+    setup({ exercise: 'leg-curl', defaultEquipment: 'cable' })
+    expect(equipment()).toBe('cable')
+  })
+
   it('starts over when the lift changes', async () => {
     const props = {
       date: '2030-03-04',

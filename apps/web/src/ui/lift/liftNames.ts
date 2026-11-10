@@ -107,6 +107,13 @@ export function liftOptions(query: string, recent: readonly RecentLift[]): LiftO
       )
     }
   }
+  // An exact name leads, then names that start with what is typed: "curl" picks Curl, not Leg curl.
+  const wanted = query.trim().toLowerCase()
+  const rank = (row: LiftOption) => {
+    const name = liftName(row.exercise).toLowerCase()
+    return name === wanted ? 0 : name.startsWith(wanted) ? 1 : 2
+  }
+  catalogRows.sort((a, b) => rank(a) - rank(b))
   const rows = typed
     ? [...catalogRows, ...recentRows, ...gearRows]
     : [...recentRows, ...catalogRows]
