@@ -49,9 +49,9 @@ describe('triangleGeometry', () => {
     expect(run.band).toHaveLength(2)
     expect(ride.range).toBeNull()
     expect(ride.band).toBeNull()
-    // The percent is floored, so 0.5999 is 59 and Recreational, never 60 and Local.
+    // The percent is floored, so 0.5999 is 59 and Club, never 60 and Local.
     const near = triangleGeometry(all(graded(0.5999), gap, gap), 300).corners.run
-    expect([near.percent, near.level]).toEqual([59, 'Recreational'])
+    expect([near.percent, near.level]).toEqual([59, 'Club'])
   })
 
   it('closes the shape with three dots, leaves a line with two and nothing with one', () => {

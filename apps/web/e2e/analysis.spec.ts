@@ -432,7 +432,7 @@ test('the corners are plain text in links, and the bands are on Method', async (
     /A band of the age grade/,
   )
   await page.locator('.balance-hero .props__method').click()
-  await expect(page.getByRole('main')).toContainText(/Recreational below 60%/)
+  await expect(page.getByRole('main')).toContainText(/Recreational below 30%/)
 })
 
 test('the corners are named in words and are text, none under the meta size', async ({ page }) => {

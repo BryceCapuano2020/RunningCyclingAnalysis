@@ -54,7 +54,8 @@ calibration, the weight setting, an e-bike logged as a ride) and can be overridd
 ## 4. Level bands
 
 WMA-style bands, lower bounds inclusive: World 0.90, National 0.80, Regional 0.70, Local 0.60,
-Recreational below. The names are `GRADE_LEVELS` labels, and the UI uses them as written.
+Club 0.50, Trained 0.40, Active 0.30, Recreational below. The four under 0.60 are this app's own
+bands, not WMA's (docs/design/decisions/finer-levels.md). The names are `GRADE_LEVELS` labels, and the UI uses them as written.
 `gradePercent` rounds down (0.8999 shows 89.9%, never 90), and `levelOf` takes the unrounded grade,
 so they agree. Both return null for NaN, infinite or negative input.
 

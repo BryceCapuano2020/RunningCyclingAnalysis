@@ -49,7 +49,7 @@ describe('LevelTriangle', () => {
     const run = screen.getByRole('link', { name: /^Running 61% Local, range 55 to 67$/ })
     expect(run).toHaveAttribute('href', '#/run')
     expect(
-      screen.getByRole('link', { name: /^Cycling 52% Recreational, range 46 to 58$/ }),
+      screen.getByRole('link', { name: /^Cycling 52% Club, range 46 to 58$/ }),
     ).toHaveAttribute('href', '#/ride')
     expect(run.querySelector('.sr-only')).toHaveTextContent(', range 55 to 67')
   })

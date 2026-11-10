@@ -932,8 +932,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
   imperial, 1 km in metric. A run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
-- **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
-  written the same way in sentences, labels and this document. Never call a level weak, a limiter
+- **Levels, not ranks.** A grade names its band: Recreational, Active, Trained, Club, Local, Regional, National or World
+  (the four under 60% are this app's own bands, the rest WMA's), written the same way in sentences, labels and this document. Never call a level weak, a limiter
   or a weakness, and never give a percentile.
 - **Runs are read as recorded; rides and thresholds are estimates.** A run's grade is the grade of
   one recorded best effort, so its line reads "Local · 64%" with no estimate word, and its pace is
@@ -1283,19 +1283,19 @@ digest, a dated setting, the masses or the analysis changes, and 2,000 activitie
 
 ## Level bands
 
-The level ladder on the sport pages draws the five age-grade levels (Recreational, Local, Regional,
-National, World) as neutral bands on one x-scale. The bands are the canvas, so sport colour only ever means
+The level ladder on the sport pages draws the age-grade levels as neutral bands (Recreational, Active, Trained and Club share the
+lowest wash, then Local, Regional, National, World) on one x-scale. The bands are the canvas, so sport colour only ever means
 "this sport": a dot or a ring in the sport colour sits on the neutral bands. Each band is the ink at a rising alpha,
 so every step is a deeper wash than the one below it, and a band is named in words as well as
 tinted. `levelTokens.test.ts` pins the values and the order.
 
-| Token       | Value       | Use               |
-| ----------- | ----------- | ----------------- |
-| `--level-1` | `#0a0a0a04` | Recreational band |
-| `--level-2` | `#0a0a0a09` | Local band        |
-| `--level-3` | `#0a0a0a0d` | Regional band     |
-| `--level-4` | `#0a0a0a11` | National band     |
-| `--level-5` | `#0a0a0a14` | World band        |
+| Token       | Value       | Use             |
+| ----------- | ----------- | --------------- |
+| `--level-1` | `#0a0a0a04` | Below 60% bands |
+| `--level-2` | `#0a0a0a09` | Local band      |
+| `--level-3` | `#0a0a0a0d` | Regional band   |
+| `--level-4` | `#0a0a0a11` | National band   |
+| `--level-5` | `#0a0a0a14` | World band      |
 
 **Shape language.** A recorded grade is a solid dot ringed in the card colour. An estimated grade is a ring over a
 translucent band for its 90% range, never a dashed line. On Balance's meter the best estimate is a ringed dot and the range a translucent band behind it.

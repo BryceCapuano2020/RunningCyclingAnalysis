@@ -302,10 +302,10 @@ describe('BalanceHero answer', () => {
     )
     expect(container.querySelector('.balance-hero__number, .balance-hero__unit')).toBeNull()
     expect(container.querySelector('.level-triangle__corner[data-sport="run"]')).toHaveTextContent(
-      'Running 56% Recreational',
+      'Running 56% Club',
     )
     expect(container.querySelector('.level-triangle__corner[data-sport="ride"]')).toHaveTextContent(
-      'Cycling 50% Recreational',
+      'Cycling 50% Club',
     )
     expect(container.querySelector('.level-triangle__corner[data-sport="lift"]')).toHaveTextContent(
       'Lifting No grade yet',

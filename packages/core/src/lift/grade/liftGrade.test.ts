@@ -106,7 +106,7 @@ describe('liftGrade', () => {
     const g = liftGrade({ lift: 'squat', estimate: e }, MAN, 80)
     if (g.kind !== 'graded') throw new Error('expected a grade')
     expect(g.grade.centre.grade).toBeCloseTo(0.36, 2)
-    expect(g.grade.centre.level).toBe('Recreational')
+    expect(g.grade.centre.level).toBe('Active')
     expect(g.top).toBe(false)
     expect(g.age).toBeCloseTo(29.5, 1)
     expect(g.grade.range!.low.grade).toBeCloseTo(0.331, 2)

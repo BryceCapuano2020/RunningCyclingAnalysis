@@ -115,12 +115,19 @@ export interface GradeLevel {
   readonly label: string
 }
 
-/** WMA-style level bands for an age grade, highest first. The names are the UI's level names. */
+/**
+ * Level bands for an age grade, highest first. The names are the UI's level names. From 60 up
+ * they are the WMA classes. Below 60 the bands are this app's own: Club, Trained, Active and
+ * Recreational.
+ */
 export const GRADE_LEVELS: readonly GradeLevel[] = [
   { min: 0.9, label: 'World' },
   { min: 0.8, label: 'National' },
   { min: 0.7, label: 'Regional' },
   { min: 0.6, label: 'Local' },
+  { min: 0.5, label: 'Club' },
+  { min: 0.4, label: 'Trained' },
+  { min: 0.3, label: 'Active' },
   { min: 0, label: 'Recreational' },
 ]
 
