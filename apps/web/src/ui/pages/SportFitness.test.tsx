@@ -37,6 +37,10 @@ describe('SportFitness', () => {
     expect(within(section).getByRole('figure', { name: 'Recovering' })).toBeInTheDocument()
     expect(container.querySelector('[data-testid="fitness-now"]')).not.toBeNull()
     expect(container.querySelector('[data-testid="fitness-low"]')?.textContent).toMatch(/ low$/)
+    // One disclosure for the section: the chart's, holding the sentence, the table, the rows and the track.
+    expect(section.querySelectorAll('details')).toHaveLength(1)
+    expect(section.querySelector('details .props')).not.toBeNull()
+    expect(section.querySelector('details .fitness-track')).not.toBeNull()
     // The sentence is the graph's text, not a line on the page.
     expect(container.querySelector('.fitness-card__line')).toBeNull()
     expect(section.querySelector('.chart-frame__lede')?.textContent).toMatch(/^Up \d+% from/)

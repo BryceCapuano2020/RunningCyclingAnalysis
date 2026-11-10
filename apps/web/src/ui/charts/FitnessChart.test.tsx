@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FITNESS_BEFORE, HOLDING, RECOVERING, SLIPPING, fitnessStatus } from '../fitnessFixtures'
+import {
+  FITNESS_AS_OF_MS,
+  FITNESS_BEFORE,
+  HOLDING,
+  RECOVERING,
+  SLIPPING,
+  fitnessStatus,
+} from '../fitnessFixtures'
 import { FitnessChart } from './FitnessChart'
 
 afterEach(cleanup)
@@ -108,12 +115,13 @@ describe('FitnessChart', () => {
     expect(new Date(SLIPPING.series.at(-1)!.atMs).getUTCDay()).toBe(0)
   })
 
-  it('draws the level’s labels a second time over the reference line, so the line does not strike one through', () => {
+  it('draws the level’s labels once, over the marks, so the reference line does not strike one through', () => {
     const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
-    const labels = [...container.querySelectorAll('.chart-y-axis__tick')].map((t) => t.textContent)
-    // Once under the marks with the gridlines, and once over them.
-    expect(labels.length % 2).toBe(0)
-    expect(labels.slice(0, labels.length / 2)).toEqual(labels.slice(labels.length / 2))
+    const labels = [...container.querySelectorAll('.chart-y-axis__tick')]
+    expect(labels.length).toBeGreaterThan(1)
+    expect(new Set(labels.map((t) => t.textContent)).size).toBe(labels.length)
+    const line = container.querySelector('[data-testid="fitness-line"]')!
+    expect(line.compareDocumentPosition(labels[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     expect(container.querySelectorAll('.chart-y-axis__title')).toHaveLength(1)
   })
 
@@ -129,14 +137,25 @@ describe('FitnessChart', () => {
 })
 
 describe('FitnessChart: the low', () => {
-  it('marks the low a recovery fell to, and none for a status without one', () => {
+  it('marks a low inside the chart as a point at its month, and none for a status without one', () => {
     const recovering = render(
       <FitnessChart status={RECOVERING} units="metric" title="Recovering" />,
     )
     expect(recovering.container.querySelector('[data-testid="fitness-low"]')).not.toBeNull()
+    expect(recovering.container.querySelector('[data-annotation="low"]')).toBeNull()
     expect(screen.getByRole('figure', { name: 'Recovering' })).toBeInTheDocument()
     cleanup()
     const holding = render(<FitnessChart status={HOLDING} units="metric" />)
     expect(holding.container.querySelector('[data-testid="fitness-low"]')).toBeNull()
+  })
+
+  it('draws a low from before the chart’s first step as a labelled level, never as a point on its edge', () => {
+    // Three years before the newest activity: far left of the chart's first step.
+    const early = { ...RECOVERING, lowMs: FITNESS_AS_OF_MS - 3 * 365 * 86_400_000 }
+    const { container } = render(<FitnessChart status={early} units="metric" />)
+    expect(container.querySelector('[data-testid="fitness-low"]')).toBeNull()
+    expect(container.querySelector('[data-annotation="low"]')?.textContent).toMatch(
+      /^\w+ \d{4} low.*\/km$/,
+    )
   })
 })

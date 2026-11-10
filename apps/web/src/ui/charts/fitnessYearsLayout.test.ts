@@ -200,3 +200,20 @@ describe('fitnessYearsLayout: today', () => {
     expect(high.now!.y).toBeLessThan(among.now!.y)
   })
 })
+
+describe('fitnessYearsLayout: the date axis', () => {
+  it('names the months of a library that spans under a year, and the years of a longer one', () => {
+    const short = dotsFixture({ sport: 'ride', years: [2025], perYear: 8 })
+    // Eight dots through one year: month ticks, which carry a month word and not a bare year.
+    const months = fitnessYearsLayout(short, 'ride', 'metric', SIZE)!.xTicks.map((t) => t.label)
+    expect(months.length).toBeGreaterThan(1)
+    expect(months.some((label) => !/^\d{4}$/.test(label))).toBe(true)
+    const years = fitnessYearsLayout(
+      dotsFixture({ years: [2020, 2021, 2022] }),
+      'run',
+      'metric',
+      SIZE,
+    )!.xTicks.map((t) => t.label)
+    expect(years).toEqual(['2020', '2021', '2022'])
+  })
+})

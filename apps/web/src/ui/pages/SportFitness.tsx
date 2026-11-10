@@ -74,6 +74,25 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
   const sentence = fitnessLine(view)
   const rows = fitnessRows(view, units, { level: true, warm: adjustedForWarmDays(status) })
   const evidenceOf = status.evidence !== null && status.series.length > 1
+  // The section's one Details is the chart's: its sentence and table, then the level's rows, the track and the runs.
+  const details = (
+    <div className="fitness-card__details">
+      <PropertyList
+        rows={rows}
+        method={SECTION_ID.how}
+        methodName={`how ${SPORT_LABEL[sport].toLowerCase()} fitness is worked out`}
+      />
+      {view.track === null ? null : (
+        <div className="fitness-card__shape">
+          <FitnessTrack track={view.track} />
+        </div>
+      )}
+      {evidenceOf && mounted ? (
+        <FitnessEvidence status={status} units={units} library={library} chart={false} />
+      ) : null}
+    </div>
+  )
+  const open = () => setMounted(true)
   return (
     <section
       className="band fitness-section"
@@ -83,7 +102,14 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
     >
       <h2 id={id}>Your fitness</h2>
       {hasSeries(view) ? (
-        <FitnessChart status={status} units={units} title={view.label} lede={sentence} />
+        <FitnessChart
+          status={status}
+          units={units}
+          title={view.label}
+          lede={sentence}
+          extra={details}
+          onOpen={open}
+        />
       ) : (
         <FitnessYearsChart
           sport={sport}
@@ -94,34 +120,10 @@ export function SportFitness({ fitness, dots, units, library, sport, nowMs }: Sp
           now={status.level?.value ?? status.now}
           showSpans={false}
           compact
+          extra={details}
+          onOpen={open}
         />
       )}
-      <details
-        className="disclosure fitness-card__evidence"
-        onToggle={(event) => {
-          if (event.currentTarget.open) setMounted(true)
-        }}
-      >
-        <summary>
-          Details
-          <span className="sr-only">{` for ${SPORT_LABEL[sport].toLowerCase()}`}</span>
-        </summary>
-        <div className="disclosure__body fitness-card__details">
-          <PropertyList
-            rows={rows}
-            method={SECTION_ID.how}
-            methodName={`how ${SPORT_LABEL[sport].toLowerCase()} fitness is worked out`}
-          />
-          {view.track === null ? null : (
-            <div className="fitness-card__shape">
-              <FitnessTrack track={view.track} />
-            </div>
-          )}
-          {evidenceOf && mounted ? (
-            <FitnessEvidence status={status} units={units} library={library} chart={false} />
-          ) : null}
-        </div>
-      </details>
     </section>
   )
 }

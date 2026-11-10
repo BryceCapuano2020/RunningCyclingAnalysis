@@ -29,7 +29,7 @@ async function openFitnessEvidence(page: Page): Promise<void> {
   await goTo(page, 'Run')
   const section = page.getByRole('region', { name: 'Your fitness' })
   await expect(section.getByRole('figure', { name: 'Slipping' })).toBeVisible()
-  await section.locator('.fitness-card__evidence > summary').click()
+  await section.locator('.chart-frame__details > summary').click()
   await expect(page.locator('.fitness-runs a').first()).toBeVisible()
 }
 
@@ -93,7 +93,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     open: async (page) => {
       await openSample(page)
       await goTo(page, 'Run')
-      const evidence = page.locator('.fitness-section .fitness-card__evidence')
+      const evidence = page.locator('.fitness-section .chart-frame__details')
       await evidence.locator('> summary').click()
       // The evidence is a detail panel: its rows are what is scanned.
       await expect(evidence.locator('.props__list').first()).toBeVisible()
@@ -419,8 +419,7 @@ test('the Run page’s fitness graph and its details fit a 320 px screen', async
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)
-    // The evidence chart's own disclosure: its table, under its note where it has one.
-    await page.locator('.fitness-section .chart-frame__details > summary').first().click()
+    // The one disclosure is open, with the chart's table in it.
     await expect(page.locator('.fitness-section table').first()).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),

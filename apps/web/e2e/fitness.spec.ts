@@ -13,7 +13,7 @@ const openRun = async (page: Page) => {
 }
 /** Opens the Run page's one Details, which holds the level, the track and the runs it rests on. */
 const openRunDetails = (page: Page) =>
-  section(page).locator('.fitness-card__evidence > summary').click()
+  section(page).locator('.chart-frame__details > summary').click()
 
 /** A line's words as read, without the notes its defined terms keep in the markup. */
 const spoken = (line: Locator) =>
@@ -67,7 +67,8 @@ test('the Run page draws the level as a graph with its table twin, and its Detai
   await openRun(page)
   const chart = graph(page)
   await expect(chart).toBeVisible()
-  // Closed, the Details hold nothing of the evidence yet.
+  // One disclosure for the section, closed: the evidence is not mounted yet.
+  await expect(section(page).locator('details')).toHaveCount(1)
   await expect(page.locator('.fitness-evidence')).toHaveCount(0)
   // The chart: a ring and a range for each four-week step, the line it is read against, the month it began, and now.
   expect(await chart.locator('[data-testid="fitness-point"]').count()).toBeGreaterThanOrEqual(5)
@@ -76,7 +77,6 @@ test('the Run page draws the level as a graph with its table twin, and its Detai
   await expect(chart.locator('[data-testid="fitness-onset"]')).toContainText(/^Began /)
   // Its table twin has a row for each step.
   const steps = await chart.locator('[data-testid="fitness-point"]').count()
-  await chart.locator('details.chart-frame__details > summary', { hasText: 'Details' }).click()
   await expect(chart.locator('table').nth(1).locator('tbody tr')).toHaveCount(steps + 1)
   await openRunDetails(page)
   // What it is read at and compared with are rows; the method and the honest limit are on Method.
@@ -152,7 +152,7 @@ test('Balance tells a ride that cannot call a trend as one line, and the Ride pa
   const graph = ride.getByRole('figure', { name: 'No trend yet' })
   await expect(graph.getByTestId('fitness-dots')).toBeAttached()
   await expect(graph.getByTestId('fitness-now-mark')).toContainText(/^Now \d+ W$/)
-  await ride.locator('.fitness-card__evidence > summary').click()
+  await ride.locator('.chart-frame__details > summary').click()
   // The Ride page's level is the figure the home page's one line printed.
   const level = await value(ride, /^Power at \d+ bpm$/)
   expect(level).toMatch(/^\d+ W$/)

@@ -39,6 +39,9 @@ export interface FitnessYearsChartProps {
   now?: number | null
   /** A short strip for a sport page's row, with no key: the dots and the shading alone. */
   compact?: boolean
+  /** The rest of a sport page's section, for the chart's one Details; `onOpen` is called when it opens. */
+  extra?: ReactNode
+  onOpen?: () => void
   /** Whether the slips and rises are shaded. A fitness row that has no history to tell leaves them out. */
   showSpans?: boolean
 }
@@ -70,6 +73,8 @@ export function FitnessYearsChart({
   now = null,
   compact = false,
   showSpans = true,
+  extra,
+  onOpen,
 }: FitnessYearsChartProps) {
   const dots = useMemo(() => (showSpans ? given : { ...given, spans: [] }), [given, showSpans])
   // The year being read belongs to the sport it was read in: the other sport starts with none.
@@ -92,6 +97,8 @@ export function FitnessYearsChart({
     <ChartFrame
       title={title}
       titleHidden={titleHidden}
+      extra={extra}
+      onOpen={onOpen}
       lede={lede ?? `${words.output} at ${atText(dots)} on ${words.steadyPlural}`}
       controls={controls}
       description={`${dots.levels.length} ${words.steadyPlural} from ${dots.years[0]?.year} to ${dots.years[last]?.year}, each ${words.output.toLowerCase()} at ${atText(dots)}, with a line through their median and the slips and rises shaded.`}

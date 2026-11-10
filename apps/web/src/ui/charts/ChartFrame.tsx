@@ -59,6 +59,12 @@ export interface ChartFrameProps {
    * reading over it only while one is selected. Left out, it says how to select a point.
    */
   idleReadout?: string
+  /**
+   * More for the chart's one Details, under its tables: a sport page's rows, so the section has one disclosure. `onOpen` is
+   * called when it opens, so what is heavy in `extra` mounts then.
+   */
+  extra?: ReactNode
+  onOpen?: () => void
   /** Replaces the plot with a short message when set. */
   empty?: string
   /** Muted text under the plot, which shows even while the chart is empty, to say why it is. */
@@ -128,6 +134,8 @@ export function ChartFrame({
   keyNote,
   idleReadout,
   note,
+  extra,
+  onOpen,
   plotRightMargin,
   plotBottomMargin,
   children,
@@ -247,12 +255,18 @@ export function ChartFrame({
       </ReadoutContext.Provider>
       {note && empty ? <p className="chart-frame__note">{note}</p> : null}
       {!empty ? (
-        <details className="chart-frame__details">
+        <details
+          className="chart-frame__details"
+          onToggle={
+            onOpen === undefined ? undefined : (event) => event.currentTarget.open && onOpen()
+          }
+        >
           <summary>{lede || note ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
           {lede ? <p className="chart-frame__lede">{lede}</p> : null}
           {note ? <p className="chart-frame__note">{note}</p> : null}
           {summary ? <ChartTable {...summary} /> : null}
           <ChartTable {...table} />
+          {extra}
         </details>
       ) : null}
     </figure>
