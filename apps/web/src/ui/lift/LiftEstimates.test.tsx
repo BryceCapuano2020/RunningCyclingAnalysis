@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { chartWidth } from '../charts/chartSizeStub'
+import { chartWidth } from '../charts/test/chartSizeStub'
 import { risingSquats, squat } from './liftFixtures'
 import { liftOverviewOf } from './liftEntries'
 import { LiftEstimates } from './LiftEstimates'
