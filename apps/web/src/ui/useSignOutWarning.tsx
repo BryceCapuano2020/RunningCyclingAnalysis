@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { openLiftStore } from '../worker/liftStore'
+import { unsentLifts } from '../worker/liftCounts'
 import { waitingCount } from '../worker/outbox'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { plural } from './components/plural'
@@ -24,7 +24,7 @@ export function useSignOutWarning(
     const active = document.activeElement
     const opener = active instanceof HTMLElement ? active : null
     if (userId === undefined) return signOut()
-    void Promise.all([waitingCount(userId), openLiftStore(userId).pendingCount()]).then(
+    void Promise.all([waitingCount(userId), unsentLifts(userId).catch(() => 0)]).then(
       ([count, sets]) => {
         if (count > 0 || sets > 0) setAsking({ count, sets, opener })
         else signOut()

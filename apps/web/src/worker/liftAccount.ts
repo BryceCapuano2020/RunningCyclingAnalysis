@@ -1,4 +1,4 @@
-import { clearScope, openLiftStore } from './liftStore'
+import { clearScope, liftsExist, openLiftStore } from './liftStore'
 import { defaultLocks, FLUSH_LOCK } from './liftSync'
 import type { LockProvider } from './liftSync'
 
@@ -11,6 +11,8 @@ export async function signOutLifts(
   userId: string,
   locks: LockProvider = defaultLocks(),
 ): Promise<void> {
+  // A visitor who never logged a set has no database, and looking must not make one.
+  if (!(await liftsExist())) return
   const store = openLiftStore(userId)
   try {
     await locks.request(FLUSH_LOCK, () => store.signOut())
@@ -27,6 +29,7 @@ export async function dropLiftScope(
   locks: LockProvider = defaultLocks(),
 ): Promise<void> {
   try {
+    if (!(await liftsExist())) return
     await locks.request(FLUSH_LOCK, () => clearScope(userId))
   } catch {
     // The next sign-in of another account sweeps it.

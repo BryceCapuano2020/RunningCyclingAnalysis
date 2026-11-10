@@ -276,6 +276,7 @@ export function App() {
                 ? undefined
                 : { userId: account.me.user.id, email: account.me.user.email }
             }
+            liftAccount={{ refresh: account.refresh, markExpired: account.markExpired }}
             accountsUnavailable={!accountsAvailable}
             accountError={account.error}
             runThenFocus={runThenFocus}

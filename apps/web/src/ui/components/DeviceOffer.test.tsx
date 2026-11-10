@@ -2,7 +2,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { dismissedOfferCount } from '../analysis/offerDismissal'
+import { dismissedOffer } from '../analysis/offerDismissal'
 import { DeviceOffer } from './DeviceOffer'
 import type { DeviceOfferProps } from './DeviceOffer'
 
@@ -70,7 +70,7 @@ describe('the offer of what this browser kept', () => {
     const { view, props } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }))
     expect(screen.queryByRole('region')).toBeNull()
-    expect(dismissedOfferCount('u1')).toBe(3)
+    expect(dismissedOffer('u1')).toBe('3:0')
 
     view.unmount()
     render(<DeviceOffer {...props} />)
@@ -160,11 +160,65 @@ describe('lifting sets kept in this browser', () => {
         held: 0,
         unauthorized: false,
         done: true,
+        total: 5,
       },
     })
     expect(
       screen.getByText(
         /Added 3 lifting sets to your account\. 2 lifting sets were in your account already\. 1 lifting set did not fit in your account and stays in this browser\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('waits until the lifting sets are counted', () => {
+    setup({ lifts: null })
+    expect(screen.queryByRole('region')).toBeNull()
+  })
+
+  it('asks again when the same total is made of other things', async () => {
+    const { view, props } = setup({ offer: { adoptable: 3, again: 0, held: 0 }, lifts: 0 })
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    view.unmount()
+    render(<DeviceOffer {...props} offer={null} lifts={3} />)
+    expect(screen.getByRole('region')).toHaveTextContent('3 lifting sets')
+  })
+
+  it('says one thing when both ended, and never "Nothing was added" beside a lift result', () => {
+    setup({
+      offer: null,
+      adoption: { saved: 0, conflicts: 0, failed: 0, again: 0, held: 0 },
+      liftResult: {
+        sent: 2,
+        skipped: 0,
+        refused: 0,
+        capped: 0,
+        held: 0,
+        unauthorized: false,
+        done: true,
+        total: 2,
+      },
+    })
+    expect(screen.getByText('Added 2 lifting sets to your account.')).toBeInTheDocument()
+    expect(screen.queryByText(/Nothing was added/)).toBeNull()
+  })
+
+  it('counts sets a stopped run never reached, and names refused ones as removed', () => {
+    setup({
+      offer: null,
+      liftResult: {
+        sent: 1,
+        skipped: 0,
+        refused: 1,
+        capped: 0,
+        held: 1,
+        unauthorized: false,
+        done: false,
+        total: 6,
+      },
+    })
+    expect(
+      screen.getByText(
+        /Added 1 lifting set to your account\. 4 lifting sets could not be sent yet and stay in this browser\. Try again\. 1 lifting set was not valid and was removed\./,
       ),
     ).toBeInTheDocument()
   })

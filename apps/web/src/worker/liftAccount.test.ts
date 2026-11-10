@@ -19,7 +19,11 @@ function recordingLocks() {
     request: async (name, work) => {
       log.push(`take ${name}`)
       try {
-        return await work()
+        // Work runs between the take and the release, whatever it does.
+        return await work().then((result) => {
+          log.push('work done')
+          return result
+        })
       } finally {
         log.push('release')
       }
@@ -41,7 +45,7 @@ describe('lifting sets at sign-out', () => {
     const store = await seed()
     const { locks, log } = recordingLocks()
     await signOutLifts('u1', locks)
-    expect(log).toEqual(['take rca-lifts-flush', 'release'])
+    expect(log).toEqual(['take rca-lifts-flush', 'work done', 'release'])
     const left = await openLiftStore('u1').list()
     expect(left.map((row) => [row.set.setOrder, row.state])).toEqual([[2, 'put']])
     expect(store).toBeDefined()
@@ -52,8 +56,16 @@ describe('lifting sets at sign-out', () => {
     await openLiftStore('u2').save(make(1))
     const { locks, log } = recordingLocks()
     await dropLiftScope('u1', locks)
-    expect(log).toEqual(['take rca-lifts-flush', 'release'])
+    expect(log).toEqual(['take rca-lifts-flush', 'work done', 'release'])
     expect(await openLiftStore('u1').list()).toEqual([])
     expect(await openLiftStore('u2').list()).toHaveLength(1)
+  })
+
+  it('makes no database when there never was one', async () => {
+    const { locks, log } = recordingLocks()
+    await signOutLifts('u1', locks)
+    await dropLiftScope('u1', locks)
+    expect(log).toEqual([])
+    expect(await indexedDB.databases()).toEqual([])
   })
 })

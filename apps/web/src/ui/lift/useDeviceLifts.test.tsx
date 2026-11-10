@@ -5,75 +5,75 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { openLiftStore } from '../../worker/liftStore'
 import { fakeTransport, make } from '../../worker/liftTestKit'
-import type { AdoptionOutcome } from '../analysis/model'
-import { useAddWithLifts, useDeviceLifts } from './useDeviceLifts'
+import { LiftTransportError } from '../../worker/liftTransport'
+import { useDeviceLifts } from './useDeviceLifts'
 
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory())
 })
 
-const OUTCOME: AdoptionOutcome = { saved: 1, conflicts: 0, failed: 0, again: 0, held: 0 }
+const account = () => ({ refresh: vi.fn(async () => null), markExpired: vi.fn() })
 
 describe('the lifting sets kept on the device', () => {
-  it('counts them for a signed-in account, and adds them with insertOnly', async () => {
+  it('is not counted until read, and makes no database to count', async () => {
+    const view = renderHook(() => useDeviceLifts('u1', account()))
+    expect(view.result.current.count).toBeNull()
+    await waitFor(() => expect(view.result.current.count).toBe(0))
+    expect(await indexedDB.databases()).toEqual([])
+  })
+
+  it('adds them with insertOnly, reports the total, and reads the account again', async () => {
     const device = openLiftStore('device')
     await device.save(make(1))
     await device.save(make(2))
     const fake = fakeTransport({ put: () => ({ liftRevision: 3, skipped: [] }) })
-    const view = renderHook(() => useDeviceLifts('u1', () => fake.transport))
+    const mine = account()
+    const view = renderHook(() => useDeviceLifts('u1', mine, () => fake.transport))
     await waitFor(() => expect(view.result.current.count).toBe(2))
 
     await act(async () => void (await view.result.current.adopt()))
 
     expect(fake.calls).toEqual([{ type: 'put', orders: [1, 2], insertOnly: true }])
     expect(view.result.current.count).toBe(0)
-    expect(view.result.current.result).toMatchObject({ sent: 2, skipped: 0 })
+    expect(view.result.current.result).toMatchObject({ sent: 2, skipped: 0, total: 2 })
+    expect(mine.refresh).toHaveBeenCalledOnce()
+    expect(view.result.current.adopting).toBe(false)
+  })
+
+  it('ends the session on a 401, and ignores a second press while it runs', async () => {
+    await openLiftStore('device').save(make(1))
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const fake = fakeTransport({
+      put: () => new LiftTransportError('unauthorized'),
+      gate: () => gate,
+    })
+    const mine = account()
+    const view = renderHook(() => useDeviceLifts('u1', mine, () => fake.transport))
+    await waitFor(() => expect(view.result.current.count).toBe(1))
+    act(() => void view.result.current.adopt())
+    await waitFor(() => expect(view.result.current.adopting).toBe(true))
+    await act(async () => void (await view.result.current.adopt()))
+    release()
+    await waitFor(() => expect(mine.markExpired).toHaveBeenCalledOnce())
+    expect(fake.calls.filter((c) => c.type === 'put')).toHaveLength(1)
+    expect(await openLiftStore('device').list()).toHaveLength(1)
   })
 
   it('reads nothing signed out', async () => {
     await openLiftStore('device').save(make(1))
-    const view = renderHook(() => useDeviceLifts(undefined))
+    const view = renderHook(() => useDeviceLifts(undefined, account()))
     await act(async () => undefined)
-    expect(view.result.current.count).toBe(0)
+    expect(view.result.current.count).toBeNull()
   })
 
   it('removes them from this browser', async () => {
     await openLiftStore('device').save(make(1))
-    const view = renderHook(() => useDeviceLifts('u1'))
+    const view = renderHook(() => useDeviceLifts('u1', account()))
     await waitFor(() => expect(view.result.current.count).toBe(1))
     await act(async () => void (await view.result.current.forget()))
     expect(await openLiftStore('device').list()).toEqual([])
-  })
-})
-
-describe('adding with the activities', () => {
-  const setup = (adoption: AdoptionOutcome | null) => {
-    const lifts = { adopt: vi.fn(async () => null) } as unknown as Parameters<
-      typeof useAddWithLifts
-    >[0]
-    const addActivities = vi.fn()
-    const view = renderHook(
-      (props: { adoption: AdoptionOutcome | null }) =>
-        useAddWithLifts(lifts, props.adoption, addActivities),
-      { initialProps: { adoption } },
-    )
-    return { lifts, addActivities, view }
-  }
-
-  it('adds the sets only after the activities adoption reports', async () => {
-    const { lifts, addActivities, view } = setup(null)
-    act(() => view.result.current(true))
-    expect(addActivities).toHaveBeenCalledOnce()
-    expect(lifts.adopt).not.toHaveBeenCalled()
-
-    view.rerender({ adoption: OUTCOME })
-    await waitFor(() => expect(lifts.adopt).toHaveBeenCalledOnce())
-  })
-
-  it('adds the sets at once when no activity is being added', () => {
-    const { lifts, addActivities, view } = setup(null)
-    act(() => view.result.current(false))
-    expect(addActivities).not.toHaveBeenCalled()
-    expect(lifts.adopt).toHaveBeenCalledOnce()
   })
 })

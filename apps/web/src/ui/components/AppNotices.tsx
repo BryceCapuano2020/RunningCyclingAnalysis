@@ -7,8 +7,9 @@ import { hrefFor } from '../route'
 import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
-import { adoptionText, liftAdoptionText } from '../analysis/adoptionCopy'
-import { useAddWithLifts, useDeviceLifts } from '../lift/useDeviceLifts'
+import { adoptionSummary } from '../analysis/adoptionCopy'
+import { useDeviceLifts } from '../lift/useDeviceLifts'
+import type { DeviceLiftsAccount } from '../lift/useDeviceLifts'
 import { outboxText } from '../analysis/outboxCopy'
 import { ImportNotice } from './ImportNotice'
 import { IncompleteImportNotice } from './IncompleteImportNotice'
@@ -23,6 +24,10 @@ import { useSampleNotice } from './useSampleNotice'
 import './AppNotices.css'
 
 const NO_MOVED: MovedItem[] = []
+const NO_LIFT_ACCOUNT: DeviceLiftsAccount = {
+  refresh: async () => null,
+  markExpired: () => undefined,
+}
 
 export interface AppNoticesProps {
   analysis: AnalysisController
@@ -31,6 +36,8 @@ export interface AppNoticesProps {
   fileRetentionAvailable: boolean
   /** Who is signed in, which the offer of what this browser kept names. */
   accountUser?: { userId: string; email: string }
+  /** What adding the lifting sets kept in this browser needs of the account. */
+  liftAccount?: DeviceLiftsAccount
   /** Accounts cannot be reached on this deployment right now. */
   accountsUnavailable: boolean
   accountError: string | null
@@ -66,6 +73,7 @@ export function AppNotices({
   keepFiles,
   fileRetentionAvailable,
   accountUser,
+  liftAccount = NO_LIFT_ACCOUNT,
   accountsUnavailable,
   accountError,
   runThenFocus,
@@ -80,8 +88,7 @@ export function AppNotices({
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
   // Lifting sets are kept in this browser's own database, which the page reads itself (the worker never sees them).
-  const deviceLifts = useDeviceLifts(accountUser?.userId)
-  const addKept = useAddWithLifts(deviceLifts, analysis.adoption, analysis.adoptDevice)
+  const deviceLifts = useDeviceLifts(accountUser?.userId, liftAccount)
   const neutralStop = analysis.error !== null && analysis.errorNeutral
   // The pages say how a deletion ended beside the activity. With no result left, as when the last activity
   // was deleted, no page does, so the notices say it.
@@ -198,9 +205,8 @@ export function AppNotices({
           </p>
         )}
         {/* The visible result has a button to put it away, so it sits outside this region; this says it once. */}
-        {analysis.adoption !== null && <p className="sr-only">{adoptionText(analysis.adoption)}</p>}
-        {deviceLifts.result !== null && (
-          <p className="sr-only">{liftAdoptionText(deviceLifts.result)}</p>
+        {(analysis.adoption !== null || deviceLifts.result !== null) && (
+          <p className="sr-only">{adoptionSummary(analysis.adoption, deviceLifts.result)}</p>
         )}
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}
         {sample.banner}
@@ -218,8 +224,13 @@ export function AppNotices({
           lifts={deviceLifts.count}
           liftResult={deviceLifts.result}
           account={accountUser}
-          busy={analysis.busy}
-          onAdd={() => addKept((analysis.deviceOffer?.adoptable ?? 0) > 0)}
+          busy={analysis.busy || deviceLifts.adopting}
+          onAdd={() => {
+            if (deviceLifts.adopting) return
+            // The sets go up alongside the activities: they are separate stores and separate requests.
+            if ((analysis.deviceOffer?.adoptable ?? 0) > 0) analysis.adoptDevice()
+            if ((deviceLifts.count ?? 0) > 0) void deviceLifts.adopt().catch(() => undefined)
+          }}
           onRemove={() => {
             analysis.forgetDeviceLibrary()
             void deviceLifts.forget().catch(() => undefined)

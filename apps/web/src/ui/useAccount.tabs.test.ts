@@ -107,6 +107,16 @@ describe('what this tab does when another tab speaks', () => {
     await waitFor(() => expect(result.current.me?.profile.units).toBe('imperial'))
   })
 
+  it('does not read the account when another tab only logged lifting sets', async () => {
+    await signedIn()
+    const calls = mocked.getMe.mock.calls.length
+
+    act(() => otherTab.postMessage({ type: 'lifts' }))
+    await act(async () => undefined)
+
+    expect(mocked.getMe.mock.calls.length).toBe(calls)
+  })
+
   it('does not ask for a profile when nobody is signed in here', async () => {
     mocked.getMe.mockResolvedValue(null)
     const { result } = renderHook(() => useAccount())

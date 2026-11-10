@@ -7,9 +7,7 @@ import { useSignOutWarning } from './useSignOutWarning'
 
 vi.mock('../worker/outbox', () => ({ waitingCount: vi.fn() }))
 const unsentSets = vi.hoisted(() => vi.fn())
-vi.mock('../worker/liftStore', () => ({
-  openLiftStore: () => ({ pendingCount: unsentSets }),
-}))
+vi.mock('../worker/liftCounts', () => ({ unsentLifts: unsentSets }))
 
 function Harness({ signOut, userId }: { signOut: () => void; userId?: string }) {
   const { requestSignOut, dialog } = useSignOutWarning(userId, signOut)

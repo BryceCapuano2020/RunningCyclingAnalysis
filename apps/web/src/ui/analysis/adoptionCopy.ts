@@ -1,8 +1,9 @@
 import { plural } from '../components/plural'
-import type { AdoptResult } from '../../worker/liftSync'
+import type { LiftAdoption } from '../lift/useDeviceLifts'
 import type { AdoptionOutcome, DeviceOfferStatus } from './model'
 
 const ACTIVITIES = ['activity', 'activities'] as const
+const NOTHING_ADDED = 'Nothing was added.'
 const LIFT_SETS = ['lifting set', 'lifting sets'] as const
 
 /** Plural-agreeing verb forms: "1 activity differs", "2 activities differ". */
@@ -68,25 +69,48 @@ export function adoptionText(outcome: AdoptionOutcome): string {
       `${plural(held, ...ACTIVITIES)} ${verb(held, 'was', 'were')} in your account already.`,
     )
   }
-  return parts.length === 0 ? 'Nothing was added.' : parts.join(' ')
+  return parts.length === 0 ? NOTHING_ADDED : parts.join(' ')
 }
 
-/** How adding the lifting sets ended: what the account took, and what it could not. */
-export function liftAdoptionText(result: AdoptResult): string {
-  const added = result.sent - result.skipped
-  const left = result.refused + result.held
+/** How adding the lifting sets ended: what the account took, what it held, what stays and what was refused. Empty when nothing happened. */
+export function liftAdoptionText(result: LiftAdoption): string {
+  const { sent, skipped, refused, capped, held, total } = result
+  const added = sent - skipped
+  // Rows the run never reached, because a failure stopped it.
+  const unreached = Math.max(0, total - sent - refused - capped - held)
+  const waiting = held + unreached
   const parts: string[] = []
   if (added > 0) parts.push(`Added ${plural(added, ...LIFT_SETS)} to your account.`)
-  if (result.skipped > 0)
+  if (skipped > 0)
     parts.push(
-      `${plural(result.skipped, ...LIFT_SETS)} ${verb(result.skipped, 'was', 'were')} in your account already.`,
+      `${plural(skipped, ...LIFT_SETS)} ${verb(skipped, 'was', 'were')} in your account already.`,
     )
-  if (result.capped > 0)
+  if (capped > 0)
     parts.push(
-      `${plural(result.capped, ...LIFT_SETS)} did not fit in your account and ${verb(result.capped, 'stays', 'stay')} in this browser.`,
+      `${plural(capped, ...LIFT_SETS)} did not fit in your account and ${verb(capped, 'stays', 'stay')} in this browser.`,
     )
-  if (left > 0) parts.push(`${plural(left, ...LIFT_SETS)} could not be added.`)
-  return parts.length === 0 ? 'Nothing was added.' : parts.join(' ')
+  if (waiting > 0)
+    parts.push(
+      `${plural(waiting, ...LIFT_SETS)} could not be sent yet and ${verb(waiting, 'stays', 'stay')} in this browser. Try again.`,
+    )
+  if (refused > 0)
+    parts.push(
+      `${plural(refused, ...LIFT_SETS)} ${verb(refused, 'was', 'were')} not valid and ${verb(refused, 'was', 'were')} removed.`,
+    )
+  return parts.join(' ')
+}
+
+/** One line for both adoptions; "Nothing was added." only when neither said anything. */
+export function adoptionSummary(
+  adoption: AdoptionOutcome | null,
+  lifts: LiftAdoption | null,
+): string {
+  const liftText = lifts === null ? '' : liftAdoptionText(lifts)
+  const activityText =
+    adoption === null || (liftText !== '' && adoptionText(adoption) === NOTHING_ADDED)
+      ? ''
+      : adoptionText(adoption)
+  return [activityText, liftText].filter((text) => text !== '').join(' ') || NOTHING_ADDED
 }
 
 /** What removing the kept library from this browser says it removes. */
