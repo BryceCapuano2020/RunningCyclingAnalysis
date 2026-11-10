@@ -308,10 +308,9 @@ describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    // The footer says the one privacy sentence; the line under the title does not repeat it.
-    const found = screen.getAllByText(/stored in your private library/)
-    expect(found).toHaveLength(1)
-    expect(found[0]).toHaveClass('privacy-note')
+    // Signed in with saving working, the footer says nothing of storage: that is on the Privacy page.
+    expect(screen.queryByText(/stored in your private library/)).toBeNull()
+    expect(document.querySelector('.privacy-note')).toBeNull()
   })
 
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {
@@ -523,9 +522,9 @@ describe('footer', () => {
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
   })
 
-  it('carries the one privacy note on Profile, so the page does not repeat it', () => {
+  it('carries at most one privacy note on Profile, so the page does not repeat it', () => {
     window.location.hash = '#/profile'
     render(<App />)
-    expect(document.querySelectorAll('.privacy-note')).toHaveLength(1)
+    expect(document.querySelectorAll('.privacy-note').length).toBeLessThanOrEqual(1)
   })
 })

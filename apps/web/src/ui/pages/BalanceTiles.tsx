@@ -79,7 +79,7 @@ export function BalanceTiles({
     needInHeadline: soleSport !== null,
     levelShown,
     defineTerm: sport === firstThreshold,
-    half: sport === 'run' ? half : null,
+    half: { run: half, ride: null }[sport],
   })
   // Each row: its sport, whose ink its index takes (lifting has none), and what it shows.
   const tiles: { key: string; sport?: Sport; node: ReactNode }[] = [

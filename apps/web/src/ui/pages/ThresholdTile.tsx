@@ -35,6 +35,9 @@ export interface ThresholdTileProps {
   half?: RacePrediction | null
 }
 
+/** Each sport's row name: a ride's functional threshold power, a run's threshold (until its half marathon leads). */
+const ROW_NAME: Record<Sport, string> = { run: THRESHOLD_NAME.run, ride: HEADLINE_NAME.ride }
+
 /** The word in each tile's name that is defined in place, and what it means: the threshold in plain words. */
 const DEFINED: Record<Sport, { term: string; meaning: string }> = {
   run: { term: 'threshold', meaning: THRESHOLD_MEANING.run },
@@ -62,7 +65,7 @@ export function ThresholdTile({
   // A fitted threshold's title says what it is, so the word is defined only where there is no figure to read.
   const defined = defineTerm ? DEFINED[sport] : undefined
   // A ride's row is its functional threshold power in every state; a run's is its threshold until a half marathon leads.
-  const name = sport === 'ride' ? HEADLINE_NAME.ride : THRESHOLD_NAME[sport]
+  const name = ROW_NAME[sport]
   if (needsWeight(sport, weighted)) {
     return (
       <StatTile sport={sport} heading={name} definition={defined}>
@@ -93,7 +96,7 @@ export function ThresholdTile({
   // A run leads with its half marathon: its likely span and the threshold pace come first in Details, then what the pace
   // rests on. A ride shows its watts alone; the watts per kilogram are the first line of Details.
   const lead =
-    sport === 'run' && half !== null
+    half !== null
       ? {
           heading: HEADLINE_NAME.half,
           figure: { number: formatRecordTime(half.seconds), unit: '' },
@@ -106,20 +109,15 @@ export function ThresholdTile({
             ...basis.filter((row) => row.label !== 'Range'),
           ] satisfies Property[],
         }
-      : sport === 'ride'
-        ? {
-            heading: HEADLINE_NAME.ride,
-            figure: { number: hero.number, unit: hero.unit },
-            rows: [
-              ...(hero.sub === null ? [] : [{ label: 'Per kilogram', value: hero.sub }]),
-              ...basis,
-            ],
-          }
-        : {
-            heading: name,
-            figure: { number: hero.number, unit: hero.unit },
-            rows: basis,
-          }
+      : {
+          heading: name,
+          figure: { number: hero.number, unit: hero.unit },
+          // A ride's second reading, its watts per kilogram, is the first line of Details rather than beside the figure.
+          rows: [
+            ...(hero.sub === null ? [] : [{ label: 'Per kilogram', value: hero.sub }]),
+            ...basis,
+          ],
+        }
   return (
     <StatTile sport={sport} heading={lead.heading} figure={lead.figure}>
       <ThresholdBasis sport={sport} rows={lead.rows} className="stat-tile__source" />
