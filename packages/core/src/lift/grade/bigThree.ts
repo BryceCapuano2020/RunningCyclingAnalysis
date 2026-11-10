@@ -2,6 +2,7 @@
  * The big three's projected one-rep maxes as one figure for the Balance row: the total when back squat, bench press and
  * deadlift each have an estimate, else the heaviest one that has. Pure; the web formats it. The grade is `liftGrade`'s.
  */
+import { heaviestPerLift } from './heaviest'
 import type { GradedEstimate } from './liftGrade'
 import { LIFTS } from './standard'
 import type { GradedLift } from './standard'
@@ -25,15 +26,11 @@ export type BigThree =
  * deadlift) its heaviest stands, the same one the row grades.
  */
 export function bigThreeTotal(lifts: readonly GradedEstimate[]): BigThree {
-  const held = new Map<GradedLift, GradedEstimate>()
-  for (const entry of lifts) {
-    const had = held.get(entry.lift)
-    if (had === undefined || entry.estimate.point > had.estimate.point) held.set(entry.lift, entry)
-  }
-  const parts = LIFTS.flatMap((lift): BigThreePart[] => {
-    const entry = held.get(lift)
-    return entry === undefined ? [] : [{ lift, kg: entry.estimate.point, estimate: entry.estimate }]
-  })
+  const parts = heaviestPerLift(lifts).map((entry): BigThreePart => ({
+    lift: entry.lift,
+    kg: entry.estimate.point,
+    estimate: entry.estimate,
+  }))
   if (parts.length === 0) return { kind: 'none', parts: [] }
   if (parts.length === LIFTS.length) {
     return { kind: 'total', kg: parts.reduce((sum, part) => sum + part.kg, 0), parts }

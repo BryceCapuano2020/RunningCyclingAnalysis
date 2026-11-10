@@ -188,6 +188,29 @@ describe('liftCornerGrade', () => {
     expect(c.grade.range!.high.grade).toBeGreaterThan(c.grade.centre.grade)
   })
 
+  it('counts a lift once, at its heaviest estimate, as the Big three row does (a sumo and a conventional deadlift)', () => {
+    const one = liftCornerGrade([of('squat', 140), of('deadlift', 180)], MAN, 80)
+    const both = liftCornerGrade(
+      [of('squat', 140), of('deadlift', 160), of('deadlift', 180)],
+      MAN,
+      80,
+    )
+    if (one.kind !== 'graded' || both.kind !== 'graded') throw new Error('expected grades')
+    expect(both.grade).toEqual(one.grade)
+    expect(both.lifts).toEqual(['squat', 'deadlift'])
+  })
+
+  it('takes the age at the newest estimate', () => {
+    const later = '2026-07-02'
+    const c = liftCornerGrade(
+      [of('squat', 140), { lift: 'bench', estimate: est(100, { date: later }) }],
+      MAN,
+      80,
+    )
+    if (c.kind !== 'graded') throw new Error('expected a grade')
+    expect(c.age).toBe(liftAgeOn(1994, later))
+  })
+
   it('with one lift is that lift', () => {
     const one = liftGrade(of('squat', 140), MAN, 80)
     const c = liftCornerGrade([of('squat', 140)], MAN, 80)

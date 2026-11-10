@@ -126,8 +126,9 @@ export function BalancePage({
   // Lifting's corner: the share-of-total grade of the graded lifts (back squat, bench press, deadlift) the Lift page logs. The
   // sample library is someone else's, so it shows no lifts of this browser's.
   const { lifts } = useLiftSummary(liftAccount, settings)
+  // A lift is graded at the athlete's body mass, so it waits for the weight as the ride does; the placeholder mass never grades.
   const liftGrade = useMemo(() => {
-    if (isSample || birthYear === null || sex === null) return null
+    if (isSample || !weightKnown || birthYear === null || sex === null) return null
     const graded = lifts.flatMap((lift) => {
       const which = gradedLiftOf(lift.exercise, lift.equipment)
       return which === null || lift.estimate === null
@@ -135,11 +136,12 @@ export function BalancePage({
         : [{ lift: which, estimate: lift.estimate }]
     })
     return liftCornerGrade(graded, { birthYear, sex }, settings.massKg)
-  }, [isSample, birthYear, sex, lifts, settings.massKg])
+  }, [isSample, weightKnown, birthYear, sex, lifts, settings.massKg])
   // The lifting row: the big three's total and each lift's grade, from the same estimates and grade function as the corner.
   const liftTile = useMemo(
-    () => liftTileOf(isSample ? [] : lifts, profile, settings.massKg, units),
-    [isSample, lifts, profile, settings.massKg, units],
+    // Without a weight the row still shows each projected one-rep max, with no grade beside it.
+    () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings.massKg, units),
+    [isSample, weightKnown, lifts, profile, settings.massKg, units],
   )
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
   const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])

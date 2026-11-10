@@ -9,6 +9,7 @@ import type { LiftEstimate } from '../estimate'
 import { liftAgeOn, liftStandard } from './liftStandard'
 import { BIRTH_YEAR_SD, GRADE_CEILING, Z_HIGH, Z_LOW, Z_STANDARD, standardSd } from './standard'
 import type { GradedLift } from './standard'
+import { heaviestPerLift } from './heaviest'
 
 export type LiftGradeGap = 'no-profile' | 'no-mass' | 'no-graded-lift' | 'out-of-range'
 
@@ -128,7 +129,9 @@ export function liftGrade(
 
 /**
  * The hero's lift figure: the share of the total, the sum of the e1RMs over the sum of the standards across the graded lifts, with
- * the sums of the lows and highs the same way. A lift with no grade of its own is left out; with none left, the gap of the first.
+ * the sums of the lows and highs the same way. Each lift counts once, at its heaviest estimate (a conventional and a sumo deadlift
+ * are one deadlift), as in the Big three row. A lift with no grade of its own is left out; with none left, the gap of the first.
+ * The age is the one at the newest estimate.
  */
 export function liftCornerGrade(
   lifts: readonly GradedEstimate[],
@@ -141,14 +144,14 @@ export function liftCornerGrade(
   const held: GradedLift[] = []
   const sum = { age: 0, point: 0, low: 0, high: 0, standardKg: 0 }
   let first: LiftGradeGap = 'no-graded-lift'
-  for (const l of lifts) {
+  for (const l of heaviestPerLift(lifts)) {
     const m = measure(l, profile as AgeProfile, massKg, massSd)
     if (m === 'out-of-range' || shown(m, m.standardKg) === null) {
       if (first === 'no-graded-lift') first = 'out-of-range'
       continue
     }
     held.push(l.lift)
-    sum.age = m.age
+    sum.age = Math.max(sum.age, m.age)
     sum.point += m.point
     sum.low += m.low
     sum.high += m.high
