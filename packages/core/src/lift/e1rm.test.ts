@@ -304,3 +304,49 @@ describe('floor and rep bests', () => {
     expect(liftBests([])).toEqual({ floor: null, repBests: [] })
   })
 })
+
+describe('what the estimate exposes for the change rule', () => {
+  it('gives the worked example its terms, independent error and reps, by hand', () => {
+    const e = estimateLift([set()])!
+    expect(e.terms.curve).toBeCloseTo(0.05864, 5)
+    expect(e.terms.centre).toBeCloseTo(0.026, 5)
+    expect(e.terms.equations).toBeCloseTo(0.01212, 5)
+    expect(e.terms.effort).toBeCloseTo(0.01232, 5)
+    expect(e.ind).toBeCloseTo(0.04869, 5)
+    expect(e.meanR).toBe(7.5)
+  })
+
+  it('takes the near-top pool from the last 14 days, not 28', () => {
+    // No RPE: R = reps + 2. Two heavy sessions 3 weeks back, then four at 100 kg in the last 14 days.
+    const noRpe = (date: string, loadKg: number): LiftSet => set({ date, loadKg, rpe: undefined })
+    const sets = [
+      noRpe('2025-03-01', 120),
+      noRpe('2025-03-03', 120),
+      noRpe('2025-03-17', 100),
+      noRpe('2025-03-19', 100),
+      noRpe('2025-03-21', 100),
+      noRpe('2025-03-24', 100),
+    ]
+    // The top is the 100 kg point, so the recent sessions keep their weight and the estimate sits near
+    // them. A 28-day pool would take the heavy sessions as the top and give the recent ones almost none.
+    const e = estimateLift(sets)!
+    expect(e.point0).toBeLessThan((medianEquation(100, 7) + medianEquation(120, 7)) / 2)
+  })
+
+  it('limits the 3-session floor to 28 days: the first session back after a 5-week gap is its own top', () => {
+    const noRpe = (date: string, loadKg: number): LiftSet => set({ date, loadKg, rpe: undefined })
+    const sets = [noRpe('2025-03-01', 120), noRpe('2025-03-03', 120), noRpe('2025-04-14', 100)]
+    // Without the limit the pool is all three, the top is the 120 kg point and the 100 kg session gets
+    // almost no weight, so the estimate would sit at the old level. With it the session is read as it is.
+    const e = estimateLift(sets)!
+    expect(e.point0).toBeLessThan(medianEquation(100, 7) * 1.1)
+  })
+
+  it('falls back to the last 3 sessions within 28 days when 14 days hold fewer', () => {
+    const noRpe = (date: string, loadKg: number): LiftSet => set({ date, loadKg, rpe: undefined })
+    // Weekly: 03-24 alone is in the 14 days with 03-17; the pool is 03-10, 03-17, 03-24 and the top is the
+    // second highest of them, the 100 kg point, so the 60 kg deload keeps near-top weight of about zero.
+    const sets = [noRpe('2025-03-10', 100), noRpe('2025-03-17', 60), noRpe('2025-03-24', 100)]
+    expect(estimateLift(sets)!.point0).toBeGreaterThan(0.97 * medianEquation(100, 7))
+  })
+})

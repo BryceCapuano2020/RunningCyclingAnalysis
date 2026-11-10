@@ -18,6 +18,8 @@ Decisions section. Status is one of designed, in progress or built.
   analysis, zones and screens that read it come next).
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
+- [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to a Worker inbox and imported by the browser's
+  own pipeline; Strava's API stays out. Status: designed, to be revised for server-side parsing (server-compute.md decision 14) before any build.
 - [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
   code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
@@ -42,6 +44,9 @@ Decisions section. Status is one of designed, in progress or built.
   unified local storage layer. Status: designed, deferred until findings need it.
 
 ## Stage plan
+
+From 9 Nov 2026 the order of work is in [ROADMAP.md](../ROADMAP.md#order-of-work-decided-9-nov-2026). The table
+below is the stage history through stage D, kept as a record.
 
 Between stages: quality, security and privacy review, a smoke test on a real local export (never
 committed), hardening, performance and accessibility gates. Fix what is material, then move on.

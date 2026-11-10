@@ -1,5 +1,5 @@
 /**
- * The calibration scenarios of docs/design/e1rm.md section 7: 13 kinds of lifter, each run for many
+ * The calibration scenarios of docs/design/e1rm.md section 7: 18 kinds of lifter, each run for many
  * lifters whose curve is drawn from the population. Synthetic only.
  */
 import { rng } from './lifters'
@@ -60,6 +60,49 @@ export const SCENARIOS: Record<string, Template> = {
   novice: { ...base, start1RM: 60, reps: [5, 8, 5], weeklyGain: 0.015, deloadEvery: 0 },
   'strength-drop': { ...base, start1RM: 140, reps: [5, 3, 5], drop: [20, 0.05] },
   'no-rpe-drop': { ...base, start1RM: 120, reps: [5, 6, 8], rpeLogged: 0, drop: [20, 0.05] },
+  'once-a-week-no-rpe': {
+    ...base,
+    start1RM: 160,
+    reps: [5, 3, 5],
+    sessionsPerWeek: 1,
+    rpeLogged: 0,
+    deloadEvery: 4,
+  },
+  'once-a-week-no-rpe-break': {
+    ...base,
+    start1RM: 160,
+    reps: [5, 3, 5],
+    sessionsPerWeek: 1,
+    rpeLogged: 0,
+    deloadEvery: 4,
+    breakWeeks: [18, 24],
+  },
+  'block-switch': {
+    ...base,
+    start1RM: 120,
+    reps: [3],
+    blockReps: [3, 10],
+    blockWeeks: 4,
+    deloadEvery: 0,
+  },
+  'return-no-rpe': {
+    ...base,
+    start1RM: 130,
+    reps: [5, 6, 8],
+    rpeLogged: 0,
+    breakWeeks: [18, 24],
+    scoreReturn: true,
+  },
+  'return-once-a-week-no-rpe': {
+    ...base,
+    start1RM: 160,
+    reps: [5, 3, 5],
+    sessionsPerWeek: 1,
+    rpeLogged: 0,
+    deloadEvery: 4,
+    breakWeeks: [18, 24],
+    scoreReturn: true,
+  },
   misspecified: {
     ...base,
     start1RM: 100,

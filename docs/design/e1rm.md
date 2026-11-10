@@ -328,7 +328,8 @@ change". The points are the weighted means before the floor clamp. Two guards sa
 - the named direction disagrees with the clamped figures the page shows.
 
 On the synthetic lifters with the drawn centre, 40 lifters a programme, ten period ends each (raw tables
-`v6/change-*.txt` with the stage notes):
+`v6/change-*.txt` with the stage notes; the 28-day loss row is from the core sim, after the generator caps a planned
+load at the day's true max):
 
 | Programme                                            | Period  | True change |   Named up | Named down |
 | ---------------------------------------------------- | ------- | ----------: | ---------: | ---------: |
@@ -339,7 +340,7 @@ On the synthetic lifters with the drawn centre, 40 lifters a programme, ten peri
 | Steady, triples then tens, each period mixing blocks | 28 days |          0% |    0 to 1% |    0 to 2% |
 | Flat true max, loads rising 0.5% a week              | 28 days |          0% |    1 to 3% |         0% |
 | Novice, 1.5% a week                                  | 28 days |       +6.1% |  32 to 57% |         0% |
-| 5% loss across the edge                              | 28 days |       -3.7% |    0 to 3% |   0 to 11% |
+| 5% loss across the edge                              | 28 days |       -3.7% |    0 to 3% |   0 to 14% |
 | Steady, RPE logged                                   | 56 days |          0% |    1 to 3% |    1 to 3% |
 | Novice, 1.5% a week                                  | 56 days |      +12.6% | 97 to 100% |         0% |
 | Flat true max, loads rising 0.5% a week              | 56 days |          0% |    7 to 9% |    0 to 1% |

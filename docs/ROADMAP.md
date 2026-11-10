@@ -1,41 +1,51 @@
 # Roadmap
 
-Planned work, grouped by the phases and the coaching loop in [VISION.md](VISION.md), then by model
-accuracy, input formats, operations and engineering. Shipped behaviour is in the [README](../README.md), and the
-design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [REVIEWS.md](REVIEWS.md).
+Planned work: the order of work first, then the backlog by phase, model accuracy, input formats, operations and
+engineering. Shipped behaviour is in the [README](../README.md), and the design is in
+[ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [REVIEWS.md](REVIEWS.md). Design records are listed
+in [design/README.md](design/README.md), whose stage table is the history through stage D.
 
-The order of work is the stage plan in [design/README.md](design/README.md). Stage C shipped the
-fitness status at the same heart rate. Stage D (in progress) fixes the claims the 29 Oct audit found
-over-stated (effort evidence before a best counts as capability, one calibrated change test, capped
-ride levels, a screened max heart rate), turns on ride fitness, makes model revisions safe for saved
-libraries (then revision 7: temperature for the seasonal fitness term, the local day, a cadence-lock
-flag), and moves the front door to two jobs the data path can serve: a "your years" look-back at
-first import and a "since your last import" check-in, with incremental re-import. After stage D the order follows the coaching loop: stages E and F run in parallel, then
-G and H.
+## Order of work (decided 9 Nov 2026)
 
-Decided on 30 Oct 2026:
+The goal before inviting more athletes is a finished product: fast, lean, every core flow working, and run like a
+service. More athletes come only after the launch bar below passes in full, and the bar includes Garmin sync.
 
-- **Strava API sync is off the plan.** The Strava API Policy in force from 1 June 2026 bars storing
-  derived data, AI use and third-party MCP servers over Strava API data, and caps caching at seven
-  days. An athlete's own file export is not covered by it and stays the main input.
-- **The coaching loop orders the work after stage D** ([VISION.md](VISION.md#the-coaching-loop)).
-  The athlete's own assistant reads checked evidence and saves weekly plans (stage E), lifting joins
-  (stage F), saved plans are checked against the athlete's history (stage G), and experiments test
-  what works (stage H). The product still runs no language model.
-- **A fresh-data path is part of stage E:** a watched folder of new watch files with incremental
-  import, because weekly planning needs last week's data. Weekly early warning follows from it;
-  until then the fitness status is read at each import. Browsers keep folder access only on
-  Chromium desktop today, and many watches sync to a phone without leaving a file on the computer,
-  so stage E starts by checking where testers' files actually land; where there is no local file,
-  the loop falls back to a periodic re-import.
-- **The MCP connector is built on the evidence ledger in stage E.** It runs on the Worker so it
-  works from an assistant's phone, desktop and web apps: Google sign-in, allowlisted accounts, read
-  tools plus saving a weekly plan, its own consent line, and off until the athlete connects it. The
-  ledger syncs with the library, because analysis runs in the browser and the connector serves
-  those results rather than recomputing them.
-- **Lifting is the third dimension, after running and cycling** (stage F, in parallel with E, ahead
-  of swimming). The in-app logger comes first, then a one-time import of earlier history.
-- Same-route, race ranges, swimming, the local originals store and the module registry come later.
+1. **Lifting, package 1 and 2 (stage X).** The in-app logger, then the Lift card and page, and an age grade for lifts
+   from OpenPowerlifting competition data (squat, bench and deadlift only), through the formula process. Reopening
+   the app shows the last results at once, with no restoring page.
+2. **The cut.** Every user-facing feature stays except the fitness status card. The cut removes code with no
+   production path (the findings engine, the same-heart-rate and duration-profile modules, the fitness card, the
+   unused session-list endpoints), merges duplicate UI, replaces stylesheet-text tests with rendered checks, and
+   fixes stale docs. The presentation pass shows every figure label over number, moves Share to a page-header
+   icon, and makes the Balance hero a level triangle of the three age grades (run, ride, lift) once the lift grade
+   exists: three grades side by side, never summed.
+3. **Server compute (stage Y).** For signed-in accounts the Worker computes the opening state with the same core
+   code, and the device shows its last copy at once ([server-compute.md](design/server-compute.md)). Signed-out
+   use stays in the browser.
+4. **Garmin sync, as far as it goes before approval.** New activities pushed by Garmin and parsed on the server
+   ([garmin-sync.md](design/garmin-sync.md), revised for server-side parsing first). OAuth and ingestion are built
+   against a fake Garmin, switched off.
+5. **Service basics.** Latency and uptime targets, the uptime monitor on, cost per user, a tested rollback, and one
+   incident written up.
+6. **Launch bar check**, everything except Garmin: every core flow (sign up, import, Balance, Run, Ride, Lift,
+   delete account) with no known bugs, on desktop and phone, results on open with no wait, and the end-to-end check
+   passing on synthetic athletes.
+7. **While Garmin reviews the application: the connector and evals.** The MCP connector reads the server snapshot;
+   eval version 0 scores whether every number an assistant states matches a tool result. If Garmin approves sooner,
+   Garmin goes first.
+8. **Garmin on.** Real credentials, a check on the owner's account, then the switch. The launch bar passes in full.
+9. **More athletes**, with weekly active and returning athletes counted on the server, no third-party analytics.
+
+Later: the larger simplifications the cut audit found (the workbench store, the two analysis test suites, chart
+label layout, the zip readers), the Hevy CSV import, a second provider such as Polar if testers record on it, plan
+checks and experiments (stages G and H), and swimming when a swimmer asks.
+
+Decided earlier and still in force:
+
+- **Strava API sync is off the plan.** The Strava API Policy in force from 1 June 2026 bars analytics on Strava data,
+  storing derived data past seven days, AI use and third-party MCP servers over Strava API data. An athlete's own
+  file export stays an input, and Garmin is the sync provider.
+- **The product runs no language model.** The athlete's own assistant reads checked evidence through the connector.
 
 ## Phase 1: Foundations
 
@@ -70,6 +80,9 @@ Decided on 30 Oct 2026:
 - **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
   It keeps its own units and is not placed on a shared axis with energy rate. Research:
   [strength.md](research/strength.md).
+- **An age grade for lifts** (squat, bench and deadlift), from OpenPowerlifting competition data, so the Balance
+  hero can show run, ride and lift grades together. Built like the run grade: the lift against the best for the
+  athlete's age and sex.
 - **Weekly load by system** (aerobic, legs, upper body), each shown per sport side by side and never
   summed into one number ([training-load.md](design/training-load.md) section 6 still holds).
 - **Interference analysis** against runs and rides, for example long runs grouped by hours since
@@ -86,7 +99,7 @@ Decided on 30 Oct 2026:
 ## Phase 5: Profile
 
 - **One page, a card per discipline**, each with its own trend, evidence and gaps. No composite
-  score.
+  score: the Balance hero shows the three grades side by side as a level triangle.
 - **Done: age-graded levels** on the Run and Ride cards. Each run is graded against the USATF
   2025 road standards, and each ride through its equal-energy running equivalent. The ride level is
   model-derived; in stage D a ride at the top of the age tables reads as the top of the scale.
@@ -107,11 +120,11 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
 
 - **Evidence ledger (stage E).** Each checked claim with its interval, the activities behind it and
   the model revision. It syncs with the library.
-- **MCP connector (stage E).** Tools for status per sport, recent weeks by sport, findings with
+- **MCP connector (stage E, after server compute).** It reads the server snapshot. Tools for status per sport, recent weeks by sport, findings with
   their evidence, evidence gaps and a planning-context bundle, plus saving a weekly plan. Saved
   plans build history from the first week, before stage G checks them.
-- **Watched folder (stage E).** New watch files are imported incrementally, in browsers that can
-  keep folder access.
+- **Fresh data.** Garmin sync replaces the watched folder as the main fresh-data path; the watched folder stays
+  research ([watched-folder.md](design/watched-folder.md)).
 - **Eval (stage E, extended in G).** Synthetic athletes with planted changes. Version 0 scores
   whether every number the assistant states matches a tool result, and whether it declines when
   the evidence is missing. Version 1 scores how often assistant-written plans contradict the
@@ -161,13 +174,15 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
 
 1. **CSV.** Strava CSV summaries, the plain lifting CSV and the app exports used in Phase 3 (Hevy
    first). Strava sync through its API is off the plan (see above).
-2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
+2. **Garmin sync.** New activities pushed by Garmin's Connect Developer Program (Starter tier), parsed on the
+   server. History still comes from one export zip, because Starter sends no history.
+3. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
-3. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
+4. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
    accepted records into per-activity processing to reduce retained data
    ([PERFORMANCE.md](PERFORMANCE.md)).
-4. **Done: GPX and TCX import (PR #13).** GPS-derived speed makes short efforts less reliable than FIT.
-5. **Ask for the sport on a typeless GPX.** A GPX with no activity type is read by its speed today.
+5. **Done: GPX and TCX import (PR #13).** GPS-derived speed makes short efforts less reliable than FIT.
+6. **Ask for the sport on a typeless GPX.** A GPX with no activity type is read by its speed today.
    A short prompt at import would remove the guess. It changes no digest.
 
 ## Activity labelling (opt-in)
@@ -214,9 +229,8 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
    missing.
 2. **Originals kept by default.** Keeping original files lets a model change rebuild a library with no
    re-import. It is decided (Architecture I) but not yet the account default.
-3. **Remove dead exports.** Trim exports no app uses, so each package's public surface is what the
-   apps depend on. The Stage D gate's list is done, except `analyze` (core/pipeline.ts) and `buildAccountExport`, which
-   tests still use as a reference.
+3. **Remove dead exports.** Part of the cut: about 36 exports only tests use, plus the unwired modules in the
+   order of work above.
 4. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
    repeat.
 5. **Move the grading and ride-cap rules to core (before the stage E connector).** The age-grade
@@ -225,4 +239,4 @@ Labels would let the headline exclude e-bike rides and treat race efforts as all
    `packages/core`, not in a second copy. Move them with their tests.
 6. **Split the two largest test files.** `worker/analysis.worker.test.ts` and
    `ui/useAnalysis.test.ts` are each over 3,700 lines. Split them by behaviour into files under 400
-   lines. Not started.
+   lines. Not started; the cut audit's later list proposes testing the worker protocol once instead.
