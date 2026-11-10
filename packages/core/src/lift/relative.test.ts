@@ -16,6 +16,9 @@ const est: LiftEstimate = {
   floor: { loadKg: 100, reps: 3, date: DATE },
   sessions: 3,
   sd: 0.08,
+  terms: { curve: 0.05, centre: 0.02, equations: 0.01, effort: 0.01 },
+  ind: 0.04,
+  meanR: 7,
 }
 
 /** The date this many days before DATE. */

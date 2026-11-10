@@ -1,5 +1,5 @@
 /** Weekly lifting load per body region (docs/design/e1rm.md, section 5). */
-import { civilOfDay, mondayOfWeek, weekOfDay } from '../calendar'
+import { dateTextOfDay, mondayOfWeek, weekOfDay } from '../calendar'
 import { exerciseInfo } from './catalog'
 import type { LiftRegion } from './catalog'
 import { HARD_RPE, WARMUP_SHARE } from './constants'
@@ -77,9 +77,5 @@ export function weeklyLoad(sets: readonly LiftSet[]): LiftWeek[] {
   }
   return [...weeks.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([week, regions]) => {
-      const c = civilOfDay(mondayOfWeek(week))
-      const pad = (n: number) => String(n).padStart(2, '0')
-      return { weekStart: `${c.year}-${pad(c.month + 1)}-${pad(c.date)}`, regions }
-    })
+    .map(([week, regions]) => ({ weekStart: dateTextOfDay(mondayOfWeek(week)), regions }))
 }

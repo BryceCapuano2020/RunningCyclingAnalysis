@@ -53,6 +53,12 @@ describe('e1RM calibration on held-out synthetic lifters', () => {
     }
   })
 
+  it('either return scenario holds at least 75% in the 2 to 4 weeks after the break (e1rm.md, section 8)', () => {
+    for (const s of drawn.filter((d) => d.name.startsWith('return-'))) {
+      expect(s.coverage, `${s.name} coverage`).toBeGreaterThanOrEqual(0.75)
+    }
+  })
+
   it('keeps floor <= low <= point <= high and every figure finite', () => {
     expect(drawn.reduce((a, s) => a + s.orderViolations, 0)).toBe(0)
   })

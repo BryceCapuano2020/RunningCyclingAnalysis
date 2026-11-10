@@ -47,8 +47,12 @@ export const HALF_LIFE_DAYS = 14
 export const NEAR_TOP_SHARE = 0.96
 export const NEAR_TOP_WIDTH = 0.015
 
-/** The top is taken from sessions this many days up to the newest. threshold.md. */
-export const TOP_DAYS = 28
+/** The near-top pool is the sessions of this many days up to the newest (e1rm.md, section 2). */
+export const NEAR_TOP_DAYS = 14
+
+/** When those days hold fewer sessions than this, the pool is the last this many sessions within NEAR_TOP_FLOOR_DAYS. */
+export const NEAR_TOP_MIN_SESSIONS = 3
+export const NEAR_TOP_FLOOR_DAYS = 28
 
 /** The range is 80%: z below and above the point, with more above. Design value. */
 export const Z_LOW = 1.1
@@ -76,3 +80,9 @@ export const HARD_RPE = 7
 
 /** An unmarked set lighter than this share of the session's top load, before the top set, is a warm-up. Design value. */
 export const WARMUP_SHARE = 0.7
+
+/** A change is named when the log-ratio of two periods passes this many SDs of their unshared error (e1rm.md, section 10). */
+export const CHANGE_Z = 2.24
+
+/** Periods whose weighted mean reps to failure differ by more than this share no curve error, so no change is named. */
+export const CHANGE_MEAN_R_GUARD = 3

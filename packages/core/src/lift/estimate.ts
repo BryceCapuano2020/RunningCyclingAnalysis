@@ -6,10 +6,12 @@ import { dayOfCivil } from '../calendar'
 import {
   DEADLIFT_EXTRA_HIGH,
   HALF_LIFE_DAYS,
+  NEAR_TOP_DAYS,
+  NEAR_TOP_FLOOR_DAYS,
+  NEAR_TOP_MIN_SESSIONS,
   NEAR_TOP_SHARE,
   NEAR_TOP_WIDTH,
   REP_BEST_MAX,
-  TOP_DAYS,
   WINDOW_DAYS,
   Z_HIGH,
   Z_LOW,
@@ -41,6 +43,20 @@ export interface LiftEstimate {
   sessions: number
   /** Combined error in log units; the range is point times exp(-1.1 sd) to exp(1.5 sd). */
   sd: number
+  /** The four systematic terms of section 1, each weighted by the sessions' shares `q`. The change rule compares them. */
+  terms: SystematicTerms
+  /** The independent error alone, sqrt(sum q^2 ind^2), log units. */
+  ind: number
+  /** The sessions' reps to failure, weighted by `q`. */
+  meanR: number
+}
+
+/** The systematic error terms of a set (docs/design/e1rm.md, section 1), log units. */
+export interface SystematicTerms {
+  curve: number
+  centre: number
+  equations: number
+  effort: number
 }
 
 /**
@@ -176,10 +192,13 @@ export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstim
   const { floor } = bestsOf(win.sets)
   if (!floor) return null
   const newest = sessions.reduce((a, s) => (s.day > a.day ? s : a))
-  const recent = sessions
-    .filter((s) => s.day > newest.day - TOP_DAYS)
-    .map((s) => s.est.point)
-    .sort((a, b) => b - a)
+  const byDay = [...sessions].sort((a, b) => b.day - a.day)
+  const inDays = byDay.filter((s) => s.day > newest.day - NEAR_TOP_DAYS)
+  const floorPool = byDay
+    .filter((s) => s.day > newest.day - NEAR_TOP_FLOOR_DAYS)
+    .slice(0, NEAR_TOP_MIN_SESSIONS)
+  const pool = inDays.length >= floorPool.length ? inDays : floorPool
+  const recent = pool.map((s) => s.est.point).sort((a, b) => b - a)
   const top = recent.length > 1 ? (recent[1] as number) : (recent[0] as number)
   const weights = sessions.map((s) => {
     const recency = Math.pow(0.5, (newest.day - s.day) / HALF_LIFE_DAYS)
@@ -192,11 +211,18 @@ export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstim
   let point0 = 0
   let sys = 0
   let ind2 = 0
+  let meanR = 0
+  const terms: SystematicTerms = { curve: 0, centre: 0, equations: 0, effort: 0 }
   sessions.forEach((s, i) => {
     const q = (weights[i] as number) / total
     point0 += q * s.est.point
     sys += q * s.est.sys
     ind2 += q * q * s.est.ind * s.est.ind
+    meanR += q * s.est.reps
+    terms.curve += q * s.est.parts.curve
+    terms.centre += q * s.est.parts.centre
+    terms.equations += q * s.est.parts.equations
+    terms.effort += q * s.est.parts.effort
   })
   const sd = Math.hypot(sys, Math.sqrt(ind2))
   const deadlift = sessions.some((s) => s.est.deadlift)
@@ -209,5 +235,8 @@ export function estimateLift(sets: readonly LiftSet[], asOf?: string): LiftEstim
     floor,
     sessions: sessions.length,
     sd,
+    terms,
+    ind: Math.sqrt(ind2),
+    meanR,
   }
 }
