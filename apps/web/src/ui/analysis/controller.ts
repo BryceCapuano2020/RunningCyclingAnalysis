@@ -23,6 +23,8 @@ import type { ImportManifest } from '../importManifest'
 
 export interface AnalysisController {
   state: SessionState
+  /** True while the results shown are the last visit's copy, made on an earlier local day: the live analysis replaces them as soon as it is ready. */
+  copyStale?: boolean
   /** Import work is in progress or waiting. A library change such as a delete is not counted. */
   busy: boolean
   /** Why an import is held or paused, or null when nothing is waiting. */

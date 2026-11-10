@@ -44,6 +44,8 @@ const ALLOWED: Record<string, string> = {
   'apps/web/src/ui/format/date.ts': 'dates written for the screen, in the device’s own clock',
   'apps/web/src/ui/limitCopy.ts':
     'the time a daily limit resets, written on the viewer’s own clock',
+  'apps/web/src/ui/analysis/copyAge.ts':
+    'names the device zone on the results copy, and tells whether a copy is from an earlier local day',
   'apps/web/src/export/saveExport.ts': 'the date in the name of an export file',
 }
 
