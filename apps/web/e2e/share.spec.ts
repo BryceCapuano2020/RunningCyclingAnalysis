@@ -16,14 +16,14 @@ const FILE_NAME = /^balance-.*-square\.png$/
 const SHAPES = [
   {
     choice: 'Square (feed)',
-    preview: 'Preview of the square card',
+    preview: /^Preview of the square card/,
     file: FILE_NAME,
     width: 1080,
     height: 1080,
   },
   {
     choice: 'Tall (story)',
-    preview: 'Preview of the tall card',
+    preview: /^Preview of the tall card/,
     file: /^balance-.*-story\.png$/,
     width: 1080,
     height: 1920,

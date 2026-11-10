@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
-import { comparedGrades, triangleReading } from '@rca/core/standing'
 import { LevelTriangle } from '../components/LevelTriangle'
 import { uncheckedRows } from '../components/headlineNeed'
-import { energySummary, levelsTitle } from '../components/headlineText'
+import { levelsTitle } from '../components/headlineText'
 import { NumText } from '../components/NumText'
 import { SECTION_ID } from '../components/methodTopics'
 import { NO_ROWS } from '../components/property'
@@ -18,8 +16,7 @@ import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { holdWithRideOut } from '../rideLeftOut'
 import type { RideLeftOut } from '../rideLeftOut'
-import { titleParts } from './balanceCopy'
-import { triangleLine, triangleRows, triangleTitle, triangleTitleText } from './triangleCopy'
+import { triangleAnswer, triangleRows, triangleTitleText } from './triangleCopy'
 import type { TriangleView } from '../triangleSports'
 import { useHoldInputs } from '../holdContext'
 import { fewEffortsText, missingText } from './balanceMissing'
@@ -155,12 +152,7 @@ export function BalanceHero({
     )
   }
   // The grades' headline and line, by the rules of three sports (with two it is the page's own words); an energy balance has none.
-  const graded = triangleReading(comparedGrades(triangle.grades))
-  const points = reading.unit === 'points'
-  const title = (points ? triangleTitle(graded) : null) ?? titleParts(reading)
-  const line = points
-    ? triangleLine(graded)
-    : energySummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
+  const { title, line } = triangleAnswer(reading, triangle, pick?.point.durationS)
   const few = fewEffortsText(result)
   // The points rest on each sport's threshold, so no line says a best was not all-out. An energy balance still rests on the best
   // 20 min, and one nothing could check (no heart rate on it) is shown, with that said beside it.

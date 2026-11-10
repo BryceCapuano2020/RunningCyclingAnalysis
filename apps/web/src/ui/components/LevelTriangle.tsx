@@ -33,7 +33,14 @@ function Words({ corner, note }: { corner: TriangleCorner; note: string | undefi
  * A sport with no grade keeps its axis, with a cap and no dot, so the figure claims nothing about it. The SVG is decoration and
  * hidden from assistive technology: the corners are real links over it, in the rail's order, so each reads "Running 61% Local".
  */
-export function LevelTriangle({ view }: { view: TriangleView }) {
+export function LevelTriangle({
+  view,
+  linked = true,
+}: {
+  view: TriangleView
+  /** False where the figure is an example, so its corners are plain text and lead nowhere. */
+  linked?: boolean
+}) {
   const shape = triangleGeometry(view.grades, SIZE)
   const { corners, rings, centre } = shape
   return (
@@ -124,7 +131,7 @@ export function LevelTriangle({ view }: { view: TriangleView }) {
             <Words corner={corner} note={view.notes[sport]} />
           </>
         )
-        const href = TRIANGLE_HREF[sport]
+        const href = linked ? TRIANGLE_HREF[sport] : null
         return href === null ? (
           <span key={sport} {...props}>
             {body}

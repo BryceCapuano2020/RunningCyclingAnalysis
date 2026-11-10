@@ -167,7 +167,7 @@ describe('loadCardFonts', () => {
     const cards = [
       draw(cardModel(), 'square'),
       draw(cardModel({ badge: 'Sample data' }), 'story'),
-      draw(cardModel({ meter: null }), 'story'),
+      draw(cardModel({ line: null }), 'story'),
       draw(cardModel({ headline: LONG_HEADLINE, origin: '' }), 'square'),
     ]
     const drawn = new Set(cards.flatMap((card) => card.texts.map((text) => faceOf(text.font))))

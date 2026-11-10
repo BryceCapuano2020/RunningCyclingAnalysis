@@ -468,13 +468,14 @@ for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the range note is a sheet at the window's foot`, async ({
+  test(`at ${width} by ${height} a defined term's note is a sheet at the window's foot`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
-    // The range is defined on the landing example (the meter), the one place left that draws it.
-    await page.goto('/')
-    const terms = [page.getByRole('button', { name: 'range', exact: true })]
+    // Method defines its terms in place; the landing example no longer defines any (its triangle has no range).
+    await page.goto('/#/method')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const terms = [page.locator('.definition button').first()]
     for (const term of terms) {
       await term.focus()
       await page.keyboard.press('Enter')
@@ -532,11 +533,11 @@ test('no box around a defined term is transformed, filtered or contained, on the
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  // The landing example defines the range (its level is plain text); Method defines its own term.
+  // The landing example defines no term now (its triangle has no range), so its boxes cannot trap a note; Method defines its own.
   await page.goto('/')
-  await expect(page.locator('.landing-example .definition')).toHaveCount(1)
+  await expect(page.locator('.landing-example .level-triangle')).toBeVisible()
+  await expect(page.locator('.landing-example .definition')).toHaveCount(0)
   const landing = await definedTermAncestors(page)
-  expect(landing.terms).toBeGreaterThanOrEqual(1)
   expect(landing.bad).toEqual([])
   await page.goto('/#/method')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -554,127 +555,39 @@ test('no box around a defined term is transformed, filtered or contained, on the
   }
 })
 
-/**
- * Sets the meter's reading to a lead the sample does not give: where its dot sits, and the words and the character
- * counts the stylesheet keeps clear of the track's ends, as the component sets them.
- */
-async function setReading(
-  page: Page,
-  reading: { at: string; number: string; unit: string; range: string; basis?: boolean },
-): Promise<void> {
-  await page.evaluate((r) => {
-    const root = document.querySelector<HTMLElement>('.balance-meter__reading')
-    const dot = document.querySelector<HTMLElement>('.balance-meter__dot')
-    if (root === null || dot === null) throw new Error('no meter')
-    dot.style.setProperty('--at', r.at)
-    root.style.setProperty('--at', r.at)
-    root.style.setProperty('--number-chars', String(r.number.length))
-    root.style.setProperty('--unit-chars', String(r.unit.length))
-    root.style.setProperty('--range-chars', String(r.range === '' ? 0 : r.range.length + 6))
-    const text = 'informed by heart rate'
-    root.style.setProperty('--basis-chars', String(r.basis === true ? text.length : 0))
-    const set = (selector: string, value: string) => {
-      const node = root.querySelector(selector)
-      if (node !== null) node.textContent = value
-    }
-    set('.balance-meter__number', r.number)
-    set('.balance-meter__unit', r.unit)
-    set('.balance-meter__edges', r.range)
-    const range = root.querySelector<HTMLElement>('.balance-meter__range')
-    if (range !== null) range.style.display = r.range === '' ? 'none' : ''
-    let basis = root.querySelector<HTMLElement>('.balance-meter__basis')
-    if (basis === null) {
-      basis = document.createElement('p')
-      basis.className = 'balance-meter__basis'
-      basis.textContent = text
-      root.append(basis)
-    }
-    basis.style.display = r.basis === true ? '' : 'none'
-  }, reading)
-}
-
-// The landing example still draws the meter (the share card and landing keep it until they take the triangle): its reading
-// under the dot stays whole inside the plot, and so inside the window, at either end of the scale, with a long range, and
-// with the heart-rate line alone: its number, its hanging unit, its range line and that line.
+// The landing example draws the level triangle: run and ride graded, lifting with no grade yet. Its three corners stay whole
+// inside the window at a phone's width and a desktop's, and the page does not scroll sideways.
 for (const [width, height] of [
   [1440, 900],
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} the reading stays inside the window at the ends of the scale and with a long range`, async ({
+  test(`at ${width} the landing example's triangle and its corners stay inside the window`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
     await page.goto('/')
-    await expect(page.locator('.landing-example .balance-meter')).toBeVisible()
-    const cases = [
-      { at: '2.5%', number: '+100', unit: 'pts', range: '84 to 120' },
-      { at: '97.5%', number: '+100', unit: 'pts', range: '84 to 120' },
-      { at: '2.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
-      { at: '97.5%', number: '+0.4', unit: '%', range: '-12.4% to +130.5%' },
-      { at: '50%', number: '+12', unit: '%', range: '-12.4% to +130.5%' },
-      // No range line, as when the range rounds to one value: the heart-rate line alone holds the clamp.
-      { at: '2.5%', number: '+12', unit: '%', range: '', basis: true },
-      { at: '97.5%', number: '+12', unit: '%', range: '', basis: true },
-      { at: '2.5%', number: '+12', unit: '%', range: '5% to 20%', basis: true },
-    ]
-    for (const reading of cases) {
-      await setReading(page, reading)
-      const found = await page.evaluate(() => {
-        const rect = (node: Element | null) => {
-          const box = node?.getBoundingClientRect()
-          return box === undefined || box.width === 0 ? null : { left: box.left, right: box.right }
-        }
-        const reading = document.querySelector('.balance-meter__reading')
-        return {
-          plot: rect(document.querySelector('.balance-meter__plot')),
-          parts: [
-            '.balance-meter__number',
-            '.balance-meter__unit',
-            '.balance-meter__range',
-            '.balance-meter__basis',
-          ].map((selector) => {
-            const node = reading?.querySelector(selector) ?? null
-            return node !== null && getComputedStyle(node).display === 'none' ? null : rect(node)
-          }),
-        }
-      })
-      if (found.plot === null) throw new Error('no plot')
-      // The plot runs from gutter to gutter: a part inside it is inside the window with the page's margin to spare.
-      expect(found.parts.filter((box) => box !== null).length).toBeGreaterThanOrEqual(2)
-      for (const box of found.parts) {
-        if (box === null) continue
-        expect(box.left, JSON.stringify(reading)).toBeGreaterThanOrEqual(found.plot.left - 0.5)
-        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(found.plot.right + 0.5)
-        expect(box.right, JSON.stringify(reading)).toBeLessThanOrEqual(width)
-      }
-      // Each line stays one line: the range does not wrap into a column, and the page does not scroll sideways.
-      const heights = await page.evaluate(() =>
-        ['.balance-meter__number', '.balance-meter__range'].map(
-          (selector) =>
-            (document.querySelector(selector)?.getBoundingClientRect().height ?? 0) /
-            parseFloat(getComputedStyle(document.querySelector(selector) as Element).lineHeight),
-        ),
-      )
-      for (const lines of heights) expect(lines, JSON.stringify(reading)).toBeLessThan(1.6)
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
-        JSON.stringify(reading),
-      ).toBeLessThanOrEqual(0)
+    const figure = page.locator('.landing-example .level-triangle')
+    await expect(figure).toBeVisible()
+    const corners = figure.locator('.level-triangle__corner')
+    await expect(corners).toHaveCount(3)
+    await expect(corners.nth(0)).toContainText(rowPattern(SAMPLE_TEXT.rows[0]!))
+    await expect(corners.nth(1)).toContainText(rowPattern(SAMPLE_TEXT.rows[1]!))
+    await expect(corners.nth(2)).toContainText('Lifting')
+    await expect(corners.nth(2)).toContainText('No grade yet')
+    // The example is a picture of the sample, so its corners lead nowhere, and the old meter and levels are gone.
+    await expect(figure.locator('a')).toHaveCount(0)
+    await expect(
+      page.locator('.landing-example .balance-meter, .landing-example .balance-levels'),
+    ).toHaveCount(0)
+    for (const box of await corners.evaluateAll((nodes) =>
+      nodes.map((node) => node.getBoundingClientRect().toJSON() as { left: number; right: number }),
+    )) {
+      expect(box.left).toBeGreaterThanOrEqual(0)
+      expect(box.right).toBeLessThanOrEqual(width)
     }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0)
   })
 }
-
-test('the number is centred under the dot, with its unit hanging off to the right', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
-  await expect(page.locator('.landing-example .balance-meter')).toBeVisible()
-  const dot = await page.locator('.balance-meter__dot').boundingBox()
-  const number = await page.locator('.balance-meter__number').boundingBox()
-  const unit = await page.locator('.balance-meter__unit').boundingBox()
-  if (dot === null || number === null || unit === null) throw new Error('no meter boxes')
-  expect(number.x + number.width / 2).toBeCloseTo(dot.x + dot.width / 2, 0)
-  expect(unit.x).toBeGreaterThanOrEqual(number.x + number.width)
-})

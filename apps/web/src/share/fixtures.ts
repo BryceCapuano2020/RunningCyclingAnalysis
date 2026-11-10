@@ -1,5 +1,6 @@
-import { energyReading } from '../ui/components/balanceScale'
-import { interval } from '../ui/components/fixtures'
+import { levelOf } from '@rca/core/grade'
+import type { TriangleGrade } from '@rca/core/standing'
+import type { TriangleView } from '../ui/triangleSports'
 import type { CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
 import { renderShareCard } from './renderCard'
@@ -158,37 +159,47 @@ export function draw(model: ShareCardModel, format: CardFormat = 'square'): Fake
   return render(model, format).ctx
 }
 
-/** A run's level, and a ride's, as the levels line writes them. */
-export const RUN_GRADE = { percent: '64%', level: 'Local' }
-export const RIDE_GRADE = { percent: '61%', level: 'Recreational' }
-/** The longest level name, on both sports, and a name that fills the top row: the worst the card is tested at. */
-export const LONG_GRADE = {
-  percent: '61%',
-  level: 'Recreational with a model range set by the standards of the age group',
+/** A graded corner at a whole percent, with a synthetic level word and no range. */
+export function gradedCorner(percent: number, level: string): TriangleGrade {
+  return {
+    kind: 'graded',
+    grade: { centre: { grade: (percent + 0.04) / 100, level }, range: null },
+  }
 }
+
+/** Run and ride graded, lifting with no grade yet: the figure most athletes see. */
+export const TRIANGLE: TriangleView = {
+  grades: {
+    run: gradedCorner(64, 'Local'),
+    ride: gradedCorner(61, 'Recreational'),
+    lift: { kind: 'gap' },
+  },
+  notes: {},
+}
+/** The corners as the card says them, for the description and the checks. */
+export const TRIANGLE_ALT = `Running 64% ${levelOf(0.6404)}, cycling 61% ${levelOf(0.6104)} and lifting no grade yet.`
 export const LONG_NAME = 'Riley Example Longname-Hyphenated Jr'
 
-/** A card with a meter, both estimates and their levels, the period's dates, a footnote and an origin. */
+/** A card with the triangle, both estimates, the period's dates, a footnote and an origin. */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
   return {
     title: 'RunningCyclingAnalysis',
     headline: 'Your balance leans toward running',
-    meter: energyReading(interval(1.05, 1.12, 1.2)),
-    informedByHeartRate: false,
+    line: 'Running grades 3 points higher at threshold.',
+    triangle: TRIANGLE,
+    alt: `Your balance leans toward running. Running grades 3 points higher at threshold. ${TRIANGLE_ALT}`,
     heroes: [
       {
         sport: 'run',
         label: 'Run threshold',
         figure: { number: '21:35', unit: '/km' },
         sub: null,
-        grade: RUN_GRADE,
       },
       {
         sport: 'ride',
         label: 'Ride threshold',
         figure: { number: '48', unit: 'W' },
         sub: '0.6 W/kg',
-        grade: RIDE_GRADE,
       },
     ],
     period: '12 May – 3 Aug 2025',

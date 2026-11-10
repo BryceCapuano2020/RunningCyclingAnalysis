@@ -167,8 +167,8 @@ test('the landing page’s one sample card holds the finding under the balance, 
     /^Slower than your old level at 120 bpm\.$/,
   )
   await expect(example.locator('.fitness-track__ring')).toBeVisible()
-  // The balance comes first; the finding is under it, in the same card.
-  const levels = await edgesOf(example.locator('.balance-levels'))
+  // The triangle comes first; the finding is under it, in the same card.
+  const levels = await edgesOf(example.locator('.level-triangle'))
   const panel = await edgesOf(example.locator('.landing-example__fitness'))
   expect(levels.bottom).toBeLessThanOrEqual(panel.top)
   const frame = await edgesOf(example)

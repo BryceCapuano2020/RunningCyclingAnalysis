@@ -27,7 +27,7 @@ describe('share card colours', () => {
 const TEXT_MIN = 4.5
 
 describe('share card contrast', () => {
-  it.each(['ink', 'secondary', 'run', 'ride'] as const)(
+  it.each(['ink', 'secondary', 'run', 'ride', 'lift'] as const)(
     'draws %s text at 4.5:1 or better on the paper',
     (name) => {
       expect(contrast(CARD_COLORS[name], CARD_COLORS.paper)).toBeGreaterThanOrEqual(TEXT_MIN)

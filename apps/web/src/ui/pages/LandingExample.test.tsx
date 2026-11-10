@@ -67,11 +67,13 @@ describe('LandingExample', () => {
       `Slower than your old level at ${LANDING_EXAMPLE.fitness.referenceHr} bpm.`,
     )
     expect(finding.querySelector('.fitness-track__ring')).not.toBeNull()
-    // One card: the finding is not a figure of its own, and it follows the balance and the levels.
+    // One card: the finding is not a figure of its own, and it follows the triangle.
     expect(container.querySelectorAll('figure.landing-example')).toHaveLength(1)
     expect(finding.closest('figure')).toBe(card)
-    const levels = card.querySelector('.balance-levels')!
-    expect(levels.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const triangle = card.querySelector('.level-triangle')!
+    expect(
+      triangle.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('says no size for the slip, which reads a point either way as the visit day moves', () => {
@@ -98,21 +100,34 @@ describe('LandingExample', () => {
     expect(screen.getByText('a 37-year-old man at 165.3 lb')).toBeInTheDocument()
   })
 
-  it('draws the real meter and levels from the sample’s figures: the gap with its range, and each sport’s grade and level', () => {
+  it('draws the level triangle from the sample’s figures: run and ride at their grades and levels, and lifting with no grade yet', () => {
     const { container } = render(<LandingExample />)
     const text = landingText(LANDING_EXAMPLE)
+    const corners = [...container.querySelectorAll('.level-triangle__corner')].map(spoken)
+    // Each graded corner also carries its range for a screen reader, after the words the page prints.
     expect(
-      screen.getByRole('img', { name: new RegExp(`^${text.name} \\(range `) }),
-    ).toBeInTheDocument()
-    expect(container.querySelector('.balance-meter__value')?.textContent).toBe(text.value)
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe(text.edges)
-    const rows = [...container.querySelectorAll('.balance-levels__row')].map(spoken)
-    expect(rows).toEqual(text.rows)
+      corners.map((corner, order) => corner.startsWith(text.rows[order] ?? 'Lifting No grade yet')),
+    ).toEqual([true, true, true])
+    expect(corners[2]).toBe('Lifting No grade yet')
+    // Two graded sports are an open line with their two dots, and lifting's axis has a cap and no dot.
+    expect(container.querySelectorAll('.level-triangle__dot')).toHaveLength(2)
+    expect(container.querySelector('.level-triangle__line')).not.toBeNull()
+    expect(container.querySelector('.level-triangle__shape')).toBeNull()
+    expect(container.querySelectorAll('.level-triangle__cap')).toHaveLength(1)
   })
 
-  it('draws no level scale, ring or table: the meter, one line a sport and the fitness finding are all it shows', () => {
+  it('says the lean and the gap in a line under the headline, as Balance does', () => {
     const { container } = render(<LandingExample />)
-    expect(container.querySelector('svg:not(.icon):not(.fitness-glyph)')).toBeNull()
+    const lead = Math.abs(LANDING_EXAMPLE.gap.centre)
+    expect(container.querySelector('.landing-example__line')?.textContent).toMatch(
+      new RegExp(`^(Running|Cycling) grades ${lead} points? higher at.threshold\\.$`),
+    )
+  })
+
+  it('leads nowhere from its corners, and shows no meter or levels line', () => {
+    const { container } = render(<LandingExample />)
+    expect(container.querySelectorAll('.level-triangle a')).toHaveLength(0)
+    expect(container.querySelector('.balance-meter, .balance-levels')).toBeNull()
     expect(container.querySelector('details')).toBeNull()
   })
 

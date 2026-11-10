@@ -1,16 +1,11 @@
-// @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { leanOfLead } from '../../domain/lean'
 import { balanceMoveItem } from '../analysis/balanceMove'
-import { BalanceMeter } from './BalanceMeter'
 import { gapReading } from './balanceScale'
 import { balanceSentence, rangeText } from './headlineText'
 import { triangleLine } from '../pages/triangleCopy'
 import { triangleReading } from '@rca/core/standing'
 import { viewOfGap } from '../test/triangleView'
-
-afterEach(cleanup)
 
 const gap = (centre: number, low: number, high: number) => ({
   centre,
@@ -28,13 +23,11 @@ describe('every surface writes a balance from the same side', () => {
   const reading = gapReading(gap(-2, -6, 2))
   const RANGE = '−2 to +6 points'
 
-  it('writes the cycling side in the lede, and of the range in the range text, the key and the spoken sentence', () => {
+  it('writes the cycling side in the lede, and of the range in the range text and the spoken sentence', () => {
     expect(reading.lean).toBe('even')
     expect(rangeText(reading)).toBe(RANGE)
     expect(lineOf(-2, -6, 2)).toBe('Cycling grades 2 points higher at\u00a0threshold.')
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
-    const { container } = render(<BalanceMeter reading={reading} />)
-    expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−2 to +6')
   })
 
   it('writes it the same way in the import summary', () => {

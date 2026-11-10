@@ -19,6 +19,10 @@ export interface CardLayout {
   groupGap?: number
   headline: readonly number[]
   figure: readonly number[]
+  /** The side of the triangle's square in px, tried in the same order; the corner words hang outside it. */
+  triangle: readonly number[]
+  /** The size of the line under the headline, which is cut to one line. */
+  line: number
 }
 
 /** A story's top and bottom are covered by the app's own bars, so its margins are wider. */
@@ -29,8 +33,10 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     marginX: 80,
     marginY: 80,
     headlineLines: 2,
-    headline: [96, 88, 80, 72, 64, 56],
-    figure: [96, 88, 80, 72, 64, 56],
+    headline: [80, 76, 72, 68, 64, 56],
+    figure: [64, 60, 56, 52, 48, 44],
+    triangle: [340, 320, 300, 280, 260, 240],
+    line: 36,
   },
   story: {
     width: 1080,
@@ -41,6 +47,8 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     groupGap: 48,
     headline: [120, 112, 104, 96, 88, 80],
     figure: [128, 120, 112, 104, 96, 88],
+    triangle: [420, 400, 380, 360, 340, 320],
+    line: 40,
   },
 }
 

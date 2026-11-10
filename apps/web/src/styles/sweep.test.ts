@@ -164,8 +164,6 @@ describe('every stylesheet in the app', () => {
  * the static privacy page (pinned by tokens.test.ts) and the favicon, an SVG file.
  */
 const BOTH_SPORTS: Record<string, readonly string[]> = {
-  // Both ends of one meter: each end's upright takes its own sport's ink.
-  'ui/components/BalanceMeter.css': ['.balance-meter__track::after'],
   // The brand mark draws both sport strokes.
   'ui/components/icons.css': ['.brand-mark__run', '.brand-mark__ride'],
   // Method's curves and the grade by duration draw both sports on one plot.
