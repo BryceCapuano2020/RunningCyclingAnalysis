@@ -10,6 +10,7 @@ import {
   liftHistory,
   liftWindowCounts,
   WINDOW_DAYS,
+  liftWeekStart,
 } from '@rca/core/lift'
 import type {
   LiftBest,
@@ -70,7 +71,7 @@ export interface LiftOverview {
   entries: LiftEntry[]
   /** The lifts with one session with an estimate, in the same order: a compact list, not a chart. */
   others: LiftEntry[]
-  /** The last LOAD_WEEKS weeks to the newest with a working set, a week with none included as zeros. */
+  /** The last LOAD_WEEKS weeks to this one, a week with no working set included as zeros. */
   weeks: LiftWeek[]
 }
 
@@ -143,9 +144,11 @@ function rowsOf(
 }
 
 /** The weeks of the load, the last LOAD_WEEKS to the newest, with an empty week where none was lifted. */
-function filledWeeks(weeks: readonly LiftWeek[]): LiftWeek[] {
+function filledWeeks(weeks: readonly LiftWeek[], today: string): LiftWeek[] {
   const last = weeks.at(-1)
   if (last === undefined) return []
+  // The chart ends at this week, so weeks with no lifting since the last set show as empty rather than being hidden.
+  const end = liftWeekStart(today)
   const empty = (weekStart: string): LiftWeek => {
     const none = {
       workingSets: 0,
@@ -158,7 +161,7 @@ function filledWeeks(weeks: readonly LiftWeek[]): LiftWeek[] {
   }
   const byStart = new Map(weeks.map((week) => [week.weekStart, week]))
   return Array.from({ length: LOAD_WEEKS }, (_, i) => {
-    const start = shiftDay(last.weekStart, -7 * (LOAD_WEEKS - 1 - i))
+    const start = shiftDay(end, -7 * (LOAD_WEEKS - 1 - i))
     return byStart.get(start) ?? empty(start)
   })
 }
@@ -235,8 +238,8 @@ export function liftOverviewOf(
       grade:
         graded === null
           ? null
-          : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings.massKg),
+          : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings),
     }
   }
-  return { lead, entries, others, weeks: filledWeeks(state.weeks) }
+  return { lead, entries, others, weeks: filledWeeks(state.weeks, today) }
 }
