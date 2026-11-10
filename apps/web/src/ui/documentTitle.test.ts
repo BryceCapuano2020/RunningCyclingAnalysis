@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeActivity, makeResult } from './components/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { documentTitleFor } from './documentTitle'
 
 const APP = 'RunningCyclingAnalysis'

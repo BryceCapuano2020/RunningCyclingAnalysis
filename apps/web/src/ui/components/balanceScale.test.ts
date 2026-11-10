@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE_PAIR } from '../sports'
 import type { BalanceGap } from '../balanceGap'
-import { interval } from './fixtures'
+import { interval } from './test/fixtures'
 import { balanceReading, energyReading, gapReading } from './balanceScale'
 
 function gap(overrides: Partial<BalanceGap> = {}): BalanceGap {

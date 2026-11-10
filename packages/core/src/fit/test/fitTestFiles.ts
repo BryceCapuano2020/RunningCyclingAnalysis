@@ -5,8 +5,8 @@ import {
   EVENT_TYPE,
   SPORT,
   SUB_SPORT,
-} from './protocol/profile'
-import type { FitEventType, FitSportName, FitSubSportName } from './protocol/profile'
+} from '../protocol/profile'
+import type { FitEventType, FitSportName, FitSubSportName } from '../protocol/profile'
 import {
   EVENT_LAYOUT,
   FILE_ID_LAYOUT,
@@ -14,8 +14,8 @@ import {
   SESSION_LAYOUT,
   LAP_LAYOUT,
   SPORT_LAYOUT,
-} from './protocol/layouts'
-import { FitWriter } from './protocol/writer'
+} from '../protocol/layouts'
+import { FitWriter } from '../protocol/writer'
 
 /** Test-only builder for FIT files with several sessions, loose records and odd sport fields. */
 

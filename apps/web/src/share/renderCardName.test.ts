@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
-import { FakeContext, cardModel, fakeCanvas, render, type RecordedText } from './fixtures'
+import { FakeContext, cardModel, fakeCanvas, render, type RecordedText } from './test/fixtures'
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']

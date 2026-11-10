@@ -43,7 +43,7 @@ describe('immutableAssetRules', () => {
   })
 
   it('says why the rules are written one by one, in the header file the pattern used to be in', async () => {
-    const { readStylesheet } = await import('./ui/components/stylesheet')
+    const { readStylesheet } = await import('./ui/test/stylesheet')
     const headers = await readStylesheet(import.meta.url, '../public/_headers')
     expect(headers).not.toMatch(/^\/assets\/\*/m)
     expect(headers).toMatch(/appended by the build, one for each emitted file/)

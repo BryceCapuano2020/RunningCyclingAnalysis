@@ -58,3 +58,13 @@ describe('useMediaQuery', () => {
     expect(renderHook(() => useTouchFirst()).result.current).toBe(false)
   })
 })
+
+describe('before the page has a window', () => {
+  it('renders as if the query does not match, so a server render and the first paint agree', async () => {
+    const { renderToString } = await import('react-dom/server')
+    function Probe() {
+      return <p>{useMediaQuery('(min-width: 1px)') ? 'match' : 'no match'}</p>
+    }
+    expect(renderToString(<Probe />)).toContain('no match')
+  })
+})

@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 function show(trace: ActivityTrace) {
   return render(

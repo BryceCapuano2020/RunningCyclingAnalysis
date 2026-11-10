@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { curvePoint } from './fixtures'
+import { curvePoint } from './test/fixtures'
 import { durationRows } from './curveRows'
 
 describe('durationRows', () => {

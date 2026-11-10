@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet } from '../ui/test/stylesheet'
 import {
   FACES,
   SERIF_500,
@@ -11,7 +11,7 @@ import {
   type CardContext,
   type Face,
 } from './cardCanvas'
-import { FakeContext, LONG_HEADLINE, cardModel, draw } from './fixtures'
+import { FakeContext, LONG_HEADLINE, cardModel, draw } from './test/fixtures'
 
 const mainTsx = await readStylesheet(import.meta.url, '../main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, '../styles/tokens.css')

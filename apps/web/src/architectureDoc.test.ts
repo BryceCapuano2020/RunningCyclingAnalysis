@@ -3,7 +3,7 @@ import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
 import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '@rca/core/import'
 import { WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES } from './worker/workbenchSchema'
 import { MAX_CSV_FIELD_CHARS } from '@rca/core/import/limits'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * The numbers in docs/ARCHITECTURE.md's import section are pinned to the constants they describe, so a

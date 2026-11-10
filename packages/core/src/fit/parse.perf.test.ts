@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFit, secondly } from './fitTestFiles'
+import { buildFit, secondly } from './test/fitTestFiles'
 import { parseFit } from './parse'
 
 const START_MS = Date.UTC(2024, 4, 1, 7, 30, 0)

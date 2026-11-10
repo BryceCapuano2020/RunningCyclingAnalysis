@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readStylesheet, ruleBody } from '../components/stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 import { ChartXAxis } from './ChartXAxis'
 import { labelWidth } from './ticks'
 import type { PlotBox } from './chartTypes'

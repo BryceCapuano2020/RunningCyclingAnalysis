@@ -3,14 +3,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   makeActivity,
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { GradeOutcome } from '../grades'
 import { THRESHOLD_MEANING } from '../sports'
 import { ThresholdTile } from './ThresholdTile'

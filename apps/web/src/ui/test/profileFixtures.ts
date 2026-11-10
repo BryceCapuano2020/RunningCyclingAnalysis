@@ -1,7 +1,7 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
-import { curvePoint } from './charts/fixtures'
-import { makeActivity } from './components/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 
 /** The durations of a full curve, 5 s up to 60 min, which a profile reads. */
 const DURATIONS_S = [

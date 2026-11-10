@@ -8,7 +8,7 @@ import type {
   LinearFit,
   VirtualPowerAccuracy,
 } from '@rca/core/types'
-import { comparisonPoint, interval } from '../components/fixtures'
+import { comparisonPoint, interval } from '../../components/test/fixtures'
 
 /** One best effort on a curve, set by the activity with the given id, or by none (null). */
 export function curvePoint(

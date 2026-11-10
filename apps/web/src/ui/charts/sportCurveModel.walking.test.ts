@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { WALKING_PACE } from '@rca/core/constants'
-import { curvePoint } from './fixtures'
+import { curvePoint } from './test/fixtures'
 import { buildRows } from './sportCurveModel'
 
 const WALK = WALKING_PACE.maxMovingSpeedMs - 0.3

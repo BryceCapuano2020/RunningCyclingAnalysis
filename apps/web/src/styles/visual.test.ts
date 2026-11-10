@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { mediaOf, readStylesheet, rulesWith } from '../ui/test/stylesheet'
 import { declared } from './tokenSheet'
 
 const read = (path: string) => readStylesheet(import.meta.url, path)
@@ -35,31 +35,6 @@ const statTile = await read('../ui/pages/StatTile.css')
 const statTileTsx = await read('../ui/pages/StatTile.tsx')
 const balanceTiles = await read('../ui/pages/BalanceTiles.css')
 const weightNote = await read('../ui/components/WeightNote.css')
-
-/** The declarations of every rule whose selector list names `selector` exactly, in source order. */
-function rulesWith(css: string, selector: string): string {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  const bodies: string[] = []
-  for (const [, list = '', body = ''] of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (list.split(',').some((part) => part.trim() === selector)) bodies.push(body)
-  }
-  return bodies.join('\n')
-}
-
-/** The text of the first @media block with this query, braces included, or '' when there is none. */
-function mediaOf(css: string, query: string): string {
-  const open = css.indexOf(`@media ${query} {`)
-  if (open < 0) return ''
-  let depth = 0
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1
-    if (css[i] === '}') {
-      depth -= 1
-      if (depth === 0) return css.slice(open, i + 1)
-    }
-  }
-  return ''
-}
 
 /** The stylesheet with every @media block removed, so a rule is read as the base rule it is. */
 function outsideMedia(css: string): string {

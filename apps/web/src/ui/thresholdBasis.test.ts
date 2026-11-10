@@ -5,7 +5,7 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from './components/fixtures'
+} from './components/test/fixtures'
 import { formatDayMonth } from './format/date'
 import { heartRateLifted, thresholdBasisLine, thresholdProperties } from './thresholdBasis'
 

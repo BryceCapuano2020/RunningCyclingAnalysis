@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { wordsOf } from '../../test/wordsOf'
-import { MAN_BORN_1986, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, makeResult } from '../components/test/fixtures'
 import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 

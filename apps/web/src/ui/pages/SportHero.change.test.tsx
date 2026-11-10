@@ -10,7 +10,7 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { SportAnswer } from './SportAnswer'
 import { SportHero } from './SportHero'
 

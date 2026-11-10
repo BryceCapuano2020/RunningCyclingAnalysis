@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ZoneEstimates } from '@rca/core/zones'
-import { estimatesFrom, makeResult } from './fixtures'
+import { estimatesFrom, makeResult } from './test/fixtures'
 import { ZoneTables } from './ZoneTables'
 
 afterEach(() => {

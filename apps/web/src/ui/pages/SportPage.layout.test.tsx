@@ -5,7 +5,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { MeasureTime } from '@rca/core/zones'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -14,7 +14,7 @@ import {
   makeEquivalence,
   makeResult,
   makeRideThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { SportPage } from './SportPage'

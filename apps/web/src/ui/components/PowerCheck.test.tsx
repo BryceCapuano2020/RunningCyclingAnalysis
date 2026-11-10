@@ -9,7 +9,7 @@ import {
   powerCheckChip,
   powerHeartRateNote,
 } from '../analysis/powerCheckCopy'
-import { makeActivity } from './fixtures'
+import { makeActivity } from './test/fixtures'
 import { PowerCheck } from './PowerCheck'
 
 afterEach(() => {

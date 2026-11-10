@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import type { SessionState } from '@rca/core/session'
-import { makeResult } from '../components/fixtures'
+import { makeResult } from '../components/test/fixtures'
 import { baselineOf, comparableBefore } from './importState'
 import { EMPTY_SESSION } from './model'
 

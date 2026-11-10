@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet } from '../ui/test/stylesheet'
 import { DEFICIENCIES, deltaE, oklch, simulate } from './colourDifference'
 import { contrast } from './contrastMath'
 import { colour, declared, resolved } from './tokenSheet'

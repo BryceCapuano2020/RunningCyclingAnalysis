@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dotsFixture, slipAndRise } from '../fitnessYearsFixtures'
+import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
 import type { ChartSize } from './chartTypes'
 import { fitnessYearsLayout } from './fitnessYearsLayout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'

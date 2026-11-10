@@ -10,7 +10,7 @@ import {
   SLIPPING,
   fitnessStatus,
   waitingStatus,
-} from './fitnessFixtures'
+} from './test/fitnessFixtures'
 import { FITNESS_STATE, fitnessViews, lineOf, trackOf, viewOf, worthShowing } from './fitnessModel'
 
 const DAY_MS = 86_400_000

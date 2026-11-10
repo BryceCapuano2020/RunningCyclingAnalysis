@@ -3,16 +3,16 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
   makeActivity,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
-import { changeOf } from '../charts/changeFixtures'
+import { changeOf } from '../charts/test/changeFixtures'
 
 afterEach(() => {
   cleanup()

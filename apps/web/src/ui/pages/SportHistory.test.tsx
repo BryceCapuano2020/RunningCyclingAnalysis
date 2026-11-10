@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { dotsFixture, slipAndRise } from '../fitnessYearsFixtures'
+import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
 import { SportHistory } from './SportHistory'
 
 afterEach(cleanup)

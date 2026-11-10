@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { BUSY_CHECK_IN, QUIET_CHECK_IN } from '../checkInFixtures'
+import { BUSY_CHECK_IN, QUIET_CHECK_IN } from '../test/checkInFixtures'
 import { checkInWords } from '../checkInRow'
 import type { CheckInRowProps } from './CheckInRow'
 

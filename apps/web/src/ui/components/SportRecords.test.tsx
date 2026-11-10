@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import type { SparkPoint } from './sparkRule'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeActivity } from './fixtures'
+import { makeActivity } from './test/fixtures'
 import { SportRecords } from './SportRecords'
 import { MIN_SPARK_POINTS } from './sparkRule'
 import { recordRow } from '../recordRow'

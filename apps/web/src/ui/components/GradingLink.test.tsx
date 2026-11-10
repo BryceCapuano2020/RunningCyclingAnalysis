@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { MethodPage } from '../pages/MethodPage'
 import { focusPageHeading } from '../pages/pageHeading'
-import { makeResult } from './fixtures'
+import { makeResult } from './test/fixtures'
 import { GradesLink } from './GradingLink'
 import {
   clearRequestedMethodSection,

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChartTooltip } from './ChartTooltip'
 import type { ChartTooltipProps } from './ChartTooltip'
 import type { TooltipContent } from './chartTypes'
-import { readStylesheet, ruleBody } from '../components/stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 
 const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 

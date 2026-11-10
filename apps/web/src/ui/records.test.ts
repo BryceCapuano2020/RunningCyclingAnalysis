@@ -5,14 +5,14 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import { activityMasses } from './activityMasses'
-import { curvePoint } from './charts/fixtures'
+import { curvePoint } from './charts/test/fixtures'
 import {
   makeActivity,
   makeEquivalence,
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from './components/fixtures'
+} from './components/test/fixtures'
 import { thresholdRange } from './thresholdRange'
 import { countEfforts, hasThreshold, latestStartOf } from './records'
 import {

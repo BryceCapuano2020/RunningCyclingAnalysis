@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SPORTS } from '@rca/core/types'
-import { readFilesUnder } from './components/stylesheet'
+import { readFilesUnder } from './test/stylesheet'
 
 const SPORT = `(?:${SPORTS.join('|')})`
 

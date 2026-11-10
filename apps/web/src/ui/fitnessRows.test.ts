@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fitnessLines } from '@rca/core/fitness'
 import type { FitnessStatus } from '@rca/core/fitness'
 import type { UnitSystem } from '@rca/core/units'
-import { FITNESS_AS_OF_MS, RIDE_SLIPPING, SLIPPING, waitingStatus } from './fitnessFixtures'
+import { FITNESS_AS_OF_MS, RIDE_SLIPPING, SLIPPING, waitingStatus } from './test/fitnessFixtures'
 import { viewOf } from './fitnessModel'
 import { fitnessRows } from './fitnessRows'
 

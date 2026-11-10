@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { localDayOf, setViewerZone } from '@rca/core/calendar'
 import { installDeviceZone } from '../worker/viewerZone'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import { bucketLabel, bucketSpan, inBucket, monthTotals, volumeBuckets } from './activitiesVolume'
 import { sampleProfileAt } from './sampleAthlete'
 import { groupByMonth } from './activitySort'

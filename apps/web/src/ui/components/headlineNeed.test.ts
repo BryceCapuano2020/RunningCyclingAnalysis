@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeActivity, makeResult } from './fixtures'
+import { makeActivity, makeResult } from './test/fixtures'
 import { CLIMB_NEEDED, heldAction, heldReason } from './headlineNeed'
 
 const THREE_EACH = [1, 2, 3].flatMap((n) => [

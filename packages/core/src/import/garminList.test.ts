@@ -1,8 +1,8 @@
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '../fit/archive'
-import { streamedZip, toZip64 } from '../fit/zipTestFiles'
-import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './garminTestFiles'
+import { streamedZip, toZip64 } from '../fit/test/zipTestFiles'
+import { realisticSummary, SUMMARY_START_MS, SUMMARY_STEP_MS } from './test/garminTestFiles'
 import { MAX_TITLE_CHARS } from './names'
 import {
   garminList,

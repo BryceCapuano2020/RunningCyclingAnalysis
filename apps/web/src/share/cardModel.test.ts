@@ -8,14 +8,14 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../ui/balanceGap'
 import { energyReading } from '../ui/components/balanceScale'
-import { makeActivity, makeResult, makeRunThreshold } from '../ui/components/fixtures'
+import { makeActivity, makeResult, makeRunThreshold } from '../ui/components/test/fixtures'
 import { balanceTitle, energySummary } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
 import type { TriangleView } from '../ui/triangleSports'
 import { THRESHOLD_NAME } from '../ui/thresholdName'
 import { BALANCE_PAIR } from '../ui/sports'
 import { buildShareCard, shareableHost } from './cardModel'
-import { gradedCorner } from './fixtures'
+import { gradedCorner } from './test/fixtures'
 
 /** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
 /** A period of the given days, or all time for null, with no dates: the card's own tests pass days. */

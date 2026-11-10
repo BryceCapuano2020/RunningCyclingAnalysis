@@ -6,7 +6,7 @@ import {
   PHONE_MAX_WIDTH_PX,
   SPLIT_FILTERS_MIN_WIDTH_PX,
 } from '../layoutBreakpoints'
-import { readStylesheet } from './stylesheet'
+import { mediaOf, readStylesheet, rulesWith } from '../test/stylesheet'
 
 const rangePicker = await readStylesheet(import.meta.url, './RangePicker.css')
 const segmented = await readStylesheet(import.meta.url, './SegmentedControl.css')
@@ -15,16 +15,6 @@ const pager = await readStylesheet(import.meta.url, './Pager.css')
 const activitiesPage = await readStylesheet(import.meta.url, '../pages/ActivitiesPage.css')
 const activityListRow = await readStylesheet(import.meta.url, './ActivityRow.tsx')
 const activityDelete = await readStylesheet(import.meta.url, './ActivityDelete.css')
-
-/** The declarations of every rule whose selector list names `selector` exactly, in source order. */
-function rulesWith(css: string, selector: string): string {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  const bodies: string[] = []
-  for (const [, list = '', body = ''] of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (list.split(',').some((part) => part.trim() === selector)) bodies.push(body)
-  }
-  return bodies.join('\n')
-}
 
 /** Every @media block with this query, joined, for a width the stylesheet writes more than one rule set for. */
 function everyMediaOf(css: string, query: string): string {
@@ -35,21 +25,6 @@ function everyMediaOf(css: string, query: string): string {
     blocks.push(rest)
     from = css.indexOf(rest, from) + rest.length
   }
-}
-
-/** The text of the first @media block with this query, braces included, or '' when there is none. */
-function mediaOf(css: string, query: string): string {
-  const open = css.indexOf(`@media ${query} {`)
-  if (open < 0) return ''
-  let depth = 0
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1
-    if (css[i] === '}') {
-      depth -= 1
-      if (depth === 0) return css.slice(open, i + 1)
-    }
-  }
-  return ''
 }
 
 const PHONE_480 = '(max-width: 479px)'

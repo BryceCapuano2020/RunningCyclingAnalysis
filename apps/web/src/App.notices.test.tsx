@@ -13,7 +13,7 @@ import {
   showResult,
 } from './test/appMocks'
 import { ORIGINALS_UNAVAILABLE } from './ui/analysis/copy'
-import { makeActivity, makeResult } from './ui/components/fixtures'
+import { makeActivity, makeResult } from './ui/components/test/fixtures'
 
 // The pages load on first use in the app; these tests render one the moment its route is chosen.
 beforeAll(preloadAllPages)

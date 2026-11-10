@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet } from '../components/stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 import { ChartTable } from './ChartTable'
 
 const tableCss = await readStylesheet(import.meta.url, './ChartTable.css')

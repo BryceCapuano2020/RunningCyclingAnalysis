@@ -1,7 +1,7 @@
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, encodeFit } from './fit'
-import { buildFit, secondly } from './fit/fitTestFiles'
+import { buildFit, secondly } from './fit/test/fitTestFiles'
 import { encodeGpx } from './gpx/encode'
 import { AnalysisSession } from './session'
 import type { RejectedFile } from './session'

@@ -9,8 +9,13 @@ import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
-import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
-import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
+import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/test/fixtures'
+import {
+  MAN_BORN_1986,
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+} from '../components/test/fixtures'
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'

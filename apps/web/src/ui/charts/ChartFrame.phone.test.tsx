@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readStylesheet } from '../components/stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 import { ChartFrame } from './ChartFrame'
 import type { ChartFrameProps } from './ChartFrame'
 import type { ChartSize } from './chartTypes'

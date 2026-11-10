@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { yearRow } from '../historyFixtures'
+import { yearRow } from '../test/historyFixtures'
 import type { ChartSize } from './chartTypes'
 import { hoursPerYearLayout } from './hoursPerYearLayout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, isPhoneWidth, plotBoxOf } from './plotBox'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { THREE_YEARS, yearRow } from './historyFixtures'
+import { THREE_YEARS, yearRow } from './test/historyFixtures'
 import { summaryOf } from './historySummary'
 
 const pairs = (stats: ReturnType<typeof summaryOf>) => stats.map((s) => [s.label, s.value])

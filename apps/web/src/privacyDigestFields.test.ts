@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * "The server stores only what the privacy page lists" (docs/ENGINEERING.md). The analysis summary (the digest)

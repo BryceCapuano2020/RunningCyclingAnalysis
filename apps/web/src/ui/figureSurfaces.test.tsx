@@ -12,7 +12,7 @@ import {
   makeResult,
   makeRideThreshold,
   makeRunThreshold,
-} from './components/fixtures'
+} from './components/test/fixtures'
 import { threshold } from './records'
 import { standingOf } from './standing'
 import { thresholdLine } from './thresholdLine'

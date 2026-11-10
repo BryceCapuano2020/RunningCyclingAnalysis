@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { repsTrace, steadyTrace } from './workbenchFixtures'
+import { repsTrace, steadyTrace } from './test/workbenchFixtures'
 
 /** A run of `count` laps, each `lap` seconds, the last one longer so the widths differ. */
 function lapped(count: number, lap = 60): ActivityTrace {

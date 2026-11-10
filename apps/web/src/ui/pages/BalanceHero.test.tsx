@@ -5,14 +5,14 @@ import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
 import type { Interval } from '@rca/core/types'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   comparisonPoint,
   interval,
   makeActivity,
   makeResult,
   makeRunThreshold,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { balanceOfPick } from '../components/balanceScale'
 import { EMPTY_TRIANGLE } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'

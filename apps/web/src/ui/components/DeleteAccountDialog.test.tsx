@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiRequestError } from '../../api/client'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
-import { readStylesheet, ruleBody } from './stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 
 const dialogCss = await readStylesheet(import.meta.url, './DeleteAccountDialog.css')
 

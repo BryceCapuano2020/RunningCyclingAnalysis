@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import type { Period } from '@rca/core/period'
 import { windowLibrary, windowPeriod } from '../test/windowLibrary'
 import { countsOf, isNotCounted, notCountedHref, startedInPeriod } from './activityCounts'

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { RAIL_MIN_WIDTH_PX } from '../layoutBreakpoints'
 import { usePeriodRail } from './PeriodRail'
 import { Rail, Shell } from './Rail'
-import { readStylesheet } from './stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 
 const railCss = await readStylesheet(import.meta.url, './Rail.css')
 

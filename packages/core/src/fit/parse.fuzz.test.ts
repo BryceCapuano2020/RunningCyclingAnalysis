@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Activity } from '../types'
 import { encodeFit } from './encode'
-import { buildFit, secondly } from './fitTestFiles'
+import { buildFit, secondly } from './test/fitTestFiles'
 import { parseFit } from './parse'
 import type { ParseResult } from '../import/result'
 

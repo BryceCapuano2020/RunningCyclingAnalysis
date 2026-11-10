@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet, readStylesheetsUnder, ruleBody } from '../ui/components/stylesheet'
+import { readStylesheet, readStylesheetsUnder, ruleBody } from '../ui/test/stylesheet'
 import { declared } from './tokenSheet'
 
 const tokens = declared(await readStylesheet(import.meta.url, './tokens.css'), ':root')

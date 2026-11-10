@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CurveRow } from './curveTable'
-import { changeOf } from './changeFixtures'
+import { changeOf } from './test/changeFixtures'
 import { citedDurationS, namedChangeAt } from './sportCurveCited'
 
 const row = (

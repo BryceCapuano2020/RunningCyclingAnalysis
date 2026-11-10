@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { descentCost, metabolicToFlatSpeed, runCost } from '@rca/core/metabolic'
 import { flatSpeedOf } from './repFlatPace'
-import { repsTrace } from './workbenchFixtures'
+import { repsTrace } from './test/workbenchFixtures'
 
 const SCALE = PRIORS.runEconomyScale.mean
 const SPEED = 3

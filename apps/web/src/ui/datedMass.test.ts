@@ -3,13 +3,13 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { combine, digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
-import { curvePoint } from './charts/fixtures'
-import { makeActivity, makeResult } from './components/fixtures'
+import { curvePoint } from './charts/test/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { bestEffortRows } from './pages/bestEffortRows'
 import type { BestEffortInput } from './pages/bestEffortRows'
 import { sportGrade } from './grades'
 import { sportRecords } from './records'
-import { changeOf } from './charts/changeFixtures'
+import { changeOf } from './charts/test/changeFixtures'
 
 const baseRide = digestActivity(
   sampleDataset().activities.find((activity) => activity.sport === 'ride')!,

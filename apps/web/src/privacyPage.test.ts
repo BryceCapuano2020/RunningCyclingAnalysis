@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { buildAccountExport } from './export/accountExport'
 import { APP_WORDS } from './appName'
 import { BRAND_RIDING, BRAND_RUNNING, pathData } from './ui/components/iconPaths'
-import { readStylesheet, ruleBody } from './ui/components/stylesheet'
+import { readStylesheet, ruleBody } from './ui/test/stylesheet'
 
 /*
  * These tests check the privacy page's stated facts against the source files they name: the

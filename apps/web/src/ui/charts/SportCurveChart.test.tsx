@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { curvePoint } from './fixtures'
+import { curvePoint } from './test/fixtures'
 import { SportCurveChart } from './SportCurveChart'
 import type { PreviousCurve } from './SportCurveChart'
 

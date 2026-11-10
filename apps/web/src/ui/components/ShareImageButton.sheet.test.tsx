@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { canShareImage, shareFile } from '../../share/download'
 import { loadCardFonts } from '../../share/renderCard'
 import { EMPTY_TRIANGLE } from '../triangleSports'
-import { makeResult } from './fixtures'
+import { makeResult } from './test/fixtures'
 import { ShareImageButton } from './ShareImageButton'
 
 vi.mock('../../share/download', () => ({

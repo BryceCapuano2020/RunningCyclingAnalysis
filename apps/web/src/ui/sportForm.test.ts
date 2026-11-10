@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import { formRows } from './sportForm'
 
 // 5 January 2026 is a Monday, in local time. The clock is pinned, so the year shows only when it differs.
