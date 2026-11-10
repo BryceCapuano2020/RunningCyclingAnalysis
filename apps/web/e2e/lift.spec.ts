@@ -53,7 +53,7 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await page.getByRole('button', { name: 'Done' }).click()
 
   await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
-  await expect(page.getByText(/× 5 · RPE 8/)).toBeVisible()
+  await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
   await expect(page.getByText(/× 3 · RPE 9/)).toBeVisible()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(2)
 
@@ -73,7 +73,7 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await page.getByRole('button', { name: 'Edit set 1' }).click()
   await page.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(1)
-  await expect(page.getByText(/× 5 · RPE 8/)).toHaveCount(0)
+  await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Edit set 1' })).toBeFocused()
 
   // Deleting the last row of a lift with more sets moves focus to the lift's heading.
@@ -112,7 +112,7 @@ test('a signed-in set reaches the server: a fresh browser with the same sign-in 
   await page.getByRole('button', { name: 'Log a set' }).click()
   await chooseLift(page, 'deadlift', 'Deadlift')
   await saveSet(page, '5', '315', '8')
-  await expect(page.getByText(/× 5 · RPE 8/)).toBeVisible()
+  await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
   // Kept only once the server has it.
   await expect(page.getByText('Not sent yet')).toHaveCount(0)
 
@@ -121,7 +121,7 @@ test('a signed-in set reaches the server: a fresh browser with the same sign-in 
   const other = await fresh.newPage()
   await other.goto('/#/lift')
   await appSettled(other)
-  await expect(other.getByText(/× 5 · RPE 8/)).toBeVisible()
+  await expect(other.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
   await fresh.close()
 })
 
@@ -140,7 +140,7 @@ test('Remove all in one tab empties the Lift page open in another', async ({ bro
 
   await second.goto('/#/lift')
   await appSettled(second)
-  await expect(second.getByText(/× 5 · RPE 8/)).toBeVisible()
+  await expect(second.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
 
   await goTo(first, 'Profile')
   await first.getByRole('button', { name: 'Remove all my activities' }).click()
@@ -151,6 +151,6 @@ test('Remove all in one tab empties the Lift page open in another', async ({ bro
   await expect(first.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
 
   await expect(second.getByText('No sets')).toBeVisible({ timeout: 15_000 })
-  await expect(second.getByText(/× 5 · RPE 8/)).toHaveCount(0)
+  await expect(second.getByText(/×\s5\s·\sRPE\s8/)).toHaveCount(0)
   await context.close()
 })

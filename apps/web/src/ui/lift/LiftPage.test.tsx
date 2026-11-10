@@ -67,6 +67,10 @@ describe('LiftPage', () => {
       .closest('section')!
     expect(within(squatSection).getByText('60 kg × 8 · warm-up')).toBeInTheDocument()
     expect(within(squatSection).getByText('100 kg × 5 · RPE 8')).toBeInTheDocument()
+    // Each part holds together, so a narrow row wraps only at the dot.
+    expect(within(squatSection).getByText('100 kg × 5 · RPE 8').textContent).toBe(
+      '100\u00a0kg\u00a0×\u00a05 · RPE\u00a08',
+    )
     expect(within(squatSection).getByRole('button', { name: 'Edit set 2' })).toHaveTextContent(
       'Set 2',
     )
