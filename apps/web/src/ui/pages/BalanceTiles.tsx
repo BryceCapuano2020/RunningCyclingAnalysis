@@ -13,6 +13,8 @@ import { RowIndex } from '../components/RowList'
 import { EmptySportCard } from './EmptySportCard'
 import { LiftTile } from './LiftTile'
 import { ThresholdTile } from './ThresholdTile'
+import { HALF_MARATHON_M } from '@rca/core/constants'
+import { raceAnswerOf } from '../raceAnswer'
 import { thresholdTileIsBare } from './thresholdTileBare'
 import './BalanceTiles.css'
 
@@ -61,6 +63,12 @@ export function BalanceTiles({
   const both = BALANCE_PAIR.every((sport) => countSport(result.activities, sport) > 0)
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
   const firstThreshold = BALANCE_PAIR.find((sport) => countSport(result.activities, sport) > 0)
+  // The run's row leads with the half marathon its race predictions give for the period, when they give one.
+  const answer = raceAnswerOf('run', result, period.days)
+  const half =
+    answer === null || answer.kind === 'past'
+      ? null
+      : (answer.found.races.find((race) => race.distanceM === HALF_MARATHON_M) ?? null)
   const thresholdProps = (sport: Sport) => ({
     sport,
     result,
@@ -71,6 +79,7 @@ export function BalanceTiles({
     needInHeadline: soleSport !== null,
     levelShown,
     defineTerm: sport === firstThreshold,
+    half: sport === 'run' ? half : null,
   })
   // Each row: its sport, whose ink its index takes (lifting has none), and what it shows.
   const tiles: { key: string; sport?: Sport; node: ReactNode }[] = [

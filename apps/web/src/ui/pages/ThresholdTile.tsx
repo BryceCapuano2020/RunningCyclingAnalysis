@@ -1,6 +1,9 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { RacePrediction } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
+import { formatRecordTime } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
+import type { Property } from '../components/property'
 import { HeldSportFacts } from '../components/HeldSportFacts'
 import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
@@ -28,7 +31,12 @@ export interface ThresholdTileProps {
   levelShown?: boolean
   /** False on a second threshold tile in the same view, where the word is already defined: the screen defines it once. */
   defineTerm?: boolean
+  /** A run's predicted half marathon, which the row leads with in place of the threshold pace; null or absent without one. */
+  half?: RacePrediction | null
 }
+
+/** Each row's name when it shows its figure: the half marathon a run predicts, a ride's functional threshold power. */
+export const HEADLINE_NAME = { half: 'Half-marathon', ride: 'Functional threshold power' } as const
 
 /** The word in each tile's name that is defined in place, and what it means: the threshold in plain words. */
 const DEFINED: Record<Sport, { term: string; meaning: string }> = {
@@ -52,12 +60,15 @@ export function ThresholdTile({
   needInHeadline = false,
   levelShown = false,
   defineTerm = true,
+  half = null,
 }: ThresholdTileProps) {
   // A fitted threshold's title says what it is, so the word is defined only where there is no figure to read.
   const defined = defineTerm ? DEFINED[sport] : undefined
+  // A ride's row is its functional threshold power in every state; a run's is its threshold until a half marathon leads.
+  const name = sport === 'ride' ? HEADLINE_NAME.ride : THRESHOLD_NAME[sport]
   if (needsWeight(sport, weighted)) {
     return (
-      <StatTile sport={sport} heading={THRESHOLD_NAME[sport]} definition={defined}>
+      <StatTile sport={sport} heading={name} definition={defined}>
         {/* What needs no weight: how many rides, how long, when the latest was, and a best a meter measured. Then the one ask. */}
         <HeldSportFacts
           sport={sport}
@@ -73,7 +84,7 @@ export function ThresholdTile({
   if (hero === null) {
     if (needInHeadline && line === null) return null
     return (
-      <StatTile sport={sport} heading={THRESHOLD_NAME[sport]} definition={defined}>
+      <StatTile sport={sport} heading={name} definition={defined}>
         {needInHeadline ? null : (
           <p className="stat-tile__line">{thresholdNeedsLine(result, sport)}</p>
         )}
@@ -81,21 +92,40 @@ export function ThresholdTile({
       </StatTile>
     )
   }
+  const basis = thresholdProperties(result, sport, massKg, units)
+  // A run leads with its half marathon: its likely span and the threshold pace come first in Details, then what the pace
+  // rests on. A ride shows its watts alone; the watts per kilogram are the first line of Details.
+  const lead =
+    sport === 'run' && half !== null
+      ? {
+          heading: HEADLINE_NAME.half,
+          figure: { number: formatRecordTime(half.seconds), unit: '' },
+          rows: [
+            {
+              label: 'Likely time',
+              value: `${formatRecordTime(half.low)} to ${formatRecordTime(half.high)}`,
+            },
+            { label: 'Threshold pace', value: `${hero.number} ${hero.unit}` },
+            ...basis.filter((row) => row.label !== 'Range'),
+          ] satisfies Property[],
+        }
+      : sport === 'ride'
+        ? {
+            heading: HEADLINE_NAME.ride,
+            figure: { number: hero.number, unit: hero.unit },
+            rows: [
+              ...(hero.sub === null ? [] : [{ label: 'Per kilogram', value: hero.sub }]),
+              ...basis,
+            ],
+          }
+        : {
+            heading: name,
+            figure: { number: hero.number, unit: hero.unit },
+            rows: basis,
+          }
   return (
-    <StatTile
-      sport={sport}
-      heading={THRESHOLD_NAME[sport]}
-      figure={{
-        number: hero.number,
-        unit: hero.unit,
-        ...(hero.sub === null ? {} : { side: hero.sub }),
-      }}
-    >
-      <ThresholdBasis
-        sport={sport}
-        rows={thresholdProperties(result, sport, massKg, units)}
-        className="stat-tile__source"
-      />
+    <StatTile sport={sport} heading={lead.heading} figure={lead.figure}>
+      <ThresholdBasis sport={sport} rows={lead.rows} className="stat-tile__source" />
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
     </StatTile>
   )

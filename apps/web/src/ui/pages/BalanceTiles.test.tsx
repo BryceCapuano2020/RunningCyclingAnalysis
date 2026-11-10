@@ -47,8 +47,8 @@ describe('BalanceTiles', () => {
     const { container } = renderTiles()
     expect(container.querySelector('.balance-tiles')).toHaveAttribute('data-tiles', '3')
     expect(screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))).toEqual([
-      'Run threshold',
-      'Ride threshold',
+      'Half-marathon',
+      'Functional threshold power',
       'Big three total',
     ])
   })
@@ -56,10 +56,13 @@ describe('BalanceTiles', () => {
   it('writes each threshold exactly as the sport cards do: no chip, the range in words one tap down, for a run as for a ride', () => {
     const { result } = sample()
     renderTiles()
-    for (const [name, sport] of [
-      ['Run threshold', 'run'],
-      ['Ride threshold', 'ride'],
-    ] as const) {
+    // The ride's row is its threshold power; the run's leads with its half marathon and keeps its pace one tap down.
+    const run = screen.getByRole('article', { name: 'Half-marathon' })
+    const pace = threshold(result, 'run', SAMPLE_SETTINGS.massKg, 'metric')
+    openDetail(run)
+    expect(rowValue(run, 'Threshold pace')).toBe(`${pace?.number} ${pace?.unit}`)
+    expect(rowValue(run, 'Likely time')).toMatch(/^\d:\d\d:\d\d to \d:\d\d:\d\d$/)
+    for (const [name, sport] of [['Functional threshold power', 'ride']] as const) {
       const tile = screen.getByRole('article', { name })
       const figure = threshold(result, sport, SAMPLE_SETTINGS.massKg, 'metric')
       expect(tile.querySelector('.stat-tile__number')).toHaveTextContent(figure?.number ?? '')
@@ -90,28 +93,41 @@ describe('BalanceTiles', () => {
 
   it('says what a threshold rests on in its detail’s rows, for a ride and for a run, and nothing under the figure', () => {
     renderTiles()
-    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    const ride = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(rowsIn(ride).map(([label]) => label)).toEqual(
       expect.arrayContaining(['Rides used', 'Strongest effort', 'Range']),
     )
     expect(detailSummaries(ride)).toEqual(['Details for threshold power'])
-    const run = screen.getByRole('article', { name: 'Run threshold' })
-    expect(rowsIn(run).map(([label]) => label)).toEqual(['Runs used', 'Strongest effort', 'Range'])
+    const run = screen.getByRole('article', { name: 'Half-marathon' })
+    expect(rowsIn(run).map(([label]) => label)).toEqual([
+      'Likely time',
+      'Threshold pace',
+      'Runs used',
+      'Strongest effort',
+    ])
     expect(detailSummaries(run)).toEqual(['Details for threshold pace'])
   })
 
-  it('gives the ride’s threshold its watts per kilogram beside the figure', () => {
+  it('gives the ride its watts alone, the watts per kilogram one tap down', () => {
     renderTiles()
-    const tile = screen.getByRole('article', { name: 'Ride threshold' })
-    expect(tile.querySelector('.stat-tile__side')?.textContent).toMatch(/W\/kg$/)
+    const tile = screen.getByRole('article', { name: 'Functional threshold power' })
+    expect(tile.querySelector('.stat-tile__side')?.textContent ?? '').toBe('')
+    expect(tile.querySelector('.props')?.textContent).toMatch(/Per kilogram\s*[\d.]+ W\/kg/)
+  })
+
+  it('leads the run with its predicted half marathon, the threshold pace one tap down', () => {
+    renderTiles()
+    const tile = screen.getByRole('article', { name: 'Half-marathon' })
+    expect(tile.querySelector('.stat-tile__number')?.textContent).toMatch(/^\d:\d\d:\d\d$/)
+    expect(tile.querySelector('.props')?.textContent).toMatch(/Likely time.*Threshold pace/)
   })
 
   it('says each sport’s level and grade on its tile, at threshold, and no line of the best 20 min of its own', () => {
     renderTiles()
-    const run = screen.getByRole('article', { name: 'Run threshold' })
+    const run = screen.getByRole('article', { name: 'Half-marathon' })
     expect(run).toHaveTextContent(/\w+ · \d+% at threshold\./)
     expect(run).not.toHaveTextContent(/Best 20 min:/)
-    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    const ride = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(ride).toHaveTextContent(/\w+ · \d+% at threshold\./)
     expect(ride).not.toHaveTextContent(/Best 20 min:/)
     // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
@@ -121,7 +137,7 @@ describe('BalanceTiles', () => {
 
   it('holds the ride’s tiles for the weight', () => {
     const { container } = renderTiles({ weighted: false })
-    expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
+    expect(screen.getByRole('article', { name: 'Functional threshold power' })).toHaveTextContent(
       /Add your weight on/,
     )
     // Lifting needs no weight to ask for a first lift.
@@ -169,7 +185,7 @@ describe('BalanceTiles', () => {
         soleSport="run"
       />,
     )
-    expect(screen.queryByRole('article', { name: 'Run threshold' })).toBeNull()
+    expect(screen.queryByRole('article', { name: 'Half-marathon' })).toBeNull()
     expect(container.querySelector('.balance-tiles')).toBeNull()
   })
 
@@ -192,7 +208,7 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.stat-tile__line')).toHaveTextContent(
       'Needs an effort of 8 min or longer',
     )
-    const rideTile = screen.getByRole('article', { name: 'Ride threshold' })
+    const rideTile = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(rideTile.querySelector('.stat-tile__line')).toHaveTextContent(
       'Needs an effort of 3 min or longer',
     )
@@ -203,7 +219,7 @@ describe('BalanceTiles', () => {
     const { container } = renderTiles()
     expect(container.textContent).not.toMatch(/Estimated|At least/)
     expect(container.querySelectorAll('.stat-tile__effort')).toHaveLength(0)
-    for (const name of ['Run threshold', 'Ride threshold']) {
+    for (const name of ['Half-marathon', 'Functional threshold power']) {
       const tile = screen.getByRole('article', { name })
       expect(detailSummaries(tile)).toHaveLength(1)
       expect(tile.querySelectorAll('.definition__term, .chip')).toHaveLength(0)

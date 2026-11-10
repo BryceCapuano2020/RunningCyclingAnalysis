@@ -279,7 +279,7 @@ describe('BalancePage', () => {
   it('shows a threshold tile for each sport, named by the sport', () => {
     renderPage()
     expect(screen.getByRole('article', { name: 'Run threshold' })).toBeInTheDocument()
-    expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Functional threshold power' })).toBeInTheDocument()
   })
 
   it('lays the tiles out in the order of the balance pair, then lifting, with no tile for the lean', () => {
@@ -287,7 +287,7 @@ describe('BalancePage', () => {
     const names = screen.getAllByRole('article').map((tile) => tile.getAttribute('aria-label'))
     expect(names).toEqual([
       `${SPORT_LABEL[BALANCE_PAIR[0]]} threshold`,
-      `${SPORT_LABEL[BALANCE_PAIR[1]]} threshold`,
+      'Functional threshold power',
       'Big three total',
     ])
   })
@@ -297,7 +297,7 @@ describe('BalancePage', () => {
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
     const run = screen.getByRole('article', { name: 'Run threshold' })
-    const ride = screen.getByRole('article', { name: 'Ride threshold' })
+    const ride = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(screen.queryByRole('button', { name: /Hard effort|Not all-out/ })).toBeNull()
     // A run's estimate is worked out from pace alone, so its detail says nothing of heart rate.
     openDetail(run)
@@ -479,7 +479,7 @@ describe('BalancePage with no weight entered', () => {
     const prompts = screen.getAllByRole('link', { name: 'Profile' })
     expect(prompts.length).toBeGreaterThanOrEqual(1)
     for (const prompt of prompts) expect(prompt).toHaveAttribute('href', '#/profile')
-    expect(screen.getByRole('article', { name: 'Ride threshold' })).toHaveTextContent(
+    expect(screen.getByRole('article', { name: 'Functional threshold power' })).toHaveTextContent(
       'Add your weight on Profile to grade your rides and see their figures.',
     )
   })
@@ -595,7 +595,7 @@ describe('BalancePage concept budget', () => {
       'Share image',
       'Headline numbers',
       'Run threshold',
-      'Ride threshold',
+      'Functional threshold power',
       'Big three total',
     ])
   })
