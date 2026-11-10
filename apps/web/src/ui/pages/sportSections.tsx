@@ -4,6 +4,7 @@ import { tooShortText, yearsFinding } from '@rca/core/lookback'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { bestEffortRows } from './bestEffortRows'
 import { BestEffortsSection } from './BestEffortsSection'
+import { levelsContent } from './sportLevels'
 import { racePredictionsContent } from './racePredictionsSection'
 import { SectionCell } from './SectionCell'
 import { SectionLine } from './SectionLine'
@@ -14,7 +15,7 @@ import { SPORT_PLURAL } from '../sports'
 import type { SectionContext } from './sportPageProps'
 
 /** The sections that can follow a sport page's answer. */
-export type SectionId = 'years' | 'bestEfforts' | 'racePredictions' | 'timeInZones'
+export type SectionId = 'years' | 'bestEfforts' | 'levels' | 'racePredictions' | 'timeInZones'
 
 /**
  * What a section gives the page: its content, or when the library cannot fill it yet, the one line in its place that
@@ -28,6 +29,7 @@ export interface SectionOutcome {
 const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
   years: () => 'History',
   bestEfforts: () => 'Best efforts',
+  levels: () => 'Levels',
   racePredictions: () => 'Race predictions',
   timeInZones: () => 'Time in zones',
 }
@@ -40,8 +42,8 @@ const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
  * chart. A sport without race predictions leaves that section out and its zones take the whole row.
  */
 export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
-  run: [['years'], ['bestEfforts'], ['racePredictions', 'timeInZones']],
-  ride: [['years'], ['bestEfforts'], ['timeInZones']],
+  run: [['years'], ['bestEfforts'], ['levels'], ['racePredictions', 'timeInZones']],
+  ride: [['years'], ['bestEfforts'], ['levels'], ['timeInZones']],
 }
 
 /** Each sport's section ids in reading order. */
@@ -118,6 +120,8 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),
+  // The levels in the sport's own figure; none while the year of birth or sex is missing.
+  levels: (context) => ({ content: levelsContent(context) }),
   racePredictions: (context) => {
     const found = racePredictionsContent(context)
     if (found.content !== null) return { content: found.content }

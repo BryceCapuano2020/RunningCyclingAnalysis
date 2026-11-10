@@ -20,5 +20,6 @@ export type {
 } from './triangle'
 export { comparedGrades, triangleReading } from './triangleLean'
 export { levelLadder } from './levelLadder'
+export { rideLevelPowers, runLevelTimes } from './levelRanges'
 export type { LevelRung } from './levelLadder'
 export type { TriangleReading } from './triangleLean'

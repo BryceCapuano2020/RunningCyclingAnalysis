@@ -1,16 +1,13 @@
 import { useMemo } from 'react'
 import { TRIANGLE_SPORTS, levelLadder } from '@rca/core/standing'
 import type { TriangleGrades, TriangleSport } from '@rca/core/standing'
-import { levelBandText, levelMeaning } from '../levelMeaning'
+import { levelBandText, levelMeaningLine } from '../levelMeaning'
 import { SPORT_LABEL } from '../sports'
 import { useScrollRegion } from '../useScrollRegion'
 import './LevelsSection.css'
 
 /** Each sport as its column is headed: the rail's names. */
 const COLUMN: Record<TriangleSport, string> = { ...SPORT_LABEL, lift: 'Lift' }
-
-/** A meaning as the second line of its level, so it starts with a capital. */
-const asLine = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 /**
  * What each level means: every level from World down with its age-grade band, and each graded sport's grade on the row of its
@@ -41,14 +38,14 @@ export function LevelsSection({ grades }: { grades: TriangleGrades }) {
           </thead>
           <tbody>
             {ladder.map((rung, index) => {
-              const meaning = levelMeaning(rung.label)
+              const meaning = levelMeaningLine(rung.label)
               return (
                 <tr key={rung.label}>
                   <th scope="row">
                     <span className="levels__name">{rung.label}</span>
                     <span className="levels__band num">{levelBandText(ladder, index)}</span>
                     {meaning === undefined ? null : (
-                      <span className="levels__meaning">{asLine(meaning)}</span>
+                      <span className="levels__meaning">{meaning}</span>
                     )}
                   </th>
                   {TRIANGLE_SPORTS.map((sport) => {

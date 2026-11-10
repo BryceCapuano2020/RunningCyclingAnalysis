@@ -4,6 +4,7 @@ import type { AgeProfile } from '@rca/core/grade'
 import type { Equipment, LiftSet } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
 import type { AccountController } from '../useAccount'
+import { LevelRanges } from '../pages/LevelRanges'
 import { HevyImport } from './HevyImport'
 import { LiftEstimates } from './LiftEstimates'
 import { LiftLead } from './LiftLead'
@@ -226,7 +227,14 @@ export function LiftConnected({
           overview.lead && <LiftLead lead={overview.lead} units={units} />
         )
       }
-      estimates={<LiftEstimates overview={overview} units={units} />}
+      estimates={
+        <>
+          <LiftEstimates overview={overview} units={units} />
+          {overview.levels !== null && (
+            <LevelRanges sport="lift" rows={overview.levels} headingId="lift-levels" />
+          )}
+        </>
+      }
     />
   )
 }

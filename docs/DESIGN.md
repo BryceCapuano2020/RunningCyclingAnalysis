@@ -359,6 +359,13 @@ and the tests named at the foot of that page keep the two in step. A display siz
   come from core's `levelLadder`, which reads the triangle's corners (`triangleGeometry`), so the table and the triangle cannot
   disagree. It shows once a sport has a level on the triangle. It fits a 320 px phone; with larger text it scrolls in its own box.
   The paragraphs on the grade by duration below are history.
+- **Levels on each sport page** (Run, Ride, Lift) is the same table in the sport's own headline figure: a row per level from World
+  down with its grade band and meaning, and the range of the figure that earns it for this athlete. Run: half marathon time, with
+  the pace under it, at the athlete's age. Ride: hour power in watts at the athlete's body mass. Lift: big three total in the
+  athlete's unit at their age and body mass. The athlete's own level carries the dot in the sport's ink. The ranges are core's
+  (`runLevelTimes`, `rideLevelPowers`, `liftLevelTotals`, each the inverse of the grade its corner takes, whole figures rounded toward
+  earning the level), and one component (`LevelRanges`) draws all three. The table is held while the year of birth, sex or (Ride,
+  Lift) an entered weight is missing. Run and Ride put it after the best efforts; Lift under its one-rep max charts.
 - **Age grade by effort length** (cut 10 Nov 2026) sat on Balance after the cards and the grading source line, and before the evidence
   and the trend. It answers one question the 20 minute balance cannot: is one sport better at every duration,
   or only at 20 minutes? Each sport's age grade is drawn at every best-curve duration from 3 minutes to 3 hours

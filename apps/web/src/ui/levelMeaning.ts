@@ -20,6 +20,12 @@ export function levelMeaning(name: string): string | undefined {
   return OWN_LEVEL_MEANING.find((level) => level.name === name)?.meaning
 }
 
+/** The meaning as the second line of its level, so it starts with a capital; undefined for a name that is not a level. */
+export function levelMeaningLine(name: string): string | undefined {
+  const text = levelMeaning(name)
+  return text === undefined ? undefined : text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 /**
  * The band of the ladder's level at `index`, in whole percents, as it starts a line: "90% and up", "80% to 89%", and for the
  * lowest, "Under 30%", the floor of the level above it.
