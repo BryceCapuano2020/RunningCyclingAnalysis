@@ -158,10 +158,11 @@ a.level-triangle__corner:hover .level-triangle__label {
   }
 }
 
-/* Forced colours: the shape is the canvas, and the edge, axes and dots take system colours; the ring stays a dot's outline. */
+/* Forced colours: the shape has no fill (a Canvas fill would paint over the rings and axes under it), and the edge, axes and
+   dots take system colours; the ring stays a dot's outline. */
 @media (forced-colors: active) {
   .level-triangle__shape {
-    fill: Canvas;
+    fill: none;
   }
 
   .level-triangle__ring,

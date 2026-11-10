@@ -20,6 +20,7 @@ function Words({ corner, note }: { corner: TriangleCorner; note: string | undefi
     <>
       <span className="level-triangle__figure num">{corner.percent}%</span>{' '}
       <span className="level-triangle__level">{corner.level}</span>
+      {note === undefined ? null : <span className="level-triangle__covers">{note}</span>}
       {corner.range === null ? null : (
         <span className="sr-only">{`, range ${corner.range.low} to ${corner.range.high}`}</span>
       )}
