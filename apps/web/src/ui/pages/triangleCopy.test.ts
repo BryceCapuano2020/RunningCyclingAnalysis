@@ -114,14 +114,15 @@ describe('with fewer than two graded', () => {
 })
 
 describe('triangleRows', () => {
-  it('states each range once, and the gap with its range', () => {
+  it("states each range once, lifting's included, and the gap between run and ride only", () => {
     const rows = triangleRows({
       grades: three(graded(61, 6), graded(52, 6), graded(48, 6)),
       notes: {},
     })
     expect(rows).toEqual([
       { label: 'Range, 90%', value: 'running 55 to 67, cycling 46 to 58, lifting 42 to 54' },
-      { label: 'Gap', value: 'running over lifting 13 points, range 5 to 21' },
+      // Lifting is drawn but not compared until its scale is tied to the run scale (comparedGrades).
+      { label: 'Gap', value: 'running over cycling 9 points, range 1 to 17' },
     ])
   })
 

@@ -75,6 +75,8 @@ export default defineConfig({
     environment: 'node',
     include: shardOf(process.env.SIM_SHARD),
     testTimeout: 180_000,
+    // A file may draw its whole sample once in beforeAll (the e1RM calibration does), so a hook gets the same time as a test.
+    hookTimeout: 180_000,
     // Scales the mutation fuzz tests (src/*/parse.fuzz.test.ts), which keep a small sample in the unit run.
     env: { FUZZ_SCALE: '20' },
   },
