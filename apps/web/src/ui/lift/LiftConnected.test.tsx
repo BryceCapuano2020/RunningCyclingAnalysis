@@ -80,6 +80,16 @@ const view = (day = TODAY, status = 'signed-out') => (
 )
 
 describe('the Lift page on the log', () => {
+  it('opens the Hevy import in place of the buttons, and closes it on Cancel', async () => {
+    useHook([])
+    render(view())
+    await userEvent.click(screen.getByRole('button', { name: 'Import from Hevy' }))
+    expect(screen.getByLabelText(/Hevy workouts file/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Log a set' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Log a set' })).toBeTruthy()
+  })
+
   it('stamps a set only on today, and dates it with the day shown', async () => {
     useHook([])
     const { unmount } = render(view(TODAY))

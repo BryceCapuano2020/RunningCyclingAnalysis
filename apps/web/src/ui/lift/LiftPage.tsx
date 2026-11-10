@@ -31,6 +31,8 @@ export interface LiftPageProps {
   onDay: (day: string) => void
   /** "Log a set": the caller opens its form in `form`. */
   onLog: () => void
+  /** "Import from Hevy": the caller opens its import in `form`. */
+  onImport?: () => void
   /** A set's "Edit set N" was activated, with the set's key. */
   onEditSet: (key: string) => void
   /** The key of the set being edited, whose row `rowForm` replaces. */
@@ -83,6 +85,7 @@ export function LiftPage({
   units,
   onDay,
   onLog,
+  onImport,
   onEditSet,
   editingKey,
   rowForm = null,
@@ -139,6 +142,11 @@ export function LiftPage({
           {!formOpen && (
             <button type="button" className="btn btn-primary" onClick={onLog}>
               Log a set
+            </button>
+          )}
+          {!formOpen && onImport && (
+            <button type="button" className="btn" onClick={onImport}>
+              Import from Hevy
             </button>
           )}
           {form}

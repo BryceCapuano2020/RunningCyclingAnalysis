@@ -4,6 +4,7 @@ import type { AgeProfile } from '@rca/core/grade'
 import type { Equipment, LiftSet } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
 import type { AccountController } from '../useAccount'
+import { HevyImport } from './HevyImport'
 import { LiftEstimates } from './LiftEstimates'
 import { LiftLead } from './LiftLead'
 import { LiftPage } from './LiftPage'
@@ -72,6 +73,7 @@ export function LiftConnected({
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [count, setCount] = useState(EARLIER_STEP)
   const [notSaved, setNotSaved] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const logged = log.days.find((entry) => entry.date === day)
   const lifts = useMemo(() => liftsOfDay(logged), [logged])
@@ -112,7 +114,14 @@ export function LiftConnected({
     )
   }
 
-  const form = logging ? (
+  const form = importing ? (
+    <HevyImport
+      existing={log.sets}
+      units={units}
+      onImport={log.importSets}
+      onDone={() => setImporting(false)}
+    />
+  ) : logging ? (
     <>
       <LiftPicker recent={log.recentLifts} selected={exercise} onChoose={setChoice} />
       {notSaved && <NotSaved />}
@@ -183,6 +192,7 @@ export function LiftConnected({
       units={units}
       onDay={(next) => {
         closeAll()
+        setImporting(false)
         setEditingKey(null)
         setCount(EARLIER_STEP)
         openDay(next)
@@ -190,6 +200,10 @@ export function LiftConnected({
       onLog={() => {
         setEditingKey(null)
         setLogging(true)
+      }}
+      onImport={() => {
+        setEditingKey(null)
+        setImporting(true)
       }}
       onEditSet={(key) => {
         closeAll()

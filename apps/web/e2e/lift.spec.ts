@@ -159,3 +159,48 @@ test('Remove all in one tab empties the Lift page open in another', async ({ bro
   await expect(second.getByText(/×\s5\s·\sRPE\s8/)).toHaveCount(0)
   await context.close()
 })
+
+test('imports a Hevy file signed out: previews it, then shows the sets on the day', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.goto('/#/lift')
+  await appSettled(page)
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const start = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} 07:30:00`
+  const header =
+    'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe'
+  const row = (lift: string, index: number, type: string, kg: string, reps: string, rpe = '') =>
+    ['Test day', start, '', '', lift, '', '', index, type, kg, reps, '', '', rpe].join(',')
+  const csv = [
+    header,
+    row('Squat (Barbell)', 0, 'warmup', '40', '8'),
+    row('Squat (Barbell)', 1, 'normal', '100', '5', '8'),
+    row('Squat (Barbell)', 2, 'failure', '100', '4'),
+    row('Bench Press (Barbell)', 0, 'normal', 'abc', '5'),
+  ].join('\n')
+
+  await page.getByRole('button', { name: 'Import from Hevy' }).click()
+  await expect(page.getByRole('button', { name: 'Log a set' })).toHaveCount(0)
+  await page.getByLabel('Hevy workouts file').setInputFiles({
+    name: 'workouts.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  })
+  await expect(page.getByText('3 sets on 1 day')).toBeVisible()
+  await expect(page.getByText(/The weight is not a number\. Rows 5\./)).toBeVisible()
+  // Nothing is written until it is confirmed.
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Import sets' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 3 sets' })).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(3)
+  await expect(page.getByText(/×\s4\s·\sRPE\s10/)).toBeVisible()
+  await page.reload()
+  await appSettled(page)
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(3)
+  expect(errors).toEqual([])
+})
