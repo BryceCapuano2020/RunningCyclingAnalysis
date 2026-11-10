@@ -97,9 +97,10 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
-    name: 'Balance, a definition open',
+    // The range is defined on the landing example; Balance's hero has no defined term now.
+    name: 'Landing, a definition open',
     open: async (page) => {
-      await openSample(page)
+      await page.goto('/')
       await page.getByRole('button', { name: 'range', exact: true }).click()
       await expect(page.getByRole('note').first()).toBeVisible()
     },

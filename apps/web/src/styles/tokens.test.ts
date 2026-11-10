@@ -56,6 +56,7 @@ const PAIRS: [string, string, number][] = [
   ['run-ink', 'paper', TEXT],
   ['ride-ink', 'paper', TEXT],
   ['swim-ink', 'paper', TEXT],
+  ['lift-ink', 'paper', TEXT],
   ['status-critical', 'paper', TEXT],
   ['status-warning', 'paper', TEXT],
   ['status-good', 'paper', TEXT],

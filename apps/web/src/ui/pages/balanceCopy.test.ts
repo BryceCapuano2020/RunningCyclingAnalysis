@@ -3,6 +3,7 @@ import type { Period } from '@rca/core/period'
 import { balanceTitle } from '../components/headlineText'
 import type { BalanceReading } from '../components/balanceScale'
 import { BALANCE_PAIR } from '../sports'
+import { TRIANGLE_NOUN } from '../triangleSports'
 import { eyebrowText, titleParts } from './balanceCopy'
 
 const points = (centre: number, low: number, high: number): BalanceReading => ({
@@ -16,22 +17,23 @@ describe('titleParts', () => {
   it.each([points(6, 1, 12), points(-9, -14, -3), points(1, -3, 5)])(
     'splits the headline without changing a word of it',
     (reading) => {
-      const { lead, noun } = titleParts(reading)
-      expect(`${lead}${noun}`).toBe(balanceTitle(reading))
+      const { lead, sports } = titleParts(reading)
+      expect(`${lead}${sports.map((sport) => TRIANGLE_NOUN[sport]).join('')}`).toBe(
+        balanceTitle(reading),
+      )
     },
   )
 
   it('names the sport the balance leans toward last, so that word can be marked', () => {
     expect(titleParts(points(6, 1, 12))).toEqual({
       lead: 'Your balance leans toward ',
-      sport: 'run',
-      noun: 'running',
+      sports: ['run'],
     })
-    expect(titleParts(points(-9, -14, -3)).sport).toBe('ride')
+    expect(titleParts(points(-9, -14, -3)).sports).toEqual(['ride'])
   })
 
   it('marks no sport for a level balance', () => {
-    expect(titleParts(points(1, -3, 5))).toMatchObject({ sport: null, noun: '' })
+    expect(titleParts(points(1, -3, 5)).sports).toEqual([])
   })
 })
 

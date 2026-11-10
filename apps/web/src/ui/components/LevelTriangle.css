@@ -1,0 +1,183 @@
+/*
+ * The level triangle: a square plot with an aria-hidden SVG under it and the three corners over it as real links, placed on the
+ * vertices by --x and --y (a share of the plot, from `triangleGeometry`). The plot is 440 px at most and centred; the room above
+ * and below it is what the top and bottom corners' text takes, in rem, so it grows with the text and never lands on a neighbour.
+ */
+.level-triangle {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 1;
+  /* The top vertex sits 10.7% down the plot and the lower ones 78%: the corner text hangs the rest of its height outside. */
+  margin: max(var(--space-3), calc(4rem - 0.107 * min(100%, 440px))) auto
+    max(var(--space-3), calc(5.5rem - 0.22 * min(100%, 440px)));
+  min-width: 0;
+}
+
+.level-triangle__plot {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.level-triangle__ring {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.level-triangle__ring--outer,
+.level-triangle__axis {
+  stroke: var(--rule);
+}
+
+.level-triangle__axis {
+  stroke-width: 1;
+}
+
+/* An axis with no grade is the lighter hairline, with a short cap at its end and no dot. */
+.level-triangle__axis--empty {
+  stroke: var(--hairline);
+}
+
+.level-triangle__cap {
+  stroke: var(--control-border);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.level-triangle__ring-label {
+  fill: var(--ink-secondary);
+  font: 400 var(--text-xs) var(--font-mono);
+  text-anchor: end;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 3px;
+}
+
+/* The shape belongs to no sport, so it is neutral ink: 7% fill, a 2 px edge with round joins. */
+.level-triangle__shape {
+  fill: color-mix(in srgb, var(--ink) 7%, transparent);
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.level-triangle__line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The 90% range: a band along its own axis in the sport's wash, layered twice so it reads, with no edge and never dashed. */
+.level-triangle__band {
+  stroke: var(--sport-wash);
+  stroke-width: 12;
+  stroke-linecap: butt;
+}
+
+.level-triangle__dot {
+  fill: var(--sport-ink);
+  stroke: var(--paper);
+  stroke-width: 3;
+}
+
+.level-triangle__corner {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  display: block;
+  /* The width comes from the words, not the room left of the vertex, so a corner near an edge does not break a word. */
+  width: max-content;
+  min-width: 44px;
+  min-height: 44px;
+  /* A corner never grows past this share of the plot: at 320 px or 200% text its words wrap rather than widen the page. */
+  max-width: 40%;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  color: var(--ink);
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.level-triangle__corner[data-at='top'] {
+  transform: translate(-50%, calc(-100% - 6px));
+}
+
+.level-triangle__corner[data-at='bottom'] {
+  transform: translate(-50%, 8px);
+}
+
+a.level-triangle__corner:hover .level-triangle__label {
+  text-decoration: underline;
+}
+
+.level-triangle__label,
+.level-triangle__figure,
+.level-triangle__level,
+.level-triangle__none {
+  display: block;
+}
+
+.level-triangle__label {
+  color: var(--sport-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+  padding-bottom: 2px;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.level-triangle__figure {
+  font-family: var(--font-mono);
+  font-size: var(--heading);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.level-triangle__level,
+.level-triangle__none {
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+
+.level-triangle__none {
+  padding-top: 3px;
+}
+
+@media (max-width: 400px) {
+  .level-triangle__figure {
+    font-size: var(--text-lead);
+  }
+}
+
+/* Forced colours: the shape is the canvas, and the edge, axes and dots take system colours; the ring stays a dot's outline. */
+@media (forced-colors: active) {
+  .level-triangle__shape {
+    fill: Canvas;
+  }
+
+  .level-triangle__ring,
+  .level-triangle__axis,
+  .level-triangle__cap,
+  .level-triangle__shape,
+  .level-triangle__line {
+    stroke: CanvasText;
+  }
+
+  .level-triangle__dot {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .level-triangle__band {
+    stroke: GrayText;
+  }
+}

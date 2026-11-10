@@ -6,7 +6,9 @@ import { balanceMoveItem } from '../analysis/balanceMove'
 import { BalanceMeter } from './BalanceMeter'
 import { gapReading } from './balanceScale'
 import { balanceSentence, rangeText } from './headlineText'
-import { BalanceLede } from '../pages/BalanceLede'
+import { triangleLine } from '../pages/triangleCopy'
+import { triangleReading } from '@rca/core/standing'
+import { viewOfGap } from '../test/triangleView'
 
 afterEach(cleanup)
 
@@ -17,6 +19,10 @@ const gap = (centre: number, low: number, high: number) => ({
   lean: leanOfLead({ centre, low, high }),
 })
 
+/** The line under the headline for a gap, from the grades that give it. */
+const lineOf = (centre: number, low: number, high: number) =>
+  triangleLine(triangleReading(viewOfGap({ centre, low, high }).grades))
+
 describe('every surface writes a balance from the same side', () => {
   // A level balance that favours cycling by 2 points, its range reaching 6 points toward cycling and 2 toward running.
   const reading = gapReading(gap(-2, -6, 2))
@@ -25,9 +31,7 @@ describe('every surface writes a balance from the same side', () => {
   it('writes the cycling side in the lede, and of the range in the range text, the key and the spoken sentence', () => {
     expect(reading.lean).toBe('even')
     expect(rangeText(reading)).toBe(RANGE)
-    const lede = render(<BalanceLede reading={reading} durationS={1200} />)
-    expect(lede.container.textContent).toBe('Cycling grades 2 points higher at\u00a0threshold.')
-    cleanup()
+    expect(lineOf(-2, -6, 2)).toBe('Cycling grades 2 points higher at\u00a0threshold.')
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
     const { container } = render(<BalanceMeter reading={reading} />)
     expect(container.querySelector('.balance-meter__edges')?.textContent).toBe('−2 to +6')
@@ -42,10 +46,7 @@ describe('every surface writes a balance from the same side', () => {
   })
 
   it('says the two grade the same for an estimate of zero, with no range to print', () => {
-    const { container } = render(
-      <BalanceLede reading={gapReading(gap(0, 0, 0))} durationS={1200} />,
-    )
-    expect(container.textContent).toBe('Running and cycling grade the same at\u00a0threshold.')
+    expect(lineOf(0, 0, 0)).toBe('Running and cycling grade the same at\u00a0threshold.')
   })
 
   it('signs a range that touches zero', () => {
