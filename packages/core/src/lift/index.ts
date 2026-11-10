@@ -13,7 +13,7 @@ export {
   liftSetKey,
   parseLiftSetKey,
 } from './key'
-export { EXERCISE_CATALOG, exerciseInfo } from './catalog'
+export { EXERCISE_CATALOG, exerciseInfo, usualEquipment } from './catalog'
 export type { ExerciseInfo, LiftRegion } from './catalog'
 export { isLiftLoad, isLiftReps, isLiftRpe, readLiftSet } from './validate'
 export { LIFT_REVISION } from './revision'

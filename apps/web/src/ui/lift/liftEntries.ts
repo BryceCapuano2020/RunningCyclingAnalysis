@@ -46,8 +46,8 @@ export interface LiftEntry {
   history: LiftHistoryPoint[]
   /** e1RM and range, floor, times body mass, last session, sets and effort. */
   rows: Property[]
-  /** One row for the compact list of lifts with one session: name, one-rep max, floor and last session. */
-  compact: Property
+  /** Its row in the table of every lift: one-rep max, heaviest set and last session, as written. */
+  table: { max: string; heaviest: string; last: string }
   /** The heaviest working set at each rep count, as rows. */
   bests: Property[]
 }
@@ -67,10 +67,10 @@ export interface LiftLead {
 
 export interface LiftOverview {
   lead: LiftLead | null
-  /** The lifts with a line (two or more sessions with an estimate): big three first, then the most recent. */
-  entries: LiftEntry[]
-  /** The lifts with one session with an estimate, in the same order: a compact list, not a chart. */
-  others: LiftEntry[]
+  /** Every lift with an estimate: big three first, then the most recent. A lift with one session has no line yet. */
+  lifts: LiftEntry[]
+  /** The lift the page leads with, which the chart shows first; null with no lift. */
+  leadId: string | null
   /** The last LOAD_WEEKS weeks to this one, a week with no working set included as zeros. */
   weeks: LiftWeek[]
 }
@@ -208,9 +208,10 @@ export function liftOverviewOf(
         estimate: summary.estimate,
         history: liftHistory(own),
         rows: rowsOf(summary, summary.estimate, own, units, today),
-        compact: {
-          label: titleOf(summary),
-          value: `${formatMass(summary.estimate.point, units)} · floor ${bestText(summary.estimate.floor, units, today)} · ${dateText(summary.lastDate, today)}`,
+        table: {
+          max: formatMass(summary.estimate.point, units),
+          heaviest: `${formatLoad(summary.estimate.floor.loadKg, units)} × ${summary.estimate.floor.reps}`,
+          last: dateText(summary.lastDate, today),
         },
         bests: summary.repBests.map((best) => ({
           label: plural(best.reps, 'rep'),
@@ -223,8 +224,7 @@ export function liftOverviewOf(
   const ordered = [...all].sort(
     (a, b) => bigThreeRank(a.summary) - bigThreeRank(b.summary) || newerThan(a, b),
   )
-  const entries = ordered.filter((entry) => entry.history.length >= 2)
-  const others = ordered.filter((entry) => entry.history.length < 2)
+
   let lead: LiftLead | null = null
   if (top) {
     const own = sets.filter((s) => exerciseKeyOf(s) === top.summary.key)
@@ -241,5 +241,5 @@ export function liftOverviewOf(
           : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings),
     }
   }
-  return { lead, entries, others, weeks: filledWeeks(state.weeks, today) }
+  return { lead, leadId: top?.id ?? null, lifts: ordered, weeks: filledWeeks(state.weeks, today) }
 }

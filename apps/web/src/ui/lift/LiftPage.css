@@ -78,8 +78,45 @@
   min-width: 0;
 }
 
-.lift__estimate + .lift__estimate {
-  margin-top: var(--space-5);
+/* The lift the chart shows: a label over a select, as the set form's fields are. */
+.lift__choose {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.lift__single {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* A lift's name picks it for the chart: it reads as the name, underlined while it is the one shown. */
+.lift-table__pick {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lift-table__pick[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.lift-table th[scope='row'] {
+  font-weight: 400;
+  /* The name wraps on a phone; the figures and their headers stay on one line, and the table scrolls in its box. */
+  white-space: normal;
+}
+
+.lift-table thead th,
+.lift-table td {
+  white-space: nowrap;
 }
 
 .lift__bests {

@@ -22,7 +22,7 @@ describe('liftOverviewOf', () => {
     expect(overview.lead?.floor).toEqual(estimate.floor)
     expect(overview.lead?.change).toBe(liftChange(sets, estimate.date, WINDOW_DAYS))
     expect(overview.lead?.grade).toEqual(liftGrade({ lift: 'squat', estimate }, PROFILE, SETTINGS))
-    expect(overview.entries[0]?.history).toEqual(liftHistory(sets))
+    expect(overview.lifts[0]?.history).toEqual(liftHistory(sets))
   })
 
   it('gives the lead no grade while the weight is a placeholder the athlete did not enter', () => {
@@ -46,7 +46,7 @@ describe('liftOverviewOf', () => {
     const warmup = squat('2031-01-02', 60, { warmup: true })
     const none = liftOverviewOf([warmup], SETTINGS, PROFILE, 'metric', '2031-01-03')
     expect(none.lead).toBeNull()
-    expect(none.entries).toEqual([])
+    expect(none.lifts).toEqual([])
   })
 
   it('leads with the lift trained last when two have estimates', () => {
@@ -57,7 +57,7 @@ describe('liftOverviewOf', () => {
   })
 
   it('gives each estimated lift its detail rows: max, floor, times body mass, last session, sets and effort', () => {
-    const rows = overview.entries[0]!.rows
+    const rows = overview.lifts[0]!.rows
     expect(rows.map((row) => row.label)).toEqual([
       'One-rep max',
       'Floor',
@@ -85,14 +85,14 @@ describe('liftOverviewOf', () => {
       'metric',
       '2031-03-02',
     )
-    expect(noMass.entries[0]!.rows.map((row) => row.label)).not.toContain('Times body mass')
+    expect(noMass.lifts[0]!.rows.map((row) => row.label)).not.toContain('Times body mass')
     const late = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2032-01-01')
-    expect(late.entries[0]!.rows.map((row) => row.label)).not.toContain('Effort')
-    expect(late.entries[0]!.rows.find((row) => row.label.startsWith('Sets'))?.value).toBe('0')
+    expect(late.lifts[0]!.rows.map((row) => row.label)).not.toContain('Effort')
+    expect(late.lifts[0]!.rows.find((row) => row.label.startsWith('Sets'))?.value).toBe('0')
   })
 
   it('lists rep bests as rows and the last twelve weeks of load with empty weeks as zeros', () => {
-    expect(overview.entries[0]!.bests.map((row) => row.label)).toEqual(['5 reps'])
+    expect(overview.lifts[0]!.bests.map((row) => row.label)).toEqual(['5 reps'])
     expect(overview.weeks).toHaveLength(LOAD_WEEKS)
     expect(overview.weeks.at(-1)!.weekStart).toBe('2031-02-24')
     const gap = liftOverviewOf(
@@ -137,7 +137,7 @@ describe('liftOverviewOf', () => {
     expect(big.lead?.title).toBe('Back squat, barbell')
   })
 
-  it('charts lifts with a line, big three first in squat, bench, deadlift order, and lists the rest compactly', () => {
+  it('orders every lift big three first in squat, bench, deadlift order, leads with the newest big three, and writes each table row', () => {
     const deadlift = (date: string, load: number) =>
       squat(date, load, { exercise: 'deadlift', equipment: 'barbell' })
     const curl = (date: string, load: number) =>
@@ -152,13 +152,18 @@ describe('liftOverviewOf', () => {
       squat('2031-03-02', 100),
     ]
     const got = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2031-03-02')
-    expect(got.entries.map((entry) => entry.title)).toEqual([
+    expect(got.lifts.map((entry) => entry.title)).toEqual([
+      'Back squat, barbell',
       'Bench press, barbell',
       'Deadlift, barbell',
       'Biceps curl, dumbbell',
     ])
-    expect(got.others.map((entry) => entry.title)).toEqual(['Back squat, barbell'])
-    expect(got.others[0]!.compact.value).toMatch(/ kg · floor .* kg × 5 · /)
+    expect(got.leadId).toBe(got.lifts[0]!.id)
+    // Three plain cells: the one-rep max, the heaviest set and the last session, each once.
+    const row = got.lifts[0]!.table
+    expect(row.max).toMatch(/^\d+ kg$/)
+    expect(row.heaviest).toBe('100 kg × 5')
+    expect(row.last).not.toContain('·')
   })
 
   it('writes estimates in whole units and logged loads as they were logged', () => {
@@ -170,11 +175,10 @@ describe('liftOverviewOf', () => {
       '2031-03-02',
     )
     expect(got.lead?.title).toBe('Back squat, barbell')
-    expect(got.entries[0] ?? got.others[0]).toBeDefined()
-    const value = (got.others[0]!.rows[0]!.value as string).split(', ')
+    const value = (got.lifts[0]!.rows[0]!.value as string).split(', ')
     expect(value[0]).toMatch(/^\d+ lb$/)
     expect(value[1]).toMatch(/^\d+ to \d+ lb$/)
-    expect(got.others[0]!.rows[1]!.value).toContain('135 lb')
+    expect(got.lifts[0]!.rows[1]!.value).toContain('135 lb')
   })
 
   it('writes loads in the athlete’s unit', () => {

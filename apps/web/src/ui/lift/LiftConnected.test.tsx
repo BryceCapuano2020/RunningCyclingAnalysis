@@ -124,10 +124,18 @@ describe('the Lift page on the log', () => {
     render(view())
     await userEvent.click(screen.getByRole('button', { name: 'Log a set' }))
     await userEvent.click(screen.getByRole('combobox', { name: 'Lift' }))
-    await userEvent.click(screen.getByRole('option', { name: 'Back squat, barbell' }))
+    await userEvent.click(
+      within(screen.getByRole('listbox', { name: 'Lifts' })).getByRole('option', {
+        name: 'Back squat, barbell',
+      }),
+    )
     expect(screen.getByLabelText('Reps')).toHaveValue('3')
     await userEvent.keyboard('{ArrowDown}')
-    await userEvent.click(screen.getByRole('option', { name: 'Back squat, dumbbell' }))
+    await userEvent.click(
+      within(screen.getByRole('listbox', { name: 'Lifts' })).getByRole('option', {
+        name: 'Back squat, dumbbell',
+      }),
+    )
     expect(screen.getByLabelText('Reps')).toHaveValue('9')
     expect(screen.getByLabelText('Equipment')).toHaveValue('dumbbell')
     expect(screen.getByLabelText('Effort (RPE)')).toHaveValue('7')
@@ -139,7 +147,11 @@ describe('the Lift page on the log', () => {
     render(view())
     await userEvent.click(screen.getByRole('button', { name: 'Log a set' }))
     await userEvent.click(screen.getByRole('combobox', { name: 'Lift' }))
-    await userEvent.click(screen.getByRole('option', { name: 'Back squat, barbell' }))
+    await userEvent.click(
+      within(screen.getByRole('listbox', { name: 'Lifts' })).getByRole('option', {
+        name: 'Back squat, barbell',
+      }),
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Not saved')).toBeInTheDocument()
     expect(screen.getByLabelText('Reps')).toHaveValue('5')
@@ -212,13 +224,13 @@ describe('the Lift page on the log', () => {
 })
 
 describe('the lead and the lifts list', () => {
-  it('lead with the estimate once a lift has one, above the day, and list a lift with one session compactly', () => {
+  it('lead with the estimate once a lift has one, above the day, and list every lift in a table', () => {
     useHook([logged(TODAY, set())])
     render(view())
     const lead = screen.getByTestId('lift-max')
     const day = screen.getByRole('button', { name: 'Log a set' })
     expect(lead.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Other lifts' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your lifts' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Weekly load' })).toBeInTheDocument()
   })
 
