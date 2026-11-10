@@ -73,7 +73,8 @@ export function weeklyLoad(sets: readonly LiftSet[]): LiftWeek[] {
     else if (s.rpe >= HARD_RPE) load.hardSets += 1
     if (bodyweight) load.bodyweightSets += 1
     const pair = info.pair === true && s.equipment === 'dumbbell' ? 2 : 1
-    load.volumeKg += s.reps * s.loadKg * pair
+    // An assisted lift's load is the help, not weight moved.
+    if (info.assisted !== true) load.volumeKg += s.reps * s.loadKg * pair
   }
   return [...weeks.entries()]
     .sort((a, b) => a[0] - b[0])

@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { MAX_LIFT_SETS_PER_USER } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
 import { PropertyList } from '../components/PropertyList'
 import { plural } from '../components/plural'
-import { fileProblem, previewHevy } from './hevyPreview'
+import { fileProblem, hevyWrites, previewHevy } from './hevyPreview'
 import type { HevyPreview } from './hevyPreview'
 
 export interface HevyImportProps {
-  /** The sets the log holds now, to tell which an import replaces. */
+  /** The sets the log holds now, to tell which an import adds, repeats or changes. */
   existing: readonly LiftSet[]
   units: UnitSystem
   /** Writes the sets to the log; resolves how many were kept. */
@@ -19,10 +20,10 @@ export interface HevyImportProps {
 type Stage =
   | { at: 'pick'; problem?: string }
   | { at: 'preview'; preview: HevyPreview }
-  | { at: 'done'; kept: number }
+  | { at: 'done'; kept: number; notKept: number }
 
 /** The rows of a preview: what would be written, and what would not. */
-function previewRows(preview: HevyPreview) {
+function previewRows(preview: HevyPreview, notKept: number) {
   const rows = [
     {
       label: 'Sets',
@@ -32,8 +33,21 @@ function previewRows(preview: HevyPreview) {
   ]
   if (preview.customLifts.length > 0)
     rows.push({ label: 'Custom lifts', value: preview.customLifts.join(', ') })
-  if (preview.replaced > 0)
-    rows.push({ label: 'Replace sets you have', value: plural(preview.replaced, 'set') })
+  if (preview.identical > 0)
+    rows.push({
+      label: 'Already in your log',
+      value: `${plural(preview.identical, 'set')}, skipped`,
+    })
+  if (preview.different.length > 0)
+    rows.push({
+      label: 'Differ from your log',
+      value: `${plural(preview.different.length, 'set')}, kept as you have them`,
+    })
+  if (notKept > 0)
+    rows.push({
+      label: 'Past the limit',
+      value: `${plural(notKept, 'set')} will not be kept: a log holds ${MAX_LIFT_SETS_PER_USER.toLocaleString('en-US')}`,
+    })
   if (preview.skipped.length > 0)
     rows.push({ label: 'Rows skipped', value: String(preview.skipped.length) })
   return rows
@@ -71,29 +85,53 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
   const [stage, setStage] = useState<Stage>({ at: 'pick' })
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [reading, setReading] = useState(false)
+  const [replace, setReplace] = useState(false)
+  // Counts the picks, so a read that finishes after the page is left or a newer pick sets nothing.
+  const pickId = useRef(0)
+  useEffect(
+    () => () => {
+      pickId.current = -1
+    },
+    [],
+  )
 
   const pick = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const input = event.target
+    const file = input.files?.[0]
+    // Cleared so choosing the same file again fires a change.
+    input.value = ''
     if (file === undefined) return
+    const id = ++pickId.current
+    const current = () => pickId.current === id
     const problem = fileProblem(file)
     if (problem !== null) return setStage({ at: 'pick', problem })
+    setReading(true)
     const text = await file.text().catch(() => null)
+    // Lets the page paint "Reading" before the parse takes the thread.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    if (!current()) return
+    setReading(false)
     if (text === null) return setStage({ at: 'pick', problem: 'That file could not be read.' })
     const result = previewHevy(text, existing, units)
     if ('refused' in result) return setStage({ at: 'pick', problem: result.refused })
+    setReplace(false)
     setStage({ at: 'preview', preview: result.preview })
   }
 
   const confirm = (preview: HevyPreview) => {
+    const { sets, notKept } = hevyWrites(preview, replace)
     setBusy(true)
     setFailed(false)
-    onImport(preview.sets).then(
+    onImport(sets).then(
       (kept) => {
+        if (pickId.current < 0) return
         setBusy(false)
         if (kept === 0) setFailed(true)
-        else setStage({ at: 'done', kept })
+        else setStage({ at: 'done', kept, notKept })
       },
       () => {
+        if (pickId.current < 0) return
         setBusy(false)
         setFailed(true)
       },
@@ -103,7 +141,10 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
   if (stage.at === 'done')
     return (
       <>
-        <p role="status">{`Imported ${plural(stage.kept, 'set')} from Hevy.`}</p>
+        <p role="status">
+          {`Imported ${plural(stage.kept, 'set')} from Hevy.`}
+          {stage.notKept > 0 && ` ${plural(stage.notKept, 'set')} did not fit and were not kept.`}
+        </p>
         <button type="button" className="btn" onClick={onDone}>
           Done
         </button>
@@ -112,13 +153,25 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
 
   if (stage.at === 'preview') {
     const { preview } = stage
+    const writes = hevyWrites(preview, replace)
     return (
       <>
         {preview.sets.length === 0 ? (
           <p>No sets in this file.</p>
         ) : (
-          <PropertyList rows={previewRows(preview)} />
+          <PropertyList rows={previewRows(preview, writes.notKept)} />
         )}
+        {preview.different.length > 0 && (
+          <label>
+            <input
+              type="checkbox"
+              checked={replace}
+              onChange={(event) => setReplace(event.target.checked)}
+            />{' '}
+            {`Replace ${preview.different.length === 1 ? '1 set that differs' : `${preview.different.length} sets that differ`}`}
+          </label>
+        )}
+        {preview.sets.length > 0 && writes.sets.length === 0 && <p>Nothing new to import.</p>}
         <Reasons title="Skipped" entries={preview.skipped} />
         <Reasons title="Kept without a value" entries={preview.adjusted} />
         {failed && (
@@ -127,7 +180,7 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
           </p>
         )}
         <div className="lift__day-nav">
-          {preview.sets.length > 0 && (
+          {writes.sets.length > 0 && (
             <button
               type="button"
               className="btn btn-primary"
@@ -151,6 +204,7 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
         Hevy workouts file (.csv)
         <input type="file" accept=".csv,text/csv" onChange={(event) => void pick(event)} />
       </label>
+      {reading && <p role="status">Reading the file.</p>}
       <p>The file is read on this device. Only the sets are kept.</p>
       {stage.problem !== undefined && (
         <p role="alert" className="lift__error">

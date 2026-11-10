@@ -223,6 +223,23 @@ describe('a write that aborts', () => {
     expect(await store.list()).toEqual([])
   })
 
+  it('saves none of a batch and counts none when the transaction aborts', async () => {
+    const store = openLiftStore('u1')
+    await store.list()
+    const put = IDBObjectStore.prototype.put
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args
+    ) {
+      const request = put.apply(this, args)
+      this.transaction.abort()
+      return request
+    })
+    expect(await store.saveAll([make(1), make(2), make(3)])).toBe(0)
+    spy.mockRestore()
+    expect(await store.list()).toEqual([])
+  })
+
   it('saves many sets at once, each replacing the row of its key', async () => {
     const store = openLiftStore('u1')
     await store.save(make(1))
@@ -232,5 +249,17 @@ describe('a write that aborts', () => {
       [1, 70, 2, 'put'],
       [2, 80, 1, 'put'],
     ])
+  })
+
+  it('saves more sets than one write may carry, in one transaction', async () => {
+    const store = openLiftStore('u1')
+    const many = Array.from({ length: 7 }, (_, day) =>
+      Array.from({ length: 100 }, (_, i) => ({
+        ...make(i + 1),
+        date: `2031-02-${String(day + 1).padStart(2, '0')}`,
+      })),
+    ).flat()
+    expect(await store.saveAll(many)).toBe(700)
+    expect(await store.list()).toHaveLength(700)
   })
 })

@@ -96,3 +96,23 @@ describe('buildLiftState', () => {
     expect(bench.flags).toEqual([])
   })
 })
+
+describe('an assisted lift', () => {
+  const assisted = buildLiftState(
+    [
+      set('2026-03-04', 'assisted-pull-up', 'other', 8, 30),
+      set('2026-03-04', 'back-squat', 'barbell', 5, 100, 8),
+    ],
+    settings,
+  )
+
+  it('names no estimate, floor or best: its load is the help, not weight lifted', () => {
+    const lift = assisted.lifts.find((l) => l.exercise === 'assisted-pull-up')!
+    expect(lift).toMatchObject({ estimate: null, reason: 'bodyweight', floor: null, repBests: [] })
+  })
+
+  it('adds no weekly volume', () => {
+    const week = assisted.weeks[0]!
+    expect(week.regions.other).toMatchObject({ workingSets: 1, bodyweightSets: 1, volumeKg: 0 })
+  })
+})

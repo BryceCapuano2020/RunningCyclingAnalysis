@@ -1,6 +1,6 @@
 import { readCsvRows } from '../../import/csv'
-import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
-import { LIFT_RPE, MAX_LIFT_SETS_PER_USER } from '../limits'
+import { MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
+import { LIFT_RPE, MAX_HEVY_FILE_BYTES, MAX_LIFT_SETS_PER_USER } from '../limits'
 import { isLiftRpe } from '../validate'
 import { assembleHevySets } from './hevyAssemble'
 import type { HevyCsvResult, HevyLayout, HevySkip, Staged } from './hevyAssemble'
@@ -89,7 +89,7 @@ export function readHevyCsv(
   text: string,
   options: HevyCsvOptions = {},
 ): HevyCsvResult | HevyCsvRefusal {
-  if (text.length > MAX_ACTIVITY_LIST_BYTES) return { refused: 'The file is too large to read.' }
+  if (text.length > MAX_HEVY_FILE_BYTES) return { refused: 'The file is too large to read.' }
   const skipped: HevySkip[] = []
   const adjusted: HevySkip[] = []
   const staged: Staged[] = []
