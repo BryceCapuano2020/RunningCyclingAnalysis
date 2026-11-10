@@ -159,6 +159,17 @@ export type WorkerRequest =
    * again. Sent when the account turns out to be nobody's.
    */
   | { type: 'keepProvisional'; settings: AthleteSettings }
+  /**
+   * Gives a saved activity the name the athlete chose, kept in the account (the server) or, with a null `userId`, in the
+   * library kept in this browser. `id` is the saved copy's id, as for a delete.
+   */
+  | {
+      type: 'renameActivity'
+      id: string
+      name: string
+      userId: string | null
+      settings: AthleteSettings
+    }
   /** Removes one workout from the library kept in this browser; `id` is a SavedActivity id. */
   | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
   /** Builds the account's data export from its library. The account, profile and dated settings come from the page. */

@@ -49,6 +49,7 @@ const RULES: Record<WorkerRequest['type'], StallRule> = {
   keepProvisional: LONG,
   deleteDeviceActivity: SHORT,
   deleteActivity: SHORT,
+  renameActivity: SHORT,
   routeShape: READ,
   activitySplits: READ,
   activityTrace: READ,

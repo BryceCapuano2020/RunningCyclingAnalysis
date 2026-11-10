@@ -11,7 +11,12 @@ export function memoryDeviceLibrary(): DeviceLibrary {
   let epoch = 0
   const entries = new Map<
     string,
-    { digest: ActivityDigest; route: RouteShape | null; file: DeviceFile | null }
+    {
+      digest: ActivityDigest
+      route: RouteShape | null
+      file: DeviceFile | null
+      nameOverride?: string
+    }
   >()
   const all = async () =>
     [...entries]
@@ -27,7 +32,21 @@ export function memoryDeviceLibrary(): DeviceLibrary {
     route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,
     put: async (workoutKey, digest, route = null, file = null, expected) => {
       if (expected !== undefined && expected !== epoch) throw new LibraryReplaced()
-      entries.set(workoutKey, { digest, route, file })
+      // As the real library does, a name the athlete chose stays with the workout.
+      const named = entries.get(workoutKey)?.nameOverride
+      entries.set(
+        workoutKey,
+        named === undefined
+          ? { digest, route, file }
+          : { digest: { ...digest, name: named }, route, file, nameOverride: named },
+      )
+    },
+    setName: async (workoutKey, digestId, name, expected) => {
+      if (expected !== undefined && expected !== epoch) throw new LibraryReplaced()
+      const row = entries.get(workoutKey)
+      if (row === undefined || row.digest.id !== digestId) return false
+      entries.set(workoutKey, { ...row, digest: { ...row.digest, name }, nameOverride: name })
+      return true
     },
     backfillFile: async (workoutKey, digestId, file) => {
       const row = entries.get(workoutKey)

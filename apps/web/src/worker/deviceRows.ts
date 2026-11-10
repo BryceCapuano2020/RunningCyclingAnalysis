@@ -51,6 +51,8 @@ export interface Row {
   digest: ActivityDigest
   route: RouteShape | null
   file: DeviceFile | null
+  /** The name the athlete gave the workout, which a replacing digest is given back; null for none. */
+  nameOverride: string | null
 }
 
 export function readFile(value: object): DeviceFile | null {
@@ -64,10 +66,17 @@ export function readFile(value: object): DeviceFile | null {
 export function readRow(value: unknown): Row | null {
   if (typeof value === 'string') {
     const digest = readDigest(value)
-    return digest === null ? null : { digest, route: null, file: null }
+    return digest === null ? null : { digest, route: null, file: null, nameOverride: null }
   }
   if (typeof value !== 'object' || value === null || !('digest' in value)) return null
   const digest = readDigest(value.digest)
   const route = 'route' in value ? parseRouteShape(value.route) : null
-  return digest === null ? null : { digest, route, file: readFile(value) }
+  if (digest === null) return null
+  const named = 'nameOverride' in value ? value.nameOverride : undefined
+  return {
+    digest,
+    route,
+    file: readFile(value),
+    nameOverride: typeof named === 'string' && named !== '' ? named : null,
+  }
 }

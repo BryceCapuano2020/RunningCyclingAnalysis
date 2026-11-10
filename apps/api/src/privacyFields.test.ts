@@ -120,6 +120,8 @@ const DISCLOSED: Record<string, string> = {
     'name (as in the summary kept in this browser), sport, start and save times; file name and sha-256 hash; distance, duration and elevation gain; and the analysis summary',
   'activities.name':
     'name (as in the summary kept in this browser), sport, start and save times; file name and sha-256 hash; distance, duration and elevation gain; and the analysis summary',
+  'activities.name_override':
+    'a name you give an activity on its page is kept with the activity and is not changed when it is rebuilt',
   'activities.digest_version':
     "activity ids, a key from each activity's sport and start, digest versions, your activity count and digest bytes, whether and when deletion started, when your profile last changed, and an upload reservation token while a file uploads",
   'activities.digest_json':

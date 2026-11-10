@@ -42,6 +42,7 @@ import { backToList, originOf } from './activityBack'
 import './ActivityPage.css'
 import { PageDetails } from './PageDetails'
 import { PageHeading } from '../components/PageHeading'
+import { ActivityTitle } from '../components/ActivityTitle'
 
 export interface ActivityPageProps {
   /** The activity the URL names, or null when the library does not hold it. The period never hides one. */
@@ -85,6 +86,8 @@ export interface ActivityPageProps {
   signedIn: boolean
   /** Removes the activity's saved copy. Without it, or without a saved copy, there is no Delete. */
   onDelete?: (savedId: string) => void
+  /** Saves the name the athlete gives the activity's saved copy. Without it, or without a saved copy, there is no Edit name. */
+  onRename?: (savedId: string, name: string) => void
   /** The library's notice and error, which say how a removal from this page ended. */
   libraryNotice?: string | null
   libraryError?: string | null
@@ -152,6 +155,7 @@ export function ActivityPage({
   busy = false,
   signedIn,
   onDelete,
+  onRename,
   libraryNotice = null,
   libraryError = null,
 }: ActivityPageProps) {
@@ -266,7 +270,13 @@ export function ActivityPage({
   return (
     <div className="page-stack">
       <div className="page-title">
-        <PageHeading className="activity-page__title">{activity.name}</PageHeading>
+        <ActivityTitle
+          name={activity.name}
+          savedId={routeId}
+          onRename={onRename}
+          libraryNotice={libraryNotice ?? null}
+          libraryError={libraryError ?? null}
+        />
         <ActivityFacts activity={activity} power={power} />
       </div>
 

@@ -248,6 +248,7 @@ export function ResultPage({
             busy={removing}
             signedIn={signedIn}
             onDelete={analysis.deleteActivity}
+            onRename={analysis.renameActivity}
             libraryNotice={analysis.libraryNotice}
             libraryError={analysis.libraryError}
           />

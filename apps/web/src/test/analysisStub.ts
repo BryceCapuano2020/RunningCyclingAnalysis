@@ -54,6 +54,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     libraryNotice: null,
     libraryError: null,
     deleteActivity: vi.fn(),
+    renameActivity: vi.fn(),
     exportData: vi.fn(async () => new Blob()),
     activitySplits: vi.fn(async () => null),
     loadTrace: vi.fn(async () => ({ kind: 'missing' as const })),
