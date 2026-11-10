@@ -5,6 +5,7 @@
 import { estimateLift } from '../estimate'
 import { population, SCENARIOS } from './scenarios'
 import { simulate } from './lifters'
+import type { LifterSpec } from './lifters'
 
 export interface ScenarioScore {
   name: string
@@ -29,6 +30,14 @@ const median = (xs: number[]): number => {
   return s.length ? (s[Math.floor(s.length / 2)] as number) : NaN
 }
 
+/** The days a lifter is scored on: from the first to the last, inclusive. */
+function scoreWindow(spec: LifterSpec): [number, number] {
+  if (spec.drop) return [(spec.drop[0] + 2) * 7 + 14, (spec.drop[0] + 2) * 7 + 28]
+  if (spec.scoreReturn && spec.breakWeeks)
+    return [spec.breakWeeks[1] * 7 + 14, spec.breakWeeks[1] * 7 + 28]
+  return [14, Infinity]
+}
+
 export function scoreScenario(
   name: string,
   lifters: number,
@@ -44,10 +53,8 @@ export function scoreScenario(
   let orderViolations = 0
   for (const spec of population(name, lifters, centre, offset)) {
     const lifter = simulate(spec)
-    // A drop is scored 2 to 4 weeks after it ends; everything else from day 14.
-    const drop = spec.drop
-    const from = drop ? (drop[0] + 2) * 7 + 14 : 14
-    const to = drop ? (drop[0] + 2) * 7 + 28 : Infinity
+    // A drop is scored 2 to 4 weeks after it ends, a return 2 to 4 weeks after the break; everything else from day 14.
+    const [from, to] = scoreWindow(spec)
     let hit = 0
     let seen = 0
     lifter.sessionDays.forEach((day, i) => {

@@ -1,11 +1,12 @@
 /**
- * Whether a lift's estimate moved between two periods of the same length (research note section 7): up or
- * down only when the two ranges do not overlap. Each period is read from its own sessions only, so the
- * two windows never share one.
+ * Whether a lift's estimate moved between two periods of the same length (docs/design/e1rm.md, section 10).
+ * Each period is read from its own sessions only, so the two windows never share one. The two estimates
+ * share most of their systematic error, so the comparison uses only what they do not share.
  */
 import { civilOfDay } from '../calendar'
+import { CHANGE_MEAN_R_GUARD, CHANGE_Z } from './constants'
 import { dayOfLiftDate, estimateLift } from './estimate'
-import type { LiftEstimate } from './estimate'
+import type { LiftEstimate, SystematicTerms } from './estimate'
 import type { LiftSet } from './types'
 
 export type LiftChange = 'up' | 'down' | 'no clear change'
@@ -49,6 +50,20 @@ export function liftChange(
   const now = periodEstimate(sets, endDay, days)
   const before = periodEstimate(sets, endDay - days, days)
   if (!now || !before) return null
-  const change = now.low > before.high ? 'up' : now.high < before.low ? 'down' : 'no clear change'
-  return { change, now, before }
+  return { change: classify(now, before), now, before }
+}
+
+/** The rule of section 10 on two estimates. */
+function classify(now: LiftEstimate, before: LiftEstimate): LiftChange {
+  if (Math.abs(now.meanR - before.meanR) > CHANGE_MEAN_R_GUARD) return 'no clear change'
+  let variance = now.ind ** 2 + before.ind ** 2
+  for (const k of Object.keys(now.terms) as (keyof SystematicTerms)[]) {
+    variance += (now.terms[k] - before.terms[k]) ** 2
+  }
+  const bar = CHANGE_Z * Math.sqrt(variance)
+  const moved = Math.log(now.point0 / before.point0)
+  // The page shows the clamped points: a direction they contradict is not named.
+  if (moved > bar && now.point > before.point) return 'up'
+  if (moved < -bar && now.point < before.point) return 'down'
+  return 'no clear change'
 }

@@ -23,6 +23,9 @@ export function rng(seed: number): { next: () => number; normal: () => number } 
 }
 
 export const DAY_CV = 0.042
+/** The lifter's idea of their max lags the truth by this many days and is off by this share (SD). */
+const BELIEF_LAG_DAYS = 14
+const BELIEF_SD = 0.02
 export type Shape =
   { kind: 'linear'; k: number } | { kind: 'exp'; c: number } | { kind: 'power'; p: number }
 
@@ -80,6 +83,13 @@ export interface LifterSpec {
   thirdShape?: boolean
   /** Curve centre in reps at 80%, for the generator that draws the shape. */
   centre?: number
+  /** Rep targets by block instead of by session: the block is this many weeks (default 4). */
+  blockReps?: number[]
+  blockWeeks?: number
+  /** Scored only 2 to 4 weeks after the break ends. */
+  scoreReturn?: boolean
+  /** Weekly drift of the lifter's belief over their true max: a programme that adds plates. */
+  beliefDrift?: number
 }
 
 export interface Lifter {
@@ -153,14 +163,23 @@ export function simulate(spec: LifterSpec): Lifter {
         if (warmup) set.warmup = true
         sets.push(set)
       }
-      const target = spec.reps[session % spec.reps.length] as number
+      const target = (
+        spec.blockReps
+          ? spec.blockReps[Math.floor(w / (spec.blockWeeks ?? 4)) % spec.blockReps.length]
+          : spec.reps[session % spec.reps.length]
+      ) as number
       session++
       // Today's max varies around the underlying one.
       const today = truthAt(day) * (1 + (spec.dayCv ?? DAY_CV) * r.normal())
       const plannedRir = spec.rirTarget + (deload ? 3 : 0)
-      // The lifter picks the load from the underlying 1RM, rounded to 2.5 kg.
+      // The lifter picks the load from a belief about their max, rounded to 2.5 kg: it lags two weeks and
+      // is off by a normal 2%, so no set is a copy of the true max.
       const f = fractionFor(spec.shape, target + plannedRir)
-      const load = Math.max(2.5, Math.round((truthAt(day) * f * (deload ? 0.9 : 1)) / 2.5) * 2.5)
+      const belief =
+        truthAt(Math.max(0, day - BELIEF_LAG_DAYS)) *
+        (1 + BELIEF_SD * r.normal()) *
+        Math.pow(1 + (spec.beliefDrift ?? 0), w)
+      const load = Math.max(2.5, Math.round((belief * f * (deload ? 0.9 : 1)) / 2.5) * 2.5)
       for (const p of [0.5, 0.7, 0.85]) {
         const wl = Math.round((load * p) / 2.5) * 2.5
         if (spec.flagsWarmups) push(p < 0.8 ? 5 : 3, wl, undefined, true)

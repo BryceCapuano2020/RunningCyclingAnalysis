@@ -176,6 +176,6 @@ describe('readLiftSet bounds', () => {
   })
   it('exposes the predicates and a revision', () => {
     expect([isLiftLoad(0.1 + 0.2), isLiftRpe('8')]).toEqual([true, false])
-    expect(LIFT_REVISION).toBe(1)
+    expect(LIFT_REVISION).toBe(2)
   })
 })

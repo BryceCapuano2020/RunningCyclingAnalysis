@@ -26,11 +26,12 @@ describe('liftChange', () => {
     expect(liftChange([set({ date: '2025-05-10' })], END, 28)).toBeNull()
   })
 
-  it('is no clear change when the ranges overlap: a small step up', () => {
+  it('is no clear change for a small step: 5% on the same reps is inside the unshared error', () => {
+    // Same reps, so the systematic terms cancel; each period's day error alone is 0.042 (RPE noise on top).
     const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', loadKg: 105 })]
     const r = liftChange(sets, END, 28)!
     expect(r.change).toBe('no clear change')
-    expect(r.now.low).toBeLessThan(r.before.high)
+    expect(r.now.terms).toEqual(r.before.terms)
   })
 
   it('is null for an untrained period: the older session is not carried into it', () => {
@@ -43,18 +44,37 @@ describe('liftChange', () => {
     expect(liftChange(sets, END, 28)).toBeNull()
   })
 
-  it('is up when the end range sits wholly above the earlier one', () => {
-    // 100 kg x 5 at RPE 8 reads 111.7 to 138.4; 150 kg x 5 reads 167.6 to 207.6.
+  it('is up when the load moves well past the unshared error', () => {
+    // Same reps, so the terms cancel: ln(150 / 100) = 0.405 against 2.24 x hypot(0.049, 0.049) = 0.155.
     const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', loadKg: 150 })]
     const r = liftChange(sets, END, 28)!
     expect(r.change).toBe('up')
-    expect(r.now.low).toBeGreaterThan(r.before.high)
   })
 
-  it('is down when the end range sits wholly below the earlier one', () => {
+  it('is down when it falls the same way', () => {
     const sets = [set({ date: '2025-03-25', loadKg: 150 }), set({ date: '2025-04-25' })]
+    expect(liftChange(sets, END, 28)?.change).toBe('down')
+  })
+
+  it('names nothing when the reps moved by more than 3: the curve error is not shared', () => {
+    // 100 kg for 5 at RPE 8 reads R 7.5; for 12 it reads R 14.5, a difference of 7.
+    const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', reps: 12, loadKg: 150 })]
     const r = liftChange(sets, END, 28)!
-    expect(r.change).toBe('down')
-    expect(r.now.high).toBeLessThan(r.before.low)
+    expect(Math.abs(r.now.meanR - r.before.meanR)).toBeGreaterThan(3)
+    expect(r.change).toBe('no clear change')
+  })
+
+  it('names nothing when the clamped figures contradict the direction', () => {
+    // The earlier period lifted 200 kg at RPE 5 (not read, but the floor): its figure is clamped to 200,
+    // above the later period's unclamped 183, though the estimates before the clamp rose.
+    const sets = [
+      set({ date: '2025-03-25' }),
+      set({ date: '2025-03-25', loadKg: 200, reps: 1, rpe: 5 }),
+      set({ date: '2025-04-25', loadKg: 150 }),
+    ]
+    const r = liftChange(sets, END, 28)!
+    expect(r.now.point0).toBeGreaterThan(r.before.point0)
+    expect(r.now.point).toBeLessThan(r.before.point)
+    expect(r.change).toBe('no clear change')
   })
 })
