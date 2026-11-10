@@ -1,4 +1,5 @@
 import { sweepCheckin } from './checkinStore'
+import { sweepLifts } from './liftStore'
 import { sweepOutbox } from './outbox'
 import { workbenchExists } from './workbenchExists'
 import { accountsWithRecordings, clearWorkbenchScope } from './workbenchStore'
@@ -20,6 +21,9 @@ export async function sweepAccountDetails(keepUserId: string | null): Promise<vo
     await sweepCheckin(keepUserId).catch(() => undefined)
     // The waiting saves (summaries and file names) of other accounts go the same way, once somebody else is signed in.
     await sweepOutbox(keepUserId).catch(() => undefined)
+    // Another account's logged lifting sets go too, unsent ones included, so a shared browser never hands one
+    // person's log to another. The device's own sets stay.
+    await sweepLifts(keepUserId).catch(() => undefined)
     // A visitor who never stored a recording has no database, and looking must not make one.
     if (!(await workbenchExists())) return
     for (const userId of await accountsWithRecordings()) {

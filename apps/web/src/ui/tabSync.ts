@@ -13,6 +13,8 @@ export type TabMessage =
   | { type: 'measurements' }
   /** The library was changed: activities added or removed, or everything removed. */
   | { type: 'library'; scope: 'device' | 'account' }
+  /** Lifting sets were logged, changed or removed in this browser's store. */
+  | { type: 'lifts' }
 
 const CHANNEL = 'rca-sync-v1'
 
@@ -21,7 +23,8 @@ const ACCOUNT_CHANGES: ReadonlySet<unknown> = new Set(['signed-out', 'expired', 
 /** What another tab sent, if it is a message this version knows. Anything else is ignored. */
 function asTabMessage(data: unknown): TabMessage | null {
   if (typeof data !== 'object' || data === null || !('type' in data)) return null
-  if (data.type === 'profile' || data.type === 'measurements') return { type: data.type }
+  if (data.type === 'profile' || data.type === 'measurements' || data.type === 'lifts')
+    return { type: data.type }
   if (
     data.type === 'library' &&
     'scope' in data &&

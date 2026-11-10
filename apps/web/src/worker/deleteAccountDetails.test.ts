@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openManifestStore } from '../ui/importManifestStore'
 import { deleteAccountDetails } from './deleteAccountDetails'
+import { dropLiftScope } from './liftAccount'
 import { deleteWorkbenchScope } from './workbenchStore'
 
+vi.mock('./liftAccount', () => ({ dropLiftScope: vi.fn(async () => undefined) }))
 vi.mock('./workbenchStore', () => ({ deleteWorkbenchScope: vi.fn() }))
 
 const forgotten = vi.hoisted(() => [] as string[])
@@ -74,5 +76,14 @@ describe('the record of the account’s imports', () => {
     await deleteAccountDetails('alice')
 
     expect(openManifestStore().forget).toHaveBeenCalledExactlyOnceWith('account:alice')
+  })
+})
+
+describe('the deleted account’s lifting sets', () => {
+  it('lose their whole scope', async () => {
+    vi.stubGlobal('indexedDB', {})
+    vi.mocked(deleteWorkbenchScope).mockResolvedValue(true)
+    await deleteAccountDetails('alice')
+    expect(dropLiftScope).toHaveBeenCalledExactlyOnceWith('alice')
   })
 })

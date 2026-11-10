@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { liftSetKey } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearLifts, openLiftStore, sweepLifts } from './liftStore'
+import { clearLifts, clearScope, openLiftStore, sweepLifts } from './liftStore'
 import { make } from './liftTestKit'
 
 beforeEach(() => {
@@ -89,7 +89,6 @@ describe('the lift store', () => {
     await openLiftStore('u1').save(make(1))
     await openLiftStore('u2').save(make(1))
     await openLiftStore('device').save(make(1))
-    await sweepLifts(null)
     await sweepLifts('')
     expect(await openLiftStore('u2').list()).toHaveLength(1)
     await sweepLifts('u1')
@@ -144,5 +143,57 @@ describe('the lift store', () => {
     expect(await store.list()).toHaveLength(1)
     await store.applyPull([], 9, true)
     expect(await store.list()).toHaveLength(0)
+  })
+})
+
+describe('closing and clearing a scope', () => {
+  it('clears one scope and keeps the rest, and reopens after close', async () => {
+    const device = openLiftStore('device')
+    const mine = openLiftStore('u1')
+    await device.save(make(1))
+    await mine.save(make(1))
+    device.close()
+    expect(await clearScope('device')).toBe(true)
+    expect(await device.list()).toEqual([])
+    expect(await mine.list()).toHaveLength(1)
+  })
+})
+
+describe('the sweep with nobody signed in', () => {
+  it('removes every account’s synced rows, keeps its unsent rows and the device, and makes no database', async () => {
+    await sweepLifts(null)
+    expect(await indexedDB.databases()).toEqual([])
+    const u1 = openLiftStore('u1')
+    await u1.save(make(1))
+    await u1.save(make(2))
+    await u1.applyAck(liftSetKey(make(1)), 1, 4)
+    await openLiftStore('device').save(make(1))
+    await sweepLifts(null)
+    expect((await u1.list()).map((row) => [row.set.setOrder, row.state])).toEqual([[2, 'put']])
+    expect(await openLiftStore('device').list()).toHaveLength(1)
+  })
+})
+
+describe('saving at the next set order', () => {
+  it('takes one past the highest, counting delete rows, and never repeats across stores on one database', async () => {
+    const a = openLiftStore('u1')
+    const b = openLiftStore('u1')
+    const draft = {
+      date: '2031-01-05',
+      exercise: 'squat',
+      equipment: 'barbell',
+      reps: 5,
+      loadKg: 60,
+    } as const
+    const taken = await Promise.all([
+      a.saveNext(draft),
+      b.saveNext(draft),
+      a.saveNext(draft),
+      b.saveNext(draft),
+    ])
+    expect(taken.map((set) => set?.setOrder).sort()).toEqual([1, 2, 3, 4])
+    expect(await a.list()).toHaveLength(4)
+    await a.remove(liftSetKey({ ...draft, setOrder: 4 }))
+    expect((await b.saveNext(draft))?.setOrder).toBe(5)
   })
 })

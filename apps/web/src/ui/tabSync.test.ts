@@ -41,6 +41,13 @@ describe('tab messages', () => {
     expect(heard).toHaveBeenCalledTimes(1)
   })
 
+  it('hears that lifting sets changed', () => {
+    const heard = vi.fn()
+    renderHook(() => useTabMessages(heard))
+    FakeBroadcastChannel.other('rca-sync-v1').postMessage({ type: 'lifts' })
+    expect(heard).toHaveBeenCalledWith({ type: 'lifts' })
+  })
+
   it('ignores what is not a message this version knows', () => {
     const heard = vi.fn()
     renderHook(() => useTabMessages(heard))

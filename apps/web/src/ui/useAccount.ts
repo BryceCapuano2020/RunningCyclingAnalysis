@@ -6,6 +6,7 @@ import { messageOf } from '../api/messageOf'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 import { sweepAccountDetails } from '../worker/sweepAccountDetails'
+import { noteLiftAccount } from './lift/lastAccount'
 import { tellOtherTabs } from './tabSync'
 import { SESSION_ENDED, useAccountTabs } from './useAccountTabs'
 
@@ -133,6 +134,7 @@ export function useAccount(): AccountController {
       // A definite answer: any other account's recordings are not this browser's to keep, even one
       // that ended while no tab was open.
       void sweepAccountDetails(found?.user.id ?? null)
+      noteLiftAccount(found?.user.id ?? null)
       profileWriteFailureRef.current = null
       setMe(found)
       setStatus(found ? 'signed-in' : 'signed-out')
@@ -151,6 +153,7 @@ export function useAccount(): AccountController {
     const ended = meRef.current
     if (ended === null) return
     meRef.current = null
+    noteLiftAccount(null)
     setMe(null)
     setStatus('signed-out')
     setSessionExpired(true)
@@ -241,6 +244,7 @@ export function useAccount(): AccountController {
       await api.logout(userId)
       tellOtherTabs({ type: 'account', change: 'signed-out' })
       meRef.current = null
+      noteLiftAccount(null)
       profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')
@@ -265,6 +269,7 @@ export function useAccount(): AccountController {
       tellOtherTabs({ type: 'account', change: 'deleted' })
       const cleanupNotice = await deleteAccountDetails(userId)
       meRef.current = null
+      noteLiftAccount(null)
       profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')
