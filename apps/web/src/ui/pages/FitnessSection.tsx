@@ -110,6 +110,7 @@ export function FitnessSection({
             index={rows.length > 1 ? index : null}
             showSport={sport === undefined}
             graphs={graphs}
+            evidence={sport !== undefined}
             bare={
               lines.includes(view)
                 ? {

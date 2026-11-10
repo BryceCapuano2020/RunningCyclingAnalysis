@@ -103,7 +103,7 @@ describe('GradeProfileChart', () => {
     expect(screen.getByText('Duration (min, log scale)')).toBeInTheDocument()
   })
 
-  it('draws a run as a solid line with dots over a ride as a line with rings and a band, never a dashed line', () => {
+  it('draws both sports as solid lines with solid dots, the ride over its range band, never a dashed line', () => {
     const { container } = renderChart()
     const lines = Array.from(container.querySelectorAll('[data-testid="profile-line"]'))
     // The run is drawn last, so the recorded line is on top of the estimate and its band.
@@ -112,9 +112,11 @@ describe('GradeProfileChart', () => {
     expect(
       container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]'),
     ).toHaveLength(6)
-    expect(
-      container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
-    ).toHaveLength(6)
+    const rides = container.querySelectorAll('[data-testid="profile-marker"][data-sport="ride"]')
+    expect(rides).toHaveLength(6)
+    // The ride is an estimate: its dots say so as data, and the band shows it; they are drawn solid like the run's.
+    for (const dot of rides) expect(dot).toHaveAttribute('data-estimate', 'true')
+    expect(container.querySelector('[data-testid="profile-ring"]')).toBeNull()
     const band = container.querySelector('[data-testid="profile-band"]')
     expect(band).toHaveClass('chart-series__band--ride')
     expect(band?.getAttribute('d')).toMatch(/^M/)
@@ -169,7 +171,7 @@ describe('GradeProfileChart', () => {
     expect(ride?.textContent).toMatch(/^Ride 53% at \d+ minrange \d+ to \d+$/)
     // The gutter is right of the plot: the label starts past the last mark.
     const last = Array.from(
-      container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
+      container.querySelectorAll('[data-testid="profile-marker"][data-sport="ride"]'),
     ).at(-1)
     const x = Number(ride?.querySelector('text')?.getAttribute('x'))
     expect(x).toBeGreaterThan(Number(last?.getAttribute('cx')))
@@ -200,7 +202,7 @@ describe('GradeProfileChart', () => {
     expect(label?.textContent).toMatch(/^Ride \d+%/)
   })
 
-  it('names both sports in the key, Run and Ride, with the ride’s swatch a ring', () => {
+  it('names both sports in the key, Run and Ride, with the same swatch', () => {
     renderChart()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Run')).toBeInTheDocument()
@@ -356,10 +358,10 @@ describe('GradeProfileChart', () => {
     const xsOf = (path: string | null | undefined) =>
       Array.from((path ?? '').matchAll(/[ML]([\d.]+) /g), (match) => Number(match[1]))
 
-    it('draws the ride’s band only over the durations both sports share, but its line and rings throughout', () => {
+    it('draws the ride’s band only over the durations both sports share, but its line and dots throughout', () => {
       const { container } = renderChart({ profile: ENDS })
       const rings = Array.from(
-        container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
+        container.querySelectorAll('[data-testid="profile-marker"][data-sport="ride"]'),
       ).map((ring) => Number(ring.getAttribute('cx')))
       expect(rings).toHaveLength(3)
       const band = xsOf(container.querySelector('[data-testid="profile-band"]')?.getAttribute('d'))

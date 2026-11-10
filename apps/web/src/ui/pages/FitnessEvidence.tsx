@@ -3,7 +3,6 @@ import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { FitnessChart } from '../charts/FitnessChart'
 import { plural } from '../components/plural'
-import { SECTION_ID } from '../components/methodTopics'
 import { PropertyList } from '../components/PropertyList'
 import type { Property } from '../components/property'
 import { FITNESS_WORDS } from '../fitnessWords'
@@ -27,7 +26,7 @@ export interface FitnessEvidenceProps {
 
 /**
  * The panel behind "See the evidence": the level over time with its table, what it is read at and compared with as rows, and
- * the runs it rests on as links. How it is measured and why some runs do not count are on Method. It mounts when opened, so a closed card costs nothing.
+ * the steady runs used, as links. How it is measured is on Method, linked once above this panel. It mounts when opened, so a closed card costs nothing.
  */
 export function FitnessEvidence({ status, units, library, chart = true }: FitnessEvidenceProps) {
   const words = FITNESS_WORDS[status.sport]
@@ -52,14 +51,10 @@ export function FitnessEvidence({ status, units, library, chart = true }: Fitnes
     <div className="fitness-evidence">
       {chart ? <FitnessChart status={status} units={units} /> : null}
       <div className="fitness-evidence__text">
-        <PropertyList
-          rows={rows}
-          method={SECTION_ID.how}
-          methodName={`how ${words.activity} fitness is measured`}
-        />
+        <PropertyList rows={rows} />
         {evidence === null || evidence.recent.runs === 0 ? null : (
           <section className="fitness-evidence__block" data-area="runs">
-            <h2 className="eyebrow">{`The ${words.steadyPlural} it rests on`}</h2>
+            <h2 className="eyebrow">{`${cap(words.steadyPlural)} used`}</h2>
             <FitnessRuns
               span={evidence.recent}
               library={library}

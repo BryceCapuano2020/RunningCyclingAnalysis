@@ -19,6 +19,11 @@
   justify-items: start;
 }
 
+/* An open Details takes the row's width, so its values sit on one line instead of wrapping at each space. */
+.stat-tile__source > details {
+  justify-self: stretch;
+}
+
 /* The effort chip is a line of its own under the tile's text. */
 .stat-tile__effort {
   margin: 0;

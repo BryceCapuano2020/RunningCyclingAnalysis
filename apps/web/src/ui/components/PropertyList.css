@@ -58,8 +58,8 @@
   align-items: center;
   min-height: var(--control-height);
   font-family: var(--font-serif);
-  font-size: var(--text-md);
-  color: var(--ink);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
 }
 
 /* A row whose term holds a control is as tall as the control. Its value stretches to the row with its text centred,

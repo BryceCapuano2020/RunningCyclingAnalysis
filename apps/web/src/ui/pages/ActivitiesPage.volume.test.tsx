@@ -120,9 +120,9 @@ describe('the volume strip on the Activities page', () => {
   it('shows month totals for the listed activities, beside each month heading', () => {
     page()
     const june = screen.getByText(wholeText('Jun 2025')).parentElement as HTMLElement
-    expect(within(june).getByText('2 runs, 20.0 km')).toBeInTheDocument()
-    expect(within(june).getByText('1 ride, 10.0 km')).toBeInTheDocument()
-    expect(within(june).getByText('3.0 h')).toBeInTheDocument()
+    expect(within(june).getByText('2 runs · 20.0 km')).toBeInTheDocument()
+    expect(within(june).getByText('1 ride · 10.0 km')).toBeInTheDocument()
+    expect(within(june).getByText('3.0 h total')).toBeInTheDocument()
   })
 })
 

@@ -13,7 +13,7 @@ export interface ActivityMonthHeadProps {
   units: UnitSystem
 }
 
-/** A month's heading, with its totals beside it: the count and distance of each sport, then the hours. */
+/** A month's heading, with its totals beside it: "9 runs · 55.6 mi" for each sport, then "31 h total". */
 export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadProps) {
   const sports = totals === undefined ? [] : SPORT_ORDER.filter((sport) => totals[sport].count > 0)
   return (
@@ -23,7 +23,7 @@ export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadPro
         <p className="num activity-list__totals">
           {sports.map((sport) => {
             const { count, distanceM } = totals[sport]
-            const distance = distanceM > 0 ? `, ${formatDistance(distanceM, units)}` : ''
+            const distance = distanceM > 0 ? ` · ${formatDistance(distanceM, units)}` : ''
             return (
               <span key={sport} className="activity-list__total" data-sport={sport}>
                 {`${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${distance}`}
@@ -32,7 +32,7 @@ export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadPro
             )
           })}
           <span className="activity-list__total activity-list__total--hours">
-            {formatHoursText(secondsOf(totals))}
+            {`${formatHoursText(secondsOf(totals))} total`}
           </span>
         </p>
       )}

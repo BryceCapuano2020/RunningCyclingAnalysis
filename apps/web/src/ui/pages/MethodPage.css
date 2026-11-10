@@ -38,11 +38,6 @@
   }
 }
 
-/* The lean and its range stand on their own line, and the estimates sentence under it. */
-.method__answer-text > span {
-  display: block;
-}
-
 /* A label that is a button moves focus to its section. It is metadata type in a fixed column, and a full control. */
 .method__answer button.method__chip {
   flex: 0 0 7rem;
