@@ -1,6 +1,6 @@
 /*
- * The answer: the sentence in the serif at --display-2, the one lead line under it, and its ▸ Details. The level triangle
- * and the share button stack under it.
+ * The answer: the sentence in the serif at --display-2, the period's line with Share at its right, and the one lead line.
+ * The level triangle stacks under it.
  */
 .balance-hero {
   display: grid;
@@ -28,14 +28,37 @@
   text-wrap: balance;
 }
 
-/* The answer, the level triangle and the share button stack with the gap inside a stack. */
+/*
+ * The period's line and the Share button share the row under the title: the line takes the room it needs and Share keeps to
+ * the right edge, on the line's row while both fit and on a row of its own, still at the right, on a narrow phone.
+ */
+.balance-hero__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-self: stretch;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.balance-hero__bar > :not(.share-image) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.balance-hero__bar > .share-image {
+  margin-left: auto;
+}
+
+/* The answer and the level triangle stack with the gap inside a stack. */
 .balance-hero__pair {
   display: grid;
   gap: var(--stack-gap);
   min-width: 0;
 }
 
-/* What sits under the figure, such as the share button, keeps its own width. */
+/* What sits under the figure keeps its own width. */
 .balance-hero__pair > :not(.balance-hero, .level-triangle) {
   justify-self: start;
 }
@@ -66,14 +89,6 @@
 /* The tiles' prompt for a sport with nothing in the period fills its slot. */
 .balance-tiles > .empty-sport {
   align-content: start;
-}
-
-/* A chart that has the page's width to itself: no box, a heading and its plot. */
-.balance__panel {
-  display: grid;
-  gap: var(--space-3);
-  align-content: start;
-  min-width: 0;
 }
 
 /*

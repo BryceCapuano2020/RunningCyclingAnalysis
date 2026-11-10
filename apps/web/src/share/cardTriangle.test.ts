@@ -110,9 +110,13 @@ describe('the level triangle on the card', () => {
     expect(empty.texts.filter((text) => text.text === 'No grade yet')).toHaveLength(3)
   })
 
-  it('draws no range and no total', () => {
-    const texts = draw(cardModel({ triangle: all }))
+  it('draws no range and no total of the grades', () => {
+    // Lifting's figure is named "Big three total": a total of its lifts, not of the corners.
+    const model = cardModel({ triangle: all })
+    const names = new Set(model.heroes.map((hero) => hero.label.toUpperCase()))
+    const texts = draw(model)
       .texts.map((text) => text.text)
+      .filter((text) => !names.has(text))
       .join(' ')
     expect(texts).not.toMatch(/range|total|\d+ to \d+/i)
   })

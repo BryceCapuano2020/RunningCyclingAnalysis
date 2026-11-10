@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
 import { makeActivity, makeResult, makeRunThreshold } from '../components/test/fixtures'
+import { headlineHalf, raceAnswerFor } from '../raceAnswer'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdSpan } from '../thresholdRange'
@@ -25,19 +26,23 @@ function sample() {
   return { state, result, grades: { run: headline.run, ride: headline.ride } }
 }
 
+/** The tiles as Balance renders them, with the half marathon the page asks for from the same result and library. */
 function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
   const { state, result, grades } = sample()
+  const shown = { result, library: state.library, ...over }
+  const half = headlineHalf(
+    raceAnswerFor('run', { ...shown, rangeDays: PERIOD.days, periodEndMs: PERIOD.endMs }),
+  )
   return render(
     <BalanceTiles
-      result={result}
-      library={state.library}
       units="metric"
       massKg={SAMPLE_SETTINGS.massKg}
       grades={grades}
       weighted
       period={PERIOD}
       onAddFiles={vi.fn()}
-      {...over}
+      half={half}
+      {...shown}
     />,
   )
 }

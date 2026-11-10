@@ -2,7 +2,6 @@ import type { Dated } from '@rca/core/calendar'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import {
   FIRST_GRADED_AGE,
-  GRADE_LEVELS,
   LAST_GRADED_AGE,
   ageAndSexAt,
   gradeAtSpeed,
@@ -67,11 +66,6 @@ export const TOP_OF_SCALE_TEXT =
 /** The same in a few words, for a row or a line under the meter. */
 export const TOP_OF_SCALE_SHORT = 'At the top of the age tables'
 export const AGE_RANGE_TEXT = `Age grades cover ages ${FIRST_GRADED_AGE} to ${LAST_GRADED_AGE}.`
-
-/** The level bands from lowest to highest, with the lower bound of each. */
-export const LEVEL_BANDS: readonly { name: string; min: number }[] = [...GRADE_LEVELS]
-  .reverse()
-  .map((band) => ({ name: band.label, min: band.min }))
 
 export const SEX_NOUN: Record<Sex, string> = { female: 'woman', male: 'man' }
 

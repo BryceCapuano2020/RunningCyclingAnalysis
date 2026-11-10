@@ -19,13 +19,14 @@ import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
 import { triangleViewOf } from '../triangleSports'
 import { liftTileOf } from '../lift/liftTile'
+import { headlineHalf, raceAnswerFor } from '../raceAnswer'
 import { useLiftSummary } from '../lift/useLiftSummary'
 import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import type { AnalysisController } from '../useAnalysis'
 import { BalanceHero } from './BalanceHero'
 import { BalanceTiles } from './BalanceTiles'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
-import { GradeProfileSection } from './GradeProfileSection'
+import { LevelsSection } from './LevelsSection'
 import { SoleSportRecords } from './SoleSportRecords'
 import { SportInvitation } from './SportInvitation'
 import './BalancePage.css'
@@ -143,6 +144,22 @@ export function BalancePage({
     () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings, units),
     [isSample, weightKnown, lifts, profile, settings, units],
   )
+  // The run's row leads with the half marathon the Run page predicts, asked the same way, when it is a forecast; the share
+  // card leads with the same one.
+  const { heartRateJudgement } = analysis.state
+  const half = useMemo(
+    () =>
+      headlineHalf(
+        raceAnswerFor('run', {
+          result,
+          rangeDays: period.days,
+          library,
+          heartRateJudgement,
+          periodEndMs: period.endMs,
+        }),
+      ),
+    [result, period.days, period.endMs, library, heartRateJudgement],
+  )
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
   const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])
   const weightHeld = !weightKnown && inPeriod.run > 0 && inPeriod.ride > 0
@@ -178,6 +195,8 @@ export function BalancePage({
             gap={gap}
             grades={grades}
             triangle={triangle}
+            half={half}
+            lift={liftTile}
             disabled={analysis.busy}
           />
         }
@@ -196,7 +215,7 @@ export function BalancePage({
         leftOut={leftOut}
         levelShown={levelShown}
         lift={liftTile}
-        heartRateJudgement={analysis.state.heartRateJudgement}
+        half={half}
       />
 
       {soleSport === null ? null : (
@@ -224,7 +243,7 @@ export function BalancePage({
         </div>
       )}
 
-      {/* The balance leads the home page; fitness sits under it, after the period's tiles and before the grades. */}
+      {/* The balance leads the home page; fitness sits under it, after the period's tiles and before the levels. */}
       <FitnessAndCheckIn
         analysis={analysis}
         units={units}
@@ -232,12 +251,7 @@ export function BalancePage({
         soleSport={soleSport}
       />
 
-      <GradeProfileSection
-        result={result}
-        profile={profile}
-        massKg={settings.massKg}
-        weightKnown={weightKnown}
-      />
+      {levelShown ? <LevelsSection grades={triangle.grades} /> : null}
 
       {soleSport === null ? null : (
         <SportInvitation sport={soleSport} onAddFiles={analysis.addFiles} />

@@ -1,6 +1,11 @@
-/* The share icon sits in the page header (PageHeading). Its sheet is a native dialog, sized for a phone. */
+/* Share is a page action at the right of Balance's period line. Its sheet is a native dialog, sized for a phone. */
 .share-image {
   flex: none;
+}
+
+/* A quiet secondary button with its icon before the word, and a 44 px target on every pointer. */
+.share-image__trigger {
+  min-height: 44px;
 }
 
 .share-sheet {

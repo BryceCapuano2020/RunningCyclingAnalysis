@@ -9,7 +9,7 @@ import { digestActivity } from './digestActivity'
  * A combine of the benchmark's library, 1,000 activities of runs and rides over five years, takes about
  * 30 ms locally and about 46 ms on a CI runner. The budget is three times the local figure, so a gross
  * regression, such as a combine that doubles, fails it on any runner; `npm run benchmark:core` tracks the
- * smaller changes. The grade by duration prices its own extra durations, outside combine.
+ * smaller changes.
  */
 const BUDGET_MS = 90
 const ACTIVITIES = 1000

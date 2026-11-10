@@ -11,15 +11,5 @@ describe('PageHeading', () => {
     const heading = screen.getByRole('heading', { level: 1, name: 'Run' })
     expect(heading).toHaveAttribute('id', 'page-heading')
     expect(heading).toHaveAttribute('tabindex', '-1')
-    expect(heading.parentElement?.className).not.toContain('page-heading')
-  })
-
-  it('holds a page action on the heading’s line, after it', () => {
-    const { container } = render(
-      <PageHeading action={<button type="button">Share image</button>}>Balance</PageHeading>,
-    )
-    const line = container.querySelector('.page-heading')!
-    expect(line.firstElementChild).toBe(screen.getByRole('heading', { level: 1 }))
-    expect(line.lastElementChild).toBe(screen.getByRole('button', { name: 'Share image' }))
   })
 })

@@ -180,7 +180,10 @@ export const TRIANGLE: TriangleView = {
 export const TRIANGLE_ALT = `Running 64% ${levelOf(0.6404)}, cycling 61% ${levelOf(0.6104)} and lifting no grade yet.`
 export const LONG_NAME = 'Riley Example Longname-Hyphenated Jr'
 
-/** A card with the triangle, both estimates, the period's dates, a footnote and an origin. */
+/**
+ * A card with the triangle, the three headline figures, the period's dates, a footnote and an origin. The figures are synthetic
+ * and plausible for a trained 75 kg athlete, since a preview drawn from them can be seen.
+ */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
   return {
     title: 'RunningCyclingAnalysis',
@@ -191,15 +194,21 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     heroes: [
       {
         sport: 'run',
-        label: 'Run threshold',
-        figure: { number: '21:35', unit: '/km' },
+        label: 'Half-marathon',
+        figure: { number: '1:42:30', unit: '' },
         sub: null,
       },
       {
         sport: 'ride',
-        label: 'Ride threshold',
-        figure: { number: '48', unit: 'W' },
-        sub: '0.6 W/kg',
+        label: 'Functional threshold power',
+        figure: { number: '255', unit: 'W' },
+        sub: '3.4 W/kg',
+      },
+      {
+        sport: 'lift',
+        label: 'Big three total',
+        figure: { number: '380', unit: 'kg' },
+        sub: null,
       },
     ],
     period: '12 May – 3 Aug 2025',

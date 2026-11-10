@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
+import type { RacePrediction } from '@rca/core/predict'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { saveCardName, storedCardName } from '../../share/cardName'
@@ -16,6 +17,7 @@ import {
 import { hasShareableContent } from '../../share/hasShareableContent'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
+import type { LiftTileModel } from '../lift/liftTile'
 import type { TriangleView } from '../triangleSports'
 import { useHoldInputs } from '../holdContext'
 import { rideHoldInputs } from '../rideLeftOut'
@@ -23,6 +25,7 @@ import { loadCardModules, makeFile, type CardInputs, type CardModules } from './
 import { CardNameField } from './CardNameField'
 import { ShareIcon } from './icons'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
+import { useBackdropClose } from './useBackdropClose'
 import { useModalDialog } from './useModalDialog'
 import './ShareImageButton.css'
 
@@ -41,6 +44,10 @@ export interface ShareImageButtonProps {
   grades: Record<Sport, GradeOutcome | null>
   /** The level triangle the page draws, lifting's corner included, so the card shows the same figure. */
   triangle: TriangleView
+  /** The half marathon the run's row leads with, or null when it leads with the threshold; the card leads the same way. */
+  half?: RacePrediction | null
+  /** The lifting row the page shows, so the card's lifting figure is the row's. */
+  lift?: LiftTileModel | null
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
@@ -55,7 +62,9 @@ interface Preview {
   url: string | null
 }
 
-const TRIGGER = 'Share image'
+/** The button's words, and its name, which keeps the words at its start so a voice command can say them. */
+const TRIGGER = 'Share'
+const TRIGGER_NAME = 'Share image'
 const SHEET_TITLE = 'Share image'
 const PRIVACY_NOTE = 'Made on this device. Nothing is uploaded.'
 const SAVE = 'Save image'
@@ -103,6 +112,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     gap,
     grades,
     triangle,
+    half = null,
+    lift = null,
     disabled,
   } = props
   const hold = useHoldInputs()
@@ -161,6 +172,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     gap,
     grades,
     triangle,
+    half,
+    lift,
     name,
   ]
   const [seenFrom, setSeenFrom] = useState<readonly unknown[]>(drawnFrom)
@@ -178,24 +191,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     }
   }, [preview])
 
-  // A click on the backdrop lands on the dialog itself, not on anything inside it, so it closes the sheet.
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog === null) return
-    const closeOnBackdrop = (event: MouseEvent) => {
-      // The dialog itself is the target for a click on its backdrop and on its padding, so the box decides.
-      if (event.target !== dialog) return
-      const box = dialog.getBoundingClientRect()
-      const inside =
-        event.clientX >= box.left &&
-        event.clientX <= box.right &&
-        event.clientY >= box.top &&
-        event.clientY <= box.bottom
-      if (!inside) setOpen(false)
-    }
-    dialog.addEventListener('click', closeOnBackdrop)
-    return () => dialog.removeEventListener('click', closeOnBackdrop)
-  })
+  useBackdropClose(dialogRef, () => setOpen(false))
 
   useEffect(() => {
     if (!open) return
@@ -210,6 +206,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       gap,
       grades,
       triangle,
+      half,
+      lift,
       name,
       hold,
     }
@@ -243,6 +241,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     gap,
     grades,
     triangle,
+    half,
+    lift,
     name,
     hold,
     loadCard,
@@ -291,8 +291,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       <button
         ref={setTrigger}
         type="button"
-        className="btn icon-btn"
-        aria-label={TRIGGER}
+        className="btn share-image__trigger"
+        aria-label={TRIGGER_NAME}
         aria-haspopup="dialog"
         // aria-disabled, not disabled: a disabled button drops the focus it holds.
         aria-disabled={disabled}
@@ -301,6 +301,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
         }}
       >
         <ShareIcon />
+        {TRIGGER}
       </button>
       <dialog
         ref={dialogRef}
