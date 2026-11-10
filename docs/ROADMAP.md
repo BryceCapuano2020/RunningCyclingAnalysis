@@ -23,7 +23,7 @@ service. More athletes come only after the launch bar below passes in full, and 
    code, and the device shows its last copy at once ([server-compute.md](design/server-compute.md)). Signed-out
    use stays in the browser.
 4. **Garmin sync, as far as it goes before approval.** New activities pushed by Garmin and parsed on the server
-   ([garmin-sync.md](design/garmin-sync.md), revised for server-side parsing first). OAuth and ingestion are built
+   ([garmin-sync.md](design/garmin-sync.md), revised for server-side parsing on 10 Nov). OAuth and ingestion are built
    against a fake Garmin, switched off.
 5. **Service basics.** Latency and uptime targets, the uptime monitor on, cost per user, a tested rollback, and one
    incident written up.
