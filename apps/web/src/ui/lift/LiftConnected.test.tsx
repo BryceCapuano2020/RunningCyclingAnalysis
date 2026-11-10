@@ -198,6 +198,27 @@ describe('the Lift page on the log', () => {
   })
 })
 
+describe('leaving an edit', () => {
+  it('closes the set with Done, and a move to another day opens that day', async () => {
+    useHook([logged(TODAY, set())])
+    const openDay = vi.fn()
+    render(
+      <LiftConnected
+        account={account('signed-out')}
+        units="metric"
+        day={TODAY}
+        today={TODAY}
+        openDay={openDay}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.getByRole('button', { name: /^Edit set 1 of / })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Earlier day' }))
+    expect(openDay).toHaveBeenCalledWith(OTHER)
+  })
+})
+
 describe('the Lift page in the shell', () => {
   it('draws the rail beside the log, with Lift among the pages', () => {
     useHook([])

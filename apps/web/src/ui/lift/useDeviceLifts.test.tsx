@@ -43,6 +43,20 @@ describe('the lifting sets kept on the device', () => {
     expect(view.result.current.result).toBeNull()
   })
 
+  it('still reports what it added when reading the account again fails', async () => {
+    await openLiftStore('device').save(make(1))
+    const fake = fakeTransport({ put: () => ({ liftRevision: 1, skipped: [] }) })
+    const failing = {
+      ...account(),
+      refresh: vi.fn(async () => Promise.reject(new Error('offline'))),
+    }
+    const view = renderHook(() => useDeviceLifts('u1', failing, () => fake.transport))
+    await waitFor(() => expect(view.result.current.count).toBe(1))
+    await act(async () => void (await view.result.current.adopt()))
+    expect(view.result.current.result).toMatchObject({ sent: 1, total: 1 })
+    expect(view.result.current.adopting).toBe(false)
+  })
+
   it('ends the session on a 401, and ignores a second press while it runs', async () => {
     await openLiftStore('device').save(make(1))
     let release = () => {}
