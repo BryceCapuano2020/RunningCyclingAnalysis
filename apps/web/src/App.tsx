@@ -21,7 +21,6 @@ import { heldViewFor } from './ui/pages/heldLibraryView'
 import { useLibraryPage } from './ui/useLibraryPage'
 import { HoldInputsContext } from './ui/holdContext'
 import { LiftPage, MethodPage, ProfilePage, ResultPage } from './ui/lazyPages'
-import { liftPagePlaceholder } from './ui/lift/liftPagePlaceholder'
 import { useLiftDay } from './ui/lift/useLiftDay'
 import { PageFrame } from './ui/components/PageLoading'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
@@ -321,7 +320,7 @@ export function App() {
                 onRemoveAll={removeAll}
               />
             ) : page === 'lift' ? (
-              <LiftPage {...liftPagePlaceholder(liftDay)} units={units} />
+              <LiftPage account={account} units={units} {...liftDay} />
             ) : page === 'result' && analysis.state.result ? (
               <ResultPage
                 route={route}
