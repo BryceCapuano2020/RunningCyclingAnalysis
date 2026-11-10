@@ -8,6 +8,10 @@ import type { PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
 import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
+import { liftDaysInBucket, liftDaysInPeriod, liftDaysOf } from '../activitiesLift'
+import { useLiveLiftSets } from '../lift/useLiveLiftSets'
+import type { LiftSummaryAccount } from '../lift/useLiveLiftSets'
+import { NO_LIFT_DAYS } from '../volumeKinds'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
 import type { ActivitiesView, ShowFilter, SportFilter } from '../activitiesView'
 import { countsOf, isNotCounted } from '../activityCounts'
@@ -48,7 +52,11 @@ export interface ActivitiesPageProps {
   libraryError?: string | null
   /** Saved activities held out of the analysis, listed after the others with why. */
   heldOut?: readonly HeldOutActivity[]
+  /** Who is signed in, so the lifting time is read from the same sets as the Lift page; signed out when not given. */
+  liftAccount?: LiftSummaryAccount
 }
+
+const SIGNED_OUT_LIFTS: LiftSummaryAccount = { status: 'signed-out', userId: null }
 
 const NONE_HELD: readonly HeldOutActivity[] = []
 
@@ -86,6 +94,7 @@ export function ActivitiesPage({
   libraryNotice = null,
   libraryError = null,
   heldOut = NONE_HELD,
+  liftAccount = SIGNED_OUT_LIFTS,
 }: ActivitiesPageProps) {
   // A page that removed an activity sends the list here marked, so the list announces the outcome.
   const [arrivedAfterRemoval] = useState(() => hasRemovedMark(window.location.hash))
@@ -135,6 +144,22 @@ export function ActivitiesPage({
     () => sortActivities(inBucket(inPeriod, bucket), sort),
     [inPeriod, bucket, sort],
   )
+  const newestMs = activities.reduce(
+    (high, activity) => Math.max(high, activity.startMs),
+    -Infinity,
+  )
+  // Lifting time joins the strip and month headings when the list is not narrowed to a sport or to the activities not
+  // counted, which lifting is neither.
+  const liveSets = useLiveLiftSets(liftAccount)
+  const allLiftDays = useMemo(() => liftDaysOf(liveSets ?? []), [liveSets])
+  const lifts = useMemo(
+    () =>
+      sport === 'all' && show === 'all'
+        ? liftDaysInPeriod(allLiftDays, days, newestMs)
+        : NO_LIFT_DAYS,
+    [allLiftDays, days, newestMs, sport, show],
+  )
+  const liftsShown = useMemo(() => liftDaysInBucket(lifts, bucket), [lifts, bucket])
   // Written without a new history entry, so Back still leaves the page the visitor came from.
   useEffect(() => {
     const query = queryFromView(view)
@@ -142,10 +167,6 @@ export function ActivitiesPage({
     if (window.location.hash !== hash) window.history.replaceState(window.history.state, '', hash)
   }, [view])
 
-  const newestMs = activities.reduce(
-    (high, activity) => Math.max(high, activity.startMs),
-    -Infinity,
-  )
   // The count is the activities on file, or the one sport the list is narrowed to in its own words, with how many
   // of them the analysis does not count. The filter for those is offered while there are any.
   const counts = countsOf(activities, sport === 'all' ? undefined : sport)
@@ -194,7 +215,7 @@ export function ActivitiesPage({
             foldedLead={
               inPeriod.length > 0 ? (
                 <p>
-                  <NumText text={volumeTakeaway(inPeriod, periodClause(days, newestMs))} />
+                  <NumText text={volumeTakeaway(inPeriod, periodClause(days, newestMs), lifts)} />
                 </p>
               ) : null
             }
@@ -241,6 +262,7 @@ export function ActivitiesPage({
         <VolumeStrip
           activities={inPeriod}
           selected={bucket}
+          lifts={lifts}
           onSelect={(next) => narrow({ bucket: next })}
         />
       )}
@@ -271,6 +293,7 @@ export function ActivitiesPage({
           busy={busy}
           detailIds={detailIds}
           signedIn={signedIn}
+          lifts={liftsShown}
           onDelete={removeHere}
         />
       ) : (

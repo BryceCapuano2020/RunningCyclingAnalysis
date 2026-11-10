@@ -5,6 +5,7 @@ import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { formatSpan } from '../format/date'
 import { useNarrowScreen } from '../useNarrowScreen'
 import {
+  activityCountOf,
   bucketLabel,
   bucketSpan,
   countOf,
@@ -17,13 +18,16 @@ import {
   volumeColumns,
 } from '../activitiesVolume'
 import type { VolumeBucket, VolumeColumn } from '../activitiesVolume'
-import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { VOLUME_KINDS, VOLUME_LABEL } from '../volumeKinds'
+import type { LiftDay } from '../volumeKinds'
 import { plural } from './plural'
 import './VolumeStrip.css'
 
 export interface VolumeStripProps {
   /** The activities the list is narrowed to by period and sport, before any week or month is picked. */
   activities: readonly ActivitySummary[]
+  /** The days with lifting, estimated in time; drawn as a part of each column. None while a filter leaves lifting out. */
+  lifts?: readonly LiftDay[]
   /** The key of the week or month the list is narrowed to, or null for the whole period. */
   selected: string | null
   /** Narrows the list to a bucket by its key, or back to the whole period with null. */
@@ -90,20 +94,20 @@ function SkippedStretch({ column }: { column: Extract<VolumeColumn, { kind: 'gap
 }
 
 /**
- * Hours trained in each week, each month for a long stretch, or each quarter on a phone, stacked by sport, for the activities the
+ * Hours trained in each week, each month for a long stretch, or each quarter on a phone, stacked by sport and lifting, for the activities the
  * list is narrowed to. Its heading says what the stretch held. A column is a button: it narrows the list to
  * that week or month, and pressing it again lets go. The columns are one tab stop, moved by the arrow keys.
  */
-export function VolumeStrip({ activities, selected, onSelect }: VolumeStripProps) {
+export function VolumeStrip({ activities, selected, onSelect, lifts }: VolumeStripProps) {
   const phone = useNarrowScreen(COMPACT_PHONE_MAX_WIDTH_PX)
-  const buckets = useMemo(() => volumeBuckets(activities, phone), [activities, phone])
+  const buckets = useMemo(() => volumeBuckets(activities, phone, lifts), [activities, phone, lifts])
   const columns = useMemo(() => volumeColumns(buckets), [buckets])
   const totals = useMemo(() => {
     const all = emptyTotals()
     for (const bucket of buckets) {
-      for (const sport of SPORT_ORDER) {
-        all[sport].count += bucket.totals[sport].count
-        all[sport].seconds += bucket.totals[sport].seconds
+      for (const kind of VOLUME_KINDS) {
+        all[kind].count += bucket.totals[kind].count
+        all[kind].seconds += bucket.totals[kind].seconds
       }
     }
     return all
@@ -124,9 +128,9 @@ export function VolumeStrip({ activities, selected, onSelect }: VolumeStripProps
   const pickedSpan = selected === null ? null : bucketSpan(selected)
   const pickedBucket = buckets.find((bucket) => bucket.key === selected)
   // The picked bucket may be of another grain than the strip draws (a quarter from a phone, on a desktop), so
-  // its count is taken from the activities themselves.
+  // its count is taken from the activities themselves. Lifting days are not listed, so they are not in it.
   const pickedCount = pickedBucket
-    ? countOf(pickedBucket.totals)
+    ? activityCountOf(pickedBucket.totals)
     : inBucket(activities, selected).length
 
   const move = (event: KeyboardEvent, from: VolumeBucket) => {
@@ -160,9 +164,9 @@ export function VolumeStrip({ activities, selected, onSelect }: VolumeStripProps
           {`Hours trained each ${first.kind}, ${countsText(totals)}`}
         </h2>
         <ul className="volume-strip__key" aria-label="Sports">
-          {SPORT_ORDER.filter((sport) => totals[sport].count > 0).map((sport) => (
-            <li key={sport} data-sport={sport} data-slot={SPORT_ORDER.indexOf(sport)}>
-              {SPORT_LABEL[sport]}
+          {VOLUME_KINDS.filter((kind) => totals[kind].count > 0).map((kind) => (
+            <li key={kind} data-sport={kind} data-slot={VOLUME_KINDS.indexOf(kind)}>
+              {VOLUME_LABEL[kind]}
             </li>
           ))}
         </ul>
@@ -211,14 +215,14 @@ export function VolumeStrip({ activities, selected, onSelect }: VolumeStripProps
                 className="volume-strip__stack"
                 style={{ height: `${(secondsOf(bucket.totals) / tallest) * 100}%` }}
               >
-                {SPORT_ORDER.filter((sport) => bucket.totals[sport].seconds > 0).map((sport) => (
+                {VOLUME_KINDS.filter((kind) => bucket.totals[kind].seconds > 0).map((kind) => (
                   <span
-                    key={sport}
+                    key={kind}
                     className="volume-strip__part"
-                    data-sport={sport}
-                    data-slot={SPORT_ORDER.indexOf(sport)}
+                    data-sport={kind}
+                    data-slot={VOLUME_KINDS.indexOf(kind)}
                     data-testid="volume-part"
-                    style={{ flexGrow: bucket.totals[sport].seconds }}
+                    style={{ flexGrow: bucket.totals[kind].seconds }}
                   />
                 ))}
               </span>
