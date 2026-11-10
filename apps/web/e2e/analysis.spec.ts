@@ -250,17 +250,13 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
   expect(card.bottom).toBeLessThanOrEqual(grades.top)
   await page.locator(FITNESS_CARD).scrollIntoViewIfNeeded()
-  await expect(page.locator(FITNESS_STATE)).toHaveText('Run · Slipping')
-  // One line under the title, a figure with no range; the level with its range, what is new and the track are behind
-  // the row's Details, inside the row, under its line.
-  await expect(page.locator(FITNESS_LINE)).toHaveText(/^\S.*\.$/)
+  await expect(page.locator(FITNESS_STATE)).toHaveText('Run')
+  // One line under the title, the level with no range and no change; the runs behind it are behind the row's Details,
+  // inside the row, under its line.
+  await expect(page.locator(FITNESS_LINE)).toHaveText(/^\S.* at \d+ bpm\.$/)
   await expect(page.locator(FITNESS_LINE)).not.toHaveText(/\(\S+ to \S+\)/)
-  const fresh = page.locator(`${FITNESS_CARD} .props__row`, { hasText: /^New since/ })
-  await expect(fresh).toBeHidden()
   await page.locator(`${FITNESS_DETAILS} > summary`).click()
-  await expect(fresh.locator('dd')).toContainText('the week of')
-  // Balance's Details hold the rows alone: the track and the graph are the Run and Ride pages'.
-  await expect(page.locator(`${FITNESS_CARD} .fitness-track`)).toHaveCount(0)
+  // Balance's Details hold the rows alone: the graph is the Run and Ride pages'.
   await expect(page.locator(`${FITNESS_CARD} .chart-frame`)).toHaveCount(0)
   const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
   const rowsEdges = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())

@@ -37,7 +37,7 @@ const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
  * a desktop: what the best efforts predict beside how the time was spread across zones. The answer comes first
  * and these follow. History
  * is the one row that comes first, directly after the answer: its finding and a link to the History tab, which holds the
- * chart and the episodes. A sport without race predictions leaves that section out and its zones take the whole row.
+ * chart. A sport without race predictions leaves that section out and its zones take the whole row.
  */
 export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
   run: [['years'], ['bestEfforts'], ['racePredictions', 'timeInZones']],
@@ -64,7 +64,7 @@ const nothingToTell = (sport: Sport) => `Needs a year of ${SPORT_PLURAL[sport]}.
 
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
-  // The row says the finding of the sport's years and links to the History tab, which holds the chart and the episodes.
+  // The row says the finding of the sport's years and links to the History tab, which holds the chart.
   // A sport with no years to tell, or no look-back to read, says what it needs; one too short for them says so.
   years: (context) => {
     const { sport, lookBack, fitness, fitnessDots, units } = context
@@ -91,14 +91,20 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
       }
     }
     const finding = yearsFinding(block, fitness?.[sport].state ?? null)
-    if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
     if (drawn) {
       return {
         content: (
-          <SportHistory sport={sport} dots={dots} units={units} finding={finding} link={link} />
+          <SportHistory
+            sport={sport}
+            dots={dots}
+            units={units}
+            {...(finding === null ? {} : { finding })}
+            link={link}
+          />
         ),
       }
     }
+    if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
     return {
       content: (
         <SectionLine

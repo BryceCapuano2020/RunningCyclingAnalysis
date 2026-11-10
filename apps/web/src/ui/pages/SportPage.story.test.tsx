@@ -278,14 +278,14 @@ describe('a sport page’s fitness', () => {
       />,
     )
 
-  it('puts the run page’s status directly under the hero, and does not name the sport twice', () => {
+  it('puts the run page’s status directly under the hero, and names no state', () => {
     withFitness('run', fullRun())
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const threshold = screen.getByRole('heading', { name: 'Threshold pace' })
     expect(follows(threshold, fitness)).toBe(true)
-    // The graph's title is the state alone: the page's own title names the sport.
-    expect(within(fitness).getByRole('figure', { name: 'Slipping' })).toBeInTheDocument()
-    expect(within(fitness).queryByText(/^Run( ·|$)/)).not.toBeInTheDocument()
+    // The graph is titled by the sport and names no state.
+    expect(within(fitness).getByRole('figure', { name: /^Run$/ })).toBeInTheDocument()
+    expect(fitness).not.toHaveTextContent(/Slipping|Recovering/)
   })
 
   it('says nothing about fitness on the ride page for a library with no ride status', () => {

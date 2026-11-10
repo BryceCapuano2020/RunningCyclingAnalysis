@@ -22,8 +22,6 @@ export function snap(
     keys: { run: encodeSeconds(seconds('run')), ride: encodeSeconds(seconds('ride')) },
     counts: { run: seconds('run').length, ride: seconds('ride').length },
     bests: { run: [], ride: [] },
-    fitness: { run: null, ride: null },
-    episodes: { run: [], ride: [] },
     ...rest,
   }
 }

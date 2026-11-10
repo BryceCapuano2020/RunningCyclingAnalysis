@@ -20,15 +20,11 @@ describe('the landing figures', () => {
     expect(LANDING_EXAMPLE).toEqual(computeLandingFigures())
   })
 
-  it('say which sport leads and name a level for each, with the slip the example describes', () => {
+  it('say which sport leads and name a level for each', () => {
     expect(LANDING_EXAMPLE.gap.lean).toMatch(/^(run|ride)$/)
     // The centre leans clearly; the range beside it may cross zero, as any athlete's may.
     expect(Math.abs(LANDING_EXAMPLE.gap.centre)).toBeGreaterThanOrEqual(LANDING_MIN_LEAD_POINTS)
     expect(LANDING_EXAMPLE.grades.run.centre.level).not.toBe('')
-    expect(LANDING_EXAMPLE.fitness.change.high).toBeLessThan(0)
-    expect(LANDING_EXAMPLE.fitness.referenceHr).toBeGreaterThan(0)
-    // The size of the slip is not a figure of the landing page: it moves by a point with the visit day.
-    expect(Object.keys(LANDING_EXAMPLE.fitness).sort()).toEqual(['change', 'referenceHr'])
   })
 })
 
@@ -46,14 +42,12 @@ describe('the share image’s text', () => {
 })
 
 describe('the card stamp', () => {
-  it('moves with a figure the card draws and with a colour, and not with the fitness finding', () => {
+  it('moves with a figure the card draws and with a colour', () => {
     const base = cardStamp(LANDING_EXAMPLE, INK)
     expect(base).toMatch(/^[0-9a-f]{14}$/)
     expect(cardStamp(LANDING_EXAMPLE, INK)).toBe(base)
     const gap = { ...LANDING_EXAMPLE.gap, centre: LANDING_EXAMPLE.gap.centre - 1 }
     expect(cardStamp({ ...LANDING_EXAMPLE, gap }, INK)).not.toBe(base)
     expect(cardStamp(LANDING_EXAMPLE, { ...INK, run: '#00000a' })).not.toBe(base)
-    const fitness = { ...LANDING_EXAMPLE.fitness, referenceHr: 99 }
-    expect(cardStamp({ ...LANDING_EXAMPLE, fitness }, INK)).toBe(base)
   })
 })

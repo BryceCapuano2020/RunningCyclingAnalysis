@@ -45,42 +45,6 @@ describe('LandingExample', () => {
     }
   })
 
-  it('carries the sample’s fitness finding as its analysis gives it: the state, the heart rate and the change it draws', () => {
-    const { fitness } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
-    const run = fitness.run
-    expect(run.state).toBe('slipping')
-    const example = LANDING_EXAMPLE.fitness
-    expect(example.referenceHr).toBe(run.referenceHr)
-    for (const end of ['value', 'low', 'high'] as const) {
-      expect(example.change[end]).toBeCloseTo(run.change![end], 3)
-    }
-  })
-
-  it('gives the finding inside the sample’s own card: its state, one sentence with the heart rate and the change as a track', () => {
-    const { container } = render(<LandingExample />)
-    const card = container.querySelector('figure.landing-example')!
-    const finding = card.querySelector('.landing-example__fitness')!
-    expect(finding.querySelector('.landing-example__state')?.textContent).toBe('Slipping')
-    expect(finding.querySelector('.landing-example__sentence')?.textContent).toBe(
-      `Slower than your old level at ${LANDING_EXAMPLE.fitness.referenceHr} bpm.`,
-    )
-    expect(finding.querySelector('.fitness-track__ring')).not.toBeNull()
-    // One card: the finding is not a figure of its own, and it follows the triangle.
-    expect(container.querySelectorAll('figure.landing-example')).toHaveLength(1)
-    expect(finding.closest('figure')).toBe(card)
-    const triangle = card.querySelector('.level-triangle')!
-    expect(
-      triangle.compareDocumentPosition(finding) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-  })
-
-  it('says no size for the slip, which reads a point either way as the visit day moves', () => {
-    const { container } = render(<LandingExample />)
-    const sentence = container.querySelector('.landing-example__sentence')?.textContent ?? ''
-    expect(sentence).not.toMatch(/%|\d+ to \d+/)
-    expect(sentence).toMatch(/\d+ bpm\.$/)
-  })
-
   it('is labelled once, Sample athlete, names the persona in one line under the headline, and gives the answer’s headline', () => {
     const { container } = render(<LandingExample />)
     expect(screen.getByText('Sample athlete')).toBeInTheDocument()
@@ -89,7 +53,7 @@ describe('LandingExample', () => {
     )
     expect(container.querySelectorAll('figcaption')).toHaveLength(1)
     expect(screen.getByText('Your athletic balance')).toBeInTheDocument()
-    // The old label chain is gone: nothing says illustrative, and the fitness finding has no label of its own.
+    // Nothing says illustrative, and no fitness finding rides on the example.
     expect(container.textContent).not.toMatch(/illustrative|Fitness at the same heart rate/i)
   })
 

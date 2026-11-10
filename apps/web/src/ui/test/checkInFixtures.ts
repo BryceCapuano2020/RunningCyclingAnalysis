@@ -7,8 +7,6 @@ export const QUIET_CHECK_IN: CheckIn = {
   added: { run: 14, ride: 3 },
   older: { run: null, ride: null },
   bests: [],
-  fitness: [{ sport: 'run', kind: 'same', state: 'holding', within: 0.02 }],
-  episodes: [],
   quiet: true,
 }
 

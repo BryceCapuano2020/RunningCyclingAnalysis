@@ -14,7 +14,7 @@ export interface CheckInRowProps {
 
 /**
  * "Since your last import", one line below the fitness card: what the import added, as a label over its figure. The
- * disclosure opens what else it told, as label and figure rows (a new best, a change of fitness, older files). It is a region, not a heading: the page's own
+ * disclosure opens what else it told, as label and figure rows (a new best, older files). It is a region, not a heading: the page's own
  * title stays first in the outline. It is counted shown after 3 s in view on a visible page, once a page load, and
  * once it has been opened or hidden, or shown on two page loads, it gives up the place. A row that has appeared stays
  * until it is hidden, so opening it does not take it away.

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NO_HISTORY } from '@rca/core/history'
 import type { Sport } from '@rca/core/types'
 import { makeResult } from '../components/test/fixtures'
-import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
+import { dotsFixture } from '../test/fitnessYearsFixtures'
 import { profileActivities } from '../test/profileFixtures'
 import { YEARS_LOOKBACK } from '../test/yearsFixtures'
 import { NO_LOOKBACK } from '@rca/core/lookback'
@@ -26,7 +26,7 @@ function page(sport: Sport, lookBack = YEARS_LOOKBACK, withDots = true) {
         withDots
           ? {
               ...NO_HISTORY.fitness,
-              [sport]: dotsFixture({ sport, years: [2021, 2022, 2023], spans: slipAndRise(2021) }),
+              [sport]: dotsFixture({ sport, years: [2021, 2022, 2023] }),
             }
           : undefined
       }
@@ -46,11 +46,11 @@ function page(sport: Sport, lookBack = YEARS_LOOKBACK, withDots = true) {
 }
 
 describe('SportPage: the History row as a graph', () => {
-  it('draws the sport’s years with its slips shaded, and keeps the link to the History page', () => {
+  it('draws the sport’s years as dots, and keeps the link to the History page', () => {
     const { container } = page('run')
     const years = screen.getByRole('region', { name: 'History' })
     expect(within(years).getByRole('figure', { name: 'History' })).toBeInTheDocument()
-    expect(container.querySelectorAll('[data-testid="fitness-span"]').length).toBeGreaterThan(0)
+    expect(container.querySelector('[data-testid="fitness-dots"]')).not.toBeNull()
     expect(within(years).getByRole('link', { name: 'See History' })).toBeInTheDocument()
   })
 
@@ -74,6 +74,8 @@ describe('SportPage: the History row as a graph', () => {
     page('run', YEARS_LOOKBACK, false)
     const years = screen.getByRole('region', { name: 'History' })
     expect(within(years).queryByRole('figure')).toBeNull()
-    expect(years).toHaveTextContent('Slipped in 2021, then came back. See History')
+    expect(years).toHaveTextContent(
+      'Pace stayed within 3% from January 2022 to June 2023. See History',
+    )
   })
 })

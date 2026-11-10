@@ -23,7 +23,7 @@ const BOTH = (run: FitnessBySport['run'], ride = noFitness('ride')): FitnessBySp
 const WAITING = waitingStatus({ kind: 'recent', have: 1, need: 3, weeks: 12 }, 7, 'ride')
 
 describe('SportFitness', () => {
-  it('draws a status with a trend as its level over time, titled by the state, with the low and today marked', () => {
+  it('draws a status with a trend as its level over time, titled by the sport, with today marked', () => {
     const { container } = render(
       <SportFitness
         fitness={BOTH(RECOVERING)}
@@ -34,16 +34,18 @@ describe('SportFitness', () => {
       />,
     )
     const section = screen.getByRole('region', { name: 'Your fitness' })
-    expect(within(section).getByRole('figure', { name: 'Recovering' })).toBeInTheDocument()
+    expect(within(section).getByRole('figure', { name: /^Run$/ })).toBeInTheDocument()
     expect(container.querySelector('[data-testid="fitness-now"]')).not.toBeNull()
-    expect(container.querySelector('[data-testid="fitness-low"]')?.textContent).toMatch(/ low$/)
-    // One disclosure for the section: the chart's, holding the sentence, the table, the rows and the track.
+    expect(container.querySelector('[data-testid="fitness-low"]')).toBeNull()
+    // One disclosure for the section: the chart's, holding the sentence, the table and the rows.
     expect(section.querySelectorAll('details')).toHaveLength(1)
     expect(section.querySelector('details .props')).not.toBeNull()
-    expect(section.querySelector('details .fitness-track')).not.toBeNull()
+    expect(section.querySelector('.fitness-track')).toBeNull()
     // The sentence is the graph's text, not a line on the page.
     expect(container.querySelector('.fitness-card__line')).toBeNull()
-    expect(section.querySelector('.chart-frame__lede')?.textContent).toMatch(/^Up \d+% from/)
+    expect(section.querySelector('.chart-frame__lede')?.textContent).toMatch(
+      /^\d:\d{2}\s\/km at 150 bpm\.$/,
+    )
   })
 
   it('draws a status with no trend as the steady rides it rests on, with today marked and no trend line invented', () => {
@@ -57,7 +59,7 @@ describe('SportFitness', () => {
         nowMs={NOW}
       />,
     )
-    expect(screen.getByRole('figure', { name: 'No trend yet' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /^Ride$/ })).toBeInTheDocument()
     expect(container.querySelector('[data-testid="fitness-dots"]')).not.toBeNull()
     expect(container.querySelector('[data-testid="fitness-now-mark"]')?.textContent).toMatch(
       /^Now \d+ W$/,
@@ -93,6 +95,6 @@ describe('SportFitness', () => {
         nowMs={NOW}
       />,
     )
-    expect(screen.getByRole('figure', { name: 'Slipping' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /^Ride$/ })).toBeInTheDocument()
   })
 })

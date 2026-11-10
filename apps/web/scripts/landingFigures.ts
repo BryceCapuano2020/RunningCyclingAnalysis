@@ -19,10 +19,10 @@ export const LANDING_MIN_LEAD_POINTS = 5
 /**
  * The figures the landing page shows, read from the sample athlete's own analysis on the fixed reference clock.
  * It throws when the sample stops showing what the landing example describes (both sports graded, a lean of at
- * least LANDING_MIN_LEAD_POINTS, a run that is slipping), so the page never describes a sample that has moved.
+ * least LANDING_MIN_LEAD_POINTS), so the page never describes a sample that has moved.
  */
 export function computeLandingFigures(): LandingFigures {
-  const { result, fitness } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+  const { result } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
   if (result === null)
     throw new Error(`The sample has no result, so the landing page has no figures: ${FIX}.`)
   const headline = thresholdGrades(result, SAMPLE_PROFILE)
@@ -36,18 +36,8 @@ export function computeLandingFigures(): LandingFigures {
       `The sample no longer leans clearly, by at least ${LANDING_MIN_LEAD_POINTS} points, which the landing example says it does: ${FIX}.`,
     )
   }
-  const run = fitness.run
-  if (run.state !== 'slipping' || run.change === null || run.referenceHr === null) {
-    throw new Error(
-      `The sample's run shows "${run.state}", not the slip the landing example describes: ${FIX}.`,
-    )
-  }
   return {
     gap: { centre: gap.centre, low: gap.low, high: gap.high, lean: gap.lean },
     grades: { run: headline.run.grade, ride: headline.ride.grade },
-    fitness: {
-      referenceHr: run.referenceHr,
-      change: run.change,
-    },
   }
 }

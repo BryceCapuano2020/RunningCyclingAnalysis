@@ -82,9 +82,9 @@ export interface SessionState {
    */
   heartRateJudgement: HeartRateJudgement
   /**
-   * Each sport's fitness at the same effort over the whole library, whatever period is picked: slipping,
-   * holding, recovering, back, or not enough evidence yet, with the figures and runs behind it. Its onset and low are
-   * dated by the look-back's episode where the look-back lists it (lookback/cardDates.ts).
+   * Each sport's fitness at the same effort over the whole library, whatever period is picked: the level now at one
+   * heart rate, or what a trend still needs, with the figures and runs behind it. The page tells the level, not the
+   * state the monitor reads it in.
    */
   fitness: FitnessBySport
   /**

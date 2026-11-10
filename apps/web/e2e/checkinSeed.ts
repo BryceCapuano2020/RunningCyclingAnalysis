@@ -22,8 +22,6 @@ export async function seedBaseline(page: Page): Promise<void> {
                 keys: { run: '', ride: '' },
                 counts: { run: 0, ride: 0 },
                 bests: { run: [], ride: [] },
-                fitness: { run: null, ride: null },
-                episodes: { run: [], ride: [] },
               },
               lastImportAtMs: at,
               pending: null,

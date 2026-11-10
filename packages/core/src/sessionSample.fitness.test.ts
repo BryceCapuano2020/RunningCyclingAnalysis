@@ -81,13 +81,9 @@ describe('the sample athlete’s fitness story', () => {
   })
 
   it('reads in plain words, with no pace or cause the data cannot give', () => {
-    const { headline, changes, support } = fitnessLines(status, 'metric')
+    const { headline, support } = fitnessLines(status, 'metric')
     expect(headline).toMatch(/^\d:\d{2} \/km at \d+ bpm\.$/)
-    expect(changes).toHaveLength(1)
-    expect(changes[0]).toMatch(
-      /^\d+% \(\d+ to \d+\) off your (?:\d{4} level|level before \d{1,2} [A-Z][a-z]{2})\.$/,
-    )
-    expect(lintCopy([headline, ...changes, support].join(' '))).toEqual([])
+    expect(lintCopy([headline, support].join(' '))).toEqual([])
   })
 
   // One other week and zone, since each clock draws a whole season of its own. The other days of the week and

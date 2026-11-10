@@ -40,7 +40,7 @@ function renderSection(over: Partial<FitnessSectionProps> & { run?: typeof SLIPP
 /** The fitness rows on the page, one for each sport, in order. */
 const rowsOf = () => [...document.querySelectorAll('li.fitness-card')] as HTMLElement[]
 
-/** A row by its title: the sport alone for a ride waiting on the home page, else the sport and state, or the state. */
+/** A row by its title: the sport alone. */
 const rowNamed = (name: string) =>
   screen.getByRole('heading', { level: 3, name }).closest('li') as HTMLElement
 
@@ -61,7 +61,7 @@ function opened<T extends Element>(row: T): T {
 
 /** A status that cannot call a trend tells its level, and what a trend needs, in place of a change. */
 describe('FitnessSection for a sport that cannot call a trend', () => {
-  it('tells a ride that cannot call a trend as a row titled Ride on the home page, its level its one line, and by its state on the Ride page', () => {
+  it('tells a ride that cannot call a trend as a row titled Ride, its level its one line, on the home page and the Ride page', () => {
     const waiting = waitingStatus(
       { kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 },
       7,
@@ -87,7 +87,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     expect(rowValue(ride, 'Range')).toBe('194 to 206 W')
     expect(rowValue(ride, 'Steady rides')).toBe('7')
     cleanup()
-    // The Ride page titles the row by its state, with the level and what a trend needs in its Details.
+    // The Ride page titles the row by the sport too, with the level and what a trend needs in its Details.
     render(
       <FitnessSection
         nowMs={FITNESS_AS_OF_MS}
@@ -97,7 +97,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
         sport="ride"
       />,
     )
-    const card = rowNamed('No trend yet')
+    const card = rowNamed('Ride')
     expect(lineOf(card).textContent).toBe('200 W at 140 bpm.')
     opened(card)
     expect(rowValue(card, 'Power at 140 bpm')).toBe('200 W')
@@ -147,7 +147,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
         library={FITNESS_LIBRARY}
       />,
     )
-    const card = rowNamed('Run · No trend yet')
+    const card = rowNamed('Run')
     expect(textOf(lineOf(card))).toMatch(/^\d:\d{2} \/km at 150 bpm in October\.$/)
     opened(card)
     expect(rowValue(card, 'Range')).toBe('4:54 to 5:13 /km')
@@ -208,7 +208,7 @@ describe('FitnessSection for a sport that cannot call a trend', () => {
     const { container } = renderSection({
       run: waitingStatus({ kind: 'history', have: 7, need: 12, weeks: 5, needWeeks: 8 }),
     })
-    const card = rowNamed('Run · No trend yet')
+    const card = rowNamed('Run')
     expect(textOf(lineOf(card))).toBe('5:03 /km at 150 bpm.')
     opened(card)
     expect(rowValue(card, 'Pace at 150 bpm')).toBe('5:03 /km')

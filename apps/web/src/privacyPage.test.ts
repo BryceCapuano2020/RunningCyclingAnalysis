@@ -284,17 +284,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
         .exec(snapshot)?.[1]
         ?.match(/^\s{2}(\w+):/gm)
         ?.map((f) => f.trim()),
-    ).toEqual([
-      'v:',
-      'revision:',
-      'atMs:',
-      'asOfMs:',
-      'keys:',
-      'counts:',
-      'bests:',
-      'fitness:',
-      'episodes:',
-    ])
+    ).toEqual(['v:', 'revision:', 'atMs:', 'asOfMs:', 'keys:', 'counts:', 'bests:'])
     expect(text).toMatch(/summary of the library as it stood\s+before your last import/)
     expect(text).toMatch(/values and dates of your best efforts/)
     expect(text).toMatch(/whether you have seen what was said/)
