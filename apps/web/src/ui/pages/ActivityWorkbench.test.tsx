@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { runTrace, steadyTrace } from './workbenchFixtures'
+import { runTrace, steadyTrace } from './test/workbenchFixtures'
 
 function show(trace: ActivityTrace, units: 'metric' | 'imperial' = 'metric') {
   return render(

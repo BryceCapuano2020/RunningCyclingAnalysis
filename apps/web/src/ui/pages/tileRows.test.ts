@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SPORT_ORDER } from '../sports'
 import type { RecordRow } from '../recordRow'
 import { RECORD_TILE_KEYS, sharedTileActivity, tileRows } from './tileRows'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 
 const row = (key: string, activityId: string | null = null): RecordRow => ({
   key,

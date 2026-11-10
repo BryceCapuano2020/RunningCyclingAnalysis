@@ -1,5 +1,5 @@
-import { estimatePower } from './estimatePower'
-import type { BikeModel } from '../types'
+import { estimatePower } from '../estimatePower'
+import type { BikeModel } from '../../types'
 
 /** One ride of 1 Hz samples, as the calibration tests need it. */
 export interface SyntheticRide {

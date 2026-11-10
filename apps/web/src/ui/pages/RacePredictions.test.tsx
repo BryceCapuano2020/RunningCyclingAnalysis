@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import type { RaceWindow } from '../raceAnswer'
 import { raceAnswerOf } from '../raceAnswer'
 import { forecastOf } from '../test/raceForecast'

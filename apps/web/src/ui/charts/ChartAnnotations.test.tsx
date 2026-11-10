@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readStylesheet } from '../components/stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 import { ChartAnnotations } from './ChartAnnotations'
 import type { Annotation } from './annotations'
 import type { ChartSize } from './chartTypes'

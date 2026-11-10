@@ -2,11 +2,11 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { EffortGate } from '@rca/core/effort'
-import { curvePoint } from './charts/fixtures'
-import { makeActivity, makeResult } from './components/fixtures'
+import { curvePoint } from './charts/test/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { heldAction, heldReason } from './components/headlineNeed'
 import { headlinePick } from './components/pickHeadline'
-import { gate, HARD, NO_HEART_RATE, THIN, UNKNOWN } from './effortGateFixtures'
+import { gate, HARD, NO_HEART_RATE, THIN, UNKNOWN } from './test/effortGateFixtures'
 import { heldPick, heldTexts, holdOf } from './resultHold'
 
 afterEach(cleanup)

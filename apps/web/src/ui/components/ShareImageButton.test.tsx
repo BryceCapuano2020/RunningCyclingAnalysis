@@ -11,7 +11,7 @@ import type { GradeOutcome } from '../grades'
 import { HoldInputsContext } from '../holdContext'
 import { EMPTY_TRIANGLE, triangleViewOf } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'
-import { makeActivity, makeResult } from './fixtures'
+import { makeActivity, makeResult } from './test/fixtures'
 import { ShareImageButton, type ShareImageButtonProps } from './ShareImageButton'
 
 vi.mock('../../share/download', () => ({

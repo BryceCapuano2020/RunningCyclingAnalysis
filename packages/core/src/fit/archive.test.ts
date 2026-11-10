@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
 import { expandsReason } from './archiveReasons'
 import type { FitFile, FitSource } from './archive'
-import { streamedZip, toZip64 } from './zipTestFiles'
+import { streamedZip, toZip64 } from './test/zipTestFiles'
 
 // Records the entries whose start() ran. start() is what drains an entry the archive skips.
 const unzipSpy = vi.hoisted(() => ({ started: [] as string[] }))

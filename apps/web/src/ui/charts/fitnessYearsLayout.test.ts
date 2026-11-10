@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dotsFixture, openSlip, slipAndRise, startOf } from '../fitnessYearsFixtures'
+import { dotsFixture, openSlip, slipAndRise, startOf } from '../test/fitnessYearsFixtures'
 import type { ChartSize } from './chartTypes'
 import { daysOf, EDGE_PX, fitnessYearsLayout, yearAtX } from './fitnessYearsLayout'
 import { nearestByX } from './hover'

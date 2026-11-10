@@ -9,7 +9,7 @@ import {
   draw,
   fakeCanvas,
   type RecordedText,
-} from './fixtures'
+} from './test/fixtures'
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']

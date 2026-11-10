@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { THREE_YEARS, yearRow } from '../historyFixtures'
+import { THREE_YEARS, yearRow } from '../test/historyFixtures'
 import { HoursPerYearChart } from './HoursPerYearChart'
 
 /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */

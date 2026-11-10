@@ -1,4 +1,4 @@
-import { crc16 } from './crc'
+import { crc16 } from '../crc'
 
 /**
  * Test helpers that write raw FIT bytes by hand, so each protocol rule can be tested on its own.

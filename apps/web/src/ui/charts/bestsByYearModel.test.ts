@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BestEffort } from '@rca/core/history'
-import { RIDE_BESTS, RUN_BESTS } from '../historyBestsFixtures'
+import { RIDE_BESTS, RUN_BESTS } from '../test/historyBestsFixtures'
 import { bestsModel, bestsNote, markCell, markNote } from './bestsByYearModel'
 
 describe('bestsModel', () => {

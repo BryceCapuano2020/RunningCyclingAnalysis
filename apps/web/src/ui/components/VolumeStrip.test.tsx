@@ -5,10 +5,10 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { makeActivity } from './fixtures'
+import { makeActivity } from './test/fixtures'
 import { VolumeStrip } from './VolumeStrip'
 import { volumeTakeaway } from './volumeTakeaway'
-import { readStylesheet } from './stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 
 const css = await readStylesheet(import.meta.url, './VolumeStrip.css')
 

@@ -8,7 +8,7 @@ import {
   cardModel,
   render,
   type RecordedText,
-} from './fixtures'
+} from './test/fixtures'
 import { FOOTER, NAME, ORIGIN } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']

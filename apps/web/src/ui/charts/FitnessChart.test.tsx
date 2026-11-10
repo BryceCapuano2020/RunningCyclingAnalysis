@@ -8,7 +8,7 @@ import {
   RECOVERING,
   SLIPPING,
   fitnessStatus,
-} from '../fitnessFixtures'
+} from '../test/fitnessFixtures'
 import { FitnessChart } from './FitnessChart'
 
 afterEach(cleanup)

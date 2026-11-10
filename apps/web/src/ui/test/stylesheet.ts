@@ -69,3 +69,28 @@ export async function readFilesUnder(
     .filter((path) => path.endsWith(suffix))
     .map((path) => ({ path, text: fs.readFileSync(new URL(path, root), 'utf8') }))
 }
+
+/** The declarations of every rule whose selector list names `selector` exactly, in source order. */
+export function rulesWith(css: string, selector: string): string {
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const bodies: string[] = []
+  for (const [, list = '', body = ''] of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (list.split(',').some((part) => part.trim() === selector)) bodies.push(body)
+  }
+  return bodies.join('\n')
+}
+
+/** The text of the first @media block with this query, braces included, or '' when there is none. */
+export function mediaOf(css: string, query: string): string {
+  const open = css.indexOf(`@media ${query} {`)
+  if (open < 0) return ''
+  let depth = 0
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === '{') depth += 1
+    if (css[i] === '}') {
+      depth -= 1
+      if (depth === 0) return css.slice(open, i + 1)
+    }
+  }
+  return ''
+}

@@ -14,7 +14,7 @@ import {
   rideCurveFixture,
   rideMetabolicCurveFixture,
   runCurveFixture,
-} from '../charts/fixtures'
+} from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -23,7 +23,7 @@ import {
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 import { requestMethodSection } from '../components/methodSection'

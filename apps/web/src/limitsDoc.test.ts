@@ -3,7 +3,7 @@ import * as digestLimits from '@rca/core/digest/limits'
 import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
 import { DEFAULT_PARSE_LIMITS } from '@rca/core/import'
 import * as importLimits from '@rca/core/import/limits'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * docs/LIMITS.md lists every limit the importer and the digest reader hold, with its value. Each

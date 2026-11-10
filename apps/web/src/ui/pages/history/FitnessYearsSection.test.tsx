@@ -5,8 +5,8 @@ import { NO_HISTORY } from '@rca/core/history'
 import { NO_LOOKBACK } from '@rca/core/lookback'
 import type { HindsightFitness } from '@rca/core/lookback'
 import '../../../test/deviceZone'
-import { dotsFixture } from '../../fitnessYearsFixtures'
-import { YEARS_LOOKBACK } from '../../yearsFixtures'
+import { dotsFixture } from '../../test/fitnessYearsFixtures'
+import { YEARS_LOOKBACK } from '../../test/yearsFixtures'
 import { FitnessYearsSection } from './FitnessYearsSection'
 
 class SizedObserver {

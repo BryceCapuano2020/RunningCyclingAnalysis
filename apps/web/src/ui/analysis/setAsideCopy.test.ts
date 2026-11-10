@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { NO_EFFORT_REFERENCE } from '@rca/core/effort'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import { setAsideText } from './setAsideCopy'
 
 /** A library judged against 200 bpm running and 194 bpm cycling. */

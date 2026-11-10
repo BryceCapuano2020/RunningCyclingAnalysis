@@ -6,7 +6,7 @@ import { zonesFor } from '@rca/core/zones'
 import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { ActivityZoneTime } from './ActivityZoneTime'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 afterEach(cleanup)
 

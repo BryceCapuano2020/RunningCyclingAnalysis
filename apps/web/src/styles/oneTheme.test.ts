@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFilesUnder, readStylesheet } from '../ui/components/stylesheet'
+import { readFilesUnder, readStylesheet } from '../ui/test/stylesheet'
 
 /** The page is paper in every system setting (docs/design/system.md, Rules): no second theme anywhere. */
 const SECOND_THEME = /prefers-color-scheme|data-theme/

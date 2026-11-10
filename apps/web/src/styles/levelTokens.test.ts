@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet } from '../ui/test/stylesheet'
 import { contrast, over } from './contrastMath'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')

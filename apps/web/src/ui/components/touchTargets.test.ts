@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from './stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 
 const STANDARD_PX = 40
 

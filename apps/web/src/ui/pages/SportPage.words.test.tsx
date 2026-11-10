@@ -3,15 +3,15 @@ import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { wordsOf } from '../../test/wordsOf'
-import { changeOf } from '../charts/changeFixtures'
-import { curvePoint } from '../charts/fixtures'
+import { changeOf } from '../charts/test/changeFixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)

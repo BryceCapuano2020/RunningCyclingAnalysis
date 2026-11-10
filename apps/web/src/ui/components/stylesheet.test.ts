@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ruleBody } from './stylesheet'
+import { ruleBody } from '../test/stylesheet'
 
 describe('ruleBody', () => {
   it('reads every top-level rule with the selector, not only the first', () => {

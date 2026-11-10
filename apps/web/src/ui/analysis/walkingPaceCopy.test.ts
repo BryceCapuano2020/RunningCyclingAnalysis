@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { workoutKey } from '@rca/core/session'
-import { makeActivity } from '../components/fixtures'
+import { makeActivity } from '../components/test/fixtures'
 import {
   ATHLETE_LABEL_CHIP,
   countRunsLabel,

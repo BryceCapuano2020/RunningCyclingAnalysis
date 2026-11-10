@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import { fitnessCountLine } from './fitnessCounts'
 
 /** What an activity of each sport has when its fitness sensor is there, and when it is not. */

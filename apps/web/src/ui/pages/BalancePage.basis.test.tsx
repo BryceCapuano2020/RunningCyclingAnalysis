@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { EffortGate } from '@rca/core/effort'
 import { analysisStub } from '../../test/analysisStub'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
-import { gate, HARD, NO_HEART_RATE } from '../effortGateFixtures'
+} from '../components/test/fixtures'
+import { gate, HARD, NO_HEART_RATE } from '../test/effortGateFixtures'
 import { BalancePage } from './BalancePage'
 
 afterEach(cleanup)

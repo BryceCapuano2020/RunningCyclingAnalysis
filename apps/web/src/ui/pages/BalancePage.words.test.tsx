@@ -6,14 +6,14 @@ import type { TrendPoint } from '@rca/core/digest'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import { wordsOf } from '../../test/wordsOf'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
+} from '../components/test/fixtures'
 import { BalancePage } from './BalancePage'
 
 vi.mock('../../share/download', () => ({

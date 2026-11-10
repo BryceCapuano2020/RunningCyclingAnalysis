@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../balanceFixtures'
+import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../test/balanceFixtures'
 import { yearViews } from './balanceYears'
 import { BalanceOverYearsChart } from './BalanceOverYearsChart'
 

@@ -1,9 +1,9 @@
 import { levelOf } from '@rca/core/grade'
 import type { TriangleGrade } from '@rca/core/standing'
-import type { TriangleView } from '../ui/triangleSports'
-import type { CardFormat } from './cardLayout'
-import type { ShareCardModel } from './cardModel'
-import { renderShareCard } from './renderCard'
+import type { TriangleView } from '../../ui/triangleSports'
+import type { CardFormat } from '../cardLayout'
+import type { ShareCardModel } from '../cardModel'
+import { renderShareCard } from '../renderCard'
 
 export interface RecordedText {
   text: string

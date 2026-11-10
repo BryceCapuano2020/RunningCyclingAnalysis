@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
-import { makeActivity, makeResult } from './ui/components/fixtures'
+import { makeActivity, makeResult } from './ui/components/test/fixtures'
 import { app, resetAppMocks, setSession, showResult } from './test/appMocks'
 import { browserHashChange, recordHashListeners } from './test/hashchange'
 

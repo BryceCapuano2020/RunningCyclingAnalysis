@@ -6,12 +6,12 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { DigestSplits } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { ActivityTraceReply } from '../../worker/protocol'
-import { runCurveFixture, rideCurveFixture } from '../charts/fixtures'
-import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
+import { runCurveFixture, rideCurveFixture } from '../charts/test/fixtures'
+import { MAN_BORN_1986, makeActivity, makeResult } from '../components/test/fixtures'
 import type { RouteReply } from '../routeReply'
 import { SETTLE_MS } from '../useSplitsView'
 import { ActivityPage } from './ActivityPage'
-import { repsTrace } from './workbenchFixtures'
+import { repsTrace } from './test/workbenchFixtures'
 
 afterEach(() => {
   cleanup()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet, ruleBody } from '../ui/components/stylesheet'
+import { readStylesheet, ruleBody } from '../ui/test/stylesheet'
 
 const baseCss = await readStylesheet(import.meta.url, './base.css')
 const componentsCss = await readStylesheet(import.meta.url, './components.css')

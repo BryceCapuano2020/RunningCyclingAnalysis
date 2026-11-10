@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readStylesheet } from '../components/stylesheet'
+import { readStylesheet } from '../test/stylesheet'
 import { ZoneTimeChart } from './ZoneTimeChart'
 import type { ZoneChartRow } from './ZoneTimeChart'
 import { GLYPH_EM } from './rootFont'

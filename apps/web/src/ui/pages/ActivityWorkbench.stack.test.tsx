@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { layoutOf } from '../charts/timeSeriesLayout'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { runTrace, steadyTrace } from './workbenchFixtures'
+import { runTrace, steadyTrace } from './test/workbenchFixtures'
 
 function show(trace: ActivityTrace) {
   return render(

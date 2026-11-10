@@ -3,8 +3,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WALKING_PACE } from '@rca/core/constants'
 import '../../test/deviceZone'
-import { chartWidth } from './chartSizeStub'
-import { curvePoint } from './fixtures'
+import { chartWidth } from './test/chartSizeStub'
+import { curvePoint } from './test/fixtures'
 import { SportCurveChart } from './SportCurveChart'
 
 afterEach(() => {

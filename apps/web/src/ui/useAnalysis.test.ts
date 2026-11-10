@@ -24,7 +24,7 @@ import { resetTabSync } from './tabSync'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
-import { makeActivity, makeResult } from './components/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
 import { PERIOD_KEY } from './periodPreference'
 

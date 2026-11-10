@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { curvePoint } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import { SoleSportRecords } from './SoleSportRecords'
 
 afterEach(cleanup)

@@ -4,9 +4,9 @@ import { balanceLibrary, REFERENCE, SETTINGS } from '@rca/core/history/test/bala
 import type { YearSpec } from '@rca/core/history/test/balanceLibrary'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { sportGrade } from './grades'
-import type { AgeProfile, HeadlineGrades } from './grades'
-import type { GradingInputs } from './pages/history/types'
+import { sportGrade } from '../grades'
+import type { AgeProfile, HeadlineGrades } from '../grades'
+import type { GradingInputs } from '../pages/history/types'
 
 export { SETTINGS, TWELVE_YEARS } from '@rca/core/history/test/balanceLibrary'
 

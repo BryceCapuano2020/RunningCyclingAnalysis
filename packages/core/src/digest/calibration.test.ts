@@ -3,8 +3,8 @@ import type { BikeModel, CalibrationSums } from '../types'
 import { solveBikeModel } from '../virtualPower'
 import type { CalibrationStats } from '../virtualPower'
 import { referenceRideStats } from './test/reference'
-import type { SyntheticRide } from '../virtualPower/syntheticRides'
-import { makeRide, wave } from '../virtualPower/syntheticRides'
+import type { SyntheticRide } from '../virtualPower/test/syntheticRides'
+import { makeRide, wave } from '../virtualPower/test/syntheticRides'
 import {
   addCalibrationSums,
   calibrationStatsAt,

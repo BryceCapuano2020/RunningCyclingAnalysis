@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PrivacyNote } from './PrivacyNote'
-import { readStylesheet, ruleBody } from './stylesheet'
+import { readStylesheet, ruleBody } from '../test/stylesheet'
 
 const noteCss = await readStylesheet(import.meta.url, './PrivacyNote.css')
 

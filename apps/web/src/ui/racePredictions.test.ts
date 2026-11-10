@@ -1,6 +1,6 @@
 import { METRES_PER_MILE } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
-import { makeActivity, makeResult } from './components/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
 import { raceAnswerOf } from './raceAnswer'
 import { forecastOf } from './test/raceForecast'
 

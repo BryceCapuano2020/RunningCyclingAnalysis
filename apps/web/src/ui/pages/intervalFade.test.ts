@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { runCost } from '@rca/core/metabolic'
 import { fadeLede, hardLaps, repFadeOf, REP_FADE, similarLengths } from './intervalFade'
-import { repsTrace } from './workbenchFixtures'
-import type { Stretch } from './workbenchFixtures'
+import { repsTrace } from './test/workbenchFixtures'
+import type { Stretch } from './test/workbenchFixtures'
 
 const OUTDOOR = { indoor: false }
 const INDOOR = { indoor: true }

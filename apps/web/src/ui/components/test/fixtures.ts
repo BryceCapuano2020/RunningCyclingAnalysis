@@ -9,7 +9,7 @@ import { NO_EFFORT_GATE } from '@rca/core/effort'
 import type { ThresholdEstimate } from '@rca/core/threshold'
 import type { ZoneEstimates } from '@rca/core/zones'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
-import type { AgeProfile } from '../grades'
+import type { AgeProfile } from '../../grades'
 
 export function interval(p05: number, p50: number, p95: number): Interval {
   return { p05, p50, p95 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { digestActivity } from '../digest/digestActivity'
-import { buildFit } from '../fit/fitTestFiles'
+import { buildFit } from '../fit/test/fitTestFiles'
 import { parseActivityFile } from './index'
 
 /*

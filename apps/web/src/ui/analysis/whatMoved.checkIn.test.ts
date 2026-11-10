@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { NewBest } from '@rca/core/lookback'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { makeActivity, makeResult } from '../components/test/fixtures'
 import type { ImportChange } from './importState'
 import { listedMoves, whatMoved } from './whatMoved'
 

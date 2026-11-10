@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { METRES_PER_MILE } from '@rca/core/units'
-import { callOf } from './charts/changeFixtures'
+import { callOf } from './charts/test/changeFixtures'
 import { recordChange } from './recordChange'
 
 /** A flat speed, m/s, for a pace in seconds per mile. */

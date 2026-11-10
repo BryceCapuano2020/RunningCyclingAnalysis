@@ -4,15 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
-import { curvePoint } from '../charts/fixtures'
+import { curvePoint } from '../charts/test/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
   makeActivity,
   makeEquivalence,
   makeResult,
-} from '../components/fixtures'
-import { FITNESS_AS_OF_MS, RECOVERING, SLIPPING } from '../fitnessFixtures'
+} from '../components/test/fixtures'
+import { FITNESS_AS_OF_MS, RECOVERING, SLIPPING } from '../test/fitnessFixtures'
 import { BalancePage } from './BalancePage'
 
 /** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */

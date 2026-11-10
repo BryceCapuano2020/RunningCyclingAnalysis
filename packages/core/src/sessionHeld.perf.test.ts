@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { buildFit, secondly } from './fit/fitTestFiles'
+import { buildFit, secondly } from './fit/test/fitTestFiles'
 import { sha256Hex } from './sha256'
 import type { FileId, HeldEntry, HeldFiles } from './importHeld'
 import { AnalysisSession } from './session'

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { RepFadeTable } from './ActivityWorkbenchReps'
-import { repsTrace } from './workbenchFixtures'
+import { repsTrace } from './test/workbenchFixtures'
 
 afterEach(cleanup)
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { definition, fitFile, int } from './fitBytes'
+import { definition, fitFile, int } from './test/fitBytes'
 import { decodeFit } from './decode'
 import { MESG } from './profile'
 import { parseFit } from '../parse'
-import { buildFit, secondly } from '../fitTestFiles'
+import { buildFit, secondly } from '../test/fitTestFiles'
 import { DEFAULT_PARSE_LIMITS } from '../../import/result'
 
 const host = globalThis as {

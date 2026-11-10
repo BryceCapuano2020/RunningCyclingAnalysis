@@ -8,7 +8,7 @@ import { forgetSeenNotes } from '../aboutDataStore'
 import { AppNotices } from './AppNotices'
 import type { AppNoticesProps } from './AppNotices'
 import type { CountedRunsController } from '../useCountedRuns'
-import { makeActivity, makeRejectedFile, makeResult } from './fixtures'
+import { makeActivity, makeRejectedFile, makeResult } from './test/fixtures'
 
 afterEach(() => {
   cleanup()

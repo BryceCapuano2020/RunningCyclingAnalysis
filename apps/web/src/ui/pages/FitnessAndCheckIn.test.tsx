@@ -3,8 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import { analysisStub } from '../../test/analysisStub'
-import { QUIET_CHECK_IN } from '../checkInFixtures'
-import { FITNESS_AS_OF_MS, FITNESS_LIBRARY, SLIPPING } from '../fitnessFixtures'
+import { QUIET_CHECK_IN } from '../test/checkInFixtures'
+import { FITNESS_AS_OF_MS, FITNESS_LIBRARY, SLIPPING } from '../test/fitnessFixtures'
 import { FitnessAndCheckIn } from './FitnessAndCheckIn'
 
 /** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */

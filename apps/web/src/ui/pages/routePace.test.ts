@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import { routeSegmentPace } from './routePace'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 /** A straight line east of ten equal segments. */
 const LINE: RouteShape = {

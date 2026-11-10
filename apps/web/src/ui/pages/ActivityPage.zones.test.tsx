@@ -6,10 +6,10 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings } from '@rca/core/types'
-import { MAN_BORN_1986, estimatesFrom, makeActivity, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, estimatesFrom, makeActivity, makeResult } from '../components/test/fixtures'
 import type { RouteReply } from '../routeReply'
 import { ActivityPage } from './ActivityPage'
-import { steadyTrace } from './workbenchFixtures'
+import { steadyTrace } from './test/workbenchFixtures'
 
 afterEach(cleanup)
 

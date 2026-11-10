@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import { decodeSeconds } from './lookback'
-import { buildFit, secondly } from './fit/fitTestFiles'
+import { buildFit, secondly } from './fit/test/fitTestFiles'
 import { AnalysisSession } from './session'
 import type { AthleteSettings } from './types'
 

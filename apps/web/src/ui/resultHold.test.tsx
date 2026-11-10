@@ -2,9 +2,9 @@
 import { describe, expect, it } from 'vitest'
 import type { EffortGate } from '@rca/core/effort'
 import type { LibraryKnowledge } from './analysis/libraryKnowledge'
-import { curvePoint } from './charts/fixtures'
-import { makeActivity, makeResult } from './components/fixtures'
-import { gate, HARD } from './effortGateFixtures'
+import { curvePoint } from './charts/test/fixtures'
+import { makeActivity, makeResult } from './components/test/fixtures'
+import { gate, HARD } from './test/effortGateFixtures'
 import { HOLD_ON_ANY_STALE, heldPick, heldTexts, holdOf } from './resultHold'
 import type { HoldInputs } from './resultHold'
 

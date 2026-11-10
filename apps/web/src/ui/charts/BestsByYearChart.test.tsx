@@ -3,9 +3,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BestEffort } from '@rca/core/history'
 import '../../test/deviceZone'
-import { RIDE_BESTS, RUN_BESTS } from '../historyBestsFixtures'
+import { RIDE_BESTS, RUN_BESTS } from '../test/historyBestsFixtures'
 import { BestsByYearChart } from './BestsByYearChart'
-import { chartWidth } from './chartSizeStub'
+import { chartWidth } from './test/chartSizeStub'
 
 afterEach(() => {
   cleanup()

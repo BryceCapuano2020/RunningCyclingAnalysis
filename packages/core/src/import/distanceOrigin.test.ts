@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { digestActivity } from '../digest/digestActivity'
 import { parseFit } from '../fit/parse'
-import { buildFit, secondly } from '../fit/fitTestFiles'
+import { buildFit, secondly } from '../fit/test/fitTestFiles'
 import { parseTcx } from '../tcx/parse'
 import type { Activity } from '../types'
 import type { ParseResult } from './result'

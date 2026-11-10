@@ -2,7 +2,7 @@ import { DAY_MS } from '@rca/core/constants'
 import { endOfLocalDay, windowEnding } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { makeActivity } from '../ui/components/fixtures'
+import { makeActivity } from '../ui/components/test/fixtures'
 
 /** The day the newest activity of the library started. */
 export const WINDOW_NEWEST_MS = Date.UTC(2026, 5, 30, 8)

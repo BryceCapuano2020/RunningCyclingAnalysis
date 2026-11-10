@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PRIORS } from '@rca/core/constants'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
-import { makeResult, makeRideThreshold, makeRunThreshold } from './components/fixtures'
+import { makeResult, makeRideThreshold, makeRunThreshold } from './components/test/fixtures'
 import { thresholdLine } from './thresholdLine'
 import { thresholdRange } from './thresholdRange'
 

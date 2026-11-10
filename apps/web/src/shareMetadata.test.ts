@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { LANDING_EXAMPLE } from './ui/landingExample'
 import { cardInk, cardStamp, fillLandingOg, ogAlt } from './ui/landingFigures'
 import { declared } from './styles/tokenSheet'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet } from './ui/test/stylesheet'
 
 /*
  * The page's share metadata, its manifest and its 404 page, read from the files that carry them.

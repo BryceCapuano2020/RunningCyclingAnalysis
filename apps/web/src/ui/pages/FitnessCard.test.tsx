@@ -13,7 +13,7 @@ import {
   SLIPPING,
   FITNESS_AS_OF_MS,
   waitingStatus,
-} from '../fitnessFixtures'
+} from '../test/fitnessFixtures'
 import { fitnessViews } from '../fitnessModel'
 import { HoldInputsContext } from '../holdContext'
 import type { HoldInputs } from '../resultHold'

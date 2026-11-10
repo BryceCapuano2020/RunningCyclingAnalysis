@@ -1,6 +1,6 @@
 import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
-import { makeActivity } from './components/fixtures'
+import { makeActivity } from './components/test/fixtures'
 import {
   MIN_TRAINING_WEEKS,
   formatHours,
