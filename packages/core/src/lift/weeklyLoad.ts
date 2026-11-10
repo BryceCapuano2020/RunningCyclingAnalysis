@@ -79,3 +79,8 @@ export function weeklyLoad(sets: readonly LiftSet[]): LiftWeek[] {
     .sort((a, b) => a[0] - b[0])
     .map(([week, regions]) => ({ weekStart: dateTextOfDay(mondayOfWeek(week)), regions }))
 }
+
+/** The Monday that starts the week of a lifting date, as weeklyLoad names its weeks ("YYYY-MM-DD"). */
+export function liftWeekStart(date: string): string {
+  return dateTextOfDay(mondayOfWeek(weekOfDay(dayOfLiftDate(date))))
+}
