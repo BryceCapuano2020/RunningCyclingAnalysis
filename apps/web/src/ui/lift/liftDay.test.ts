@@ -1,3 +1,4 @@
+import { localDateText, setViewerZone } from '@rca/core/calendar'
 import { describe, expect, it } from 'vitest'
 import { dayNoonMs, isDay, liftDayOf, liftHashOf, shiftDay } from './liftDay'
 
@@ -54,8 +55,15 @@ describe('isDay and dayNoonMs', () => {
     expect(dayNoonMs('2026-02-29')).toBeNull()
   })
 
-  it('puts a day at local noon, so a formatter reads the same date', () => {
-    const at = new Date(dayNoonMs('2026-03-08') ?? 0)
-    expect([at.getFullYear(), at.getMonth(), at.getDate(), at.getHours()]).toEqual([2026, 2, 8, 12])
+  it('puts a day at noon in the viewer zone, so a formatter reads the same date', () => {
+    expect(dayNoonMs('2026-03-08')).toBe(Date.UTC(2026, 2, 8, 12))
+    const before = setViewerZone(() => -10 * 60)
+    try {
+      const noon = dayNoonMs('2026-03-08') ?? 0
+      expect(noon).toBe(Date.UTC(2026, 2, 8, 22))
+      expect(localDateText(noon)).toBe('2026-03-08')
+    } finally {
+      setViewerZone(before)
+    }
   })
 })
