@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SessionState } from '@rca/core/session'
 import { fromSnapshot, toSnapshot } from '@rca/core/stateSnapshot'
+import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import {
   DEVICE_STATE_SCOPE,
   clearSnapshot,
@@ -33,16 +34,15 @@ export function scopeOf(account: CopyAccount): string | null {
   return accountPending(account) ? null : DEVICE_STATE_SCOPE
 }
 
-async function loadCopy(scope: string): Promise<PaintedCopy | null> {
+async function loadCopy(
+  scope: string,
+): Promise<{ copy: PaintedCopy; snapshot: StateSnapshot } | null> {
   const snapshot = await readSnapshot(scope)
   if (snapshot === null) return null
   try {
-    return {
-      scope,
-      state: fromSnapshot(snapshot),
-      madeAt: snapshot.nowMs,
-      stale: copyIsStale(snapshot, Date.now()),
-    }
+    const state = fromSnapshot(snapshot)
+    const copy = { scope, state, madeAt: snapshot.nowMs, stale: copyIsStale(snapshot, Date.now()) }
+    return { copy, snapshot }
   } catch {
     // A copy that does not decode is never read, so it goes.
     await clearSnapshot(scope)
@@ -69,6 +69,8 @@ export function useDeviceCopy(
   const answered = useRef<string | null>(null)
   const scope = scopeOf(account)
   const signedIn = account.status === 'signed-in'
+  // Whether /api/me says the server computes this account's results: no request is made for any other account.
+  const serverState = account.me?.serverState === true
   // A state the worker has sent is live: the page never shows a copy over it. For an account it is the state of its
   // library read, not one made before the account was known.
   const liveArrived = live !== first && (!signedIn || libraryStatus === 'loaded')
@@ -85,10 +87,10 @@ export function useDeviceCopy(
     let current = true
     void loadCopy(wanted).then(async (found) => {
       if (!current) return
-      setCopy(found)
+      setCopy(found?.copy ?? null)
       // An account's server snapshot, when it has one and it is newer: shown and kept as the device copy.
       if (scope === null || scope === DEVICE_STATE_SCOPE) return
-      const server = await newerServerCopy(scope, found?.madeAt ?? null)
+      const server = await newerServerCopy(scope, found?.snapshot ?? null, serverState)
       if (server === null || !current) return
       setCopy({
         scope,
@@ -101,7 +103,7 @@ export function useDeviceCopy(
     return () => {
       current = false
     }
-  }, [scope, liveArrived])
+  }, [scope, liveArrived, serverState])
 
   // A copy that is no longer shown is dropped, so it does not come back when a later reload of the library clears `gone`.
   if (gone && copy !== null) setCopy(null)

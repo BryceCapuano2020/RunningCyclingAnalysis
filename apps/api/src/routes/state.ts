@@ -39,12 +39,21 @@ stateRoutes.get('/', sameOriginReadGuard, requireUser, async (c) => {
   // An account off the allowlist gets the answer it would get with the feature off, before any budget is spent.
   if (!serverStateFor(c.env, userId)) throw NOT_FOUND()
   await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
-  const row = await c.env.DB.prepare('SELECT snapshot_hash FROM state_jobs WHERE user_id = ?')
+  const row = await c.env.DB.prepare(
+    'SELECT snapshot_hash, computed_version FROM state_jobs WHERE user_id = ?',
+  )
     .bind(userId)
-    .first<{ snapshot_hash: string | null }>()
+    .first<{ snapshot_hash: string | null; computed_version: number }>()
   if (row?.snapshot_hash == null) throw NOT_FOUND()
   const etag = `"${row.snapshot_hash}"`
-  const headers = { ETag: etag, 'Cache-Control': 'private, no-cache' }
+  // `no-store` like every /api response, so the browser never keeps a copy of the account's results in its HTTP cache. It
+  // therefore sends no conditional request of its own: the client sets If-None-Match from the hash of its device copy.
+  // `X-State-Computed-Version` is the library version the latest compute covered, for a client that knows a newer one.
+  const headers = {
+    ETag: etag,
+    'Cache-Control': 'no-store',
+    'X-State-Computed-Version': String(row.computed_version),
+  }
   if (matches(c.req.header('If-None-Match'), etag)) return c.body(null, 304, headers)
   const object = await getOriginalFile(
     c.env.DB,

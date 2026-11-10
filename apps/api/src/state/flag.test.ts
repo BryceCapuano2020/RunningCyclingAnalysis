@@ -20,4 +20,16 @@ describe('the server compute allowlist', () => {
   it('is on for everyone with *, which production configuration may not hold', () => {
     expect(serverStateFor({ SERVER_COMPUTE_USERS: '*' }, 'anyone')).toBe(true)
   })
+
+  it('reads the Worker secret when one is set, and the secret wins over the variable, even empty', () => {
+    const both = { SERVER_COMPUTE_USERS: 'u1', SERVER_COMPUTE_ACCOUNTS: 'u2' }
+    expect(serverStateFor(both, 'u2')).toBe(true)
+    expect(serverStateFor(both, 'u1')).toBe(false)
+    expect(serverStateFor({ SERVER_COMPUTE_ACCOUNTS: ' u9 ' }, 'u9')).toBe(true)
+    // An empty secret switches everyone off whatever the variable says.
+    expect(serverStateAnyone({ SERVER_COMPUTE_USERS: 'u1', SERVER_COMPUTE_ACCOUNTS: '' })).toBe(
+      false,
+    )
+    expect(serverStateFor({ SERVER_COMPUTE_USERS: 'u1' }, 'u1')).toBe(true)
+  })
 })

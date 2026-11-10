@@ -6,6 +6,7 @@ import { computeFor } from './compute.ts'
 import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
 import { InputsMoved, readInputs } from './inputs.ts'
 import { stateKey } from './key.ts'
+import { STATE_MIN_INTERVAL_SECONDS } from './message.ts'
 import { contentHash, encodeSnapshot } from './store.ts'
 
 /** What one run of an account's job did. */
@@ -13,6 +14,7 @@ export type JobOutcome =
   | 'gone' // no account, or one being deleted
   | 'current' // already computed at this version or a later one
   | 'too_large' // more activities than the server computes for; the browser does
+  | 'deferred' // computed moments ago; the caller sends one delayed message instead
   | 'moved' // a write landed while reading; its own job follows
   | 'unchanged' // computed, the same figures: the version is recorded and nothing is written
   | 'written' // a new snapshot object, and the old one deleted
@@ -21,13 +23,14 @@ interface JobRow {
   library_version: number
   activity_count: number
   computed_version: number | null
+  computed_at: number | null
   snapshot_hash: string | null
 }
 
 async function jobRow(db: D1Database, userId: string): Promise<JobRow | null> {
   return db
     .prepare(
-      `SELECT u.library_version, u.activity_count, j.computed_version, j.snapshot_hash
+      `SELECT u.library_version, u.activity_count, j.computed_version, j.computed_at, j.snapshot_hash
        FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
        WHERE u.id = ? AND u.deleting_at IS NULL`,
     )
@@ -82,6 +85,9 @@ export async function runStateJob(
   if (before === null) return 'gone'
   if ((before.computed_version ?? 0) >= before.library_version) return 'current'
   if (before.activity_count > maxActivities) return 'too_large'
+  // Coalescing: the last compute is too recent for another (a burst of writes, an import), so wait for the next one.
+  const sinceLast = deps.now() - (before.computed_at ?? -Infinity)
+  if (sinceLast < STATE_MIN_INTERVAL_SECONDS * 1000) return 'deferred'
   let inputs
   try {
     inputs = await readInputs(db, userId)

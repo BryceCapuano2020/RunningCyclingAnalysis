@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { snapshotContentHash } from '@rca/core/stateSnapshot'
 import { snapshotAt } from '../test/stateCopyKit'
 import { getServerSnapshot } from './state'
 
@@ -28,6 +29,21 @@ describe('getServerSnapshot', () => {
     expect(path).toBe('/api/state')
     expect(init?.method).toBe('GET')
     expect(new Headers(init?.headers).get('x-rca-user')).toBe('u1')
+  })
+
+  it('sends the tag of the copy it holds, and answers null for a 304 (no-store means the browser sends none itself)', async () => {
+    const held = snapshotAt(1_000, 'UTC')
+    const fetchMock = stub(new Response(null, { status: 304 }))
+    expect(await getServerSnapshot('u1', held)).toBeNull()
+    const init = fetchMock.mock.calls[0]![1]
+    expect(new Headers(init?.headers).get('if-none-match')).toBe(
+      `"${await snapshotContentHash(held)}"`,
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // With no copy there is no condition.
+    const bare = stub(json(200, held))
+    await getServerSnapshot('u1')
+    expect(new Headers(bare.mock.calls[0]![1]?.headers).has('if-none-match')).toBe(false)
   })
 
   it('answers null for a 404, which is how the server says it is off for the account', async () => {

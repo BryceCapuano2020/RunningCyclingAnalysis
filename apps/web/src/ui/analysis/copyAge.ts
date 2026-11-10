@@ -11,6 +11,20 @@ export function browserZone(): string {
 }
 
 /**
+ * This browser's zone when the server could read it back, else undefined: a name the runtime refuses (or one longer than
+ * the account settings take) would make every save of the settings fail.
+ */
+export function reportableZone(): string | undefined {
+  const zone = browserZone()
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return zone.length >= 1 && zone.length <= 64 ? zone : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Whether a copy was made on an earlier local day than `nowMs`, or in another zone. Its 12-week window and its days have
  * moved, so it is shown at once and replaced as soon as the live analysis is ready (docs/design/server-compute.md,
  * decision 8).

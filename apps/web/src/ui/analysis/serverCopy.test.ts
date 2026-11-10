@@ -48,42 +48,51 @@ describe('newerServerCopy', () => {
   it('gives the server’s state when there is no device copy, or it is older', async () => {
     const snapshot = snapshotAt(NOW, 'UTC')
     get.mockResolvedValue(snapshot)
-    const first = await newerServerCopy('u1', null)
+    const first = await newerServerCopy('u1', null, true)
     expect(first?.snapshot).toBe(snapshot)
     expect(first?.state.totalActivities).toBe(resultState().totalActivities)
-    expect(await newerServerCopy('u1', NOW - 1)).not.toBeNull()
+    expect(await newerServerCopy('u1', snapshotAt(NOW - 1, 'UTC'), true)).not.toBeNull()
   })
 
   it('leaves a device copy that is as new or newer', async () => {
     get.mockResolvedValue(snapshotAt(NOW, 'UTC'))
-    expect(await newerServerCopy('u1', NOW)).toBeNull()
-    expect(await newerServerCopy('u1', NOW + 1)).toBeNull()
+    expect(await newerServerCopy('u1', snapshotAt(NOW, 'UTC'), true)).toBeNull()
+    expect(await newerServerCopy('u1', snapshotAt(NOW + 1, 'UTC'), true)).toBeNull()
   })
 
   it('is null where the server is off for the account, and for any failure', async () => {
     get.mockResolvedValueOnce(null)
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
     get.mockRejectedValueOnce(new Error('offline'))
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
+  })
+
+  it('makes no request for an account /api/me did not mark, and hands the device copy to the read', async () => {
+    get.mockResolvedValue(snapshotAt(NOW, 'UTC'))
+    expect(await newerServerCopy('u1', null, false)).toBeNull()
+    expect(get).not.toHaveBeenCalled()
+    const held = snapshotAt(NOW - 1, 'UTC')
+    await newerServerCopy('u1', held, true)
+    expect(get).toHaveBeenCalledWith('u1', held)
   })
 
   it('refuses a snapshot of another shape or model, or one that does not decode', async () => {
     const snapshot = snapshotAt(NOW, 'UTC')
     get.mockResolvedValueOnce({ ...snapshot, schemaVersion: snapshot.schemaVersion + 1 })
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
     get.mockResolvedValueOnce({ ...snapshot, modelRevision: MODEL_REVISION + 1 })
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
     get.mockResolvedValueOnce({ ...snapshot, state: { $: 'Bogus' } })
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
   })
 
   it('asks nothing while work is unsent, and drops the answer when work appears meanwhile', async () => {
     waiting.mockResolvedValueOnce(1)
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
     expect(get).not.toHaveBeenCalled()
     get.mockResolvedValue(snapshotAt(NOW, 'UTC'))
     waiting.mockResolvedValueOnce(0).mockResolvedValueOnce(1)
-    expect(await newerServerCopy('u1', null)).toBeNull()
+    expect(await newerServerCopy('u1', null, true)).toBeNull()
     expect(get).toHaveBeenCalledTimes(1)
   })
 })

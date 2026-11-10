@@ -39,6 +39,7 @@ const ME: Me = {
     sex: null,
     updatedAt: 1000,
   },
+  serverState: true,
 }
 interface Account {
   status: AccountStatus
@@ -187,6 +188,15 @@ describe('server results off for the account', () => {
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(result.current.state.result).toBeNull()
     expect(await readSnapshot('u1')).toBeNull()
+  })
+
+  it('never asks the server for an account /api/me does not mark, though it has a device copy', async () => {
+    await writeSnapshot('u1', snapshotAt(Date.now(), ZONE, withCount(22)))
+    const { serverState: _on, ...off } = ME
+    const { result } = setup({ status: 'signed-in', me: off })
+    await waitFor(() => expect(result.current.state.totalActivities).toBe(22))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('never asks the server while signed out', async () => {

@@ -70,6 +70,7 @@ queue = "rca-state"
 [[queues.consumers]]
 queue = "rca-state"
 max_batch_size = 2
+max_concurrency = 1
 max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "rca-state-dlq"

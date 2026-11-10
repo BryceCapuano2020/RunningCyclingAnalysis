@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { pullAccountSettings, pushAccountSettings } from './accountSettings'
 import { onSettingsChosen } from './settingsChosen'
 import { choicesSoFar, noteChoice, noteSettled, resetUnsent } from './settingsUnsent'
@@ -14,10 +14,20 @@ export const SETTINGS_RETRY_MS = 2000
  * offers the copy's own choices to an account that has none. After that a choice is saved to the account as
  * the athlete makes it, and the browser's copy is what the analysis reads. Signed out nothing is sent. A read
  * that fails is tried once more; if it fails again, choices stay in this browser and nothing is sent, so a
- * stale copy cannot overwrite the account's.
+ * stale copy cannot overwrite the account's. The browser's zone is sent only while `serverState` is true (the
+ * account's results are computed on the server).
  */
-export function useAccountSettings(status: AccountStatus, userId: string | null): void {
+export function useAccountSettings(
+  status: AccountStatus,
+  userId: string | null,
+  serverState: boolean,
+): void {
   const signedIn = status === 'signed-in' && userId !== null
+  // Read when a save runs, so /api/me answering later does not restart the read of the settings.
+  const zoned = useRef(serverState)
+  useEffect(() => {
+    zoned.current = serverState
+  }, [serverState])
   useEffect(() => {
     if (!signedIn) return
     let current = true
@@ -31,7 +41,7 @@ export function useAccountSettings(status: AccountStatus, userId: string | null)
       queue = queue.then(
         () =>
           current
-            ? pushAccountSettings(userId).then(
+            ? pushAccountSettings(userId, zoned.current).then(
                 () => noteSettled(at),
                 () => undefined,
               )
@@ -46,7 +56,7 @@ export function useAccountSettings(status: AccountStatus, userId: string | null)
     })
     const pull = (retry: boolean) => {
       const at = choicesSoFar()
-      pullAccountSettings(userId, chosen).then(
+      pullAccountSettings(userId, chosen, zoned.current).then(
         () => {
           pulled = true
           noteSettled(at)

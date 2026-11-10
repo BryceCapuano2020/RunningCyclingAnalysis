@@ -87,7 +87,7 @@ export function App() {
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
-  useAccountSettings(account.status, account.me?.user.id ?? null)
+  useAccountSettings(account.status, account.me?.user.id ?? null, account.me?.serverState === true)
   const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
