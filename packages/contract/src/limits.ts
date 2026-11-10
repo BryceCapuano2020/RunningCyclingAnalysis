@@ -40,6 +40,10 @@ export const DAILY_LIMITS = {
   measurementWrite: 200,
   /** Dated-settings reads. One read is at most MAX_MEASUREMENTS_PER_USER D1 rows. */
   measurementRead: 300,
+  /** Account-settings writes: the whole document, one D1 row each. */
+  settingsWrite: 200,
+  /** Account-settings reads, one D1 row each. */
+  settingsRead: 300,
   /** Lift pages. A page is at most LIFT_PAGE_SIZE rows, also metered on the list-rows meter. */
   liftRead: 300,
   /** Lift writes and deletes, up to 500 sets each: 60,000 sets in 120 writes, with room to spare. */

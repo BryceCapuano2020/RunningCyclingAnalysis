@@ -18,6 +18,7 @@ const OPTIONAL_TABLES = [
   'upload_slots',
   'pending_account_deletions',
   'athlete_measurements',
+  'athlete_settings',
   'identity_budget',
   'account_tombstones',
   'lift_sets',

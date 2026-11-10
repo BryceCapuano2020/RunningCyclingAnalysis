@@ -101,6 +101,21 @@ export const profiles = sqliteTable(
 )
 
 /**
+ * The choices an athlete makes that used to live in one browser (accountSettings in the contract): the
+ * rides whose implausible power is kept, the runs counted at walking pace and the period on screen.
+ * Each column is JSON text, null until the athlete first sets it. Nothing here is activity data.
+ */
+export const athleteSettings = sqliteTable('athlete_settings', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  keepPower: text('keep_power'),
+  countedRuns: text('counted_runs'),
+  period: text('period'),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+/**
  * The athlete's dated settings: a body mass, maximum heart rate or threshold in effect from a local
  * date. A row is identified by its kind, sport and date, so a second value for the same date replaces
  * the first. `sport` is '' for the body mass, which is not a sport's.
@@ -304,6 +319,7 @@ export const schema = {
   sessions,
   profiles,
   athleteMeasurements,
+  athleteSettings,
   liftSets,
   activities,
   r2StorageBudget,

@@ -1,4 +1,5 @@
 export * from './api.ts'
+export * from './accountSettings.ts'
 export * from './digest.ts'
 export * from './limits.ts'
 export * from './athlete.ts'

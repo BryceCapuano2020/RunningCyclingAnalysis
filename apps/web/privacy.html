@@ -98,11 +98,12 @@
           year and sex if given (rca.preferences.v1), whether setup is answered (rca.setup.v1, one
           answer for the whole browser), and the view period you pick, under rca.period.v1. Signing
           out and deleting your account clear the settings in rca.preferences.v1, so the next person
-          using this browser starts from the defaults. Remove all my activities leaves them. The
-          setup answer and the view period stay on this browser, where anyone using it can see them.
-          Clearing this site's data removes them. A flag named rca.aboutDataSeen records which data
-          notes you have read. Signing out and Remove all my activities remove it; deleting your
-          account leaves it.
+          using this browser starts from the defaults. Signed in, your account keeps the view period
+          too, and this browser's copy follows it; signing out and deleting your account clear that
+          copy as well. Remove all my activities leaves them. The setup answer stays on this
+          browser, where anyone using it can see it. Clearing this site's data removes them. A flag
+          named rca.aboutDataSeen records which data notes you have read. Signing out and Remove all
+          my activities remove it; deleting your account leaves it.
         </li>
         <li>
           Dated settings you add on Profile when signed out, a weight, max heart rate or threshold
@@ -111,9 +112,17 @@
         </li>
         <li>
           If you choose to keep the power of a ride that the analysis set aside as implausible, the
-          ride's id is kept in this browser's local storage under rca.keepPower.v1. It is never
-          uploaded, signed in or not, and it holds no activity data. Signing out, deleting your
-          account and Remove all my activities clear it; a session that expires does not.
+          ride's id is kept in this browser's local storage under rca.keepPower.v1. Signed out it
+          stays there and is never uploaded. Signed in, your account keeps it too, and this
+          browser's copy follows the account's. It holds no activity data. Signing out clears this
+          browser's copy and your account keeps its own; deleting your account removes both, and
+          Remove all my activities clears it; a session that expires does not.
+        </li>
+        <li>
+          A note in this browser's local storage, named rca.settingsOwner.v1, holds the random id of
+          the account whose settings this browser's copy follows, from your first sign-in until you
+          sign out, so one person's choices are not saved to another's account. Signing out and
+          deleting your account remove it.
         </li>
         <li>
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
@@ -163,9 +172,11 @@
         </li>
         <li>
           If you choose to count a run that is at walking pace, the choice is kept in this browser's
-          local storage under rca.countedRuns.v1 as the run's sport and start time in seconds. It is
-          never uploaded, signed in or not. Signing out and deleting your account clear it, and so
-          does Remove all my activities, which is offered only when signed out.
+          local storage under rca.countedRuns.v1 as the run's sport and start time in seconds.
+          Signed out it stays there and is never uploaded. Signed in, your account keeps it too, and
+          this browser's copy follows the account's. Signing out clears this browser's copy and your
+          account keeps its own; deleting your account removes both. Remove all my activities, which
+          is offered only when signed out, clears it too.
         </li>
         <li>
           Lifting sets you log are kept in this browser, in a database named rca-lifts. Signed out,
@@ -262,6 +273,13 @@
           <strong>Dated settings:</strong> each weight, max heart rate, threshold power or threshold
           pace you add on Profile, with the date it takes effect, and for the heart rate and
           thresholds the sport. Each also records when you last changed it. At most 200.
+        </li>
+        <li>
+          <strong>Account settings:</strong> the ids of the rides whose implausible power you chose
+          to keep, the sport and start second of the runs you count at walking pace, and the view
+          period you pick. Each also records when you last changed it. They hold no activity data.
+          The first time you sign in, any of these this browser already holds are saved to your
+          account, unless the account already has its own.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
@@ -400,9 +418,9 @@
         <li>Clear your year of birth, or choose <strong>Prefer not to say</strong> for sex.</li>
         <li>
           Choose <strong>Delete account</strong>. It removes your account, sessions, profile, dated
-          settings, lifting sets, activity summaries and original files. It does not clear this
-          browser's copy of your settings or summaries kept here before you signed in, until you
-          clear this site's data or use Remove all my activities while signed out.
+          settings, account settings, lifting sets, activity summaries and original files. It does
+          not clear this browser's copy of your settings or summaries kept here before you signed
+          in, until you clear this site's data or use Remove all my activities while signed out.
         </li>
       </ul>
       <p>
@@ -413,10 +431,11 @@
       <h2>Your data file</h2>
       <p>
         Signed in, <strong>Download my data</strong> on the Profile page gives one JSON file: its
-        format and time, your account name and email, profile settings, your dated settings, every
-        lifting set you have logged with all its stored fields, and each saved activity's ID, sport,
-        start, name, file name, whether an original is stored, save time and summary. It has no
-        original files, and it says how many saved activities could not be read.
+        format and time, your account name and email, profile settings, your dated settings, your
+        account settings, every lifting set you have logged with all its stored fields, and each
+        saved activity's ID, sport, start, name, file name, whether an original is stored, save time
+        and summary. It has no original files, and it says how many saved activities could not be
+        read.
       </p>
 
       <h2>Rights and changes</h2>
@@ -426,7 +445,7 @@
         policy.
       </p>
 
-      <p class="updated">Last updated 9 November 2026</p>
+      <p class="updated">Last updated 10 November 2026</p>
     </main>
 
     <footer class="footer">

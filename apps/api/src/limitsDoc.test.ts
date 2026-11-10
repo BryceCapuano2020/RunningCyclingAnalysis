@@ -96,6 +96,8 @@ describe('the daily budget table', () => {
     profileWrite: 'Profile writes',
     measurementWrite: 'Dated-settings writes',
     measurementRead: 'Dated-settings reads',
+    settingsWrite: 'Account-settings writes',
+    settingsRead: 'Account-settings reads',
     liftRead: 'Lift reads',
     liftWrite: 'Lift writes',
     activityDelete: 'Activity deletions',

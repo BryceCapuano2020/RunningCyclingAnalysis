@@ -1,7 +1,7 @@
 import { hashedFileName } from '@rca/core/import/minimise'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import type { ActivityRecord } from '@rca/contract'
+import type { AccountSettings, ActivityRecord } from '@rca/contract'
 import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
@@ -89,6 +89,11 @@ vi.mock('../api/lifts', () => ({
     },
   }),
 }))
+
+const accountSettings = vi.hoisted(() => ({
+  value: { keepPower: ['ride-a'], countedRuns: null, period: 182 } as unknown,
+}))
+vi.mock('../api/settings', () => ({ getAccountSettings: async () => accountSettings.value }))
 
 /** The device library the worker opens. It outlives a fresh worker import, as IndexedDB does. */
 const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
@@ -2480,7 +2485,8 @@ describe('account export', () => {
     }
     expect(exported).toMatchObject({
       format: 'rca-export',
-      version: 3,
+      version: 4,
+      settings: accountSettings.value,
       account: ACCOUNT,
       profile: PROFILE,
     })
@@ -2520,6 +2526,7 @@ describe('account export', () => {
       now: new Date(written.exportedAt),
       account: ACCOUNT,
       profile: PROFILE,
+      settings: accountSettings.value as AccountSettings,
       unreadable: 0,
       activities: ['rec-a', 'rec-b', 'rec-c'].map((id) =>
         Object.assign(recordFor(SAMPLE_DIGEST), { id }),
@@ -2568,7 +2575,7 @@ describe('account export', () => {
     const { send } = await startWorker()
     const text = await exportedText(await send(REQUEST))
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":3,')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":4,')).toBe(true)
   })
 
   it('counts the stored activities the server could not read', async () => {

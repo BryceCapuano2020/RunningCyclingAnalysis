@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react'
+import { settingsChosen } from './settingsChosen'
 
 /**
- * The rides whose implausible power the athlete chose to keep, by activity id. They are kept in this browser
- * only: an id names no place or person, and the choice is about this device's copy of a file.
+ * The rides whose implausible power the athlete chose to keep, by activity id. They are kept in this browser, and
+ * signed in the account keeps them too (accountSettings): an id names no place or person.
  */
 const KEY = 'rca.keepPower.v1'
 /** Far more than any library holds implausible rides; a damaged value cannot grow without bound. */
@@ -41,6 +42,25 @@ function snapshot(): readonly string[] {
 }
 
 function store(ids: readonly string[]): void {
+  writeKeptPower(ids)
+  settingsChosen('keepPower')
+}
+
+/** The rides kept now. */
+export function keptPowerIds(): readonly string[] {
+  return snapshot()
+}
+
+/**
+ * Takes the account's list as this browser's: stored and shown, but not a choice, so it is not sent back. An
+ * empty list removes the key.
+ */
+export function replaceKeptPower(ids: readonly string[]): void {
+  if (ids.length === 0) clearKeptPower()
+  else writeKeptPower([...new Set(ids)].sort().slice(0, MAX_KEPT))
+}
+
+function writeKeptPower(ids: readonly string[]): void {
   current = ids
   try {
     localStorage.setItem(KEY, JSON.stringify(ids))

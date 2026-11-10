@@ -7,6 +7,7 @@ import {
   subscribeCountedRuns,
 } from './countedRunsStore'
 import { plural } from './components/plural'
+import { settingsChosen } from './settingsChosen'
 
 /** Said when the browser would not keep the choice, so it would be lost at the next reload. */
 export const COUNT_NOT_KEPT =
@@ -67,7 +68,10 @@ export function useCountedRuns(): CountedRunsController {
     }
     setKeys(sorted)
     setStatus(said)
-    setNotKept(storeCountedRuns(sorted) ? null : COUNT_NOT_KEPT)
+    const kept = storeCountedRuns(sorted)
+    setNotKept(kept ? null : COUNT_NOT_KEPT)
+    // The account keeps the choice even when this browser would not.
+    settingsChosen('countedRuns')
   }, [])
 
   const count = useCallback(

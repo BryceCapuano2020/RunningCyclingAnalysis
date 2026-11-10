@@ -1,6 +1,7 @@
 import { noteWork } from './workerWire'
 import { listActivities } from '../api/client'
 import { createLiftTransport } from '../api/lifts'
+import { getAccountSettings } from '../api/settings'
 import {
   EXPORT_LIFTS_END_JSON,
   exportActivitiesJson,
@@ -21,12 +22,15 @@ export async function exportAccount(
   /** Saved records that are copies the analysis hides: the export lists the shown copy of each workout. */
   hidden: ReadonlySet<string> = new Set(),
 ): Promise<Blob> {
+  // The account's own copy, not this browser's mirror of it, which another device may have moved past.
+  const settings = await getAccountSettings(request.userId)
   const parts: BlobPart[] = [
     exportHeaderJson({
       now: new Date(),
       account: request.account,
       profile: request.profile,
       measurements: request.measurements,
+      settings,
     }),
   ]
   await writeLifts(parts, request.userId)

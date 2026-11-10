@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
 import { liftRoutes } from './routes/lifts.ts'
 import { measurementRoutes } from './routes/measurements.ts'
+import { settingsRoutes } from './routes/settings.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
 import { isSignInNavigation, signInProblemUrl } from './signInProblem.ts'
@@ -88,6 +89,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)
   app.route('/api/measurements', measurementRoutes)
+  app.route('/api/settings', settingsRoutes)
   app.route('/api/lifts', liftRoutes)
   app.route('/api/activities', activityRoutes)
 
