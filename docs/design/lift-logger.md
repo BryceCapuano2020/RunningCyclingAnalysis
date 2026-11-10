@@ -61,8 +61,8 @@ One form, inline: under the button for a new set, in place of the row for an edi
 - **Reps** and **Load** are number fields, the load in the profile's unit (pounds become kilograms on save, at
   0.01 kg). For a bodyweight lift the load's label is "Added load", and an empty load saves as 0.
 - **Effort (RPE).** A select right after Load, never folded: "Not rated", then 6 to 10 in halves, plus a stored
-  value outside that range when editing one. Its first value is the last set's: effort narrows the e1RM range more than
-  any other input (e1rm.md, section 1).
+  value outside that range when editing one. Its first value is the last set's, so logging effort costs no extra choice
+  when it has not changed.
 - **Warm-up.** A checkbox.
 - **Save** writes the set:
   - **New set:** the date is the day shown when the form opened, so a session past midnight stays one day. The
