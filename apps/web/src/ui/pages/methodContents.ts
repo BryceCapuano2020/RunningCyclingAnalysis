@@ -30,9 +30,13 @@ export function contentsOf(hasAccuracy: boolean): ContentsEntry[] {
 }
 
 /**
- * Moves focus to a section's heading. A fragment link would change the hash route, so the contents
- * use buttons that focus the heading instead.
+ * Moves focus to a section's heading and scrolls it to the top, under the sticky header (the page's scroll padding).
+ * A fragment link would change the hash route, so the contents use buttons that call this instead. A plain focus
+ * scrolls only as far as the browser likes, which in Chrome puts the heading mid-screen, so focus does not scroll here.
  */
 export function focusSection(id: string) {
-  document.getElementById(id)?.focus()
+  const heading = document.getElementById(id)
+  if (heading === null) return
+  heading.focus({ preventScroll: true })
+  heading.scrollIntoView?.({ block: 'start' })
 }
