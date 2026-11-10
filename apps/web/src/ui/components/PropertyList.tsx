@@ -33,7 +33,7 @@ export function PropertyList({
     <div className="props">
       <dl className="props__list">
         {keyed(rows).map(({ key, row }) => (
-          <div key={key} className="props__row">
+          <div key={key} className={row.action ? 'props__row props__row--action' : 'props__row'}>
             <dt>
               {row.action ? (
                 <button
