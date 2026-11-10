@@ -126,18 +126,20 @@ describe('RacePredictions', () => {
     }
   })
 
-  it('keys each shape behind About these predictions, naming the VO2max the heart-rate triangle comes from', () => {
+  it('keys each shape above the rows, naming the VO2max the heart-rate triangle comes from', () => {
     renderPredictions(
       makeResult({ activities: [withBests], runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 } }),
     )
-    expect(screen.queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
-    openAbout()
     const key = screen.getByRole('list', { name: 'Key' })
+    expect(key.compareDocumentPosition(document.querySelector('.race-rows')!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(key.closest('details')).toBeNull()
     const entries = within(key).getAllByRole('listitem')
     expect(entries.slice(0, 3).map((li) => li.textContent)).toEqual([
       'Prediction',
       'From your runs',
-      'From heart rate (VO2max 50)',
+      'Heart rate (VO2max 50)',
     ])
     // The range is the one term defined in place: pressed, it says what the range is.
     expect(within(entries[3]!).getByRole('button', { name: 'Range' })).toBeInTheDocument()
@@ -170,15 +172,15 @@ describe('RacePredictions', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((h) => h.textContent),
-    ).toEqual(['Race', 'Pace', 'Predicted', 'Range', 'From your best runs', 'From heart rate'])
+    ).toEqual(['Race', 'Pace', 'Predicted', 'Range', 'Best runs', 'Heart rate'])
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getAllByRole('cell')[2]!.textContent).toMatch(/^\d+:\d\d to \d+:\d\d$/)
-    expect(rowValue(document.body, '5 km, best runs')).toMatch(
-      /^2[01]:\d\d, mostly from your best 5 km$/,
-    )
-    expect(rowValue(document.body, '5 km, heart rate')).toMatch(/^\d+:\d\d, VO2max 50$/)
-    // How the two estimates are combined is the method page's: the note says only what the times are for.
-    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
+    expect(rowValue(document.body, '5 km, best runs')).toMatch(/^2[01]:\d\d$/)
+    expect(rowValue(document.body, '5 km, heart rate')).toMatch(/^\d+:\d\d$/)
+    // VO2max is given once, as a number; no row is a sentence and there is no "For" row.
+    expect(rowValue(document.body, 'VO2max')).toBe('50')
+    expect(rowValue(document.body, 'For')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/mostly from|flat course/)
     expect(screen.queryByText(/middle of two estimates/)).not.toBeInTheDocument()
   })
 
@@ -188,7 +190,7 @@ describe('RacePredictions', () => {
     expect(rowValue(document.body, 'Based on')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Race predictions' }).nextElementSibling).toBeNull()
     openAbout()
-    expect(rowValue(document.body, 'Based on')).toBe('Your 5 km, 27 Nov')
+    expect(rowValue(document.body, 'Based on')).toBe('5 km, 27 Nov')
     const line = screen.getByText('Based on')
     expect(line.closest('details')).toBe(
       screen.getByText('About these predictions').closest('details'),
@@ -213,10 +215,10 @@ describe('RacePredictions', () => {
     expect(raceAnswerOf('run', makeResult({ activities: [treadmill] }), null)).toBeNull()
   })
 
-  it('says what the times are for, with or without heart rate behind them', () => {
+  it('gives no VO2max row where no estimate uses heart rate', () => {
     renderPredictions(makeResult({ activities: [withBests] }))
     openAbout()
-    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
+    expect(rowValue(document.body, 'VO2max')).toBeNull()
     expect(screen.queryByText(/alone/)).not.toBeInTheDocument()
   })
 
@@ -233,7 +235,7 @@ describe('RacePredictions', () => {
     renderPredictions(result)
     openAbout()
     expect(rowValue(document.body, 'All time')).toBeNull()
-    expect(rowValue(document.body, 'For')).toBe('A flat course on a good day')
+    expect(rowValue(document.body, 'For')).toBeNull()
   })
 
   it('says the same of All time with no heart rate behind the times', () => {
@@ -272,7 +274,7 @@ describe('RacePredictions', () => {
         within(table)
           .getAllByRole('columnheader')
           .map((th) => th.textContent),
-      ).toEqual(['Race', 'Pace', 'Predicted', 'From your best runs', 'From heart rate'])
+      ).toEqual(['Race', 'Pace', 'Predicted', 'Best runs', 'Heart rate'])
     })
 
     it.each([
@@ -306,7 +308,7 @@ describe('RacePredictions', () => {
     })
     renderPredictions(result)
     openAbout()
-    expect(screen.getByText('From heart rate (VO2max 62)')).toBeInTheDocument()
+    expect(screen.getByText('Heart rate (VO2max 62)')).toBeInTheDocument()
     expect(screen.queryByText(/points to more|hilly runs|wide/)).not.toBeInTheDocument()
   })
 
@@ -375,17 +377,14 @@ describe('RacePredictions', () => {
       expect(at('.race-bar__ran')).toBeLessThan(at('.race-bar__dot'))
     })
 
-    it('keys the dot behind About these predictions and repeats the run in the table', () => {
+    it('keys the dot above the rows and repeats the run in the table', () => {
       renderPredictions(slowHeartRate, 'period', [easy])
-      expect(screen.queryByRole('list', { name: 'Key' })).not.toBeInTheDocument()
+      expect(
+        within(screen.getByRole('list', { name: 'Key' })).getByText('Your best'),
+      ).toBeInTheDocument()
       openAbout()
-      expect(
-        within(screen.getByRole('list', { name: 'Key' })).getByText(/^Run:/),
-      ).toBeInTheDocument()
       const table = screen.getByRole('table')
-      expect(
-        within(table).getByRole('columnheader', { name: 'Recorded best, off the prediction' }),
-      ).toBeInTheDocument()
+      expect(within(table).getByRole('columnheader', { name: 'Your best' })).toBeInTheDocument()
       expect(within(table).getByText('38:00 on 27 Nov')).toBeInTheDocument()
     })
 
@@ -404,7 +403,7 @@ describe('RacePredictions', () => {
         'best 50:00, 27 Nov, slower than this range',
       )
       expect(row.querySelector('.race-bar__ran')).toBeNull()
-      expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
+      expect(within(screen.getByRole('list', { name: 'Key' })).queryByText('Your best')).toBeNull()
     })
 
     it('shows nothing of a run that is neither faster than its prediction nor outside its range', () => {
@@ -414,9 +413,9 @@ describe('RacePredictions', () => {
         Array.from(view.container.querySelectorAll('.race-row__ran')).map((el) => el.textContent),
       ).toEqual(['Your best'])
       expect(view.container.querySelector('.race-bar__ran')).toBeNull()
-      expect(screen.queryByText(/^Run:/)).not.toBeInTheDocument()
+      expect(within(screen.getByRole('list', { name: 'Key' })).queryByText('Your best')).toBeNull()
       openAbout()
-      expect(screen.queryByRole('columnheader', { name: /Recorded best/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: 'Your best' })).not.toBeInTheDocument()
     })
   })
 })

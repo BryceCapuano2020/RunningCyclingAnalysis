@@ -120,8 +120,8 @@ export function racePredictionNeed(sport: Sport): string | undefined {
 
 /** Each method's name where a prediction's origin is told. */
 export const METHOD_NAME: Record<PredictionMethod, string> = {
-  performances: 'From your best runs',
-  heartRate: 'From heart rate',
+  performances: 'Best runs',
+  heartRate: 'Heart rate',
 }
 
 /** Each method in a word or two, under a predicted time. */
