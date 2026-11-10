@@ -39,7 +39,7 @@ export interface ResultPageProps {
   sex: Sex | null
   /** Whether the visitor is signed in, which says where a removal takes an activity from. */
   signedIn: boolean
-  /** Who is signed in, so Balance's lifting corner reads the Lift page's sets; signed out when not given. */
+  /** Who is signed in, so Balance's lifting corner and the Activities lifting time read the Lift page's sets; signed out when not given. */
   liftAccount?: LiftSummaryAccount
   /** The runs at walking pace the athlete counts as runs, and how to change that. */
   countedRuns: CountedRunsController
@@ -210,6 +210,7 @@ export function ResultPage({
             libraryNotice={analysis.libraryNotice}
             libraryError={analysis.libraryError}
             heldOut={analysis.state.heldOut}
+            liftAccount={liftAccount}
           />
         )
       case 'activity': {

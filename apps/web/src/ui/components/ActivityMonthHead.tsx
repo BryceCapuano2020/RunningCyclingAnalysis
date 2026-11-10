@@ -2,7 +2,7 @@ import { formatDistance } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { formatHoursText, secondsOf } from '../activitiesVolume'
 import type { TotalsBySport } from '../activitiesVolume'
-import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { VOLUME_KINDS, VOLUME_NOUN, VOLUME_PLURAL } from '../volumeKinds'
 import { plural } from './plural'
 
 export interface ActivityMonthHeadProps {
@@ -13,20 +13,20 @@ export interface ActivityMonthHeadProps {
   units: UnitSystem
 }
 
-/** A month's heading, with its totals beside it: "9 runs · 55.6 mi" for each sport, then "31 h total". */
+/** A month's heading, with its totals beside it: "9 runs · 55.6 mi" for each sport, "4 lifts" with no distance, then "31 h total". */
 export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadProps) {
-  const sports = totals === undefined ? [] : SPORT_ORDER.filter((sport) => totals[sport].count > 0)
+  const kinds = totals === undefined ? [] : VOLUME_KINDS.filter((kind) => totals[kind].count > 0)
   return (
     <div className="activity-list__month-head">
       <h2 className="activity-list__heading">{label}</h2>
       {totals !== undefined && (
         <p className="num activity-list__totals">
-          {sports.map((sport) => {
-            const { count, distanceM } = totals[sport]
+          {kinds.map((kind) => {
+            const { count, distanceM } = totals[kind]
             const distance = distanceM > 0 ? ` · ${formatDistance(distanceM, units)}` : ''
             return (
-              <span key={sport} className="activity-list__total" data-sport={sport}>
-                {`${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${distance}`}
+              <span key={kind} className="activity-list__total" data-sport={kind}>
+                {`${plural(count, VOLUME_NOUN[kind], VOLUME_PLURAL[kind])}${distance}`}
                 <span className="sr-only">; </span>
               </span>
             )

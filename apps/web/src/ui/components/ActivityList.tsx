@@ -4,6 +4,7 @@ import type { EarnedRecord } from '@rca/core/records'
 import { formatTotalTime } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { monthTotals } from '../activitiesVolume'
+import type { LiftDay } from '../volumeKinds'
 import { groupByMonth } from '../activitySort'
 import { movingTimeOf } from '../activityFigures'
 import { firstActivityOf, rowEntries } from '../sessions'
@@ -45,6 +46,8 @@ export interface ActivityListProps {
   detailIds?: ReadonlySet<string> | null
   /** Whether the visitor is signed in, which says where a removal takes the activity from. */
   signedIn: boolean
+  /** The days with lifting that fall in what is listed, which add to each month's heading. */
+  lifts?: readonly LiftDay[]
   /** Removes a kept activity by its saved copy. Without it, no row offers Delete. */
   onDelete?: (savedId: string) => void
 }
@@ -85,13 +88,14 @@ export function ActivityList({
   busy = false,
   detailIds = null,
   signedIn,
+  lifts,
   onDelete,
 }: ActivityListProps) {
   const collectionId = activityCollectionId(activities)
   // Each month's totals count every activity listed, not only the rows of this page.
   const months = useMemo(
-    () => (dateOrder ? monthTotals(activities) : null),
-    [activities, dateOrder],
+    () => (dateOrder ? monthTotals(activities, lifts) : null),
+    [activities, dateOrder, lifts],
   )
   const entries = useMemo(() => rowEntries(activities, dateOrder), [activities, dateOrder])
   const { page, pageCount, visible, firstItemRef, changePage } = usePagination<

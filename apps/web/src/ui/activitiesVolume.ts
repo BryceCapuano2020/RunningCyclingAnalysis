@@ -10,13 +10,16 @@ import {
 import type { Dated } from '@rca/core/calendar'
 import { COMPRESS_AFTER_WEEKS, MONTHLY_AFTER_WEEKS } from '@rca/core/digest/trendSeries'
 import type { ActivitySummary } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
 import { movingTimeOf } from './activityFigures'
 import { formatCount } from './format/count'
 import { formatDayMonth, formatMonth } from './format/date'
 import { plural } from './components/plural'
-import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from './sports'
+import { SPORT_ORDER } from './sports'
+import { NO_LIFT_DAYS, VOLUME_KINDS, VOLUME_NOUN, VOLUME_PLURAL } from './volumeKinds'
+import type { LiftDay, VolumeKind } from './volumeKinds'
 
+export { VOLUME_KINDS } from './volumeKinds'
+export type { LiftDay, VolumeKind } from './volumeKinds'
 /**
  * What the Activities list's volume strip and month headers add up: the activities in each calendar week
  * or month, as time and distance by sport. It reads the summaries the list already holds, so no trace is
@@ -33,14 +36,14 @@ const MIN_YEAR = 1970
 
 export type BucketKind = 'week' | 'month' | 'quarter'
 
-/** The activity count, moving seconds and metres of one sport. */
+/** The count, seconds and metres of one sport; for lifting, sessions and estimated seconds, with no distance. */
 export interface SportTotals {
   count: number
   seconds: number
   distanceM: number
 }
 
-export type TotalsBySport = Record<Sport, SportTotals>
+export type TotalsBySport = Record<VolumeKind, SportTotals>
 
 /** One column of the strip: a week or a month, and what was trained in it. */
 export interface VolumeBucket {
@@ -55,8 +58,13 @@ export interface VolumeBucket {
 
 export function emptyTotals(): TotalsBySport {
   return Object.fromEntries(
-    SPORT_ORDER.map((sport) => [sport, { count: 0, seconds: 0, distanceM: 0 }]),
+    VOLUME_KINDS.map((kind) => [kind, { count: 0, seconds: 0, distanceM: 0 }]),
   ) as TotalsBySport
+}
+
+function addLift(totals: TotalsBySport, lift: LiftDay): void {
+  totals.lift.count += 1
+  totals.lift.seconds += lift.seconds
 }
 
 function addTo(totals: TotalsBySport, activity: ActivitySummary): void {
@@ -66,14 +74,19 @@ function addTo(totals: TotalsBySport, activity: ActivitySummary): void {
   sport.distanceM += activity.distanceM
 }
 
-/** All sports' activities counted. */
+/** Everything counted: each sport's activities and the lifting days. */
 export function countOf(totals: TotalsBySport): number {
+  return VOLUME_KINDS.reduce((sum, kind) => sum + totals[kind].count, 0)
+}
+
+/** The listed activities counted: the sports only, as the list shows them, with no lifting. */
+export function activityCountOf(totals: TotalsBySport): number {
   return SPORT_ORDER.reduce((sum, sport) => sum + totals[sport].count, 0)
 }
 
-/** All sports' moving seconds. */
+/** All kinds' seconds: moving time, and the estimated time of the lifting days. */
 export function secondsOf(totals: TotalsBySport): number {
-  return SPORT_ORDER.reduce((sum, sport) => sum + totals[sport].seconds, 0)
+  return VOLUME_KINDS.reduce((sum, kind) => sum + totals[kind].seconds, 0)
 }
 
 /** The month a day number is in, as the list's month headings group by: `2025-5` for June 2025. */
@@ -124,24 +137,26 @@ export function bucketKindFor(oldestMs: number, newestMs: number, phone = false)
 /**
  * The strip's columns, oldest first, from the week or month of the oldest activity to that of the newest.
  * A stretch with no training is a column of its own with nothing in it, so the axis is honest about time.
- * Empty for no activities.
+ * Lifting days count as training: they widen the range and fill their columns. Empty for none.
  */
 export function volumeBuckets(
   activities: readonly ActivitySummary[],
   phone = false,
+  lifts: readonly LiftDay[] = NO_LIFT_DAYS,
 ): VolumeBucket[] {
-  if (activities.length === 0) return []
+  if (activities.length === 0 && lifts.length === 0) return []
   let oldest = Infinity
   let newest = -Infinity
   let oldestDay = Infinity
   let newestDay = -Infinity
-  for (const activity of activities) {
-    const day = localDayOf(activity)
-    oldest = Math.min(oldest, activity.startMs)
-    newest = Math.max(newest, activity.startMs)
+  const widen = (ms: number, day: number) => {
+    oldest = Math.min(oldest, ms)
+    newest = Math.max(newest, ms)
     oldestDay = Math.min(oldestDay, day)
     newestDay = Math.max(newestDay, day)
   }
+  for (const activity of activities) widen(activity.startMs, localDayOf(activity))
+  for (const lift of lifts) widen(startOfDayNumber(lift.day), lift.day)
   const kind = bucketKindFor(oldest, newest, phone)
   const buckets: VolumeBucket[] = []
   const byKey = new Map<string, VolumeBucket>()
@@ -159,6 +174,10 @@ export function volumeBuckets(
   for (const activity of activities) {
     const bucket = byKey.get(keyOfDay(kind, startDayOf(kind, localDayOf(activity))))
     if (bucket !== undefined) addTo(bucket.totals, activity)
+  }
+  for (const lift of lifts) {
+    const bucket = byKey.get(keyOfDay(kind, startDayOf(kind, lift.day)))
+    if (bucket !== undefined) addLift(bucket.totals, lift)
   }
   return buckets
 }
@@ -277,24 +296,31 @@ export function formatHoursText(seconds: number): string {
   return `${hours >= 10 ? formatCount(hours) : hours.toFixed(1)} h`
 }
 
-/** The activities, summed for each calendar month, by the month's key. */
-export function monthTotals(activities: readonly ActivitySummary[]): Map<string, TotalsBySport> {
+/** The activities and lifting days, summed for each calendar month, by the month's key. */
+export function monthTotals(
+  activities: readonly ActivitySummary[],
+  lifts: readonly LiftDay[] = NO_LIFT_DAYS,
+): Map<string, TotalsBySport> {
   const months = new Map<string, TotalsBySport>()
-  for (const activity of activities) {
-    const key = monthKeyOfDay(localDayOf(activity))
+  const totalsOf = (day: number) => {
+    const key = monthKeyOfDay(day)
     let totals = months.get(key)
     if (totals === undefined) {
       totals = emptyTotals()
       months.set(key, totals)
     }
-    addTo(totals, activity)
+    return totals
   }
+  for (const activity of activities) addTo(totalsOf(localDayOf(activity)), activity)
+  for (const lift of lifts) addLift(totalsOf(lift.day), lift)
   return months
 }
 
-/** "38 runs and 12 rides": each sport that has an activity, in the order sports sit everywhere. */
+/** "38 runs and 12 rides" or "38 runs, 12 rides and 4 lifts": each kind that has any, in the order kinds sit everywhere. */
 export function countsText(totals: TotalsBySport): string {
-  return SPORT_ORDER.filter((sport) => totals[sport].count > 0)
-    .map((sport) => plural(totals[sport].count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport]))
-    .join(' and ')
+  const parts = VOLUME_KINDS.filter((kind) => totals[kind].count > 0).map((kind) =>
+    plural(totals[kind].count, VOLUME_NOUN[kind], VOLUME_PLURAL[kind]),
+  )
+  const last = parts.pop()
+  return parts.length === 0 ? (last ?? '') : `${parts.join(', ')} and ${last}`
 }

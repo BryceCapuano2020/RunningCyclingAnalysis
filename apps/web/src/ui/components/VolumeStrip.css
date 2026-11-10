@@ -220,8 +220,16 @@
     background: CanvasText;
   }
 
+  .volume-strip__part[data-slot='2'] {
+    background: GrayText;
+  }
+
   .volume-strip__key li::before {
     background: Highlight;
+  }
+
+  .volume-strip__key li[data-slot='2']::before {
+    background: GrayText;
   }
 
   .volume-strip__key li[data-slot='0']::before {

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { dayOfCivil } from '@rca/core/calendar'
 import { makeActivity } from './test/fixtures'
 import { VolumeStrip } from './VolumeStrip'
 import { volumeTakeaway } from './volumeTakeaway'
@@ -318,5 +319,43 @@ describe('VolumeStrip', () => {
     expect(css).toContain('@media (forced-colors: active)')
     expect(css).toContain('@media (max-width: 560px)')
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+  })
+
+  it('adds a Lift legend entry and a lift part in its own ink, and says lifts in the description', () => {
+    const lifts = [{ day: dayOfCivil(2025, 5, 3), seconds: 1800 }]
+    const { container } = render(
+      <VolumeStrip activities={WEEKS} lifts={lifts} selected={null} onSelect={() => undefined} />,
+    )
+    const key = [...container.querySelectorAll('.volume-strip__key li')].map((li) => [
+      li.textContent,
+      li.getAttribute('data-sport'),
+    ])
+    expect(key).toEqual([
+      ['Run', 'run'],
+      ['Ride', 'ride'],
+      ['Lift', 'lift'],
+    ])
+    expect(
+      container.querySelectorAll('[data-testid="volume-part"][data-sport="lift"]'),
+    ).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /1 lift/ })).toBeTruthy()
+  })
+
+  it('draws no Lift entry without lifting days', () => {
+    const { container } = render(<Harness />)
+    expect(container.querySelector('.volume-strip__key [data-sport="lift"]')).toBeNull()
+  })
+
+  it('leaves lifting out of the picked bucket chip, which counts the listed activities', async () => {
+    const lifts = [3, 4, 5].map((date) => ({ day: dayOfCivil(2025, 5, date), seconds: 1800 }))
+    render(
+      <VolumeStrip
+        activities={WEEKS}
+        lifts={lifts}
+        selected="w:2025-5-2"
+        onSelect={() => undefined}
+      />,
+    )
+    expect(screen.getByText(/Showing week of 2 Jun 2025: 2 activities/)).toBeTruthy()
   })
 })
