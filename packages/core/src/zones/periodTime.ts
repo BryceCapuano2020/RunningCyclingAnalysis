@@ -1,15 +1,13 @@
 import { DAY_MS } from '../constants'
 import { localDayNumber } from '../digest/localDay'
 import { STALE_THRESHOLD_DAYS } from '../digest/thresholdTimelineTypes'
-import { weekEndFor } from '../calendar'
+import { WEEK_MS, weekEndFor } from '../calendar'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
 import { ZONE_MEASURES, ZONE_SCHEMES } from './schemes'
 import type { ZoneMeasure } from './schemes'
 import { activityTimeInZones } from './timeInZones'
 import { zonesAt } from './zones'
 import type { ZoneEstimates, ZoneSet } from './zones'
-
-const WEEK_MS = 7 * DAY_MS
 
 /** One sport's time in the zones of one measure over a period. */
 export interface MeasureTime {

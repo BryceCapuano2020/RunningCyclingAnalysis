@@ -21,11 +21,9 @@ export const CONSUMERS = {
   change: 'readable', // readings behind the change test
   setAside: 'readable', // whose heart rate is set aside
   referenceHr: 'readable', // reference maxima, zones, observed max
-  sameHeartRate: 'readable', // read by the findings tables only
   thresholdTimeline: 'readable',
   zones: 'readable', // zone estimates and time in zones
   records: 'readable',
-  findings: 'readable',
   fitness: 'readable', // the run and ride monitors
   splits: 'readable', // the activity page's splits
   listing: 'readable', // the library summaries

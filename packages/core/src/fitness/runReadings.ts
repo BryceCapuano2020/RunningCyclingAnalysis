@@ -1,5 +1,5 @@
 import { isAnalysed } from '../digest/analysed'
-import { median } from '../findings/stats'
+import { median } from '../math'
 import { revisionStatus } from '../digest/revisions'
 import type { ActivityDigest, DigestSplit, LocalDayShift } from '../types'
 import type { KmReading } from './fit'

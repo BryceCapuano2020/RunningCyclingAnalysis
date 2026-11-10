@@ -54,7 +54,7 @@ const NO_HEART: RideHeart = {
  * cap, or four spreads where those are narrower). An effort far from threshold is trusted less, in proportion to the
  * distance it is extrapolated over.
  */
-export function rideHeart(
+function rideHeart(
   ride: PreparedRide,
   line: HeartRateLine,
   thresholdHr: number,

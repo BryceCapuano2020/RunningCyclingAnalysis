@@ -29,7 +29,7 @@ export function isSaneActivity(a: Activity): boolean {
 }
 
 /** A small deterministic generator, so byte mutations are the same on every run. */
-export function lcg(seed: number): () => number {
+function lcg(seed: number): () => number {
   let state = seed
   return () => {
     state = (state * 1103515245 + 12345) & 0x7fffffff

@@ -12,12 +12,10 @@ import type { EstimatedRideGate, EstimatedStanding } from './estimatedRide'
 import { trustedPower } from './powerCheck'
 import { fitBikeModelOver, pointWkg, runCentralWkg } from './rideCurves'
 import { firstStartingAfter } from './startOrder'
-import { localAxisMs, weekEndFor, weekEndsSpan } from '../calendar'
+import { WEEK_MS, localAxisMs, weekEndFor, weekEndsSpan } from '../calendar'
 import { DEFAULT_WINDOW_DAYS, EFFORT_LENGTHS_S, weekEndMs } from './trendPoints'
 import { EVERY_EFFORT_KEYED } from './readingRule'
 import type { KeyedReadingRule, ReadingRule } from './readingRule'
-
-const WEEK_MS = 7 * DAY_MS
 
 export interface TrendPoint {
   /** End of the week this point describes: Sunday 23:59:59.999 UTC. */

@@ -1,4 +1,4 @@
-import { medianInPlace } from '../math'
+import { madSd, medianInPlace } from '../math'
 import { floorAt, levelOf, slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
 import { bestSplit } from './anchors'
@@ -38,11 +38,6 @@ export interface Segmented {
   floor: number
 }
 
-const robustSd = (values: number[]): number => {
-  const centre = medianInPlace(Float64Array.from(values))
-  return 1.4826 * medianInPlace(Float64Array.from(values, (v) => Math.abs(v - centre)))
-}
-
 /**
  * The spread of one run against the next, from the changes between runs up to two weeks apart over the whole
  * library (the monitor's estimator, over all of it rather than the last year, so a change of watch late in the
@@ -54,7 +49,7 @@ export function sigmaOver(runs: readonly RunPoint[]): { sigma: number; changes: 
     if (runs[i]!.t - runs[i - 1]!.t <= S.sigmaGapDays) changes.push(runs[i]!.x - runs[i - 1]!.x)
   }
   if (changes.length === 0) return { sigma: Number.NaN, changes: 0 }
-  return { sigma: Math.max(S.sigmaFloor, robustSd(changes) / Math.SQRT2), changes: changes.length }
+  return { sigma: Math.max(S.sigmaFloor, madSd(changes) / Math.SQRT2), changes: changes.length }
 }
 
 /**
@@ -62,7 +57,7 @@ export function sigmaOver(runs: readonly RunPoint[]): { sigma: number; changes: 
  * and the median taken, never under `tau`. The median, not the maximum: in a window that holds most of a long dip the
  * maximum reads the dip as wander, and the dip is then never found.
  */
-export function floorOver(runs: readonly RunPoint[], endDay: number, sigma: number): number {
+function floorOver(runs: readonly RunPoint[], endDay: number, sigma: number): number {
   const first = runs[0]?.t ?? endDay
   const floors: number[] = []
   for (let day = endDay; day >= first; day -= S.floorStepWeeks * 7) {
@@ -142,7 +137,7 @@ function undoesCard(
  * there are more levels than that. A level is re-read from the runs of both. A merge that would undo a change the card
  * declared and the runs back is passed over for the next weakest: only the card's own cut, being weak itself, is given up.
  */
-export function mergeLevels(
+function mergeLevels(
   levels: Level[],
   runs: readonly RunPoint[],
   sigma: number,

@@ -2,9 +2,9 @@ import './test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { AnalysisSession } from './session'
 import { SAMPLE_CLOCK, SAMPLE_REFERENCE_NOW_MS } from './synthetic'
+import { WEEK_MS } from './calendar'
 
 const DAY_MS = 86_400_000
-const WEEK_MS = 7 * DAY_MS
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 
 /** The sample's run status on a clock, drawn by the real analysis. */

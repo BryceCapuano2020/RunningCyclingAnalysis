@@ -1,6 +1,6 @@
 import { WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
-import { medianInPlace } from '../math'
+import { madSd, medianInPlace } from '../math'
 import { FITNESS } from './params'
 
 const M = FITNESS.monitor
@@ -69,12 +69,6 @@ export function medianOf(runs: readonly RunPoint[]): number {
   return medianInPlace(values)
 }
 
-/** A normal-consistent spread that a few outliers cannot move: 1.4826 times the median absolute deviation. */
-function robustSd(values: number[]): number {
-  const centre = medianInPlace(Float64Array.from(values))
-  return 1.4826 * medianInPlace(Float64Array.from(values, (v) => Math.abs(v - centre)))
-}
-
 const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 
 /**
@@ -89,7 +83,7 @@ export function sigmaAt(runs: readonly RunPoint[], day: number): number {
       changes.push(recent[i]!.x - recent[i - 1]!.x)
   }
   if (changes.length < M.sigmaMinSteps) return M.sigmaPrior
-  return Math.max(M.sigmaFloor, robustSd(changes) / Math.SQRT2)
+  return Math.max(M.sigmaFloor, madSd(changes) / Math.SQRT2)
 }
 
 /** The earlier level: the median of the runs from 44 to 8 weeks before `day`, or null without 12 runs over 8 weeks. */
@@ -159,8 +153,7 @@ export function floorAt(
     noise.push((sigma * sigma) / rs.length)
   }
   if (means.length < M.floorMinBlocks) return M.tau
-  const centre = medianInPlace(Float64Array.from(means))
-  const spread = 1.4826 * medianInPlace(Float64Array.from(means, (m) => Math.abs(m - centre)))
+  const spread = madSd(means)
   const wander = Math.sqrt(Math.max(0, spread * spread - medianInPlace(Float64Array.from(noise))))
   const extra = Math.sqrt(Math.max(0, wander * wander - M.floorRef * M.floorRef))
   return Math.min(M.floorMax, Math.sqrt(M.tau * M.tau + (M.floorGain * extra) ** 2))

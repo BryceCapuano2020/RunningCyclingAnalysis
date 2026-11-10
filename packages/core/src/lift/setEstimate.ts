@@ -49,7 +49,7 @@ export interface SetEstimate {
 }
 
 /** Whether the set can carry an estimate: a working set of a loaded lift. Effort is checked in setEstimate. */
-export function isLoadedWorkingSet(set: LiftSet): boolean {
+function isLoadedWorkingSet(set: LiftSet): boolean {
   if (set.warmup || set.reps < 1 || set.loadKg <= 0) return false
   return set.equipment !== 'bodyweight' && !exerciseInfo(set.exercise).bodyweight
 }

@@ -7,6 +7,7 @@ import { syntheticActivity } from './test/syntheticActivity'
 import { thresholdTimeline } from './thresholdTimeline'
 import { thresholdAt } from './thresholdTimelineTypes'
 import type { ActivityDigest } from '../types'
+import { WEEK_MS } from '../calendar'
 
 /*
  * The zones follow the ride threshold through the settle rule (zones/settleThresholds.ts): a window's threshold has to differ
@@ -15,7 +16,6 @@ import type { ActivityDigest } from '../types'
  */
 
 const START_MS = Date.UTC(2024, 0, 1, 12)
-const WEEK_MS = 7 * DAY_MS
 const masses = fixedMasses(70, 9)
 const BASE_W = 250
 

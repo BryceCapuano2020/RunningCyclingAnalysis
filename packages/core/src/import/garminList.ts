@@ -31,7 +31,7 @@ export const MAX_SUMMARY_FILES = 32
  */
 export const START_TOLERANCE_MS = 5000
 /** Summaries starting this close together can be told apart only by their sport. */
-export const TIE_MS = 1000
+const TIE_MS = 1000
 /** Epoch values below this are seconds, not milliseconds (it is the year 1973 in milliseconds). */
 const SECONDS_BELOW = 1e11
 

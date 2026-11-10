@@ -1,3 +1,4 @@
+import { Z_P90 } from './math'
 import { GRADE_HALF_SPAN_S } from './metabolic/grade'
 import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
 
@@ -297,7 +298,7 @@ export const RACE_LOG_SD: Record<(typeof RUN_RACE_DISTANCES_M)[number], number> 
   [MARATHON_M]: 0.07,
 }
 /** The share of outcomes the range shows: from the 10th to the 90th percentile. */
-export const RACE_RANGE_Z = 1.2816
+export const RACE_RANGE_Z = Z_P90
 
 export { SAME_HEART_RATE } from './sameHeartRateConstants'
 

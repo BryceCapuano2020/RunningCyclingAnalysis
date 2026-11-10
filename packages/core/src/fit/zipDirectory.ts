@@ -58,7 +58,7 @@ export interface CentralEntry {
  * The central directory of an archive, read from its end. `tail` starts at byte `tailStart` of the
  * archive. Returns null when no readable directory is there.
  */
-export function readDirectory(tail: Uint8Array, tailStart: number): Directory | null {
+function readDirectory(tail: Uint8Array, tailStart: number): Directory | null {
   const view = new DataView(tail.buffer, tail.byteOffset, tail.byteLength)
   let eocd = -1
   for (let p = tail.length - 22; p >= 0 && eocd < 0; p--) {

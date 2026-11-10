@@ -58,6 +58,11 @@ export function quantile(xs: ArrayLike<number>, q: number): number {
   return quantileSorted(Float64Array.from(xs).sort(), q)
 }
 
+/** The median of any array-like: `quantile(xs, 0.5)`, NaN when empty. */
+export function median(xs: ArrayLike<number>): number {
+  return quantile(xs, 0.5)
+}
+
 /** `quantile` of values already sorted ascending, so several quantiles of one set sort it once. */
 export function quantileSorted(sorted: ArrayLike<number>, q: number): number {
   if (sorted.length === 0) return NaN
@@ -175,4 +180,26 @@ export function requirePositiveFinite(name: string, value: number): void {
   if (!(Number.isFinite(value) && value > 0)) {
     throw new RangeError(`${name} must be a positive finite number`)
   }
+}
+
+/** A normal's standard deviation is this many times its median absolute deviation. */
+export const MAD_TO_SD = 1.4826
+
+/** A normal-consistent spread that a few outliers cannot move: `MAD_TO_SD` times the median absolute deviation; NaN when empty. */
+export function madSd(values: ArrayLike<number>): number {
+  const centre = medianInPlace(Float64Array.from(values))
+  return MAD_TO_SD * medianInPlace(Float64Array.from(values, (v) => Math.abs(v - centre)))
+}
+
+/** The z of the 95th percentile of a normal, and so, mirrored, of the 5th. */
+export const Z_P95 = 1.645
+
+/** The z of the 90th percentile, and so, mirrored, of the 10th. */
+export const Z_P90 = 1.2816
+
+/** FNV-1a over the text's UTF-16 units, 32 bits; `basis` and `prime` pick the variant. A seed or a signature, not a defence. */
+export function fnv1a32(text: string, basis = 0x811c9dc5, prime = 0x01000193): number {
+  let hash = basis
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), prime) >>> 0
+  return hash
 }

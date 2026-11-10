@@ -96,10 +96,7 @@ function findPoint(curve: EffortPoint[], durationS: number): EffortPoint | undef
   return curve.find((p) => p.durationS === durationS)
 }
 
-export function heartRateFraction(
-  point: EffortPoint | undefined,
-  maxHr: number | null,
-): number | null {
+function heartRateFraction(point: EffortPoint | undefined, maxHr: number | null): number | null {
   if (maxHr === null || !(maxHr > 0) || point === undefined) return null
   if (Number.isNaN(point.value) || point.activityId === null || point.heartRate === null) {
     return null

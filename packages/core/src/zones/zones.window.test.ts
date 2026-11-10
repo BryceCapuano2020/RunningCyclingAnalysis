@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../constants'
-import { endOfLocalDay, weekEndInstant } from '../calendar'
+import { WEEK_MS, endOfLocalDay, weekEndInstant } from '../calendar'
 import type { Measurement } from '../athlete/measurements'
 import type { ThresholdStep } from '../digest/thresholdTimelineTypes'
 import { flatSpeedOfWkg, ridePowerOfWkg } from '../display'
@@ -19,7 +19,6 @@ const FIGURES = {
   runObservedMaxHeartRate: 190,
   rideObservedMaxHeartRate: 180,
 }
-const WEEK_MS = 7 * DAY_MS
 /** A Sunday's end on the week axis, the label a step is dated by. */
 const SUNDAY = Date.UTC(2025, 5, 1, 23, 59, 59, 999)
 const week = (n: number) => SUNDAY + n * WEEK_MS

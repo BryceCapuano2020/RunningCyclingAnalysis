@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DAY_MS } from '../constants'
 import { digestActivity } from '../digest/digestActivity'
 import { runCentralWkg } from '../digest/rideCurves'
 import { judgeHeartRate } from '../digest/setAside'
@@ -9,6 +8,7 @@ import { quantile } from '../math'
 import type { ActivityDigest } from '../types'
 import { vo2maxFromHeartRate } from './vo2max'
 import { VO2MAX_SHARE_ZERO } from './vo2maxShare'
+import { WEEK_MS } from '../calendar'
 
 /**
  * The heart-rate VO2max under the old gate (a window counts in full from 85% of the reference heart rate, not at all
@@ -30,7 +30,6 @@ const PERSONAS: PersonaName[] = ['watchRunner', 'phoneSlowRunner', 'treadmillHea
 const SEEDS = 6
 const WEEKS = 52
 const WINDOW_WEEKS = 12
-const WEEK_MS = 7 * DAY_MS
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 
 interface Series {

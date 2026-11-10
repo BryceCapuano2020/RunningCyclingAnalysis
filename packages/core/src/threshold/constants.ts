@@ -57,7 +57,7 @@ export const POWER_MIN_ERROR = 0.025
 // Tukey biweight mean.
 export const BIWEIGHT_C = 4.685
 export const BIWEIGHT_ITERATIONS = 6
-export const MAD_TO_SD = 1.4826
+export { MAD_TO_SD } from '../math'
 /** The scale never falls under this share of the centre, so rides that agree to the watt still tolerate a normal day. */
 export const MIN_SCALE_SHARE = 0.02
 

@@ -1,10 +1,8 @@
-import { DAY_MS } from '../../constants'
 import { MONDAY, weeksOf } from '../../digest/test/sameHeartRateFixture'
 import { mulberry32, normal } from '../../math'
 import { NOISE_PRESETS } from '../../synthetic/noise/presets'
 import type { ActivityDigest } from '../../types'
-
-const WEEK_MS = 7 * DAY_MS
+import { WEEK_MS } from '../../calendar'
 
 /** The athlete's weekly wander and season, shared with the run sims (`NOISE_PRESETS.measured`). */
 const LEVEL = NOISE_PRESETS.measured.level

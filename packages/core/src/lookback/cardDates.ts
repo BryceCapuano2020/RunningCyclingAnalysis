@@ -1,4 +1,4 @@
-import { WEEK_ORIGIN_MS } from '../calendar'
+import { WEEK_MS, WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
 import { fitnessHistories } from '../fitness/compute'
 import { baselineBefore } from '../fitness/status'
@@ -9,8 +9,6 @@ import { hindsightsOf, LOOKBACK_SPORTS } from './compute'
 import type { LookBack } from './compute'
 import { LOOKBACK } from './params'
 import type { EpisodeKind, HindsightEpisode, HindsightFitness, SportYears } from './types'
-
-const WEEK_MS = 7 * DAY_MS
 
 /** The episodes a card state is about: a slip and what came of it, or a rise. */
 const SLIPS: ReadonlySet<EpisodeKind> = new Set(['slip-back', 'slip-partly-back', 'slip-open'])

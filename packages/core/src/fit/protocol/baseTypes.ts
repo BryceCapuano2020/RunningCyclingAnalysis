@@ -20,7 +20,7 @@ export const BASE = {
 } as const
 
 /** Byte width of one element of a base type, or undefined for an unknown base type. */
-export function baseSize(base: number): number | undefined {
+function baseSize(base: number): number | undefined {
   switch (base) {
     case BASE.enum:
     case BASE.sint8:
@@ -52,7 +52,7 @@ export function baseSize(base: number): number | undefined {
  * Reads the first element of a numeric base type. The invalid value of each type (0xFF, 0x7FFF,
  * zero for the "z" types and so on) reads as undefined. Callers check bounds first.
  */
-export function readElement(
+function readElement(
   view: DataView,
   offset: number,
   base: number,

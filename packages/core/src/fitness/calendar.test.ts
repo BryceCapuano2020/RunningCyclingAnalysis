@@ -1,7 +1,7 @@
 import '../test/warmSample'
 import { describe, expect, it } from 'vitest'
 import { localDayNumber, setViewerZone, WEEK_MS, WEEK_ORIGIN_MS } from '../calendar'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { AnalysisSession } from '../session'
 import { fitnessStatuses, runPointsOf } from './compute'
 import { localWeekOf, weekOfMs } from './machine'

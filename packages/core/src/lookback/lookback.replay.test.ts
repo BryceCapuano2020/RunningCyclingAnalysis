@@ -1,7 +1,7 @@
 import '../test/warmSample'
 import { describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '../constants'
-import { plantedLibrary } from '../findings/test/plantedLibrary'
+import { plantedLibrary } from '../test/plantedLibrary'
 import { fitnessStatuses } from '../fitness/compute'
 import { replay } from '../fitness/machine'
 import { AnalysisSession } from '../session'

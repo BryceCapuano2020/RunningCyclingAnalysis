@@ -17,8 +17,8 @@ export interface ReadingBand {
  * is mostly real effort (strides, sprints, a descent), so it gives up only half a percent, which a few
  * seconds of glitch can reach and a stride cannot.
  */
-export const BAND_TRIM_LOW = 0.02
-export const BAND_TRIM_HIGH = 0.005
+const BAND_TRIM_LOW = 0.02
+const BAND_TRIM_HIGH = 0.005
 
 /**
  * The span of a measure's readings in a selection without the few at either end: from the 2nd to the

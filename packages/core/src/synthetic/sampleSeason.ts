@@ -187,7 +187,7 @@ export function easyWobbleOn(daysAgo: number): number {
 }
 
 /** One easy run's own draw (Student t, the model's run-to-run spread) in its cost, from a stream of its day. */
-export function easyRunDrawOn(daysAgo: number): number {
+function easyRunDrawOn(daysAgo: number): number {
   const t = studentT5(mulberry32(EASY_LEVEL.runSeed * 1000 + daysAgo))
   return Math.exp(-SAMPLE_NOISE.level.runSd * t) - 1
 }
