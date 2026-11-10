@@ -14,6 +14,7 @@ import type { TabMessage } from '../tabSync'
 import type { AccountStatus } from '../useAccount'
 import { groupDays, recentLifts } from './liftDays'
 import { lastLiftAccount } from './lastAccount'
+import { onLiftsCleared } from './liftsCleared'
 
 /** The least time between two reads of the account that a tab coming into view makes. */
 const RE_ASK_FLOOR_MS = 30_000
@@ -161,6 +162,9 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
       [reload],
     ),
   )
+
+  // Remove all in this tab cleared the store from the worker.
+  useEffect(() => onLiftsCleared(() => void reload().catch(() => undefined)), [reload])
 
   useEffect(() => {
     if (engine === null) return
