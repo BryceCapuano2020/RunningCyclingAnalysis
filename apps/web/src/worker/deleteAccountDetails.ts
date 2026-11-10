@@ -1,3 +1,4 @@
+import { dropLiftScope } from './liftAccount'
 import { openOutbox } from './outbox'
 import { accountScope, clearCheckinScope } from './checkinStore'
 import { openManifestStore } from '../ui/importManifestStore'
@@ -8,6 +9,7 @@ export async function deleteAccountDetails(userId: string | undefined): Promise<
   // An environment without IndexedDB could never have kept these recordings.
   if (userId === undefined || typeof indexedDB === 'undefined') return null
   await openOutbox(userId).forget()
+  await dropLiftScope(userId)
   await clearCheckinScope(accountScope(userId), { dropEpoch: true }).catch(() => false)
   await openManifestStore().forget(`account:${userId}`)
   const removed = await deleteWorkbenchScope({ kind: 'account', userId }).catch(() => false)

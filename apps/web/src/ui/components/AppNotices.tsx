@@ -7,7 +7,8 @@ import { hrefFor } from '../route'
 import type { CountedRunsController } from '../useCountedRuns'
 import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import type { Route } from '../route'
-import { adoptionText } from '../analysis/adoptionCopy'
+import { adoptionText, liftAdoptionText } from '../analysis/adoptionCopy'
+import { useAddWithLifts, useDeviceLifts } from '../lift/useDeviceLifts'
 import { outboxText } from '../analysis/outboxCopy'
 import { ImportNotice } from './ImportNotice'
 import { IncompleteImportNotice } from './IncompleteImportNotice'
@@ -78,6 +79,9 @@ export function AppNotices({
   units,
 }: AppNoticesProps) {
   const { result, isSample } = analysis.state
+  // Lifting sets are kept in this browser's own database, which the page reads itself (the worker never sees them).
+  const deviceLifts = useDeviceLifts(accountUser?.userId)
+  const addKept = useAddWithLifts(deviceLifts, analysis.adoption, analysis.adoptDevice)
   const neutralStop = analysis.error !== null && analysis.errorNeutral
   // The pages say how a deletion ended beside the activity. With no result left, as when the last activity
   // was deleted, no page does, so the notices say it.
@@ -195,6 +199,9 @@ export function AppNotices({
         )}
         {/* The visible result has a button to put it away, so it sits outside this region; this says it once. */}
         {analysis.adoption !== null && <p className="sr-only">{adoptionText(analysis.adoption)}</p>}
+        {deviceLifts.result !== null && (
+          <p className="sr-only">{liftAdoptionText(deviceLifts.result)}</p>
+        )}
         {bareLibraryNotice !== null && <p className="notice">{bareLibraryNotice}</p>}
         {sample.banner}
         {/* A stop the visitor asked for is news, not a fault, so it is never an alert. */}
@@ -208,11 +215,19 @@ export function AppNotices({
         <DeviceOffer
           offer={analysis.deviceOffer}
           adoption={analysis.adoption}
+          lifts={deviceLifts.count}
+          liftResult={deviceLifts.result}
           account={accountUser}
           busy={analysis.busy}
-          onAdd={analysis.adoptDevice}
-          onRemove={analysis.forgetDeviceLibrary}
-          onDismissResult={analysis.dismissAdoption}
+          onAdd={() => addKept((analysis.deviceOffer?.adoptable ?? 0) > 0)}
+          onRemove={() => {
+            analysis.forgetDeviceLibrary()
+            void deviceLifts.forget().catch(() => undefined)
+          }}
+          onDismissResult={() => {
+            analysis.dismissAdoption()
+            deviceLifts.dismissResult()
+          }}
           runThenFocus={runThenFocus}
         />
       )}

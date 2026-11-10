@@ -121,3 +121,51 @@ describe('how adding them ended', () => {
     expect(props.onDismissResult).toHaveBeenCalledOnce()
   })
 })
+
+describe('lifting sets kept in this browser', () => {
+  it('offers lifting sets alone, and Add runs', async () => {
+    const { props } = setup({ offer: null, lifts: 12 })
+    const section = screen.getByRole('region', { name: 'Lifting sets kept in this browser' })
+    expect(section).toHaveTextContent(
+      'This browser kept 12 lifting sets from before you signed in.',
+    )
+    expect(section).toHaveTextContent('Add them to ada@example.com?')
+    expect(section).not.toHaveTextContent('Routes')
+    await userEvent.click(screen.getByRole('button', { name: 'Add to my account' }))
+    expect(props.onAdd).toHaveBeenCalledOnce()
+  })
+
+  it('names activities and lifting sets in one question', async () => {
+    setup({ lifts: 12 })
+    const section = screen.getByRole('region', { name: 'Activities kept in this browser' })
+    expect(section).toHaveTextContent('kept 3 activities and 12 lifting sets from before')
+  })
+
+  it('counts the sets in what Remove removes', async () => {
+    setup({ lifts: 4 })
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from this browser' }))
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      '3 activities and 4 lifting sets kept here',
+    )
+  })
+
+  it('says how adding them ended', () => {
+    setup({
+      offer: null,
+      liftResult: {
+        sent: 5,
+        skipped: 2,
+        refused: 0,
+        capped: 1,
+        held: 0,
+        unauthorized: false,
+        done: true,
+      },
+    })
+    expect(
+      screen.getByText(
+        /Added 3 lifting sets to your account\. 2 lifting sets were in your account already\. 1 lifting set did not fit in your account and stays in this browser\./,
+      ),
+    ).toBeInTheDocument()
+  })
+})
