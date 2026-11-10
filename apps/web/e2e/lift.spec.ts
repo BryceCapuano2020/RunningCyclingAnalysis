@@ -12,6 +12,11 @@ import {
   uploadFixtures,
 } from './helpers.js'
 
+/** A lift's heading in the day view: the lead and the lifts list name the same lift above it. */
+function dayLift(page: Page, name: string | RegExp) {
+  return page.locator('.lift__lift').getByRole('heading', { name })
+}
+
 /** Chooses a lift in the picker by typing part of its name and taking the option that matches. */
 async function chooseLift(page: Page, typed: string, option: string | RegExp): Promise<void> {
   const box = page.getByRole('combobox', { name: 'Lift' })
@@ -52,7 +57,7 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await saveSet(page, '3', '225', '9')
   await page.getByRole('button', { name: 'Done' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
   await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
   await expect(page.getByText(/×\s3\s·\sRPE\s9/)).toBeVisible()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(2)
@@ -84,20 +89,20 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await page.getByRole('button', { name: 'Edit set 2' }).click()
   await page.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(1)
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeFocused()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeFocused()
 
   await page.getByRole('button', { name: 'Log a set' }).click()
   await chooseLift(page, 'zercher hold', 'Add ‘Zercher hold’')
   await saveSet(page, '8', '40')
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
+  await expect(dayLift(page, /^Zercher hold, /)).toBeVisible()
 
   await page.reload()
   await appSettled(page)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lifting')
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
   await expect(page.getByText(/×\s4\s·\sRPE\s9/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
+  await expect(dayLift(page, /^Zercher hold, /)).toBeVisible()
   expect(errors).toEqual([])
 })
 
