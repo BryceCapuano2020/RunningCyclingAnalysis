@@ -25,10 +25,10 @@ function run(name: string, patch: Partial<LifterSpec>, days: number, ends: numbe
   for (const spec of population(name, LIFTERS, -1, 1)) {
     const lifter = simulate({ ...spec, ...patch })
     for (const end of ends) {
-      const r = liftChange(lifter.sets, dateOfOffset(end), days)
+      const word = liftChange(lifter.sets, dateOfOffset(end), days)
       n++
-      if (r?.change === 'up') up++
-      else if (r?.change === 'down') down++
+      if (word === 'up') up++
+      else if (word === 'down') down++
     }
   }
   return { up: up / n, down: down / n }
@@ -58,6 +58,7 @@ describe('liftChange on synthetic lifters', () => {
     rows['novice 28'] = run('novice', {}, 28)
     rows['novice 56'] = run('novice', {}, 56)
     rows['loads +0.5%/wk 28'] = run('strength-1-5', { ...steady, beliefDrift: 0.005 }, 28)
+    rows['loss 56'] = run('strength-1-5', { ...steady, drop: [20, 0.05] }, 56, [196, 203])
     rows['loss 28'] = run('strength-1-5', { ...steady, drop: [20, 0.05] }, 28, [168, 175])
     const f = (r: Row): string =>
       `up ${(r.up * 100).toFixed(0)}% down ${(r.down * 100).toFixed(0)}%`
@@ -66,16 +67,23 @@ describe('liftChange on synthetic lifters', () => {
         .map(([k, r]) => `${k.padEnd(34)} ${f(r)}`)
         .join('\n'),
     )
+    // The spec's target is 5% of periods named on a steady lifter; 6% is the most the table measures.
     for (const [k, r] of Object.entries(rows)) {
       if (k.startsWith('steady') && !k.includes('then')) {
         expect(r.up + r.down, k).toBeLessThanOrEqual(0.06)
       }
     }
+    expect(rows['novice 28']!.up).toBeGreaterThanOrEqual(0.35)
     expect(rows['novice 56']!.up).toBeGreaterThanOrEqual(0.95)
     expect(rows['novice 56']!.down).toBe(0)
+    expect(rows['loads +0.5%/wk 28']!.up).toBeLessThanOrEqual(0.05)
+    expect(rows['loss 28']!.up).toBeLessThanOrEqual(0.03)
+    expect(rows['loss 56']!.up).toBe(0)
+    expect(rows['loss 56']!.down).toBeGreaterThanOrEqual(0.12)
     expect(rows['steady 3s then 10s 28']).toEqual({ up: 0, down: 0 })
-    expect(
-      rows['steady 3s then 10s, offset 28']!.up + rows['steady 3s then 10s, offset 28']!.down,
-    ).toBeLessThanOrEqual(0.03)
+    const offset = rows['steady 5s then 8s, offset 28']!
+    expect(offset.up + offset.down).toBeLessThanOrEqual(0.03)
+    const mixed = rows['steady 3s then 10s, offset 28']!
+    expect(mixed.up + mixed.down).toBeLessThanOrEqual(0.03)
   })
 })

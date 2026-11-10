@@ -3,7 +3,7 @@
  * Each period is read from its own sessions only, so the two windows never share one. The two estimates
  * share most of their systematic error, so the comparison uses only what they do not share.
  */
-import { civilOfDay } from '../calendar'
+import { dateTextOfDay } from '../calendar'
 import { CHANGE_MEAN_R_GUARD, CHANGE_Z } from './constants'
 import { dayOfLiftDate, estimateLift } from './estimate'
 import type { LiftEstimate, SystematicTerms } from './estimate'
@@ -11,17 +11,13 @@ import type { LiftSet } from './types'
 
 export type LiftChange = 'up' | 'down' | 'no clear change'
 
-export interface LiftChangeResult {
+/** The two period estimates behind a word. Tests only: the barrel does not export it, so no page shows the two figures. */
+export interface LiftChangeDetail {
   change: LiftChange
   /** The estimate from the sessions of the period ending on `end`. */
   now: LiftEstimate
   /** The estimate from the sessions of the previous period of the same length. */
   before: LiftEstimate
-}
-
-function dateOfDay(day: number): string {
-  const { year, month, date } = civilOfDay(day)
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
 }
 
 /** The estimate at the end of the `days` days ending on `endDay`, from the sets inside them. */
@@ -34,18 +30,18 @@ function periodEstimate(
     const d = dayOfLiftDate(s.date)
     return d <= endDay && d > endDay - days
   })
-  return estimateLift(inside, dateOfDay(endDay))
+  return estimateLift(inside, dateTextOfDay(endDay))
 }
 
 /**
  * The period is the `days` days ending on `end` (YYYY-MM-DD); the previous one is the `days` before it. Null
  * unless each period has a session with an eligible set.
  */
-export function liftChange(
+export function liftChangeDetail(
   sets: readonly LiftSet[],
   end: string,
   days: number,
-): LiftChangeResult | null {
+): LiftChangeDetail | null {
   const endDay = dayOfLiftDate(end)
   const now = periodEstimate(sets, endDay, days)
   const before = periodEstimate(sets, endDay - days, days)
@@ -66,4 +62,9 @@ function classify(now: LiftEstimate, before: LiftEstimate): LiftChange {
   if (moved > bar && now.point > before.point) return 'up'
   if (moved < -bar && now.point < before.point) return 'down'
   return 'no clear change'
+}
+
+/** The word alone: the only form the app reads (docs/design/e1rm.md, section 10). Null when a period has no estimate. */
+export function liftChange(sets: readonly LiftSet[], end: string, days: number): LiftChange | null {
+  return liftChangeDetail(sets, end, days)?.change ?? null
 }

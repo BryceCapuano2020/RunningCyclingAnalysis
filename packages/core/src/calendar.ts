@@ -186,6 +186,12 @@ export function civilOfDay(day: number): { year: number; month: number; date: nu
   return { year: date.getUTCFullYear(), month: date.getUTCMonth(), date: date.getUTCDate() }
 }
 
+/** The `YYYY-MM-DD` text of a day number. */
+export function dateTextOfDay(day: number): string {
+  const { year, month, date } = civilOfDay(day)
+  return `${pad(year, 4)}-${pad(month + 1)}-${pad(date)}`
+}
+
 /** The day number of a year, month (0 to 11) and day of the month; a month or day out of range rolls over. */
 export function dayOfCivil(year: number, month: number, date: number): number {
   const at = new Date(0)

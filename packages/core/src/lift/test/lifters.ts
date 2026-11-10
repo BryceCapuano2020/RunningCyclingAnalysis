@@ -3,7 +3,7 @@
  * reps-to-failure curve is drawn from a shape that is none of the estimator's three equations, so the
  * estimator never sees its own model. Seeded: the same spec gives the same sets. Synthetic only.
  */
-import { civilOfDay, dayOfCivil } from '../../calendar'
+import { dateTextOfDay, dayOfCivil } from '../../calendar'
 import type { LiftSet } from '../types'
 
 export function rng(seed: number): { next: () => number; normal: () => number } {
@@ -107,8 +107,7 @@ export interface Lifter {
 export const ORIGIN_DAY = dayOfCivil(2024, 0, 1)
 
 export function dateOfOffset(offset: number): string {
-  const { year, month, date } = civilOfDay(ORIGIN_DAY + offset)
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+  return dateTextOfDay(ORIGIN_DAY + offset)
 }
 
 function truthByWeek(spec: LifterSpec): number[] {
@@ -179,7 +178,9 @@ export function simulate(spec: LifterSpec): Lifter {
         truthAt(Math.max(0, day - BELIEF_LAG_DAYS)) *
         (1 + BELIEF_SD * r.normal()) *
         Math.pow(1 + (spec.beliefDrift ?? 0), w)
-      const load = Math.max(2.5, Math.round((belief * f * (deload ? 0.9 : 1)) / 2.5) * 2.5)
+      // Never above today's max, so a drifting belief does not log a single above the true max.
+      const planned = Math.min(belief * f * (deload ? 0.9 : 1), today)
+      const load = Math.max(2.5, Math.round(planned / 2.5) * 2.5)
       for (const p of [0.5, 0.7, 0.85]) {
         const wl = Math.round((load * p) / 2.5) * 2.5
         if (spec.flagsWarmups) push(p < 0.8 ? 5 : 3, wl, undefined, true)

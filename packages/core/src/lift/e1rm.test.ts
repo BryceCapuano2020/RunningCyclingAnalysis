@@ -310,6 +310,7 @@ describe('what the estimate exposes for the change rule', () => {
     const e = estimateLift([set()])!
     expect(e.terms.curve).toBeCloseTo(0.05864, 5)
     expect(e.terms.centre).toBeCloseTo(0.026, 5)
+    expect(e.terms.equations).toBeCloseTo(0.01212, 5)
     expect(e.terms.effort).toBeCloseTo(0.01232, 5)
     expect(e.ind).toBeCloseTo(0.04869, 5)
     expect(e.meanR).toBe(7.5)
@@ -330,6 +331,15 @@ describe('what the estimate exposes for the change rule', () => {
     // them. A 28-day pool would take the heavy sessions as the top and give the recent ones almost none.
     const e = estimateLift(sets)!
     expect(e.point0).toBeLessThan((medianEquation(100, 7) + medianEquation(120, 7)) / 2)
+  })
+
+  it('limits the 3-session floor to 28 days: the first session back after a 5-week gap is its own top', () => {
+    const noRpe = (date: string, loadKg: number): LiftSet => set({ date, loadKg, rpe: undefined })
+    const sets = [noRpe('2025-03-01', 120), noRpe('2025-03-03', 120), noRpe('2025-04-14', 100)]
+    // Without the limit the pool is all three, the top is the 120 kg point and the 100 kg session gets
+    // almost no weight, so the estimate would sit at the old level. With it the session is read as it is.
+    const e = estimateLift(sets)!
+    expect(e.point0).toBeLessThan(medianEquation(100, 7) * 1.1)
   })
 
   it('falls back to the last 3 sessions within 28 days when 14 days hold fewer', () => {

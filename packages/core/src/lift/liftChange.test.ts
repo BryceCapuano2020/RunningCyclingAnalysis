@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { liftChange } from './liftChange'
+import { liftChange, liftChangeDetail } from './liftChange'
 import type { LiftSet } from './types'
 
 let order = 0
@@ -29,7 +29,7 @@ describe('liftChange', () => {
   it('is no clear change for a small step: 5% on the same reps is inside the unshared error', () => {
     // Same reps, so the systematic terms cancel; each period's day error alone is 0.042 (RPE noise on top).
     const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', loadKg: 105 })]
-    const r = liftChange(sets, END, 28)!
+    const r = liftChangeDetail(sets, END, 28)!
     expect(r.change).toBe('no clear change')
     expect(r.now.terms).toEqual(r.before.terms)
   })
@@ -47,19 +47,19 @@ describe('liftChange', () => {
   it('is up when the load moves well past the unshared error', () => {
     // Same reps, so the terms cancel: ln(150 / 100) = 0.405 against 2.24 x hypot(0.049, 0.049) = 0.155.
     const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', loadKg: 150 })]
-    const r = liftChange(sets, END, 28)!
+    const r = liftChangeDetail(sets, END, 28)!
     expect(r.change).toBe('up')
   })
 
   it('is down when it falls the same way', () => {
     const sets = [set({ date: '2025-03-25', loadKg: 150 }), set({ date: '2025-04-25' })]
-    expect(liftChange(sets, END, 28)?.change).toBe('down')
+    expect(liftChange(sets, END, 28)).toBe('down')
   })
 
   it('names nothing when the reps moved by more than 3: the curve error is not shared', () => {
     // 100 kg for 5 at RPE 8 reads R 7.5; for 12 it reads R 14.5, a difference of 7.
     const sets = [set({ date: '2025-03-25' }), set({ date: '2025-04-25', reps: 12, loadKg: 150 })]
-    const r = liftChange(sets, END, 28)!
+    const r = liftChangeDetail(sets, END, 28)!
     expect(Math.abs(r.now.meanR - r.before.meanR)).toBeGreaterThan(3)
     expect(r.change).toBe('no clear change')
   })
@@ -72,7 +72,7 @@ describe('liftChange', () => {
       set({ date: '2025-03-25', loadKg: 200, reps: 1, rpe: 5 }),
       set({ date: '2025-04-25', loadKg: 150 }),
     ]
-    const r = liftChange(sets, END, 28)!
+    const r = liftChangeDetail(sets, END, 28)!
     expect(r.now.point0).toBeGreaterThan(r.before.point0)
     expect(r.now.point).toBeLessThan(r.before.point)
     expect(r.change).toBe('no clear change')
