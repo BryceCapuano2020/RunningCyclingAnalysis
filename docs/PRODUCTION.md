@@ -287,8 +287,7 @@ From model revision 7 (D12 E7, RCA-032):
   the recording cache and in the account are one, and a reload finds a recording by it. The name of a Strava export's
   file is the activity's number on Strava. The hash has no key: a number has few values, so it keeps the number out of
   plain sight and out of a join with Strava, it is not secrecy.
-- **The title is sent only on opt-in** (Profile, kept per account on the device). Otherwise the account keeps a
-  generated name such as "Morning Run".
+- **The title is sent.** The account keeps the activity's own name, as the file or export gives it. There is no setting.
 - **Nothing is minimised after the fact.** A replace, an upgrade and a rebuild send the id, file name and title the
   activity already has, and a recording is read back under them; an existing row's `file_name` column is not changed.
   Cleaning the rows saved before is a server-side maintenance step.

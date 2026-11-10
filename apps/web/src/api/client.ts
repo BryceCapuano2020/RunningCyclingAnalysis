@@ -13,7 +13,6 @@ import {
 } from '@rca/contract'
 import { ActivityLabelsResultSchema } from '@rca/contract'
 import { minimisedForUpload } from '@rca/core/import/minimise'
-import { uploadTitles } from './uploadPolicy'
 import type {
   ActivityLabelsResult,
   ActivityRecord,
@@ -229,12 +228,8 @@ export async function createActivity(
   replaceId?: string,
 ): Promise<CreatedActivity> {
   const query = replaceId === undefined ? '' : `?${new URLSearchParams({ replace: replaceId })}`
-  // A new activity goes with a generated title unless the athlete chose to send titles, and a hashed file name (from
-  // revision 7). A replace is of an activity already saved: it keeps the id, file name and title it has.
-  const sent =
-    replaceId === undefined
-      ? minimisedForUpload(digest, fileName, { titles: uploadTitles() })
-      : { digest, fileName }
+  // A new activity goes with its own title and a hashed file name (from revision 7). A replace is of an activity already saved: it keeps the id, file name and title it has.
+  const sent = replaceId === undefined ? minimisedForUpload(digest, fileName) : { digest, fileName }
   const response = await request(
     'POST',
     `/api/activities${query}`,

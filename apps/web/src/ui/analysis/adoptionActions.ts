@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { uploadTitlesField } from '../uploadTitlesPreference'
 import type { AthleteSettings } from '@rca/core/types'
 import type { Account, Box } from './model'
 import type { WorkerTransport } from './workerTransport'
@@ -20,7 +19,6 @@ export function useAdoptionActions({ transport, accountRef, settingsRef }: Adopt
       type: 'adoptDevice',
       userId: me.user.id,
       settings: settingsRef.current,
-      ...uploadTitlesField(me.user.id),
     })
   }, [accountRef, send, settingsRef])
   const forgetDeviceLibrary = useCallback(

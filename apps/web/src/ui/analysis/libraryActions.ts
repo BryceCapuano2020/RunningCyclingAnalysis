@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { uploadTitlesField } from '../uploadTitlesPreference'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
@@ -54,7 +53,6 @@ export function useLibraryActions({
         type: 'loadServer',
         settings: settingsRef.current,
         userId,
-        ...uploadTitlesField(userId),
         ...storedPeriodRequest(),
       })
     },
