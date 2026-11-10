@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { expect, it, vi } from 'vitest'
 import { announceLiftsCleared, onLiftsCleared } from './liftsCleared'
 
