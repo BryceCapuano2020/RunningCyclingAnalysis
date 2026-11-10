@@ -18,5 +18,7 @@ export {
   FLAT_RUN_COST_J_PER_KG_M,
   GROSS_EFFICIENCY_PERCENT,
   HOUR_AGREEMENT_PERCENT,
+  rideThresholdPercentOf,
   runOxygenExcessPercent,
+  THRESHOLD_SHORTEST_S,
 } from './methodFigures'

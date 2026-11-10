@@ -15,10 +15,12 @@ import {
   FLAT_RUN_COST_J_PER_KG_M,
   GROSS_EFFICIENCY_PERCENT,
   HOUR_AGREEMENT_PERCENT,
+  rideThresholdPercentOf,
   runOxygenExcessPercent,
+  THRESHOLD_SHORTEST_S,
 } from '@rca/core/display'
 import { HABITUAL_MIN_DAYS, HIGH_OVER_PREDICTED_BPM, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
-import { DURATION_TABLES, ESTIMATED_WEIGHT, HALF_LIFE_DAYS } from '@rca/core/threshold'
+import { ESTIMATED_WEIGHT, HALF_LIFE_DAYS } from '@rca/core/threshold'
 import { ENERGY_RATE_UNIT, formatDuration } from '@rca/core/units'
 import { CLIMB_NEEDED } from '../components/headlineNeed'
 import { effortLabel } from '../records'
@@ -32,8 +34,8 @@ export const THRESHOLD_LEAD =
   'A threshold is what you could hold for about an hour: a pace for a run, functional threshold power for a ride.'
 
 export const THRESHOLD_FACTS: readonly string[] = [
-  `Each activity’s strongest effort from ${formatDuration(DURATION_TABLES.ride.shortestS)} for a ride, or ${formatDuration(DURATION_TABLES.run.shortestS)} for a run, is scaled to an hour.`,
-  `A ride’s threshold from a ${HEADLINE} best is ${Math.round(DURATION_TABLES.ride.threshold(100, HEADLINE_DURATION_S))}% of it, as in the usual FTP test.`,
+  `Each activity’s strongest effort from ${formatDuration(THRESHOLD_SHORTEST_S.ride)} for a ride, or ${formatDuration(THRESHOLD_SHORTEST_S.run)} for a run, is scaled to an hour.`,
+  `A ride’s threshold from a ${HEADLINE} best is ${rideThresholdPercentOf(HEADLINE_DURATION_S)}% of it, as in the usual FTP test.`,
   `A run scales by Daniels and Gilbert’s table, which puts an all-out ${HEADLINE} ${runOxygenExcessPercent(HEADLINE_DURATION_S / 60)}% above the hour’s oxygen cost.`,
   `The estimates are averaged, favouring those near your top and recent ones, whose weight halves every ${HALF_LIFE_DAYS} days.`,
   'Heart rate can raise a ride’s threshold, never lower it.',
