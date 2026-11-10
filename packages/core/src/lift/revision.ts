@@ -3,4 +3,4 @@
  * and moving it must not re-run any run or ride digest (strength.md, decision 3). Sets store raw
  * values and e1RM is computed on read, so raising this needs no migration.
  */
-export const LIFT_REVISION = 2
+export const LIFT_REVISION = 3

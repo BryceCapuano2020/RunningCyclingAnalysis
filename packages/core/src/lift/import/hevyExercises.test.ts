@@ -11,6 +11,13 @@ describe('mapHevyExercise', () => {
     ['Bent Over Row (Dumbbell)', 'dumbbell-row', 'dumbbell', false],
     ['Pull-Up', 'pull-up', 'bodyweight', false],
     ['Pull Up (Assisted)', 'assisted-pull-up', 'other', true],
+    ['Seated Overhead Press (Dumbbell)', 'seated-dumbbell-shoulder-press', 'dumbbell', false],
+    ['Seated Overhead Press (Barbell)', 'overhead-press', 'barbell', false],
+    ['Butterfly (Pec Deck)', 'pec-deck-fly', 'machine', false],
+    ['Triceps Rope Pushdown (Cable)', 'triceps-pressdown', 'cable', false],
+    ['Standing Calf Raise (Machine)', 'standing-calf-raise', 'machine', false],
+    ['Face Pull (Cable)', 'face-pull', 'cable', false],
+    ['Hanging Leg Raise', 'hanging-leg-raise', 'bodyweight', false],
     ['Zottman Curl', 'zottman-curl', 'other', true],
     ['Pendlay Row (Barbell)', 'pendlay-row', 'barbell', true],
   ])('%s', (title, exercise, equipment, custom) => {
