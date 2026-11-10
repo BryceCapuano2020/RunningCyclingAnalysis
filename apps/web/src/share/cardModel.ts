@@ -1,4 +1,5 @@
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { LIFT_STANDARDS_SOURCE } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
@@ -64,7 +65,8 @@ export interface ShareCardModel {
 }
 
 /** A graded card names the standard its grades come from. */
-const GRADED_FOOTNOTE = `Age-graded on ${ROAD_STANDARDS_SOURCE.shortName}.`
+const ROAD_FOOTNOTE = ROAD_STANDARDS_SOURCE.shortName
+const LIFT_FOOTNOTE = LIFT_STANDARDS_SOURCE.shortName
 /** Without a grade, the card says the figures are estimates. */
 const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
@@ -183,8 +185,13 @@ export function buildShareCard(
   if (reading === null || heroes === null) return null
   const answer = triangleAnswer(reading, triangle, pick?.point.durationS)
   const headline = triangleTitleText(answer.title)
-  // The footnote names the road standards, which only run and cycling grades come from.
-  const roadGraded = BALANCE_PAIR.some((sport) => triangle.grades[sport].kind === 'graded')
+  // The footnote names the standard each graded corner comes from: the road standards for run and cycling, the meet lifts for lifting.
+  const sources = [
+    ...(BALANCE_PAIR.some((sport) => triangle.grades[sport].kind === 'graded')
+      ? [ROAD_FOOTNOTE]
+      : []),
+    ...(triangle.grades.lift.kind === 'graded' ? [LIFT_FOOTNOTE] : []),
+  ]
   return {
     title: APP_WORDS,
     headline,
@@ -193,7 +200,7 @@ export function buildShareCard(
     alt: [`${headline}.`, answer.line, cornersSentence(triangle)].filter(Boolean).join(' '),
     heroes,
     period: periodDates(period),
-    footnote: roadGraded ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
+    footnote: sources.length > 0 ? `Age-graded on ${sources.join(' and ')}.` : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,
     name: cardNameShown(name ?? ''),

@@ -110,6 +110,7 @@ function cardBlocks(
   layout: CardLayout,
   contentWidth: number,
   shed: Shed,
+  triangle: number,
 ): Block[] {
   const x = layout.marginX
   const headline = fitText(
@@ -128,13 +129,7 @@ function cardBlocks(
     topBlock(ctx, model, layout),
     ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.ink),
     ...textBlock(ctx, line, x, lineStyle, CARD_COLORS.secondary),
-    triangleBlock(
-      ctx,
-      model.triangle,
-      x,
-      contentWidth,
-      layout.triangle[shed.step] ?? Math.min(...layout.triangle),
-    ),
+    triangleBlock(ctx, model.triangle, x, contentWidth, triangle),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
       ctx,
@@ -189,14 +184,26 @@ export function renderShareCard(
   const contentHeight = layout.height - 2 * layout.marginY
   ctx.textBaseline = 'top'
   ctx.textAlign = 'left'
-  for (const shed of sheds(layout)) {
-    const blocks = cardBlocks(ctx, model, layout, contentWidth, shed)
-    const tops = placeBlocks(blocks, contentHeight, layout)
-    if (tops === null) continue
-    ctx.fillStyle = CARD_COLORS.paper
-    ctx.fillRect(0, 0, layout.width, layout.height)
-    blocks.forEach((block, index) => block.draw(layout.marginY + (tops[index] ?? 0)))
-    return true
+  // The triangle is the card's picture: it takes the largest size that fits, and the origin and the type shed before it
+  // goes below its minimum size. Only with everything shed does it shrink further, so nothing grows back as the room shrinks.
+  const all = sheds(layout)
+  const last = all.slice(-1)
+  const kept = layout.triangle.filter((size) => size >= layout.triangleMin)
+  for (const [shedList, sizes] of [
+    [all, kept],
+    [last, layout.triangle],
+  ] as const) {
+    for (const shed of shedList) {
+      for (const triangle of sizes) {
+        const blocks = cardBlocks(ctx, model, layout, contentWidth, shed, triangle)
+        const tops = placeBlocks(blocks, contentHeight, layout)
+        if (tops === null) continue
+        ctx.fillStyle = CARD_COLORS.paper
+        ctx.fillRect(0, 0, layout.width, layout.height)
+        blocks.forEach((block, index) => block.draw(layout.marginY + (tops[index] ?? 0)))
+        return true
+      }
+    }
   }
   return false
 }

@@ -6,6 +6,7 @@ import { CARD_COLORS } from './cardColors'
 import {
   MONO_400,
   MONO_500,
+  type Face,
   drawLines,
   metaStyle,
   setFont,
@@ -15,12 +16,31 @@ import {
 import type { Block } from './cardLayout'
 
 /** A corner's three lines as the page sets them: the sport's name, its percent, then its level or "No grade yet". */
-const LABEL: TextStyle = metaStyle(20, 24)
-const PERCENT: TextStyle = { ...MONO_500, size: 34, lineHeight: 40 }
-const LEVEL: TextStyle = { ...MONO_400, size: 22, lineHeight: 26 }
+interface Words {
+  label: TextStyle
+  percent: TextStyle
+  level: TextStyle
+  height: number
+}
+
+/**
+ * The corner words at a figure's size: they grow with the triangle, from the size the page sets them (a threshold's
+ * unit label, 28 px, is the least the percent and the level read at) to half as large again.
+ */
+function wordsAt(size: number): Words {
+  const k = Math.min(1.5, Math.max(1, size / 340))
+  const at = (face: Face, px: number, line: number) => ({
+    ...face,
+    size: Math.round(px * k),
+    lineHeight: Math.round(line * k),
+  })
+  const label = { ...metaStyle(Math.round(22 * k), Math.round(28 * k)) }
+  const percent = at(MONO_500, 40, 46)
+  const level = at(MONO_400, 28, 34)
+  return { label, percent, level, height: label.lineHeight + percent.lineHeight + level.lineHeight }
+}
 const RING_NUMBER: TextStyle = { ...MONO_400, size: 18, lineHeight: 20 }
 /** The words of a corner take this much height, and sit this far from the vertex. */
-const WORDS_HEIGHT = LABEL.lineHeight + PERCENT.lineHeight + LEVEL.lineHeight
 const WORDS_GAP = 10
 /** The dot's radius and its paper outline, in px at the figure's own size of 300 units. */
 const DOT_RADIUS = 6
@@ -57,12 +77,13 @@ export function cornersSentence(view: TriangleView): string {
 
 /** Where the figure's square sits in its block, and how tall the block is: room above the top vertex and below the lower ones for the words. */
 function frame(size: number): { top: number; height: number } {
+  const { height: words } = wordsAt(size)
   const { corners } = triangleGeometry(
     { run: { kind: 'gap' }, ride: { kind: 'gap' }, lift: { kind: 'gap' } },
     size,
   )
-  const top = Math.max(0, WORDS_HEIGHT + WORDS_GAP - corners.run.tip.y)
-  const bottom = Math.max(size, corners.ride.tip.y + WORDS_GAP + WORDS_HEIGHT)
+  const top = Math.max(0, words + WORDS_GAP - corners.run.tip.y)
+  const bottom = Math.max(size, corners.ride.tip.y + WORDS_GAP + words)
   return { top, height: top + bottom }
 }
 
@@ -154,10 +175,12 @@ function drawWords(
   at: Point,
   bounds: { min: number; max: number },
   centre: number,
+  words: Words,
 ): void {
+  const { label: LABEL, percent: PERCENT, level: LEVEL } = words
   const above = sport === TRIANGLE_SPORTS[0]
   const top = above
-    ? at.y + corner.tip.y - WORDS_GAP - WORDS_HEIGHT
+    ? at.y + corner.tip.y - WORDS_GAP - words.height
     : at.y + corner.tip.y + WORDS_GAP
   const [first, second] = cornerLines(corner, view.notes[sport])
   const lines: [TextStyle, string, string][] = [
@@ -221,6 +244,7 @@ export function triangleBlock(
           at,
           { min: x, max: x + contentWidth },
           at.x + shape.centre.x,
+          wordsAt(size),
         )
       }
     },

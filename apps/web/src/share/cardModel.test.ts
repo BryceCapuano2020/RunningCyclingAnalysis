@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { levelOf } from '@rca/core/grade'
+import { LIFT_STANDARDS_SOURCE } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
@@ -199,6 +200,23 @@ describe('buildShareCard', () => {
     expect(card?.triangle.grades.run).toMatchObject({ kind: 'graded' })
     expect(card?.triangle.grades.ride).toEqual({ kind: 'gap' })
     expect(card?.triangle.grades.lift).toEqual({ kind: 'gap' })
+  })
+
+  it('credits the lift standard in the footnote when the lift corner is graded, and only then', () => {
+    const view = (run: TriangleView['grades']['run'], lift: TriangleView['grades']['lift']) =>
+      cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, null, NO_GRADES, null, {
+        grades: { run, ride: { kind: 'gap' }, lift },
+        notes: {},
+      })?.footnote
+    const gap = { kind: 'gap' } as const
+    expect(view(gradedCorner(64, 'x'), gradedCorner(48, 'x'))).toBe(
+      `Age-graded on USATF road standards and ${LIFT_STANDARDS_SOURCE.shortName}.`,
+    )
+    expect(view(gradedCorner(64, 'x'), gap)).toBe(GRADED_FOOTNOTE)
+    expect(view(gap, gradedCorner(48, 'x'))).toBe(
+      `Age-graded on ${LIFT_STANDARDS_SOURCE.shortName}.`,
+    )
+    expect(view(gap, gap)).toBe(ESTIMATE_FOOTNOTE)
   })
 
   it('takes the triangle the page draws, so lifting’s grade reaches the card and its description, and stays out of the sentence', () => {
