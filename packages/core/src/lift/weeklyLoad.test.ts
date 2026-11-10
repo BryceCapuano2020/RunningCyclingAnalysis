@@ -25,6 +25,14 @@ describe('weeklyLoad', () => {
     expect(w!.regions.upper.workingSets).toBe(2)
   })
 
+  it('counts both dumbbells of a paired accessory lift, and one cable stack', () => {
+    const [w] = weeklyLoad([
+      s('2026-03-03', 'incline-dumbbell-curl', 'dumbbell', 10, 12),
+      s('2026-03-03', 'face-pull', 'cable', 10, 25),
+    ])!
+    expect(w!.regions.upper.volumeKg).toBe(10 * 12 * 2 + 10 * 25)
+  })
+
   it('does not double a dumbbell lift the catalog does not pair', () => {
     const [w] = weeklyLoad([
       s('2026-03-03', 'dumbbell-row', 'cable', 10, 30),

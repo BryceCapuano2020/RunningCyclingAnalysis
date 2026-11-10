@@ -16,6 +16,7 @@ import {
   readLiftSet,
 } from './index'
 import type { LiftSet } from './index'
+import { slugify } from './slug'
 
 const set: LiftSet = {
   date: '2026-03-02',
@@ -102,6 +103,24 @@ describe('catalog', () => {
   it('has only valid slugs', () => {
     for (const slug of Object.keys(EXERCISE_CATALOG)) expect(isExerciseSlug(slug), slug).toBe(true)
   })
+  it('keeps each entry consistent: slug is slugify(name), names unique, flags agree', () => {
+    const names = new Set<string>()
+    for (const [slug, info] of Object.entries(EXERCISE_CATALOG)) {
+      expect(slugify(info.name), slug).toBe(slug)
+      expect(names.has(info.name.toLowerCase()), slug).toBe(false)
+      names.add(info.name.toLowerCase())
+      if (info.deadliftFamily) expect(info.region, slug).toBe('lower')
+      if (info.deadliftFamily) expect(info.bodyweight, slug).toBeUndefined()
+      if (info.pair) expect(info.bodyweight, slug).toBeUndefined()
+    }
+  })
+  it('knows the accessory lifts, trunk work as other', () => {
+    expect(exerciseInfo('face-pull')).toMatchObject({ name: 'Face pull', region: 'upper' })
+    expect(exerciseInfo('seated-dumbbell-shoulder-press').pair).toBe(true)
+    expect(exerciseInfo('trap-bar-deadlift').deadliftFamily).toBe(true)
+    expect(exerciseInfo('hanging-leg-raise')).toMatchObject({ region: 'other', bodyweight: true })
+    expect(exerciseInfo('standing-calf-raise').region).toBe('lower')
+  })
   it('knows common lifts and calls the rest other', () => {
     expect(exerciseInfo('sumo-deadlift')).toMatchObject({ region: 'lower', deadliftFamily: true })
     expect(exerciseInfo('pull-up')).toMatchObject({ region: 'upper', bodyweight: true })
@@ -176,6 +195,6 @@ describe('readLiftSet bounds', () => {
   })
   it('exposes the predicates and a revision', () => {
     expect([isLiftLoad(0.1 + 0.2), isLiftRpe('8')]).toEqual([true, false])
-    expect(LIFT_REVISION).toBe(2)
+    expect(LIFT_REVISION).toBe(3)
   })
 })

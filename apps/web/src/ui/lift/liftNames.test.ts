@@ -27,9 +27,23 @@ describe('liftOptions', () => {
       'Deadlift',
       'Sumo deadlift',
       'Romanian deadlift',
+      'Stiff-leg deadlift',
+      'Trap bar deadlift',
       'Deadlift, barbell',
     ])
     expect(liftOptions('', recent)[0]?.label).toBe('Deadlift, barbell')
+  })
+  it('finds the accessory lifts by their words', () => {
+    expect(liftOptions('pec fly', []).map((r) => r.label)).toContain('Pec deck fly')
+    expect(liftOptions('triceps pressdown', []).map((r) => r.exercise)).toEqual([
+      'triceps-pressdown',
+    ])
+    expect(liftOptions('hanging leg', []).map((r) => r.exercise)).toEqual(['hanging-leg-raise'])
+    expect(liftOptions('calf', []).map((r) => r.exercise)).toEqual([
+      'calf-raise',
+      'standing-calf-raise',
+      'seated-calf-raise',
+    ])
   })
   it('refuses a name with no usable slug or one over 48 characters, with no Add option', () => {
     expect(liftOptions('zzq'.repeat(20), [])).toEqual([])
