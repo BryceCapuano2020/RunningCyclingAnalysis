@@ -57,47 +57,34 @@ for (const size of SIZES) {
   })
 }
 
-test('at 320 by 640 the line says what was added and that nothing moved, without cutting it', async ({
+test('at 320 by 640 the line shows what was added as a label and its value, without cutting either', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openWithRow(page)
-  const line = page.locator(`${ROW} .checkin-row__line`)
-  const text = (await line.textContent()) ?? ''
-  expect(text).toMatch(/added/)
-  // The sentence begins with what was added; whatever is cut is only its end.
-  const visibleEnd = await line.evaluate((el) => {
-    const range = document.createRange()
-    range.selectNodeContents(el)
-    const last = [...range.getClientRects()].at(-1)
-    return {
-      clamped: el.scrollHeight > el.clientHeight + 1,
-      lines: Math.round(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)),
-      bottom: last?.bottom ?? 0,
-    }
-  })
-  expect(visibleEnd.lines).toBeLessThanOrEqual(2)
-  if (text.includes('Nothing moved')) {
-    const shown = await line.evaluate((el) => {
-      const node = el.firstChild as Text
-      const at = node.data.indexOf('Nothing moved')
-      const range = document.createRange()
-      range.setStart(node, at)
-      range.setEnd(node, at + 'Nothing moved'.length)
-      return range.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1
-    })
-    expect(shown, text).toBe(true)
-  }
+  const label = page.locator(`${ROW} .checkin-row__label`)
+  const value = page.locator(`${ROW} .checkin-row__value`)
+  await expect(label).toContainText('Added since')
+  await expect(value).toContainText(/\d/)
+  // The value is whole, and the label on one line keeps clear of it.
+  const fits = await value.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)
+  expect(fits).toBe(true)
+  const apart = await page.evaluate((row) => {
+    const l = document.querySelector(`${row} .checkin-row__label`)!.getBoundingClientRect()
+    const v = document.querySelector(`${row} .checkin-row__value`)!.getBoundingClientRect()
+    return l.right <= v.left + 1
+  }, ROW)
+  expect(apart).toBe(true)
 })
 
-test('opening the row shows the whole sentence, and Hide takes the row away for good', async ({
+test('opening the row shows what else it told, and Hide takes the row away for good', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openWithRow(page)
   const row = page.locator(ROW)
   await row.locator('summary').click()
-  await expect(row.locator('.checkin-row__full')).toBeVisible()
+  await expect(row.locator('.checkin-row__list')).toBeVisible()
   await row.getByRole('button', { name: 'Hide' }).click()
   await expect(row).toHaveCount(0)
   // Opened and hidden is seen: a reload brings no row back.

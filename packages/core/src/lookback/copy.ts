@@ -141,29 +141,59 @@ export function episodeSentence(
   }
 }
 
-/** One row of the list of episodes. */
-export function episodeRow(
+/** One row of the list of episodes as a label over a figure: what happened, when, and its size. */
+export interface EpisodeFigure {
+  /** What happened: "Slipped, then back". */
+  label: string
+  /** When, with the steady activities it rests on: "May 2021 to January 2022". */
+  span: string
+  /** The size, with its range: "6% (3 to 9)", or "6% (3 to 9) faster" for a step after a break. */
+  value: string
+  /** What followed a slip that did not fully come back: "Up 4%", "Up 4%, still 2% off". Empty otherwise. */
+  then: string
+  /** How many steady activities the episode rests on: "64 steady runs". Empty for a step after a break. */
+  steady: string
+}
+
+export function episodeFigure(
   episode: HindsightEpisode,
   sport: SportLookBack,
   years: HindsightFitness,
-): string {
+): EpisodeFigure {
   const s = sport.sport
   const span =
     episode.toMs === null ? monthYear(episode.fromMs) : monthsBetween(episode.fromMs, episode.toMs)
-  const runs = `${episode.runs} ${SAY[s].steady}.`
+  const steady = `${episode.runs} ${SAY[s].steady}`
+  const size = sized(s, episode.change)
   switch (episode.kind) {
     case 'slip-back':
-      return `${span}. Slipped ${sized(s, episode.change)}, then back. ${runs}`
-    case 'slip-partly-back':
-      return `${span}. Slipped ${sized(s, episode.change)}. Then up ${sized(s, episode.regained!)}. ${runs}`
+      return { label: 'Slipped, then back', span, value: size, then: '', steady }
+    case 'slip-partly-back': {
+      const off = episode.remaining !== null && oneSided(episode.remaining)
+      const up = `Up ${sized(s, episode.regained!)}`
+      const then = off ? `${up}, still ${sized(s, episode.remaining!)} off` : up
+      return { label: 'Slipped, part way back', span, value: size, then, steady }
+    }
     case 'slip-open':
-      return episode.toMs === null
-        ? `From ${span}. Slipped ${sized(s, episode.change)}, still lower in ${monthYear(years.toMs)}. ${runs}`
-        : `${span}. Slipped ${sized(s, episode.change)}, stayed lower until it fell again. ${runs}`
+      return {
+        label: episode.toMs === null ? 'Slipped, still lower' : 'Slipped, fell again',
+        span,
+        value: size,
+        then: episode.toMs === null ? `Lower in ${monthYear(years.toMs)}` : '',
+        steady,
+      }
     case 'improvement':
-      return `${span}. Improved ${sized(s, episode.change)}. ${runs}`
-    case 'after-break':
-      return episodeSentence(episode, sport, years)
+      return { label: 'Improved', span, value: size, then: '', steady }
+    case 'after-break': {
+      const gap = breakNear(years, episode)
+      return {
+        label: `${upper(SAY[s].subject)} after a break`,
+        span: gap === undefined ? monthYear(episode.fromMs) : monthsBetween(gap.fromMs, gap.toMs),
+        value: amount(s, episode.change),
+        then: '',
+        steady: '',
+      }
+    }
   }
 }
 

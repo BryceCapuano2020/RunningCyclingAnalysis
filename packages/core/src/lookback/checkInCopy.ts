@@ -15,8 +15,8 @@ import {
 } from './copy'
 
 /**
- * The words of "since your last import". Plain, in the reader's voice, every date with its year; a line says what
- * happened, never why.
+ * "Since your last import" as label and value rows, every date with its year: what happened, never why. Nothing here
+ * is a sentence; the page sets each row's label over its figure.
  */
 
 /** The most lines under the headline. */
@@ -25,27 +25,34 @@ const MOST_LINES = 3
 const NOUN: Record<Sport, [string, string]> = { run: ['run', 'runs'], ride: ['ride', 'rides'] }
 const FITNESS_NAME: Record<Sport, string> = { run: 'Run fitness', ride: 'Ride fitness' }
 
-/** A state as it reads after "is" or "was". */
+/** A state as a figure: the value of a fitness row. */
 const STATE: Record<FitnessState, string> = {
-  slipping: 'slipping',
-  holding: 'holding',
-  'holding-below': 'holding below your old level',
-  recovering: 'recovering',
-  back: 'back',
-  improving: 'improving',
-  improved: 'improved',
-  'not-enough-evidence': 'showing no trend',
+  slipping: 'Slipping',
+  holding: 'Holding',
+  'holding-below': 'Holding below your old level',
+  recovering: 'Recovering',
+  back: 'Back',
+  improving: 'Improving',
+  improved: 'Improved',
+  'not-enough-evidence': 'No trend',
 }
 
-/** A state that has not changed, as it reads after "is" with "as at your last import". */
+/** A state that has not changed. */
 const STILL: Record<FitnessState, string> = {
   ...STATE,
-  slipping: 'still slipping',
-  'holding-below': 'still holding below your old level',
-  recovering: 'still recovering',
-  back: 'staying at your old level',
-  improving: 'still improving',
-  improved: 'still improved',
+  slipping: 'Still slipping',
+  'holding-below': 'Still holding below your old level',
+  recovering: 'Still recovering',
+  back: 'At your old level',
+  improving: 'Still improving',
+  improved: 'Still improved',
+}
+
+/** One row: a label over its value, with an optional second reading beside it ("3 s faster than before"). */
+export interface CheckInFigure {
+  label: string
+  value: string
+  detail?: string
 }
 
 /** "14 runs and 3 rides", leaving out a sport with none; empty when there are none. */
@@ -77,98 +84,112 @@ function betterBy(best: NewBest, system: UnitSystem): string {
   }
 }
 
-function bestLine(best: NewBest, system: UnitSystem): string {
+function bestRow(best: NewBest, system: UnitSystem): CheckInFigure {
   const name = `${effortName(best.effort)} ${NOUN[best.sport][0]}`
   const value = bestValue(best, best.value, system)
   if (best.older)
-    return `Your best ${name} is ${value}, found in older files from ${new Date(best.atMs).getUTCFullYear()}.`
+    return {
+      label: `Best ${name}`,
+      value,
+      detail: `Older files, ${new Date(best.atMs).getUTCFullYear()}`,
+    }
   const by = betterBy(best, system)
-  return `New best ${name}: ${value}${by === '' ? '' : `, ${by} than before`}, set on ${dayMonthYear(best.atMs)}.`
-}
-
-function fitnessLine(line: FitnessLine): string {
-  const name = FITNESS_NAME[line.sport]
-  switch (line.kind) {
-    case 'moved':
-      return `${name} is ${STATE[line.to]} now. It was ${STATE[line.from]} at your last import.`
-    case 'began':
-      return `${name} has been ${STATE[line.state]} since ${monthYear(line.sinceMs)}.`
-    case 'same':
-      return line.within === null
-        ? `${name} is ${STILL[line.state]}.`
-        : `${name} is ${STILL[line.state]}. No clear change, within ${withinText(line.sport, line.within)}.`
+  const set = dayMonthYear(best.atMs)
+  return {
+    label: `New best ${name}`,
+    value,
+    detail: by === '' ? set : `${by} than before, ${set}`,
   }
 }
 
+function fitnessRow(line: FitnessLine): CheckInFigure {
+  const label = FITNESS_NAME[line.sport]
+  switch (line.kind) {
+    case 'moved':
+      return { label, value: STATE[line.to], detail: `Was ${STATE[line.from].toLowerCase()}` }
+    case 'began':
+      return { label, value: STATE[line.state], detail: `Since ${monthYear(line.sinceMs)}` }
+    case 'same':
+      return {
+        label,
+        value: STILL[line.state],
+        ...(line.within === null
+          ? {}
+          : { detail: `Within ${withinText(line.sport, line.within)}` }),
+      }
+  }
+}
+
+/** The same row for a quiet check-in, where a fitness that did not move reads as no clear change. */
+function quietRow(line: FitnessLine): CheckInFigure | null {
+  if (line.kind !== 'same') return null
+  return line.within === null
+    ? fitnessRow(line)
+    : {
+        label: FITNESS_NAME[line.sport],
+        value: 'No clear change',
+        detail: `Within ${withinText(line.sport, line.within)}`,
+      }
+}
+
 const A: Record<NewEpisode['kind'], string> = {
-  'slip-back': 'a slip',
-  'slip-partly-back': 'a slip',
-  'slip-open': 'a slip',
-  improvement: 'an improvement',
-  'after-break': 'a step after a break',
+  'slip-back': 'Slip',
+  'slip-partly-back': 'Slip',
+  'slip-open': 'Slip',
+  improvement: 'Improvement',
+  'after-break': 'Step after a break',
 }
 
-function episodeLine(e: NewEpisode): string {
+function episodeRow(e: NewEpisode): CheckInFigure {
   const span = e.toMs === null ? monthYear(e.fromMs) : monthsBetween(e.fromMs, e.toMs)
-  return `Older files added ${A[e.kind]} to your ${NOUN[e.sport][0]} history, from ${span}.`
+  return { label: `${A[e.kind]} in older ${NOUN[e.sport][1]}`, value: span }
 }
 
-/** The older files an import filled in: "120 runs found in older files, from 2019 to 2021." */
-function olderLine(sport: Sport, older: NonNullable<CheckIn['older'][Sport]>): string {
+/** The older files an import filled in: "Runs in older files" over "120", with the years beside it. */
+function olderRow(sport: Sport, older: NonNullable<CheckIn['older'][Sport]>): CheckInFigure {
   const [from, to] = [
     new Date(older.fromMs).getUTCFullYear(),
     new Date(older.toMs).getUTCFullYear(),
   ]
-  const years = from === to ? `${from}` : `${from} to ${to}`
-  return `${counted(older.count, ...NOUN[sport])} found in older files, from ${years}.`
+  return {
+    label: `${upperFirst(NOUN[sport][1])} in older files`,
+    value: String(older.count),
+    detail: from === to ? `${from}` : `${from} to ${to}`,
+  }
 }
 
-/** The sentence of the one-line check-in for a sport's fitness when it did not move: "Run fitness shows no clear change, within 2%." */
-function quietSentence(line: FitnessLine): string {
-  const name = FITNESS_NAME[line.sport]
-  if (line.kind !== 'same') return ''
-  return line.within === null
-    ? `${name} is ${STILL[line.state]}.`
-    : `${name} shows no clear change, within ${withinText(line.sport, line.within)}.`
-}
+const upperFirst = (text: string) => `${text[0]!.toUpperCase()}${text.slice(1)}`
 
 export interface CheckInText {
-  /** The region's one line: the whole check-in when quiet, else what was added. */
-  headline: string
+  /** The region's one line: what was added since the last import, as a label over its value. */
+  headline: CheckInFigure
   /** What else the import told, most important first: the card's change, then bests, then older files. */
-  lines: string[]
+  rows: CheckInFigure[]
 }
 
-/** The check-in as words, with paces in the reader's units. */
+/** The check-in as label and value rows, with paces in the reader's units. */
 export function checkInText(checkIn: CheckIn, system: UnitSystem): CheckInText {
-  const since = localDayMonthYear(checkIn.sinceMs)
   const added = addedText(checkIn.added)
+  const headline = {
+    label: `Added since ${localDayMonthYear(checkIn.sinceMs)}`,
+    value: added === '' ? 'Nothing' : added,
+  }
   if (checkIn.quiet) {
-    const sentences = checkIn.fitness.map(quietSentence).filter((sentence) => sentence !== '')
-    return {
-      headline: [
-        `${added === '' ? 'Nothing added' : `${added} added`} since ${since}.`,
-        'Nothing moved.',
-        ...sentences,
-      ].join(' '),
-      lines: [],
-    }
+    const quiet = checkIn.fitness.map(quietRow).filter((row) => row !== null)
+    return { headline, rows: [{ label: 'Fitness moved', value: 'Nothing' }, ...quiet] }
   }
   const moved = checkIn.fitness.filter((l) => l.kind !== 'same')
   const quoted = checkIn.fitness.filter((l) => l.kind === 'same')
   const older = (['run', 'ride'] as const).flatMap((s) => {
     const span = checkIn.older[s]
-    return span === null ? [] : [olderLine(s, span)]
+    return span === null ? [] : [olderRow(s, span)]
   })
-  const lines = [
-    ...moved.map(fitnessLine),
-    ...checkIn.bests.map((b) => bestLine(b, system)),
-    ...checkIn.episodes.map(episodeLine),
+  const rows = [
+    ...moved.map(fitnessRow),
+    ...checkIn.bests.map((b) => bestRow(b, system)),
+    ...checkIn.episodes.map(episodeRow),
     ...older,
-    ...quoted.map(fitnessLine),
+    ...quoted.map(fitnessRow),
   ].slice(0, MOST_LINES)
-  return {
-    headline: `Since ${since}: ${added === '' ? 'nothing added' : `${added} added`}.`,
-    lines,
-  }
+  return { headline, rows }
 }

@@ -32,9 +32,10 @@ describe('the check-in row', () => {
   it('is a region named "Since your last import", with no heading in the outline', async () => {
     const Row = await freshRow()
     render(<Row words={words()} onSeen={vi.fn()} />)
-    expect(screen.getByRole('region', { name: 'Since your last import' })).toHaveTextContent(
-      /^14 runs and 3 rides added since 2 October 2025\./,
-    )
+    const { headline } = words()
+    const region = screen.getByRole('region', { name: 'Since your last import' })
+    expect(region).toHaveTextContent(headline.label)
+    expect(region).toHaveTextContent(headline.value)
     expect(screen.queryByRole('heading')).toBeNull()
   })
 
@@ -47,12 +48,10 @@ describe('the check-in row', () => {
     details.open = true
     fireEvent(details, new Event('toggle'))
     expect(onSeen).toHaveBeenCalledWith('open')
-    expect(
-      screen
-        .getAllByRole('listitem')
-        .map((li) => li.textContent)
-        .join(' '),
-    ).toMatch(/New best 20 min run: 4:44 \/km/)
+    const best = words(true).rows.find((row) => row.label.startsWith('New best'))!
+    const item = screen.getByText(best.label).closest('div')!
+    expect(item).toHaveTextContent(best.value)
+    expect(item).toHaveTextContent(best.detail!)
   })
 
   it('hides on request, and says so once', async () => {

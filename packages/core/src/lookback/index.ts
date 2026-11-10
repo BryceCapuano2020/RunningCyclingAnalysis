@@ -27,7 +27,7 @@ export {
   bestValue,
   dayMonthYear,
   effortName,
-  episodeRow,
+  episodeFigure,
   episodeSentence,
   leadSentence,
   monthYear,
@@ -35,12 +35,13 @@ export {
   stoodText,
   tooShortText,
 } from './copy'
+export type { EpisodeFigure } from './copy'
 export type { EffortMilestones, MilestoneEffort, MilestoneUnit, Mark } from './types'
 export { checkInBetween, beatsShown, OLDER_DAYS } from './checkIn'
 export type { CheckIn, FitnessLine, NewBest, NewEpisode } from './checkIn'
 export { episodeFinding, yearsFinding } from './sectionCopy'
 export { checkInText } from './checkInCopy'
-export type { CheckInText } from './checkInCopy'
+export type { CheckInFigure, CheckInText } from './checkInCopy'
 export { beginImport, endImport, joins, JOIN_WINDOW_MS, usableBaseline } from './marks'
 export type { BaselineCheck, ImportEnd, Marks } from './marks'
 export { decodeSeconds, encodeSeconds, snapshotOf } from './snapshot'

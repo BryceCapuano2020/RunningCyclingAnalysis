@@ -27,25 +27,31 @@ describe('which row leads under the fitness card', () => {
 })
 
 describe('the words of the row', () => {
-  it('say what was added and what was checked, with every date in its year', () => {
+  it('give what was added as a label over its value, and what was checked as rows', () => {
     const words = checkInWords(view(QUIET_CHECK_IN), 'metric')!
-    expect(words.headline).toBe(
-      '14 runs and 3 rides added since 2 October 2025. Nothing moved. Run fitness shows no clear change, within 2%.',
+    expect(words.headline).toEqual({
+      label: 'Added since 2 October 2025',
+      value: '14 runs and 3 rides',
+    })
+    expect(words.rows).toContainEqual({ label: 'Fitness moved', value: 'Nothing' })
+    expect(words.rows).toContainEqual(
+      expect.objectContaining({ label: 'Run fitness', value: 'No clear change' }),
     )
-    expect(words.lines).toEqual([])
   })
 
   it('carry a new best in the athlete’s units, and none for no check-in', () => {
     const words = checkInWords(view(BUSY_CHECK_IN), 'metric')!
-    expect(words.headline).toBe('Since 2 October 2025: 14 runs and 3 rides added.')
-    expect(words.lines.join(' ')).toMatch(/New best 20 min run: 4:44 \/km/)
+    expect(words.headline.value).toBe('14 runs and 3 rides')
+    expect(words.rows).toContainEqual(
+      expect.objectContaining({ label: 'New best 20 min run', value: '4:44 /km' }),
+    )
     expect(checkInWords(view(null), 'metric')).toBeNull()
   })
 
   it('stay clear of the words the app does not use', () => {
     for (const checkIn of [QUIET_CHECK_IN, BUSY_CHECK_IN]) {
-      const { headline, lines } = checkInWords(view(checkIn), 'imperial')!
-      expect([headline, ...lines].join(' ')).not.toMatch(
+      const { headline, rows } = checkInWords(view(checkIn), 'imperial')!
+      expect(JSON.stringify([headline, rows])).not.toMatch(
         /limiter|weak|strength|holding you back|ahead of|because|caused|possibly|may have|might/i,
       )
     }
