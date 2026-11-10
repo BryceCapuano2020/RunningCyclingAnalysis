@@ -6,6 +6,7 @@ import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
 import { STATE_KEY, stateKey } from './state/key.ts'
+import { resendDirty } from './state/resend.ts'
 
 /** Objects younger than this may still be mid-upload, so the orphan sweep leaves them alone. */
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000
@@ -28,6 +29,8 @@ export interface MaintenanceReport {
   finishedDeletions: number
   failedDeletions: number
   orphansDeleted: number
+  /** Messages sent for allowlisted accounts left dirty with none on its way (state/resend.ts). */
+  stateResent: number
   /** Operations issued this run, never more than MAX_MAINTENANCE_OPERATIONS. */
   operations: number
   /** True when the run stopped because it reached MAX_MAINTENANCE_OPERATIONS. */
@@ -74,6 +77,7 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const { finished, failed } = await finishPendingDeletions(bound, deps)
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
+  const stateResent = await within(0, () => resendDirty(bound, now))
   return {
     sessions,
     slots,
@@ -81,6 +85,7 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
     finishedDeletions: finished,
     failedDeletions: failed,
     orphansDeleted,
+    stateResent,
     operations: budget.operations,
     budgetReached: budget.reached,
   }

@@ -97,6 +97,34 @@ describe('the state consumer', () => {
     expect(w.sent).toHaveLength(1)
   })
 
+  it('sends the follow-up of a deferred message whose own write set the marker', async () => {
+    const w = await prepared()
+    await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)
+    // A write within the interval, through the route as in production: it sets the marker and sends.
+    w.h.clock.now += 5_000
+    w.sent.length = 0
+    const write = await w.h.send({
+      method: 'PUT',
+      path: '/api/settings',
+      json: { keepPower: ['a'], countedRuns: null, period: null },
+      cookies: w.cookies,
+    })
+    expect(write.status).toBe(200)
+    expect(w.sent).toHaveLength(1)
+    // Its message arrives 10 s later, still inside the interval: deferred, and the follow-up is sent all the same.
+    w.h.clock.now += 10_000
+    const arrived = fakeBatch([w.userId])
+    expect((await handleStateBatch(arrived.batch, w.env, w.deps)).outcomes).toEqual({ deferred: 1 })
+    expect(arrived.acked).toEqual([0])
+    expect(w.sent).toHaveLength(2)
+    expect(w.sent[1]).toEqual({ body: { userId: w.userId }, options: { delaySeconds: 30 } })
+    // Which computes the write once the interval is spent (the same figures: no ride has that id).
+    w.h.clock.now += 30_000
+    expect((await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)).outcomes).toEqual({
+      unchanged: 1,
+    })
+  })
+
   it('retries the messages when the delayed one cannot be sent', async () => {
     const w = await prepared()
     await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)
@@ -132,9 +160,10 @@ describe('the state consumer', () => {
     }
     expect(tries.count).toBe(1)
     expect(answers.flatMap((answer) => answer.retried)).toHaveLength(1)
-    // The rest defer, and send nothing: the retry is on its way.
+    // The rest defer: each deferred batch sends one message in place of the ones it spent, never more, and none computes.
     expect(answers.flatMap((answer) => answer.acked)).toHaveLength(9)
-    expect(w.sent).toEqual([])
+    expect(w.sent).toHaveLength(4)
+    w.sent.length = 0
     // The retry, its interval spent, computes once more, and its own retries after it: no more than the Queue's limit.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       w.h.clock.now += 30_000

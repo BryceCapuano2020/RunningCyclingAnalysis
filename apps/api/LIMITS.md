@@ -310,7 +310,8 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
   job that finds the last compute under 30 seconds old computes nothing and sends one message delayed 30 seconds, so an
   import is about one compute per 30 seconds. A lost or exhausted message leaves the account dirty
-  (`users.library_version` above `state_jobs.computed_version`) until the next write: the hourly refresh (S6) is not built.
+  (`users.library_version` above `state_jobs.computed_version`) until the next write or the daily maintenance, which sends one message for each listed account left dirty with
+  none on its way: the hourly refresh (S6) is not built.
 
 ## Other per-user limits
 
