@@ -188,21 +188,22 @@ The estimate is scored at every session from day 14, against the underlying true
 each lifter's share, so a lifter counts once; ± is 1.96 standard errors across lifters. Constants were set on
 tuning seeds and checked on held-out seeds.
 
-| Scenario (held-out)  |  Bias | 90th pct error | In range | True above range | True below | Range width |
+| Scenario (held-out) | Bias | 90th pct error | In range | True above range | True below | Range width |
+| Change between periods | 1.96 on the unshared error | This prototype (section 10) |
 | -------------------- | ----: | -------------: | -------: | ---------------: | ---------: | ----------: |
-| strength 1 to 5      |  0.0% |           9.4% |  87 ± 6% |              12% |         2% |         14% |
-| hypertrophy 8 to 12  |  0.0% |          18.1% |  86 ± 6% |              13% |         1% |         26% |
-| high reps 12 to 15   | -0.6% |          20.7% |  87 ± 6% |              12% |         1% |         32% |
-| mixed 1 to 15        | -0.2% |          14.0% |  85 ± 6% |              13% |         2% |         20% |
-| no RPE               | +0.9% |          13.5% |  88 ± 6% |              11% |         1% |         20% |
-| half RPE, to failure | +2.1% |          12.3% |  81 ± 6% |              10% |         9% |         19% |
-| noisy RPE            | -1.6% |          15.6% |  82 ± 7% |              17% |         1% |         18% |
-| deload and break     | -0.3% |          12.1% |  84 ± 6% |              14% |         2% |         16% |
-| deadlift             | -2.6% |          14.8% |  84 ± 6% |              16% |         1% |         20% |
-| novice               | -1.5% |          14.5% |  84 ± 7% |              15% |         0% |         18% |
-| 5% loss              | +0.3% |          13.3% |  83 ± 7% |              13% |         4% |         17% |
-| 5% loss, no RPE      | +2.6% |          13.8% |  81 ± 7% |              10% |         9% |         21% |
-| misspecified         | -4.5% |          10.4% |  84 ± 5% |              16% |         0% |         16% |
+| strength 1 to 5 | 0.0% | 9.4% | 87 ± 6% | 12% | 2% | 14% |
+| hypertrophy 8 to 12 | 0.0% | 18.1% | 86 ± 6% | 13% | 1% | 26% |
+| high reps 12 to 15 | -0.6% | 20.7% | 87 ± 6% | 12% | 1% | 32% |
+| mixed 1 to 15 | -0.2% | 14.0% | 85 ± 6% | 13% | 2% | 20% |
+| no RPE | +0.9% | 13.5% | 88 ± 6% | 11% | 1% | 20% |
+| half RPE, to failure | +2.1% | 12.3% | 81 ± 6% | 10% | 9% | 19% |
+| noisy RPE | -1.6% | 15.6% | 82 ± 7% | 17% | 1% | 18% |
+| deload and break | -0.3% | 12.1% | 84 ± 6% | 14% | 2% | 16% |
+| deadlift | -2.6% | 14.8% | 84 ± 6% | 16% | 1% | 20% |
+| novice | -1.5% | 14.5% | 84 ± 7% | 15% | 0% | 18% |
+| 5% loss | +0.3% | 13.3% | 83 ± 7% | 13% | 4% | 17% |
+| 5% loss, no RPE | +2.6% | 13.8% | 81 ± 7% | 10% | 9% | 21% |
+| misspecified | -4.5% | 10.4% | 84 ± 5% | 16% | 0% | 16% |
 
 Pooled, 84% of held-out ranges hold the truth (84% on tuning seeds). Bias is the median signed error. Width is
 the range over the truth. Without the deadlift's extra 5%, the deadlift scenario holds 72%. Every figure here
@@ -238,8 +239,7 @@ comes from the prototype's raw tables, kept with the stage notes.
 The 80% holds under the spec's own prior on where real lifters sit, normal(8.5, 1). The drawn-centre eval
 checks the spec against that prior; only the fixed-centre table tests outside it. If real lifters do fewer reps
 per load than the equations assume, the ranges are too narrow and the estimate reads low. A centre term of
-`0.008 (R - 1)` lifts centre 7 to 78% pooled and widens every range. The own-data check in section 10 decides
-whether to make that change.
+`0.008 (R - 1)` lifts centre 7 to 78% pooled and widens every range. Section 11 says what a check of this would need.
 
 ## 8. Calibration evals
 
@@ -290,13 +290,46 @@ underlying max.
 `LIFT_REVISION` starts at 1 and moves with any change here. It is not `MODEL_REVISION` ([strength.md](strength.md),
 decision 3).
 
-## 10. Open
+## 10. Change between periods
 
-- Which curve centre real lifters sit at (section 7). The check on the athlete's own data: every set at RPE 9.5
-  or higher, or taken to failure, is an event. Predict its reps from the estimate made before its day, with the
-  range widened by the day's variation (`hypot(sd, 0.042)` in load, turned into reps through `s`), and count
-  how often the reps done land in it. Heavy singles alone are too rare: at 20 events coverage has an SE of
-  about 9 points. Rule: after 30 events, if coverage is under 70% and most misses are above the range, move the
-  centre term to `0.008 (R - 1)`; if over 92%, take it down to `0.002 (R - 1)`. Either change is a new
-  `LIFT_REVISION` and a ledger row. Run it before the estimate leads anything.
+The Lift page names a change only when the data shows one. The estimate at the end of a period and the estimate at
+the end of the previous period of the same length are each made from that period's own sessions, so no session
+counts twice. Each is null when its period has no eligible session, and then no change is named.
+
+Two estimates of one lift share most of their systematic error: the same curve, the same equations, the same
+effort habit. So the comparison uses only what they do not share:
+
+`sd_change = sqrt(ind_now^2 + ind_before^2 + (sys_now - sys_before)^2)`
+
+where `ind` and `sys` are the estimate's independent and weighted systematic parts (section 2). The difference in
+`sys` stands for the part that moves when the rep ranges of the two periods differ. "Up" when
+`ln(point_now / point_before) > 1.96 sd_change`, "down" when below `-1.96 sd_change`, else "no clear change". The
+points are the weighted means before the floor clamp.
+
+On the synthetic lifters, with the drawn centre, 40 lifters a programme, ten period ends each (raw tables
+`change-results.txt` with the stage notes):
+
+| Programme           | Period  | True change |   Named up | Named down |
+| ------------------- | ------- | ----------: | ---------: | ---------: |
+| Steady, no gain     | 28 days |          0% |    0 to 6% |    0 to 4% |
+| 0.4% a week         | 28 days |       +1.3% |   0 to 10% |    0 to 2% |
+| Novice, 1.5% a week | 28 days |       +6.1% |  48 to 90% |         0% |
+| Steady, no gain     | 56 days |          0% |    0 to 5% |    0 to 3% |
+| 0.4% a week         | 56 days |       +2.6% |   1 to 22% |    0 to 1% |
+| Novice, 1.5% a week | 56 days |      +12.6% | 99 to 100% |         0% |
+
+The rule it replaces, ranges that do not overlap, named 0 to 1% of the novice's 28-day gains: the full ranges
+carry the systematic error twice. At 80% (z 1.28) instead of 95%, a steady lifter is named changed in about 23%
+of periods, too often for a word the athlete reads as news.
+
+## 11. Open
+
+- **Which curve centre real lifters sit at** (section 7). The check first planned here, which predicted each
+  near-failure set's reps from the estimate before it, cannot see the centre: it maps reps to load and back through
+  the same equations, so a lifter whose curve sits elsewhere cancels out (second science review, PR #482). A
+  pairwise comparison of nearby low-rep and high-rep sessions moves the right way with the centre but also reads
+  the effort under-reporting, so it calls most synthetic lifters at the right centre "reads high" (raw tables
+  `check-v2-results.txt`). A sound check fits each lifter's own reps-to-load curve, which is a research task.
+  Until it exists, the estimate leads with its range, which already carries the population's centre uncertainty
+  (decision [lift-estimate-leads.md](decisions/lift-estimate-leads.md)).
 - The sizes of the effort terms (`0.25 k` both ways): Halperin gives the direction and a pooled mean only.

@@ -3,7 +3,7 @@
 Status: designed and reviewed once (all findings taken), building (stage X, Lift UI package 1). The owner has no
 lift history yet. He will log here and in Hevy (9 Nov 2026), so a Hevy import is package 3, after the Lift card.
 The record, store and sync it uses are on main ([lift-data.md](lift-data.md)). This package shows no estimate: the
-Lift card and the e1RM figures come in package 2, after the own-data check in [e1rm.md](e1rm.md), section 10. The
+Lift card and the e1RM figures come in package 2 ([e1rm.md](e1rm.md)). The
 rules are [system.md](system.md): one primary button a screen, rows not cards, detail panels, no subtitle lines.
 App text never says "strength".
 
@@ -61,8 +61,8 @@ One form, inline: under the button for a new set, in place of the row for an edi
 - **Reps** and **Load** are number fields, the load in the profile's unit (pounds become kilograms on save, at
   0.01 kg). For a bodyweight lift the load's label is "Added load", and an empty load saves as 0.
 - **Effort (RPE).** A select right after Load, never folded: "Not rated", then 6 to 10 in halves, plus a stored
-  value outside that range when editing one. Its first value is the last set's. The own-data check in e1rm.md
-  section 10 counts sets at RPE 9.5 or 10, and until a Hevy import exists every one of them comes from this form.
+  value outside that range when editing one. Its first value is the last set's: effort narrows the e1RM range more than
+  any other input (e1rm.md, section 1).
 - **Warm-up.** A checkbox.
 - **Save** writes the set:
   - **New set:** the date is the day shown when the form opened, so a session past midnight stays one day. The
