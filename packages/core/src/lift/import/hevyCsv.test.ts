@@ -62,7 +62,11 @@ describe('header detection', () => {
   })
 
   it('refuses an unknown header, and a Hevy one missing a column, by name', () => {
-    expect(readHevyCsv('a,b,c\n1,2,3')).toEqual({ refused: expect.stringContaining('Not a Hevy') })
+    expect(readHevyCsv('a,b,c\n1,2,3')).toEqual({
+      refused: expect.stringContaining(
+        'is not a Hevy workouts export we can read: missing columns',
+      ),
+    })
     const short = 'title,start_time,exercise_title,set_index,weight_kg\nx,y,z,1,2'
     expect(readHevyCsv(short)).toEqual({ refused: expect.stringContaining('"reps"') })
   })

@@ -29,6 +29,8 @@ export interface LiftStore {
   save(set: LiftSet): Promise<boolean>
   /** Logs a set at the next set order of its date and lift, chosen in the write's own transaction so two tabs never take the same key. Resolves the set kept, or null (no room, or storage refused). */
   saveNext(draft: Omit<LiftSet, 'setOrder'>): Promise<LiftSet | null>
+  /** Logs many sets by their own keys, each replacing the stored set of its key, in one write. Resolves how many were kept. */
+  saveAll(sets: readonly LiftSet[]): Promise<number>
   /** Deletes a set by its key. */
   remove(key: string): Promise<void>
   /** Closes the database this store holds open. Call it when the scope changes; a later call opens it again. */
@@ -252,6 +254,14 @@ export function openLiftStore(scope: string): LiftStore {
     save: async (set) => {
       const key = liftSetKey(set)
       return (await mutate([key], (row) => saveSet(row, base(key), set))).length === 1
+    },
+    saveAll: async (sets) => {
+      // A key twice in one file keeps its last set, as two saves in a row would.
+      const byKey = new Map(sets.map((set) => [liftSetKey(set), set]))
+      const done = await mutate([...byKey.keys()], (row, key) =>
+        saveSet(row, base(key), byKey.get(key) as LiftSet),
+      )
+      return done.length
     },
     // The device has no server to tell: a deleted set is simply gone.
     remove: async (key) =>

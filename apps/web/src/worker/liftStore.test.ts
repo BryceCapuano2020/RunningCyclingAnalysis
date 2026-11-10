@@ -222,4 +222,15 @@ describe('a write that aborts', () => {
     spy.mockRestore()
     expect(await store.list()).toEqual([])
   })
+
+  it('saves many sets at once, each replacing the row of its key', async () => {
+    const store = openLiftStore('u1')
+    await store.save(make(1))
+    expect(await store.saveAll([make(1, 70), make(2), make(2, 80)])).toBe(2)
+    const rows = (await store.list()).sort((a, b) => a.set.setOrder - b.set.setOrder)
+    expect(rows.map((row) => [row.set.setOrder, row.set.loadKg, row.rev, row.state])).toEqual([
+      [1, 70, 2, 'put'],
+      [2, 80, 1, 'put'],
+    ])
+  })
 })

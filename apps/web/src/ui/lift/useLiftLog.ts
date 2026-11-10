@@ -229,6 +229,11 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
       }),
     [store, write],
   )
+  /** Writes imported sets, each replacing the set of its key. Resolves how many were kept. */
+  const importSets = useCallback(
+    (items: readonly LiftSet[]): Promise<number> => write(() => store.saveAll(items)),
+    [store, write],
+  )
   /** Deletes a set by its key (`LoggedSet.key`). */
   const remove = useCallback(
     (key: string): Promise<void> => write(() => store.remove(key)),
@@ -250,6 +255,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
     days,
     sets,
     save,
+    importSets,
     update,
     remove,
     pendingCount,
