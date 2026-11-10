@@ -197,3 +197,29 @@ describe('saving at the next set order', () => {
     expect((await b.saveNext(draft))?.setOrder).toBe(5)
   })
 })
+
+describe('a write that aborts', () => {
+  it('saves nothing and resolves null, not the set it queued', async () => {
+    const store = openLiftStore('u1')
+    await store.list()
+    const put = IDBObjectStore.prototype.put
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args
+    ) {
+      const request = put.apply(this, args)
+      this.transaction.abort()
+      return request
+    })
+    const draft = {
+      date: '2031-01-05',
+      exercise: 'squat',
+      equipment: 'barbell',
+      reps: 5,
+      loadKg: 60,
+    } as const
+    expect(await store.saveNext(draft)).toBeNull()
+    spy.mockRestore()
+    expect(await store.list()).toEqual([])
+  })
+})

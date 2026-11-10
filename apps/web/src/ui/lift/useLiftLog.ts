@@ -96,8 +96,11 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
   }, [engine])
 
   const reload = useCallback(async () => {
+    // A store left behind by a scope change is not read: reading would open it again.
+    if (scopeRef.current !== scope) return
     const rows = await store.list()
     if (scopeRef.current === scope) setRead({ scope, rows })
+    else store.close()
   }, [store, scope])
 
   // Writes wait for one another, so two quick saves never take the same set order.
@@ -125,10 +128,12 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
             if (alive.current === engine) void syncNow().catch(() => undefined)
           }, flush.retryInMs)
       } finally {
-        await reload()
+        // Once an engine left behind settles, its store is closed again: its own reads and writes reopened it.
+        if (alive.current === engine) await reload()
+        else store.close()
       }
     },
-    [engine, reload, scope],
+    [engine, reload, scope, store],
   )
   const trySync = useCallback(
     () => void syncNow(liftRevision).catch(() => undefined),

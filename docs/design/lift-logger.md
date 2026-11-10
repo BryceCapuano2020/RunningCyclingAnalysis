@@ -101,11 +101,15 @@ not start it, and a set never waits behind an import.
   an account switch and another tab's sign-out all take the same path. Account deletion drops the whole account
   scope. The existing sign-out warning (`useSignOutWarning`) adds the unsent count to its one dialog: "3 lifting
   sets are not sent yet. They are kept here for your next sign-in; another account signing in here removes them."
+  `sweepLifts(null)`, run when the lookup finds nobody signed in (a session that ended elsewhere), removes every
+  account's synced rows and keeps each account's unsent ones; `sweepLifts(userId)` removes every other account's
+  rows, unsent ones included.
 - **Device sets.** The hook reports the device scope's set count. `DeviceOffer` takes it beside the worker's
   activity counts and shows when either is above 0 ("12 lifting sets" on its own). Its dismissal key and copy
   include the lift count:
-  - **Add** runs the worker's adoption for activities, then the engine's `adopt` for the device store, and reports
-    sets skipped or held at the cap;
+  - **Add** runs the worker's adoption for activities and the engine's `adopt` for the device store side by side
+    (separate stores, separate requests), and reports sets skipped or held at the cap. The offer waits for the
+    worker's activity counts (zeros included) and the lift count before it asks;
   - **Remove** also clears the device scope (`clearScope('device')`, added to the store). `clearLifts` stays for
     Remove all, signed out.
 

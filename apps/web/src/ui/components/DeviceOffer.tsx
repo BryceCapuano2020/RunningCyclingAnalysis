@@ -51,8 +51,8 @@ export function DeviceOffer({
   const kept = activities + sets
   const key = offerKey(activities, sets)
   // Asked again when what is kept changes. What cannot be added is still said, and can still be removed. It waits
-  // until the lifting sets are counted, so the question is asked once, whole.
-  const offered = lifts !== null && kept > 0 && dismissed !== key
+  // until the activities and the lifting sets are counted, so the question is asked once, whole.
+  const offered = offer !== null && lifts !== null && kept > 0 && dismissed !== key
   return (
     <>
       {(adoption !== null || liftResult !== null) && (

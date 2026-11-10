@@ -124,7 +124,7 @@ describe('how adding them ended', () => {
 
 describe('lifting sets kept in this browser', () => {
   it('offers lifting sets alone, and Add runs', async () => {
-    const { props } = setup({ offer: null, lifts: 12 })
+    const { props } = setup({ offer: { adoptable: 0, again: 0, held: 0 }, lifts: 12 })
     const section = screen.getByRole('region', { name: 'Lifting sets kept in this browser' })
     expect(section).toHaveTextContent(
       'This browser kept 12 lifting sets from before you signed in.',
@@ -170,8 +170,10 @@ describe('lifting sets kept in this browser', () => {
     ).toBeInTheDocument()
   })
 
-  it('waits until the lifting sets are counted', () => {
+  it('waits until the lifting sets and the activities are both counted', () => {
     setup({ lifts: null })
+    expect(screen.queryByRole('region')).toBeNull()
+    setup({ offer: null, lifts: 5 })
     expect(screen.queryByRole('region')).toBeNull()
   })
 
@@ -179,7 +181,7 @@ describe('lifting sets kept in this browser', () => {
     const { view, props } = setup({ offer: { adoptable: 3, again: 0, held: 0 }, lifts: 0 })
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }))
     view.unmount()
-    render(<DeviceOffer {...props} offer={null} lifts={3} />)
+    render(<DeviceOffer {...props} offer={{ adoptable: 0, again: 0, held: 0 }} lifts={3} />)
     expect(screen.getByRole('region')).toHaveTextContent('3 lifting sets')
   })
 
