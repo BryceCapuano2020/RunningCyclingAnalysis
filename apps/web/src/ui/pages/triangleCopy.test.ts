@@ -8,7 +8,7 @@ import { balanceTitle, readFrom } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { SPORT_TITLE } from '../sports'
 import { triangleViewOf } from '../triangleSports'
-import { triangleLine, triangleRows, triangleTitle, triangleTitleText } from './triangleCopy'
+import { triangleLine, triangleTitle, triangleTitleText } from './triangleCopy'
 
 const at = (percent: number): Grade => ({ grade: (percent + 0.04) / 100, level: 'x' })
 const graded = (percent: number, spread = 0): TriangleGrade => ({
@@ -110,39 +110,5 @@ describe('with fewer than two graded', () => {
   it('has no headline or line of its own', () => {
     expect(textOf(three(graded(60), gap, gap))).toEqual({ title: null, line: null })
     expect(textOf(three(gap, gap, gap))).toEqual({ title: null, line: null })
-  })
-})
-
-describe('triangleRows', () => {
-  it("states each range once, lifting's included, and the gap between run and ride only", () => {
-    const rows = triangleRows({
-      grades: three(graded(61, 6), graded(52, 6), graded(48, 6)),
-      notes: {},
-    })
-    expect(rows).toEqual([
-      { label: 'Range, 90%', value: 'running 55 to 67, cycling 46 to 58, lifting 42 to 54' },
-      // Lifting is drawn but not compared until its scale is tied to the run scale (comparedGrades).
-      { label: 'Gap', value: 'running over cycling 9 points, range 1 to 17' },
-    ])
-  })
-
-  it('signs a gap range that reaches zero, from the side of the higher sport', () => {
-    const [, row] = triangleRows({ grades: three(graded(52, 8), graded(50, 8), gap), notes: {} })
-    expect(row?.value).toBe('running over cycling 2 points, range −9 to +13')
-    const [, flipped] = triangleRows({
-      grades: three(graded(50, 8), graded(52, 8), gap),
-      notes: {},
-    })
-    expect(flipped?.value).toBe('cycling over running 2 points, range −9 to +13')
-  })
-
-  it('has no rows when no sport has a range', () => {
-    expect(triangleRows({ grades: three(graded(61), graded(52), gap), notes: {} })).toEqual([])
-  })
-
-  it('has the range of one graded sport and no gap', () => {
-    expect(triangleRows({ grades: three(graded(61, 6), gap, gap), notes: {} })).toEqual([
-      { label: 'Range, 90%', value: 'running 55 to 67' },
-    ])
   })
 })

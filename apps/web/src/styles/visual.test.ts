@@ -16,7 +16,6 @@ const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
-const crossSport = await read('../ui/pages/CrossSportCard.css')
 const activityPage = await read('../ui/pages/ActivityPage.css')
 const activityFacts = await read('../ui/pages/ActivityFacts.css')
 const activityList = await read('../ui/components/ActivityList.css')
@@ -35,7 +34,6 @@ const emptySportCard = await read('../ui/pages/EmptySportCard.css')
 const statTile = await read('../ui/pages/StatTile.css')
 const statTileTsx = await read('../ui/pages/StatTile.tsx')
 const balanceTiles = await read('../ui/pages/BalanceTiles.css')
-const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
 const weightNote = await read('../ui/components/WeightNote.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
@@ -390,9 +388,8 @@ describe('shared layout', () => {
     expect(tokens).toMatch(/--column-landing:\s*360px/)
   })
 
-  it('lets the ride on foot row shrink, so the page does not widen', () => {
+  it('lets a headline row shrink, so the page does not widen', () => {
     expect(statTileTsx).toContain('className="row__body stat-tile__body"')
-    expect(rulesWith(crossSport, '.cross-sport__details')).toMatch(/min-width:\s*0/)
   })
 })
 
@@ -412,17 +409,6 @@ describe('balance hero and evidence', () => {
     expect(mediaOf(weightNote, phone)).toMatch(
       /\.weight-note__link \{[^}]*min-height:\s*var\(--control-height\)/,
     )
-  })
-
-  it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
-    const phone = mediaOf(equivalenceCss, '(max-width: 479px)')
-    expect(phone).toMatch(/\.equivalence-list__labels \{[^}]*display:\s*grid/)
-    // The base columns, above 379 px: the phone's own columns are pinned with its own width.
-    const base = outsideMedia(equivalenceCss)
-    const columns =
-      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.75fr\)\s*minmax\(0,\s*1\.25fr\)/
-    expect(rulesWith(base, '.equivalence-list__labels')).toMatch(columns)
-    expect(rulesWith(base, '.equivalence-list dl')).toMatch(columns)
   })
 })
 

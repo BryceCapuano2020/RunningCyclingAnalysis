@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react'
+import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PRIORS } from '@rca/core/constants'
 import { thresholdRunSpeed } from '@rca/core/digest'
@@ -13,9 +13,6 @@ import {
   makeRideThreshold,
   makeRunThreshold,
 } from './components/fixtures'
-import { rowValue } from './test/propertyRows'
-import { levelTarget } from './levelTarget'
-import { CrossSportCard } from './pages/CrossSportCard'
 import { threshold } from './records'
 import { standingOf } from './standing'
 import { thresholdLine } from './thresholdLine'
@@ -47,14 +44,11 @@ describe.each(UNITS)('a ride threshold in %s units', (units) => {
   const context = { massKg: MASS_KG, units }
   const standing = standingOf(RIDE_LOWER, MAN_BORN_1986, context)
 
-  it('prints the same watts on the tile, the cross-sport card, the curve line and "to match it"', () => {
+  it('prints the same watts on the tile and the curve line', () => {
     expect(standing.match.ride).not.toBeNull()
     const printed = threshold(RIDE_LOWER, 'ride', MASS_KG, units)!.value
     const line = thresholdLine(RIDE_LOWER, 'ride', MASS_KG, units)!
-    render(<CrossSportCard result={RIDE_LOWER} units={units} weighted massKg={MASS_KG} />)
-    expect(rowValue(document.body, 'From your threshold')).toBe(printed)
     expect(formatPower(line.value)).toBe(printed)
-    expect(levelTarget(standing.match.ride, units)!.now).toBe(printed)
   })
 })
 
@@ -62,11 +56,10 @@ describe.each(UNITS)('a run threshold in %s units', (units) => {
   const context = { massKg: MASS_KG, units }
   const standing = standingOf(RUN_LOWER, MAN_BORN_1986, context)
 
-  it('prints the same pace on the tile, the curve line and "to match it"', () => {
+  it('prints the same pace on the tile and the curve line', () => {
     expect(standing.match.run).not.toBeNull()
     const printed = threshold(RUN_LOWER, 'run', MASS_KG, units)!.value
     const line = thresholdLine(RUN_LOWER, 'run', MASS_KG, units)!
     expect(formatPace(line.value, units)).toBe(printed)
-    expect(levelTarget(standing.match.run, units)!.now).toBe(printed)
   })
 })

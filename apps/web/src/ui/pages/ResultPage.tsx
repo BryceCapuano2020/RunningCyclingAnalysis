@@ -272,7 +272,6 @@ export function ResultPage({
             profile={profile}
             missingAge={missingAge}
             controls={caption}
-            periodRows={detailRows}
             leftOut={leftOut ?? undefined}
             onShowAll={() => pickPeriod('all')}
             footnote={balanceFootnote}

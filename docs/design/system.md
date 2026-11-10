@@ -116,7 +116,7 @@ third-party font request is made.
   A row is: the mono index (01, 02 ...) in its sport's ink, the serif title at `--heading`, a mono meta line under it, an
   optional ▸ disclosure, small outlined buttons, and at the right a sparkline where the row has a trend. A row has one
   emphasis, its title. A list's rows sit `--space-5` apart with the hairline between.
-- **Disclosure.** "How this was worked out" and every fold is a native `<details>` with a ▸ that turns to ▾. No box, no
+- **Disclosure.** "Details" and every fold is a native `<details>` with a ▸ that turns to ▾. No box, no
   chevron icon, no background. What it holds is a detail panel, never a block of prose.
 - **Two gaps.** `--section-gap` (48 px) between a page's sections and `--stack-gap` (24 px) inside a stack. Spacing steps are
   `--space-1` to `--space-7` (4 to 48 px).

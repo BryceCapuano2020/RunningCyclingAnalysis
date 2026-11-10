@@ -50,6 +50,8 @@ recommendation there matters most.
 
 ## 3. The headline and the line under it
 
+> Owner cut, 10 Nov 2026: with two or more sports graded the title is "Your athletic balance" and there is no line, so the table below applies only to an energy-only balance; the gap and its range are on no Balance line, and the hero's Details are gone (the figures live on each sport's page).
+
 The sentence names the sport at the top, the way the current one does, and the line under it states the one fact: how far
 the top grade is from the bottom one.
 
@@ -177,6 +179,8 @@ as now) and no total. Alt text for the image is the headline, the line and the t
 Open Graph card (`public/social-card.png`) is the sample athlete drawn the same way and is regenerated with it.
 
 ## 11. What the current meter's figures become
+
+> Owner cut, 10 Nov 2026: the hero's Details, the "What changed" strip and the "Your years" row are removed from Balance; the range and gap rows below no longer appear there.
 
 | Today                                               | After                                                               |
 | --------------------------------------------------- | ------------------------------------------------------------------- |

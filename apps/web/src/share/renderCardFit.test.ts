@@ -15,15 +15,16 @@ const FORMATS: CardFormat[] = ['square', 'story']
 const ORIGIN_URL = 'example.test'
 
 /**
- * The worst case the card must hold: a long headline and line, a name that fills the top row, the sample label and a
- * long footnote, over the triangle with every corner graded.
+ * The worst case the card must hold: a long headline and line, a name that fills the top row, the sample label and the
+ * longest footnote, over the triangle with every corner graded.
  */
 function worstCase(): ShareCardModel {
   const base = cardModel()
   return {
     ...base,
     headline: LONG_HEADLINE,
-    footnote: LONG_FOOTNOTE,
+    // The longest footnote the model writes: both standards, which the footer sets on a line of its own under the dates.
+    footnote: 'Graded on USATF road standards and OpenPowerlifting.',
     badge: 'Sample data',
     name: LONG_NAME,
     line: LONG_HEADLINE,

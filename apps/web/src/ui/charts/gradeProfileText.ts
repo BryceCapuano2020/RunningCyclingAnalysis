@@ -35,12 +35,12 @@ function nameOf(sport: Sport, ranged: boolean): string {
   return ranged ? `${SPORT_LABEL[sport]}, estimated` : SPORT_LABEL[sport]
 }
 
-/** The key: each drawn sport, a line for a recorded grade and a ring for an estimate. */
+/** The key: each drawn sport by name, a line for a recorded grade and a ring for an estimate (the swatch says which; the owner cut the words, 10 Nov 2026). */
 export function legendOf(profile: GradeProfile): ChartLegendEntry[] {
   return drawnSports(profile).map((sport) => {
     const ranged = isRanged(profile, sport)
     return {
-      label: ranged ? nameOf(sport, true) : `${SPORT_LABEL[sport]}, as recorded`,
+      label: SPORT_LABEL[sport],
       kind: sport,
       swatch: ranged ? 'ring' : 'line',
     }

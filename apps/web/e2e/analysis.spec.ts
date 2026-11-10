@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { SAMPLE_TEXT, rowPattern } from './sampleText.js'
 import {
+  ANSWERED_TITLE,
   BALANCE_TITLE,
   LANDING_TITLE,
   LIST_PAGE_SIZE,
@@ -52,31 +53,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('the ride as a run tile names the ride threshold behind its pace and opens to every duration', async ({
-  page,
-  isMobile,
-}) => {
-  await openSample(page)
-
-  const card = page.getByRole('article', { name: 'Your ride as a run' })
-  await expect(card.getByRole('link')).toHaveCount(0)
-
-  // The threshold the pace rests on is inside the tile's one fold, not a line under its title.
-  const details = card.locator('details')
-  await expect(details).not.toHaveAttribute('open')
-  const basis = card.locator('.props__row', { hasText: /^From your threshold/ }).locator('dd')
-  await expect(basis).toBeHidden()
-  await details.locator('summary').click()
-  await expect(basis).toHaveText(/^\d+ W$/)
-  await expect(basis).toBeVisible()
-  // A phone shows the efforts as a list, and a wider screen as a table.
-  const rideEffort = isMobile
-    ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
-    : details.getByRole('columnheader', { name: 'Ride effort' })
-  await expect(rideEffort).toBeVisible()
-})
-
-test('Balance says the lean once: no lean tile, three tiles at most, and the level target in the answer’s Details', async ({
+test('Balance says the lean once: no lean tile, three tiles at most, lifting the third, and no Details under the answer', async ({
   page,
 }) => {
   await openSample(page)
@@ -84,18 +61,13 @@ test('Balance says the lean once: no lean tile, three tiles at most, and the lev
   await expect(page.getByRole('article', { name: 'Lean' })).toHaveCount(0)
   const tiles = page.locator('.balance-tiles')
   await expect(tiles.getByRole('article')).toHaveCount(3)
+  await expect(tiles.getByRole('article').nth(2)).toHaveAccessibleName('Big three total')
   await expect(tiles).not.toContainText(/\bpts\b/)
-  // The grades are the triangle's corners, once each; the target is a line of the hero, not of a tile.
+  // The grades are the triangle's corners, once each; the period, counts and standards are on each sport's page.
   await expect(page.locator('.level-triangle__corner')).toHaveCount(3)
   await expect(page.locator('.balance-meter')).toHaveCount(0)
-  // The target is the answer's Details, one press down, not a line under the lede.
-  const target = page.locator('.balance-hero .props__row', { hasText: /^To match it on the / })
-  await expect(target).toHaveCount(1)
-  await expect(target).toBeHidden()
-  await page.locator('.balance-hero .page-details > summary').click()
-  await expect(target).toBeVisible()
-  await expect(target.locator('dd')).toHaveText(/^\d+ W( \(\d+\u2013\d+\))?$|^\d+:\d{2} \/(km|mi)$/)
-  await expect(tiles.getByText(/^To match it/)).toHaveCount(0)
+  await expect(page.locator('.balance-hero .page-details')).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 2, name: 'What changed' })).toHaveCount(0)
   // No tile figure is as large as the headline.
   const headline = await page.getByRole('heading', { level: 1 }).evaluate((el) => {
     return parseFloat(getComputedStyle(el).fontSize)
@@ -113,7 +85,7 @@ test('uploading the Strava export zip shows the results, including its GPX run',
   await page.goto('/')
   await uploadFixtures(page, ['sample-export.zip'])
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(ANSWERED_TITLE)
   // Fourteen FIT activities and one GPX run.
   await expect(await activitiesRows(page)).toHaveCount(15)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
@@ -155,7 +127,7 @@ test("uploading a single run is the running's own page, invites a ride at the fo
   await expect(run.locator('.props__row', { hasText: /^Runs used/ })).toBeHidden()
   await expect(run.getByText(/Estimated|At least/)).toHaveCount(0)
   await expect(run.locator('.stat-tile__effort')).toHaveCount(0)
-  await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
+  await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
   const panel = run.locator('.props')
   await expect(panel.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     '1',
@@ -182,7 +154,7 @@ test('a one-sport library never gets a request for a headline, whichever sport i
   await expect(page.getByTestId('sport-invitation')).toContainText(
     'Add runs to compare them with your cycling.',
   )
-  // No empty card for the other sport, and no cross-sport tile.
+  // No empty card for the other sport.
   await expect(page.getByRole('region', { name: 'Run' })).toHaveCount(0)
 })
 
@@ -372,33 +344,20 @@ for (const [width, height] of [
   })
 }
 
-// On a wide screen the headline runs the answer's full width, the lede keeps the prose measure, and the triangle is
-// centred on the tiles' column at 440 px at most.
-test('at 1280 the headline runs the full width, the lede keeps its measure, and the triangle is centred on the tiles', async ({
+// On a wide screen the headline runs the answer's full width and the triangle is centred on the tiles' column at 440 px at most.
+test('at 1280 the headline runs the full width and the triangle is centred on the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSample(page)
   const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
-  const lede = await page.locator('.balance-hero__lede').boundingBox()
   const tiles = await page.locator('.balance-tiles').boundingBox()
   const triangle = await page.locator('.level-triangle').boundingBox()
-  if (headline === null || lede === null || tiles === null || triangle === null) {
-    throw new Error('no box for the headline, lede, tiles or triangle')
+  if (headline === null || tiles === null || triangle === null) {
+    throw new Error('no box for the headline, tiles or triangle')
   }
-  // The lede keeps the prose measure (--measure, 36rem), which a probe of that width measures.
-  const measure = await page.locator('.balance-hero__lede').evaluate((el) => {
-    const probe = document.createElement('div')
-    probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--measure)'
-    el.parentElement!.appendChild(probe)
-    const width = probe.getBoundingClientRect().width
-    probe.remove()
-    return width
-  })
-  expect(measure).toBeGreaterThan(400)
-  expect(headline.width).toBeGreaterThan(lede.width)
-  expect(lede.width).toBeLessThanOrEqual(measure + 1)
-  expect(triangle.y).toBeGreaterThanOrEqual(lede.y + lede.height)
+  expect(headline.width).toBeGreaterThan(triangle.width)
+  expect(triangle.y).toBeGreaterThanOrEqual(headline.y + headline.height)
   expect(triangle.width).toBeLessThanOrEqual(441)
   expect(triangle.x + triangle.width / 2).toBeCloseTo(tiles.x + tiles.width / 2, 0)
 })
@@ -424,14 +383,10 @@ test('the corners are plain text in links, and the bands are on Method', async (
     'href',
     '#/ride',
   )
-  // The answer's Details carry the ranges, and no prose on what a level is: Method lists the bands.
+  // No prose on what a level is under the answer: Method lists the bands.
   await expect(page.locator('.balance__levels-meaning')).toHaveCount(0)
-  await page.locator('.balance-hero .page-details > summary').click()
-  await expect(page.locator('.balance-hero .page-details')).toContainText(/Range, 90%/)
-  await expect(page.locator('.balance-hero .page-details')).not.toContainText(
-    /A band of the age grade/,
-  )
-  await page.locator('.balance-hero .props__method').click()
+  await expect(page.locator('.balance-hero')).not.toContainText(/A band of the age grade/)
+  await openMethod(page)
   await expect(page.getByRole('main')).toContainText(/Club is 50% to 59%/)
 })
 

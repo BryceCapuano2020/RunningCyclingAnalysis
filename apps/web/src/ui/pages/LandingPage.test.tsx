@@ -5,8 +5,6 @@ import { analysisStub } from '../../test/analysisStub'
 import { landingText } from '../../test/landingText'
 import { noMatchMedia } from '../../test/viewport'
 import { TOUCH_QUERY } from '../useMediaQuery'
-import { balanceTitle } from '../components/headlineText'
-import { gapReading } from '../components/balanceScale'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { LandingPage } from './LandingPage'
 
@@ -220,9 +218,7 @@ describe('LandingPage', () => {
 
     const example = exampleFigure()
     const text = landingText(LANDING_EXAMPLE)
-    expect(
-      within(example).getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap))),
-    ).toBeInTheDocument()
+    expect(within(example).getByText('Your athletic balance')).toBeInTheDocument()
     const corners = [...example.querySelectorAll('.level-triangle__corner')].map(spoken)
     expect(
       corners.slice(0, 2).map((corner, order) => corner.startsWith(text.rows[order]!)),

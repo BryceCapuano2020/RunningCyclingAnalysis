@@ -50,8 +50,6 @@ function cardFor(
   )
 }
 
-/** The no-break space the line keeps before "threshold". */
-const NB = '\u00a0'
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const NO_GRADES: Record<Sport, GradeOutcome | null> = { run: null, ride: null }
 /** A run graded Local at 64%, as the page grades it. */
@@ -69,7 +67,7 @@ const RIDE_GRADE: GradeOutcome = {
     range: { low: { grade: 0.55, level: 'Recreational' }, high: { grade: 0.67, level: 'Local' } },
   },
 }
-const GRADED_FOOTNOTE = 'Age-graded on USATF road standards.'
+const GRADED_FOOTNOTE = 'Graded on USATF road standards.'
 const ESTIMATE_FOOTNOTE = 'Estimated from your files.'
 
 describe('buildShareCard', () => {
@@ -210,12 +208,10 @@ describe('buildShareCard', () => {
       })?.footnote
     const gap = { kind: 'gap' } as const
     expect(view(gradedCorner(64, 'x'), gradedCorner(48, 'x'))).toBe(
-      `Age-graded on USATF road standards and ${LIFT_STANDARDS_SOURCE.shortName}.`,
+      `Graded on USATF road standards and ${LIFT_STANDARDS_SOURCE.cardName}.`,
     )
     expect(view(gradedCorner(64, 'x'), gap)).toBe(GRADED_FOOTNOTE)
-    expect(view(gap, gradedCorner(48, 'x'))).toBe(
-      `Age-graded on ${LIFT_STANDARDS_SOURCE.shortName}.`,
-    )
+    expect(view(gap, gradedCorner(48, 'x'))).toBe(`Graded on ${LIFT_STANDARDS_SOURCE.cardName}.`)
     expect(view(gap, gap)).toBe(ESTIMATE_FOOTNOTE)
   })
 
@@ -243,7 +239,7 @@ describe('buildShareCard', () => {
     )
     expect(card?.triangle).toBe(triangle)
     expect(card?.alt).toBe(
-      `Your balance leans toward running. Running grades 3 points higher at${NB}threshold. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting 48% ${levelOf(0.4804)}.`,
+      `Your athletic balance. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting 48% ${levelOf(0.4804)}.`,
     )
   })
 
@@ -252,7 +248,7 @@ describe('buildShareCard', () => {
     const both = { run: RUN_GRADE, ride: RIDE_GRADE }
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, true, gap, both)
     expect(card?.alt).toBe(
-      `Your balance leans toward running. Running grades 3 points higher at${NB}threshold. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting no grade yet.`,
+      `Your athletic balance. Running 64% ${levelOf(0.64)}, cycling 61% ${levelOf(0.61)} and lifting no grade yet.`,
     )
   })
 
@@ -275,7 +271,9 @@ describe('buildShareCard', () => {
 
     it('gives the card the graded footnote', () => {
       expect(graded()?.footnote).toBe(GRADED_FOOTNOTE)
-      expect(graded()?.line).toBe(`Running grades 3 points higher at${NB}threshold.`)
+      // The triangle shows the lean, so the card has the title and no line.
+      expect(graded()?.headline).toBe('Your athletic balance')
+      expect(graded()?.line).toBeNull()
     })
   })
 

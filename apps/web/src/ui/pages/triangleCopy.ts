@@ -1,15 +1,9 @@
-import {
-  TRIANGLE_SPORTS,
-  triangleGeometry,
-  comparedGrades,
-  triangleReading,
-} from '@rca/core/standing'
-import type { Lead, TriangleReading, TriangleSport } from '@rca/core/standing'
+import { comparedGrades, triangleReading } from '@rca/core/standing'
+import type { TriangleReading, TriangleSport } from '@rca/core/standing'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { BalanceReading } from '../components/balanceScale'
-import { energySummary, signedCount } from '../components/headlineText'
+import { energySummary } from '../components/headlineText'
 import { plural } from '../components/plural'
-import type { Property } from '../components/property'
 import { TRIANGLE_NOUN, TRIANGLE_TITLE } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'
 import { titleParts } from './balanceCopy'
@@ -71,39 +65,12 @@ export function triangleLine(reading: TriangleReading): string | null {
   return `${TRIANGLE_TITLE[higher]} grades ${plural(points, 'point')} higher than ${TRIANGLE_NOUN[lower]}.`
 }
 
-/** A lead's range as the Details write it, from the side of the higher sport: "4 to 22", or "−2 to +10" where it reaches zero. */
-function rangeOf(lead: Lead): string {
-  const [low, high] = lead.centre < 0 ? [-lead.high, -lead.low] : [lead.low, lead.high]
-  return low <= 0 ? `${signedCount(low)} to ${signedCount(high)}` : `${low} to ${high}`
-}
-
-/**
- * The Details rows the figure adds: each graded sport's 90% range, and how far the highest sits above the lowest with its range.
- * A range is not on the corners, which say the best estimate; it is stated here, once. Empty when no sport has a range.
- */
-export function triangleRows(view: TriangleView): Property[] {
-  const reading = triangleReading(comparedGrades(view.grades))
-  const { corners } = triangleGeometry(view.grades, 1)
-  const ranged = TRIANGLE_SPORTS.flatMap((sport) => {
-    const { range } = corners[sport]
-    return range === null ? [] : [`${TRIANGLE_NOUN[sport]} ${range.low} to ${range.high}`]
-  })
-  if (ranged.length === 0) return []
-  const rows: Property[] = [{ label: 'Range, 90%', value: ranged.join(', ') }]
-  const { higher, lower, lead } = reading
-  if (higher === null || lower === null || lead === null) return rows
-  const points = plural(Math.abs(Math.round(lead.centre)), 'point')
-  const gap = `${TRIANGLE_NOUN[higher]} over ${TRIANGLE_NOUN[lower]} ${points}, range ${rangeOf(lead)}`
-  return [...rows, { label: 'Gap', value: gap }]
-}
-
 /** The title when the triangle itself shows the lean: the figure says which way, so the words only name it (owner, 10 Nov 2026). */
 export const FIGURE_TITLE: TriangleTitle = { lead: 'Your athletic balance', sports: [] }
 
 /**
  * The answer in words, for the page, the share card and the landing example alike: the headline and the one line under it. When two
- * or more sports are graded the triangle shows the lean and the gap, so the title is `FIGURE_TITLE` and there is no line; the gap
- * and its range stay in the Details. An energy balance draws no grades, so it keeps its own headline and sentence.
+ * or more sports are graded the triangle shows the lean and the gap, so the title is `FIGURE_TITLE` and there is no line. An energy balance draws no grades, so it keeps its own headline and sentence.
  */
 export function triangleAnswer(
   reading: BalanceReading,

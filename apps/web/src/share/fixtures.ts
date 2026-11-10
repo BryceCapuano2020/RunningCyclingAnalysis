@@ -184,10 +184,10 @@ export const LONG_NAME = 'Riley Example Longname-Hyphenated Jr'
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
   return {
     title: 'RunningCyclingAnalysis',
-    headline: 'Your balance leans toward running',
-    line: 'Running grades 3 points higher at threshold.',
+    headline: 'Your athletic balance',
+    line: null,
     triangle: TRIANGLE,
-    alt: `Your balance leans toward running. Running grades 3 points higher at threshold. ${TRIANGLE_ALT}`,
+    alt: `Your athletic balance. ${TRIANGLE_ALT}`,
     heroes: [
       {
         sport: 'run',
@@ -203,7 +203,7 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
       },
     ],
     period: '12 May – 3 Aug 2025',
-    footnote: 'Age-graded on USATF road standards.',
+    footnote: 'Graded on USATF road standards.',
     origin: 'example.test',
     badge: null,
     name: null,

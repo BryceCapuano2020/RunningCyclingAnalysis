@@ -13,8 +13,9 @@ import {
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']
-/** The one footer line: the period's dates and the standard, as metadata. */
-const FOOTER = '12 MAY – 3 AUG 2025 · AGE-GRADED ON USATF ROAD STANDARDS.'
+/** The footer: the period's dates on one line, the standards on the next, as metadata. */
+const DATES = '12 MAY – 3 AUG 2025'
+const SOURCES = 'GRADED ON USATF ROAD STANDARDS.'
 
 /** The drawn text, in order, as one string. */
 function words(texts: RecordedText[]): string {
@@ -57,8 +58,7 @@ describe('renderShareCard', () => {
     for (const expected of [
       'RunningCyclingAnalysis',
       'SAMPLE DATA',
-      'Your balance leans toward running',
-      'Running grades 3 points higher at threshold.',
+      'Your athletic balance',
       'RUNNING',
       '64%',
       'Local',
@@ -71,7 +71,8 @@ describe('renderShareCard', () => {
       '48',
       'W',
       '0.6 W/kg',
-      FOOTER,
+      DATES,
+      SOURCES,
       'example.test',
     ].filter((text) => !shed.includes(text))) {
       expect(drawn).toContain(expected)
@@ -90,14 +91,14 @@ describe('renderShareCard', () => {
 
   it.each(FORMATS)('sets the answer in the serif, in sentence case, on the %s card', (format) => {
     const lines = draw(cardModel(), format).texts.filter(isHeadline)
-    expect(lines.map((line) => line.text).join(' ')).toBe('Your balance leans toward running')
+    expect(lines.map((line) => line.text).join(' ')).toBe('Your athletic balance')
     expect(lines.length).toBeLessThanOrEqual(3)
     expect(lines.every((line) => line.color === CARD_COLORS.ink)).toBe(true)
   })
 
   it.each(FORMATS)('sets every figure and date in the mono on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
-    for (const figure of ['21:35', '48', '0.6 W/kg', FOOTER]) {
+    for (const figure of ['21:35', '48', '0.6 W/kg', DATES, SOURCES]) {
       expect(find(texts, figure).font).toContain('IBM Plex Mono')
     }
     expect(find(texts, '21:35').font.startsWith('500 ')).toBe(true)
@@ -127,7 +128,8 @@ describe('renderShareCard', () => {
     const drawn = words(draw(cardModel({ origin: '' }), 'story').texts)
     expect(drawn).not.toContain('example.test')
     expect(drawn).not.toMatch(/did not reach|\* /)
-    expect(drawn).toContain(FOOTER)
+    expect(drawn).toContain(DATES)
+    expect(drawn).toContain(SOURCES)
   })
 
   it.each(FORMATS)('sets the hero columns side by side on the %s card', (format) => {

@@ -4,8 +4,6 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import { landingText } from '../../test/landingText'
-import { gapReading } from '../components/balanceScale'
-import { balanceTitle } from '../components/headlineText'
 import { gapOfHeadline } from '../balanceGap'
 import { thresholdGrades } from '../thresholdGrade'
 import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
@@ -90,7 +88,7 @@ describe('LandingExample', () => {
       `Sample athlete: ${SAMPLE_DESCRIPTION}`,
     )
     expect(container.querySelectorAll('figcaption')).toHaveLength(1)
-    expect(screen.getByText(balanceTitle(gapReading(LANDING_EXAMPLE.gap)))).toBeInTheDocument()
+    expect(screen.getByText('Your athletic balance')).toBeInTheDocument()
     // The old label chain is gone: nothing says illustrative, and the fitness finding has no label of its own.
     expect(container.textContent).not.toMatch(/illustrative|Fitness at the same heart rate/i)
   })
@@ -116,12 +114,10 @@ describe('LandingExample', () => {
     expect(container.querySelectorAll('.level-triangle__cap')).toHaveLength(1)
   })
 
-  it('says the lean and the gap in a line under the headline, as Balance does', () => {
+  it('leaves the lean to the triangle, with no line under the headline, as Balance does', () => {
     const { container } = render(<LandingExample />)
-    const lead = Math.abs(LANDING_EXAMPLE.gap.centre)
-    expect(container.querySelector('.landing-example__line')?.textContent).toMatch(
-      new RegExp(`^(Running|Cycling) grades ${lead} points? higher at.threshold\\.$`),
-    )
+    expect(container.querySelector('.landing-example__line')).toBeNull()
+    expect(container).not.toHaveTextContent(/leans toward|points higher/)
   })
 
   it('leads nowhere from its corners, and shows no meter or levels line', () => {
