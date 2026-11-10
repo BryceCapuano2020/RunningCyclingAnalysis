@@ -61,3 +61,22 @@
   font-size: var(--text-md);
   color: var(--ink);
 }
+
+/* A label that opens something (a logged set's form): a button in the term, at a control's height, set as the label. */
+.props__action {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+}
+
+.props__action:hover {
+  text-decoration: underline;
+}

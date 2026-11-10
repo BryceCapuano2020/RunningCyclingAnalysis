@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 export interface Property {
   label: string
   value: ReactNode
+  /** A row that opens something (a logged set opens its form): its label is a button with this accessible name. */
+  action?: { name: string; onActivate: () => void }
 }
 
 /** No rows, as a stable default for a prop that takes rows. */
