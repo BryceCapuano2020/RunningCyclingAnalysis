@@ -1,3 +1,5 @@
+import { ASSISTED_PREFIX } from './slug'
+
 export type LiftRegion = 'lower' | 'upper' | 'other'
 
 export interface ExerciseInfo {
@@ -98,9 +100,6 @@ export const EXERCISE_CATALOG: Readonly<Record<string, ExerciseInfo>> = {
 
 const OTHER: ExerciseInfo = { name: '', region: 'other' }
 const ASSISTED: ExerciseInfo = { name: '', region: 'other', bodyweight: true, assisted: true }
-
-/** The slug an import gives an assisted lift (`assisted-pull-up`); see mapHevyExercise. */
-export const ASSISTED_PREFIX = 'assisted-'
 
 /** What the catalog knows of a slug; an unknown slug has region other and no name. */
 export function exerciseInfo(slug: string): ExerciseInfo {

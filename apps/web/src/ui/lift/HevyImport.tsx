@@ -108,7 +108,8 @@ export function HevyImport({ existing, units, onImport, onDone }: HevyImportProp
     if (problem !== null) return setStage({ at: 'pick', problem })
     setReading(true)
     const text = await file.text().catch(() => null)
-    // Lets the page paint "Reading" before the parse takes the thread.
+    // Lets the page paint "Reading" first. The parse then runs on this thread and blocks it for the
+    // size of the file (up to the file limit); it is not in the worker.
     await new Promise((resolve) => setTimeout(resolve, 0))
     if (!current()) return
     setReading(false)

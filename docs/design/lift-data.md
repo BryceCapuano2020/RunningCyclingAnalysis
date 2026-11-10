@@ -32,6 +32,14 @@ The Hevy CSV layout is not verified: the reader accepts the two layouts third-pa
 any other header by name. It is to be pinned from the owner's first export header row (column names only, never
 his rows), after which a synthetic fixture is built from it.
 
+The Hevy parse runs on the main thread, not in the analysis worker. A zero-delay yield lets the "Reading" state
+paint first; the parse then blocks the page for as long as the file is large, up to the file size limit.
+
+An assisted lift is the one slug family a typed name cannot make: `slugify` puts `custom-` in front of any name
+that would start `assisted-`, and only the import's "(Assisted)" mapping (`assistedSlug`) writes the prefix.
+Assisted sets stored before this rule keep their slug; a typed "assisted ..." lift stored before it, if any,
+reads as assisted until it is logged again under the new slug.
+
 Caps, in the contract with the other limits: 60,000 sets an account (about nine years of a heavy lifter's
 logging), 500 sets in one write, 500 keys in one delete. A write or delete that names one key twice is refused,
 with the index of the second.
