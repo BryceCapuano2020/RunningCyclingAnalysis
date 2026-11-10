@@ -60,17 +60,17 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await expect(page.getByText(/× 4 · RPE 9/)).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Log a set' }).click()
-  await chooseLift(page, 'bulgarian split squat', 'Add ‘Bulgarian split squat’')
+  await chooseLift(page, 'zercher hold', 'Add ‘Zercher hold’')
   await saveSet(page, '8', '40')
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: /^Bulgarian split squat, / })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
 
   await page.reload()
   await appSettled(page)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lifting')
   await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
   await expect(page.getByText(/× 5 · RPE 8/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: /^Bulgarian split squat, / })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
   expect(errors).toEqual([])
 })
 
