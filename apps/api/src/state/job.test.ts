@@ -13,6 +13,7 @@ import {
   seedDigests,
   stateWorld,
 } from '../test/stateKit.ts'
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { runStateJob } from './job.ts'
 import { zoneNamed } from './zone.ts'
 
@@ -339,5 +340,37 @@ describe('the state job', () => {
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
     w.h.clock.now += 1_000
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+  })
+
+  it('computes again a snapshot made under another analysis revision, and replaces it at the same library version', async () => {
+    const w = await prepared()
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+    const v = await version(w)
+    // A deploy changed how a figure is worked out: the stored snapshot was made under the revision before.
+    const stale = '0'.repeat(32)
+    await w.env.DB.prepare(
+      'UPDATE state_jobs SET analysis_revision = ?, snapshot_hash = ? WHERE user_id = ?',
+    )
+      .bind(ANALYSIS_REVISION - 1, stale, w.userId)
+      .run()
+    w.h.clock.now += 60_000
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+    const after = await w.env.DB.prepare(
+      'SELECT snapshot_hash, snapshot_version, computed_version, analysis_revision FROM state_jobs WHERE user_id = ?',
+    )
+      .bind(w.userId)
+      .first<{
+        snapshot_hash: string
+        snapshot_version: number
+        computed_version: number
+        analysis_revision: number
+      }>()
+    expect(after).toMatchObject({
+      snapshot_version: v,
+      computed_version: v,
+      analysis_revision: ANALYSIS_REVISION,
+    })
+    expect(after!.snapshot_hash).not.toBe(stale)
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('current')
   })
 })

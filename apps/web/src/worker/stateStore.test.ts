@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { snapshotAt } from '../test/stateCopyKit'
@@ -41,12 +42,15 @@ describe('the state store (rca-state)', () => {
     expect((await indexedDB.databases()).map((d) => d.name)).not.toContain('rca-state')
   })
 
-  it('ignores and deletes a snapshot of another shape or model', async () => {
+  it('ignores and deletes a snapshot of another shape, model or analysis revision', async () => {
     await writeSnapshot('alice', { ...snapshot, schemaVersion: snapshot.schemaVersion + 1 })
     await writeSnapshot('bob', { ...snapshot, modelRevision: MODEL_REVISION + 1 })
+    await writeSnapshot('carol', { ...snapshot, analysisRevision: ANALYSIS_REVISION - 1 })
     await writeSnapshot('device', snapshot)
     expect(await readSnapshot('alice')).toBeNull()
     expect(await readSnapshot('bob')).toBeNull()
+    // Made before a change to how a figure is worked out: stale, so it is not painted.
+    expect(await readSnapshot('carol')).toBeNull()
     // Gone, not just skipped: a build that matches it later would not find it either.
     await writeSnapshot('alice', snapshot)
     expect(await readSnapshot('alice')).not.toBeNull()

@@ -1,3 +1,4 @@
+import { ANALYSIS_REVISION } from './analysisRevision'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { SessionState } from './sessionState'
 
@@ -31,6 +32,8 @@ export interface SnapshotMeta {
 export interface StateSnapshot extends SnapshotMeta {
   schemaVersion: number
   modelRevision: number
+  /** The combine-time analysis it was made under (`ANALYSIS_REVISION`); absent from a snapshot made before it existed. */
+  analysisRevision?: number
   /** The state with its `Map`s, `Set`s and non-finite numbers tagged (`encodeValue`). */
   state: Json
 }
@@ -93,6 +96,7 @@ export function toSnapshot(state: SessionState, meta: SnapshotMeta): StateSnapsh
   return {
     schemaVersion: STATE_SNAPSHOT_VERSION,
     modelRevision: MODEL_REVISION,
+    analysisRevision: ANALYSIS_REVISION,
     libraryVersion: meta.libraryVersion,
     nowMs: meta.nowMs,
     zone: meta.zone,
@@ -106,14 +110,21 @@ export function fromSnapshot(snapshot: StateSnapshot): SessionState {
   return decodeValue(snapshot.state) as SessionState
 }
 
-/** Whether this build may show the snapshot: its shape and its model are this build's (decision 7). */
+/**
+ * Whether this build may show the snapshot: its shape, its digest model and its combine-time analysis are this build's
+ * (decision 7). One made before a change to how a figure is worked out (a model-ledger row) is stale, so it is not shown.
+ */
 export function snapshotIsCurrent(
-  snapshot: Pick<StateSnapshot, 'schemaVersion' | 'modelRevision'>,
+  snapshot: Pick<StateSnapshot, 'schemaVersion' | 'modelRevision' | 'analysisRevision'>,
 ): boolean {
   return (
-    snapshot.schemaVersion === STATE_SNAPSHOT_VERSION && snapshot.modelRevision === MODEL_REVISION
+    snapshot.schemaVersion === STATE_SNAPSHOT_VERSION &&
+    snapshot.modelRevision === MODEL_REVISION &&
+    snapshot.analysisRevision === ANALYSIS_REVISION
   )
 }
+
+export { ANALYSIS_REVISION } from './analysisRevision'
 
 /**
  * What the athlete sees, hashed: the shape and model, the zone and the state. The instant, the counter and the build are

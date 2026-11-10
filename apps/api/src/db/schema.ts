@@ -138,6 +138,8 @@ export const stateJobs = sqliteTable('state_jobs', {
   // 0015: when the last compute began (a failed one included), and until when a message for the account is on its way.
   attemptedAt: integer('attempted_at').notNull().default(0),
   pendingUntil: integer('pending_until').notNull().default(0),
+  // 0016: the combine-time analysis revision the snapshot was computed under (core ANALYSIS_REVISION).
+  analysisRevision: integer('analysis_revision').notNull().default(0),
 })
 
 /**

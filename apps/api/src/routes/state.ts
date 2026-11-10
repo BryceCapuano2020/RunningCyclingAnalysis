@@ -1,12 +1,40 @@
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { Hono } from 'hono'
-import type { AppEnv } from '../env.ts'
+import { STATE_DELAY_SECONDS, STATE_MIN_INTERVAL_SECONDS } from '../state/message.ts'
+import { claimPending } from '../state/pending.ts'
+import type { AppEnv, Bindings } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
 import { currentUser, requireUserOrNotFound, sameOriginReadGuard } from '../middleware.ts'
 import { getOriginalFile } from '../storage.ts'
-import { serverStateAnyone, serverStateFor } from '../state/flag.ts'
+import { SERVER_STATE_MAX_ACTIVITIES, serverStateAnyone, serverStateFor } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
 import { inflate } from '../state/store.ts'
+
+/** What the read knows of the account's job: enough to tell whether asking for a compute again could help. */
+interface StaleRow {
+  activity_count: number
+  attempted_at: number | null
+}
+
+/**
+ * Asks the state job to compute an account again, unless a message for it is on its way, the server does not compute for
+ * a library this size, or a compute began within the minimum interval (one that failed, or one under way): a read never
+ * sends once per open. Sending never fails the read.
+ */
+async function sendStale(env: Bindings, userId: string, now: number, row: StaleRow): Promise<void> {
+  const queue = env.STATE_QUEUE
+  if (queue === undefined) return
+  if (row.activity_count > SERVER_STATE_MAX_ACTIVITIES) return
+  if (now - (row.attempted_at ?? 0) < STATE_MIN_INTERVAL_SECONDS * 1000) return
+  try {
+    if (await claimPending(env.DB, userId, now, STATE_DELAY_SECONDS)) {
+      await queue.send({ userId }, { delaySeconds: STATE_DELAY_SECONDS })
+    }
+  } catch {
+    console.error(JSON.stringify({ event: 'state_stale_send_failed' }))
+  }
+}
 
 const NOT_FOUND = () => new HttpError(404, 'not_found', 'Not found')
 
@@ -45,11 +73,24 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
   const userId = currentUser(c).id
   await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
   const row = await c.env.DB.prepare(
-    'SELECT snapshot_hash, computed_version FROM state_jobs WHERE user_id = ?',
+    `SELECT j.snapshot_hash, j.computed_version, j.analysis_revision, j.attempted_at, u.activity_count
+     FROM state_jobs j JOIN users u ON u.id = j.user_id WHERE j.user_id = ?`,
   )
     .bind(userId)
-    .first<{ snapshot_hash: string | null; computed_version: number }>()
+    .first<
+      StaleRow & {
+        snapshot_hash: string | null
+        computed_version: number
+        analysis_revision: number
+      }
+    >()
   if (row?.snapshot_hash == null) throw NOT_FOUND()
+  // A snapshot made under another analysis revision (a deploy changed how a figure is worked out) is not served: the
+  // browser computes locally, and one message asks the job to compute it again under this build's analysis.
+  if (row.analysis_revision !== ANALYSIS_REVISION) {
+    await sendStale(c.env, userId, c.var.deps.now(), row)
+    throw NOT_FOUND()
+  }
   const etag = `"${row.snapshot_hash}"`
   // `no-store` like every /api response, so the browser never keeps a copy of the account's results in its HTTP cache. It
   // therefore sends no conditional request of its own: the client sets If-None-Match from the hash of its device copy.
@@ -68,6 +109,18 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
   )
   // The row names an object that is gone (swept, or the put was lost): there is no snapshot to serve.
   if (object === null) throw NOT_FOUND()
+  // An object an older Worker wrote (a rollback, a rolling deploy) carries no revision of its own while the row, which
+  // that Worker does not keep, still says this one. It is stale: the row is marked so, and the job computes it again.
+  if (object.customMetadata?.analysisRevision !== String(ANALYSIS_REVISION)) {
+    await object.body.cancel().catch(() => undefined)
+    await c.env.DB.prepare(
+      'UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ? AND snapshot_hash = ?',
+    )
+      .bind(userId, row.snapshot_hash)
+      .run()
+    await sendStale(c.env, userId, c.var.deps.now(), row)
+    throw NOT_FOUND()
+  }
   const gzip = /\bgzip\b/i.test(c.req.header('Accept-Encoding') ?? '')
   const contentHeaders = { ...headers, 'Content-Type': 'application/json' }
   if (!gzip) return c.body(inflate(object.body), 200, contentHeaders)
