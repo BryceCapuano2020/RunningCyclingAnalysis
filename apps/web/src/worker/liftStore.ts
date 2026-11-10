@@ -26,6 +26,8 @@ export interface LiftStore {
   save(set: LiftSet): Promise<boolean>
   /** Deletes a set by its key. */
   remove(key: string): Promise<void>
+  /** Closes the database this store holds open. Call it when the scope changes; a later call opens it again. */
+  close(): void
   /** Every row of the scope, in no particular order. */
   list(): Promise<LiftRow[]>
   /** Rows not yet confirmed (put or delete): what sign-out warns about. */
@@ -83,6 +85,31 @@ export async function clearLifts(): Promise<boolean> {
     return await new Promise<boolean>((resolve) => {
       const transaction = db.transaction(STORE, 'readwrite')
       transaction.objectStore(STORE).clear()
+      transaction.oncomplete = () => resolve(true)
+      transaction.onerror = () => resolve(false)
+      transaction.onabort = () => resolve(false)
+    })
+  } catch {
+    return false
+  } finally {
+    db.close()
+  }
+}
+
+/** Removes every row of one scope (the device's, or an account's that was deleted). Resolves whether it did. */
+export async function clearScope(scope: string): Promise<boolean> {
+  const db = await openDatabase()
+  if (db === null) return true
+  try {
+    return await new Promise<boolean>((resolve) => {
+      const transaction = db.transaction(STORE, 'readwrite')
+      const cursor = transaction.objectStore(STORE).index('scope').openKeyCursor(scope)
+      cursor.onsuccess = () => {
+        const at = cursor.result
+        if (at === null) return
+        transaction.objectStore(STORE).delete(at.primaryKey)
+        at.continue()
+      }
       transaction.oncomplete = () => resolve(true)
       transaction.onerror = () => resolve(false)
       transaction.onabort = () => resolve(false)
@@ -188,6 +215,11 @@ export function openLiftStore(scope: string): LiftStore {
     sends.find((sent) => sent.key === key)?.rev ?? -1
 
   return {
+    close: () => {
+      const closing = opened
+      opened = null
+      void closing?.then((db) => db?.close())
+    },
     save: async (set) => {
       const key = liftSetKey(set)
       return (await mutate([key], (row) => saveSet(row, base(key), set))).length === 1

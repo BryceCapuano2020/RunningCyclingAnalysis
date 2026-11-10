@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { liftSetKey } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearLifts, openLiftStore, sweepLifts } from './liftStore'
+import { clearLifts, clearScope, openLiftStore, sweepLifts } from './liftStore'
 import { make } from './liftTestKit'
 
 beforeEach(() => {
@@ -144,5 +144,18 @@ describe('the lift store', () => {
     expect(await store.list()).toHaveLength(1)
     await store.applyPull([], 9, true)
     expect(await store.list()).toHaveLength(0)
+  })
+})
+
+describe('closing and clearing a scope', () => {
+  it('clears one scope and keeps the rest, and reopens after close', async () => {
+    const device = openLiftStore('device')
+    const mine = openLiftStore('u1')
+    await device.save(make(1))
+    await mine.save(make(1))
+    device.close()
+    expect(await clearScope('device')).toBe(true)
+    expect(await device.list()).toEqual([])
+    expect(await mine.list()).toHaveLength(1)
   })
 })

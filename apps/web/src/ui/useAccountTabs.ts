@@ -102,7 +102,8 @@ export function useAccountTabs({
 
   const onTabMessage = useCallback(
     (message: TabMessage) => {
-      if (message.type === 'measurements' || meRef.current === null) return
+      if (message.type === 'measurements' || message.type === 'lifts' || meRef.current === null)
+        return
       heardRef.current = message
       if (document.visibilityState === 'visible') readHeard()
     },

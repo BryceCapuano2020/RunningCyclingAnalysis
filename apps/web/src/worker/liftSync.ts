@@ -29,7 +29,7 @@ const memoryLock: LockProvider = {
   },
 }
 
-function defaultLocks(): LockProvider {
+export function defaultLocks(): LockProvider {
   const manager = typeof navigator === 'undefined' ? undefined : navigator.locks
   return manager === undefined
     ? memoryLock
@@ -41,6 +41,8 @@ export interface FlushResult {
   sent: number
   /** Rows a 400 changed: sent back to their confirmed values or removed. The athlete is told these were not saved. */
   refused: number
+  /** Rows a 409 turned away for want of room: they wait for room or the next session. */
+  capped: number
   /** Every row left unsent: held after a failure, turned away for room, or not reached because the flush stopped. */
   held: number
   /** The wait before the next flush (retryDelayMs of the most failed row held by a failure), null when none. */
@@ -154,6 +156,7 @@ export function createLiftSync(options: LiftSyncOptions): LiftSync {
     return {
       sent: tally.sent,
       refused: tally.refused,
+      capped: tally.capped,
       held: waiting - tally.sent - tally.refused,
       retryInMs: tally.retryInMs,
       unauthorized: tally.unauthorized,
