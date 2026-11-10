@@ -30,7 +30,7 @@ From the top:
    Each lift is a section whose heading is the lift and its equipment ("Back squat, barbell"), with no meta line.
    Its sets are a `PropertyList`, one set a row, in set order:
    - the label is "Set 1", "Set 2"... by position in the list, not by the stored set order, so a deleted set
-     leaves no gap. The label is a button inside the `dt`, named "Edit set 2";
+     leaves no gap. The label is a button inside the `dt`, named "Edit set 2 of Back squat, barbell";
    - the value is "100 kg × 5 · RPE 8", with "warm-up" when it is one, and "Bodyweight × 10" for a bodyweight set
      with no added load. Load is formatted in `ui/format` in the profile's unit.
 

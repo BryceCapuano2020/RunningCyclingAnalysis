@@ -54,14 +54,14 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
 
   await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
   await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
-  await expect(page.getByText(/× 3 · RPE 9/)).toBeVisible()
+  await expect(page.getByText(/×\s3\s·\sRPE\s9/)).toBeVisible()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(2)
 
   await page.getByRole('button', { name: 'Edit set 2' }).click()
   await page.getByLabel('Reps').fill('4')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByText(/× 4 · RPE 9/)).toBeVisible()
-  await expect(page.getByText(/× 3 · RPE 9/)).toHaveCount(0)
+  await expect(page.getByText(/×\s4\s·\sRPE\s9/)).toBeVisible()
+  await expect(page.getByText(/×\s3\s·\sRPE\s9/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Edit set 2' })).toBeFocused()
 
   // Done on an edit puts focus back on that row's button.
@@ -96,7 +96,7 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await appSettled(page)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lifting')
   await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
-  await expect(page.getByText(/× 4 · RPE 9/)).toBeVisible()
+  await expect(page.getByText(/×\s4\s·\sRPE\s9/)).toBeVisible()
   await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
   expect(errors).toEqual([])
 })

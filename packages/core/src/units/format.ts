@@ -180,9 +180,16 @@ export function formatLoad(kg: number, system: UnitSystem): string {
   if (!Number.isFinite(kg)) {
     return DASH
   }
+  return `${groupThousands(formatLoadValue(kg, system))} ${system === 'imperial' ? 'lb' : 'kg'}`
+}
+
+/**
+ * The number formatLoad shows, without its unit or thousands commas, as a form field takes it back ("80", "62.5").
+ * One rounding for both, so a set saved as 80 lb is never offered back as 80.01.
+ */
+export function formatLoadValue(kg: number, system: UnitSystem): string {
   const imperial = system === 'imperial'
-  const text = (imperial ? kgToLb(kg) : kg).toFixed(imperial ? 1 : 2)
-  return `${groupThousands(String(Number(text)))} ${imperial ? 'lb' : 'kg'}`
+  return String(Number((imperial ? kgToLb(kg) : kg).toFixed(imperial ? 1 : 2)))
 }
 
 /** Watts as a whole number, without the unit. */

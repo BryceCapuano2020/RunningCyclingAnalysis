@@ -20,6 +20,11 @@ export interface LockProvider {
 
 let memoryTail: Promise<unknown> = Promise.resolve()
 
+/** Tests only (test/setup.ts): a fresh queue, so a flush one test left hanging never holds the next test's. */
+export function resetMemoryLock(): void {
+  memoryTail = Promise.resolve()
+}
+
 /** Where `navigator.locks` is missing: one queue per page, which still keeps one flush in flight there. */
 const memoryLock: LockProvider = {
   request: (_name, work) => {

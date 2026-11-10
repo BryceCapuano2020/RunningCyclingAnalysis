@@ -65,22 +65,24 @@ describe('LiftPage', () => {
     const squatSection = screen
       .getByRole('heading', { name: 'Back squat, barbell' })
       .closest('section')!
-    expect(within(squatSection).getByText('60 kg × 8 · warm-up')).toBeInTheDocument()
+    // A word joiner after the hyphen keeps "warm-" and "up" on one line.
+    expect(within(squatSection).getByText('60 kg × 8 · warm-\u2060up')).toBeInTheDocument()
     expect(within(squatSection).getByText('100 kg × 5 · RPE 8')).toBeInTheDocument()
     // Each part holds together, so a narrow row wraps only at the dot.
     expect(within(squatSection).getByText('100 kg × 5 · RPE 8').textContent).toBe(
       '100\u00a0kg\u00a0×\u00a05 · RPE\u00a08',
     )
-    expect(within(squatSection).getByRole('button', { name: 'Edit set 2' })).toHaveTextContent(
-      'Set 2',
-    )
+    // The name carries the lift, so a list of the day's buttons tells two "Set 2" rows apart.
+    expect(
+      within(squatSection).getByRole('button', { name: 'Edit set 2 of Back squat, barbell' }),
+    ).toHaveTextContent('Set 2')
     expect(screen.getByText('Bodyweight × 10')).toBeInTheDocument()
   })
 
   it('numbers by position, whatever the stored order', () => {
     const lift = { ...squat, sets: [{ key: 'k7', reps: 5, loadKg: 90 }] }
     render(<LiftPage {...props({ lifts: [lift] })} />)
-    expect(screen.getByRole('button', { name: 'Edit set 1' })).toHaveTextContent('Set 1')
+    expect(screen.getByRole('button', { name: /^Edit set 1 of / })).toHaveTextContent('Set 1')
   })
 
   it('shows loads in pounds for an imperial profile', () => {
@@ -91,14 +93,14 @@ describe('LiftPage', () => {
   it('opens a set from its label button, with the set’s key', async () => {
     const onEditSet = vi.fn()
     render(<LiftPage {...props({ onEditSet })} />)
-    await userEvent.click(screen.getAllByRole('button', { name: 'Edit set 1' })[0]!)
+    await userEvent.click(screen.getAllByRole('button', { name: /^Edit set 1 of / })[0]!)
     expect(onEditSet).toHaveBeenCalledWith('s1')
   })
 
   it('puts the row form in place of the edited row and draws no "Log a set"', () => {
     render(<LiftPage {...props({ editingKey: 's1', rowForm: <p>Row form</p> })} />)
     expect(screen.getByText('Row form')).toBeInTheDocument()
-    expect(screen.queryByText('60 kg × 8 · warm-up')).toBeNull()
+    expect(screen.queryByText('60 kg × 8 · warm-\u2060up')).toBeNull()
     expect(screen.getByText('100 kg × 5 · RPE 8')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Log a set' })).toBeNull()
   })
@@ -190,7 +192,7 @@ describe('LiftPage', () => {
     const { rerender } = render(<LiftPage {...props({ editingKey: 's1', rowForm: <p>f</p> })} />)
     const without = { ...squat, sets: [squat.sets[1]!] }
     rerender(<LiftPage {...props({ editingKey: null, lifts: [without, pullUp] })} />)
-    expect(screen.getAllByRole('button', { name: 'Edit set 1' })[0]).toHaveFocus()
+    expect(screen.getAllByRole('button', { name: /^Edit set 1 of / })[0]).toHaveFocus()
   })
 
   it('moves focus to the lift heading after deleting its last set in the list', () => {
@@ -220,7 +222,7 @@ describe('LiftPage', () => {
   it('returns focus to the row button after Cancel or Save', () => {
     const { rerender } = render(<LiftPage {...props({ editingKey: 's2', rowForm: <p>f</p> })} />)
     rerender(<LiftPage {...props({ editingKey: null })} />)
-    expect(screen.getAllByRole('button', { name: 'Edit set 2' })[0]).toHaveFocus()
+    expect(screen.getAllByRole('button', { name: /^Edit set 2 of / })[0]).toHaveFocus()
   })
 
   it('does not move focus when the day changes with a form open', () => {

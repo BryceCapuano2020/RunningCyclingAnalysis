@@ -122,7 +122,7 @@ describe('the lift log, signed out', () => {
     expect(deadlift!.sets.map((s) => s.set.setOrder)).toEqual([1, 2])
   })
 
-  it('lists the last 12 lifts by last use', async () => {
+  it('lists every lift by last use', async () => {
     const view = setup(SIGNED_OUT)
     await ready(view)
     await act(async () => {
@@ -132,9 +132,9 @@ describe('the lift log, signed out', () => {
         )
     })
     const recent = view.result.current.recentLifts
-    expect(recent).toHaveLength(12)
+    expect(recent).toHaveLength(14)
     expect(recent[0]).toMatchObject({ key: 'lift-13.barbell', equipment: 'barbell' })
-    expect(recent[11]?.exercise).toBe('lift-2')
+    expect(recent[13]?.exercise).toBe('lift-0')
   })
 
   it('tells the other tabs, and sends nothing', async () => {

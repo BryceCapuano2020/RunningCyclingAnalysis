@@ -135,7 +135,7 @@ describe('the Lift page on the log', () => {
     useHook([logged(TODAY, set())])
     update.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('x'))
     render(view())
-    await userEvent.click(screen.getByRole('button', { name: 'Edit set 1' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
     await userEvent.selectOptions(screen.getByLabelText('Equipment'), 'dumbbell')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(update).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe('the Lift page on the log', () => {
   it('deletes through remove', async () => {
     useHook([logged(TODAY, set())])
     render(view())
-    await userEvent.click(screen.getByRole('button', { name: 'Edit set 1' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(remove).toHaveBeenCalledWith(`${TODAY}|back-squat|barbell|1`)
   })
@@ -161,7 +161,7 @@ describe('the Lift page on the log', () => {
   it('closes the edit form when another tab removes the set', async () => {
     useHook([logged(TODAY, set())])
     const { rerender } = render(view())
-    await userEvent.click(screen.getByRole('button', { name: 'Edit set 1' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
     expect(screen.getByLabelText('Reps')).toBeInTheDocument()
     useHook([])
     rerender(view())

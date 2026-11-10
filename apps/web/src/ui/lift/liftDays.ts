@@ -31,9 +31,6 @@ export interface RecentLift {
   equipment: Equipment
 }
 
-/** How many recent lifts the picker lists first. */
-export const RECENT_LIFTS = 12
-
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 const earliestTime = (lift: LoggedLift) =>
@@ -70,7 +67,7 @@ export function groupDays(rows: readonly LiftRow[]): LoggedDay[] {
     })
 }
 
-/** The lifts last used, newest first: by the latest date and time, then by name. */
+/** Every lift used, newest first: by the latest date and time, then by name. The picker lists the first few and searches them all. */
 export function recentLifts(rows: readonly LiftRow[]): RecentLift[] {
   const latest = new Map<ExerciseKey, { at: string; set: LiftSet }>()
   for (const { set, state } of rows) {
@@ -82,6 +79,5 @@ export function recentLifts(rows: readonly LiftRow[]): RecentLift[] {
   }
   return [...latest]
     .sort(([ka, a], [kb, b]) => compare(b.at, a.at) || compare(ka, kb))
-    .slice(0, RECENT_LIFTS)
     .map(([key, { set }]) => ({ key, exercise: set.exercise, equipment: set.equipment }))
 }
