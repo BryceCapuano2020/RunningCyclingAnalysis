@@ -138,6 +138,21 @@ describe('the state job', () => {
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('current')
   })
 
+  it('defers a compute that follows another within the minimum interval, and runs it after', async () => {
+    const w = await prepared()
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+    const first = await row(w)
+    await w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?')
+      .bind(w.userId)
+      .run()
+    w.h.clock.now += 29_000
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
+    expect(await row(w)).toEqual(first)
+    w.h.clock.now += 1_000
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('unchanged')
+    expect((await row(w))!.computed_version).toBe(first!.computed_version + 1)
+  })
+
   it('writes nothing when a recompute gives the same figures, and still records the version', async () => {
     const w = await prepared()
     await runStateJob(w.env, w.deps, w.userId)

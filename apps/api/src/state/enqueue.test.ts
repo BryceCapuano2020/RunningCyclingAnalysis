@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { createHarness, digestFixture } from '../test/harness.ts'
 import { liftSet } from '../test/lifts.ts'
 import { stateWorld, type StateWorld } from '../test/stateKit.ts'
+import { sha256Hex } from '../util.ts'
 
 const FILE_HASH = 'b'.repeat(64)
+const ORIGINAL = new TextEncoder().encode('ride original')
 
 function create(w: StateWorld, startMs: number) {
   return w.h.send({
@@ -69,6 +71,33 @@ describe('the state job producer', () => {
         .status,
     ).toBe(204)
     expect(w.sent).toHaveLength(1)
+  })
+
+  it('sends nothing for an original file upload, which changes no input of the results', async () => {
+    const w = await stateWorld()
+    const profile = { massKg: 70, bikeMassKg: 9, units: 'metric', keepFiles: true }
+    await w.h.send({ method: 'PUT', path: '/api/profile', json: profile, cookies: w.cookies })
+    const hash = await sha256Hex(ORIGINAL)
+    const made = await w.h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: {
+        digest: digestFixture({ startMs: 1_700_000_000_000 }),
+        fileName: 'r.fit',
+        fileHash: hash,
+      },
+      cookies: w.cookies,
+    })
+    const { id } = (await made.json()) as { id: string }
+    w.sent.length = 0
+    const up = await w.h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: ORIGINAL,
+      cookies: w.cookies,
+    })
+    expect(up.status).toBe(200)
+    expect(w.sent).toEqual([])
   })
 
   it('sends nothing for a read, a refused write, a lift or a signed-out request', async () => {

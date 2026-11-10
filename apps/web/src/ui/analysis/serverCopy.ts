@@ -27,20 +27,22 @@ export async function hasUnsentWork(userId: string): Promise<boolean> {
 }
 
 /**
- * The server's snapshot of this account's results when this device should show it: the server has one for the account
- * (`GET /api/state` is a 404 where server results are off, and then this is null, so the page behaves as it does without
- * them), it is this build's shape and model, it decodes, it is newer than the device copy of `copyMadeAt` (or there is no
- * copy), and the device holds no unsent work. Never rejects.
+ * The server's snapshot of this account's results when this device should show it: `/api/me` said the server computes
+ * for the account (`serverState`; for any other account nothing is requested and this is null, so the page behaves as it
+ * does without server results), the server has a snapshot, it is this build's shape and model, it decodes, it is newer than
+ * the device copy `held` (or there is no copy), and the device holds no unsent work. Never rejects.
  */
 export async function newerServerCopy(
   userId: string,
-  copyMadeAt: number | null,
+  held: StateSnapshot | null,
+  serverState: boolean,
 ): Promise<ServerCopy | null> {
+  if (!serverState) return null
   try {
     if (await hasUnsentWork(userId)) return null
-    const snapshot = await getServerSnapshot(userId)
+    const snapshot = await getServerSnapshot(userId, held)
     if (snapshot === null || !snapshotIsCurrent(snapshot)) return null
-    if (copyMadeAt !== null && snapshot.nowMs <= copyMadeAt) return null
+    if (held !== null && snapshot.nowMs <= held.nowMs) return null
     const state = fromSnapshot(snapshot)
     // Work may have been made while the snapshot was on its way.
     if (await hasUnsentWork(userId)) return null

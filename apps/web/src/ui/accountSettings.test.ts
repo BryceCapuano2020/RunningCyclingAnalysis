@@ -56,13 +56,14 @@ function chooseSignedOut() {
 describe('settle', () => {
   const browser: AccountSettings = { keepPower: ['ride-z'], countedRuns: null, period: 'all' }
 
-  it('takes the account value for every field it holds, whatever the browser has', () => {
-    expect(settle(CHOICES, browser, true, new Set())).toEqual(CHOICES)
+  it('takes the account value for every field it holds, whatever the browser has, once the copy mirrors it', () => {
+    expect(settle(CHOICES, browser, false, new Set())).toEqual(CHOICES)
   })
 
   it('fills a field the account never had from the browser, once, when the copy predates sign-in', () => {
     expect(settle({ ...CHOICES, period: null }, browser, true, new Set())).toEqual({
-      ...CHOICES,
+      keepPower: ['ride-a', 'ride-z'],
+      countedRuns: CHOICES.countedRuns,
       period: 'all',
     })
   })
@@ -71,6 +72,21 @@ describe('settle', () => {
     expect(
       settle({ keepPower: null, countedRuns: null, period: null }, browser, false, new Set()),
     ).toEqual({ keepPower: null, countedRuns: null, period: null })
+  })
+
+  it('joins the two lists once when both sides hold values, the account first, and keeps its period', () => {
+    const theirs: AccountSettings = {
+      keepPower: ['ride-z', 'ride-a'],
+      countedRuns: ['run-1700000999'],
+      period: 'all',
+    }
+    expect(settle(CHOICES, theirs, true, new Set())).toEqual({
+      keepPower: ['ride-a', 'ride-z'],
+      countedRuns: ['run-1700000000', 'run-1700000999'],
+      period: 182,
+    })
+    // Not offered again once the copy mirrors the account: the account replaces it.
+    expect(settle(CHOICES, theirs, false, new Set())).toEqual(CHOICES)
   })
 
   it('keeps a choice made while the account was loading', () => {
@@ -85,7 +101,7 @@ describe('useAccountSettings', () => {
   it('on first sign-in, saves the choices made signed out to an account that has none', async () => {
     chooseSignedOut()
     get.mockResolvedValue(NONE)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put).toHaveBeenCalledWith(
       { keepPower: ['ride-z'], countedRuns: ['run-1700000500'], period: 'all', zone: ZONE },
@@ -96,18 +112,60 @@ describe('useAccountSettings', () => {
 
   it("lets the account's values win, writes them into the browser and saves nothing", async () => {
     chooseSignedOut()
+    // This browser's copy already mirrors the account, so nothing of it is offered.
+    localStorage.setItem(SETTINGS_OWNER_KEY, 'u1')
     get.mockResolvedValue(ACCOUNT)
     const kept = renderHook(() => useKeptPower())
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(kept.result.current.ids).toEqual(['ride-a']))
     expect(loadCountedRuns()).toEqual(['run-1700000000'])
     expect(storedPeriodChoice()).toBe(182)
     expect(put).not.toHaveBeenCalled()
   })
 
+  it("on a second device, adds this browser's earlier choices to the account's and saves the union", async () => {
+    chooseSignedOut()
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]![0]).toEqual({
+      keepPower: ['ride-a', 'ride-z'],
+      countedRuns: ['run-1700000000', 'run-1700000500'],
+      period: 182,
+      zone: ZONE,
+    })
+    expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBe('u1')
+  })
+
+  it('offers the choices again on the retry when the first save fails, and loses neither side', async () => {
+    chooseSignedOut()
+    get.mockResolvedValue(NONE)
+    put.mockRejectedValueOnce(new Error('offline'))
+    vi.useFakeTimers()
+    try {
+      renderHook(() => useAccountSettings('signed-in', 'u1', true))
+      await vi.advanceTimersByTimeAsync(100)
+      expect(put).toHaveBeenCalledTimes(1)
+      // The failed save did not mark the copy as the account's, so it is still offered.
+      expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBeNull()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(put).toHaveBeenCalledTimes(2)
+      expect(put.mock.calls[1]![0]).toEqual({
+        keepPower: ['ride-z'],
+        countedRuns: ['run-1700000500'],
+        period: 'all',
+        zone: ZONE,
+      })
+      expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBe('u1')
+      expect(loadCountedRuns()).toEqual(['run-1700000500'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reads one AthleteSettings: what the analysis runs on equals the account document', async () => {
     get.mockResolvedValue(ACCOUNT)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     const browser = browserSettings()
     const fromBrowser = analysisSettings(
@@ -129,7 +187,7 @@ describe('useAccountSettings', () => {
 
   it('saves a later choice to the account, and a clear of the browser copy is not a choice', async () => {
     get.mockResolvedValue(ACCOUNT)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     storeCountedRuns(['run-1700000000', 'run-1700000999'])
     act(() => settingsChosen('countedRuns'))
@@ -148,7 +206,7 @@ describe('useAccountSettings', () => {
     chooseSignedOut()
     localStorage.setItem(SETTINGS_OWNER_KEY, 'someone-else')
     get.mockResolvedValue(NONE)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBe('u1'))
     expect(put).not.toHaveBeenCalled()
     expect(browserSettings()).toEqual({ keepPower: null, countedRuns: null, period: null })
@@ -158,7 +216,7 @@ describe('useAccountSettings', () => {
     get.mockRejectedValue(new Error('offline'))
     vi.useFakeTimers()
     try {
-      renderHook(() => useAccountSettings('signed-in', 'u1'))
+      renderHook(() => useAccountSettings('signed-in', 'u1', true))
       await vi.advanceTimersByTimeAsync(5000)
       act(() => settingsChosen('period'))
       await vi.advanceTimersByTimeAsync(10)
@@ -170,7 +228,7 @@ describe('useAccountSettings', () => {
   })
 
   it('does nothing signed out', async () => {
-    renderHook(() => useAccountSettings('signed-out', null))
+    renderHook(() => useAccountSettings('signed-out', null, false))
     act(() => settingsChosen('period'))
     await Promise.resolve()
     expect(get).not.toHaveBeenCalled()
@@ -181,7 +239,7 @@ describe('useAccountSettings', () => {
 describe('the zone', () => {
   it('is sent to the account when it holds none or another, with the choices as they stand', async () => {
     get.mockResolvedValue({ ...ACCOUNT, zone: 'Pacific/Apia' })
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put).toHaveBeenCalledWith({ ...ACCOUNT, zone: ZONE }, 'u1')
   })
@@ -189,21 +247,21 @@ describe('the zone', () => {
   it('is sent when the account has never had one', async () => {
     const { zone: _zone, ...noZone } = ACCOUNT
     get.mockResolvedValue(noZone)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put.mock.calls[0]![0].zone).toBe(ZONE)
   })
 
   it('is not sent again when the account already holds it', async () => {
     get.mockResolvedValue(ACCOUNT)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     expect(put).not.toHaveBeenCalled()
   })
 
   it('rides along with a later save', async () => {
     get.mockResolvedValue(ACCOUNT)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     act(() => settingsChosen('period'))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
@@ -211,10 +269,55 @@ describe('the zone', () => {
   })
 })
 
+describe('the zone for an account the server does not compute for', () => {
+  it('is neither sent nor compared, so nothing is saved when only the zone differs', async () => {
+    get.mockResolvedValue({ ...ACCOUNT, zone: 'Pacific/Apia' })
+    renderHook(() => useAccountSettings('signed-in', 'u1', false))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('is left out of a save, which carries the choices alone', async () => {
+    chooseSignedOut()
+    get.mockResolvedValue({ keepPower: null, countedRuns: null, period: null })
+    renderHook(() => useAccountSettings('signed-in', 'u1', false))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]![0]).not.toHaveProperty('zone')
+    act(() => settingsChosen('period'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2))
+    expect(put.mock.calls[1]![0]).not.toHaveProperty('zone')
+  })
+
+  it('is dropped when this browser reports one the server would refuse, so the settings still sync', async () => {
+    const reported = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({ timeZone: 'Etc/Unknown' } as Intl.ResolvedDateTimeFormatOptions)
+    const known = Intl.DateTimeFormat
+    vi.stubGlobal('Intl', {
+      ...Intl,
+      DateTimeFormat: function (_locale?: string, options?: Intl.DateTimeFormatOptions) {
+        if (options?.timeZone === 'Etc/Unknown') throw new RangeError('Invalid time zone')
+        return new known()
+      },
+    })
+    try {
+      chooseSignedOut()
+      get.mockResolvedValue({ keepPower: null, countedRuns: null, period: null })
+      renderHook(() => useAccountSettings('signed-in', 'u1', true))
+      await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+      expect(put.mock.calls[0]![0]).not.toHaveProperty('zone')
+      expect(put.mock.calls[0]![0].keepPower).toEqual(['ride-z'])
+    } finally {
+      vi.unstubAllGlobals()
+      reported.mockRestore()
+    }
+  })
+})
+
 describe('settings not yet sent', () => {
   it('are reported from the choice until the account has them', async () => {
     get.mockResolvedValue(ACCOUNT)
-    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     expect(settingsUnsent()).toBe(false)
     let release: (settings: AccountSettings) => void = () => undefined
@@ -229,7 +332,7 @@ describe('settings not yet sent', () => {
 
   it('stay reported when the save fails', async () => {
     get.mockResolvedValue(ACCOUNT)
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     put.mockRejectedValueOnce(new Error('offline'))
     act(() => settingsChosen('period'))
@@ -240,7 +343,7 @@ describe('settings not yet sent', () => {
 
   it('are forgotten when the account goes', async () => {
     get.mockResolvedValue(ACCOUNT)
-    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1', true))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     put.mockRejectedValueOnce(new Error('offline'))
     act(() => settingsChosen('period'))

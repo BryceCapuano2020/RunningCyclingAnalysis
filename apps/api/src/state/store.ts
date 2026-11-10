@@ -1,16 +1,8 @@
+import { snapshotContentHash } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
-import { toHex } from '../util.ts'
 
-/**
- * What the athlete sees, hashed: the shape and model, the zone and the state. The instant, the counter and the build are not
- * in it, so a recompute that changes no figure has the same hash and writes nothing (decision 9). The hash is the ETag.
- */
-export async function contentHash(snapshot: StateSnapshot): Promise<string> {
-  const { libraryVersion: _version, nowMs: _now, buildSha: _build, ...content } = snapshot
-  const text = JSON.stringify(content)
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-  return toHex(new Uint8Array(digest)).slice(0, 32)
-}
+/** The snapshot's content hash, which is the ETag; the browser computes the same one (core/stateSnapshot). */
+export const contentHash = snapshotContentHash
 
 async function collect(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer())

@@ -1,12 +1,20 @@
+/** The two places the allowlist can be set. */
+interface AllowlistEnv {
+  SERVER_COMPUTE_USERS?: string
+  SERVER_COMPUTE_ACCOUNTS?: string
+}
+
 /**
- * The accounts whose results are computed on the server: the plain variable `SERVER_COMPUTE_USERS`, user ids separated by
- * commas. Empty or unset is off for everyone. `*` is everyone, for local tests and the e2e server only: the deploy-config
+ * The accounts whose results are computed on the server: user ids separated by commas, from the Worker secret
+ * `SERVER_COMPUTE_ACCOUNTS` when one is set (so the ids stay out of the public repository), else from the plain variable
+ * `SERVER_COMPUTE_USERS`. The secret wins, even when it is empty, so an operator can switch everyone off without a deploy.
+ * Empty or unset is off for everyone. `*` is everyone, for local tests and the e2e server only: the deploy-config
  * check refuses it in wrangler.toml. For an account not on the list nothing is sent, computed or served, so it behaves as it
  * did before the feature existed.
  */
-export function serverStateAccounts(env: { SERVER_COMPUTE_USERS?: string }): ReadonlySet<string> {
+export function serverStateAccounts(env: AllowlistEnv): ReadonlySet<string> {
   return new Set(
-    String(env.SERVER_COMPUTE_USERS ?? '')
+    String(env.SERVER_COMPUTE_ACCOUNTS ?? env.SERVER_COMPUTE_USERS ?? '')
       .split(',')
       .map((id) => id.trim())
       .filter((id) => id !== ''),
@@ -14,12 +22,12 @@ export function serverStateAccounts(env: { SERVER_COMPUTE_USERS?: string }): Rea
 }
 
 /** Whether any account is on the list, which is what binds the Queue and serves the route at all. */
-export function serverStateAnyone(env: { SERVER_COMPUTE_USERS?: string }): boolean {
+export function serverStateAnyone(env: AllowlistEnv): boolean {
   return serverStateAccounts(env).size > 0
 }
 
 /** Whether this account's results are computed on the server. */
-export function serverStateFor(env: { SERVER_COMPUTE_USERS?: string }, userId: string): boolean {
+export function serverStateFor(env: AllowlistEnv, userId: string): boolean {
   const accounts = serverStateAccounts(env)
   return accounts.has('*') || accounts.has(userId)
 }

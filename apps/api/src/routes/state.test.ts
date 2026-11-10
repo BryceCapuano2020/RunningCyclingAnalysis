@@ -31,7 +31,8 @@ describe('GET /api/state', () => {
     const res = await w.get()
     expect(res.status).toBe(200)
     expect(res.headers.get('ETag')).toBe(`"${w.hash}"`)
-    expect(res.headers.get('Cache-Control')).toBe('private, no-cache')
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    expect(res.headers.get('X-State-Computed-Version')).toMatch(/^\d+$/)
     expect(res.headers.get('Content-Encoding')).toBeNull()
     const body = (await res.json()) as { libraryVersion: number; zone: string }
     expect(StateSnapshotSchema.safeParse(body).success).toBe(true)
@@ -65,6 +66,7 @@ describe('GET /api/state', () => {
     expect(res.status).toBe(304)
     expect(res.headers.get('ETag')).toBe(`"${w.hash}"`)
     expect(reads).toBe(0)
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
     expect((await w.get({ 'If-None-Match': '"other"' })).status).toBe(200)
     expect((await w.get({ 'If-None-Match': '*' })).status).toBe(304)
   })

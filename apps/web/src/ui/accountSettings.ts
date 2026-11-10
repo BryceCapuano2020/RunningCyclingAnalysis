@@ -1,7 +1,9 @@
+import { MAX_KEPT_POWER } from '@rca/contract'
 import type { AccountSettings } from '@rca/contract'
+import { MAX_COUNTED_RUNS } from '@rca/core/athlete'
 import { sameChoice } from '@rca/core/period'
 import { getAccountSettings, putAccountSettings } from '../api/settings'
-import { browserZone } from './analysis/copyAge'
+import { reportableZone } from './analysis/copyAge'
 import { loadCountedRuns, storeCountedRuns } from './countedRunsStore'
 import { clearKeptPower, keptPowerIds, replaceKeptPower } from './keptPowerStore'
 import { clearPeriodChoice, replacePeriodChoice, storedPeriodChoice } from './periodPreference'
@@ -78,11 +80,18 @@ export function sameSettings(a: AccountSettings, b: AccountSettings): boolean {
   )
 }
 
+/** The account's list, then what this browser added that it lacks, cut to the most the account keeps. */
+function union(account: readonly string[], browser: readonly string[], max: number): string[] {
+  return [...new Set([...account, ...browser])].slice(0, max)
+}
+
 /**
- * What the account and this browser settle on at sign-in. The account wins for every field it holds. A field
- * it has never been given is filled from this browser once, when the browser's copy was made before any
- * sign-in (`offer`); a copy that already mirrors the account is not offered back, so a choice cleared on
- * another device stays cleared. A field the athlete chose while the account was loading keeps that choice.
+ * What the account and this browser settle on at sign-in. The account wins for every field it holds, except that the
+ * two lists (rides kept, runs counted) are joined once when this browser's copy was made before any sign-in
+ * (`offer`) and the account already has its own: a second device's first sign-in adds to the account's choices and
+ * never drops them. A field the account has never been given is filled from this browser once, on the same
+ * condition; a copy that already mirrors the account is not offered back, so a choice cleared on another device
+ * stays cleared. A field the athlete chose while the account was loading keeps that choice.
  */
 export function settle(
   account: AccountSettings,
@@ -90,22 +99,41 @@ export function settle(
   offer: boolean,
   chosen: ReadonlySet<SettingsField>,
 ): AccountSettings {
-  const pick = <K extends SettingsField>(field: K): AccountSettings[K] => {
-    if (chosen.has(field)) return browser[field]
-    if (account[field] !== null || !offer) return account[field]
-    return browser[field]
+  const pick = <V>(
+    field: SettingsField,
+    theirs: V | null,
+    mine: V | null,
+    join?: (a: V, b: V) => V,
+  ) => {
+    if (chosen.has(field)) return mine
+    if (!offer) return theirs
+    if (theirs === null) return mine
+    return mine === null || join === undefined ? theirs : join(theirs, mine)
   }
-  return { keepPower: pick('keepPower'), countedRuns: pick('countedRuns'), period: pick('period') }
+  const list = (max: number) => (a: string[], b: string[]) => union(a, b, max)
+  return {
+    keepPower: pick('keepPower', account.keepPower, browser.keepPower, list(MAX_KEPT_POWER)),
+    countedRuns: pick(
+      'countedRuns',
+      account.countedRuns,
+      browser.countedRuns,
+      list(MAX_COUNTED_RUNS),
+    ),
+    period: pick('period', account.period, browser.period),
+  }
 }
 
 /**
  * Reads the account's settings and makes this browser's copy match them, after offering the browser's own
  * choices to an account that has none. Returns when both are done. A copy that mirrored another account is
- * dropped first and never offered.
+ * dropped first and never offered. The copy is marked as this account's only once the account holds what was
+ * offered, so a save that failed is offered again on the retry, not read as a copy that already mirrors it.
+ * The zone goes along only for an account the server computes results for (`serverState`).
  */
 export async function pullAccountSettings(
   userId: string,
   chosen: ReadonlySet<SettingsField>,
+  serverState: boolean,
 ): Promise<void> {
   const account = await getAccountSettings(userId)
   const owner = readOwner()
@@ -116,15 +144,22 @@ export async function pullAccountSettings(
   }
   const settled = settle(account, browserSettings(), owner === null, chosen)
   adopt(settled)
-  writeOwner(userId)
   // The server cuts the days of the results it computes in the athlete's zone, so it is told when it differs.
-  const zone = browserZone()
-  if (!sameSettings(settled, account) || account.zone !== zone) {
-    await putAccountSettings({ ...settled, zone }, userId)
+  const zone = serverState ? reportableZone() : undefined
+  if (!sameSettings(settled, account) || (zone !== undefined && account.zone !== zone)) {
+    await putAccountSettings(withZone(settled, zone), userId)
   }
+  writeOwner(userId)
+}
+
+function withZone(settings: AccountSettings, zone: string | undefined): AccountSettings {
+  return zone === undefined ? settings : { ...settings, zone }
 }
 
 /** Saves this browser's copy as the account's. */
-export async function pushAccountSettings(userId: string): Promise<void> {
-  await putAccountSettings({ ...browserSettings(), zone: browserZone() }, userId)
+export async function pushAccountSettings(userId: string, serverState: boolean): Promise<void> {
+  await putAccountSettings(
+    withZone(browserSettings(), serverState ? reportableZone() : undefined),
+    userId,
+  )
 }

@@ -54,10 +54,11 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
 
 /**
  * Results computed on the server (docs/design/server-compute.md) need Workers Paid, which the owner has not upgraded to, and
- * run for the accounts listed in SERVER_COMPUTE_USERS only. While the list is empty the production configuration binds no
- * queue at all (no producer, no consumer, no limits block), so a deploy cannot create or consume one. A list that names
- * accounts must bind the STATE_QUEUE producer, a consumer with a small batch, a retry limit and a dead-letter queue, and
- * cap CPU; `*` (everyone) is for local tests and never goes in production.
+ * run for the accounts on an allowlist only. The list may be the variable SERVER_COMPUTE_USERS or a Worker secret this file
+ * cannot see (SERVER_COMPUTE_ACCOUNTS), so the variable stays empty in the repository and the queue blocks are what turn
+ * the feature on. Any queue or [limits] block must be the whole, bounded set: the STATE_QUEUE producer, a consumer with a
+ * small batch, one at a time, a retry limit and a dead-letter queue, and a CPU cap. A non-empty variable requires them. `*`
+ * (everyone) is for local tests and never goes in production.
  */
 function checkServerState(config, value) {
   const accounts = (value ?? '')
@@ -65,14 +66,8 @@ function checkServerState(config, value) {
     .map((id) => id.trim())
     .filter(Boolean)
   const queues = /^\[\[queues\./m.test(config) || /^\[queues\b/m.test(config)
-  if (accounts.length === 0) {
-    if (queues || /^\[limits\]/m.test(config)) {
-      throw new Error(
-        'SERVER_COMPUTE_USERS is empty, so apps/api/wrangler.toml must bind no queue and set no [limits]. Remove them, or list the accounts with Workers Paid.',
-      )
-    }
-    return
-  }
+  const limits = /^\[limits\]/m.test(config)
+  if (accounts.length === 0 && !queues && !limits) return
   if (accounts.includes('*')) {
     throw new Error('SERVER_COMPUTE_USERS must list account ids in production, not *.')
   }
@@ -85,13 +80,17 @@ function checkServerState(config, value) {
   const cpu = /^\[limits\]\s*\n(?:(?!\[).)*?^cpu_ms\s*=\s*\d+/ms.test(config)
   if (!(producer && consumer !== null && cpu)) {
     throw new Error(
-      'SERVER_COMPUTE_USERS names accounts, so apps/api/wrangler.toml must bind the STATE_QUEUE producer and its consumer, and set [limits] cpu_ms.',
+      'Server results are bound only as a set: apps/api/wrangler.toml must have the STATE_QUEUE producer, its consumer, and [limits] cpu_ms, together.',
     )
   }
-  if (!(hasKey('max_batch_size') && hasKey('max_retries') && hasKey('dead_letter_queue'))) {
+  const bounds = ['max_batch_size', 'max_concurrency', 'max_retries', 'dead_letter_queue']
+  if (!bounds.every(hasKey)) {
     throw new Error(
-      'The state queue consumer must set max_batch_size, max_retries and dead_letter_queue.',
+      'The state queue consumer must set max_batch_size, max_concurrency, max_retries and dead_letter_queue.',
     )
+  }
+  if (!/^max_concurrency\s*=\s*1\s*(?:#.*)?$/m.test(consumer)) {
+    throw new Error('The state queue consumer must set max_concurrency = 1.')
   }
 }
 

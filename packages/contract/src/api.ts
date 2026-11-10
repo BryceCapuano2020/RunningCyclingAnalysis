@@ -64,6 +64,11 @@ export const MeSchema = z.object({
   libraryVersion: z.number().int().nonnegative().optional(),
   /** Raised by every lift write. Kept apart from libraryRevision so logging a set never reloads the library. */
   liftRevision: z.number().int().nonnegative().optional(),
+  /**
+   * True only for an account the server computes results for (SERVER_COMPUTE_USERS). The browser asks for
+   * GET /api/state and reports its time zone only when this is true; for every other account it is absent.
+   */
+  serverState: z.boolean().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 /** GET /api/me answers a signed-out visitor with a null body, rather than an error. */

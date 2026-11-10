@@ -36,6 +36,8 @@ export interface Bindings {
    * Production ships it empty and binds no queue (the deploy-config check). See state/flag.ts.
    */
   SERVER_COMPUTE_USERS?: string
+  /** The same list as a Worker secret (`wrangler secret put SERVER_COMPUTE_ACCOUNTS`); when set it wins over the variable. */
+  SERVER_COMPUTE_ACCOUNTS?: string
   /** The Queue the state job's messages go to. Bound only where SERVER_COMPUTE_USERS is not empty. */
   STATE_QUEUE?: Queue<StateMessage>
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */

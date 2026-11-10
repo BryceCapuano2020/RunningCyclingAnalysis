@@ -57,6 +57,27 @@ async function countRows(h: ReturnType<typeof createHarness>, table: string, use
   return row?.n
 }
 
+describe('GET /api/me serverState', () => {
+  it('says true only for an account on the allowlist, and leaves the field out for any other', async () => {
+    const h = createHarness({}, { SERVER_COMPUTE_USERS: '' })
+    const token = await h.signIn('listed@example.com')
+    const id = await userIdOf(h, token)
+    const other = await h.signIn('other@example.com')
+    const read = async (t: string) =>
+      (await (await h.send({ path: '/api/me', cookies: { rca_session: t } })).json()) as Record<
+        string,
+        unknown
+      >
+    expect(await read(token)).not.toHaveProperty('serverState')
+    h.env.SERVER_COMPUTE_USERS = id
+    expect((await read(token))['serverState']).toBe(true)
+    expect(await read(other)).not.toHaveProperty('serverState')
+    // The secret list wins over the variable.
+    h.env.SERVER_COMPUTE_ACCOUNTS = 'nobody'
+    expect(await read(token)).not.toHaveProperty('serverState')
+  })
+})
+
 describe('GET /api/me', () => {
   it('answers a signed-out visitor with 200 and a null body, not an error', async () => {
     const h = createHarness()

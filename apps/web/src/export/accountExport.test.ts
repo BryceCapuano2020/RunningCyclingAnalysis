@@ -82,6 +82,13 @@ describe('buildAccountExport', () => {
     expect(header.settings).toEqual(settings)
   })
 
+  it('writes the saved time zone when the account has one, and leaves it out when not', () => {
+    const settings = { keepPower: null, countedRuns: null, period: null, zone: 'Europe/Paris' }
+    expect(build({ settings }).settings).toEqual(settings)
+    expect(build({ settings }).settings).toHaveProperty('zone', 'Europe/Paris')
+    expect(build().settings).not.toHaveProperty('zone')
+  })
+
   it('writes the dated settings, field by field, and none when there are none', () => {
     expect(build().measurements).toEqual([])
     const doc = build({

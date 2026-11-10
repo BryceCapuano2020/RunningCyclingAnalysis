@@ -78,6 +78,46 @@ describe('the state consumer', () => {
     })
   })
 
+  it('answers a burst with one delayed message, not one per write, and computes when the interval has passed', async () => {
+    const w = await prepared()
+    await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)
+    w.sent.length = 0
+    await w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?')
+      .bind(w.userId)
+      .run()
+    w.h.clock.now += 5_000
+    const burst = fakeBatch([w.userId, w.userId, w.userId])
+    const report = await handleStateBatch(burst.batch, w.env, w.deps)
+    expect(report).toEqual({ accounts: 1, outcomes: { deferred: 1 } })
+    expect(burst.acked).toEqual([0, 1, 2])
+    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 30 } }])
+    // The delayed message finds the interval spent and computes.
+    w.h.clock.now += 30_000
+    const later = await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)
+    expect(later.outcomes).toEqual({ unchanged: 1 })
+    expect(w.sent).toHaveLength(1)
+  })
+
+  it('retries the messages when the delayed one cannot be sent', async () => {
+    const w = await prepared()
+    await handleStateBatch(fakeBatch([w.userId]).batch, w.env, w.deps)
+    await w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?')
+      .bind(w.userId)
+      .run()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const down = {
+      send: async () => {
+        throw new Error('queue down')
+      },
+    } as unknown as Queue<{ userId: string }>
+    const { batch, acked, retried } = fakeBatch([w.userId])
+    const report = await handleStateBatch(batch, { ...w.env, STATE_QUEUE: down }, w.deps)
+    expect(report.outcomes).toEqual({ deferred: 1, failed: 1 })
+    expect(acked).toEqual([])
+    expect(retried).toHaveLength(1)
+    log.mockRestore()
+  })
+
   it('holds the messages in read-only mode', async () => {
     const held = await prepared()
     const waiting = fakeBatch([held.userId])

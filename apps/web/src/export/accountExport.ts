@@ -91,6 +91,8 @@ function settingsEntry(settings: AccountSettings): AccountSettings {
     keepPower: settings.keepPower === null ? null : [...settings.keepPower],
     countedRuns: settings.countedRuns === null ? null : [...settings.countedRuns],
     period: settings.period,
+    // Only an account the server computes results for has one: the time zone this browser reported.
+    ...(settings.zone === undefined ? {} : { zone: settings.zone }),
   }
 }
 

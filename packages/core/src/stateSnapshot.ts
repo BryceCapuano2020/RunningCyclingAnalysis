@@ -114,3 +114,20 @@ export function snapshotIsCurrent(
     snapshot.schemaVersion === STATE_SNAPSHOT_VERSION && snapshot.modelRevision === MODEL_REVISION
   )
 }
+
+/**
+ * What the athlete sees, hashed: the shape and model, the zone and the state. The instant, the counter and the build are
+ * not in it, so a recompute that changes no figure has the same hash (decision 9). The server names its snapshot by it
+ * (the ETag of GET /api/state), and a browser that holds a copy computes the same hash to ask whether it is still the
+ * latest.
+ */
+export async function snapshotContentHash(snapshot: StateSnapshot): Promise<string> {
+  const { libraryVersion: _version, nowMs: _now, buildSha: _build, ...content } = snapshot
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(content)),
+  )
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32)
+}
