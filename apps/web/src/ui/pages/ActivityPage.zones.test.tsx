@@ -65,7 +65,7 @@ describe('the activity page zones', () => {
     ]
     show(run, makeResult({ runCp: null }), settings(entries))
     // 140 bpm of 230 is 61% (zone 2), the maximum in effect on 10 February; of 150 it would be 93% (zone 5).
-    expect(await screen.findByText(/in heart rate zone 2 \(100%\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Heart rate zone 2, 100%$/)).toBeInTheDocument()
   })
 
   it("reads the estimate of the analysis when nothing is entered, and says it is the app's", async () => {
@@ -75,7 +75,7 @@ describe('the activity page zones', () => {
       makeResult({ runCp: null, runMaxHeartRate: 200, runObservedMaxHeartRate: 200 }),
       settings(),
     )
-    expect(await screen.findByText(/in heart rate zone 3 \(100%\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Heart rate zone 3, 100%$/)).toBeInTheDocument()
   })
 
   it('uses the set-aside of the whole library when the page is given it, for an activity the period does not hold', async () => {
@@ -104,7 +104,7 @@ describe('the activity page zones', () => {
       makeResult({ runCp: null, heartRateSetAside: ['run-f'], runMaxHeartRate: 200 }),
       settings(),
     )
-    expect(await screen.findByText(/in heart rate zone \d \(100%\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Heart rate zone \d, 100%$/)).toBeInTheDocument()
   })
 
   describe("a ride's estimated power zones", () => {
@@ -146,7 +146,7 @@ describe('the activity page zones', () => {
 
     it('show once the weight is entered', async () => {
       showRide(true)
-      expect(await screen.findByText(/in power zone \d \(100%\)/)).toBeInTheDocument()
+      expect(await screen.findByText(/^Measured power zone \d, 100%$/)).toBeInTheDocument()
     })
   })
 

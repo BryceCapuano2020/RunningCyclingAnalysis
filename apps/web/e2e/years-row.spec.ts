@@ -56,7 +56,7 @@ async function openWithYears(page: Page): Promise<void> {
     timeout: 60_000,
   })
   // The heading shows before the worker has saved the library; a reload that cuts the save short keeps nothing to tell.
-  await importSummaryShown(page, /^Added 96 runs/, 60_000)
+  await importSummaryShown(page, 'Added', /^96 runs$/, 60_000)
   await page.reload()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, {
     timeout: 30_000,

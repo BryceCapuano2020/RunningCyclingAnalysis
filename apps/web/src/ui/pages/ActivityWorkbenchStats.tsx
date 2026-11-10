@@ -5,7 +5,9 @@ import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChartTable } from '../charts/ChartTable'
 import { SPREAD_WORDS } from '../charts/usualSpread'
+import type { Property } from '../components/property'
 import { useMediaQuery } from '../useMediaQuery'
+import { PageDetails } from './PageDetails'
 import { movingAverageSpeed, selectionOf, typicalBand } from './workbenchData'
 import {
   METRIC_ORDER,
@@ -19,17 +21,18 @@ import { readingOf } from './workbenchScale'
 
 const NONE = 'None in this interval'
 
-const MOVING_CAPTION = `While moving in the selected interval. Typical range is the ${SPREAD_WORDS}. Time is how long each measure had a reading.`
-/** A speed's average is the figure the header gives, the distance over the moving time, and the table says so. */
-const SPEED_CAPTION = `Speed in the selected interval. Average is the distance over the moving time. Typical range is the ${SPREAD_WORDS}. Time is how long it had a reading.`
-/** A pace's typical range leaves out the stops, which are not paces, so it says so. */
-const PACE_CAPTION = `Pace in the selected interval. Average is the distance over the moving time. Typical range leaves out stops and is the ${SPREAD_WORDS}. Time is how long it had a reading.`
+const MOVING_CAPTION = 'While moving in the selected interval'
+/** A speed or a pace is a table of its own, as its average is the figure the header gives. */
+const SPEED_CAPTION = 'Speed in the selected interval'
+const PACE_CAPTION = 'Pace in the selected interval'
 
 /** One table of the summary: the measures that share a caption. */
 interface StatGroup {
   caption: string
   key: string
   rows: string[][]
+  /** A pace leaves the stops out of its typical range, which are not paces. */
+  leavesOutStops: boolean
 }
 
 const COLUMNS = ['Measure', 'Average', 'Typical range', 'Time']
@@ -87,9 +90,24 @@ function groupsOf(
       key === 'others' ? MOVING_CAPTION : leavesOutStops ? PACE_CAPTION : SPEED_CAPTION
     const group = groups.find((candidate) => candidate.key === key)
     if (group) group.rows.push(row)
-    else groups.push({ key, caption, rows: [row] })
+    else groups.push({ key, caption, rows: [row], leavesOutStops })
   }
   return groups
+}
+
+/** What the table's columns count, label over value, behind Details: said once for the tables above it. */
+function columnRows(groups: readonly StatGroup[]): Property[] {
+  const stopsLeftOut = groups.some((group) => group.leavesOutStops)
+  return [
+    ...(groups.some((group) => group.key === 'speed')
+      ? [{ label: 'Average', value: 'Distance over the moving time' }]
+      : []),
+    {
+      label: 'Typical range',
+      value: `${SPREAD_WORDS}${stopsLeftOut ? ', stops left out' : ''}`,
+    },
+    { label: 'Time', value: 'How long it had a reading' },
+  ]
 }
 
 /** The figures of the interval, as tiles: its times, its distance and its average pace or speed. */
@@ -165,6 +183,7 @@ export function SelectionStats({
   const inColumn = wide && tilesHost !== null && tilesHost !== undefined
   // Beside the timeline the page already shows the whole activity's figures, so the column holds a part of it only.
   const whole = startS === 0 && endS >= Math.floor(trace.durationS)
+  const groups = groupsOf(trace, units, metrics, summary)
   const tiles = (
     <SelectionTiles
       trace={trace}
@@ -177,9 +196,10 @@ export function SelectionStats({
     <>
       {inColumn ? !whole && createPortal(tiles, tilesHost) : tiles}
       <div className="activity-workbench__stats">
-        {groupsOf(trace, units, metrics, summary).map((group) => (
+        {groups.map((group) => (
           <ChartTable key={group.key} caption={group.caption} columns={COLUMNS} rows={group.rows} />
         ))}
+        <PageDetails about="the table" rows={columnRows(groups)} />
       </div>
     </>
   )

@@ -28,7 +28,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
 }) => {
   await page.goto('/')
   await uploadFixtures(page, ['one-run.tcx'])
-  await importSummaryShown(page, /^Added 1 run, on /)
+  await importSummaryShown(page, 'Added', /^1 run$/)
   await expect(await activitiesRows(page)).toHaveCount(1)
   await page.goto('/privacy')
   await page.evaluate(async () => {

@@ -2,12 +2,14 @@ import { useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import type { RejectedFile } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
-import { addedSentence, importSentence } from '../analysis/copy'
+import { addedSentence } from '../analysis/copy'
+import { rowsOrSentence } from '../analysis/importRows'
 import { looseListLine } from '../analysis/looseListCopy'
 import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { hrefFor } from '../route'
 import { NoticeLine } from './NoticeLine'
+import { PropertyList } from './PropertyList'
 import { RejectedFiles } from './RejectedFiles'
 import './ImportNotice.css'
 
@@ -65,6 +67,7 @@ export function ImportNotice({
   // What moved is listed only for an import that added a run or a ride, as the sentence says it did.
   const listMoved = moved.length > 0 && addedSentence(outcome) !== null
   const listLine = looseListLine(outcome)
+  const { rows, sentence } = rowsOrSentence(outcome)
 
   function dismiss(event: MouseEvent<HTMLButtonElement>) {
     setDismissed(outcome)
@@ -86,7 +89,7 @@ export function ImportNotice({
   return (
     <div className="import-notice">
       <div className="import-notice__body">
-        <p>{importSentence(outcome)}</p>
+        {sentence === null ? <PropertyList rows={rows} /> : <p>{sentence}</p>}
         {leftOutLine !== null && <p className="secondary">{leftOutLine}</p>}
         {listLine !== null && <p className="secondary">{listLine}</p>}
         {listMoved && (

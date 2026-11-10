@@ -120,8 +120,8 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
     // The typical range is the same spread the chart's bands show, said in the same percentiles.
     expect(
-      screen.getAllByText(/Typical range .*the 10th to 90th percentile/).length,
-    ).toBeGreaterThan(0)
+      screen.getByText('Typical range', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('10th to 90th percentile')
     expect(screen.queryByText(/5th to 95th/)).not.toBeInTheDocument()
   })
 

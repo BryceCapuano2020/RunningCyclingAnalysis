@@ -87,16 +87,22 @@ const GRADED: AnalysisResult = makeResult({
   equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
 })
 
-/** The short answer: recorded and checks from behind Details, the verdict as the one line shown, then the estimates behind Details. */
-function answerLines(): HTMLElement[] {
-  const group = screen.getByRole('group', { name: 'The short answer' })
-  const items = within(group).getAllByRole('listitem', { hidden: true })
-  return [
-    items[1],
-    group.querySelector('.method__answer-text') as HTMLElement,
-    items[2],
-    items[0],
-  ] as HTMLElement[]
+/** The one line shown under the heading. */
+function answerLine(): HTMLElement {
+  return screen
+    .getByRole('group', { name: 'The short answer' })
+    .querySelector('.method__answer-text') as HTMLElement
+}
+
+/** The value beside a label in the answer's Details, which is closed and so read by text. */
+function answerRow(label: string): HTMLElement | null {
+  const group = within(screen.getByRole('group', { name: 'The short answer' }))
+  return (
+    (group
+      .queryByText(wholeText(label), { selector: 'dt, dt *' })
+      ?.closest('div')
+      ?.querySelector('dd') as HTMLElement | null | undefined) ?? null
+  )
 }
 
 describe('MethodPage answer', () => {
@@ -113,37 +119,36 @@ describe('MethodPage answer', () => {
   it('opens with one line, the balance verdict, and keeps what is recorded and how far to trust it behind Details', () => {
     renderPage(makeResult(CONTRIBUTING))
 
-    const lines = answerLines()
     expect(
       screen.getByRole('group', { name: 'The short answer' }).querySelectorAll(':scope > p'),
     ).toHaveLength(1)
     expect(screen.getByText(wholeText('Details')).closest('details')).not.toHaveAttribute('open')
-    expect(lines[1]).toHaveTextContent('Your balance leans toward running.')
-    expect(lines[1]).not.toHaveTextContent('are estimates')
-    expect(lines[0]).toHaveTextContent(
-      'Running efforts, and ride power from a power meter, are recorded.',
+    expect(answerLine()).toHaveTextContent('Your balance leans toward running.')
+    expect(answerLine()).not.toHaveTextContent('are estimates')
+    expect(answerRow('Recorded')).toHaveTextContent('Running efforts, ride power from a meter')
+    expect(answerRow('Checks below')).toHaveTextContent('How far to trust them')
+    expect(answerRow('Estimated')).toHaveTextContent(
+      'Thresholds, ride levels, the balance and ride power without a meter',
     )
-    expect(lines[3]).toHaveTextContent(
-      'Thresholds, ride levels, the balance and ride power without a meter are estimates. They rest on 1 run and 1 ride with a usable effort.',
-    )
-    expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
+    expect(answerRow('Runs with a usable effort')).toHaveTextContent(/^1$/)
+    expect(answerRow('Rides with a usable effort')).toHaveTextContent(/^1$/)
   })
 
-  it('states the lean, then its range, then where the range sits against level, in the second line', () => {
+  it('states the lean and its lead in the line, and where the range sits against level as a row', () => {
     // The fixture's ratio puts running 5% to 20% higher, so the range never reaches even: the balance
     // leans toward running. A reversed lean would read toward cycling and fail here.
     renderPage(makeResult(CONTRIBUTING))
 
-    const line = answerLines()[1]
-    expect(line).toHaveTextContent(
-      'Your balance leans toward running. Running 12% higher in energy (5% to 20%). The range stays on one side of level.',
+    expect(answerLine()).toHaveTextContent(
+      'Your balance leans toward running. Running 12% higher in energy (5% to 20%).',
     )
-    expect(line).not.toHaveTextContent('leans toward cycling')
-    // The lean is not taken back: no dead heat that "could go either way".
-    expect(line).not.toHaveTextContent(/dead heat|either way|crosses level/)
+    expect(answerLine()).not.toHaveTextContent('leans toward cycling')
+    // The lean is not taken back: no dead heat that "could go either way", and no sentence about the range.
+    expect(answerLine()).not.toHaveTextContent(/dead heat|either way|crosses level|one side/)
+    expect(answerRow('Range crosses level')).toHaveTextContent(/^No$/)
   })
 
-  it('says the range crosses level, and to treat the lean as close, after the lean and its range', () => {
+  it('shows the range crossing level as a row, after the lean and its lead in the line', () => {
     // Running 10% higher at best, but a ratio of one sits inside the range, so the range crosses level.
     renderPage(
       makeResult({
@@ -155,22 +160,19 @@ describe('MethodPage answer', () => {
       }),
     )
 
-    const text = answerLines()[1]?.textContent ?? ''
-    const lean = text.indexOf('Your balance leans toward')
-    const range = text.indexOf('Running 10% higher in energy')
-    const verdict = text.indexOf('The range crosses level, so treat this as close.')
-    expect(lean).toBeGreaterThanOrEqual(0)
-    expect(text).toContain('Running 10% higher in energy (-11% to +30%).')
-    expect(range).toBeGreaterThan(lean)
-    expect(verdict).toBeGreaterThan(range)
-    expect(text).not.toMatch(/dead heat|either way|stays on one side/)
+    expect(answerLine()).toHaveTextContent(
+      'Your balance leans toward running. Running 10% higher in energy (-11% to +30%).',
+    )
+    expect(answerRow('Range crosses level')).toHaveTextContent(/^Yes$/)
+    expect(answerLine().textContent).not.toMatch(
+      /dead heat|either way|stays on one side|treat this/,
+    )
   })
 
   it('says the balance waits for the weight, and keeps the run estimate on its own', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
-    const line = answerLines()[1]
-    expect(line).toHaveTextContent('Your balance waits for your weight.')
+    expect(answerLine()).toHaveTextContent('Your balance waits for your weight.')
   })
 
   it('names each chip by its word and where it goes, and moves focus there', () => {
@@ -200,22 +202,21 @@ describe('MethodPage answer', () => {
       }),
     )
 
-    expect(
-      screen.getByText(wholeText(/They rest on 2 runs and 1 ride with a usable effort/)),
-    ).toBeInTheDocument()
+    expect(answerRow('Runs with a usable effort')).toHaveTextContent(/^2$/)
+    expect(answerRow('Rides with a usable effort')).toHaveTextContent(/^1$/)
   })
 
   it('says no run has a usable effort when none sets one, rather than counting the files', () => {
     renderPage(makeResult({ runCurve: [], rideCurve: [] }))
 
-    expect(screen.getByText(wholeText('No run has a usable effort yet.'))).toBeInTheDocument()
+    expect(answerRow('Runs with a usable effort')).toHaveTextContent('None yet')
     expect(document.body.textContent).not.toMatch(/estimates from 0 runs/)
   })
 
   it('says no run has a usable effort when the weight is not known either', () => {
     renderPage(makeResult({ runCurve: [], rideCurve: [] }), null, DATED_SIX_WEEKS, false)
 
-    expect(screen.getByText(wholeText('No run has a usable effort yet.'))).toBeInTheDocument()
+    expect(answerLine()).toHaveTextContent('No run has a usable effort yet.')
   })
 
   it('names only the run estimate for a run-only library, even with the weight known', () => {
@@ -225,11 +226,9 @@ describe('MethodPage answer', () => {
       DATED_SIX_WEEKS,
     )
 
-    expect(
-      screen.getByText(
-        wholeText('Run thresholds are estimates. They rest on 1 run with a usable effort.'),
-      ),
-    ).toBeInTheDocument()
+    expect(answerRow('Estimated')).toHaveTextContent(/^Run thresholds$/)
+    expect(answerRow('Runs with a usable effort')).toHaveTextContent(/^1$/)
+    expect(answerRow('Rides with a usable effort')).toBeNull()
     expect(document.body.textContent).not.toMatch(/ride levels|ride power without a meter/)
   })
 
@@ -240,28 +239,21 @@ describe('MethodPage answer', () => {
       DATED_SIX_WEEKS,
     )
 
-    expect(
-      screen.getByText(
-        wholeText(
-          'Ride levels and ride power without a meter are estimates. They rest on 1 ride with a usable effort.',
-        ),
-      ),
-    ).toBeInTheDocument()
+    expect(answerRow('Estimated')).toHaveTextContent(/^Ride levels and ride power without a meter$/)
+    expect(answerRow('Rides with a usable effort')).toHaveTextContent(/^1$/)
     expect(document.body.textContent).not.toMatch(/No run has a usable effort/)
   })
 
-  it('dates the period once, in Counted over, so the estimates line does not repeat it', () => {
+  it('dates the period once, as a Counted over row, so the estimates do not repeat it', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
-    expect(screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.'))).toBeInTheDocument()
+    expect(answerRow('Counted over')).toHaveTextContent('12 May – 3 Aug 2025')
     expect(document.body.textContent).not.toMatch(/\(12 May – 3 Aug 2025\)|\(this period\)/)
   })
 
   it('keeps the dated period behind Details, not as a line under the heading', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
 
-    expect(
-      screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.')).closest('details'),
-    ).not.toBeNull()
+    expect(answerRow('Counted over')?.closest('details')).not.toBeNull()
   })
 
   it('sets the page on the method class, which holds its paragraphs to a 68 character measure', () => {
@@ -270,20 +262,18 @@ describe('MethodPage answer', () => {
     expect(container.firstElementChild).toHaveClass('page-stack', 'method')
   })
 
-  it('states the dated period on one line, with no period control', () => {
+  it('states the dated period as one row, with no period control', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
-    expect(screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.'))).toBeInTheDocument()
+    expect(answerRow('Counted over')).toHaveTextContent('12 May – 3 Aug 2025')
     expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 
   it('with no weight, names only the runs, and holds the balance and ride power out of the estimate', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
-    const line = screen.getByText(wholeText(/They rest on 1 run with a usable effort/))
-    expect(line).toHaveTextContent(
-      'Run thresholds are estimates. They rest on 1 run with a usable effort.',
-    )
-    expect(line.textContent).not.toMatch(/balance|ride power|ride|levels/)
+    expect(answerRow('Runs with a usable effort')).toHaveTextContent(/^1$/)
+    expect(answerRow('Rides with a usable effort')).toBeNull()
+    expect(answerRow('Estimated')?.textContent).toBe('Run thresholds')
   })
 
   it('no longer says every number is an estimate', () => {
@@ -1088,8 +1078,7 @@ describe('MethodPage without a result', () => {
       'Once your files load, this view puts running and cycling on one scale',
     )
     expect(energy).not.toHaveTextContent('This view is that ratio')
-    const lines = answerLines()
-    expect(lines[1]).toHaveTextContent('Thresholds, ride levels and the balance are estimates.')
+    expect(answerLine()).toHaveTextContent('Thresholds, ride levels and the balance are estimates.')
     expect(document.body.textContent).not.toMatch(/\(last 6 weeks\)|\(all time\)|estimates from \d/)
   })
 
@@ -1143,10 +1132,10 @@ describe('MethodPage with a ride at the top of the age tables', () => {
 
   it('states no balance, as Balance does not, while an ordinary ride gets one', () => {
     renderPage(rideSpeed(4), MAN_BORN_1986)
-    expect(screen.getAllByText(wholeText(/The range (crosses|stays)/)).length).toBeGreaterThan(0)
+    expect(answerRow('Range crosses level')).not.toBeNull()
     cleanup()
     // 9 m/s over 20 min is faster than the running record for a man of 40.
     renderPage(rideSpeed(9), MAN_BORN_1986)
-    expect(screen.queryByText(wholeText(/The range (crosses|stays)/))).not.toBeInTheDocument()
+    expect(answerRow('Range crosses level')).toBeNull()
   })
 })

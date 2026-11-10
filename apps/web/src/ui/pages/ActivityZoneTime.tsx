@@ -9,13 +9,7 @@ import { INTERVAL_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
 import { lowerFirst } from '../format/firstLetter'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
-import {
-  ROW_LABEL,
-  THRESHOLD_NEEDS,
-  activityLede,
-  percentText,
-  zoneTimeText,
-} from '../zoneTimeCopy'
+import { ROW_LABEL, THRESHOLD_NEEDS, mainZoneRow, percentText, zoneTimeText } from '../zoneTimeCopy'
 import { zoneBar } from '../zoneTimeRows'
 
 /**
@@ -152,7 +146,7 @@ export function ActivityZoneTime({
       </>
     )
   }
-  const lede = activityLede(trace.sport, lead.set.measure, {
+  const main = mainZoneRow(lead.set.measure, {
     seconds: lead.time.seconds,
     totalSeconds: lead.time.total,
   })
@@ -161,7 +155,7 @@ export function ActivityZoneTime({
       <h3>Time in zones</h3>
       <ZoneTimeChart
         title={INTERVAL_ZONES_TITLE}
-        lede={lede ?? ''}
+        facts={main === null ? [] : [main]}
         rows={rows.map(({ set, time }) =>
           zoneBar(
             set.measure,
