@@ -77,14 +77,15 @@ test('at 320 by 640 the line shows what was added as a label and its value, with
   expect(apart).toBe(true)
 })
 
-test('opening the row shows what else it told, and Hide takes the row away for good', async ({
+test('opening the row shows its panel, and Hide takes the row away for good', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openWithRow(page)
   const row = page.locator(ROW)
   await row.locator('summary').click()
-  await expect(row.locator('.checkin-row__list')).toBeVisible()
+  // An import into an empty library sets no new best, so the panel holds only its Hide.
+  await expect(row.locator('.checkin-row__panel')).toBeVisible()
   await row.getByRole('button', { name: 'Hide' }).click()
   await expect(row).toHaveCount(0)
   // Opened and hidden is seen: a reload brings no row back.
