@@ -73,6 +73,12 @@ export const STUCK_POWER_CV = 0.03
 export const OFFSET_LIMIT_BPM = 10
 /** Heart rate climbs between these many bpm from half to full threshold power in any working strap. */
 export const CLIMB_BPM = [20, 70] as const
+/**
+ * Heart rate's weight in the answer rises from 0 at the flat floor (CLIMB_BPM[0]) to 1 this many bpm above it, on a smoothstep.
+ * A shallow line has the most watts per beat, so its slide to threshold heart rate is the least sure, and a hard floor let one
+ * ride that tipped the climb past it swing the answer by the most heart rate may lift it.
+ */
+export const CLIMB_FADE_BPM = 5
 /** Theil-Sen thins its points to about this many, so its pairs stay a few tens of thousands. */
 export const THEIL_SEN_POINTS = 300
 export const THEIL_SEN_MIN_SLOPES = 10
@@ -97,5 +103,11 @@ export const REFERENCE_ERROR = 0.035
 // Fusion.
 /** The power estimate is a floor: the threshold is power * (1 + g) with g at least 0. */
 export const GAP_PRIOR = { smallMean: 0.025, largeShare: 0.3, largeMax: 0.25 } as const
+/**
+ * Heart rate's estimate is wrong (a reference maximum off, a line that is no line) for this share of riders, and then lands
+ * anywhere over this width, as a share of the power estimate. Against it, an estimate far past what the bests allow loses its
+ * weight rather than holding the answer at GAP_PRIOR.largeMax.
+ */
+export const HR_WRONG = { share: 0.05, width: 1 } as const
 /** The grid of threshold over power estimate the posterior is read from, and of g under it; both stop just short of their last value. */
 export const FUSION_GRID = { from: -0.15, to: 0.45, step: 0.002, gapStep: 0.0025 } as const

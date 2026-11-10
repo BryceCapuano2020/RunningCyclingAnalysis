@@ -45,7 +45,8 @@ export type HeartRateRefusal =
 export interface ThresholdEstimate {
   /**
    * The answer: the power estimate (`efforts.value`) itself, or, where heart rate lifts it, the median with heart rate, no higher
-   * than heart rate reads. It is above the power estimate exactly when heart rate lifted it. It is never under a backed hour the
+   * than heart rate reads, taken only as far as heart rate's weight goes (less near the flat floor of the climb, and less for a
+   * reading far past what the bests allow). It is above the power estimate exactly when heart rate lifted it. It is never under a backed hour the
    * athlete did (see `efforts.value`).
    */
   value: number

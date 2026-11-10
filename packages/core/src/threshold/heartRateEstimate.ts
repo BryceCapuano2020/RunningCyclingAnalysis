@@ -9,7 +9,7 @@ import {
   REFERENCE_ERROR,
   RESIDUAL_CAP_BPM,
 } from './constants'
-import { climbRefusal, fitHeartRateLine } from './heartRateLine'
+import { climbRefusal, climbWeight, fitHeartRateLine } from './heartRateLine'
 import type { HeartRateLine } from './heartRateLine'
 import { robustMeanOf } from './robustMean'
 import { prepareFlat } from './rides'
@@ -23,6 +23,8 @@ export interface HeartRateEstimate {
   relativeError: number
   /** How many efforts it was built from. */
   efforts: number
+  /** How much it counts in the answer, 0 to 1: under 1 where the line's climb is near the flat floor (`climbWeight`). */
+  weight: number
 }
 
 /** The weight of an effort that sits `distance` bpm off its ride's line: 1 on it, 0 at the cap (4 spreads, at most 12 bpm). */
@@ -216,6 +218,7 @@ export function heartOver(
     value: mean.value,
     relativeError: Math.hypot(mean.relativeError, REFERENCE_ERROR),
     efforts,
+    weight: climbWeight(line.slope, power),
   }
 }
 

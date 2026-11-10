@@ -1,5 +1,6 @@
 import {
   CLIMB_BPM,
+  CLIMB_FADE_BPM,
   LINE_MIN_BLOCKS,
   LINE_POWER_BAND,
   MAD_TO_SD,
@@ -73,6 +74,16 @@ export function climbRefusal(slope: number, power: number): 'flat' | 'steep' | n
   const climb = slope * 0.5 * power
   if (!(climb >= CLIMB_BPM[0])) return 'flat'
   return climb > CLIMB_BPM[1] ? 'steep' : null
+}
+
+/**
+ * How much heart rate counts at this climb, 0 to 1: 0 at the flat floor, rising on a smoothstep to 1 at CLIMB_FADE_BPM above it,
+ * so the answer moves smoothly as a ride nudges the climb across the floor. Asked of each window with its own power estimate.
+ */
+export function climbWeight(slope: number, power: number): number {
+  const t = (slope * 0.5 * power - CLIMB_BPM[0]) / CLIMB_FADE_BPM
+  if (!(t > 0)) return 0
+  return t >= 1 ? 1 : t * t * (3 - 2 * t)
 }
 
 /**

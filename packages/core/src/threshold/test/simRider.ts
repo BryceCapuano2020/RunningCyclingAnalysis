@@ -33,6 +33,8 @@ export interface Scenario {
    * Nothing else in the ride departs from the table.
    */
   shortBias?: number
+  /** Heart rate climbs between these many bpm from half to full threshold power (25 to 65 if not given): near 20 the line is barely accepted. */
+  climb?: readonly [number, number]
 }
 
 /** What differs between the sports: the duration table the efforts are drawn from, and the scale of the unit. */
@@ -91,7 +93,7 @@ export function simRiders(
     const trueThresholdHr = maxHr * uni(0.87, 0.93) // the estimate assumes 0.90
     // Heart rate climbs this many bpm from half to full threshold power, whatever the rider's size (the line is refused
     // outside 20 to 70), so a big rider gets more watts per beat than a small one.
-    const climb = uni(25, 65)
+    const climb = uni(...(scenario.climb ?? [25, 65]))
     const wattsPerBeat = (0.5 * threshold) / climb
     const steadyHr = (p: number) =>
       Math.min(

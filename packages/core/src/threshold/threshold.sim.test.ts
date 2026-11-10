@@ -39,7 +39,27 @@ const allOutNone: Scenario = {
   noHeartRate: true,
 }
 
-const ALL = [clean, strap, maximum, optical, tempo, none, allOut, allOutNone]
+// A shallow line, its climb near the 20 bpm floor, where each beat is the most watts: some riders are refused, and those that
+// are not have the least sure slide to threshold heart rate. With a wrong maximum too, that slide went most often too far.
+const nearFloor: Scenario = { name: 'heart rate climbing only 18 to 24 bpm', climb: [18, 24] }
+const nearFloorMaximum: Scenario = {
+  name: 'climbing 18 to 24 bpm, maximum off by about 8 bpm',
+  climb: [18, 24],
+  referenceError: 8,
+}
+
+const ALL = [
+  clean,
+  strap,
+  maximum,
+  optical,
+  tempo,
+  none,
+  allOut,
+  allOutNone,
+  nearFloor,
+  nearFloorMaximum,
+]
 
 // Run on first use, inside a test, so the 180 s test timeout applies and not the hook's 10 s.
 const rows = new Map<Scenario, Row>()
@@ -65,7 +85,8 @@ describe('the ride threshold on simulated riders', () => {
   })
 
   // The hour a tempo rider rode is a floor under the power-only answer, which took it from 13.5% low to 11.7%, so heart rate has
-  // less left to lift: 8.3 points before the floor, 6.6 after.
+  // less left to lift: 8.3 points before the floor, 6.6 after, 6.4 since heart rate's weight (near the flat floor, and the
+  // chance it is sound) trims its lift.
   it('lifts a rider who never goes all out at least 6 points above the power-only answer', () => {
     const { estimate, powerOnly } = of(tempo)
     expect(median(estimate.errors)).toBeGreaterThanOrEqual(-7)
@@ -109,6 +130,19 @@ describe('the ride threshold on simulated riders', () => {
     expect(within5(of(allOutNone).estimate.errors)).toBeGreaterThanOrEqual(0.85)
     expect(median(of(allOut).estimate.errors)).toBeLessThanOrEqual(2)
     expect(within5(of(allOut).estimate.errors)).toBeGreaterThanOrEqual(0.85)
+  })
+
+  // Before heart rate faded in above the floor, 7.5% of the riders with a wrong maximum read over 10% high (seed 11).
+  it('keeps a line near the flat floor from lifting the answer far, and costs little against power alone', () => {
+    const over = (errors: number[], share: number) =>
+      errors.filter((e) => e > share).length / errors.length
+    for (const scenario of [nearFloor, nearFloorMaximum]) {
+      const row = of(scenario)
+      expect.soft(over(row.estimate.errors, 10), scenario.name).toBeLessThan(0.02)
+      expect
+        .soft(within5(row.powerOnly.errors) - within5(row.estimate.errors), scenario.name)
+        .toBeLessThanOrEqual(0.02)
+    }
   })
 
   it('never answers under the answer without heart rate', () => {
