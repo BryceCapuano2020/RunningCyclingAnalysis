@@ -8,7 +8,7 @@ import { runReadings } from './runReadings'
 import { rideSeries } from './rideUnit'
 import { runSeries } from './unit'
 import { km, runDigest, START, steadyLibrary } from './test/runDigest'
-import { withBlocks } from '../digest/test/sameHeartRateFixture'
+import { withBlocks } from '../digest/test/plantedBlocks'
 
 const NONE: ReadonlySet<string> = new Set()
 const series = (digests: ActivityDigest[], setAside: ReadonlySet<string> = NONE) =>

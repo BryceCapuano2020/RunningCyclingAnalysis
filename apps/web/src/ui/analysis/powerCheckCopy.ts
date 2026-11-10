@@ -62,7 +62,7 @@ export function powerCheckRows(
       ? { label: 'Counts in', value: 'Bests and thresholds' }
       : { label: 'Left out of', value: 'Bests, grades and the balance' },
     kept
-      ? { label: 'At the top of the age tables', value: 'Left out of the comparison with running' }
+      ? { label: 'Comparison with running', value: 'Left out when above the age tables' }
       : { label: 'Check', value: estimate === undefined ? CHECK_METER : CHECK_ESTIMATE },
     ...(heartRate === undefined
       ? []

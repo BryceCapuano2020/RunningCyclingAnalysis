@@ -1,7 +1,7 @@
 import { DURABILITY_AFTER_S, DURATIONS_S } from '../constants'
 import { normal } from '../math'
 import { flatSpeedToMetabolic } from '../metabolic'
-import { withBlocks, heartRatesOf } from '../digest/test/sameHeartRateFixture'
+import { withBlocks, heartRatesOf } from '../digest/test/plantedBlocks'
 import type {
   ActivityDigest,
   DigestCurvePoint,
