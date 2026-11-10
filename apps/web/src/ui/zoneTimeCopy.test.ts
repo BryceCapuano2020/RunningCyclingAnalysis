@@ -84,35 +84,19 @@ describe('mainZoneRow', () => {
 })
 
 describe('zoneNoteLine', () => {
-  it('has nothing to say when every activity counted', () => {
-    const row = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1])
-    expect(zoneNoteLine('ride', [row], null)).toBeNull()
-  })
-
-  it('says how many activities each measure that left some out counted, on one line', () => {
+  it('has nothing to say over the period, however many activities each measure counted', () => {
     const hr = measureTime('ride', 'heartRate', [1, 1, 1, 1, 1], { counted: 60, setAside: 2 })
     const power = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1], { counted: 9, noData: 53 })
-    expect(zoneNoteLine('ride', [hr, power], null)).toBe(
-      'Heart rate from 60 of 62 · measured power from 9 of 62 rides',
-    )
+    expect(zoneNoteLine([hr, power], null)).toBeNull()
   })
 
-  it('counts a missing zone set among what a measure left out, and groups thousands', () => {
-    const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 1200, noZones: 34 })
-    expect(zoneNoteLine('run', [pace], null)).toBe('Pace from 1,200 of 1,234 runs')
-  })
-
-  it('leads with the stretch the bars are of', () => {
-    const hr = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 8, noData: 1 })
-    expect(zoneNoteLine('run', [hr], null, 'year')).toBe(
-      'Last 12 months · Heart rate from 8 of 9 runs',
-    )
-    expect(zoneNoteLine('run', [easyRun], null, 'all')).toBe('All time')
+  it('names the stretch the bars are of when it is wider than the period', () => {
+    expect(zoneNoteLine([easyRun], null, 'year')).toBe('Last 12 months')
+    expect(zoneNoteLine([easyRun], null, 'all')).toBe('All time')
   })
 
   it('never says Details or an em dash', () => {
-    const hr = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 8, noData: 1 })
-    expect(zoneNoteLine('run', [hr], null, 'year')).not.toMatch(/Details|\u2014/)
+    expect(zoneNoteLine([easyRun], null, 'year')).not.toMatch(/Details|\u2014/)
   })
 })
 

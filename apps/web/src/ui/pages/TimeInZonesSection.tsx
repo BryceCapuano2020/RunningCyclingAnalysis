@@ -36,7 +36,7 @@ export function TimeInZonesSection({
   const shown = describable(rows, relaxed)
   if (shown.length === 0) return null
   const { table } = periodTables(shown, previous, previousLabel)
-  const note = zoneNoteLine(sport, shown, previous, zoneWindow)
+  const note = zoneNoteLine(shown, previous, zoneWindow)
   return (
     <section className="section" data-sport={sport} aria-labelledby={`${sport}-time-in-zones`}>
       <h2 id={`${sport}-time-in-zones`}>{TIME_IN_ZONES_NAME}</h2>

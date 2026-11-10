@@ -4,8 +4,6 @@ import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
 import type { Property } from './components/property'
-import { formatCount } from './format/count'
-import { SPORT_PLURAL } from './sports'
 
 /** The section's name, in its heading. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
@@ -72,31 +70,17 @@ export function mainZoneRow(
 }
 
 /**
- * One short line of what changes what the bars mean: the stretch they are of when it is wider than the period, the measures
- * whose zones changed since the period before (so they are not compared), and how many activities each measure counted when
- * it left some out ("Heart rate from 60 of 62 rides"). Null when there is nothing to say.
+ * One short line of what changes what the bars mean: the stretch they are of when it is wider than the period, and the
+ * measures whose zones changed since the period before (so they are not compared). Null when there is nothing to say.
  */
 export function zoneNoteLine(
-  sport: Sport,
   rows: readonly MeasureTime[],
   previous: readonly MeasureTime[] | null,
   zoneWindow?: ZoneWindow,
 ): string | null {
-  const counts = rows.flatMap((row) => {
-    const total = row.counted + row.noData + row.setAside + row.noZones
-    return total > row.counted
-      ? [{ name: ROW_LABEL[row.measure], counted: row.counted, total }]
-      : []
-  })
   const parts = [
     ...(zoneWindow === undefined ? [] : [ZONE_WINDOW_VALUE[zoneWindow]]),
     ...zonesChangedRows(rows, previous),
-    ...counts.map(
-      ({ name, counted, total }, i) =>
-        `${i === 0 ? name : name.toLowerCase()} from ${formatCount(counted)} of ${formatCount(total)}${
-          i === counts.length - 1 ? ` ${SPORT_PLURAL[sport]}` : ''
-        }`,
-    ),
   ]
   return parts.length === 0 ? null : parts.join(' · ')
 }

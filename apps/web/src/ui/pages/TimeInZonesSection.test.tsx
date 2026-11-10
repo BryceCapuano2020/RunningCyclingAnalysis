@@ -35,11 +35,11 @@ describe('TimeInZonesSection', () => {
     expect(within(zones!).getByRole('cell', { name: 'Light', hidden: true })).toBeInTheDocument()
   })
 
-  it('says how many activities each measure counted in one line, with a link to set the zones and no Details', () => {
+  it('has a link to set the zones, no Details and no count of the runs each measure counted', () => {
     render(
       <TimeInZonesSection sport="run" rows={[hr, pace]} previous={null} previousLabel={null} />,
     )
-    expect(screen.getByText('Pace from 5 of 8 runs')).toBeInTheDocument()
+    expect(screen.queryByText(/from \d+ of \d+/)).toBeNull()
     expect(screen.queryByText('Details')).toBeNull()
     expect(screen.getByRole('link', { name: 'Edit your zones on Profile' })).toHaveAttribute(
       'href',
@@ -113,10 +113,10 @@ describe('TimeInZonesSection', () => {
     ).toBeNull()
   })
 
-  it('counts the runs whose heart rate was set aside or not recorded as left out', () => {
+  it('says nothing of how many runs a measure counted', () => {
     const row = { ...hr, setAside: 2, noData: 1 }
     render(<TimeInZonesSection sport="run" rows={[row]} previous={null} previousLabel={null} />)
-    expect(screen.getByText('Heart rate from 8 of 11 runs')).toBeInTheDocument()
+    expect(screen.queryByText(/from \d+ of \d+/)).toBeNull()
   })
 
   it('says which stretch the bars are of when the period held too little, and compares with nothing', () => {
