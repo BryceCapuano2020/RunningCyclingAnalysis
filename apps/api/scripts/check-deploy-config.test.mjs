@@ -114,11 +114,12 @@ test('production never lists everyone', () => {
   const star = `${valid}\nSERVER_COMPUTE_USERS = "*"`
   assert.throws(() => validateDeployConfig(star + producer + consumer + limits), /not \*/)
 })
-test('the committed production configuration lists no account and binds no queue or limit', async () => {
+test('the committed production configuration lists no account and binds the whole bounded set', async () => {
   const { readFile } = await import('node:fs/promises')
   const config = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8')
+  // Accounts come from the SERVER_COMPUTE_ACCOUNTS secret only, never the repository.
   assert.match(config, /^SERVER_COMPUTE_USERS = ""/m)
-  assert.doesNotMatch(config, /^\[\[queues\./m)
-  assert.doesNotMatch(config, /^\[limits\]/m)
+  assert.match(config, /^\[\[queues\.producers\]\]/m)
+  assert.match(config, /^\[limits\]\s*\ncpu_ms = 10000/m)
   assert.doesNotThrow(() => validateDeployConfig(config))
 })
