@@ -52,8 +52,10 @@ export interface Dated {
 }
 
 let viewerZone: Zone = UTC_ZONE
-/** Counts every change of the viewer's zone, so a cache that read it can tell it is stale. */
+
+/** Names the viewer's zone as it stands: a new number at every change, so a cache that read it can tell it is stale. */
 let calendarVersion = 0
+let versionsGiven = 0
 
 /**
  * What a remembered answer must also match: it changes whenever the viewer's zone does.
@@ -65,20 +67,39 @@ export function calendarKey(): number {
 
 /** A function that is true once each time the calendar (the viewer's zone) has changed since it was last asked. */
 export function calendarWatch(): () => boolean {
-  let seen = calendarVersion
+  let seen = calendarKey()
   return () => {
-    const moved = seen !== calendarVersion
-    seen = calendarVersion
+    const now = calendarKey()
+    const moved = seen !== now
+    seen = now
     return moved
   }
 }
 
-/** Sets the viewer's zone, once, at the edge that knows it (the worker). Returns the one it replaced. */
+/** Sets the viewer's zone for code that reads it from here (the page, a test). Returns the one it replaced. */
 export function setViewerZone(zone: Zone): Zone {
   const before = viewerZone
   viewerZone = zone
-  calendarVersion++
+  calendarVersion = ++versionsGiven
   return before
+}
+
+/**
+ * Runs `run`, which must finish without waiting, with `zone` as the viewer's zone, and puts the zone that was there back.
+ * An analysis that serves many viewers in one process (the server) is given each viewer's zone by this, so none leaks
+ * into the next job; the module's own zone is only ever read inside such a call or set by `setViewerZone`.
+ */
+export function withViewerZone<T>(zone: Zone, run: () => T): T {
+  if (zone === viewerZone) return run()
+  const version = calendarVersion
+  const before = setViewerZone(zone)
+  try {
+    return run()
+  } finally {
+    // Back to the zone and the key it had, so what was remembered under it is still good.
+    viewerZone = before
+    calendarVersion = version
+  }
 }
 
 /** The day shift a zone gives an instant: its local date less its UTC date. */
@@ -172,7 +193,7 @@ export function localDayOfInstant(ms: number): number {
 
 /** The key of the zone days are cut in. A result grouped by local day is kept only for the zone it was made in. */
 export function dayZoneKey(): string {
-  return `viewer:${calendarVersion}`
+  return `viewer:${calendarKey()}`
 }
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0')
