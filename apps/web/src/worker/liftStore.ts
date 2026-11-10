@@ -260,7 +260,8 @@ export function openLiftStore(scope: string): LiftStore {
           }
           return kept
         },
-        kept,
+        // Not `kept`: an aborted write must not hand back the set it queued.
+        { set: null },
       ).then((done) => done.set)
     },
     save: async (set) => {
