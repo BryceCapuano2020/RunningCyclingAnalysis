@@ -22,7 +22,7 @@ describe('BestsByYearChart', () => {
       <BestsByYearChart sport="run" efforts={RUN_BESTS} units="imperial" />,
     )
     expect(screen.getByRole('figure', { name: 'Best times by year' })).toBeInTheDocument()
-    expect(screen.getByText('Pace (/mi), faster up')).toBeInTheDocument()
+    expect(screen.getByText('Pace (/mi)')).toBeInTheDocument()
     const panels = container.querySelectorAll('[data-testid="bests-panel"]')
     expect(Array.from(panels, (panel) => panel.getAttribute('data-length'))).toEqual([
       '1609.344',
@@ -113,16 +113,16 @@ describe('BestsByYearChart', () => {
     ).toEqual(['2021', '2022', '2023', '2024'])
     // The caption names the measure only: it does not explain a rewritten number.
     expect(table.querySelector('caption')?.textContent).toBe(
-      'Best times by year, pace (/km), faster up.',
+      'Best times by year, pace (/km).',
     )
   })
 
   it('follows the units setting', () => {
     chartWidth(800)
     const { rerender } = render(<BestsByYearChart sport="run" efforts={RUN_BESTS} units="metric" />)
-    expect(screen.getByText('Pace (/km), faster up')).toBeInTheDocument()
+    expect(screen.getByText('Pace (/km)')).toBeInTheDocument()
     rerender(<BestsByYearChart sport="run" efforts={RUN_BESTS} units="imperial" />)
-    expect(screen.getByText('Pace (/mi), faster up')).toBeInTheDocument()
+    expect(screen.getByText('Pace (/mi)')).toBeInTheDocument()
   })
 
   it('draws a ride’s power with diamonds, hollow where the 20 minute best is not all-out', () => {

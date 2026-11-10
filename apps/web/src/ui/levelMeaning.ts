@@ -1,14 +1,21 @@
 import type { LevelRung } from '@rca/core/standing'
 
-/** A plain meaning for each level below Local, shown on Method and Balance. Below 60% the bands are this app's own, not WMA's. */
+/**
+ * A plain meaning for each level, shown on Method and Balance. From Local up the levels are WMA's classes; below 60% the bands
+ * are this app's own.
+ */
 export const OWN_LEVEL_MEANING: readonly { name: string; meaning: string }[] = [
+  { name: 'World', meaning: 'among the best in the world for your age.' },
+  { name: 'National', meaning: 'you contend at a national championship.' },
+  { name: 'Regional', meaning: 'you place at regional championships.' },
+  { name: 'Local', meaning: 'you win your age group at local races.' },
   { name: 'Club', meaning: 'you hold your own in a club race.' },
   { name: 'Trained', meaning: 'structured training shows.' },
   { name: 'Active', meaning: 'you exercise most weeks.' },
   { name: 'Recreational', meaning: 'you move for fun.' },
 ]
 
-/** The meaning of a level below Local, or undefined for a WMA class, whose name says it. */
+/** The meaning of a level, or undefined for a name that is not one. */
 export function levelMeaning(name: string): string | undefined {
   return OWN_LEVEL_MEANING.find((level) => level.name === name)?.meaning
 }

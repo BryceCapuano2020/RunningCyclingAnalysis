@@ -74,12 +74,12 @@ describe('plottedValue, nativeLabel and axisTitle', () => {
   it('names each sport’s number and its axis, with the unit', () => {
     expect(nativeLabel('run')).toBe('GAP')
     expect(nativeLabel('ride')).toBe('Power')
-    expect(axisTitle('run', 'imperial')).toBe('GAP (/mi), faster up')
+    expect(axisTitle('run', 'imperial')).toBe('GAP (/mi)')
     expect(axisTitle('ride', 'metric')).toBe('Power (W)')
   })
 
   it('spells GAP out on the axis a page names it on, and leaves power as it is', () => {
-    expect(axisTitle('run', 'metric', true)).toBe('Grade-adjusted pace (/km), faster up')
+    expect(axisTitle('run', 'metric', true)).toBe('Grade-adjusted pace (/km)')
     expect(axisTitle('ride', 'metric', true)).toBe('Power (W)')
   })
 

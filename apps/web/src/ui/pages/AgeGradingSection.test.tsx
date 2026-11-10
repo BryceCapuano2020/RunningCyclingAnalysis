@@ -48,8 +48,8 @@ describe('AgeGradingSection', () => {
     expect(levels.map((item) => item.split(' is ')[0])).toEqual(
       GRADE_LEVELS.map((band) => band.label),
     )
-    expect(levels[0]).toBe('World is 90% and up.')
-    expect(levels).toContain('National is 80% to 89%.')
+    expect(levels[0]).toBe('World is 90% and up: among the best in the world for your age.')
+    expect(levels).toContain('National is 80% to 89%: you contend at a national championship.')
     expect(levels).toContain('Club is 50% to 59%: you hold your own in a club race.')
     expect(levels.at(-1)).toBe('Recreational is under 30%: you move for fun.')
     expect(section()).toHaveTextContent('the WMA classes from Local up, this app’s own below')

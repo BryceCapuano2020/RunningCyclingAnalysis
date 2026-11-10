@@ -43,6 +43,12 @@ const SPOKEN_METHOD: Record<PredictionMethod, string> = {
 /** No recorded best faster than its prediction: a stable default for the prop. */
 const NONE_RAN: readonly RanBest[] = []
 
+/**
+ * Whether a race's estimates are drawn as their own marks. The prediction is their mean, so one estimate alone is the
+ * prediction and its mark would sit on the dot, saying it twice.
+ */
+const marksShown = (prediction: RacePrediction) => prediction.methods.length > 1
+
 /** What a bar says to a screen reader: the time, its range and each estimate. */
 function barLabel(prediction: RacePrediction, ran: RanBest | undefined): string {
   const estimates = prediction.methods
@@ -78,7 +84,7 @@ function RaceBar({
       />
       <span className="race-bar__cap" style={{ left: `${bar.low * 100}%` }} />
       <span className="race-bar__cap" style={{ left: `${bar.high * 100}%` }} />
-      {bar.methods.map((mark) => (
+      {(marksShown(prediction) ? bar.methods : []).map((mark) => (
         <span
           key={mark.method}
           className={`race-bar__mark race-bar__mark--${MARK_SIDE[mark.method]}`}
@@ -144,7 +150,9 @@ function RaceRow({
 
 /** The key to the bars, with each shape drawn as it is on a bar; the heart-rate entry names its VO2max. */
 function RaceKey({ found, anyRan }: { found: RunPredictions; anyRan: boolean }) {
-  const used = new Set(found.races.flatMap((race) => race.methods.map((m) => m.method)))
+  const used = new Set(
+    found.races.filter(marksShown).flatMap((race) => race.methods.map((m) => m.method)),
+  )
   const heartRate = `${KEY_NAME.heartRate}${found.vo2max ? ` (VO2max ${Math.round(found.vo2max.vo2max)})` : ''}`
   const entries: { shape: string; text: string }[] = [
     { shape: 'dot', text: 'Prediction' },

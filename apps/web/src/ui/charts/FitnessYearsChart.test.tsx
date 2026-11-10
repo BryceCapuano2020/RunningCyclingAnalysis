@@ -61,7 +61,7 @@ describe('FitnessYearsChart', () => {
     const { container, rerender } = render(
       <FitnessYearsChart sport="run" dots={fast} units="metric" />,
     )
-    expect(container.querySelector('svg')).toHaveTextContent('GAP (/km), faster up')
+    expect(container.querySelector('svg')).toHaveTextContent('GAP (/km)')
     const d = container.querySelector('[data-testid="fitness-dots"]')!.getAttribute('d')!
     const ys = d
       .split('M')
@@ -159,7 +159,7 @@ describe('FitnessYearsChart', () => {
   it('reads a pace in miles when the athlete counts in miles', () => {
     chartWidth(800)
     const { container } = render(<FitnessYearsChart sport="run" dots={THREE} units="imperial" />)
-    expect(container.querySelector('svg')).toHaveTextContent('GAP (/mi), faster up')
+    expect(container.querySelector('svg')).toHaveTextContent('GAP (/mi)')
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'Home' })
     expect(screen.getByRole('status')).toHaveTextContent('/mi')
   })

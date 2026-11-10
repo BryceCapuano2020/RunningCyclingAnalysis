@@ -89,7 +89,7 @@ describe('SportCurveChart', () => {
     )
     expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     expect(metric.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/km), faster up',
+      'Grade-adjusted pace (/km)',
     )
     metric.unmount()
 
@@ -105,7 +105,7 @@ describe('SportCurveChart', () => {
     )
     expect(screen.getByRole('figure', { name: 'Best effort by duration' })).toBeInTheDocument()
     expect(imperial.container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/mi), faster up',
+      'Grade-adjusted pace (/mi)',
     )
     imperial.unmount()
 
@@ -135,7 +135,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/km), faster up',
+      'Grade-adjusted pace (/km)',
     )
     const labels = yTickLabels(container)
     expect(labels.every((label) => /^\d:\d{2}$/.test(label))).toBe(true)
@@ -161,7 +161,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/mi), faster up',
+      'Grade-adjusted pace (/mi)',
     )
     // 5.0 to 3.5 m/s is 5:22 to 7:40 a mile, so the minute ticks run from 5:00 to 8:00.
     expect(yTickLabels(container)).toEqual(['5:00', '6:00', '7:00', '8:00'])

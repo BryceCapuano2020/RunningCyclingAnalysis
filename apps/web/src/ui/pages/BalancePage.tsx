@@ -25,7 +25,7 @@ import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import type { AnalysisController } from '../useAnalysis'
 import { BalanceHero } from './BalanceHero'
 import { BalanceTiles } from './BalanceTiles'
-import { FitnessAndCheckIn } from './FitnessAndCheckIn'
+import { CheckInLine } from './CheckInLine'
 import { LevelsSection } from './LevelsSection'
 import { SoleSportRecords } from './SoleSportRecords'
 import { SportInvitation } from './SportInvitation'
@@ -243,13 +243,9 @@ export function BalancePage({
         </div>
       )}
 
-      {/* The balance leads the home page; fitness sits under it, after the period's tiles and before the levels. */}
-      <FitnessAndCheckIn
-        analysis={analysis}
-        units={units}
-        library={library}
-        soleSport={soleSport}
-      />
+      {/* The balance leads the home page; the import line sits after the period's tiles and before the levels. Fitness is on
+          the Run and Ride pages. */}
+      <CheckInLine analysis={analysis} units={units} />
 
       {levelShown ? <LevelsSection grades={triangle.grades} /> : null}
 

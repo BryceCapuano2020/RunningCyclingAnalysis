@@ -82,13 +82,6 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   },
   { name: 'Balance', open: openSample },
   {
-    name: 'Balance, the fitness evidence open',
-    open: async (page) => {
-      await openSample(page)
-      await openFitnessEvidence(page)
-    },
-  },
-  {
     name: 'Run, the fitness details open',
     open: async (page) => {
       await openSample(page)

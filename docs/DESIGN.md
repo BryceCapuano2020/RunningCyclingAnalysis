@@ -928,7 +928,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   the hash route. The request lasts for that one navigation only: any later route change drops it.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
 - **GAP, and grade for age only.** Every running pace worked out as a grade-adjusted pace is called
-  "GAP" in charts, axes, tables, records and copy, and spelled out once on a page, "Grade-adjusted pace (/mi), faster up", on the axis of
+  "GAP" in charts, axes, tables, records and copy, and spelled out once on a page, "Grade-adjusted pace (/mi)", on the axis of
   its first chart (the best-effort curve). Its record mark is "GAP", a term whose note reads
   "Grade-adjusted pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
   "Threshold pace" on the app's cards and pages. "Grade" means an age grade and nothing else.

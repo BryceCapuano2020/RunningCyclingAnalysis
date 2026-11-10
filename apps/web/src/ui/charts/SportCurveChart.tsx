@@ -65,7 +65,7 @@ export interface SportCurveChartProps {
 }
 
 /**
- * A sport's best efforts by duration, in its own unit: pace for running, faster up, and power for
+ * A sport's best efforts by duration, in its own unit: pace for running, and power for
  * cycling, as one line. The 5, 20 and 60 minute bests carry their values beside their dots, the threshold
  * is one thin labelled line, and a stretch with no effort on file is drawn lighter. The period before is a
  * thin grey line when given.

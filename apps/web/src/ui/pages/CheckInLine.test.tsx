@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { NO_FITNESS } from '@rca/core/fitness/types'
 import { analysisStub } from '../../test/analysisStub'
 import { QUIET_CHECK_IN } from '../test/checkInFixtures'
-import { FITNESS_AS_OF_MS, FITNESS_LIBRARY, SLIPPING } from '../test/fitnessFixtures'
-import { FitnessAndCheckIn } from './FitnessAndCheckIn'
+import { FITNESS_AS_OF_MS } from '../test/fitnessFixtures'
+import { CheckInLine } from './CheckInLine'
 
 /** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */
 beforeEach(() => {
@@ -20,31 +19,13 @@ afterEach(() => {
 const SEEN = { checkIn: QUIET_CHECK_IN, seen: true }
 const UNSEEN = { checkIn: QUIET_CHECK_IN, seen: false }
 
-function slot(over: Parameters<typeof analysisStub>[0] = {}, withCard = true) {
-  const analysis = analysisStub({
-    ...over,
-    state: {
-      fitness: { run: withCard ? SLIPPING : NO_FITNESS.run, ride: NO_FITNESS.ride },
-      ...over.state,
-    },
-  })
-  return <FitnessAndCheckIn analysis={analysis} units="metric" library={FITNESS_LIBRARY} />
+function slot(over: Parameters<typeof analysisStub>[0] = {}) {
+  return <CheckInLine analysis={analysisStub(over)} units="metric" />
 }
 
-/** Whether `a` comes before `b` in the page. */
-const before = (a: Element, b: Element) =>
-  Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
-
-describe('the fitness cards and the check-in row', () => {
-  it('puts the row under the fitness card', () => {
+describe('the check-in line', () => {
+  it('shows a check-in that has not been seen, with no fitness card beside it', () => {
     render(slot({ checkIn: UNSEEN }))
-    expect(before(screen.getByTestId('fitness-section'), screen.getByTestId('checkin-row'))).toBe(
-      true,
-    )
-  })
-
-  it('leads only when there is no card to lead', () => {
-    render(slot({ checkIn: UNSEEN }, false))
     expect(screen.getByTestId('checkin-row')).toBeInTheDocument()
     expect(screen.queryByTestId('fitness-section')).toBeNull()
   })
