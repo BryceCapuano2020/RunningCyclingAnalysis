@@ -17,6 +17,8 @@
   display: grid;
   gap: var(--space-1);
   justify-items: start;
+  /* The row's body places its children at the start; the source takes the row's width so its Details can. */
+  justify-self: stretch;
 }
 
 /* An open Details takes the row's width, so its values sit on one line instead of wrapping at each space. */
