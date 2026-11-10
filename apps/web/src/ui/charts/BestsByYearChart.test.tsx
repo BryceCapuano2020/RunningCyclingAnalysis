@@ -112,9 +112,7 @@ describe('BestsByYearChart', () => {
         .map((cell) => cell.textContent),
     ).toEqual(['2021', '2022', '2023', '2024'])
     // The caption names the measure only: it does not explain a rewritten number.
-    expect(table.querySelector('caption')?.textContent).toBe(
-      'Best times by year, pace (/km).',
-    )
+    expect(table.querySelector('caption')?.textContent).toBe('Best times by year, pace (/km).')
   })
 
   it('follows the units setting', () => {

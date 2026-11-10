@@ -21,7 +21,9 @@ async function value(scope: Locator, label: RegExp): Promise<string> {
   return (await row.locator('dd').first().innerText()).replace(/\s+/g, ' ').trim()
 }
 
-test('the sample’s Balance holds no fitness section: it is on the Run and Ride pages', async ({ page }) => {
+test('the sample’s Balance holds no fitness section: it is on the Run and Ride pages', async ({
+  page,
+}) => {
   const errors = trackErrors(page)
   await openSample(page)
   await expect(page.getByRole('region', { name: 'Levels' })).toBeVisible()
