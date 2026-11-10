@@ -291,4 +291,60 @@ describe('the lift log, signed in', () => {
     await waitFor(() => expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(80))
     expect(view.result.current.days[0]!.lifts[0]!.sets).toHaveLength(1)
   })
+
+  it('starts no retry after it closes', async () => {
+    await openLiftStore('u1').save(make(1))
+    const waits: number[] = []
+    const real = globalThis.setTimeout
+    const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      ms?: number,
+    ) => {
+      if (ms === 2_000) {
+        waits.push(ms)
+        return 0 as unknown as ReturnType<typeof setTimeout>
+      }
+      return real(fn, ms)
+    }) as typeof setTimeout)
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const fake = fakeTransport({ put: () => new LiftTransportError('other'), gate: () => gate })
+    const view = setup(signedIn(), fake)
+    await waitFor(() => expect(fake.calls.some((c) => c.type === 'put')).toBe(true))
+    view.unmount()
+    release()
+    await new Promise((resolve) => real(resolve, 50))
+    spy.mockRestore()
+    expect(waits).toEqual([])
+  })
+
+  it('lets an answer for an old scope write nothing in the new one', async () => {
+    await openLiftStore('u1').save(make(1))
+    await openLiftStore('u2').save(make(1, 80))
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const fake = fakeTransport({
+      put: () => new LiftTransportError('invalid', [0]),
+      gate: () => gate,
+    })
+    const quiet = fakeTransport({
+      pages: () => ({ items: [make(1, 80)], next: null, liftRevision: 5 }),
+    })
+    const view = renderHook(
+      (props: LiftLogAccount) =>
+        useLiftLog(props, { transportFor: (id) => (id === 'u1' ? fake : quiet).transport }),
+      { initialProps: signedIn() },
+    )
+    await waitFor(() => expect(fake.calls.some((c) => c.type === 'put')).toBe(true))
+    view.rerender(signedIn({ userId: 'u2' }))
+    await waitFor(() => expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(80))
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(view.result.current.refused).toBe(0)
+    expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(80)
+  })
 })

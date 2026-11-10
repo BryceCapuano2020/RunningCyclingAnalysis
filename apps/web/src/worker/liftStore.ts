@@ -1,11 +1,13 @@
 import { liftSetKey } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 import { openIndexedDb } from './openIndexedDb'
+import { databaseExists } from './workbenchExists'
 import {
   ackRow,
   DEVICE_SCOPE,
   deleteSet,
   holdRow,
+  nextSetOrder,
   lackedRow,
   pulledRow,
   refuseRow,
@@ -24,6 +26,8 @@ const RETRY_OPEN_AFTER_MS = 30_000
 export interface LiftStore {
   /** Logs a set: the row waits to be sent. Resolves whether it was kept. */
   save(set: LiftSet): Promise<boolean>
+  /** Logs a set at the next set order of its date and lift, chosen in the write's own transaction so two tabs never take the same key. Resolves the set kept, or null (no room, or storage refused). */
+  saveNext(draft: Omit<LiftSet, 'setOrder'>): Promise<LiftSet | null>
   /** Deletes a set by its key. */
   remove(key: string): Promise<void>
   /** Closes the database this store holds open. Call it when the scope changes; a later call opens it again. */
@@ -77,8 +81,18 @@ async function inDatabase<R>(
   }
 }
 
+/** Whether the database exists, so a count or a sweep never makes it. False when storage cannot say. */
+export async function liftsExist(): Promise<boolean> {
+  try {
+    return typeof indexedDB !== 'undefined' && (await databaseExists(DB_NAME))
+  } catch {
+    return false
+  }
+}
+
 /** Removes every row of every scope, for Remove all. Resolves whether it did; missing storage holds nothing. */
 export async function clearLifts(): Promise<boolean> {
+  if (!(await liftsExist())) return true
   const db = await openDatabase()
   if (db === null) return true
   try {
@@ -123,10 +137,12 @@ export async function clearScope(scope: string): Promise<boolean> {
 
 /**
  * Removes the rows of every account scope but `keepScope`, unsent ones included: a shared browser must not hand one
- * person's log to another. The `device` scope stays. Nothing is swept for an empty scope. Best effort; never rejects.
+ * person's log to another. With nobody signed in (a session that ended elsewhere) only the synced rows of every account
+ * go, since the account's unsent ones wait for its next sign-in. The `device` scope stays. Nothing is swept for an
+ * empty scope. Best effort; never rejects.
  */
 export async function sweepLifts(keepScope: string | null): Promise<void> {
-  if (keepScope === null || keepScope === '') return
+  if (keepScope === '' || !(await liftsExist())) return
   const db = await openDatabase()
   if (db === null) return
   try {
@@ -136,9 +152,14 @@ export async function sweepLifts(keepScope: string | null): Promise<void> {
       cursor.onsuccess = () => {
         const at = cursor.result
         if (at === null) return
-        const { scope } = at.value as LiftRow
+        const { scope, state } = at.value as LiftRow
         // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
-        if (scope !== keepScope && scope !== DEVICE_SCOPE) at.delete()
+        if (
+          scope !== keepScope &&
+          scope !== DEVICE_SCOPE &&
+          (keepScope !== null || state === 'synced')
+        )
+          at.delete()
         at.continue()
       }
       transaction.oncomplete = () => resolve()
@@ -219,6 +240,28 @@ export function openLiftStore(scope: string): LiftStore {
       const closing = opened
       opened = null
       void closing?.then((db) => db?.close())
+    },
+    saveNext: async (draft) => {
+      const db = await database()
+      if (db === null) return null
+      const kept: { set: LiftSet | null } = { set: null }
+      return inDatabase(
+        db,
+        'readwrite',
+        (store) => {
+          const all = store.index('scope').getAll(scope) as IDBRequest<LiftRow[]>
+          all.onsuccess = () => {
+            const order = nextSetOrder(all.result, draft)
+            if (order === null) return
+            const set: LiftSet = { ...draft, setOrder: order }
+            const key = liftSetKey(set)
+            store.put(saveSet(undefined, base(key), set))
+            kept.set = set
+          }
+          return kept
+        },
+        kept,
+      ).then((done) => done.set)
     },
     save: async (set) => {
       const key = liftSetKey(set)

@@ -153,6 +153,7 @@ export function useAccount(): AccountController {
     const ended = meRef.current
     if (ended === null) return
     meRef.current = null
+    noteLiftAccount(null)
     setMe(null)
     setStatus('signed-out')
     setSessionExpired(true)
@@ -268,6 +269,7 @@ export function useAccount(): AccountController {
       tellOtherTabs({ type: 'account', change: 'deleted' })
       const cleanupNotice = await deleteAccountDetails(userId)
       meRef.current = null
+      noteLiftAccount(null)
       profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')

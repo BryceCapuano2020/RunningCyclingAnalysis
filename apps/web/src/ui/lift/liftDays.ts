@@ -1,4 +1,4 @@
-import { exerciseKeyOf, LIFT_SET_ORDER } from '@rca/core/lift'
+import { exerciseKeyOf } from '@rca/core/lift'
 import type { Equipment, ExerciseKey, LiftSet } from '@rca/core/lift'
 import type { LiftRow, LiftRowState } from '../../worker/liftTransitions'
 
@@ -68,19 +68,6 @@ export function groupDays(rows: readonly LiftRow[]): LoggedDay[] {
       ordered.sort((a, b) => compare(earliestTime(a), earliestTime(b)) || compare(a.key, b.key))
       return { date, lifts: ordered }
     })
-}
-
-/** The set order a new set takes: one past the highest stored for its date and lift, delete rows counted. Null when no room is left. */
-export function nextSetOrder(
-  rows: readonly LiftRow[],
-  set: Pick<LiftSet, 'date' | 'exercise' | 'equipment'>,
-): number | null {
-  const key = exerciseKeyOf(set)
-  let last = 0
-  for (const row of rows)
-    if (row.set.date === set.date && exerciseKeyOf(row.set) === key)
-      last = Math.max(last, row.set.setOrder)
-  return last + 1 > LIFT_SET_ORDER.max ? null : last + 1
 }
 
 /** The lifts last used, newest first: by the latest date and time, then by name. */
