@@ -40,7 +40,6 @@ const has = (issues: readonly Pick<SyncIssue, 'code'>[], codes: ReadonlySet<Sync
  */
 export function privacyText({
   signedIn,
-  keepFiles,
   fileRetentionAvailable = true,
   issues = NO_ISSUES,
 }: PrivacyNoteProps): string | null {

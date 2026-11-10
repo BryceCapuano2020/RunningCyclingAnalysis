@@ -9,7 +9,7 @@ import { WeightNote } from '../components/WeightNote'
 import type { GradeOutcome } from '../grades'
 import { threshold } from '../records'
 import { THRESHOLD_MEANING } from '../sports'
-import { THRESHOLD_NAME } from '../thresholdName'
+import { HEADLINE_NAME, THRESHOLD_NAME } from '../thresholdName'
 import { thresholdProperties } from '../thresholdBasis'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 import { gradeLine, needsWeight } from './thresholdTileBare'
@@ -34,9 +34,6 @@ export interface ThresholdTileProps {
   /** A run's predicted half marathon, which the row leads with in place of the threshold pace; null or absent without one. */
   half?: RacePrediction | null
 }
-
-/** Each row's name when it shows its figure: the half marathon a run predicts, a ride's functional threshold power. */
-export const HEADLINE_NAME = { half: 'Half-marathon', ride: 'Functional threshold power' } as const
 
 /** The word in each tile's name that is defined in place, and what it means: the threshold in plain words. */
 const DEFINED: Record<Sport, { term: string; meaning: string }> = {

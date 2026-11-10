@@ -56,7 +56,8 @@ describe('volumeBuckets with lifting', () => {
     const columns = volumeColumns(buckets)
     expect(columns.some((column) => column.kind === 'gap')).toBe(true)
     expect(columns.at(-1)).toMatchObject({ kind: 'bucket' })
-    expect(countOf((columns.at(-1) as { bucket: { totals: never } }).bucket.totals)).toBe(1)
+    const last = columns.at(-1)
+    expect(last?.kind === 'bucket' ? countOf(last.bucket.totals) : null).toBe(1)
   })
 
   it('is unchanged with no lifting days', () => {

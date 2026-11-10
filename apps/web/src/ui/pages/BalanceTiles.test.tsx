@@ -74,7 +74,7 @@ describe('BalanceTiles', () => {
       openDetail(tile)
       // A range the page states is the range the tile's detail opens with, in the sport's own unit, as a row.
       expect(rowValue(tile, 'Range')).toBe(range)
-      expect(rowValue(tile, sport === 'run' ? 'Runs used' : 'Rides used')).toMatch(/^\d+$/)
+      expect(rowValue(tile, 'Rides used')).toMatch(/^\d+$/)
       expect(rowValue(tile, 'Strongest effort')).toMatch(/^\d+ min, \d+ \w+( \d{4})?$/)
       // No line sits under the figure: the basis is inside the disclosure only.
       expect(tile.querySelectorAll('.stat-tile__source > p')).toHaveLength(0)
