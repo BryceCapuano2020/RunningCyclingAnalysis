@@ -6,10 +6,11 @@ import { ariaCurrentOf, sectionOf } from './sectionOf'
 import './Rail.css'
 
 /** The rail's pages, in its order. History and Activities are the header's (Header.tsx). */
-const SECTIONS: { label: string; page: 'balance' | 'run' | 'ride' }[] = [
+const SECTIONS: { label: string; page: 'balance' | 'run' | 'ride' | 'lift' }[] = [
   { label: 'Balance', page: 'balance' },
   { label: SPORT_LABEL.run, page: 'run' },
   { label: SPORT_LABEL.ride, page: 'ride' },
+  { label: 'Lift', page: 'lift' },
 ]
 
 export interface RailProps {
@@ -29,7 +30,7 @@ export function Shell({ route, periods = null, children }: RailProps & { childre
 }
 
 /**
- * The text rail: Balance, Run and Ride, a rule, then the periods. The current page and period are ink and the others
+ * The text rail: Balance, Run, Ride and Lift, a rule, then the periods. The current page and period are ink and the others
  * the secondary ink, with no icon, box or bar. From the rail's width it is a column left of the page that stays in
  * view; below it, one row across the top of the page that scrolls sideways inside itself.
  */
