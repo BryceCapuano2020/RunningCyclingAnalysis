@@ -31,9 +31,9 @@ test('the Lift page leads with the estimate, graphs it, and has no accessibility
   page,
 }) => {
   await logThreeDays(page)
-  await expect(page.getByTestId('lift-max')).toBeVisible()
-  await expect(page.getByTestId('lift-floor')).toBeVisible()
-  await expect(page.getByTestId('lift-change')).toBeVisible()
+  // A squat leads as one of the big three: its one-rep max and age grade, beside the two not logged yet.
+  await expect(page.getByTestId('big-three-squat')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Log a bench' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'One-rep max by lift' })).toBeVisible()
   await expect(page.locator('[data-testid="lift-point"]')).toHaveCount(3)
   await page
@@ -51,7 +51,7 @@ test('the Lift page leads with the estimate, graphs it, and has no accessibility
 test('the Lift page does not scroll sideways at 320 px', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'narrow-320', 'Only the 320 px project measures it')
   await logThreeDays(page)
-  await expect(page.getByTestId('lift-max')).toBeVisible()
+  await expect(page.getByTestId('big-three-squat')).toBeVisible()
   const { overflow, clipped } = await reflowProblems(page)
   expect(overflow).toBeLessThanOrEqual(0)
   expect(clipped).toEqual([])
