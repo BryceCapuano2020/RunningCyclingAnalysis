@@ -18,8 +18,9 @@ Decisions section. Status is one of designed, in progress or built.
   analysis, zones and screens that read it come next).
 - [watched-folder.md](watched-folder.md): whether a folder of new watch files can be imported as it fills. Status:
   designed (research only, no code); stage E checks where files land first.
-- [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to a Worker inbox and imported by the browser's
-  own pipeline; Strava's API stays out. Status: designed, to be revised for server-side parsing (server-compute.md decision 14) before any build.
+- [garmin-sync.md](garmin-sync.md): new Garmin activities pushed to the Worker, read on the server with the same core
+  parser and saved through the same create path; Strava's API stays out. Status: designed, revised 10 Nov for
+  server-side parsing; waits on server compute S4.
 - [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
   code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
