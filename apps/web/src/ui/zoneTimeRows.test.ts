@@ -57,13 +57,11 @@ describe('periodTables', () => {
     ])
   })
 
-  it('counts a heart rate set aside among what a measure left out', () => {
-    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], {
-      setAside: 2,
-      noData: 1,
-      noZones: 3,
-    })
-    expect(periodTables([row]).summary.rows[0]![3]).toBe('6')
+  it('captions the table plainly and has no totals table above it', () => {
+    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1])
+    const result = periodTables([row])
+    expect(result.table.caption).toBe('Time in each zone')
+    expect(result).not.toHaveProperty('summary')
   })
 })
 

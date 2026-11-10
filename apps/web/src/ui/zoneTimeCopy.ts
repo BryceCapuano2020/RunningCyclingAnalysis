@@ -52,7 +52,7 @@ export function describable(rows: readonly MeasureTime[], relaxed = false): Meas
   return rows.filter(enough).sort((a, b) => b.totalSeconds - a.totalSeconds)
 }
 
-/** The row that says which stretch the bars are of, when it is wider than the period. */
+/** What says which stretch the bars are of, when it is wider than the period. */
 export const ZONE_WINDOW_VALUE: Record<ZoneWindow, string> = {
   year: 'Last 12 months',
   all: 'All time',
@@ -72,55 +72,55 @@ export function mainZoneRow(
 }
 
 /**
- * The activities each measure left out, as a detail panel's rows: how many of how many, by why ("Heart rate: set aside",
- * "3 of 12 runs"). Nothing for a measure that counted every activity.
+ * One short line of what changes what the bars mean: the stretch they are of when it is wider than the period, the measures
+ * whose zones changed since the period before (so they are not compared), and how many activities each measure counted when
+ * it left some out ("Heart rate from 60 of 62 rides"). Null when there is nothing to say.
  */
-export function leftOutRows(sport: Sport, rows: readonly MeasureTime[]): Property[] {
-  return rows.flatMap((row) => {
+export function zoneNoteLine(
+  sport: Sport,
+  rows: readonly MeasureTime[],
+  previous: readonly MeasureTime[] | null,
+  zoneWindow?: ZoneWindow,
+): string | null {
+  const counts = rows.flatMap((row) => {
     const total = row.counted + row.noData + row.setAside + row.noZones
-    const of = (n: number) => `${formatCount(n)} of ${formatCount(total)} ${SPORT_PLURAL[sport]}`
-    const name = ROW_LABEL[row.measure]
-    return [
-      ...(row.setAside > 0 ? [{ label: `${name}, set aside`, value: of(row.setAside) }] : []),
-      ...(row.noData > 0 ? [{ label: `${name}, no reading`, value: of(row.noData) }] : []),
-      // A heart rate has zones from the highest on file, so it lacks them only with no heart rate to cut them from.
-      ...(row.noZones > 0
-        ? [
-            { label: `${name}, no zones`, value: of(row.noZones) },
-            { label: `${name} zones need`, value: THRESHOLD_NEEDS[row.measure] },
-          ]
-        : []),
-    ]
+    return total > row.counted
+      ? [{ name: ROW_LABEL[row.measure], counted: row.counted, total }]
+      : []
   })
+  const parts = [
+    ...(zoneWindow === undefined ? [] : [ZONE_WINDOW_VALUE[zoneWindow]]),
+    ...zonesChangedRows(rows, previous),
+    ...counts.map(
+      ({ name, counted, total }, i) =>
+        `${i === 0 ? name : name.toLowerCase()} from ${formatCount(counted)} of ${formatCount(total)}${
+          i === counts.length - 1 ? ` ${SPORT_PLURAL[sport]}` : ''
+        }`,
+    ),
+  ]
+  return parts.length === 0 ? null : parts.join(' · ')
 }
 
 /**
- * A row for each measure whose zones changed between the periods, which is why they are not compared: a change in shares
- * could be the zones moving, not the athlete. Nothing when the zones match, or when the period before has too little time.
+ * The measures whose zones changed between the periods, which is why they are not compared: a change in shares could be
+ * the zones moving, not the athlete. Nothing when the zones match, or when the period before has too little time.
  */
 export function zonesChangedRows(
   rows: readonly MeasureTime[],
   previous: readonly MeasureTime[] | null,
-): Property[] {
+): string[] {
   return rows.flatMap((row) => {
     const before = previous?.find((each) => each.measure === row.measure)
     return before !== undefined && hasEnoughZoneTime(before) && !sameEnteredReferences(before, row)
-      ? [{ label: `${ROW_LABEL[row.measure]} zones`, value: 'Changed, not compared' }]
+      ? [`${ROW_LABEL[row.measure]} zones changed, not compared`]
       : []
   })
 }
 
-/** Where the zones came from, over the measures shown, as a row. */
-export function zoneSourceRow(rows: readonly MeasureTime[]): Property {
-  const counted = rows.reduce((n, row) => n + row.counted, 0)
+/** The link under the bars to where zones are set: to set them while any are estimated, to edit them once all are set. */
+export function zonesLinkText(rows: readonly MeasureTime[]): string {
   const entered = rows.reduce((n, row) => n + row.entered, 0)
-  const value =
-    entered === 0
-      ? 'Estimated, set yours on Profile'
-      : entered === counted
-        ? 'Set on Profile'
-        : 'Set on Profile where you have them, estimated elsewhere'
-  return { label: 'Zones', value }
+  return entered === 0 ? 'Set your zones on Profile' : 'Edit your zones on Profile'
 }
 
 /** What each sport needs to show its time in zones. */

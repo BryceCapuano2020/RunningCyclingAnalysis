@@ -54,8 +54,7 @@ function comparableBefore(
 }
 
 /**
- * The text twin of a period's bars: every measure's time and share in each zone, and above it each
- * measure's totals, with how many activities it counted and how many it left out. With a period before
+ * The text twin of a period's bars: every measure's time and share in each zone. With a period before
  * it, the zone table adds that period's share of each zone, where its time is enough and its zones are the
  * same as these; a measure that cannot be compared shows a dash, and a table with none has no column.
  */
@@ -65,7 +64,6 @@ export function periodTables(
   previousLabel: string | null = null,
 ): {
   table: ChartTableData
-  summary: ChartTableData
 } {
   // Without a label for the period before there is no column to head, as there is no sentence to say it in.
   const befores = rows.map((row) =>
@@ -73,18 +71,8 @@ export function periodTables(
   )
   const withPrevious = befores.some((before) => before !== null)
   return {
-    summary: {
-      caption: 'What each measure counted',
-      columns: ['Measure', 'Activities counted', 'Time', 'Left out'],
-      rows: rows.map((row) => [
-        ROW_LABEL[row.measure],
-        String(row.counted),
-        zoneTimeText(row.totalSeconds),
-        String(row.noData + row.setAside + row.noZones),
-      ]),
-    },
     table: {
-      caption: 'Time in each zone over the period',
+      caption: 'Time in each zone',
       columns: [
         'Measure',
         'Zone',
