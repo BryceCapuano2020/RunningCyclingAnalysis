@@ -5,7 +5,7 @@ import type { Period } from '@rca/core/period'
 import type { HeadlinePick } from '../components'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
-import { triangleReading } from '@rca/core/standing'
+import { comparedGrades, triangleReading } from '@rca/core/standing'
 import { LevelTriangle } from '../components/LevelTriangle'
 import { uncheckedRows } from '../components/headlineNeed'
 import { energySummary, levelsTitle } from '../components/headlineText'
@@ -155,7 +155,7 @@ export function BalanceHero({
     )
   }
   // The grades' headline and line, by the rules of three sports (with two it is the page's own words); an energy balance has none.
-  const graded = triangleReading(triangle.grades)
+  const graded = triangleReading(comparedGrades(triangle.grades))
   const points = reading.unit === 'points'
   const title = (points ? triangleTitle(graded) : null) ?? titleParts(reading)
   const line = points

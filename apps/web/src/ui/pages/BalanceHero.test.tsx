@@ -101,6 +101,35 @@ describe('BalanceHero answer on the energy ratio', () => {
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
+  it('draws lifting on its corner but compares run and ride only, however lifting grades', () => {
+    const base = viewOfGap({ centre: 6, low: 2, high: 10 })
+    const lifting = {
+      centre: { grade: 0.95, level: 'World class' },
+      range: {
+        low: { grade: 0.9, level: 'World class' },
+        high: { grade: 0.99, level: 'World class' },
+      },
+    }
+    const triangle: TriangleView = {
+      ...base,
+      grades: { ...base.grades, lift: { kind: 'graded', grade: lifting } },
+    }
+    const { container } = render(
+      <Hero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+        triangle={triangle}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+    ).toBeInTheDocument()
+    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
+    expect(screen.getByRole('link', { name: /^Lifting 95%/ })).toHaveAttribute('href', '#/lift')
+  })
+
   it('summarises the energy gap in one sentence under the heading', () => {
     render(
       <Hero

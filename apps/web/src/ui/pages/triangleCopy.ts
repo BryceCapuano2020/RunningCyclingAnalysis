@@ -1,4 +1,9 @@
-import { TRIANGLE_SPORTS, triangleGeometry, triangleReading } from '@rca/core/standing'
+import {
+  TRIANGLE_SPORTS,
+  triangleGeometry,
+  comparedGrades,
+  triangleReading,
+} from '@rca/core/standing'
 import type { Lead, TriangleReading, TriangleSport } from '@rca/core/standing'
 import { signedCount } from '../components/headlineText'
 import { plural } from '../components/plural'
@@ -74,7 +79,7 @@ function rangeOf(lead: Lead): string {
  * A range is not on the corners, which say the best estimate; it is stated here, once. Empty when no sport has a range.
  */
 export function triangleRows(view: TriangleView): Property[] {
-  const reading = triangleReading(view.grades)
+  const reading = triangleReading(comparedGrades(view.grades))
   const { corners } = triangleGeometry(view.grades, 1)
   const ranged = TRIANGLE_SPORTS.flatMap((sport) => {
     const { range } = corners[sport]

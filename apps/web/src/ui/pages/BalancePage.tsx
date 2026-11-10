@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { gradedLiftOf, liftCornerGrade } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -23,6 +24,8 @@ import { hrefFor } from '../route'
 import { holdWithRideOut, rideLeftOut } from '../rideLeftOut'
 import { soleSportOf } from '../soleSport'
 import { triangleViewOf } from '../triangleSports'
+import { useLiftSummary } from '../lift/useLiftSummary'
+import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import type { AnalysisController } from '../useAnalysis'
 import { balanceChanges } from './balanceChangeItems'
 import { BalanceChanges } from './BalanceChanges'
@@ -55,7 +58,11 @@ export interface BalancePageProps {
   onShowAll: () => void
   /** Runs that are all at walking pace and left out, which the page says instead of that it has no runs. */
   leftOut?: LeftOutRuns
+  /** Who is signed in, so the lifting corner reads the same sets as the Lift page; signed out when not given. */
+  liftAccount?: LiftSummaryAccount
 }
+
+const SIGNED_OUT_LIFTS: LiftSummaryAccount = { status: 'signed-out', userId: null }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
 function gradedLevel(outcome: GradeOutcome | null): string | null {
@@ -79,6 +86,7 @@ export function BalancePage({
   onShowAll,
   footnote = null,
   leftOut,
+  liftAccount = SIGNED_OUT_LIFTS,
 }: BalancePageProps) {
   const {
     isSample,
@@ -141,8 +149,21 @@ export function BalancePage({
     () => ({ run: runCount, ride: rideCount }),
     [runCount, rideCount],
   )
+  // Lifting's corner: the share-of-total grade of the graded lifts (back squat, bench press, deadlift) the Lift page logs. The
+  // sample library is someone else's, so it shows no lifts of this browser's.
+  const { lifts } = useLiftSummary(liftAccount, settings)
+  const liftGrade = useMemo(() => {
+    if (isSample || birthYear === null || sex === null) return null
+    const graded = lifts.flatMap((lift) => {
+      const which = gradedLiftOf(lift.exercise, lift.equipment)
+      return which === null || lift.estimate === null
+        ? []
+        : [{ lift: which, estimate: lift.estimate }]
+    })
+    return liftCornerGrade(graded, { birthYear, sex }, settings.massKg)
+  }, [isSample, birthYear, sex, lifts, settings.massKg])
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
-  const triangle = useMemo(() => triangleViewOf(grades), [grades])
+  const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])
   const weightHeld = !weightKnown && inPeriod.run > 0 && inPeriod.ride > 0
   const levelShown =
     !weightHeld && Object.values(triangle.grades).some((corner) => corner.kind === 'graded')

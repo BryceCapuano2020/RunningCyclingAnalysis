@@ -66,3 +66,12 @@ export function triangleReading(grades: TriangleGrades): TriangleReading {
       : graded.filter((sport) => isLevel(top - centreOf(sport)))
   return { graded, higher, lower, lead, leaders, even, spread }
 }
+
+/**
+ * The grades the lean and the gap compare: lifting's corner is drawn, but it is not compared until the lift scale is tied to the run
+ * scale in its middle. An equal share of the best is not an equal rarity across sports, since strength varies between people far
+ * more than hour speed does (docs/design/lift-grade.md, section 6). Until then the headline and the gap read run and ride only.
+ */
+export function comparedGrades(grades: TriangleGrades): TriangleGrades {
+  return { ...grades, lift: { kind: 'gap' } }
+}

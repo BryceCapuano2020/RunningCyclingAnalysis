@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SportGrade } from '../grade'
 import { balanceLead } from './lead'
 import type { TriangleGrade, TriangleGrades } from './triangle'
-import { triangleReading } from './triangleLean'
+import { comparedGrades, triangleReading } from './triangleLean'
 
 const g = (centre: number, spread = 0): TriangleGrade => {
   const at = (value: number): SportGrade['centre'] => ({ grade: value, level: 'x' })
@@ -93,5 +93,15 @@ describe('triangleReading with fewer than two', () => {
         false,
       ])
     }
+  })
+})
+
+describe('comparedGrades', () => {
+  it('leaves lifting out of the lean and the gap, however it grades, and keeps run and ride as they are', () => {
+    const grades = of(g(0.61), g(0.52), g(0.9))
+    expect(comparedGrades(grades)).toEqual(of(g(0.61), g(0.52), gap))
+    const reading = triangleReading(comparedGrades(grades))
+    expect(reading.graded).toEqual(['run', 'ride'])
+    expect([reading.higher, reading.lower]).toEqual(['run', 'ride'])
   })
 })

@@ -18,5 +18,5 @@ export type {
   TriangleRing,
   TriangleSport,
 } from './triangle'
-export { triangleReading } from './triangleLean'
+export { comparedGrades, triangleReading } from './triangleLean'
 export type { TriangleReading } from './triangleLean'

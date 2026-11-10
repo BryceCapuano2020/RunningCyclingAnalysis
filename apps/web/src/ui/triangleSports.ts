@@ -1,3 +1,4 @@
+import type { LiftCornerGrade } from '@rca/core/lift'
 import { NO_TRIANGLE_GRADES } from '@rca/core/standing'
 import type { TriangleGrade, TriangleGrades, TriangleSport } from '@rca/core/standing'
 import type { Sport } from '@rca/core/types'
@@ -39,12 +40,22 @@ function cornerOf(outcome: GradeOutcome | null): TriangleGrade {
 }
 
 /**
- * The level triangle's grades from the grades the page holds. Lifting has no grade yet, so its corner is always a gap; a ride at the
- * top of the age tables is a gap too, and says so in its corner.
+ * The level triangle's grades from the grades the page holds, and lifting's share-of-total grade when the athlete has a graded
+ * lift (docs/design/lift-grade.md). A ride at the top of the age tables is a gap, and says so in its corner; a lift at the top of
+ * its scale is drawn at 100%.
  */
-export function triangleViewOf(grades: Record<Sport, GradeOutcome | null>): TriangleView {
+export function triangleViewOf(
+  grades: Record<Sport, GradeOutcome | null>,
+  lift: LiftCornerGrade | null = null,
+): TriangleView {
+  const notes: TriangleView['notes'] = {}
+  if (grades.ride?.kind === 'top-of-scale') notes.ride = TOP_OF_SCALE_SHORT
   return {
-    grades: { run: cornerOf(grades.run), ride: cornerOf(grades.ride), lift: { kind: 'gap' } },
-    notes: grades.ride?.kind === 'top-of-scale' ? { ride: TOP_OF_SCALE_SHORT } : {},
+    grades: {
+      run: cornerOf(grades.run),
+      ride: cornerOf(grades.ride),
+      lift: lift?.kind === 'graded' ? { kind: 'graded', grade: lift.grade } : { kind: 'gap' },
+    },
+    notes,
   }
 }
