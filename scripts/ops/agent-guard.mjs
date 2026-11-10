@@ -175,9 +175,12 @@ function judge(words, { agent, loop, callsGh }) {
   }
   const push = pushesMainOrForces(words)
   if (push) return { deny: push }
-  if (reachesProduction(words)) {
-    const why = 'This reaches production, which needs the owner to ask (CLAUDE.md).'
-    return agent ? { deny: `${why} Report it to the coordinator.` } : { ask: why }
+  // The owner works end to end (10 Nov 2026): the main session runs production steps he asked for without a prompt.
+  // Agents never reach production; they report it to the coordinator.
+  if (agent && reachesProduction(words)) {
+    return {
+      deny: 'This reaches production, which only the coordinator runs, when the owner asked (CLAUDE.md). Report it to the coordinator.',
+    }
   }
   if (agent && readiesOrMerges(words, verbs)) {
     return {

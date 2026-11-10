@@ -143,14 +143,14 @@ test('no push to main, no plain force-push, no stash', () => {
   }
 })
 
-test('production asks the owner in the main session and is refused to agents', () => {
+test('production runs in the main session without a prompt and is refused to agents', () => {
   for (const command of [
     'npm run deploy:built -- --tag abc',
     'npx wrangler deploy',
     'npx wrangler d1 execute rca --remote --command "select 1"',
     'npx wrangler secret put KEY',
   ]) {
-    assert.equal(kind(command), 'ask', command)
+    assert.equal(kind(command), 'allow', command)
     assert.equal(kind(command, 'rca-builder'), 'deny', command)
   }
   assert.equal(kind('npx wrangler dev --local'), 'allow')
