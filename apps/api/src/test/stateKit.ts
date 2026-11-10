@@ -50,6 +50,39 @@ export function fakeBatch(userIds: string[]): {
   return { batch, acked, retried, all }
 }
 
+/** A bucket whose PUT always fails, counting the tries: a compute that got as far as storing its snapshot. */
+export function failingPuts(bucket: R2Bucket, tries = { count: 0 }): R2Bucket {
+  return new Proxy(bucket, {
+    get(target, prop) {
+      if (prop === 'put') {
+        return async () => {
+          tries.count += 1
+          throw new Error('r2 down')
+        }
+      }
+      const value: unknown = Reflect.get(target, prop, target)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
+/** A D1 binding whose statements matching `match` fail, as a D1 error or a migration not yet applied would. */
+export function failingDb(db: D1Database, match: RegExp): D1Database {
+  const refuse = async () => Promise.reject(new Error('d1 down'))
+  const failing: D1PreparedStatement = new Proxy({} as D1PreparedStatement, {
+    get: (_target, prop) => (prop === 'bind' ? () => failing : refuse),
+  })
+  return new Proxy(db, {
+    get(target, prop) {
+      if (prop === 'prepare') {
+        return (sql: string) => (match.test(sql) ? failing : target.prepare(sql))
+      }
+      const value: unknown = Reflect.get(target, prop, target)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
 /** The digests of the default synthetic athlete's weeks, digested as the browser digests them. */
 export function libraryDigests(): ActivityDigest[] {
   return sampleDataset().activities.map((activity) => digestActivity(activity))

@@ -6,7 +6,13 @@ import { toSnapshot } from '@rca/core/stateSnapshot'
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { racingDb } from '../test/racingDb.ts'
-import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
+import {
+  afterNewest,
+  failingPuts,
+  libraryDigests,
+  seedDigests,
+  stateWorld,
+} from '../test/stateKit.ts'
 import { runStateJob } from './job.ts'
 import { zoneNamed } from './zone.ts'
 
@@ -211,9 +217,18 @@ describe('the state job', () => {
       }),
     }
     expect(await runStateJob(env, w.deps, w.userId)).toBe('moved')
-    expect(await row(w)).toBeNull()
+    // The attempt is recorded, and nothing computed: no version, no snapshot.
+    expect(await row(w)).toEqual({
+      computed_version: 0,
+      computed_at: 0,
+      snapshot_hash: null,
+      snapshot_version: 0,
+    })
     expect(await stored(w)).toEqual([])
     expect(await version(w)).toBe(before + 1)
+    // The write's own job waits out the interval from the overtaken attempt, then computes.
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
+    w.h.clock.now += 30_000
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
   })
 
@@ -289,11 +304,40 @@ describe('the state job', () => {
     const w = await prepared()
     const env = {
       ...w.env,
-      DB: racingDb(w.env.DB, /INSERT INTO state_jobs/, async () => {
+      DB: racingDb(w.env.DB, /INSERT INTO state_jobs \(user_id, computed_version/, async () => {
         await w.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(w.userId).run()
       }),
     }
     await expect(runStateJob(env, w.deps, w.userId)).rejects.toThrow()
     expect(await stored(w)).toEqual([])
+  })
+
+  it('reads no digest when the R2 ledger would refuse the snapshot, so a retry costs no compute', async () => {
+    const w = await prepared()
+    await w.env.DB.prepare(
+      `INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations,
+         monthly_put_bytes, d1_size_bytes)
+       VALUES (1, 1e15, '2000-01', 0, 0, 0)
+       ON CONFLICT(id) DO UPDATE SET lifetime_put_bytes = excluded.lifetime_put_bytes`,
+    ).run()
+    const reads: string[] = []
+    const env = {
+      ...w.env,
+      DB: racingDb(w.env.DB, /FROM activities/, async () => void reads.push('digests')),
+    }
+    await expect(runStateJob(env, w.deps, w.userId)).rejects.toThrow()
+    expect(reads).toEqual([])
+    expect(await stored(w)).toEqual([])
+  })
+
+  it('counts a compute that failed for coalescing, so the next message within the interval defers', async () => {
+    const w = await prepared()
+    await expect(
+      runStateJob({ ...w.env, FILES: failingPuts(w.env.FILES!) }, w.deps, w.userId),
+    ).rejects.toThrow('r2 down')
+    w.h.clock.now += 29_000
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
+    w.h.clock.now += 1_000
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
   })
 })

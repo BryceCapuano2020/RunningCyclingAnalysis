@@ -3,6 +3,8 @@ import { systemDeps } from '../deps.ts'
 import worker from '../index.ts'
 import {
   afterNewest,
+  failingDb,
+  failingPuts,
   fakeBatch,
   libraryDigests,
   seedDigests,
@@ -44,17 +46,14 @@ describe('the state consumer', () => {
     expect(acked).toEqual([0, 1])
   })
 
-  it('asks for a retry of an account whose job failed, and logs the class only', async () => {
+  it('asks for one retry of an account whose job failed, spends its other messages, and logs the class only', async () => {
     const w = await prepared()
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { batch, acked, retried } = fakeBatch([w.userId, w.userId])
     const report = await handleStateBatch(batch, { ...w.env, FILES: undefined }, w.deps)
     expect(report).toEqual({ accounts: 1, outcomes: { failed: 1 } })
-    expect(acked).toEqual([])
-    expect(retried).toEqual([
-      { id: 0, delaySeconds: 30 },
-      { id: 1, delaySeconds: 30 },
-    ])
+    expect(acked).toEqual([1])
+    expect(retried).toEqual([{ id: 0, delaySeconds: 30 }])
     expect(log).toHaveBeenCalledOnce()
     expect(log.mock.calls[0]?.[0]).toBe('{"event":"state_job_failed","errorClass":"Error"}')
     log.mockRestore()
@@ -114,6 +113,46 @@ describe('the state consumer', () => {
     const report = await handleStateBatch(batch, { ...w.env, STATE_QUEUE: down }, w.deps)
     expect(report.outcomes).toEqual({ deferred: 1, failed: 1 })
     expect(acked).toEqual([])
+    expect(retried).toHaveLength(1)
+    log.mockRestore()
+  })
+
+  it('computes a failing account once per retry, however many messages and batches name it', async () => {
+    const w = await prepared()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const tries = { count: 0 }
+    const env = { ...w.env, FILES: failingPuts(w.env.FILES!, tries) }
+    // An import's worth of messages arriving a second apart, two to a batch: the first computes and fails.
+    const answers = []
+    for (let i = 0; i < 5; i += 1) {
+      const answer = fakeBatch([w.userId, w.userId])
+      await handleStateBatch(answer.batch, env, w.deps)
+      answers.push(answer)
+      w.h.clock.now += 1_000
+    }
+    expect(tries.count).toBe(1)
+    expect(answers.flatMap((answer) => answer.retried)).toHaveLength(1)
+    // The rest defer, and send nothing: the retry is on its way.
+    expect(answers.flatMap((answer) => answer.acked)).toHaveLength(9)
+    expect(w.sent).toEqual([])
+    // The retry, its interval spent, computes once more, and its own retries after it: no more than the Queue's limit.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      w.h.clock.now += 30_000
+      await handleStateBatch(fakeBatch([w.userId]).batch, env, w.deps)
+    }
+    expect(tries.count).toBe(4)
+    expect(w.sent).toEqual([])
+    log.mockRestore()
+  })
+
+  it('retries one message, and does not throw, when the job tables cannot be written', async () => {
+    const w = await prepared()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    // Migration 0015 not applied, say: the marker's column is not there.
+    const env = { ...w.env, DB: failingDb(w.env.DB, /pending_until/) }
+    const { batch, acked, retried } = fakeBatch([w.userId, w.userId])
+    expect((await handleStateBatch(batch, env, w.deps)).outcomes).toEqual({ failed: 1 })
+    expect(acked).toEqual([1])
     expect(retried).toHaveLength(1)
     log.mockRestore()
   })

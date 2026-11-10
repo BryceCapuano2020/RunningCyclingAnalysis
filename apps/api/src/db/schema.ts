@@ -135,6 +135,9 @@ export const stateJobs = sqliteTable('state_jobs', {
   computedAt: integer('computed_at').notNull().default(0),
   snapshotHash: text('snapshot_hash'),
   snapshotVersion: integer('snapshot_version').notNull().default(0),
+  // 0015: when the last compute began (a failed one included), and until when a message for the account is on its way.
+  attemptedAt: integer('attempted_at').notNull().default(0),
+  pendingUntil: integer('pending_until').notNull().default(0),
 })
 
 /**

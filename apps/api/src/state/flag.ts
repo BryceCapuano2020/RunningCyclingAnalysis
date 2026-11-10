@@ -2,6 +2,7 @@
 interface AllowlistEnv {
   SERVER_COMPUTE_USERS?: string
   SERVER_COMPUTE_ACCOUNTS?: string
+  ENVIRONMENT?: string
 }
 
 /**
@@ -9,15 +10,17 @@ interface AllowlistEnv {
  * `SERVER_COMPUTE_ACCOUNTS` when one is set (so the ids stay out of the public repository), else from the plain variable
  * `SERVER_COMPUTE_USERS`. The secret wins, even when it is empty, so an operator can switch everyone off without a deploy.
  * Empty or unset is off for everyone. `*` is everyone, for local tests and the e2e server only: the deploy-config
- * check refuses it in wrangler.toml. For an account not on the list nothing is sent, computed or served, so it behaves as it
- * did before the feature existed.
+ * check refuses it in wrangler.toml, and the Worker ignores it in production (ENVIRONMENT "production"), from the secret
+ * too, which no check before a deploy can read. For an account not on the list nothing is sent, computed or served, so it
+ * behaves as it did before the feature existed.
  */
 export function serverStateAccounts(env: AllowlistEnv): ReadonlySet<string> {
+  const production = env.ENVIRONMENT === 'production'
   return new Set(
     String(env.SERVER_COMPUTE_ACCOUNTS ?? env.SERVER_COMPUTE_USERS ?? '')
       .split(',')
       .map((id) => id.trim())
-      .filter((id) => id !== ''),
+      .filter((id) => id !== '' && !(production && id === '*')),
   )
 }
 
