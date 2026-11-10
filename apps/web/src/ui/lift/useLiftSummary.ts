@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildLiftState } from '@rca/core/lift'
 import type { LiftState } from '@rca/core/lift'
 import type { AthleteSettings } from '@rca/core/athlete'
+import { createLiftTransport } from '../../api/lifts'
 import { liftsExist, openLiftStore } from '../../worker/liftStore'
+import { createLiftSync } from '../../worker/liftSync'
+import type { LiftTransport } from '../../worker/liftTransport'
 import type { LiftRow } from '../../worker/liftTransitions'
 import { useTabMessages } from '../tabSync'
 import type { TabMessage } from '../tabSync'
@@ -21,11 +24,16 @@ const ignore = () => undefined
 const NONE: LiftState = { revision: 0, lifts: [], weeks: [] }
 
 /**
- * The lift estimates of this browser's scope, for pages that only read them (the Balance hero). Reads the same scope
- * as the lift log and builds core's `buildLiftState`; it never writes, syncs or makes the database. It reads again
- * when another tab wrote or Remove all cleared the store. `ready` is false until the first read answers.
+ * The lift estimates of this browser's scope, for pages that show them (the Balance hero). Reads the same scope as the
+ * lift log and builds core's `buildLiftState`. Signed in, it syncs once when it opens, as the Lift page does, so a browser
+ * that has not opened Lift yet still has the account's sets; signed out it never writes or makes the database. It reads
+ * again when another tab wrote or Remove all cleared the store. `ready` is false until the first read answers.
  */
-export function useLiftSummary(account: LiftSummaryAccount, settings: AthleteSettings) {
+export function useLiftSummary(
+  account: LiftSummaryAccount,
+  settings: AthleteSettings,
+  transportFor: (userId: string) => LiftTransport = createLiftTransport,
+) {
   const scope = useLiftScope(account.status, account.userId)
   const [read, setRead] = useState<{ scope: string; rows: LiftRow[] } | null>(null)
   const scopeRef = useRef(scope)
@@ -42,6 +50,23 @@ export function useLiftSummary(account: LiftSummaryAccount, settings: AthleteSet
   useEffect(() => {
     void reload().catch(ignore)
   }, [reload])
+  // Signed in: one sync on opening (a flush, then a pull while this engine has pulled nothing), then a read of what it wrote.
+  const { status, userId } = account
+  // The first transport factory is kept, so a caller that passes a new function each render does not sync again.
+  const [transport] = useState(() => transportFor)
+  useEffect(() => {
+    if (status !== 'signed-in' || userId === null) return
+    let live = true
+    const store = openLiftStore(userId)
+    createLiftSync({ store, transport: transport(userId) })
+      .sync()
+      .then(() => (live ? reload() : undefined))
+      .catch(ignore)
+      .finally(() => store.close())
+    return () => {
+      live = false
+    }
+  }, [status, userId, transport, reload])
   useTabMessages(
     useCallback(
       (message: TabMessage) => {

@@ -5,7 +5,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { AthleteSettings } from '@rca/core/athlete'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openLiftStore } from '../../worker/liftStore'
-import { make } from '../../worker/liftTestKit'
+import { fakeTransport, make } from '../../worker/liftTestKit'
 import { noteLiftAccount } from './lastAccount'
 import { announceLiftsCleared } from './liftsCleared'
 import { useLiftSummary } from './useLiftSummary'
@@ -20,8 +20,10 @@ beforeEach(() => {
   localStorage.clear()
 })
 
-const setup = (account: LiftSummaryAccount) =>
-  renderHook((props: LiftSummaryAccount) => useLiftSummary(props, SETTINGS), {
+// A server that never answers, so a test reads only what it put in the store; one test gives it an answer.
+const silent = fakeTransport({ gate: () => new Promise<void>(() => undefined) }).transport
+const setup = (account: LiftSummaryAccount, transport = silent) =>
+  renderHook((props: LiftSummaryAccount) => useLiftSummary(props, SETTINGS, () => transport), {
     initialProps: account,
   })
 const ready = (view: ReturnType<typeof setup>) =>
@@ -95,5 +97,21 @@ describe('the lift summary', () => {
     await store.remove(row?.key ?? '')
     await act(async () => announceLiftsCleared())
     await waitFor(() => expect(view.result.current.lifts).toEqual([]))
+  })
+
+  it('signed in, pulls the account’s sets on opening, so a browser that never opened Lift has them', async () => {
+    const fake = fakeTransport({
+      pages: () => ({ items: [make(1, 100)], next: null, liftRevision: 4 }),
+    })
+    const view = setup(IN, fake.transport)
+    await waitFor(() => expect(view.result.current.lifts).toHaveLength(1))
+    expect(fake.calls.some((call) => call.type === 'page')).toBe(true)
+  })
+
+  it('signed out, sends and reads nothing from the server', async () => {
+    const fake = fakeTransport({})
+    const view = setup(OUT, fake.transport)
+    await ready(view)
+    expect(fake.calls).toEqual([])
   })
 })

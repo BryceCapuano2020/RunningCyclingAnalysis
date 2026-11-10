@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { gradedLiftOf, liftCornerGrade } from '@rca/core/lift'
+import { LIFT_STANDARDS_SOURCE, gradedLiftOf, liftCornerGrade } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -199,6 +199,9 @@ export function BalancePage({
     ...periodRows,
     ...(target === null ? [] : targetRows(target)),
     ...(gradeShown ? [{ label: 'Graded on', value: ROAD_STANDARDS_SOURCE.shortName }] : []),
+    ...(liftGrade?.kind === 'graded'
+      ? [{ label: 'Lifting graded on', value: LIFT_STANDARDS_SOURCE.shortName }]
+      : []),
   ]
 
   return (

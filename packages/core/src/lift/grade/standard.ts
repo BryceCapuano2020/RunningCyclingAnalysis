@@ -60,3 +60,13 @@ export const Z_HIGH = 1.925
 export const Z_STANDARD = 1.645
 /** No grade is shown above this: beyond all but a few lifters in 50,000. */
 export const GRADE_CEILING = 1.1
+
+/** Where the lift standards come from, for a citation beside a lift grade (docs/design/lift-grade.md, section 2). */
+export const LIFT_STANDARDS_SOURCE = {
+  name: 'OpenPowerlifting meet results',
+  /** The name for a short citation: "Lifting on judged meet lifts from OpenPowerlifting". */
+  shortName: 'judged meet lifts, OpenPowerlifting',
+  url: 'https://www.openpowerlifting.org',
+  attribution:
+    'Lift standards are fitted to results from the OpenPowerlifting project, https://www.openpowerlifting.org. You may download a copy of the data at https://data.openpowerlifting.org.',
+} as const
