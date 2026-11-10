@@ -23,6 +23,8 @@ export interface SetFormText {
 export interface SetFormErrors {
   reps?: string
   load?: string
+  /** Core refused something the fields do not show, such as the date or lift from the page. */
+  form?: string
 }
 
 /** The RPE choices: not rated, then 6 to 10 in halves. */
@@ -30,6 +32,12 @@ export const RPE_CHOICES: readonly number[] = Array.from(
   { length: 9 },
   (_, i) => 6 + i * LIFT_RPE_STEP,
 )
+
+/** An RPE moved to the nearest half, or undefined when that is outside 6 to 10. */
+export function snapRpe(rpe: number): number | undefined {
+  const snapped = Math.round(rpe / LIFT_RPE_STEP) * LIFT_RPE_STEP
+  return RPE_CHOICES.includes(snapped) ? snapped : undefined
+}
 
 const roundKg = (kg: number) => Math.round(kg * 100) / 100
 
@@ -41,7 +49,10 @@ export function loadText(kg: number, units: UnitSystem): string {
 
 /** The athlete's text as kilograms to 0.01, or null when it is not a number. */
 export function loadKgFromText(text: string, units: UnitSystem): number | null {
-  const clean = text.trim().replace(',', '.')
+  const trimmed = text.trim()
+  // Thousands separators are not read: "1,000" is refused rather than taken as 1.
+  if (/[.,].*[.,]/.test(trimmed) || /,\d{3}$/.test(trimmed)) return null
+  const clean = trimmed.replace(',', '.')
   if (!/^(\d+\.?\d*|\.\d+)$/.test(clean)) return null
   const value = Number(clean)
   return roundKg(units === 'imperial' ? lbToKg(value) : value)
@@ -51,7 +62,7 @@ export function loadKgFromText(text: string, units: UnitSystem): number | null {
 export function readSetForm(
   text: SetFormText,
   units: UnitSystem,
-  base: Pick<LiftSet, 'date' | 'exercise' | 'setOrder'>,
+  base: Pick<LiftSet, 'date' | 'exercise' | 'setOrder' | 'time' | 'timePrecision'>,
   loadOptional: boolean,
 ): { set: LiftSet } | { errors: SetFormErrors } {
   const errors: SetFormErrors = {}
@@ -74,8 +85,6 @@ export function readSetForm(
     ...(rpe !== undefined && { rpe }),
     ...(text.warmup && { warmup: true }),
   })
-  // The fields are checked above; the date, lift or order from the page is what core refused.
-  if (!set)
-    return { errors: { reps: `Enter whole reps from ${LIFT_REPS.min} to ${LIFT_REPS.max}` } }
+  if (!set) return { errors: { form: 'This set cannot be saved. Check the lift and the date.' } }
   return { set }
 }

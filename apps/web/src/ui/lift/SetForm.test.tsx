@@ -16,6 +16,7 @@ function setup(props: Partial<SetFormProps> = {}) {
       units="metric"
       onSave={onSave}
       onDone={() => undefined}
+      now={() => new Date(2030, 2, 4, 7, 5)}
       {...props}
     />,
   )
@@ -43,6 +44,8 @@ describe('SetForm', () => {
       loadKg: 102.5,
       rpe: 8.5,
       warmup: true,
+      time: '07:05',
+      timePrecision: 'set',
     })
     expect(field('Reps')).toHaveValue('5')
     expect(screen.getByLabelText('Effort (RPE)')).toHaveValue('8.5')
@@ -117,7 +120,76 @@ describe('SetForm', () => {
     expect(onSave.mock.calls[0]![0]).toMatchObject({ equipment: 'bodyweight', loadKg: 0, reps: 8 })
   })
 
-  it('shows Delete only when editing', () => {
+  it('keeps the original time of an edited set', async () => {
+    const { user, onSave } = setup({
+      initial: { reps: 5, loadKg: 60, time: '18:30', timePrecision: 'session' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ time: '18:30', timePrecision: 'session' })
+  })
+
+  it('moves an off-grid initial effort to the nearest half and drops one out of range', () => {
+    const { unmount } = render(
+      <SetForm
+        exercise="deadlift"
+        date="2030-03-04"
+        setOrder={1}
+        units="metric"
+        initial={{ rpe: 8.25 }}
+        onSave={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('Effort (RPE)')).toHaveValue('8.5')
+    unmount()
+    render(
+      <SetForm
+        exercise="deadlift"
+        date="2030-03-04"
+        setOrder={1}
+        units="metric"
+        initial={{ rpe: 3 }}
+        onSave={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('Effort (RPE)')).toHaveValue('')
+  })
+
+  it('refuses 1,000 as a load rather than reading 1', async () => {
+    const { user, onSave } = setup()
+    await user.type(field('Reps'), '3')
+    await user.type(field('Load'), '1,000')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByText('Enter a load from 0 to 1000 kg')).toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('shows a form-level error when core refuses what the fields do not show', async () => {
+    const { user, onSave } = setup({ date: 'not-a-date' })
+    await user.type(field('Reps'), '3')
+    await user.type(field('Load'), '50')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('This set cannot be saved')
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('starts over when the lift changes', async () => {
+    const props = {
+      date: '2030-03-04',
+      setOrder: 1,
+      units: 'metric' as const,
+      onSave: vi.fn(),
+      onDone: vi.fn(),
+    }
+    const { rerender } = render(<SetForm exercise="back-squat" {...props} />)
+    await userEvent.type(field('Reps'), '5')
+    rerender(<SetForm exercise="pull-up" {...props} />)
+    expect(field('Reps')).toHaveValue('')
+    expect(screen.getByLabelText('Equipment')).toHaveValue('bodyweight')
+  })
+
+  it('shows Delete only when editing, and it calls onDelete', async () => {
     const { unmount } = render(
       <SetForm
         exercise="deadlift"
@@ -142,6 +214,7 @@ describe('SetForm', () => {
         onDone={vi.fn()}
       />,
     )
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledTimes(1)
   })
 })

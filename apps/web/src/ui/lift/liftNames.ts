@@ -20,6 +20,7 @@ export interface RecentLift {
 export function slugify(text: string): string {
   const parts = text
     .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
@@ -63,7 +64,11 @@ export function matchesName(name: string, query: string): boolean {
  */
 export function liftOptions(query: string, recent: readonly RecentLift[]): LiftOption[] {
   const rows: LiftOption[] = []
+  const seen = new Set<string>()
   for (const lift of recent) {
+    const key = `${lift.exercise}.${lift.equipment}`
+    if (seen.has(key)) continue
+    seen.add(key)
     const name = liftName(lift.exercise)
     if (!matchesName(name, query)) continue
     rows.push({

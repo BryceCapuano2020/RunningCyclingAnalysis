@@ -7,6 +7,9 @@ describe('slugify and deslug', () => {
     expect(slugify('  Bulgarian Split  squat! ')).toBe('bulgarian-split-squat')
     expect(deslug('bulgarian-split-squat')).toBe('Bulgarian split squat')
   })
+  it('drops accents', () => {
+    expect(slugify('Café curl')).toBe('cafe-curl')
+  })
   it('keeps only a-z and 0-9', () => {
     expect(slugify('Zercher (2 sec) squat')).toBe('zercher-2-sec-squat')
     expect(slugify('★ !!')).toBe('')
@@ -28,6 +31,10 @@ describe('liftOptions', () => {
       label: 'Deadlift, barbell',
     })
     expect(rows.length).toBeGreaterThan(10)
+  })
+  it('lists a repeated recent lift once', () => {
+    const same = { exercise: 'deadlift', equipment: 'barbell' as const }
+    expect(liftOptions('dead', [same, same]).filter((row) => row.equipment)).toHaveLength(1)
   })
   it('matches word starts, any case and order', () => {
     expect(matchesName('Incline bench press', 'PRESS inc')).toBe(true)

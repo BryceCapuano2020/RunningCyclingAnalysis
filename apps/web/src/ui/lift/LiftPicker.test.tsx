@@ -62,4 +62,38 @@ describe('LiftPicker', () => {
     await user.keyboard('{Enter}')
     expect(onChoose).toHaveBeenCalledWith({ exercise: 'deadlift', equipment: 'barbell' })
   })
+
+  it('tells the parent when typing clears the choice', async () => {
+    const onChoose = vi.fn()
+    const user = userEvent.setup()
+    render(<LiftPicker recent={recent} selected="deadlift" onChoose={onChoose} />)
+    await user.type(screen.getByRole('combobox', { name: 'Lift' }), 'x')
+    expect(onChoose).toHaveBeenCalledTimes(1)
+    expect(onChoose).toHaveBeenCalledWith(null)
+  })
+
+  it('on blur keeps an exact name and otherwise reverts to the chosen lift', async () => {
+    const onChoose = vi.fn()
+    const user = userEvent.setup()
+    render(<LiftPicker recent={[]} selected="deadlift" onChoose={onChoose} />)
+    const input = screen.getByRole('combobox', { name: 'Lift' })
+    await user.clear(input)
+    await user.type(input, 'bench press')
+    await user.tab()
+    expect(onChoose).toHaveBeenLastCalledWith({ exercise: 'bench-press' })
+    expect(input).toHaveValue('Bench press')
+    await user.type(input, ' x')
+    await user.tab()
+    expect(input).toHaveValue('Deadlift')
+  })
+
+  it('moves to the first and last option with Home and End', async () => {
+    const { user, input } = setup()
+    await user.click(input)
+    await user.keyboard('{End}')
+    const options = screen.getAllByRole('option')
+    expect(input.getAttribute('aria-activedescendant')).toBe(options[options.length - 1]!.id)
+    await user.keyboard('{Home}')
+    expect(input.getAttribute('aria-activedescendant')).toBe(options[0]!.id)
+  })
 })
