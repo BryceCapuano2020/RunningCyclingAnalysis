@@ -29,7 +29,7 @@ export default defineConfig({
       use: { ...devices['iPhone 13'] },
       testIgnore: /phone-memory\.spec\.ts$/,
     },
-    // The narrowest phone the layout must work at, checked by the accessibility suite and the failure notices.
+    // The narrowest phone the layout must work at, checked by the accessibility suite, the failure notices and the Lift page.
     {
       name: 'narrow-320',
       use: { ...devices['Pixel 7'], viewport: { width: 320, height: 640 } },

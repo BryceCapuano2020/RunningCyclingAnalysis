@@ -25,7 +25,18 @@ function draftOf(set: LiftSet): NewLiftSet {
   return draft
 }
 
+// The stamp reads the clock when Save is pressed: `useNow` holds its value until midnight, so it would give every set
+// the time the page opened.
 const clock = () => new Date()
+
+/** What a failed save shows, above the form that keeps its values. */
+function NotSaved() {
+  return (
+    <p role="alert" className="lift__error">
+      Not saved
+    </p>
+  )
+}
 
 /**
  * The Lift page on the lift log: the day's lifts, earlier sessions, the status rows, the form under "Log a set" and the
@@ -43,6 +54,7 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
   const [choice, setChoice] = useState<{ exercise: string; equipment?: Equipment } | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [count, setCount] = useState(EARLIER_STEP)
+  const [notSaved, setNotSaved] = useState(false)
 
   const logged = log.days.find((entry) => entry.date === day)
   const lifts = useMemo(() => liftsOfDay(logged), [logged])
@@ -56,18 +68,31 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
   const closeAll = () => {
     setLogging(false)
     setChoice(null)
+    setNotSaved(false)
+  }
+  // A write that returns null or rejects keeps its form open with the values; one that lands runs `done`.
+  const settle = (work: Promise<unknown>, done?: () => void) => {
+    void work.then(
+      (result) => {
+        setNotSaved(result === null)
+        if (result !== null) done?.()
+      },
+      () => setNotSaved(true),
+    )
   }
 
   const form = logging ? (
     <>
       <LiftPicker recent={log.recentLifts} selected={exercise} onChoose={setChoice} />
+      {notSaved && <NotSaved />}
       {exercise === null ? (
         <button type="button" className="btn" onClick={closeAll}>
           Done
         </button>
       ) : (
         <SetForm
-          key={exercise}
+          // A lift from another equipment, or the days arriving after the pick, start the form again from the last set.
+          key={`${exercise}|${choice?.equipment ?? ''}|${log.ready}`}
           exercise={exercise}
           date={day}
           setOrder={1}
@@ -83,7 +108,7 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
               ...(last.rpe !== undefined && { rpe: last.rpe }),
             }
           }
-          onSave={(set) => void log.save(draftOf(set))}
+          onSave={(set) => settle(log.save(draftOf(set)))}
           onDone={closeAll}
         />
       )}
@@ -92,18 +117,24 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
 
   const rowForm =
     editing && editingKey !== null ? (
-      <SetForm
-        key={editingKey}
-        exercise={editing.exercise}
-        date={editing.date}
-        setOrder={editing.setOrder}
-        units={units}
-        primary
-        initial={editing}
-        onSave={(set) => void log.update(editing, draftOf(set)).then(() => setEditingKey(null))}
-        onDelete={() => void log.remove(editingKey).then(() => setEditingKey(null))}
-        onDone={() => setEditingKey(null)}
-      />
+      <>
+        {notSaved && <NotSaved />}
+        <SetForm
+          key={editingKey}
+          exercise={editing.exercise}
+          date={editing.date}
+          setOrder={editing.setOrder}
+          units={units}
+          primary
+          initial={editing}
+          onSave={(set) => settle(log.update(editing, draftOf(set)), () => setEditingKey(null))}
+          onDelete={() => settle(log.remove(editingKey), () => setEditingKey(null))}
+          onDone={() => {
+            setNotSaved(false)
+            setEditingKey(null)
+          }}
+        />
+      </>
     ) : null
 
   return (

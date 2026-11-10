@@ -66,3 +66,7 @@
 .lift__more {
   justify-self: start;
 }
+
+.lift__error {
+  margin: 0;
+}

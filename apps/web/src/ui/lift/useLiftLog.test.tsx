@@ -10,6 +10,7 @@ import { openLiftStore } from '../../worker/liftStore'
 import { fakeTransport, make } from '../../worker/liftTestKit'
 import { LiftTransportError } from '../../worker/liftTransport'
 import { noteLiftAccount } from './lastAccount'
+import { announceLiftsCleared } from './liftsCleared'
 import { useLiftLog } from './useLiftLog'
 import type { LiftLogAccount } from './useLiftLog'
 
@@ -407,5 +408,20 @@ describe('the lift log, signed in', () => {
     noteLiftAccount('u2')
     view.rerender({ ...SIGNED_OUT, status: 'loading' })
     await waitFor(() => expect(view.result.current.days[0]?.lifts[0]?.sets[0]?.set.loadKg).toBe(70))
+  })
+})
+
+describe('Remove all in this tab', () => {
+  it('empties the log on screen when the worker clears the store', async () => {
+    const view = setup(SIGNED_OUT)
+    await ready(view)
+    await act(async () => void (await view.result.current.save(draft())))
+    expect(view.result.current.days).toHaveLength(1)
+    await act(async () => {
+      const store = openLiftStore('device')
+      for (const row of await store.list()) await store.remove(row.key)
+      announceLiftsCleared()
+    })
+    await waitFor(() => expect(view.result.current.days).toHaveLength(0))
   })
 })
