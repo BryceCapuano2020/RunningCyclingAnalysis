@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { liftName, liftOptions } from './liftNames'
+import { liftName, liftOptions, nameProblem } from './liftNames'
 import type { LiftOption, RecentLift } from './liftNames'
 import './LiftPicker.css'
 
@@ -102,6 +102,11 @@ export function LiftPicker({ recent, selected = null, onChoose }: LiftPickerProp
         onBlur={leave}
         onKeyDown={onKeyDown}
       />
+      {options.length === 0 && nameProblem(text) && (
+        <p role="alert" className="lift-picker__problem">
+          {nameProblem(text)}
+        </p>
+      )}
       <div
         id={listId}
         role="listbox"

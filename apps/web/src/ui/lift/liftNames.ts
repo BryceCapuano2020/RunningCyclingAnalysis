@@ -18,13 +18,28 @@ export interface RecentLift {
 
 /** Lower-case words joined by hyphens, a-z and 0-9 only, at most 48 characters. Empty when nothing is left. */
 export function slugify(text: string): string {
+  return fullSlug(text).slice(0, LIFT_EXERCISE_LENGTH.max).replace(/-+$/, '')
+}
+
+/** The slug of the whole name, before any cut to the length limit. */
+function fullSlug(text: string): string {
   const parts = text
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
-  return parts.join('-').slice(0, LIFT_EXERCISE_LENGTH.max).replace(/-+$/, '')
+  return parts.join('-')
+}
+
+/** Why a typed name cannot become a lift, or null when it can (or nothing is typed). */
+export function nameProblem(text: string): string | null {
+  if (text.trim() === '') return null
+  const slug = fullSlug(text)
+  if (slug === '') return 'Use letters or numbers in the name'
+  if (slug.length > LIFT_EXERCISE_LENGTH.max)
+    return `Use a name of ${LIFT_EXERCISE_LENGTH.max} characters or fewer`
+  return null
 }
 
 /** The slug as a name: hyphens to spaces, first letter capital. */
@@ -36,11 +51,6 @@ export function deslug(slug: string): string {
 /** The catalog's name, else the slug shown back as a name. */
 export function liftName(slug: string): string {
   return exerciseInfo(slug).name || deslug(slug)
-}
-
-/** "Barbell", for an equipment value. */
-export function equipmentName(equipment: Equipment): string {
-  return equipment.charAt(0).toUpperCase() + equipment.slice(1)
 }
 
 function words(text: string): string[] {
@@ -59,11 +69,12 @@ export function matchesName(name: string, query: string): boolean {
 }
 
 /**
- * The rows for what is typed: recent lifts first, then the catalog, and when nothing matches the typed
- * name as "Add ‘name’" (only if it makes a valid slug).
+ * The rows for what is typed. With nothing typed, recent lifts lead and the catalog follows. Typed, catalog
+ * names match first, then recent lifts. When nothing matches, the last option is "Add ‘name’", unless the
+ * name cannot become a valid slug.
  */
 export function liftOptions(query: string, recent: readonly RecentLift[]): LiftOption[] {
-  const rows: LiftOption[] = []
+  const recentRows: LiftOption[] = []
   const seen = new Set<string>()
   for (const lift of recent) {
     const key = `${lift.exercise}.${lift.equipment}`
@@ -71,19 +82,22 @@ export function liftOptions(query: string, recent: readonly RecentLift[]): LiftO
     seen.add(key)
     const name = liftName(lift.exercise)
     if (!matchesName(name, query)) continue
-    rows.push({
+    recentRows.push({
       exercise: lift.exercise,
       equipment: lift.equipment,
       label: `${name}, ${lift.equipment}`,
     })
   }
+  const catalogRows: LiftOption[] = []
   for (const slug of Object.keys(EXERCISE_CATALOG)) {
     const name = liftName(slug)
-    if (matchesName(name, query)) rows.push({ exercise: slug, label: name })
+    if (matchesName(name, query)) catalogRows.push({ exercise: slug, label: name })
   }
-  if (rows.length === 0) {
+  const typed = query.trim() !== ''
+  const rows = typed ? [...catalogRows, ...recentRows] : [...recentRows, ...catalogRows]
+  if (rows.length === 0 && nameProblem(query) === null) {
     const slug = slugify(query)
-    if (slug) rows.push({ exercise: slug, label: `Add ‘${deslug(slug)}’`, isNew: true })
+    if (slug) rows.push({ exercise: slug, label: `Add ‘${liftName(slug)}’`, isNew: true })
   }
   return rows
 }

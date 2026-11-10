@@ -41,6 +41,13 @@ describe('LiftPicker', () => {
     expect(onChoose).toHaveBeenCalledWith({ exercise: 'bulgarian-split-squat-x' })
   })
 
+  it('says why a name that is too long cannot be added', async () => {
+    const { user, input } = setup()
+    await user.type(input, 'zzq'.repeat(20))
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    expect(screen.getByRole('alert')).toHaveTextContent('48 characters or fewer')
+  })
+
   it('chooses with the arrows and Enter, and closes with Escape', async () => {
     const { user, input, onChoose } = setup()
     await user.type(input, 'press')

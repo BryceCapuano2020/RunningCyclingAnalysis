@@ -54,3 +54,9 @@
 .lift-picker__option:hover {
   background: var(--paper-hover);
 }
+
+.lift-picker__problem {
+  margin: 0;
+  color: var(--status-critical);
+  font-size: var(--text-sm);
+}

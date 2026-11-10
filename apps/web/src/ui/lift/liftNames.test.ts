@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LIFT_EXERCISE_PATTERN } from '@rca/core/lift'
-import { deslug, liftOptions, matchesName, slugify } from './liftNames'
+import { deslug, liftOptions, matchesName, nameProblem, slugify } from './liftNames'
 
 describe('slugify and deslug', () => {
   it('makes lower-case hyphenated words', () => {
@@ -35,6 +35,22 @@ describe('liftOptions', () => {
   it('lists a repeated recent lift once', () => {
     const same = { exercise: 'deadlift', equipment: 'barbell' as const }
     expect(liftOptions('dead', [same, same]).filter((row) => row.equipment)).toHaveLength(1)
+  })
+  it('lists catalog names before recent lifts once typing, and recent first before', () => {
+    const recent = [{ exercise: 'deadlift', equipment: 'barbell' as const }]
+    expect(liftOptions('dead', recent).map((r) => r.label)).toEqual([
+      'Deadlift',
+      'Sumo deadlift',
+      'Romanian deadlift',
+      'Deadlift, barbell',
+    ])
+    expect(liftOptions('', recent)[0]?.label).toBe('Deadlift, barbell')
+  })
+  it('refuses a name with no usable slug or one over 48 characters, with no Add option', () => {
+    expect(liftOptions('zzq'.repeat(20), [])).toEqual([])
+    expect(nameProblem('zzq'.repeat(20))).toMatch(/48/)
+    expect(nameProblem('★')).toMatch(/letters or numbers/)
+    expect(nameProblem('zzq cable fly')).toBeNull()
   })
   it('matches word starts, any case and order', () => {
     expect(matchesName('Incline bench press', 'PRESS inc')).toBe(true)
