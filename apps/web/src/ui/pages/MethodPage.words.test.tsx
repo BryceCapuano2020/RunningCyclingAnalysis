@@ -23,7 +23,7 @@ function page(result: AnalysisResult | null, profile: AgeProfile | null, weightK
 }
 
 /** The most words the page may hold with every disclosure closed. */
-const BUDGET = 2360
+const BUDGET = 2345
 
 describe('the Method page', () => {
   it('stays within its word budget', () => {

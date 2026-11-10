@@ -1,17 +1,11 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import {
-  KEEP_POWER_LABEL,
-  POWER_KEPT_NOTE,
-  POWER_SET_ASIDE_NOTE,
-  estimatedPowerNote,
-  powerHeartRateNote,
-  SET_POWER_ASIDE_LABEL,
-} from '../analysis/powerCheckCopy'
+import { KEEP_POWER_LABEL, SET_POWER_ASIDE_LABEL, powerCheckRows } from '../analysis/powerCheckCopy'
 import { useKeptPower } from '../keptPowerStore'
+import { PageDetails } from '../pages/PageDetails'
 
 /**
- * What an activity page says about a ride whose power is set aside or kept, with the one button that changes it.
- * Nothing for any other activity.
+ * What an activity page holds about a ride whose power is set aside or kept: its facts behind Details, label
+ * over value, and the one button that changes it. Nothing for any other activity.
  */
 export function PowerCheck({ activity }: { activity: ActivitySummary }) {
   const { keep, release } = useKeptPower()
@@ -19,16 +13,6 @@ export function PowerCheck({ activity }: { activity: ActivitySummary }) {
   const kept = activity.powerCheck === 'kept'
   return (
     <div className="activity-page__power">
-      <p className="secondary">
-        {kept
-          ? POWER_KEPT_NOTE
-          : activity.estimatedPower === undefined
-            ? POWER_SET_ASIDE_NOTE
-            : estimatedPowerNote(activity.estimatedPower)}
-      </p>
-      {activity.powerHeartRate !== undefined && (
-        <p className="secondary">{powerHeartRateNote(activity.powerHeartRate)}</p>
-      )}
       <button
         type="button"
         className="btn"
@@ -36,6 +20,10 @@ export function PowerCheck({ activity }: { activity: ActivitySummary }) {
       >
         {kept ? SET_POWER_ASIDE_LABEL : KEEP_POWER_LABEL}
       </button>
+      <PageDetails
+        about="power"
+        rows={powerCheckRows(activity.powerCheck, activity.estimatedPower, activity.powerHeartRate)}
+      />
     </div>
   )
 }

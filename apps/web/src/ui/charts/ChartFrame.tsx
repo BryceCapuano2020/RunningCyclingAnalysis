@@ -1,5 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { PropertyList } from '../components/PropertyList'
+import type { Property } from '../components/property'
 import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTable } from './ChartTable'
@@ -20,6 +22,8 @@ export interface ChartFrameProps {
   description: string
   /** One sentence under the title that says what the chart shows, such as its finding. */
   lede?: string
+  /** Label and value rows for the chart's Details, the figures a lede would have said in a sentence. */
+  facts?: readonly Property[]
   /** A row of controls under the title and its sentence, such as a sport filter, kept above the key and the plot. */
   controls?: ReactNode
   /**
@@ -96,6 +100,7 @@ export function ChartFrame({
   titleHidden = false,
   description,
   lede,
+  facts,
   controls,
   height: givenHeight,
   legend,
@@ -209,8 +214,9 @@ export function ChartFrame({
             onOpen === undefined ? undefined : (event) => event.currentTarget.open && onOpen()
           }
         >
-          <summary>{lede || note ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
+          <summary>{lede || note || facts?.length ? CHART_DETAILS_TERM : CHART_TABLE_TERM}</summary>
           {lede ? <p className="chart-frame__lede">{lede}</p> : null}
+          {facts ? <PropertyList rows={facts} /> : null}
           {note ? <p className="chart-frame__note">{note}</p> : null}
           {summary ? <ChartTable {...summary} /> : null}
           <ChartTable {...table} />

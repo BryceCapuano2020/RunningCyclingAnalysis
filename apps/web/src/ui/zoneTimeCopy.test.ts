@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   THRESHOLD_NEEDS,
   ZONE_WINDOW_VALUE,
-  activityLede,
   describable,
   leftOutRows,
+  mainZoneRow,
   percentText,
   timeInZonesLack,
   zoneSourceRow,
@@ -57,33 +57,29 @@ describe('describable', () => {
   })
 })
 
-describe('activityLede', () => {
-  it('says most of the activity when one zone held more than half', () => {
+describe('mainZoneRow', () => {
+  it('gives the zone that held the most time, with its share', () => {
     const time = measureTime('run', 'heartRate', [0, 64, 30, 6, 0])
-    expect(activityLede('run', 'heartRate', time)).toBe(
-      'Most of this run was in heart rate zone 2 (64%).',
+    expect(mainZoneRow('heartRate', time)).toEqual({
+      label: 'Most time',
+      value: 'Heart rate zone 2, 64%',
+    })
+  })
+
+  it('reads a share that rounds to all of it as above 99%, and a spread share as it is', () => {
+    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 100, 0, 0, 0]))?.value).toBe(
+      'Pace zone 2, 100%',
     )
-  })
-
-  it('says all of the activity when one zone shows 100%', () => {
-    const time = measureTime('run', 'pace', [0, 100, 0, 0, 0])
-    expect(activityLede('run', 'pace', time)).toBe('All of this run was in pace zone 2 (100%).')
-  })
-
-  it('says most, not all, of an activity that rounds to 100% but is not all in one zone', () => {
-    const time = measureTime('run', 'pace', [0, 99.6, 0.4, 0, 0])
-    expect(activityLede('run', 'pace', time)).toBe('Most of this run was in pace zone 2 (>99%).')
-  })
-
-  it('says where the most time was when no zone held half', () => {
-    const time = measureTime('ride', 'power', [0, 10, 38, 30, 22, 0, 0])
-    expect(activityLede('ride', 'power', time)).toBe(
-      'This ride spent the most time in power zone 3 (38%).',
+    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 99.6, 0.4, 0, 0]))?.value).toBe(
+      'Pace zone 2, >99%',
     )
+    expect(
+      mainZoneRow('power', measureTime('ride', 'power', [0, 10, 38, 30, 22, 0, 0]))?.value,
+    ).toBe('Measured power zone 3, 38%')
   })
 
   it('has nothing to say without time', () => {
-    expect(activityLede('run', 'pace', measureTime('run', 'pace', [0, 0, 0, 0, 0]))).toBeNull()
+    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 0, 0, 0, 0]))).toBeNull()
   })
 })
 

@@ -1,26 +1,15 @@
-import { plural } from '../components/plural'
+import type { Property } from '../components/property'
 import type { BalanceReading } from '../components/balanceScale'
-import { balanceTitle, isPoint, leadSentence, rangeText } from '../components/headlineText'
+import { balanceTitle, leadSentence } from '../components/headlineText'
 
 /** The answer's estimates line when no run has a usable effort to count. */
 const NO_RUN_EFFORT = 'No run has a usable effort yet.'
 /** Line two of the answer while a ride's grade waits for the weight. */
 const WAITS_FOR_WEIGHT = 'Your balance waits for your weight.'
 
-/** What the range says of level: across it the lean is close, on one side of it the lean stands. */
-const RANGE_CROSSES_LEVEL = 'The range crosses level, so treat this as close.'
-const RANGE_ONE_SIDE = 'The range stays on one side of level.'
-
-/** The lead and its range, as one sentence after the lean: a level balance has no lead, so it gives the range alone. */
-function rangeSentence(balance: BalanceReading): string | null {
-  const lead = leadSentence(balance)
-  if (lead !== null) return `${lead}.`
-  return isPoint(balance) ? null : `The range is ${rangeText(balance)}.`
-}
-
 /**
- * Line two of the answer, in this order: which way the balance leans, in Balance's words, then its lead and
- * range, then whether the range crosses level. Null while no balance is stated.
+ * Line two of the answer: which way the balance leans, in Balance's words, then its lead, as one line. The range and
+ * where it sits against level are rows behind Details (`answerRows`). Null while no balance is stated.
  */
 export function answerVerdict(
   balance: BalanceReading | null,
@@ -28,28 +17,47 @@ export function answerVerdict(
 ): string | null {
   if (waitsForWeight) return WAITS_FOR_WEIGHT
   if (balance === null) return null
-  const { low, high } = balance.lead
-  const crosses = low <= 0 && high >= 0
-  return [
-    `${balanceTitle(balance)}.`,
-    rangeSentence(balance),
-    crosses ? RANGE_CROSSES_LEVEL : RANGE_ONE_SIDE,
-  ]
-    .filter((sentence) => sentence !== null)
-    .join(' ')
+  const lead = leadSentence(balance)
+  return lead === null ? `${balanceTitle(balance)}.` : `${balanceTitle(balance)}. ${lead}.`
+}
+
+/** What each library's estimates are, by what it holds: a run has thresholds, a ride has levels and power without a meter. */
+function estimatedNames(runs: number, rides: number, weightKnown: boolean): string | null {
+  if (!weightKnown || rides === 0) return runs === 0 ? null : 'Run thresholds'
+  if (runs === 0) return 'Ride levels and ride power without a meter'
+  return 'Thresholds, ride levels, the balance and ride power without a meter'
+}
+
+/** The face line while no balance is stated: what is estimated, or that no run has a usable effort. */
+export function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
+  const names = estimatedNames(runs, rides, weightKnown)
+  return names === null ? NO_RUN_EFFORT : `${names} are estimates.`
 }
 
 /**
- * The estimates line of the answer, once there are results: what the library's counts estimate. A ride
- * figure needs the weight and a ride, and a run threshold needs a run, so the line names only those.
+ * The answer's rows behind Details, label over value: whether the balance's range crosses level, what is estimated and
+ * how many runs and rides it rests on. A figure a count of runs or rides, never a sentence about them.
  */
-export function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
-  if (!weightKnown || rides === 0) {
-    if (runs === 0) return NO_RUN_EFFORT
-    return `Run thresholds are estimates. They rest on ${plural(runs, 'run')} with a usable effort.`
+export function answerRows(
+  balance: BalanceReading | null,
+  runs: number,
+  rides: number,
+  weightKnown: boolean,
+): Property[] {
+  const names = estimatedNames(runs, rides, weightKnown)
+  const counts: Property[] = [{ label: 'Runs with a usable effort', value: String(runs) }]
+  if (weightKnown && rides > 0) {
+    counts.push({ label: 'Rides with a usable effort', value: String(rides) })
   }
-  if (runs === 0) {
-    return `Ride levels and ride power without a meter are estimates. They rest on ${plural(rides, 'ride')} with a usable effort.`
-  }
-  return `Thresholds, ride levels, the balance and ride power without a meter are estimates. They rest on ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
+  return [
+    ...(balance === null
+      ? []
+      : [{ label: 'Range crosses level', value: crossesLevel(balance) ? 'Yes' : 'No' }]),
+    ...(names === null ? [] : [{ label: 'Estimated', value: names }]),
+    ...(names === null ? [{ label: 'Runs with a usable effort', value: 'None yet' }] : counts),
+  ]
+}
+
+function crossesLevel({ lead }: BalanceReading): boolean {
+  return lead.low <= 0 && lead.high >= 0
 }

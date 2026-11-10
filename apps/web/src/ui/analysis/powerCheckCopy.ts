@@ -1,5 +1,6 @@
 import type { EstimatedPower, PowerHeartRate } from '@rca/core/digest'
 import { isHardShare } from '@rca/core/effort'
+import type { Property } from '../components/property'
 
 /*
  * A ride whose power no rider holds at the athlete's weight (`ActivitySummary.powerCheck`). The core leaves it out
@@ -9,17 +10,6 @@ import { isHardShare } from '@rca/core/effort'
 /** The mark on a list row and an activity's header. */
 export const POWER_SET_ASIDE_CHIP = 'Power set aside'
 export const POWER_KEPT_CHIP = 'Power kept'
-
-/** The line on an activity page while its power is set aside: what was done, and what to check as possibilities. */
-export const POWER_SET_ASIDE_NOTE =
-  'This ride’s power is higher than riders hold for these lengths at your weight, so it is left out of your bests, grades and the balance. Worth checking: power meter calibration, your weight setting, or an e-bike ride logged as a ride.'
-
-/**
- * The line once the athlete has kept it: what keeping changes (the ride counts toward the bests, the
- * thresholds and the fitness figures) and what it does not (a ride at the top of the age tables stays out of the comparison).
- */
-export const POWER_KEPT_NOTE =
-  'You chose to keep this ride’s power, so it counts in your bests and thresholds. If it puts your cycling at the top of what the age tables cover, it is still left out of the comparison with your running.'
 
 /** The title and line when the period’s rides were set aside and left no ride to compare. */
 export const POWER_IMPLAUSIBLE_TITLE = 'Your ride power looks implausible'
@@ -42,24 +32,51 @@ function lengthText(durationS: number): string {
   return durationS < 120 ? `${Math.round(durationS)} s` : `${Math.round(durationS / 60)} min`
 }
 
-/**
- * The line on an activity page while the power of a ride without a meter is set aside: what was seen (the estimate from
- * speed and climbs needs more than riders hold), what else would show it, and the action. It does not say the ride was assisted.
- */
-export function estimatedPowerNote(estimate: EstimatedPower): string {
-  return `This ride has no power meter, so its power is estimated from your speed and the climbs. Over its best ${lengthText(estimate.durationS)} the estimate needs ${estimate.wkg.toFixed(1)} W/kg, more than riders hold at your weight, so it is left out of your bests, grades and the balance. An assisted bike, a tow or a wrong weight setting would read like this. If you rode it unassisted, keep its power.`
-}
+/** What to check when a ride's power is higher than riders hold, as a row's value. */
+const CHECK_METER = 'Meter calibration, weight setting, e-bike logged as a ride'
+const CHECK_ESTIMATE = 'Assisted bike, a tow, weight setting'
 
 /**
- * What the heart rate over the questioned effort shows, as a fact beside the power: the share of the athlete's max it
- * averaged, and whether that is as high as a hard effort reads. It does not say the power was right or wrong.
+ * The rows of an activity page's power check, label over value: the state, what it is left out of or counts in, the
+ * best effort of an estimate with no meter, and the heart rate over the questioned effort. The heart rate is a
+ * fact beside the power; it does not say the power was right or wrong.
  */
-export function powerHeartRateNote(evidence: PowerHeartRate): string {
-  const minutes = Math.round(evidence.durationS / 60)
-  const share = Math.round(evidence.heartRateShare * 100)
-  const seen = `Over its best ${minutes} min, at ${evidence.wkg.toFixed(1)} W/kg, your heart rate averaged ${share}% of your reference heart rate.`
-  const reading = isHardShare(evidence.heartRateShare)
-    ? 'That is as high as a hard effort reads.'
-    : 'That is lower than an effort at that power usually shows.'
-  return `${seen} ${reading} Heart rate cannot say whether the power was right.`
+export function powerCheckRows(
+  check: 'set-aside' | 'kept',
+  estimate: EstimatedPower | undefined,
+  heartRate: PowerHeartRate | undefined,
+): Property[] {
+  const kept = check === 'kept'
+  return [
+    { label: 'Power', value: kept ? 'Kept' : 'Set aside' },
+    ...(estimate === undefined
+      ? []
+      : [
+          { label: 'Power source', value: 'Estimated from speed and climbs' },
+          {
+            label: `Best ${lengthText(estimate.durationS)}`,
+            value: `${estimate.wkg.toFixed(1)} W/kg`,
+          },
+        ]),
+    kept
+      ? { label: 'Counts in', value: 'Bests and thresholds' }
+      : { label: 'Left out of', value: 'Bests, grades and the balance' },
+    kept
+      ? { label: 'At the top of the age tables', value: 'Left out of the comparison with running' }
+      : { label: 'Check', value: estimate === undefined ? CHECK_METER : CHECK_ESTIMATE },
+    ...(heartRate === undefined
+      ? []
+      : [
+          {
+            label: `Heart rate, best ${Math.round(heartRate.durationS / 60)} min`,
+            value: `${Math.round(heartRate.heartRateShare * 100)}% of reference`,
+          },
+          {
+            label: 'Heart rate reads',
+            value: isHardShare(heartRate.heartRateShare)
+              ? 'As high as a hard effort'
+              : 'Lower than a hard effort at that power',
+          },
+        ]),
+  ]
 }

@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import type { Property } from '../components/property'
 import { percentText } from '../zoneTimeCopy'
 import { ChartFrame } from './ChartFrame'
 import type { ChartSize, ChartTableData } from './chartTypes'
@@ -29,8 +30,8 @@ export interface ZoneTimeChartProps {
   title: string
   /** The title is the accessible name only, under a section heading that names the chart already. */
   titleHidden?: boolean
-  /** A line under the title, such as the stretch the bars are of; absent for none. */
-  lede?: string
+  /** Rows in the chart's Details, such as the zone that held most of the time; absent for none. */
+  facts?: readonly Property[]
   rows: readonly ZoneChartRow[]
   table: ChartTableData
   /** A short table above `table` in the text view. */
@@ -183,7 +184,7 @@ function Bar({
 export function ZoneTimeChart({
   title,
   titleHidden = false,
-  lede,
+  facts,
   rows,
   table,
   summary,
@@ -195,7 +196,7 @@ export function ZoneTimeChart({
       title={title}
       titleHidden={titleHidden}
       description={description}
-      lede={lede}
+      facts={facts}
       height={(width) => layoutOf(rows, width).height}
       table={table}
       summary={summary}

@@ -122,7 +122,9 @@ describe('the import summary for an athlete with a birth year, a sex and a weigh
 
     render(<App />)
 
-    expect(screen.getByText(/^Added 1 ride/)).toBeInTheDocument()
+    expect(screen.getByText('Added', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
+      '1 ride',
+    )
     expect(screen.queryByText(/Your balance now leans/)).toBeNull()
   })
 })

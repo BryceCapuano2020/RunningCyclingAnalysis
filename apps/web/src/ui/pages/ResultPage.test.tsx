@@ -691,7 +691,9 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         sex={null}
       />,
     )
-    expect(screen.getByText(wholeText('Counted over 12 May – 3 Aug 2025.'))).toBeInTheDocument()
+    expect(
+      screen.getByText('Counted over', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('12 May – 3 Aug 2025')
     expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 

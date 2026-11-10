@@ -56,7 +56,7 @@ describe('the pace row after zooming to a lap', () => {
     expect(Math.min(...ys)).toBeGreaterThan(6 + 3)
     expect(Math.max(...ys)).toBeLessThan(102 - 3)
     expect(row.querySelector('.ts-stack__edge')?.getAttribute('d')).toBe('')
-    expect(figure).not.toHaveTextContent('Reading beyond the chart edge')
+    expect(figure).not.toHaveTextContent('Beyond the edge')
     // The ticks are the lap's paces, 3:12 to 3:21 a kilometre, not the activity's 5:33.
     const labels = [...row.querySelectorAll('.ts-stack__tick')].map((tick) => tick.textContent)
     expect(labels.length).toBeGreaterThan(1)

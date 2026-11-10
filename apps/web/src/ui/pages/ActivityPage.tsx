@@ -40,6 +40,7 @@ import { routeSegmentPace } from './routePace'
 import { BackLink } from './ActivityBackLink'
 import { backToList, originOf } from './activityBack'
 import './ActivityPage.css'
+import { PageDetails } from './PageDetails'
 import { PageHeading } from '../components/PageHeading'
 
 export interface ActivityPageProps {
@@ -286,9 +287,10 @@ export function ActivityPage({
       )}
       {/* Said where an estimated power is shown, which is where a figure for it is. */}
       {activity.powerSource === 'virtual' && typeof activity.avgPowerW === 'number' && (
-        <p className="secondary">
-          Power here is estimated from speed and climbs. No power meter recorded it.
-        </p>
+        <PageDetails
+          about="power source"
+          rows={[{ label: 'Power source', value: 'Estimated from speed and climbs, no meter' }]}
+        />
       )}
       <PowerCheck activity={activity} />
       <ActivityNav activity={activity} library={library} />
