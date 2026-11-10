@@ -17,8 +17,7 @@ export interface BatchReport {
  * digests are the memory the job needs, and the isolate has 128 MB. Each account's messages are answered together:
  * acknowledged when its job ran or had nothing to do, or was deferred (one later message is sent in its place). When the job failed, one message is retried and the rest acknowledged, so a failing account is tried once
  * per retry however many messages named it, up to the Queue's own retry limit. An account whose messages are lost or
- * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first: the hourly refresh
- * (S6 in the design) is not built. A message for an account off the allowlist is dropped, and in the operator's read-only mode every message waits.
+ * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first. A message for an account off the allowlist is dropped, and in the operator's read-only mode every message waits.
  */
 export async function handleStateBatch(
   batch: MessageBatch<StateMessage>,

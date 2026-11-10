@@ -306,12 +306,13 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   (deletes are unmetered). Each put reserves from the ledger below like any put, at least 64 KiB of the 4 GiB lifetime
   write cap, so a refused reservation fails the job and the Queue retries it. Under `users/{id}/state/`, so the account
   sweep and the orphan scan cover it. Turning original files off leaves it; deleting the account removes it.
-- **Queue:** one message per write by a listed account (not an original-file upload), delayed 10 seconds; three tries, 30
-  seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
-  job that finds the last compute under 30 seconds old computes nothing and sends one message delayed 30 seconds, so an
-  import is about one compute per 30 seconds. A lost or exhausted message leaves the account dirty
+- **Queue:** one message for a write by a listed account (not an original-file upload), delayed 10 seconds, unless one
+  for the account is on its way already; three tries, 30 seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
+  job that finds the last compute began under 30 seconds ago computes nothing and sends one message delayed 30 seconds,
+  so an account computes at most once per 30 seconds, and about once a minute through a long import: a 2,000-file import
+  is tens of full computes, not one per file. A lost or exhausted message leaves the account dirty
   (`users.library_version` above `state_jobs.computed_version`) until the next write or the daily maintenance, which sends one message for each listed account left dirty with
-  none on its way: the hourly refresh (S6) is not built.
+  none on its way (a daily stand-in for the hourly refresh, S6, which is not built).
 
 ## Other per-user limits
 
