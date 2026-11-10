@@ -7,6 +7,8 @@ export interface ExerciseInfo {
   deadliftFamily?: true
   /** Moves body weight; the logged load is only what is added. */
   bodyweight?: true
+  /** Its logged load is the help taken off, not a load lifted: no estimate, best or volume. */
+  assisted?: true
   /** Its dumbbell form uses two dumbbells, so weekly volume counts both (a dumbbell load is one). */
   pair?: true
 }
@@ -95,8 +97,13 @@ export const EXERCISE_CATALOG: Readonly<Record<string, ExerciseInfo>> = {
 }
 
 const OTHER: ExerciseInfo = { name: '', region: 'other' }
+const ASSISTED: ExerciseInfo = { name: '', region: 'other', bodyweight: true, assisted: true }
+
+/** The slug an import gives an assisted lift (`assisted-pull-up`); see mapHevyExercise. */
+export const ASSISTED_PREFIX = 'assisted-'
 
 /** What the catalog knows of a slug; an unknown slug has region other and no name. */
 export function exerciseInfo(slug: string): ExerciseInfo {
-  return Object.hasOwn(EXERCISE_CATALOG, slug) ? (EXERCISE_CATALOG[slug] ?? OTHER) : OTHER
+  if (Object.hasOwn(EXERCISE_CATALOG, slug)) return EXERCISE_CATALOG[slug] ?? OTHER
+  return slug.startsWith(ASSISTED_PREFIX) ? ASSISTED : OTHER
 }

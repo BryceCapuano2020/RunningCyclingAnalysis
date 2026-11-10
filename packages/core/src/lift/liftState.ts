@@ -55,7 +55,9 @@ function summarize(
   const info = exerciseInfo(first.exercise)
   const bodyweight = first.equipment === 'bodyweight' || info.bodyweight === true
   const estimate = bodyweight ? null : estimateLift(sets)
-  const { floor, repBests } = liftBests(sets)
+  // The load of an assisted lift is the help, so it names no best.
+  const { floor, repBests } =
+    info.assisted === true ? { floor: null, repBests: [] } : liftBests(sets)
   const flags: LiftFlag[] = []
   if (estimate && info.deadliftFamily) flags.push('deadlift-may-read-low')
   if (estimate && !sets.some((s) => !s.warmup && s.rpe !== undefined)) flags.push('effort-unknown')

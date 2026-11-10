@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
-import { MAX_LIFT_SETS_PER_USER } from '../limits'
+import { MAX_HEVY_FILE_BYTES, MAX_LIFT_SETS_PER_USER } from '../limits'
 import { readHevyCsv } from './hevyCsv'
 import type { HevyCsvResult } from './hevyAssemble'
 
@@ -222,6 +222,11 @@ describe('limits', () => {
     const cells = readHevyCsv(`${HEADER_B}\n${','.repeat(MAX_CSV_CELLS_PER_ROW)}`)
     expect(cells).toEqual({ refused: expect.stringContaining('limit') })
     expect(readHevyCsv(`${HEADER_B}\n"x,${T1}`)).toHaveProperty('refused')
+  })
+
+  it('refuses a file past the Hevy size cap without reading it', () => {
+    const big = `${HEADER_B}\n${'x'.repeat(MAX_HEVY_FILE_BYTES)}`
+    expect(readHevyCsv(big)).toEqual({ refused: 'The file is too large to read.' })
   })
 
   it('refuses a file with more rows than an account may keep', () => {

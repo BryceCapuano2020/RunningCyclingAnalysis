@@ -33,6 +33,9 @@ export const LIFT_YEARS = { min: 1970, max: 2100 } as const
 /** Sets one account keeps: about nine years of a heavy lifter's logging. */
 export const MAX_LIFT_SETS_PER_USER = 60_000
 
+/** A Hevy workouts CSV: years of logging are a few MB, so past this is not a Hevy export. */
+export const MAX_HEVY_FILE_BYTES = 8 * 1024 * 1024
+
 /** Sets in one write: a long session in one request, small enough for one D1 batch. */
 export const MAX_LIFT_SETS_PER_WRITE = 500
 
