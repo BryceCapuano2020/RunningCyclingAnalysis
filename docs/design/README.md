@@ -45,6 +45,9 @@ Decisions section. Status is one of designed, in progress or built.
 
 ## Stage plan
 
+From 9 Nov 2026 the order of work is in [ROADMAP.md](../ROADMAP.md#order-of-work-decided-9-nov-2026). The table
+below is the stage history through stage D, kept as a record.
+
 Between stages: quality, security and privacy review, a smoke test on a real local export (never
 committed), hardening, performance and accessibility gates. Fix what is material, then move on.
 

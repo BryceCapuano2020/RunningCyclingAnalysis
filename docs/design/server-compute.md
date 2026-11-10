@@ -112,7 +112,7 @@ and records caches, so the cap could pass 128 MB. The snapshot also nears the 2 
 12. **Equivalence is a test.** For each synthetic athlete in the corpus, the snapshot from the consumer equals the
     state from the browser worker for the same inputs, `nowMs` and zone. The seeds in core (`mulberry32`, seed 1 in
     `compareSports.ts:115` and the others) make that exact.
-13. **The connector reads the snapshot.** ROADMAP.md:33-35 and VISION.md:92-94 say the connector serves what the
+13. **The connector reads the snapshot.** ROADMAP.md (before 9 Nov) and VISION.md:92-94 said the connector serves what the
     browser computed. With this design it serves the server snapshot, built by the same code. Both lines change.
 14. **Garmin gets simpler, in its own note.** A consumer that runs core could parse a pushed FIT file
     (`parseActivityFile`, `import/index.ts:23`) and save the digest, so the browser inbox in garmin-sync.md would go.
