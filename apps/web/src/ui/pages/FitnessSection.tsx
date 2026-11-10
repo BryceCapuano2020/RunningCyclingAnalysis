@@ -33,6 +33,8 @@ export interface FitnessSectionProps {
   soleSport?: Sport | null
   /** Today, which the section reads once when it opens: the statuses are as of the newest activity, and this dates how new and how old they read. Given by tests. */
   nowMs?: number
+  /** Whether each card's Details hold the level's graph and the track: a sport's own page says so, Balance does not. */
+  graphs?: boolean
 }
 
 /**
@@ -48,6 +50,7 @@ export function FitnessSection({
   sport,
   soleSport = null,
   nowMs,
+  graphs = false,
 }: FitnessSectionProps) {
   const id = useId()
   // Read once, so a later render does not move what is new.
@@ -106,6 +109,7 @@ export function FitnessSection({
             // A list of one row is not numbered: an index of 01 alone counts nothing.
             index={rows.length > 1 ? index : null}
             showSport={sport === undefined}
+            graphs={graphs}
             bare={
               lines.includes(view)
                 ? {

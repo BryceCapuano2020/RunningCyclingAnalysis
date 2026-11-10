@@ -10,6 +10,11 @@
   stroke-width: 3.5px;
 }
 
+/* The low a recovery fell to: a filled mark, where the other steps are hollow rings. */
+.fitness-chart__low {
+  fill: var(--sport-ink);
+}
+
 @media (forced-colors: active) {
   .fitness-chart__onset {
     stroke: CanvasText;

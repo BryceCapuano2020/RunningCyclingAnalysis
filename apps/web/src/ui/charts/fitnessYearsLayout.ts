@@ -58,6 +58,8 @@ export interface FitnessYearsLayout {
   ys: number[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+  /** Where today's level sits, for a chart given one: at the last dot's x, within the plot. Null otherwise. */
+  now: Point | null
 }
 
 /**
@@ -111,6 +113,8 @@ export function fitnessYearsLayout(
   sport: Sport,
   units: UnitSystem,
   size: ChartSize,
+  /** Today's level in the sport's own unit (m/s, W), which the axis is fitted to hold. */
+  now: number | null = null,
 ): FitnessYearsLayout | null {
   if (dots.levels.length === 0) return null
   const { plot, width } = size
@@ -119,7 +123,12 @@ export function fitnessYearsLayout(
   const to = Math.max(days[days.length - 1]!, from + 1)
   const x = linearScale([from, to], [plot.left + EDGE_PX, plot.right - EDGE_PX])
   const plotted = dots.levels.map((steps) => plottedValue(sport, outputOf(dots, steps), units))
-  const { y, ticks } = fittedYAxis(sport, [...axisValues(plotted)], plot)
+  const nowPlotted = now === null ? null : plottedValue(sport, now, units)
+  const { y, ticks } = fittedYAxis(
+    sport,
+    [...axisValues(plotted), ...(nowPlotted === null ? [] : [nowPlotted])],
+    plot,
+  )
   const [top, bottom] = [plot.top + EDGE_PX, plot.bottom - EDGE_PX]
   const onPlot = (value: number) => Math.min(bottom, Math.max(top, y(value)))
   const glyph = SPORT_FORMAT[sport].glyph
@@ -159,5 +168,6 @@ export function fitnessYearsLayout(
       { axis: 'x', width },
     ),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
+    now: nowPlotted === null ? null : { x: x(to), y: onPlot(nowPlotted) },
   }
 }

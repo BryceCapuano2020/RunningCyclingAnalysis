@@ -127,3 +127,16 @@ describe('FitnessChart', () => {
     expect(FITNESS_BEFORE).toBeGreaterThan(0)
   })
 })
+
+describe('FitnessChart: the low', () => {
+  it('marks the low a recovery fell to, and none for a status without one', () => {
+    const recovering = render(
+      <FitnessChart status={RECOVERING} units="metric" title="Recovering" />,
+    )
+    expect(recovering.container.querySelector('[data-testid="fitness-low"]')).not.toBeNull()
+    expect(screen.getByRole('figure', { name: 'Recovering' })).toBeInTheDocument()
+    cleanup()
+    const holding = render(<FitnessChart status={HOLDING} units="metric" />)
+    expect(holding.container.querySelector('[data-testid="fitness-low"]')).toBeNull()
+  })
+})

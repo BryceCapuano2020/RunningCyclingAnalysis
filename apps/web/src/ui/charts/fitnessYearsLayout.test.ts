@@ -186,3 +186,17 @@ describe('the year under the pointer', () => {
     expect(yearAtX([], 100)).toBeNull()
   })
 })
+
+describe('fitnessYearsLayout: today', () => {
+  const dots = dotsFixture({ sport: 'ride', years: [2022, 2023] })
+
+  it('marks no level without one, and marks one at the last dot, held by the axis', () => {
+    expect(fitnessYearsLayout(dots, 'ride', 'metric', SIZE)!.now).toBeNull()
+    const high = fitnessYearsLayout(dots, 'ride', 'metric', SIZE, 400)!
+    expect(high.now!.y).toBeGreaterThanOrEqual(SIZE.plot.top)
+    expect(high.now!.y).toBeLessThanOrEqual(SIZE.plot.bottom)
+    // A level far above the dots makes room: it sits higher than the same level among them.
+    const among = fitnessYearsLayout(dots, 'ride', 'metric', SIZE, 200)!
+    expect(high.now!.y).toBeLessThan(among.now!.y)
+  })
+})

@@ -26,6 +26,8 @@ export interface FitnessLayout {
   onsetX: number | null
   /** The last point: the level now. */
   now: Point
+  /** The point nearest the month of the low a recovery fell to, when it is a step before the last; null otherwise. */
+  low: Point | null
 }
 
 /**
@@ -48,6 +50,7 @@ export function fitnessLayout(
   const { y, ticks } = sportYAxis(sport, values, plot, true, MIN_TIGHT_SPAN[sport])
   const edge = (pick: (a: number, b: number) => number) =>
     series.map((p) => ({ x: x(p.atMs), y: pick(y(at(p.low)), y(at(p.high))) }))
+  const lowAt = lowStep(status)
   const onsetX = status.onsetMs === null ? null : x(status.onsetMs)
   return {
     xs: series.map((p) => x(p.atMs)),
@@ -65,5 +68,17 @@ export function fitnessLayout(
     referenceY: y(at(before)),
     onsetX: onsetX !== null && onsetX >= plot.left && onsetX <= plot.right ? onsetX : null,
     now: { x: x(last.atMs), y: y(at(last.value)) },
+    low: lowAt === null ? null : { x: x(series[lowAt]!.atMs), y: y(at(series[lowAt]!.value)) },
   }
+}
+
+/** The index of the step nearest the low's month, for a status that has a low and a step before the last that is near it. */
+export function lowStep(status: FitnessStatus): number | null {
+  const { series, lowMs } = status
+  if (lowMs === null || series.length < 2) return null
+  let best = 0
+  series.forEach((p, i) => {
+    if (Math.abs(p.atMs - lowMs) < Math.abs(series[best]!.atMs - lowMs)) best = i
+  })
+  return best === series.length - 1 ? null : best
 }
