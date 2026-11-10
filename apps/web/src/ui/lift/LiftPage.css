@@ -70,3 +70,19 @@
 .lift__error {
   margin: 0;
 }
+
+/* One lift's estimate: its name, its chart and its Details, spaced as the day's lifts are. */
+.lift__estimate {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lift__estimate + .lift__estimate {
+  margin-top: var(--space-5);
+}
+
+.lift__bests {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-base);
+}

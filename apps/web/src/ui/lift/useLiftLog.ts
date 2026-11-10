@@ -237,6 +237,10 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
 
   const rows = read !== null && read.scope === scope ? read.rows : null
   const days = useMemo(() => groupDays(rows ?? []), [rows])
+  const sets = useMemo(
+    () => (rows ?? []).filter((row) => row.state !== 'delete').map((row) => row.set),
+    [rows],
+  )
   const recent = useMemo(() => recentLifts(rows ?? []), [rows])
   // A signed-out log has no server to wait for.
   const pendingCount =
@@ -244,6 +248,7 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
 
   return {
     days,
+    sets,
     save,
     update,
     remove,

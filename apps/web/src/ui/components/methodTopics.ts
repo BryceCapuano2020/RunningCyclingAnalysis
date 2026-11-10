@@ -17,6 +17,8 @@ import { CLIMB_NEEDED } from './headlineNeed'
 export const SECTION_ID = {
   energy: 'method-energy',
   grades: 'method-grades',
+  lift: 'method-lift',
+  liftGrade: 'method-lift-grade',
   heart: 'method-hr',
   accuracy: 'method-accuracy',
   how: 'method-how',

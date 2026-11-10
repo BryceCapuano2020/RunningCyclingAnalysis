@@ -38,6 +38,10 @@ export interface LiftPageProps {
   rowForm?: ReactNode
   /** The new-set form, under the button. While it or `rowForm` is open the button is not drawn. */
   form?: ReactNode
+  /** The lead (the top lift's figures), under the title and above the day. */
+  lead?: ReactNode
+  /** The lifts with a graph each and the weekly load, under the day and above earlier sessions. */
+  estimates?: ReactNode
 }
 
 /** The heading of a day: "Today", "Yesterday", or its date. */
@@ -83,6 +87,8 @@ export function LiftPage({
   editingKey,
   rowForm = null,
   form = null,
+  lead = null,
+  estimates = null,
 }: LiftPageProps) {
   const root = useRef<HTMLDivElement>(null)
   const dayHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -105,6 +111,7 @@ export function LiftPage({
           Lifting
         </h1>
       </div>
+      {lead}
       <section className="section">
         <div className="lift__day">
           <h2 className="lift__day-name" ref={dayHeadingRef} tabIndex={-1} aria-live="polite">
@@ -157,6 +164,7 @@ export function LiftPage({
           </div>
         )}
       </section>
+      {estimates}
       {earlier.length > 0 && (
         <section className="section" aria-labelledby="lift-earlier">
           <div className="section__head">

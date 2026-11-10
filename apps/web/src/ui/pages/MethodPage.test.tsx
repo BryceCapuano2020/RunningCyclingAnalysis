@@ -398,6 +398,8 @@ describe('MethodPage contents', () => {
     ).toEqual([
       'The energy view',
       'Age grades and levels',
+      'Estimated one-rep max',
+      'Lift age grade',
       'Heart-rate check',
       'Virtual power meter accuracy',
       'How this works',
