@@ -1,4 +1,4 @@
-import { FUSION_GRID, GAP_PRIOR } from './constants'
+import { FUSION_GRID, GAP_PRIOR, HR_WRONG } from './constants'
 
 export interface Fused {
   value: number
@@ -43,6 +43,8 @@ const SPREADS_KEPT = 64
 interface Spread {
   /** The gap prior smeared by the error, at each grid point. It costs about 30,000 exponentials. */
   prior: Float64Array
+  /** The prior's sum over the grid, so a likelihood's mean over it is a sum over this. */
+  mass: number
   /** The multiples of the power estimate at the quantiles of the posterior from power alone: they depend on nothing else. */
   alone: Fused
 }
@@ -75,7 +77,7 @@ function spreadAt(step: number): Spread {
     const x = SHARES[i]!
     prior[i] = GAPS.reduce((total, q) => total + q.prior * bell(x - q.g, powerError), 0)
   }
-  const made = { prior, alone: quantiles(prior) }
+  const made = { prior, mass: prior.reduce((total, p) => total + p, 0), alone: quantiles(prior) }
   if (spreads.size >= SPREADS_KEPT) spreads.delete(spreads.keys().next().value!)
   spreads.set(step, made)
   return made
@@ -94,6 +96,10 @@ function spreadAt(step: number): Spread {
  * is the higher of each pair of 10th and 90th percentiles, so the upper end that power alone allows stays (heart rate reads
  * under the truth often enough that a range narrowed round it missed the rider who never went all out).
  *
+ * Then all three move from where power alone puts them toward where heart rate does by heart rate's weight: the `weight` given
+ * (the line's, under 1 near the flat floor of its climb) times the chance the estimate is sound (`soundShare`), so a weight
+ * of 0 gives the answer from power alone exactly.
+ *
  * The quantiles from power alone are fixed multiples of the power estimate for a given error, so they are worked out once per
  * error (to `ERROR_STEP`) and a window with no heart rate costs a multiplication. With heart rate only the likelihood pass over
  * the grid is a window's own.
@@ -101,21 +107,40 @@ function spreadAt(step: number): Spread {
 export function fuse(
   power: number,
   powerError: number,
-  heartRate: { value: number; relativeError: number } | null,
+  heartRate: { value: number; relativeError: number; weight?: number } | null,
 ): Fused {
-  const { prior, alone } = spreadAt(Math.max(1, Math.round(powerError / ERROR_STEP)))
+  const { prior, mass, alone } = spreadAt(Math.max(1, Math.round(powerError / ERROR_STEP)))
   const floor = { value: power, low: power * alone.low, high: power * alone.high }
-  if (heartRate === null) return floor
+  const given = heartRate === null ? 0 : Math.min(1, Math.max(0, heartRate.weight ?? 1))
+  if (heartRate === null || !(given > 0)) return floor
   const sd = heartRate.relativeError * heartRate.value
   const weights = new Float64Array(STEPS)
+  let evidence = 0
   for (let i = 0; i < STEPS; i++) {
     weights[i] = prior[i]! * bell(power * MULTIPLES[i]! - heartRate.value, sd)
+    evidence += weights[i]!
   }
   const lifted = quantiles(weights)
-  const value = Math.max(power, Math.min(heartRate.value, power * lifted.value))
+  const weight = given * soundShare(evidence / mass, sd / power)
+  // Each of the three moves from where power alone puts it toward where heart rate does, by heart rate's weight.
+  const toward = (from: number, to: number) => from + weight * (to - from)
+  const value = toward(power, Math.max(power, Math.min(heartRate.value, power * lifted.value)))
   return {
     value,
-    low: Math.min(value, Math.max(floor.low, power * lifted.low)),
-    high: Math.max(value, floor.high, power * lifted.high),
+    low: Math.min(value, toward(floor.low, Math.max(floor.low, power * lifted.low))),
+    high: Math.max(value, toward(floor.high, Math.max(floor.high, power * lifted.high))),
   }
+}
+
+/**
+ * The chance that heart rate's estimate is sound rather than wrong (HR_WRONG), given how well the bests account for it:
+ * `meanBell` is the likelihood's mean over the prior from power alone, and `sdShare` its sd as a share of the power estimate, so
+ * `meanBell / (sqrt(2 pi) * sdShare)` is its density there, per unit of share. A wrong estimate's is flat, 1 / HR_WRONG.width.
+ * Where heart rate sits among the gaps the prior allows it is near 1; past them (more than GAP_PRIOR.largeMax over the bests) it
+ * falls, since a rider that far short of all-out in every ride is less likely than a reference maximum or a line that is off.
+ */
+function soundShare(meanBell: number, sdShare: number): number {
+  const sound = ((1 - HR_WRONG.share) * meanBell) / (Math.sqrt(2 * Math.PI) * sdShare)
+  const wrong = HR_WRONG.share / HR_WRONG.width
+  return sound / (sound + wrong)
 }

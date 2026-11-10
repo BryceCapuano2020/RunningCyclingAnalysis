@@ -47,7 +47,7 @@ Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by 
    (strap reading high or low that day). The line is refused when `slope * 0.5 * powerEstimate` (the climb
    from half to full threshold power) is under 20 or over 70 bpm: no working strap does that. Fewer than 20
    blocks (counting only rides with 3 or more): no line. Rides whose heart rate the analysis already sets aside
-   are out.
+   are out. From 20 to 25 bpm heart rate counts only in part (step 6), so the floor is a ramp, not a cliff.
 5. **Heart-rate estimate.** Efforts of 8 to 30 min (shorter lag, longer drift) on power-meter rides that
    passed, with heart rate 85 to 102% of threshold heart rate (`0.9 * the sport's reference max`), and within
    12 bpm of their own ride's line (`u = residual / min(4 * max(spread, 3), 12)`, weight `(1 - u^2)^2`):
@@ -66,6 +66,34 @@ Only the duration table in step 1 differs by sport (`DURATION_TABLES`, keyed by 
    power estimate, so heart rate that agrees with the power estimate adds nothing. The range is the higher of each pair
    of 10th and 90th percentiles (elementwise, so the upper end that power alone allows stays when heart rate lifts the
    answer).
+
+   **Heart rate's weight.** The answer, low and high then move from where power alone puts them toward where heart rate
+   does by a weight `w = climb weight * sound share`, so `w = 0` is the power-only answer exactly and `w = 1` is the above.
+   This is a shrinkage between two answers, chosen for continuity, not the median of a mixture posterior: the mixture of the
+   heart-rate posterior and the prior has two peaks when the share is near a half, and its median jumps across them, which
+   would bring back the step this removes. The power-only answer is not a posterior median either (step 6 above). The blended
+   range is narrower than a mixture's would be, and `high` never drops under power alone's.
+   - _Climb weight_ (`climbWeight`, `CLIMB_FADE_BPM = 5`): a smoothstep from 0 at the 20 bpm floor to 1 at 25 bpm,
+     `t^2 (3 - 2t)` with `t = (climb - 20) / 5`. A shallow line has the most watts per beat, so its slide to threshold heart
+     rate is least sure; a ride that nudges the climb across the floor now moves the answer by a little, not by up to 25%.
+     The ramp is a pragmatic patch, not the climb estimate's own uncertainty (a ramp on that would sit at a half at the floor
+     and break continuity with the refusal). What it stands in for is step 5's fixed 3.5%: an error of δ bpm in threshold
+     heart rate is a relative error of about `0.5 * δ / climb`, 20% at 20 bpm for 8 bpm against 9% at 45, so a wrong
+     maximum costs most on a shallow line, and not only at the floor (the wrong-maximum row is 78% within 5%).
+   - _Sound share_ (`HR_WRONG = { share: 5%, width: 1 }`): the chance heart rate's estimate is sound rather than wrong (a
+     reference maximum off, a line that is no line), given how well the bests account for it. Sound: `0.95 * f`, where `f`
+     is the heart-rate likelihood's density averaged over the prior from power alone, per unit of share of the power
+     estimate. Wrong: `0.05 / 1`, a constant density wherever it is centred (as if spread over a width of one power estimate).
+     Only `share / ((1 - share) * width)`, 0.053, moves the result. Sensitivity at seed 11: a share of 2% or 10% in place
+     of 5% moves tempo only to 48% or 46% within 5% (47.5% at 5%), the wrong maximum to 78% either way, and the near-floor
+     wrong maximum's riders over 10% high to 1.2% or 0.8%. Inside the prior's reach the share is 0.92 to 0.99; for an
+     estimate well past `largeMax` (25% over the bests) it falls toward 0. Before, such an estimate held the answer at
+     exactly +25%, the edge of the prior, however far past it heart rate read, and the further it read, the more firmly the
+     answer sat there. Now the answer is not monotone in the reading past the edge: with a 4% error, heart rate 25% over the bests gives
+     +20%, 30% over +19%, 35% over +12%, 40% over +3%. The prior already rules out gaps over 25%, so a reading past that is more likely a
+     wrong reference or line than a rider that far short of all-out. Five percent wrong is small next to the error of an
+     age-predicted maximum (sd about 10 bpm); it holds because the 3.5% inside the sound model covers routine error.
+
 7. **A backed hour done is a floor, for both sports.** The answer and its low are never under the best measured effort of 60
    min or more in the window, as it was held (the scaled ratio is 1.00 at an hour, so it is the effort itself; a longer effort
    is taken at its own value, not scaled up), when something backs it. A threshold slower than an hour the athlete did is wrong
@@ -117,17 +145,27 @@ percentiles, but most cells read about 96%: the range is wider than an 80% inter
 | --------------------------------- | --------------- | --------------------------- |
 | Clean heart rate                  | -1.9%, 89%, 96% | -3.1%, 80%, 96%             |
 | A bad strap on 1 ride in 4        | -2.0%, 90%, 96% | -3.2%, 77%, 96%             |
-| Max heart rate off by about 8 bpm | -1.5%, 78%, 83% | -3.1%, 80%, 96%             |
+| Max heart rate off by about 8 bpm | -1.6%, 78%, 83% | -3.1%, 80%, 96%             |
 | Flat (optical) heart rate         | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
-| Never all-out (tempo only)        | -5.0%, 49%, 88% | -11.7%, 0%, 79%             |
+| Never all-out (tempo only)        | -5.3%, 48%, 88% | -11.7%, 0%, 79%             |
 | No heart rate                     | -3.1%, 80%, 96% | -3.1%, 80%, 96%             |
 | Always all-out                    | +0.3%, 96%, 81% | -0.0%, 95%, 84%             |
 | Always all-out, no heart rate     | -0.0%, 95%, 84% | -0.0%, 95%, 84%             |
+| Climb of 18 to 24 bpm             | -3.0%, 81%, 96% | -3.1%, 80%, 96%             |
+| 18 to 24 bpm, max off by 8 bpm    | -2.9%, 79%, 92% | -3.1%, 80%, 96%             |
 
 The table includes the hour floor (step 7): it moved only the tempo-only row (power alone from -13.5% to -11.7%, since a
 rider who never goes all out still rode an hour; the answer from -5.2% to -5.0%, and the range's hold from 81% to 88%) and a
 point or two in the cells for a wrong maximum and for always all-out. Backing the floor (a second hour within 4%, or under the
 estimate's 90th percentile, for the best hour and the second-best alike) moved no cell: the best hour of these riders is a tempo or easy day, under the estimate.
+
+The last two rows draw each rider's climb from 18 to 24 bpm instead of 25 to 65, so about 4 in 10 are refused `flat` and
+the rest have the shallowest lines that are read. Heart rate's weight (step 6) moved them, at seed 11, from 81% within 5%
+(+0.1% of riders over 10% high) to 81% (none), and with a wrong maximum from 73% (7.5% over 10% high) to 79% (0.8%). It cost
+the tempo-only rider 2 points within 5% (49% to 48% in the table's rounding, -5.0% to -5.3% on the median; seeds 23 and 37
+agree within a point): about one point from the ramp, since a tempo rider's climb is asked of a power estimate 12% low and
+reads near the floor more often, and one from the sound share, which trims every lift by 1% to 5%. No other cell moved by more
+than a point.
 
 The hard rides of the first six cases are 0 to 7% under all-out, so without heart rate the answer reads about 3% low.
 The allowance read them better (+0.2% and 92% within 5% with no heart rate, +0.4% and 94% with a clean one) and read the
@@ -150,7 +188,8 @@ above the power-only answer; no heart rate at most 4% low on the median and 75% 
 the median and 85% within 5% without heart rate, at most 2% high and 85% with it; in every case nearer the truth than
 both rules of thumb, never under the answer without heart rate, and a range that holds the truth for 65% to 97% of
 riders; under 2% of clean-heart-rate riders refused; with a clean or partly bad heart rate a within-5% share at least 5
-points over the power-only answer, and with an optical one no more than 3 points under it.
+points over the power-only answer, and with an optical one no more than 3 points under it; with a climb of 18 to 24 bpm,
+with the maximum right or off, under 2% of riders over 10% high and no more than 2 points under power alone within 5%.
 
 Rejected:
 
@@ -169,6 +208,17 @@ Rejected:
 - Lift-only with the heart-rate error set to its observed spread (stated 5.2% instead of 3.6%). Wrong maximum
   improves (85% within 5% against 82%), but tempo only falls to -6.8% (lift 3.7 points against power alone, bound 4)
   and 34% within 5%.
+- For a line near the floor, a wider ramp (to 28 or 30 bpm): fewer riders over 10% high with a wrong maximum (0.4% against
+  0.8%), but the tempo-only rider lost 3 to 4 points within 5%. A ramp of 4 bpm left 1.2% to 2.1% over 10% high.
+- Inflating the heart-rate likelihood's sd near the floor instead of weighing the answer: at no weight the posterior is the
+  prior from power alone, whose median is about 3% over the power estimate, so the step at the floor stays, smaller.
+- Bounding the lift by efforts at threshold heart rate (reasoned, not simulated): drift raises heart rate at a given power, so
+  a block at threshold heart rate shows a power at or under the threshold, a lower bound, and the margin drift needs (watts
+  per beat times 10 bpm) is widest exactly on a shallow line.
+- Taking the reference maximum's error in bpm through the slope alone, so a shallow line's estimate is wider: worked with
+  `fuse` before the sound share, on an estimate 35% over the bests, a 6.3% error in place of 3.9% moved the answer only from
+  +25% to +22%, since the prior's shelf is flat to 25%. With the sound share it is untried, and it is the follow-up for the
+  wrong-maximum row (it would replace step 5's fixed 3.5%, which the ramp stands in for near the floor).
 - Removing each ride's offset from the pooled one before sliding its efforts to threshold heart rate. Heart rate
   alone got worse, not better: spread 5.4% against 5.2%, bias -4.0% against -3.5%, and no cell of the clean, strap
   or wrong-maximum cases moved by more than a point.
