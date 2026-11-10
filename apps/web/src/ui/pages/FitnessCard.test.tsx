@@ -269,19 +269,19 @@ describe('the home page’s rows, read as text', () => {
 
 describe('the evidence panel', () => {
   const open = () => {
-    const view = renderSection({ graphs: true })
+    const view = renderSection({ graphs: true, sport: 'run' })
     openDetails(rowsOf()[0]!)
     return view
   }
 
-  it('draws no chart and no track on Balance, whose Details hold the figures and the runs alone', () => {
+  it('keeps Balance’s Details to the figures: no chart, no track and no runs, which are on the Run page', () => {
     const { container } = renderSection()
     openDetails(rowsOf()[0]!)
-    expect(container.querySelector('.fitness-evidence')).not.toBeNull()
+    expect(container.querySelector('.fitness-evidence')).toBeNull()
     expect(container.querySelector('.chart-frame')).toBeNull()
     expect(screen.queryByRole('figure')).toBeNull()
     expect(container.querySelector('.fitness-track')).toBeNull()
-    expect(rowValue(container.querySelector('.fitness-evidence')!, 'Read at')).toBe('150 bpm')
+    expect(container.querySelectorAll('.props__method')).toHaveLength(1)
   })
 
   it('is a disclosure that mounts only once opened, so a closed card measures and draws nothing', () => {
@@ -303,11 +303,8 @@ describe('the evidence panel', () => {
       within(panel as HTMLElement).queryByRole('heading', { name: 'How it is measured' }),
     ).toBeNull()
     expect(panel.textContent).not.toMatch(/it usually sees|spread from one run/)
-    expect(
-      within(panel as HTMLElement).getByRole('link', {
-        name: /^Method, how run fitness is measured$/,
-      }),
-    ).toBeInTheDocument()
+    // One Method link for the section, above the panel; the panel adds none.
+    expect(within(panel as HTMLElement).queryByRole('link', { name: /^Method/ })).toBeNull()
     expect(spoken(panel)).not.toMatch(BANNED)
   })
 
@@ -316,7 +313,7 @@ describe('the evidence panel', () => {
       ...status,
       evidence: { ...status.evidence!, method: { ...status.evidence!.method, seasonal: 0.021 } },
     })
-    renderSection({ run: seasoned(SLIPPING) })
+    renderSection({ run: seasoned(SLIPPING), sport: 'run' })
     openDetails(rowsOf()[0]!)
     const panel = document.querySelector('.fitness-evidence')!
     expect(rowValue(panel, 'Seasonal swing taken out')).toBe('up to 2.1% either side')
@@ -347,7 +344,7 @@ describe('the evidence panel', () => {
   })
 
   it('leaves out a run that is no longer in the library, rather than a dead link', () => {
-    renderSection({ library: FITNESS_LIBRARY.slice(6) })
+    renderSection({ library: FITNESS_LIBRARY.slice(6), sport: 'run' })
     openDetails(rowsOf()[0]!)
     expect(document.querySelectorAll('.fitness-runs a')).toHaveLength(6)
   })

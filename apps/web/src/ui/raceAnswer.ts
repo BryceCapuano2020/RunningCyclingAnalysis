@@ -2,10 +2,10 @@ import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { windowEnding } from '@rca/core/period'
 import { predictRunRaces, typicalWeeklyDistance, vdotOf } from '@rca/core/predict'
-import type { RunPredictions } from '@rca/core/predict'
+import type { RacePrediction, RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import { WIDENED_YEAR_DAYS } from '@rca/core/zones'
-import { RUN_RACE_DISTANCES_M } from '@rca/core/constants'
+import { HALF_MARATHON_M, RUN_RACE_DISTANCES_M } from '@rca/core/constants'
 import { libraryJudge, periodJudge, racePredictionNeed, runBests } from './racePredictions'
 import type { RunBest, RunJudge } from './racePredictions'
 
@@ -191,4 +191,40 @@ export function raceAnswerOf(
   const older = runsOf(widening.library).filter((run) => run.startMs < yearStartMs)
   const ran = pastRuns(runBests(older, libraryJudge(widening.judgement)).all)
   return ran.length === 0 ? null : { kind: 'past', ran }
+}
+
+/** What a page holds that the race predictions read: the period, the library and its judgement, and where the period ends. */
+export interface RaceContext {
+  result: AnalysisResult
+  rangeDays: number | null
+  library: readonly ActivitySummary[]
+  heartRateJudgement?: HeartRateJudgement | undefined
+  periodEndMs?: number | null | undefined
+}
+
+/**
+ * The race predictions as every page asks for them, with one set of arguments, so Balance's half marathon and the Run
+ * page's are the same answer: the period, then the 12 months ending with it, with the heart rate's VO2max when the
+ * library has a judgement.
+ */
+export function raceAnswerFor(sport: Sport, context: RaceContext): RaceAnswer | null {
+  const { result, rangeDays, library, heartRateJudgement, periodEndMs } = context
+  return raceAnswerOf(
+    sport,
+    result,
+    rangeDays,
+    heartRateJudgement === undefined
+      ? undefined
+      : { judgement: heartRateJudgement, library, endMs: periodEndMs ?? null },
+  )
+}
+
+/**
+ * The half marathon a headline may lead with: a forecast from a run shown hard or from heart rate. A time carried from easy
+ * runs alone (`bound`) is one a race effort can beat, and the Run page shows it with no range, so a headline does not lead
+ * with it; nor with runs told as they were run (`past`).
+ */
+export function headlineHalf(answer: RaceAnswer | null): RacePrediction | null {
+  if (answer === null || answer.kind !== 'predicted') return null
+  return answer.found.races.find((race) => race.distanceM === HALF_MARATHON_M) ?? null
 }

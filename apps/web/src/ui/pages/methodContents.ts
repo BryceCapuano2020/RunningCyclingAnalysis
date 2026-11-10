@@ -5,34 +5,41 @@ export interface ContentsEntry {
   label: string
 }
 
-/** Each section's name, as the contents and the answer's chips name it. */
+/** Each section's name: its heading, its entry in the contents and the name the answer's chips give it. */
 export const SECTION_NAME: Record<keyof typeof SECTION_ID, string> = {
-  energy: 'The energy view',
+  thresholds: 'Thresholds and race times',
   grades: 'Age grades and levels',
-  lift: 'Estimated one-rep max',
+  energy: 'The energy view',
+  lift: 'Lifting',
   liftGrade: 'Lift age grade',
   heart: 'Heart-rate check',
-  accuracy: 'Virtual power meter accuracy',
+  accuracy: 'Virtual power meter',
   how: 'How this works',
 }
 
-/** The sections on the page, in order. The accuracy section shows only when there is one. */
+/** The sections on the page, in order. The virtual power meter shows only when there is one. */
 export function contentsOf(hasAccuracy: boolean): ContentsEntry[] {
-  return [
-    { id: SECTION_ID.energy, label: SECTION_NAME.energy },
-    { id: SECTION_ID.grades, label: SECTION_NAME.grades },
-    { id: SECTION_ID.lift, label: SECTION_NAME.lift },
-    { id: SECTION_ID.liftGrade, label: SECTION_NAME.liftGrade },
-    { id: SECTION_ID.heart, label: SECTION_NAME.heart },
-    ...(hasAccuracy ? [{ id: SECTION_ID.accuracy, label: SECTION_NAME.accuracy }] : []),
-    { id: SECTION_ID.how, label: SECTION_NAME.how },
+  const keys: (keyof typeof SECTION_ID)[] = [
+    'thresholds',
+    'grades',
+    'energy',
+    'lift',
+    'liftGrade',
+    'heart',
+    ...(hasAccuracy ? (['accuracy'] as const) : []),
+    'how',
   ]
+  return keys.map((key) => ({ id: SECTION_ID[key], label: SECTION_NAME[key] }))
 }
 
 /**
- * Moves focus to a section's heading. A fragment link would change the hash route, so the contents
- * use buttons that focus the heading instead.
+ * Moves focus to a section's heading and scrolls it to the top, under the sticky header (the page's scroll padding).
+ * A fragment link would change the hash route, so the contents use buttons that call this instead. A plain focus
+ * scrolls only as far as the browser likes, which in Chrome puts the heading mid-screen, so focus does not scroll here.
  */
 export function focusSection(id: string) {
-  document.getElementById(id)?.focus()
+  const heading = document.getElementById(id)
+  if (heading === null) return
+  heading.focus({ preventScroll: true })
+  heading.scrollIntoView?.({ block: 'start' })
 }

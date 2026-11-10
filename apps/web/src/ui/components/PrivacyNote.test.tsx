@@ -35,20 +35,12 @@ describe('PrivacyNote', () => {
     expect(screen.queryByText(/private library/)).toBeNull()
   })
 
-  it('says summaries and original files are stored when signed in and keeping files', () => {
-    render(<PrivacyNote signedIn keepFiles />)
-    expect(
-      screen.getByText('Summaries and original files are stored in your private library.'),
-    ).toBeInTheDocument()
-  })
-
-  it('says original files are not kept when signed in without keeping files', () => {
-    render(<PrivacyNote signedIn keepFiles={false} />)
-    expect(
-      screen.getByText(
-        'Summaries are stored in your private library, and original files are not kept.',
-      ),
-    ).toBeInTheDocument()
+  it('says nothing when signed in and saving works, keeping files or not: that is on the Privacy page', () => {
+    for (const keepFiles of [true, false]) {
+      const { container, unmount } = render(<PrivacyNote signedIn keepFiles={keepFiles} />)
+      expect(container).toBeEmptyDOMElement()
+      unmount()
+    }
   })
 
   it('says file storage is unavailable, without saying anything saved was deleted', () => {
@@ -107,11 +99,11 @@ describe('PrivacyNote', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps the usual sentence for a failure that only waits on the connection', () => {
-    render(<PrivacyNote signedIn keepFiles issues={[{ code: 'network' }, { code: 'server' }]} />)
-    expect(
-      screen.getByText('Summaries and original files are stored in your private library.'),
-    ).toBeInTheDocument()
+  it('says nothing for a failure that only waits on the connection', () => {
+    const { container } = render(
+      <PrivacyNote signedIn keepFiles issues={[{ code: 'network' }, { code: 'server' }]} />,
+    )
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('says nothing of the library to a visitor who is signed out, whatever failed', () => {
@@ -121,16 +113,15 @@ describe('PrivacyNote', () => {
     ).toBeInTheDocument()
   })
 
-  it('treats an omitted capability as available for older APIs', () => {
-    render(<PrivacyNote signedIn keepFiles />)
-    expect(screen.getByText(/original files are stored/)).toBeInTheDocument()
+  it('treats an omitted capability as available for older APIs: nothing to say', () => {
+    const { container } = render(<PrivacyNote signedIn keepFiles />)
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText(/storage is unavailable/)).toBeNull()
   })
 
   it('is one sentence of about a dozen words in each state', () => {
     const states = [
       { signedIn: false, keepFiles: false },
-      { signedIn: true, keepFiles: true },
-      { signedIn: true, keepFiles: false },
       { signedIn: true, keepFiles: true, fileRetentionAvailable: false },
       { signedIn: true, keepFiles: true, issues: [{ code: 'activity-quota' as const }] },
       { signedIn: true, keepFiles: true, issues: [{ code: 'read-only' as const }] },

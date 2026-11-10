@@ -1,7 +1,7 @@
 import { FLAT_RUN_COST, PRIORS } from '../constants'
 import { CYCLING_WORLD_CLASS_HOUR_WKG } from '../digest/rideAnchor'
 import { HOUR_AGREEMENT } from '../threshold/constants'
-import { runDurationRatio } from '../threshold/durationTables'
+import { DURATION_TABLES, runDurationRatio } from '../threshold/durationTables'
 
 /*
  * The figures the Method page quotes, worked out from the constants and functions the analysis applies, so the page cannot say a
@@ -34,6 +34,17 @@ export const HOUR_AGREEMENT_PERCENT = Math.round(HOUR_AGREEMENT * 100)
  */
 export function runOxygenExcessPercent(minutes: number): number {
   return Math.round((runDurationRatio(minutes * 60) - 1) * 100)
+}
+
+/** The shortest effort each sport's threshold reads, seconds: 3 min for a ride, 8 for a run (`DURATION_TABLES`). */
+export const THRESHOLD_SHORTEST_S = {
+  ride: DURATION_TABLES.ride.shortestS,
+  run: DURATION_TABLES.run.shortestS,
+} as const
+
+/** A ride's threshold as a whole percent of an all-out best of this length (95 for 20 min, as in the FTP test). */
+export function rideThresholdPercentOf(durationS: number): number {
+  return Math.round(DURATION_TABLES.ride.threshold(100, durationS))
 }
 
 /** The best riders' hour, W/kg, by sex: the cycling anchor (`CYCLING_WORLD_CLASS_HOUR_WKG`). */

@@ -31,8 +31,8 @@ export interface GradeProfileChartProps {
 
 /**
  * Each sport's age grade at every duration from 3 min to 3 h, on one scale, titled "Age grade by effort length". A recorded
- * grade is a solid line with dots. An estimate, as a ride's is, is a line with a ring at each duration and a
- * band for its range, drawn under the run. The 20 minute grade, the one the balance is taken at, is the larger
+ * grade is a solid line with dots. An estimate, as a ride's is, is drawn the same way over a band for its range, under
+ * the run: the band, the note and the table say it is an estimate. The 20 minute grade, the one the balance is taken at, is the larger
  * mark, and is labelled directly.
  */
 export function GradeProfileChart({ profile }: GradeProfileChartProps) {
@@ -125,7 +125,7 @@ interface SportLayerProps {
   radiusAt: (index: number) => number
 }
 
-/** One sport's line and its mark at each duration: a dot for a recorded grade, a ring for an estimate. */
+/** One sport's line and a solid dot at each duration; an estimate is told by its range band, not by its dots. */
 function SportLayer({ marks, radiusAt }: SportLayerProps) {
   const { sport, ranged } = marks
   return (
@@ -140,13 +140,10 @@ function SportLayer({ marks, radiusAt }: SportLayerProps) {
         point === null ? null : (
           <circle
             key={point.x}
-            data-testid={ranged ? 'profile-ring' : 'profile-marker'}
+            data-testid="profile-marker"
             data-sport={sport}
-            className={
-              ranged
-                ? `chart-series__ring--${sport}`
-                : `chart-series__marker chart-series__marker--${sport}`
-            }
+            data-estimate={ranged || undefined}
+            className={`chart-series__marker chart-series__marker--${sport}`}
             cx={point.x}
             cy={point.y}
             r={radiusAt(index)}

@@ -1,4 +1,4 @@
-import type { MethodTime, RacePrediction } from '@rca/core/predict'
+import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
 import { formatRecordTime } from '@rca/core/units'
 import type { Property } from '../components/property'
 import { formatDayMonth, formatMonth } from '../format/date'
@@ -19,16 +19,20 @@ const ORIGIN_LABEL: Record<MethodTime['method'], string> = {
   heartRate: 'heart rate',
 }
 
-/** Where one estimate came from, as a row: "5 km, best runs" and "20:25, mostly from your best 10 km". */
-export function originRow(race: string, method: MethodTime, vo2max: number | null): Property {
-  const time = formatRecordTime(method.seconds)
+/** Where one estimate came from, as a row: label and number only, "5 km, best runs" over "20:25". */
+export function originRow(race: string, method: MethodTime): Property {
   return {
     label: `${race}, ${ORIGIN_LABEL[method.method]}`,
-    value:
-      method.method === 'heartRate'
-        ? `${time}, VO2max ${Math.round(vo2max ?? 0)}`
-        : `${time}, mostly from your best ${raceName(method.fromM).toLowerCase()}`,
+    value: formatRecordTime(method.seconds),
   }
+}
+
+/** The VO2max the heart-rate estimates start from, given once: none when no race uses heart rate. */
+export function vo2maxRows(found: RunPredictions): Property[] {
+  const used = found.races.some((race) => race.methods.some((m) => m.method === 'heartRate'))
+  return used && found.vo2max
+    ? [{ label: 'VO2max', value: `${Math.round(found.vo2max.vo2max)}` }]
+    : []
 }
 
 /** Where the runs of each window are, as the note says it. */
@@ -49,7 +53,7 @@ export function pastRow({ seconds, startMs }: PastRun): Property {
   return { label: 'Ran', value: `${formatRecordTime(seconds)}, ${formatMonth(startMs, true)}` }
 }
 
-/** The rows that say what the forecast rests on: the run the times were carried from or the heart rate, and what it is for. */
+/** The rows that say what the forecast rests on: the run the times were carried from or the heart rate, and */
 export function forecastRows(
   answer: Pick<RaceForecast, 'basis'>,
   window: RaceWindow,
@@ -62,10 +66,9 @@ export function forecastRows(
       label: 'Based on',
       value:
         basis === null
-          ? 'Your heart rate'
-          : `Your ${raceName(basis.distanceM).toLowerCase()}, ${formatDayMonth(basis.startMs, openedAt)}`,
+          ? 'Heart rate'
+          : `${raceName(basis.distanceM)}, ${formatDayMonth(basis.startMs, openedAt)}`,
     },
-    { label: 'For', value: 'A flat course on a good day' },
     ...(bound ? [{ label: 'Runs shown hard', value: `None in ${RUNS_IN[window]}` }] : []),
     ...(window === 'all' ? [{ label: 'All time', value: 'Your best period' }] : []),
   ]

@@ -94,7 +94,7 @@ describe('the race predictions on a sport page whose period holds no run of a mi
     details.open = true
     fireEvent(details, new Event('toggle'))
     // The run the times were carried from is named inside the disclosure, not under the heading.
-    expect(rowValue(details, 'Based on')).toMatch(/^Your 10 km, \d+ \w+( \d{4})?$/)
+    expect(rowValue(details, 'Based on')).toMatch(/^10 km, \d+ \w+( \d{4})?$/)
     expect(within(section).getByRole('columnheader', { name: 'Predicted' })).toBeInTheDocument()
     expect(within(section).queryByRole('columnheader', { name: 'Range' })).not.toBeInTheDocument()
     expect(rowValue(section, 'Runs shown hard')).toBe('None in the last 12 months')

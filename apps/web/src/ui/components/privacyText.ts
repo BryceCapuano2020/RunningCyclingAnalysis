@@ -33,16 +33,16 @@ const has = (issues: readonly Pick<SyncIssue, 'code'>[], codes: ReadonlySet<Sync
   issues.some((issue) => codes.has(issue.code))
 
 /**
- * One sentence for each state. How long recordings are kept, how many fit, and where to remove everything are on the
+ * One sentence for a state worth saying in the footer, else null: signed out (the browser holds the activities), or
+ * signed in with summaries or originals not being stored. Signed in with nothing wrong says nothing. How long recordings are kept, how many fit, and where to remove everything are on the
  * Privacy page, which the footer links to. A state where new summaries are not being stored says so, since "stored"
  * would be false of them. The landing page's subtitle ends on the same sentence, so the page says it in one phrase.
  */
 export function privacyText({
   signedIn,
-  keepFiles,
   fileRetentionAvailable = true,
   issues = NO_ISSUES,
-}: PrivacyNoteProps): string {
+}: PrivacyNoteProps): string | null {
   if (!signedIn) return 'Your activities stay in this browser, where anyone using it can see them.'
   if (has(issues, LIBRARY_FULL)) return 'Your library is full, so new summaries are not stored.'
   if (has(issues, SAVING_PAUSED)) return 'Saving is paused, so new summaries are not stored yet.'
@@ -52,7 +52,6 @@ export function privacyText({
   if (has(issues, ORIGINALS_HALTED)) {
     return 'Summaries are stored in your private library, and new original files are not kept.'
   }
-  return keepFiles
-    ? 'Summaries and original files are stored in your private library.'
-    : 'Summaries are stored in your private library, and original files are not kept.'
+  // Signed in with nothing wrong, the footer says nothing: what is stored and kept is on the Privacy page.
+  return null
 }

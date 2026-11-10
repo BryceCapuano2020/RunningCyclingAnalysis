@@ -29,6 +29,8 @@ import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
 import { dayNoonMs, shiftDay } from './liftDay'
 import { liftName } from './liftNames'
+import { bigThreeLeadOf } from './bigThreeModel'
+import type { BigThreeLeadModel } from './bigThreeModel'
 
 /** The weeks of the estimate's window, which the change and the counts read. */
 export const WINDOW_WEEKS = WINDOW_DAYS / 7
@@ -67,6 +69,8 @@ export interface LiftLead {
 
 export interface LiftOverview {
   lead: LiftLead | null
+  /** The big three side by side, which the page leads with in place of `lead` once any of them has an estimate. */
+  bigThree: BigThreeLeadModel | null
   /** Every lift with an estimate: big three first, then the most recent. A lift with one session has no line yet. */
   lifts: LiftEntry[]
   /** The lift the page leads with, which the chart shows first; null with no lift. */
@@ -241,5 +245,11 @@ export function liftOverviewOf(
           : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings),
     }
   }
-  return { lead, leadId: top?.id ?? null, lifts: ordered, weeks: filledWeeks(state.weeks, today) }
+  return {
+    lead,
+    bigThree: bigThreeLeadOf(state.lifts, profile, settings, units),
+    leadId: top?.id ?? null,
+    lifts: ordered,
+    weeks: filledWeeks(state.weeks, today),
+  }
 }

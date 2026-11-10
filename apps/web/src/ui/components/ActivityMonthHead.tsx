@@ -1,8 +1,8 @@
 import { formatDistance } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
-import { formatHoursText, secondsOf } from '../activitiesVolume'
+import { formatHoursText, totalHoursText } from '../activitiesVolume'
 import type { TotalsBySport } from '../activitiesVolume'
-import { SPORT_ACTIVITY, SPORT_ORDER, SPORT_PLURAL } from '../sports'
+import { VOLUME_KINDS, VOLUME_NOUN, VOLUME_PLURAL, VOLUME_ESTIMATED } from '../volumeKinds'
 import { plural } from './plural'
 
 export interface ActivityMonthHeadProps {
@@ -13,26 +13,35 @@ export interface ActivityMonthHeadProps {
   units: UnitSystem
 }
 
-/** A month's heading, with its totals beside it: the count and distance of each sport, then the hours. */
+/**
+ * A month's heading, with its totals beside it: "9 runs · 55.6 mi" for each sport, "4 lifts · ~4.9 h" for lifting (its time
+ * estimated from its sets), then "31 h total", written "~36 h total" when it includes lifting's estimate.
+ */
 export function ActivityMonthHead({ label, totals, units }: ActivityMonthHeadProps) {
-  const sports = totals === undefined ? [] : SPORT_ORDER.filter((sport) => totals[sport].count > 0)
+  const kinds = totals === undefined ? [] : VOLUME_KINDS.filter((kind) => totals[kind].count > 0)
   return (
     <div className="activity-list__month-head">
       <h2 className="activity-list__heading">{label}</h2>
       {totals !== undefined && (
         <p className="num activity-list__totals">
-          {sports.map((sport) => {
-            const { count, distanceM } = totals[sport]
-            const distance = distanceM > 0 ? `, ${formatDistance(distanceM, units)}` : ''
+          {kinds.map((kind) => {
+            const { count, distanceM, seconds } = totals[kind]
+            // A recorded sport gives its distance; lifting, which has none, gives its estimated time.
+            const distance =
+              distanceM > 0
+                ? ` · ${formatDistance(distanceM, units)}`
+                : VOLUME_ESTIMATED[kind]
+                  ? ` · ~${formatHoursText(seconds)}`
+                  : ''
             return (
-              <span key={sport} className="activity-list__total" data-sport={sport}>
-                {`${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}${distance}`}
+              <span key={kind} className="activity-list__total" data-sport={kind}>
+                {`${plural(count, VOLUME_NOUN[kind], VOLUME_PLURAL[kind])}${distance}`}
                 <span className="sr-only">; </span>
               </span>
             )
           })}
           <span className="activity-list__total activity-list__total--hours">
-            {formatHoursText(secondsOf(totals))}
+            {`${totalHoursText(totals)} total`}
           </span>
         </p>
       )}

@@ -7,6 +7,7 @@ import type { AccountController } from '../useAccount'
 import { HevyImport } from './HevyImport'
 import { LiftEstimates } from './LiftEstimates'
 import { LiftLead } from './LiftLead'
+import { BigThreeLead } from './BigThreeLead'
 import { LiftPage } from './LiftPage'
 import { LiftPicker } from './LiftPicker'
 import { SetForm } from './SetForm'
@@ -212,7 +213,19 @@ export function LiftConnected({
       editingKey={editing ? editingKey : null}
       rowForm={rowForm}
       form={form}
-      lead={overview.lead && <LiftLead lead={overview.lead} units={units} />}
+      lead={
+        overview.bigThree !== null ? (
+          <BigThreeLead
+            model={overview.bigThree}
+            onLog={() => {
+              setEditingKey(null)
+              setLogging(true)
+            }}
+          />
+        ) : (
+          overview.lead && <LiftLead lead={overview.lead} units={units} />
+        )
+      }
       estimates={<LiftEstimates overview={overview} units={units} />}
     />
   )

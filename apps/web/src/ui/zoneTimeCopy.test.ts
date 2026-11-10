@@ -3,12 +3,12 @@ import {
   THRESHOLD_NEEDS,
   ZONE_WINDOW_VALUE,
   describable,
-  leftOutRows,
   mainZoneRow,
   percentText,
   timeInZonesLack,
-  zoneSourceRow,
+  zoneNoteLine,
   zonesChangedRows,
+  zonesLinkText,
   zoneTimeText,
 } from './zoneTimeCopy'
 import { measureTime } from './test/zoneTimeFixtures'
@@ -83,59 +83,20 @@ describe('mainZoneRow', () => {
   })
 })
 
-describe('leftOutRows', () => {
-  it('counts the activities a measure left out as a row each, with what mends the missing zones', () => {
-    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], {
-      counted: 9,
-      noData: 2,
-      noZones: 1,
-    })
-    expect(leftOutRows('run', [row])).toEqual([
-      { label: 'Heart rate, no reading', value: '2 of 12 runs' },
-      { label: 'Heart rate, no zones', value: '1 of 12 runs' },
-      {
-        label: 'Heart rate zones need',
-        value: 'Enter your max heart rate on Profile to get them.',
-      },
-    ])
+describe('zoneNoteLine', () => {
+  it('has nothing to say over the period, however many activities each measure counted', () => {
+    const hr = measureTime('ride', 'heartRate', [1, 1, 1, 1, 1], { counted: 60, setAside: 2 })
+    const power = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1], { counted: 9, noData: 53 })
+    expect(zoneNoteLine([hr, power], null)).toBeNull()
   })
 
-  it('groups the thousands of a long history, as the count above it does', () => {
-    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { counted: 1200, noData: 34 })
-    expect(leftOutRows('run', [row])).toEqual([
-      { label: 'Heart rate, no reading', value: '34 of 1,234 runs' },
-    ])
+  it('names the stretch the bars are of when it is wider than the period', () => {
+    expect(zoneNoteLine([easyRun], null, 'year')).toBe('Last 12 months')
+    expect(zoneNoteLine([easyRun], null, 'all')).toBe('All time')
   })
 
-  it('says what gives a pace zones when a date has none', () => {
-    const pace = measureTime('run', 'pace', [1, 1, 1, 1, 1], { counted: 5, noZones: 2 })
-    expect(leftOutRows('run', [pace]).map((row) => row.value)).toEqual([
-      '2 of 7 runs',
-      'A run of 8 min or more sets your pace zones.',
-    ])
-  })
-
-  it('counts a heart rate set aside apart from one that was not recorded', () => {
-    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], {
-      counted: 8,
-      noData: 1,
-      setAside: 2,
-    })
-    expect(leftOutRows('run', [row])).toEqual([
-      { label: 'Heart rate, set aside', value: '2 of 11 runs' },
-      { label: 'Heart rate, no reading', value: '1 of 11 runs' },
-    ])
-  })
-
-  it('has nothing to say when every activity counted', () => {
-    expect(leftOutRows('ride', [measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1])])).toEqual([])
-  })
-
-  it('names measured power for a ride without a power meter', () => {
-    const row = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1], { counted: 4, noData: 6 })
-    expect(leftOutRows('ride', [row])).toEqual([
-      { label: 'Measured power, no reading', value: '6 of 10 rides' },
-    ])
+  it('never says Details or an em dash', () => {
+    expect(zoneNoteLine([easyRun], null, 'year')).not.toMatch(/Details|\u2014/)
   })
 })
 
@@ -146,9 +107,7 @@ describe('zonesChangedRows', () => {
     const before = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
       enteredReferences: [200],
     })
-    expect(zonesChangedRows([now], [before])).toEqual([
-      { label: 'Heart rate zones', value: 'Changed, not compared' },
-    ])
+    expect(zonesChangedRows([now], [before])).toEqual(['Heart rate zones changed, not compared'])
   })
 
   it('says nothing when the zones match, or the period before has too little to compare', () => {
@@ -165,15 +124,15 @@ describe('zonesChangedRows', () => {
   })
 })
 
-describe('zoneSourceRow', () => {
-  it('says whether the zones were estimated, entered or both', () => {
-    const value = (entered?: number) =>
-      zoneSourceRow([
+describe('zonesLinkText', () => {
+  it('asks to set the zones while they are estimated, and to edit them once set', () => {
+    const text = (entered?: number) =>
+      zonesLinkText([
         measureTime('run', 'heartRate', [1, 1, 1, 1, 1], entered === undefined ? {} : { entered }),
-      ]).value
-    expect(value()).toBe('Estimated, set yours on Profile')
-    expect(value(8)).toBe('Set on Profile')
-    expect(value(3)).toBe('Set on Profile where you have them, estimated elsewhere')
+      ])
+    expect(text()).toBe('Set your zones on Profile')
+    expect(text(8)).toBe('Edit your zones on Profile')
+    expect(text(3)).toBe('Edit your zones on Profile')
   })
 })
 

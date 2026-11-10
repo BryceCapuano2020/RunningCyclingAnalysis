@@ -1,13 +1,10 @@
 import { CYCLING_ANCHOR_WKG } from '@rca/core/display'
 import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
-import { NumText } from '../components/NumText'
-import { MethodLines } from '../components/MethodLines'
-import { MethodText } from '../components/MethodText'
 import { StandardsCredit } from '../components/StandardsCredit'
-import { SECTION_ID } from '../components/methodTopics'
 import { LEVEL_BANDS, SEX_NOUN } from '../grades'
-import { OWN_LEVEL_MEANING, OWN_LEVELS_NOTE } from '../levelMeaning'
+import { OWN_LEVEL_MEANING } from '../levelMeaning'
 import { hrefFor } from '../route'
+import { MethodFacts, MethodSection } from './MethodSection'
 import './AgeGradingSection.css'
 
 export interface AgeGradingSectionProps {
@@ -15,94 +12,54 @@ export interface AgeGradingSectionProps {
   gradedSex: Sex | null
 }
 
-/** The WMA levels and where each starts, lowest first. The bands below them are in OWN_LEVEL_MEANING. */
-const BAND_TEXT = LEVEL_BANDS.filter((band) => band.min >= 0.6)
-  .map((band) => `${band.name} from ${Math.round(band.min * 100)}%`)
-  .join(', ')
+const LEAD = 'An age grade is your effort as a share of world class at your age and sex.'
 
-/** What the grade does not cover, in plain words: one fact a line. */
-const LIMITS = [
-  'Only the birth year is used.',
-  'Until the birthday, the age can be one year too high.',
-  'That moves the grade by about a year’s change in the standard.',
-  'Up for adults, down for young athletes.',
-  'The standards are for road races at sea level.',
-  'Altitude, trail, track and cross-country are not adjusted for.',
-  'Hilly courses and GPS error affect pace and measured distance.',
-  'So a run’s grade is only as exact as its file.',
-  'A training effort is not a race.',
-  'A grade shows how a training effort compares with the standard.',
-  'It is not a race result or a ranking.',
+const FACTS = [
+  `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance at your age and sex, over your time.`,
+  'It uses grade-adjusted pace (GAP), corrected for hills.',
+  `A ride’s W/kg is set against the best riders’ hour (${CYCLING_ANCHOR_WKG.male.toFixed(2)} W/kg men, ${CYCLING_ANCHOR_WKG.female.toFixed(2)} women), then graded as a run at that share.`,
+  'A threshold is graded at your age on the day of its strongest effort.',
+  'On Balance’s age grade by effort length, a sport is higher only where the run’s grade is outside the ride’s range.',
 ]
 
-/** The method, the source and the limits of the age grades and levels, on Method. */
+const whole = (share: number) => Math.round(share * 100)
+
+/** Each band, highest first, as "National is 80% to 89%", with the meaning of the app's own bands below Local. */
+const LEVELS = [...LEVEL_BANDS].reverse().map((band, index, bands) => {
+  const above = bands[index - 1]
+  const span =
+    above === undefined
+      ? `${whole(band.min)}% and up`
+      : band.min === 0
+        ? `under ${whole(above.min)}%`
+        : `${whole(band.min)}% to ${whole(above.min) - 1}%`
+  const meaning = OWN_LEVEL_MEANING.find((level) => level.name === band.name)?.meaning
+  return meaning === undefined ? `${band.name} is ${span}.` : `${band.name} is ${span}: ${meaning}`
+})
+
+const LIMITS = [
+  'Only your birth year is used, so before your birthday the age can be a year high.',
+  'The standards are for road races at sea level.',
+]
+
+/** The method, the bands, the source and the limits of the age grades, on Method. */
 export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
   return (
-    <section className="section band" aria-labelledby={SECTION_ID.grades}>
-      <h2 id={SECTION_ID.grades} tabIndex={-1}>
-        Age grades and levels
-      </h2>
-      <MethodText>
-        <MethodLines
-          lines={[
-            `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance, at your age and sex, divided by your time.`,
-            '70% means 70% of standard pace.',
-            `Levels are bands of the grade: ${BAND_TEXT}.`,
-            OWN_LEVELS_NOTE,
-            ...OWN_LEVEL_MEANING.map((level) => level.meaning),
-            'A ride’s level is the band of its best estimate.',
-            'Its range, drawn on the ladder, can reach a neighbouring band.',
-            'A run’s grade uses its grade-adjusted pace (GAP).',
-            'GAP is the recorded pace, corrected for hills.',
-          ]}
-        />
-        <MethodLines
-          lines={[
-            `Each sport is graded against its own best: the best riders’ hour (${CYCLING_ANCHOR_WKG.male.toFixed(2)} W/kg men, ${CYCLING_ANCHOR_WKG.female.toFixed(2)} women) or the best runners’.`,
-            'Your grade in each is your share of world class at your age.',
-            'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
-          ]}
-        />
-        <MethodLines
-          lines={[
-            'The level target on Balance is what the lower sport’s threshold would need to be to match the other.',
-            'It is in that sport’s own unit.',
-            'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
-            'Its range is the 5th to 95th percentile of the equivalence.',
-          ]}
-        />
-        <MethodLines
-          lines={[
-            'Age grade by effort length on Balance grades each sport’s best effort at each duration.',
-            'A ride comes with its range.',
-            'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
-            'Inside that range, the two are level.',
-          ]}
-        />
-        <MethodLines
-          lines={[
-            'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
-            'It is not graded at the newest activity’s date.',
-            'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
-          ]}
-        />
-        <p className="secondary">
-          {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
-          <a className="age-grading__link" href={hrefFor({ page: 'profile' })}>
-            Change age and sex
-          </a>
-        </p>
-        <p className="muted age-grading__source">
-          Source: <StandardsCredit />, a public domain dedication.
-        </p>
-        <ul className="method__facts">
-          {LIMITS.map((limit) => (
-            <li key={limit}>
-              <NumText text={limit} />
-            </li>
-          ))}
-        </ul>
-      </MethodText>
-    </section>
+    <MethodSection section="grades" lead={LEAD} facts={[...FACTS, ...LIMITS]}>
+      <h3>Levels</h3>
+      <p className="secondary">
+        Levels are bands of the grade: the WMA classes from Local up, this app’s own below.
+      </p>
+      <MethodFacts facts={LEVELS} />
+      <p className="secondary">
+        {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
+        <a className="age-grading__link" href={hrefFor({ page: 'profile' })}>
+          Change age and sex
+        </a>
+      </p>
+      <p className="muted age-grading__source">
+        Source: <StandardsCredit />, a public domain dedication.
+      </p>
+    </MethodSection>
   )
 }

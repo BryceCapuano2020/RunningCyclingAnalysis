@@ -200,13 +200,14 @@ test('Method says that both best efforts were hard efforts', async ({ page }) =>
   // The sample's best 20 minute efforts both reach 90% of their max heart rate. Neither tile carries a chip, the run's
   // detail says nothing of heart rate, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
-  const run = page.getByRole('article', { name: 'Run threshold' })
+  const run = page.getByRole('article', { name: 'Half-marathon' })
   await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
   await expect(run.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     /^\d+$/,
   )
-  await expect(run.locator('.props__row', { hasText: /^Range/ }).locator('dd')).toHaveText(
-    /^\d+:\d{2}\u2013\d+:\d{2} \/(km|mi)$/,
+  // The sample's hard runs give a half-marathon forecast, so the row leads with it and the pace is one tap down.
+  await expect(run.locator('.props__row', { hasText: /^Threshold pace/ }).locator('dd')).toHaveText(
+    /^\d+:\d{2} \/(km|mi)$/,
   )
   await expect(run.locator('.props')).not.toContainText(/heart rate/i)
 
@@ -218,7 +219,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   page,
 }) => {
   await openSample(page)
-  const ride = page.getByRole('article', { name: 'Ride threshold' })
+  const ride = page.getByRole('article', { name: 'Functional threshold power' })
   await expect(ride.locator('.stat-tile__number')).toBeVisible()
   // One number, named by its words: no chip and no range shape beside it.
   await expect(ride.getByText(/Estimated|At least/)).toHaveCount(0)
@@ -241,7 +242,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   )
   await expect(
     page
-      .getByRole('article', { name: 'Run threshold' })
+      .getByRole('article', { name: 'Half-marathon' })
       .locator('summary', { hasText: 'Details for threshold pace' }),
   ).toBeVisible()
 })

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { rowValue } from '../test/propertyRows'
 import { measureTime } from '../test/zoneTimeFixtures'
 import { TimeInZonesSection } from './TimeInZonesSection'
 
@@ -24,24 +23,28 @@ describe('TimeInZonesSection', () => {
     expect(within(section).getByText('View as table')).toBeInTheDocument()
   })
 
-  it('has every zone of every measure in the table, and the totals above it', () => {
+  it('has every zone of every measure in the table, and no second table', () => {
     render(
       <TimeInZonesSection sport="run" rows={[hr, pace]} previous={null} previousLabel={null} />,
     )
     const tables = screen.getAllByRole('table', { hidden: true })
-    expect(tables).toHaveLength(2)
-    const [totals, zones] = tables
-    expect(within(totals!).getAllByRole('row', { hidden: true })).toHaveLength(3)
+    expect(tables).toHaveLength(1)
+    const [zones] = tables
+    expect(zones!.querySelector('caption')?.textContent).toBe('Time in each zone')
     expect(within(zones!).getAllByRole('row', { hidden: true })).toHaveLength(11)
     expect(within(zones!).getByRole('cell', { name: 'Light', hidden: true })).toBeInTheDocument()
   })
 
-  it('says how many activities each measure left out, and where the zones came from', () => {
+  it('has a link to set the zones, no Details and no count of the runs each measure counted', () => {
     render(
       <TimeInZonesSection sport="run" rows={[hr, pace]} previous={null} previousLabel={null} />,
     )
-    expect(rowValue(document.body, 'Pace, no reading')).toBe('3 of 8 runs')
-    expect(rowValue(document.body, 'Zones')).toMatch(/where you have them/)
+    expect(screen.queryByText(/from \d+ of \d+/)).toBeNull()
+    expect(screen.queryByText('Details')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Edit your zones on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
   })
 
   it('leaves out a measure with too little time, and does not restate the change in a sentence', () => {
@@ -104,17 +107,16 @@ describe('TimeInZonesSection', () => {
         previousLabel="Previous 6 weeks"
       />,
     )
-    expect(rowValue(document.body, 'Heart rate zones')).toBe('Changed, not compared')
+    expect(screen.getByText('Heart rate zones changed, not compared')).toBeInTheDocument()
     expect(
       screen.queryByRole('columnheader', { name: 'Previous 6 weeks', hidden: true }),
     ).toBeNull()
   })
 
-  it('says a heart rate was set aside, apart from one that was not recorded', () => {
+  it('says nothing of how many runs a measure counted', () => {
     const row = { ...hr, setAside: 2, noData: 1 }
     render(<TimeInZonesSection sport="run" rows={[row]} previous={null} previousLabel={null} />)
-    expect(rowValue(document.body, 'Heart rate, set aside')).toBe('2 of 11 runs')
-    expect(rowValue(document.body, 'Heart rate, no reading')).toBe('1 of 11 runs')
+    expect(screen.queryByText(/from \d+ of \d+/)).toBeNull()
   })
 
   it('says which stretch the bars are of when the period held too little, and compares with nothing', () => {
@@ -127,7 +129,7 @@ describe('TimeInZonesSection', () => {
         zoneWindow="year"
       />,
     )
-    expect(rowValue(document.body, 'Window')).toBe('Last 12 months')
+    expect(screen.getByText('Last 12 months')).toBeInTheDocument()
     unmount()
     render(
       <TimeInZonesSection
@@ -139,7 +141,7 @@ describe('TimeInZonesSection', () => {
         relaxed
       />,
     )
-    expect(rowValue(document.body, 'Window')).toBe('All time')
+    expect(screen.getByText('All time')).toBeInTheDocument()
   })
 
   it('says nothing of a stretch for the period itself', () => {
@@ -167,7 +169,7 @@ describe('TimeInZonesSection', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 50%/)
   })
 
-  it('says nothing of which threshold or heart rate the zones were cut from: one line says they are estimated', () => {
+  it('says nothing of which threshold or heart rate the zones were cut from: one link asks to set them', () => {
     const highest = { ...hr, entered: 0, fromHighest: true as const }
     render(
       <TimeInZonesSection
@@ -177,7 +179,7 @@ describe('TimeInZonesSection', () => {
         previousLabel={null}
       />,
     )
-    expect(rowValue(document.body, 'Zones')).toBe('Estimated, set yours on Profile')
+    expect(screen.getByRole('link', { name: 'Set your zones on Profile' })).toBeInTheDocument()
     expect(screen.queryByText(/are cut from/)).not.toBeInTheDocument()
   })
 })

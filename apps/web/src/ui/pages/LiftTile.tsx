@@ -1,4 +1,5 @@
 import { PropertyList } from '../components/PropertyList'
+import { SECTION_ID } from '../components/methodTopics'
 import type { LiftTileModel } from '../lift/liftTile'
 import { hrefFor } from '../route'
 import { DETAIL_TERM } from './ThresholdBasis'
@@ -30,7 +31,11 @@ export function LiftTile({ tile }: { tile: LiftTileModel }) {
             <span className="sr-only">{' for the big three'}</span>
           </summary>
           <div className="disclosure__body">
-            <PropertyList rows={tile.rows} />
+            <PropertyList
+              rows={tile.rows}
+              method={SECTION_ID.lift}
+              methodName="how the big three are worked out"
+            />
           </div>
         </details>
       </div>

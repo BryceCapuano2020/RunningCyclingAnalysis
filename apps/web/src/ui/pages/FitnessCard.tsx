@@ -33,6 +33,8 @@ export interface FitnessCardProps {
    * hold the figures and the runs alone.
    */
   graphs?: boolean
+  /** False on Balance: the steady runs and what they are compared with are on the sport's own page, not in this card. */
+  evidence?: boolean
 }
 
 /**
@@ -48,6 +50,7 @@ export function FitnessCard({
   showSport = true,
   bare,
   graphs = false,
+  evidence = true,
 }: FitnessCardProps) {
   const id = useId()
   const [mounted, setMounted] = useState(false)
@@ -79,7 +82,8 @@ export function FitnessCard({
   }
   const waiting = view.state === 'not-enough-evidence'
   const warm = !waiting && adjustedForWarmDays(status)
-  const evidenceOf = !waiting && view.status.evidence !== null && view.status.series.length > 1
+  const evidenceOf =
+    evidence && !waiting && view.status.evidence !== null && view.status.series.length > 1
   const line = bare?.text ?? fitnessLine(view)
   // The level is in Details with its range whenever the line is a change, or the line dropped a range from it.
   const levelInDetails = bare?.text == null && (view.changes.length > 0 || line !== view.headline)

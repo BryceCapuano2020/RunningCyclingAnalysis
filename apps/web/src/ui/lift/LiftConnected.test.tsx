@@ -224,10 +224,12 @@ describe('the Lift page on the log', () => {
 })
 
 describe('the lead and the lifts list', () => {
-  it('lead with the estimate once a lift has one, above the day, and list every lift in a table', () => {
+  it('lead with the big three once one has an estimate, above the day, and list every lift in a table', () => {
     useHook([logged(TODAY, set())])
     render(view())
-    const lead = screen.getByTestId('lift-max')
+    const lead = screen.getByTestId('big-three-squat')
+    // The others are not logged yet: each offers its own log.
+    expect(screen.getByRole('button', { name: 'Log a bench' })).toBeInTheDocument()
     const day = screen.getByRole('button', { name: 'Log a set' })
     expect(lead.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Your lifts' })).toBeInTheDocument()
@@ -237,6 +239,7 @@ describe('the lead and the lifts list', () => {
   it('shows neither before any lift has an estimate', () => {
     useHook([])
     render(view())
+    expect(screen.queryByTestId('big-three-squat')).toBeNull()
     expect(screen.queryByTestId('lift-max')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Weekly load' })).toBeNull()
   })

@@ -17,6 +17,15 @@
   display: grid;
   gap: var(--space-1);
   justify-items: start;
+  /* The row's body places its children at the start; the source takes the row's width so its Details can, and never
+     widens the row past the screen (a grid item's minimum is otherwise its content's, at 200% text too wide). */
+  justify-self: stretch;
+  min-width: 0;
+}
+
+/* An open Details takes the row's width, so its values sit on one line instead of wrapping at each space. */
+.stat-tile__source > details {
+  justify-self: stretch;
 }
 
 /* The effort chip is a line of its own under the tile's text. */

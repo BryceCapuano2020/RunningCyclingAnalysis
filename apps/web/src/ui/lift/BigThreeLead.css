@@ -1,0 +1,102 @@
+/* The big three side by side: each lift a column with its one-rep max, its age-grade bar and its level. */
+.big-three__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.big-three__total {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.big-three__total .num {
+  color: var(--ink);
+  font-size: var(--text-md);
+}
+
+.big-three__lifts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
+}
+
+.big-three__lift {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+}
+
+.big-three__name {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.big-three__body {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.big-three__body p {
+  margin: 0;
+}
+
+/* The age grade as a bar in the lift's ink, on one scale for the three, so their balance reads at a glance. */
+.big-three__bar {
+  display: block;
+  height: 0.375rem;
+  background: var(--hairline);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.big-three__fill {
+  display: block;
+  height: 100%;
+  background: var(--lift-ink);
+  border-radius: inherit;
+}
+
+.big-three__level {
+  font-size: var(--text-sm);
+}
+
+.big-three__empty {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.big-three__log {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: var(--control-height);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+@media (forced-colors: active) {
+  .big-three__bar {
+    border: 1px solid CanvasText;
+  }
+
+  .big-three__fill {
+    background: CanvasText;
+  }
+}
+
+/* A phone keeps the three in a row while there is room; at the narrowest they stack. */
+@media (max-width: 360px) {
+  .big-three__lifts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

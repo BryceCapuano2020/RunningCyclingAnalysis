@@ -1,16 +1,9 @@
 import type { MeasureTime, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { PERIOD_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
-import {
-  TIME_IN_ZONES_NAME,
-  ZONE_WINDOW_VALUE,
-  describable,
-  leftOutRows,
-  zoneSourceRow,
-  zonesChangedRows,
-} from '../zoneTimeCopy'
+import { hrefFor } from '../route'
+import { TIME_IN_ZONES_NAME, describable, zoneNoteLine, zonesLinkText } from '../zoneTimeCopy'
 import { periodBars, periodTables } from '../zoneTimeRows'
-import { PageDetails } from './PageDetails'
 
 export interface TimeInZonesSectionProps {
   sport: Sport
@@ -29,7 +22,7 @@ export interface TimeInZonesSectionProps {
 /**
  * How the period's time was spread across training zones, a bar for each measure with enough of it, each bar saying its
  * easy and hard shares. Where the period held too little, the bars are of the last 12 months or all time and a line says
- * which, in the Details under the bars, with the activities a measure left out and where the zones came from.
+ * which, in a line under the bars with the activities a measure left out, and a link to Profile to set or edit the zones.
  * The page asks timeInZonesLack first, so this is drawn only when some measure has enough time.
  */
 export function TimeInZonesSection({
@@ -42,28 +35,23 @@ export function TimeInZonesSection({
 }: TimeInZonesSectionProps) {
   const shown = describable(rows, relaxed)
   if (shown.length === 0) return null
-  const { table, summary } = periodTables(shown, previous, previousLabel)
-  const details = [
-    ...(zoneWindow === undefined
-      ? []
-      : [{ label: 'Window', value: ZONE_WINDOW_VALUE[zoneWindow] }]),
-    ...leftOutRows(sport, shown),
-    ...zonesChangedRows(shown, previous),
-    zoneSourceRow(shown),
-  ]
+  const { table } = periodTables(shown, previous, previousLabel)
+  const note = zoneNoteLine(shown, previous, zoneWindow)
   return (
     <section className="section" data-sport={sport} aria-labelledby={`${sport}-time-in-zones`}>
       <h2 id={`${sport}-time-in-zones`}>{TIME_IN_ZONES_NAME}</h2>
-      {/* The section's heading names the chart, and its window, the activities left out and where the zones came from
-          are one ▸ Details under the bars (docs/design/system.md, No subtitle lines). */}
       <ZoneTimeChart
         title={PERIOD_ZONES_TITLE}
         titleHidden
         rows={periodBars(shown)}
         table={table}
-        summary={summary}
       />
-      <PageDetails about="time in zones" rows={details} />
+      {note === null ? null : <p className="secondary">{note}</p>}
+      <p>
+        <a className="link-arrow" href={hrefFor({ page: 'profile' })}>
+          {zonesLinkText(shown)}
+        </a>
+      </p>
     </section>
   )
 }

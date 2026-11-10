@@ -259,8 +259,9 @@ describe('ResultPage Method with no weight entered', () => {
   it('holds the energy view and asks for the weight, as Balance does, once a ride is on file', () => {
     renderPage({ page: 'method' }, 1986, 'male', false, true)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    // The method still reads, but this library's range waits for the weight.
     expect(screen.getByRole('region', { name: 'The energy view' }).textContent).not.toMatch(
-      /90% range/,
+      /The 90% range for/,
     )
   })
 

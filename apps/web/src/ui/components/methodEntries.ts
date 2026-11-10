@@ -9,15 +9,12 @@ export type { EntryState, MethodEntry }
 export const STATE_COPY: Record<EntryState, { title: string; lines: readonly string[] }> = {
   calculated: {
     title: 'Calculated by this app',
-    lines: [
-      'Worked out from your files.',
-      'Your year of birth, sex and weight are used where a figure needs them.',
-    ],
+    lines: [],
   },
-  read: { title: 'Recorded in your files', lines: ['Taken as your files recorded them.'] },
+  read: { title: 'Recorded in your files', lines: [] },
   unavailable: {
     title: 'Not available from activity files',
-    lines: ['These need inputs an activity file does not hold.'],
+    lines: [],
   },
 }
 

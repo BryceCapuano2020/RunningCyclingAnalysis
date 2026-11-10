@@ -184,6 +184,10 @@
   list-style: none;
 }
 
+.race-predictions > .race-key {
+  margin-bottom: var(--space-3);
+}
+
 .race-key__entry {
   display: inline-flex;
   align-items: center;

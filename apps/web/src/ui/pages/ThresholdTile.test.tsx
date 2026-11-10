@@ -144,7 +144,7 @@ describe('ThresholdTile', () => {
       )
       expect(container.querySelector('article')).toHaveAttribute(
         'aria-label',
-        `${sport === 'run' ? 'Run' : 'Ride'} threshold`,
+        sport === 'run' ? 'Run threshold' : 'Functional threshold power',
       )
       unmount()
     }
@@ -176,8 +176,10 @@ describe('ThresholdTile', () => {
     })
     const { container } = renderTile('ride', makeResult({ activities: [ride], rideThreshold }))
     expect(container.querySelector('.stat-tile__number')).toHaveTextContent('250')
-    expect(container.querySelector('.stat-tile__side')).toHaveTextContent('3.3 W/kg')
+    // The watts stand alone; the watts per kilogram are the first line of Details.
+    expect(container.querySelector('.stat-tile__side')).toBeEmptyDOMElement()
     const panel = panelOf(container)
+    expect(rowValue(panel, 'Per kilogram')).toBe('3.3 W/kg')
     expect(rowValue(panel, 'Rides used')).toBe('5')
     expect(rowValue(panel, 'Strongest effort')).toBe('12 min, 4 Mar')
     expect(container.querySelector('.chip')).toBeNull()
@@ -270,7 +272,7 @@ describe('ThresholdTile', () => {
 
   it('names the tile by its words alone, whatever the definition inside it says', () => {
     renderTile('ride', makeResult())
-    expect(screen.getByRole('article', { name: 'Ride threshold' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Functional threshold power' })).toBeInTheDocument()
   })
 
   it('says what a ride held for the weight can say without it: its count, time and latest date, then the ask', () => {
@@ -279,7 +281,7 @@ describe('ThresholdTile', () => {
       makeActivity({ id: 'ride-2', sport: 'ride', durationS: 5400 }),
     ]
     const { container } = renderTile('ride', makeResult({ activities: rides }), null, false)
-    const tile = screen.getByRole('article', { name: 'Ride threshold' })
+    const tile = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(tile).toHaveTextContent(/2 rides, 2 h 30 min riding\. Latest .+\./)
     expect(tile).toHaveTextContent(
       'Add your weight on Profile to grade your rides and see their figures.',
@@ -295,7 +297,7 @@ describe('ThresholdTile', () => {
       null,
       false,
     )
-    const tile = screen.getByRole('article', { name: 'Ride threshold' })
+    const tile = screen.getByRole('article', { name: 'Functional threshold power' })
     expect(tile).not.toHaveTextContent(/riding/)
     expect(tile).toHaveTextContent('Add your weight on Profile')
   })
@@ -365,7 +367,10 @@ describe('ThresholdTile', () => {
     it('leaves what a threshold is to its title, with no line under the name', () => {
       for (const sport of ['run', 'ride'] as const) {
         const tile = renderTile(sport, makeResult()).container.querySelector('article')!
-        expect(tile).toHaveAttribute('aria-label', `${sport === 'run' ? 'Run' : 'Ride'} threshold`)
+        expect(tile).toHaveAttribute(
+          'aria-label',
+          sport === 'run' ? 'Run threshold' : 'Functional threshold power',
+        )
         // What the figure rests on is the line straight under the title.
         expect(tile.querySelector('.row__title')?.nextElementSibling).toBe(
           tile.querySelector('.stat-tile__source'),
