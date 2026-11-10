@@ -5,6 +5,8 @@ import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/st
 import { createHarness } from '../test/harness.ts'
 import { runStateJob } from '../state/job.ts'
 
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+
 const digests = libraryDigests()
 
 async function ready(email?: string) {
@@ -133,5 +135,17 @@ describe('GET /api/state', () => {
     const res = await w.get()
     expect(res.status).toBe(429)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('daily_limit')
+  })
+
+  it('serves no snapshot made under another analysis revision, and asks the job for a new one once', async () => {
+    const w = await ready()
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
+      .bind(ANALYSIS_REVISION - 1, w.userId)
+      .run()
+    w.sent.length = 0
+    expect((await w.get()).status).toBe(404)
+    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 10 } }])
+    expect((await w.get()).status).toBe(404)
+    expect(w.sent).toHaveLength(1)
   })
 })

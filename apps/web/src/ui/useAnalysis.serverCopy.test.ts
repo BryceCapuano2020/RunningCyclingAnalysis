@@ -6,6 +6,7 @@ import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/state'
 import { FakeWorker } from '../test/fakeWorker'
@@ -163,6 +164,13 @@ describe('server results off for the account', () => {
       () => {
         const snapshot = snapshotAt(Date.now(), ZONE, withCount(61))
         get.mockResolvedValue({ ...snapshot, modelRevision: MODEL_REVISION + 1 })
+      },
+    ],
+    [
+      'sends a snapshot made under an older analysis revision',
+      () => {
+        const snapshot = snapshotAt(Date.now(), ZONE, withCount(61))
+        get.mockResolvedValue({ ...snapshot, analysisRevision: ANALYSIS_REVISION - 1 })
       },
     ],
   ])(

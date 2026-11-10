@@ -1,5 +1,8 @@
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { Hono } from 'hono'
-import type { AppEnv } from '../env.ts'
+import { STATE_DELAY_SECONDS } from '../state/message.ts'
+import { claimPending } from '../state/pending.ts'
+import type { AppEnv, Bindings } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
 import { currentUser, requireUserOrNotFound, sameOriginReadGuard } from '../middleware.ts'
@@ -7,6 +10,19 @@ import { getOriginalFile } from '../storage.ts'
 import { serverStateAnyone, serverStateFor } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
 import { inflate } from '../state/store.ts'
+
+/** Asks the state job to compute an account again, unless a message for it is on its way. Sending never fails the read. */
+async function sendStale(env: Bindings, userId: string, now: number): Promise<void> {
+  const queue = env.STATE_QUEUE
+  if (queue === undefined) return
+  try {
+    if (await claimPending(env.DB, userId, now, STATE_DELAY_SECONDS)) {
+      await queue.send({ userId }, { delaySeconds: STATE_DELAY_SECONDS })
+    }
+  } catch {
+    console.error(JSON.stringify({ event: 'state_stale_send_failed' }))
+  }
+}
 
 const NOT_FOUND = () => new HttpError(404, 'not_found', 'Not found')
 
@@ -45,11 +61,17 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
   const userId = currentUser(c).id
   await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
   const row = await c.env.DB.prepare(
-    'SELECT snapshot_hash, computed_version FROM state_jobs WHERE user_id = ?',
+    'SELECT snapshot_hash, computed_version, analysis_revision FROM state_jobs WHERE user_id = ?',
   )
     .bind(userId)
-    .first<{ snapshot_hash: string | null; computed_version: number }>()
+    .first<{ snapshot_hash: string | null; computed_version: number; analysis_revision: number }>()
   if (row?.snapshot_hash == null) throw NOT_FOUND()
+  // A snapshot made under another analysis revision (a deploy changed how a figure is worked out) is not served: the
+  // browser computes locally, and one message asks the job to compute it again under this build's analysis.
+  if (row.analysis_revision !== ANALYSIS_REVISION) {
+    await sendStale(c.env, userId, c.var.deps.now())
+    throw NOT_FOUND()
+  }
   const etag = `"${row.snapshot_hash}"`
   // `no-store` like every /api response, so the browser never keeps a copy of the account's results in its HTTP cache. It
   // therefore sends no conditional request of its own: the client sets If-None-Match from the hash of its device copy.

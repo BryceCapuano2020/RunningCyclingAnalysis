@@ -10,6 +10,8 @@ import { z } from 'zod'
 export const StateSnapshotSchema = z.strictObject({
   schemaVersion: z.number().int().min(1),
   modelRevision: z.number().int().min(1),
+  /** The combine-time analysis revision; absent from a snapshot made before it existed, which is then stale. */
+  analysisRevision: z.number().int().min(1).optional(),
   libraryVersion: z.number().int().min(0),
   nowMs: z.number().int().min(0),
   /** The viewer's zone, an IANA name. */

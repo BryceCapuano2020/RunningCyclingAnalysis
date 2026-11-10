@@ -5,6 +5,7 @@ import type { SessionState } from './sessionState'
 import {
   STATE_SNAPSHOT_VERSION,
   fromSnapshot,
+  ANALYSIS_REVISION,
   snapshotIsCurrent,
   toSnapshot,
   type SnapshotMeta,
@@ -77,5 +78,13 @@ describe('StateSnapshot', () => {
       false,
     )
     expect(snapshotIsCurrent({ ...snapshot, modelRevision: MODEL_REVISION - 1 })).toBe(false)
+  })
+
+  it('is stale when made under another analysis revision, or before the revision was recorded', () => {
+    const snapshot = toSnapshot(stateOf(corpus[0]!), META)
+    expect(snapshot.analysisRevision).toBe(ANALYSIS_REVISION)
+    expect(snapshotIsCurrent({ ...snapshot, analysisRevision: ANALYSIS_REVISION - 1 })).toBe(false)
+    const { analysisRevision: _dropped, ...before } = snapshot
+    expect(snapshotIsCurrent(before)).toBe(false)
   })
 })

@@ -1,3 +1,4 @@
+import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { describe, expect, it } from 'vitest'
 import { runMaintenance } from '../maintenance.ts'
 import { stateWorld } from '../test/stateKit.ts'
@@ -21,12 +22,22 @@ describe('the daily re-send', () => {
     const w = await stateWorld()
     const now = w.h.clock.now
     await w.env.DB.prepare(
-      `INSERT INTO state_jobs (user_id, computed_version)
-       SELECT id, library_version FROM users WHERE id = ?`,
+      `INSERT INTO state_jobs (user_id, computed_version, analysis_revision)
+       SELECT id, library_version, ? FROM users WHERE id = ?`,
     )
-      .bind(w.userId)
+      .bind(ANALYSIS_REVISION, w.userId)
       .run()
     expect(await resendDirty(w.env, now)).toBe(0)
+    // The same compute made under the analysis revision before is stale: a deploy moved how a figure is worked out.
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
+      .bind(ANALYSIS_REVISION - 1, w.userId)
+      .run()
+    expect(await resendDirty(w.env, now)).toBe(1)
+    await clearPending(w.env.DB, w.userId)
+    w.sent.length = 0
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
+      .bind(ANALYSIS_REVISION, w.userId)
+      .run()
     await w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?')
       .bind(w.userId)
       .run()
