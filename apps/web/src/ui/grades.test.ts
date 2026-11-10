@@ -13,7 +13,6 @@ import {
 } from './components/test/fixtures'
 import {
   AGE_RANGE_TEXT,
-  LEVEL_BANDS,
   NEEDS_EFFORT_TEXT,
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
@@ -404,20 +403,7 @@ describe('grade parts', () => {
   })
 })
 
-describe('level bands and sex', () => {
-  it('lists the bands lowest first, named as the UI writes them, with their lower bounds', () => {
-    expect(LEVEL_BANDS).toEqual([
-      { name: 'Recreational', min: 0 },
-      { name: 'Active', min: 0.3 },
-      { name: 'Trained', min: 0.4 },
-      { name: 'Club', min: 0.5 },
-      { name: 'Local', min: 0.6 },
-      { name: 'Regional', min: 0.7 },
-      { name: 'National', min: 0.8 },
-      { name: 'World', min: 0.9 },
-    ])
-  })
-
+describe('sex', () => {
   it('names each sex as a noun for the sentence', () => {
     expect(SEX_NOUN).toEqual({ female: 'woman', male: 'man' })
   })

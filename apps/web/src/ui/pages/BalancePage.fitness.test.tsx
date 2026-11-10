@@ -27,7 +27,7 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
-/** A run and a ride at three durations, graded for a man born in 1986, so the grade by duration is drawn. */
+/** A run and a ride at three durations, graded for a man born in 1986, so the levels are shown. */
 const GRADED = makeResult({
   runCurve: [600, 1200, 3600].map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
   rideCurve: [600, 1200, 3600].map((d) => curvePoint(d, 400, 'ride-1')),
@@ -61,17 +61,17 @@ const follows = (a: Node, b: Node) =>
   (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
 describe('the home page’s fitness', () => {
-  it('sits under the balance: after its heading, the period control and the tiles, before the grades', () => {
+  it('sits under the balance: after its heading, the period control and the tiles, before the levels', () => {
     renderHome(undefined, undefined, true)
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const title = screen.getByRole('heading', { level: 1 })
     const picker = screen.getByText('Period picker')
     const tiles = screen.getByRole('region', { name: 'Headline numbers' })
-    const grades = screen.getByRole('region', { name: 'Age grade by effort length' })
+    const levels = screen.getByRole('region', { name: 'Levels' })
     expect(follows(title, fitness)).toBe(true)
     expect(follows(picker, fitness)).toBe(true)
     expect(follows(tiles, fitness)).toBe(true)
-    expect(follows(fitness, grades)).toBe(true)
+    expect(follows(fitness, levels)).toBe(true)
     expect(fitness.parentElement?.firstElementChild).not.toBe(fitness)
   })
 

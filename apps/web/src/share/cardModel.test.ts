@@ -8,11 +8,17 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../ui/balanceGap'
 import { energyReading } from '../ui/components/balanceScale'
-import { makeActivity, makeResult, makeRunThreshold } from '../ui/components/test/fixtures'
+import {
+  makeActivity,
+  makeResult,
+  makeRideThreshold,
+  makeRunThreshold,
+} from '../ui/components/test/fixtures'
 import { balanceTitle, energySummary } from '../ui/components/headlineText'
 import type { GradeOutcome } from '../ui/grades'
 import type { TriangleView } from '../ui/triangleSports'
-import { THRESHOLD_NAME } from '../ui/thresholdName'
+import { HEADLINE_NAME, THRESHOLD_NAME } from '../ui/thresholdName'
+import { threshold } from '../ui/records'
 import { BALANCE_PAIR } from '../ui/sports'
 import { buildShareCard, shareableHost } from './cardModel'
 import { gradedCorner } from './test/fixtures'
@@ -121,21 +127,24 @@ describe('buildShareCard', () => {
     expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('names each threshold as Balance titles it, from the same source', () => {
+  it('names each threshold as Balance titles its row, from the same source', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.heroes.map((hero) => hero.label)).toEqual([
-      THRESHOLD_NAME.run,
-      THRESHOLD_NAME.ride,
-    ])
+    expect(card?.heroes.map((hero) => hero.label)).toEqual([THRESHOLD_NAME.run, HEADLINE_NAME.ride])
   })
 
   it('shows the cycling threshold power in watts, with W/kg for the body mass in the settings', () => {
-    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
+    // A synthetic ride threshold in the range of a trained 75 kg rider, read as Balance's row reads it.
+    const result = makeResult({ rideThreshold: makeRideThreshold(17) })
+    const row = threshold(result, 'ride', SETTINGS.massKg, 'metric')!
+    expect(Number(row.number)).toBeGreaterThanOrEqual(220)
+    expect(Number(row.number)).toBeLessThanOrEqual(300)
+    const card = cardFor(result, SETTINGS, 'metric', 42, false)
     expect(card?.heroes[1]).toMatchObject({
-      label: 'Ride threshold',
-      figure: { number: '48', unit: 'W' },
-      sub: '0.6 W/kg',
+      label: 'Functional threshold power',
+      figure: { number: row.number, unit: 'W' },
+      sub: row.sub,
     })
+    expect(row.sub).toMatch(/^\d\.\d W\/kg$/)
   })
 
   it('shows both sports in running then cycling order', () => {

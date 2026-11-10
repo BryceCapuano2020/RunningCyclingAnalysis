@@ -1,10 +1,9 @@
-import { EQUIVALENCE_DURATIONS_S, PROFILE_DURATIONS_S } from '../constants'
 import { flatSpeedOfWkg } from '../display/conversions'
 import type { Sex } from '../grade/ageGrade'
 import type { ThresholdEstimate } from '../threshold'
 import { endAtFiveNinetyFive } from '../threshold/coverage'
 import type { Curve, Interval, Sport } from '../types'
-import { equivalenceFor, rideRunSpeed } from './rideAnchor'
+import { rideRunSpeed } from './rideAnchor'
 
 export interface Equivalence {
   durationS: number
@@ -42,39 +41,6 @@ export function equivalentsOf(
     }
   }
   return equivalents
-}
-
-/** What the profile durations are priced from: the result's own equivalents, its ride curve and the mass on each activity's date. */
-export interface ProfilePricing {
-  equivalents: readonly Equivalence[]
-  rideCurve: Curve
-  activities: readonly { id: string; massKg?: number }[]
-}
-
-/**
- * The ride's running equivalents at the profile durations a combine does not price (`PROFILE_DURATIONS_S` beyond
- * `EQUIVALENCE_DURATIONS_S`), from the ride curve's best at each, for the grade by duration. They are priced by the equivalence
- * the result's own equivalents were (`equivalenceFor`, anchored at each sport's world class for the athlete's sex), at the body
- * mass the ride was ridden at (`massKg` without dated masses). A duration the result already holds, or the curve has no best at,
- * has none.
- */
-export function profileEquivalents(
-  result: ProfilePricing,
-  massKg: number,
-  sex: Sex | null | undefined,
-): Equivalence[] {
-  const held = new Set(result.equivalents.map((equivalent) => equivalent.durationS))
-  const bodyKgById = new Map(
-    result.activities.flatMap((activity) =>
-      activity.massKg === undefined ? [] : [[activity.id, activity.massKg] as const],
-    ),
-  )
-  const durations = PROFILE_DURATIONS_S.filter(
-    (durationS) => !EQUIVALENCE_DURATIONS_S.includes(durationS) && !held.has(durationS),
-  )
-  return durations.length === 0
-    ? []
-    : equivalentsOf(equivalenceFor(sex), result.rideCurve, bodyKgById, massKg, durations)
 }
 
 /**

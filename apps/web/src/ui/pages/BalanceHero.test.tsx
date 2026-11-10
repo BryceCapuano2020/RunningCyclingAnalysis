@@ -260,7 +260,7 @@ describe('BalanceHero visual', () => {
     expect(container.querySelector('.balance-meter, .balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('puts the action in the header line, then the period line and the triangle', () => {
+  it('puts the action at the end of the period line, under the title and over the triangle', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -271,10 +271,16 @@ describe('BalanceHero visual', () => {
         action={<button type="button">Share image</button>}
       />,
     )
+    const heading = screen.getByRole('heading', { level: 1 })
+    const action = screen.getByRole('button', { name: 'Share image' })
+    // The action is not on the title's line: the heading stands alone, and the action shares the period line's row.
+    expect(heading.parentElement).not.toContainElement(action)
+    expect(action.parentElement).toHaveClass('balance-hero__bar')
+    expect(action.parentElement).toContainElement(screen.getByTestId('controls'))
     const order = [
-      screen.getByRole('heading', { level: 1 }),
-      screen.getByRole('button', { name: 'Share image' }),
+      heading,
       screen.getByTestId('controls'),
+      action,
       container.querySelector('.level-triangle'),
     ]
     for (const [index, node] of order.entries()) {
@@ -694,7 +700,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(container).not.toHaveTextContent(/12 May/)
   })
 
-  it('sets the action in the heading’s line, with the figure under the line that says what is missing', () => {
+  it('sets the action under the heading, with the figure under the line that says what is missing', () => {
     render(
       <Hero
         {...ALL_TIME}
@@ -706,8 +712,9 @@ describe('BalanceHero without a comparison yet', () => {
     )
     const heading = screen.getByRole('heading', { level: 1 })
     const action = screen.getByRole('button', { name: 'Download square image' })
-    expect(heading.parentElement).toHaveClass('page-heading')
-    expect(heading.parentElement).toContainElement(action)
+    expect(heading.parentElement).not.toContainElement(action)
+    expect(action.closest('.balance-hero__bar')).not.toBeNull()
+    expect(heading.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(heading.closest('.balance-hero__head')).not.toBeNull()
     expect(document.querySelector('.balance-hero')).toHaveTextContent(
       'Your files have no running or cycling activities yet.',

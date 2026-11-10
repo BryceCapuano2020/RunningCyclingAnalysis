@@ -64,13 +64,14 @@ describe('renderShareCard', () => {
       'Local',
       'LIFTING',
       'No grade yet',
-      'RUN THRESHOLD',
-      '21:35',
-      '/km',
-      'RIDE THRESHOLD',
-      '48',
+      'HALF-MARATHON',
+      '1:42:30',
+      '255',
       'W',
-      '0.6 W/kg',
+      '3.4 W/kg',
+      'BIG THREE TOTAL',
+      '380',
+      'kg',
       DATES,
       SOURCES,
       'example.test',
@@ -98,21 +99,23 @@ describe('renderShareCard', () => {
 
   it.each(FORMATS)('sets every figure and date in the mono on the %s card', (format) => {
     const texts = draw(cardModel(), format).texts
-    for (const figure of ['21:35', '48', '0.6 W/kg', DATES, SOURCES]) {
+    for (const figure of ['1:42:30', '255', '380', '3.4 W/kg', DATES, SOURCES]) {
       expect(find(texts, figure).font).toContain('IBM Plex Mono')
     }
-    expect(find(texts, '21:35').font.startsWith('500 ')).toBe(true)
+    expect(find(texts, '1:42:30').font.startsWith('500 ')).toBe(true)
   })
 
   it.each(FORMATS)(
-    'sets both figures in ink and the sports’ inks only on the triangle’s corners and dots on the %s card',
+    'sets the figures in ink and the sports’ inks only on the triangle’s corners and dots on the %s card',
     (format) => {
       const texts = draw(cardModel(), format).texts
-      for (const figure of ['21:35', '48']) expect(find(texts, figure).color).toBe(CARD_COLORS.ink)
+      for (const figure of ['1:42:30', '255', '380']) {
+        expect(find(texts, figure).color).toBe(CARD_COLORS.ink)
+      }
       expect(find(texts, 'RUNNING').color).toBe(CARD_COLORS.run)
       expect(find(texts, 'CYCLING').color).toBe(CARD_COLORS.ride)
       expect(find(texts, 'LIFTING').color).toBe(CARD_COLORS.lift)
-      for (const label of ['RUN THRESHOLD', 'RIDE THRESHOLD']) {
+      for (const label of ['HALF-MARATHON', 'BIG THREE TOTAL']) {
         expect(find(texts, label).color).toBe(CARD_COLORS.secondary)
         expect(find(texts, label).font).toContain('IBM Plex Mono')
       }
@@ -132,19 +135,46 @@ describe('renderShareCard', () => {
     expect(drawn).toContain(SOURCES)
   })
 
-  it.each(FORMATS)('sets the hero columns side by side on the %s card', (format) => {
-    const texts = draw(cardModel(), format).texts
-    expect(find(texts, '21:35').y).toBe(find(texts, '48').y)
-    expect(find(texts, '21:35').x).toBeLessThan(find(texts, '48').x)
-  })
+  it.each(FORMATS)(
+    'sets the three figures side by side, in equal columns, on one baseline, on the %s card',
+    (format) => {
+      const { width, marginX } = CARD_FORMATS[format]
+      const texts = draw(cardModel(), format).texts
+      const figures = ['1:42:30', '255', '380'].map((figure) => find(texts, figure))
+      expect(new Set(figures.map((figure) => figure.y)).size).toBe(1)
+      const [run, ride, lift] = figures.map((figure) => figure.x)
+      expect(run).toBe(marginX)
+      expect(run! < ride! && ride! < lift!).toBe(true)
+      expect(ride! - run!).toBeCloseTo(lift! - ride!)
+      // The last column ends at the right margin: three columns and two gaps fill the width.
+      const columnWidth = ride! - run! - 40
+      expect(lift! + columnWidth).toBeCloseTo(width - marginX)
+    },
+  )
 
   it.each(FORMATS)(
-    'sets each threshold name on one line above its figure on the %s card',
+    'sets each name above its figure, a long one on two lines, the names level on the %s card',
     (format) => {
       const texts = draw(cardModel(), format).texts
-      expect(texts.filter((text) => text.text.endsWith('THRESHOLD'))).toHaveLength(2)
-      expect(find(texts, 'RUN THRESHOLD').y).toBe(find(texts, 'RIDE THRESHOLD').y)
-      expect(find(texts, '21:35').y).toBeGreaterThan(find(texts, 'RUN THRESHOLD').y)
+      expect(find(texts, 'HALF-MARATHON').y).toBe(find(texts, 'BIG THREE TOTAL').y)
+      const power = texts.filter((text) => /FUNCTIONAL|THRESHOLD|POWER/.test(text.text))
+      expect(power).toHaveLength(2)
+      expect(power.map((line) => line.text).join(' ')).toBe('FUNCTIONAL THRESHOLD POWER')
+      expect(power[0]!.y).toBe(find(texts, 'HALF-MARATHON').y)
+      for (const figure of ['1:42:30', '255', '380']) {
+        expect(find(texts, figure).y).toBeGreaterThan(power[1]!.y)
+      }
+    },
+  )
+
+  it.each(FORMATS)(
+    'keeps two columns of half the width with no lifting figure on the %s card',
+    (format) => {
+      const { width, marginX } = CARD_FORMATS[format]
+      const two = cardModel().heroes.slice(0, 2)
+      const texts = draw(cardModel({ heroes: two }), format).texts
+      expect(find(texts, '255').x).toBeCloseTo(marginX + (width - 2 * marginX - 40) / 2 + 40)
+      expect(texts.some((text) => text.text === 'BIG THREE TOTAL')).toBe(false)
     },
   )
 

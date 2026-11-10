@@ -19,4 +19,6 @@ export type {
   TriangleSport,
 } from './triangle'
 export { comparedGrades, triangleReading } from './triangleLean'
+export { levelLadder } from './levelLadder'
+export type { LevelRung } from './levelLadder'
 export type { TriangleReading } from './triangleLean'

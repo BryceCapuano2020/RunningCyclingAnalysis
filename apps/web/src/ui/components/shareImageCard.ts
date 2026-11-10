@@ -53,6 +53,7 @@ export async function makeFile(
     inputs.name,
     inputs.hold,
     inputs.triangle,
+    { half: inputs.half ?? null, lift: inputs.lift ?? null },
   )
   if (card === null) return null
   const canvas = document.createElement('canvas')
