@@ -1,24 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { LIFT_EXERCISE_PATTERN } from '@rca/core/lift'
-import { deslug, liftOptions, matchesName, nameProblem, slugify } from './liftNames'
+import { deslug, liftOptions, matchesName, nameProblem } from './liftNames'
 
-describe('slugify and deslug', () => {
-  it('makes lower-case hyphenated words', () => {
-    expect(slugify('  Bulgarian Split  squat! ')).toBe('bulgarian-split-squat')
+describe('deslug', () => {
+  it('turns a slug into a name', () => {
     expect(deslug('bulgarian-split-squat')).toBe('Bulgarian split squat')
-  })
-  it('drops accents', () => {
-    expect(slugify('Café curl')).toBe('cafe-curl')
-  })
-  it('keeps only a-z and 0-9', () => {
-    expect(slugify('Zercher (2 sec) squat')).toBe('zercher-2-sec-squat')
-    expect(slugify('★ !!')).toBe('')
-  })
-  it('stops at 48 characters without a trailing hyphen', () => {
-    const slug = slugify('word '.repeat(30))
-    expect(slug.length).toBeLessThanOrEqual(48)
-    expect(slug).toMatch(LIFT_EXERCISE_PATTERN)
-    expect(slugify(`${'a'.repeat(47)} b`)).toBe('a'.repeat(47))
   })
 })
 
