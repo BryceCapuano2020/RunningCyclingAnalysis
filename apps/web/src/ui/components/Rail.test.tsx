@@ -14,10 +14,10 @@ afterEach(() => {
 })
 
 describe('Rail', () => {
-  it('links Balance, Run and Ride as text in the Sections navigation, and marks the current one', () => {
+  it('links Balance, Run, Ride and Lift as text in the Sections navigation, and marks the current one', () => {
     render(<Rail route={{ page: 'ride' }} />)
     const links = within(screen.getByRole('navigation', { name: 'Pages' })).getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual(['Balance', 'Run', 'Ride'])
+    expect(links.map((link) => link.textContent)).toEqual(['Balance', 'Run', 'Ride', 'Lift'])
     for (const link of links) expect(link.querySelector('svg')).toBeNull()
     expect(screen.getByRole('link', { name: 'Ride' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Ride' })).toHaveClass('rail__link--current')

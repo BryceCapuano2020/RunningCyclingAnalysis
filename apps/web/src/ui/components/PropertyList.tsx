@@ -34,7 +34,20 @@ export function PropertyList({
       <dl className="props__list">
         {keyed(rows).map(({ key, row }) => (
           <div key={key} className="props__row">
-            <dt>{row.label}</dt>
+            <dt>
+              {row.action ? (
+                <button
+                  type="button"
+                  className="props__action"
+                  aria-label={row.action.name}
+                  onClick={row.action.onActivate}
+                >
+                  {row.label}
+                </button>
+              ) : (
+                row.label
+              )}
+            </dt>
             <dd>{row.value}</dd>
           </div>
         ))}

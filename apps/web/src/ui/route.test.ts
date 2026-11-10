@@ -9,6 +9,8 @@ describe('parseRoute', () => {
     ['#/', { page: 'balance' }],
     ['#/run', { page: 'run' }],
     ['#/ride', { page: 'ride' }],
+    ['#/lift', { page: 'lift' }],
+    ['#/lift?day=2026-03-04', { page: 'lift' }],
     ['#/history', { page: 'history' }],
     ['#/activities', { page: 'activities' }],
     ['#/method', { page: 'method' }],
