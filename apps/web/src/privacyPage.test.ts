@@ -64,10 +64,6 @@ const activitiesCsvSource = await readStylesheet(
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
-const uploadTitlesPreference = await readStylesheet(
-  import.meta.url,
-  './ui/uploadTitlesPreference.ts',
-)
 const minimiseSource = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/minimise.ts',
@@ -449,18 +445,18 @@ describe('privacy page describes what is stored as the app stores it', () => {
     )
   })
 
-  it('says titles are saved only by choice, file names are hashed, and the choice stays in this browser under its key', () => {
-    expect(uploadTitlesPreference).toContain("UPLOAD_TITLES_KEY = 'rca.uploadTitles.v1'")
+  it('says titles are saved with the activity and file names are hashed', () => {
     expect(minimiseSource).toContain('`rca-${sha256TextHex(fileName).slice(0, 16)}${extension}`')
     expect(sentenceWith('an activity saved from now on keeps its title')).toContain(
-      'Send my activity titles to my library',
+      'in your library',
     )
     expect(text).toContain('rca- and sixteen characters')
     expect(text).toContain(
       'Activities saved before keep the title and file name they were saved with',
     )
     expect(text).toContain('it is not secrecy')
-    expect(text).toContain('rca.uploadTitles.v1')
+    expect(text).not.toContain('Send my activity titles')
+    expect(text).not.toContain('rca.uploadTitles.v1')
   })
 
   it('says the name printed on a shared card stays in this browser, under the key the app reads', () => {

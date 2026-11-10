@@ -365,7 +365,7 @@ describe('following up a save that was cut short', () => {
     const library = memoryDeviceLibrary()
     await library.put(keyOf(0), hashed, null, { fileName: 'run.fit', fileHash: HASH })
     const row = { ...rowFor(0), digestId: hashed.id, digestJson: serializeDigest(hashed) }
-    const sent = minimisedForUpload(hashed, 'run.fit', { titles: false }).digest
+    const sent = minimisedForUpload(hashed, 'run.fit').digest
     expect(sent.id).toBe(hashed.id)
     await followUpAdopted(
       {
