@@ -10,16 +10,19 @@ in [design/README.md](design/README.md), whose stage table is the history throug
 The goal before inviting more athletes is a finished product: fast, lean, every core flow working, and run like a
 service. More athletes come only after the launch bar below passes in full, and the bar includes Garmin sync.
 
-1. **Lifting, package 1 and 2 (stage X).** The in-app logger, then the Lift card and page, and an age grade for lifts
-   from OpenPowerlifting competition data (squat, bench and deadlift only), through the formula process. Reopening
-   the app shows the last results at once, with no restoring page.
-2. **The cut.** Every user-facing feature stays except the fitness status card. The cut removes code with no
+1. **Done: lifting, package 1 and 2 (stage X).** The in-app logger (#496), the Lift page led by the estimate (#503),
+   and an age grade for lifts from OpenPowerlifting competition data (squat, bench and deadlift only), through the
+   formula process with an Opus science review ([lift-grade.md](design/lift-grade.md), #500). Hevy CSV import
+   followed (#507). The Balance hero is the level triangle of run, ride and lift (#500).
+2. **Done: the cut** (#505, follow-ups #506). The owner kept the fitness card and its model, and the Run and Ride
+   fitness sections became graphs. As planned: every user-facing feature stays except the fitness status card. The cut removes code with no
    production path (the findings engine, the same-heart-rate and duration-profile modules, the fitness card, the
    unused session-list endpoints), merges duplicate UI, replaces stylesheet-text tests with rendered checks, and
    fixes stale docs. The presentation pass shows every figure label over number, moves Share to a page-header
    icon, and makes the Balance hero a level triangle of the three age grades (run, ride, lift) once the lift grade
    exists: three grades side by side, never summed.
-3. **Server compute (stage Y).** For signed-in accounts the Worker computes the opening state with the same core
+3. **Server compute (stage Y), in progress:** S1 to S3 built, S4 and S5 building, switched off until the owner
+   upgrades to Workers Paid and turns it on. For signed-in accounts the Worker computes the opening state with the same core
    code, and the device shows its last copy at once ([server-compute.md](design/server-compute.md)). Signed-out
    use stays in the browser.
 4. **Garmin sync, as far as it goes before approval.** New activities pushed by Garmin and parsed on the server
@@ -65,28 +68,26 @@ Decided earlier and still in force:
 - **One calibrated change test (stage D).** Every "this changed" sentence uses one test calibrated
   on the athlete's own library, and the best-of-window weekly trend is retired.
 - **Timeline engine.** A capability trajectory whose interval widens between observations.
-- **Evidence gaps on every card**, in plain language, such as "no ride over 20 minutes in the last
-  8 weeks". Research: [evolving-capability.md](research/evolving-capability.md) and
-  [capability-from-field-data.md](research/capability-from-field-data.md).
 
 ## Phase 3: Strength, the third dimension
 
-- **Sport as data (stage F, first).** A capability record per sport replaces the run and ride
-  literals in shared code, so lifting adds a module rather than edits across the codebase.
-- **Lifting logs (stage F).** The in-app logger comes first, with optional session effort (RPE).
+- **Sport as data (stage F), next after server compute lands (owner agreed).** A capability record per sport
+  replaces the run and ride literals in shared code, so lifting adds a module rather than edits across the codebase.
+- **Done in part: lifting logs (stage F).** The in-app logger (#496) and Hevy CSV import (#507) are built; the
+  plain lifting CSV and FIT strength sets are not. The in-app logger comes first, with optional session effort (RPE).
   Earlier history follows through a plain lifting CSV, which an athlete's assistant can fill from
   their notes and RCA validates on import, then common app CSV exports (Hevy first) and FIT
   strength sets. Open: whether the assistant may also save lift logs through the connector.
-- **Estimated one-rep max per lift**, with an interval, relative to body mass on the lift's date.
+- **Done: estimated one-rep max per lift** (#465, #482), with an interval, relative to body mass on the lift's date.
   It keeps its own units and is not placed on a shared axis with energy rate. Research:
   [strength.md](research/strength.md).
-- **An age grade for lifts** (squat, bench and deadlift), from OpenPowerlifting competition data, so the Balance
+- **Done: an age grade for lifts** (squat, bench and deadlift, #500), from OpenPowerlifting competition data, so the Balance
   hero can show run, ride and lift grades together. Built like the run grade: the lift against the best for the
   athlete's age and sex.
 - **Weekly load by system** (aerobic, legs, upper body), each shown per sport side by side and never
   summed into one number ([training-load.md](design/training-load.md) section 6 still holds).
 - **Interference analysis** against runs and rides, for example long runs grouped by hours since
-  the last lower-body lift.
+  the last lower-body lift. Held (owner): it needs a science design before any build.
 - **Lifting in the connector.** The assistant reads lifts and estimated maxima with the same kind of
   tools as runs and rides.
 
