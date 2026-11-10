@@ -267,8 +267,6 @@ repository and not in `wrangler.toml`.
 - A Google account that is not on the list gets a short page ("This Google account is not on the list"),
   HTTP 403, and nothing is written. One Google identity can create five accounts a UTC day, deleted ones
   included, and deleting an account does not reset that day's counts (see `apps/api/LIMITS.md`).
-- `GET /api/sessions` and `DELETE /api/sessions` (optionally `?keep=current`) list and end an account's
-  sessions as a set; a user holds at most ten.
 - `isLocalDevelopment` (`ENVIRONMENT` is `development`, `APP_URL` and the request host are loopback) decides
   dev-login, the rate-limit bypass, plain cookies and the missing HSTS header. The smoke test posts an empty
   object to `/api/auth/dev-login` and requires 404, so a Worker deployed with the gate open fails the

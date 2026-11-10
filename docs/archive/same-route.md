@@ -1,6 +1,6 @@
 # Same route and same climb: design
 
-Status: in progress, scheduled later in the [stage plan](README.md). The fingerprint, matching and progress code
+Status: in progress, scheduled later in the [stage plan](../design/README.md). The fingerprint, matching and progress code
 exists on unmerged branches; the rest is designed only. Written against main after #130.
 
 Goal: when an athlete repeats a route or a climb, say how this visit compares with the others, on

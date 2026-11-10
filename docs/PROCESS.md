@@ -254,7 +254,7 @@ change on their own data before the next lands.
 ## Retro at each gate
 
 At each stage gate the coordinator writes recurring problems into this file or into
-`.claude/agents/`, so the next wave starts with them. The latest is [RETRO_STAGE_D.md](RETRO_STAGE_D.md).
+`.claude/agents/`, so the next wave starts with them. The latest is [RETRO_STAGE_D.md](archive/RETRO_STAGE_D.md).
 
 ## Repository settings this process assumes
 

@@ -9,7 +9,6 @@ import { csrfGuard } from './middleware.ts'
 import { readOnlyGuard } from './readOnly.ts'
 import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
-import { sessionRoutes } from './routes/sessions.ts'
 import { liftRoutes } from './routes/lifts.ts'
 import { measurementRoutes } from './routes/measurements.ts'
 import { activityRoutes } from './routes/activities/index.ts'
@@ -88,7 +87,6 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)
-  app.route('/api/sessions', sessionRoutes)
   app.route('/api/measurements', measurementRoutes)
   app.route('/api/lifts', liftRoutes)
   app.route('/api/activities', activityRoutes)

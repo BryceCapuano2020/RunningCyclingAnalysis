@@ -45,7 +45,6 @@ export const ActivityLabelsSchema = z
       }
     })
   })
-export type ActivityLabels = z.input<typeof ActivityLabelsSchema>
 
 /**
  * What the change did. `missed` lists the rows that no longer held the revision and label the client read,

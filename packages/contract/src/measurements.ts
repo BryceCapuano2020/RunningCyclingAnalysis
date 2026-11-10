@@ -65,7 +65,6 @@ export type MeasurementInput = z.infer<typeof MeasurementSchema>
 
 /** GET /api/measurements: every dated setting of the account. */
 export const MeasurementListSchema = z.object({ items: z.array(MeasurementSchema) })
-export type MeasurementList = z.infer<typeof MeasurementListSchema>
 
 /** The text DELETE /api/measurements/:key takes: kind, then sport when the kind has one, then date. */
 export const MeasurementKeySchema = z

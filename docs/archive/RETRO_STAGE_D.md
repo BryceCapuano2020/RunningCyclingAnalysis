@@ -1,7 +1,7 @@
 # Stage D retro
 
 What the process cost and where it broke during Stage D, with the fix for each. The rules that came
-out of it are in [PROCESS.md](PROCESS.md). Numbers are from `gh pr list --state merged` and the CI
+out of it are in [PROCESS.md](../PROCESS.md). Numbers are from `gh pr list --state merged` and the CI
 history of `main` for pull requests #185 to #341.
 
 ## Numbers
@@ -62,7 +62,7 @@ The 400-line limit. Transition tables before sync code. Fresh coordinator per wa
 
 ## Rules added
 
-Added to [PROCESS.md](PROCESS.md). Rules 1, 4 and 5 also go into `.claude/agents/rca-builder.md`
+Added to [PROCESS.md](../PROCESS.md). Rules 1, 4 and 5 also go into `.claude/agents/rca-builder.md`
 (local file) as one line each.
 
 1. Builders open drafts and never mark ready or set auto-merge.

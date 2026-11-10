@@ -8,7 +8,7 @@ parts that depend on them are marked. The build waits on server compute's S1, S3
 
 Every activity reaches RCA today as a file the athlete exports and drops in. That works once, for
 history. It fails for last week's runs, which the coaching loop needs (ROADMAP, 30 Oct decisions). The
-watched folder ([watched-folder.md](watched-folder.md)) only reaches Chromium desktop users, and Garmin
+watched folder ([watched-folder.md](../archive/watched-folder.md)) only reaches Chromium desktop users, and Garmin
 Connect mobile leaves no file on any computer.
 
 ## 1. Which provider

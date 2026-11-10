@@ -124,7 +124,7 @@ The order is stages E, G and H in [design/README.md](design/README.md). Lifting 
   their evidence, evidence gaps and a planning-context bundle, plus saving a weekly plan. Saved
   plans build history from the first week, before stage G checks them.
 - **Fresh data.** Garmin sync replaces the watched folder as the main fresh-data path; the watched folder stays
-  research ([watched-folder.md](design/watched-folder.md)).
+  research ([watched-folder.md](archive/watched-folder.md)).
 - **Eval (stage E, extended in G).** Synthetic athletes with planted changes. Version 0 scores
   whether every number the assistant states matches a tool result, and whether it declines when
   the evidence is missing. Version 1 scores how often assistant-written plans contradict the
