@@ -103,7 +103,7 @@ describe('liftGrade', () => {
       sd: 0.0824,
       floor: { loadKg: 100, reps: 5, date: '2024-01-15' },
     })
-    const g = liftGrade({ lift: 'squat', estimate: e }, MAN, 80)
+    const g = liftGrade({ lift: 'squat', estimate: e }, MAN, { massKg: 80 })
     if (g.kind !== 'graded') throw new Error('expected a grade')
     expect(g.grade.centre.grade).toBeCloseTo(0.36, 2)
     expect(g.grade.centre.level).toBe('Active')
@@ -115,7 +115,7 @@ describe('liftGrade', () => {
 
   it('never puts the low under the floor share', () => {
     const wide = est(140, { sd: 0.4, floor: { loadKg: 135, reps: 1, date: DATE } })
-    const g = liftGrade({ lift: 'squat', estimate: wide }, MAN, 80)
+    const g = liftGrade({ lift: 'squat', estimate: wide }, MAN, { massKg: 80 })
     if (g.kind !== 'graded') throw new Error('expected a grade')
     const s = liftStandard('squat', 'male', AGE, 80).kg
     expect(g.grade.range!.low.grade).toBeGreaterThanOrEqual(
@@ -124,8 +124,8 @@ describe('liftGrade', () => {
   })
 
   it('widens a deadlift top over the same squat spread', () => {
-    const dl = liftGrade(of('deadlift', 150), MAN, 80)
-    const sq = liftGrade(of('squat', 150), MAN, 80)
+    const dl = liftGrade(of('deadlift', 150), MAN, { massKg: 80 })
+    const sq = liftGrade(of('squat', 150), MAN, { massKg: 80 })
     if (dl.kind !== 'graded' || sq.kind !== 'graded') throw new Error('expected grades')
     const up = (g: typeof dl, s: number) => g.grade.range!.high.grade / g.grade.centre.grade / s
     expect(up(dl, 1)).toBeGreaterThan(up(sq, 1))
@@ -134,7 +134,7 @@ describe('liftGrade', () => {
 
   it('holds a centre at or above 100% at the top of the scale', () => {
     const s = liftStandard('squat', 'male', AGE, 80).kg
-    const g = liftGrade(of('squat', s * 1.05), MAN, 80)
+    const g = liftGrade(of('squat', s * 1.05), MAN, { massKg: 80 })
     if (g.kind !== 'graded') throw new Error('expected a grade')
     expect(g.top).toBe(true)
     expect(g.grade.centre.grade).toBe(1)
@@ -143,40 +143,63 @@ describe('liftGrade', () => {
 
   it('gives no grade above 110%', () => {
     const s = liftStandard('squat', 'male', AGE, 80).kg
-    expect(liftGrade(of('squat', s * 1.11), MAN, 80)).toEqual({ kind: 'gap', why: 'out-of-range' })
-    expect(liftGrade(of('squat', s * 1.09), MAN, 80).kind).toBe('graded')
+    expect(liftGrade(of('squat', s * 1.11), MAN, { massKg: 80 })).toEqual({
+      kind: 'gap',
+      why: 'out-of-range',
+    })
+    expect(liftGrade(of('squat', s * 1.09), MAN, { massKg: 80 }).kind).toBe('graded')
   })
 
   it('says why there is no grade', () => {
-    expect(liftGrade(of('squat', 140), null, 80)).toEqual({ kind: 'gap', why: 'no-profile' })
-    expect(liftGrade(of('squat', 140), MAN, 0)).toEqual({ kind: 'gap', why: 'no-mass' })
-    expect(liftGrade(of('squat', 140), MAN, NaN)).toEqual({ kind: 'gap', why: 'no-mass' })
-    expect(liftGrade(null, MAN, 80)).toEqual({ kind: 'gap', why: 'no-graded-lift' })
-    expect(liftGrade(of('squat', 140), MAN, 160)).toEqual({ kind: 'gap', why: 'out-of-range' })
-    expect(liftGrade(of('squat', 140), { birthYear: 1900, sex: 'male' }, 80)).toEqual({
+    expect(liftGrade(of('squat', 140), null, { massKg: 80 })).toEqual({
+      kind: 'gap',
+      why: 'no-profile',
+    })
+    expect(liftGrade(of('squat', 140), MAN, { massKg: 0 })).toEqual({ kind: 'gap', why: 'no-mass' })
+    expect(liftGrade(of('squat', 140), MAN, { massKg: NaN })).toEqual({
+      kind: 'gap',
+      why: 'no-mass',
+    })
+    expect(liftGrade(null, MAN, { massKg: 80 })).toEqual({ kind: 'gap', why: 'no-graded-lift' })
+    expect(liftGrade(of('squat', 140), MAN, { massKg: 160 })).toEqual({
+      kind: 'gap',
+      why: 'out-of-range',
+    })
+    expect(liftGrade(of('squat', 140), { birthYear: 1900, sex: 'male' }, { massKg: 80 })).toEqual({
       kind: 'gap',
       why: 'out-of-range',
     })
     const bad = { lift: 'squat', estimate: est(140, { date: 'not a date' }) } as const
-    expect(liftGrade(bad, MAN, 80)).toEqual({ kind: 'gap', why: 'out-of-range' })
+    expect(liftGrade(bad, MAN, { massKg: 80 })).toEqual({ kind: 'gap', why: 'out-of-range' })
   })
 
   it('grades a woman against her own standard', () => {
-    const g = liftGrade(of('squat', 100), WOMAN, 65)
+    const g = liftGrade(of('squat', 100), WOMAN, { massKg: 65 })
     if (g.kind !== 'graded') throw new Error('expected a grade')
     expect(g.grade.centre.grade).toBeCloseTo(0.438, 2)
   })
 })
 
+describe('a placeholder mass', () => {
+  it('never grades: a mass the athlete did not enter gives the no-mass gap, per lift and on the corner', () => {
+    const assumed = { massKg: 80, massAssumed: true as const }
+    expect(liftGrade(of('squat', 140), MAN, assumed)).toEqual({ kind: 'gap', why: 'no-mass' })
+    expect(liftCornerGrade([of('squat', 140)], MAN, assumed)).toEqual({
+      kind: 'gap',
+      why: 'no-mass',
+    })
+  })
+})
+
 describe('liftCornerGrade', () => {
   it('is the share of the total over the graded lifts, and names them', () => {
-    const squat = liftGrade(of('squat', 140), MAN, 80)
-    const c = liftCornerGrade([of('squat', 140), of('bench', 100)], MAN, 80)
+    const squat = liftGrade(of('squat', 140), MAN, { massKg: 80 })
+    const c = liftCornerGrade([of('squat', 140), of('bench', 100)], MAN, { massKg: 80 })
     if (c.kind !== 'graded' || squat.kind !== 'graded') throw new Error('expected grades')
     const s = liftStandard('squat', 'male', AGE, 80).kg + liftStandard('bench', 'male', AGE, 80).kg
     expect(c.grade.centre.grade).toBeCloseTo(240 / s, 6)
     expect(c.lifts).toEqual(['squat', 'bench'])
-    const bench = liftGrade(of('bench', 100), MAN, 80)
+    const bench = liftGrade(of('bench', 100), MAN, { massKg: 80 })
     if (bench.kind !== 'graded') throw new Error('expected a grade')
     const sb = liftStandard('bench', 'male', AGE, 80).kg
     const ss = liftStandard('squat', 'male', AGE, 80).kg
@@ -189,11 +212,11 @@ describe('liftCornerGrade', () => {
   })
 
   it('counts a lift once, at its heaviest estimate, as the Big three row does (a sumo and a conventional deadlift)', () => {
-    const one = liftCornerGrade([of('squat', 140), of('deadlift', 180)], MAN, 80)
+    const one = liftCornerGrade([of('squat', 140), of('deadlift', 180)], MAN, { massKg: 80 })
     const both = liftCornerGrade(
       [of('squat', 140), of('deadlift', 160), of('deadlift', 180)],
       MAN,
-      80,
+      { massKg: 80 },
     )
     if (one.kind !== 'graded' || both.kind !== 'graded') throw new Error('expected grades')
     expect(both.grade).toEqual(one.grade)
@@ -205,41 +228,44 @@ describe('liftCornerGrade', () => {
     const c = liftCornerGrade(
       [of('squat', 140), { lift: 'bench', estimate: est(100, { date: later }) }],
       MAN,
-      80,
+      { massKg: 80 },
     )
     if (c.kind !== 'graded') throw new Error('expected a grade')
     expect(c.age).toBe(liftAgeOn(1994, later))
   })
 
   it('with one lift is that lift', () => {
-    const one = liftGrade(of('squat', 140), MAN, 80)
-    const c = liftCornerGrade([of('squat', 140)], MAN, 80)
+    const one = liftGrade(of('squat', 140), MAN, { massKg: 80 })
+    const c = liftCornerGrade([of('squat', 140)], MAN, { massKg: 80 })
     if (c.kind !== 'graded' || one.kind !== 'graded') throw new Error('expected grades')
     expect(c.grade).toEqual(one.grade)
   })
 
   it('leaves out a lift beyond the ceiling and keeps the rest', () => {
-    const c = liftCornerGrade([of('squat', 140), of('bench', 900)], MAN, 80)
+    const c = liftCornerGrade([of('squat', 140), of('bench', 900)], MAN, { massKg: 80 })
     if (c.kind !== 'graded') throw new Error('expected a grade')
     expect(c.lifts).toEqual(['squat'])
   })
 
   it('flags the top when the total reaches the standard', () => {
     const s = liftStandard('squat', 'male', AGE, 80).kg
-    const c = liftCornerGrade([of('squat', s * 1.02)], MAN, 80)
+    const c = liftCornerGrade([of('squat', s * 1.02)], MAN, { massKg: 80 })
     if (c.kind !== 'graded') throw new Error('expected a grade')
     expect(c.top).toBe(true)
     expect(c.grade.centre.grade).toBe(1)
   })
 
   it('gaps with the reason', () => {
-    expect(liftCornerGrade([of('squat', 140)], null, 80)).toEqual({
+    expect(liftCornerGrade([of('squat', 140)], null, { massKg: 80 })).toEqual({
       kind: 'gap',
       why: 'no-profile',
     })
-    expect(liftCornerGrade([of('squat', 140)], MAN, 0)).toEqual({ kind: 'gap', why: 'no-mass' })
-    expect(liftCornerGrade([], MAN, 80)).toEqual({ kind: 'gap', why: 'no-graded-lift' })
-    expect(liftCornerGrade([of('squat', 140)], MAN, 160)).toEqual({
+    expect(liftCornerGrade([of('squat', 140)], MAN, { massKg: 0 })).toEqual({
+      kind: 'gap',
+      why: 'no-mass',
+    })
+    expect(liftCornerGrade([], MAN, { massKg: 80 })).toEqual({ kind: 'gap', why: 'no-graded-lift' })
+    expect(liftCornerGrade([of('squat', 140)], MAN, { massKg: 160 })).toEqual({
       kind: 'gap',
       why: 'out-of-range',
     })

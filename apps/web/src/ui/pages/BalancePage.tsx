@@ -135,13 +135,13 @@ export function BalancePage({
         ? []
         : [{ lift: which, estimate: lift.estimate }]
     })
-    return liftCornerGrade(graded, { birthYear, sex }, settings.massKg)
-  }, [isSample, weightKnown, birthYear, sex, lifts, settings.massKg])
+    return liftCornerGrade(graded, { birthYear, sex }, settings)
+  }, [isSample, weightKnown, birthYear, sex, lifts, settings])
   // The lifting row: the big three's total and each lift's grade, from the same estimates and grade function as the corner.
   const liftTile = useMemo(
     // Without a weight the row still shows each projected one-rep max, with no grade beside it.
-    () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings.massKg, units),
-    [isSample, weightKnown, lifts, profile, settings.massKg, units],
+    () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings, units),
+    [isSample, weightKnown, lifts, profile, settings, units],
   )
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
   const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])

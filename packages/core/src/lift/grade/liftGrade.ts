@@ -102,23 +102,35 @@ function shown(
   }
 }
 
-function gapOf(profile: AgeProfile | null, massKg: number): LiftGradeGap | null {
+/**
+ * The body mass a grade is read at: the athlete's settings fit, so a caller passes them whole and a placeholder mass (one the
+ * athlete did not enter, `massAssumed`) never grades.
+ */
+export interface GradeBody {
+  massKg: number
+  massAssumed?: true
+}
+
+function gapOf(profile: AgeProfile | null, body: GradeBody): LiftGradeGap | null {
   if (profile === null) return 'no-profile'
-  return Number.isFinite(massKg) && massKg > 0 ? null : 'no-mass'
+  if (body.massAssumed === true) return 'no-mass'
+  return Number.isFinite(body.massKg) && body.massKg > 0 ? null : 'no-mass'
 }
 
 /**
  * One lift's age grade at the date of its estimate. The range is the estimate's own error and the standard's, in quadrature,
  * on the log scale, never under the floor's share. A centre over 110% is not graded; one at 100% or more is held at 100% and
- * flagged `top`. `massKg` is the body mass on the estimate's date and `massSd` its error (log units, `massSdFor`).
+ * flagged `top`. `body` is the athlete's mass on the estimate's date (no grade when it is a placeholder) and `massSd` its error
+ * (log units, `massSdFor`).
  */
 export function liftGrade(
   graded: GradedEstimate | null,
   profile: AgeProfile | null,
-  massKg: number,
+  body: GradeBody,
   massSd: number = MASS_SD_BASE,
 ): LiftGrade {
-  const gap = gapOf(profile, massKg)
+  const gap = gapOf(profile, body)
+  const massKg = body.massKg
   if (gap !== null) return { kind: 'gap', why: gap }
   if (graded === null) return { kind: 'gap', why: 'no-graded-lift' }
   const m = measure(graded, profile as AgeProfile, massKg, massSd)
@@ -136,10 +148,11 @@ export function liftGrade(
 export function liftCornerGrade(
   lifts: readonly GradedEstimate[],
   profile: AgeProfile | null,
-  massKg: number,
+  body: GradeBody,
   massSd: number = MASS_SD_BASE,
 ): LiftCornerGrade {
-  const gap = gapOf(profile, massKg)
+  const gap = gapOf(profile, body)
+  const massKg = body.massKg
   if (gap !== null) return { kind: 'gap', why: gap }
   const held: GradedLift[] = []
   const sum = { age: 0, point: 0, low: 0, high: 0, standardKg: 0 }

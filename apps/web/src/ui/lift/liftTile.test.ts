@@ -27,12 +27,12 @@ const tileOf = (
   sets: LiftSet[],
   profile: typeof PROFILE | null = PROFILE,
   units: UnitSystem = 'metric',
-) => liftTileOf(buildLiftState(sets, SETTINGS).lifts, profile, SETTINGS.massKg, units)
+) => liftTileOf(buildLiftState(sets, SETTINGS).lifts, profile, SETTINGS, units)
 
 describe('the lifting row', () => {
   it('has the total of the three as its big number and a detail row for each, in order', () => {
     const state = buildLiftState([DEADLIFT, BENCH, SQUAT], SETTINGS)
-    const tile = liftTileOf(state.lifts, PROFILE, SETTINGS.massKg, 'metric')
+    const tile = liftTileOf(state.lifts, PROFILE, SETTINGS, 'metric')
     const parts = state.lifts.map((summary) => ({
       lift: gradedLiftOf(summary.exercise, summary.equipment)!,
       estimate: summary.estimate!,
@@ -44,11 +44,7 @@ describe('the lifting row', () => {
     expect(tile.rows.map((row) => row.label)).toEqual(['Squat', 'Bench', 'Deadlift'])
     for (const [index, row] of tile.rows.entries()) {
       const part = big.parts[index]!
-      const grade = liftGrade(
-        { lift: part.lift, estimate: part.estimate },
-        PROFILE,
-        SETTINGS.massKg,
-      )
+      const grade = liftGrade({ lift: part.lift, estimate: part.estimate }, PROFILE, SETTINGS)
       if (grade.kind !== 'graded') throw new Error('graded')
       expect(row.value).toBe(
         `${formatGrade(grade.grade.centre.grade)} · ${NB(formatMass(part.kg, 'metric'))}`,

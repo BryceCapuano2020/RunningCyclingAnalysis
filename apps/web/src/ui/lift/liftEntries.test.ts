@@ -21,10 +21,23 @@ describe('liftOverviewOf', () => {
     expect(overview.lead?.estimate).toEqual(estimate)
     expect(overview.lead?.floor).toEqual(estimate.floor)
     expect(overview.lead?.change).toBe(liftChange(sets, estimate.date, WINDOW_DAYS))
-    expect(overview.lead?.grade).toEqual(
-      liftGrade({ lift: 'squat', estimate }, PROFILE, SETTINGS.massKg),
-    )
+    expect(overview.lead?.grade).toEqual(liftGrade({ lift: 'squat', estimate }, PROFILE, SETTINGS))
     expect(overview.entries[0]?.history).toEqual(liftHistory(sets))
+  })
+
+  it('gives the lead no grade while the weight is a placeholder the athlete did not enter', () => {
+    const assumed = { ...SETTINGS, massAssumed: true as const }
+    expect(liftOverviewOf(sets, assumed, PROFILE, 'metric', LAST_SQUAT_DAY).lead?.grade).toEqual({
+      kind: 'gap',
+      why: 'no-mass',
+    })
+  })
+
+  it('ends the weekly load at this week, so weeks with no lifting since the last set show as empty', () => {
+    const later = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2031-04-08')
+    expect(later.weeks).toHaveLength(LOAD_WEEKS)
+    expect(later.weeks.at(-1)!.weekStart).toBe('2031-04-07')
+    expect(later.weeks.at(-1)!.regions.lower.workingSets).toBe(0)
   })
 
   it('has no grade for a lift outside the big three, and none without an estimate to lead', () => {
