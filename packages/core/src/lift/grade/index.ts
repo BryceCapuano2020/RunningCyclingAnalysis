@@ -18,5 +18,6 @@ export {
   WORLD_SHARE,
 } from './standard'
 export type { GradedLift } from './standard'
+export { liftLevelTotals } from './liftLevels'
 export { bigThreeTotal } from './bigThree'
 export type { BigThree, BigThreePart } from './bigThree'
