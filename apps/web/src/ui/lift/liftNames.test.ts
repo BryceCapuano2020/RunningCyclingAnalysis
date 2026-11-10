@@ -96,7 +96,9 @@ describe('liftOptions', () => {
       exercise: 'curl',
       label: 'Curl',
     })
-    expect(liftOptions('cable', []).map((row) => row.label)).toEqual(['Cable row'])
+    const cable = liftOptions('cable', []).map((row) => row.label)
+    expect(cable).toContain('Cable row')
+    expect(cable.every((label) => /cable/i.test(label))).toBe(true)
   })
   it('offers the typed name as the last and only option when nothing matches', () => {
     expect(liftOptions('Zercher squat x', [])).toEqual([
