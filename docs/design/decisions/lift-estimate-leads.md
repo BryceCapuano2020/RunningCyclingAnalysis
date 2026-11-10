@@ -12,8 +12,9 @@ is no gate on the athlete's own data.
 ## Why
 
 - The planned check cannot do its job. It predicted reps through the same equations that made the estimate, so a
-  lifter whose curve sits away from the equations cancels out (second science review on PR #482). The pairwise
-  alternative reads effort under-reporting as curve shape (section 11). A sound check needs a fit of each lifter's
+  lifter whose curve sits away from the equations cancels out (second science review on PR #482). A pairwise
+  comparison of low-rep and high-rep sessions moves the right way, but as prototyped it was scored against the
+  population's centre rather than each lifter's own curve (section 11). A sound check needs a fit of each lifter's
   own curve: research, not a gate.
 - The range carries the population's uncertainty about the curve: the curve and centre terms in section 1 widen
   it with the reps, the same for every lifter.

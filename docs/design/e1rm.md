@@ -1,9 +1,8 @@
 # Estimated one-rep max (spec)
 
-Status: spec, nothing built. It follows the formula rule in [PROCESS.md](../PROCESS.md#formula-and-model-changes):
-this spec, the prototype numbers below, then an Opus science review, then code. Two review rounds asked for
-changes (curve-centre coverage, the near-top rule, the floor clamp, the slope, the two tails, the eval); this
-version makes them. Where lifting lives is settled in [strength.md](strength.md), and the evidence is in
+Status: built (#465, `LIFT_REVISION` 1); this revision (2: the near-top window, the change rule in section 10)
+is specified and waits for its code. It follows the formula rule in [PROCESS.md](../PROCESS.md#formula-and-model-changes):
+spec, prototype numbers, Opus science review, then code. Each change here went through review rounds before code. Where lifting lives is settled in [strength.md](strength.md), and the evidence is in
 [research/strength.md](../research/strength.md). This note holds no owner data. Every lifter here is synthetic.
 
 ## What it answers
@@ -82,12 +81,14 @@ session, so a lift not trained lately still has an answer, dated. Each session g
 
 - `recency = 0.5^(days before t / 14)`;
 - `nearTop` is 1 for a session whose best set has RPE. For a session with no RPE it is
-  `1 / (1 + exp(-(p / top - 0.96) / 0.015))`, with `top` the second-highest session point in the 14 days up to
-  `t` (the highest when there is one). A deload with no RPE reads as a maximal effort at `reps + 2` and would
+  `1 / (1 + exp(-(p / top - 0.96) / 0.015))`, with `top` the second-highest session point among the sessions of
+  the 14 days up to `t`, or of the last 3 sessions when those 14 days hold fewer (the highest when there is one). A deload with no RPE reads as a maximal effort at `reps + 2` and would
   pull the estimate down. With RPE it reads correctly and needs no help. The constants are the threshold
   estimator's ([threshold.md](threshold.md), step 2). Taking `top` from the last 14 days lets the estimate
   follow a real loss of strength: with 28 days, a lifter with no RPE who lost 5% was still read 4.5% high two to
-  four weeks later, and that scenario's range held the truth 72% of the time (`top28` below).
+  four weeks later, and that scenario's range held the truth 72% of the time (`top28` below). The 3-session floor
+  keeps a lift trained once a week from taking its own deload as the top: with 14 days alone, a once-a-week lift
+  with no RPE read 2.1% low and held 82%.
 
 Then, with `q` each session's share of the weights:
 
@@ -184,6 +185,7 @@ so no set is a copy of the true max. Each day's strength varies by 4.2%. Each ea
 - novice, gaining 1.5% a week;
 - a 5% loss over two weeks, scored from 2 to 4 weeks after it, with and without RPE;
 - a block switch: four weeks of triples, then four of tens, in turn;
+- a lift trained once a week with no RPE and a deload every fourth week, with and without a 6-week break;
 - misspecified: a third curve shape (`f = R^-p`, Lombardi's family), 50% under-prediction and a day SD of 6%,
   none of which the estimator assumes.
 
@@ -191,42 +193,46 @@ The estimate is scored at every session from day 14, against the underlying true
 each lifter's share, so a lifter counts once; ± is 1.96 standard errors across lifters. Constants were set on
 tuning seeds and checked on held-out seeds.
 
-| Scenario (held-out)      |  Bias | 90th pct error | In range | True above range | True below | Range width |
-| ------------------------ | ----: | -------------: | -------: | ---------------: | ---------: | ----------: |
-| strength 1 to 5          | -0.1% |           9.2% |  88 ± 6% |              12% |         1% |         14% |
-| hypertrophy 8 to 12      | -0.2% |          18.2% |  87 ± 6% |              12% |         1% |         26% |
-| high reps 12 to 15       | -1.1% |          20.8% |  87 ± 6% |              12% |         1% |         32% |
-| mixed 1 to 15            | -0.4% |          13.9% |  86 ± 6% |              13% |         1% |         19% |
-| no RPE                   | +0.5% |          13.7% |  87 ± 6% |              12% |         1% |         20% |
-| half RPE, to failure     | +1.9% |          11.8% |  83 ± 6% |              10% |         7% |         20% |
-| noisy RPE                | -2.3% |          15.8% |  81 ± 7% |              19% |         0% |         18% |
-| deload and break         | -0.3% |          12.5% |  84 ± 6% |              14% |         2% |         16% |
-| deadlift                 | -2.8% |          14.8% |  84 ± 6% |              16% |         0% |         20% |
-| novice                   | -2.3% |          15.6% |  84 ± 7% |              16% |         0% |         19% |
-| 5% loss                  | +0.5% |          11.9% |  82 ± 7% |              12% |         6% |         15% |
-| 5% loss, no RPE          | +3.7% |          12.9% |  78 ± 8% |              10% |        12% |         21% |
-| block switch, 3s and 10s | +0.8% |          10.5% |  89 ± 6% |              10% |         1% |         18% |
-| misspecified             | -4.9% |          10.4% |  83 ± 5% |              17% |         0% |         16% |
+| Scenario (held-out)        |  Bias | 90th pct error | In range | True above range | True below | Range width |
+| -------------------------- | ----: | -------------: | -------: | ---------------: | ---------: | ----------: |
+| strength 1 to 5            | -0.1% |           9.2% |  88 ± 6% |              12% |         1% |         14% |
+| hypertrophy 8 to 12        | -0.2% |          18.2% |  87 ± 6% |              12% |         1% |         26% |
+| high reps 12 to 15         | -1.1% |          20.8% |  87 ± 6% |              12% |         1% |         32% |
+| mixed 1 to 15              | -0.4% |          13.9% |  86 ± 6% |              13% |         1% |         19% |
+| no RPE                     | +0.5% |          13.7% |  87 ± 6% |              12% |         1% |         20% |
+| half RPE, to failure       | +1.9% |          11.8% |  83 ± 6% |              10% |         7% |         20% |
+| noisy RPE                  | -2.3% |          15.8% |  81 ± 7% |              19% |         0% |         18% |
+| deload and break           | -0.3% |          12.5% |  84 ± 6% |              14% |         2% |         16% |
+| deadlift                   | -2.8% |          14.8% |  84 ± 6% |              16% |         0% |         20% |
+| novice                     | -2.3% |          15.6% |  84 ± 7% |              16% |         0% |         19% |
+| 5% loss                    | +0.5% |          11.9% |  82 ± 7% |              12% |         6% |         15% |
+| 5% loss, no RPE            | +3.7% |          12.9% |  78 ± 8% |              10% |        12% |         21% |
+| once a week, no RPE        | +0.9% |          10.7% |  89 ± 6% |              10% |         1% |         18% |
+| once a week, no RPE, break | +1.1% |          10.3% |  89 ± 6% |              10% |         1% |         18% |
+| block switch, 3s and 10s   | +0.8% |          10.5% |  89 ± 6% |              10% |         1% |         18% |
+| misspecified               | -4.9% |          10.4% |  83 ± 5% |              17% |         0% |         16% |
 
-Pooled, 84% of held-out ranges hold the truth (84% on tuning seeds). Bias is the median signed error. Width is
+Pooled, 85% of held-out ranges hold the truth (85% on tuning seeds). Bias is the median signed error. Width is
 the range over the truth. Without the deadlift's extra 5%, the deadlift scenario holds 72%. Every figure here
 comes from the prototype's raw tables, kept with the stage notes.
 
-**Alternatives, same held-out lifters:**
+**Alternatives, same held-out lifters** (the rows other than the two top-window rows were run before the
+once-a-week scenarios existed):
 
-| Rule                                                                                  | Pooled in range | Weakest scenario     | Bias          | Truth above | Width     |
-| ------------------------------------------------------------------------------------- | --------------: | -------------------- | ------------- | ----------- | --------- |
-| This spec                                                                             |             84% | 5% loss, no RPE, 78% | -4.9 to +3.7% | 10 to 19%   | 14 to 32% |
-| Same, top from 28 days                                                                |             84% | 5% loss, no RPE, 72% | -4.9 to +4.5% | 10 to 19%   | 14 to 32% |
-| Same, symmetric range (z 1.28 both sides)                                             |             83% | misspecified 75%     | -4.9 to +3.7% | 10 to 25%   | 12 to 31% |
-| Research note: highest set point, range from the highest low and highest high, cap 15 |             94% | 5% loss 83%          | +2.2 to +9.9% | 0 to 10%    | 24 to 43% |
-| This spec, cap 10                                                                     |             81% | high reps 72%        | -5.7 to +3.7% | 10 to 25%   | 14 to 22% |
-| This spec, near-top weight on every session                                           |             84% | 5% loss 71%          | -0.8 to +3.7% | 4 to 12%    | 16 to 33% |
-| This spec, no under-prediction term (`R = reps + k`)                                  |             83% | novice 78%           | -5.5 to +3.7% | 10 to 22%   | 12 to 32% |
+| Rule                                                                                  | Pooled in range | Weakest scenario                      | Bias          | Truth above | Width     |
+| ------------------------------------------------------------------------------------- | --------------: | ------------------------------------- | ------------- | ----------- | --------- |
+| This spec                                                                             |             84% | 5% loss, no RPE, 78%                  | -4.9 to +3.7% | 10 to 19%   | 14 to 32% |
+| Same, top from 14 days only (no 3-session floor)                                      |             84% | 5% loss, no RPE, 78%; once a week 82% | -4.9 to +3.7% | 10 to 19%   | 14 to 32% |
+| Same, top from 28 days                                                                |             84% | 5% loss, no RPE, 72%                  | -4.9 to +4.5% | 10 to 19%   | 14 to 32% |
+| Same, symmetric range (z 1.28 both sides)                                             |             83% | misspecified 75%                      | -4.9 to +3.7% | 10 to 25%   | 12 to 31% |
+| Research note: highest set point, range from the highest low and highest high, cap 15 |             94% | 5% loss 83%                           | +2.2 to +9.9% | 0 to 10%    | 24 to 43% |
+| This spec, cap 10                                                                     |             81% | high reps 72%                         | -5.7 to +3.7% | 10 to 25%   | 14 to 22% |
+| This spec, near-top weight on every session                                           |             84% | 5% loss 71%                           | -0.8 to +3.7% | 4 to 12%    | 16 to 33% |
+| This spec, no under-prediction term (`R = reps + k`)                                  |             83% | novice 78%                            | -5.5 to +3.7% | 10 to 22%   | 12 to 32% |
 
 - The research note's rule picks the luckiest set: it reads high everywhere and its range is wide.
 - A cap of 10 applied after reading RPE lets through only the sets whose reserve was under-reported, so high
-  reps read 5.7% low.
+  reps read 5.1% low.
 - The near-top weight on sessions with RPE kept the lucky ones and hid the low bias of RPE; it also held the
   old level after a loss.
 - The under-prediction term moves little once the slope is smooth. It stays because Halperin gives its
@@ -236,8 +242,8 @@ comes from the prototype's raw tables, kept with the stage notes.
 
 |                                 Centre (reps at 80%) | Pooled in range | Bias range    | Weakest scenario         |
 | ---------------------------------------------------: | --------------: | ------------- | ------------------------ |
-| 7.0 (fewer reps per load, like LeSuer's deadlifters) |             73% | -6.8 to -0.3% | noisy RPE, 65%           |
-|                                                  8.5 |             88% | -4.8 to +3.7% | 5% loss with no RPE, 84% |
+| 7.0 (fewer reps per load, like LeSuer's deadlifters) |             74% | -6.8 to -0.3% | noisy RPE, 65%           |
+|                                                  8.5 |             89% | -4.8 to +3.7% | 5% loss with no RPE, 84% |
 |        10.0 (more reps per load, like Nuzzo's means) |             91% | -3.7 to +6.7% | 5% loss with no RPE, 71% |
 
 The 80% holds under the spec's own prior on where real lifters sit, normal(8.5, 1). The drawn-centre eval
@@ -280,7 +286,7 @@ fractional RPE and a single session give finite figures.
 | Window                      |                                                    56 days | Research note                                          |
 | Recency half-life           |                                                    14 days | Design value                                           |
 | Slope `s`                   |                          mean of the equations' log-slopes | Second review                                          |
-| Near the top (no RPE only)  |                              0.96, 0.015, top from 14 days | threshold.md                                           |
+| Near the top (no RPE only)  |       0.96, 0.015, top from 14 days or the last 3 sessions | threshold.md                                           |
 | Change between periods      |              z 2.24 on the unshared error; mean R within 3 | This prototype (section 10)                            |
 | Range                       |                                80%: z 1.1 below, 1.5 above | Design value                                           |
 | Deadlift top                |                                                        +5% | LeSuer direction; size from the deadlift scenario      |
@@ -315,28 +321,39 @@ change". The points are the weighted means before the floor clamp. Two guards sa
 - the named direction disagrees with the clamped figures the page shows.
 
 On the synthetic lifters with the drawn centre, 40 lifters a programme, ten period ends each (raw tables
-`v5/change-*.txt` with the stage notes):
+`v6/change-*.txt` with the stage notes):
 
-| Programme                 | Period  | True change |   Named up | Named down |
-| ------------------------- | ------- | ----------: | ---------: | ---------: |
-| Steady, RPE logged        | 28 days |          0% |    2 to 3% |    1 to 3% |
-| Steady, no RPE            | 28 days |          0% |         0% |         0% |
-| Steady, triples then tens | 28 days |          0% |         0% |         0% |
-| Novice, 1.5% a week       | 28 days |       +6.1% |  32 to 57% |         0% |
-| 5% loss across the edge   | 28 days |       -3.7% |    0 to 3% |   0 to 11% |
-| Steady, RPE logged        | 56 days |          0% |    1 to 3% |    1 to 3% |
-| Novice, 1.5% a week       | 56 days |      +12.6% | 97 to 100% |         0% |
-| 5% loss across the edge   | 56 days |       -3.7% |         0% |  20 to 21% |
+| Programme                                            | Period  | True change |   Named up | Named down |
+| ---------------------------------------------------- | ------- | ----------: | ---------: | ---------: |
+| Steady, RPE logged                                   | 28 days |          0% |    2 to 3% |    1 to 3% |
+| Steady, no RPE                                       | 28 days |          0% |         0% |         0% |
+| Steady, triples then tens                            | 28 days |          0% |         0% |         0% |
+| Steady, 5s then 8s, each period mixing blocks        | 28 days |          0% |         0% |    0 to 1% |
+| Steady, triples then tens, each period mixing blocks | 28 days |          0% |    0 to 1% |    0 to 2% |
+| Flat true max, loads rising 0.5% a week              | 28 days |          0% |    1 to 3% |         0% |
+| Novice, 1.5% a week                                  | 28 days |       +6.1% |  32 to 57% |         0% |
+| 5% loss across the edge                              | 28 days |       -3.7% |    0 to 3% |   0 to 11% |
+| Steady, RPE logged                                   | 56 days |          0% |    1 to 3% |    1 to 3% |
+| Novice, 1.5% a week                                  | 56 days |      +12.6% | 97 to 100% |         0% |
+| Flat true max, loads rising 0.5% a week              | 56 days |          0% |    7 to 9% |    0 to 1% |
+| 5% loss across the edge                              | 56 days |       -3.7% |         0% |  20 to 21% |
 
 Alternatives on the same lifters at 28 days:
 
 - ranges that do not overlap: novice named up 0%, since the full ranges carry the systematic error twice;
-- z 1.96: steady lifters with RPE named changed 5 to 11% of periods, about twice the nominal 5%; novice 42 to
-  73%;
+- z 1.96: steady lifters with RPE named changed 5 to 11% of periods; novice 42 to 73%;
 - no rep guard: a steady lifter switching from triples to tens is named changed 12 to 13% of periods.
 
-A month is short: a 1.3% gain or a 3.7% loss is seldom named in one. Over eight weeks the novice's gain almost
-always is.
+The target is a steady lifter named changed in 5% of periods or fewer, in total; z 2.24 gives 1 to 6% here, and
+z 1.96 misses it. A month is short: a 1.3% gain or a 3.7% loss is seldom named in one. Over eight weeks the
+novice's gain almost always is.
+
+What the word means without RPE: a session with no RPE reads its effort from the reps alone, so for a lift logged
+without RPE "up" means the loads rose at the same reps. That is what the log can show. A programme that adds
+plates while the true max stays flat is named up in 1 to 3% of 28-day periods and 7 to 9% of 56-day ones.
+
+The cost of the rep guard: a lifter whose rep range moves by more than 3 from one period to the next is told "no
+clear change" for that pair of periods, whatever happened.
 
 ## 11. Open
 
