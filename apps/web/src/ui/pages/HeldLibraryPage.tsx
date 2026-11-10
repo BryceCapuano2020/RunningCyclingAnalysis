@@ -2,8 +2,8 @@ import { AddFilesButton } from '../components/AddFilesButton'
 import { HeldBackList } from '../components/HeldBackList'
 import { heldViewFor } from './heldLibraryView'
 import type { AnalysisController } from '../useAnalysis'
-import { PAGE_HEADING_ID } from './pageHeading'
 import './HeldLibraryPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface HeldLibraryPageProps {
   analysis: AnalysisController
@@ -27,9 +27,7 @@ export function HeldLibraryPage({
   const view = heldViewFor(analysis, signedIn, fileRetentionAvailable)
   return (
     <section className="held" aria-busy={analysis.busy && view.update}>
-      <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-        {view.title}
-      </h1>
+      <PageHeading>{view.title}</PageHeading>
       {view.lines.map((line) => (
         <p key={line}>{line}</p>
       ))}
@@ -60,9 +58,7 @@ export function HeldLibraryPage({
 export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
   return (
     <section className="held">
-      <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-        Your library is not showing yet
-      </h1>
+      <PageHeading>Your library is not showing yet</PageHeading>
       <p>
         {canRetry
           ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'

@@ -70,9 +70,8 @@ describe('colour tokens', () => {
 
   it('keeps the table in one place: DESIGN.md points to system.md and holds no colour row', () => {
     expect(designMd).toContain('(design/system.md)')
-    // The level bands table is DESIGN.md's own (levelTokens.test.ts); every other colour row is system.md's.
     const rows = designMd.split('\n').filter((line) => line.startsWith(TABLE_ROW))
-    expect(rows.filter((line) => !line.startsWith('| `--level-'))).toEqual([])
+    expect(rows).toEqual([])
   })
 
   it('has a table row for every colour token in tokens.css that holds a colour of its own', () => {

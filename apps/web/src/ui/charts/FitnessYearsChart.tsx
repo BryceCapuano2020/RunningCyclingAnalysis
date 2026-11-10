@@ -149,9 +149,12 @@ export function FitnessYearsChart({
         const reading = new Set(under(m.spans).map((s) => s.index))
         return (
           <g data-sport={sport}>
-            <g className="fitness-years__x">
-              <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={axisFontSize(size.width)} />
-            </g>
+            <ChartXAxis
+              ticks={m.xTicks}
+              plot={plot}
+              fontSize={axisFontSize(size.width)}
+              grid={false}
+            />
             <ChartYAxis
               ticks={m.yTicks}
               plot={plot}

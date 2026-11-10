@@ -17,56 +17,6 @@
   text-wrap: balance;
 }
 
-/* The finding, and the one figure the chart is about beside it; the figure drops under the sentence where there is no room. */
-.chart-frame__headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-5);
-}
-
-.chart-frame__takeaway {
-  flex: 1 1 18rem;
-  max-width: 40ch;
-  margin: 0;
-  color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: var(--title);
-  font-weight: 500;
-  line-height: 1.15;
-  text-wrap: balance;
-}
-
-.chart-frame__focal {
-  display: grid;
-  margin: 0;
-  line-height: 1;
-}
-
-.chart-frame__focal-label {
-  color: var(--ink-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  letter-spacing: var(--tracking-meta);
-  text-transform: uppercase;
-}
-
-.chart-frame__focal-value {
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: var(--title);
-  font-weight: 400;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-.chart-frame__focal-unit {
-  margin-left: 0.25em;
-  color: var(--ink-secondary);
-  font-size: 0.75em;
-}
-
 /* The sentence the chart supports, on the page's reading measure, under the title. */
 .chart-frame__lede {
   max-width: var(--measure);
@@ -242,16 +192,6 @@
 @media (min-width: 370px) {
   .chart-frame__readout {
     min-height: 5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .chart-frame__takeaway {
-    font-size: var(--title);
-  }
-
-  .chart-frame__focal-value {
-    font-size: 2.75rem;
   }
 }
 

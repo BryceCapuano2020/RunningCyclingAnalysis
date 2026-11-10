@@ -27,7 +27,7 @@ export function MetricControls({
     return <p className="secondary">No detailed measures were recorded for this activity.</p>
   return (
     <fieldset className="activity-workbench__metrics">
-      <legend>Measures shown</legend>
+      <legend className="sr-only">Measures shown</legend>
       {METRIC_ORDER.filter((metric) => available.includes(metric) || empty.includes(metric)).map(
         (metric) => {
           const none = empty.includes(metric)

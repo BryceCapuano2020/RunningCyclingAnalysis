@@ -12,10 +12,12 @@ export interface ChartXAxisProps {
   title?: string
   /** Tick text size in px. */
   fontSize?: number
+  /** False where marks stand on their own rooms, so a gridline through the gaps would read as part of one. */
+  grid?: boolean
 }
 
 /** Vertical hairline gridlines, tick labels under the plot, and the axis title. */
-export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProps) {
+export function ChartXAxis({ ticks, plot, title, fontSize = 12, grid = true }: ChartXAxisProps) {
   // The root is read once per render, for every label's width.
   const root = readRoot()
   const scale = root.px / DEFAULT_ROOT_PX
@@ -62,13 +64,15 @@ export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProp
     <g className="chart-x-axis">
       {placed.map(({ tick, textAnchor }, i) => (
         <g key={tick.position}>
-          <line
-            className="chart-x-axis__grid"
-            x1={tick.position}
-            x2={tick.position}
-            y1={plot.top}
-            y2={plot.bottom}
-          />
+          {grid ? (
+            <line
+              className="chart-x-axis__grid"
+              x1={tick.position}
+              x2={tick.position}
+              y1={plot.top}
+              y2={plot.bottom}
+            />
+          ) : null}
           {shown.has(String(i)) ? (
             <text
               className="chart-x-axis__tick"

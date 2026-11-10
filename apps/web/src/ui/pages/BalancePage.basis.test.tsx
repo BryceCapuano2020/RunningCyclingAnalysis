@@ -83,7 +83,7 @@ describe('the balance when a best 20 min was not shown hard', () => {
 
   it('keeps the answer the same whatever the gate said: the title alone, with no line under it', () => {
     const lines = () =>
-      Array.from(document.querySelectorAll('.balance-hero__text p')).map((p) => p.textContent)
+      Array.from(document.querySelectorAll('.balance-hero__text > p')).map((p) => p.textContent)
     render20(HARD, HARD)
     const hard = lines()
     cleanup()

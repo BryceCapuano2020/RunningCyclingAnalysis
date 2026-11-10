@@ -6,15 +6,6 @@
   overflow-y: auto;
   /* The sticky footer covers the foot of the dialog, so a focused field scrolls clear of it. */
   scroll-padding-bottom: 11rem;
-  padding: var(--space-5);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-}
-
-.setup-dialog::backdrop {
-  background: rgb(10 10 10 / 0.35);
 }
 
 .setup-dialog__form {

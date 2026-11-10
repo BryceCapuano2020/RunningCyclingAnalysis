@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChartTable } from '../charts/ChartTable'
 import { SPREAD_WORDS } from '../charts/usualSpread'
-import { useMinWidth } from './useMinWidth'
+import { useMediaQuery } from '../useMediaQuery'
 import { movingAverageSpeed, selectionOf, typicalBand } from './workbenchData'
 import {
   METRIC_ORDER,
@@ -160,7 +160,7 @@ export function SelectionStats({
   /** The column beside the timeline, where the tiles are drawn when the page is wide enough to have one. */
   tilesHost?: HTMLElement | null
 }) {
-  const wide = useMinWidth(WIDE_MIN_WIDTH_PX)
+  const wide = useMediaQuery(`(min-width: ${WIDE_MIN_WIDTH_PX}px)`)
   const summary = selectionOf(trace, startS, endS)
   const inColumn = wide && tilesHost !== null && tilesHost !== undefined
   // Beside the timeline the page already shows the whole activity's figures, so the column holds a part of it only.

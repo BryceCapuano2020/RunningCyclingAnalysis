@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import type { HeadlinePick } from '../components'
+import type { HeadlinePick } from '../components/pickHeadline'
 import type { BalanceReading } from '../components/balanceScale'
 import type { LeftOutRuns } from '../analysis/walkingPaceCopy'
 import { LevelTriangle } from '../components/LevelTriangle'
@@ -16,7 +16,7 @@ import { triangleAnswer, triangleTitleText } from './triangleCopy'
 import type { TriangleView } from '../triangleSports'
 import { useHoldInputs } from '../holdContext'
 import { missingText } from './balanceMissing'
-import { PAGE_HEADING_ID } from './pageHeading'
+import { PageHeading } from '../components/PageHeading'
 
 export interface BalanceHeroProps {
   result: AnalysisResult
@@ -35,7 +35,7 @@ export interface BalanceHeroProps {
   onShowAll: () => void
   /** False while no body weight is entered: a ride's figures wait for it, so the balance does too. */
   weightKnown: boolean
-  /** The share button, under the visual it shares; in the plain states, under the line that says what is missing. */
+  /** The share button: an icon in the page header, in the plain states too. */
   action?: ReactNode
   /** Each sport's level as the tiles show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
@@ -77,9 +77,9 @@ export function BalanceHero({
   const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
-      <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={className}>
+      <PageHeading className={className} action={action}>
         {title}
-      </h1>
+      </PageHeading>
     </div>
   )
   // Once both sports are on file, the balance is held for the weight: the one prompt says why.
@@ -95,7 +95,6 @@ export function BalanceHero({
           <WeightPrompt />
         </p>
         {controls}
-        {action}
       </section>
     )
   }
@@ -126,7 +125,6 @@ export function BalanceHero({
           )}
         </section>
         <LevelTriangle view={triangle} />
-        {action}
       </div>
     )
   }
@@ -146,7 +144,6 @@ export function BalanceHero({
         </div>
       </section>
       <LevelTriangle view={triangle} />
-      {action}
     </div>
   )
 }

@@ -13,6 +13,8 @@ import './SportRecords.css'
 
 export interface SportRecordsProps {
   rows: RecordRow[]
+  /** The list's accessible name, where the page's heading does not give it one. */
+  label?: string
   /** A row's trend, by its key, from a series the page already charts: drawn as a sparkline at the row's right. */
   sparks?: Readonly<Record<string, readonly SparkPoint[]>>
 }
@@ -93,14 +95,14 @@ const NO_SPARKS: Readonly<Record<string, readonly SparkPoint[]>> = {}
  * subtitle lines). How it moved is the row's sparkline, drawn only when every row has one, and words for a screen reader. When every record was set in one
  * activity, that activity is named once under the list rather than repeated on each row.
  */
-export function SportRecords({ rows, sparks = NO_SPARKS }: SportRecordsProps) {
+export function SportRecords({ rows, label, sparks = NO_SPARKS }: SportRecordsProps) {
   const shared = sharedActivity(rows)
   // Sparklines are drawn for the whole list or for none of it.
   const drawn = sparksDrawn(rows.map((row) => sparks[row.key]))
   const sharedDays = shared === null ? null : (rows[0]?.setDays ?? null)
   return (
     <>
-      <ol className="rows records">
+      <ol className="rows records" aria-label={label}>
         {rows.map((row, index) => {
           const figure = figureParts(row.value)
           return (

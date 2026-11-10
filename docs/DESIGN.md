@@ -218,7 +218,7 @@ is replaced and the kept library reloads behind it.
 The visual system (the colour roles and the full colour table, the type and display scales, the shell width, gaps, radius and shadow,
 the panel and band surfaces, and the accessibility checks) is [design/system.md](design/system.md). `tokens.css` holds the values
 and the tests named at the foot of that page keep the two in step. A display size with no type token is one of the sizes
-`typeScale.test.ts` counts and lets only fall. The level bands table stays here, under Level bands.
+`typeScale.test.ts` counts and lets only fall.
 
 ## Components, charts and pages
 
@@ -283,8 +283,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   (`idleReadout`, such as "Latest · Week ending 25 Oct: Run 64%, Ride 58%") or, without one, "Select a point to read its value". A long sentence wraps and the row grows to hold it, never cut with an ellipsis, and a chart whose latest value the page already says (the Balance home page's years chart, under the levels) leaves it out; a point's
   full reading (a title, a value with its note and the previous period's row) draws over the row, growing upward over the lines above the plot, so
   the plot never moves under a finger, and the height eases open only where motion is welcome. The tooltip draws into that row and a screen
-  reader still hears the values as the status element. A chart that hosts its own row (the activity timeline) keeps the base row, which reserves the room of its fullest reading. A chart can state its finding: a `ChartFrame` with a `takeaway` sets the sentence
-  large under the title, which then becomes a small caption and stays the chart's name, and an optional `focal` figure sits beside it.
+  reader still hears the values as the status element. A chart that hosts its own row (the activity timeline) keeps the base row, which reserves the room of its fullest reading.
   Pages opt in to the annotation primitive (`ChartAnnotations`: end labels, callouts, reference lines and brackets, each text
   on a card-coloured halo, placed so none overlaps another or the data) from their own charts.
 - **Method has no charts.** Each section states its claim in words and the constants it quotes.
@@ -1282,21 +1281,7 @@ and below the ceiling of, as on the activity page, and the Profile ranges are wr
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).
 
-## Level bands
-
-The level ladder on the sport pages draws the age-grade levels as neutral bands (Recreational, Active, Trained and Club share the
-lowest wash, then Local, Regional, National, World) on one x-scale. The bands are the canvas, so sport colour only ever means
-"this sport": a dot or a ring in the sport colour sits on the neutral bands. Each band is the ink at a rising alpha,
-so every step is a deeper wash than the one below it, and a band is named in words as well as
-tinted. `levelTokens.test.ts` pins the values and the order.
-
-| Token       | Value       | Use             |
-| ----------- | ----------- | --------------- |
-| `--level-1` | `#0a0a0a04` | Below 60% bands |
-| `--level-2` | `#0a0a0a09` | Local band      |
-| `--level-3` | `#0a0a0a0d` | Regional band   |
-| `--level-4` | `#0a0a0a11` | National band   |
-| `--level-5` | `#0a0a0a14` | World band      |
+## Grade marks
 
 **Shape language.** A recorded grade is a solid dot ringed in the card colour. An estimated grade is a ring over a
 translucent band for its 90% range, never a dashed line. On Balance's meter the best estimate is a ringed dot and the range a translucent band behind it.
