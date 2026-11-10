@@ -163,6 +163,9 @@ export async function runStateJob(
   await reserveR2Put(db, deps.now, bytes.byteLength)
   await bucket.put(stateKey(userId, hash), bytes, {
     httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
+    // The object names its own analysis revision, so a reader can tell one an older Worker wrote (a rollback, a rolling
+    // deploy) from the row, which that Worker does not keep.
+    customMetadata: { analysisRevision: String(ANALYSIS_REVISION) },
   })
   let held: string | null
   try {

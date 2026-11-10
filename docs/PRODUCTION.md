@@ -374,6 +374,11 @@ this one, for each allowlisted account (read-only check first:
 
 Nothing is lost: the snapshot is a copy the job rebuilds from D1, and the browser computes locally meanwhile.
 
+**Rollback and the analysis revision.** A Worker from before migration 0016's code writes snapshot objects with no
+revision of its own and leaves `state_jobs.analysis_revision` as it was. After the redeploy, `GET /api/state` finds such an
+object stale, sets the row's revision to 0 and sends one recompute, so nothing needs doing by hand. To recompute every listed
+account at once instead: `UPDATE state_jobs SET analysis_revision = 0`, and the daily re-send picks them up.
+
 `cpu_ms = 10000`: the note puts a recompute of 2,000 activities at about 100 ms and the hard-effort budget at 1,200 ms, so 10 s
 is eight times the worst budget on a slower runner, and a runaway job is stopped long before the 30 s default.
 

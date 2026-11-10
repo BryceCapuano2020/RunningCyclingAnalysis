@@ -143,9 +143,49 @@ describe('GET /api/state', () => {
       .bind(ANALYSIS_REVISION - 1, w.userId)
       .run()
     w.sent.length = 0
+    // The compute that made it began moments ago: a read within the interval asks for nothing.
+    expect((await w.get()).status).toBe(404)
+    expect(w.sent).toEqual([])
+    w.h.clock.now += 60_000
     expect((await w.get()).status).toBe(404)
     expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 10 } }])
+    // A message is on its way: the next read sends none.
     expect((await w.get()).status).toBe(404)
+    expect(w.sent).toHaveLength(1)
+  })
+
+  it('asks for nothing for a library the server does not compute for, however often it is read', async () => {
+    const w = await ready()
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ?')
+      .bind(w.userId)
+      .run()
+    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
+      .bind(w.userId)
+      .run()
+    w.sent.length = 0
+    w.h.clock.now += 60_000
+    for (let i = 0; i < 3; i += 1) expect((await w.get()).status).toBe(404)
+    expect(w.sent).toEqual([])
+  })
+
+  it('treats an object an older Worker wrote as stale: no revision of its own, whatever the row says', async () => {
+    const w = await ready()
+    const key = `users/${w.userId}/state/${w.hash}.json.gz`
+    const object = await w.env.FILES!.get(key)
+    const bytes = new Uint8Array(await object!.arrayBuffer())
+    // An older Worker's put: the same bytes, no revision in the object's metadata, and the row left as it was.
+    await w.env.FILES!.put(key, bytes, {
+      httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
+    })
+    w.sent.length = 0
+    w.h.clock.now += 60_000
+    expect((await w.get()).status).toBe(404)
+    const row = await w.env.DB.prepare(
+      'SELECT analysis_revision AS r FROM state_jobs WHERE user_id = ?',
+    )
+      .bind(w.userId)
+      .first<{ r: number }>()
+    expect(row?.r).toBe(0)
     expect(w.sent).toHaveLength(1)
   })
 })
