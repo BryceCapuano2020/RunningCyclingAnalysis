@@ -11,7 +11,7 @@ import { useScrollRegion } from '../useScrollRegion'
 import { PropertyList } from '../components/PropertyList'
 import { SECTION_ID } from '../components/methodTopics'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
-import { FLOORED_TEXT, forecastRows, originRow, spreadText, vo2maxRows } from './racePredictionCopy'
+import { FLOORED_TEXT, forecastRows, spreadText, vo2maxRows } from './racePredictionCopy'
 import { raceBar, raceScale } from './raceBars'
 import type { RaceScale } from './raceBars'
 import { NumText } from '../components/NumText'
@@ -310,15 +310,9 @@ export function RacePredictions({
         ))}
       </ol>
       <EvidenceDisclosure section="the race predictions" label="About these predictions">
-        {/* The run the times were carried from is what they rest on, so it is here rather than under the heading. */}
+        {/* What the times rest on, as two numbers; each method's time per race is in the table under them. */}
         <PropertyList
-          rows={[
-            ...forecastRows({ basis }, window, bound, openedAt),
-            ...vo2maxRows(found),
-            ...found.races.flatMap((prediction) =>
-              prediction.methods.map((method) => originRow(raceName(prediction.distanceM), method)),
-            ),
-          ]}
+          rows={[...forecastRows({ basis }, window, bound, openedAt), ...vo2maxRows(found)]}
           method={SECTION_ID.how}
           methodName="how the race predictions are worked out"
         />

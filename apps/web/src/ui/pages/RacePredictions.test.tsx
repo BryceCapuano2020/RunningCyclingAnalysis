@@ -175,8 +175,9 @@ describe('RacePredictions', () => {
     ).toEqual(['Race', 'Pace', 'Predicted', 'Range', 'Best runs', 'Heart rate'])
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getAllByRole('cell')[2]!.textContent).toMatch(/^\d+:\d\d to \d+:\d\d$/)
-    expect(rowValue(document.body, '5 km, best runs')).toMatch(/^2[01]:\d\d$/)
-    expect(rowValue(document.body, '5 km, heart rate')).toMatch(/^\d+:\d\d$/)
+    // Each method's time per race is in the table, not repeated as rows above it.
+    expect(rowValue(document.body, '5 km, best runs')).toBeNull()
+    expect(within(row).getAllByRole('cell')[3]!.textContent).toMatch(/^2[01]:\d\d/)
     // VO2max is given once, as a number; no row is a sentence and there is no "For" row.
     expect(rowValue(document.body, 'VO2max')).toBe('50')
     expect(rowValue(document.body, 'For')).toBeNull()
