@@ -77,9 +77,7 @@ test('at 320 by 640 the line shows what was added as a label and its value, with
   expect(apart).toBe(true)
 })
 
-test('opening the row shows its panel, and Hide takes the row away for good', async ({
-  page,
-}) => {
+test('opening the row shows its panel, and Hide takes the row away for good', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openWithRow(page)
   const row = page.locator(ROW)
