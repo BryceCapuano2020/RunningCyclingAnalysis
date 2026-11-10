@@ -1,6 +1,6 @@
 /*
- * The example's own parts: its headline and the one line that names the sample, over Balance's meter and levels line, then the fitness finding
- * under a hairline. No frame: the meter and the levels bring their own layout, and the figure gives them the width.
+ * The example's own parts: its headline and the one line that names the sample, over Balance's level triangle, then the fitness finding
+ * under a hairline. No frame: the triangle brings its own layout, and the figure gives it the width.
  */
 .landing-example__label {
   color: var(--ink-secondary);
@@ -16,14 +16,10 @@
   text-wrap: balance;
 }
 
-.landing-example .balance-meter,
-.landing-example .balance-levels {
-  min-width: 0;
-}
-
-/* The meter keeps a step of air under the one line that follows the headline. */
-.landing-example .balance-meter {
-  margin-top: var(--space-3);
+.landing-example__line {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-md);
 }
 
 /* The fitness finding closes the example, under a hairline: its state, one sentence and the change as a track. */

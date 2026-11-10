@@ -1,9 +1,11 @@
 import { CARD_COLORS } from './cardColors'
 import {
+  SERIF_400,
   SERIF_500,
   cutWithEllipsis,
   drawLines,
   fitText,
+  scaled,
   metaStyle,
   setFont,
   wrapIn,
@@ -20,9 +22,8 @@ import {
   type CardFormat,
   type CardLayout,
 } from './cardLayout'
-import { levelsBlock } from './cardLevels'
-import { meterBlock } from './cardMeter'
 import type { ShareCardModel } from './cardModel'
+import { triangleBlock } from './cardTriangle'
 
 export { loadCardFonts } from './cardCanvas'
 
@@ -120,14 +121,20 @@ function cardBlocks(
     contentWidth,
     layout.headlineLines,
   )
+  const lineStyle: TextStyle = scaled(SERIF_400, layout.line, 1.3)
+  const line = model.line === null ? [] : wrapIn(ctx, model.line, lineStyle, contentWidth, 1)
   const figureLayout = { ...layout, figure: layout.figure.slice(shed.step) }
   return [
     topBlock(ctx, model, layout),
     ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.ink),
-    ...(model.meter === null
-      ? []
-      : [meterBlock(ctx, model.meter, x, contentWidth, model.informedByHeartRate)]),
-    ...levelsBlock(ctx, model.heroes, x, contentWidth),
+    ...textBlock(ctx, line, x, lineStyle, CARD_COLORS.secondary),
+    triangleBlock(
+      ctx,
+      model.triangle,
+      x,
+      contentWidth,
+      layout.triangle[shed.step] ?? Math.min(...layout.triangle),
+    ),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
       ctx,

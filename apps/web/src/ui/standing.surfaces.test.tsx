@@ -9,16 +9,13 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import { AnalysisSession } from '@rca/core/session'
 import { formatPaceValue } from '@rca/core/units'
 import { buildShareCard } from '../share/cardModel'
-import { meterValue } from './components/meterReading'
-import { SPORT_TITLE } from './sports'
 import { whatMoved } from './analysis/whatMoved'
 import { balanceOfPick } from './components/balanceScale'
 import { formatGrade } from './gradeFormat'
 import { heldPick } from './resultHold'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
-import { balanceLevels } from './pages/levelsModel'
 import { BalanceHero } from './pages/BalanceHero'
-import { BalanceLevels } from './pages/BalanceLevels'
+import { LevelTriangle } from './components/LevelTriangle'
 import { BalanceTiles } from './pages/BalanceTiles'
 import { CrossSportCard } from './pages/CrossSportCard'
 import { MethodPage } from './pages/MethodPage'
@@ -37,13 +34,17 @@ const standing = standingOf(result, SAMPLE_PROFILE, {
 const grades = gradesOfStanding(result, standing)
 
 describe('one standing, read by every surface', () => {
-  it('prints the same threshold grade on the levels under the meter and on each sport page', () => {
-    const rows = balanceLevels({ grades, inPeriod: { run: 3, ride: 3 }, missingAge: null }).rows
+  it('prints the same threshold grade on the triangle’s corners and on each sport page', () => {
+    const { container } = render(<LevelTriangle view={triangleViewOf(grades)} />)
+    const corner = (sport: string) =>
+      container.querySelector(`[data-sport="${sport}"] .level-triangle__figure`)?.textContent
+    const corners = { run: corner('run'), ride: corner('ride') }
+    cleanup()
     for (const sport of ['run', 'ride'] as const) {
       const outcome = standing.grades[sport]
       if (outcome.kind !== 'graded') throw new Error(`${sport} is graded in the sample`)
       const printed = formatGrade(outcome.grade.centre.grade)
-      expect(rows.find((row) => row.sport === sport)?.grade).toBe(printed)
+      expect(corners[sport]).toBe(printed)
       cleanup()
       render(
         <SportAnswer
@@ -89,12 +90,8 @@ describe('one standing, read by every surface', () => {
     expect(screen.getByRole('article', { name: 'Your ride as a run' }).textContent).toBe(alone)
   })
 
-  it('prints the levels from the same grades the lead is made of', () => {
-    render(
-      <BalanceLevels
-        model={balanceLevels({ grades, inPeriod: { run: 3, ride: 3 }, missingAge: null })}
-      />,
-    )
+  it('prints the corners from the same grades the lead is made of', () => {
+    render(<LevelTriangle view={triangleViewOf(grades)} />)
     const run = standing.grades.run
     if (run.kind !== 'graded' || standing.lead === null) throw new Error('graded')
     expect(document.body).toHaveTextContent(formatGrade(run.grade.centre.grade))
@@ -198,13 +195,8 @@ describe('one lead, printed the same on every surface', () => {
       gradesAfter,
     )
     if (card === null) throw new Error('the sample offers a card')
-    // The card's meter writes the lead as a number under its mark, toward the sport its mark leans to.
-    const meter = card.meter
-    if (meter === null || meter.lean === 'even') throw new Error('the sample leans')
-    const share: PrintedLead = {
-      points: Number(meterValue(meter).number.replace('+', '')),
-      toward: SPORT_TITLE[meter.lean].toLowerCase(),
-    }
+    // The card's line words the lead as the hero's does.
+    const share = printedGrades(card.line ?? '')
 
     const moves = whatMoved(before, after, SAMPLE_SETTINGS, 'metric', SAMPLE_PROFILE)
     const notice = printedMove(moves.map((item) => item.text).join(' '))

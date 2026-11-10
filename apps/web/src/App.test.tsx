@@ -501,7 +501,7 @@ describe('share preview', () => {
     showResult()
     const { rerender } = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
-    await screen.findByRole('img', { name: 'Preview of the square card' })
+    await screen.findByRole('img', { name: /^Preview of the square card/ })
     await settle()
     const drawn = vi.mocked(canvasFile).mock.calls.length
     // An equal settings object, built anew, as the preferences hand it out on each change.

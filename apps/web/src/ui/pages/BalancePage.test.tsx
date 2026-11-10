@@ -571,10 +571,7 @@ describe('BalancePage with no weight entered', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
     await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
     const card = vi.mocked(renderShareCard).mock.calls.at(-1)?.[0]
-    expect(card?.heroes[1]?.grade).toEqual({
-      percent: expect.stringMatching(/^\d+%$/),
-      level: expect.any(String),
-    })
+    expect(card?.triangle.grades.ride).toMatchObject({ kind: 'graded' })
     cleanup()
 
     renderPage(withRide, {}, MAN_BORN_1986, false)
@@ -602,7 +599,7 @@ describe('BalancePage with no weight entered', () => {
     )
     const { rerender } = render(page())
     fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
-    await screen.findByRole('img', { name: 'Preview of the square card' })
+    await screen.findByRole('img', { name: /^Preview of the square card/ })
     await settle()
     const drawn = vi.mocked(canvasFile).mock.calls.length
     rerender(page())

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { levelOf } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
 import type { Period } from '@rca/core/period'
 import { canShareImage, canvasFile, saveFile, shareFile } from '../../share/download'
@@ -8,6 +9,8 @@ import { loadCardFonts, renderShareCard } from '../../share/renderCard'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
 import { HoldInputsContext } from '../holdContext'
+import { EMPTY_TRIANGLE, triangleViewOf } from '../triangleSports'
+import type { TriangleView } from '../triangleSports'
 import { makeActivity, makeResult } from './fixtures'
 import { ShareImageButton, type ShareImageButtonProps } from './ShareImageButton'
 
@@ -71,6 +74,7 @@ function buttonProps(overrides: Partial<ShareImageButtonProps> = {}): ShareImage
     weightKnown: true,
     gap: null,
     grades: NO_GRADES,
+    triangle: EMPTY_TRIANGLE,
     disabled: false,
     ...overrides,
   }
@@ -84,7 +88,7 @@ function renderButton(overrides: Partial<ShareImageButtonProps> = {}) {
 async function openSheet(): Promise<HTMLElement> {
   fireEvent.click(screen.getByRole('button', { name: TRIGGER }))
   const dialog = screen.getByRole('dialog', { name: SHEET })
-  await screen.findByRole('img', { name: 'Preview of the square card' })
+  await screen.findByRole('img', { name: /^Preview of the square card/ })
   return dialog
 }
 
@@ -128,10 +132,38 @@ describe('ShareImageButton', () => {
     expect(within(dialog).getByText(NOTE)).toBeInTheDocument()
   })
 
+  it('describes the preview as the card reads: the headline, the line and the three corners', async () => {
+    renderButton()
+    await openSheet()
+    const alt = (
+      await screen.findByRole('img', { name: /^Preview of the square card/ })
+    ).getAttribute('alt')
+    expect(alt).toMatch(/^Preview of the square card\. Your balance leans toward /)
+    expect(alt).toMatch(/Running no grade yet, cycling no grade yet and lifting no grade yet\.$/)
+  })
+
+  it('hands the card the page’s triangle, lifting’s corner included', async () => {
+    const triangle: TriangleView = {
+      ...EMPTY_TRIANGLE,
+      grades: {
+        ...EMPTY_TRIANGLE.grades,
+        lift: { kind: 'graded', grade: { centre: { grade: 0.48, level: 'Active' }, range: null } },
+      },
+    }
+    renderButton({ triangle })
+    await openSheet()
+    await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
+    expect(vi.mocked(renderShareCard).mock.calls.at(-1)?.[0].triangle).toBe(triangle)
+    const alt = (
+      await screen.findByRole('img', { name: /^Preview of the square card/ })
+    ).getAttribute('alt')
+    expect(alt).toContain(`lifting 48% ${levelOf(0.4804)}.`)
+  })
+
   it('shows a preview of the square card, with the square shape checked', async () => {
     renderButton()
     const dialog = await openSheet()
-    expect(screen.getByRole('img', { name: 'Preview of the square card' })).toHaveAttribute(
+    expect(screen.getByRole('img', { name: /^Preview of the square card/ })).toHaveAttribute(
       'src',
       'blob:preview',
     )
@@ -157,7 +189,7 @@ describe('ShareImageButton', () => {
     renderButton()
     const dialog = await openSheet()
     fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
-    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    await screen.findByRole('img', { name: /^Preview of the tall card/ })
     press(dialog, SAVE)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Tall image saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
@@ -249,7 +281,7 @@ describe('ShareImageButton', () => {
       'true',
     )
     fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
-    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    await screen.findByRole('img', { name: /^Preview of the tall card/ })
     expect(within(dialog).getByRole('button', { name: SAVE })).toHaveAttribute(
       'aria-disabled',
       'false',
@@ -328,7 +360,7 @@ describe('ShareImageButton', () => {
     expect(shareFile).not.toHaveBeenCalled()
     expect(saveFile).not.toHaveBeenCalled()
     held.resolve(new File(['png'], 'balance-square.png', { type: 'image/png' }))
-    await screen.findByRole('img', { name: 'Preview of the square card' })
+    await screen.findByRole('img', { name: /^Preview of the square card/ })
     press(dialog, SHARE_FILE)
     // Once ready, the share starts within the tap, before anything awaits.
     expect(shareFile).toHaveBeenCalledTimes(1)
@@ -340,7 +372,7 @@ describe('ShareImageButton', () => {
     const held = heldFile()
     vi.mocked(canvasFile).mockReturnValueOnce(held.promise)
     fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
-    expect(within(dialog).getByRole('img', { name: 'Preview of the square card' })).toHaveClass(
+    expect(within(dialog).getByRole('img', { name: /^Preview of the square card/ })).toHaveClass(
       'share-sheet__picture--stale',
     )
     expect(within(dialog).getByRole('button', { name: PREPARING })).toHaveAttribute(
@@ -348,7 +380,7 @@ describe('ShareImageButton', () => {
       'true',
     )
     held.resolve(new File(['png'], 'balance-story.png', { type: 'image/png' }))
-    const tall = await within(dialog).findByRole('img', { name: 'Preview of the tall card' })
+    const tall = await within(dialog).findByRole('img', { name: /^Preview of the tall card/ })
     expect(tall).not.toHaveClass('share-sheet__picture--stale')
   })
 
@@ -374,7 +406,7 @@ describe('ShareImageButton', () => {
     await settle()
     expect(saveFile).not.toHaveBeenCalled()
     held.resolve(new File(['png'], 'balance-story.png', { type: 'image/png' }))
-    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    await screen.findByRole('img', { name: /^Preview of the tall card/ })
     expect(within(dialog).getByRole('button', { name: SAVE })).toBeEnabled()
   })
 
@@ -511,24 +543,27 @@ describe('ShareImageButton', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("gives the card each sport's level and percent on its hero", async () => {
-    renderButton({ grades: { run: RUN_GRADE, ride: null } })
+  it("gives the card each sport's grade on its triangle", async () => {
+    const grades = { run: RUN_GRADE, ride: null }
+    renderButton({ grades, triangle: triangleViewOf(grades) })
     const dialog = await openSheet()
     press(dialog, SAVE)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
-        heroes: [
-          expect.objectContaining({ sport: 'run', grade: { percent: '64%', level: 'Local' } }),
-          expect.objectContaining({ sport: 'ride', grade: null }),
-        ],
+        triangle: expect.objectContaining({
+          grades: expect.objectContaining({
+            run: expect.objectContaining({ kind: 'graded' }),
+            ride: { kind: 'gap' },
+          }),
+        }),
       }),
       expect.any(HTMLCanvasElement),
       'square',
     )
   })
 
-  it('gives the card the grade gap on the page, so its headline and meter agree with it', async () => {
+  it('gives the card the grade gap on the page, so its headline agrees with it', async () => {
     const gap: BalanceGap = { centre: -6, low: -10, high: -2, lean: 'ride' }
     renderButton({ gap })
     const dialog = await openSheet()
@@ -537,7 +572,6 @@ describe('ShareImageButton', () => {
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         headline: 'Your balance leans toward cycling',
-        meter: expect.objectContaining({ unit: 'points', lean: 'ride' }),
       }),
       expect.any(HTMLCanvasElement),
       'square',

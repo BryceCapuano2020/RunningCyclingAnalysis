@@ -254,22 +254,6 @@
   text-transform: none;
 }
 
-/* The stack for the balance meter: a figure with no margin of its own. */
-.scale-figure {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  overflow: visible;
-}
-
-/* On a short phone the meter takes a tighter stack, so the meter ends above the fold at
-   320 x 568 (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts). */
-@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
-  .scale-figure {
-    gap: var(--space-1);
-  }
-}
-
 .swatch {
   display: inline-block;
   width: 10px;

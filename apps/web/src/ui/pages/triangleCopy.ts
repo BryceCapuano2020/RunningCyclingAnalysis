@@ -5,11 +5,14 @@ import {
   triangleReading,
 } from '@rca/core/standing'
 import type { Lead, TriangleReading, TriangleSport } from '@rca/core/standing'
-import { signedCount } from '../components/headlineText'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import type { BalanceReading } from '../components/balanceScale'
+import { energySummary, signedCount } from '../components/headlineText'
 import { plural } from '../components/plural'
 import type { Property } from '../components/property'
 import { TRIANGLE_NOUN, TRIANGLE_TITLE } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'
+import { titleParts } from './balanceCopy'
 
 /** What the grades are of, with a no-break space, so "at threshold" never parts across a line. */
 const AT = 'at threshold'
@@ -92,4 +95,26 @@ export function triangleRows(view: TriangleView): Property[] {
   const points = plural(Math.abs(Math.round(lead.centre)), 'point')
   const gap = `${TRIANGLE_NOUN[higher]} over ${TRIANGLE_NOUN[lower]} ${points}, range ${rangeOf(lead)}`
   return [...rows, { label: 'Gap', value: gap }]
+}
+
+/**
+ * The answer in words, for the page and the share card alike: the headline and the one line under it. A balance of grades reads the
+ * triangle's rules (with run and ride, the page's own words); an energy balance, which has no grades, reads its own sentence.
+ */
+export function triangleAnswer(
+  reading: BalanceReading,
+  view: TriangleView,
+  durationS: number | undefined,
+): { title: TriangleTitle; line: string | null } {
+  const graded = triangleReading(comparedGrades(view.grades))
+  if (reading.unit === 'points') {
+    return {
+      title: triangleTitle(graded) ?? titleParts(reading),
+      line: triangleLine(graded),
+    }
+  }
+  return {
+    title: titleParts(reading),
+    line: energySummary(reading, durationS ?? HEADLINE_DURATION_S),
+  }
 }

@@ -231,6 +231,7 @@ export function BalancePage({
             weightKnown={weightKnown}
             gap={gap}
             grades={grades}
+            triangle={triangle}
             disabled={analysis.busy}
           />
         }

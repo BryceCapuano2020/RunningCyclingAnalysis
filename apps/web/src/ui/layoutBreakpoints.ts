@@ -71,9 +71,8 @@ export const HEADLINE_SMALL_MAX_WIDTH_PX = 359
 export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1
 
 /**
- * At or below this width the Balance answer is compact so the meter and the levels sit on the first screen: the eyebrow
- * goes (the period control under the levels states the dates) and the meter's value and the levels tighten
- * (BalancePage.css, BalanceMeter.css, BalanceLevels.css).
+ * At or below this width the Balance answer is compact so the triangle sits on the first screen: the eyebrow
+ * goes (the period control under the triangle states the dates) and the answer tightens (BalancePage.css).
  */
 export const BALANCE_PHONE_MAX_WIDTH_PX = 479
 
