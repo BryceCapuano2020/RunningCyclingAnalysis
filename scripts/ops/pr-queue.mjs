@@ -165,10 +165,26 @@ export function queue(prs) {
 /** Kinds that need someone to act now; the rest only need time or belong to a builder. */
 export const ACTION = ['stale-draft-run', 'failing', 'conflict', 'no-auto-merge']
 
-/** The --action text: a red main and the rows that need action, or '' when there are none. */
+/** How many pull requests may be open at once, bots aside (docs/PROCESS.md, The coordinator never waits). */
+export const OPEN_CAP = 6
+
+/**
+ * One line when more pull requests are open than OPEN_CAP, or ''. Dependabot's are left out: its own
+ * config caps them. Past the cap the queue stalls as one, so slices land through a feature branch.
+ */
+export function capLine(rows) {
+  const open = rows.filter((row) => !row.author?.startsWith('app/')).length
+  return open > OPEN_CAP
+    ? `${open} pull requests open, cap ${OPEN_CAP}: open no new one, and merge reviewed slices into their feature branch (docs/PROCESS.md)`
+    : ''
+}
+
+/** The --action text: a red main, the rows that need action and the cap line, or '' when there are none. */
 export function actionText(mainLine, mainState, rows) {
   const lines = rows.filter((row) => ACTION.includes(row.kind)).map(formatLine)
   if (mainState.startsWith('RED')) lines.unshift(mainLine)
+  const cap = capLine(rows)
+  if (cap) lines.push(cap)
   return lines.length
     ? ['PR queue, needs action (npm run pr:queue for all):', ...lines].join('\n')
     : ''
@@ -214,6 +230,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     } else {
       console.log(mainLine)
       for (const row of rows) console.log(formatLine(row))
+      const cap = capLine(rows)
+      if (cap) console.log(cap)
     }
   } catch (error) {
     console.error(`pr-queue could not run: ${error.message}`)
