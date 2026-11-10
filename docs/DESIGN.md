@@ -799,9 +799,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   levels, where a run's grade is read as recorded and a ride's grade is an estimate. Checks below
   goes to the heart-rate check.
 - **Define a term once, in plain words, where it first appears** on How sure is this?: the energy
-  rate, the 90% range and the median each get one plain sentence. Technical detail (efficiency
-  constants, citations, the bike model, the ISA atmosphere) sits behind More detail. A small detail of two lines or
-  fewer is plain lines instead, so the page holds nine More detail disclosures, not eleven.
+  rate, the 90% range and the median each get one plain sentence. Formulas and constants are short facts in the
+  section's list, not a disclosure; Method keeps one More detail, for the fitness status's steady-activity rules.
 - **Durations are written one way.** Effort lengths are numerals with min: "5 min, 20 min or 60 min".
   A total of an hour or more is hours, then minutes: "6 h 33 min". Seconds are numerals with s: "10 s". Periods are numerals with the unit in full: "6 weeks", and a
   trend window is "14 days". Inside a sentence a period is lower case: "last 6 weeks".
@@ -949,33 +948,16 @@ and the tests named at the foot of that page keep the two in step. A display siz
   ends at the standard. A Balance card leaves the standard
   to the source line under the cards, "Age-graded on USATF road standards.", which the share card's footer repeats. The full credit, with
   the authors, licence and a link, is on How sure is this? alone.
-- **How sure is this? has one How this works list**, where it had What is calculated and How this works and what it
-  assumes. Each idea is one entry, said once, in three states (`apps/web/src/ui/components/methodEntries.ts`, the
-  entries in `methodCalculated.ts`, `methodActivity.ts` and `methodRecorded.ts`): _Calculated by this app_ (thresholds,
-  best efforts and curves, best efforts over time, how a change is called, the default period, race
-  predictions, pace at heart rate, History, best durations, splits, moving time and climb, the timeline in
-  In detail, time in zones, dated settings and zones, durability, how your reps held up and
-  runs at walking pace), _Recorded in your files_ (as the device recorded it: the sport, start time, distance,
-  speed and route, heart rate, power from a meter, the timelines and laps, the data checks and treadmill and indoor
-  data) and _Not available from activity files_ (readiness and recovery scores, vendor tests such as 4DP, and lab
-  measures, which need inputs a file does not hold). Each state has one plain line. The balance and levels, the level
-  target and grade by duration are said once, in Age grades and levels; the energy rate, the heart-rate check and
-  virtual power are said once, in their own sections. An entry is lines of one sentence each, under 26 words, set as
-  paragraphs, with its technical detail behind a More detail disclosure named for it. The entries sit in columns
-  as wide as the reading measure, two at most; so do the prose of the energy view, the age grades, the heart-rate
-  check and the accuracy section, with their charts outside the columns at the full width. The page is about 5,600 px
-  tall at 1280 px, where it was 11,900 px.
-- **A threshold entry says how each sport's threshold is worked out, in one line each**: a ride's is the strongest effort of each
-  ride scaled to an hour and averaged, and its next line says heart rate, naming the ride ("A ride's threshold can be raised by heart
-  rate and never lowered"); a run's is the strongest effort of each run scaled to an hour and averaged, with Daniels and
-  Gilbert's table (its figures are read from the code), and says nothing of heart rate, since runs read pace only for now; neither is
-  ever under an hour the athlete did. The run's critical-speed fit, its range and its "At least" floor are not on the page.
-  A zone table's reference line on Profile says a run's pace as a ride's power is said: "Zones cut from 4:46 /km, your threshold over the
-  26 weeks to 1 Nov". A ride's reads "Zones cut from 240 W, your threshold over the 26 weeks to 1 Nov". It is not the period tile's
-  threshold: the zones are cut per week from the settled 26-week timeline, so the line names the window the figure is the threshold of (the one
-  that adopted it, `ZoneSet.windowEndMs`: its last week's end, or the day of the newest activity where the week is still running, so it never
-  names a day to come), and the figure is the tile's when the period is those weeks. An entered one reads "Zones cut from
-  240 W, entered by you".
+- **Method is one section a figure, each led by the one line a reader wants**, then its facts as a short list, one
+  sentence a fact (`apps/web/src/ui/pages/MethodSection.tsx`, the copy in `methodCopy.ts` and `liftMethodCopy.ts`, every
+  number read from core). The sections, in order: Thresholds and race times (the run threshold, functional threshold
+  power and the half marathon Balance leads with), Age grades and levels (every band in core's `GRADE_LEVELS`), The
+  energy view, Lifting (the projected one-rep max, the big three total and lifting time on Activities), Lift age grade,
+  Heart-rate check, Virtual power meter, and How this works. How this works lists what has no section of its own in three
+  states (`apps/web/src/ui/components/methodEntries.ts`): _Calculated by this app_, _Recorded in your files_ and _Not
+  available from activity files_. A Details panel's Method link names the section it explains (`SECTION_ID`), and the
+  page lands with that heading at the top, under the sticky header (`focusSection`). The rewrite of 10 Nov cut the page
+  from 2,342 words with every disclosure closed (3,822 open) to about 1,330, with one More detail left.
 - **How sure is this? says how Age grade by effort length is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the

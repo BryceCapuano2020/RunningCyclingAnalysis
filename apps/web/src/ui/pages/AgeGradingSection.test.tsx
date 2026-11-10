@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { wholeText } from '../test/wholeText'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { GRADE_LEVELS, ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { wholeText } from '../test/wholeText'
 import { AgeGradingSection } from './AgeGradingSection'
 
 afterEach(() => {
@@ -14,235 +14,83 @@ function section(): HTMLElement {
 }
 
 describe('AgeGradingSection', () => {
-  it('is a heading that moves focus, and says how a run is graded, with the own bands below 60%', () => {
+  it('is a heading that takes focus, led by what an age grade is', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
       screen.getByRole('heading', { level: 2, name: 'Age grades and levels' }),
     ).toHaveAttribute('tabindex', '-1')
-    expect(
-      within(section()).getByText(
-        wholeText(
-          'A run’s grade is the USATF road standards time for its distance, at your age and sex, divided by your time.',
-        ),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(wholeText('70% means 70% of standard pace.')),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(
-        wholeText(
-          'Levels are bands of the grade: Local from 60%, Regional from 70%, National from 80%, World from 90%.',
-        ),
-      ),
-    ).toBeInTheDocument()
+    expect(section().querySelector('.method__lead')).toHaveTextContent(
+      'An age grade is your effort as a share of world class at your age and sex.',
+    )
   })
 
-  it('says a ride’s level is the band of its best estimate, and that its range can reach a neighbouring band', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(
-      within(section()).getByText(wholeText('A ride’s level is the band of its best estimate.')),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(
-        wholeText('Its range, drawn on the ladder, can reach a neighbouring band.'),
-      ),
-    ).toBeInTheDocument()
-    expect(section()).not.toHaveTextContent(/whole range sits in one band|with no level name/)
-  })
-
-  it('reads a run’s grade from its grade-adjusted pace, and names GAP as the recorded pace corrected for hills', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(
-      within(section()).getByText(wholeText('A run’s grade uses its grade-adjusted pace (GAP).')),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(wholeText('GAP is the recorded pace, corrected for hills.')),
-    ).toBeInTheDocument()
-    expect(section()).not.toHaveTextContent(/flat pace|a fact from the file/)
-  })
-
-  it('grades each sport against its own best, and a ride through its running equivalent at the same share', () => {
+  it('says how a run and a ride are graded, with the ride anchor from core', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     for (const line of [
-      'Each sport is graded against its own best: the best riders’ hour (6.40 W/kg men, 5.69 women) or the best runners’.',
-      'Your grade in each is your share of world class at your age.',
-      'A ride has no published cycling standard, so its threshold becomes a running equivalent at the same share.',
-    ]) {
-      expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
-    }
-    // The old rule priced a ride's energy and read the run that costs the same; it is gone from the page.
-    expect(section()).not.toHaveTextContent(/costs the same energy/)
-    // The 90% range is explained once, in the energy view, so this paragraph does not repeat it.
-    expect(section()).not.toHaveTextContent('Its range is the model’s 90% range')
-  })
-
-  it('says how Age grade by effort length is read: the best at each duration, the ride’s range, and where a sport is higher', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    for (const line of [
-      'Age grade by effort length on Balance grades each sport’s best effort at each duration.',
-      'A ride comes with its range.',
-      'A sport is higher at a duration only where the run’s grade leaves the ride’s range.',
-      'Inside that range, the two are level.',
+      'A run’s grade is the USATF road standards time for its distance at your age and sex, over your time.',
+      'It uses grade-adjusted pace (GAP), corrected for hills.',
+      'A ride’s W/kg is set against the best riders’ hour (6.40 W/kg men, 5.69 women), then graded as a run at that share.',
+      'A threshold is graded at your age on the day of its strongest effort.',
     ]) {
       expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
     }
   })
 
-  it('grades a threshold as an hour at the age on its strongest effort’s day, and a best at a duration on its own date', () => {
+  it('lists every level in core, highest first, with its span, and says which bands are WMA’s', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(
-      within(section()).getByText(
-        wholeText(
-          'Each threshold is graded as an hour, at your age on the day of its strongest effort.',
-        ),
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(wholeText('It is not graded at the newest activity’s date.')),
-    ).toBeInTheDocument()
-    expect(
-      within(section()).getByText(
-        wholeText(
-          'A best effort at a duration is graded at your age on its own date: for a ride, its own best ride.',
-        ),
-      ),
-    ).toBeInTheDocument()
+    const items = within(section())
+      .getAllByRole('listitem')
+      .map((item) => item.textContent ?? '')
+    const levels = items.filter((item) => / is (\d+%|under)/.test(item))
+    expect(levels.map((item) => item.split(' is ')[0])).toEqual(
+      GRADE_LEVELS.map((band) => band.label),
+    )
+    expect(levels[0]).toBe('World is 90% and up.')
+    expect(levels).toContain('National is 80% to 89%.')
+    expect(levels).toContain('Club is 50% to 59%: you hold your own in a club race.')
+    expect(levels.at(-1)).toBe('Recreational is under 30%: you move for fun.')
+    expect(section()).toHaveTextContent('the WMA classes from Local up, this app’s own below')
   })
 
-  it('cites the standards, with their authors and licence, and links the repository', () => {
+  it('states the limits once: the birth year and the road standards', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section()).toHaveTextContent(
+      'Only your birth year is used, so before your birthday the age can be a year high.',
+    )
+    expect(section()).toHaveTextContent('The standards are for road races at sea level.')
+    expect(section()).not.toHaveTextContent(/level target|whole-percent grade/)
+  })
+
+  it('cites the standards, with their authors and licence, inside the styled source line', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(
       within(section()).getByRole('link', { name: 'USATF road age standards (2025)' }),
     ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+    expect(section().querySelector('.age-grading__source a')).toHaveAttribute(
+      'href',
+      ROAD_STANDARDS_SOURCE.url,
+    )
     expect(section()).toHaveTextContent(
       'by Alan Jones and Tom Bernhard, licensed CC0 1.0, a public domain dedication.',
     )
   })
 
-  it('does not repeat the birth-year rule that its first limit already states', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(section()).not.toHaveTextContent(
-      'Age is counted from your birth year on the date of each effort.',
-    )
-    expect(within(section()).getAllByRole('listitem')[0]).toHaveTextContent(
-      'Only the birth year is used',
-    )
-  })
-
-  it('keeps the source link inside the source line, where its tap target is styled', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(section().querySelector('.age-grading__source a')).toHaveAttribute(
-      'href',
-      ROAD_STANDARDS_SOURCE.url,
-    )
-  })
-
-  it('gives the Profile link its own class, where its tap target is styled', () => {
-    render(<AgeGradingSection gradedSex="male" />)
-
-    expect(within(section()).getByRole('link', { name: 'Change age and sex' })).toHaveClass(
-      'age-grading__link',
-    )
-  })
-
-  it('lists the limits in plain words, one fact a line, the age one with its direction either way', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    const limits = within(section()).getAllByRole('listitem')
-    expect(limits.map((limit) => limit.textContent)).toEqual([
-      'Only the birth year is used.',
-      'Until the birthday, the age can be one year too high.',
-      'That moves the grade by about a year’s change in the standard.',
-      'Up for adults, down for young athletes.',
-      'The standards are for road races at sea level.',
-      'Altitude, trail, track and cross-country are not adjusted for.',
-      'Hilly courses and GPS error affect pace and measured distance.',
-      'So a run’s grade is only as exact as its file.',
-      'A training effort is not a race.',
-      'A grade shows how a training effort compares with the standard.',
-      'It is not a race result or a ranking.',
-    ])
-  })
-
-  it('names the sex the grades are for when a grade is shown', () => {
+  it('names the sex the grades are for only when a grade is shown, and links to Profile', () => {
     render(<AgeGradingSection gradedSex="female" />)
 
     expect(
       within(section()).getByText(wholeText(/^Your grades are for a woman\./)),
     ).toBeInTheDocument()
-  })
-
-  it('names no sex when no grade is shown', () => {
+    const link = within(section()).getByRole('link', { name: 'Change age and sex' })
+    expect(link).toHaveAttribute('href', '#/profile')
+    expect(link).toHaveClass('age-grading__link')
+    cleanup()
     render(<AgeGradingSection gradedSex={null} />)
-
     expect(screen.queryByText(wholeText(/Your grades are for a/))).not.toBeInTheDocument()
-  })
-
-  it('links to Profile to change the age and sex the grades use', () => {
-    render(<AgeGradingSection gradedSex="male" />)
-
-    expect(within(section()).getByRole('link', { name: 'Change age and sex' })).toHaveAttribute(
-      'href',
-      '#/profile',
-    )
-  })
-
-  it('uses one term set, "level", and no vague words', () => {
-    const { container } = render(<AgeGradingSection gradedSex="male" />)
-    const text = container.textContent ?? ''
-
-    expect(text).not.toMatch(/\b(Female|Male|the athlete’s|in this period|ranking of you)\b/)
-    expect(text).not.toMatch(/\bminutes\b/)
-  })
-})
-
-describe('AgeGradingSection level target', () => {
-  it('says what the level target is, its unit, how a ride’s is worked out and its range', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    for (const line of [
-      'The level target on Balance is what the lower sport’s threshold would need to be to match the other.',
-      'It is in that sport’s own unit.',
-      'For a ride, it is the watts whose running equivalent grades to the other sport’s whole-percent grade.',
-      'Its range is the 5th to 95th percentile of the equivalence.',
-    ]) {
-      expect(within(section()).getByText(wholeText(line))).toBeInTheDocument()
-    }
-  })
-})
-
-describe('AgeGradingSection balance', () => {
-  it('says the balance grades each sport at its threshold, as an hour', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(
-      within(section()).getByText(wholeText(/^Each threshold is graded as an hour,/)),
-    ).toBeInTheDocument()
-    expect(section()).not.toHaveTextContent(/best effort at the headline length/)
-  })
-})
-
-describe('AgeGradingSection reading', () => {
-  it('sets its lines as a few paragraphs in columns, and keeps every sentence to 25 words or fewer', () => {
-    const { container } = render(<AgeGradingSection gradedSex="female" />)
-
-    expect(container.querySelector('.method__text')).not.toBeNull()
-    const lines = Array.from(container.querySelectorAll('.method__line')).map(
-      (line) => line.textContent ?? '',
-    )
-    expect(lines.length).toBeGreaterThan(20)
-    for (const line of lines) expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(25)
-    // Over twenty lines as a handful of paragraphs, not a block each.
-    expect(container.querySelectorAll('.method__text > p.secondary').length).toBeLessThan(14)
   })
 })

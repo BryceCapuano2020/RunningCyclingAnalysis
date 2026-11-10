@@ -7,7 +7,7 @@ export {
   thresholdOver,
 } from './estimate'
 export type { ThresholdBasis, ThresholdLine } from './estimate'
-export { HOUR_S } from './constants'
+export { ESTIMATED_WEIGHT, HALF_LIFE_DAYS, HOUR_S } from './constants'
 export { DURATION_TABLES, runDurationRatio } from './durationTables'
 export type { DurationTable } from './durationTables'
 export type { HeartEffort, HourEffort, PreparedRide, RideBest } from './rides'

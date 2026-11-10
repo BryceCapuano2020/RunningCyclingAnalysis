@@ -313,7 +313,7 @@ export function RacePredictions({
         {/* What the times rest on, as two numbers; each method's time per race is in the table under them. */}
         <PropertyList
           rows={[...forecastRows({ basis }, window, bound, openedAt), ...vo2maxRows(found)]}
-          method={SECTION_ID.how}
+          method={SECTION_ID.thresholds}
           methodName="how the race predictions are worked out"
         />
         <RaceTable found={found} units={units} ran={ran} bound={bound} />
