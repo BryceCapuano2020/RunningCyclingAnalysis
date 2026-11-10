@@ -227,7 +227,7 @@ export async function appSettled(page: Page): Promise<void> {
   // The app has rendered, so the two waits below cannot pass before there is anything to wait for.
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByText('Checking sign-in…')).toBeHidden()
-  await expect(page.getByRole('heading', { name: 'Restoring your results' })).toBeHidden()
+  await expect(page.locator('[data-loading="library"]')).toBeHidden()
 }
 
 /** What `uploadFixtures` waits for before it sends the files. */

@@ -73,7 +73,8 @@ describe('VolumeStrip', () => {
     const lighter = screen
       .getAllByRole('button')[1]!
       .querySelector<HTMLElement>('.volume-strip__stack')
-    expect(lighter?.style.height).toBe(`${(1800 / 10800) * 100}%`)
+    // jsdom 31 rounds percentages to four decimals.
+    expect(parseFloat(lighter?.style.height ?? '')).toBeCloseTo((1800 / 10800) * 100, 3)
   })
 
   it('narrows the list to the week pressed, says so in a chip, and lets go when pressed again', async () => {

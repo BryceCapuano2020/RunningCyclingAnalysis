@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { actionText, latestChecks, queue, verdict } from './pr-queue.mjs'
+import { actionText, capLine, latestChecks, OPEN_CAP, queue, verdict } from './pr-queue.mjs'
 
 const AT = '2026-10-31T01:00:00Z'
 const LATER = '2026-10-31T01:10:00Z'
@@ -166,6 +166,23 @@ test('--action names only what needs someone, and is silent when nothing does', 
     '',
   )
   assert.match(actionText('main abc: RED (failure)', 'RED (failure)', []), /main abc: RED/)
+})
+
+test('--action says when more pull requests are open than the cap, bots aside', () => {
+  const mine = (count, from = 1) =>
+    Array.from({ length: count }, (_, i) =>
+      pr({ number: from + i, isDraft: true, author: { login: 'someone' } }),
+    )
+  const bots = [20, 21, 22].map((number) =>
+    pr({ number, isDraft: true, author: { login: 'app/dependabot' } }),
+  )
+  assert.equal(OPEN_CAP, 6)
+  assert.equal(capLine(queue([...mine(6), ...bots])), '')
+  assert.match(capLine(queue(mine(7))), /^7 pull requests open, cap 6:/)
+  const text = actionText('main abc: green', 'green', queue([...mine(7), ...bots]))
+  assert.match(text, /^PR queue, needs action/)
+  assert.match(text, /\n7 pull requests open, cap 6: .*feature branch/)
+  assert.doesNotMatch(text, /#\d/)
 })
 
 /** A check in a numbered run and job, the way the rollup carries them. */

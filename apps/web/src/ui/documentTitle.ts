@@ -17,6 +17,11 @@ const PAGE_NAMES: Record<SimplePage, string> = {
   profile: 'Profile',
 }
 
+/** The name a route's page carries while its results load: its title, before it has a result to name it. */
+export function routeName(route: Route): string {
+  return route.page === 'activity' ? 'Activity' : PAGE_NAMES[route.page]
+}
+
 /** The page's name, or null on the landing page, which is the app itself. */
 function nameOf(
   route: Route,
