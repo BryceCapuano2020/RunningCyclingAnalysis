@@ -20,7 +20,7 @@ const END = '2025-04-28'
 describe('liftChange', () => {
   it('is null when either side has no estimate', () => {
     expect(liftChange([], END, 28)).toBeNull()
-    // Nothing before 03-31: the previous period has no estimate.
+    // Nothing in the previous period.
     expect(liftChange([set({ date: '2025-04-10' })], END, 28)).toBeNull()
     // Nothing on or before the end.
     expect(liftChange([set({ date: '2025-05-10' })], END, 28)).toBeNull()
@@ -33,8 +33,14 @@ describe('liftChange', () => {
     expect(r.now.low).toBeLessThan(r.before.high)
   })
 
-  it('is no clear change with no training between: both sides are the same estimate', () => {
-    expect(liftChange([set({ date: '2025-03-25' })], END, 28)?.change).toBe('no clear change')
+  it('is null for an untrained period: the older session is not carried into it', () => {
+    expect(liftChange([set({ date: '2025-03-25' })], END, 28)).toBeNull()
+  })
+
+  it('reads each period from its own sessions: a heavy session before the cut does not reach the later period', () => {
+    // 02-20 is in the period before the previous one, so the previous period has no session.
+    const sets = [set({ date: '2025-02-20', loadKg: 150 }), set({ date: '2025-04-25' })]
+    expect(liftChange(sets, END, 28)).toBeNull()
   })
 
   it('is up when the end range sits wholly above the earlier one', () => {
