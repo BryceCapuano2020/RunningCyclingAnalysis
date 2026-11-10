@@ -70,3 +70,13 @@ describe('the viewer zone as a parameter', () => {
     }
   })
 })
+
+describe('withViewerZone takes synchronous work only', () => {
+  it('refuses work that returns a promise, and puts the zone back', () => {
+    const key = calendarKey()
+    const day = localDateText(Date.UTC(2031, 0, 1, 23))
+    expect(() => withViewerZone(fixedZone(5), async () => 1)).toThrow(/synchronous work only/)
+    expect(calendarKey()).toBe(key)
+    expect(localDateText(Date.UTC(2031, 0, 1, 23))).toBe(day)
+  })
+})

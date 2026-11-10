@@ -94,7 +94,13 @@ export function withViewerZone<T>(zone: Zone, run: () => T): T {
   const version = calendarVersion
   const before = setViewerZone(zone)
   try {
-    return run()
+    const result = run()
+    // The zone is a module value while `run` runs. Synchronous work cannot interleave with another request's, but async work
+    // would read the zone after the finally below put it back, or another caller's zone, on a server serving many accounts.
+    if (typeof (result as { then?: unknown } | null)?.then === 'function') {
+      throw new Error('withViewerZone takes synchronous work only')
+    }
+    return result
   } finally {
     // Back to the zone and the key it had, so what was remembered under it is still good.
     viewerZone = before
