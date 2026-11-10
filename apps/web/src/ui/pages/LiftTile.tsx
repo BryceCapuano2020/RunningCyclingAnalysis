@@ -14,7 +14,9 @@ export function LiftTile({ tile }: { tile: LiftTileModel }) {
     return (
       <StatTile heading={tile.heading}>
         <p className="stat-tile__line">
-          <a href={hrefFor({ page: 'lift' })}>Log a squat, bench or deadlift</a>
+          <a className="stat-tile__link" href={hrefFor({ page: 'lift' })}>
+            Log a squat, bench or deadlift
+          </a>
         </p>
       </StatTile>
     )

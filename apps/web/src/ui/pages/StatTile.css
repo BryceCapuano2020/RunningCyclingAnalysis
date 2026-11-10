@@ -23,3 +23,10 @@
 .stat-tile__effort {
   margin: 0;
 }
+
+/* A link in a tile (log a first lift) is a control's height, so a finger or a mouse can press it. */
+.stat-tile__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}

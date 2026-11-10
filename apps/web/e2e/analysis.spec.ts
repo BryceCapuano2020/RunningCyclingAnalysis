@@ -344,8 +344,8 @@ for (const [width, height] of [
   })
 }
 
-// On a wide screen the headline runs the answer's full width and the triangle is centred on the tiles' column at 440 px at most.
-test('at 1280 the headline runs the full width and the triangle is centred on the tiles', async ({
+// On a wide screen the headline sits above the triangle, inside the column, and the triangle is centred on the tiles' column at 440 px at most.
+test('at 1280 the headline sits above the triangle, and the triangle is centred on the tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -356,7 +356,7 @@ test('at 1280 the headline runs the full width and the triangle is centred on th
   if (headline === null || tiles === null || triangle === null) {
     throw new Error('no box for the headline, tiles or triangle')
   }
-  expect(headline.width).toBeGreaterThan(triangle.width)
+  expect(headline.width).toBeLessThanOrEqual(tiles.width)
   expect(triangle.y).toBeGreaterThanOrEqual(headline.y + headline.height)
   expect(triangle.width).toBeLessThanOrEqual(441)
   expect(triangle.x + triangle.width / 2).toBeCloseTo(tiles.x + tiles.width / 2, 0)
