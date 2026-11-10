@@ -1377,6 +1377,8 @@ cause, and does not hedge: a change is listed or it is not. A rise or a slip the
 listed at the size the runs show it, so a small one reads as small. An episode is told in short sentences, the size first and
 one range to a sentence ("Slipped 9% (6 to 11) in May 2021. Back by January 2022."; a part return adds "Up 3% (1 to 5) by August 2021. Still 2% (0 to 4) off.").
 
+**Graphs on the sport pages.** On the Run and Ride pages the fitness section and the History row are graphs, not sentences. Fitness is the level over time (`FitnessChart`) titled by the state ("Recovering"), with today ringed and a recovery's low marked; a status that cannot call a trend yet is the steady activities it rests on as dots with today's level across them, titled "No trend yet", and no trend line is drawn. History is a short strip of the same dots by year with the slips and rises shaded, its finding as the strip's text, and "See History" under it; a sport too short for a history keeps the axes with the dots it has and says what it lacks. The sentence is each graph's text equivalent, kept in its Details beside the table. The level over time and the track are on these pages only: Balance's fitness Details hold the figures and the runs.
+
 ## History
 
 A tab between Ride and Activities. It ignores the period and shows the whole library, built in the worker from the

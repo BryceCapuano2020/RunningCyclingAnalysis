@@ -283,8 +283,8 @@ describe('a sport page’s fitness', () => {
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
     const threshold = screen.getByRole('heading', { name: 'Threshold pace' })
     expect(follows(threshold, fitness)).toBe(true)
-    // The row's title is the state alone: the page's own title names the sport.
-    expect(within(fitness).getByRole('heading', { level: 3, name: 'Slipping' })).toBeInTheDocument()
+    // The graph's title is the state alone: the page's own title names the sport.
+    expect(within(fitness).getByRole('figure', { name: 'Slipping' })).toBeInTheDocument()
     expect(within(fitness).queryByText(/^Run( ·|$)/)).not.toBeInTheDocument()
   })
 
@@ -299,7 +299,7 @@ describe('a sport page’s fitness', () => {
       ride: RIDE_SLIPPING,
     })
     const fitness = screen.getByRole('region', { name: 'Your fitness' })
-    expect(within(fitness).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(fitness).getAllByRole('figure')).toHaveLength(1)
     expect(rowValue(fitness, 'Power at 140 bpm')).toMatch(/^\d+ W$/)
     expect(fitness.textContent).not.toMatch(/\/km|\/mi/)
   })

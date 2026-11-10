@@ -25,9 +25,11 @@ async function violationsOf(page: Page) {
 
 /** Opens the fitness card's evidence and waits for what is in it: its chart and the runs it rests on. */
 async function openFitnessEvidence(page: Page): Promise<void> {
-  // The run's row holds its evidence in its one Details, which mounts the chart once opened.
-  await page.locator('.fitness-card[data-sport="run"] .fitness-card__evidence > summary').click()
-  await expect(page.getByRole('figure', { name: /^Pace at \d+ bpm over time$/ })).toBeVisible()
+  // The graph is the Run page's; its one Details mounts the runs it rests on once opened.
+  await goTo(page, 'Run')
+  const section = page.getByRole('region', { name: 'Your fitness' })
+  await expect(section.getByRole('figure', { name: 'Slipping' })).toBeVisible()
+  await section.locator('.fitness-card__evidence > summary').click()
   await expect(page.locator('.fitness-runs a').first()).toBeVisible()
 }
 
@@ -87,10 +89,11 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
-    name: 'Balance, the run fitness evidence open',
+    name: 'Run, the fitness details open',
     open: async (page) => {
       await openSample(page)
-      const evidence = page.locator('.fitness-card[data-sport="run"] .fitness-card__evidence')
+      await goTo(page, 'Run')
+      const evidence = page.locator('.fitness-section .fitness-card__evidence')
       await evidence.locator('> summary').click()
       // The evidence is a detail panel: its rows are what is scanned.
       await expect(evidence.locator('.props__list').first()).toBeVisible()
@@ -408,18 +411,17 @@ test('notices sit inside main, and a page has no empty live region of its own to
   expect(regions).toBe(1)
 })
 
-test('the fitness card and its evidence fit a 320 px screen', async ({ page }, testInfo) => {
+test('the Run page’s fitness graph and its details fit a 320 px screen', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'narrow-320', 'Measures the narrowest supported screen')
   for (const scheme of ['light'] as const) {
     await page.emulateMedia({ colorScheme: scheme })
     await openSample(page)
     await openFitnessEvidence(page)
     // The evidence chart's own disclosure: its table, under its note where it has one.
-    await page
-      .locator('.fitness-card[data-sport="run"] .chart-frame__details > summary')
-      .first()
-      .click()
-    await expect(page.locator('.fitness-card[data-sport="run"] table').first()).toBeVisible()
+    await page.locator('.fitness-section .chart-frame__details > summary').first().click()
+    await expect(page.locator('.fitness-section table').first()).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
     ).toBeLessThanOrEqual(0)

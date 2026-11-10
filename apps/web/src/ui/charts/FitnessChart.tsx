@@ -25,6 +25,10 @@ import './FitnessChart.css'
 export interface FitnessChartProps {
   status: FitnessStatus
   units: UnitSystem
+  /** Names the chart by the status, "Recovering", where a sport page leads with the graph. Left out: what it plots. */
+  title?: string
+  /** The status's sentence, which the chart keeps in its Details. */
+  lede?: string
 }
 
 /** A chart at least this wide, px, keeps a right gutter for the reference line's value and the end label. */
@@ -40,6 +44,10 @@ const ONSET_LABEL_GAP = 6
 const ONSET_LABEL_LIFT = 8
 /** The room a label needs left of its rule, px. */
 const ONSET_LABEL_ROOM_PX = 90
+
+/** How far under the low's marker its label sits, px, and how near the plot's left edge it starts there instead of centring. */
+const LOW_LABEL_DROP = 18
+const LOW_LABEL_ROOM_PX = 30
 
 /** The two ends of a point's range as text, the faster first as the axis reads: "7:12 /km to 7:40 /km". */
 function rangeText(p: FitnessPoint, status: FitnessStatus, units: UnitSystem): string {
@@ -82,7 +90,7 @@ function emptyText(steps: number, before: number | null): string | undefined {
  * read against as a labelled line, the month the change began as a rule, and now as the largest ring with
  * its value. The chart is named by what it plots, the status's own sentence is the finding.
  */
-export function FitnessChart({ status, units }: FitnessChartProps) {
+export function FitnessChart({ status, units, title, lede }: FitnessChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const { series, sport, referenceHr: hr, before, now } = status
   const layoutOf = sizedOnce((size: ChartSize) => fitnessLayout(status, units, size))
@@ -108,7 +116,8 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={`${word} at ${hr} bpm over time`}
+      title={title ?? `${word} at ${hr} bpm over time`}
+      lede={lede}
       description={`${nativeLabel(sport)} at ${hr} bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change${status.onsetMs === null ? '' : ` began in ${onsetMonth(status, status.onsetMs)}`} and the level now.`}
       plotRightMargin={(width) => (width >= WIDE_CHART_PX ? GUTTER_PX : EDGE_PX)}
       summary={{
@@ -205,6 +214,24 @@ export function FitnessChart({ status, units }: FitnessChartProps) {
                 r={i === active ? markerR + 2 : markerR}
               />
             ))}
+            {m.low === null || status.lowMs === null ? null : (
+              <g data-testid="fitness-low">
+                <circle
+                  className={`chart-series__ring--${sport} fitness-chart__low`}
+                  cx={m.low.x}
+                  cy={m.low.y}
+                  r={markerR + 1}
+                />
+                <text
+                  className="annot__text annot__text--label"
+                  x={m.low.x}
+                  y={m.low.y + LOW_LABEL_DROP}
+                  textAnchor={m.low.x < plot.left + LOW_LABEL_ROOM_PX ? 'start' : 'middle'}
+                >
+                  {`${onsetMonth(status, status.lowMs)} low`}
+                </text>
+              </g>
+            )}
             <circle
               data-testid="fitness-now"
               className={`chart-series__ring--${sport} fitness-chart__now`}

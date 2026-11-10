@@ -144,6 +144,7 @@ export function ResultPage({
             change={analysis.state.change}
             fitness={analysis.state.fitness}
             lookBack={analysis.state.lookBack}
+            fitnessDots={analysis.state.history.fitness}
             zoneTimes={
               analysis.state.timeInZones.widened?.[route.page]?.rows ??
               analysis.state.timeInZones.current[route.page]

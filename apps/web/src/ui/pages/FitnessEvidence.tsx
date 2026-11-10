@@ -21,13 +21,15 @@ export interface FitnessEvidenceProps {
   units: UnitSystem
   /** Every activity in the library, which the runs behind the level are looked up in. */
   library: readonly ActivitySummary[]
+  /** False where the level's chart is already on the page, as on a sport's own page. */
+  chart?: boolean
 }
 
 /**
  * The panel behind "See the evidence": the level over time with its table, what it is read at and compared with as rows, and
  * the runs it rests on as links. How it is measured and why some runs do not count are on Method. It mounts when opened, so a closed card costs nothing.
  */
-export function FitnessEvidence({ status, units, library }: FitnessEvidenceProps) {
+export function FitnessEvidence({ status, units, library, chart = true }: FitnessEvidenceProps) {
   const words = FITNESS_WORDS[status.sport]
   const evidence = status.evidence
   const onFile = countSport(library as ActivitySummary[], status.sport)
@@ -48,7 +50,7 @@ export function FitnessEvidence({ status, units, library }: FitnessEvidenceProps
   ]
   return (
     <div className="fitness-evidence">
-      <FitnessChart status={status} units={units} />
+      {chart ? <FitnessChart status={status} units={units} /> : null}
       <div className="fitness-evidence__text">
         <PropertyList
           rows={rows}
