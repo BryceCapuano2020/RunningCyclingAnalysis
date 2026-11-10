@@ -28,7 +28,7 @@ already took about 1,760 ms. Per-sample air density (PR #14) added about 170 ms 
 changing any digest, so digesting alone fell from about 1,470 ms to 1,212 ms. Since 23 October a
 combine has fallen from 60 ms to 27 ms, because each comparison quantity is now sorted once.
 
-Output at the same heart rate (`sameHeartRate`, docs/research/same-heart-rate.md) is worked out beside
+Removed in the cut: output at the same heart rate (`sameHeartRate`, docs/archive/same-heart-rate.md) was worked out beside
 the combine, not inside it, and does not read body mass, so a change of weight does not redo it. Each reported
 week fits at most 48 blocks by Theil-Sen and resamples the activities 200 times, which costs about 0.9 ms of
 CPU. For a 3,000-activity library, the default 12 weeks took about 16 ms of CPU and all time, which reports the
@@ -66,7 +66,7 @@ same shapes. Everything below runs in the worker; nothing in it is on the main t
 | Switch to 6 weeks / 12 months (first time)  |     31 / 114 ms |      15 / 84 ms |
 | Change of body mass, all time               |           50 ms |           23 ms |
 | Toggle the age-graded trend                 |           51 ms |           18 ms |
-| `sameHeartRate`, all time                   |           97 ms |           76 ms |
+| ~~`sameHeartRate`, all time~~ (removed)     |           97 ms |           76 ms |
 | `recordHolders`                             |          3.5 ms |          1.4 ms |
 | State posted for all time, structured clone | 2.3 MB, 14.7 ms | 1.8 MB, 11.8 ms |
 
@@ -81,11 +81,11 @@ trace of a 48-hour file builds in 1 ms and takes 10 ms to check when stored or r
 late-effort evidence and distribution merge each take under 1 ms for 2,000 activities.
 
 What changed: the 4,000 prior draws are ordered by a radix sort on their bits, not a comparison (a combine
-did so 26 times), which is the order the comparison gave; the trend and the same-heart-rate weeks find their
+did so 26 times), which is the order the comparison gave; the trend and the (since removed) same-heart-rate weeks found their
 windows by binary search; each run ceiling is worked out once per duration; an activity's summary is made
 once, so the period's activities and the library list are the same objects and a clone sends them once; the
 FIT checksum is read a byte at a time. Every state and analysis on both libraries is equal, as JSON, before and
-after. Left alone: the same-heart-rate fit (a Theil-Sen of up to 48 blocks for each of 52 weeks and 200
+after. Left alone then, and removed since in the cut: the same-heart-rate fit (a Theil-Sen of up to 48 blocks for each of 52 weeks and 200
 resamples, now 76 ms for all time) is the one large cost left, and it is worked out even on the Balance page,
 which does not show it; computing it when a sport page asks, as the age-graded trend is, would halve a first
 switch to a long period, but changes what the page shows while it waits.

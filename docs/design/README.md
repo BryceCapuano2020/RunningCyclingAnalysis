@@ -3,7 +3,7 @@
 Designs written before the code, kept so later work follows the same decisions. Each ends with a
 Decisions section. Status is one of designed, in progress, built or cut.
 
-- [findings.md](findings.md): a findings engine that speaks only when something non-obvious is well
+- [findings.md](../archive/findings.md): a findings engine that speaks only when something non-obvious is well
   supported. Status: cut (10 Nov 2026). Built partway, never wired to the app, removed in the cut stage.
 - [fitness.md](fitness.md): fitness at the same effort per sport, slipping to back, with its evidence. Status:
   built (release 96043823); stage D adds episode closing, a seasonal term and ride fitness.

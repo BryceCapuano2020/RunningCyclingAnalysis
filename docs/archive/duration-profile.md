@@ -1,7 +1,7 @@
 # Which durations stand out, from your own curve
 
-Status: the core module is `packages/core/src/profile` (`@rca/core/profile`), and the page is the "Where
-your bests stand out" section on each sport page (`apps/web/src/ui/pages/StandOutSection.tsx`). It reports
+Status: removed in the cut (10 Nov 2026). `packages/core/src/profile` keeps only `CURVE_START_S`, and the
+"Where your bests stand out" section (`StandOutSection.tsx`) is gone. It was the core module and a page section. It reports
 a fact about the shape of one athlete's best curve. It estimates no capability. [unverified] marks a
 claim not checked against the primary text.
 

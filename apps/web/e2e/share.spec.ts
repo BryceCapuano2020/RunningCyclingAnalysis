@@ -77,6 +77,30 @@ for (const { choice, preview: previewName, file, width, height } of SHAPES) {
   })
 }
 
+test('the preview box keeps its shape before the picture loads, so the sheet does not jump', async ({
+  page,
+}) => {
+  await openSample(page)
+  const sheet = await openSheet(page)
+  for (const [choice, ratio, shape] of [
+    ['Square (feed)', '1 / 1', 'square'],
+    ['Tall (story)', '9 / 16', 'story'],
+  ] as const) {
+    await sheet.getByText(choice, { exact: true }).click()
+    const box = sheet.locator(`.share-sheet__preview--${shape}`)
+    // The reserved shape is the rendered style, whether or not the picture has drawn.
+    await expect(box).toHaveCSS('aspect-ratio', ratio)
+    const reserved = await box.boundingBox()
+    expect(reserved?.height ?? 0).toBeGreaterThan(100)
+    await expect(sheet.getByRole('img', { name: /^Preview of the/ })).toBeVisible({
+      timeout: DRAW_TIMEOUT_MS,
+    })
+    // Once drawn, the picture sits inside the slot, which has not grown or shrunk.
+    const drawn = await box.boundingBox()
+    expect(drawn?.height).toBeCloseTo(reserved?.height ?? 0, 0)
+  }
+})
+
 test('on a touch device the image goes to the share sheet as a PNG file', async ({
   page,
 }, testInfo) => {
