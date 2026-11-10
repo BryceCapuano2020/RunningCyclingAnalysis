@@ -331,15 +331,16 @@ the allowlist names an account**: the state job reads and writes its two columns
 The blocks are what turn the feature on, since the list is in a secret the deploy check cannot read. The check
 (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) accepts no queue and no `[limits]`, or the whole
 set: the producer, a consumer that sets `max_batch_size`, `max_concurrency = 1`, `max_retries` and `dead_letter_queue`, and a
-CPU cap. It refuses `*` and a list without the set. No scheduled trigger computes: the daily maintenance does not touch
-results.
+CPU cap. It refuses `*` and a list without the set. No scheduled trigger computes. The daily maintenance sends one message for each listed account
+(explicit ids, at most 50; `*` re-sends nothing) whose inputs moved past its last compute while no message is on its way, so a
+lost or exhausted message leaves an account dirty for a day at most; the report counts them as `stateResent`.
 
 **Compute cost.** A write sends one message, delayed 10 s, unless one for the account is on its way already
 (`state_jobs.pending_until`), so an import of thousands of files sends a handful of messages, not one per file. The job
 clears that marker before it reads the account, so a write after that sends its own and none is missed; a marker lapses
 2 minutes after its message's delay, so a lost message holds back writes no longer. A job that finds the account's last
 compute began less than 30 s ago, a failed one included (`attempted_at`), computes nothing and sends one message delayed
-30 s, or none when another is on its way, so an import computes about once per 30 s, not once per file. The R2 ledger is
+30 s in place of the one it spent (whatever the marker holds: the marker may be that message's own), so an import computes about once per 30 s, not once per file. The R2 ledger is
 checked before any digest is read, so a full ledger costs no compute. When a job fails, one of the account's messages is
 retried and the rest acknowledged, so a failing account computes once per retry (at most four times, the first try and
 `max_retries = 3`) however many messages named it; writes during the retry's wait send nothing. The consumer runs one batch at a time (`max_concurrency = 1`) of at most two messages, one account after another. An
@@ -367,7 +368,7 @@ this one, for each allowlisted account (read-only check first:
 1. `UPDATE state_jobs SET snapshot_hash = NULL, snapshot_version = 0 WHERE user_id IN (...)`, so the next job writes an
    object again;
 2. `UPDATE users SET library_version = library_version + 1 WHERE id IN (...)`, so the next job computes;
-3. make one write as that account (save a setting, say): nothing sends a message without a write, since no cron computes.
+3. make one write as that account (save a setting, say), or wait for the next daily maintenance, which sends one.
 
 Nothing is lost: the snapshot is a copy the job rebuilds from D1, and the browser computes locally meanwhile.
 
@@ -375,7 +376,7 @@ Nothing is lost: the snapshot is a copy the job rebuilds from D1, and the browse
 is eight times the worst budget on a slower runner, and a runaway job is stopped long before the 30 s default.
 
 **Not built yet.** The hourly refresh (S6) does not exist. A message that is lost, or whose retries run out, leaves the account
-dirty until its next write; and a change to the snapshot's shape or to `MODEL_REVISION` needs a write to recompute an account's
+dirty until its next write or the next daily maintenance; and a change to the snapshot's shape or to `MODEL_REVISION` needs a write to recompute an account's
 snapshot, until then the browser finds the old one not current and computes locally.
 
 To turn it off again, empty the secret (`wrangler secret put` with an empty list, or `wrangler secret delete`) and remove the
