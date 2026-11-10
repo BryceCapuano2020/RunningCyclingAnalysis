@@ -5,13 +5,13 @@ import { indoorSplitRow } from '../indoorCopy'
 import { countSport } from '../records'
 import { formRows } from '../sportForm'
 import { SPORT_LABEL } from '../sports'
-import { PAGE_HEADING_ID } from './pageHeading'
 import { PageDetails } from './PageDetails'
 import { SportFitness } from './SportFitness'
 import { SportAnswer } from './SportAnswer'
 import type { SportPageProps } from './sportPageProps'
 import { layoutOf } from './sportSections'
 import './SportPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export type { SportPageProps } from './sportPageProps'
 
@@ -50,9 +50,7 @@ export function SportPage(props: SportPageProps) {
   return (
     <div className="page-stack sport-page" data-sport={sport}>
       <div className="sport-page__head">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="sport-page__title">
-          {SPORT_LABEL[sport]}
-        </h1>
+        <PageHeading className="sport-page__title">{SPORT_LABEL[sport]}</PageHeading>
         {inLibrary > 0 ? controls : null}
         <PageDetails rows={details} />
       </div>

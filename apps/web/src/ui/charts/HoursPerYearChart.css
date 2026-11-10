@@ -1,8 +1,3 @@
-/* Bars stand on their years, so the years carry no gridline through them. */
-.year-chart__x .chart-x-axis__grid {
-  display: none;
-}
-
 /* A sport's part of a bar, in the sport's colour (tokens.css sets it for each data-sport). */
 .year-bar {
   fill: var(--sport-ink);

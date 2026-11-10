@@ -1,16 +1,5 @@
 .delete-dialog {
   width: min(28rem, calc(100vw - 2 * var(--space-4)));
-  padding: var(--space-5);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-  /* Long email addresses have no spaces to break on, so they wrap anywhere to stay in 320 px. */
-  overflow-wrap: anywhere;
-}
-
-.delete-dialog::backdrop {
-  background: rgb(0 0 0 / 0.5);
 }
 
 .delete-dialog__form {

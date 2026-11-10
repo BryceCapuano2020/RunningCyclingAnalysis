@@ -1,8 +1,3 @@
-/* Years stand in equal rooms, so no gridline runs through them. */
-.balance-years__x .chart-x-axis__grid {
-  display: none;
-}
-
 /* A solid dot is its sport's colour (tokens.css sets it for each data-sport), ringed in the card colour by the shared marker. */
 .balance-years__dot {
   fill: var(--sport-ink);

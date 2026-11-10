@@ -41,7 +41,7 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="confirm-dialog"
+      className="dialog confirm-dialog"
       role="alertdialog"
       aria-labelledby={titleId}
       aria-describedby={bodyId}

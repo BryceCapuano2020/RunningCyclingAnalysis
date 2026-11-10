@@ -38,7 +38,7 @@ describe('SoleSportRecords', () => {
     const strip = screen.getByRole('list', { name: 'Best efforts' })
     const labels = within(strip)
       .getAllByRole('listitem')
-      .map((tile) => tile.querySelector('.record-tiles__label')?.textContent)
+      .map((row) => row.querySelector('.records__label')?.textContent)
     expect(labels).toEqual(['1 min', '5 min', '60 min'])
   })
 

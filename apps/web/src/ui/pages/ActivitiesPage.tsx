@@ -25,6 +25,7 @@ import { useDeleteOutcome } from '../useDeleteOutcome'
 import { hashQuery, hrefFor } from '../route'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './ActivitiesPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface ActivitiesPageProps {
   /** Every activity in the library, newest first. The page narrows it; it never drops one. */
@@ -178,9 +179,7 @@ export function ActivitiesPage({
   return (
     <div className="page-stack activities">
       <div className="page-title">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          Activities
-        </h1>
+        <PageHeading>Activities</PageHeading>
         {activities.length === 0 && <p className="secondary">No activities yet</p>}
       </div>
       {activities.length > 0 && (

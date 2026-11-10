@@ -138,9 +138,7 @@ export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYea
         const { marker, active: activeR } = markerRadii(size.width)
         return (
           <>
-            <g className="bests-chart__x">
-              <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
-            </g>
+            <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} grid={false} />
             {model.panels.map((panel, p) => {
               const layout = m.panels[p]!
               return (

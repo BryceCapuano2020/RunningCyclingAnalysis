@@ -30,7 +30,6 @@ import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { answerVerdict, estimatesOf } from './methodAnswer'
-import { PAGE_HEADING_ID } from './pageHeading'
 import {
   ENERGY_BRIDGE,
   ENERGY_CROSS_CHECK,
@@ -53,6 +52,7 @@ import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
@@ -152,9 +152,7 @@ export function MethodPage({
   return (
     <div className="page-stack method">
       <div className="page-head">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          Method
-        </h1>
+        <PageHeading>Method</PageHeading>
       </div>
 
       <div className="lede method__answer" role="group" aria-label="The short answer">

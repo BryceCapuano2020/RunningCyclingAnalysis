@@ -31,10 +31,3 @@ export function tileRows(sport: Sport, rows: readonly RecordRow[]): RecordRow[] 
   const chosen = keys.flatMap((key) => rows.find((row) => row.key === key) ?? [])
   return (chosen.length > 0 ? chosen : [...rows]).slice(0, MAX_TILES)
 }
-
-/** The one activity every tile's record was set in, when there are several tiles and they share it. */
-export function sharedTileActivity(tiles: readonly RecordRow[]): RecordRow['activity'] {
-  const first = tiles[0]?.activity ?? null
-  if (tiles.length < 2 || first === null) return null
-  return tiles.every((tile) => tile.activity?.id === first.id) ? first : null
-}
