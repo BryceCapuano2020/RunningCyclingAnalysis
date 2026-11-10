@@ -302,7 +302,8 @@ fractional RPE and a single session give finite figures.
 | Hard set                    |                                            RPE 7 or higher | Design value                                           |
 | Unmarked warm-up            |                  under 70% of the session's top, before it | Design value                                           |
 
-`LIFT_REVISION` starts at 1 and moves with any change here. The top window of section 2 (14 days, or the last 3 sessions within 28 days) is revision 2; adding lifts to the catalog (their region, pair and deadlift-family marks) is revision 3. It is not `MODEL_REVISION` ([strength.md](strength.md),
+`LIFT_REVISION` starts at 1 and moves with any change here. The top window of section 2 (14 days, or the last 3 sessions within 28 days) is revision 2; adding lifts to the catalog (their region, pair and deadlift-family marks) is revision 3; an assisted lift (`assisted-*`, from an import) gives no estimate, floor, rep bests or volume
+is revision 4. It is not `MODEL_REVISION` ([strength.md](strength.md),
 decision 3).
 
 ## 10. Change between periods

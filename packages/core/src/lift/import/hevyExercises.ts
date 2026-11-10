@@ -1,5 +1,5 @@
-import { ASSISTED_PREFIX, EXERCISE_CATALOG, exerciseInfo } from '../catalog'
-import { slugify } from '../slug'
+import { EXERCISE_CATALOG, exerciseInfo } from '../catalog'
+import { assistedSlug, slugify } from '../slug'
 import type { Equipment } from '../types'
 
 /** Hevy's equipment names, normalised, to ours. Any other name is `other`. */
@@ -72,8 +72,7 @@ export function mapHevyExercise(title: string): HevyExercise | null {
   const rule = HEVY_NAMES[normalise(base)]
   let slug: string | null
   // An assisted lift is not the plain lift: its load is the help, so it gets a slug of its own.
-  if (suffix !== null && normalise(suffix[2] as string) === 'assisted')
-    slug = slugify(`${ASSISTED_PREFIX}${base}`)
+  if (suffix !== null && normalise(suffix[2] as string) === 'assisted') slug = assistedSlug(base)
   else if (rule === undefined) slug = slugify(base)
   else
     slug =

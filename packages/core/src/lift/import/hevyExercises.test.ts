@@ -18,6 +18,7 @@ describe('mapHevyExercise', () => {
     ['Standing Calf Raise (Machine)', 'standing-calf-raise', 'machine', false],
     ['Face Pull (Cable)', 'face-pull', 'cable', false],
     ['Hanging Leg Raise', 'hanging-leg-raise', 'bodyweight', false],
+    ['Assisted Dip', 'custom-assisted-dip', 'other', true],
     ['Zottman Curl', 'zottman-curl', 'other', true],
     ['Pendlay Row (Barbell)', 'pendlay-row', 'barbell', true],
   ])('%s', (title, exercise, equipment, custom) => {
