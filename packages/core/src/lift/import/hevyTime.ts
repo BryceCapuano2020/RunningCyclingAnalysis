@@ -1,6 +1,6 @@
 import { isLiftDate } from '../key'
 
-/** The date, and the time when the text carries one, as a set holds them: local, YYYY-MM-DD and HH:MM. */
+/** Date and time as a set holds them: local, YYYY-MM-DD and HH:MM. */
 export interface HevyTime {
   date: string
   time?: string

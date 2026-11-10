@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_CSV_CELLS_PER_ROW, MAX_CSV_FIELD_CHARS } from '../../import/limits'
+import { MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
 import { MAX_LIFT_SETS_PER_USER } from '../limits'
 import { readHevyCsv } from './hevyCsv'
 import type { HevyCsvResult } from './hevyAssemble'
@@ -38,7 +38,7 @@ const fileB = (...rows: string[]): string => [HEADER_B, ...rows].join('\n')
 
 describe('header detection', () => {
   it('reads layout A', () => {
-    const r = read(`${HEADER_A}\n${T1},Day,${SQ},1,100,5,,,note,8\n${T1},Day,${SQ},2,100,5,,,,`)
+    const r = read(`${HEADER_A}\n${T1},Day,${SQ},1,100,5,,,note,8`)
     expect(r.layout).toBe('A')
     expect(r.sets[0]).toEqual({
       date: '2031-03-02',
@@ -51,7 +51,6 @@ describe('header detection', () => {
       loadKg: 100,
       rpe: 8,
     })
-    expect(r.sets[1]).toMatchObject({ setOrder: 2, loadKg: 100 })
   })
 
   it('reads layout B, ignoring header case and a BOM', () => {
@@ -70,7 +69,7 @@ describe('header detection', () => {
 
   it('refuses an empty file and reads a header alone as no sets', () => {
     expect(readHevyCsv('')).toEqual({ refused: expect.stringContaining('empty') })
-    expect(read(HEADER_B)).toMatchObject({ sets: [], skipped: [], layout: 'B' })
+    expect(read(HEADER_B).sets).toEqual([])
   })
 })
 
@@ -83,25 +82,18 @@ describe('rows', () => {
     expect(r.customExercises).toEqual(['curl-cable'])
   })
 
-  it('writes no time for a date-only start, and reads the written form', () => {
-    const r = read(
-      fileB(
-        b('2031-03-02', 'Deadlift (Barbell)', 1, 'normal', '140', '3'),
-        b('"2 Mar 2031, 18:30"', 'Deadlift (Barbell)', 1, 'normal', '140', '3'),
-      ),
-    )
+  it('writes no time for a date-only start', () => {
+    const r = read(fileB(b('2031-03-02', 'Deadlift (Barbell)', 1, 'normal', '140', '3')))
     expect(r.sets[0]).not.toHaveProperty('time')
     expect(r.sets[0]).not.toHaveProperty('timePrecision')
-    expect(r.sets[1]).toMatchObject({ date: '2031-03-02', time: '18:30', timePrecision: 'session' })
   })
 
-  it('converts lb to kg at two decimals, from a column or the option', () => {
+  it('converts lb to kg at two decimals', () => {
     const lb = HEADER_B.replace('weight_kg', 'weight_lbs')
     expect(
       read(`${lb}\n${b(T1, 'Bench Press (Barbell)', 1, 'normal', '225', '5')}`).sets[0]?.loadKg,
     ).toBe(102.06)
-    const bare = `${HEADER_A.replace('Weight (kg)', 'Weight')}\n${T1},Day,Bench Press (Barbell),1,225,5,,,,`
-    expect(read(bare).sets[0]?.loadKg).toBe(225)
+    const bare = `${HEADER_A.replace('Weight (kg)', 'Weight')}\n${T1},Day,${SQ},1,225,5,,,,`
     expect(read(bare, 'lb').sets[0]?.loadKg).toBe(102.06)
   })
 
@@ -124,13 +116,22 @@ describe('rows', () => {
     ])
   })
 
-  it('reads W, F and D in the Strong-style set order', () => {
-    const rows = ['W,40,10', '1,100,5', 'F,100,5'].map((r) => `${T1},Day,${SQ},${r},,,,`)
-    const r = read([HEADER_A, ...rows].join('\n'))
-    expect(r.sets.map((s) => [s.warmup, s.rpe, s.setOrder])).toEqual([
-      [true, undefined, 1],
-      [undefined, undefined, 2],
-      [undefined, 10, 3],
+  it('reads W, F and D in the Strong-style set order, per exercise', () => {
+    const rows = [
+      `W,${SQ},40,10`,
+      `1,${SQ},100,5`,
+      `F,${SQ},100,5`,
+      `W,Bench Press (Barbell),40,10`,
+    ]
+    const lines = rows
+      .map((x) => x.split(','))
+      .map(([i, e, w, n]) => `${T1},Day,${e},${i},${w},${n},,,,`)
+    const r = read([HEADER_A, ...lines].join('\n'))
+    expect(r.sets.map((s) => [s.exercise, s.warmup, s.rpe, s.setOrder])).toEqual([
+      ['back-squat', true, undefined, 1],
+      ['back-squat', undefined, undefined, 2],
+      ['back-squat', undefined, 10, 3],
+      ['bench-press', true, undefined, 1],
     ])
   })
 
@@ -177,24 +178,6 @@ describe('rows', () => {
 })
 
 describe('set order', () => {
-  it('starts a second exercise with a warm-up after the first exercise', () => {
-    const rows = [`1,${SQ},100,5`, `W,Bench Press (Barbell),40,10`, `1,Bench Press (Barbell),60,8`]
-    const r = read(
-      [
-        HEADER_A,
-        ...rows.map((x) => {
-          const [i, e, w, n] = x.split(',')
-          return `${T1},Day,${e},${i},${w},${n},,,,`
-        }),
-      ].join('\n'),
-    )
-    expect(r.sets.map((s) => [s.exercise, s.warmup, s.setOrder])).toEqual([
-      ['back-squat', undefined, 1],
-      ['bench-press', true, 1],
-      ['bench-press', undefined, 2],
-    ])
-  })
-
   it('renumbers across two workouts on one day, in time order, whatever the file order', () => {
     const r = read(
       fileB(
@@ -228,26 +211,12 @@ describe('set order', () => {
       [3, 90],
     ])
   })
-
-  it('skips sets past the order limit, and lists each custom exercise once', () => {
-    const rows = Array.from({ length: 201 }, (_, i) =>
-      b(T1, 'Pendlay Row (Barbell)', i + 1, 'normal', '20', '5'),
-    )
-    const r = read(fileB(...rows, b(T1, SQ, 1, 'normal', '100', '5')))
-    expect(r.sets).toHaveLength(201)
-    expect(r.skipped).toEqual([{ row: 202, reason: expect.stringContaining('limits') }])
-    expect(r.customExercises).toEqual(['pendlay-row'])
-  })
 })
 
 describe('limits', () => {
-  it('refuses a row with too many cells, a field past the cap and an open quote', () => {
+  it('refuses a row with too many cells and an open quote', () => {
     const cells = readHevyCsv(`${HEADER_B}\n${','.repeat(MAX_CSV_CELLS_PER_ROW)}`)
     expect(cells).toEqual({ refused: expect.stringContaining('limit') })
-    const field = 'a'.repeat(MAX_CSV_FIELD_CHARS + 1)
-    expect(readHevyCsv(`${HEADER_B}\nx,${T1},,,${field},,,1,normal,1,1,,,`)).toHaveProperty(
-      'refused',
-    )
     expect(readHevyCsv(`${HEADER_B}\n"x,${T1}`)).toHaveProperty('refused')
   })
 

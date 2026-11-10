@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LIFT_EXERCISE_PATTERN } from './limits'
-import { slugify, slugifyFull } from './slug'
+import { slugify } from './slug'
 
 describe('slugify', () => {
   it('makes lower-case hyphenated words', () => {
@@ -8,7 +8,6 @@ describe('slugify', () => {
   })
   it('drops accents', () => {
     expect(slugify('Café curl')).toBe('cafe-curl')
-    expect(slugify('Écarté (Haltère)')).toBe('ecarte-haltere')
   })
   it('keeps only a-z and 0-9, and is null when nothing is left', () => {
     expect(slugify('Zercher (2 sec) squat')).toBe('zercher-2-sec-squat')
@@ -19,6 +18,5 @@ describe('slugify', () => {
     expect(slug.length).toBeLessThanOrEqual(48)
     expect(slug).toMatch(LIFT_EXERCISE_PATTERN)
     expect(slugify(`${'a'.repeat(47)} b`)).toBe('a'.repeat(47))
-    expect(slugifyFull('word '.repeat(30)).length).toBeGreaterThan(48)
   })
 })

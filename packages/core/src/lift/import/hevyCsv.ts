@@ -46,15 +46,7 @@ const LAYOUTS: Record<HevyLayout, Columns> = {
   },
 }
 
-const WEIGHT_HEADERS = [
-  'weight (kg)',
-  'weight_kg',
-  'weight (lb)',
-  'weight (lbs)',
-  'weight_lb',
-  'weight_lbs',
-  'weight',
-]
+const WEIGHT_HEADERS = ['weight (kg)', 'weight_kg', 'weight (lbs)', 'weight_lbs', 'weight']
 
 const KG_PER_LB = 0.45359237
 // A decimal comma ("22,5") is not read and skips the row; check the real export's number format when pinning.
@@ -84,13 +76,11 @@ function setType(raw: string): 'normal' | 'warmup' | 'failure' | 'other' {
 }
 
 /**
- * Reads Hevy CSV text into lift sets. Layout is found from the header; an unknown header is refused with
- * the columns it lacks. A file past a limit (text size, cells in a row, field length, more rows than an
- * account may keep) is refused whole. A row that is not a set is skipped with its reason: cardio,
- * an unknown set type, a bad date, number or weight. A bad RPE keeps the set, drops the RPE and lists the row in `adjusted`.
- * Set order restarts in every Hevy workout, so it is renumbered from 1 within date, exercise and equipment
- * in the order of session time, then the file's own set index, as decisions/lift-set-key.md says. A time is
- * the session's start, so it is written with precision `session`.
+ * Reads Hevy CSV text into lift sets; the layout comes from the header and an unknown one is refused.
+ * A file past a limit is refused whole. A row that is not a set is skipped with its reason; a bad RPE
+ * keeps the set and lists the row in `adjusted`. Set order is renumbered from 1 per date, exercise and
+ * equipment by session time, then the file's set index (decisions/lift-set-key.md). A time is the
+ * session's start, so its precision is `session`.
  */
 export function readHevyCsv(
   text: string,

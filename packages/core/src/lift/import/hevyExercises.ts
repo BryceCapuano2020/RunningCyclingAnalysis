@@ -22,7 +22,6 @@ const HEVY_NAMES: Readonly<Record<string, SlugRule>> = {
   'shoulder press': 'overhead-press',
   'bent over row': { dumbbell: 'dumbbell-row', otherwise: 'barbell-row' },
   'seated row': 'cable-row',
-  'seated cable row': 'cable-row',
   'triceps dip': 'dip',
   'lying leg curl': 'leg-curl',
   'seated leg curl': 'leg-curl',

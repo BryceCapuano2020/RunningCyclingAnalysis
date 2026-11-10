@@ -36,10 +36,8 @@ export interface Staged {
 }
 
 /**
- * Gives each staged row its set order and checks it against the record. Workouts are told apart by
- * their start text and title; within a date they run in time order, then as the file lists them. Within
- * a workout, sets run by the file's set index, then by row. The order restarts from 1 per date, exercise
- * and equipment, across workouts. A row the record refuses is skipped with a reason.
+ * Gives each staged row its set order and checks it against the record. Within a date, workouts run by
+ * time, then file order; within a workout, by set index, then row. A row the record refuses is skipped.
  */
 export function assembleHevySets(
   staged: Staged[],
