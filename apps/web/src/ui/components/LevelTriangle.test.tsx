@@ -89,7 +89,7 @@ describe('LevelTriangle', () => {
     expect(none.container.querySelectorAll('polygon.level-triangle__ring')).toHaveLength(3)
   })
 
-  it('says what a corner’s missing grade is when the page has a note, and links only where a page exists', () => {
+  it('says what a corner’s missing grade is when the page has a note, and still links to its page', () => {
     render(
       <LevelTriangle
         view={{ grades: NO_TRIANGLE_GRADES, notes: { ride: 'At the top of the age tables' } }}
@@ -97,7 +97,7 @@ describe('LevelTriangle', () => {
     )
     expect(screen.getByText('At the top of the age tables')).toBeInTheDocument()
     expect(screen.getAllByText('No grade yet')).toHaveLength(2)
-    expect(screen.getAllByRole('link')).toHaveLength(2)
+    expect(screen.getAllByRole('link')).toHaveLength(3)
   })
 
   it('places each corner on its vertex as a share of the plot', () => {

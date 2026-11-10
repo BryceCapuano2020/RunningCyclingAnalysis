@@ -233,6 +233,10 @@ describe('BalancePage', () => {
     expect(words[0]).toMatch(/^Running \d+% \w+/)
     expect(words[1]).toMatch(/^Cycling \d+% \w+/)
     expect(words[2]).toBe('Lifting No grade yet')
+    expect(screen.getByRole('link', { name: 'Lifting No grade yet' })).toHaveAttribute(
+      'href',
+      '#/lift',
+    )
     expect(screen.getByRole('link', { name: /^Running \d+% \w+/ })).toHaveAttribute('href', '#/run')
     expect(screen.getByRole('link', { name: /^Cycling \d+% \w+/ })).toHaveAttribute(
       'href',

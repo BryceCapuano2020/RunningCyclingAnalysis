@@ -15,14 +15,11 @@ export const TRIANGLE_TITLE: Record<TriangleSport, string> = {
 /** The sport as the noun inside a sentence, lower case. */
 export const TRIANGLE_NOUN: Record<TriangleSport, string> = { ...SPORT_NOUN, lift: 'lifting' }
 
-/**
- * Where a corner links: the sport's page, which says what it needs. Lifting has no page yet, so its corner is plain text until it
- * has one; the corner is a link wherever this has an address.
- */
+/** Where a corner links: the sport's page, which says what it needs. */
 export const TRIANGLE_HREF: Record<TriangleSport, string | null> = {
   run: hrefFor({ page: 'run' }),
   ride: hrefFor({ page: 'ride' }),
-  lift: null,
+  lift: hrefFor({ page: 'lift' }),
 }
 
 /** What a corner with no grade says under its name. */
