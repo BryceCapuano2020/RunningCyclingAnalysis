@@ -22,6 +22,8 @@ Decisions section. Status is one of designed, in progress or built.
   own pipeline; Strava's API stays out. Status: designed, to be revised for server-side parsing (server-compute.md decision 14) before any build.
 - [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
   code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
+- [lift-grade.md](lift-grade.md): an age grade for the squat, bench and deadlift, fitted on public powerlifting results, so lift can be
+  a third corner of the hero. Status: designed, prototyped, waits for the science review.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed; weekly load by system is scheduled in stage F.
 - [strength.md](strength.md): where lifting lives: its own sets storage and revision, the set record, the
