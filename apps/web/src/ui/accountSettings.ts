@@ -1,6 +1,7 @@
 import type { AccountSettings } from '@rca/contract'
 import { sameChoice } from '@rca/core/period'
 import { getAccountSettings, putAccountSettings } from '../api/settings'
+import { browserZone } from './analysis/copyAge'
 import { loadCountedRuns, storeCountedRuns } from './countedRunsStore'
 import { clearKeptPower, keptPowerIds, replaceKeptPower } from './keptPowerStore'
 import { clearPeriodChoice, replacePeriodChoice, storedPeriodChoice } from './periodPreference'
@@ -116,10 +117,14 @@ export async function pullAccountSettings(
   const settled = settle(account, browserSettings(), owner === null, chosen)
   adopt(settled)
   writeOwner(userId)
-  if (!sameSettings(settled, account)) await putAccountSettings(settled, userId)
+  // The server cuts the days of the results it computes in the athlete's zone, so it is told when it differs.
+  const zone = browserZone()
+  if (!sameSettings(settled, account) || account.zone !== zone) {
+    await putAccountSettings({ ...settled, zone }, userId)
+  }
 }
 
 /** Saves this browser's copy as the account's. */
 export async function pushAccountSettings(userId: string): Promise<void> {
-  await putAccountSettings(browserSettings(), userId)
+  await putAccountSettings({ ...browserSettings(), zone: browserZone() }, userId)
 }

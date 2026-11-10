@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { pullAccountSettings, pushAccountSettings } from './accountSettings'
 import { onSettingsChosen } from './settingsChosen'
+import { choicesSoFar, noteChoice, noteSettled, resetUnsent } from './settingsUnsent'
 import type { SettingsField } from './settingsChosen'
 import type { AccountStatus } from './useAccount'
 
@@ -26,19 +27,29 @@ export function useAccountSettings(status: AccountStatus, userId: string | null)
     // Saves run one at a time, each from the copy as it stands when it starts.
     let queue: Promise<unknown> = Promise.resolve()
     const save = () => {
+      const at = choicesSoFar()
       queue = queue.then(
-        () => (current ? pushAccountSettings(userId).catch(() => undefined) : undefined),
+        () =>
+          current
+            ? pushAccountSettings(userId).then(
+                () => noteSettled(at),
+                () => undefined,
+              )
+            : undefined,
         () => undefined,
       )
     }
     const stop = onSettingsChosen((field) => {
+      noteChoice()
       if (pulled) save()
       else chosen.add(field)
     })
     const pull = (retry: boolean) => {
+      const at = choicesSoFar()
       pullAccountSettings(userId, chosen).then(
         () => {
           pulled = true
+          noteSettled(at)
         },
         () => {
           if (current && retry) timer = setTimeout(() => pull(false), SETTINGS_RETRY_MS)
@@ -50,6 +61,7 @@ export function useAccountSettings(status: AccountStatus, userId: string | null)
       current = false
       clearTimeout(timer)
       stop()
+      resetUnsent()
     }
   }, [signedIn, userId])
 }

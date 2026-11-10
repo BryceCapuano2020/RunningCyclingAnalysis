@@ -308,6 +308,14 @@ for local tests and the e2e server only. The production configuration ships the 
 either while the list is empty, that lists `*`, or that lists accounts without the producer, a bounded consumer, a
 dead-letter queue and a CPU cap. No scheduled trigger computes: the daily maintenance does not touch results.
 
+**What the browser does (package S5).** A signed-in browser asks `GET /api/state` once its account is known, after painting
+its device copy. A 404 or any failure is the off answer, and the page then behaves as it did before: the device copy, then the
+live analysis. A snapshot is shown only when it is this build's shape and model, it is newer than the device copy (or there is
+none), the live analysis has not answered, and this device holds no unsent work (outbox rows, lifting sets not sent, a choice not
+saved to the account). It is kept as the device copy and replaced by the live analysis, which still runs on digests loaded in the
+background. A snapshot from an earlier local day, or cut in another zone, is shown as stale. The browser also saves its IANA
+zone in the account settings when the account holds another, so the server cuts the days there.
+
 **What to create before turning it on (Workers Paid needed):**
 
 | Resource          | Name / value                                                                                                                                                                                                                         |

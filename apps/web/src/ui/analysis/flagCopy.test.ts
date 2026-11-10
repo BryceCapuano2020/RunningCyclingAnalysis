@@ -206,4 +206,19 @@ describe('flagKindRow: a kind as a detail panel row', () => {
       '2 times, counted only what both support',
     )
   })
+
+  it('labels every kind, so a new kind cannot go without a row', () => {
+    const kinds = [
+      ['hr-implausible-for-power', 'Heart rate too low for power'],
+      ['hr-dropout', 'Heart rate missing or too low'],
+      ['hr-cadence-lock', 'Heart rate matched cadence'],
+      ['power-spike', 'Power spikes'],
+      ['power-dropout', 'Power meter dropouts'],
+      ['implausible-speed', 'Speed too high to be real'],
+      ['altitude-jump', 'Altitude jumps'],
+      ['implausible-climb', 'Climb too fast'],
+      ['stream-disagreement', 'Speed and distance disagree'],
+    ] as const
+    for (const [kind, label] of kinds) expect(flagKindRow(kind, 2).label).toBe(label)
+  })
 })

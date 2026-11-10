@@ -43,9 +43,10 @@
       <h1>Privacy policy</h1>
 
       <p class="lede">
-        Analysis runs in your browser. Without an account, files are not uploaded. With an account,
-        your profile and activity summaries are stored on Cloudflare, and original files only if you
-        choose. We do not sell your data, and the app has no analytics or advertising trackers.
+        Analysis runs in your browser, and on the server too for accounts that have server results
+        enabled. Without an account, files are not uploaded. With an account, your profile and
+        activity summaries are stored on Cloudflare, and original files only if you choose. We do
+        not sell your data, and the app has no analytics or advertising trackers.
       </p>
 
       <p>
@@ -293,13 +294,16 @@
         <li>
           <strong>Server results, where server results are on:</strong> signed out, analysis runs in
           your browser; signed in, the server also computes your results from the summaries it
-          already holds, and keeps the latest copy in the file bucket under your account. The copy
-          holds the figures, the dates and the names and labels of your activities, the same things
-          the page shows, and no per-second recording or route data. The database keeps a count of
-          the changes to your activities, profile, dated settings and account settings, which tells
-          the server when to compute again, with the version and time of the last compute and the
-          name of the copy; and the time zone this browser reports, saved with your account
-          settings, which sets where your days start. Deleting your account deletes the copy.
+          already holds. This applies to accounts server results are enabled for; for every other
+          account, analysis runs in your browser only. The server keeps the latest copy in the file
+          bucket under your account, and this browser shows it while its own analysis catches up.
+          The copy holds the figures, the dates and the names and labels of your activities, the
+          same things the page shows, and no per-second recording or route data. The database keeps
+          a count of the changes to your activities, profile, dated settings and account settings,
+          which tells the server when to compute again, with the version and time of the last
+          compute and the name of the copy; and the time zone this browser reports, saved with your
+          account settings, which sets where your days start. Deleting your account deletes the
+          copy.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
