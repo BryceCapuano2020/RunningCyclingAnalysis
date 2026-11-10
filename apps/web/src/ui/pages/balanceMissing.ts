@@ -18,7 +18,10 @@ import { otherSport } from '../soleSport'
 import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL } from '../sports'
 import { thresholdNeedsLine } from '../thresholdNeeds'
 
-/** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
+/**
+ * The count of runs and rides when either sport has few efforts; null when both have enough, or one is missing. Balance no longer
+ * prints it (the hero's Details were cut, 10 Nov 2026); the owner's home-screen eval (evals/owner-caught) still reads it.
+ */
 export function fewEffortsText(result: AnalysisResult): string | null {
   const runs = countEfforts(result.activities, 'run')
   const rides = countEfforts(result.activities, 'ride')

@@ -45,14 +45,15 @@ test('Custom applies the two days entered, and the caption dates the period they
   const form = page.locator('.range-picker__custom')
   await form.getByLabel('From').fill('2000-01-01')
   await form.getByLabel('To').fill('2000-01-02')
-  // The range applies on Apply, so the caption still dates the period on screen until then.
-  const dates = page.locator('.balance-hero .props__row', { hasText: /^Period/ }).locator('dd')
-  await expect(dates).not.toHaveText('1 Jan – 2 Jan 2000')
   await form.getByRole('button', { name: 'Apply' }).click()
-  await expect(dates).toHaveText('1 Jan – 2 Jan 2000')
-  await expect(
-    page.locator('.balance-hero .props__row', { hasText: /^Activities/ }).locator('dd'),
-  ).toHaveText(/^0 of \d+$/)
+  await expect(period.getByRole('radio', { name: 'Custom' })).toBeChecked()
+  // The dates and the count are in the sport page's Details, one press down.
+  await goTo(page, 'Run')
+  await page.locator('.sport-page__head .page-details > summary').click()
+  const row = (label: RegExp) =>
+    page.locator('.sport-page__head .props__row', { hasText: label }).locator('dd')
+  await expect(row(/^Period/)).toHaveText('1 Jan – 2 Jan 2000')
+  await expect(row(/^Runs/)).toHaveText(/^0 of \d+$/)
   await expect(period.getByRole('radio', { name: 'Custom' })).toBeChecked()
 })
 
@@ -180,15 +181,17 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await page.addStyleTag({ content: ':root { font-size: 20px; }' })
   const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 wk', { exact: true }).click()
-  // The count is in the answer's Details, one press down.
-  await page.locator('.balance-hero .page-details > summary').click()
-  const activities = page
-    .locator('.balance-hero .props__row', { hasText: /^Activities/ })
-    .locator('dd')
-  await expect(activities).toHaveText(/^\d+ of \d+$/)
+  // The count is in the sport page's Details, one press down.
+  const runs = async () => {
+    await goTo(page, 'Run')
+    await page.locator('.sport-page__head .page-details > summary').click()
+    return page.locator('.sport-page__head .props__row', { hasText: /^Runs/ }).locator('dd')
+  }
+  await expect(await runs()).toHaveText(/^\d+ of \d+$/)
+  await goTo(page, 'Balance')
   await period.getByText('All', { exact: true }).click()
   // The row gives the whole count once the pick is answered; a slow runner can still be applying it.
-  await expect(activities).toHaveText(/^\d+$/)
+  await expect(await runs()).toHaveText(/^\d+$/)
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)
 })
 
@@ -198,7 +201,7 @@ test('Method says that both best efforts were hard efforts', async ({ page }) =>
   // detail says nothing of heart rate, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
   const run = page.getByRole('article', { name: 'Run threshold' })
-  await run.locator('summary', { hasText: 'How this was worked out for threshold pace' }).click()
+  await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
   await expect(run.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     /^\d+$/,
   )
@@ -223,7 +226,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   // What it rests on is the first line of its one disclosure, not a line under the figure.
   await expect(ride.locator('.props__row', { hasText: /^Rides used/ })).toBeHidden()
   // The two tiles' terms are told apart by the threshold each opens.
-  const term = ride.locator('summary', { hasText: 'How this was worked out for threshold power' })
+  const term = ride.locator('summary', { hasText: 'Details for threshold power' })
   await term.click()
   const panel = ride.locator('.props')
   await expect(panel).toBeVisible()
@@ -239,7 +242,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   await expect(
     page
       .getByRole('article', { name: 'Run threshold' })
-      .locator('summary', { hasText: 'How this was worked out for threshold pace' }),
+      .locator('summary', { hasText: 'Details for threshold pace' }),
   ).toBeVisible()
 })
 

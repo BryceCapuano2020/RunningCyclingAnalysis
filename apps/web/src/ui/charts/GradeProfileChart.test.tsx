@@ -200,11 +200,12 @@ describe('GradeProfileChart', () => {
     expect(label?.textContent).toMatch(/^Ride \d+%/)
   })
 
-  it('names both sports in the key, with the ride marked as an estimate', () => {
+  it('names both sports in the key, Run and Ride, with the ride’s swatch a ring', () => {
     renderChart()
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Run, as recorded')).toBeInTheDocument()
-    expect(within(legend).getByText('Ride, estimated')).toBeInTheDocument()
+    expect(within(legend).getByText('Run')).toBeInTheDocument()
+    expect(within(legend).getByText('Ride')).toBeInTheDocument()
+    expect(legend).not.toHaveTextContent(/as recorded|estimated/)
   })
 
   it('reads a duration by keyboard: both grades, the ride as an estimate with its range', () => {

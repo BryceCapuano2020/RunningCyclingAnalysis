@@ -7,7 +7,6 @@ import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { Period } from '@rca/core/period'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { AnalysisSession } from '@rca/core/session'
-import { formatPaceValue } from '@rca/core/units'
 import { buildShareCard } from '../share/cardModel'
 import { whatMoved } from './analysis/whatMoved'
 import { balanceOfPick } from './components/balanceScale'
@@ -16,8 +15,6 @@ import { heldPick } from './resultHold'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 import { BalanceHero } from './pages/BalanceHero'
 import { LevelTriangle } from './components/LevelTriangle'
-import { BalanceTiles } from './pages/BalanceTiles'
-import { CrossSportCard } from './pages/CrossSportCard'
 import { MethodPage } from './pages/MethodPage'
 import { SportAnswer } from './pages/SportAnswer'
 import { standingOf } from './standing'
@@ -67,29 +64,6 @@ describe('one standing, read by every surface', () => {
     }
   })
 
-  it('prints the same ride as a run on the cross-sport card and on the balance tile', () => {
-    const pace = formatPaceValue(standing.rideAsRun!.p50, 'metric')
-    render(
-      <CrossSportCard result={result} units="metric" weighted massKg={SAMPLE_SETTINGS.massKg} />,
-    )
-    const alone = screen.getByRole('article', { name: 'Your ride as a run' }).textContent
-    expect(alone).toContain(pace)
-    cleanup()
-    render(
-      <BalanceTiles
-        result={result}
-        library={state.library}
-        units="metric"
-        massKg={SAMPLE_SETTINGS.massKg}
-        grades={grades}
-        weighted
-        period={{ choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }}
-        onAddFiles={() => {}}
-      />,
-    )
-    expect(screen.getByRole('article', { name: 'Your ride as a run' }).textContent).toBe(alone)
-  })
-
   it('prints the corners from the same grades the lead is made of', () => {
     render(<LevelTriangle view={triangleViewOf(grades)} />)
     const run = standing.grades.run
@@ -113,7 +87,7 @@ interface PrintedLead {
   toward: string
 }
 
-/** The lead as the hero, the Method page and the share card word it: "Running grades 9 points higher (2 to 16)". */
+/** The lead as the Method page words it: "Running grades 9 points higher (2 to 16)". */
 function printedGrades(text: string): PrintedLead {
   const found = /(running|cycling) grades (\d+) points? higher/i.exec(text)
   if (found === null) throw new Error(`no lead printed in: ${text}`)
@@ -145,7 +119,7 @@ describe('one lead, printed the same on every surface', () => {
     fellBack: false,
   }
 
-  it('prints the same points and direction on the hero, the import notice, the Method page and the share card', () => {
+  it('prints the same points and direction on the import notice and the Method page, and none on the hero or the share card, which leave the lead to the triangle', () => {
     // The lead worth comparing leans, and has moved from the earlier result without changing its lean.
     const leadBefore = standingOf(before, SAMPLE_PROFILE).lead!
     expect(lead.lean).toBe('run')
@@ -167,7 +141,8 @@ describe('one lead, printed the same on every surface', () => {
         weightKnown
       />,
     )
-    const hero = printedGrades(document.querySelector('.balance-hero__lede')!.textContent ?? '')
+    expect(document.querySelector('.balance-hero__lede')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your athletic balance')
     cleanup()
 
     const method = (() => {
@@ -195,15 +170,14 @@ describe('one lead, printed the same on every surface', () => {
       gradesAfter,
     )
     if (card === null) throw new Error('the sample offers a card')
-    // The card's line words the lead as the hero's does.
-    const share = printedGrades(card.line ?? '')
+    // The card, like the hero, has the title and no line.
+    expect(card.headline).toBe('Your athletic balance')
+    expect(card.line).toBeNull()
 
     const moves = whatMoved(before, after, SAMPLE_SETTINGS, 'metric', SAMPLE_PROFILE)
     const notice = printedMove(moves.map((item) => item.text).join(' '))
 
-    expect(hero).toEqual(expected)
     expect(method).toEqual(expected)
-    expect(share).toEqual(expected)
     expect(notice).toEqual(expected)
   })
 })

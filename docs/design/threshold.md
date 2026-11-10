@@ -240,7 +240,7 @@ the range, the records and the share card show one number.
 - **The basis line** is "From 4 runs. Strongest: 40 min on 4 Mar.", from `efforts.rides` (the activity count; the field keeps the
   ride's name) and `efforts.strongest`. Where an hour the athlete ran sets the figure, that hour is the strongest effort. A run's
   efforts are never estimated, so the line never adds ", on estimated watts".
-- **"How this was worked out"** opens the range ("Range 4:10 to 4:39 /km", the estimate's own 10th to 90th percentile, or "About
+- **"Details"** opens the range ("Range 4:10 to 4:39 /km", the estimate's own 10th to 90th percentile, or "About
   4:24 /km" where the ends print the same) and the method in one sentence: the strongest effort of each run, scaled to an hour and
   averaged, with more weight on recent runs and on those near the athlete's top, and never under an hour the athlete ran.
 - **Nothing about heart rate.** A run's threshold is worked out from pace alone, so its detail has no "Heart rate can raise the

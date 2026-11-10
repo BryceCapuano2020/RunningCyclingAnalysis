@@ -93,12 +93,6 @@ function renderWindow(route: Route, choice: number | 'all') {
 }
 
 describe('the count of a period, out of what is on file', () => {
-  it('counts what started in the period on file, the activity at walking pace with the rest', () => {
-    const { container } = renderWindow({ page: 'balance' }, 42)
-    expect(rowValue(container, 'Activities')).toBe('3 of 8')
-    expect(rowValue(container, 'Not counted')).toBe('1')
-  })
-
   it('says the same on a sport page, for its own runs', () => {
     const { container } = renderWindow({ page: 'run' }, 42)
     expect(rowValue(container, 'Runs')).toBe('3 of 5')
@@ -121,26 +115,9 @@ describe('the count of a period, out of what is on file', () => {
     expect(rowValue(container, 'Rides')).toBe('1 of 3')
     expect(rowValue(container, 'Last ride')).toMatch(/^\d+ \w+/)
   })
-
-  it('says every activity on file, and how many are not counted, for all time', () => {
-    const { container } = renderWindow({ page: 'balance' }, 'all')
-    expect(rowValue(container, 'Activities')).toBe('8')
-    expect(rowValue(container, 'Not counted')).toBe('1')
-  })
 })
 
 describe('the count every page gives of the library', () => {
-  it('gives Balance the activities on file, with the two numbers linked to where they are', () => {
-    const { container } = renderPage({ page: 'balance' }, [COUNTED_RUNS[0]!, COUNTED_RIDE])
-    expect(rowValue(container, 'Activities')).toBe('7')
-    expect(rowValue(container, 'Not counted')).toBe('3')
-    expect(screen.getByRole('link', { name: '7' })).toHaveAttribute('href', '#/activities')
-    expect(screen.getByRole('link', { name: '3' })).toHaveAttribute(
-      'href',
-      '#/activities?show=not-counted',
-    )
-  })
-
   it('gives a sport page the runs on file, with the runs not counted, linked to the list of them', () => {
     const { container } = renderPage({ page: 'run' }, [COUNTED_RUNS[0]!])
     expect(rowValue(container, 'Runs')).toBe('5')

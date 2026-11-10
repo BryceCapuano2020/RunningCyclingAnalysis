@@ -47,7 +47,7 @@ async function smallTargets(page: Page, standardPx: number): Promise<Small[]> {
       // A link on a line of text (the footer's, a record's, the landing's) is as high as its line on a mouse, which
       // is the floor; a finger gets the standard. A button or field is the standard for either.
       const fine = matchMedia('(pointer: fine)').matches
-      const lineLink = el.tagName === 'A' && fine && !el.classList.contains('cross-sport__link')
+      const lineLink = el.tagName === 'A' && fine
       const least = term || lineLink ? 24 : standardPx
       if (box.height < least || box.width < 24) {
         found.push({

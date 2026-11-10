@@ -66,7 +66,10 @@ export function targetRows(target: LevelTarget): Property[] {
   ]
 }
 
-/** The target's rows as one text, or null when there is no target. The owner's eval reads the words a surface prints from this. */
+/**
+ * The target's rows as one text, or null when there is no target. Balance no longer prints the target (the hero's Details were cut,
+ * 10 Nov 2026); the owner's home-screen eval (evals/owner-caught) still reads it.
+ */
 export function levelTargetText(match: MatchFigure | null, units: UnitSystem): string | null {
   const target = levelTarget(match, units)
   return target === null ? null : rowsAsText(targetRows(target))

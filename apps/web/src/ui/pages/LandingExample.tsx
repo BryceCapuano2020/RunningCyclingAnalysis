@@ -47,9 +47,11 @@ export function LandingExample({ units = 'metric' }: { units?: UnitSystem }) {
         {': '}
         <span className="landing-example__who">{sampleDescription(units)}</span>
       </figcaption>
-      <p className="landing-example__line">
-        <NumText text={line ?? ''} />
-      </p>
+      {line === null ? null : (
+        <p className="landing-example__line">
+          <NumText text={line} />
+        </p>
+      )}
       <LevelTriangle view={TRIANGLE} linked={false} />
       <div className="landing-example__fitness" data-sport="run" data-state="slipping">
         <p className="landing-example__state">{SLIP.label}</p>

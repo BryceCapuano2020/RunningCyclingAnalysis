@@ -124,9 +124,9 @@ describe('BalanceHero answer on the energy ratio', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
+    expect(container.querySelector('.balance-hero__lede')).toBeNull()
     expect(screen.getByRole('link', { name: /^Lifting 95%/ })).toHaveAttribute('href', '#/lift')
   })
 
@@ -260,7 +260,7 @@ describe('BalanceHero visual', () => {
     expect(container.querySelector('.balance-meter, .balance-scale, .balance-hero__gap')).toBeNull()
   })
 
-  it('sets the period line under the headline, then the lede, the triangle and the action', () => {
+  it('sets the period line under the headline, then the triangle and the action', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -274,7 +274,6 @@ describe('BalanceHero visual', () => {
     const order = [
       screen.getByRole('heading', { level: 1 }),
       screen.getByTestId('controls'),
-      container.querySelector('.balance-hero__lede'),
       container.querySelector('.level-triangle'),
       screen.getByRole('button', { name: 'Share image' }),
     ]
@@ -312,7 +311,7 @@ describe('BalanceHero answer', () => {
     )
   })
 
-  it('names the sport the balance leans toward in plain words, with no underline or colour', () => {
+  it('titles a graded balance the same whichever sport leads, with no underline or colour', () => {
     const { container, rerender } = render(
       <Hero
         {...ALL_TIME}
@@ -322,7 +321,7 @@ describe('BalanceHero answer', () => {
       />,
     )
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent(/cycling$/)
+    expect(heading).toHaveTextContent('Your athletic balance')
     expect(heading.querySelector('em, [data-sport]')).toBeNull()
     rerender(
       <Hero
@@ -363,7 +362,7 @@ describe('BalanceHero answer', () => {
 })
 
 describe('BalanceHero on the age-grade gap', () => {
-  it('titles the answer from the gap, and says the gap in points for the headline duration', () => {
+  it('titles the answer from the grades and leaves the gap to the triangle, with no line under the title', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -373,53 +372,15 @@ describe('BalanceHero on the age-grade gap', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
-  })
-
-  it('keeps the level target in the Details under the lede as rows, the lede the one line under the answer', () => {
-    const rows = [
-      { label: 'To match it on the bike', value: '270 W (245\u2013295)' },
-      { label: 'Your ride threshold', value: '230 W' },
-    ]
-    const props = { ...ALL_TIME, result: makeResult(), pick: pickFor(interval(1.05, 1.12, 1.2)) }
-    const { container, rerender } = render(<Hero {...props} gap={gradedGap()} details={rows} />)
-    const label = screen.getByText('To match it on the bike')
-    expect(label.tagName).toBe('DT')
-    expect(label.nextElementSibling).toHaveTextContent('270 W (245\u2013295)')
-    expect(screen.getByText('Your ride threshold').nextElementSibling).toHaveTextContent('230 W')
-    // One line under the answer: the lede, then the Details that hold the target, closed to start with.
-    const details = label.closest('details')!
-    expect(details).toHaveClass('page-details')
-    expect(details).not.toHaveAttribute('open')
-    expect(details.previousElementSibling).toHaveClass('balance-hero__lede')
-    expect(details.querySelector('summary')).toHaveTextContent(/^Details$/)
-    // The panel ends with the one Method link to the grades.
-    expect(details.querySelector('.props__method')).toHaveTextContent('Method')
-    rerender(<Hero {...props} gap={gradedGap()} />)
-    expect(screen.queryByText('Your ride threshold')).toBeNull()
-    expect(container.querySelector('.balance-hero__lede')).not.toBeNull()
-  })
-
-  it('keeps each sport’s range and the gap’s in the Details, not beside the headline', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    const details = container.querySelector('.page-details')
-    expect(details).toHaveTextContent('Range, 90%')
-    expect(details).toHaveTextContent('running 52 to 60')
-    expect(details).toHaveTextContent('running over cycling 6 points, range 2 to 10')
-    expect(ledeOf(container)).not.toMatch(/range/)
+    expect(container.querySelector('.balance-hero__lede')).toBeNull()
+    expect(container.querySelector('.page-details')).toBeNull()
+    expect(container).not.toHaveTextContent(/leans toward|points higher|in balance/)
   })
 
   it('answers from the gap, not the energy ratio, when both are there', () => {
-    const { container } = render(
+    render(
       <Hero
         {...ALL_TIME}
         result={makeResult()}
@@ -428,9 +389,9 @@ describe('BalanceHero on the age-grade gap', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
+    expect(screen.queryByText(/energy per kilogram/)).toBeNull()
   })
 
   it('holds the answer, gap and all, while nothing picks a headline comparison', () => {
@@ -441,36 +402,25 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(screen.queryByText(/Running grades/)).toBeNull()
   })
 
-  it('leans on a 9 point estimate whose range reaches below zero, with the range stated and no word of balance', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' })}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
-    ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 9 points higher at threshold.')
-    expect(screen.queryByText(/in balance/)).toBeNull()
-    expect(container.querySelector('.page-details')).toHaveTextContent('range −4 to +18')
-  })
-
-  it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' })}
-      />,
-    )
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Your running and cycling are in balance' }),
-    ).toBeInTheDocument()
-    expect(ledeOf(container)).toBe('Running grades 2 points higher at threshold.')
+  it('titles a gap whose range reaches below zero, or one near level, the same way', () => {
+    for (const lead of [
+      gradedGap({ centre: 9, low: -4, high: 18, lean: 'run' }),
+      gradedGap({ centre: 2, low: -2, high: 6, lean: 'even' }),
+    ]) {
+      const { unmount } = render(
+        <Hero
+          {...ALL_TIME}
+          result={makeResult()}
+          pick={pickFor(interval(1.05, 1.12, 1.2))}
+          gap={lead}
+        />,
+      )
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/in balance/)).toBeNull()
+      unmount()
+    }
   })
 
   it('never says ahead of, limiter, weak or strength', () => {
@@ -731,74 +681,7 @@ describe('BalanceHero without a comparison yet', () => {
     expect(screen.getByRole('button', { name: 'Show all time' })).toBeInTheDocument()
   })
 
-  it('counts each sport under the lede when either has few efforts, so the answer shows what it rests on', () => {
-    const activities = [
-      makeActivity({ id: 'run-1', sport: 'run' }),
-      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'run-3', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'ride-1', sport: 'ride' }),
-      makeActivity({ id: 'ride-2', sport: 'ride' }),
-      makeActivity({ id: 'ride-3', sport: 'ride', durationS: 600 }),
-    ]
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 2 rides')
-    expect(screen.queryByText(/Add more runs or rides/)).not.toBeInTheDocument()
-  })
-
-  it('counts only the efforts as long as the headline effort, so a short run does not count as one', () => {
-    const runs = [
-      makeActivity({ id: 'run-1', sport: 'run' }),
-      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
-      makeActivity({ id: 'run-3', sport: 'run', durationS: 900 }),
-    ]
-    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities: [...runs, ...rides] })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.getByText('Efforts used').nextElementSibling).toHaveTextContent('1 run, 3 rides')
-  })
-
-  it('leaves that count off once each sport has three efforts', () => {
-    const runs = [1, 2, 3].map((n) => makeActivity({ id: `run-${n}`, sport: 'run' }))
-    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
-    render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult({ activities: [...runs, ...rides] })}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(screen.queryByText('Efforts used')).not.toBeInTheDocument()
-  })
-
-  it('says in the Details that heart rate informed an energy balance’s range, when the check used it', () => {
-    const calibrated = {
-      point: comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) }),
-      calibrated: true,
-    }
-    const { container, rerender } = render(
-      <Hero {...ALL_TIME} result={makeResult()} pick={calibrated} />,
-    )
-    expect(container.querySelector('.page-details')).toHaveTextContent('Informed by heart rate')
-    // A grade gap's range is the grades', and says nothing of heart rate.
-    rerender(<Hero {...ALL_TIME} result={makeResult()} pick={calibrated} gap={gradedGap()} />)
-    expect(container.querySelector('.page-details')).not.toHaveTextContent('Informed by heart rate')
-  })
-
-  it('leaves the dates out of the lede when the period is not all time, since the caption names them', () => {
+  it('leaves the dates out of the answer when the period is not all time, since the caption names them', () => {
     const { container } = render(
       <Hero
         {...ALL_TIME}
@@ -808,21 +691,7 @@ describe('BalanceHero without a comparison yet', () => {
         gap={gradedGap()}
       />,
     )
-    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
-    expect(ledeOf(container)).not.toMatch(/12 May/)
-  })
-
-  it('leaves the dates out of the lede under all time', () => {
-    const { container } = render(
-      <Hero
-        {...ALL_TIME}
-        result={makeResult()}
-        pick={pickFor(interval(1.05, 1.12, 1.2))}
-        gap={gradedGap()}
-      />,
-    )
-    expect(ledeOf(container)).toMatch(/^Running grades 6 points higher/)
-    expect(ledeOf(container)).not.toMatch(/Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar/)
+    expect(container).not.toHaveTextContent(/12 May/)
   })
 
   it('sets the action under the lede, on the text column, so the share button sits with the answer', () => {
@@ -987,32 +856,7 @@ describe('BalanceHero while no weight is entered', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance leans toward running' }),
+      screen.getByRole('heading', { level: 1, name: 'Your athletic balance' }),
     ).toBeInTheDocument()
-  })
-})
-
-describe('BalanceHero sentence on a phone', () => {
-  const GAPPED = {
-    ...ALL_TIME,
-    result: makeResult(),
-    pick: pickFor(interval(1.05, 1.12, 1.2)),
-    gap: gradedGap(),
-  }
-
-  it('says the one whole sentence at every width, with the range left to the Details', () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === '(max-width: 479px)',
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }))
-    try {
-      const { container } = render(<Hero {...GAPPED} />)
-      expect(ledeOf(container)).toBe('Running grades 6 points higher at threshold.')
-      expect(screen.queryByRole('button', { name: 'age grade' })).toBeNull()
-      expect(container.querySelector('.page-details')).toHaveTextContent('range 2 to 10')
-    } finally {
-      vi.unstubAllGlobals()
-    }
   })
 })

@@ -30,21 +30,13 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
     .find((directive) => directive.startsWith('img-src '))
   expect(imgSrc?.split(' ')).toContain('blob:')
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
-  // The level triangle's corners say each sport's grade and level, the headline says the lean, and the ride as a
-  // run is a tile with its pace and the ride threshold behind it.
-  await expect(
-    // The Worker serves the app: the headline says a lean, whichever way the sample's leans.
-    page.getByRole('heading', { level: 1, name: /^Your balance leans toward (running|cycling)/ }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    /^Your athletic balance$|leans toward|in balance/,
+  )
+  // The level triangle's corners say each sport's grade and level; the headline only names the balance.
+  await expect(page.getByRole('heading', { level: 1, name: 'Your athletic balance' })).toBeVisible()
   await expect(page.locator('.level-triangle__corner')).toHaveCount(3)
   await expect(page.locator('.level-triangle__corner').first()).toContainText(/\d+%/)
-  const onFoot = page.getByRole('article', { name: 'Your ride as a run' })
-  await expect(onFoot.locator('.stat-tile__number')).toHaveText(/^\d+:\d{2}$/)
-  // The basis line sits in the row's disclosure (docs/design/system.md, No subtitle lines).
-  await onFoot.getByText('See the pace curve').click()
-  const basis = onFoot.locator('.props__row').filter({ hasText: 'From your threshold' })
-  await expect(basis.locator('dd')).toHaveText(/^\d+ W$/)
   await page.getByRole('button', { name: 'Share image' }).click()
   const sheet = page.getByRole('dialog', { name: 'Share image' })
   await expect(sheet).toBeVisible()
