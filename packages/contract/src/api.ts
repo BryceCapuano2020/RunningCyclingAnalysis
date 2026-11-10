@@ -57,8 +57,18 @@ export const MeSchema = z.object({
    * changed it; absent from responses that do not read the library.
    */
   libraryRevision: z.string().max(64).optional(),
+  /**
+   * The account's one change counter (users.library_version): up by one for every change to an input of its results.
+   * The server's snapshot carries the version it was built at (docs/design/server-compute.md, decision 5).
+   */
+  libraryVersion: z.number().int().nonnegative().optional(),
   /** Raised by every lift write. Kept apart from libraryRevision so logging a set never reloads the library. */
   liftRevision: z.number().int().nonnegative().optional(),
+  /**
+   * True only for an account the server computes results for (SERVER_COMPUTE_USERS). The browser asks for
+   * GET /api/state and reports its time zone only when this is true; for every other account it is absent.
+   */
+  serverState: z.boolean().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 /** GET /api/me answers a signed-out visitor with a null body, rather than an error. */

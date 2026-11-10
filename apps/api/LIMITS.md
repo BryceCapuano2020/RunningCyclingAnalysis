@@ -48,19 +48,22 @@ exceed the limit. Over-budget requests return **429 `daily_limit`** with `Retry-
 seconds until the next 00:00 UTC. The per-minute limiter still returns `rate_limited`. The values are
 exported as `DAILY_LIMITS` from `@rca/contract`.
 
-| Action                                   | Limit per user per UTC day  | Notes                                                                                                                                                    |
-| ---------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| File downloads                           | **5,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts. |
-| Profile writes                           | 50                          | Includes keepFiles toggles and each `PATCH /api/activities/labels` request, whatever it carries (at most 200 labels).                                    |
-| Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                 |
-| Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                              |
-| Lift reads                               | 300                         | `GET /api/lifts`: a page is at most 1,000 sets, also charged to the list-rows meter by the rows it returns. Refunded when the page is refused.           |
-| Lift writes                              | 300                         | `PUT /api/lifts` and `POST /api/lifts/delete`, up to 500 sets or keys each. Refunded when refused (cap reached, user gone).                              |
-| Activity deletions                       | 50                          |                                                                                                                                                          |
-| Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                |
-| Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                                                                  |
-| Library listings (`GET /api/activities`) | 100                         | One unit per library load (a request with no cursor). Pages are metered in rows; see Read charging.                                                      |
-| Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.                                                 |
+| Action                                   | Limit per user per UTC day  | Notes                                                                                                                                                                                                 |
+| ---------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File downloads                           | **5,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts.                                              |
+| Profile writes                           | 50                          | Includes keepFiles toggles and each `PATCH /api/activities/labels` request, whatever it carries (at most 200 labels).                                                                                 |
+| Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                                                              |
+| Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                                                                           |
+| Account-settings writes                  | 200                         | `PUT /api/settings`: one row replaced a write; the body is at most 512 KiB (20,000 counted runs).                                                                                                     |
+| Account-settings reads                   | 300                         | `GET /api/settings`: one row a read.                                                                                                                                                                  |
+| State reads                              | 300                         | `GET /api/state`: one row a read, and one stored snapshot unless the tag matches (304). A 404 unless the account is on the allowlist (`SERVER_COMPUTE_ACCOUNTS` secret, else `SERVER_COMPUTE_USERS`). |
+| Lift reads                               | 300                         | `GET /api/lifts`: a page is at most 1,000 sets, also charged to the list-rows meter by the rows it returns. Refunded when the page is refused.                                                        |
+| Lift writes                              | 300                         | `PUT /api/lifts` and `POST /api/lifts/delete`, up to 500 sets or keys each. Refunded when refused (cap reached, user gone).                                                                           |
+| Activity deletions                       | 50                          |                                                                                                                                                                                                       |
+| Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                                                             |
+| Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                                                                                                               |
+| Library listings (`GET /api/activities`) | 100                         | One unit per library load (a request with no cursor). Pages are metered in rows; see Read charging.                                                                                                   |
+| Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.                                                                                              |
 
 **Deviation from the owner's default of 50.** A first Strava export import is hundreds to thousands
 of activities, so activity creates and uploads need a higher daily allowance. Creates are capped at the
@@ -283,6 +286,31 @@ an account could spend its 64 MiB on names. The API now refuses a create or repl
 The plain variable `READ_ONLY` ("true", "1" or "on") makes the API answer every write and new sign-in with
 **503 `read_only`**. Reads, the health checks and ending a session still work. The scheduled job and the daily read
 charges keep running. How to use it, and the abuse runbook around it, are in docs/PRODUCTION.md.
+
+## Results computed on the server (switched off)
+
+Off for everyone unless the Worker secret `SERVER_COMPUTE_ACCOUNTS` (else the plain variable `SERVER_COMPUTE_USERS`) lists the account (user ids, comma separated; `*` for
+local tests only). The committed production configuration ships the variable empty and binds no queue (the deploy-config check refuses `*`, and
+any queue without its bounds), so for an unlisted account nothing is computed, sent or served (`GET /api/state` is a 404).
+No scheduled trigger computes. Compute is bounded by `limits.cpu_ms = 10000`, a consumer batch of 2 messages, one batch at a time, 3 tries and
+a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is docs/design/server-compute.md.
+
+- **Which libraries:** up to 2,000 activities (`SERVER_STATE_MAX_ACTIVITIES`). A larger library gets no snapshot and the
+  browser computes, as before. Measured in Node on synthetic libraries (`state/memory.sim.test.ts`): the peak V8 heap of
+  one job was 16.8 MiB for 1,000 activities, 26.1 MiB for 2,000, 57.2 MiB for 3,000 and 68.8 MiB for 5,000, against the
+  isolate's 128 MB. That is the heap alone, without workerd's own overhead, so it is a floor: the cap moves only after
+  the same libraries are run in workerd (the Cloudflare Vitest pool is not in the repository yet).
+- **One job at a time:** the consumer runs the accounts of a batch one after another, never together, so the memory
+  is one library's.
+- **R2:** a snapshot object is put only when its content hash changes, and the old object is deleted in the same job
+  (deletes are unmetered). Each put reserves from the ledger below like any put, at least 64 KiB of the 4 GiB lifetime
+  write cap, so a refused reservation fails the job and the Queue retries it. Under `users/{id}/state/`, so the account
+  sweep and the orphan scan cover it. Turning original files off leaves it; deleting the account removes it.
+- **Queue:** one message per write by a listed account (not an original-file upload), delayed 10 seconds; three tries, 30
+  seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
+  job that finds the last compute under 30 seconds old computes nothing and sends one message delayed 30 seconds, so an
+  import is about one compute per 30 seconds. A lost or exhausted message leaves the account dirty
+  (`users.library_version` above `state_jobs.computed_version`) until the next write: the hourly refresh (S6) is not built.
 
 ## Other per-user limits
 

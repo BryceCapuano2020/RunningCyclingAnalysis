@@ -64,3 +64,16 @@ export interface SaveBatch {
   /** The keys of `added` that replaced a digest held out of the analysis, which are upgraded and not new. */
   upgraded: Set<string>
 }
+
+/** The batch of an import that has saved nothing yet. */
+export function newSaveBatch(): SaveBatch {
+  return {
+    halt: null,
+    networkStreak: 0,
+    added: new Map(),
+    inflight: [],
+    inflightByKey: new Map(),
+    probe: null,
+    upgraded: new Set(),
+  }
+}

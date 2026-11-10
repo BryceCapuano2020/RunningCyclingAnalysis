@@ -5,6 +5,7 @@ import { recordDatabaseSize, sweepUserFiles } from './storage.ts'
 import { GOOGLE_PROVIDER } from './auth/accounts.ts'
 import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
+import { stateKey } from './state/key.ts'
 
 /**
  * How long a deleted account's tombstone is kept: longer than the 90-day backup archives, so a
@@ -109,6 +110,11 @@ async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string
     ? await identityKeyFor(env.SESSION_SIGNING_KEY, link.provider_user_id)
     : undefined
   const now = deps.now()
+  // The results snapshot is named by the job row, which goes with the user row: read its key now, delete the object after.
+  const snapshot = await db
+    .prepare('SELECT snapshot_hash FROM state_jobs WHERE user_id = ?')
+    .bind(userId)
+    .first<{ snapshot_hash: string | null }>()
   const statements = [
     db
       .prepare('INSERT OR IGNORE INTO account_tombstones (user_id, deleted_at) VALUES (?, ?)')
@@ -118,6 +124,10 @@ async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string
   if (identityKey !== undefined)
     statements.unshift(saveCountsStatement(db, identityKey, userId, now))
   await db.batch(statements)
+  // R2 deletes are unmetered. A failure leaves the object for the orphan sweep, which finds it with no job row.
+  if (snapshot?.snapshot_hash && env.FILES) {
+    await env.FILES.delete(stateKey(userId, snapshot.snapshot_hash)).catch(() => undefined)
+  }
 }
 
 /** Removes tombstones older than the retention period. Bounded per call. */

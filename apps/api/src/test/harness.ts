@@ -63,6 +63,8 @@ export async function resetTestEnv(): Promise<void> {
   await env.DB.batch(
     [
       'athlete_measurements',
+      'athlete_settings',
+      'state_jobs',
       'lift_sets',
       'activities',
       'sessions',

@@ -57,6 +57,23 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://example.invalid"
+# Results computed on the server: off for everyone here too. Local tests and the e2e server list accounts (or `*`) with
+# --var 'SERVER_COMPUTE_USERS:*'.
+SERVER_COMPUTE_USERS = ""
+
+# The state job's queues, run by Miniflare locally; nothing sends to them while the list is empty. Production's blocks
+# are in wrangler.toml, commented.
+[[queues.producers]]
+binding = "STATE_QUEUE"
+queue = "rca-state"
+
+[[queues.consumers]]
+queue = "rca-state"
+max_batch_size = 2
+max_concurrency = 1
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "rca-state-dlq"
 
 # Requests under /api run the Worker; everything else is served from the built web app. The web app
 # has hash routes, so nothing falls back to index.html: an unknown path is answered with the built

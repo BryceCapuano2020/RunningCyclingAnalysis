@@ -10,4 +10,6 @@ export interface RequestOptions {
    * one deadline and not two.
    */
   retryWithinMs?: number
+  /** Extra request headers, for a conditional read (If-None-Match). */
+  headers?: Record<string, string>
 }

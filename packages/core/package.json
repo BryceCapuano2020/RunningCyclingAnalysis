@@ -37,6 +37,8 @@
     "./predict": "./src/predict/index.ts",
     "./profile": "./src/profile/constants.ts",
     "./session": "./src/session.ts",
+    "./stateSnapshot": "./src/stateSnapshot.ts",
+    "./stateCompute": "./src/stateCompute.ts",
     "./standing": "./src/standing/index.ts",
     "./compare": "./src/compare/index.ts",
     "./cp": "./src/cp/index.ts",

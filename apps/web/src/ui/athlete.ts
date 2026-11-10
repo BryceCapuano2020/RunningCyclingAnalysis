@@ -1,7 +1,7 @@
 import { localYearOf } from '@rca/core/calendar'
 import { FIRST_GRADED_AGE } from '@rca/core/grade'
-import type { Sex } from '@rca/core/grade'
-import type { Measurement } from '@rca/core/athlete'
+import { PLACEHOLDER_BODY_KG, analysisSettings } from '@rca/core/athlete'
+import type { WeightSettings } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -10,27 +10,14 @@ import { WEIGHT_LIMITS_KG } from '@rca/contract'
 /** The two weights the app keeps. The bike weight keeps its default unless the athlete edits it. */
 export type WeightField = 'body' | 'bike'
 
-/**
- * What the athlete has entered. The body weight is null until it is entered: nothing assumes one,
- * so a ride's W/kg, grade and the balance wait for it. The bike weight always has a value.
- */
-export interface WeightSettings {
-  massKg: number | null
-  bikeMassKg: number
-}
+/** The two weights the app keeps and the settings built from them live in core, one function for the browser and the server. */
+export type { WeightSettings }
+export { PLACEHOLDER_BODY_KG, analysisSettings }
 
 export const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
   { value: 'imperial', label: 'Imperial' },
   { value: 'metric', label: 'Metric' },
 ]
-
-/**
- * The body mass the analysis runs on while none is entered. The analysis needs a number, and this is
- * the 75 kg the app used before weights were optional, so ride results keep today's numbers. It is a
- * placeholder, not the athlete's weight: anything built on it must be held while weightKnown is false.
- * A stored 75 kg from before setup was answered is read as unset (see parsePreferences).
- */
-export const PLACEHOLDER_BODY_KG = 75
 
 const NUMBER_MESSAGE = 'Enter a number, such as 75 or 165.5'
 
@@ -42,31 +29,6 @@ const WEIGHT_TEXT = /^(\d+(?:\.\d*)?|\d+,\d{1,2}|\.\d+|,\d{1,2})\s*(kgs?|lbs?)?$
 
 export function weightKnown(settings: WeightSettings): boolean {
   return typeof settings.massKg === 'number'
-}
-
-/**
- * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings and the rides whose power
- * the athlete kept are carried only when there are some, so an athlete with none has exactly the two masses.
- */
-export function analysisSettings(
-  settings: WeightSettings,
-  measurements: readonly Measurement[] = [],
-  birthYear: number | null = null,
-  countedRuns: readonly string[] = [],
-  keepPower: readonly string[] = [],
-  sex: Sex | null = null,
-): AthleteSettings {
-  return {
-    massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
-    bikeMassKg: settings.bikeMassKg,
-    // The placeholder is not the athlete's weight: ride power is not judged against it.
-    ...(settings.massKg === null ? { massAssumed: true as const } : {}),
-    ...(measurements.length > 0 ? { measurements } : {}),
-    ...(birthYear === null ? {} : { birthYear }),
-    ...(sex === null ? {} : { sex }),
-    ...(countedRuns.length > 0 ? { countedRuns } : {}),
-    ...(keepPower.length > 0 ? { keepPower } : {}),
-  }
 }
 
 /**

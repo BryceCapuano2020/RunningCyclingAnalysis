@@ -124,8 +124,8 @@ const ANALYSIS_FIGURES = [
 ]
 
 describe('privacy page date', () => {
-  it('is dated 30 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 9 November 2026</p>')
+  it('is dated 10 November 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 10 November 2026</p>')
   })
 })
 
@@ -243,11 +243,13 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(keptLibrary).toContain("DEVICE_KEY = 'rca.deviceKept.v1'")
     expect(text).toContain('rca.persistNote.v1')
     expect(keptLibrary).toContain("PERSIST_NOTE_KEY = 'rca.persistNote.v1'")
-    expect(text).toContain('Signing out and deleting your account clear it')
     expect(text).toContain('Remove all my activities, which is offered only when signed out')
     expect(text).toContain('rca.countedRuns.v1')
     expect(countedRuns).toContain("COUNTED_RUNS_KEY = 'rca.countedRuns.v1'")
-    expect(text).toContain('It is never uploaded, signed in or not')
+    // Signed out the counted runs stay in this browser; signed in the account keeps them too.
+    expect(text).toContain(
+      'Signed out it stays there and is never uploaded. Signed in, your account',
+    )
     expect(text).toContain("asks the browser to keep this site's storage")
   })
 
@@ -426,6 +428,25 @@ describe('privacy page describes what is stored as the app stores it', () => {
   it('names the view period key the app reads, among the settings kept in this browser', () => {
     expect(periodPreference).toContain("PERIOD_KEY = 'rca.period.v1'")
     expect(sentenceWith('Settings are kept')).toContain('rca.period.v1')
+    expect(text).toContain('your account keeps the view period too')
+  })
+
+  it('says the account keeps the rides kept, the runs counted and the period, as the API and the export hold them', async () => {
+    const schema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
+    const contract = await readStylesheet(
+      import.meta.url,
+      '../../../packages/contract/src/accountSettings.ts',
+    )
+    const settingsStore = await readStylesheet(import.meta.url, './ui/accountSettings.ts')
+    expect(text).toContain('Account settings:')
+    expect(schema).toContain("'athlete_settings'")
+    for (const field of ['keepPower', 'countedRuns', 'period']) expect(contract).toContain(field)
+    expect(text).toContain('rca.settingsOwner.v1')
+    expect(settingsStore).toContain("SETTINGS_OWNER_KEY = 'rca.settingsOwner.v1'")
+    expect(text).toContain('your account settings')
+    expect(text).toContain(
+      'removes your account, sessions, profile, dated settings, account settings',
+    )
   })
 
   it('says titles are saved only by choice, file names are hashed, and the choice stays in this browser under its key', () => {
@@ -510,6 +531,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
   it('says where the rides whose implausible power was kept are remembered', () => {
     expect(text).toContain('rca.keepPower.v1')
     expect(keptPowerStore).toContain("const KEY = 'rca.keepPower.v1'")
+    expect(text).toContain('Signed in, your account keeps it too')
   })
 
   it('says when an account was created and when an activity was saved', () => {
@@ -756,6 +778,7 @@ describe('the code behind the page', () => {
       'account',
       'profile',
       'measurements',
+      'settings',
       'lifts',
       'activities',
       'unreadable',

@@ -7,7 +7,7 @@ import type { ImportProgress, ReadFile, Refused } from './sessionSource'
 import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, SAMPLE_CLOCK, type SampleClock } from './synthetic'
 import { seasonDigests } from './sessionSample'
-import { setViewerZone } from './calendar'
+import { setViewerZone, withViewerZone } from './calendar'
 import type { Zone } from './calendar'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
@@ -30,7 +30,7 @@ import {
 } from './sessionKeep'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
-import type { SaveBatch, SyncSink } from './sessionSync'
+import { newSaveBatch, type SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import { zonesAt, HeartRateJudge, ZoneTimeCache } from './zones'
 import type { ZoneSet } from './zones'
@@ -79,16 +79,18 @@ export class AnalysisSession {
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
   private recordsCache = new RecordsCache()
-  // Today for the fitness status (a seam for tests); the sample season keeps its own day while on screen.
+  private zone: Zone | null
+  // Today for the fitness status (a seam for tests); the sample keeps its own day on screen.
   clock: () => number = Date.now
   private sampleNowMs = 0
 
   /**
-   * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
-   * a small budget to reach the limits without a large file.
+   * Production passes no limits (a test's seam: a small budget reaches them without a large file). A zone cuts
+   * every analysis of this session's days there, whatever another session in the process uses (the server's jobs).
    */
-  constructor(limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS) {
+  constructor(limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS, zone: Zone | null = null) {
     this.limits = limits
+    this.zone = zone
   }
 
   /**
@@ -115,20 +117,11 @@ export class AnalysisSession {
     held?: HeldFiles,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
-    // The rejected files are those of this import, so the files an earlier import refused are not listed again.
+    // The rejected files are this import's only.
     this.rejected.length = 0
     this.unsupported.files = 0
     beginImportUnsynced(this.keeping)
-    const batch: SaveBatch = {
-      halt: null,
-      networkStreak: 0,
-      added: new Map(),
-      inflight: [],
-      inflightByKey: new Map(),
-      probe: null,
-      upgraded: new Set(),
-    }
-    // An export's list given loose names the loose files; it is read before any of them.
+    const batch = newSaveBatch()
     const { rest, companion } = await takeCompanion(sources)
     const hints = { needsList: false }
     const progress: ImportProgress = { filesRead: 0, onProgress }
@@ -163,8 +156,7 @@ export class AnalysisSession {
       // Saves the sink began in the background settle before the import ends, whatever ended it.
       await Promise.all(batch.inflight)
     }
-    // Only digests still visible count as added, so the order the files arrive in does not matter. A digest that
-    // replaced one held out of the analysis is upgraded, not added: it is a workout the library already had.
+    // Only visible digests count as added, whatever the order. One that replaced a held-out digest is upgraded, not added.
     const analysable = this.library.analysable().map(([, digest]) => digest)
     const hidden = hiddenDigests(analysable)
     // Work a sink held back until the copies of each workout were known (an original is kept for the shown copy only).
@@ -238,9 +230,11 @@ export class AnalysisSession {
 
   /**
    * Gives the viewer's zone, once, at the edge that knows it: where a file recorded no local day, the days and
-   * weeks are cut in this zone (calendar.ts). It is the one zone for the whole worker, not for this session.
+   * weeks are cut in this zone (calendar.ts). The browser's worker has one zone, so this also sets the module's,
+   * which the digesting of a file reads; a session built with a zone needs no call.
    */
   setZone(zone: Zone): void {
+    this.zone = zone
     setViewerZone(zone)
   }
 
@@ -276,8 +270,7 @@ export class AnalysisSession {
     this.resetLibrary()
     for (const digest of digests) {
       const key = workoutKey(digest.sport, digest.startMs)
-      // The copy of a workout that the analysis reads most wins, whatever the order they arrive in.
-      // A key that arrives both stale and newer is one row held back, the first of them; main counted it in both.
+      // The copy the analysis reads most wins, whatever the order. A key that arrives both stale and newer is one row held back.
       const kept = this.library.digests.get(key) ?? this.library.notCurrent(key)
       if (kept === undefined || readRank(kept) < readRank(digest)) this.library.put(key, digest)
     }
@@ -301,7 +294,7 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  /** Throws a RangeError for a body or bike mass that is not a positive finite number. */
+  /** Throws a RangeError for a mass that is not a positive finite number. */
   setSettings(settings: AthleteSettings): SessionState {
     requirePositiveFinite('massKg', settings.massKg)
     requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
@@ -310,7 +303,9 @@ export class AnalysisSession {
 
   /** The zones in effect on a date: the dated settings first, else the whole library's references, whatever the period. */
   zonesAt(at: number, settings: AthleteSettings): ZoneSet[] {
-    return zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates)
+    return this.inZone(() =>
+      zonesAt(at, this.athleteFor(settings), this.state(settings).zoneEstimates),
+    )
   }
 
   setRange(choice: PeriodChoice, settings: AthleteSettings): SessionState {
@@ -345,11 +340,8 @@ export class AnalysisSession {
    */
   checkInSnapshot(state: SessionState, nowMs: number): CheckInSnapshot | null {
     if (this.isSample || this.library.size === 0) return null
-    return checkInSnapshotOf(
-      this.library.analysable().map(([, digest]) => digest),
-      state,
-      nowMs,
-    )
+    const digests = this.library.analysable().map(([, digest]) => digest)
+    return this.inZone(() => checkInSnapshotOf(digests, state, nowMs))
   }
 
   private reset(): void {
@@ -371,8 +363,16 @@ export class AnalysisSession {
     return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
   }
 
+  private inZone<T>(run: () => T): T {
+    return this.zone === null ? run() : withViewerZone(this.zone, run)
+  }
+
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
+    return this.inZone(() => this.stateIn(settings))
+  }
+
+  private stateIn(settings: AthleteSettings | null): SessionState {
     const athlete = settings === null ? null : this.athleteFor(settings)
     const { digests, keys } = applyCountedRuns(this.library.analysable(), athlete?.countedRuns)
     return buildState(

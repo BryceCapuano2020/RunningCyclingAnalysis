@@ -1,10 +1,11 @@
-import type { ActivityRecord, Profile } from '@rca/contract'
+import { NO_ACCOUNT_SETTINGS } from '@rca/contract'
+import type { AccountSettings, ActivityRecord, Profile } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
 import type { LiftSet } from '@rca/core/lift'
 
 /** Identifies the file, and says which schema describes it. A later schema changes `version`. */
 export const EXPORT_FORMAT = 'rca-export' as const
-export const EXPORT_VERSION = 3 as const
+export const EXPORT_VERSION = 4 as const
 /** Written into every export, so a reader knows what the file leaves out and how values look. */
 export const EXPORT_NOTES = [
   'Original files are not included.',
@@ -35,6 +36,8 @@ export interface AccountExport {
   profile: Profile
   /** The dated settings: body mass, max heart rate and thresholds, each from a local date. */
   measurements: Measurement[]
+  /** The rides whose power was kept, the runs counted at walking pace and the period; null for one never set. */
+  settings: AccountSettings
   /** Every logged lifting set, in key order. */
   lifts: LiftSet[]
   activities: ExportActivity[]
@@ -49,6 +52,8 @@ export interface AccountExportHeaderInput {
   profile: Profile
   /** Absent reads as none. */
   measurements?: readonly Measurement[]
+  /** Absent reads as none set. */
+  settings?: AccountSettings
 }
 
 export interface AccountExportInput extends AccountExportHeaderInput {
@@ -76,6 +81,18 @@ function headerFields(input: AccountExportHeaderInput) {
       updatedAt: profile.updatedAt,
     },
     measurements: (input.measurements ?? []).map(measurementEntry),
+    settings: settingsEntry(input.settings ?? NO_ACCOUNT_SETTINGS),
+  }
+}
+
+/** The account settings, with their fields in the order the file writes them. */
+function settingsEntry(settings: AccountSettings): AccountSettings {
+  return {
+    keepPower: settings.keepPower === null ? null : [...settings.keepPower],
+    countedRuns: settings.countedRuns === null ? null : [...settings.countedRuns],
+    period: settings.period,
+    // Only an account the server computes results for has one: the time zone this browser reported.
+    ...(settings.zone === undefined ? {} : { zone: settings.zone }),
   }
 }
 

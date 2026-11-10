@@ -58,12 +58,35 @@ describe('buildAccountExport', () => {
       'account',
       'profile',
       'measurements',
+      'settings',
       'lifts',
       'activities',
       'unreadable',
       'notes',
     ])
-    expect(build()).toMatchObject({ format: 'rca-export', version: 3 })
+    expect(build()).toMatchObject({ format: 'rca-export', version: 4 })
+  })
+
+  it('writes the account settings in their own section, and none set when they are absent', () => {
+    expect(build().settings).toEqual({ keepPower: null, countedRuns: null, period: null })
+    const settings = {
+      keepPower: ['ride-a'],
+      countedRuns: ['run-1700000000'],
+      period: { from: '2025-01-01', to: '2025-02-01' },
+    }
+    expect(build({ settings }).settings).toEqual(settings)
+    // The streamed header carries them too, beside the dated settings.
+    const header = JSON.parse(
+      exportHeaderJson({ now: NOW, account: ACCOUNT, profile: PROFILE, settings }) + ']}',
+    ) as { settings: unknown }
+    expect(header.settings).toEqual(settings)
+  })
+
+  it('writes the saved time zone when the account has one, and leaves it out when not', () => {
+    const settings = { keepPower: null, countedRuns: null, period: null, zone: 'Europe/Paris' }
+    expect(build({ settings }).settings).toEqual(settings)
+    expect(build({ settings }).settings).toHaveProperty('zone', 'Europe/Paris')
+    expect(build().settings).not.toHaveProperty('zone')
   })
 
   it('writes the dated settings, field by field, and none when there are none', () => {
@@ -255,6 +278,6 @@ describe('streamed export writers', () => {
   it('is compact, not pretty-printed', () => {
     const text = streamed([[RECORD]])
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":3,"exportedAt":')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":4,"exportedAt":')).toBe(true)
   })
 })

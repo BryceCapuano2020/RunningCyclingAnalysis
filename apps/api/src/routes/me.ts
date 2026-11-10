@@ -11,6 +11,7 @@ import { HttpError } from '../errors.ts'
 import { currentUser, optionalUser, requireUser, requireUserEvenIfDeleting } from '../middleware.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { hasStoredFiles, sweepUserFiles } from '../storage.ts'
+import { serverStateFor } from '../state/flag.ts'
 import { must } from '../util.ts'
 import { activities, profiles, users } from '../db/schema.ts'
 
@@ -40,7 +41,8 @@ meRoutes.get('/me', optionalUser, async (c) => {
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
   const me = await buildMe(db, deps, user, Boolean(c.env.FILES), units)
   const revisions = await revisionsOf(db, user.id)
-  return c.json({ ...me, ...revisions }, 200)
+  const serverState = serverStateFor(c.env, user.id) ? { serverState: true } : {}
+  return c.json({ ...me, ...revisions, ...serverState }, 200)
 })
 
 /**
@@ -48,20 +50,31 @@ meRoutes.get('/me', optionalUser, async (c) => {
  * digests, both kept by the same statements that insert, upgrade and delete rows. Another tab or device
  * compares it for inequality only, as a hint that its copy of the library may be out of date. It is
  * not a version: an edit that changes neither number is not seen, and nothing relies on it being exact.
+ * `libraryVersion` is the exact counter the server's results are built against (users.library_version); the web moves to it
+ * from the tag in the stage that reads the server's snapshot.
  * `liftRevision` is the lift sets' own counter and never feeds the tag: logging a set must not reload the library.
  */
 async function revisionsOf(
   db: AppEnv['Variables']['db'],
   userId: string,
-): Promise<{ libraryRevision: string; liftRevision: number }> {
+): Promise<{ libraryRevision: string; libraryVersion: number; liftRevision: number }> {
   const row = await db
-    .select({ count: users.activityCount, bytes: users.digestBytes, lifts: users.liftRevision })
+    .select({
+      count: users.activityCount,
+      bytes: users.digestBytes,
+      lifts: users.liftRevision,
+      version: users.libraryVersion,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .get()
   return row === undefined
-    ? { libraryRevision: '0.0', liftRevision: 0 }
-    : { libraryRevision: `${row.count}.${row.bytes}`, liftRevision: row.lifts }
+    ? { libraryRevision: '0.0', libraryVersion: 0, liftRevision: 0 }
+    : {
+        libraryRevision: `${row.count}.${row.bytes}`,
+        libraryVersion: row.version,
+        liftRevision: row.lifts,
+      }
 }
 
 meRoutes.put(
@@ -102,7 +115,7 @@ meRoutes.put(
     const bucket = c.env.FILES
     // Sweep before the profile changes, so a failed sweep leaves the profile and files as they were.
     if (sweepFiles && bucket) {
-      await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
+      await sweepUserFiles(c.env.DB, bucket, userId, deps.now, true)
       await db
         .update(activities)
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })
@@ -118,7 +131,7 @@ meRoutes.put(
       .get()
     if (sweepFiles && bucket) {
       // An upload that passed the keepFiles check before the change can still land its object.
-      await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
+      await sweepUserFiles(c.env.DB, bucket, userId, deps.now, true)
       await db
         .update(activities)
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })

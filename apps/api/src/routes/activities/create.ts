@@ -147,24 +147,33 @@ async function upgradeDigest(
   // The reservation is undone unless the digest was replaced, including when the update itself fails.
   let replaced = false
   try {
-    const updated = await db
-      .update(activities)
-      .set({ digestJson: next.digestJson, digestVersion: next.digestVersion, name: next.name })
-      .where(
-        and(
-          eq(activities.id, existing.id),
-          eq(activities.userId, userId),
-          eq(activities.fileHash, next.fileHash),
-          // Only the exact digest that the reservation was sized against is replaced.
-          eq(activities.digestJson, existing.digestJson),
-          sql`coalesce(json_extract(digest_json, '$.modelRevision'), 1) < ${next.modelRevision}`,
-        ),
-      )
-      .run()
-    replaced = updated.meta.changes === 1
+    // The library version moves in the same batch, only if the row did (no trigger: see migration 0014).
+    const [updated] = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `UPDATE activities SET digest_json = ?1, digest_version = ?2, name = ?3
+         WHERE id = ?4 AND user_id = ?5 AND file_hash = ?6
+           AND digest_json = ?7
+           AND coalesce(json_extract(digest_json, '$.modelRevision'), 1) < ?8`,
+      ).bind(
+        next.digestJson,
+        next.digestVersion,
+        next.name,
+        existing.id,
+        userId,
+        next.fileHash,
+        // Only the exact digest that the reservation was sized against is replaced.
+        existing.digestJson,
+        next.modelRevision,
+      ),
+      c.env.DB.prepare(
+        'UPDATE users SET library_version = library_version + 1 WHERE id = ? AND changes() = 1',
+      ).bind(userId),
+    ])
+    const result = must(updated, 'upgrade result')
+    replaced = result.meta.changes === 1
     if (!replaced) return null
     // The write may have grown the database, so the size the create guard reads is recorded.
-    await recordDatabaseSize(c.env.DB, deps.now(), updated.meta.size_after)
+    await recordDatabaseSize(c.env.DB, deps.now(), result.meta.size_after)
     return {
       ...existing,
       digestJson: next.digestJson,

@@ -95,6 +95,7 @@ export async function request(
   const headers = new Headers()
   if (method !== 'GET') headers.set(CLIENT_HEADER, CLIENT_HEADER_VALUE)
   if (userId !== undefined) headers.set(ACCOUNT_SCOPE_HEADER, userId)
+  for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value)
   let payload: BodyInit | undefined
   if (body !== undefined && 'json' in body) {
     headers.set('Content-Type', 'application/json')

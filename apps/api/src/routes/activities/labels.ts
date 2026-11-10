@@ -66,10 +66,12 @@ const MARK = `UPDATE activities
 
 /**
  * 2. Moves the counter by the size the row will have once the label is written, less the size the marker
- * recorded. It does nothing unless the row is marked.
+ * recorded, and raises the library version (the label is an input of the results: no trigger does it, see migration
+ * 0014). It does nothing unless the row is marked.
  */
 const COUNT = `UPDATE users
-  SET digest_bytes = digest_bytes + (
+  SET library_version = library_version + 1,
+    digest_bytes = digest_bytes + (
     SELECT length(CAST(${NEXT_JSON} AS BLOB))
       - CAST(substr(json_extract(digest_json, '$.athleteType'), ${PENDING.length + 1}) AS INTEGER)
     FROM activities WHERE id = ?2 AND user_id = ?3 AND ${IS_MARKED})

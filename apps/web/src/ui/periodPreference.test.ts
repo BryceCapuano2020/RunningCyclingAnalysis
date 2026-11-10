@@ -54,6 +54,22 @@ describe('usePeriodChoice', () => {
     expect(result.current[0]).toBe('all')
     expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe('all')
   })
+
+  it('follows a change made in another tab, and stops listening once unmounted', () => {
+    const { result, unmount } = renderHook(() => usePeriodChoice())
+    expect(result.current[0]).toBe('default')
+
+    act(() => {
+      localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
+      window.dispatchEvent(new StorageEvent('storage', { key: PERIOD_KEY }))
+    })
+    expect(result.current[0]).toBe(365)
+
+    unmount()
+    localStorage.setItem(PERIOD_KEY, JSON.stringify('all'))
+    window.dispatchEvent(new StorageEvent('storage', { key: PERIOD_KEY }))
+    expect(storedPeriodChoice()).toBe('all')
+  })
 })
 
 describe('storedPeriodChoice', () => {

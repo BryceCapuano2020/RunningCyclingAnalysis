@@ -1,0 +1,133 @@
+import { MODEL_REVISION } from './digest/modelRevision'
+import type { SessionState } from './sessionState'
+
+/**
+ * A `SessionState` as plain JSON, for a copy kept on the device and for the one the server computes
+ * (docs/design/server-compute.md, decision 7). The browser applies a snapshot only when its `schemaVersion` and
+ * `modelRevision` are its own build's; otherwise it computes locally.
+ */
+export const STATE_SNAPSHOT_VERSION = 1
+
+/** A value JSON cannot hold, written as a tagged object. `$` is reserved: no object of the state may use it as a key. */
+type Tagged =
+  | { $: 'Map'; e: [Json, Json][] }
+  | { $: 'Set'; e: Json[] }
+  | { $: 'NaN' | 'Infinity' | '-Infinity' | '-0' | 'undefined' }
+
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json } | Tagged
+
+/** What a snapshot says about the run that made it. */
+export interface SnapshotMeta {
+  /** Counts every change to the inputs; the account's `library_version` for a server snapshot, 0 for a device's. */
+  libraryVersion: number
+  /** The instant the analysis treated as now. */
+  nowMs: number
+  /** The viewer's zone by name (an IANA name), as the days were cut in it. */
+  zone: string
+  /** The build that made the snapshot. */
+  buildSha: string
+}
+
+export interface StateSnapshot extends SnapshotMeta {
+  schemaVersion: number
+  modelRevision: number
+  /** The state with its `Map`s, `Set`s and non-finite numbers tagged (`encodeValue`). */
+  state: Json
+}
+
+const SPECIAL_NUMBERS = new Map<string, number>([
+  ['NaN', NaN],
+  ['Infinity', Infinity],
+  ['-Infinity', -Infinity],
+  ['-0', -0],
+])
+
+function encodeValue(value: unknown, path: string): Json {
+  if (value === undefined) return { $: 'undefined' }
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value
+  if (typeof value === 'number') {
+    if (Number.isFinite(value) && !Object.is(value, -0)) return value
+    return {
+      $: Number.isNaN(value) ? 'NaN' : Object.is(value, -0) ? '-0' : (String(value) as '-Infinity'),
+    }
+  }
+  if (Array.isArray(value)) return value.map((item, i) => encodeValue(item, `${path}[${i}]`))
+  if (value instanceof Map)
+    return {
+      $: 'Map',
+      e: [...value].map(([k, v]) => [encodeValue(k, path), encodeValue(v, `${path}.${String(k)}`)]),
+    }
+  if (value instanceof Set) return { $: 'Set', e: [...value].map((v) => encodeValue(v, path)) }
+  if (typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    const out: { [key: string]: Json } = {}
+    for (const [key, item] of Object.entries(value)) {
+      if (key === '$') throw new TypeError(`snapshot: reserved key "$" at ${path}`)
+      out[key] = encodeValue(item, `${path}.${key}`)
+    }
+    return out
+  }
+  // A class instance, a typed array, a function: not part of a state, so a new one fails here and not in a later read.
+  throw new TypeError(`snapshot: cannot hold a ${typeof value} value at ${path}`)
+}
+
+function decodeValue(json: Json): unknown {
+  if (json === null || typeof json !== 'object') return json
+  if (Array.isArray(json)) return json.map(decodeValue)
+  if ('$' in json) {
+    const tag = json as Tagged
+    if (tag.$ === 'undefined') return undefined
+    if (tag.$ === 'Map') return new Map(tag.e.map(([k, v]) => [decodeValue(k), decodeValue(v)]))
+    if (tag.$ === 'Set') return new Set(tag.e.map(decodeValue))
+    const special = SPECIAL_NUMBERS.get(tag.$)
+    if (special === undefined) throw new TypeError(`snapshot: unknown tag "${String(tag.$)}"`)
+    return special
+  }
+  return Object.fromEntries(Object.entries(json).map(([key, item]) => [key, decodeValue(item)]))
+}
+
+/**
+ * The snapshot of a state: plain JSON, whole, so `fromSnapshot` of it (or of its JSON text) is deep-equal to the state.
+ * Its keys come in one order whoever builds it, so the text hashes the same (the ETag).
+ */
+export function toSnapshot(state: SessionState, meta: SnapshotMeta): StateSnapshot {
+  return {
+    schemaVersion: STATE_SNAPSHOT_VERSION,
+    modelRevision: MODEL_REVISION,
+    libraryVersion: meta.libraryVersion,
+    nowMs: meta.nowMs,
+    zone: meta.zone,
+    buildSha: meta.buildSha,
+    state: encodeValue(state, 'state'),
+  }
+}
+
+/** The state a snapshot holds. Check `snapshotIsCurrent` first: this does not read an older or newer shape. */
+export function fromSnapshot(snapshot: StateSnapshot): SessionState {
+  return decodeValue(snapshot.state) as SessionState
+}
+
+/** Whether this build may show the snapshot: its shape and its model are this build's (decision 7). */
+export function snapshotIsCurrent(
+  snapshot: Pick<StateSnapshot, 'schemaVersion' | 'modelRevision'>,
+): boolean {
+  return (
+    snapshot.schemaVersion === STATE_SNAPSHOT_VERSION && snapshot.modelRevision === MODEL_REVISION
+  )
+}
+
+/**
+ * What the athlete sees, hashed: the shape and model, the zone and the state. The instant, the counter and the build are
+ * not in it, so a recompute that changes no figure has the same hash (decision 9). The server names its snapshot by it
+ * (the ETag of GET /api/state), and a browser that holds a copy computes the same hash to ask whether it is still the
+ * latest.
+ */
+export async function snapshotContentHash(snapshot: StateSnapshot): Promise<string> {
+  const { libraryVersion: _version, nowMs: _now, buildSha: _build, ...content } = snapshot
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(content)),
+  )
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32)
+}

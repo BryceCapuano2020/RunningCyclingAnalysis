@@ -11,6 +11,9 @@ import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
 import { liftRoutes } from './routes/lifts.ts'
 import { measurementRoutes } from './routes/measurements.ts'
+import { settingsRoutes } from './routes/settings.ts'
+import { stateRoutes } from './routes/state.ts'
+import { stateEnqueue } from './state/enqueue.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
 import { isSignInNavigation, signInProblemUrl } from './signInProblem.ts'
@@ -50,6 +53,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.use('/api/*', publicRateLimit)
   app.use('/api/*', csrfGuard)
   app.use('/api/*', readOnlyGuard)
+  app.use('/api/*', stateEnqueue)
 
   app.onError((err, c) => {
     if (err instanceof HttpError) {
@@ -88,6 +92,8 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)
   app.route('/api/measurements', measurementRoutes)
+  app.route('/api/settings', settingsRoutes)
+  app.route('/api/state', stateRoutes)
   app.route('/api/lifts', liftRoutes)
   app.route('/api/activities', activityRoutes)
 

@@ -1,31 +1,14 @@
-import { workoutKey } from '@rca/core/session'
-import type { Sport } from '@rca/core/types'
+import { isCountableKey, MAX_COUNTED_RUNS } from '@rca/core/athlete'
 
 /**
  * Where the runs the athlete counts despite their walking pace are kept: this browser's storage, next to
- * the preferences, whether or not anyone is signed in. A choice is a workout key (see `workoutKey`), so it
- * holds for that workout whichever library it is in and across a re-import. It is never uploaded.
+ * the preferences, whether or not anyone is signed in. Signed in, the account keeps them too and this copy follows it
+ * (accountSettings). A choice is a workout key (see `workoutKey`), so it holds for that workout whichever library it is
+ * in and across a re-import.
  */
 export const COUNTED_RUNS_KEY = 'rca.countedRuns.v1'
 
-/** The sports whose activities can be at walking pace, so a choice to count one can be kept. */
-const CAN_BE_AT_WALKING_PACE: Record<Sport, boolean> = { run: true, ride: false }
-
-/** A workout key of such a sport, in the form `workoutKey` writes: the sport and the start second. */
-const WORKOUT_KEY = new RegExp(
-  `^(?:${(Object.keys(CAN_BE_AT_WALKING_PACE) as Sport[])
-    .filter((sport) => CAN_BE_AT_WALKING_PACE[sport])
-    .map((sport) => workoutKey(sport, 0).replace(/0$/, ''))
-    .join('|')})\\d{1,12}$`,
-)
-
-/** The most choices kept: far above any library, so a limit is never reached by a real one, and said when it is. */
-export const MAX_COUNTED_RUNS = 20_000
-
-/** Whether the text is a workout key a choice can be kept under. */
-export function isCountableKey(text: string): boolean {
-  return WORKOUT_KEY.test(text)
-}
+export { isCountableKey, MAX_COUNTED_RUNS }
 
 /** The stored list. Anything that is not a countable workout key is dropped, as is a repeat. */
 export function parseCountedRuns(raw: string | null): string[] {

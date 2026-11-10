@@ -44,8 +44,10 @@ import type { AthleteValues } from './ui/profilePatch'
 import { saveAnswersFor } from './ui/saveAnswers'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
-import { clearKeptPower, useKeptPower } from './ui/keptPowerStore'
+import { useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
+import { useAccountSettings } from './ui/useAccountSettings'
+import { forgetAccountChoices } from './ui/accountSettings'
 import { useAppSignOut } from './ui/useAppSignOut'
 import { useSignInProblem } from './ui/signInProblem'
 
@@ -85,6 +87,7 @@ export function App() {
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
+  useAccountSettings(account.status, account.me?.user.id ?? null, account.me?.serverState === true)
   const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
@@ -208,7 +211,7 @@ export function App() {
   }
   const deleteAccount = async () => {
     await account.deleteAccount()
-    clearKeptPower()
+    forgetAccountChoices()
     forgetPreferences() // the profile values mirrored here (see saveAnswersFor) go with the account
     countedRuns.clear()
     setAccountDeleted(true)

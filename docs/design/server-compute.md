@@ -1,6 +1,8 @@
 # Server compute: results ready before the page opens
 
-Status: designed and approved by the owner on 9 Nov 2026 (section 7); no code yet. Written 9 Nov 2026
+Status: designed and approved by the owner on 9 Nov 2026 (section 7). S1 to S3 built; S5 (the browser reads the snapshot) built; S4 (server) built and off for
+everyone (`SERVER_COMPUTE_USERS` empty, no queue bound in production) until the owner is on Workers Paid; then it runs for
+listed accounts only. Written 9 Nov 2026
 against main 34de84bc.
 
 ## Why
@@ -87,7 +89,7 @@ and records caches, so the cap could pass 128 MB. The snapshot also nears the 2 
 6. **Ordering under load.** The consumer reads `library_version` and every input in one consistent D1 read, records
    `computed_version` as the version it read (not the latest), and writes the snapshot row only if that version is
    newer than the stored one. A write during a compute leaves the job dirty and sends its own message. Three failed
-   tries leave the job dirty; the hourly pass picks it up.
+   tries leave the job dirty until the account's next write (the hourly pass, S6, is not built).
 7. **The snapshot is a versioned, serialisable type.** `StateSnapshot` holds `SessionState` with its `Map` fields as
    arrays, plus `schemaVersion`, `modelRevision`, the build sha, `libraryVersion`, `nowMs` and the zone. The browser
    applies a snapshot only when both `schemaVersion` and `modelRevision` match its own build. A cached old tab facing a
@@ -126,7 +128,7 @@ and records caches, so the cap could pass 128 MB. The snapshot also nears the 2 
 - When the device has no copy (a new device): the shell, with a loading state in the content area, until
   `/api/state` answers. One line, no progress bar.
 - A refresh of an older analysis shows no notice. A failed refresh shows nothing to the athlete; it is a log line and
-  the hourly pass retries.
+  the account's next write retries (S6, the hourly pass, is not built).
 
 ## 5. Security and privacy
 
@@ -163,3 +165,12 @@ All four approved.
    from the summaries it already holds.
 3. `keepPower`, `countedRuns` and the period choice move into the account (decision 10).
 4. Order: S1 to S6, then Garmin on the revised design, then the connector.
+
+## 8. Open items
+
+- **S6 (the hourly refresh) is not built.** Until it is, a lost queue message or an exhausted retry leaves the account
+  dirty until its next write, and a snapshot that has aged past its local day is not refreshed.
+- **A snapshot-version or `MODEL_REVISION` change needs a write to recompute.** The job compares `library_version` only, so
+  after such a change an account's snapshot is old (the browser reads it as not current and computes locally) until the
+  account writes.
+- A client could mark a snapshot older than a pending job from `X-State-Computed-Version`; it is sent, not yet used.

@@ -1,5 +1,5 @@
 import { forgetSeenNotes } from './aboutDataStore'
-import { clearKeptPower } from './keptPowerStore'
+import { forgetAccountChoices } from './accountSettings'
 import { forgetPreferences } from './preferencesStorage'
 import type { useAccount } from './useAccount'
 import type { CountedRunsController } from './useCountedRuns'
@@ -7,7 +7,7 @@ import { useSignOutWarning } from './useSignOutWarning'
 
 /**
  * Signing out for the app: what this browser noted about the visitor's data goes with their session, and the runs
- * counted here, the rides kept and the profile values mirrored into this browser's preferences (weight, units, year
+ * counted here, the rides kept, the view period and the profile values mirrored into this browser's preferences (weight, units, year
  * of birth, sex) go once the session has really ended (a failed sign-out leaves the visitor signed in). The next
  * person on a shared device starts from the defaults. It asks first when saves are waiting (see useSignOutWarning).
  */
@@ -23,7 +23,7 @@ export function useAppSignOut(
     void account.signOut().then(
       () => {
         countedRuns.clear()
-        clearKeptPower()
+        forgetAccountChoices()
         forgetPreferences()
       },
       () => undefined,

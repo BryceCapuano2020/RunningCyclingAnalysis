@@ -94,7 +94,8 @@ const ASKED = /\brevisionStatus\(\s*[\w.?]*\.modelRevision\s*[,)]/g
  * (strictly newer), which does not ask whether either is current. revisionCheck.ts reads the claimed revision
  * from an unparsed body, to ask `revisionStatus` before the schema runs. labels.ts compares the stored revision
  * in SQL with the one the client read, so a label never lands on a row a rebuild has since replaced. applyLabels.ts
- * names the revision a digest was read at, which that comparison needs.
+ * names the revision a digest was read at, which that comparison needs. stateSnapshot.ts compares a state snapshot's
+ * own model revision (the whole state's, not a digest's) with the build's, to decide whether to show it.
  */
 const ALLOWED = [
   'packages/core/src/digest/revisions.ts',
@@ -106,6 +107,7 @@ const ALLOWED = [
   'apps/api/src/routes/activities/labels.ts',
   'packages/core/src/import/applyLabels.ts',
   'packages/core/src/import/minimise.ts',
+  'packages/core/src/stateSnapshot.ts',
 ]
 
 describe('revision reads', () => {

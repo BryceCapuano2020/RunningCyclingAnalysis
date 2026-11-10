@@ -102,7 +102,7 @@ export interface SourceImport {
  * http on a LAN), there is no hash: the legs then share no session, and the import still reads.
  */
 async function sessionHashOf(bytes: Uint8Array): Promise<string | undefined> {
-  if ((globalThis.crypto as Crypto | undefined)?.subtle === undefined) return undefined
+  if ((globalThis as { crypto?: Crypto }).crypto?.subtle === undefined) return undefined
   return sha256Hex(bytes)
 }
 

@@ -78,6 +78,30 @@ const DISCLOSED: Record<string, string> = {
     'each weight, max heart rate, threshold power or threshold pace you add on profile, with the date it takes effect, and for the heart rate and thresholds the sport. each also records when you last changed it',
   'athlete_measurements.updated_at':
     'each weight, max heart rate, threshold power or threshold pace you add on profile, with the date it takes effect, and for the heart rate and thresholds the sport. each also records when you last changed it',
+  'athlete_settings.user_id':
+    'google account id, email, display name, and profile picture address (loaded from google), and when the account was created',
+  'athlete_settings.keep_power':
+    'the ids of the rides whose implausible power you chose to keep, the sport and start second of the runs you count at walking pace, and the view period you pick. each also records when you last changed it',
+  'athlete_settings.counted_runs':
+    'the ids of the rides whose implausible power you chose to keep, the sport and start second of the runs you count at walking pace, and the view period you pick. each also records when you last changed it',
+  'athlete_settings.period':
+    'the ids of the rides whose implausible power you chose to keep, the sport and start second of the runs you count at walking pace, and the view period you pick. each also records when you last changed it',
+  'athlete_settings.updated_at':
+    'the ids of the rides whose implausible power you chose to keep, the sport and start second of the runs you count at walking pace, and the view period you pick. each also records when you last changed it',
+  'athlete_settings.zone':
+    'the time zone this browser reports, saved with your account settings, which sets where your days start',
+  'users.library_version':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute and the name of the copy',
+  'state_jobs.user_id':
+    'google account id, email, display name, and profile picture address (loaded from google), and when the account was created',
+  'state_jobs.computed_version':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute and the name of the copy',
+  'state_jobs.computed_at':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute and the name of the copy',
+  'state_jobs.snapshot_hash':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute and the name of the copy',
+  'state_jobs.snapshot_version':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute and the name of the copy',
   'activities.id':
     "activity ids, a key from each activity's sport and start, digest versions, your activity count and digest bytes, whether and when deletion started, when your profile last changed, and an upload reservation token while a file uploads",
   'activities.user_id':
