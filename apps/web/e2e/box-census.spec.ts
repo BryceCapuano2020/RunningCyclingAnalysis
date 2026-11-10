@@ -25,7 +25,7 @@ for (const size of SIZES) {
         await page.setViewportSize({ width: size.width, height: size.height })
         await openSample(page)
         await goTo(page, sport)
-        await expect(page.locator('.fitness-card')).toBeVisible()
+        await expect(page.locator('.fitness-section .chart-frame')).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const census = await boxCensus(page)
         // Sections are open to start with, and a section is a band: no box remains on the page.

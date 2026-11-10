@@ -26,8 +26,11 @@ export interface FitnessLayout {
   onsetX: number | null
   /** The last point: the level now. */
   now: Point
-  /** The point nearest the month of the low a recovery fell to, when it is a step before the last; null otherwise. */
-  low: Point | null
+  /**
+   * The low a recovery fell to: a point where its month is on the chart, and a level across the plot where it is before the
+   * chart's first step (a point there would read as a step of the chart's own). Null without a low.
+   */
+  low: { point: Point } | { y: number } | null
 }
 
 /**
@@ -46,11 +49,15 @@ export function fitnessLayout(
   const { plot, width } = size
   const x = linearScale([first.atMs, last.atMs], [plot.left, plot.right])
   const at = (output: number) => plottedValue(sport, output, units)
-  const values = [at(before), ...series.flatMap((p) => [at(p.low), at(p.high)])]
+  const lowLevel = status.lowLevel === undefined ? null : at(status.lowLevel)
+  const values = [
+    at(before),
+    ...(lowLevel === null ? [] : [lowLevel]),
+    ...series.flatMap((p) => [at(p.low), at(p.high)]),
+  ]
   const { y, ticks } = sportYAxis(sport, values, plot, true, MIN_TIGHT_SPAN[sport])
   const edge = (pick: (a: number, b: number) => number) =>
     series.map((p) => ({ x: x(p.atMs), y: pick(y(at(p.low)), y(at(p.high))) }))
-  const lowAt = lowStep(status)
   const onsetX = status.onsetMs === null ? null : x(status.onsetMs)
   return {
     xs: series.map((p) => x(p.atMs)),
@@ -68,17 +75,17 @@ export function fitnessLayout(
     referenceY: y(at(before)),
     onsetX: onsetX !== null && onsetX >= plot.left && onsetX <= plot.right ? onsetX : null,
     now: { x: x(last.atMs), y: y(at(last.value)) },
-    low: lowAt === null ? null : { x: x(series[lowAt]!.atMs), y: y(at(series[lowAt]!.value)) },
+    low: lowOf(status, lowLevel === null ? null : y(lowLevel), x(status.lowMs ?? 0), plot),
   }
 }
 
-/** The index of the step nearest the low's month, for a status that has a low and a step before the last that is near it. */
-export function lowStep(status: FitnessStatus): number | null {
-  const { series, lowMs } = status
-  if (lowMs === null || series.length < 2) return null
-  let best = 0
-  series.forEach((p, i) => {
-    if (Math.abs(p.atMs - lowMs) < Math.abs(series[best]!.atMs - lowMs)) best = i
-  })
-  return best === series.length - 1 ? null : best
+/** Where the low is drawn: at its month when that is on the plot, else as a level across it; null for a status with none. */
+function lowOf(
+  status: FitnessStatus,
+  y: number | null,
+  x: number,
+  plot: ChartSize['plot'],
+): FitnessLayout['low'] {
+  if (status.lowMs === null || y === null) return null
+  return x >= plot.left && x <= plot.right ? { point: { x, y } } : { y }
 }

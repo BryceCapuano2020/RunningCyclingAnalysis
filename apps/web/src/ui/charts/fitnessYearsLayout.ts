@@ -9,6 +9,7 @@ import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { linearScale } from './scale'
 import { fittedYAxis, plottedValue } from './sportAxis'
 import { fitTicks } from './ticks'
+import { trendDateTicks } from './trendTicks'
 
 /** The days between two points of the middle line, as the core draws it. */
 const LINE_STEP_DAYS = 28
@@ -104,6 +105,27 @@ function axisValues(values: readonly number[]): [number, number] {
 }
 
 /**
+ * The date axis: each year at the middle of its room, or, for a library that spans one year or less, the days and months
+ * its dots fall in, so a reader can tell when each was ("2026" alone says nothing of three rides in three months).
+ */
+function xTicksOf(
+  dots: FitnessDots,
+  days: readonly number[],
+  x: (day: number) => number,
+  xs: readonly number[],
+): AxisTick[] {
+  if (dots.years.length <= 1) {
+    const unique = [...new Set(days)]
+    const ticks = trendDateTicks(
+      unique.map((day) => WEEK_ORIGIN_MS + day * DAY_MS),
+      (ms) => x((ms - WEEK_ORIGIN_MS) / DAY_MS),
+    )
+    if (ticks.length > 0) return ticks
+  }
+  return dots.years.map((year, i) => ({ position: xs[i]!, label: String(year.year) }))
+}
+
+/**
  * Where the dots, the middle line, the slips and rises and the years sit on a plot. Time runs left to right from the
  * first dot to the last, each year has its room in proportion to its days, and the vertical axis is fitted to the dots
  * (faster up for a run). Null without a dot.
@@ -163,10 +185,7 @@ export function fitnessYearsLayout(
         ? (plot.top + plot.bottom) / 2
         : onPlot(plottedValue(sport, outputOf(dots, year.median), units)),
     ),
-    xTicks: fitTicks(
-      dots.years.map((year, i) => ({ position: xs[i]!, label: String(year.year) })),
-      { axis: 'x', width },
-    ),
+    xTicks: fitTicks(xTicksOf(dots, days, x, xs), { axis: 'x', width }),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
     now: nowPlotted === null ? null : { x: x(to), y: onPlot(nowPlotted) },
   }
