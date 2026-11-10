@@ -290,7 +290,7 @@ describe('MethodPage sections', () => {
     const nav = screen.getByRole('navigation', { name: 'On this page' })
     const names = within(nav)
       .getAllByRole('button')
-      .map((button) => button.textContent)
+      .map((button) => button.querySelector('.method__contents-label')?.textContent)
     expect(names).toEqual([
       'Thresholds and race times',
       'Age grades and levels',

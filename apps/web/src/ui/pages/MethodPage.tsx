@@ -147,8 +147,9 @@ export function MethodPage({
 
   return (
     <div className="page-stack method">
-      <div className="page-head">
+      <div className="page-head method__head">
         <PageHeading>Method</PageHeading>
+        <p className="method__lede">How each figure is worked out.</p>
       </div>
 
       <MethodAnswer
@@ -162,15 +163,21 @@ export function MethodPage({
       />
 
       <nav className="method__contents" aria-label="On this page">
-        <ul>
-          {contentsOf(showAccuracy).map(({ id, label }) => (
+        <p className="eyebrow method__contents-title" aria-hidden="true">
+          Contents
+        </p>
+        <ol>
+          {contentsOf(showAccuracy).map(({ id, label }, index) => (
             <li key={id}>
               <button type="button" onClick={() => focusSection(id)}>
-                {label}
+                <span className="method__contents-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="method__contents-label">{label}</span>
               </button>
             </li>
           ))}
-        </ul>
+        </ol>
       </nav>
 
       <MethodSection section="thresholds" lead={THRESHOLD_LEAD} facts={THRESHOLD_FACTS}>

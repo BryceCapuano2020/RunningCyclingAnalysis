@@ -1,7 +1,25 @@
-/* One line under the title, the estimate; the three labels and the period's dates sit behind one disclosure. */
+/* The title and one line of what the page is, then the athlete's result as a framed summary, then the contents. */
+.method__head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.method__lede {
+  max-width: var(--measure);
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* One line, the estimate, in a panel under a small label; what it rests on sits behind one disclosure. */
 .method__answer {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  max-width: var(--measure);
+  padding: var(--space-4);
+}
+
+.method__answer-title {
+  color: var(--ink-secondary);
 }
 
 .method__answer-text {
@@ -59,31 +77,60 @@
   color: var(--ink);
 }
 
-/* The on-page contents. Each entry is a button that moves focus, since a fragment would change the hash route. */
-.method__contents ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+/* The on-page contents: a numbered list in two columns between hairlines, as a document's contents read. Each entry is a
+   button that moves focus, since a fragment would change the hash route. */
+.method__contents {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.method__contents-title {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.method__contents ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--column-steps)), 1fr));
+  column-gap: var(--space-6);
   list-style: none;
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.method__contents li {
+  border-bottom: 1px solid var(--hairline);
 }
 
 .method__contents button {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  width: 100%;
   min-height: var(--control-height);
-  padding: 0;
+  padding: var(--space-2) 0;
   border: 0;
   background: none;
   color: var(--ink);
   font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-align: left;
   cursor: pointer;
 }
 
-/* A contents button thickens its underline on hover, as a link does, and presses to the secondary ink. */
-.method__contents button:hover {
-  text-decoration-thickness: 2px;
+.method__contents-index {
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An entry underlines its name on hover and focus, as a link does, and presses to the secondary ink. */
+.method__contents button:hover .method__contents-label,
+.method__contents button:focus-visible .method__contents-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .method__contents button:active {

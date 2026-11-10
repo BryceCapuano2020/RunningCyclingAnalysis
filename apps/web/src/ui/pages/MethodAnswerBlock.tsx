@@ -58,7 +58,10 @@ export function MethodAnswer({
     ...(period ? [{ label: 'Counted over', value: periodDates(period) }] : []),
   ]
   return (
-    <div className="lede method__answer" role="group" aria-label="The short answer">
+    <div className="panel method__answer" role="group" aria-label="The short answer">
+      <div className="eyebrow method__answer-title" aria-hidden="true">
+        Your result
+      </div>
       <p className="method__answer-text">
         <NumText text={line} />
       </p>
