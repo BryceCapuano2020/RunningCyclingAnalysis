@@ -9,6 +9,7 @@ import {
   LIFT_REVISION,
   exerciseInfo,
   exerciseKeyOf,
+  usualEquipment,
   isLiftLoad,
   isLiftRpe,
   liftSetKey,
@@ -112,6 +113,27 @@ describe('catalog', () => {
       if (info.deadliftFamily) expect(info.region, slug).toBe('lower')
       if (info.deadliftFamily) expect(info.bodyweight, slug).toBeUndefined()
       if (info.pair) expect(info.bodyweight, slug).toBeUndefined()
+    }
+  })
+  it('names the usual equipment of a lift, barbell or bodyweight when it says nothing', () => {
+    expect(usualEquipment('seated-dumbbell-shoulder-press')).toBe('dumbbell')
+    expect(usualEquipment('incline-dumbbell-curl')).toBe('dumbbell')
+    expect(usualEquipment('face-pull')).toBe('cable')
+    expect(usualEquipment('overhead-cable-triceps-extension')).toBe('cable')
+    expect(usualEquipment('lat-pulldown')).toBe('cable')
+    expect(usualEquipment('leg-curl')).toBe('machine')
+    expect(usualEquipment('pec-deck-fly')).toBe('machine')
+    expect(usualEquipment('single-arm-machine-row')).toBe('machine')
+    expect(usualEquipment('deadlift')).toBe('barbell')
+    expect(usualEquipment('pull-up')).toBe('bodyweight')
+    expect(usualEquipment('custom-sled-push')).toBe('barbell')
+    // A name that says its equipment always gets it.
+    for (const [slug, info] of Object.entries(EXERCISE_CATALOG)) {
+      const usual = usualEquipment(slug)
+      if (/\bdumbbell\b/i.test(info.name)) expect(usual, slug).toBe('dumbbell')
+      if (/\bcable\b/i.test(info.name)) expect(usual, slug).toBe('cable')
+      if (/\bmachine\b/i.test(info.name)) expect(usual, slug).toBe('machine')
+      if (info.bodyweight) expect(usual, slug).toBe('bodyweight')
     }
   })
   it('knows the accessory lifts, trunk work as other', () => {

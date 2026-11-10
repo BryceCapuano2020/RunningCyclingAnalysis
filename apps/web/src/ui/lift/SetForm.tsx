@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
-import { EQUIPMENT, exerciseInfo, isLiftRpe } from '@rca/core/lift'
+import { EQUIPMENT, exerciseInfo, isLiftRpe, usualEquipment } from '@rca/core/lift'
 import type { Equipment, LiftSet } from '@rca/core/lift'
 import { localClockText } from '@rca/core/calendar'
 import type { UnitSystem } from '@rca/core/units'
@@ -47,8 +47,7 @@ export function SetForm(props: SetFormProps) {
   const baseId = useId()
   const info = exerciseInfo(exercise)
   const start = (): SetFormText => ({
-    equipment:
-      initial?.equipment ?? props.defaultEquipment ?? (info.bodyweight ? 'bodyweight' : 'barbell'),
+    equipment: initial?.equipment ?? props.defaultEquipment ?? usualEquipment(exercise),
     reps: initial?.reps === undefined ? '' : String(initial.reps),
     load: initial?.loadKg === undefined ? '' : loadText(initial.loadKg, units),
     rpe: rpeText(initial?.rpe),

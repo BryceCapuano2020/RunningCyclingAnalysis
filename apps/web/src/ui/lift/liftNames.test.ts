@@ -106,4 +106,12 @@ describe('liftOptions', () => {
     ])
     expect(liftOptions('★', [])).toEqual([])
   })
+
+  it('ranks an exact name first, then names that start with what is typed', () => {
+    expect(liftOptions('Curl', [])[0]?.label).toBe('Curl')
+    expect(liftOptions('curl', [])[0]?.label).toBe('Curl')
+    const lat = liftOptions('lat', []).map((row) => row.label)
+    expect(lat.slice(0, 2).sort()).toEqual(['Lat pulldown', 'Lateral raise'])
+    expect(liftOptions('dip', [])[0]?.label).toBe('Dip')
+  })
 })
