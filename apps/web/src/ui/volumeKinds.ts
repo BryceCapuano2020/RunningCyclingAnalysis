@@ -9,8 +9,14 @@ export const VOLUME_KINDS = [...SPORT_ORDER, 'lift'] as const
 
 export type VolumeKind = Sport | 'lift'
 
-/** The kind as a legend entry. */
-export const VOLUME_LABEL: Record<VolumeKind, string> = { ...SPORT_LABEL, lift: 'Lift' }
+/** The kind as a legend entry; lifting's time is estimated from its sets, so its key says so. */
+export const VOLUME_LABEL: Record<VolumeKind, string> = { ...SPORT_LABEL, lift: 'Lift, estimated' }
+
+/**
+ * Whether a kind's time is estimated rather than recorded: lifting stores no duration, so its time is worked out from
+ * its sets (core `liftSessionsOf`). An estimated time, and a total that includes one, is written with "~".
+ */
+export const VOLUME_ESTIMATED: Record<VolumeKind, boolean> = { run: false, ride: false, lift: true }
 
 /** One of the kind as the noun in a count: "1 run", "1 lift". */
 export const VOLUME_NOUN: Record<VolumeKind, string> = { ...SPORT_ACTIVITY, lift: 'lift' }

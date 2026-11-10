@@ -200,18 +200,15 @@ test('Method says that both best efforts were hard efforts', async ({ page }) =>
   // The sample's best 20 minute efforts both reach 90% of their max heart rate. Neither tile carries a chip, the run's
   // detail says nothing of heart rate, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
-  const run = page.getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })
+  const run = page.getByRole('article', { name: 'Half-marathon' })
   await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
   await expect(run.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     /^\d+$/,
   )
-  // The pace the row rests on: its range when the row is the threshold, the pace itself when the half marathon leads.
-  await expect(
-    run
-      .locator('.props__row', { hasText: /^(Range|Threshold pace)/ })
-      .first()
-      .locator('dd'),
-  ).toHaveText(/^\d+:\d{2}(\u2013\d+:\d{2})? \/(km|mi)$/)
+  // The sample's hard runs give a half-marathon forecast, so the row leads with it and the pace is one tap down.
+  await expect(run.locator('.props__row', { hasText: /^Threshold pace/ }).locator('dd')).toHaveText(
+    /^\d+:\d{2} \/(km|mi)$/,
+  )
   await expect(run.locator('.props')).not.toContainText(/heart rate/i)
 
   await openMethod(page)
@@ -245,7 +242,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   )
   await expect(
     page
-      .getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })
+      .getByRole('article', { name: 'Half-marathon' })
       .locator('summary', { hasText: 'Details for threshold pace' }),
   ).toBeVisible()
 })

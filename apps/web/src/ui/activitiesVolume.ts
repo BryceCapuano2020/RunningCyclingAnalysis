@@ -15,7 +15,13 @@ import { formatCount } from './format/count'
 import { formatDayMonth, formatMonth } from './format/date'
 import { plural } from './components/plural'
 import { SPORT_ORDER } from './sports'
-import { NO_LIFT_DAYS, VOLUME_KINDS, VOLUME_NOUN, VOLUME_PLURAL } from './volumeKinds'
+import {
+  NO_LIFT_DAYS,
+  VOLUME_ESTIMATED,
+  VOLUME_KINDS,
+  VOLUME_NOUN,
+  VOLUME_PLURAL,
+} from './volumeKinds'
 import type { LiftDay, VolumeKind } from './volumeKinds'
 
 export { VOLUME_KINDS } from './volumeKinds'
@@ -288,6 +294,15 @@ export function volumeColumns(buckets: readonly VolumeBucket[]): VolumeColumn[] 
   // Buckets run from the first activity to the last, so none is quiet at either end.
   flush()
   return columns
+}
+
+/**
+ * All the hours of a total as written, with "~" when they include lifting's time, which is estimated from its sets
+ * (`VOLUME_ESTIMATED`): "~36 h" beside a total of recorded time alone, "34 h".
+ */
+export function totalHoursText(totals: TotalsBySport): string {
+  const estimated = VOLUME_KINDS.some((kind) => VOLUME_ESTIMATED[kind] && totals[kind].seconds > 0)
+  return `${estimated ? '~' : ''}${formatHoursText(secondsOf(totals))}`
 }
 
 /** Hours as the strip writes them: a decimal under 10, whole above, so "3.2 h" and "61 h". */

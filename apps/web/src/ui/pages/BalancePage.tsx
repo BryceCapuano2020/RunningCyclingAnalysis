@@ -196,6 +196,7 @@ export function BalancePage({
         leftOut={leftOut}
         levelShown={levelShown}
         lift={liftTile}
+        heartRateJudgement={analysis.state.heartRateJudgement}
       />
 
       {soleSport === null ? null : (

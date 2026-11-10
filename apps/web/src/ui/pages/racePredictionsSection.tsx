@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { raceAnswerOf } from '../raceAnswer'
+import { raceAnswerFor } from '../raceAnswer'
 import { racePredictionNeed } from '../racePredictions'
 import { distanceRecords } from '../records'
 import { RacePast } from './RacePast'
@@ -22,14 +22,13 @@ export function racePredictionsContent({
   heartRateJudgement,
   periodEndMs,
 }: SectionContext): { content: ReactNode | null; need?: string } {
-  const answer = raceAnswerOf(
-    sport,
+  const answer = raceAnswerFor(sport, {
     result,
     rangeDays,
-    heartRateJudgement === undefined
-      ? undefined
-      : { judgement: heartRateJudgement, library, endMs: periodEndMs ?? null },
-  )
+    library,
+    heartRateJudgement,
+    periodEndMs,
+  })
   if (answer === null) return { content: null, need: racePredictionNeed(sport) }
   if (answer.kind === 'past') {
     return { content: <RacePast sport={sport} ran={answer.ran} units={units} /> }

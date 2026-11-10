@@ -49,7 +49,8 @@ describe('ActivityMonthHead', () => {
     const parts = [...container.querySelectorAll('.activity-list__total')].map((part) =>
       (part.textContent ?? '').replace('; ', ''),
     )
-    expect(parts).toEqual(['1 run · 10.0 km', '4 lifts', '3.0 h total'])
+    // Lifting's time is estimated from its sets: its own hours and a total that includes them carry "~".
+    expect(parts).toEqual(['1 run · 10.0 km', '4 lifts · ~2.0 h', '~3.0 h total'])
     expect(container.querySelector('[data-sport="lift"]')).not.toBeNull()
   })
 })

@@ -522,9 +522,9 @@ describe('footer', () => {
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
   })
 
-  it('carries at most one privacy note on Profile, so the page does not repeat it', () => {
+  it('adds no privacy note on Profile while signed in and saving works: storage is on the Privacy page', () => {
     window.location.hash = '#/profile'
     render(<App />)
-    expect(document.querySelectorAll('.privacy-note').length).toBeLessThanOrEqual(1)
+    expect(document.querySelectorAll('.privacy-note')).toHaveLength(0)
   })
 })

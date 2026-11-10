@@ -100,6 +100,16 @@ describe('lifting days of the page', () => {
     ])
   })
 
+  it('leaves out a date that is not a real day, rather than rolling it into another', () => {
+    const days = liftDaysOf([
+      ...sets('2025-13-45', 1),
+      ...sets('2025-02-30', 1),
+      ...sets('2025-6-3', 1),
+      ...sets('2025-06-03', 1),
+    ])
+    expect(days).toEqual([{ day: dayOfCivil(2025, 5, 3), seconds: 180 }])
+  })
+
   it('keeps the days in the period that ends on the newest activity, or all for all time', () => {
     const days = [liftOn(2025, 4, 1), liftOn(2025, 5, 3), liftOn(2025, 5, 20)]
     const newest = at(2025, 5, 10)

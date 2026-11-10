@@ -11,9 +11,9 @@ import {
   countOf,
   countsText,
   emptyTotals,
-  formatHoursText,
   inBucket,
   secondsOf,
+  totalHoursText,
   volumeBuckets,
   volumeColumns,
 } from '../activitiesVolume'
@@ -38,7 +38,7 @@ const capitalised = (text: string) => `${text.charAt(0).toUpperCase()}${text.sli
 
 /** One bucket in words: "Week of 3 Jun 2025: 3 runs and 1 ride, 4.2 h". */
 function describe(bucket: VolumeBucket): string {
-  return `${capitalised(bucketLabel(bucket))}: ${countsText(bucket.totals)}, ${formatHoursText(secondsOf(bucket.totals))}`
+  return `${capitalised(bucketLabel(bucket))}: ${countsText(bucket.totals)}, ${totalHoursText(bucket.totals)}`
 }
 
 /** The first and last bucket's dates, which the axis names; the strip is read left (oldest) to right. */
@@ -155,7 +155,7 @@ export function VolumeStrip({ activities, selected, onSelect, lifts }: VolumeStr
   const readout =
     shown !== null
       ? describe(shown)
-      : `Busiest: ${bucketLabel(busiest)}, ${formatHoursText(secondsOf(busiest.totals))}`
+      : `Busiest: ${bucketLabel(busiest)}, ${totalHoursText(busiest.totals)}`
 
   return (
     <section className="volume-strip" aria-labelledby="volume-strip-takeaway">

@@ -30,6 +30,8 @@ Decisions section. Status is one of designed, in progress, built or cut.
   load, with the prototype on synthetic lifters. Status: spec, in science review (stage X).
 - [lift-data.md](lift-data.md): the set record, the `lift_sets` table and routes, the browser store and its
   sync transitions. Status: built (stage X).
+- [lift-time.md](lift-time.md): lifting time on the Activities page, estimated from sets (180 s a working set, 120 s a
+  warm-up) and marked as an estimate.
 - [lift-logger.md](lift-logger.md): the Lift page and its manual set logger, and `useLiftLog`, which wires the
   store and sync into sign-in, sign-out and the device offer. Status: package 1 (the manual logger) built; the Lift card and Hevy import follow.
 - [decisions/](decisions/README.md): one file per decision a design left open, with how to reverse it.

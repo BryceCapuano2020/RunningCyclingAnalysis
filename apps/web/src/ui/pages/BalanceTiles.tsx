@@ -13,8 +13,8 @@ import { RowIndex } from '../components/RowList'
 import { EmptySportCard } from './EmptySportCard'
 import { LiftTile } from './LiftTile'
 import { ThresholdTile } from './ThresholdTile'
-import { HALF_MARATHON_M } from '@rca/core/constants'
-import { raceAnswerOf } from '../raceAnswer'
+import { headlineHalf, raceAnswerFor } from '../raceAnswer'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { thresholdTileIsBare } from './thresholdTileBare'
 import './BalanceTiles.css'
 
@@ -37,6 +37,8 @@ export interface BalanceTilesProps {
   levelShown?: boolean
   /** The lifting row: the big three's total and each lift's grade; its figure is null when no lift has an estimate. */
   lift?: LiftTileModel
+  /** The library's judgement of its runs, which the half marathon reads as the Run page's race predictions do. */
+  heartRateJudgement?: HeartRateJudgement
 }
 
 const NO_LIFT_TILE: LiftTileModel = { heading: 'Big three total', figure: null, rows: [] }
@@ -59,16 +61,21 @@ export function BalanceTiles({
   leftOut,
   levelShown = false,
   lift = NO_LIFT_TILE,
+  heartRateJudgement,
 }: BalanceTilesProps) {
   const both = BALANCE_PAIR.every((sport) => countSport(result.activities, sport) > 0)
   // A word defined in place is defined once on the screen: the first threshold tile carries it.
   const firstThreshold = BALANCE_PAIR.find((sport) => countSport(result.activities, sport) > 0)
-  // The run's row leads with the half marathon its race predictions give for the period, when they give one.
-  const answer = raceAnswerOf('run', result, period.days)
-  const half =
-    answer === null || answer.kind === 'past'
-      ? null
-      : (answer.found.races.find((race) => race.distanceM === HALF_MARATHON_M) ?? null)
+  // The run's row leads with the half marathon the Run page predicts, asked the same way, when it is a forecast.
+  const half = headlineHalf(
+    raceAnswerFor('run', {
+      result,
+      rangeDays: period.days,
+      library,
+      heartRateJudgement,
+      periodEndMs: period.endMs,
+    }),
+  )
   const thresholdProps = (sport: Sport) => ({
     sport,
     result,

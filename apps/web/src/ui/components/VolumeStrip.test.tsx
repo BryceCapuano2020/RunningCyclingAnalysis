@@ -333,12 +333,12 @@ describe('VolumeStrip', () => {
     expect(key).toEqual([
       ['Run', 'run'],
       ['Ride', 'ride'],
-      ['Lift', 'lift'],
+      ['Lift, estimated', 'lift'],
     ])
     expect(
       container.querySelectorAll('[data-testid="volume-part"][data-sport="lift"]'),
     ).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /1 lift/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /1 lift, ~[\d.]+ h/ })).toBeTruthy()
   })
 
   it('draws no Lift entry without lifting days', () => {

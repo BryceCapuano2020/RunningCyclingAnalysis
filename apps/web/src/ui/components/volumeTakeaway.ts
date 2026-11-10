@@ -1,11 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import {
-  countsText,
-  emptyTotals,
-  formatHoursText,
-  secondsOf,
-  volumeBuckets,
-} from '../activitiesVolume'
+import { countsText, emptyTotals, totalHoursText, volumeBuckets } from '../activitiesVolume'
 import { VOLUME_KINDS } from '../volumeKinds'
 import type { LiftDay } from '../volumeKinds'
 
@@ -22,5 +16,5 @@ export function volumeTakeaway(
       all[kind].seconds += bucket.totals[kind].seconds
     }
   }
-  return `${countsText(all)}, ${formatHoursText(secondsOf(all))}, ${periodText}`
+  return `${countsText(all)}, ${totalHoursText(all)}, ${periodText}`
 }

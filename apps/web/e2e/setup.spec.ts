@@ -84,7 +84,7 @@ test('skipping the weight holds the balance until one is entered, and asks for i
       hasText: 'Add your weight on Profile to grade your rides and compare them with your runs.',
     }),
   ).toBeVisible()
-  await expect(page.getByRole('article', { name: /^(Half-marathon|Run threshold)$/ })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Half-marathon' })).toBeVisible()
 })
 
 test('skipping the setup dialog keeps a weight typed before it, as a valid answer', async ({

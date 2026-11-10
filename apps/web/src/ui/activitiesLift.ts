@@ -1,22 +1,26 @@
 import { liftSessionsOf } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
-import { dayOfCivil, localDayOfInstant } from '@rca/core/calendar'
+import { dateTextOfDay, dayOfCivil, localDayOfInstant } from '@rca/core/calendar'
 import { windowEnding } from '@rca/core/period'
 import { bucketSpan } from './activitiesVolume'
 import type { LiftDay } from './volumeKinds'
 
-/** The lifting days of the live sets: one per day with a set, in estimated seconds. Dates that are not dates are left out. */
+/**
+ * The lifting days of the live sets: one per day with a set, in estimated seconds. A date that is not a real day (2025-13-45,
+ * which Date would roll into another) is left out: a day counts only when it reads back as the same date.
+ */
 export function liftDaysOf(sets: readonly LiftSet[]): LiftDay[] {
-  return liftSessionsOf(sets)
-    .map((session) => ({
-      day: dayOfCivil(
-        Number(session.date.slice(0, 4)),
-        Number(session.date.slice(5, 7)) - 1,
-        Number(session.date.slice(8, 10)),
-      ),
-      seconds: session.seconds,
-    }))
-    .filter((lift) => Number.isFinite(lift.day))
+  return liftSessionsOf(sets).flatMap((session) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(session.date)) return []
+    const day = dayOfCivil(
+      Number(session.date.slice(0, 4)),
+      Number(session.date.slice(5, 7)) - 1,
+      Number(session.date.slice(8, 10)),
+    )
+    return Number.isFinite(day) && dateTextOfDay(day) === session.date
+      ? [{ day, seconds: session.seconds }]
+      : []
+  })
 }
 
 /**

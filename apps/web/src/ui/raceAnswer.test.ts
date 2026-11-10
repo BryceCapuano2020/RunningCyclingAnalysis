@@ -7,7 +7,7 @@ import { METRES_PER_MILE } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
 import { makeActivity, makeResult } from './components/test/fixtures'
 import { gate, UNKNOWN } from './test/effortGateFixtures'
-import { raceAnswerOf } from './raceAnswer'
+import { headlineHalf, raceAnswerFor, raceAnswerOf } from './raceAnswer'
 import type { RacePast, RaceReach } from './raceAnswer'
 import { forecastOf } from './test/raceForecast'
 
@@ -189,5 +189,51 @@ describe('raceAnswerOf for a period of all time', () => {
       window: 'period',
     })
     expect(raceAnswerOf('run', result, null)).toMatchObject({ kind: 'predicted' })
+  })
+})
+
+describe('raceAnswerFor and headlineHalf', () => {
+  const contextOf = (
+    inPeriod: ActivitySummary[],
+    library: ActivitySummary[],
+    hardIds: string[],
+  ) => ({
+    result: makeResult({
+      activities: inPeriod,
+      runMaxHeartRate: 190,
+      effortGate: {
+        run: gate({
+          sessions: {
+            hard: hardIds.filter((id) => inPeriod.some((a) => a.id === id)),
+            endurance: [],
+          },
+        }),
+        ride: UNKNOWN,
+      },
+    }),
+    rangeDays: 84,
+    library,
+    heartRateJudgement: judged(hardIds),
+    periodEndMs: END,
+  })
+
+  it('is the answer the Run page gets, widened by the same library and judgement', () => {
+    const hard = run('hard', 20, true)
+    const library = [hard, run('old-hard', 200, true, 40)]
+    expect(raceAnswerFor('run', contextOf([hard], library, ['hard', 'old-hard']))).toEqual(
+      answer([hard], library, ['hard', 'old-hard']),
+    )
+  })
+
+  it('leads a headline with a forecast from a hard run, and with nothing carried from easy runs alone', () => {
+    const hard = run('hard', 20, true)
+    const predicted = raceAnswerFor('run', contextOf([hard], [hard], ['hard']))
+    expect(predicted?.kind).toBe('predicted')
+    expect(headlineHalf(predicted)?.distanceM).toBe(HALF_MARATHON_M)
+    const easy = run('easy', 20, false)
+    const bound = raceAnswerFor('run', contextOf([easy], [easy], []))
+    expect(bound?.kind).toBe('bound')
+    expect(headlineHalf(bound)).toBeNull()
+    expect(headlineHalf(null)).toBeNull()
   })
 })
