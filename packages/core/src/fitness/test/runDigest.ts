@@ -1,5 +1,5 @@
 import { DAY_MS } from '../../constants'
-import { withBlocks } from '../../digest/test/sameHeartRateFixture'
+import { withBlocks } from '../../digest/test/plantedBlocks'
 import { mulberry32, normal } from '../../math'
 import type { ActivityDigest, DigestSplit } from '../../types'
 

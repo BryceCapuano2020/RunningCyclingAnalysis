@@ -9,6 +9,7 @@ import type { LiftEstimate } from '../estimate'
 import { liftAgeOn, liftStandard } from './liftStandard'
 import { BIRTH_YEAR_SD, GRADE_CEILING, Z_HIGH, Z_LOW, Z_STANDARD, standardSd } from './standard'
 import type { GradedLift } from './standard'
+import { heaviestPerLift } from './heaviest'
 
 export type LiftGradeGap = 'no-profile' | 'no-mass' | 'no-graded-lift' | 'out-of-range'
 
@@ -101,23 +102,35 @@ function shown(
   }
 }
 
-function gapOf(profile: AgeProfile | null, massKg: number): LiftGradeGap | null {
+/**
+ * The body mass a grade is read at: the athlete's settings fit, so a caller passes them whole and a placeholder mass (one the
+ * athlete did not enter, `massAssumed`) never grades.
+ */
+export interface GradeBody {
+  massKg: number
+  massAssumed?: true
+}
+
+function gapOf(profile: AgeProfile | null, body: GradeBody): LiftGradeGap | null {
   if (profile === null) return 'no-profile'
-  return Number.isFinite(massKg) && massKg > 0 ? null : 'no-mass'
+  if (body.massAssumed === true) return 'no-mass'
+  return Number.isFinite(body.massKg) && body.massKg > 0 ? null : 'no-mass'
 }
 
 /**
  * One lift's age grade at the date of its estimate. The range is the estimate's own error and the standard's, in quadrature,
  * on the log scale, never under the floor's share. A centre over 110% is not graded; one at 100% or more is held at 100% and
- * flagged `top`. `massKg` is the body mass on the estimate's date and `massSd` its error (log units, `massSdFor`).
+ * flagged `top`. `body` is the athlete's mass on the estimate's date (no grade when it is a placeholder) and `massSd` its error
+ * (log units, `massSdFor`).
  */
 export function liftGrade(
   graded: GradedEstimate | null,
   profile: AgeProfile | null,
-  massKg: number,
+  body: GradeBody,
   massSd: number = MASS_SD_BASE,
 ): LiftGrade {
-  const gap = gapOf(profile, massKg)
+  const gap = gapOf(profile, body)
+  const massKg = body.massKg
   if (gap !== null) return { kind: 'gap', why: gap }
   if (graded === null) return { kind: 'gap', why: 'no-graded-lift' }
   const m = measure(graded, profile as AgeProfile, massKg, massSd)
@@ -128,27 +141,30 @@ export function liftGrade(
 
 /**
  * The hero's lift figure: the share of the total, the sum of the e1RMs over the sum of the standards across the graded lifts, with
- * the sums of the lows and highs the same way. A lift with no grade of its own is left out; with none left, the gap of the first.
+ * the sums of the lows and highs the same way. Each lift counts once, at its heaviest estimate (a conventional and a sumo deadlift
+ * are one deadlift), as in the Big three row. A lift with no grade of its own is left out; with none left, the gap of the first.
+ * The age is the one at the newest estimate.
  */
 export function liftCornerGrade(
   lifts: readonly GradedEstimate[],
   profile: AgeProfile | null,
-  massKg: number,
+  body: GradeBody,
   massSd: number = MASS_SD_BASE,
 ): LiftCornerGrade {
-  const gap = gapOf(profile, massKg)
+  const gap = gapOf(profile, body)
+  const massKg = body.massKg
   if (gap !== null) return { kind: 'gap', why: gap }
   const held: GradedLift[] = []
   const sum = { age: 0, point: 0, low: 0, high: 0, standardKg: 0 }
   let first: LiftGradeGap = 'no-graded-lift'
-  for (const l of lifts) {
+  for (const l of heaviestPerLift(lifts)) {
     const m = measure(l, profile as AgeProfile, massKg, massSd)
     if (m === 'out-of-range' || shown(m, m.standardKg) === null) {
       if (first === 'no-graded-lift') first = 'out-of-range'
       continue
     }
     held.push(l.lift)
-    sum.age = m.age
+    sum.age = Math.max(sum.age, m.age)
     sum.point += m.point
     sum.low += m.low
     sum.high += m.high

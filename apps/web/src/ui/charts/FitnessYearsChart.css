@@ -1,8 +1,3 @@
-/* Years stand side by side in one time axis, so they carry no gridline through the dots. */
-.fitness-years__x .chart-x-axis__grid {
-  display: none;
-}
-
 /* One drawing for all the dots, in the sport's colour. */
 .fitness-years__dots {
   stroke: var(--sport-ink);

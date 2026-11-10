@@ -28,6 +28,10 @@ The **set key** is date, exercise, equipment and set order, written `2026-03-02.
 entered. Exercise names come from the core catalog or a slug the athlete typed; a typed slug is close to free
 text, and the privacy page says so. Notes are not kept.
 
+The Hevy CSV layout is not verified: the reader accepts the two layouts third-party pages describe and refuses
+any other header by name. It is to be pinned from the owner's first export header row (column names only, never
+his rows), after which a synthetic fixture is built from it.
+
 Caps, in the contract with the other limits: 60,000 sets an account (about nine years of a heavy lifter's
 logging), 500 sets in one write, 500 keys in one delete. A write or delete that names one key twice is refused,
 with the index of the second.

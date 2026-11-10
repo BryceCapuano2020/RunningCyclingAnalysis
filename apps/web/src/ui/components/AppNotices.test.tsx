@@ -87,7 +87,9 @@ describe('the import notice when every run it added is left out at walking pace'
 
   it('says so under "Added 1 run", on a page that does not say it itself, and where to count it', () => {
     render(<AppNotices {...noticesProps(analysis, { page: 'ride' })} />)
-    expect(screen.getByText(/^Added 1 run, on /)).toBeInTheDocument()
+    expect(screen.getByText('Added', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
+      '1 run',
+    )
     expect(screen.getByText(LEFT_OUT)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open Run to count them.' })).toHaveAttribute(
       'href',

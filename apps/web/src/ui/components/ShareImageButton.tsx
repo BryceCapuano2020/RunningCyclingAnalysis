@@ -21,6 +21,7 @@ import { useHoldInputs } from '../holdContext'
 import { rideHoldInputs } from '../rideLeftOut'
 import { loadCardModules, makeFile, type CardInputs, type CardModules } from './shareImageCard'
 import { CardNameField } from './CardNameField'
+import { ShareIcon } from './icons'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
 import { useModalDialog } from './useModalDialog'
 import './ShareImageButton.css'
@@ -290,7 +291,8 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       <button
         ref={setTrigger}
         type="button"
-        className="btn"
+        className="btn icon-btn"
+        aria-label={TRIGGER}
         aria-haspopup="dialog"
         // aria-disabled, not disabled: a disabled button drops the focus it holds.
         aria-disabled={disabled}
@@ -298,11 +300,11 @@ export function ShareImageButton(props: ShareImageButtonProps) {
           if (!disabled) setOpen(true)
         }}
       >
-        {TRIGGER}
+        <ShareIcon />
       </button>
       <dialog
         ref={dialogRef}
-        className="share-sheet"
+        className="dialog share-sheet"
         aria-labelledby={titleId}
         onCancel={(event) => {
           // Escape goes through the state, so the open flag stays the one source.

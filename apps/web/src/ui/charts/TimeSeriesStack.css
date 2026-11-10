@@ -256,6 +256,15 @@
   margin: 0;
 }
 
+.ts-fact + .ts-fact,
+.ts-fact + .ts-key {
+  margin-inline-start: var(--space-3);
+}
+
+.ts-fact__value {
+  font-family: var(--font-mono);
+}
+
 .ts-key {
   display: inline-flex;
   align-items: center;

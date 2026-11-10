@@ -1,8 +1,7 @@
 # The visual system
 
 Paper and ink. The values are `apps/web/src/styles/tokens.css`; this page says what each is for, and the tests named at the
-end keep the two in step. Pages and charts are in [DESIGN.md](../DESIGN.md); the level bands (a colour table of their own) stay
-there under Level bands.
+end keep the two in step. Pages and charts are in [DESIGN.md](../DESIGN.md).
 
 Owner calls this system keeps: run and ride each have one colour; one primary action a screen; Balance is the level triangle; fitness sits above Balance; the answer is the one thing on a page with weight. Stage V (November 2026) replaced the
 volt, card and dark-mode system with this one.
@@ -185,7 +184,6 @@ on paper and a control's edge 3:1. Beyond axe:
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `styles/tokens.test.ts`                                           | Every colour row above is in `tokens.css` with the same value, every colour token has a row, and text reaches 4.5:1.    |
 | `styles/oneTheme.test.ts`                                         | No sheet, script or page in `apps/web` has a `prefers-color-scheme` rule or a `data-theme` hook.                        |
-| `styles/levelTokens.test.ts`                                      | The level bands table in DESIGN.md, and that it is not in the colour table.                                             |
 | `styles/zoneRamp.test.ts`, `styles/runColour.test.ts`             | The ramps and the run ink, by contrast and CIEDE2000.                                                                   |
 | `styles/typeScale.test.ts`                                        | The scale above, the three faces and their jobs, weights of 500 or less, and the count of sizes that bypass the tokens. |
 | `styles/layoutTokens.test.ts`                                     | One shell width, one measure, two gaps, one radius, no shadow, and the ratchet on raw radii.                            |

@@ -23,7 +23,9 @@ const ADDED: ImportOutcome = {
   firstStartMs: MARCH_2023,
   lastStartMs: OCTOBER_THIS_YEAR,
 }
-const SENTENCE = `Added 412 runs and 388 rides, from Mar 2023 to Oct ${new Date().getFullYear()}.`
+/** The row a label heads, whose value is read beside it. */
+const row = (label: string) => screen.queryByText(label, { selector: 'dt' })
+const valueOf = (label: string) => row(label)?.nextElementSibling?.textContent
 const MOVED: MovedItem[] = [{ text: 'New best 20 min ride: 262 W' }]
 
 function noticeProps(overrides: Partial<ImportNoticeProps> = {}): ImportNoticeProps {
@@ -42,7 +44,9 @@ function noticeProps(overrides: Partial<ImportNoticeProps> = {}): ImportNoticePr
 describe('ImportNotice: the summary of an import', () => {
   it('shows what an import added as visible text, not only to screen readers', () => {
     render(<ImportNotice {...noticeProps()} />)
-    expect(screen.getByText(SENTENCE).closest('[role="status"]')).toBeNull()
+    expect(valueOf('Added')).toBe('412 runs and 388 rides')
+    expect(valueOf('Dates')).toBe(`Mar 2023 to Oct ${new Date().getFullYear()}`)
+    expect(row('Added')?.closest('[role="status"]')).toBeNull()
   })
 
   it('says an import that added no run or ride was nothing new', () => {
@@ -64,15 +68,15 @@ describe('ImportNotice: the summary of an import', () => {
 
   it('hides while an import is still running', () => {
     render(<ImportNotice {...noticeProps({ busy: true })} />)
-    expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument()
+    expect(row('Added')).not.toBeInTheDocument()
   })
 
-  it('lists what moved under the summary sentence', () => {
+  it('lists what moved under the summary rows', () => {
     render(<ImportNotice {...noticeProps({ moved: MOVED })} />)
     const list = screen.getByRole('list')
     expect(list).toHaveTextContent('New best 20 min ride: 262 W')
     expect(
-      screen.getByText(SENTENCE).compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
+      row('Added')!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })
 
@@ -118,7 +122,7 @@ describe('ImportNotice: dismissal', () => {
     render(<ImportNotice {...noticeProps({ onDismiss })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss summary' }))
     expect(onDismiss).toHaveBeenCalledOnce()
-    expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument()
+    expect(row('Added')).not.toBeInTheDocument()
   })
 
   it('shows the summary again for the outcome of a later import', () => {
@@ -187,13 +191,13 @@ describe('ImportNotice: skipped files', () => {
 })
 
 describe('ImportNotice: runs that were added but left out', () => {
-  it('says under the sentence that the runs are left out, so "Added 22 runs" does not stand alone', () => {
+  it('says under the rows that the runs are left out, so "Added 22 runs" does not stand alone', () => {
     render(
       <ImportNotice
         {...noticeProps({ leftOutLine: '22 runs are at walking pace, so they are left out.' })}
       />,
     )
-    expect(screen.getByText(SENTENCE)).toBeInTheDocument()
+    expect(row('Added')).toBeInTheDocument()
     expect(
       screen.getByText('22 runs are at walking pace, so they are left out.'),
     ).toBeInTheDocument()
@@ -201,7 +205,8 @@ describe('ImportNotice: runs that were added but left out', () => {
 
   it('adds nothing when no line is given', () => {
     const { container } = render(<ImportNotice {...noticeProps()} />)
-    expect(container.querySelectorAll('.import-notice__body > p')).toHaveLength(1)
+    expect(container.querySelectorAll('.import-notice__body > p')).toHaveLength(0)
+    expect(row('Added')).toBeInTheDocument()
   })
 })
 
@@ -211,11 +216,7 @@ describe('ImportNotice: the labels an import applied', () => {
   it('says how many activities the export’s list labelled, with a button that takes the labels off', () => {
     const onUndoLabels = vi.fn()
     render(<ImportNotice {...noticeProps({ outcome: LABELLED, onUndoLabels })} />)
-    expect(
-      screen.getByText(
-        /3 activities you labelled Hike, Walk or another type in your export are now left out/,
-      ),
-    ).toBeVisible()
+    expect(valueOf('Labelled, now left out')).toBe('3 activities')
     fireEvent.click(screen.getByRole('button', { name: 'Undo the labels' }))
     expect(onUndoLabels).toHaveBeenCalledTimes(1)
   })

@@ -223,31 +223,3 @@ export function effortShare(
 export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boolean {
   return effortShare('run', effort)?.hard === true && effortShare('ride', effort)?.hard === true
 }
-
-/** What a sport's best effort says of its effort as a chip: how hard, by heart rate, with the full reading. */
-export interface EffortChipText {
-  hard: boolean
-  /** "Hard effort" or "Not all-out"; the share of the max heart rate is in the detail. */
-  label: string
-  /** The whole reading, which a definition opens: the share, what it is a share of, and what would change it. */
-  detail: string
-}
-
-/**
- * The chip for a sport's effort at a duration, or null where heart rate does not say. The ride on foot card says its check
- * with it; a threshold card says none, since a threshold does not rest on one effort's hardness.
- */
-export function effortChipText(
-  sport: Sport,
-  effort: EffortCheck | null | undefined,
-): EffortChipText | null {
-  const share = effortShare(sport, effort)
-  if (share === null) return null
-  if (!share.checked) return { hard: false, label: 'Effort not checked', detail: share.line }
-  if (!share.confirmed) return { hard: false, label: 'Effort not confirmed', detail: share.line }
-  return {
-    hard: share.hard,
-    label: share.hard ? 'Hard effort' : 'Not all-out',
-    detail: share.line,
-  }
-}

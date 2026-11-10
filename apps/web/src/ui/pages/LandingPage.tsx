@@ -4,8 +4,8 @@ import { ExportGuides } from '../components/ExportGuides'
 import { useTouchFirst } from '../useMediaQuery'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
-import { PAGE_HEADING_ID } from './pageHeading'
 import './LandingPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 const METHOD_HEADING_ID = 'landing-method-heading'
 
@@ -36,9 +36,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
     <div className="page-stack">
       <div className="landing__hero">
         <section className="app__pitch">
-          <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-            Are you a better runner or a better cyclist?
-          </h1>
+          <PageHeading>Are you a better runner or a better cyclist?</PageHeading>
           <p className="lede secondary">
             Add your Strava or Garmin export. See your level in each sport for your age.
           </p>

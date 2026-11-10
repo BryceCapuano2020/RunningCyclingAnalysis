@@ -38,7 +38,7 @@ export function HowToGetFilesButton({
       </button>
       <dialog
         ref={dialogRef}
-        className="export-guides-dialog"
+        className="dialog export-guides-dialog"
         aria-label="How to get your files"
         onCancel={(event) => {
           // Escape goes through the state, so the dialog closes the way Close does.

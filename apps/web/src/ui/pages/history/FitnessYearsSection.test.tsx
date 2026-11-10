@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NO_HISTORY } from '@rca/core/history'
 import { NO_LOOKBACK } from '@rca/core/lookback'
+import { episodeFigure } from '@rca/core/lookback'
 import type { HindsightFitness } from '@rca/core/lookback'
 import '../../../test/deviceZone'
 import { dotsFixture } from '../../test/fitnessYearsFixtures'
@@ -37,22 +38,23 @@ describe('FitnessYearsSection', () => {
     const episodes = screen.getByRole('region', { name: 'Episodes' })
     // Under the chart, in the page's order.
     expect(chart.compareDocumentPosition(episodes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(
-      within(episodes)
-        .getAllByRole('listitem')
-        .map((li) => li.textContent?.slice(2)),
-    ).toEqual([
-      expect.stringMatching(
-        /^May 2021 to January 2022\. Slipped 9% \(6 to 11\), then back\. 64 steady runs\.$/,
-      ),
-      expect.stringMatching(/^From June 2023\. Slipped 6% .*still lower in August 2024/),
-    ])
+    const rows = within(episodes).getAllByRole('listitem')
+    const block = YEARS_LOOKBACK.sports.run
+    const years = block.fitness as HindsightFitness
+    // Each row is its figure from the core, label over value, with the dates and steady activities beneath.
+    expect(rows).toHaveLength(years.episodes.length)
+    years.episodes.forEach((episode, i) => {
+      const figure = episodeFigure(episode, block, years)
+      expect(rows[i]!.querySelector('.row__title')).toHaveTextContent(figure.label)
+      expect(rows[i]!.querySelector('.row__figure')).toHaveTextContent(figure.value)
+      expect(rows[i]).toHaveTextContent(figure.span)
+    })
     // The ride has no years to tell in this look-back.
     fireEvent.click(screen.getByRole('radio', { name: 'Ride' }))
     expect(screen.queryByRole('region', { name: 'Episodes' })).toBeNull()
   })
 
-  it('says how many smaller changes the list left out', () => {
+  it('counts the smaller changes the list left out', () => {
     vi.stubGlobal('ResizeObserver', SizedObserver)
     const block = YEARS_LOOKBACK.sports.run
     const lookBack = {
@@ -63,9 +65,10 @@ describe('FitnessYearsSection', () => {
       },
     }
     render(<FitnessYearsSection fitness={{ run, ride }} units="metric" lookBack={lookBack} />)
-    expect(screen.getByRole('region', { name: 'Episodes' })).toHaveTextContent(
-      'And 3 smaller changes.',
-    )
+    const row = within(screen.getByRole('region', { name: 'Episodes' }))
+      .getByText('Smaller changes')
+      .closest('li')!
+    expect(row.querySelector('.row__figure')).toHaveTextContent('3')
   })
 
   it('toggles between the sports that have dots, and starts on the first', () => {

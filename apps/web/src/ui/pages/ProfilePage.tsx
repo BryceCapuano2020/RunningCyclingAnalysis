@@ -3,7 +3,8 @@ import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { Sex } from '@rca/contract'
-import { SegmentedControl, SettingsBar } from '../components'
+import { SegmentedControl } from '../components/SegmentedControl'
+import { SettingsBar } from '../components/SettingsBar'
 import { AccountSection } from '../components/AccountSection'
 import { AthleteFields } from '../components/AthleteFields'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -26,10 +27,10 @@ import { SAMPLE_PROFILE, sampleProfileAt } from '../sampleAthlete'
 import { SAMPLE_ZONE_ATHLETE } from '../sampleSettingsCopy'
 import type { MeasurementsController } from '../useMeasurements'
 import { useSaveStatus } from '../useSaveStatus'
-import { PAGE_HEADING_ID } from './pageHeading'
 import { removalCopy, SAVED_FIELDS, statusText } from './profileCopy'
 import type { SavedField } from './profileCopy'
 import './ProfilePage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface ProfilePageProps {
   analysis: AnalysisController
@@ -196,9 +197,7 @@ export function ProfilePage({
   return (
     <div className="page-stack profile-page">
       <div className="page-head">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          Profile
-        </h1>
+        <PageHeading>Profile</PageHeading>
       </div>
 
       {/* The sample's settings are read-only and never saved, so the forms and dated settings wait for the visitor's own files. */}

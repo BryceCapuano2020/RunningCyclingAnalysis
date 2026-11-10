@@ -12,7 +12,6 @@ const dropzone = await read('../ui/components/Dropzone.css')
 const sportPage = await read('../ui/pages/SportPage.css')
 const sportHero = await read('../ui/pages/SportHero.css')
 const racePredictions = await read('../ui/pages/RacePredictions.css')
-const recordTiles = await read('../ui/pages/RecordTiles.css')
 const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
@@ -621,16 +620,6 @@ describe('sport records, on the card and the page', () => {
     expect(summary).toMatch(
       /inset-block-start:\s*calc\(\(var\(--title\) \* var\(--lh-display\) - var\(--button-height\)\) \/ 2\)/,
     )
-  })
-
-  it('lets a record tile’s link shrink to its tile, so a long activity name wraps whole and never widens a phone', () => {
-    const link = rulesWith(recordTiles, '.record-tiles__link')
-    expect(link).toMatch(/min-width:\s*0/)
-    expect(link).toMatch(/justify-self:\s*stretch/)
-    expect(link).toMatch(/flex-wrap:\s*wrap/)
-    const name = rulesWith(recordTiles, '.record-tiles__name')
-    expect(name).toMatch(/overflow-wrap:\s*anywhere/)
-    expect(name).not.toMatch(/text-overflow|white-space:\s*nowrap/)
   })
 
   it('draws a race bar in the sport’s wash, with its two estimates as triangles above and below', () => {

@@ -124,10 +124,16 @@ export async function libraryLoaded(page: Page, count: number): Promise<void> {
  * worker has saved the library and the recordings, so a test that leaves the page next does not cut
  * those writes short. A row in the Activities list is no such signal: it shows before the saves end.
  */
-export async function importSummaryShown(page: Page, sentence: RegExp, timeoutMs = 30_000) {
-  await expect(page.locator('.import-notice').getByText(sentence)).toBeVisible({
-    timeout: timeoutMs,
-  })
+export async function importSummaryShown(
+  page: Page,
+  label: string,
+  value: RegExp,
+  timeoutMs = 30_000,
+) {
+  const row = page
+    .locator('.import-notice dl > div')
+    .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+  await expect(row.locator('dd')).toHaveText(value, { timeout: timeoutMs })
 }
 
 const FIXTURE_DIR = fileURLToPath(new URL('./fixtures/', import.meta.url))

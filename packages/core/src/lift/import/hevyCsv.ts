@@ -1,6 +1,6 @@
 import { readCsvRows } from '../../import/csv'
-import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
-import { LIFT_RPE, MAX_LIFT_SETS_PER_USER } from '../limits'
+import { MAX_CSV_CELLS_PER_ROW } from '../../import/limits'
+import { LIFT_RPE, MAX_HEVY_FILE_BYTES, MAX_LIFT_SETS_PER_USER } from '../limits'
 import { isLiftRpe } from '../validate'
 import { assembleHevySets } from './hevyAssemble'
 import type { HevyCsvResult, HevyLayout, HevySkip, Staged } from './hevyAssemble'
@@ -48,6 +48,9 @@ const LAYOUTS: Record<HevyLayout, Columns> = {
 
 const WEIGHT_HEADERS = ['weight (kg)', 'weight_kg', 'weight (lbs)', 'weight_lbs', 'weight']
 
+/** The start of every refusal for a header the reader does not know; a different real layout fails here, never imports. */
+const NOT_HEVY = 'This file is not a Hevy workouts export we can read:'
+
 const KG_PER_LB = 0.45359237
 // A decimal comma ("22,5") is not read and skips the row; check the real export's number format when pinning.
 const NUMBER = /^\d+(\.\d+)?$/
@@ -86,7 +89,7 @@ export function readHevyCsv(
   text: string,
   options: HevyCsvOptions = {},
 ): HevyCsvResult | HevyCsvRefusal {
-  if (text.length > MAX_ACTIVITY_LIST_BYTES) return { refused: 'The file is too large to read.' }
+  if (text.length > MAX_HEVY_FILE_BYTES) return { refused: 'The file is too large to read.' }
   const skipped: HevySkip[] = []
   const adjusted: HevySkip[] = []
   const staged: Staged[] = []
@@ -109,8 +112,7 @@ export function readHevyCsv(
           ? 'A'
           : null
       if (found === null) {
-        state.refused =
-          'Not a Hevy export: the header has neither "Exercise Name" nor "exercise_title".'
+        state.refused = `${NOT_HEVY} missing columns "Exercise Name" or "exercise_title".`
         return false
       }
       const names = LAYOUTS[found]
@@ -123,7 +125,7 @@ export function readHevyCsv(
         .concat(weight === undefined ? ['weight'] : [])
         .filter((h) => !(h in cols))
       if (missing.length > 0) {
-        state.refused = `Not a Hevy export: the header lacks ${missing.map((m) => `"${m}"`).join(', ')}.`
+        state.refused = `${NOT_HEVY} missing columns ${missing.map((m) => `"${m}"`).join(', ')}.`
         return false
       }
       state.layout = found

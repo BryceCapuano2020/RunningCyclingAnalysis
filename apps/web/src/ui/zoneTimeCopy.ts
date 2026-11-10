@@ -10,13 +10,6 @@ import { SPORT_PLURAL } from './sports'
 /** The section's name, in its heading. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
 
-/** A measure as a sentence names it: "heart rate zone 2", "power zone 3". */
-const IN_SENTENCE: Record<ZoneMeasure, string> = {
-  heartRate: 'heart rate',
-  power: 'power',
-  pace: 'pace',
-}
-
 /** A measure as a row label names it. Power is measured, since an estimate is never counted. */
 export const ROW_LABEL: Record<ZoneMeasure, string> = {
   heartRate: 'Heart rate',
@@ -65,21 +58,17 @@ export const ZONE_WINDOW_VALUE: Record<ZoneWindow, string> = {
   all: 'All time',
 }
 
-/** The lede of one activity's measure: the zone that held most of the time, or all of it. Null without time. */
-export function activityLede(
-  sport: Sport,
+/** The row for one activity's measure: the zone that held most of the time, and its share. Null without time. */
+export function mainZoneRow(
   measure: ZoneMeasure,
   time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
-): string | null {
+): Property | null {
   const main = mainZone(time)
   if (main === null) return null
-  const percent = percentText(main.share)
-  const at = `${IN_SENTENCE[measure]} zone ${main.level} (${percent})`
-  // Only a share that is all of the time says so; 99.6% reads "Most of … (>99%)".
-  if (main.share >= 1) return `All of this ${sport} was in ${at}.`
-  return main.share > 0.5
-    ? `Most of this ${sport} was in ${at}.`
-    : `This ${sport} spent the most time in ${at}.`
+  return {
+    label: 'Most time',
+    value: `${ROW_LABEL[measure]} zone ${main.level}, ${percentText(main.share)}`,
+  }
 }
 
 /**

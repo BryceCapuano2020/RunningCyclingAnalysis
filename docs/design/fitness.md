@@ -67,7 +67,7 @@ is recovering, not improving. `risenAt` is gone; the monitor is the one source, 
 
 ## Findings
 
-`findings/detectors/fitnessStatus.ts` speaks only for a slipping, recovering or back that began to be shown in
+Removed in the cut: `findings/detectors/fitnessStatus.ts` (the engine is in [../archive/findings.md](../archive/findings.md)) spoke only for a slipping, recovering or back that began to be shown in
 the last 6 weeks, so the ledger shows each once; holding and not enough evidence are status lines. Its
 headline carries sizes and dates but no pace or power, because a finding outlives the unit setting, and a finding is
 made only when the whole range of its change is on one side of level (a status line whose range reaches both sides
@@ -82,7 +82,7 @@ shown back, including one after a shallow dip, can be spoken.
 
 1. Library-wide, not per period; replayed from the first steady run to the newest activity and remembered
    for the same digests (`memoByDigests`), so a period switch costs nothing. 2,000 activities: about 85 ms the
-   first time, 0.2 ms again; the findings engine's replay of 210 weekly marks (a new set of digests each) takes
+   first time, 0.2 ms again; the replay of 210 weekly marks (a new set of digests each) takes
    about 2 s, 9 ms a mark.
 2. The fit and the reference heart rate are read on the whole history to the date, so a past week's reading
    can move a little as the library grows.
@@ -246,10 +246,10 @@ season the weeks that read "risen" fall from 4.8% to 2.7%.
 ### What it costs
 
 A replay of 1,400 steady runs (five years, eight activities a week) takes about 30 ms with the kilometres already read and
-about 140 ms for a first call, against about 40 ms before; the memory makes a repeat free. The findings engine's replay at
+about 140 ms for a first call, against about 40 ms before; the memory makes a repeat free. The replay at
 210 weekly marks takes about 6.7 s on a loaded 8-core laptop against 5.8 s before: the season fit is the 15% (refitted every
 4 weeks), and the learned floor, which reads 18 blocks a week, does not show. The perf test's budget
-is 13 s. TODO (D11): cache the block levels of the floor per library before the findings engine is wired to replay every mark
+is 13 s. TODO (D11): cache the block levels of the floor per library before anything replays every mark
 for every sport, since the ride adds a second replay.
 
 ### What the card promises

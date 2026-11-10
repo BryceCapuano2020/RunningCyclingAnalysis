@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
+import type { AthleteSettings } from '@rca/core/athlete'
+import type { AgeProfile } from '@rca/core/grade'
 import type { Equipment, LiftSet } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
 import type { AccountController } from '../useAccount'
+import { HevyImport } from './HevyImport'
+import { LiftEstimates } from './LiftEstimates'
+import { LiftLead } from './LiftLead'
 import { LiftPage } from './LiftPage'
 import { LiftPicker } from './LiftPicker'
 import { SetForm } from './SetForm'
+import { liftOverviewOf } from './liftEntries'
 import { EARLIER_STEP, earlierDays, lastSetOf, liftsOfDay, setOfKey } from './liftPageData'
 import type { NewLiftSet } from './useLiftLog'
 import { useLiftLog } from './useLiftLog'
@@ -16,6 +22,10 @@ export interface LiftConnectedProps {
   day: string
   today: string
   openDay: (day: string) => void
+  /** The athlete's settings, whose body mass the times-body-mass figure and the grade read. */
+  settings: AthleteSettings
+  /** The year of birth and sex for the age grade, or null while either is missing. */
+  profile: AgeProfile | null
 }
 
 /** A set without its set order, which the log assigns. */
@@ -42,7 +52,15 @@ function NotSaved() {
  * The Lift page on the lift log: the day's lifts, earlier sessions, the status rows, the form under "Log a set" and the
  * form in place of a set being edited (docs/design/lift-logger.md).
  */
-export function LiftConnected({ account, units, day, today, openDay }: LiftConnectedProps) {
+export function LiftConnected({
+  account,
+  units,
+  day,
+  today,
+  openDay,
+  settings,
+  profile,
+}: LiftConnectedProps) {
   const log = useLiftLog({
     status: account.status,
     userId: account.me?.user.id ?? null,
@@ -55,10 +73,25 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [count, setCount] = useState(EARLIER_STEP)
   const [notSaved, setNotSaved] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const logged = log.days.find((entry) => entry.date === day)
   const lifts = useMemo(() => liftsOfDay(logged), [logged])
   const earlier = useMemo(() => earlierDays(log.days, day, count), [log.days, day, count])
+  // The caller builds the profile afresh each render, so the memo reads its two values.
+  const birthYear = profile?.birthYear ?? null
+  const sex = profile?.sex ?? null
+  const overview = useMemo(
+    () =>
+      liftOverviewOf(
+        log.sets,
+        settings,
+        birthYear === null || sex === null ? null : { birthYear, sex },
+        units,
+        today,
+      ),
+    [log.sets, settings, birthYear, sex, units, today],
+  )
   const editing = editingKey === null ? undefined : setOfKey(logged, editingKey)
 
   const exercise = choice?.exercise ?? null
@@ -81,7 +114,14 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
     )
   }
 
-  const form = logging ? (
+  const form = importing ? (
+    <HevyImport
+      existing={log.sets}
+      units={units}
+      onImport={log.importSets}
+      onDone={() => setImporting(false)}
+    />
+  ) : logging ? (
     <>
       <LiftPicker recent={log.recentLifts} selected={exercise} onChoose={setChoice} />
       {notSaved && <NotSaved />}
@@ -152,6 +192,7 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
       units={units}
       onDay={(next) => {
         closeAll()
+        setImporting(false)
         setEditingKey(null)
         setCount(EARLIER_STEP)
         openDay(next)
@@ -160,6 +201,10 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
         setEditingKey(null)
         setLogging(true)
       }}
+      onImport={() => {
+        setEditingKey(null)
+        setImporting(true)
+      }}
       onEditSet={(key) => {
         closeAll()
         setEditingKey(key)
@@ -167,6 +212,8 @@ export function LiftConnected({ account, units, day, today, openDay }: LiftConne
       editingKey={editing ? editingKey : null}
       rowForm={rowForm}
       form={form}
+      lead={overview.lead && <LiftLead lead={overview.lead} units={units} />}
+      estimates={<LiftEstimates overview={overview} units={units} />}
     />
   )
 }

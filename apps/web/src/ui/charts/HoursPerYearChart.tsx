@@ -126,9 +126,7 @@ export function HoursPerYearChart({ years, current }: HoursPerYearChartProps) {
         const fontSize = axisFontSize(size.width)
         return (
           <>
-            <g className="year-chart__x">
-              <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} />
-            </g>
+            <ChartXAxis ticks={m.xTicks} plot={size.plot} fontSize={fontSize} grid={false} />
             <ChartYAxis ticks={m.yTicks} plot={size.plot} title="Hours" fontSize={fontSize} />
             {active === null ? null : <Crosshair x={m.xs[active]!} plot={size.plot} />}
             {m.bars.flatMap((bar, i) =>

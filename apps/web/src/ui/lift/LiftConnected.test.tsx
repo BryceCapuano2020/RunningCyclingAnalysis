@@ -40,6 +40,7 @@ const remove = vi.fn()
 function useHook(days: LoggedDay[], over: Record<string, unknown> = {}) {
   hook.current = {
     days,
+    sets: days.flatMap((d) => d.lifts.flatMap((l) => l.sets.map((entry) => entry.set))),
     save,
     update,
     remove,
@@ -73,10 +74,22 @@ const view = (day = TODAY, status = 'signed-out') => (
     day={day}
     today={TODAY}
     openDay={() => undefined}
+    settings={{ massKg: 80, bikeMassKg: 9 }}
+    profile={null}
   />
 )
 
 describe('the Lift page on the log', () => {
+  it('opens the Hevy import in place of the buttons, and closes it on Cancel', async () => {
+    useHook([])
+    render(view())
+    await userEvent.click(screen.getByRole('button', { name: 'Import from Hevy' }))
+    expect(screen.getByLabelText(/Hevy workouts file/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Log a set' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Log a set' })).toBeTruthy()
+  })
+
   it('stamps a set only on today, and dates it with the day shown', async () => {
     useHook([])
     const { unmount } = render(view(TODAY))
@@ -198,6 +211,25 @@ describe('the Lift page on the log', () => {
   })
 })
 
+describe('the lead and the lifts list', () => {
+  it('lead with the estimate once a lift has one, above the day, and list a lift with one session compactly', () => {
+    useHook([logged(TODAY, set())])
+    render(view())
+    const lead = screen.getByTestId('lift-max')
+    const day = screen.getByRole('button', { name: 'Log a set' })
+    expect(lead.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Other lifts' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Weekly load' })).toBeInTheDocument()
+  })
+
+  it('shows neither before any lift has an estimate', () => {
+    useHook([])
+    render(view())
+    expect(screen.queryByTestId('lift-max')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Weekly load' })).toBeNull()
+  })
+})
+
 describe('leaving an edit', () => {
   it('closes the set with Done, and a move to another day opens that day', async () => {
     useHook([logged(TODAY, set())])
@@ -209,6 +241,8 @@ describe('leaving an edit', () => {
         day={TODAY}
         today={TODAY}
         openDay={openDay}
+        settings={{ massKg: 80, bikeMassKg: 9 }}
+        profile={null}
       />,
     )
     await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
@@ -229,6 +263,8 @@ describe('the Lift page in the shell', () => {
         day={TODAY}
         today={TODAY}
         openDay={() => undefined}
+        settings={{ massKg: 80, bikeMassKg: 9 }}
+        profile={null}
       />,
     )
     expect(screen.getByRole('link', { name: 'Lift' })).toBeInTheDocument()

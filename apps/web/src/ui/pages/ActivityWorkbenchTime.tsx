@@ -24,7 +24,7 @@ export function TimeSelection({
   const { startS, endS } = selection
   return (
     <fieldset className="activity-workbench__selection">
-      <legend>Selected interval</legend>
+      <legend className="sr-only">Selected interval</legend>
       <TimeBrush
         max={max}
         selection={selection}

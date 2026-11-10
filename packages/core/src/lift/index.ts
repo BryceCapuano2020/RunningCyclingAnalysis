@@ -21,10 +21,25 @@ export { estimateLift, liftBests } from './estimate'
 export type { LiftBest, LiftEstimate } from './estimate'
 export { setEstimate } from './setEstimate'
 export type { SetEstimate, SetErrorParts } from './setEstimate'
-export { ALLOMETRIC_EXPONENT } from './constants'
+export {
+  ALLOMETRIC_EXPONENT,
+  CHANGE_Z,
+  DEADLIFT_EXTRA_HIGH,
+  HALF_LIFE_DAYS,
+  LOMBARDI_EXPONENT,
+  REP_CAP,
+  RPE_FLOOR,
+  UNDER_PREDICTION_PER_RIR,
+  UNKNOWN_RIR,
+  WINDOW_DAYS,
+  Z_HIGH,
+  Z_LOW,
+} from './constants'
+export { liftWindowCounts } from './liftWindow'
+export type { LiftWindowCounts } from './liftWindow'
 export { massSdFor, relativeStrength } from './relative'
 export type { RelativeFigure, RelativeStrength } from './relative'
-export { weeklyLoad } from './weeklyLoad'
+export { liftWeekStart, weeklyLoad } from './weeklyLoad'
 export type { LiftWeek, RegionLoad } from './weeklyLoad'
 export { buildLiftState } from './liftState'
 export type { LiftFlag, LiftPeriod, LiftState, LiftSummary } from './liftState'

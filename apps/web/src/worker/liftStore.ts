@@ -1,5 +1,6 @@
 import { liftSetKey } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
+import { committed } from './idb'
 import { openIndexedDb } from './openIndexedDb'
 import { databaseExists } from './workbenchExists'
 import {
@@ -28,6 +29,8 @@ export interface LiftStore {
   save(set: LiftSet): Promise<boolean>
   /** Logs a set at the next set order of its date and lift, chosen in the write's own transaction so two tabs never take the same key. Resolves the set kept, or null (no room, or storage refused). */
   saveNext(draft: Omit<LiftSet, 'setOrder'>): Promise<LiftSet | null>
+  /** Logs many sets by their own keys, each replacing the stored set of its key, in one write. Resolves how many were kept. */
+  saveAll(sets: readonly LiftSet[]): Promise<number>
   /** Deletes a set by its key. */
   remove(key: string): Promise<void>
   /** Closes the database this store holds open. Call it when the scope changes; a later call opens it again. */
@@ -69,13 +72,9 @@ async function inDatabase<R>(
   fallback: R,
 ): Promise<R> {
   try {
-    return await new Promise<R>((resolve) => {
-      const transaction = db.transaction(STORE, mode)
-      const result = work(transaction.objectStore(STORE))
-      transaction.oncomplete = () => resolve(result)
-      transaction.onerror = () => resolve(fallback)
-      transaction.onabort = () => resolve(fallback)
-    })
+    const transaction = db.transaction(STORE, mode)
+    const result = work(transaction.objectStore(STORE))
+    return (await committed(transaction)) ? result : fallback
   } catch {
     return fallback
   }
@@ -96,12 +95,9 @@ export async function clearLifts(): Promise<boolean> {
   const db = await openDatabase()
   if (db === null) return true
   try {
-    return await new Promise<boolean>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      transaction.objectStore(STORE).clear()
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = transaction.onabort = () => resolve(false)
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    transaction.objectStore(STORE).clear()
+    return await committed(transaction)
   } catch {
     return false
   } finally {
@@ -114,18 +110,15 @@ export async function clearScope(scope: string): Promise<boolean> {
   const db = await openDatabase()
   if (db === null) return true
   try {
-    return await new Promise<boolean>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      const cursor = transaction.objectStore(STORE).index('scope').openKeyCursor(scope)
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        transaction.objectStore(STORE).delete(at.primaryKey)
-        at.continue()
-      }
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = transaction.onabort = () => resolve(false)
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    const cursor = transaction.objectStore(STORE).index('scope').openKeyCursor(scope)
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      transaction.objectStore(STORE).delete(at.primaryKey)
+      at.continue()
+    }
+    return await committed(transaction)
   } catch {
     return false
   } finally {
@@ -144,25 +137,22 @@ export async function sweepLifts(keepScope: string | null): Promise<void> {
   const db = await openDatabase()
   if (db === null) return
   try {
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      const cursor = transaction.objectStore(STORE).openCursor()
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        const { scope, state } = at.value as LiftRow
-        // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
-        if (
-          scope !== keepScope &&
-          scope !== DEVICE_SCOPE &&
-          (keepScope !== null || state === 'synced')
-        )
-          at.delete()
-        at.continue()
-      }
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = transaction.onabort = () => resolve()
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    const cursor = transaction.objectStore(STORE).openCursor()
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      const { scope, state } = at.value as LiftRow
+      // A signed-out visitor's rows are the only copy there is: no account's sign-in sweeps them.
+      if (
+        scope !== keepScope &&
+        scope !== DEVICE_SCOPE &&
+        (keepScope !== null || state === 'synced')
+      )
+        at.delete()
+      at.continue()
+    }
+    await committed(transaction)
   } catch {
     // The rows stay until a later load tries again.
   } finally {
@@ -264,6 +254,14 @@ export function openLiftStore(scope: string): LiftStore {
     save: async (set) => {
       const key = liftSetKey(set)
       return (await mutate([key], (row) => saveSet(row, base(key), set))).length === 1
+    },
+    saveAll: async (sets) => {
+      // A key twice in one file keeps its last set, as two saves in a row would.
+      const byKey = new Map(sets.map((set) => [liftSetKey(set), set]))
+      const done = await mutate([...byKey.keys()], (row, key) =>
+        saveSet(row, base(key), byKey.get(key) as LiftSet),
+      )
+      return done.length
     },
     // The device has no server to tell: a deleted set is simply gone.
     remove: async (key) =>

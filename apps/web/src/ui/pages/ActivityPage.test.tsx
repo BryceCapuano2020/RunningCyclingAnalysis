@@ -238,14 +238,16 @@ describe('ActivityPage', () => {
   })
 
   it('says a ride without a power meter has estimated power only where an estimated power figure is shown', () => {
-    const sentence = 'Power here is estimated from speed and climbs. No power meter recorded it.'
+    const source = 'Estimated from speed and climbs, no meter'
     const { unmount } = renderPage({ ...powerRide, powerSource: 'virtual' })
     expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
     expect(screen.queryByText('Average power', { selector: 'dt' })).not.toBeInTheDocument()
-    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+    expect(screen.queryByText(source)).not.toBeInTheDocument()
     unmount()
     renderPage({ ...powerRide, powerSource: 'virtual', avgPowerW: 180 })
-    expect(screen.getByText(sentence)).toBeInTheDocument()
+    expect(
+      screen.getByText('Power source', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent(source)
     expect(within(statFor('Average power')).getByText('Estimated')).toBeInTheDocument()
   })
 

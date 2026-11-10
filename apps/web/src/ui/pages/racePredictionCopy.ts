@@ -44,9 +44,9 @@ export const FLOORED_TEXT = 'Your best'
 /** The line under the title when every run is older than the year: there is nothing to forecast from. */
 export const PAST_LINE = 'No run of a mile or more in 12 months.'
 
-/** What a row says of a run older than the year, as it was run: "You ran 19:58 in Oct 2024". */
-export function pastText({ seconds, startMs }: PastRun): string {
-  return `You ran ${formatRecordTime(seconds)} in ${formatMonth(startMs, true)}`
+/** A run older than the year, as it was run, label over value: "Ran", "19:58, Oct 2024". */
+export function pastRow({ seconds, startMs }: PastRun): Property {
+  return { label: 'Ran', value: `${formatRecordTime(seconds)}, ${formatMonth(startMs, true)}` }
 }
 
 /** The rows that say what the forecast rests on: the run the times were carried from or the heart rate, and what it is for. */

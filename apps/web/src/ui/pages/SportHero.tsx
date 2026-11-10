@@ -33,7 +33,7 @@ export interface SportHeroProps {
 }
 
 /** One figure of the hero's row: a small label over its value, which is the figure's own markup. */
-function HeroFigure({
+export function HeroFigure({
   label,
   testId,
   children,

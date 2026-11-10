@@ -1,6 +1,7 @@
 import type { Marks } from '@rca/core/lookback'
 import { CHECKIN_DB, epochKey, openCheckinDb } from './checkinStore'
 import type { CheckinScope } from './checkinStore'
+import { committed, resultOrUndefined } from './idb'
 import { databaseExists } from './workbenchExists'
 
 /**
@@ -51,13 +52,6 @@ export interface ScopeRecords {
   epoch: number
 }
 
-function request<T>(r: IDBRequest<T>): Promise<T | undefined> {
-  return new Promise((resolve) => {
-    r.onsuccess = () => resolve(r.result)
-    r.onerror = () => resolve(undefined)
-  })
-}
-
 const isMarks = (value: unknown): value is StoredMarks =>
   typeof value === 'object' && value !== null && (value as StoredMarks).v === 1
 const isSeen = (value: unknown): value is SeenRecord =>
@@ -79,9 +73,9 @@ export async function readScope(scope: CheckinScope): Promise<ScopeRecords | nul
   try {
     const tx = db.transaction(['marks', 'seen'], 'readonly')
     const [marks, epoch, seen] = await Promise.all([
-      request(tx.objectStore('marks').get(scope)),
-      request(tx.objectStore('marks').get(epochKey(scope))),
-      request(tx.objectStore('seen').get(scope)),
+      resultOrUndefined(tx.objectStore('marks').get(scope)),
+      resultOrUndefined(tx.objectStore('marks').get(epochKey(scope))),
+      resultOrUndefined(tx.objectStore('seen').get(scope)),
     ])
     return {
       marks: isMarks(marks) ? marks : null,
@@ -121,11 +115,8 @@ export async function writeScope(
       if (records.marks !== undefined) marks.put(records.marks, scope)
       if (records.seen !== undefined) tx.objectStore('seen').put(records.seen, scope)
     }
-    return await new Promise<WriteResult>((resolve) => {
-      tx.oncomplete = () => resolve('written')
-      tx.onerror = () => resolve(replaced ? 'replaced' : 'refused')
-      tx.onabort = () => resolve(replaced ? 'replaced' : 'refused')
-    })
+    if (await committed(tx)) return 'written'
+    return replaced ? 'replaced' : 'refused'
   } catch {
     return 'refused'
   }

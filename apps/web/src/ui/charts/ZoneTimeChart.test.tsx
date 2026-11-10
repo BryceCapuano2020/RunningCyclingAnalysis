@@ -19,7 +19,7 @@ function chart(seconds: number[], extra: Partial<ZoneChartRow> = {}, label = 'He
   return render(
     <ZoneTimeChart
       title="Share of time in each zone"
-      lede="Most of the time was easy."
+      facts={[{ label: 'Most time', value: 'Heart rate zone 1, 50%' }]}
       rows={[{ label, seconds, summary: 'zone 1 50%, zone 2 50%', ...extra }]}
       table={table}
     />,
@@ -134,7 +134,6 @@ describe('ZoneTimeChart', () => {
     const { container } = render(
       <ZoneTimeChart
         title="Share of time in each zone"
-        lede=""
         rows={[
           { label: 'Heart rate', seconds: [1, 1, 1, 1, 1], summary: 'x' },
           { label: 'Pace', seconds: [1, 1, 1, 1, 1], summary: 'y' },
@@ -156,10 +155,11 @@ describe('ZoneTimeChart', () => {
       'Stacked bars of the share of time in each zone. Heart rate: zone 1 50%, zone 2 50%.',
     )
     expect(screen.getByRole('figure', { name: 'Share of time in each zone' })).toBeInTheDocument()
-    // The lede is the first line of the chart's Details, with the table, not a line under the title.
-    const lede = screen.getByText('Most of the time was easy.')
-    expect(lede.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
-    expect(lede.closest('details')?.querySelector('table')).not.toBeNull()
+    // The fact is a label and value in the chart's Details, with the table, not a line under the title.
+    const fact = screen.getByText('Heart rate zone 1, 50%')
+    expect(screen.getByText('Most time').tagName).toBe('DT')
+    expect(fact.closest('details')?.querySelector('summary')).toHaveTextContent(/^Details$/)
+    expect(fact.closest('details')?.querySelector('table')).not.toBeNull()
   })
 
   it('draws a bar with no time as nothing', () => {

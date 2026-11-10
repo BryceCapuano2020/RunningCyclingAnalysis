@@ -229,6 +229,11 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
       }),
     [store, write],
   )
+  /** Writes imported sets, each replacing the set of its key. Resolves how many were kept. */
+  const importSets = useCallback(
+    (items: readonly LiftSet[]): Promise<number> => write(() => store.saveAll(items)),
+    [store, write],
+  )
   /** Deletes a set by its key (`LoggedSet.key`). */
   const remove = useCallback(
     (key: string): Promise<void> => write(() => store.remove(key)),
@@ -237,6 +242,10 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
 
   const rows = read !== null && read.scope === scope ? read.rows : null
   const days = useMemo(() => groupDays(rows ?? []), [rows])
+  const sets = useMemo(
+    () => (rows ?? []).filter((row) => row.state !== 'delete').map((row) => row.set),
+    [rows],
+  )
   const recent = useMemo(() => recentLifts(rows ?? []), [rows])
   // A signed-out log has no server to wait for.
   const pendingCount =
@@ -244,7 +253,9 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
 
   return {
     days,
+    sets,
     save,
+    importSets,
     update,
     remove,
     pendingCount,

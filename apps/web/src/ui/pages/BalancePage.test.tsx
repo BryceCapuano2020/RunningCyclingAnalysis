@@ -21,6 +21,13 @@ import {
 } from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
+import type { LiftSummary } from '@rca/core/lift'
+
+// The Balance page reads lifts through useLiftSummary; most tests have none, and the lifting tests give it one squat.
+const liftRead = vi.hoisted(() => ({ lifts: [] as LiftSummary[] }))
+vi.mock('../lift/useLiftSummary', () => ({
+  useLiftSummary: () => ({ lifts: liftRead.lifts, ready: true }),
+}))
 
 vi.mock('../../share/download', () => ({
   canShareImage: vi.fn(() => false),
@@ -729,5 +736,48 @@ describe('BalancePage with one sport', () => {
     expect(container.querySelector('.level-triangle__corner[data-sport="run"]')).toHaveTextContent(
       'Running No grade yet',
     )
+  })
+})
+
+describe('the lifting corner and row wait for the weight', () => {
+  const squat: LiftSummary = {
+    key: 'back-squat.barbell' as LiftSummary['key'],
+    exercise: 'back-squat',
+    equipment: 'barbell',
+    region: 'lower',
+    estimate: {
+      date: '2025-07-01',
+      point: 140,
+      point0: 140,
+      low: 130,
+      high: 155,
+      floor: { loadKg: 130, reps: 3, date: '2025-07-01' },
+      sessions: 3,
+      sd: 0.05,
+      terms: { curve: 0, centre: 0, equations: 0, effort: 0 },
+      ind: 0.03,
+      meanR: 5,
+    },
+    reason: null,
+    floor: { loadKg: 130, reps: 3, date: '2025-07-01' },
+    repBests: [],
+    relative: null,
+    lastDate: '2025-07-01',
+    flags: [],
+  }
+  it('grades a logged squat on the lifting row once a weight is entered', () => {
+    liftRead.lifts = [squat]
+    const { container } = renderPage(GRADED_RUN, {}, MAN_BORN_1986, true)
+    expect(container.textContent).toMatch(/Squat\s*\d+%/)
+    liftRead.lifts = []
+  })
+
+  it('gives no lift grade without a weight, rather than grading at the placeholder mass', () => {
+    liftRead.lifts = [squat]
+    const { container } = renderPage(GRADED_RUN, {}, MAN_BORN_1986, false)
+    // The row still shows the projected one-rep max; only the grade waits for the weight.
+    expect(container.textContent).toMatch(/Squat/)
+    expect(container.textContent).not.toMatch(/Squat\s*\d+%/)
+    liftRead.lifts = []
   })
 })

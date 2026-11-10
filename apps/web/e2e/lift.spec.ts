@@ -12,6 +12,11 @@ import {
   uploadFixtures,
 } from './helpers.js'
 
+/** A lift's heading in the day view: the lead and the lifts list name the same lift above it. */
+function dayLift(page: Page, name: string | RegExp) {
+  return page.locator('.lift__lift').getByRole('heading', { name })
+}
+
 /** Chooses a lift in the picker by typing part of its name and taking the option that matches. */
 async function chooseLift(page: Page, typed: string, option: string | RegExp): Promise<void> {
   const box = page.getByRole('combobox', { name: 'Lift' })
@@ -52,7 +57,7 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await saveSet(page, '3', '225', '9')
   await page.getByRole('button', { name: 'Done' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
   await expect(page.getByText(/×\s5\s·\sRPE\s8/)).toBeVisible()
   await expect(page.getByText(/×\s3\s·\sRPE\s9/)).toBeVisible()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(2)
@@ -84,20 +89,20 @@ test('logs, edits and deletes sets, adds a custom lift, and keeps them across a 
   await page.getByRole('button', { name: 'Edit set 2' }).click()
   await page.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(1)
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeFocused()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeFocused()
 
   await page.getByRole('button', { name: 'Log a set' }).click()
   await chooseLift(page, 'zercher hold', 'Add ‘Zercher hold’')
   await saveSet(page, '8', '40')
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
+  await expect(dayLift(page, /^Zercher hold, /)).toBeVisible()
 
   await page.reload()
   await appSettled(page)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lifting')
-  await expect(page.getByRole('heading', { name: 'Back squat, barbell' })).toBeVisible()
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
   await expect(page.getByText(/×\s4\s·\sRPE\s9/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: /^Zercher hold, / })).toBeVisible()
+  await expect(dayLift(page, /^Zercher hold, /)).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -153,4 +158,49 @@ test('Remove all in one tab empties the Lift page open in another', async ({ bro
   await expect(second.getByText('No sets')).toBeVisible({ timeout: 15_000 })
   await expect(second.getByText(/×\s5\s·\sRPE\s8/)).toHaveCount(0)
   await context.close()
+})
+
+test('imports a Hevy file signed out: previews it, then shows the sets on the day', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.goto('/#/lift')
+  await appSettled(page)
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const start = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} 07:30:00`
+  const header =
+    'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe'
+  const row = (lift: string, index: number, type: string, kg: string, reps: string, rpe = '') =>
+    ['Test day', start, '', '', lift, '', '', index, type, kg, reps, '', '', rpe].join(',')
+  const csv = [
+    header,
+    row('Squat (Barbell)', 0, 'warmup', '40', '8'),
+    row('Squat (Barbell)', 1, 'normal', '100', '5', '8'),
+    row('Squat (Barbell)', 2, 'failure', '100', '4'),
+    row('Bench Press (Barbell)', 0, 'normal', 'abc', '5'),
+  ].join('\n')
+
+  await page.getByRole('button', { name: 'Import from Hevy' }).click()
+  await expect(page.getByRole('button', { name: 'Log a set' })).toHaveCount(0)
+  await page.getByLabel('Hevy workouts file').setInputFiles({
+    name: 'workouts.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  })
+  await expect(page.getByText('3 sets on 1 day')).toBeVisible()
+  await expect(page.getByText(/The weight is not a number\. Rows 5\./)).toBeVisible()
+  // Nothing is written until it is confirmed.
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Import sets' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 3 sets' })).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  await expect(dayLift(page, 'Back squat, barbell')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(3)
+  await expect(page.getByText(/×\s4\s·\sRPE\s10/)).toBeVisible()
+  await page.reload()
+  await appSettled(page)
+  await expect(page.getByRole('button', { name: /^Edit set / })).toHaveCount(3)
+  expect(errors).toEqual([])
 })

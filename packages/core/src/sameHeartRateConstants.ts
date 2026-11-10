@@ -1,5 +1,5 @@
 /**
- * Output at the same heart rate (docs/research/same-heart-rate.md). Each week fits output on heart
+ * Output at the same heart rate (docs/archive/same-heart-rate.md). Each week fits output on heart
  * rate over the blocks of the trailing windowDays (wideWindowDays when those hold under minActivities
  * activities), and reports it at a reference heart rate kept for the whole period. A week reports only with
  * at least minBlocks blocks from minActivities activities in minWeeks different weeks, and heart rate

@@ -1,5 +1,5 @@
 import { bigThreeTotal, gradedLiftOf, liftGrade } from '@rca/core/lift'
-import type { GradedEstimate, GradedLift, LiftSummary } from '@rca/core/lift'
+import type { GradeBody, GradedEstimate, GradedLift, LiftSummary } from '@rca/core/lift'
 import type { AgeProfile } from '@rca/core/grade'
 import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -37,7 +37,7 @@ function loadParts(kg: number, units: UnitSystem): { number: string; unit: strin
 export function liftTileOf(
   lifts: readonly LiftSummary[],
   profile: AgeProfile | null,
-  massKg: number,
+  body: GradeBody,
   units: UnitSystem,
 ): LiftTileModel {
   const estimates = lifts.flatMap((summary): GradedEstimate[] => {
@@ -46,7 +46,7 @@ export function liftTileOf(
   })
   const big = bigThreeTotal(estimates)
   const rows = big.parts.map((part) => {
-    const grade = liftGrade({ lift: part.lift, estimate: part.estimate }, profile, massKg)
+    const grade = liftGrade({ lift: part.lift, estimate: part.estimate }, profile, body)
     const load = unbroken(formatMass(part.kg, units))
     return {
       label: LIFT_LABEL[part.lift],

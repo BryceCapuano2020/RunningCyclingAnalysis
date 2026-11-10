@@ -3,7 +3,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatPace } from '@rca/core/units'
 import type { PastRun } from '../raceAnswer'
 import { RACE_PREDICTIONS_NAME, raceName } from '../racePredictions'
-import { PAST_LINE, pastText } from './racePredictionCopy'
+import { PAST_LINE, pastRow } from './racePredictionCopy'
 import './RacePredictions.css'
 
 /**
@@ -34,7 +34,9 @@ export function RacePast({
               <span className="race-row__pace">
                 {formatPace(run.distanceM / run.seconds, units)}
               </span>
-              <span className="race-row__ran">{pastText(run)}</span>
+              <span className="race-row__ran">
+                <span>{pastRow(run).label}</span> <span>{pastRow(run).value}</span>
+              </span>
             </p>
           </li>
         ))}

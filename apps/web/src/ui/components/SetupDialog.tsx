@@ -229,7 +229,7 @@ export function SetupDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="setup-dialog"
+      className="dialog setup-dialog"
       aria-labelledby={titleId}
       aria-describedby={helpId}
       onCancel={(event) => {

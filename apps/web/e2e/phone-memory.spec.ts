@@ -172,8 +172,8 @@ test.describe('a large import on a phone-sized browser', () => {
     try {
       await page.locator('input[type="file"]').first().setInputFiles(files)
       await completeSetup(page)
-      // "Added 120 runs and 160 rides, from ...": every file is a workout of its own.
-      await importSummaryShown(page, /^Added \d+ runs? and \d+ rides?/, 180_000)
+      // Added: "120 runs and 160 rides": every file is a workout of its own.
+      await importSummaryShown(page, 'Added', /^\d+ runs? and \d+ rides?$/, 180_000)
     } finally {
       clearInterval(sampler)
       rmSync(directory, { recursive: true, force: true })

@@ -1,6 +1,7 @@
 import { parseDigest, serializeDigest } from '@rca/core/digest'
 import type { ActivityDigest } from '@rca/core/types'
 import { workoutKeyOf } from './device'
+import { committed } from './idb'
 import { openIndexedDb } from './openIndexedDb'
 
 /**
@@ -99,13 +100,9 @@ export async function clearOutbox(): Promise<boolean> {
   const db = await openDatabase()
   if (db === null) return true
   try {
-    return await new Promise<boolean>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      transaction.objectStore(STORE).clear()
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = () => resolve(false)
-      transaction.onabort = () => resolve(false)
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    transaction.objectStore(STORE).clear()
+    return await committed(transaction)
   } catch {
     return false
   } finally {
@@ -126,19 +123,15 @@ export async function sweepOutbox(keepUserId: string | null): Promise<void> {
   const db = await openDatabase()
   if (db === null) return
   try {
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE, 'readwrite')
-      const cursor = transaction.objectStore(STORE).openCursor()
-      cursor.onsuccess = () => {
-        const at = cursor.result
-        if (at === null) return
-        if ((at.value as OutboxRow).userId !== keepUserId) at.delete()
-        at.continue()
-      }
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => resolve()
-      transaction.onabort = () => resolve()
-    })
+    const transaction = db.transaction(STORE, 'readwrite')
+    const cursor = transaction.objectStore(STORE).openCursor()
+    cursor.onsuccess = () => {
+      const at = cursor.result
+      if (at === null) return
+      if ((at.value as OutboxRow).userId !== keepUserId) at.delete()
+      at.continue()
+    }
+    await committed(transaction)
   } catch {
     // The rows stay until a later load tries again.
   } finally {
@@ -192,20 +185,16 @@ export function openOutbox(userId: string): Outbox {
     const db = await database()
     if (db === null) return fallback
     try {
-      return await new Promise<R>((resolve) => {
-        const transaction = db.transaction(STORE, 'readwrite')
-        const store = transaction.objectStore(STORE)
-        let result = fallback
-        const read = store.get(idOf(key)) as IDBRequest<OutboxRow | undefined>
-        read.onsuccess = () => {
-          const row = read.result
-          if (row !== undefined && (digestId === undefined || row.digestId === digestId))
-            result = change(store, row)
-        }
-        transaction.oncomplete = () => resolve(result)
-        transaction.onerror = () => resolve(fallback)
-        transaction.onabort = () => resolve(fallback)
-      })
+      const transaction = db.transaction(STORE, 'readwrite')
+      const store = transaction.objectStore(STORE)
+      let result = fallback
+      const read = store.get(idOf(key)) as IDBRequest<OutboxRow | undefined>
+      read.onsuccess = () => {
+        const row = read.result
+        if (row !== undefined && (digestId === undefined || row.digestId === digestId))
+          result = change(store, row)
+      }
+      return (await committed(transaction)) ? result : fallback
     } catch {
       opened = null
       return fallback

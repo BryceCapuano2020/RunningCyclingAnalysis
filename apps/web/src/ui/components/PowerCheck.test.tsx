@@ -2,13 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  POWER_KEPT_NOTE,
-  POWER_SET_ASIDE_NOTE,
-  estimatedPowerNote,
-  powerCheckChip,
-  powerHeartRateNote,
-} from '../analysis/powerCheckCopy'
+import { powerCheckChip, powerCheckRows } from '../analysis/powerCheckCopy'
 import { makeActivity } from './test/fixtures'
 import { PowerCheck } from './PowerCheck'
 
@@ -17,110 +11,88 @@ afterEach(() => {
   localStorage.clear()
 })
 
+/** The value shown beside a label in the page's rows. */
+function valueOf(label: string): string | null | undefined {
+  return screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent
+}
+
 describe('PowerCheck', () => {
   it('says nothing for an activity whose power is not in question', () => {
     const { container } = render(<PowerCheck activity={makeActivity({ sport: 'ride' })} />)
     expect(container.textContent).toBe('')
   })
 
-  it('says a set-aside ride’s power is left out, names what to check, and offers to keep it', async () => {
+  it('shows a set-aside ride as label and value, and offers to keep it', async () => {
     render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
-    expect(screen.getByText(POWER_SET_ASIDE_NOTE)).toBeTruthy()
+    expect(valueOf('Power')).toBe('Set aside')
+    expect(valueOf('Left out of')).toBe('Bests, grades and the balance')
+    expect(valueOf('Check')).toMatch(/Meter calibration/)
+    expect(screen.queryByText('Comparison with running', { selector: 'dt' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Keep this power' }))
     expect(localStorage.getItem('rca.keepPower.v1')).toBe('["activity-1"]')
   })
 
-  it('says a kept ride’s power counts, and offers to set it aside again', async () => {
+  it('shows a kept ride as counting, and offers to set it aside again', async () => {
     localStorage.setItem('rca.keepPower.v1', '["activity-1"]')
     render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'kept' })} />)
-    expect(screen.getByText(POWER_KEPT_NOTE)).toBeTruthy()
+    expect(valueOf('Power')).toBe('Kept')
+    expect(valueOf('Counts in')).toBe('Bests and thresholds')
+    expect(valueOf('Comparison with running')).toBe('Left out when above the age tables')
+    expect(screen.queryByText('At the top of the age tables', { selector: 'dt' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Set this power aside' }))
     expect(localStorage.getItem('rca.keepPower.v1')).toBe('[]')
   })
-})
 
-describe('the heart rate over the questioned power', () => {
-  const evidence = (heartRateShare: number) => ({ durationS: 1200, wkg: 8.04, heartRateShare })
-
-  it('says what the heart rate averaged, and that a hard one cannot settle the power', () => {
-    expect(powerHeartRateNote(evidence(0.93))).toBe(
-      'Over its best 20 min, at 8.0 W/kg, your heart rate averaged 93% of your reference heart rate. That is as high as a hard effort reads. Heart rate cannot say whether the power was right.',
-    )
+  it('keeps the rows behind Details, not on the face of the page', () => {
+    render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
+    const details = screen.getByText('Power', { selector: 'dt' }).closest('details')
+    expect(details?.querySelector('summary')?.textContent).toMatch(/^Details/)
+    expect(details?.open).toBe(false)
   })
 
-  it('says a lower one is lower than an effort at that power usually shows, without a verdict', () => {
-    const note = powerHeartRateNote(evidence(0.78))
-    expect(note).toContain('averaged 78% of your reference heart rate')
-    expect(note).toContain('Heart rate cannot say whether the power was right.')
-    expect(note).toContain('lower than an effort at that power usually shows')
-    expect(note).not.toMatch(/wrong|fault|broken|cheat/i)
-  })
-
-  it('sits under the set-aside note and under the kept one, and is absent without a reading', () => {
+  it('adds the heart rate over the questioned effort, and drops it without a reading', () => {
+    const heartRate = { durationS: 1200, wkg: 8, heartRateShare: 0.93 }
     render(
       <PowerCheck
         activity={makeActivity({
           sport: 'ride',
           powerCheck: 'set-aside',
-          powerHeartRate: evidence(0.93),
+          powerHeartRate: heartRate,
         })}
       />,
     )
-    expect(screen.getByText(/^Over its best 20 min/)).toBeTruthy()
-    cleanup()
-    render(
-      <PowerCheck
-        activity={makeActivity({
-          sport: 'ride',
-          powerCheck: 'kept',
-          powerHeartRate: evidence(0.7),
-        })}
-      />,
-    )
-    expect(screen.getByText(/averaged 70% of your reference heart rate/)).toBeTruthy()
+    expect(valueOf('Heart rate, best 20 min')).toBe('93% of reference')
+    expect(valueOf('Heart rate reads')).toBe('As high as a hard effort')
     cleanup()
     render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
-    expect(screen.queryByText(/^Over its best/)).toBeNull()
+    expect(screen.queryByText(/^Heart rate/, { selector: 'dt' })).toBeNull()
   })
 })
 
-describe('a ride without a power meter whose estimate is over what riders hold', () => {
-  const estimatedPower = { durationS: 1200, wkg: 9.04 }
-
-  it('says what the estimate needs and what else would show it, and offers to keep the power', async () => {
-    render(
-      <PowerCheck
-        activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside', estimatedPower })}
-      />,
-    )
-    const note = estimatedPowerNote(estimatedPower)
-    expect(screen.getByText(note)).toBeTruthy()
-    expect(note).toContain('no power meter')
-    expect(note).toContain('needs 9.0 W/kg')
-    expect(note).toContain(
-      'An assisted bike, a tow or a wrong weight setting would read like this.',
-    )
-    expect(note).not.toMatch(/e-bike|motor|cheat|fraud|fake/i)
-    await userEvent.click(screen.getByRole('button', { name: 'Keep this power' }))
-    expect(localStorage.getItem('rca.keepPower.v1')).toBe('["activity-1"]')
+describe('powerCheckRows', () => {
+  it('says a lower heart rate reads lower than a hard effort, without a verdict on the power', () => {
+    const rows = powerCheckRows('set-aside', undefined, {
+      durationS: 1200,
+      wkg: 8,
+      heartRateShare: 0.78,
+    })
+    expect(rows).toContainEqual({
+      label: 'Heart rate reads',
+      value: 'Lower than a hard effort at that power',
+    })
+    expect(JSON.stringify(rows)).not.toMatch(/wrong|fault|broken|cheat/i)
   })
 
-  it('names a short effort in seconds and a long one in minutes, never “0 min”', () => {
-    expect(estimatedPowerNote({ durationS: 15, wkg: 24 })).toContain('best 15 s the estimate')
-    expect(estimatedPowerNote({ durationS: 90, wkg: 12 })).toContain('best 90 s the estimate')
-    expect(estimatedPowerNote({ durationS: 120, wkg: 9 })).toContain('best 2 min the estimate')
-    expect(estimatedPowerNote({ durationS: 1200, wkg: 8 })).toContain('best 20 min the estimate')
-    expect(estimatedPowerNote({ durationS: 5, wkg: 30 })).not.toContain('0 min')
-  })
-
-  it('keeps the meter’s note for a ride with one, and the kept note once kept', () => {
-    render(<PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'set-aside' })} />)
-    expect(screen.getByText(POWER_SET_ASIDE_NOTE)).toBeTruthy()
-    cleanup()
-    render(
-      <PowerCheck activity={makeActivity({ sport: 'ride', powerCheck: 'kept', estimatedPower })} />,
-    )
-    expect(screen.getByText(POWER_KEPT_NOTE)).toBeTruthy()
+  it('gives an estimate its best effort as a figure, in seconds under two minutes and minutes after', () => {
+    const labels = (durationS: number) =>
+      powerCheckRows('set-aside', { durationS, wkg: 9.04 }, undefined).map((row) => row.label)
+    expect(labels(1200)).toContain('Best 20 min')
+    expect(labels(120)).toContain('Best 2 min')
+    expect(labels(90)).toContain('Best 90 s')
+    expect(labels(5)).toContain('Best 5 s')
+    const rows = powerCheckRows('set-aside', { durationS: 1200, wkg: 9.04 }, undefined)
+    expect(rows).toContainEqual({ label: 'Best 20 min', value: '9.0 W/kg' })
+    expect(rows).toContainEqual({ label: 'Power source', value: 'Estimated from speed and climbs' })
   })
 })
 

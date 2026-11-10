@@ -1,0 +1,42 @@
+/* A lift's estimate over time: a line and rings in the lift ink over a wash for its 80% range. Lift is not a sport colour. */
+.lift-chart__line {
+  fill: none;
+  stroke: var(--lift-ink);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lift-chart__band {
+  fill: var(--lift-wash);
+  stroke: none;
+}
+
+.lift-chart__ring {
+  fill: var(--paper);
+  stroke: var(--lift-ink);
+  stroke-width: 2.5px;
+}
+
+@media (forced-colors: active) {
+  .lift-chart__line,
+  .lift-chart__ring {
+    stroke: CanvasText;
+  }
+
+  .lift-chart__band {
+    fill: GrayText;
+    fill-opacity: 0.3;
+  }
+}
+
+/* A week's working sets: a bar in the lift ink. */
+.lift-chart__bar {
+  fill: var(--lift-ink);
+}
+
+@media (forced-colors: active) {
+  .lift-chart__bar {
+    fill: Highlight;
+  }
+}

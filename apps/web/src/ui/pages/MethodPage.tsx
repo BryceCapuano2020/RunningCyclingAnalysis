@@ -25,12 +25,10 @@ import { TopicBody } from '../components/TopicBody'
 import { SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
-import { periodDates } from '../components/rangeOptions'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
-import { answerVerdict, estimatesOf } from './methodAnswer'
-import { PAGE_HEADING_ID } from './pageHeading'
+import { MethodAnswer } from './MethodAnswerBlock'
 import {
   ENERGY_BRIDGE,
   ENERGY_CROSS_CHECK,
@@ -45,14 +43,16 @@ import {
   NO_FILES_EVIDENCE,
   RESTORING_EVIDENCE,
 } from './methodEnergyCopy'
-import { SECTION_NAME, contentsOf, focusSection } from './methodContents'
+import { contentsOf, focusSection } from './methodContents'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { HowThisWorks } from './HowThisWorks'
+import { LiftMethodSections } from './LiftMethodSections'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
+import { PageHeading } from '../components/PageHeading'
 
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
@@ -122,7 +122,6 @@ export function MethodPage({
   const gradeGapShown = gap !== null
   // The balance is the one Balance states, so the answer and the headline cannot disagree.
   const balance = weightKnown ? balanceOfPick(gap, pick) : null
-  const verdict = answerVerdict(balance, hasResult && !weightKnown && rides > 0)
   const hardEfforts = hardEffortsOnFile(effort)
 
   // A link from another page asked for a section here; focus it once this page has mounted, after
@@ -142,63 +141,21 @@ export function MethodPage({
     }
   }, [])
 
-  // The one line under the title: the balance's verdict, or the estimates sentence while there is none.
-  const estimates = hasResult ? (
-    <NumText text={estimatesOf(runs, rides, weightKnown)} />
-  ) : (
-    'Thresholds, ride levels and the balance are estimates.'
-  )
-
   return (
     <div className="page-stack method">
       <div className="page-head">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          Method
-        </h1>
+        <PageHeading>Method</PageHeading>
       </div>
 
-      <div className="lede method__answer" role="group" aria-label="The short answer">
-        <p className="method__answer-text">
-          {verdict !== null ? <NumText text={verdict} /> : estimates}
-        </p>
-        <details className="method__details">
-          <summary>Details</summary>
-          <ul>
-            {verdict !== null && (
-              <li>
-                <span>{estimates}</span>
-              </li>
-            )}
-            <li>
-              <button
-                type="button"
-                className="method__chip"
-                aria-label={`Recorded: see ${SECTION_NAME.grades}`}
-                onClick={() => focusSection(SECTION_ID.grades)}
-              >
-                Recorded
-              </button>
-              <span>Running efforts, and ride power from a power meter, are recorded.</span>
-            </li>
-            <li>
-              <button
-                type="button"
-                className="method__chip"
-                aria-label={`Checks below: see ${SECTION_NAME.heart}`}
-                onClick={() => focusSection(SECTION_ID.heart)}
-              >
-                Checks below
-              </button>
-              <span>These checks show how far to trust them.</span>
-            </li>
-            {period && (
-              <li>
-                <span className="meta">{`Counted over ${periodDates(period)}.`}</span>
-              </li>
-            )}
-          </ul>
-        </details>
-      </div>
+      <MethodAnswer
+        balance={balance}
+        hasResult={hasResult}
+        waitsForWeight={hasResult && !weightKnown && rides > 0}
+        runs={runs}
+        rides={rides}
+        weightKnown={weightKnown}
+        period={period ?? null}
+      />
 
       <nav className="method__contents" aria-label="On this page">
         <ul>
@@ -269,6 +226,8 @@ export function MethodPage({
       </section>
 
       <AgeGradingSection gradedSex={gradedSex} />
+
+      <LiftMethodSections />
 
       <section className="section band" aria-labelledby={SECTION_ID.heart}>
         <h2 id={SECTION_ID.heart} tabIndex={-1}>
