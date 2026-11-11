@@ -152,6 +152,59 @@ describe('reconcileCounters', () => {
     expect(checked).toEqual(Array(4).fill(RECONCILE_USERS_PER_RUN))
   })
 
+  it('reads again from the first account in the same run when everything after the cursor has gone', async () => {
+    const h = createHarness()
+    await h.env.DB.batch(
+      Array.from({ length: RECONCILE_USERS_PER_RUN * 2 }, (_, i) =>
+        h.env.DB.prepare(
+          'INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)',
+        ).bind(`u${String(i).padStart(3, '0')}`, `u${i}@example.com`, `User ${i}`, START),
+      ),
+    )
+    expect((await reconcileCounters(h.env, START)).checked).toBe(RECONCILE_USERS_PER_RUN)
+    await h.env.DB.prepare('DELETE FROM users WHERE id > ?').bind('u004').run()
+    expect((await reconcileCounters(h.env, START)).checked).toBe(RECONCILE_USERS_PER_RUN)
+  })
+
+  it('saves nothing when the budget stops it after the page was read, and the next run takes the same page', async () => {
+    const h = createHarness()
+    await h.env.DB.batch(
+      Array.from({ length: RECONCILE_USERS_PER_RUN + 2 }, (_, i) =>
+        h.env.DB.prepare(
+          'INSERT INTO users (id, email, name, created_at, activity_count) VALUES (?, ?, ?, ?, 5)',
+        ).bind(`u${String(i).padStart(3, '0')}`, `u${i}@example.com`, `User ${i}`, START),
+      ),
+    )
+    let prepares = 0
+    const spendsOnSecond = new Proxy(h.env.DB, {
+      get(target, property) {
+        if (property === 'prepare') {
+          return (query: string) => {
+            prepares += 1
+            if (prepares === 2) throw new OperationBudgetExhausted()
+            return target.prepare(query)
+          }
+        }
+        const value: unknown = Reflect.get(target, property, target)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    expect(await reconcileCounters({ ...h.env, DB: spendsOnSecond }, START)).toEqual({
+      checked: 0,
+      drifted: 0,
+    })
+    expect(prepares).toBe(2)
+    const cursor = await h.env.DB.prepare(
+      'SELECT reconcile_cursor AS c FROM r2_storage_budget WHERE id = 1',
+    ).first<{ c: string | null }>()
+    expect(cursor?.c ?? null).toBeNull()
+    warn.mockClear()
+    expect((await reconcileCounters(h.env, START)).checked).toBe(RECONCILE_USERS_PER_RUN)
+    const ids = warn.mock.calls.map(([line]) => JSON.parse(String(line)).userId)
+    expect(ids).toEqual(['u000', 'u001', 'u002', 'u003', 'u004'])
+  })
+
   it('logs counter_reconcile_skipped when the operation budget stops it, and returns nothing checked', async () => {
     const h = createHarness()
     await signedInUser(h, 'a@example.com')

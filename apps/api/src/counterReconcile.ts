@@ -39,7 +39,8 @@ interface Row {
  *
  * One page of accounts per run, ordered by id, resumed from the last id read (`r2_storage_budget.reconcile_cursor`), so
  * accounts added or deleted between runs move nothing: every account that is there from the start is read within
- * ceil(n / page) runs. The cursor wraps to the start when no account follows the page. Accounts being deleted are
+ * ceil(n / page) runs. The cursor wraps to the start when no account follows the page, and a page that comes back empty
+ * (everything after the cursor was deleted) is read again from the start in the same run. Accounts being deleted are
  * skipped (their rows go in chunks). When the run's operation budget is spent the step logs `counter_reconcile_skipped`
  * and the next run takes the same page.
  */
@@ -53,12 +54,14 @@ export async function reconcileCounters(env: Bindings, now: number): Promise<Rec
   }
 }
 
-async function reconcilePage(env: Bindings, now: number): Promise<ReconcileReport> {
+/** One page of accounts after the saved cursor, or from the first account when `fromStart`. */
+async function readPage(env: Bindings, fromStart: boolean): Promise<Row[]> {
   const page = await env.DB.prepare(
     `WITH page AS (
        SELECT id, activity_count, digest_bytes, file_bytes, library_version FROM users
        WHERE deleting_at IS NULL
-         AND id > coalesce((SELECT reconcile_cursor FROM r2_storage_budget WHERE id = 1), '')
+         AND id > CASE WHEN ?2 = 1 THEN ''
+                       ELSE coalesce((SELECT reconcile_cursor FROM r2_storage_budget WHERE id = 1), '') END
        ORDER BY id LIMIT ?1)
      SELECT p.id, p.activity_count, p.digest_bytes, p.file_bytes, p.library_version,
        coalesce(j.computed_version, 0) AS computed_version,
@@ -73,9 +76,17 @@ async function reconcilePage(env: Bindings, now: number): Promise<ReconcileRepor
        ON a.user_id = p.id
      ORDER BY p.id`,
   )
-    .bind(RECONCILE_USERS_PER_RUN)
+    .bind(RECONCILE_USERS_PER_RUN, fromStart ? 1 : 0)
     .all<Row>()
-  const last = page.results.at(-1)
+  return page.results
+}
+
+async function reconcilePage(env: Bindings, now: number): Promise<ReconcileReport> {
+  let rows = await readPage(env, false)
+  // Every account after the cursor has gone (or none ever followed it): start again from the first in this run rather than
+  // check nothing until the next one.
+  if (rows.length === 0) rows = await readPage(env, true)
+  const last = rows.at(-1)
   // Another page follows: resume after this one. None does: the next run starts from the first account.
   const next = last !== undefined && last.more === 1 ? last.id : null
   // The budget row is made by the first R2 reservation; a database with none yet gets it here, as the health probe does.
@@ -86,7 +97,7 @@ async function reconcilePage(env: Bindings, now: number): Promise<ReconcileRepor
     .bind(new Date(now).toISOString().slice(0, 7), next)
     .run()
   let drifted = 0
-  for (const row of page.results) {
+  for (const row of rows) {
     const counters = [
       row.activity_count !== row.rows ? 'activity_count' : null,
       row.digest_bytes !== row.digest ? 'digest_bytes' : null,
@@ -97,5 +108,5 @@ async function reconcilePage(env: Bindings, now: number): Promise<ReconcileRepor
     drifted += 1
     console.warn(JSON.stringify({ event: 'counter_drift', userId: row.id, counters }))
   }
-  return { checked: page.results.length, drifted }
+  return { checked: rows.length, drifted }
 }
