@@ -142,19 +142,38 @@ export function fixturePath(name: string): string {
   return join(FIXTURE_DIR, name)
 }
 
+/** How long after a navigation a cancelled request may surface as an unhandled rejection. */
+const NAVIGATION_WINDOW_MS = 3_000
+
 /**
- * Collects console errors and uncaught page errors. Attach before navigating. A 404 from `GET /api/state` is not one: it is
- * how the server says it has no snapshot for the account (results off, or none made yet), which the page handles, but the
- * browser logs every failed request.
+ * Collects console errors and uncaught page errors. Attach before navigating. Two lines about the app's own API are not errors.
+ * A 404 from `GET /api/state` is how the server says it has no snapshot for the account (results off, or none made yet), which
+ * the page handles, but the browser logs every failed request. And WebKit logs "due to access control checks" for an `/api/`
+ * fetch it cancels when the page is reloaded or left while the read is in flight (the results, the library list or the account
+ * lookup): a cancelled request, not a fault of the app. The same line as an unhandled rejection is allowed only within a few seconds of a navigation; any other unhandled rejection fails.
  */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = []
+  const webkit = page.context().browser()?.browserType().name() === 'webkit'
+  const cancelled = (text: string) =>
+    webkit && /\/api\/[\w/?=&.-]* due to access control checks\.?$/.test(text)
   page.on('console', (message) => {
     const answerOfState =
       /\/api\/state$/.test(message.location().url) && /\b404\b/.test(message.text())
-    if (message.type() === 'error' && !answerOfState) errors.push(message.text())
+    if (message.type() === 'error' && !answerOfState && !cancelled(message.text())) {
+      errors.push(message.text())
+    }
   })
-  page.on('pageerror', (error) => errors.push(error.message))
+  // The same line as an unhandled rejection comes from a request cancelled by a navigation this page made a moment ago; only then.
+  let navigatedAt = 0
+  page.on('request', (request) => {
+    if (request.isNavigationRequest()) navigatedAt = Date.now()
+  })
+  page.on('pageerror', (error) => {
+    if (!(cancelled(error.message) && Date.now() - navigatedAt < NAVIGATION_WINDOW_MS)) {
+      errors.push(error.message)
+    }
+  })
   return errors
 }
 

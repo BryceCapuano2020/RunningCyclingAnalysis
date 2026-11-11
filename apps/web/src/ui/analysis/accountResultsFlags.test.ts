@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resultState, snapshotAt } from '../../test/stateCopyKit'
-import { resultsFlags } from './accountResults'
+import { resultsFlags } from './resultsFlags'
 import type { AccountResults } from './accountResults'
 import { EMPTY_SESSION } from './model'
 
@@ -58,23 +58,31 @@ describe('what the page says of the server’s results', () => {
     ).toBe(true)
   })
 
-  it('waits when the snapshot’s library version is behind the version the index was listed at', () => {
+  it('keeps a page that has results to show when the snapshot is behind the version the index was listed at, so a page in use is not replaced', () => {
     const behind = results({ current: false, version: 5 })
     expect(
       resultsFlags('u1', { ...base, results: behind, listedVersion: 7 }, 'loaded', 200)
+        .resultsWaiting,
+    ).toBe(false)
+  })
+
+  it('waits when an empty snapshot is behind the version the index was listed at, whatever the index counts', () => {
+    const behind = results({ empty: true, current: false, version: 5 })
+    expect(
+      resultsFlags('u1', { ...base, results: behind, listedVersion: 7 }, 'loaded', 0)
         .resultsWaiting,
     ).toBe(true)
     // Current results of that version, or of a later one, are not waited on.
     expect(
       resultsFlags(
         'u1',
-        { ...base, results: results({ version: 7 }), listedVersion: 7 },
+        { ...base, results: results({ empty: true, version: 7 }), listedVersion: 7 },
         'loaded',
         200,
       ).resultsWaiting,
     ).toBe(false)
     expect(
-      resultsFlags('u1', { ...base, results: behind, listedVersion: 5 }, 'loaded', 200)
+      resultsFlags('u1', { ...base, results: behind, listedVersion: 5 }, 'loaded', 0)
         .resultsWaiting,
     ).toBe(false)
   })

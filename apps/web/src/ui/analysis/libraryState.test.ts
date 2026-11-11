@@ -30,4 +30,25 @@ describe('useLibraryState: the notice of a removal', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(result.current.libraryNotice).toBe('Deleted New run.')
   })
+
+  it('keeps the notice when the list drops the marker from its own address, since no page may be left to say it', async () => {
+    window.history.replaceState(null, '', '#/activities?removed=1')
+    const { result } = renderHook(() => useLibraryState())
+    act(() => result.current.setLibraryNotice('Deleted New run.'))
+    // The list reads the marker and rewrites its address without it; the results may be gone by then (the last activity), and
+    // then only the notice above the page says how the removal ended.
+    window.location.hash = '#/activities'
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(result.current.libraryNotice).toBe('Deleted New run.')
+  })
+
+  it('keeps the notice when only the list address is seen after an activity page, as a browser under load delivers it', async () => {
+    window.history.replaceState(null, '', '#/activities/a1')
+    const { result } = renderHook(() => useLibraryState())
+    act(() => result.current.setLibraryNotice('Deleted New run.'))
+    // The marked address came and went before its event ran: the one event says the list, without the marker.
+    window.location.hash = '#/activities'
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(result.current.libraryNotice).toBe('Deleted New run.')
+  })
 })

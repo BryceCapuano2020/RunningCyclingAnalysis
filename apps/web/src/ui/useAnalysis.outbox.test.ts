@@ -34,6 +34,23 @@ describe('the saves an earlier visit left behind', () => {
     expect(types().filter((type) => type === 'loadServer')).toHaveLength(before + 1)
   })
 
+  it('keeps the library loaded while it is read again, so a rename or a delete made meanwhile is not refused', () => {
+    const { result } = ready()
+    expect(result.current.libraryStatus).toBe('loaded')
+    apart({ type: 'outbox', pending: 0, saved: 3, failed: 0, finished: true })
+    expect(types()).toContain('loadServer')
+    expect(result.current.libraryStatus).toBe('loaded')
+  })
+
+  it('sets the library to loading when it is read again from a failed one, so imports wait for it', () => {
+    const { result } = ready()
+    apart({ type: 'outbox', pending: 0, saved: 3, failed: 0, finished: true })
+    act(() => worker().reply({ type: 'error', message: 'Library down' }))
+    expect(result.current.libraryStatus).toBe('failed')
+    apart({ type: 'outbox', pending: 0, saved: 3, failed: 0, finished: true })
+    expect(result.current.libraryStatus).toBe('loading')
+  })
+
   it('does not read it again when none were saved', () => {
     ready()
     const before = types().length

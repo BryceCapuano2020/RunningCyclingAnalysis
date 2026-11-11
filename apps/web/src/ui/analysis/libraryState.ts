@@ -3,6 +3,8 @@ import type { DeviceIssue, SavedActivity, WorkerRequest } from '../../worker/pro
 import { NO_CHECKIN } from '../../worker/checkinKeeper'
 import type { CheckInView } from '../../worker/checkinKeeper'
 import { hasRemovedMark } from '../activitiesView'
+import { parseRoute } from '../route'
+import type { Route } from '../route'
 import { keptLibraryHinted } from './keptLibrary'
 import type {
   AdoptionOutcome,
@@ -30,6 +32,9 @@ function retriesDevice(request: WorkerRequest): boolean {
  * The signed-in library: its load status, the imports held while it loads, and the notices the
  * page shows about it. The values are returned as they are; the actions are in libraryActions.ts.
  */
+/** The pages a removal is made on and announced on: an activity and the list of them. */
+const inLibraryPages = (page: Route['page']) => page === 'activity' || page === 'activities'
+
 export function useLibraryState() {
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('idle')
   const libraryStatusRef = useRef<LibraryStatus>('idle')
@@ -72,8 +77,15 @@ export function useLibraryState() {
   // Profile does not show an old "Deleted ..."; a move to the list with the removal's marker keeps it, for
   // the list to announce.
   useEffect(() => {
+    let page = parseRoute(window.location.hash).page
     const leaving = () => {
-      if (hasRemovedMark(window.location.hash)) return
+      const was = page
+      page = parseRoute(window.location.hash).page
+      // The list drops the marker from its own address once it has read it, and a browser under load may deliver that change
+      // alone, without the one that carried the marker: a move between an activity and the list keeps the notice too. With
+      // no results left, as when the last activity was deleted, the notice above the page is the only place that says it.
+      if (hasRemovedMark(window.location.hash) || (inLibraryPages(was) && inLibraryPages(page)))
+        return
       setLibraryNotice(null)
       setLibraryError(null)
     }
@@ -126,9 +138,13 @@ export function useLibraryState() {
     [dropNotSaved, setDeviceIssue],
   )
 
+  // Called when a read of the account's library has ended, whichever way: the one that was asked for while it ran goes next.
+  const readEndedRef = useRef<() => void>(() => undefined)
+
   return {
     libraryStatus,
     libraryStatusRef,
+    readEndedRef,
     setLibrary,
     libraryWaitRef,
     restoring,
