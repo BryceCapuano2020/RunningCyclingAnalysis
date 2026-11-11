@@ -1,7 +1,5 @@
-import type { AthleteSettings } from '@rca/core/athlete'
-import type { AgeProfile } from '@rca/core/grade'
-import { bigThreeTotal, gradedLiftOf, LIFTS, liftGrade } from '@rca/core/lift'
-import type { GradedEstimate, GradedLift, LiftGrade, LiftSummary } from '@rca/core/lift'
+import { LIFTS } from '@rca/core/lift'
+import type { GradedLift, LiftGrade, LiftResults } from '@rca/core/lift'
 import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 
@@ -41,33 +39,22 @@ function parts(kg: number, units: UnitSystem): Parts {
 }
 
 /**
- * The big three as the Lift page leads with them, from core's `bigThreeTotal` (the heaviest estimate of each lift, the one
- * Balance's row and the hero's lift corner use) and `liftGrade`. Null while none of the three has an estimate: the page then
- * leads with the lift trained last.
+ * The big three as the Lift page leads with them, from the lift results (`liftResultsOf`: the heaviest estimate of each lift, the
+ * one Balance's row and the hero's lift corner use, and each part's grade). Null while none of the three has an estimate: the page
+ * then leads with the lift trained last.
  */
-export function bigThreeLeadOf(
-  summaries: readonly LiftSummary[],
-  profile: AgeProfile | null,
-  settings: AthleteSettings,
-  units: UnitSystem,
-): BigThreeLeadModel | null {
-  const estimates = summaries.flatMap((summary): GradedEstimate[] => {
-    const lift = gradedLiftOf(summary.exercise, summary.equipment)
-    return lift === null || summary.estimate === null ? [] : [{ lift, estimate: summary.estimate }]
-  })
-  const big = bigThreeTotal(estimates)
+export function bigThreeLeadOf(results: LiftResults, units: UnitSystem): BigThreeLeadModel | null {
+  const { bigThree: big, bigThreeGrades: grades } = results
   if (big.kind === 'none') return null
   return {
     lifts: LIFTS.map((lift) => {
-      const part = big.parts.find((each) => each.lift === lift)
+      const at = big.parts.findIndex((each) => each.lift === lift)
+      const part = big.parts[at]
       return {
         lift,
         label: BIG_THREE_LABEL[lift],
         max: part === undefined ? null : parts(part.kg, units),
-        grade:
-          part === undefined
-            ? null
-            : liftGrade({ lift, estimate: part.estimate }, profile, settings),
+        grade: part === undefined ? null : (grades[at] ?? null),
       }
     }),
     total: big.kind === 'total' ? parts(big.kg, units) : null,

@@ -4,17 +4,15 @@ import { describe, expect, it } from 'vitest'
 import type { LiftGrade } from '@rca/core/lift'
 import { risingSquats } from './liftFixtures'
 import { liftOverviewOf } from './liftEntries'
+import { resultsFor } from './liftResultsKit'
 import type { LiftLead as Lead } from './liftEntries'
 import { LiftLead } from './LiftLead'
 
 const SETTINGS = { massKg: 80, bikeMassKg: 9 }
 const lead = (grade?: LiftGrade | null, change?: Lead['change']): Lead => ({
   ...liftOverviewOf(
-    risingSquats(),
-    SETTINGS,
-    { birthYear: 1990, sex: 'male' },
+    resultsFor(risingSquats(), SETTINGS, { birthYear: 1990, sex: 'male' }, '2031-03-02'),
     'metric',
-    '2031-03-02',
   ).lead!,
   ...(grade !== undefined && { grade }),
   ...(change !== undefined && { change }),

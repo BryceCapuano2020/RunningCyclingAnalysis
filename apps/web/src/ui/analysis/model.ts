@@ -118,6 +118,8 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
 export interface Baseline {
   result: AnalysisResult
   period: Period
+  /** An account's: the library version of the results it was taken from, which the results after the import must pass. */
+  version?: number
 }
 
 /** The period before any activities are loaded: the default, with no dates yet. */

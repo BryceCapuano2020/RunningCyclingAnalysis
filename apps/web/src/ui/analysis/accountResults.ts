@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
-import { fromSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
+import type { SessionState } from '@rca/core/session'
+import type { LiftResults } from '@rca/core/lift'
+import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { readServerState } from '../../api/state'
 import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
 import { useOwnChanges, useTabMessages } from '../tabSync'
 import { copyIsStale } from './copyAge'
+import type { ImportState } from './importState'
 import { EMPTY_SESSION } from './model'
 import { reloadOnceForNewBuild } from './staleBuild'
 
@@ -30,11 +32,18 @@ export interface AccountResults {
   snapshot: StateSnapshot
   /** Made on an earlier local day than now (or in another zone): shown, and replaced as soon as the server answers. */
   stale: boolean
+  /** The server said this is the latest (not the stored snapshot it served while it computed), and has answered since this tab opened. */
+  current: boolean
 }
 
-function resultsOf(snapshot: StateSnapshot): AccountResults | null {
+function resultsOf(snapshot: StateSnapshot, current: boolean): AccountResults | null {
   try {
-    return { state: fromSnapshot(snapshot), snapshot, stale: copyIsStale(snapshot, Date.now()) }
+    return {
+      state: fromSnapshot(snapshot),
+      snapshot,
+      stale: copyIsStale(snapshot, Date.now()),
+      current,
+    }
   } catch {
     // A snapshot that does not decode is not shown.
     return null
@@ -46,7 +55,8 @@ function resultsOf(snapshot: StateSnapshot): AccountResults | null {
  * replaces it when the server answers with a different snapshot. The browser computes nothing and writes no snapshot of its own for an
  * account.
  *
- * - 304: the copy stands; the server's `X-State-Now` is written into the stored copy's `nowMs`, so an unchanged recompute does not leave
+ * - 304: the copy stands; the server's `X-State-Now` and `X-State-Computed-Version` are written into the stored copy's `nowMs` and
+ *   `libraryVersion`, so an unchanged recompute does not leave
  *   it marked old after a reload.
  * - 202 (computing): the copy stays, or nothing is shown yet; it asks again after `Retry-After`.
  * - `X-State-Current: 0` (the stored snapshot, served while the server computes): shown, and it asks again in a few seconds.
@@ -106,6 +116,16 @@ export function useAccountResults(
     reloadOnceForNewBuild()
   }, [])
 
+  /** The index was listed at `indexAt`; a library version past it is another device's change. */
+  const checkIndex = useCallback((version: number) => {
+    const listed = indexAt.current
+    if (listed === null) indexAt.current = version
+    else if (version > listed) {
+      indexAt.current = null
+      behind.current()
+    }
+  }, [])
+
   const apply = useCallback(
     (read: Exclude<StateRead, { kind: 'none' }>): number | null => {
       if (read.kind === 'computing') {
@@ -115,13 +135,20 @@ export function useAccountResults(
       if (read.kind === 'unchanged') {
         // A 304 on the tag of a refused snapshot says nothing of the copy.
         const copy = refused.current === null ? held.current : null
-        if (copy !== null && read.nowMs !== null && read.nowMs !== copy.nowMs) {
-          const moved = { ...copy, nowMs: read.nowMs }
-          keep(moved, resultsOf(moved))
+        const nowMs = read.nowMs ?? copy?.nowMs
+        const libraryVersion = read.version ?? copy?.libraryVersion
+        if (copy !== null && (nowMs !== copy.nowMs || libraryVersion !== copy.libraryVersion)) {
+          // Written into the held copy beside `nowMs`: a version bump that moved no figure is still a version the results cover.
+          const moved = { ...copy, nowMs: nowMs!, libraryVersion: libraryVersion! }
+          keep(moved, resultsOf(moved, read.current))
+          checkIndex(moved.libraryVersion)
         } else if (copy !== null) {
           const stale = copyIsStale(copy, Date.now())
+          const { current } = read
           setStored((was) =>
-            was?.id === idRef.current ? { ...was, results: { ...was.results, stale } } : was,
+            was?.id === idRef.current
+              ? { ...was, results: { ...was.results, stale, current } }
+              : was,
           )
         }
       } else if (!snapshotIsCurrent(read.snapshot)) {
@@ -132,23 +159,20 @@ export function useAccountResults(
         refused.current = null
         const snapshot =
           read.nowMs === null ? read.snapshot : { ...read.snapshot, nowMs: read.nowMs }
-        keep(snapshot, resultsOf(snapshot))
-        const listed = indexAt.current
-        if (listed === null) indexAt.current = snapshot.libraryVersion
-        else if (snapshot.libraryVersion > listed) {
-          indexAt.current = null
-          behind.current()
-        }
+        keep(snapshot, resultsOf(snapshot, read.current))
+        checkIndex(snapshot.libraryVersion)
       }
       misses.current = read.current ? 0 : misses.current + 1
       return read.current ? null : busyWaitMs(misses.current)
     },
-    [keep, settleReload],
+    [keep, settleReload, checkIndex],
   )
 
   const pull = useCallback(
-    async function run(): Promise<void> {
+    async function run(fresh = false): Promise<void> {
       if (idRef.current === null) return
+      // A change someone made (this tab, or another) starts the waits again: a burst of them is not a row that stays stale.
+      if (fresh) misses.current = 0
       if (running.current) {
         again.current = true
         return
@@ -157,10 +181,12 @@ export function useAccountResults(
       const mine = epoch.current
       try {
         clearTimeout(timer.current)
-        const read = await readServerState(idRef.current, refused.current ?? held.current).catch(
-          () => null,
-        )
-        if (mine !== epoch.current || read === null || read.kind === 'none') return
+        const id = idRef.current
+        const tag = refused.current ?? held.current
+        const read = await Promise.resolve()
+          .then(() => readServerState(id, tag))
+          .catch(() => null)
+        if (mine !== epoch.current || !read || read.kind === 'none') return
         const wait = apply(read)
         // Only while in view: coming back into view asks again at once.
         if (wait !== null) {
@@ -207,7 +233,7 @@ export function useAccountResults(
       // An answer that came first (a change, or a poll, before the copy was read) is newer than the copy.
       if (copy !== null && held.current === null && snapshotIsCurrent(copy)) {
         held.current = copy
-        const shown = resultsOf(copy)
+        const shown = resultsOf(copy, false)
         if (shown !== null) setStored({ id: userId, results: shown })
       }
       void pull()
@@ -234,7 +260,7 @@ export function useAccountResults(
   }, [quiet, settleReload])
 
   // What another tab, or this one, changed in the account: its results are asked for again.
-  const onChange = useCallback(() => void pull(), [pull])
+  const onChange = useCallback(() => void pull(true), [pull])
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
@@ -246,27 +272,42 @@ export function useAccountResults(
   return { results, refresh: onChange, indexListed }
 }
 
-/**
- * What the page shows for an account: the server's state, with what only the browser knows laid over it. The refused files and unsaved
- * activities of the last import come from its `facts`; the library's age and size from the worker's index (`index`), which is
- * current the moment a delete or an update ends, where a snapshot may be a moment behind.
- */
-export function useAccountState(
-  results: AccountResults | null,
-  facts: ImportFacts | null,
-  index: IndexFacts | null,
-): SessionState {
-  return useMemo(
-    () => ({ ...(results?.state ?? EMPTY_SESSION), ...facts, ...index }),
-    [results, facts, index],
-  )
+/** What the page shows. */
+interface Shown {
+  state: SessionState
+  /** The account's lift results (L3); null signed out, and before the server has answered. */
+  lift: LiftResults | null
+  /** The account's results are a copy made on an earlier day. */
+  stale: boolean
 }
 
 /**
- * Whether an expired session still shows the account's results: until a state of the device's own arrives (a file dropped after the
- * expiry is analysed here), which is then the one shown.
+ * What the page shows: for an account, the server's state with what only the browser knows laid over it. The refused files and unsaved
+ * activities of the last import come from its `facts`; the library's age and size from the worker's index, which is current the moment a
+ * delete or an update ends, where a snapshot may be a moment behind. An expired session keeps the account's results until a state of the
+ * device's own arrives (a file dropped after the expiry is analysed here), which is then the one shown.
  */
-export function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
+export function useShownResults(
+  results: AccountResults | null,
+  signedIn: boolean,
+  expired: boolean,
+  device: Pick<ImportState, 'state' | 'facts' | 'index'>,
+): Shown {
+  const keeps = useKeepsAccount(!signedIn && expired, device.state)
+  const shows = signedIn || (keeps && results !== null)
+  const held = shows ? results : null
+  const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
+  const state = useMemo(
+    () => ({ ...(held?.state ?? EMPTY_SESSION), ...device.facts, ...device.index }),
+    [held, device.facts, device.index],
+  )
+  return { state: shows ? state : device.state, lift, stale: held?.stale === true }
+}
+
+/**
+ * Whether an expired session still shows the account's results: until a state of the device's own arrives, which is then the one shown.
+ */
+function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
   const [atExpiry, setAtExpiry] = useState<SessionState | null>(null)
   if (expired && atExpiry === null) setAtExpiry(deviceState)
   else if (!expired && atExpiry !== null) setAtExpiry(null)

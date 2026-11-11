@@ -3515,7 +3515,6 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
     act(() => worker().reply({ type: 'state', state }))
   }
   const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
-  const LIB_A2 = { tag: 'library A after stop' } as unknown as SessionState['result']
   const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
   const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
   const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
@@ -3529,47 +3528,6 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
     const account: Account = { status: 'signed-in', me, flushProfileWrites: () => gate }
     return { account, release: (value: Me | null) => release(value) }
   }
-
-  it('compares an import abandoned by an account switch with the next account, not the abandoned one', async () => {
-    const gated = gatedAccount(meWith(true))
-    const { result, rerender } = setup(gated.account)
-    act(() => result.current.addFiles([FILE]))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
-    await act(async () => gated.release(meWith(true)))
-    finishLibraryLoad({ ...STATE, totalActivities: 2, result: LIB_B })
-    act(() => result.current.addFiles([FILE]))
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 3, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_B)
-  })
-
-  it('compares an import made after Stop with the library as it is then, not the one a pending write held', async () => {
-    const gated = gatedAccount(meWith(true))
-    const { result } = setup(gated.account)
-    act(() => result.current.addFiles([FILE]))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    act(() => result.current.stop())
-    await act(async () => gated.release(meWith(true)))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A2 })
-    await act(async () => {
-      result.current.addFiles([FILE])
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 4, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_A2)
-  })
 
   it('compares each drop waiting for the device library with that library', () => {
     localStorage.setItem('rca.kept.v1', '1')
@@ -3707,50 +3665,7 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
 
 describe('round 7: the baseline when an import is sent, and a library read a Start over overtakes', () => {
   const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
-  const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
   const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
-  const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
-
-  it('compares an import waiting on a profile write with the result reported when it is sent', async () => {
-    let waiting = false
-    let releaseWrite: (value: Me | null) => void = () => undefined
-    const account: Account = {
-      status: 'signed-in',
-      me: meWith(true),
-      flushProfileWrites: () => {
-        if (!waiting) return Promise.resolve(meWith(true))
-        return new Promise<Me | null>((resolve) => {
-          releaseWrite = resolve
-        })
-      },
-    }
-    const { result } = setup(account)
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    await act(async () => {
-      result.current.addFiles([FILE])
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    waiting = true
-    act(() => result.current.addFiles([FILE]))
-    await act(async () => {
-      // File A's reply moves the result, and the profile write B waits on lands in the same turn.
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 4, result: LIB_B },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      })
-      releaseWrite(meWith(true))
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 5, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_B)
-  })
 
   it('does not show the kept results a device load answers after a Start over, and ends the restoring state at once', () => {
     localStorage.setItem('rca.kept.v1', '1')

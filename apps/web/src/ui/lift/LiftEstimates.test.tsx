@@ -5,11 +5,12 @@ import '../../test/deviceZone'
 import { chartWidth } from '../charts/test/chartSizeStub'
 import { risingSquats, squat } from './liftFixtures'
 import { liftOverviewOf } from './liftEntries'
+import { resultsFor } from './liftResultsKit'
 import { LiftEstimates } from './LiftEstimates'
 
 const SETTINGS = { massKg: 80, bikeMassKg: 9 }
 const overviewOf = (sets = risingSquats()) =>
-  liftOverviewOf(sets, SETTINGS, null, 'metric', '2031-03-02')
+  liftOverviewOf(resultsFor(sets, SETTINGS, null, '2031-03-02'), 'metric')
 
 afterEach(() => {
   cleanup()

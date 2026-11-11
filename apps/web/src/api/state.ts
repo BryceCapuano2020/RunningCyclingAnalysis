@@ -31,14 +31,14 @@ const SnapshotWire = {
 }
 
 /**
- * What `GET /api/state` said. `unchanged` is a 304: the copy held is the latest. `nowMs` is the instant the stored snapshot
+ * What `GET /api/state` said. `unchanged` is a 304: the copy held is the latest, with the instant and the library version the stored snapshot covers (null when the server names none). `nowMs` is the instant the stored snapshot
  * was computed for (`X-State-Now`, sent with a 304 too), null when the server names none. `current` is false when the server
  * served the stored snapshot because it was busy computing (`X-State-Current: 0`): ask again in a few seconds.
  * `computing` is a 202, with no snapshot yet; `none` is a 404.
  */
 export type StateRead =
   | { kind: 'snapshot'; snapshot: StateSnapshot; nowMs: number | null; current: boolean }
-  | { kind: 'unchanged'; nowMs: number | null; current: boolean }
+  | { kind: 'unchanged'; nowMs: number | null; version: number | null; current: boolean }
   | { kind: 'computing'; retryAfterMs: number }
   | { kind: 'none' }
 
@@ -72,7 +72,14 @@ export async function readServerState(
   }
   const nowMs = headerNumber(response, 'X-State-Now')
   const current = response.headers.get('X-State-Current') !== '0'
-  if (response.status === 304) return { kind: 'unchanged', nowMs, current }
+  // A 304 carries the version the stored snapshot covers (`X-State-Computed-Version`), which a bump that moved no figure advances.
+  if (response.status === 304)
+    return {
+      kind: 'unchanged',
+      nowMs,
+      version: headerNumber(response, 'X-State-Computed-Version'),
+      current,
+    }
   if (response.status === 202) {
     await response.body?.cancel().catch(() => undefined)
     const seconds = headerNumber(response, 'Retry-After')

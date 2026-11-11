@@ -48,12 +48,30 @@ export interface WorkerEventDeps {
   refreshResults: () => void
   /** The worker's index is as current as this reply: another device's change after it is news. */
   indexListed: (version?: number) => void
+  /** Asks the worker for the check-in again against the snapshot on screen, though that snapshot's check-in has not changed. */
+  askCheckInAgain: () => void
+  /** An account's import ended: its summary tells what it moved once the results include it (`useAccountImportChange`). */
+  importLanded: (
+    outcome: ImportOutcome,
+    baseline: Baseline | null | undefined,
+    version: number | undefined,
+  ) => void
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
   libraryChanged: (scope: 'device' | 'account') => void
 }
 
+/** Whether the import added a workout or brought one up to date: only then does it move a figure, or the baseline of the check-in. */
+export function addedAny({
+  runs = 0,
+  rides = 0,
+  updatedRuns = 0,
+  updatedRides = 0,
+}: ImportOutcome): boolean {
+  return runs + rides + updatedRuns + updatedRides > 0
+}
+
 /** Whether the import brought any workout up to date from an older model. */
-function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
+export function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
   return updatedRuns + updatedRides > 0
 }
 
@@ -65,7 +83,7 @@ function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean
 function addWaiting(deps: WorkerEventDeps, state: SessionState | null): void {
   const { library, addFiles, refreshBusy } = deps
   for (const files of drainBatches(library.libraryWaitRef))
-    addFiles(files, state === null ? null : baselineOf(state))
+    addFiles(files, state === null ? undefined : baselineOf(state))
   refreshBusy()
 }
 
@@ -185,7 +203,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     return
   }
   // What a row of "since your last import" now says of being seen settles its request alone.
-  if (message.type === 'checkInSaved') {
+  if (message.type === 'checkInSaved' || message.type === 'checkInView') {
     pending?.settle?.(message)
     return
   }
@@ -234,8 +252,16 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)
-      // An account's import has no state to compare here: what it moved is told from the server's results.
-      if (message.state !== null)
+      // An account's import has no state to compare here: what it moved is told once the server's results include it.
+      if (message.state === null) {
+        // An import that added workouts moved the baseline the row was made against: the row goes, and is asked for again against the
+        // snapshot on screen with the new baseline, so the old one is not marked seen. One that added none moved nothing, and the row stays.
+        if ((message.outcome.runs ?? 0) + (message.outcome.rides ?? 0) > 0) {
+          library.setCheckIn(NO_CHECKIN)
+          deps.askCheckInAgain()
+        }
+        deps.importLanded(message.outcome, pending?.baseline, message.libraryVersion)
+      } else
         imports.setImportChange({
           outcome: message.outcome,
           // Workouts brought up to date are not new, so an import that updated any moves nothing.

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { LiftSet } from '@rca/core/lift'
+import type { LiftResults, LiftSet } from '@rca/core/lift'
 import { createLiftTransport } from '../../api/lifts'
 import { liftsExist, openLiftStore } from '../../worker/liftStore'
 import { createLiftSync } from '../../worker/liftSync'
 import type { LiftTransport } from '../../worker/liftTransport'
 import type { LiftRow } from '../../worker/liftTransitions'
-import { useTabMessages } from '../tabSync'
+import { tellOtherTabs, useTabMessages } from '../tabSync'
 import type { TabMessage } from '../tabSync'
 import type { AccountStatus } from '../useAccount'
 import { useLiftScope } from './liftScope'
@@ -15,6 +15,8 @@ import { onLiftsCleared } from './liftsCleared'
 export interface LiftSummaryAccount {
   status: AccountStatus
   userId: string | null
+  /** The account's lift results from the server's snapshot, once it has answered (see useLiftResults). */
+  accountLift?: LiftResults | null
 }
 
 const ignore = () => undefined
@@ -55,7 +57,11 @@ export function useLiveLiftSets(
     const store = openLiftStore(userId)
     createLiftSync({ store, transport: transport(userId) })
       .sync()
-      .then(() => (live ? reload() : undefined))
+      .then(({ flush }) => {
+        // What the account now holds moved its results, which are the server's.
+        if (flush.sent > 0) tellOtherTabs({ type: 'lifts' })
+        return live ? reload() : undefined
+      })
       .catch(ignore)
       .finally(() => store.close())
     return () => {

@@ -87,6 +87,20 @@ describe('asking again while the server computes', () => {
     expect(read.mock.calls.length).toBeLessThanOrEqual(25)
   })
 
+  it('does not take a burst of changes for a row that stays stale: the wait starts again from the short one', async () => {
+    read.mockResolvedValue(answer({ current: false }))
+    mount()
+    await flush()
+    // An import ends: the page asks again for each reply it gets, and each answer is the stored snapshot.
+    for (let i = 0; i < 8; i++) {
+      act(() => tellOtherTabs({ type: 'settings' }))
+      await flush()
+    }
+    const asked = read.mock.calls.length
+    await advance(BUSY_RETRY_MS)
+    expect(read.mock.calls.length).toBe(asked + 1)
+  })
+
   it('starts again from the short wait once an answer is current', async () => {
     read.mockResolvedValueOnce(answer({ current: false }))
     read.mockResolvedValueOnce(answer({ current: false }))
@@ -209,7 +223,7 @@ describe('the index of the library', () => {
     await flush()
     // The library was listed at version 5 (the loadServer reply says so); the snapshot on open was a 304, which names none.
     act(() => view.result.current.indexListed(5))
-    read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, current: true })
+    read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, version: null, current: true })
     act(() => tellOtherTabs({ type: 'settings' }))
     await flush()
     expect(behind).not.toHaveBeenCalled()
@@ -217,6 +231,20 @@ describe('the index of the library', () => {
     read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
     act(() => tellOtherTabs({ type: 'settings' }))
     await flush()
+    expect(behind).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes the version a 304 names as the held copy’s: a version bump that moved no figure still reaches the index gate', async () => {
+    const behind = vi.fn()
+    read.mockResolvedValueOnce(answer({ snapshot: snapshot(5) }))
+    const view = renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    expect(view.result.current.results?.snapshot.libraryVersion).toBe(5)
+    // Another device's import changed no figure: the snapshot is the same (a 304), and the server says it covers version 6.
+    read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, version: 6, current: true })
+    act(() => tellOtherTabs({ type: 'settings' }))
+    await flush()
+    expect(view.result.current.results?.snapshot.libraryVersion).toBe(6)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 })

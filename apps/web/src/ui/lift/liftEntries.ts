@@ -1,26 +1,14 @@
-import type { AthleteSettings } from '@rca/core/athlete'
-import type { AgeProfile } from '@rca/core/grade'
-import {
-  buildLiftState,
-  exerciseKeyOf,
-  gradedLiftOf,
-  LIFTS,
-  liftChange,
-  liftGrade,
-  liftHistory,
-  liftWindowCounts,
-  WINDOW_DAYS,
-  liftWeekStart,
-} from '@rca/core/lift'
+import { WINDOW_DAYS, liftWeekStart } from '@rca/core/lift'
 import type {
   LiftBest,
   LiftChange,
   LiftEstimate,
   LiftGrade,
   LiftHistoryPoint,
-  LiftSet,
+  LiftResults,
   LiftSummary,
   LiftWeek,
+  LiftWindowCounts,
 } from '@rca/core/lift'
 import { formatLoad, formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -118,11 +106,10 @@ const titleOf = (summary: LiftSummary) => `${liftName(summary.exercise)}, ${summ
 function rowsOf(
   summary: LiftSummary,
   estimate: LiftEstimate,
-  sets: readonly LiftSet[],
+  counts: LiftWindowCounts,
   units: UnitSystem,
   today: string,
 ): Property[] {
-  const counts = liftWindowCounts(sets, today)
   const ratio = summary.relative?.ratio
   return [
     {
@@ -174,48 +161,26 @@ function filledWeeks(weeks: readonly LiftWeek[], today: string): LiftWeek[] {
   })
 }
 
-/** Where a lift stands in the big three's order (squat, bench, deadlift); the others follow. */
-function bigThreeRank(summary: LiftSummary): number {
-  const graded = gradedLiftOf(summary.exercise, summary.equipment)
-  return graded === null ? LIFTS.length : LIFTS.indexOf(graded)
-}
-
-/** The most recently trained first; of equal dates the larger estimate, never the name. */
-function newerThan(a: LiftEntry, b: LiftEntry): number {
-  if (a.summary.lastDate !== b.summary.lastDate)
-    return a.summary.lastDate < b.summary.lastDate ? 1 : -1
-  return b.estimate.point - a.estimate.point
-}
-
-/** The lead lift: a big-three lift when one has an estimate, else the most recently trained lift. */
-function leadOf(entries: readonly LiftEntry[]): LiftEntry | undefined {
-  const big = entries.filter((entry) => bigThreeRank(entry.summary) < LIFTS.length)
-  return [...(big.length > 0 ? big : entries)].sort(newerThan)[0]
-}
-
 /**
- * What the Lift page leads with, from the log's sets: core's state (one summary per lift, the weekly load), each
- * estimated lift's history, and the top lift: the a big-three lift when one has an estimate, else the most recently trained. Every figure is core's.
+ * What the Lift page leads with, from the lift results (`liftResultsOf`): the state (one summary per lift, the weekly load), each
+ * estimated lift's history and window counts, the order, the top lift with its change and grade, the big three and the levels. This
+ * file words and lays them out and works out no lift figure of its own.
  */
-export function liftOverviewOf(
-  sets: readonly LiftSet[],
-  settings: AthleteSettings,
-  profile: AgeProfile | null,
-  units: UnitSystem,
-  today: string,
-): LiftOverview {
-  const state = buildLiftState(sets, settings)
-  const all = state.lifts.flatMap((summary): LiftEntry[] => {
-    if (summary.estimate === null) return []
-    const own = sets.filter((s) => exerciseKeyOf(s) === summary.key)
+export function liftOverviewOf(results: LiftResults, units: UnitSystem): LiftOverview {
+  const { state, today } = results
+  const byKey = new Map(state.lifts.map((summary) => [summary.key, summary]))
+  const entries = results.order.flatMap((key): LiftEntry[] => {
+    const summary = byKey.get(key)
+    const counts = results.windows[key]
+    if (summary === undefined || summary.estimate === null || counts === undefined) return []
     return [
       {
-        id: summary.key,
+        id: key,
         title: titleOf(summary),
         summary,
         estimate: summary.estimate,
-        history: liftHistory(own),
-        rows: rowsOf(summary, summary.estimate, own, units, today),
+        history: results.histories[key] ?? [],
+        rows: rowsOf(summary, summary.estimate, counts, units, today),
         table: {
           max: formatMass(summary.estimate.point, units),
           heaviest: `${formatLoad(summary.estimate.floor.loadKg, units)} × ${summary.estimate.floor.reps}`,
@@ -228,33 +193,24 @@ export function liftOverviewOf(
       },
     ]
   })
-  const top = leadOf(all)
-  const ordered = [...all].sort(
-    (a, b) => bigThreeRank(a.summary) - bigThreeRank(b.summary) || newerThan(a, b),
-  )
-
-  let lead: LiftLead | null = null
-  if (top) {
-    const own = sets.filter((s) => exerciseKeyOf(s) === top.summary.key)
-    const graded = gradedLiftOf(top.summary.exercise, top.summary.equipment)
-    lead = {
-      title: top.title,
-      estimate: top.estimate,
-      floor: top.estimate.floor,
-      floorDate: dateText(top.estimate.floor.date, today),
-      change: liftChange(own, top.estimate.date, WINDOW_DAYS),
-      grade:
-        graded === null
-          ? null
-          : liftGrade({ lift: graded, estimate: top.estimate }, profile, settings),
-    }
-  }
+  const top = entries.find((entry) => entry.id === results.lead?.key)
+  const lead: LiftLead | null =
+    top === undefined || results.lead === null
+      ? null
+      : {
+          title: top.title,
+          estimate: top.estimate,
+          floor: top.estimate.floor,
+          floorDate: dateText(top.estimate.floor.date, today),
+          change: results.lead.change,
+          grade: results.lead.grade,
+        }
   return {
     lead,
-    bigThree: bigThreeLeadOf(state.lifts, profile, settings, units),
-    levels: liftLevelRowsOf(state.lifts, profile, settings, units, today),
+    bigThree: bigThreeLeadOf(results, units),
+    levels: liftLevelRowsOf(results, units),
     leadId: top?.id ?? null,
-    lifts: ordered,
+    lifts: entries,
     weeks: filledWeeks(state.weeks, today),
   }
 }

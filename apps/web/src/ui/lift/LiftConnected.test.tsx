@@ -75,7 +75,6 @@ const view = (day = TODAY, status = 'signed-out') => (
     today={TODAY}
     openDay={() => undefined}
     settings={{ massKg: 80, bikeMassKg: 9 }}
-    profile={null}
   />
 )
 
@@ -257,7 +256,6 @@ describe('leaving an edit', () => {
         today={TODAY}
         openDay={openDay}
         settings={{ massKg: 80, bikeMassKg: 9 }}
-        profile={null}
       />,
     )
     await userEvent.click(screen.getByRole('button', { name: /^Edit set 1 of / }))
@@ -279,7 +277,6 @@ describe('the Lift page in the shell', () => {
         today={TODAY}
         openDay={() => undefined}
         settings={{ massKg: 80, bikeMassKg: 9 }}
-        profile={null}
       />,
     )
     expect(screen.getByRole('link', { name: 'Lift' })).toBeInTheDocument()

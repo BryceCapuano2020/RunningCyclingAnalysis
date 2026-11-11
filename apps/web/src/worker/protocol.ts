@@ -1,5 +1,6 @@
 import type { Profile } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
+import type { CheckInSnapshot } from '@rca/core/lookback'
 import type { PeriodChoice } from '@rca/core/period'
 import type {
   Copy,
@@ -207,6 +208,12 @@ export type WorkerRequest =
   | { type: 'markSeen'; row: SeenRow; event: SeenEvent; lead?: string }
   /** The athlete chose to go on with an import that stopped short: its snapshot becomes the baseline now. */
   | { type: 'acceptPartialImport' }
+  /**
+   * An account's check-in for the library the page holds results of: `live` is the check-in snapshot the server's snapshot carries (null
+   * for a library with nothing to compare). The worker holds the baseline and what is seen; the figures are the server's. Answered with
+   * `checkInView`.
+   */
+  | { type: 'checkInFor'; live: CheckInSnapshot | null }
 
 /**
  * A request as it travels to the worker: the request and the page's number for it. The worker stamps
@@ -232,6 +239,7 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
   'activityTrace',
   'rebuildComplete',
   'checkInSaved',
+  'checkInView',
 ])
 
 export type WorkerResponse =
@@ -278,6 +286,8 @@ export type WorkerResponse =
    * same. Null ids say storage could not answer. Absent while a sample shows.
    */
   | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
+  /** Answers `checkInFor`: "since your last import" for the account's library, and whether it has been seen. */
+  | { type: 'checkInView'; view: CheckInView }
   /** Answers `markSeen` and `acceptPartialImport`: whether the check-in row is seen for its baseline. */
   | { type: 'checkInSaved'; seen: boolean }
   /** Saved activities without an original file. Sent before the state that ends the request. */
@@ -326,7 +336,10 @@ export type WorkerResponse =
       facts?: ImportFacts
       /** With `facts`: what the index knows of the library's age and size, which the server's state is not read for. */
       index?: IndexFacts
-      /** Answering `loadServer`: the account's library version as it stood before the list was read, which the index is at least as new as. */
+      /**
+       * Answering `loadServer`: the account's library version as it stood before the list was read, which the index is at least as new as.
+       * Answering an account's `addFiles`: the version after its last save, which the results that tell what it moved must reach.
+       */
       libraryVersion?: number
       outcome?: ImportOutcome
       saved?: number

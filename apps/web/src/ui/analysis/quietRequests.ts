@@ -20,6 +20,7 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||
     kind === 'markSeen' ||
+    kind === 'checkInFor' ||
     kind === 'acceptPartialImport' ||
     kind === 'forgetDeviceLibrary' ||
     kind === 'resumeSaves' ||
@@ -43,6 +44,7 @@ export function keepsError(request: WorkerRequest): boolean {
     request.type === 'routeShape' ||
     request.type === 'forgetRoutes' ||
     request.type === 'markSeen' ||
+    request.type === 'checkInFor' ||
     request.type === 'resumeSaves' ||
     request.type === 'acceptPartialImport'
   )

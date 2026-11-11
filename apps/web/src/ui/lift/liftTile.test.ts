@@ -5,6 +5,7 @@ import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import { liftTileOf } from './liftTile'
+import { resultsFor } from './liftResultsKit'
 
 const SETTINGS = { massKg: 80, bikeMassKg: 9 }
 const PROFILE = { birthYear: 1990, sex: 'male' } as const
@@ -27,12 +28,12 @@ const tileOf = (
   sets: LiftSet[],
   profile: typeof PROFILE | null = PROFILE,
   units: UnitSystem = 'metric',
-) => liftTileOf(buildLiftState(sets, SETTINGS).lifts, profile, SETTINGS, units)
+) => liftTileOf(resultsFor(sets, SETTINGS, profile), units)
 
 describe('the lifting row', () => {
   it('has the total of the three as its big number and a detail row for each, in order', () => {
     const state = buildLiftState([DEADLIFT, BENCH, SQUAT], SETTINGS)
-    const tile = liftTileOf(state.lifts, PROFILE, SETTINGS, 'metric')
+    const tile = tileOf([DEADLIFT, BENCH, SQUAT])
     const parts = state.lifts.map((summary) => ({
       lift: gradedLiftOf(summary.exercise, summary.equipment)!,
       estimate: summary.estimate!,
