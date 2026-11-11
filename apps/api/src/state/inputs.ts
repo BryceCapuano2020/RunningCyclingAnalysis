@@ -24,24 +24,27 @@ interface DigestRow {
   digest_json: string
 }
 
-async function versionOf(db: D1Database, userId: string): Promise<number | null> {
-  const row = await db
-    .prepare('SELECT library_version FROM users WHERE id = ? AND deleting_at IS NULL')
-    .bind(userId)
-    .first<{ library_version: number }>()
-  return row === null ? null : row.library_version
+interface Counters {
+  library_version: number
+  lift_revision: number
+}
+
+const COUNTERS =
+  'SELECT library_version, lift_revision FROM users WHERE id = ? AND deleting_at IS NULL'
+
+async function countersOf(db: D1Database, userId: string): Promise<Counters | null> {
+  return db.prepare(COUNTERS).bind(userId).first<Counters>()
 }
 
 /**
- * The account's inputs as of one version (decision 6): the version and every small input in one D1 batch, which is one
- * transaction, then the digests in pages by the listing's own key, then the version again. A write between the two reads
- * raises it, and the read is refused (`InputsMoved`) instead of mixing two versions. Null when the account is gone or deleting.
+ * The account's inputs as of one version (decision 6): the library version, the lift revision and every small input
+ * in one D1 batch, which is one transaction, then the digests in pages by the listing's own key,
+ * then both counters again. A write to either between the two reads raises it, and the read is refused (`InputsMoved`)
+ * instead of mixing two versions. Null when the account is gone or deleting.
  */
 export async function readInputs(db: D1Database, userId: string): Promise<StateInputs | null> {
-  const [version, profile, measurements, settings] = await db.batch([
-    db
-      .prepare('SELECT library_version FROM users WHERE id = ? AND deleting_at IS NULL')
-      .bind(userId),
+  const [counters, profile, measurements, settings] = await db.batch([
+    db.prepare(COUNTERS).bind(userId),
     db
       .prepare('SELECT mass_kg, bike_mass_kg, birth_year, sex FROM profiles WHERE user_id = ?')
       .bind(userId),
@@ -57,7 +60,7 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
       )
       .bind(userId),
   ])
-  const start = (version!.results as { library_version: number }[])[0]
+  const start = (counters!.results as Counters[])[0]
   if (start === undefined) return null
   const digests: ActivityDigest[] = []
   let unreadable = 0
@@ -80,10 +83,14 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     if (last === undefined || page.results.length < PAGE_ROWS) break
     after = { createdAt: last.created_at, id: last.id }
   }
-  if ((await versionOf(db, userId)) !== start.library_version) throw new InputsMoved()
+  const end = await countersOf(db, userId)
+  if (end?.library_version !== start.library_version || end.lift_revision !== start.lift_revision) {
+    throw new InputsMoved()
+  }
   const own = (profile!.results as ProfileRow[])[0]
   return {
     version: start.library_version,
+    liftRevision: start.lift_revision,
     digests,
     unreadable,
     massKg: own?.mass_kg ?? null,

@@ -4,8 +4,14 @@ import { serverStateFor } from './flag.ts'
 import { STATE_DELAY_SECONDS } from './message.ts'
 import { claimPending } from './pending.ts'
 
-/** The routes whose writes change an input of the results. Lifts and sign-in do not, and neither does anything that reads. */
-const INPUT_ROUTES = ['/api/activities', '/api/profile', '/api/measurements', '/api/settings']
+/** The routes whose writes change an input of the results. Lift sets are one (the results will carry the lift state); sign-in is not, and neither is anything that reads. */
+const INPUT_ROUTES = [
+  '/api/activities',
+  '/api/profile',
+  '/api/measurements',
+  '/api/settings',
+  '/api/lifts',
+]
 
 /** An original file upload (PUT /api/activities/:id/file) changes no input of the results, so it sends nothing. */
 const ORIGINAL_FILE = /^\/api\/activities\/[^/]+\/file$/

@@ -284,6 +284,7 @@ describe('the check-in in the snapshot is what the signed-out worker builds', ()
     installDeviceZone()
     const inputs: StateInputs = {
       version: 3,
+      liftRevision: 0,
       digests: library.digests,
       unreadable: 0,
       massKg: 78,

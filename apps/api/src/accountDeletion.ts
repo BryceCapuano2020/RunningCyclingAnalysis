@@ -6,6 +6,7 @@ import { GOOGLE_PROVIDER } from './auth/accounts.ts'
 import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
 import { stateKey } from './state/key.ts'
+import { forgetUnstoredFor } from './state/lock.ts'
 import { deregisterQuietly, linkOf } from './garmin/link.ts'
 
 /**
@@ -130,6 +131,7 @@ async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string
   if (identityKey !== undefined)
     statements.unshift(saveCountsStatement(db, identityKey, userId, now))
   await db.batch(statements)
+  forgetUnstoredFor(userId)
   // R2 deletes are unmetered. A failure leaves the object for the orphan sweep, which finds it with no job row.
   if (snapshot?.snapshot_hash && env.FILES) {
     await env.FILES.delete(stateKey(userId, snapshot.snapshot_hash)).catch(() => undefined)

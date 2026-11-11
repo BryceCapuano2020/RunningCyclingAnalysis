@@ -128,6 +128,7 @@ function serverState(
 ): SessionState {
   const inputs: StateInputs = {
     version: 3,
+    liftRevision: 0,
     digests: library.digests,
     unreadable: 0,
     massKg: choices.massKg,

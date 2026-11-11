@@ -60,8 +60,10 @@ is usually a 304. Whether the queue, pending markers and re-send can go is measu
 
 **Current** means all of:
 
-- `state_jobs.computed_version >= users.library_version`;
-- `state_jobs.computed_lift_revision >= users.lift_revision` (new column; lift writes already raise `lift_revision`);
+- `state_jobs.snapshot_version >= users.library_version`;
+- `state_jobs.snapshot_lift_revision >= users.lift_revision` (new column; lift writes already raise `lift_revision`).
+  These are what the stored snapshot covers, not what a compute reached: an unchanged compute moves the coverage
+  only while the row still holds the hash it matched;
 - `state_jobs.analysis_revision = ANALYSIS_REVISION`;
 - the local day of `state_jobs.snapshot_now_ms` (new column) in the account's zone is today.
 
@@ -77,7 +79,9 @@ Worker's own, never when it is higher.
 **Ordering.** `record()` (`state/job.ts`) today moves the snapshot only for a higher version or a different revision,
 so a same-version recompute on a new day is refused. It becomes an order on (revision, version, lift revision, now),
 and it runs on both paths: a new hash moves the hash and the order columns; an unchanged hash moves the order columns
-only. The content hash leaves out `nowMs`, so without the second path an idle account would recompute on every read.
+only. The content hash leaves out `nowMs`, so without the second path an idle account would recompute on every read. Once
+the snapshot names the local day (`lift.today`), a day roll is a new hash, so the second path serves the same-day
+recompute that moves no figure (a version bump, a setting flipped back).
 
 ```sql
 UPDATE state_jobs SET snapshot_hash = coalesce(:hash, snapshot_hash), snapshot_version = :v,
@@ -87,16 +91,17 @@ WHERE user_id = :id AND (analysis_revision < :rev OR (analysis_revision = :rev A
 ```
 
 On the unchanged path the statement adds `AND snapshot_hash = :matched`, the hash the job found equal, so it never
-stamps today's day on a hash another job stored meanwhile. It is an UPDATE only: `markAttempt` inserts the row before any compute. `computed_version`, `computed_lift_revision`
-and `computed_at` keep their own monotone updates. The migration adds `computed_lift_revision`,
+stamps today's day on a hash another job stored meanwhile. It is an UPDATE only: `markAttempt` inserts the row before any compute. `computed_version` and
+`computed_at` keep their own monotone updates (for coalescing and `X-State-Computed-Version`). The migration adds
 `snapshot_lift_revision` and `snapshot_now_ms`, backfilled to 0, so each account computes once on its first open;
 nothing is enqueued for it. Every answer carries `X-State-Now` (the stored `snapshot_now_ms`), a 304 included, and the
 browser writes it into the stored copy's `nowMs` in `rca-state` (`copyAge.ts` reads it from there), so an unchanged
 recompute does not leave the copy marked stale after a reload.
 
 **Consistent inputs.** `readInputs` (`state/inputs.ts`) reads `library_version` and `lift_revision` with the first
-batch, reads the lift sets in it, and re-checks both at the end. A write to either during the read is `InputsMoved`, as a
-library write is today, so a job never records a lift revision whose sets it did not read.
+batch, and re-checks both at the end. A write to either during the read is `InputsMoved`, as a library write is today, so a
+job never records a lift revision it did not read at the same version. It reads no lift sets until a slice takes
+them into a figure; that slice reads them in the first batch, where the revision is read.
 
 **One compute per isolate.** A module-level lock covers both the route and the queue consumer, since
 `max_concurrency = 1` limits consumers, not isolates. A request that finds the lock taken serves the stored snapshot

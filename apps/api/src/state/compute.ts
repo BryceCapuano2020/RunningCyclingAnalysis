@@ -7,7 +7,7 @@ import type { StateInputs } from './stateInputs.ts'
 import { zoneNamed } from './zone.ts'
 
 /** The zone the days are cut in while the browser has reported none. */
-const DEFAULT_ZONE = 'UTC'
+export const DEFAULT_ZONE = 'UTC'
 
 /**
  * The account's snapshot at an instant: the settings the browser would build from the same choices (`analysisSettings`,

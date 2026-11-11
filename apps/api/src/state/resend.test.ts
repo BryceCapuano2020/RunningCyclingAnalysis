@@ -22,8 +22,8 @@ describe('the daily re-send', () => {
     const w = await stateWorld()
     const now = w.h.clock.now
     await w.env.DB.prepare(
-      `INSERT INTO state_jobs (user_id, computed_version, analysis_revision)
-       SELECT id, library_version, ? FROM users WHERE id = ?`,
+      `INSERT INTO state_jobs (user_id, computed_version, snapshot_version, analysis_revision)
+       SELECT id, library_version, library_version, ? FROM users WHERE id = ?`,
     )
       .bind(ANALYSIS_REVISION, w.userId)
       .run()

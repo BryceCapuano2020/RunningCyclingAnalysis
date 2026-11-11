@@ -5,6 +5,8 @@ import type { ActivityDigest } from '@rca/core/types'
 /** Everything the account's results are a function of, read at one `library_version`. */
 export interface StateInputs {
   version: number
+  /** `users.lift_revision` at the same read: a compute never records a revision it did not read at the same version. The lift sets join when a figure takes them. */
+  liftRevision: number
   digests: ActivityDigest[]
   /** Rows whose digest would not parse (skipped, as the browser skips them). */
   unreadable: number

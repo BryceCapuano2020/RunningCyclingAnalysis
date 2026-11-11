@@ -1,11 +1,13 @@
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it, vi } from 'vitest'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
-import { runStateJob } from './job.ts'
+import { computeAndStore } from './refresh.ts'
+import { jobRow } from './row.ts'
 
 /*
  * Many accounts share one isolate and, if the queue's concurrency is raised, run their jobs at once, each awaiting D1 and
- * R2 between steps. An account's snapshot must be the one it gets alone. This runs two accounts whose zone, mass, birth
+ * R2 between steps. (The isolate's compute lock now keeps them one at a time, so this runs the compute past it: the
+ * compute itself must stay a pure function of its inputs.) An account's snapshot must be the one it gets alone. This runs two accounts whose zone, mass, birth
  * year, kept power and period all differ, their jobs interleaved, and compares each stored snapshot with the same account
  * computed in a world of its own.
  */
@@ -100,11 +102,9 @@ describe('two state jobs at once', () => {
     const east = await addAccount(w, EAST)
     const west = await addAccount(w, WEST)
     w.h.clock.now = afterNewest(digests)
-    const outcomes = await Promise.all([
-      runStateJob(w.env, w.deps, east),
-      runStateJob(w.env, w.deps, west),
-    ])
-    expect(outcomes).toEqual(['written', 'written'])
+    const compute = async (id: string) =>
+      (await computeAndStore(w.env, w.deps, id, (await jobRow(w.env.DB, id))!, true)).kind
+    expect(await Promise.all([compute(east), compute(west)])).toEqual(['written', 'written'])
     expect(await snapshotOf(w, east)).toStrictEqual(eastAlone)
     expect(await snapshotOf(w, west)).toStrictEqual(westAlone)
   })

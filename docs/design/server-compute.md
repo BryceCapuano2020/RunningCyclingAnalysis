@@ -169,9 +169,10 @@ All four approved.
 
 ## 8. Open items
 
-- **S6 (the hourly refresh) is not built.** Until it is, a lost queue message or an exhausted retry leaves the account
-  dirty until its next write, and a snapshot that has aged past its local day is not refreshed.
-- **A snapshot-version or `MODEL_REVISION` change needs a write to recompute.** The job compares `library_version` only, so
-  after such a change an account's snapshot is old (the browser reads it as not current and computes locally) until the
-  account writes.
+- **S6 (the hourly refresh) is not built, and compute on read covers most of it.** `GET /api/state` computes in the
+  request when the stored snapshot is behind the library version, the lift revision, this build's analysis revision or
+  the local day (docs/design/server-authority.md, "Compute on read"), so a lost queue message or an aged snapshot is
+  fixed by the account's next open. An account nobody opens stays as it was until its next write or the daily re-send.
+- **A snapshot-version or `MODEL_REVISION` change recomputes on the next read**, since the row's analysis revision is
+  compared on every read and a lower one is computed again.
 - A client could mark a snapshot older than a pending job from `X-State-Computed-Version`; it is sent, not yet used.
