@@ -66,6 +66,8 @@ export async function resetTestEnv(): Promise<void> {
       'athlete_settings',
       'state_jobs',
       'lift_sets',
+      'inbox_items',
+      'provider_links',
       'activities',
       'sessions',
       'oauth_accounts',

@@ -137,4 +137,47 @@ describe('a FIT file saved the server way', () => {
     expect(saved.status).toBe(200)
     expect(saved.record.id).toBe(((await posted.json()) as { id: string }).id)
   })
+
+  it('records where the activity came from, and a later duplicate never changes it', async () => {
+    const h = createHarness()
+    const token = await h.signIn('source@example.test', 'Source')
+    const userId = await userIdOf(h, token)
+    const ctx = saveContext(h.env, {
+      now: () => h.clock.now,
+      randomUUID: () => crypto.randomUUID(),
+    })
+    const pushed = await createBodiesOfFile(encodeFit(ride, { gps: true }), 'garmin-9.fit')
+    if (!pushed.ok) throw new Error(pushed.reason)
+    const ridden = pushed.bodies[0]
+    expect((await saveDigest(ctx, userId, JSON.parse(ridden!), { source: 'garmin' })).status).toBe(
+      201,
+    )
+    const [ran] = await browserBodies(encodeFit(run, { gps: true }), 'run.fit')
+    const posted = await h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: ran,
+      cookies: { rca_session: token },
+    })
+    expect(posted.status).toBe(201)
+    // The browser sends the same ride from its export: a duplicate, which keeps the Garmin source.
+    const [again] = await browserBodies(encodeFit(ride, { gps: true }), 'garmin-9.fit')
+    const repeated = await h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: again,
+      cookies: { rca_session: token },
+    })
+    expect(repeated.status).toBe(200)
+
+    const { results } = await h.env.DB.prepare(
+      'SELECT sport, source FROM activities WHERE user_id = ? ORDER BY sport',
+    )
+      .bind(userId)
+      .all()
+    expect(results).toEqual([
+      { sport: 'ride', source: 'garmin' },
+      { sport: 'run', source: 'file' },
+    ])
+  })
 })
