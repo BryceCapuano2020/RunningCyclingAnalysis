@@ -1,6 +1,7 @@
 # Server compute: results ready before the page opens
 
-Status: designed and approved by the owner on 9 Nov 2026 (section 7). S1 to S3 built; S5 (the browser reads the snapshot) built; S4 (server) built and off for
+Status: designed and approved by the owner on 9 Nov 2026 (section 7). Amended 10 Nov by [server-authority.md](server-authority.md): the server is the only source of an
+account's results, with no browser fallback; where the two disagree, that note wins. S1 to S3 built; S5 (the browser reads the snapshot) built; S4 (server) built and off for
 everyone (`SERVER_COMPUTE_USERS` empty, no queue bound in production) until the owner is on Workers Paid; then it runs for
 listed accounts only. Written 9 Nov 2026
 against main 34de84bc.
