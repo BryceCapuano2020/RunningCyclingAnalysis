@@ -114,6 +114,15 @@ server-compute.md section 4, and asks again. A consumer that finds the lock take
 few seconds; it never acks it, so a write made with no tab open is still computed. A compute blocks its isolate's event
 loop for its CPU time, under a second at 2,000 activities; the cap measurement below records it at the largest library.
 
+**One compute per account.** Across isolates, a read that computes takes a claim first: one conditional upsert that sets
+`state_jobs.claim_until` to now plus `STATE_CLAIM_SECONDS` (10 s) when none is held. A second read, in any isolate, and a
+queued message that find it held serve what is stored (the message retries). The claim is held while the compute runs,
+not after: when the compute finishes (written, unchanged, gone or failed) it frees the claim, only if the row still
+holds its own stamp, so a read that follows an import computes at once instead of waiting out the window. The 10 s is
+only the bound on a compute that dies without freeing it. The queue's interval (`STATE_MIN_INTERVAL_SECONDS`, 30 s) is a
+separate clock: it reads `attempted_at` and `computed_at`, which the claim still stamps and the release leaves alone,
+so a burst of messages still coalesces. `claim_until` is a defaulted column in migration 0019.
+
 **Read budget.** `stateRead` allows 300 reads a day and charges every read (`packages/contract/src/limits.ts`,
 `routes/state.ts`). A 304, a 202 and a stored snapshot served under the lock are no longer charged; a compute in the
 request is. The budget and what it charges are pinned in a test, sized so a tab polling every 60 s for a day with

@@ -112,6 +112,8 @@ export const stateJobs = sqliteTable('state_jobs', {
   // 0019: the order columns of the stored snapshot (lift revision and the instant it was computed for), beside snapshotVersion and analysisRevision (docs/design/server-authority.md).
   snapshotLiftRevision: integer('snapshot_lift_revision').notNull().default(0),
   snapshotNowMs: integer('snapshot_now_ms').notNull().default(0),
+  // 0019: until when a compute holds the account's claim (state/record.ts); freed the moment the compute finishes, 0 when none.
+  claimUntil: integer('claim_until').notNull().default(0),
 })
 
 /**

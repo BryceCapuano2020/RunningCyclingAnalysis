@@ -8,7 +8,7 @@ import { computeFor } from './compute.ts'
 import { InputsMoved, readInputs } from './inputs.ts'
 import { stateKey } from './key.ts'
 import { STATE_CLAIM_SECONDS } from './message.ts'
-import { claimCompute, record } from './record.ts'
+import { claimCompute, record, releaseClaim } from './record.ts'
 import type { JobRow } from './row.ts'
 import { contentHash, encodeSnapshot } from './store.ts'
 
@@ -48,20 +48,40 @@ export async function computeAndStore(
   userId: string,
   before: JobRow,
   store: boolean,
-  /** The caller already holds the account's claim (a read takes it before its budget unit is spent). */
-  claimed = false,
+  /** The stamp of the account's claim when the caller holds it already (a read takes it before its budget unit is spent). */
+  claimed: number | null = null,
 ): Promise<Computed> {
   const db = env.DB
-  const bucket = env.FILES
-  if (bucket === undefined) throw new Error('state job: no file storage bound')
-  if (store) {
-    // Before any digest is read: a ledger that would refuse the snapshot's PUT costs no compute (the retry finds it the same).
-    await checkR2PutBudget(db, deps.now(), 0)
-    // The same claim a read takes, so the queue and the reads exclude each other across isolates.
-    if (!claimed && !(await claimCompute(db, userId, deps.now(), STATE_CLAIM_SECONDS * 1000))) {
-      return { kind: 'busy' }
-    }
+  if (env.FILES === undefined) throw new Error('state job: no file storage bound')
+  if (!store) return compute(env, deps, userId, before, false)
+  // Before any digest is read: a ledger that would refuse the snapshot's PUT costs no compute (the retry finds it the same).
+  await checkR2PutBudget(db, deps.now(), 0)
+  // The same claim a read takes, so the queue and the reads exclude each other across isolates.
+  const stamp = claimed ?? (await claimCompute(db, userId, deps.now(), STATE_CLAIM_SECONDS * 1000))
+  if (stamp === null) return { kind: 'busy' }
+  let done: Computed
+  try {
+    done = await compute(env, deps, userId, before, true)
+  } catch (error) {
+    await releaseClaim(db, userId, stamp).catch(() => undefined)
+    throw error
   }
+  // A read's compute that found a write landed reads again under the same claim (the route stamps it again).
+  if (done.kind !== 'moved' || claimed === null) {
+    await releaseClaim(db, userId, stamp).catch(() => undefined)
+  }
+  return done
+}
+
+async function compute(
+  env: Bindings,
+  deps: Deps,
+  userId: string,
+  before: JobRow,
+  store: boolean,
+): Promise<Computed> {
+  const db = env.DB
+  const bucket = env.FILES!
   let inputs
   try {
     inputs = await readInputs(db, userId)

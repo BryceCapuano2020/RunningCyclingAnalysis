@@ -269,11 +269,13 @@ describe('compute on read', () => {
     expect(reads.n).toBe(2)
     // The claim was stamped again before the second read, so another isolate does not claim in the gap.
     const stamped = await w.env.DB.prepare(
-      'SELECT attempted_at AS a FROM state_jobs WHERE user_id = ?',
+      'SELECT attempted_at AS a, claim_until AS c FROM state_jobs WHERE user_id = ?',
     )
       .bind(w.userId)
-      .first<{ a: number }>()
+      .first<{ a: number; c: number }>()
     expect(stamped?.a).toBe(h.clock.now)
+    // ... and the finished compute freed the claim.
+    expect(stamped?.c).toBe(0)
     expect((await w.row())!.lift).toBe(2)
     expect(await w.used()).toBe(1)
   })
@@ -286,10 +288,10 @@ describe('compute on read', () => {
     const reads = { n: 0 }
     const h = createHarness({}, { DB: countingDb(w.env.DB, reads) })
     const get = () => h.send({ path: '/api/state', cookies: w.cookies })
-    // Another isolate claimed a moment ago (it stamped attempted_at; the stored snapshot is still the old one).
+    // Another isolate claimed a moment ago (it holds claim_until; the stored snapshot is still the old one).
     h.clock.now = w.h.clock.now + 1_000
-    await w.env.DB.prepare('UPDATE state_jobs SET attempted_at = ? WHERE user_id = ?')
-      .bind(h.clock.now - 1, w.userId)
+    await w.env.DB.prepare('UPDATE state_jobs SET claim_until = ? WHERE user_id = ?')
+      .bind(h.clock.now + CLAIM_MS - 1, w.userId)
       .run()
     const held = await get()
     expect(held.status).toBe(200)

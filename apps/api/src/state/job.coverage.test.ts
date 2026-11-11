@@ -35,7 +35,7 @@ describe('what the row says a compute covers', () => {
     w.h.clock.now += 20_000
     expect((await setting(null)).status).toBe(200)
     // The request computes from the inputs now (H0's figures again, at the later version) against the row it read.
-    const request = await computeAndStore(w.env, w.deps, w.userId, seen, true, true)
+    const request = await computeAndStore(w.env, w.deps, w.userId, seen, true, 1)
     expect(request.kind).toBe('unchanged')
     const row = (await jobRow(w.env.DB, w.userId))!
     expect(row.snapshot_hash).toBe(h1.snapshot_hash)

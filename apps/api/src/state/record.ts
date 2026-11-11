@@ -1,25 +1,55 @@
 import { RESULT_REVISION } from './resultRevision.ts'
 
 /**
- * The cross-isolate claim of a compute made in a request: one conditional upsert of the same `attempted_at` the queue's
- * coalescing reads, so a stale read in another isolate or tab, and a queued message, see it. True when this caller
- * holds the claim (no compute began within `windowMs`); false when another does.
+ * The cross-isolate claim of a compute: one conditional upsert, so a stale read in another isolate or tab, and a queued
+ * message, see it. It stamps `attempted_at` (the queue's coalescing reads it) and `claim_until`, which only the claim
+ * reads: a caller wins when no claim is held (`claim_until` passed). `windowMs` bounds a compute that dies without
+ * releasing; `releaseClaim` frees it the moment a compute finishes. Returns the stamp (`claim_until`) the caller holds,
+ * or null when another does.
  */
 export async function claimCompute(
   db: D1Database,
   userId: string,
   now: number,
   windowMs: number,
-): Promise<boolean> {
+): Promise<number | null> {
+  const until = now + windowMs
   const won = await db
     .prepare(
-      `INSERT INTO state_jobs (user_id, attempted_at) VALUES (?1, ?2)
-       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2 WHERE state_jobs.attempted_at <= ?3
+      `INSERT INTO state_jobs (user_id, attempted_at, claim_until) VALUES (?1, ?2, ?3)
+       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2, claim_until = ?3 WHERE state_jobs.claim_until <= ?2
        RETURNING user_id`,
     )
-    .bind(userId, now, now - windowMs)
+    .bind(userId, now, until)
     .first<{ user_id: string }>()
-  return won !== null
+  return won === null ? null : until
+}
+
+/** Stamps a held claim again (a read that runs a second time inside one request); returns the new stamp. */
+export async function restampClaim(
+  db: D1Database,
+  userId: string,
+  now: number,
+  windowMs: number,
+): Promise<number> {
+  const until = now + windowMs
+  await db
+    .prepare('UPDATE state_jobs SET attempted_at = ?, claim_until = ? WHERE user_id = ?')
+    .bind(now, until, userId)
+    .run()
+  return until
+}
+
+/**
+ * Frees the claim a compute took once it has finished (written, unchanged, gone or failed), so the next stale read
+ * computes at once. Only the claim this stamp names: one a later compute took after the window ran out stays. The queue's
+ * interval is untouched (`attempted_at` and `computed_at` still say when the compute began).
+ */
+export async function releaseClaim(db: D1Database, userId: string, stamp: number): Promise<void> {
+  await db
+    .prepare('UPDATE state_jobs SET claim_until = 0 WHERE user_id = ? AND claim_until = ?')
+    .bind(userId, stamp)
+    .run()
 }
 
 /** What a compute covered, and the instant it was computed for. */
