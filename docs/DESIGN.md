@@ -505,7 +505,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   the figures for a selected interval and time in zones). One row of links: back to where the page was
   opened from, Earlier and Later. Then the splits (runs), the best efforts (a run at walking pace
   gives a line saying it is left out of the run analysis instead), the skipped readings behind one
-  disclosure, and Delete. Nothing says why a figure is absent (no power curve, no age standard): its row
+  disclosure (with a "Not recorded" row for recording gaps where the device holds the readings, since the
+  timeline shows a gap only as a break), and Delete. Nothing says why a figure is absent (no power curve, no age standard): its row
   or section is simply not there. A ride's bests wait for the weight. An activity from before moving time
   was kept shows its elapsed time, and says so.
   A run's distance times are race-like, from the clock including stops, and its splits are moving time. The page
@@ -521,7 +522,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   skipped-readings chips and the record chips, then the figures in the display face in columns at the
   right: the moving time, distance and climb, labelled, and the pace for a run, the speed for a ride, or
   the average power of an indoor ride with a power meter, set larger. A ride's record chips wait for the
-  weight, as its page's do. Up to 760 px a row is two lines: the glyph and name, then the day and the
+  weight, as its page's bests do. Up to 760 px a row is two lines: the glyph and name, then the day and the
   figures, which lose their visible labels (kept for screen readers); a phone leaves the climb out of
   that line unless the list is sorted by climb, and a row with chips has a third line for them. The legs
   of one upload are a session: its bytes are hashed, so two uploads of one name are two sessions.
@@ -1002,7 +1003,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   running, and asks for no weight. With a run and no ride, or a ride and no run, the energy view names
   the sport it needs and draws no ratio, so the ratio and its chart appear only with both. The request
   for a weight is written once, in weightCopy: the linked prompt Balance and
-  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to grade your rides and see their figures." in their place.
+  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests the same way, and says "Add your weight on Profile to grade your rides and see their figures." in their place.
 - **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
   but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
   when Analyse my files is pressed once more. Profile shows the question with a "Save 34.0 kg" control

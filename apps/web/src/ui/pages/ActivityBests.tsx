@@ -40,7 +40,7 @@ export interface ActivityBestsProps {
   earned: readonly EarnedRecord[]
 }
 
-/** The mark an all-time record carries, in the same chip as the marks of the figure. */
+/** The mark an all-time record carries, on the same tag line as its row's other marks. */
 const ALL_TIME_MARK = 'All-time record'
 
 /** The mark a duration best's figure carries on the activity page: a run's pace is a GAP, a ride's watts carry none. */

@@ -20,6 +20,12 @@ describe('ActivityIssues', () => {
     expect(rowValue(document.body, 'Heart rate')).toBe('Left out of the checks')
   })
 
+  it('names recording gaps, which the timeline shows only as a break, under Data notes', () => {
+    render(<ActivityIssues activity={makeActivity()} gaps={{ count: 2, seconds: 90 }} />)
+    expect(screen.getByText('Data notes').tagName).toBe('SUMMARY')
+    expect(rowValue(document.body, 'Not recorded')).toMatch(/^2 stretches, /)
+  })
+
   it('gives each kind a row with its count and what was done, then a row for each reading with its time', () => {
     const activity = makeActivity({
       flagCounts: { 'hr-spike': 2 },
