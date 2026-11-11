@@ -17,7 +17,6 @@ import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SplitsTable } from '../components/SplitsTable'
 import type { AgeProfile } from '../grades'
-import { chipLabels } from '../records'
 import { hrefFor } from '../route'
 import { removedHash } from '../activitiesView'
 import type { RouteReply } from '../routeReply'
@@ -37,10 +36,8 @@ import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { routeSegmentPace } from './routePace'
-import { BackLink } from './ActivityBackLink'
-import { backToList, originOf } from './activityBack'
+import { backToList } from './activityBack'
 import './ActivityPage.css'
-import { PageDetails } from './PageDetails'
 import { PageHeading } from '../components/PageHeading'
 import { ActivityTitle } from '../components/ActivityTitle'
 
@@ -226,7 +223,6 @@ export function ActivityPage({
   const inPeriod = result.activities.some((candidate) => candidate.id === activity.id)
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
-  const chips = chipLabels(earned)
   const power = powerCheckChip(activity.powerCheck)
   // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
   const hasRoute = route.kind === 'shape'
@@ -295,36 +291,9 @@ export function ActivityPage({
           {timeline}
         </div>
       )}
-      {/* Said where an estimated power is shown, which is where a figure for it is. */}
-      {activity.powerSource === 'virtual' && typeof activity.avgPowerW === 'number' && (
-        <PageDetails
-          about="power source"
-          rows={[{ label: 'Power source', value: 'Estimated from speed and climbs, no meter' }]}
-        />
-      )}
       <PowerCheck activity={activity} />
       <ActivityNav activity={activity} library={library} />
-      <BackLink origin={originOf()} />
 
-      {chips.length > 0 && (
-        <div className="activity-page__records" role="group" aria-labelledby="activity-records">
-          <p id="activity-records" className="meta">
-            All-time records
-          </p>
-          <div className="activity-page__chips">
-            {chips.map((label) => (
-              <a
-                key={label}
-                className="meta"
-                data-sport={activity.sport}
-                href={hrefFor({ page: activity.sport })}
-              >
-                {label}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
       {isRun && (
         <SplitsTable
           load={splitsLoad}
@@ -353,8 +322,6 @@ export function ActivityPage({
           inPeriod={inPeriod}
           period={period}
           earned={earned}
-          splitsLoad={splitsLoad}
-          splitsView={splitsView.view}
         />
       )}
       <ActivityIssues activity={activity} setAside={setAsideIds.includes(activity.id)} />

@@ -194,7 +194,6 @@ function ActivityWorkbenchSession({
         missingZones={missingZones}
         heartRateSetAside={heartRateSetAside}
         selectionHost={selectionHost}
-        fromOriginal={status === 'original'}
       />
     )
   }
@@ -225,7 +224,6 @@ function ReadyWorkbench({
   missingZones,
   heartRateSetAside,
   selectionHost,
-  fromOriginal,
 }: {
   trace: ActivityTrace
   units: UnitSystem
@@ -234,7 +232,6 @@ function ReadyWorkbench({
   missingZones?: readonly MissingMeasure[]
   heartRateSetAside?: boolean
   selectionHost?: HTMLElement | null
-  fromOriginal: boolean
 }) {
   const content = useMemo(
     () =>
@@ -282,10 +279,6 @@ function ReadyWorkbench({
 
   return (
     <WorkbenchSection sport={trace.sport}>
-      <p className="muted">
-        Detailed readings stay on this device.
-        {fromOriginal && ' Read from the original file.'}
-      </p>
       {visible.length > 0 ? (
         <ActivityWorkbenchStack
           trace={trace}
@@ -304,13 +297,7 @@ function ReadyWorkbench({
           {timeSelection}
         </>
       )}
-      <LapChoices
-        trace={trace}
-        max={max}
-        selection={selection}
-        units={units}
-        onSelect={setChosen}
-      />
+      <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
       <MetricControls
         trace={trace}
         units={units}
@@ -331,7 +318,6 @@ function ReadyWorkbench({
         startS={startS}
         endS={endS}
         units={units}
-        metrics={visible}
         tilesHost={selectionHost}
       />
       {zoneSets && (

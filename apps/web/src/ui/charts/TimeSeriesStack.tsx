@@ -168,16 +168,9 @@ export function TimeSeriesStack({
           head={head}
         />
       </ReadoutContext.Provider>
+      {/* A row of its own, there whether or not Reset is, so the plot never moves when a drag zooms it. */}
       {onSelect !== undefined && (
         <div className="ts-stack__tools">
-          <p className="ts-stack__hint">
-            <span className="ts-stack__hint--fine">
-              Drag to zoom, or use the range sliders below
-            </span>
-            <span className="ts-stack__hint--coarse">
-              Hold, then drag, to zoom, or use the range below
-            </span>
-          </p>
           {zoomed && onReset !== undefined && (
             <button type="button" className="ts-stack__reset" onClick={reset}>
               Reset

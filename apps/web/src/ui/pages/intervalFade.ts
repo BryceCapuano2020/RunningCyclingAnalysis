@@ -34,13 +34,6 @@ const OUTPUT: Record<Sport, { metrics: readonly RepMetric[]; speedNeedsTrainer: 
 /** Flat speed is a run's speed with the hills taken out, in m/s like speed. */
 export type RepMetric = 'flatSpeed' | 'speed' | 'power'
 
-/** How the lede says a rep's output differs from the first rep's, for each measure. */
-const DIFFERENCE: Record<RepMetric, (percent: number, higher: boolean) => string> = {
-  flatSpeed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
-  speed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
-  power: (percent, higher) => `averaged ${percent}% ${higher ? 'more' : 'less'} power than`,
-}
-
 export interface Rep {
   /** Its place among the reps, from 1. */
   number: number
@@ -59,7 +52,6 @@ export interface RepFade {
   /** True when the device recorded the laps, false when they are intervals found in the readings. */
   recorded: boolean
   reps: Rep[]
-  lede: string
 }
 
 /** The middle value, the mean of the middle two for an even count. */
@@ -155,22 +147,6 @@ function lapsOf(trace: ActivityTrace): { laps: ActivityLap[]; recorded: boolean 
   return { laps: recorded ? trace.laps : suggestedIntervals(trace), recorded }
 }
 
-/**
- * The lede: the rep that differs most from the first, or that the reps stayed level. The gap is the
- * rep's output over the first rep's, unrounded, so 2.4% is a difference and not "within 2%".
- */
-export function fadeLede(metric: RepMetric, outputs: readonly number[]): string {
-  const first = outputs[0]!
-  const changes = outputs.map((output) => output / first - 1)
-  const widest = changes.reduce(
-    (far, change, i) => (Math.abs(change) > Math.abs(changes[far]!) ? i : far),
-    0,
-  )
-  const gap = Math.abs(changes[widest]!) * 100
-  if (gap <= REP_FADE.levelPct) return `Your reps stayed within ${Math.max(Math.ceil(gap), 1)}%.`
-  return `Rep ${widest + 1} ${DIFFERENCE[metric](Math.round(gap), changes[widest]! > 0)} rep 1.`
-}
-
 interface Usable {
   lapNumber: number
   bounds: Selection
@@ -229,15 +205,7 @@ export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean })
     if (metric === 'speed' && speedNeedsTrainer && !indoor) continue
     const reps = repsIn(trace, metric, usable)
     if (reps === null) continue
-    return {
-      metric,
-      recorded,
-      reps,
-      lede: fadeLede(
-        metric,
-        reps.map((rep) => rep.output),
-      ),
-    }
+    return { metric, recorded, reps }
   }
   return null
 }

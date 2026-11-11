@@ -1,12 +1,9 @@
 import { useId, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
-import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { useSize } from '../charts/useSize'
 import { lapGroupsOf } from './workbenchChannels'
-import { selectionOf } from './workbenchData'
-import { SPORT_READING, displayValue } from './workbenchFormat'
 import type { Selection } from './workbenchTime'
 import './ActivityWorkbenchLaps.css'
 
@@ -15,29 +12,6 @@ const MAX_NUMBERED = 8
 /** A segment of the bar shows its number only where it is at least this wide, in px. */
 const NUMBER_FITS_PX = 22
 
-/** One lap in words, with its figures: "Lap 3 · from 12:00 · 4:31 · 1.0 km · 5:12 /km · 152 bpm". */
-function lapLine(
-  trace: ActivityTrace,
-  lap: ActivityLap,
-  label: string,
-  units: UnitSystem,
-  max: number,
-): string {
-  const summary = selectionOf(trace, lap.startS, Math.min(lap.endS, max))
-  const parts = [
-    `${label} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`,
-  ]
-  if (summary.distanceM !== null && summary.distanceM > 0 && summary.movingS > 0) {
-    const reading = SPORT_READING[trace.sport]
-    parts.push(reading.speedText(summary.distanceM / summary.movingS, units))
-  }
-  const heart = summary.metrics.heartRate?.mean
-  if (heart !== null && heart !== undefined) {
-    parts.push(displayValue('heartRate', heart, trace.sport, units))
-  }
-  return parts.join(' · ')
-}
-
 /** What one strip is called: the device's laps, or the intervals the readings suggest. */
 const STRIPS = {
   recorded: { name: 'Lap', title: 'Laps', plural: 'laps' },
@@ -45,10 +19,8 @@ const STRIPS = {
 } as const
 
 type StripProps = {
-  trace: ActivityTrace
   max: number
   selection: Selection
-  units: UnitSystem
   onSelect: (selection: Selection) => void
 }
 
@@ -56,8 +28,8 @@ type StripProps = {
  * The laps the device recorded and the intervals found in the readings, each as a strip, the device's first. Choosing a
  * lap or an interval zooms the stack to it. Nothing when the activity has neither.
  */
-export function LapChoices(props: StripProps) {
-  const { recorded, suggested } = lapGroupsOf(props.trace)
+export function LapChoices({ trace, ...props }: StripProps & { trace: ActivityTrace }) {
+  const { recorded, suggested } = lapGroupsOf(trace)
   if (recorded.length === 0 && suggested.length === 0) return null
   return (
     <>
@@ -69,14 +41,12 @@ export function LapChoices(props: StripProps) {
 
 /**
  * One group of laps as a strip. A few are numbered buttons, as wide as the lap was long and at least a finger wide. Many are a
- * proportional bar, with the chosen lap named and measured in a line under it, so the strip is never a wall of buttons.
+ * proportional bar, with every lap also in a list beside it, so the strip is never a wall of buttons.
  * The arrow keys step from lap to lap.
  */
 function LapStrip({
-  trace,
   max,
   selection,
-  units,
   onSelect,
   laps,
   kind,
@@ -84,7 +54,6 @@ function LapStrip({
   const [barRef, barWidth] = useSize()
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const titleId = useId()
-  const lineId = useId()
   const { name, title, plural } = STRIPS[kind]
   const bar = laps.length > MAX_NUMBERED
   const boundsOf = (lap: ActivityLap) => ({ startS: lap.startS, endS: Math.min(lap.endS, max) })
@@ -155,7 +124,6 @@ function LapStrip({
                 aria-pressed={active}
                 aria-label={label}
                 title={label}
-                aria-describedby={bar && index === chosen ? lineId : undefined}
                 tabIndex={bar ? (index === tabbable ? 0 : -1) : undefined}
                 onClick={() => onSelect(boundsOf(lap))}
                 onKeyDown={bar ? keyed(index) : undefined}
@@ -167,11 +135,6 @@ function LapStrip({
         </div>
         {bar && (
           <div className="lap-strip__choose">
-            <p id={lineId} className="lap-strip__line secondary">
-              {chosen < 0
-                ? `${laps.length} ${plural}. Choose one to zoom to it.`
-                : lapLine(trace, laps[chosen]!, `${name} ${chosen + 1}`, units, max)}
-            </p>
             {/* The bar's segments can be a few px wide, so every lap is also a plain list, which a finger and a keyboard can use. */}
             <select
               className="lap-strip__list"
@@ -182,7 +145,7 @@ function LapStrip({
                   onSelect(boundsOf(laps[Number(event.currentTarget.value)]!))
               }}
             >
-              {chosen < 0 && <option value="">{name}…</option>}
+              {chosen < 0 && <option value="">{`${laps.length} ${plural}`}</option>}
               {laps.map((lap, index) => (
                 <option key={`${lap.startS}-${lap.endS}`} value={index}>
                   {`${name} ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`}

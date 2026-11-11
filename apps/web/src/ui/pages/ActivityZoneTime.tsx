@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import type { Sport } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import { traceTimeInZones } from '@rca/core/zones'
@@ -9,13 +8,10 @@ import { INTERVAL_ZONES_TITLE, ZoneTimeChart } from '../charts/ZoneTimeChart'
 import { lowerFirst } from '../format/firstLetter'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
-import { ROW_LABEL, THRESHOLD_NEEDS, mainZoneRow, percentText, zoneTimeText } from '../zoneTimeCopy'
+import { ROW_LABEL, TIME_IN_ZONES_NAME, percentText, zoneTimeText } from '../zoneTimeCopy'
 import { zoneBar } from '../zoneTimeRows'
 
-/**
- * The measures in the order the page leads with them: power and pace are the effort itself, heart
- * rate follows it. The first with a reading in the interval gives the lede.
- */
+/** The measures in the order the bars stand: power and pace are the effort itself, heart rate follows it. */
 const LEAD_ORDER: readonly ZoneMeasure[] = ['power', 'pace', 'heartRate']
 
 interface Row {
@@ -47,54 +43,16 @@ export interface MissingMeasure {
 /** No pace or power is missing: one array, so the default does not change between renders. */
 const NO_MISSING: readonly MissingMeasure[] = []
 
-/** Why heart rate is not read into zones: the reason in a line, and the activity's issues give it in full. */
-function SetAsideNote() {
-  return (
-    <p className="muted">
-      Heart rate is set aside for this activity: it read too low for the effort, as a working sensor
-      would not, so it is left out of zones.
-    </p>
-  )
-}
+/** Heart rate the analysis set aside has no zones here; the activity's notes say why. */
+const SET_ASIDE_LINE = 'Heart rate set aside'
 
-/** What a sport's zones other than heart rate are cut from, for the line that says they are missing. */
-const OTHER_ZONES: Record<Sport, { zones: string; threshold: string }> = {
-  run: { zones: 'Pace zones', threshold: 'threshold pace' },
-  ride: { zones: 'Power zones', threshold: 'threshold power' },
-}
-
-/** Why a pace or power has no zones on the activity's date, and what would give them. */
-function MissingNote({ sport, measures }: { sport: Sport; measures: readonly MissingMeasure[] }) {
+/** The one way to the zones a measure lacks, as on the Run and Ride pages. */
+function ProfileLink() {
   return (
-    <>
-      {measures.map(({ measure }) => (
-        <p key={measure} className="muted">
-          {`No ${measure === 'heartRate' ? 'heart rate' : measure} zones for this ${sport}. ${THRESHOLD_NEEDS[measure]}`}
-        </p>
-      ))}
-    </>
-  )
-}
-
-/**
- * What the zones need. With heart rate set aside, the zones that are left are the sport's own, from a
- * threshold, so it names that; otherwise a max heart rate does as well.
- */
-function ZoneNeed({ sport, heartRateSetAside }: { sport: Sport; heartRateSetAside: boolean }) {
-  const profile = <a href={hrefFor({ page: 'profile' })}>Profile</a>
-  if (heartRateSetAside) {
-    const { zones, threshold } = OTHER_ZONES[sport]
-    return (
-      <p className="muted">
-        {zones} use a {threshold} from {profile}. Enter one there, or add more activities for the
-        app to estimate it.
-      </p>
-    )
-  }
-  return (
-    <p className="muted">
-      Time in zones needs zones. Enter a max heart rate or a threshold on {profile}, or add more
-      activities for the app to estimate them.
+    <p>
+      <a className="link-arrow" href={hrefFor({ page: 'profile' })}>
+        Set your zones on Profile
+      </a>
     </p>
   )
 }
@@ -125,64 +83,44 @@ export function ActivityZoneTime({
   units: UnitSystem
 }) {
   const rows = useMemo(() => rowsOf(trace, sets, startS, endS), [trace, sets, startS, endS])
-  const [lead] = rows
-  if (lead === undefined) {
-    if (sets.length === 0) {
-      return (
-        <>
-          {heartRateSetAside && <SetAsideNote />}
-          <ZoneNeed sport={trace.sport} heartRateSetAside={heartRateSetAside} />
-          <MissingNote sport={trace.sport} measures={missing} />
-        </>
-      )
-    }
-    return (
-      <>
-        <p className="muted">
-          No heart rate, power or pace readings in this interval to place in zones.
-        </p>
-        {heartRateSetAside && <SetAsideNote />}
-        <MissingNote sport={trace.sport} measures={missing} />
-      </>
-    )
-  }
-  const main = mainZoneRow(lead.set.measure, {
-    seconds: lead.time.seconds,
-    totalSeconds: lead.time.total,
-  })
+  const setAside = heartRateSetAside ? <p className="secondary">{SET_ASIDE_LINE}</p> : null
+  // Zones exist but the interval has no reading to place in them: the readout row already says so per measure.
+  if (rows.length === 0 && sets.length > 0) return setAside
   return (
     <div className="activity-workbench__zones" data-sport={trace.sport}>
-      <h3>Time in zones</h3>
-      <ZoneTimeChart
-        title={INTERVAL_ZONES_TITLE}
-        facts={main === null ? [] : [main]}
-        rows={rows.map(({ set, time }) =>
-          zoneBar(
-            set.measure,
-            { seconds: time.seconds, totalSeconds: time.total },
-            set.zones.map((zone) => zone.name),
-          ),
-        )}
-        table={{
-          caption: `Moving time in each zone in the selected interval. ${rows
-            .map(({ set }) => `${ROW_LABEL[set.measure]} zones: ${lowerFirst(sourceText(set))}.`)
-            .join(' ')}`,
-          columns: ['Measure', 'Zone', 'Name', 'Range', 'Time', 'Share'],
-          textColumns: [2, 3],
-          rows: rows.flatMap(({ set, time }) =>
-            set.zones.map((zone, i) => [
-              ROW_LABEL[set.measure],
-              String(zone.level),
-              zone.name,
-              zoneRange(set.measure, zone, units),
-              zoneTimeText(time.seconds[i] ?? 0),
-              percentText((time.seconds[i] ?? 0) / time.total),
-            ]),
-          ),
-        }}
-      />
-      {heartRateSetAside && <SetAsideNote />}
-      <MissingNote sport={trace.sport} measures={missing} />
+      <h3>{TIME_IN_ZONES_NAME}</h3>
+      {rows.length > 0 && (
+        <ZoneTimeChart
+          title={INTERVAL_ZONES_TITLE}
+          titleHidden
+          rows={rows.map(({ set, time }) =>
+            zoneBar(
+              set.measure,
+              { seconds: time.seconds, totalSeconds: time.total },
+              set.zones.map((zone) => zone.name),
+            ),
+          )}
+          table={{
+            caption: `Moving time in each zone in the selected interval. ${rows
+              .map(({ set }) => `${ROW_LABEL[set.measure]} zones: ${lowerFirst(sourceText(set))}.`)
+              .join(' ')}`,
+            columns: ['Measure', 'Zone', 'Name', 'Range', 'Time', 'Share'],
+            textColumns: [2, 3],
+            rows: rows.flatMap(({ set, time }) =>
+              set.zones.map((zone, i) => [
+                ROW_LABEL[set.measure],
+                String(zone.level),
+                zone.name,
+                zoneRange(set.measure, zone, units),
+                zoneTimeText(time.seconds[i] ?? 0),
+                percentText((time.seconds[i] ?? 0) / time.total),
+              ]),
+            ),
+          }}
+        />
+      )}
+      {setAside}
+      {(sets.length === 0 || missing.length > 0) && <ProfileLink />}
     </div>
   )
 }

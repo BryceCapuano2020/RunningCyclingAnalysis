@@ -1,10 +1,11 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { SPORT_LABEL } from '../sports'
 import { hrefFor } from '../route'
+import { BackLink } from './ActivityBackLink'
+import { originOf } from './activityBack'
 
 /**
- * The activities either side of this one in the library, which is newest first, so Earlier is the
- * next one down the list. Then the link to the sport's records.
+ * One row of links around the activity: back to where it was opened from, then the activities either side of it in the
+ * library, which is newest first, so Earlier is the next one down the list.
  */
 export function ActivityNav({
   activity,
@@ -18,13 +19,11 @@ export function ActivityNav({
   const earlier = index >= 0 ? library[index + 1] : undefined
   return (
     <nav className="activity-page__nav" aria-label="Around this activity">
+      <BackLink origin={originOf()} />
       {earlier && (
         <a href={hrefFor({ page: 'activity', id: earlier.id })}>{`Earlier: ${earlier.name}`}</a>
       )}
       {later && <a href={hrefFor({ page: 'activity', id: later.id })}>{`Later: ${later.name}`}</a>}
-      <a href={hrefFor({ page: activity.sport })}>
-        {`Your ${SPORT_LABEL[activity.sport].toLowerCase()} records`}
-      </a>
     </nav>
   )
 }

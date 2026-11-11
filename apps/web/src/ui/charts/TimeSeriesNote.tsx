@@ -1,11 +1,9 @@
-import { SPREAD_WORDS } from './usualSpread'
 import { edgeReadings, hasClips } from './timeSeriesEdge'
-import { windowText } from './timeSeriesModel'
 import type { StackChannel, StackMark } from './timeSeriesTypes'
 
 /**
- * The facts under the plot: what the line and the band are, and a key for each kind of mark the window
- * holds, so a mark is never left unexplained and a key is never shown for one that is not there.
+ * The key under the plot: one entry for each kind of mark the window holds, so a mark is never left unexplained and a
+ * key is never shown for one that is not there. How the lines are averaged is said in the readout row.
  */
 export function TimeSeriesNote({
   channels,
@@ -18,18 +16,15 @@ export function TimeSeriesNote({
   startS: number
   endS: number
 }) {
-  const windowS = channels[0]?.columns.windowS
   const inWindow = (from: number, to: number) => to > startS && from < endS
   const skipped = channels.some((channel) => channel.skipped.some(([a, b]) => inWindow(a, b)))
   const kinds = (['paused', 'unrecorded'] as const).filter((kind) =>
     marks.some((mark) => mark.kind === kind && inWindow(mark.startS, mark.endS)),
   )
   const clipped = channels.some(hasClips)
-  const bands = channels.some((channel) => channel.shape === 'line')
+  if (!clipped && !skipped && kinds.length === 0) return null
   return (
     <p className="chart-frame__note ts-stack__note">
-      {windowS !== undefined && <Fact label="Lines" value={`${windowText(windowS)} averages`} />}
-      {windowS !== undefined && bands && <Fact label="Bands" value={SPREAD_WORDS} />}
       {clipped && (
         <span className="ts-key">
           <span className="ts-key__swatch ts-key__swatch--edge" aria-hidden="true" />
