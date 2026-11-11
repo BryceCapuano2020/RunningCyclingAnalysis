@@ -87,16 +87,19 @@ Design: [design/server-authority.md](design/server-authority.md), [design/server
 2. `GET /api/state` (`routes/state.ts`) serves the stored snapshot when `isCurrent` says it covers the library, the
    lift revision, the result revision and today's local day. Otherwise it computes in the request, stores and
    serves. The ETag is the snapshot hash, so an unchanged state is a 304.
-3. One compute runs per isolate (a lock) and per account (`claim_until`). A request that loses either serves the
-   stored snapshot, or answers `202 computing` when there is none. The read budget (`stateRead`, `routes/state.ts`): a 304 is
-   free; a body costs one read unit, except a stored copy served while another compute runs; a compute is charged, and
-   refunded when it fails or has nothing to store.
+3. One compute runs per isolate (a lock) and per account (`claim_until`, a 60 s window). A request that loses either
+   serves the stored snapshot, or answers `202 computing` when there is none. The read budget (`stateRead`,
+   `routes/state.ts`): a 304 is free; a body costs one unit, except a stored copy served while another compute runs;
+   a read's compute is charged, a compute that finds nothing to store is refunded, and a failed or crashed one keeps
+   its unit and holds the claim for 5 minutes (`STATE_FAILURE_HOLD_SECONDS`), so a failure is not recomputed per read.
 4. The browser reads only `/api/state` for an account, keeps the last answer in `rca-state`, and repaints when the ETag
    changes. Other tabs are told over `rca-sync-v1`. It builds no `SessionState` in account scope.
 5. The browser also keeps an index of the account's activity records (listed from `GET /api/activities`, keyset
    paged). The index serves the import's duplicate check, the Library list, delete, rename, labels and export. It is
    not analysis.
-6. Result revision, ordering and the cap on account size: `state/resultRevision.ts`, `state/record.ts`,
+6. The account limits are 3,000 activities, 24 MiB of digests and 60,000 lift sets (`packages/contract/src/limits.ts`).
+   The browser retries a failed settings read or save with a doubling wait (`ui/useAccountSettings.ts`).
+7. Result revision, ordering and the cap on account size: `state/resultRevision.ts`, `state/record.ts`,
    `packages/contract/src/limits.ts`, `apps/api/LIMITS.md`.
 
 ### Garmin push
