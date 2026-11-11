@@ -65,8 +65,8 @@ export const MeSchema = z.object({
   /** Raised by every lift write. Kept apart from libraryRevision so logging a set never reloads the library. */
   liftRevision: z.number().int().nonnegative().optional(),
   /**
-   * True only for an account the server computes results for (SERVER_COMPUTE_USERS). The browser asks for
-   * GET /api/state and reports its time zone only when this is true; for every other account it is absent.
+   * No longer sent: the server computes for every signed-in account, so there is nothing to tell. Kept in the schema
+   * until the web stops reading it (docs/design/server-authority.md), then removed.
    */
   serverState: z.boolean().optional(),
 })

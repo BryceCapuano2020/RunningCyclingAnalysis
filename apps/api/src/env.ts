@@ -30,15 +30,7 @@ export interface Bindings {
    * change data with 503 `read_only` (see readOnly.ts and docs/PRODUCTION.md). Unset or anything else is off.
    */
   READ_ONLY?: string
-  /**
-   * The accounts whose results are computed on the server (docs/design/server-compute.md): user ids, comma separated.
-   * Empty or unset is off for everyone; the Queue producer, the consumer and `GET /api/state` all answer only for these.
-   * Production ships it empty and binds no queue (the deploy-config check). See state/flag.ts.
-   */
-  SERVER_COMPUTE_USERS?: string
-  /** The same list as a Worker secret (`wrangler secret put SERVER_COMPUTE_ACCOUNTS`); when set it wins over the variable. */
-  SERVER_COMPUTE_ACCOUNTS?: string
-  /** The Queue the state job's messages go to. Bound only where SERVER_COMPUTE_USERS is not empty. */
+  /** The Queue the state job's messages go to. Every signed-in account's results are computed on the server (docs/design/server-authority.md). */
   STATE_QUEUE?: Queue<StateMessage>
   /**
    * Garmin sync (docs/design/garmin-sync.md): "true", "1" or "on" lets athletes connect Garmin; unset is off, as

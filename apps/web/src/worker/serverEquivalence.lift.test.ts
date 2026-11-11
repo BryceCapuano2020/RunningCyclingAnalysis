@@ -9,7 +9,6 @@ import { StateSnapshotSchema } from '@rca/contract'
 import { dayOf } from '@rca/core/customRange'
 import type { ExerciseKey, LiftSet } from '@rca/core/lift'
 import { checkInBetween } from '@rca/core/lookback'
-import { computeSnapshot } from '@rca/core/stateCompute'
 import { checkInOfSnapshot, fromSnapshot, liftOfSnapshot } from '@rca/core/stateSnapshot'
 import { checkInSnapshotOf } from '../../../../packages/core/src/sessionCheckIn'
 import { snapshotCorpus } from '../../../../packages/core/src/test/snapshotCorpus'
@@ -135,20 +134,28 @@ function settingsFor(c: Case, zone: string, at: number) {
   )
 }
 
+/** What the server reads of an account: the digests, the sets and the profile as the database holds them. */
+function inputsFor(c: Case, zone: string, sets: LiftSet[]): StateInputs {
+  return {
+    version: 3,
+    liftRevision: 0,
+    liftSets: sets,
+    digests: library.digests,
+    unreadable: 0,
+    massKg: c.massKg,
+    bikeMassKg: 9,
+    birthYear: c.birthYear,
+    sex: c.sex,
+    measurements: c.measurements ?? [],
+    settings: { keepPower: null, countedRuns: null, period: null, zone },
+  }
+}
+
 /** The server's snapshot while the process is in a zone that is not the account's: the account's zone is all it reads. */
 function serverLift(c: Case, zone: string, at: number, sets: LiftSet[]) {
   vi.stubEnv('TZ', zone === 'UTC' ? 'Pacific/Auckland' : 'UTC')
   installDeviceZone()
-  const snapshot = computeSnapshot({
-    digests: library.digests,
-    settings: settingsFor(c, zone, at),
-    liftSets: sets,
-    libraryVersion: 1,
-    nowMs: at,
-    zone,
-    buildSha: 'x',
-    viewerZone: zoneNamed(zone),
-  })
+  const snapshot = computeFor(inputsFor(c, zone, sets), at)
   setViewerZone(UTC_ZONE)
   return { snapshot, lift: liftOfSnapshot(snapshot)! }
 }
@@ -282,18 +289,7 @@ describe('the check-in in the snapshot is what the signed-out worker builds', ()
   it.each(ZONES)('against the same baseline, in %s', async (zone) => {
     vi.stubEnv('TZ', zone)
     installDeviceZone()
-    const inputs: StateInputs = {
-      version: 3,
-      liftRevision: 0,
-      digests: library.digests,
-      unreadable: 0,
-      massKg: 78,
-      bikeMassKg: 9,
-      birthYear: null,
-      sex: null,
-      measurements: [],
-      settings: { keepPower: null, countedRuns: null, period: null, zone },
-    }
+    const inputs = { ...inputsFor(CASES[0]!, zone, []), birthYear: null, sex: null }
     const snapshot = computeFor(inputs, nowMs)
     const serverLive = checkInOfSnapshot(snapshot)!
     // A baseline from before the newest workouts: the same library without them, taken a day earlier.

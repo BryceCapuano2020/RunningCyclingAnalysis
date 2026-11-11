@@ -1,5 +1,5 @@
 import { StateSnapshotSchema } from '@rca/contract'
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createHarness } from '../test/harness.ts'
 import { racingDb } from '../test/racingDb.ts'
@@ -97,10 +97,10 @@ describe('compute on read', () => {
     expect((await w.get({ 'If-None-Match': `"${tag}"` })).status).toBe(304)
     expect((await w.row())!.lift).toBe(1)
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION - 1, w.userId)
+      .bind(RESULT_REVISION - 1, w.userId)
       .run()
     expect((await w.get()).status).toBe(200)
-    expect((await w.row())!.rev).toBe(ANALYSIS_REVISION)
+    expect((await w.row())!.rev).toBe(RESULT_REVISION)
     const before = (await w.row())!.now
     w.h.clock.now += 2 * DAY
     expect((await w.get()).status).toBe(200)
@@ -166,11 +166,11 @@ describe('compute on read', () => {
     const w = await ready()
     const stored = await w.row()
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION + 1, w.userId)
+      .bind(RESULT_REVISION + 1, w.userId)
       .run()
     const keysBefore = (await w.env.FILES!.list({ prefix: `users/${w.userId}/state/` })).objects
     const reads = { n: 0 }
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads) })
+    const h = createHarness({}, { DB: countingDb(w.env.DB, reads) })
     h.clock.now = w.h.clock.now + CLAIM_MS + 1
     const get = (headers: Record<string, string> = {}) =>
       h.send({ path: '/api/state', cookies: w.cookies, headers })
@@ -182,7 +182,7 @@ describe('compute on read', () => {
     expect((await get()).status).toBe(200)
     expect(reads.n).toBe(1)
     const row = await w.row()
-    expect(row).toMatchObject({ rev: ANALYSIS_REVISION + 1, hash: stored!.hash })
+    expect(row).toMatchObject({ rev: RESULT_REVISION + 1, hash: stored!.hash })
     expect((await w.env.FILES!.list({ prefix: `users/${w.userId}/state/` })).objects).toEqual(
       keysBefore,
     )
@@ -200,22 +200,22 @@ describe('compute on read', () => {
     const key = `users/${w.userId}/state/${hash}.json.gz`
     const object = await w.env.FILES!.get(key)
     const bytes = new Uint8Array(await object!.arrayBuffer())
-    const put = (analysisRevision?: string) =>
+    const put = (resultRevision?: string) =>
       w.env.FILES!.put(key, bytes, {
         httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
-        ...(analysisRevision === undefined ? {} : { customMetadata: { analysisRevision } }),
+        ...(resultRevision === undefined ? {} : { customMetadata: { resultRevision } }),
       })
     // An older Worker's object under the row's own revision: computed again in this read and written back.
     await put()
     expect((await w.get()).status).toBe(200)
-    expect((await w.env.FILES!.head(key))?.customMetadata?.analysisRevision).toBe(
-      String(ANALYSIS_REVISION),
+    expect((await w.env.FILES!.head(key))?.customMetadata?.resultRevision).toBe(
+      String(RESULT_REVISION),
     )
-    expect((await w.row())!.rev).toBe(ANALYSIS_REVISION)
+    expect((await w.row())!.rev).toBe(RESULT_REVISION)
     // A later Worker's object is not reset.
-    await put(String(ANALYSIS_REVISION + 1))
+    await put(String(RESULT_REVISION + 1))
     expect((await w.get()).status).toBe(200)
-    expect((await w.row())!.rev).toBe(ANALYSIS_REVISION)
+    expect((await w.row())!.rev).toBe(RESULT_REVISION)
   })
 
   it('answers 202 computing with Retry-After for no stored snapshot under the lock, and serves the stored one with X-State-Current 0', async () => {
@@ -226,10 +226,7 @@ describe('compute on read', () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     const reads = { n: 0 }
-    const h = createHarness(
-      {},
-      { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads, () => gate) },
-    )
+    const h = createHarness({}, { DB: countingDb(w.env.DB, reads, () => gate) })
     h.clock.now = w.h.clock.now + CLAIM_MS + 1
     const get = () => h.send({ path: '/api/state', cookies: w.cookies })
     const computing = get()
@@ -265,10 +262,7 @@ describe('compute on read', () => {
         .bind(w.userId)
         .run()
     }
-    const h = createHarness(
-      {},
-      { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads, bump) },
-    )
+    const h = createHarness({}, { DB: countingDb(w.env.DB, reads, bump) })
     h.clock.now = w.h.clock.now + CLAIM_MS + 1
     const res = await h.send({ path: '/api/state', cookies: w.cookies })
     expect(res.status).toBe(200)
@@ -290,7 +284,7 @@ describe('compute on read', () => {
       .bind(w.userId)
       .run()
     const reads = { n: 0 }
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads) })
+    const h = createHarness({}, { DB: countingDb(w.env.DB, reads) })
     const get = () => h.send({ path: '/api/state', cookies: w.cookies })
     // Another isolate claimed a moment ago (it stamped attempted_at; the stored snapshot is still the old one).
     h.clock.now = w.h.clock.now + 1_000
@@ -317,7 +311,7 @@ describe('compute on read', () => {
       .bind(w.userId)
       .run()
     const reads = { n: 0 }
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads) })
+    const h = createHarness({}, { DB: countingDb(w.env.DB, reads) })
     h.clock.now = w.h.clock.now + CLAIM_MS + 1
     const get = () => h.send({ path: '/api/state', cookies: w.cookies })
     const both = await Promise.all([get(), get()])

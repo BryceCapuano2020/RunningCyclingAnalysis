@@ -1,32 +1,31 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import type { Bindings } from '../env.ts'
-import { SERVER_STATE_MAX_ACTIVITIES, serverStateAccounts } from './flag.ts'
+import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
 import { STATE_DELAY_SECONDS } from './message.ts'
 import { claimPending } from './pending.ts'
+import { RESULT_REVISION } from './resultRevision.ts'
 
-/** The most accounts one maintenance run looks at, within D1's bound-parameter limit. */
+/** The most accounts one maintenance run sends for: the ones whose last compute began longest ago come first. */
 export const MAX_RESEND_ACCOUNTS = 50
 
 /**
- * The daily stand-in for the hourly refresh (S6 in the design, not built): sends one message for each account on the
- * allowlist whose inputs moved past its last compute, or whose last compute was made under another analysis revision (a
- * deploy that changed how a figure is worked out), while no message is on its way, so a message the Queue lost or
- * sent to the dead-letter queue leaves an account dirty for a day at most, not until its next write. Only the ids the list
- * names: `*` (everyone, local and e2e only) re-sends nothing. A library the server does not compute for, or an account
- * being deleted, is left alone. Returns how many messages it sent.
+ * The daily stand-in for the hourly refresh (S6 in the design, not built): sends one message for each account whose inputs
+ * moved past its last compute, or whose stored snapshot was made under a lower result revision (a deploy that changed how
+ * a figure is worked out, the snapshot's shape or the lift estimator), while no message is on its way, so a message the
+ * Queue lost or sent to the dead-letter queue leaves an account dirty for a day at most, not until its next write. A
+ * higher stored revision is a later Worker's and is left alone, as is a library the server does not compute for and an
+ * account being deleted. Returns how many messages it sent.
  */
 export async function resendDirty(env: Bindings, now: number): Promise<number> {
   const queue = env.STATE_QUEUE
   if (queue === undefined) return 0
-  const ids = [...serverStateAccounts(env)].filter((id) => id !== '*').slice(0, MAX_RESEND_ACCOUNTS)
-  if (ids.length === 0) return 0
   const dirty = await env.DB.prepare(
     `SELECT u.id FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
-     WHERE u.id IN (${ids.map(() => '?').join(', ')}) AND u.deleting_at IS NULL AND u.activity_count <= ?
-       AND (coalesce(j.snapshot_version, 0) < u.library_version OR coalesce(j.snapshot_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) <> ?)
-       AND coalesce(j.pending_until, 0) <= ?`,
+     WHERE u.deleting_at IS NULL AND u.activity_count <= ?1 AND coalesce(j.analysis_revision, 0) <= ?2
+       AND (coalesce(j.snapshot_version, 0) < u.library_version OR coalesce(j.snapshot_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) < ?2)
+       AND coalesce(j.pending_until, 0) <= ?3
+     ORDER BY coalesce(j.attempted_at, 0), u.id LIMIT ?4`,
   )
-    .bind(...ids, SERVER_STATE_MAX_ACTIVITIES, ANALYSIS_REVISION, now)
+    .bind(SERVER_STATE_MAX_ACTIVITIES, RESULT_REVISION, now, MAX_RESEND_ACCOUNTS)
     .all<{ id: string }>()
   let sent = 0
   for (const { id } of dirty.results) {

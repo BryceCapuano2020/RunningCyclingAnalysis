@@ -57,7 +57,7 @@ describe('GET /api/state', () => {
         return typeof value === 'function' ? value.bind(target) : value
       },
     })
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', FILES: watched })
+    const h = createHarness({}, { FILES: watched })
     h.clock.now = w.h.clock.now
     const res = await h.send({
       path: '/api/state',
@@ -72,27 +72,7 @@ describe('GET /api/state', () => {
     expect((await w.get({ 'If-None-Match': '*' })).status).toBe(304)
   })
 
-  it('is a 404 for everyone while no account is on the allowlist, unset or empty', async () => {
-    const w = await stateWorld({ on: false })
-    expect((await w.h.send({ path: '/api/state', cookies: w.cookies })).status).toBe(404)
-    expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
-    w.env.SERVER_COMPUTE_USERS = ' , '
-    expect((await w.h.send({ path: '/api/state', cookies: w.cookies })).status).toBe(404)
-  })
-
-  it('is a 404 for an account that is not on the allowlist, even with a snapshot, and spends no unit', async () => {
-    const w = await ready()
-    w.env.SERVER_COMPUTE_USERS = 'someone-else'
-    expect((await w.get()).status).toBe(404)
-    const spent = await w.env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM daily_budget WHERE action = 'stateRead'",
-    ).first<{ n: number }>()
-    expect(spent?.n).toBe(0)
-    w.env.SERVER_COMPUTE_USERS = `someone-else,${w.userId}`
-    expect((await w.get()).status).toBe(200)
-  })
-
-  it('answers a signed-out request 404 with an account listed, as with none', async () => {
+  it('answers a signed-out request 404', async () => {
     const w = await ready()
     expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
     // A cross-site signed-out request, and a stale session, give nothing away either.
@@ -107,8 +87,12 @@ describe('GET /api/state', () => {
   it('serves an account only its own snapshot', async () => {
     const mine = await ready('mine@example.com')
     const token = await mine.h.signIn('other@example.com')
+    const own = await mine.get()
     const res = await mine.h.send({ path: '/api/state', cookies: { rca_session: token } })
-    expect(res.status).toBe(404)
+    // The other account has no library: its own (empty) results are computed, not mine.
+    expect(res.status).toBe(200)
+    expect(res.headers.get('ETag')).not.toBe(own.headers.get('ETag'))
+    expect((await res.json()) as object).not.toEqual(await own.json())
   })
 
   it('computes the snapshot again in the read when the object the row names is gone, and keeps no unit for the lost read', async () => {

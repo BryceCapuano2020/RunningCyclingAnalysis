@@ -25,7 +25,7 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
       'Configure the dedicated production R2 bucket as binding="FILES" and bucket_name="rca-files" in apps/api/wrangler.toml.',
     )
   }
-  checkServerState(config, readString('SERVER_COMPUTE_USERS'))
+  checkServerState(config)
   // Garmin sync is built switched off (docs/design/garmin-sync.md); its release (G6) is the change that removes this.
   // Read quoted or not: an unquoted `true` is a TOML boolean, which the Worker reads as on.
   const set = /^GARMIN_ENABLED\s*=\s*(?:["']([^"']*)["']|([^\s#]+))/m.exec(config)
@@ -62,24 +62,14 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
 }
 
 /**
- * Results computed on the server (docs/design/server-compute.md) need Workers Paid, which the owner has not upgraded to, and
- * run for the accounts on an allowlist only. The list may be the variable SERVER_COMPUTE_USERS or a Worker secret this file
- * cannot see (SERVER_COMPUTE_ACCOUNTS), so the variable stays empty in the repository and the queue blocks are what turn
- * the feature on. Any queue or [limits] block must be the whole, bounded set: the STATE_QUEUE producer, a consumer with a
- * small batch, one at a time, a retry limit and a dead-letter queue, and a CPU cap. A non-empty variable requires them. `*`
- * (everyone) is for local tests and never goes in production.
+ * Results computed on the server (docs/design/server-authority.md) need Workers Paid and run for every signed-in account.
+ * Any queue or [limits] block must be the whole, bounded set: the STATE_QUEUE producer, a consumer with a small batch, one
+ * at a time, a retry limit and a dead-letter queue, and a CPU cap.
  */
-function checkServerState(config, value) {
-  const accounts = (value ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
+function checkServerState(config) {
   const queues = /^\[\[queues\./m.test(config) || /^\[queues\b/m.test(config)
   const limits = /^\[limits\]/m.test(config)
-  if (accounts.length === 0 && !queues && !limits) return
-  if (accounts.includes('*')) {
-    throw new Error('SERVER_COMPUTE_USERS must list account ids in production, not *.')
-  }
+  if (!queues && !limits) return
   const producer =
     /^\[\[queues\.producers\]\]\s*\n(?:(?!\[\[).)*?^binding\s*=\s*["']STATE_QUEUE["']/ms.test(
       config,

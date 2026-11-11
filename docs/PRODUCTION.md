@@ -302,42 +302,38 @@ startMs)` is the key every workout is matched by, at the second: the `dedupe_key
   second-key within the minute (a range lookup, no migration) and the updater to rewrite `dedupe_key` on an upgrade.
   That is a stage of its own.
 
-## Results computed on the server (off; an allowlist)
+## Results computed on the server (every signed-in account)
 
-Server compute (docs/design/server-compute.md, packages S4 and S5) is built and **off for everyone**. It runs only for the
-accounts on an allowlist: user ids, comma separated, from the Worker **secret `SERVER_COMPUTE_ACCOUNTS`** when one is set
-(the secret wins, even empty) and otherwise from the plain variable `SERVER_COMPUTE_USERS` in `[vars]` (empty today). **The
-owner's id goes in the secret, not in the repository**: `wrangler secret put SERVER_COMPUTE_ACCOUNTS` (not run by any
-change; the owner runs it). The secret has its own name because a secret and a variable of one name replace each other on
-deploy. `*` means everyone and is for local tests and the e2e server only: a Worker with `ENVIRONMENT = "production"` ignores
-it, from the secret as from the variable, since the deploy check cannot read the secret. For an account not on the list nothing is sent,
-computed or served, `GET /api/state` is a 404, and `/api/me` does not carry `serverState`, as with the feature absent.
+Server compute (docs/design/server-authority.md) runs for every signed-in account: the Queue, the job and `GET /api/state`
+answer for all of them, and `/api/me` no longer carries `serverState`. There is no allowlist and no `SERVER_COMPUTE_USERS`
+variable. **After this release the owner removes the `SERVER_COMPUTE_ACCOUNTS` secret** (`wrangler secret delete
+SERVER_COMPUTE_ACCOUNTS`; not run by any change): nothing reads it any more. A library past `SERVER_STATE_MAX_ACTIVITIES` still
+computes in the browser until the cap is moved (apps/api/LIMITS.md).
 
 **Apply migrations 0013 and 0014 before ANY deploy of this Worker, even with the list empty.** `GET /api/me` selects
 `library_version` (0014) and the settings routes read and write `athlete_settings` (0013) and its `zone` column (0014); a
 Worker deployed before them fails those requests for everyone. Both are additive (see their rows above). **Apply 0015 before
-the allowlist names an account**: the state job reads and writes its two columns. **Apply 0016 before deploying
+the Worker that reads it**: the state job reads and writes its two columns. **Apply 0016 before deploying
 the Worker that reads it**: `GET /api/state`, the state job and the daily re-send all read `state_jobs.analysis_revision`.
 
 **Everything this feature adds, in one place:**
 
 | Resource          | Name / value                                                                                                                                                                                                                                           |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1 migrations     | `0013_account_settings` and `0014_server_state`, both applied before any deploy; `0015_state_pending` before the allowlist names an account                                                                                                            |
+| D1 migrations     | `0013_account_settings` and `0014_server_state`, both applied before any deploy; `0015_state_pending` before the Worker that reads it                                                                                                                  |
 | Queue             | `rca-state` (`wrangler queues create rca-state`); the producer binding is `STATE_QUEUE`                                                                                                                                                                |
 | Dead-letter queue | `rca-state-dlq` (`wrangler queues create rca-state-dlq`); nothing consumes it, a message that failed its tries waits there                                                                                                                             |
 | R2 key prefix     | `users/{userId}/state/{hash}.json.gz` in the existing `rca-files` bucket; no new bucket                                                                                                                                                                |
-| Worker secret     | `SERVER_COMPUTE_ACCOUNTS` = the owner's user id (`wrangler secret put`); wins over the variable                                                                                                                                                        |
-| Worker variable   | `SERVER_COMPUTE_USERS` in `[vars]`: empty, and stays empty in the repository                                                                                                                                                                           |
+| Worker secret     | none: `SERVER_COMPUTE_ACCOUNTS` is no longer read, and the owner removes it after this release                                                                                                                                                         |
 | Wrangler blocks   | `[limits] cpu_ms = 10000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
 | Plan              | Workers Paid (Queues, `limits.cpu_ms`)                                                                                                                                                                                                                 |
 
-The blocks are what turn the feature on, since the list is in a secret the deploy check cannot read. The check
-(`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) accepts no queue and no `[limits]`, or the whole
+The deploy check (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) accepts no queue and no `[limits]`, or the whole
 set: the producer, a consumer that sets `max_batch_size`, `max_concurrency = 1`, `max_retries` and `dead_letter_queue`, and a
-CPU cap. It refuses `*` and a list without the set. No scheduled trigger computes. The daily maintenance sends one message for each listed account
-(explicit ids, at most 50; `*` re-sends nothing) whose inputs moved past its last compute while no message is on its way, so a
-lost or exhausted message leaves an account dirty for a day at most; the report counts them as `stateResent`.
+CPU cap. No scheduled trigger computes. The daily maintenance sends one message for each account (at most 50 a run, the one
+whose last compute began longest ago first) whose inputs moved past its last compute, or whose stored result revision is lower than this
+build's, while no message is on its way, so a lost or exhausted message leaves an account dirty for a day at most; the
+report counts them as `stateResent`.
 
 **Compute cost.** A write sends one message, delayed 10 s, unless one for the account is on its way already
 (`state_jobs.pending_until`), so an import of thousands of files sends tens of messages, not one per file. The job
@@ -366,7 +362,7 @@ one run a daily orphan sweep whose key pattern (`OBJECT_KEY`, `users/{id}/{file}
 `users/{id}/state/{hash}.json.gz`, so it treats every snapshot object as an orphan and deletes it at its next run once the object is an hour old.
 `state_jobs.snapshot_hash` still names the object, and a later job whose figures are the same says `unchanged` and writes
 nothing, so the account keeps a 404 and the browser computes locally. After a rollback to such a Worker and the redeploy of
-this one, for each allowlisted account (read-only check first:
+this one, for each account with a snapshot (read-only check first:
 `SELECT user_id, snapshot_hash FROM state_jobs WHERE user_id IN (...)`):
 
 1. `UPDATE state_jobs SET snapshot_hash = NULL, snapshot_version = 0 WHERE user_id IN (...)`, so the next job writes an

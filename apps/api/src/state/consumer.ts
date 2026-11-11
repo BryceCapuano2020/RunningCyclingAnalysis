@@ -1,7 +1,6 @@
 import type { Bindings } from '../env.ts'
 import type { Deps } from '../deps.ts'
 import { isReadOnly } from '../readOnly.ts'
-import { serverStateFor } from './flag.ts'
 import { runStateJob, type JobOutcome } from './job.ts'
 import {
   STATE_LOCK_RETRY_SECONDS,
@@ -14,7 +13,7 @@ import { markPending } from './pending.ts'
 /** What a batch did, for the log line: counts only, never an id or a figure. */
 export interface BatchReport {
   accounts: number
-  outcomes: Partial<Record<JobOutcome | 'failed' | 'not_listed', number>>
+  outcomes: Partial<Record<JobOutcome | 'failed', number>>
 }
 
 /**
@@ -22,7 +21,7 @@ export interface BatchReport {
  * digests are the memory the job needs, and the isolate has 128 MB. Each account's messages are answered together:
  * acknowledged when its job ran or had nothing to do, or was deferred (one later message is sent in its place). When the job failed, one message is retried and the rest acknowledged, so a failing account is tried once
  * per retry however many messages named it, up to the Queue's own retry limit. An account whose messages are lost or
- * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first. A message for an account off the allowlist is dropped, and in the operator's read-only mode every message waits.
+ * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first. In the operator's read-only mode every message waits.
  */
 export async function handleStateBatch(
   batch: MessageBatch<StateMessage>,
@@ -30,7 +29,7 @@ export async function handleStateBatch(
   deps: Deps,
 ): Promise<BatchReport> {
   const report: BatchReport = { accounts: 0, outcomes: {} }
-  const count = (outcome: JobOutcome | 'failed' | 'not_listed') => {
+  const count = (outcome: JobOutcome | 'failed') => {
     report.outcomes[outcome] = (report.outcomes[outcome] ?? 0) + 1
   }
   if (isReadOnly(env)) {
@@ -45,12 +44,6 @@ export async function handleStateBatch(
   }
   for (const [userId, messages] of byAccount) {
     report.accounts += 1
-    // A message for an account off the list (the list changed after it was sent) is dropped without a read.
-    if (!serverStateFor(env, userId)) {
-      count('not_listed')
-      for (const message of messages) message.ack()
-      continue
-    }
     try {
       const outcome = await runStateJob(env, deps, userId)
       count(outcome)

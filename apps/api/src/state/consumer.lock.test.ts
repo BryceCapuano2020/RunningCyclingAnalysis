@@ -1,4 +1,4 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { racingDb } from '../test/racingDb.ts'
 import {
@@ -68,7 +68,7 @@ describe('the consumer and the isolate lock', () => {
     await runStateJob(w.env, w.deps, w.userId)
     await w.env.DB.batch([
       w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?').bind(
-        ANALYSIS_REVISION + 1,
+        RESULT_REVISION + 1,
         w.userId,
       ),
       w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?').bind(

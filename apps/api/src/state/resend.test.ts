@@ -1,4 +1,4 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
 import { runMaintenance } from '../maintenance.ts'
 import { stateWorld } from '../test/stateKit.ts'
@@ -6,7 +6,7 @@ import { clearPending } from './pending.ts'
 import { resendDirty } from './resend.ts'
 
 describe('the daily re-send', () => {
-  it('sends one message for a listed account left dirty with none on its way, and none while one is', async () => {
+  it('sends one message for an account left dirty with none on its way, and none while one is', async () => {
     // Signing in made a profile, which raised the counter: dirty, and no write sent anything.
     const w = await stateWorld()
     const now = w.h.clock.now
@@ -18,36 +18,50 @@ describe('the daily re-send', () => {
     expect(w.sent).toHaveLength(2)
   })
 
-  it('leaves alone a current account, one off the list, everyone by *, and a Worker with no queue', async () => {
+  it('leaves alone a current account, one a later Worker computed, and a Worker with no queue', async () => {
     const w = await stateWorld()
     const now = w.h.clock.now
     await w.env.DB.prepare(
       `INSERT INTO state_jobs (user_id, computed_version, snapshot_version, analysis_revision)
        SELECT id, library_version, library_version, ? FROM users WHERE id = ?`,
     )
-      .bind(ANALYSIS_REVISION, w.userId)
+      .bind(RESULT_REVISION, w.userId)
       .run()
     expect(await resendDirty(w.env, now)).toBe(0)
     // The same compute made under the analysis revision before is stale: a deploy moved how a figure is worked out.
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION - 1, w.userId)
+      .bind(RESULT_REVISION - 1, w.userId)
       .run()
     expect(await resendDirty(w.env, now)).toBe(1)
     await clearPending(w.env.DB, w.userId)
     w.sent.length = 0
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION, w.userId)
+      .bind(RESULT_REVISION, w.userId)
       .run()
     await w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?')
       .bind(w.userId)
       .run()
     await clearPending(w.env.DB, w.userId)
-    for (const list of ['someone-else', '*', '']) {
-      expect(await resendDirty({ ...w.env, SERVER_COMPUTE_USERS: list }, now)).toBe(0)
-    }
     expect(await resendDirty({ ...w.env, STATE_QUEUE: undefined }, now)).toBe(0)
     expect(w.sent).toEqual([])
+    // A stored revision above this build's is a later Worker's: dirty inputs or not, it is not re-sent.
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
+      .bind(RESULT_REVISION + 1, w.userId)
+      .run()
+    expect(await resendDirty(w.env, now)).toBe(0)
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
+      .bind(RESULT_REVISION, w.userId)
+      .run()
     expect(await resendDirty(w.env, now)).toBe(1)
+  })
+
+  it('sends for every account, not a list, the one whose last compute began longest ago first', async () => {
+    const w = await stateWorld()
+    const other = await w.h.signIn('second@example.com')
+    expect(other).not.toBe('')
+    w.sent.length = 0
+    expect(await resendDirty(w.env, w.h.clock.now)).toBe(2)
+    expect(new Set(w.sent.map((m) => m.body.userId)).size).toBe(2)
   })
 
   it('leaves a library the server does not compute for to the browser', async () => {

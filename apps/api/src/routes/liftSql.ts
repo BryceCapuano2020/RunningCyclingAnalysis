@@ -49,6 +49,10 @@ export const DELETE_SETS = `DELETE FROM lift_sets WHERE user_id = ?1
 
 const PAGE_COLUMNS = `date, exercise, equipment, set_order, reps, load_kg, rpe, warmup, time, time_precision`
 
+/** Every set of the account in key order, for the results (`?1` is the account). One statement: a compute reads them in the batch that reads its counters. */
+export const ALL_SETS = `SELECT ${PAGE_COLUMNS} FROM lift_sets WHERE user_id = ?1
+  ORDER BY date, exercise, equipment, set_order`
+
 /** The first page: the account's sets in key order, no cursor term. ?2 is the limit. */
 export const PAGE_FIRST = `SELECT ${PAGE_COLUMNS} FROM lift_sets WHERE user_id = ?1
   ORDER BY date, exercise, equipment, set_order LIMIT ?2`

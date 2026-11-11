@@ -1,4 +1,4 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
 import { stateWorld } from '../test/stateKit.ts'
 import { claimCompute, record, type Covered } from './record.ts'
@@ -54,15 +54,15 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
     const w = await fresh()
     await record(w.env.DB, w.userId, at(9, 9, 9000), 'h1', null)
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION - 1, w.userId)
+      .bind(RESULT_REVISION - 1, w.userId)
       .run()
     expect((await record(w.env.DB, w.userId, at(1, 0, 10), 'h2', null)).held).toBe('h2')
-    expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION, v: 1, cv: 1 })
+    expect(await w.read()).toMatchObject({ rev: RESULT_REVISION, v: 1, cv: 1 })
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION + 1, w.userId)
+      .bind(RESULT_REVISION + 1, w.userId)
       .run()
     expect((await record(w.env.DB, w.userId, at(50, 50, 50_000), 'h3', null)).held).toBe('h2')
-    expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION + 1, v: 1, cv: 1 })
+    expect(await w.read()).toMatchObject({ rev: RESULT_REVISION + 1, v: 1, cv: 1 })
   })
 
   it('never lowers the coverage within a revision', async () => {
