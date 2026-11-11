@@ -108,9 +108,9 @@ describe('compute on read', () => {
     expect(before).toBeLessThan(w.h.clock.now)
   })
 
-  it('moves snapshot_now_ms for an aged day with the same figures, so the next read is a 304 with the new X-State-Now', async () => {
-    // An account with no activities: its figures do not move with the day, so the hash is the same on both sides of
-    // midnight (an activity library's would change, and the test would then say nothing about the unchanged path).
+  it('moves snapshot_now_ms for a recompute with the same figures, so the next read is a 304 with the new X-State-Now', async () => {
+    // An account with no activities, and a version bump that moves no figure: the hash is the same, so only the order
+    // columns move. (A day roll is not this case since the snapshot carries `lift.today`: it is a new hash, below.)
     const w = await stateWorld()
     await runStateJob(w.env, w.deps, w.userId)
     const get = (headers: Record<string, string>) => {
@@ -124,7 +124,9 @@ describe('compute on read', () => {
         .bind(w.userId)
         .first<{ hash: string; now: number }>()
     const before = (await read())!
-    w.h.clock.now = Math.ceil(w.h.clock.now / DAY) * DAY + 60_000
+    await w.env.DB.prepare('UPDATE users SET library_version = library_version + 3 WHERE id = ?')
+      .bind(w.userId)
+      .run()
     const res = await get({ 'If-None-Match': `"${before.hash}"` })
     const after = (await read())!
     expect(after.hash).toBe(before.hash)
@@ -139,6 +141,25 @@ describe('compute on read', () => {
         used: number
       }>(),
     ).toEqual({ used: 1 })
+  })
+
+  it('computes again for an aged day, which is a new snapshot (it names the day), and stamps the instant', async () => {
+    const w = await stateWorld()
+    await runStateJob(w.env, w.deps, w.userId)
+    const before = await w.env.DB.prepare(
+      'SELECT snapshot_hash AS hash FROM state_jobs WHERE user_id = ?',
+    )
+      .bind(w.userId)
+      .first<{ hash: string }>()
+    w.h.clock.now = Math.ceil(w.h.clock.now / DAY) * DAY + 60_000
+    const res = await w.h.send({
+      path: '/api/state',
+      cookies: w.cookies,
+      headers: { 'If-None-Match': `"${before!.hash}"` },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('ETag')).not.toBe(`"${before!.hash}"`)
+    expect(res.headers.get('X-State-Now')).toBe(String(w.h.clock.now))
   })
 
   it('computes a later Worker snapshot once per isolate, stores nothing, and answers 304 after', async () => {

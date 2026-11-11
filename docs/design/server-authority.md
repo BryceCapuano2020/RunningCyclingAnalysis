@@ -79,7 +79,9 @@ Worker's own, never when it is higher.
 **Ordering.** `record()` (`state/job.ts`) today moves the snapshot only for a higher version or a different revision,
 so a same-version recompute on a new day is refused. It becomes an order on (revision, version, lift revision, now),
 and it runs on both paths: a new hash moves the hash and the order columns; an unchanged hash moves the order columns
-only. The content hash leaves out `nowMs`, so without the second path an idle account would recompute on every read.
+only. The content hash leaves out `nowMs`, so without the second path an idle account would recompute on every read. Once
+the snapshot names the local day (`lift.today`), a day roll is a new hash, so the second path serves the same-day
+recompute that moves no figure (a version bump, a setting flipped back).
 
 ```sql
 UPDATE state_jobs SET snapshot_hash = coalesce(:hash, snapshot_hash), snapshot_version = :v,
