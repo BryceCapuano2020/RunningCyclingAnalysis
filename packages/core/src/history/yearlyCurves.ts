@@ -1,3 +1,4 @@
+import { sameMasses } from '../athlete/mass'
 import { ownRideGate } from '../digest/estimatedRide'
 import type { EstimatedRideGate } from '../digest/estimatedRide'
 import { massesOf } from '../digest/masses'
@@ -50,16 +51,9 @@ function curvesOfYears(digests: ActivityDigest[], input: HistoryInput): CurvesOf
     }))
 }
 
-/** Whether two inputs price the rides alike: the masses, the athlete's kept power, and the library's estimated-ride gate. */
+/** Whether two inputs price the rides alike: the masses and the athlete's kept power (`sameMasses`), and the library's estimated-ride gate. */
 export function sameRidePricing(a: HistoryInput, b: HistoryInput): boolean {
-  return (
-    a.gate === b.gate &&
-    a.settings.massKg === b.settings.massKg &&
-    a.settings.bikeMassKg === b.settings.bikeMassKg &&
-    a.settings.measurements === b.settings.measurements &&
-    a.settings.massAssumed === b.settings.massAssumed &&
-    sameSet(new Set(a.settings.keepPower), new Set(b.settings.keepPower))
-  )
+  return a.gate === b.gate && sameMasses(a.settings, b.settings)
 }
 
 /** Whether two inputs judge hardness alike: the same heart rates set aside, and the same reference to judge them by. */

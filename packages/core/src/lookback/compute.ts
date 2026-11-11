@@ -1,3 +1,4 @@
+import { sameMasses } from '../athlete/mass'
 import { dayShiftFor, WEEK_ORIGIN_MS } from '../calendar'
 import { DAY_MS } from '../constants'
 import { orderedFor } from '../digest/consumers'
@@ -125,12 +126,7 @@ const rememberedRunMilestones = memoByDigests<Pick<LookBackInput, 'zone'>, Effor
 /** A ride's best efforts over the years, priced by the athlete's mass, so remembered by the settings too. */
 const rememberedRideMilestones = memoByDigests<MilestonesInput, EffortMilestones[]>(
   (digests, { settings, gate }) => milestonesOf(digests, settings, gate, ['ride']).ride,
-  (a, b) =>
-    a.gate === b.gate &&
-    a.zone === b.zone &&
-    a.settings.massKg === b.settings.massKg &&
-    a.settings.bikeMassKg === b.settings.bikeMassKg &&
-    a.settings.measurements === b.settings.measurements,
+  (a, b) => a.gate === b.gate && a.zone === b.zone && sameMasses(a.settings, b.settings),
 )
 
 function compute(digests: ActivityDigest[], input: LookBackInput): LookBack {
@@ -158,9 +154,7 @@ const remembered = memoByDigests<LookBackInput, LookBack>(
     sameSet(a.setAside, b.setAside) &&
     a.gate === b.gate &&
     a.zone === b.zone &&
-    a.settings.massKg === b.settings.massKg &&
-    a.settings.bikeMassKg === b.settings.bikeMassKg &&
-    a.settings.measurements === b.settings.measurements,
+    sameMasses(a.settings, b.settings),
 )
 
 /**

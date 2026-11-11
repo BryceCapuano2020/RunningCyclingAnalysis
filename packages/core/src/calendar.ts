@@ -88,11 +88,17 @@ export function setViewerZone(zone: Zone): Zone {
  * Runs `run`, which must finish without waiting, with `zone` as the viewer's zone, and puts the zone that was there back.
  * An analysis that serves many viewers in one process (the server) is given each viewer's zone by this, so none leaks
  * into the next job; the module's own zone is only ever read inside such a call or set by `setViewerZone`.
+ *
+ * The rule for anything that serves more than one viewer from one process (the state job, `computeSnapshot`): an answer is a
+ * function of its arguments alone. The zone is the one module value the calendar reads, so it is scoped here, synchronously,
+ * and a call in a zone other than the current one gets a calendar key of its own (`calendarKey`), so nothing a memo
+ * remembered under another zone is found by it. A memo that outlives a call (`memoByDigests`, a WeakMap by digest) must key on every input its function reads
+ * (the calendar, the masses, the references, the kept power), never on the digests alone. Raising the job queue's
+ * concurrency is safe only while this holds (see apps/api/src/state/job.interleave.test.ts).
  */
 export function withViewerZone<T>(zone: Zone, run: () => T): T {
-  if (zone === viewerZone) return run()
   const version = calendarVersion
-  const before = setViewerZone(zone)
+  const before = zone === viewerZone ? zone : setViewerZone(zone)
   try {
     const result = run()
     // The zone is a module value while `run` runs. Synchronous work cannot interleave with another request's, but async work
