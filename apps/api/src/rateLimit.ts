@@ -23,7 +23,11 @@ export const publicRateLimit = createMiddleware<AppEnv>(async (c, next) => {
   const address = c.req.header('CF-Connecting-IP') ?? 'unknown'
   c.header('Retry-After', '60')
   await admit(c.env.API_RATE_LIMITER, `ip:${address}`)
-  if (c.req.path.startsWith('/api/auth/') && c.req.path !== '/api/auth/logout') {
+  // Garmin's connect and notice routes share sign-in's tighter limit: each can start work with a third party.
+  const signInLike =
+    (c.req.path.startsWith('/api/auth/') && c.req.path !== '/api/auth/logout') ||
+    c.req.path.startsWith('/api/garmin/')
+  if (signInLike) {
     await admit(c.env.AUTH_RATE_LIMITER, `auth:${address}`)
   }
   c.res.headers.delete('Retry-After')

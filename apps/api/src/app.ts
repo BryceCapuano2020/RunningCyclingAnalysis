@@ -8,6 +8,7 @@ import type { AppEnv } from './env.ts'
 import { csrfGuard } from './middleware.ts'
 import { readOnlyGuard } from './readOnly.ts'
 import { authRoutes } from './routes/auth.ts'
+import { garminRoutes } from './routes/garmin.ts'
 import { meRoutes } from './routes/me.ts'
 import { liftRoutes } from './routes/lifts.ts'
 import { measurementRoutes } from './routes/measurements.ts'
@@ -96,6 +97,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/state', stateRoutes)
   app.route('/api/lifts', liftRoutes)
   app.route('/api/activities', activityRoutes)
+  app.route('/api/garmin', garminRoutes)
 
   return app
 }
