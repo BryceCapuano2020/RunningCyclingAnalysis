@@ -140,6 +140,11 @@ export const stateJobs = sqliteTable('state_jobs', {
   pendingUntil: integer('pending_until').notNull().default(0),
   // 0016: the combine-time analysis revision the snapshot was computed under (core ANALYSIS_REVISION).
   analysisRevision: integer('analysis_revision').notNull().default(0),
+  // 0019: the lift revision the last compute covered, and the order columns of the stored snapshot (lift revision and the
+  // instant it was computed for), beside snapshotVersion and analysisRevision (docs/design/server-authority.md).
+  computedLiftRevision: integer('computed_lift_revision').notNull().default(0),
+  snapshotLiftRevision: integer('snapshot_lift_revision').notNull().default(0),
+  snapshotNowMs: integer('snapshot_now_ms').notNull().default(0),
 })
 
 /**

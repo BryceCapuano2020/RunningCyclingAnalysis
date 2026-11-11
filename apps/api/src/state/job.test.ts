@@ -15,6 +15,8 @@ import {
 } from '../test/stateKit.ts'
 import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { runStateJob } from './job.ts'
+import { computeAndStore } from './refresh.ts'
+import { jobRow } from './row.ts'
 import { zoneNamed } from './zone.ts'
 
 const digests = libraryDigests()
@@ -43,6 +45,15 @@ async function row(w: Awaited<ReturnType<typeof prepared>>) {
       snapshot_hash: string | null
       snapshot_version: number
     }>()
+}
+
+async function nowMsOf(w: Awaited<ReturnType<typeof prepared>>): Promise<number> {
+  const found = await w.env.DB.prepare(
+    'SELECT snapshot_now_ms AS n FROM state_jobs WHERE user_id = ?',
+  )
+    .bind(w.userId)
+    .first<{ n: number }>()
+  return found!.n
 }
 
 async function version(w: Awaited<ReturnType<typeof prepared>>): Promise<number> {
@@ -184,9 +195,11 @@ describe('the state job', () => {
     expect(second).toMatchObject({
       computed_version: first!.computed_version + 3,
       snapshot_hash: first!.snapshot_hash,
-      snapshot_version: first!.snapshot_version,
+      // The order columns move on the unchanged path too (the day, the version), so the next read is a 304.
+      snapshot_version: first!.computed_version + 3,
       computed_at: w.h.clock.now,
     })
+    expect(await nowMsOf(w)).toBe(w.h.clock.now)
     expect(await stored(w)).toEqual([key])
   })
 
@@ -256,7 +269,15 @@ describe('the state job', () => {
             }
             await seedDigests(w.env.DB, w.userId, [extra], 6_000)
             w.h.clock.now = extra.startMs + 7_200_000
-            expect(await runStateJob({ ...w.env, FILES: target }, w.deps, w.userId)).toBe('written')
+            // Another isolate: the lock is this one's, so the second compute runs past it.
+            const other = await computeAndStore(
+              { ...w.env, FILES: target },
+              w.deps,
+              w.userId,
+              (await jobRow(w.env.DB, w.userId))!,
+              true,
+            )
+            expect(other.kind).toBe('written')
           }
           return result
         }
@@ -299,18 +320,6 @@ describe('the state job', () => {
     await expect(runStateJob({ ...w.env, FILES: undefined }, w.deps, w.userId)).rejects.toThrow(
       'no file storage',
     )
-  })
-
-  it('removes the object it wrote when the row cannot take it', async () => {
-    const w = await prepared()
-    const env = {
-      ...w.env,
-      DB: racingDb(w.env.DB, /INSERT INTO state_jobs \(user_id, computed_version/, async () => {
-        await w.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(w.userId).run()
-      }),
-    }
-    await expect(runStateJob(env, w.deps, w.userId)).rejects.toThrow()
-    expect(await stored(w)).toEqual([])
   })
 
   it('reads no digest when the R2 ledger would refuse the snapshot, so a retry costs no compute', async () => {

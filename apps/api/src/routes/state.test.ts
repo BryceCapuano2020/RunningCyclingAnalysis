@@ -5,8 +5,6 @@ import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/st
 import { createHarness } from '../test/harness.ts'
 import { runStateJob } from '../state/job.ts'
 
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
-
 const digests = libraryDigests()
 
 async function ready(email?: string) {
@@ -60,6 +58,7 @@ describe('GET /api/state', () => {
       },
     })
     const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', FILES: watched })
+    h.clock.now = w.h.clock.now
     const res = await h.send({
       path: '/api/state',
       cookies: w.cookies,
@@ -93,7 +92,7 @@ describe('GET /api/state', () => {
     expect((await w.get()).status).toBe(200)
   })
 
-  it('answers a signed-out request 404 with an account listed, as with none, and a 404 for an account with no snapshot', async () => {
+  it('answers a signed-out request 404 with an account listed, as with none', async () => {
     const w = await ready()
     expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
     // A cross-site signed-out request, and a stale session, give nothing away either.
@@ -103,8 +102,6 @@ describe('GET /api/state', () => {
     expect(
       (await w.h.send({ path: '/api/state', cookies: { rca_session: 'not-a-session' } })).status,
     ).toBe(404)
-    const other = await stateWorld({ email: 'other@example.com' })
-    expect((await other.h.send({ path: '/api/state', cookies: other.cookies })).status).toBe(404)
   })
 
   it('serves an account only its own snapshot', async () => {
@@ -137,23 +134,6 @@ describe('GET /api/state', () => {
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('daily_limit')
   })
 
-  it('serves no snapshot made under another analysis revision, and asks the job for a new one once', async () => {
-    const w = await ready()
-    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION - 1, w.userId)
-      .run()
-    w.sent.length = 0
-    // The compute that made it began moments ago: a read within the interval asks for nothing.
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([])
-    w.h.clock.now += 60_000
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 10 } }])
-    // A message is on its way: the next read sends none.
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toHaveLength(1)
-  })
-
   it('asks for nothing for a library the server does not compute for, however often it is read', async () => {
     const w = await ready()
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ?')
@@ -166,26 +146,5 @@ describe('GET /api/state', () => {
     w.h.clock.now += 60_000
     for (let i = 0; i < 3; i += 1) expect((await w.get()).status).toBe(404)
     expect(w.sent).toEqual([])
-  })
-
-  it('treats an object an older Worker wrote as stale: no revision of its own, whatever the row says', async () => {
-    const w = await ready()
-    const key = `users/${w.userId}/state/${w.hash}.json.gz`
-    const object = await w.env.FILES!.get(key)
-    const bytes = new Uint8Array(await object!.arrayBuffer())
-    // An older Worker's put: the same bytes, no revision in the object's metadata, and the row left as it was.
-    await w.env.FILES!.put(key, bytes, {
-      httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
-    })
-    w.sent.length = 0
-    w.h.clock.now += 60_000
-    expect((await w.get()).status).toBe(404)
-    const row = await w.env.DB.prepare(
-      'SELECT analysis_revision AS r FROM state_jobs WHERE user_id = ?',
-    )
-      .bind(w.userId)
-      .first<{ r: number }>()
-    expect(row?.r).toBe(0)
-    expect(w.sent).toHaveLength(1)
   })
 })

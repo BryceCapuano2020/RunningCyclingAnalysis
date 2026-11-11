@@ -1,7 +1,9 @@
 import { DEFAULT_BIKE_MASS_KG, StoredActivityDigestSchema } from '@rca/contract'
 import type { AccountSettings } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
+import type { LiftSet } from '@rca/core/lift'
 import type { ActivityDigest } from '@rca/core/types'
+import { toLiftSet, type LiftRow } from '../routes/liftSql.ts'
 import { toSettings, type SettingsRow } from './settingsRow.ts'
 
 /** Digest rows read in one query: about half a megabyte at a typical 5 KiB each. */
@@ -10,6 +12,10 @@ const PAGE_ROWS = 100
 /** Everything the account's results are a function of, read at one `library_version`. */
 export interface StateInputs {
   version: number
+  /** `users.lift_revision` at the same read: a compute never records a revision whose sets it did not read. */
+  liftRevision: number
+  /** The account's lift sets in key order. Read with the version so a write is caught; no figure takes them yet. */
+  liftSets: LiftSet[]
   digests: ActivityDigest[]
   /** Rows whose digest would not parse (skipped, as the browser skips them). */
   unreadable: number
@@ -44,24 +50,27 @@ interface DigestRow {
   digest_json: string
 }
 
-async function versionOf(db: D1Database, userId: string): Promise<number | null> {
-  const row = await db
-    .prepare('SELECT library_version FROM users WHERE id = ? AND deleting_at IS NULL')
-    .bind(userId)
-    .first<{ library_version: number }>()
-  return row === null ? null : row.library_version
+interface Counters {
+  library_version: number
+  lift_revision: number
+}
+
+const COUNTERS =
+  'SELECT library_version, lift_revision FROM users WHERE id = ? AND deleting_at IS NULL'
+
+async function countersOf(db: D1Database, userId: string): Promise<Counters | null> {
+  return db.prepare(COUNTERS).bind(userId).first<Counters>()
 }
 
 /**
- * The account's inputs as of one version (decision 6): the version and every small input in one D1 batch, which is one
- * transaction, then the digests in pages by the listing's own key, then the version again. A write between the two reads
- * raises it, and the read is refused (`InputsMoved`) instead of mixing two versions. Null when the account is gone or deleting.
+ * The account's inputs as of one version (decision 6): the library version, the lift revision and every small input
+ * (the lift sets included) in one D1 batch, which is one transaction, then the digests in pages by the listing's own key,
+ * then both counters again. A write to either between the two reads raises it, and the read is refused (`InputsMoved`)
+ * instead of mixing two versions. Null when the account is gone or deleting.
  */
 export async function readInputs(db: D1Database, userId: string): Promise<StateInputs | null> {
-  const [version, profile, measurements, settings] = await db.batch([
-    db
-      .prepare('SELECT library_version FROM users WHERE id = ? AND deleting_at IS NULL')
-      .bind(userId),
+  const [counters, profile, measurements, settings, lifts] = await db.batch([
+    db.prepare(COUNTERS).bind(userId),
     db
       .prepare('SELECT mass_kg, bike_mass_kg, birth_year, sex FROM profiles WHERE user_id = ?')
       .bind(userId),
@@ -76,8 +85,14 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
         'SELECT keep_power, counted_runs, period, zone FROM athlete_settings WHERE user_id = ?',
       )
       .bind(userId),
+    db
+      .prepare(
+        `SELECT date, exercise, equipment, set_order, reps, load_kg, rpe, warmup, time, time_precision
+         FROM lift_sets WHERE user_id = ? ORDER BY date, exercise, equipment, set_order`,
+      )
+      .bind(userId),
   ])
-  const start = (version!.results as { library_version: number }[])[0]
+  const start = (counters!.results as Counters[])[0]
   if (start === undefined) return null
   const digests: ActivityDigest[] = []
   let unreadable = 0
@@ -100,10 +115,15 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     if (last === undefined || page.results.length < PAGE_ROWS) break
     after = { createdAt: last.created_at, id: last.id }
   }
-  if ((await versionOf(db, userId)) !== start.library_version) throw new InputsMoved()
+  const end = await countersOf(db, userId)
+  if (end?.library_version !== start.library_version || end.lift_revision !== start.lift_revision) {
+    throw new InputsMoved()
+  }
   const own = (profile!.results as ProfileRow[])[0]
   return {
     version: start.library_version,
+    liftRevision: start.lift_revision,
+    liftSets: (lifts!.results as LiftRow[]).map(toLiftSet),
     digests,
     unreadable,
     massKg: own?.mass_kg ?? null,

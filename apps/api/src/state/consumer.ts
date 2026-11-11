@@ -3,7 +3,12 @@ import type { Deps } from '../deps.ts'
 import { isReadOnly } from '../readOnly.ts'
 import { serverStateFor } from './flag.ts'
 import { runStateJob, type JobOutcome } from './job.ts'
-import { STATE_MIN_INTERVAL_SECONDS, STATE_RETRY_SECONDS, type StateMessage } from './message.ts'
+import {
+  STATE_LOCK_RETRY_SECONDS,
+  STATE_MIN_INTERVAL_SECONDS,
+  STATE_RETRY_SECONDS,
+  type StateMessage,
+} from './message.ts'
 import { markPending } from './pending.ts'
 
 /** What a batch did, for the log line: counts only, never an id or a figure. */
@@ -56,6 +61,13 @@ export async function handleStateBatch(
         if (env.STATE_QUEUE === undefined) throw new Error('state job: no queue bound')
         await markPending(env.DB, userId, deps.now(), STATE_MIN_INTERVAL_SECONDS)
         await env.STATE_QUEUE.send({ userId }, { delaySeconds: STATE_MIN_INTERVAL_SECONDS })
+      }
+      if (outcome === 'busy') {
+        // This isolate is computing for a read: every message waits a few seconds and none is acknowledged, so a write made
+        // with no tab open is still computed. The marker is held so a write in the meantime does not send another.
+        for (const message of messages) message.retry({ delaySeconds: STATE_LOCK_RETRY_SECONDS })
+        await markPending(env.DB, userId, deps.now(), STATE_LOCK_RETRY_SECONDS)
+        continue
       }
       // A write that landed mid-read sent its own message; this one is spent either way.
       for (const message of messages) message.ack()

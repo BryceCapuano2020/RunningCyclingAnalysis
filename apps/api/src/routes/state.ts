@@ -1,6 +1,12 @@
 import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { Hono } from 'hono'
-import { STATE_DELAY_SECONDS, STATE_MIN_INTERVAL_SECONDS } from '../state/message.ts'
+import type { Context } from 'hono'
+import { claimCompute } from '../state/record.ts'
+import {
+  STATE_CLAIM_SECONDS,
+  STATE_DELAY_SECONDS,
+  STATE_MIN_INTERVAL_SECONDS,
+} from '../state/message.ts'
 import { claimPending } from '../state/pending.ts'
 import type { AppEnv, Bindings } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
@@ -10,12 +16,12 @@ import { getOriginalFile } from '../storage.ts'
 import { SERVER_STATE_MAX_ACTIVITIES, serverStateAnyone, serverStateFor } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
 import { inflate } from '../state/store.ts'
+import { keepUnstored, unstoredFor, unstoredKey, withComputeLock } from '../state/lock.ts'
+import { computeAndStore, type Computed } from '../state/refresh.ts'
+import { isCurrent, jobRow, localDayOf, revisionOrder, type JobRow } from '../state/row.ts'
 
 /** What the read knows of the account's job: enough to tell whether asking for a compute again could help. */
-interface StaleRow {
-  activity_count: number
-  attempted_at: number | null
-}
+type StaleRow = Pick<JobRow, 'activity_count' | 'attempted_at'>
 
 /**
  * Asks the state job to compute an account again, unless a message for it is on its way, the server does not compute for
@@ -68,58 +74,74 @@ stateRoutes.use('*', requireUserOrNotFound, async (c, next) => {
   await next()
 })
 
-stateRoutes.get('/', sameOriginReadGuard, async (c) => {
-  const bucket = c.env.FILES!
-  const userId = currentUser(c).id
-  await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
-  const row = await c.env.DB.prepare(
-    `SELECT j.snapshot_hash, j.computed_version, j.analysis_revision, j.attempted_at, u.activity_count
-     FROM state_jobs j JOIN users u ON u.id = j.user_id WHERE j.user_id = ?`,
-  )
-    .bind(userId)
-    .first<
-      StaleRow & {
-        snapshot_hash: string | null
-        computed_version: number
-        analysis_revision: number
-      }
-    >()
-  if (row?.snapshot_hash == null) throw NOT_FOUND()
-  // A snapshot made under another analysis revision (a deploy changed how a figure is worked out) is not served: the
-  // browser computes locally, and one message asks the job to compute it again under this build's analysis.
-  if (row.analysis_revision !== ANALYSIS_REVISION) {
-    await sendStale(c.env, userId, c.var.deps.now(), row)
-    throw NOT_FOUND()
-  }
-  const etag = `"${row.snapshot_hash}"`
+/** Seconds a client waits before asking again when the answer is still being computed. */
+const COMPUTING_RETRY_SECONDS = 2
+
+type Ctx = Context<AppEnv>
+
+/** What every answer about a snapshot carries: its tag, no caching, and the instant it was computed for. */
+function headersFor(hash: string, nowMs: number, version: number): Record<string, string> {
   // `no-store` like every /api response, so the browser never keeps a copy of the account's results in its HTTP cache. It
   // therefore sends no conditional request of its own: the client sets If-None-Match from the hash of its device copy.
   // `X-State-Computed-Version` is the library version the latest compute covered, for a client that knows a newer one.
-  const headers = {
-    ETag: etag,
+  // `X-State-Now` is the instant the snapshot was computed for, a 304 included: an unchanged recompute moves it.
+  return {
+    ETag: `"${hash}"`,
     'Cache-Control': 'no-store',
-    'X-State-Computed-Version': String(row.computed_version),
+    'X-State-Computed-Version': String(version),
+    'X-State-Now': String(nowMs),
   }
-  if (matches(c.req.header('If-None-Match'), etag)) return c.body(null, 304, headers)
+}
+
+const computing = (c: Ctx) =>
+  c.json({ state: 'computing' }, 202, {
+    'Retry-After': String(COMPUTING_RETRY_SECONDS),
+    'Cache-Control': 'no-store',
+  })
+
+/** A computed result as an answer: a 304 for a client holding its tag, else the snapshot as plain JSON. */
+function answer(c: Ctx, done: Extract<Computed, { snapshot: unknown }>): Response {
+  const headers = headersFor(done.hash, done.nowMs, done.version)
+  if (matches(c.req.header('If-None-Match'), headers.ETag!)) return c.body(null, 304, headers)
+  return c.body(JSON.stringify(done.snapshot), 200, {
+    ...headers,
+    'Content-Type': 'application/json',
+  })
+}
+
+/**
+ * The stored snapshot as an answer. A 304 is free and reads no object; a body costs a unit of the read budget, unless
+ * `under` says this isolate is computing and the stored one is served in its place (then `X-State-Current: 0`, and nothing
+ * is charged). Returns 'stale' for an object an older Worker wrote (its metadata names no revision of this build's): the
+ * row is marked so and the caller computes it again.
+ */
+async function serveStored(c: Ctx, row: JobRow, under: boolean): Promise<Response | 'stale'> {
+  const userId = currentUser(c).id
+  const hash = row.snapshot_hash!
+  const headers: Record<string, string> = {
+    ...headersFor(hash, row.snapshot_now_ms ?? 0, row.computed_version ?? 0),
+    ...(under ? { 'X-State-Current': '0' } : {}),
+  }
+  if (matches(c.req.header('If-None-Match'), headers.ETag!)) return c.body(null, 304, headers)
+  if (!under) await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
   const object = await getOriginalFile(
     c.env.DB,
-    bucket,
-    stateKey(userId, row.snapshot_hash),
+    c.env.FILES!,
+    stateKey(userId, hash),
     c.var.deps.now,
   )
   // The row names an object that is gone (swept, or the put was lost): there is no snapshot to serve.
   if (object === null) throw NOT_FOUND()
   // An object an older Worker wrote (a rollback, a rolling deploy) carries no revision of its own while the row, which
-  // that Worker does not keep, still says this one. It is stale: the row is marked so, and the job computes it again.
-  if (object.customMetadata?.analysisRevision !== String(ANALYSIS_REVISION)) {
+  // that Worker does not keep, still says this one. Only a lower revision is reset: a later Worker's is left alone.
+  if (Number(object.customMetadata?.analysisRevision ?? 0) < ANALYSIS_REVISION) {
     await object.body.cancel().catch(() => undefined)
     await c.env.DB.prepare(
       'UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ? AND snapshot_hash = ?',
     )
-      .bind(userId, row.snapshot_hash)
+      .bind(userId, hash)
       .run()
-    await sendStale(c.env, userId, c.var.deps.now(), row)
-    throw NOT_FOUND()
+    return 'stale'
   }
   const gzip = /\bgzip\b/i.test(c.req.header('Accept-Encoding') ?? '')
   const contentHeaders = { ...headers, 'Content-Type': 'application/json' }
@@ -130,4 +152,113 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     encodeBody: 'manual',
     headers: { ...contentHeaders, 'Content-Encoding': 'gzip' },
   })
+}
+
+/**
+ * Computes in the request, under the isolate's lock. The unit of read budget is taken inside the lock and given back when
+ * the compute comes to nothing. `store` is false when the stored snapshot is a later Worker's: the result is then kept in
+ * the isolate for the next read and the row and bucket are not touched. Null when the lock is taken or another isolate holds the claim (`claimCompute`).
+ */
+async function computeInRequest(
+  c: Ctx,
+  row: JobRow,
+  store: boolean,
+  claim: { held: boolean },
+): Promise<Computed | null> {
+  const userId = currentUser(c).id
+  const run = await withComputeLock(async () => {
+    // Another isolate, or another tab, began a compute a moment ago: this read serves what is stored.
+    // The claim is taken once per request: a second read of the inputs after a write moved them is still this request's.
+    if (store && !claim.held) {
+      claim.held = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
+      if (!claim.held) return null
+    }
+    const charge = await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
+    let done: Computed
+    try {
+      done = await computeAndStore(c.env, c.var.deps, userId, row, store)
+    } catch (error) {
+      await charge.refund().catch(() => undefined)
+      throw error
+    }
+    if (done.kind === 'gone' || done.kind === 'moved') await charge.refund().catch(() => undefined)
+    return done
+  })
+  return run.ran ? run.value : null
+}
+
+const CLAIM_MS = STATE_CLAIM_SECONDS * 1000
+
+stateRoutes.get('/', sameOriginReadGuard, async (c) => {
+  const userId = currentUser(c).id
+  const now = c.var.deps.now()
+  let row = await jobRow(c.env.DB, userId)
+  if (row === null) throw NOT_FOUND()
+  // A library past the limit is the browser's to compute (until the cap is measured and moved): the stored snapshot is
+  // served while it is this build's, and one message asks for a new one when it is not.
+  if (row.activity_count > SERVER_STATE_MAX_ACTIVITIES) {
+    if (revisionOrder(row) !== 'same') {
+      await sendStale(c.env, userId, now, row)
+      throw NOT_FOUND()
+    }
+    const served = await serveStored(c, row, false)
+    if (served === 'stale') throw NOT_FOUND()
+    return served
+  }
+  const claim = { held: false }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const order = revisionOrder(row)
+    if (isCurrent(row, now)) {
+      const served = await serveStored(c, row, false)
+      if (served !== 'stale') return served
+      // The object was an older Worker's: the row is reset, and the same read computes it again.
+      const reset = await jobRow(c.env.DB, userId)
+      if (reset === null) throw NOT_FOUND()
+      row = reset
+      continue
+    }
+    const key = unstoredKey(
+      userId,
+      row.library_version,
+      row.lift_revision,
+      localDayOf(row.zone, now),
+    )
+    const kept = order === 'newer' ? unstoredFor(key) : undefined
+    if (kept !== undefined) {
+      const headers = headersFor(kept.hash, kept.nowMs, kept.version)
+      if (matches(c.req.header('If-None-Match'), headers.ETag!)) return c.body(null, 304, headers)
+      await chargeDaily(c.env.DB, userId, 'stateRead', now)
+      return c.body(kept.json, 200, { ...headers, 'Content-Type': 'application/json' })
+    }
+    const done = await computeInRequest(c, row, order !== 'newer', claim)
+    if (done === null) {
+      // Computing for another read: serve what is stored while it is this build's own, else say it is coming.
+      if (order === 'same') {
+        const served = await serveStored(c, row, true)
+        if (served !== 'stale') return served
+      }
+      return computing(c)
+    }
+    if (done.kind === 'gone') throw NOT_FOUND()
+    if (done.kind === 'moved') {
+      // A write landed while the inputs were read: read the row again, once.
+      const again = await jobRow(c.env.DB, userId)
+      if (again === null) throw NOT_FOUND()
+      row = again
+      continue
+    }
+    if (done.kind === 'unstored') {
+      keepUnstored(
+        unstoredKey(userId, done.version, done.liftRevision, localDayOf(row.zone, done.nowMs)),
+        {
+          hash: done.hash,
+          json: JSON.stringify(done.snapshot),
+          nowMs: done.nowMs,
+          version: done.version,
+        },
+      )
+    }
+    return answer(c, done)
+  }
+  return computing(c)
 })
