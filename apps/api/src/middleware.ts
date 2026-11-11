@@ -13,8 +13,18 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
  * Every non-GET /api request must carry the custom header. A cross-site form cannot add it, so
  * this stops CSRF even though the session cookie is sent with same-site requests.
  */
+/**
+ * Server-to-server notices: the provider's server sends them with no session cookie and no custom header, so a
+ * cross-site form gains nothing there. Each acts only on what the notice itself proves (routes/garmin.ts).
+ */
+const PROVIDER_NOTICE_PATHS = new Set(['/api/garmin/deregistration'])
+
 export const csrfGuard = createMiddleware<AppEnv>(async (c, next) => {
-  if (!SAFE_METHODS.has(c.req.method) && c.req.header(CLIENT_HEADER) !== CLIENT_HEADER_VALUE) {
+  if (
+    !SAFE_METHODS.has(c.req.method) &&
+    !PROVIDER_NOTICE_PATHS.has(c.req.path) &&
+    c.req.header(CLIENT_HEADER) !== CLIENT_HEADER_VALUE
+  ) {
     throw new HttpError(403, 'csrf_rejected', `Requests must send ${CLIENT_HEADER}`)
   }
   await next()
