@@ -19,7 +19,7 @@ import { ZoneTables } from '../components/ZoneTables'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { WAITING_FOR_ACCOUNT } from '../analysis/copy'
-import type { AnalysisController } from '../useAnalysis'
+import type { ProfileView } from '../analysis/views'
 import type { ProfilePatch } from '../profilePatch'
 import { hrefFor } from '../route'
 import { SAMPLE_PROFILE, sampleProfileAt } from '../sampleAthlete'
@@ -32,7 +32,7 @@ import './ProfilePage.css'
 import { PageHeading } from '../components/PageHeading'
 
 export interface ProfilePageProps {
-  analysis: AnalysisController
+  analysis: ProfileView
   settings: WeightSettings
   /** The settings the analysis runs on, dated ones included, which the zones are worked out from. */
   athlete: AthleteSettings

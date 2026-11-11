@@ -1,13 +1,13 @@
 import { AddFilesButton } from '../components/AddFilesButton'
 import { HeldBackList } from '../components/HeldBackList'
 import { heldViewFor } from './heldLibraryView'
-import type { AnalysisController } from '../useAnalysis'
+import type { HeldView } from '../analysis/views'
 import './HeldLibraryPage.css'
 import { PageHeading } from '../components/PageHeading'
 import { limitReached } from '../limitCopy'
 
 export interface HeldLibraryPageProps {
-  analysis: AnalysisController
+  analysis: HeldView
   signedIn: boolean
   /** Whether originals can be rebuilt from at all (the server's file retention is on). */
   fileRetentionAvailable: boolean

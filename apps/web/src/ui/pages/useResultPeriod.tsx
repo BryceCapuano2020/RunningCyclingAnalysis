@@ -11,12 +11,12 @@ import { usePeriodChoice } from '../periodPreference'
 import { countSport } from '../records'
 import { hrefFor } from '../route'
 import type { Route } from '../route'
-import type { AnalysisController } from '../useAnalysis'
+import type { PeriodView } from '../analysis/views'
 import { periodNoteRows } from '../periodNoteRows'
 
 export interface ResultPeriodInput {
   route: Route
-  analysis: AnalysisController
+  analysis: PeriodView
   /** Every activity on file, counted or not. */
   library: ActivitySummary[]
   /** What the analysis rests on: the library less the runs at walking pace. */

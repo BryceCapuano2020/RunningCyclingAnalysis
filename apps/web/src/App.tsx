@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
-import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header } from './ui/components'
 import { AppFooter } from './ui/components/AppFooter'
@@ -11,7 +9,6 @@ import { SetupDialog } from './ui/components/SetupDialog'
 import { SkipLink } from './ui/components/SkipLink'
 import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
-import { ageProfileOf } from './ui/grades'
 import { documentTitleFor, routeName, useDocumentTitle } from './ui/documentTitle'
 import { Shell } from './ui/components/Rail'
 import { LibraryLoadingPage } from './ui/pages/LibraryLoadingPage'
@@ -30,20 +27,15 @@ import { useLoadedPages } from './ui/useLoadedPages'
 import { useRunThenFocus } from './ui/useRunThenFocus'
 import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
+import { useAccountDeleted, useRemoveAll } from './ui/useRemoval'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
-import { datedWeightActions } from './ui/datedWeight'
-import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
-import { useNow } from './ui/useNow'
-import { usePreferences } from './ui/useSettings'
+import { SETTINGS_NOT_READY } from './ui/useMeasurements'
+import { useAthlete } from './ui/useAthlete'
 import { forgetPreferences } from './ui/preferencesStorage'
 import { useExportWeight } from './ui/useExportWeight'
 import { useSetup } from './ui/useSetup'
-import { athleteValuesOf } from './ui/profilePatch'
-import type { AthleteValues } from './ui/profilePatch'
-import { saveAnswersFor } from './ui/saveAnswers'
 import { weightKnown } from './ui/athlete'
-import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
 import { useAccountSettings } from './ui/useAccountSettings'
@@ -54,64 +46,31 @@ import { useSignInProblem } from './ui/signInProblem'
 import { halfOfState } from './ui/runHalf'
 
 export function App() {
-  const [preferences, setPreferences] = usePreferences()
   const account = useAccount()
   const route = useRoute()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
-  // Signed in, the saved profile is the source of truth; signed out, local preferences are.
-  const athleteValues: AthleteValues = profile
-    ? athleteValuesOf(profile)
-    : {
-        settings: preferences.settings,
-        units: preferences.units,
-        birthYear: preferences.birthYear,
-        sex: preferences.sex,
-      }
-  const { units } = athleteValues
-  const measurements = useMeasurements(account.status, account.me?.user.id ?? null)
-  // The weight today is the dated weight in effect today, whatever the saved profile holds, so a weight
-  // dated for a later day takes effect on that day with no edit. Without dated weights it is the profile's.
-  const now = useNow()
-  const liftDay = useLiftDay(now)
-  const settings = {
-    ...athleteValues.settings,
-    massKg: bodyMassOn(athleteValues.settings.massKg, measurements.entries, now),
-  }
-  // The analysis and the results take a body mass even before one is entered; see analysisSettings.
-  // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
+  const {
+    preferences,
+    athleteValues,
+    measurements,
+    now,
+    settings,
+    analysisAthlete,
+    ageProfile,
+    saveProfile,
+    addSetting,
+    removeSetting,
+  } = useAthlete(account, profile, countedRuns.keys, keptPower.ids)
+  const { units } = athleteValues
+  const liftDay = useLiftDay(now)
   const accountChoices = useAccountSettings(account.status, account.me?.user.id ?? null)
   const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
-  const analysisAthlete = useAnalysisSettings(
-    settings,
-    measurements.entries,
-    athleteValues.birthYear,
-    countedRuns.keys,
-    keptPower.ids,
-    athleteValues.sex,
-  )
-  // The year of birth and sex the grades need, or null while either is missing.
-  const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
-
-  const saveAnswers = saveAnswersFor(
-    signedIn,
-    athleteValues,
-    preferences,
-    setPreferences,
-    account.updateProfile,
-  )
-
-  const { saveProfile, addSetting, removeSetting } = datedWeightActions({
-    measurements,
-    now,
-    profileKg: athleteValues.settings.massKg,
-    saveAnswers,
-  })
 
   const analysis = useAnalysis(analysisAthlete, account)
   const liftAccount = useLiftAccount(account, analysis.accountLift)
@@ -175,38 +134,11 @@ export function App() {
   // Pages that load on first use preload while results are on their way; focus and scroll wait for them to show.
   const onShown = useLoadedPages(key, analysis.busy || analysis.restoring || signedIn)
 
-  // Removing all activities clears the analysis in the worker. The landing page shows once the old
-  // result is gone, so it never flashes on the way. Leaving Profile first cancels the move; it
-  // replaces the Profile history entry rather than adding one.
-  const removingAll = useRef(false)
-  const removeAll = () => {
-    // The runs counted at walking pace are forgotten when the worker reports the library forgotten (rememberKept).
-    analysis.clear()
-    // With no result on screen the effect below never runs, so the landing page is shown now.
-    if (!hasResult) {
-      window.location.replace(hrefFor({ page: 'balance' }))
-      return
-    }
-    removingAll.current = true
-  }
-  useEffect(() => {
-    if (!removingAll.current) return
-    if (route.page !== 'profile') removingAll.current = false
-    else if (!hasResult) {
-      removingAll.current = false
-      window.location.replace(hrefFor({ page: 'balance' }))
-    }
-  }, [hasResult, route.page])
-
+  const removeAll = useRemoveAll(analysis.clear, hasResult, route.page)
   // Once the account is gone, its Profile page has nothing left to show, so the visitor goes to the
   // landing page, which says what was deleted. A failed delete rejects before this line, and the
-  // dialog stays open. The note goes once the visitor moves to another page.
-  const [accountDeleted, setAccountDeleted] = useState(false)
-  const [notedPage, setNotedPage] = useState(route.page)
-  if (notedPage !== route.page) {
-    setNotedPage(route.page)
-    if (route.page !== 'balance') setAccountDeleted(false)
-  }
+  // dialog stays open.
+  const [accountDeleted, setAccountDeleted] = useAccountDeleted(route.page)
   const deleteAccount = async () => {
     await account.deleteAccount()
     forgetAccountChoices()

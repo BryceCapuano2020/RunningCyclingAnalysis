@@ -1,5 +1,5 @@
 import type { UnitSystem } from '@rca/core/units'
-import type { AnalysisController } from '../useAnalysis'
+import type { NoticesView } from '../analysis/views'
 import { detailCoverageLine, judgedDetail } from '../analysis/detailCoverage'
 import { countedDespiteText, leftOutNote, leftOutRuns } from '../analysis/walkingPaceCopy'
 import { SPORT_LABEL } from '../sports'
@@ -30,7 +30,7 @@ const NO_LIFT_ACCOUNT: DeviceLiftsAccount = {
 }
 
 export interface AppNoticesProps {
-  analysis: AnalysisController
+  analysis: NoticesView
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean

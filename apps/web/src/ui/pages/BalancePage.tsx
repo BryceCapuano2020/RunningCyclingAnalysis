@@ -22,7 +22,7 @@ import { headlineHalf, raceAnswerFor } from '../raceAnswer'
 import { halfForecastOf } from '../runHalf'
 import { useLiftResults } from '../lift/useLiftResults'
 import type { LiftSummaryAccount } from '../lift/useLiftResults'
-import type { AnalysisController } from '../useAnalysis'
+import type { BalanceView } from '../analysis/views'
 import { BalanceHero } from './BalanceHero'
 import { BalanceTiles } from './BalanceTiles'
 import { CheckInLine } from './CheckInLine'
@@ -32,7 +32,7 @@ import { SportInvitation } from './SportInvitation'
 import './BalancePage.css'
 
 export interface BalancePageProps {
-  analysis: AnalysisController
+  analysis: BalanceView
   result: AnalysisResult
   settings: AthleteSettings
   units: UnitSystem

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { UnitSystem } from '@rca/core/units'
-import type { AnalysisController } from '../analysis/controller'
+import type { CheckInView } from '../analysis/views'
 import { checkInWords, firstRowOf } from '../checkInRow'
 import { CheckInRow } from './CheckInRow'
 
 export interface CheckInLineProps {
-  analysis: Pick<AnalysisController, 'state' | 'checkIn' | 'markCheckInSeen' | 'incompleteImport'>
+  analysis: CheckInView
   units: UnitSystem
 }
 

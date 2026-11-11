@@ -13,7 +13,7 @@ import { startedInPeriod } from '../activityCounts'
 import { sportEmptyText } from '../periodCopy'
 import { ActivityPage, HistoryPage } from '../lazyPages'
 import type { Route } from '../route'
-import type { AnalysisController } from '../useAnalysis'
+import type { ResultView } from '../analysis/views'
 import type { CountedRunsController } from '../useCountedRuns'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS, sampleProfileAt } from '../sampleAthlete'
 import { ActivitiesPage } from './ActivitiesPage'
@@ -30,7 +30,7 @@ import { useResultPeriod } from './useResultPeriod'
 
 export interface ResultPageProps {
   route: Route
-  analysis: AnalysisController
+  analysis: ResultView
   result: AnalysisResult
   settings: AthleteSettings
   /** False while no body weight is entered; the results on screen and on the card then wait for one. */

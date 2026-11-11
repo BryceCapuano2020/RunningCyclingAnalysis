@@ -2,7 +2,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
 import { useTouchFirst } from '../useMediaQuery'
-import type { AnalysisController } from '../useAnalysis'
+import type { LandingView } from '../analysis/views'
 import { LandingExample } from './LandingExample'
 import './LandingPage.css'
 import { PageHeading } from '../components/PageHeading'
@@ -10,7 +10,7 @@ import { PageHeading } from '../components/PageHeading'
 const METHOD_HEADING_ID = 'landing-method-heading'
 
 export interface LandingPageProps {
-  analysis: AnalysisController
+  analysis: LandingView
   signedIn: boolean
   /** The units the example's weight is told in. Metric without one. */
   units?: UnitSystem

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { deviceIssueText, ORIGINALS_UNAVAILABLE } from '../analysis/copy'
 import { NoticeLine } from './NoticeLine'
 import { plural } from './plural'
-import type { AnalysisController } from '../useAnalysis'
+import type { LibraryNoticesView } from '../analysis/views'
 import type { DeviceIssue } from '../../worker/protocol'
 
 /**
@@ -73,7 +73,7 @@ const SHORT = {
 }
 
 export interface LibraryNoticesProps {
-  analysis: AnalysisController
+  analysis: LibraryNoticesView
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean

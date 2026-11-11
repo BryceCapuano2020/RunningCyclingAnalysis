@@ -7,14 +7,14 @@ import type { Hold, HoldInputs } from './resultHold'
 import { libraryPageOf } from './libraryPage'
 import type { LibraryPage } from './libraryPage'
 import type { Route } from './route'
-import type { AnalysisController } from './useAnalysis'
+import type { LibraryPageView } from './analysis/views'
 
 /**
  * What the page knows of the library, the hold on its results, the inputs every surface reads that hold under,
  * and the page that stands in the main area.
  */
 export function useLibraryPage(
-  analysis: AnalysisController,
+  analysis: LibraryPageView,
   route: Route,
   signedIn: boolean,
 ): { knowledge: LibraryKnowledge; hold: Hold | null; holdInputs: HoldInputs; page: LibraryPage } {

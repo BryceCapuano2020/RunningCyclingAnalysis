@@ -1,5 +1,5 @@
 import { hrefFor } from '../route'
-import type { AnalysisController } from '../useAnalysis'
+import type { SavedLibraryView } from '../analysis/views'
 import { plural } from './plural'
 import { savedSummary } from './savedSummary'
 
@@ -18,7 +18,7 @@ export function SavedLibraryCard({
   analysis,
   signedIn,
 }: {
-  analysis: AnalysisController
+  analysis: SavedLibraryView
   signedIn: boolean
 }) {
   const { savedActivities, libraryUnreadable } = analysis
