@@ -116,6 +116,8 @@ export function useLiftLog(account: LiftLogAccount, options: LiftLogOptions = {}
         // The scope changed, or the hook closed, while it ran: the answer belongs to no one.
         if (alive.current !== engine) return
         if (flush.unauthorized) latest.current.markExpired()
+        // What the account now holds moved its results, which are the server's: this tab and the others ask for them again.
+        if (flush.sent > 0) tellOtherTabs({ type: 'lifts' })
         setSent((was) => ({
           scope,
           refused: (was.scope === scope ? was.refused : 0) + flush.refused,

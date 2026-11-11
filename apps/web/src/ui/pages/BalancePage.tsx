@@ -1,5 +1,4 @@
 import { useMemo, type ReactNode } from 'react'
-import { gradedLiftOf, liftCornerGrade } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -21,8 +20,8 @@ import { triangleViewOf } from '../triangleSports'
 import { liftTileOf } from '../lift/liftTile'
 import { headlineHalf, raceAnswerFor } from '../raceAnswer'
 import { halfForecastOf } from '../runHalf'
-import { useLiftSummary } from '../lift/useLiftSummary'
-import type { LiftSummaryAccount } from '../lift/useLiftSummary'
+import { useLiftResults } from '../lift/useLiftResults'
+import type { LiftSummaryAccount } from '../lift/useLiftResults'
 import type { AnalysisController } from '../useAnalysis'
 import { BalanceHero } from './BalanceHero'
 import { BalanceTiles } from './BalanceTiles'
@@ -145,26 +144,13 @@ export function BalancePage({
     () => ({ run: runCount, ride: rideCount }),
     [runCount, rideCount],
   )
-  // Lifting's corner: the share-of-total grade of the graded lifts (back squat, bench press, deadlift) the Lift page logs. The
-  // sample library is someone else's, so it shows no lifts of this browser's.
-  const { lifts } = useLiftSummary(liftAccount, settings)
-  // A lift is graded at the athlete's body mass, so it waits for the weight as the ride does; the placeholder mass never grades.
-  const liftGrade = useMemo(() => {
-    if (isSample || !weightKnown || birthYear === null || sex === null) return null
-    const graded = lifts.flatMap((lift) => {
-      const which = gradedLiftOf(lift.exercise, lift.equipment)
-      return which === null || lift.estimate === null
-        ? []
-        : [{ lift: which, estimate: lift.estimate }]
-    })
-    return liftCornerGrade(graded, { birthYear, sex }, settings)
-  }, [isSample, weightKnown, birthYear, sex, lifts, settings])
-  // The lifting row: the big three's total and each lift's grade, from the same estimates and grade function as the corner.
-  const liftTile = useMemo(
-    // Without a weight the row still shows each projected one-rep max, with no grade beside it.
-    () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings, units),
-    [isSample, weightKnown, lifts, profile, settings, units],
-  )
+  // Lifting's corner and row, from the lift results (`useLiftResults`): the server's for an account, core's over this browser's log
+  // signed out. The sample library is someone else's, so it shows no lifts of this browser's. A grade waits for the weight and the
+  // age: until then the results say which is missing (a `gap`), and the corner draws none.
+  const liftResults = useLiftResults(liftAccount, settings)
+  const liftShown = isSample ? null : liftResults
+  const liftGrade = liftShown?.corner ?? null
+  const liftTile = useMemo(() => liftTileOf(liftShown, units), [liftShown, units])
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
   const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])
   const weightHeld = !weightKnown && inPeriod.run > 0 && inPeriod.ride > 0

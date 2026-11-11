@@ -98,7 +98,10 @@ export async function goTo(page: Page, destination: Destination): Promise<void> 
           .getByRole('navigation', { name: nav, exact: true })
           .getByRole('link', { name: destination, exact: true })
   await link.click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(HEADINGS[destination])
+  // A signed-in account's results are the server's, which can lag an import by the length of a compute's claim.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(HEADINGS[destination], {
+    timeout: 30_000,
+  })
 }
 
 /** The rows of the activity list's first page (PAGE_SIZE in src/ui/components/usePagination.ts). */

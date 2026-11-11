@@ -1,5 +1,7 @@
 import type { AnalysisSession, ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
+import { NO_CHECKIN } from './checkinKeeper'
+import type { WorkerRequest } from './protocol'
 import type { WorkerView } from './workerView'
 
 /**
@@ -9,8 +11,18 @@ import type { WorkerView } from './workerView'
 export function accountReplies(session: AnalysisSession, view: WorkerView) {
   /** Whether the session holds an account's index. */
   const inAccount = (): boolean => view.accountIndex
+  // The library version the last `loadServer` read before its list.
+  let listed: number | undefined
   return {
     inAccount,
+    noteListed: (version: number | undefined) => {
+      listed = version
+    },
+    /** What a library read adds to its reply: no check-in (the last was of another library) and the version it listed at. */
+    loadReply: (type: WorkerRequest['type']) =>
+      type === 'loadServer'
+        ? { checkIn: NO_CHECKIN, ...(listed === undefined ? {} : { libraryVersion: listed }) }
+        : {},
     /** What only the import knows, sent with every reply that carries no state, so the page's copy of it stays current. */
     factsOf: (state: SessionState | null): { facts?: ImportFacts; index?: IndexFacts } =>
       state === null ? { facts: session.importFacts(), index: session.indexFacts() } : {},

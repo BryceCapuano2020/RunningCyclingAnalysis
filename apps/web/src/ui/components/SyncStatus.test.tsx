@@ -122,7 +122,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('network', 3)] })} />)
     const status = message()
     expect(status).toHaveTextContent(
-      '3 activities were not fully saved because the connection dropped. They save when the connection returns.',
+      '3 activities were not fully saved because the connection dropped. They save when the connection returns. They appear in your results once saved.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -140,7 +140,7 @@ describe('SyncStatus', () => {
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     expect(message()).toHaveTextContent(
-      '1 activity was not fully saved because of a server error. It saves the next time the page loads.',
+      '1 activity was not fully saved because of a server error. It saves the next time the page loads. It appears in your results once saved.',
     )
   })
 
@@ -237,22 +237,22 @@ describe('SyncStatus', () => {
     [
       'network',
       2,
-      '2 activities were not fully saved because the connection dropped. They save when the connection returns.',
+      '2 activities were not fully saved because the connection dropped. They save when the connection returns. They appear in your results once saved.',
     ],
     [
       'network',
       1,
-      '1 activity was not fully saved because the connection dropped. It saves when the connection returns.',
+      '1 activity was not fully saved because the connection dropped. It saves when the connection returns. It appears in your results once saved.',
     ],
     [
       'server',
       2,
-      '2 activities were not fully saved because of a server error. They save the next time the page loads.',
+      '2 activities were not fully saved because of a server error. They save the next time the page loads. They appear in your results once saved.',
     ],
     [
       'server',
       1,
-      '1 activity was not fully saved because of a server error. It saves the next time the page loads.',
+      '1 activity was not fully saved because of a server error. It saves the next time the page loads. It appears in your results once saved.',
     ],
     [
       'digest-quota',

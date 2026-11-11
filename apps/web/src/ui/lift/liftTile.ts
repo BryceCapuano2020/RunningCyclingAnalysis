@@ -1,6 +1,4 @@
-import { bigThreeTotal, gradedLiftOf, liftGrade } from '@rca/core/lift'
-import type { GradeBody, GradedEstimate, GradedLift, LiftSummary } from '@rca/core/lift'
-import type { AgeProfile } from '@rca/core/grade'
+import type { GradedLift, LiftResults } from '@rca/core/lift'
 import { formatMass } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import type { Property } from '../components/property'
@@ -20,7 +18,7 @@ export interface LiftTileModel {
   rows: Property[]
 }
 
-const unbroken = (text: string) => text.replaceAll(' ', ' ')
+const unbroken = (text: string) => text.replaceAll(' ', '\u00a0')
 
 /** An estimate as its number and its unit, whole: a projected one-rep max is not known to a tenth of a pound. */
 function loadParts(kg: number, units: UnitSystem): { number: string; unit: string } {
@@ -30,27 +28,20 @@ function loadParts(kg: number, units: UnitSystem): { number: string; unit: strin
 }
 
 /**
- * The lifting row. The big number is the total of the three projected one-rep maxes when each has one (core's `bigThreeTotal`),
- * else the heaviest with its lift named in the title; the details give each lift as "40% · 298 lb", its age grade (core's
- * `liftGrade`, the function the hero's lift corner sums) and its one-rep max, or the one-rep max alone for a lift with no grade.
+ * The lifting row, from the lift results (`liftResultsOf`): the big number is the total of the three projected one-rep maxes
+ * when each has one, else the heaviest with its lift named in the title; the details give each lift as "40% · 298 lb", its age grade
+ * (the one the hero's lift corner sums) and its one-rep max, or the one-rep max alone for a lift with no grade, as while the weight or
+ * the age is missing. Null results (nothing read yet) leave the row empty.
  */
-export function liftTileOf(
-  lifts: readonly LiftSummary[],
-  profile: AgeProfile | null,
-  body: GradeBody,
-  units: UnitSystem,
-): LiftTileModel {
-  const estimates = lifts.flatMap((summary): GradedEstimate[] => {
-    const lift = gradedLiftOf(summary.exercise, summary.equipment)
-    return lift === null || summary.estimate === null ? [] : [{ lift, estimate: summary.estimate }]
-  })
-  const big = bigThreeTotal(estimates)
-  const rows = big.parts.map((part) => {
-    const grade = liftGrade({ lift: part.lift, estimate: part.estimate }, profile, body)
+export function liftTileOf(results: LiftResults | null, units: UnitSystem): LiftTileModel {
+  if (results === null) return { heading: 'Big three total', figure: null, rows: [] }
+  const { bigThree: big, bigThreeGrades: grades } = results
+  const rows = big.parts.map((part, i) => {
+    const grade = grades[i]
     const load = unbroken(formatMass(part.kg, units))
     return {
       label: LIFT_LABEL[part.lift],
-      value: grade.kind === 'graded' ? `${formatGrade(grade.grade.centre.grade)} · ${load}` : load,
+      value: grade?.kind === 'graded' ? `${formatGrade(grade.grade.centre.grade)} · ${load}` : load,
     }
   })
   if (big.kind === 'none') return { heading: 'Big three total', figure: null, rows }

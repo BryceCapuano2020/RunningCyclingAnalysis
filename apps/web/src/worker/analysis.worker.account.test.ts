@@ -3,6 +3,9 @@ import { IDBFactory } from 'fake-indexeddb'
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
+import { liftResultsOf } from '@rca/core/lift'
+import { AnalysisSession } from '@rca/core/session'
+import { toSnapshot } from '@rca/core/stateSnapshot'
 import { encodeFit } from '@rca/core/fit'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,11 +40,11 @@ vi.mock('../api/settings', () => ({
 vi.mock('../api/lifts', () => ({
   createLiftTransport: () => ({ page: async () => ({ items: [], next: null, liftRevision: 1 }) }),
 }))
-const serverReads = vi.hoisted(() => ({ reads: 0 }))
+const serverReads = vi.hoisted(() => ({ reads: 0, answer: null as unknown }))
 vi.mock('../api/state', () => ({
   readServerState: async () => {
     serverReads.reads++
-    return { kind: 'computing', retryAfterMs: 2_000 }
+    return serverReads.answer ?? { kind: 'computing', retryAfterMs: 2_000 }
   },
 }))
 
@@ -89,6 +92,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   serverReads.reads = 0
+  serverReads.answer = null
   mocked.listActivities.mockResolvedValue([recordFor(DIGEST)])
   mocked.deleteActivity.mockResolvedValue(undefined)
   mocked.createActivity.mockImplementation(async (digest) => ({
@@ -143,6 +147,7 @@ const IN_ACCOUNT: Record<Exclude<WorkerRequest['type'], DeviceRequest>, () => Wo
   forgetRoutes: () => ({ type: 'forgetRoutes' }),
   activityTrace: () => ({ type: 'activityTrace', id: DIGEST.id, userId: USER }),
   markSeen: () => ({ type: 'markSeen', row: 'checkIn', event: 'open' }),
+  checkInFor: () => ({ type: 'checkInFor', live: null }),
   acceptPartialImport: () => ({ type: 'acceptPartialImport' }),
 }
 
@@ -256,6 +261,37 @@ describe('the worker in an account’s scope', () => {
     const { send } = await startWorker()
     const loaded = (await send({ type: 'loadServer', userId: USER })).at(-1)
     expect(loaded).not.toHaveProperty('libraryVersion')
+  })
+
+  it('derives the check-in from the live snapshot the page hands it, against the baseline an account import left', async () => {
+    // The library as the server computed it before the import: one activity.
+    const before = new AnalysisSession()
+    const stateBefore = before.loadDigests([DIGEST], SETTINGS)
+    const checkInBefore = before.checkInSnapshot(stateBefore, Date.now())!
+    serverReads.answer = {
+      kind: 'snapshot',
+      snapshot: toSnapshot(
+        stateBefore,
+        { libraryVersion: 1, nowMs: Date.now(), zone: 'UTC', buildSha: 'x' },
+        { lift: liftResultsOf([], SETTINGS, '2031-03-02'), checkIn: checkInBefore },
+      ),
+      nowMs: null,
+      current: true,
+    }
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', userId: USER })
+    await send(IN_ACCOUNT.addFiles())
+    // The page has the server's snapshot after the import, with both activities.
+    const after = new AnalysisSession()
+    const stateAfter = after.loadDigests([DIGEST, digestActivity(second)], SETTINGS)
+    const live = after.checkInSnapshot(stateAfter, Date.now())!
+    const reply = (await send({ type: 'checkInFor', live })).at(-1)
+    expect(reply).toMatchObject({ type: 'checkInView', view: { seen: false } })
+    const view = (reply as { view: { checkIn: { added: Record<string, number> } | null } }).view
+    expect(Object.values(view.checkIn!.added).reduce((a, b) => a + b, 0)).toBe(1)
+    // With no live library there is nothing to say.
+    const none = (await send({ type: 'checkInFor', live: null })).at(-1)
+    expect(none).toMatchObject({ type: 'checkInView', view: { checkIn: null } })
   })
 
   it('reads one fresh /api/state before an import, for its baseline, and shows no check-in when the server is computing', async () => {

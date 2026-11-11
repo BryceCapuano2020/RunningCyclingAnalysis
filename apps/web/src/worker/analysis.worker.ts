@@ -16,10 +16,8 @@ import { SendingKeys } from './sendingKeys'
 import { startResume } from './startResume'
 import type { ResumeParts } from './startResume'
 import { ResumeHolder } from './resumeHolder'
-import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
-import { hiddenRecordIds } from './hiddenCopies'
 import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
@@ -44,11 +42,10 @@ import { accountReplies } from './accountReply'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
 import { deviceClock } from './sampleClock'
-import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
-import { NO_CHECKIN } from './checkinKeeper'
 import { libraryVersionNow } from './accountState'
 import { clearLibrary } from './clearLibrary'
+import { isReadRequest, readReply } from './readReplies'
 import type { ClearContext } from './clearLibrary'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
@@ -81,7 +78,7 @@ const device = deviceActions(
   () => workbench.watchDevice(),
 )
 const view = newWorkerView()
-const { inAccount, factsOf, stateWith } = accountReplies(session, view)
+const { inAccount, factsOf, stateWith, noteListed, loadReply } = accountReplies(session, view)
 const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
@@ -190,9 +187,6 @@ const clearContext: ClearContext = {
   post,
 }
 
-/** The library version the last `loadServer` read before its list. */
-let listedVersion: number | undefined
-
 async function handle(
   request: Exclude<WorkerRequest, RouteMemoryRequest>,
 ): Promise<SessionState | null> {
@@ -227,7 +221,7 @@ async function handle(
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
-      listedVersion = await libraryVersionNow()
+      noteListed(await libraryVersionNow())
       await loadServer(libraryContext, request.userId)
       resume.start(() => startResume(resumeParts, request.userId))
       void offerDevice(adoptionContext, request.userId)
@@ -288,8 +282,9 @@ async function handle(
     case 'activityTrace':
       throw new Error('An activity trace is not a session request')
     case 'markSeen':
+    case 'checkInFor':
     case 'acceptPartialImport':
-      // Answered with checkInSaved, not with a session state.
+      // Answered with checkInSaved or checkInView, not with a session state.
       throw new Error('A check-in request is not a session request')
     case 'deleteActivity': {
       if (view.activeScope?.kind !== 'account' || view.activeScope.userId !== request.userId)
@@ -330,40 +325,20 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
         post(await checkIns.answer(event.data, importContext.lastImport))
-      } else if (event.data.type === 'exportData') {
-        post({
-          type: 'exportReady',
-          file: await exportAccount(event.data, hiddenRecordIds(savedRecords.values())),
-        })
-      } else if (event.data.type === 'activitySplits') {
-        post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
-      } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {
-        if (event.data.type === 'forgetRoutes') {
-          workbench.clearMemory()
-          view.activeScope = null
-        }
-        post(await routes.reply(event.data))
-      } else if (event.data.type === 'activityTrace') {
-        const reply = await activityTraceReply(importContext, event.data)
-        // Reading a trace back from an original stores it, which may push an older one out. The page
-        // hears of that before the reply: nothing the worker says after its reply is attributed.
-        if (event.data.fromOriginal === true) await reportDetail()
-        post({ type: 'activityTrace', reply })
+      } else if (isReadRequest(event.data)) {
+        post(
+          await readReply(
+            { savedRecords, session, workbench, view, routes, importContext, reportDetail },
+            event.data,
+          ),
+        )
       } else {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        // A library read starts from no check-in: the last one was of another library.
-        const read =
-          type === 'loadServer'
-            ? {
-                checkIn: NO_CHECKIN,
-                ...(listedVersion === undefined ? {} : { libraryVersion: listedVersion }),
-              }
-            : {}
         post(
           await checkIns.attach(
-            { type: 'state', state, ...factsOf(state), ...read, ...rebuildable() },
+            { type: 'state', state, ...factsOf(state), ...loadReply(type), ...rebuildable() },
             type,
           ),
         )

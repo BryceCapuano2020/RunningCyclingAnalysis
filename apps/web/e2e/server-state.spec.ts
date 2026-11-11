@@ -47,7 +47,8 @@ async function signedInWithLibrary(page: Page): Promise<string> {
   await signInAs(page.request, uniqueEmail(), 'Ada Lovelace')
   await page.goto('/')
   await uploadFixtures(page, TWO_WORKOUTS)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
+  // The results are the server's: after an import within seconds of the last compute they come when its claim runs out.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, SNAPSHOT_READY)
   const id = await userId(page)
   await expect.poll(() => copyOf(page, id)).not.toBeNull()
   return id
@@ -88,35 +89,5 @@ test('a device with no copy opens on the results the server computed', async ({ 
 
   release()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  expect(errors).toEqual([])
-})
-
-test('with server results off for the account, a reopen is the device copy, then the live analysis', async ({
-  page,
-}) => {
-  test.setTimeout(90_000)
-  const errors = trackErrors(page)
-  // What the Worker answers an account that is not listed: the same 404 as with the feature absent.
-  let asked = 0
-  await page.route('**/api/state', async (route) => {
-    asked += 1
-    await route.fulfill({
-      status: 404,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: { code: 'not_found', message: 'Not found' } }),
-    })
-  })
-  const id = await signedInWithLibrary(page)
-  const release = await holdWorker(page)
-  await page.reload()
-
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  await expect.poll(() => asked).toBeGreaterThan(0)
-  // Still the page's own copy, made by its own analysis.
-  expect((await copyOf(page, id))?.buildSha).toBe('device')
-
-  release()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  expect((await copyOf(page, id))?.buildSha).toBe('device')
   expect(errors).toEqual([])
 })

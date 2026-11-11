@@ -7,9 +7,11 @@ import { SAVES_PAUSED, STILL_WORKING, WAITING_FOR_LIBRARY } from './copy'
 import { useAdoptionActions } from './adoptionActions'
 import { useSettingsSync } from './useSettingsSync'
 import { useImportActions } from './importActions'
-import { useAccountResults, useAccountState, useKeepsAccount } from './accountResults'
+import { useAccountCheckIn } from './accountCheckIn'
+import { accountBaseline, shownChange, useAccountImportChange } from './accountImportChange'
+import { useAccountResults, useShownResults } from './accountResults'
 import { useOnSend } from './onSend'
-import { useStop } from './useStop'
+import { useQueueControl } from './queueControl'
 import { useImportManifest } from './importManifestHook'
 import type { ManifestScope } from '../importManifest'
 import { useKeptLibraryLoad } from './keptLibraryLoad'
@@ -19,7 +21,7 @@ import { useLibraryActions } from './libraryActions'
 import { useLibraryState } from './libraryState'
 import { useLibraryTabs } from './libraryTabs'
 import type { Account, ErrorNotice, LibraryStatus, Pending } from './model'
-import { accountPending, drainBatches, isDeletion } from './model'
+import { accountPending, isDeletion } from './model'
 import { useWorkerEvents } from './workerEvents'
 import { useWorkerWatchdog } from './workerWatchdog'
 import { workerStartsWithPage } from './workerStart'
@@ -79,14 +81,15 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     !imports.busy,
     () => indexBehindRef.current(),
   )
-  const accountState = useAccountState(accountResults.results, imports.facts, imports.index)
-  // An expired session keeps the account's results on screen, as it keeps its library, until a state of the device's own arrives.
-  const keepsAccount = useKeepsAccount(
-    userId === null && account.sessionExpired === true,
-    imports.state,
+  // What the page shows: the account's results, with an expired session keeping them until a state of the device's own arrives.
+  const shown = useShownResults(
+    accountResults.results,
+    userId !== null,
+    account.sessionExpired === true,
+    imports,
   )
-  const showsAccount = userId !== null || (keepsAccount && accountResults.results !== null)
   const { setLibraryAction, libraryWaitRef } = library
+  const importLanded = useAccountImportChange(accountResults.results, imports.setImportChange)
   const {
     setBusy,
     setWaitingReason,
@@ -165,35 +168,16 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     settingsRef,
     setError,
     setErrorNotice,
-    latestBaseline: () => baselineOf(reportedRef.current),
+    latestBaseline: () =>
+      userId === null
+        ? baselineOf(reportedRef.current)
+        : accountBaseline(shown.state, accountResults.results),
   })
   const adoptionActions = useAdoptionActions({ transport, accountRef, settingsRef })
   const handleAccountIssue = useAccountIssue({
     accountRef,
     loadLibrary: libraryActions.loadLibrary,
   })
-
-  /**
-   * Empties every queue: the requests waiting for a worker, the requests the worker still owes, the
-   * files analysed while the account loads, and the imports waiting for the library. Both the stop
-   * and an account change use it.
-   */
-  const clearQueues = useCallback(() => {
-    // Whatever import was running is cut off: the library holds only part of it.
-    failManifest()
-    dropPendingReplies()
-    dropUnsent()
-    drainBatches(provisionalImportsRef)
-    drainBatches(libraryWaitRef)
-    refreshBusy()
-  }, [
-    dropPendingReplies,
-    dropUnsent,
-    failManifest,
-    libraryWaitRef,
-    provisionalImportsRef,
-    refreshBusy,
-  ])
 
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
@@ -203,31 +187,28 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   const { setAdoption } = library
   const dismissAdoption = useCallback(() => setAdoption(null), [setAdoption])
 
-  // A clear keeps the chosen period: the session holds it, so nothing else is sent.
-  const clearSession = useCallback(
-    () => sendToWorker({ type: 'clear', forgetDevice: false }),
-    [sendToWorker],
-  )
-
-  const stop = useStop({
-    clearQueues,
-    setProgress,
-    setUploading,
-    setImportOutcome,
-    setRebuildNotice,
-    setWorkerStopped,
-    automaticRestartCountRef,
-    setError,
-    restartWorker,
+  const { clearQueues, clearSession, stop, clear } = useQueueControl({
+    failManifest,
+    forgetManifest,
+    dropPendingReplies,
+    dropUnsent,
+    provisionalImportsRef,
+    libraryWaitRef,
+    refreshBusy,
+    send: sendToWorker,
+    accountRef,
+    clearAll: importActions.clear,
+    stopWith: {
+      setProgress,
+      setUploading,
+      setImportOutcome,
+      setRebuildNotice,
+      setWorkerStopped,
+      automaticRestartCountRef,
+      setError,
+      restartWorker,
+    },
   })
-
-  // Removing everything also forgets what was recorded about the library: nothing of it is left to be short of.
-  const { clear: clearAll } = importActions
-  const clear = useCallback(() => {
-    failManifest()
-    clearAll()
-    if (accountRef.current.status !== 'signed-in') forgetManifest('device')
-  }, [clearAll, failManifest, forgetManifest])
 
   const { libraryChanged, indexBehind } = useLibraryTabs({
     accountRef,
@@ -243,6 +224,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   const eventDeps = {
     refreshResults: accountResults.refresh,
     indexListed: accountResults.indexListed,
+    importLanded,
     transport,
     imports,
     library,
@@ -275,6 +257,11 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   })
 
   useSettingsSync(settings, settingsRef, transport.send)
+  useAccountCheckIn(
+    userId === null ? null : (accountResults.results?.snapshot ?? null),
+    library.libraryStatus === 'loaded',
+    libraryActions.requestCheckIn,
+  )
 
   useAccountTransitions({
     account,
@@ -295,8 +282,9 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   })
 
   return {
-    state: showsAccount ? accountState : imports.state,
-    ...(showsAccount && accountResults.results?.stale === true ? { copyStale: true } : {}),
+    state: shown.state,
+    accountLift: shown.lift,
+    ...(shown.stale ? { copyStale: true } : {}),
     busy: imports.busy,
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
     progress: imports.progress,
@@ -332,8 +320,12 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
       libraryActions.acceptPartialImport()
     },
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
-    importChange:
-      imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,
+    importChange: shownChange(
+      imports.importChange,
+      imports.importOutcome,
+      userId !== null,
+      library.checkIn,
+    ),
     dismissSummary,
     savedActivities: library.savedActivities,
     libraryAction: library.libraryAction,

@@ -426,6 +426,28 @@ describe('Remove all in this tab', () => {
   })
 })
 
+describe('a lift sync that sent sets', () => {
+  it('says so, once they are the account’s, so the results are asked for again', async () => {
+    const view = setup(signedIn(), fakeTransport({ put: () => ({ liftRevision: 1 }) }))
+    await ready(view)
+    post.mockClear()
+    await act(async () => void (await view.result.current.save(draft())))
+    // One announcement for the write, and one after the sync that sent it.
+    await waitFor(() =>
+      expect(post.mock.calls.filter(([m]) => m.type === 'lifts').length).toBeGreaterThanOrEqual(2),
+    )
+  })
+
+  it('says nothing more when the sync sent nothing', async () => {
+    const view = setup(signedIn(), fakeTransport({ put: () => new LiftTransportError('other') }))
+    await ready(view)
+    post.mockClear()
+    await act(async () => void (await view.result.current.save(draft())))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(post.mock.calls.filter(([m]) => m.type === 'lifts')).toHaveLength(1)
+  })
+})
+
 describe('the lift log, paths a session meets less often', () => {
   it('removes a set by its key', async () => {
     const view = setup(SIGNED_OUT)

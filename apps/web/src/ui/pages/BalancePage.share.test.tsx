@@ -11,12 +11,18 @@ import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { openDetail } from '../test/openDetail'
 import { rowValue } from '../test/propertyRows'
 import { BalancePage } from './BalancePage'
-import type { LiftSummary } from '@rca/core/lift'
+import type { LiftSet } from '@rca/core/lift'
 
-const liftRead = vi.hoisted(() => ({ lifts: [] as LiftSummary[] }))
-vi.mock('../lift/useLiftSummary', () => ({
-  useLiftSummary: () => ({ lifts: liftRead.lifts, ready: true }),
-}))
+const liftRead = vi.hoisted(() => ({ sets: [] as LiftSet[] }))
+vi.mock('../lift/useLiftResults', async () => {
+  const { liftResultsOf } = await import('@rca/core/lift')
+  const { useMemo } = await import('react')
+  return {
+    // Memoised as the real hook is, so a render with the same settings draws nothing again.
+    useLiftResults: (_account: unknown, settings: AthleteSettings) =>
+      useMemo(() => liftResultsOf(liftRead.sets, settings, '2026-03-09'), [settings]),
+  }
+})
 vi.mock('../../share/download', () => ({
   canShareImage: vi.fn(() => false),
   canvasFile: vi.fn(

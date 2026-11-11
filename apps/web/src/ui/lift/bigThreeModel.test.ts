@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bigThreeTotal, buildLiftState, liftGrade } from '@rca/core/lift'
 import { squat } from './liftFixtures'
 import { bigThreeLeadOf } from './bigThreeModel'
+import { resultsFor } from './liftResultsKit'
 
 const SETTINGS = { massKg: 80, bikeMassKg: 9 }
 const PROFILE = { birthYear: 1990, sex: 'male' } as const
@@ -12,7 +13,7 @@ const deadlift = (date: string, kg: number) =>
 const lead = (
   sets: Parameters<typeof buildLiftState>[0],
   profile = PROFILE as typeof PROFILE | null,
-) => bigThreeLeadOf(buildLiftState(sets, SETTINGS).lifts, profile, SETTINGS, 'metric')
+) => bigThreeLeadOf(resultsFor(sets, SETTINGS, profile), 'metric')
 
 describe('bigThreeLeadOf', () => {
   it('is null while none of the big three has an estimate, so the page leads with the lift trained last', () => {

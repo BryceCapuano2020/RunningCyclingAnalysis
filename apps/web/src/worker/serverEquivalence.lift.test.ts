@@ -18,6 +18,7 @@ import { zoneNamed } from '../../../api/src/state/zone'
 import { plural } from '../ui/components/plural'
 import { levelRangeRows } from '../ui/levelRanges'
 import { liftOverviewOf, massParts, WINDOW_WEEKS } from '../ui/lift/liftEntries'
+import { resultsFor } from '../ui/lift/liftResultsKit'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import { resetCheckinDb } from './checkinStore'
 import { workoutKeyOf } from './device'
@@ -29,7 +30,7 @@ import { installDeviceZone } from './viewerZone'
 /*
  * Server authority, equivalence acceptance test, the lift state and the check-in (docs/design/server-authority.md, L3). The
  * server's snapshot carries the lift results and the check-in; a signed-out visitor's page builds the first with
- * `liftOverviewOf` over the sets in `rca-lifts`, and the worker the second from the device library.
+ * `liftResultsOf` over the sets in `rca-lifts` (the page's `liftOverviewOf` words it), and the worker the second from the device library.
  */
 
 const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
@@ -176,7 +177,7 @@ describe('the lift state in the snapshot is what the Lift page builds signed out
       const profile =
         c.birthYear === null || c.sex === null ? null : { birthYear: c.birthYear, sex: c.sex }
       for (const units of ['metric', 'imperial'] as const) {
-        const page = liftOverviewOf(sets, settings, profile, units, today)
+        const page = liftOverviewOf(resultsFor(sets, settings, profile, today), units)
         // The page's list, in its order, is the snapshot's.
         expect(page.lifts.map((e) => e.id)).toEqual(lift.order)
         for (const entry of page.lifts) {

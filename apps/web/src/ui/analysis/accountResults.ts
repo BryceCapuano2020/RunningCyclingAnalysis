@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
-import { fromSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
+import type { SessionState } from '@rca/core/session'
+import type { LiftResults } from '@rca/core/lift'
+import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { readServerState } from '../../api/state'
 import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
 import { useOwnChanges, useTabMessages } from '../tabSync'
 import { copyIsStale } from './copyAge'
+import type { ImportState } from './importState'
 import { EMPTY_SESSION } from './model'
 import { reloadOnceForNewBuild } from './staleBuild'
 
@@ -147,8 +149,10 @@ export function useAccountResults(
   )
 
   const pull = useCallback(
-    async function run(): Promise<void> {
+    async function run(fresh = false): Promise<void> {
       if (idRef.current === null) return
+      // A change someone made (this tab, or another) starts the waits again: a burst of them is not a row that stays stale.
+      if (fresh) misses.current = 0
       if (running.current) {
         again.current = true
         return
@@ -234,7 +238,7 @@ export function useAccountResults(
   }, [quiet, settleReload])
 
   // What another tab, or this one, changed in the account: its results are asked for again.
-  const onChange = useCallback(() => void pull(), [pull])
+  const onChange = useCallback(() => void pull(true), [pull])
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
@@ -246,27 +250,42 @@ export function useAccountResults(
   return { results, refresh: onChange, indexListed }
 }
 
-/**
- * What the page shows for an account: the server's state, with what only the browser knows laid over it. The refused files and unsaved
- * activities of the last import come from its `facts`; the library's age and size from the worker's index (`index`), which is
- * current the moment a delete or an update ends, where a snapshot may be a moment behind.
- */
-export function useAccountState(
-  results: AccountResults | null,
-  facts: ImportFacts | null,
-  index: IndexFacts | null,
-): SessionState {
-  return useMemo(
-    () => ({ ...(results?.state ?? EMPTY_SESSION), ...facts, ...index }),
-    [results, facts, index],
-  )
+/** What the page shows. */
+interface Shown {
+  state: SessionState
+  /** The account's lift results (L3); null signed out, and before the server has answered. */
+  lift: LiftResults | null
+  /** The account's results are a copy made on an earlier day. */
+  stale: boolean
 }
 
 /**
- * Whether an expired session still shows the account's results: until a state of the device's own arrives (a file dropped after the
- * expiry is analysed here), which is then the one shown.
+ * What the page shows: for an account, the server's state with what only the browser knows laid over it. The refused files and unsaved
+ * activities of the last import come from its `facts`; the library's age and size from the worker's index, which is current the moment a
+ * delete or an update ends, where a snapshot may be a moment behind. An expired session keeps the account's results until a state of the
+ * device's own arrives (a file dropped after the expiry is analysed here), which is then the one shown.
  */
-export function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
+export function useShownResults(
+  results: AccountResults | null,
+  signedIn: boolean,
+  expired: boolean,
+  device: Pick<ImportState, 'state' | 'facts' | 'index'>,
+): Shown {
+  const keeps = useKeepsAccount(!signedIn && expired, device.state)
+  const shows = signedIn || (keeps && results !== null)
+  const held = shows ? results : null
+  const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
+  const state = useMemo(
+    () => ({ ...(held?.state ?? EMPTY_SESSION), ...device.facts, ...device.index }),
+    [held, device.facts, device.index],
+  )
+  return { state: shows ? state : device.state, lift, stale: held?.stale === true }
+}
+
+/**
+ * Whether an expired session still shows the account's results: until a state of the device's own arrives, which is then the one shown.
+ */
+function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
   const [atExpiry, setAtExpiry] = useState<SessionState | null>(null)
   if (expired && atExpiry === null) setAtExpiry(deviceState)
   else if (!expired && atExpiry !== null) setAtExpiry(null)

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildLiftState } from '@rca/core/lift'
 import { squat } from './liftFixtures'
 import { bigThreeLeadOf } from './bigThreeModel'
+import { resultsFor } from './liftResultsKit'
 import { BigThreeLead } from './BigThreeLead'
 
 afterEach(cleanup)
@@ -13,7 +14,7 @@ const PROFILE = { birthYear: 1990, sex: 'male' } as const
 const modelOf = (
   sets: Parameters<typeof buildLiftState>[0],
   profile: typeof PROFILE | null = PROFILE,
-) => bigThreeLeadOf(buildLiftState(sets, SETTINGS).lifts, profile, SETTINGS, 'metric')!
+) => bigThreeLeadOf(resultsFor(sets, SETTINGS, profile), 'metric')!
 
 describe('BigThreeLead', () => {
   it('shows the three side by side, each with its one-rep max, a bar filled to its grade, and the total', () => {

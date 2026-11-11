@@ -28,7 +28,10 @@ export interface LastImport {
   added: number
 }
 
-type CheckInRequest = Extract<WorkerRequest, { type: 'markSeen' | 'acceptPartialImport' }>
+type CheckInRequest = Extract<
+  WorkerRequest,
+  { type: 'markSeen' | 'acceptPartialImport' | 'checkInFor' }
+>
 
 /**
  * The worker's side of "since your last import": the baseline of each scope, which library the check-in is about,
@@ -97,11 +100,20 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     },
     /** Whether the request is about a row of the check-in, which has its own reply. */
     answers: (request: WorkerRequest): request is CheckInRequest =>
-      request.type === 'markSeen' || request.type === 'acceptPartialImport',
+      request.type === 'markSeen' ||
+      request.type === 'acceptPartialImport' ||
+      request.type === 'checkInFor',
     async answer(
       request: CheckInRequest,
       last: LastImport | null,
-    ): Promise<Extract<WorkerResponse, { type: 'checkInSaved' }>> {
+    ): Promise<Extract<WorkerResponse, { type: 'checkInSaved' | 'checkInView' }>> {
+      // An account's check-in: its baseline is here, the library to compare it with is the server's, which the page hands over.
+      if (request.type === 'checkInFor') {
+        return {
+          type: 'checkInView',
+          view: await keeper.view(view.checkinScope, () => request.live),
+        }
+      }
       if (request.type === 'markSeen') {
         return {
           type: 'checkInSaved',

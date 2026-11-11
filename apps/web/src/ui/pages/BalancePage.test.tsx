@@ -21,13 +21,19 @@ import {
 } from '../components/test/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
-import type { LiftSummary } from '@rca/core/lift'
+import type { LiftSet } from '@rca/core/lift'
 
-// The Balance page reads lifts through useLiftSummary; most tests have none, and the lifting tests give it one squat.
-const liftRead = vi.hoisted(() => ({ lifts: [] as LiftSummary[] }))
-vi.mock('../lift/useLiftSummary', () => ({
-  useLiftSummary: () => ({ lifts: liftRead.lifts, ready: true }),
-}))
+// The Balance page reads lifts through useLiftResults; most tests have none, and the lifting tests give it one squat.
+const liftRead = vi.hoisted(() => ({ sets: [] as LiftSet[] }))
+vi.mock('../lift/useLiftResults', async () => {
+  const { liftResultsOf } = await import('@rca/core/lift')
+  const { useMemo } = await import('react')
+  return {
+    // Memoised as the real hook is, so a render with the same settings draws nothing again.
+    useLiftResults: (_account: unknown, settings: AthleteSettings) =>
+      useMemo(() => liftResultsOf(liftRead.sets, settings, '2026-03-09'), [settings]),
+  }
+})
 
 vi.mock('../../share/download', () => ({
   canShareImage: vi.fn(() => false),
@@ -85,7 +91,12 @@ function renderPage(
     <BalancePage
       analysis={analysisStub(overrides)}
       result={result}
-      settings={SETTINGS}
+      // The app's settings carry the year of birth and sex, and mark a mass the athlete did not enter.
+      settings={{
+        ...SETTINGS,
+        ...(profile === null ? {} : { birthYear: profile.birthYear, sex: profile.sex }),
+        ...(weightKnown ? {} : { massAssumed: true as const }),
+      }}
       units="metric"
       profile={profile}
       missingAge={missingAge}
@@ -785,44 +796,28 @@ describe('BalancePage with one sport', () => {
 })
 
 describe('the lifting corner and row wait for the weight', () => {
-  const squat: LiftSummary = {
-    key: 'back-squat.barbell' as LiftSummary['key'],
+  const squat: LiftSet = {
+    date: '2025-07-01',
     exercise: 'back-squat',
     equipment: 'barbell',
-    region: 'lower',
-    estimate: {
-      date: '2025-07-01',
-      point: 140,
-      point0: 140,
-      low: 130,
-      high: 155,
-      floor: { loadKg: 130, reps: 3, date: '2025-07-01' },
-      sessions: 3,
-      sd: 0.05,
-      terms: { curve: 0, centre: 0, equations: 0, effort: 0 },
-      ind: 0.03,
-      meanR: 5,
-    },
-    reason: null,
-    floor: { loadKg: 130, reps: 3, date: '2025-07-01' },
-    repBests: [],
-    relative: null,
-    lastDate: '2025-07-01',
-    flags: [],
+    setOrder: 1,
+    reps: 3,
+    loadKg: 130,
+    rpe: 8,
   }
   it('grades a logged squat on the lifting row once a weight is entered', () => {
-    liftRead.lifts = [squat]
+    liftRead.sets = [squat]
     const { container } = renderPage(GRADED_RUN, {}, MAN_BORN_1986, true)
     expect(container.textContent).toMatch(/Squat\s*\d+%/)
-    liftRead.lifts = []
+    liftRead.sets = []
   })
 
   it('gives no lift grade without a weight, rather than grading at the placeholder mass', () => {
-    liftRead.lifts = [squat]
+    liftRead.sets = [squat]
     const { container } = renderPage(GRADED_RUN, {}, MAN_BORN_1986, false)
     // The row still shows the projected one-rep max; only the grade waits for the weight.
     expect(container.textContent).toMatch(/Squat/)
     expect(container.textContent).not.toMatch(/Squat\s*\d+%/)
-    liftRead.lifts = []
+    liftRead.sets = []
   })
 })

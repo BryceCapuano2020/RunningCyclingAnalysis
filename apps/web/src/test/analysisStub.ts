@@ -16,6 +16,7 @@ export interface AnalysisStubOverrides extends Partial<Omit<AnalysisController, 
 export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): AnalysisController {
   return {
     state: { ...EMPTY_SESSION, ...state },
+    accountLift: null,
     busy: false,
     waitingReason: null,
     progress: null,

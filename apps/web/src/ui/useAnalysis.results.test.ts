@@ -283,6 +283,76 @@ describe('a signed-in account’s results are the server’s', () => {
     await waitFor(() => expect(view.result.current.state.unsupportedFiles).toBe(0))
   })
 
+  it('hands the check-in its snapshot carries to the worker once the library has loaded, and shows the view it answers', async () => {
+    const live = { v: 1, revision: 1, atMs: 5, asOfMs: 5, keys: {}, counts: {}, bests: {} }
+    const withCheckIn = (nowMs: number) => ({
+      ...snapshot(61, nowMs),
+      checkIn: live,
+    })
+    read.mockResolvedValue({
+      kind: 'snapshot',
+      snapshot: withCheckIn(Date.now()),
+      nowMs: null,
+      current: true,
+    })
+    const { result } = setup(SIGNED_IN)
+    await waitFor(() => expect(result.current.state.totalActivities).toBe(61))
+    // Not before the worker knows the account: the library is still loading.
+    expect(worker().posted.some((request) => request.type === 'checkInFor')).toBe(false)
+    act(() => worker().reply({ type: 'state', state: null }))
+    await waitFor(() => expect(worker().posted).toContainEqual({ type: 'checkInFor', live }))
+    act(() => worker().reply({ type: 'checkInView', view: { checkIn: null, seen: true } }))
+    expect(result.current.checkIn).toMatchObject({ seen: true })
+    // The same check-in in a newer snapshot is not handed over again.
+    const asked = worker().posted.filter((request) => request.type === 'checkInFor').length
+    read.mockResolvedValue({
+      kind: 'snapshot',
+      snapshot: withCheckIn(Date.now() + 1_000),
+      nowMs: null,
+      current: true,
+    })
+    act(() => tellOtherTabs({ type: 'settings' }))
+    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(1))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(worker().posted.filter((request) => request.type === 'checkInFor')).toHaveLength(asked)
+  })
+
+  it('tells what an import moved once the results include it: the baseline is what was shown when it was sent', async () => {
+    const at = (count: number, version: number) =>
+      served(count, { snapshot: { ...snapshot(count), libraryVersion: version } })
+    read.mockResolvedValue(at(61, 5))
+    const { result } = setup(SIGNED_IN)
+    await waitFor(() => expect(result.current.state.totalActivities).toBe(61))
+    act(() => worker().reply({ type: 'state', state: null }))
+    act(() => result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
+    await waitFor(() => expect(worker().posted.at(-1)?.type).toBe('addFiles'))
+    const outcome = { activities: 1, filesAdded: 1, rejected: 0, duplicates: [], runs: 1, rides: 0 }
+    act(() => worker().reply({ type: 'state', state: null, outcome, saved: 1 }))
+    // The first answer after the import is still the library as it was: nothing moved yet.
+    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(1))
+    expect(result.current.importOutcome).toEqual(outcome)
+    expect(result.current.importChange).toBeNull()
+    // The results that include it come, and the summary says what moved.
+    read.mockResolvedValue(at(62, 6))
+    act(() => tellOtherTabs({ type: 'settings' }))
+    await waitFor(() => expect(result.current.importChange).not.toBeNull())
+    expect(result.current.importChange).toMatchObject({ outcome })
+    expect(result.current.importChange?.before).not.toBeNull()
+    expect(result.current.importChange?.after).not.toBeNull()
+  })
+
+  it('tells at once that an import that added nothing moved nothing', async () => {
+    read.mockResolvedValue(served(61))
+    const { result } = setup(SIGNED_IN)
+    await waitFor(() => expect(result.current.state.totalActivities).toBe(61))
+    act(() => worker().reply({ type: 'state', state: null }))
+    act(() => result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
+    await waitFor(() => expect(worker().posted.at(-1)?.type).toBe('addFiles'))
+    const outcome = { activities: 1, filesAdded: 0, rejected: 0, duplicates: [], runs: 0, rides: 0 }
+    act(() => worker().reply({ type: 'state', state: null, outcome }))
+    await waitFor(() => expect(result.current.importChange).not.toBeNull())
+  })
+
   it('shows no account results after a sign-out', async () => {
     read.mockResolvedValue(served(61))
     const view = setup(SIGNED_IN)

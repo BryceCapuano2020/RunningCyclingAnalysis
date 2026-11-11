@@ -32,7 +32,7 @@ describe('outboxText', () => {
 
   it('says what was left for another day', () => {
     expect(outboxText(status({ saved: 1, pending: 5 }))).toBe(
-      'Saved 1 activity from your last import. 5 activities are waiting to be saved. They save when the connection returns or the page next loads.',
+      'Saved 1 activity from your last import. 5 activities are waiting to be saved. They save when the connection returns or the page next loads. They appear in your results once saved.',
     )
   })
 
@@ -43,7 +43,7 @@ describe('outboxText', () => {
   it('leaves out the saved count when the import line already says it', () => {
     expect(outboxText(status({ saved: 3 }), true)).toBeNull()
     expect(outboxText(status({ saved: 3, pending: 1 }), true)).toBe(
-      '1 activity is waiting to be saved. It saves when the connection returns or the page next loads.',
+      '1 activity is waiting to be saved. It saves when the connection returns or the page next loads. It appears in your results once saved.',
     )
   })
 

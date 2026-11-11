@@ -87,6 +87,20 @@ describe('asking again while the server computes', () => {
     expect(read.mock.calls.length).toBeLessThanOrEqual(25)
   })
 
+  it('does not take a burst of changes for a row that stays stale: the wait starts again from the short one', async () => {
+    read.mockResolvedValue(answer({ current: false }))
+    mount()
+    await flush()
+    // An import ends: the page asks again for each reply it gets, and each answer is the stored snapshot.
+    for (let i = 0; i < 8; i++) {
+      act(() => tellOtherTabs({ type: 'settings' }))
+      await flush()
+    }
+    const asked = read.mock.calls.length
+    await advance(BUSY_RETRY_MS)
+    expect(read.mock.calls.length).toBe(asked + 1)
+  })
+
   it('starts again from the short wait once an answer is current', async () => {
     read.mockResolvedValueOnce(answer({ current: false }))
     read.mockResolvedValueOnce(answer({ current: false }))
