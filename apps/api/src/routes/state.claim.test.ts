@@ -152,4 +152,23 @@ describe('compute claim release', () => {
     await failing.send({ path: '/api/state', cookies: w.cookies })
     expect(reads.n).toBe(2)
   })
+
+  it('holds a claim that lapsed without a release (a crash, no catch run) like a failure, so each poll does not recompute and crash again', async () => {
+    const w = await ready()
+    w.h.clock.now += 20_000
+    await w.write('crashing')
+    // The compute began 61 s ago and was killed: its claim lapsed and nothing released it.
+    await w.env.DB.prepare('UPDATE state_jobs SET claim_until = ? WHERE user_id = ?')
+      .bind(w.h.clock.now - 1_000, w.userId)
+      .run()
+    for (let minute = 0; minute < 4; minute += 1) {
+      w.h.clock.now += 60_000
+      const read = await w.get()
+      expect(read.headers.get('X-State-Current')).toBe('0')
+    }
+    // The hold passes (five minutes after the claim lapsed) and it computes.
+    w.h.clock.now += 120_000
+    const again = await w.get()
+    expect(again.headers.get('X-State-Current')).not.toBe('0')
+  })
 })

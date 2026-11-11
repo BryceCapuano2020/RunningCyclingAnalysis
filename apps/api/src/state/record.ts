@@ -4,25 +4,48 @@ import { RESULT_REVISION } from './resultRevision.ts'
  * The cross-isolate claim of a compute: one conditional upsert, so a stale read in another isolate or tab, and a queued
  * message, see it. It stamps `attempted_at` (the queue's coalescing reads it) and `claim_until`, which only the claim
  * reads: a caller wins when no claim is held (`claim_until` passed). `windowMs` bounds a compute that dies without
- * releasing; `releaseClaim` frees it the moment a compute finishes. Returns the stamp (`claim_until`) the caller holds,
- * or null when another does.
+ * releasing; `releaseClaim` frees it the moment a compute finishes (`claim_until` 0). A claim that lapsed without a release is a
+ * compute that died (a CPU-limit kill runs no catch) or one that failed and was held: with `holdMs`, as a read passes it, such a
+ * claim is held that long after it lapsed, so a failure that repeats is not recomputed by every tab's poll. The queue passes none:
+ * it retries a failure itself. Returns the stamp (`claim_until`) the caller holds, or null when another does.
  */
 export async function claimCompute(
   db: D1Database,
   userId: string,
   now: number,
   windowMs: number,
+  holdMs = 0,
 ): Promise<number | null> {
   const until = now + windowMs
   const won = await db
     .prepare(
       `INSERT INTO state_jobs (user_id, attempted_at, claim_until) VALUES (?1, ?2, ?3)
-       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2, claim_until = ?3 WHERE state_jobs.claim_until <= ?2
+       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2, claim_until = ?3
+       WHERE state_jobs.claim_until = 0 OR state_jobs.claim_until <= ?2 - ?4
        RETURNING user_id`,
     )
-    .bind(userId, now, until)
+    .bind(userId, now, until, holdMs)
     .first<{ user_id: string }>()
   return won === null ? null : until
+}
+
+/**
+ * How long, in milliseconds, a claim that is held has left: what is left of its window, or (with `holdMs`) of the hold after a
+ * claim that lapsed unreleased. 0 when none is held. A message that found the account busy waits this long, not five seconds at a time.
+ */
+export async function claimWaitMs(
+  db: D1Database,
+  userId: string,
+  now: number,
+  holdMs = 0,
+): Promise<number> {
+  const row = await db
+    .prepare('SELECT claim_until AS until FROM state_jobs WHERE user_id = ?')
+    .bind(userId)
+    .first<{ until: number }>()
+  const until = row?.until ?? 0
+  if (until === 0) return 0
+  return Math.max(0, until > now ? until - now : until + holdMs - now)
 }
 
 /**
@@ -60,8 +83,8 @@ export async function releaseClaim(db: D1Database, userId: string, stamp: number
 }
 
 /**
- * Holds a claim until `until` instead of freeing it: a compute that failed is not tried again by every read. Only the claim this
- * stamp names, as `releaseClaim`.
+ * Leaves a claim held after a compute that failed: `claim_until` is moved to `until` (the instant of the failure), which is lapsed and not
+ * zero, so a read holds it for the failure hold from then (`claimCompute`). Only the claim this stamp names, as `releaseClaim`.
  */
 export async function holdClaim(
   db: D1Database,

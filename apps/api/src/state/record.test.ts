@@ -1,7 +1,14 @@
 import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
 import { stateWorld } from '../test/stateKit.ts'
-import { claimCompute, record, releaseClaim, restampClaim, type Covered } from './record.ts'
+import {
+  claimCompute,
+  claimWaitMs,
+  record,
+  releaseClaim,
+  restampClaim,
+  type Covered,
+} from './record.ts'
 
 const at = (version: number, liftRevision: number, nowMs: number): Covered => ({
   version,
@@ -87,5 +94,33 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
     // A restamp holds only the claim it names: one lost (lapsed, taken by another) is null.
     expect(await restampClaim(w.env.DB, w.userId, 112_000, 10_000, 121_000)).toBe(122_000)
     expect(await restampClaim(w.env.DB, w.userId, 113_000, 10_000, 121_000)).toBeNull()
+  })
+
+  it('treats a lapsed claim nobody released as a crash for a read, which waits out the failure hold; the queue does not', async () => {
+    const w = await stateWorld()
+    const HOLD = 300_000
+    expect(await claimCompute(w.env.DB, w.userId, 100_000, 60_000, HOLD)).toBe(160_000)
+    // The compute died (a CPU-limit kill runs no catch): its claim lapses at 160 s and is not released.
+    expect(await claimCompute(w.env.DB, w.userId, 161_000, 60_000, HOLD)).toBeNull()
+    expect(await claimCompute(w.env.DB, w.userId, 160_000 + HOLD - 1, 60_000, HOLD)).toBeNull()
+    expect(await claimCompute(w.env.DB, w.userId, 160_000 + HOLD, 60_000, HOLD)).toBe(
+      160_000 + HOLD + 60_000,
+    )
+    // The queue retries a failure itself, so it is not held by one.
+    await releaseClaim(w.env.DB, w.userId, 160_000 + HOLD + 60_000)
+    await claimCompute(w.env.DB, w.userId, 1_000_000, 60_000, HOLD)
+    expect(await claimCompute(w.env.DB, w.userId, 1_061_000, 60_000)).toBe(1_121_000)
+  })
+
+  it('says how long a claim has left, for a message that found it held: its own window, or the failure hold after it lapsed', async () => {
+    const w = await stateWorld()
+    const HOLD = 300_000
+    expect(await claimWaitMs(w.env.DB, w.userId, 100_000, HOLD)).toBe(0)
+    await claimCompute(w.env.DB, w.userId, 100_000, 60_000, HOLD)
+    expect(await claimWaitMs(w.env.DB, w.userId, 130_000, HOLD)).toBe(30_000)
+    // Lapsed and not released: held for the failure hold after it lapsed.
+    expect(await claimWaitMs(w.env.DB, w.userId, 200_000, HOLD)).toBe(160_000 + HOLD - 200_000)
+    await releaseClaim(w.env.DB, w.userId, 160_000)
+    expect(await claimWaitMs(w.env.DB, w.userId, 200_000, HOLD)).toBe(0)
   })
 })

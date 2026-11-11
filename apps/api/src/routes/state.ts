@@ -160,7 +160,7 @@ async function computeInRequest(
     // The claim is taken once per request, after the budget unit (a refused read must not stamp attempted_at and defer
     // the queue): a second read of the inputs after a write moved them is still this request's.
     if (store && claim.stamp === null) {
-      claim.stamp = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
+      claim.stamp = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS, HOLD_MS)
       if (claim.stamp === null) {
         // Another isolate, or another tab, began a compute a moment ago: this read serves what is stored.
         await charge.refund().catch(() => undefined)
@@ -174,8 +174,7 @@ async function computeInRequest(
       // A failed compute keeps its unit and holds its claim for minutes (not released, not left to lapse in a window): a failure that
       // repeats is not recomputed on every read, and a user it fails for every time reaches the daily cap.
       if (claim.stamp !== null) {
-        const until = c.var.deps.now() + STATE_FAILURE_HOLD_SECONDS * 1000
-        await holdClaim(c.env.DB, userId, claim.stamp, until).catch(() => undefined)
+        await holdClaim(c.env.DB, userId, claim.stamp, c.var.deps.now()).catch(() => undefined)
       }
       claim.stamp = null
       throw error
@@ -187,6 +186,8 @@ async function computeInRequest(
 }
 
 const CLAIM_MS = STATE_CLAIM_SECONDS * 1000
+/** How long a read leaves a failed or dead claim held (see `claimCompute`). */
+const HOLD_MS = STATE_FAILURE_HOLD_SECONDS * 1000
 
 /** The claim a request holds (its stamp, `claimCompute`) and the budget refusal it met. */
 interface ClaimHeld {
