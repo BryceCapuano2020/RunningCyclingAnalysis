@@ -1,4 +1,8 @@
-import { StateSnapshotSchema, StoredActivityDigestSchema } from '@rca/contract'
+import {
+  MAX_ACTIVITIES_PER_USER,
+  StateSnapshotSchema,
+  StoredActivityDigestSchema,
+} from '@rca/contract'
 import { analysisSettings, bodyMassOn } from '@rca/core/athlete'
 import { UTC_ZONE, setViewerZone, withViewerZone } from '@rca/core/calendar'
 import { dayOf } from '@rca/core/customRange'
@@ -291,13 +295,13 @@ describe('the state job', () => {
     expect(final!.snapshot_version).toBe(await version(w))
   })
 
-  it('leaves an account to the browser past the activity limit, and a deleting or missing one alone', async () => {
+  it('computes an account at the activity quota, and leaves a deleting or missing one alone', async () => {
     const w = await prepared()
-    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
-      .bind(w.userId)
+    await w.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER, w.userId)
       .run()
-    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('too_large')
-    expect(await stored(w)).toEqual([])
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+    expect(await stored(w)).toHaveLength(1)
     await w.env.DB.prepare('UPDATE users SET deleting_at = 1 WHERE id = ?').bind(w.userId).run()
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('gone')
     expect(await runStateJob(w.env, w.deps, 'nobody')).toBe('gone')

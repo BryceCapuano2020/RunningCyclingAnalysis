@@ -28,9 +28,9 @@ describe('resetSentence', () => {
 describe('limitReached', () => {
   // The allowances are written out, not read from DAILY_LIMITS, so a copy that loses its grouping fails.
   it.each([
-    ['activityCreate', 'saves', '5,000'],
+    ['activityCreate', 'saves', '4,000'],
     ['fileUpload', 'uploads', '2,000'],
-    ['fileDownload', 'downloads', '5,000'],
+    ['fileDownload', 'downloads', '4,000'],
     ['read', 'library loads', '100'],
     ['activityDelete', 'deletions', '50'],
     ['profileWrite', 'profile changes', '50'],

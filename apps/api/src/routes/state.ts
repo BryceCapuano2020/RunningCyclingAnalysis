@@ -2,45 +2,17 @@ import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { claimCompute } from '../state/record.ts'
-import {
-  STATE_CLAIM_SECONDS,
-  STATE_DELAY_SECONDS,
-  STATE_MIN_INTERVAL_SECONDS,
-} from '../state/message.ts'
-import { claimPending } from '../state/pending.ts'
-import type { AppEnv, Bindings } from '../env.ts'
+import { STATE_CLAIM_SECONDS } from '../state/message.ts'
+import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
 import { currentUser, requireUserOrNotFound, sameOriginReadGuard } from '../middleware.ts'
 import { getOriginalFile } from '../storage.ts'
-import { SERVER_STATE_MAX_ACTIVITIES } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
 import { inflate } from '../state/store.ts'
 import { keepUnstored, unstoredFor, unstoredKey, withComputeLock } from '../state/lock.ts'
 import { computeAndStore, type Computed } from '../state/refresh.ts'
 import { isCurrent, jobRow, localDayOf, revisionOrder, type JobRow } from '../state/row.ts'
-
-/** What the read knows of the account's job: enough to tell whether asking for a compute again could help. */
-type StaleRow = Pick<JobRow, 'activity_count' | 'attempted_at'>
-
-/**
- * Asks the state job to compute an account again, unless a message for it is on its way, the server does not compute for
- * a library this size, or a compute began within the minimum interval (one that failed, or one under way): a read never
- * sends once per open. Sending never fails the read.
- */
-async function sendStale(env: Bindings, userId: string, now: number, row: StaleRow): Promise<void> {
-  const queue = env.STATE_QUEUE
-  if (queue === undefined) return
-  if (row.activity_count > SERVER_STATE_MAX_ACTIVITIES) return
-  if (now - (row.attempted_at ?? 0) < STATE_MIN_INTERVAL_SECONDS * 1000) return
-  try {
-    if (await claimPending(env.DB, userId, now, STATE_DELAY_SECONDS)) {
-      await queue.send({ userId }, { delaySeconds: STATE_DELAY_SECONDS })
-    }
-  } catch {
-    console.error(JSON.stringify({ event: 'state_stale_send_failed' }))
-  }
-}
 
 const NOT_FOUND = () => new HttpError(404, 'not_found', 'Not found')
 
@@ -215,17 +187,6 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
   const now = c.var.deps.now()
   let row = await jobRow(c.env.DB, userId)
   if (row === null) throw NOT_FOUND()
-  // A library past the limit is the browser's to compute (until the cap is measured and moved): the stored snapshot is
-  // served while it is this build's, and one message asks for a new one when it is not.
-  if (row.activity_count > SERVER_STATE_MAX_ACTIVITIES) {
-    if (revisionOrder(row) !== 'same') {
-      await sendStale(c.env, userId, now, row)
-      throw NOT_FOUND()
-    }
-    const served = await serveStored(c, row, false)
-    if (served === 'stale') throw NOT_FOUND()
-    return served
-  }
   const claim: { held: boolean; refused?: HttpError } = { held: false }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const order = revisionOrder(row)

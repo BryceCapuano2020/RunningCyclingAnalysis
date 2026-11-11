@@ -1,4 +1,5 @@
 import { RESULT_REVISION } from './resultRevision.ts'
+import { MAX_ACTIVITIES_PER_USER } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import { MAX_MAINTENANCE_OPERATIONS, runMaintenance } from '../maintenance.ts'
 import { stateWorld } from '../test/stateKit.ts'
@@ -94,12 +95,12 @@ describe('the daily re-send', () => {
     expect(report.stateResent).toBe(w.sent.length)
   })
 
-  it('leaves a library the server does not compute for to the browser', async () => {
+  it('sends for an account at the activity quota: no account falls back to the browser', async () => {
     const w = await stateWorld()
-    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
-      .bind(w.userId)
+    await w.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER, w.userId)
       .run()
-    expect(await resendDirty(w.env, w.h.clock.now)).toBe(0)
+    expect(await resendDirty(w.env, w.h.clock.now)).toBe(1)
   })
 
   it('runs in the daily maintenance', async () => {

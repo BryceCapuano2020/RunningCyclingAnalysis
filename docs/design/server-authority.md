@@ -127,22 +127,19 @@ runs computes for different accounts in one isolate.
 
 ## The activity cap
 
-The server computes only for libraries of up to 2,000 activities (`SERVER_STATE_MAX_ACTIVITIES`). A larger library
-computes in the browser, which this note removes. Memory grows with digest bytes, not with activity count, and an
-account may hold 5,000 activities (`MAX_ACTIVITIES_PER_USER`) and 64 MiB of digest JSON (`MAX_DIGEST_BYTES_PER_USER`).
+The server computes for every account, so its bound is the account limits, and no smaller one: `SERVER_STATE_MAX_ACTIVITIES`
+and the `too_large` outcome are gone. Memory grows with digest bytes, not with activity count. The limits came down so the
+largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 4,000 and `MAX_DIGEST_BYTES_PER_USER` 64 to 32 MiB, with
+`MAX_LIFT_SETS_PER_USER` (60,000, the database's own check) in the same case.
 
-- **Measure in workerd.** Run the consumer and the route under `wrangler dev` on synthetic libraries of 2,000, 3,000,
-  4,000 and 5,000 activities, and one sized to the 64 MiB byte quota. Use a fresh process per size and record its
-  maximum resident memory (`/usr/bin/time -l`), the wall and CPU time of the compute and the D1 read time. Local D1
-  runs in the same process, so the figure is an upper bound. Local Apple-silicon CPU is faster than Cloudflare's, so
-  keep a margin of two.
-- **The bound is the quota.** The server must compute for any account the quotas admit. If the byte quota fits with
-  room (about 96 MB at peak, CPU under half of `limits.cpu_ms`), `SERVER_STATE_MAX_ACTIVITIES` goes. If not, cut the
-  compute's memory first (read digests in pages and drop each page's JSON once parsed; drop the period caches the
-  snapshot does not need) and measure again. Lowering a quota is not safe on its own: rows over a new quota are kept,
-  never dropped. So if memory cannot be cut far enough, the quota is lowered for new writes and the release session
-  first checks, with a read-only query, that no account in production is over it.
-- A test pins the server's bound to the quotas.
+- **Measured in workerd** (apps/api/LIMITS.md has the figures): the job on synthetic data at those limits, with the isolate's
+  heap limited by `MINIFLARE_WORKERD_V8_FLAGS="--max-old-space-size=N"`, passes at 96 MB. CPU is 15.6 s there (the
+  collector thrashing), about 31 s at the 2x allowance for Cloudflare's CPUs, so `limits.cpu_ms` is 60,000: about 2x over the
+  thrash case. If 4,000 later fails CI, the cap goes to 3,000.
+- **A test pins it.** The memory sim asserts the library it measured is the account limits (activities, lift sets and the byte quota), and `state/memoryCases.test.ts` pins that case to the contract's constants.
+- **Lowering a quota is not safe on its own:** rows over a new quota are kept, never dropped. The release session first
+  checks, with a read-only query, that no account in production is over either (`activity_count > 4000` or
+  `digest_bytes > 33554432` on `users`); one that is would still compute, and may not fit. **That read-only check is the guard**: the `too_large` outcome that once sent an oversized account to the browser is gone, so an account that does not fit the isolate fails its job on every try, goes to the dead-letter queue, and is re-sent and fails again each day (its `state_job_failed` log line carries `activities`, a size bucket and no figure).
 
 ## What the browser stops doing for accounts
 

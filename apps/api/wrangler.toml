@@ -72,12 +72,12 @@ APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
 # 64..9216, and a test reads this line.
 DATABASE_SOFT_LIMIT_MIB = "8192"
 # Results computed on the server for every signed-in account (docs/design/server-authority.md). The blocks below are on
-# (Workers Paid, both queues created 10 Nov 2026); the deploy-config check requires them complete whenever any of them
-# is present.
+# (Workers Paid, both queues created 10 Nov 2026); the deploy-config check requires them, complete.
 
-# Bound on Workers Paid: 10 s of CPU an invocation, well over a 2,000-activity analysis (about 0.5 s).
+# Bound on Workers Paid: 60 s of CPU an invocation (Workers Paid allows 300 s; unused time costs nothing), for the largest account the quotas admit: 4,000
+# activities, 32 MiB of digests and 60,000 lift sets (apps/api/LIMITS.md records the local figures).
 [limits]
-cpu_ms = 10000
+cpu_ms = 60000
 
 [[queues.producers]]
 binding = "STATE_QUEUE"
@@ -86,7 +86,9 @@ queue = "rca-state"
 [[queues.consumers]]
 queue = "rca-state"
 max_batch_size = 2
-# Raising this is safe only while state/job.interleave.test.ts passes: it is what proves two accounts' computes cannot leak into each other.
+# The invariant, not the number: the compute stays synchronous (`withViewerZone` throws on a promise), so two accounts'
+# computes never overlap in an isolate. Raising this is safe only while state/job.ordering.test.ts passes: it runs two
+# accounts' jobs interleaved at their D1 and R2 awaits and compares each snapshot with the account computed alone.
 max_concurrency = 1
 max_batch_timeout = 5
 max_retries = 3
