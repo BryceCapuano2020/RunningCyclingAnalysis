@@ -94,8 +94,8 @@ they state the uncertainty and the evidence still missing. The plan is in
   schemes, or estimated from your activities when none is entered.
 - **Time in zones.** How long you spent in each heart-rate, power or run-pace zone over a period or
   a stretch you select, by each day's zones.
-- **Activity detail.** Each activity shows its timelines, laps and suggested intervals, splits on
-  moving time, how your reps held up, and time at each pace, power or heart rate, read from a
+- **Activity detail.** Each activity shows its timelines and laps, splits on moving time, its reps,
+  and time at each pace, power or heart rate, read from a
   recording kept on your device. Runs at walking pace are marked and left out of run analysis.
 - **Durability and drift.** Your best 5 and 20 minute output late in long sessions, and how output
   per heart rate drifts across a steady effort of an hour or more.

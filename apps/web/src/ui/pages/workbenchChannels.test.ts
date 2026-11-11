@@ -1,30 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import {
-  channelsFor,
-  overviewOf,
-  plotDomain,
-  recordedLapsOf,
-  skippedStretches,
-} from './workbenchChannels'
+import { channelsFor, overviewOf, plotDomain, recordedLapsOf } from './workbenchChannels'
 import { movingAverageSpeed, selectionOf } from './workbenchData'
 import { repsTrace, runTrace, steadyTrace } from './test/workbenchFixtures'
 import { readingOf } from './workbenchScale'
-
-describe('skippedStretches', () => {
-  it('reads the left-out seconds of a measure as stretches, and nothing for a measure without any', () => {
-    const trace = steadyTrace(30)
-    const mask = new Uint8Array(30)
-    mask.fill(1, 3, 6)
-    mask[10] = 1
-    trace.unusable = { heartRate: mask }
-    expect(skippedStretches(trace, 'heartRate')).toEqual([
-      [3, 6],
-      [10, 11],
-    ])
-    expect(skippedStretches(trace, 'speed')).toEqual([])
-    expect(skippedStretches(trace, 'altitude')).toEqual([])
-  })
-})
 
 describe('recordedLapsOf', () => {
   it('gives the device laps, and none for a single lap, which is the whole activity', () => {

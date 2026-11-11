@@ -1,4 +1,4 @@
-import type { ActivityLap, ActivityTrace, MaskedMetric, TraceMetric } from '@rca/core/workbench'
+import type { ActivityLap, ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatRecordTime } from '@rca/core/units'
 import type { BrushOverview } from '../charts/TimeBrush'
@@ -110,27 +110,6 @@ export function plotDomain(
     : paddedAxis(band.low, band.high, STYLE[metric].shape, scaleOf(metric, trace.sport), floor)
 }
 
-/** Seconds in runs of 1s in a mask, as [from, to) pairs. */
-function runsOfMask(mask: Uint8Array, wanted: number): [number, number][] {
-  const runs: [number, number][] = []
-  let from = -1
-  for (let i = 0; i <= mask.length; i += 1) {
-    const here = i < mask.length && mask[i] === wanted
-    if (here && from < 0) from = i
-    if (!here && from >= 0) {
-      runs.push([from, i])
-      from = -1
-    }
-  }
-  return runs
-}
-
-/** The seconds the analysis left out of a measure, as stretches. Only speed, heart rate and power have any. */
-export function skippedStretches(trace: ActivityTrace, metric: TraceMetric): [number, number][] {
-  const mask = trace.unusable?.[metric as MaskedMetric]
-  return mask === undefined ? [] : runsOfMask(mask, 1)
-}
-
 /** The laps the device recorded. One recorded lap is the whole activity, which the whole-activity selection already is, so it is no choice. */
 export function recordedLapsOf(trace: ActivityTrace): ActivityLap[] {
   return trace.laps.length >= MIN_LAPS ? trace.laps : []
@@ -179,7 +158,6 @@ export function channelsFor(
           return Number.isFinite(raw) ? { raw, ...read(raw) } : null
         },
         average: mean === null || mean === undefined ? null : read(mean),
-        skipped: skippedStretches(trace, metric),
       },
     ]
   })

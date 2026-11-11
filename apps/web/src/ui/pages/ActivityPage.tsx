@@ -31,6 +31,7 @@ import { isAnalysed } from '@rca/core/digest/analysed'
 import { WalkingPaceSection } from '../components/WalkingChoice'
 import type { WalkingChoice } from '../components/WalkingChoice'
 import { ActivityIssues } from './ActivityIssues'
+import { recordingGapsOf } from './recordingGaps'
 import { ActivityFacts } from './ActivityFacts'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
@@ -75,7 +76,7 @@ export interface ActivityPageProps {
   routeId: string | null
   /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
   loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
-  /** The period the page's period bests are counted over. The record chips are all-time, whatever it is. */
+  /** The period the page's period bests are counted over. The all-time record marks hold whatever it is. */
   period?: Period
   /** A removal is already running, so Delete waits. */
   busy?: boolean
@@ -198,6 +199,8 @@ export function ActivityPage({
   // The outline is coloured by pace where this device holds the activity's readings, and plain without them.
   const routeShape = route.kind === 'shape' ? route.route : null
   const segmentPace = useMemo(() => routeSegmentPace(routeShape, trace), [routeShape, trace])
+  // A recording gap is a break in the timeline's line, so the activity's notes name it where the readings are here.
+  const recordingGaps = useMemo(() => (trace === null ? null : recordingGapsOf(trace)), [trace])
   // Once the library has removed the activity, the list replaces this page in the history, so Back never
   // lands on an activity that is gone. A failed removal stays here, with its reason beside Delete.
   const removed = removal.outcome !== null && !removal.outcome.failed
@@ -221,7 +224,7 @@ export function ActivityPage({
   const isRun = activity.sport === 'run'
   // The period's result holds only the activities in it, so one outside it is not in the result.
   const inPeriod = result.activities.some((candidate) => candidate.id === activity.id)
-  // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
+  // A ride's all-time records are the library's bests, which use the body mass, so they wait for the weight.
   const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
   const power = powerCheckChip(activity.powerCheck)
   // With a route, the figures sit beside it on a wide screen, so the header has no blank half.
@@ -324,7 +327,11 @@ export function ActivityPage({
           earned={earned}
         />
       )}
-      <ActivityIssues activity={activity} setAside={setAsideIds.includes(activity.id)} />
+      <ActivityIssues
+        activity={activity}
+        setAside={setAsideIds.includes(activity.id)}
+        gaps={recordingGaps}
+      />
 
       {routeId !== null && onDelete && (
         <div className="activity-page__remove">
