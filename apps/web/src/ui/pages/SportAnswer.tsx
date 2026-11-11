@@ -17,7 +17,6 @@ export interface SportAnswerProps extends Pick<
   | 'profile'
   | 'missingAge'
   | 'rangeDays'
-  | 'library'
   | 'heartRateJudgement'
   | 'periodEndMs'
   | 'emptyText'
@@ -29,6 +28,8 @@ export interface SportAnswerProps extends Pick<
   /** The previous period's thresholds and label, which the hero's change reads. Absent: all time. */
   previousThresholds?: SportPageProps['previousThresholds']
   previousLabel?: string | null
+  /** The library the run's forecast half is asked of, as the Run page's predictions ask it. Absent: the period alone. */
+  library?: SportPageProps['library']
   /** How many of the sport's activities the period holds. */
   count: number
   /** Whether the page holds the sport's figures for the body weight a ride needs. */
@@ -86,7 +87,7 @@ export function SportAnswer(props: SportAnswerProps) {
       ? halfForecastFor({
           result,
           rangeDays: props.rangeDays,
-          library: props.library,
+          library: props.library ?? [],
           heartRateJudgement: props.heartRateJudgement,
           periodEndMs: props.periodEndMs,
         })
