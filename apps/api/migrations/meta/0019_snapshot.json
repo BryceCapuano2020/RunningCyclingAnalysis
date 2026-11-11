@@ -1253,6 +1253,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "claim_until": {
+          "name": "claim_until",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {},

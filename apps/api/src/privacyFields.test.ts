@@ -128,6 +128,8 @@ const DISCLOSED: Record<string, string> = {
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.attempted_at':
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
+  'state_jobs.claim_until':
+    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.pending_until':
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.analysis_revision':

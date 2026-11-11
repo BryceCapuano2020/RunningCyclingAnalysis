@@ -55,9 +55,13 @@ describe('the consumer and the isolate lock', () => {
     const w = await prepared()
     const env = {
       ...w.env,
-      DB: racingDb(w.env.DB, /INSERT INTO state_jobs \(user_id, attempted_at\)/, async () => {
-        expect(await claimCompute(w.env.DB, w.userId, w.h.clock.now, 10_000)).toBe(true)
-      }),
+      DB: racingDb(
+        w.env.DB,
+        /INSERT INTO state_jobs \(user_id, attempted_at, claim_until\)/,
+        async () => {
+          expect(await claimCompute(w.env.DB, w.userId, w.h.clock.now, 10_000)).not.toBeNull()
+        },
+      ),
     }
     expect(await runStateJob(env, w.deps, w.userId)).toBe('busy')
     expect(await stored(w)).toBe(0)

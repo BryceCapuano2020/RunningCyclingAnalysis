@@ -342,7 +342,7 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   for the account is on its way already; three tries, 30 seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
   job that finds the last compute began under 30 seconds ago computes nothing and sends one message delayed 30 seconds,
   so an account computes at most once per 30 seconds, and about once a minute through a long import: a 2,000-file import
-  is tens of full computes, not one per file. A lost or exhausted message leaves the account dirty
+  is tens of full computes, not one per file. A read that computes in the request takes the account's claim (`state_jobs.claim_until`, 10 s) and frees it when the compute finishes, so the next stale read computes at once; the 30 s interval reads `attempted_at` and `computed_at`, which the release leaves alone. A lost or exhausted message leaves the account dirty
   (`users.library_version` above `state_jobs.computed_version`) until the next write or the daily maintenance, which sends one message for each account left dirty, up to 20 a run and no more than the run's operation budget allows, with
   none on its way (a daily stand-in for the hourly refresh, S6, which is not built).
 

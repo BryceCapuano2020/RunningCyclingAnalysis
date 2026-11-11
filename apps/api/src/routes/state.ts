@@ -1,7 +1,7 @@
 import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { claimCompute } from '../state/record.ts'
+import { claimCompute, releaseClaim, restampClaim } from '../state/record.ts'
 import { STATE_CLAIM_SECONDS } from '../state/message.ts'
 import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
@@ -144,7 +144,7 @@ async function computeInRequest(
   c: Ctx,
   row: JobRow,
   store: boolean,
-  claim: { held: boolean; refused?: HttpError },
+  claim: ClaimHeld,
 ): Promise<Computed | null> {
   const userId = currentUser(c).id
   const run = await withComputeLock(async () => {
@@ -159,9 +159,9 @@ async function computeInRequest(
     }
     // The claim is taken once per request, after the budget unit (a refused read must not stamp attempted_at and defer
     // the queue): a second read of the inputs after a write moved them is still this request's.
-    if (store && !claim.held) {
-      claim.held = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
-      if (!claim.held) {
+    if (store && claim.stamp === null) {
+      claim.stamp = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
+      if (claim.stamp === null) {
         // Another isolate, or another tab, began a compute a moment ago: this read serves what is stored.
         await charge.refund().catch(() => undefined)
         return null
@@ -169,9 +169,11 @@ async function computeInRequest(
     }
     let done: Computed
     try {
-      done = await computeAndStore(c.env, c.var.deps, userId, row, store, true)
+      done = await computeAndStore(c.env, c.var.deps, userId, row, store, claim.stamp)
     } catch (error) {
       await charge.refund().catch(() => undefined)
+      // A failed compute leaves its claim to lapse (10 s), so a failure that repeats is not recomputed on every read.
+      claim.stamp = null
       throw error
     }
     if (done.kind === 'gone' || done.kind === 'moved') await charge.refund().catch(() => undefined)
@@ -182,12 +184,29 @@ async function computeInRequest(
 
 const CLAIM_MS = STATE_CLAIM_SECONDS * 1000
 
+/** The claim a request holds (its stamp, `claimCompute`) and the budget refusal it met. */
+interface ClaimHeld {
+  stamp: number | null
+  refused?: HttpError
+}
+
+/** A read that ends holding the claim without a finished compute (moved twice, over budget, an early answer) frees it. */
 stateRoutes.get('/', sameOriginReadGuard, async (c) => {
+  const claim: ClaimHeld = { stamp: null }
+  try {
+    return await serveState(c, claim)
+  } finally {
+    if (claim.stamp !== null) {
+      await releaseClaim(c.env.DB, currentUser(c).id, claim.stamp).catch(() => undefined)
+    }
+  }
+})
+
+async function serveState(c: Ctx, claim: ClaimHeld): Promise<Response> {
   const userId = currentUser(c).id
   const now = c.var.deps.now()
   let row = await jobRow(c.env.DB, userId)
   if (row === null) throw NOT_FOUND()
-  const claim: { held: boolean; refused?: HttpError } = { held: false }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const order = revisionOrder(row)
     if (isCurrent(row, now)) {
@@ -227,9 +246,15 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     if (done.kind === 'moved') {
       // A write landed while the inputs were read: read the row again, once. The claim is stamped again first, since the
       // first read may have run longer than its window and another isolate would then compute alongside.
-      await c.env.DB.prepare('UPDATE state_jobs SET attempted_at = ? WHERE user_id = ?')
-        .bind(c.var.deps.now(), userId)
-        .run()
+      claim.stamp = await restampClaim(c.env.DB, userId, c.var.deps.now(), CLAIM_MS, claim.stamp!)
+      if (claim.stamp === null) {
+        // The claim was lost (the window ran out and another compute took it): serve what is stored, or say it is coming.
+        if (order === 'same') {
+          const served = await serveStored(c, row, true)
+          if (served !== 'stale') return served
+        }
+        return computing(c)
+      }
       const again = await jobRow(c.env.DB, userId)
       if (again === null) throw NOT_FOUND()
       row = again
@@ -249,4 +274,4 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     return answer(c, done)
   }
   return computing(c)
-})
+}
