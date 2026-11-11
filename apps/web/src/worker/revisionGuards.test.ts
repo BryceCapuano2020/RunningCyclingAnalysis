@@ -90,7 +90,7 @@ const ASKED = /\brevisionStatus\(\s*[\w.?]*\.modelRevision\s*[,)]/g
 
 /**
  * The files that read it, and why. revisions.ts and consumers.ts are the table and its filter. readDigest.ts
- * and readResult.ts parse the field from untrusted input. create.ts orders two stored digests for an upgrade
+ * and readResult.ts parse the field from untrusted input. upgrade.ts orders two stored digests for an upgrade
  * (strictly newer), which does not ask whether either is current. revisionCheck.ts reads the claimed revision
  * from an unparsed body, to ask `revisionStatus` before the schema runs. labels.ts compares the stored revision
  * in SQL with the one the client read, so a label never lands on a row a rebuild has since replaced. applyLabels.ts
@@ -102,7 +102,7 @@ const ALLOWED = [
   'packages/core/src/digest/consumers.ts',
   'packages/core/src/digest/readDigest.ts',
   'packages/core/src/digest/readResult.ts',
-  'apps/api/src/routes/activities/create.ts',
+  'apps/api/src/routes/activities/upgrade.ts',
   'apps/api/src/routes/activities/revisionCheck.ts',
   'apps/api/src/routes/activities/labels.ts',
   'packages/core/src/import/applyLabels.ts',
