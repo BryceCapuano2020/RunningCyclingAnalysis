@@ -36,6 +36,8 @@ interface LibraryTabsDeps {
  */
 export function useLibraryTabs(deps: LibraryTabsDeps): {
   libraryChanged: (scope: Scope) => void
+  /** The server's results show the account's library past the index this tab listed: another device changed it. */
+  indexBehind: () => void
 } {
   const latest = useLatest(deps)
   const dirty = useRef<Scope | null>(null)
@@ -108,5 +110,9 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
     (scope: Scope) => tellOtherTabs({ type: 'library', scope }),
     [],
   )
-  return { libraryChanged }
+  const indexBehind = useCallback(() => {
+    dirty.current = 'account'
+    schedule()
+  }, [schedule])
+  return { libraryChanged, indexBehind }
 }

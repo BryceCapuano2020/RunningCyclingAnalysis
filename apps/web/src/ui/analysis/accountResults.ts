@@ -12,8 +12,17 @@ import { reloadOnceForNewBuild } from './staleBuild'
 
 /** How often a tab in view asks the server whether the results changed. */
 export const POLL_MS = 60_000
-/** How long a tab waits to ask again when the server served what it had stored while it computed (`X-State-Current: 0`). */
+/**
+ * How long a tab waits to ask again when the server served what it had stored while it computed (`X-State-Current: 0`), or
+ * answered 202. It doubles with each answer in a row that is no better, up to the poll, so a row that stays stale (the budget
+ * spent, the queue slow) is asked for about once a minute, not every few seconds.
+ */
 export const BUSY_RETRY_MS = 3_000
+
+/** The wait before the next ask after `misses` answers in a row that were not current. */
+export function busyWaitMs(misses: number): number {
+  return Math.min(BUSY_RETRY_MS * 2 ** Math.max(0, misses - 1), POLL_MS)
+}
 
 /** The results of an account as the server computed them, and the snapshot they came from. */
 export interface AccountResults {
@@ -50,7 +59,11 @@ function resultsOf(snapshot: StateSnapshot): AccountResults | null {
 export function useAccountResults(
   userId: string | null,
   keepOnExpiry: boolean,
-): { results: AccountResults | null; refresh: () => void } {
+  /** This tab has no work of its own under way, so a reload for a newer build would cut across nothing. */
+  quiet: boolean,
+  /** The server's library is past the one the worker's index was listed at: another device changed it. */
+  onIndexBehind: () => void,
+): { results: AccountResults | null; refresh: () => void; indexListed: () => void } {
   // The results with the account they are of, so a shown result is never another account's.
   const [stored, setStored] = useState<{ id: string; results: AccountResults } | null>(null)
   const results =
@@ -63,6 +76,18 @@ export function useAccountResults(
   const running = useRef(false)
   const again = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Answers in a row that were not current (see `busyWaitMs`).
+  const misses = useRef(0)
+  // The snapshot of another build the server sent, whose tag the next ask carries so a refused reload costs a 304, not a body.
+  const refused = useRef<StateSnapshot | null>(null)
+  const reloadWanted = useRef(false)
+  const quietNow = useRef(quiet)
+  // The library version the worker's index was listed at; null means the next snapshot's version is it.
+  const indexAt = useRef<number | null>(null)
+  const behind = useRef(onIndexBehind)
+  useEffect(() => {
+    behind.current = onIndexBehind
+  }, [onIndexBehind])
 
   const keep = useCallback((snapshot: StateSnapshot, shown: AccountResults | null) => {
     held.current = snapshot
@@ -70,11 +95,23 @@ export function useAccountResults(
     if (idRef.current !== null) void writeSnapshot(idRef.current, snapshot)
   }, [])
 
+  /** Reloads for a newer build once this tab has nothing of its own under way, or is out of view. */
+  const settleReload = useCallback(() => {
+    if (!reloadWanted.current || (!quietNow.current && document.visibilityState === 'visible'))
+      return
+    reloadWanted.current = false
+    reloadOnceForNewBuild()
+  }, [])
+
   const apply = useCallback(
     (read: Exclude<StateRead, { kind: 'none' }>): number | null => {
-      if (read.kind === 'computing') return read.retryAfterMs
+      if (read.kind === 'computing') {
+        misses.current++
+        return Math.max(read.retryAfterMs, busyWaitMs(misses.current))
+      }
       if (read.kind === 'unchanged') {
-        const copy = held.current
+        // A 304 on the tag of a refused snapshot says nothing of the copy.
+        const copy = refused.current === null ? held.current : null
         if (copy !== null && read.nowMs !== null && read.nowMs !== copy.nowMs) {
           const moved = { ...copy, nowMs: read.nowMs }
           keep(moved, resultsOf(moved))
@@ -85,15 +122,25 @@ export function useAccountResults(
           )
         }
       } else if (!snapshotIsCurrent(read.snapshot)) {
-        reloadOnceForNewBuild()
+        refused.current = read.snapshot
+        reloadWanted.current = true
+        settleReload()
       } else {
+        refused.current = null
         const snapshot =
           read.nowMs === null ? read.snapshot : { ...read.snapshot, nowMs: read.nowMs }
         keep(snapshot, resultsOf(snapshot))
+        const listed = indexAt.current
+        if (listed === null) indexAt.current = snapshot.libraryVersion
+        else if (snapshot.libraryVersion > listed) {
+          indexAt.current = null
+          behind.current()
+        }
       }
-      return read.current ? null : BUSY_RETRY_MS
+      misses.current = read.current ? 0 : misses.current + 1
+      return read.current ? null : busyWaitMs(misses.current)
     },
-    [keep],
+    [keep, settleReload],
   )
 
   const pull = useCallback(
@@ -107,10 +154,19 @@ export function useAccountResults(
       const mine = epoch.current
       try {
         clearTimeout(timer.current)
-        const read = await readServerState(idRef.current, held.current).catch(() => null)
+        const read = await readServerState(idRef.current, refused.current ?? held.current).catch(
+          () => null,
+        )
         if (mine !== epoch.current || read === null || read.kind === 'none') return
         const wait = apply(read)
-        if (wait !== null) timer.current = setTimeout(() => void run(), wait)
+        // Only while in view: coming back into view asks again at once.
+        if (wait !== null) {
+          // One timer at most, whichever ask armed the last.
+          clearTimeout(timer.current)
+          timer.current = setTimeout(() => {
+            if (document.visibilityState === 'visible') void run()
+          }, wait)
+        }
       } finally {
         // A read of an account since left must not end the one the new account has begun.
         if (mine === epoch.current) {
@@ -138,10 +194,15 @@ export function useAccountResults(
     running.current = false
     again.current = false
     held.current = null
+    refused.current = null
+    reloadWanted.current = false
+    misses.current = 0
+    indexAt.current = null
     if (userId === null) return
     void readSnapshot(userId).then((copy) => {
       if (mine !== epoch.current) return
-      if (copy !== null) {
+      // An answer that came first (a change, or a poll, before the copy was read) is newer than the copy.
+      if (copy !== null && held.current === null && snapshotIsCurrent(copy)) {
         held.current = copy
         const shown = resultsOf(copy)
         if (shown !== null) setStored({ id: userId, results: shown })
@@ -154,6 +215,7 @@ export function useAccountResults(
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') void pull()
+      else settleReload()
     }
     document.addEventListener('visibilitychange', onVisible)
     const poll = setInterval(onVisible, POLL_MS)
@@ -161,14 +223,24 @@ export function useAccountResults(
       document.removeEventListener('visibilitychange', onVisible)
       clearInterval(poll)
     }
-  }, [pull])
+  }, [pull, settleReload])
+
+  // A reload held back for work under way goes once the tab has none.
+  useEffect(() => {
+    quietNow.current = quiet
+    if (quiet) settleReload()
+  }, [quiet, settleReload])
 
   // What another tab, or this one, changed in the account: its results are asked for again.
   const onChange = useCallback(() => void pull(), [pull])
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
-  return { results, refresh: onChange }
+  // The index has just been read, or kept current by this tab's own work: the next snapshot's version is the one it matches.
+  const indexListed = useCallback(() => {
+    indexAt.current = null
+  }, [])
+  return { results, refresh: onChange, indexListed }
 }
 
 /**
@@ -185,4 +257,15 @@ export function useAccountState(
     () => ({ ...(results?.state ?? EMPTY_SESSION), ...facts, ...index }),
     [results, facts, index],
   )
+}
+
+/**
+ * Whether an expired session still shows the account's results: until a state of the device's own arrives (a file dropped after the
+ * expiry is analysed here), which is then the one shown.
+ */
+export function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
+  const [atExpiry, setAtExpiry] = useState<SessionState | null>(null)
+  if (expired && atExpiry === null) setAtExpiry(deviceState)
+  else if (!expired && atExpiry !== null) setAtExpiry(null)
+  return expired && deviceState === atExpiry
 }

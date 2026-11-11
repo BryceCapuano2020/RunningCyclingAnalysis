@@ -236,11 +236,30 @@ describe('useAccountSettings', () => {
 })
 
 describe('the zone', () => {
-  it('is not sent alone to an account that holds another, so two devices in different zones do not flip it', async () => {
+  it('is sent once to an account that holds another zone, and not again when another device moves it back, so two devices do not flip it', async () => {
     get.mockResolvedValue({ ...ACCOUNT, zone: 'Pacific/Apia' })
+    const first = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]![0].zone).toBe(ZONE)
+    first.unmount()
+    // The other device took it back; this one has told the account where it is, and does not on a later read.
     renderHook(() => useAccountSettings('signed-in', 'u1'))
-    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
     await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  it('is not told to an account that already holds this zone, whatever this device last reported', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    expect(put).not.toHaveBeenCalled()
+    view.unmount()
+    localStorage.setItem('rca-zone-reported:u1', 'Pacific/Apia')
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    // The account holds this zone already: nothing to tell.
     expect(put).not.toHaveBeenCalled()
   })
 

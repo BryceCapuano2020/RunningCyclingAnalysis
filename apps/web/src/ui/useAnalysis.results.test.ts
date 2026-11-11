@@ -140,7 +140,7 @@ describe('a signed-in account’s results are the server’s', () => {
   })
 
   it('keeps the copy on a 202 and asks again after Retry-After', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     await writeSnapshot('u1', snapshot(22))
     read.mockResolvedValueOnce({ kind: 'computing', retryAfterMs: 2_000 })
     read.mockResolvedValue(served(61))
@@ -152,7 +152,7 @@ describe('a signed-in account’s results are the server’s', () => {
   })
 
   it('shows nothing for an account with no copy while the server computes, then the results', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     read.mockResolvedValueOnce({ kind: 'computing', retryAfterMs: 2_000 })
     read.mockResolvedValue(served(61))
     const { result } = setup(SIGNED_IN)
@@ -163,7 +163,7 @@ describe('a signed-in account’s results are the server’s', () => {
   })
 
   it('shows what the server served while it computes, and asks again in a few seconds', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     read.mockResolvedValueOnce(served(22, { current: false }))
     read.mockResolvedValue(served(61))
     const { result } = setup(SIGNED_IN)
@@ -172,17 +172,21 @@ describe('a signed-in account’s results are the server’s', () => {
     await vi.waitFor(() => expect(result.current.state.totalActivities).toBe(61))
   })
 
-  it('keeps the copy and reloads the tab once for a snapshot of another build', async () => {
+  it('keeps the copy and reloads the tab once for a snapshot of another build, once the library has loaded', async () => {
     await writeSnapshot('u1', snapshot(22))
     const other = { ...snapshot(61), modelRevision: MODEL_REVISION + 1 }
     read.mockResolvedValue({ kind: 'snapshot', snapshot: other, nowMs: null, current: true })
     const { result } = setup(SIGNED_IN)
+    await waitFor(() => expect(read).toHaveBeenCalled())
+    // The tab is still loading its library: a reload would cut across that.
+    expect(staleBuild.reloadOnceForNewBuild).not.toHaveBeenCalled()
+    act(() => worker().reply({ type: 'state', state: null }))
     await waitFor(() => expect(staleBuild.reloadOnceForNewBuild).toHaveBeenCalled())
     expect(result.current.state.totalActivities).toBe(22)
   })
 
   it('asks again on coming back into view, every minute, and for a change this tab or another made', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     read.mockResolvedValue(served(61))
     setup(SIGNED_IN)
     await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
@@ -249,6 +253,34 @@ describe('a signed-in account’s results are the server’s', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     expect(view.result.current.state.totalActivities).toBe(61)
     expect(read.mock.calls.length).toBe(asked)
+  })
+
+  it('shows a state of the device’s own once one arrives after the session expired', async () => {
+    read.mockResolvedValue(served(61))
+    const view = setup(SIGNED_IN)
+    await waitFor(() => expect(view.result.current.state.totalActivities).toBe(61))
+    view.rerender({ account: { ...SIGNED_OUT, sessionExpired: true } })
+    expect(view.result.current.state.totalActivities).toBe(61)
+    // A file dropped after the expiry is analysed on the device, and what it shows is that analysis.
+    act(() => view.result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
+    act(() => worker().reply({ type: 'state', state: withCount(5) }))
+    expect(view.result.current.state.totalActivities).toBe(5)
+  })
+
+  it('drops what the last account’s replies said of its import and index when the account changes', async () => {
+    read.mockResolvedValue(served(61))
+    const view = setup(SIGNED_IN)
+    await waitFor(() => expect(view.result.current.state.totalActivities).toBe(61))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 2, syncIssues: [] },
+      }),
+    )
+    expect(view.result.current.state.unsupportedFiles).toBe(2)
+    view.rerender({ account: { status: 'signed-in', me: meOf('u2') } })
+    await waitFor(() => expect(view.result.current.state.unsupportedFiles).toBe(0))
   })
 
   it('shows no account results after a sign-out', async () => {

@@ -1,6 +1,8 @@
 import { useCallback } from 'react'
 import type { WorkerRequest } from '../../worker/protocol'
 import type { ImportManifestController } from './importManifestHook'
+import type { ImportState } from './importState'
+import type { LibraryState } from './libraryState'
 import type { SetError } from './model'
 import { keepsError } from './quietRequests'
 
@@ -8,23 +10,15 @@ import { keepsError } from './quietRequests'
 interface SendDeps {
   refreshBusy: () => void
   beginManifest: ImportManifestController['begin']
-  resetNoticesFor: (request: WorkerRequest) => void
   setError: SetError
-  setImportOutcome: (outcome: null) => void
-  setLibraryError: (error: null) => void
-  setLibraryNotice: (notice: null) => void
+  library: Pick<LibraryState, 'resetNoticesFor' | 'setLibraryError' | 'setLibraryNotice'>
+  imports: Pick<ImportState, 'setImportOutcome'>
 }
 
 /** The notices a request replaces are cleared as it is sent. */
-export function useOnSend({
-  refreshBusy,
-  beginManifest,
-  resetNoticesFor,
-  setError,
-  setImportOutcome,
-  setLibraryError,
-  setLibraryNotice,
-}: SendDeps) {
+export function useOnSend({ refreshBusy, beginManifest, setError, library, imports }: SendDeps) {
+  const { resetNoticesFor, setLibraryError, setLibraryNotice } = library
+  const { setImportOutcome } = imports
   return useCallback(
     (request: WorkerRequest, requestId: number) => {
       refreshBusy()
