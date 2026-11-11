@@ -1,5 +1,9 @@
 import { withViewerZone, type Zone } from './calendar'
+import { dayOf } from './customRange'
+import type { LiftSet } from './lift/types'
+import { liftResultsOf } from './lift/liftResults'
 import type { PeriodChoice } from './period'
+import { checkInSnapshotOf } from './sessionCheckIn'
 import { AnalysisSession } from './session'
 import { toSnapshot, type SnapshotMeta, type StateSnapshot } from './stateSnapshot'
 import type { ActivityDigest, AthleteSettings } from './types'
@@ -9,6 +13,11 @@ export interface SnapshotInput extends SnapshotMeta {
   digests: ActivityDigest[]
   settings: AthleteSettings
   choice?: PeriodChoice
+  /**
+   * The account's lift sets (the rows `rca-lifts` and `lift_sets` hold). The lift results are read from them, at the body mass
+   * and year of birth in `settings`, on the local day of `nowMs`. Absent is a log with no sets.
+   */
+  liftSets?: readonly LiftSet[]
   /** The viewer's zone as a function; `zone` in the snapshot is its name. */
   viewerZone: Zone
 }
@@ -28,5 +37,8 @@ function snapshotIn(input: SnapshotInput): StateSnapshot {
   session.choosePeriod(input.choice)
   const state = session.loadDigests(input.digests, input.settings)
   const { libraryVersion, nowMs, zone, buildSha } = input
-  return toSnapshot(state, { libraryVersion, nowMs, zone, buildSha })
+  const checkIn =
+    input.digests.length === 0 ? null : checkInSnapshotOf(input.digests, state, input.nowMs)
+  const lift = liftResultsOf(input.liftSets ?? [], input.settings, dayOf(input.nowMs))
+  return toSnapshot(state, { libraryVersion, nowMs, zone, buildSha }, { lift, checkIn })
 }

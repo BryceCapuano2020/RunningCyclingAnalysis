@@ -1,4 +1,5 @@
-import { snapshotContentHash } from '@rca/core/stateSnapshot'
+import { StateSnapshotSchema } from '@rca/contract'
+import { STATE_SNAPSHOT_VERSION, snapshotContentHash } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { ApiRequestError, readJson, request } from './client'
 
@@ -22,6 +23,9 @@ const SnapshotWire = {
     ) {
       throw new TypeError('not a snapshot')
     }
+    // A snapshot of this build's shape is read whole, so its check-in and lift results are checked against the contract before
+    // anything reads them. One of another shape is left for the caller to refuse, as it is not read.
+    if (found['schemaVersion'] === STATE_SNAPSHOT_VERSION) StateSnapshotSchema.parse(found)
     return found as unknown as StateSnapshot
   },
 }

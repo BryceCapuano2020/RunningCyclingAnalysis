@@ -41,6 +41,8 @@ export { massSdFor, relativeStrength } from './relative'
 export type { RelativeFigure, RelativeStrength } from './relative'
 export { liftWeekStart, weeklyLoad } from './weeklyLoad'
 export type { LiftWeek, RegionLoad } from './weeklyLoad'
+export { liftResultsOf } from './liftResults'
+export type { LiftLeadResult, LiftResults } from './liftResults'
 export { buildLiftState } from './liftState'
 export type { LiftFlag, LiftPeriod, LiftState, LiftSummary } from './liftState'
 export {

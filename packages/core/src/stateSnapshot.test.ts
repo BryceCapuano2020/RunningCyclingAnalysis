@@ -27,10 +27,10 @@ function stateOf({ digests, settings, nowMs }: (typeof corpus)[number]): Session
 }
 
 describe('StateSnapshot', () => {
-  it('is version 1 and carries the model revision and the meta it was given', () => {
+  it('is version 2 and carries the model revision and the meta it was given', () => {
     const snapshot = toSnapshot(stateOf(corpus[0]!), META)
-    expect(STATE_SNAPSHOT_VERSION).toBe(1)
-    expect(snapshot).toMatchObject({ schemaVersion: 1, modelRevision: MODEL_REVISION, ...META })
+    expect(STATE_SNAPSHOT_VERSION).toBe(2)
+    expect(snapshot).toMatchObject({ schemaVersion: 2, modelRevision: MODEL_REVISION, ...META })
   })
 
   it('round trips every synthetic library without losing a field, through its JSON text', () => {
