@@ -454,6 +454,7 @@ of them.
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
 - Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
 - Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
+- Compares the per-account counters with their rows, report-only (`src/counterReconcile.ts`): ten accounts a run, the page following the day number, so every account is checked over successive days. `activity_count`, `digest_bytes` and `file_bytes` are checked against the sums of the account's rows, and `library_version` against the state job's `computed_version`. One `counter_drift` log line names each account that differs and which counters (never the values); the run's totals are `countersChecked` and `countersDrifted` in the `maintenance` log line. Nothing is changed. Two statements, counted in the operation total below.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 

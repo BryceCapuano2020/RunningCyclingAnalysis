@@ -2,6 +2,7 @@ import type { Bindings } from './env.ts'
 import type { Deps } from './deps.ts'
 import { finishAccountDeletion, pruneAccountTombstones } from './accountDeletion.ts'
 import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
+import { reconcileCounters } from './counterReconcile.ts'
 import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
@@ -31,6 +32,9 @@ export interface MaintenanceReport {
   orphansDeleted: number
   /** Messages sent for allowlisted accounts left dirty with none on its way (state/resend.ts). */
   stateResent: number
+  /** Accounts whose counters were compared with their rows this run, and how many differed (counterReconcile.ts). */
+  countersChecked: number
+  countersDrifted: number
   /** Operations issued this run, never more than MAX_MAINTENANCE_OPERATIONS. */
   operations: number
   /** True when the run stopped because it reached MAX_MAINTENANCE_OPERATIONS. */
@@ -77,6 +81,7 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const { finished, failed } = await finishPendingDeletions(bound, deps)
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
+  const reconciled = await within({ checked: 0, drifted: 0 }, () => reconcileCounters(bound, now))
   const stateResent = await within(0, () => resendDirty(bound, now))
   return {
     sessions,
@@ -86,6 +91,8 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
     failedDeletions: failed,
     orphansDeleted,
     stateResent,
+    countersChecked: reconciled.checked,
+    countersDrifted: reconciled.drifted,
     operations: budget.operations,
     budgetReached: budget.reached,
   }
