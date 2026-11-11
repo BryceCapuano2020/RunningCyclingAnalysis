@@ -47,8 +47,7 @@ async function signedInWithLibrary(page: Page): Promise<string> {
   await signInAs(page.request, uniqueEmail(), 'Ada Lovelace')
   await page.goto('/')
   await uploadFixtures(page, TWO_WORKOUTS)
-  // The results are the server's: after an import within seconds of the last compute they come when its claim runs out.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, SNAPSHOT_READY)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   const id = await userId(page)
   await expect.poll(() => copyOf(page, id)).not.toBeNull()
   return id

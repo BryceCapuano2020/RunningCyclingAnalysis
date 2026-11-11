@@ -361,7 +361,7 @@ describe('a signed-in account’s results are the server’s', () => {
       // The server served what it had stored while it computed: that is not the results that include the import.
       await ask(at(R62, 62, 7, false))
       expect(view.result.current.importChange).toBeNull()
-      // A compute in the middle of the import (some of its files): current, but short of the version the import ended at.
+      // A compute made mid-way, with some of the files: current, but short of the version the import ended at.
       await ask(at(R62, 62, 6))
       expect(view.result.current.importChange).toBeNull()
       await ask(at(R62, 62, 7))
