@@ -31,6 +31,16 @@ const BANNED = [
   /^runDurationRatio$/,
   /^FLAT_RUN_COST$/,
   /^RESTING_W_PER_KG$/,
+  // The lift figures (L3): `liftResultsOf` works them all out once, on the server for an account and in the page signed out, and
+  // the pages read what it returns.
+  /^liftGrade$/,
+  /^liftCornerGrade$/,
+  /^bigThreeTotal$/,
+  /^buildLiftState$/,
+  /^liftChange$/,
+  /^liftHistory$/,
+  /^liftWindowCounts$/,
+  /^liftLevelTotals$/,
 ]
 
 /**
@@ -188,6 +198,24 @@ test('importsOf reads named, default, namespace, dynamic and re-exported imports
     { from: '@rca/core/grade', names: [], whole: true },
     { from: '@rca/core/grade', names: [], whole: true },
     { from: '@rca/core/constants', names: [], whole: true },
+  ])
+})
+
+test('the lift figure functions are refused, and the one that works them out is not', () => {
+  const source = [
+    "import { liftGrade, liftCornerGrade, bigThreeTotal, buildLiftState } from '@rca/core/lift'",
+    "import { liftChange, liftHistory, liftWindowCounts, liftLevelTotals } from '@rca/core/lift'",
+    "import { liftResultsOf } from '@rca/core/lift'",
+  ].join('\n')
+  assert.deepEqual(offencesIn(source), [
+    'liftGrade',
+    'liftCornerGrade',
+    'bigThreeTotal',
+    'buildLiftState',
+    'liftChange',
+    'liftHistory',
+    'liftWindowCounts',
+    'liftLevelTotals',
   ])
 })
 

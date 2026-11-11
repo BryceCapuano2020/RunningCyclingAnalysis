@@ -216,6 +216,7 @@ Each existing migration was reviewed against this rule:
 | `0016_state_analysis_revision`  | Adds `state_jobs.analysis_revision` (the combine-time analysis revision, core `ANALYSIS_REVISION`, a snapshot was made under), not null with default 0.                                                                                                                                                                                                                                        | Additive: one defaulted column no earlier Worker names, so every earlier release stays a rollback target. Every row starts at 0, so each listed account's snapshot is stale under the new Worker: `GET /api/state` answers 404 and sends one recompute, and the daily re-send picks up the rest. **The owner applies this migration before the Worker that reads it is deployed; it was not applied by the change that added it.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `0017_activity_name_override`   | Adds `activities.name_override` (the name the athlete gave the activity), nullable.                                                                                                                                                                                                                                                                                                            | Additive: one nullable column no earlier Worker names, so every earlier release stays a rollback target. Every row starts null, so each activity keeps the name its file gave until it is renamed. **The owner applies this migration before the Worker that reads it is deployed; it was not applied by the change that added it.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `0018_garmin_sync`              | Creates `provider_links` (an account's Garmin link with its encrypted tokens) and `inbox_items` (the Garmin ingest ledger), and adds `activities.source` (`file` or `garmin`), not null with default `file`.                                                                                                                                                                                   | Additive: two new tables and a column with a default that no earlier Worker names, so every earlier release stays a rollback target; an earlier Worker's insert gets `file`. Garmin sync stays off (`GARMIN_ENABLED` unset), so both tables stay empty. **The owner applies this migration before the Worker that reads it is deployed; it was not applied by the change that added it.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `0019_state_lift_order`         | Adds `state_jobs.snapshot_lift_revision`, `snapshot_now_ms` and `claim_until` (until when a compute holds the account's claim), integers, not null, default 0, and `r2_storage_budget.reconcile_cursor` (where the daily counter reconciliation resumes), text, nullable.                                                                                                                      | Additive: three defaulted columns and one nullable column no earlier Worker names, so every earlier release stays a rollback target. Every row starts at 0, so each account computes once on its first open under the new Worker. **The owner applies this migration before the Worker that reads it is deployed; it was not applied by the change that added it.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 After the Worker version that maintains `digest_bytes` is fully serving, reconcile any writes made
 by the previous Worker between migration 0004 and deployment. Run this as one statement against the
@@ -301,42 +302,40 @@ startMs)` is the key every workout is matched by, at the second: the `dedupe_key
   second-key within the minute (a range lookup, no migration) and the updater to rewrite `dedupe_key` on an upgrade.
   That is a stage of its own.
 
-## Results computed on the server (off; an allowlist)
+## Results computed on the server (every signed-in account)
 
-Server compute (docs/design/server-compute.md, packages S4 and S5) is built and **off for everyone**. It runs only for the
-accounts on an allowlist: user ids, comma separated, from the Worker **secret `SERVER_COMPUTE_ACCOUNTS`** when one is set
-(the secret wins, even empty) and otherwise from the plain variable `SERVER_COMPUTE_USERS` in `[vars]` (empty today). **The
-owner's id goes in the secret, not in the repository**: `wrangler secret put SERVER_COMPUTE_ACCOUNTS` (not run by any
-change; the owner runs it). The secret has its own name because a secret and a variable of one name replace each other on
-deploy. `*` means everyone and is for local tests and the e2e server only: a Worker with `ENVIRONMENT = "production"` ignores
-it, from the secret as from the variable, since the deploy check cannot read the secret. For an account not on the list nothing is sent,
-computed or served, `GET /api/state` is a 404, and `/api/me` does not carry `serverState`, as with the feature absent.
+Server compute (docs/design/server-authority.md) runs for every signed-in account: the Queue, the job and `GET /api/state`
+answer for all of them, and `/api/me` no longer carries `serverState`. There is no allowlist and no `SERVER_COMPUTE_USERS`
+variable. **After this release the owner removes the `SERVER_COMPUTE_ACCOUNTS` secret** (`wrangler secret delete
+SERVER_COMPUTE_ACCOUNTS`; not run by any change): nothing reads it any more. The size bound is the account
+limits (3,000 activities, 24 MiB of digest JSON, 60,000 lift sets; apps/api/LIMITS.md has the measurements). **Before the
+release that lowers them, check read-only that no account is over:** `SELECT id FROM users WHERE activity_count > 4000 OR
+digest_bytes > 25165824` should return nothing; rows over a new quota are kept, never dropped.
 
 **Apply migrations 0013 and 0014 before ANY deploy of this Worker, even with the list empty.** `GET /api/me` selects
 `library_version` (0014) and the settings routes read and write `athlete_settings` (0013) and its `zone` column (0014); a
 Worker deployed before them fails those requests for everyone. Both are additive (see their rows above). **Apply 0015 before
-the allowlist names an account**: the state job reads and writes its two columns. **Apply 0016 before deploying
+the Worker that reads it**: the state job reads and writes its two columns. **Apply 0016 before deploying
 the Worker that reads it**: `GET /api/state`, the state job and the daily re-send all read `state_jobs.analysis_revision`.
 
 **Everything this feature adds, in one place:**
 
 | Resource          | Name / value                                                                                                                                                                                                                                           |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1 migrations     | `0013_account_settings` and `0014_server_state`, both applied before any deploy; `0015_state_pending` before the allowlist names an account                                                                                                            |
+| D1 migrations     | `0013_account_settings` and `0014_server_state`, both applied before any deploy; `0015_state_pending` before the Worker that reads it                                                                                                                  |
 | Queue             | `rca-state` (`wrangler queues create rca-state`); the producer binding is `STATE_QUEUE`                                                                                                                                                                |
 | Dead-letter queue | `rca-state-dlq` (`wrangler queues create rca-state-dlq`); nothing consumes it, a message that failed its tries waits there                                                                                                                             |
 | R2 key prefix     | `users/{userId}/state/{hash}.json.gz` in the existing `rca-files` bucket; no new bucket                                                                                                                                                                |
-| Worker secret     | `SERVER_COMPUTE_ACCOUNTS` = the owner's user id (`wrangler secret put`); wins over the variable                                                                                                                                                        |
-| Worker variable   | `SERVER_COMPUTE_USERS` in `[vars]`: empty, and stays empty in the repository                                                                                                                                                                           |
-| Wrangler blocks   | `[limits] cpu_ms = 10000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
+| Worker secret     | none: `SERVER_COMPUTE_ACCOUNTS` is no longer read, and the owner removes it after this release                                                                                                                                                         |
+| Wrangler blocks   | `[limits] cpu_ms = 60000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
 | Plan              | Workers Paid (Queues, `limits.cpu_ms`)                                                                                                                                                                                                                 |
 
-The blocks are what turn the feature on, since the list is in a secret the deploy check cannot read. The check
-(`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) accepts no queue and no `[limits]`, or the whole
+The deploy check (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) requires the whole
 set: the producer, a consumer that sets `max_batch_size`, `max_concurrency = 1`, `max_retries` and `dead_letter_queue`, and a
-CPU cap. It refuses `*` and a list without the set. No scheduled trigger computes. The daily maintenance sends one message for each listed account
-(explicit ids, at most 50; `*` re-sends nothing) whose inputs moved past its last compute while no message is on its way, so a
-lost or exhausted message leaves an account dirty for a day at most; the report counts them as `stateResent`.
+CPU cap. No scheduled trigger computes. The daily maintenance sends one message for each account (at most 50 a run, the one
+whose last compute began longest ago first) whose inputs moved past its last compute, or whose stored result revision is lower than this
+build's, while no message is on its way, so a lost or exhausted message leaves an account dirty for a day at most; the
+report counts them as `stateResent`.
 
 **Compute cost.** A write sends one message, delayed 10 s, unless one for the account is on its way already
 (`state_jobs.pending_until`), so an import of thousands of files sends tens of messages, not one per file. The job
@@ -365,7 +364,7 @@ one run a daily orphan sweep whose key pattern (`OBJECT_KEY`, `users/{id}/{file}
 `users/{id}/state/{hash}.json.gz`, so it treats every snapshot object as an orphan and deletes it at its next run once the object is an hour old.
 `state_jobs.snapshot_hash` still names the object, and a later job whose figures are the same says `unchanged` and writes
 nothing, so the account keeps a 404 and the browser computes locally. After a rollback to such a Worker and the redeploy of
-this one, for each allowlisted account (read-only check first:
+this one, for each account with a snapshot (read-only check first:
 `SELECT user_id, snapshot_hash FROM state_jobs WHERE user_id IN (...)`):
 
 1. `UPDATE state_jobs SET snapshot_hash = NULL, snapshot_version = 0 WHERE user_id IN (...)`, so the next job writes an
@@ -380,8 +379,7 @@ revision of its own and leaves `state_jobs.analysis_revision` as it was. After t
 object stale, sets the row's revision to 0 and sends one recompute, so nothing needs doing by hand. To recompute every listed
 account at once instead: `UPDATE state_jobs SET analysis_revision = 0`, and the daily re-send picks them up.
 
-`cpu_ms = 10000`: the note puts a recompute of 2,000 activities at about 100 ms and the hard-effort budget at 1,200 ms, so 10 s
-is eight times the worst budget on a slower runner, and a runaway job is stopped long before the 30 s default.
+`cpu_ms = 60000`: the largest account the quotas once admitted (4,000 activities, 32 MiB of digests, 60,000 lift sets) took 3.3 s of CPU locally, and 15.6 s with the isolate's heap limited to 96 MB (the collector thrashing). At the 2x allowance for Cloudflare's slower CPUs that is about 31 s, over 30 s, so the cap is 60 s; Workers Paid allows up to 300 s and unused time costs nothing.
 
 **Not built yet.** The hourly refresh (S6) does not exist. A message that is lost, or whose retries run out, leaves the account
 dirty until its next write or the next daily maintenance; and a change to the snapshot's shape or to `MODEL_REVISION` needs a write to recompute an account's
@@ -448,7 +446,7 @@ while you look.
    so it cannot create another account, and end the account's sessions: `DELETE FROM sessions WHERE user_id = '<id>'`.
    **The list does not stop an account that exists**: it signs in whatever the secret holds, so once the switch is off it
    is back. Only deleting the account (step 5) keeps it out. Nothing of theirs is lost yet.
-4. _Cap the damage_: one account's digests are bounded (64 MiB, 5,000 activities), its originals (1 GiB), and a digest's free
+4. _Cap the damage_: one account's digests are bounded (24 MiB, 3,000 activities), its originals (1 GiB), and a digest's free
    text by the byte caps in `apps/api/LIMITS.md`. A single account cannot fill the guard; several can, which is why step 3
    comes before step 5.
 5. _Remove_: first `INSERT OR IGNORE INTO account_tombstones(user_id, deleted_at) VALUES('<id>', <now in ms>)`, so a
@@ -495,13 +493,13 @@ production bindings return `503` with a retry delay. Namespace identifiers in `w
 should be unique within the deployment account. Shared IP addresses can share the public/auth
 limits. See Cloudflare's [rate-limit binding documentation](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
 
-Strict per-account quotas remain atomic D1 operations: 5,000 activities and 1 GiB of original-file
+Strict per-account quotas remain atomic D1 operations: 3,000 activities and 1 GiB of original-file
 reservations. An upload reserves bytes before R2 writes; a failed upload retains that reservation
 until the same-file retry, activity deletion, or file-retention opt-out. This prevents simultaneous
 retries from freeing quota that another upload still needs. The activity response reports a stored
 file only after finalization. Original uploads are capped at 50 MiB. Body reads have a 15-second
 idle timeout and a two-minute total limit, and release readers on all exit paths.
-Per-user UTC daily budgets allow 5,000 new activities (the library limit) and 2,000 original-file uploads,
+Per-user UTC daily budgets allow 3,000 new activities (the library limit) and 2,000 original-file uploads,
 with separate budgets of 100 library listings (`GET /api/activities`; `GET /api/me` is not
 charged), 50 profile writes, 50 activity deletes and 50 file downloads. Contract constants and detailed behavior are listed in
 [LIMITS.md](../apps/api/LIMITS.md).

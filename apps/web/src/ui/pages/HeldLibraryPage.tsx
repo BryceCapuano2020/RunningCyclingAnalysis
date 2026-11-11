@@ -4,6 +4,7 @@ import { heldViewFor } from './heldLibraryView'
 import type { AnalysisController } from '../useAnalysis'
 import './HeldLibraryPage.css'
 import { PageHeading } from '../components/PageHeading'
+import { limitReached } from '../limitCopy'
 
 export interface HeldLibraryPageProps {
   analysis: AnalysisController
@@ -55,15 +56,33 @@ export function HeldLibraryPage({
 }
 
 /** The library could not be loaded or read. The message above the page has the retry; this says what the page is. */
-export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
+export function UnavailableLibraryPage({
+  canRetry,
+  resultsFailed = false,
+  onRetry,
+}: {
+  canRetry: boolean
+  /** The library is fine; the server's results could not be fetched. */
+  resultsFailed?: boolean | undefined
+  /** Given when the page itself offers the retry: the results could not be fetched, which no notice above the page says. */
+  onRetry?: (() => void) | undefined
+}) {
   return (
     <section className="held">
       <PageHeading>Your library is not showing yet</PageHeading>
       <p>
-        {canRetry
-          ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'
-          : 'It could not be read from this browser. Nothing was lost. Reload the page to try again.'}
+        {resultsFailed
+          ? 'Your results could not be fetched.'
+          : canRetry
+            ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'
+            : 'It could not be read from this browser. Nothing was lost. Reload the page to try again.'}
       </p>
+      {resultsFailed && !onRetry && <p>{limitReached('stateRead')}</p>}
+      {onRetry && (
+        <button type="button" className="btn" onClick={onRetry}>
+          Retry
+        </button>
+      )}
     </section>
   )
 }

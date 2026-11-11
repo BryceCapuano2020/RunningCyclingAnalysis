@@ -1,3 +1,4 @@
+import { MAX_ACTIVITIES_PER_USER } from '@rca/contract'
 import { describe, expect, it, vi } from 'vitest'
 import { systemDeps } from '../deps.ts'
 import worker from '../index.ts'
@@ -14,8 +15,8 @@ import { handleStateBatch } from './consumer.ts'
 
 const digests = libraryDigests()
 
-async function prepared(options: { on?: boolean } = {}) {
-  const w = await stateWorld(options)
+async function prepared() {
+  const w = await stateWorld()
   w.h.clock.now = afterNewest(digests)
   await seedDigests(w.env.DB, w.userId, digests)
   return w
@@ -39,7 +40,6 @@ describe('the state consumer', () => {
 
   it('runs the accounts one after another and answers each its own way', async () => {
     const w = await prepared()
-    w.env.SERVER_COMPUTE_USERS = `${w.userId},no-such-account`
     const { batch, acked } = fakeBatch([w.userId, 'no-such-account'])
     const report = await handleStateBatch(batch, w.env, w.deps)
     expect(report).toEqual({ accounts: 2, outcomes: { written: 1, gone: 1 } })
@@ -55,26 +55,23 @@ describe('the state consumer', () => {
     expect(acked).toEqual([1])
     expect(retried).toEqual([{ id: 0, delaySeconds: 30 }])
     expect(log).toHaveBeenCalledOnce()
-    expect(log.mock.calls[0]?.[0]).toBe('{"event":"state_job_failed","errorClass":"Error"}')
+    expect(log.mock.calls[0]?.[0]).toBe(
+      '{"event":"state_job_failed","errorClass":"Error","activities":"under_1000"}',
+    )
     log.mockRestore()
   })
 
-  it('drops the messages of an account off the allowlist, and computes one on it', async () => {
-    const off = await prepared({ on: false })
-    const dropped = fakeBatch([off.userId])
-    expect(await handleStateBatch(dropped.batch, off.env, off.deps)).toEqual({
-      accounts: 1,
-      outcomes: { not_listed: 1 },
-    })
-    expect(dropped.acked).toEqual([0])
-    expect(await hashOf(off)).toBeNull()
-    // Listed among others, with stray spaces: computed.
-    off.env.SERVER_COMPUTE_USERS = ` other-id , ${off.userId} `
-    const listed = fakeBatch([off.userId])
-    expect(await handleStateBatch(listed.batch, off.env, off.deps)).toEqual({
-      accounts: 1,
-      outcomes: { written: 1 },
-    })
+  it('says in the failure log that an account is over the activity quota, by bucket and never by figure', async () => {
+    const w = await prepared()
+    await w.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER + 1, w.userId)
+      .run()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await handleStateBatch(fakeBatch([w.userId]).batch, { ...w.env, FILES: undefined }, w.deps)
+    expect(log.mock.calls[0]?.[0]).toBe(
+      '{"event":"state_job_failed","errorClass":"Error","activities":"over_quota"}',
+    )
+    log.mockRestore()
   })
 
   it('answers a burst with one delayed message, not one per write, and computes when the interval has passed', async () => {

@@ -1,0 +1,147 @@
+import { RESULT_REVISION } from './resultRevision.ts'
+import { afterEach, describe, expect, it } from 'vitest'
+import { racingDb } from '../test/racingDb.ts'
+import {
+  afterNewest,
+  fakeBatch,
+  libraryDigests,
+  seedDigests,
+  stateWorld,
+} from '../test/stateKit.ts'
+import { handleStateBatch } from './consumer.ts'
+import { claimCompute } from './record.ts'
+import { forgetUnstored, withComputeLock } from './lock.ts'
+import { runStateJob } from './job.ts'
+
+const digests = libraryDigests()
+
+afterEach(forgetUnstored)
+
+async function prepared() {
+  const w = await stateWorld()
+  w.h.clock.now = afterNewest(digests)
+  await seedDigests(w.env.DB, w.userId, digests)
+  return w
+}
+
+const stored = async (w: Awaited<ReturnType<typeof prepared>>) =>
+  (await w.env.FILES!.list({ prefix: `users/${w.userId}/state/` })).objects.length
+
+describe('the consumer and the isolate lock', () => {
+  it('acknowledges the messages of an account another compute holds, sends one fresh delayed message, and computes it after', async () => {
+    const w = await prepared()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const held = withComputeLock(() => gate)
+    try {
+      const { batch, acked, retried } = fakeBatch([w.userId, w.userId])
+      const report = await handleStateBatch(batch, w.env, w.deps)
+      expect(report).toEqual({ accounts: 1, outcomes: { busy: 1 } })
+      // A retry would count toward the Queue's limit and could end in the dead-letter queue: a fresh message does not.
+      expect(retried).toEqual([])
+      expect(acked).toEqual([0, 1])
+      expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 5 } }])
+      expect(await stored(w)).toBe(0)
+    } finally {
+      release()
+      await held
+    }
+    const again = fakeBatch([w.userId])
+    expect((await handleStateBatch(again.batch, w.env, w.deps)).outcomes).toEqual({ written: 1 })
+    expect(again.acked).toEqual([0])
+  })
+
+  it('says busy and computes nothing when a read in another isolate claims the account first', async () => {
+    const w = await prepared()
+    const env = {
+      ...w.env,
+      DB: racingDb(
+        w.env.DB,
+        /INSERT INTO state_jobs \(user_id, attempted_at, claim_until\)/,
+        async () => {
+          expect(await claimCompute(w.env.DB, w.userId, w.h.clock.now, 10_000)).not.toBeNull()
+        },
+      ),
+    }
+    expect(await runStateJob(env, w.deps, w.userId)).toBe('busy')
+    expect(await stored(w)).toBe(0)
+  })
+
+  it('delays its fresh message by what is left of the claim, not five seconds at a time through a failure hold', async () => {
+    const w = await prepared()
+    // A read's compute failed 100 s ago: its claim is held for the failure hold, and the queue's job is not held by it but a running
+    // claim in another isolate is. Here the claim is a running one with 40 s left.
+    await claimCompute(w.env.DB, w.userId, w.h.clock.now - 40_000, 60_000)
+    const { batch } = fakeBatch([w.userId])
+    const report = await handleStateBatch(batch, w.env, w.deps)
+    expect(report.outcomes).toEqual({ busy: 1 })
+    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 20 } }])
+  })
+
+  it('computes over a failure hold: the queue retries a failure itself, so it is not held by the hold a read put', async () => {
+    const w = await prepared()
+    await claimCompute(w.env.DB, w.userId, w.h.clock.now - 100_000, 60_000, 300_000)
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+  })
+
+  it("acknowledges without computing when the stored snapshot is a later Worker's", async () => {
+    const w = await prepared()
+    await runStateJob(w.env, w.deps, w.userId)
+    await w.env.DB.batch([
+      w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?').bind(
+        RESULT_REVISION + 1,
+        w.userId,
+      ),
+      w.env.DB.prepare('UPDATE users SET library_version = library_version + 1 WHERE id = ?').bind(
+        w.userId,
+      ),
+    ])
+    let reads = 0
+    const env = {
+      ...w.env,
+      DB: racingDb(w.env.DB, /SELECT id, created_at, digest_json/, async () => void (reads += 1)),
+    }
+    w.h.clock.now += 120_000
+    const { batch, acked, retried } = fakeBatch([w.userId])
+    expect(await handleStateBatch(batch, env, w.deps)).toEqual({
+      accounts: 1,
+      outcomes: { newer: 1 },
+    })
+    expect(acked).toEqual([0])
+    expect(retried).toEqual([])
+    expect(reads).toBe(0)
+  })
+
+  it('computes nothing for an account deleted after the job began, and puts no object', async () => {
+    const w = await prepared()
+    const env = {
+      ...w.env,
+      DB: racingDb(w.env.DB, /r2_storage_budget/, async () => {
+        await w.env.DB.prepare('UPDATE users SET deleting_at = 1 WHERE id = ?').bind(w.userId).run()
+      }),
+    }
+    expect(await runStateJob(env, w.deps, w.userId)).toBe('gone')
+    expect(await stored(w)).toBe(0)
+  })
+
+  it('treats a lift write during the input read as moved, and records nothing', async () => {
+    const w = await prepared()
+    const env = {
+      ...w.env,
+      DB: racingDb(w.env.DB, /SELECT id, created_at, digest_json/, async () => {
+        await w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
+          .bind(w.userId)
+          .run()
+      }),
+    }
+    expect(await runStateJob(env, w.deps, w.userId)).toBe('moved')
+    expect(await stored(w)).toBe(0)
+    const row = await w.env.DB.prepare(
+      'SELECT snapshot_lift_revision AS l, snapshot_hash AS h FROM state_jobs WHERE user_id = ?',
+    )
+      .bind(w.userId)
+      .first<{ l: number; h: string | null }>()
+    expect(row).toEqual({ l: 0, h: null })
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
+  })
+})

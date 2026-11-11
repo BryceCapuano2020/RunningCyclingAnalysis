@@ -11,8 +11,18 @@ export function heldLibraryView(counts: {
   busy: boolean
   /** Whether originals can be rebuilt from at all; false disables Update now, and the page says why. */
   retention?: boolean
+  /** Every activity the library lists. The empty line is for none; where it is not given, as for most callers, the library is taken as empty. */
+  libraryActivities?: number
 }): { title: string; lines: string[]; update: boolean; addFiles: boolean } {
-  const { stale, newer, rebuildable, unreadable, busy, retention = true } = counts
+  const {
+    stale,
+    newer,
+    rebuildable,
+    unreadable,
+    busy,
+    retention = true,
+    libraryActivities = 0,
+  } = counts
   const needFiles = stale - rebuildable
   if (stale === 0 && newer > 0) {
     return {
@@ -31,7 +41,9 @@ export function heldLibraryView(counts: {
       lines: [
         unreadable > 0
           ? `${plural(unreadable, 'saved activity', 'saved activities')} could not be read. Add the files again to bring ${unreadable === 1 ? 'it' : 'them'} back.`
-          : 'This library holds no runs or rides yet. Add your files to see your results.',
+          : libraryActivities > 0
+            ? `${plural(libraryActivities, 'activity', 'activities')} listed, and no results to show yet.`
+            : 'This library holds no runs or rides yet. Add your files to see your results.',
       ],
       update: false,
       addFiles: true,
@@ -75,5 +87,6 @@ export function heldViewFor(
     unreadable: analysis.libraryUnreadable,
     busy: analysis.busy,
     retention: fileRetentionAvailable,
+    libraryActivities: analysis.state.libraryActivities,
   })
 }

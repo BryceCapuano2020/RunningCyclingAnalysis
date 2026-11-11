@@ -529,10 +529,10 @@ describe('shared limits', () => {
       MAX_MONTHLY_R2_PUT_BYTES,
     } = await import('./index.ts')
     expect(DAILY_LIMITS).toEqual({
-      fileDownload: 5000,
+      fileDownload: 3000,
       profileWrite: 50,
       activityDelete: 50,
-      activityCreate: 5000,
+      activityCreate: 3000,
       fileUpload: 2000,
       read: 100,
       measurementWrite: 200,

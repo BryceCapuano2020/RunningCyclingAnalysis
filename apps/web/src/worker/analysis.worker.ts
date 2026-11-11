@@ -11,17 +11,13 @@ import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './a
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
 import { keepProvisional } from './keepProvisional'
-import { clearLifts } from './liftStore'
-import { clearOutbox } from './outbox'
 import { FailedOriginals } from './failedOriginals'
 import { SendingKeys } from './sendingKeys'
 import { startResume } from './startResume'
 import type { ResumeParts } from './startResume'
 import { ResumeHolder } from './resumeHolder'
-import { exportAccount } from './exportAccount'
 import { deleteSavedGroup } from './deleteGroup'
 import type { DeleteGroupContext } from './deleteGroup'
-import { hiddenRecordIds } from './hiddenCopies'
 import { reportLibraryActivities } from './libraryReport'
 import { openDeviceLibrary } from './deviceLibrary'
 import { outdatedWithOriginal } from './outdatedOriginals'
@@ -38,16 +34,18 @@ import {
   stamped,
   waitingToChangeLibrary,
 } from './workerWire'
-import { clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
+import { accountReplies } from './accountReply'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
 import { deviceClock } from './sampleClock'
-import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
+import { clearLibrary } from './clearLibrary'
+import { isReadRequest, readReply } from './readReplies'
+import type { ClearContext } from './clearLibrary'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 
@@ -79,6 +77,7 @@ const device = deviceActions(
   () => workbench.watchDevice(),
 )
 const view = newWorkerView()
+const acct = accountReplies(session, view)
 const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
@@ -152,12 +151,6 @@ const adoptionContext: AdoptionRequestContext = {
   resume: () => resume.get(),
   resumeEnded: () => resume.clear(),
 }
-function finishLoad(state: SessionState, userId: string): SessionState {
-  resume.start(() => startResume(resumeParts, userId))
-  void offerDevice(adoptionContext, userId)
-  return state
-}
-
 const renameContext: RenameContext = {
   session,
   deviceLibrary,
@@ -180,7 +173,22 @@ const deleteContext: DeleteGroupContext = {
   reportLibrary,
 }
 
-async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
+const clearContext: ClearContext = {
+  view,
+  labelUndo: labels.labelUndo,
+  resume,
+  failedOriginals,
+  provisionalItems,
+  workbench,
+  routes,
+  device,
+  session,
+  post,
+}
+
+async function handle(
+  request: Exclude<WorkerRequest, RouteMemoryRequest>,
+): Promise<SessionState | null> {
   checkIns.onRequest(request)
   switch (request.type) {
     case 'addFiles':
@@ -195,6 +203,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       view.showingSample = true
       view.sampleClock = deviceClock()
       device.replaced()
@@ -206,26 +215,23 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
+      view.accountIndex = true
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
-      return finishLoad(
-        await loadServer(
-          libraryContext,
-          request.settings,
-          request.userId,
-          periodChoiceOf(request.choice),
-        ),
-        request.userId,
-      )
+      await acct.readListed()
+      await loadServer(libraryContext, request.userId)
+      resume.start(() => startResume(resumeParts, request.userId))
+      void offerDevice(adoptionContext, request.userId)
+      return null
     case 'resumeSaves':
       // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
       if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
         await resume.end()
         await resume.start(() => startResume(resumeParts, request.userId, true)).finished
       }
-      return session.setSettings(request.settings)
+      return acct.stateWith(request.settings)
     case 'undoLabels':
       // Answered with the state and how many labels are left, from onmessage.
       throw new Error('An undo is not a session request')
@@ -237,9 +243,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
     case 'setSettings':
-      return session.setSettings(request.settings)
+      return acct.stateWith(request.settings)
     case 'setRange':
-      return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
+      return acct.inAccount()
+        ? null
+        : session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
       // Results shown here that could not be kept are not given up for a reload: they stay as they are.
       if (request.reload === true && !device.hasUnkept()) device.replaced()
@@ -253,32 +261,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
-      view.libraryEpoch++
-      labels.labelUndo.clear()
-      resume.cancel()
-      failedOriginals.forget()
-      provisionalItems.clear()
-      view.showingSample = false
-      workbench.clearMemory()
-      routes.clear()
-      if (request.forgetDevice) {
-        // The page is told once: forget() has already told it when the library would not clear.
-        const forgotten = await device.forget()
-        // The index of files read goes with the library it describes.
-        await clearCheckinScope('device')
-        const tracesCleared = await workbench.clearScope({ kind: 'device' })
-        // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
-        // signed out has no account on screen to ask about them.
-        const outboxCleared = await clearOutbox()
-        // The logged lifting sets are nothing kept here either.
-        const liftsCleared = await clearLifts()
-        if ((!tracesCleared || !outboxCleared || !liftsCleared) && forgotten)
-          post({ type: 'deviceIssue', issue: 'notForgotten' })
-      } else device.replaced()
-      return session.clear()
+      return clearLibrary(clearContext, request.forgetDevice === true)
     case 'deleteDeviceActivity':
       workbench.clearMemory()
       await forgetHeldKeys('device', [request.id])
@@ -294,15 +281,17 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'activityTrace':
       throw new Error('An activity trace is not a session request')
     case 'markSeen':
+    case 'checkInFor':
     case 'acceptPartialImport':
-      // Answered with checkInSaved, not with a session state.
+      // Answered with checkInSaved or checkInView, not with a session state.
       throw new Error('A check-in request is not a session request')
     case 'deleteActivity': {
       if (view.activeScope?.kind !== 'account' || view.activeScope.userId !== request.userId)
         throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
-      return deleteSavedGroup(deleteContext, record, request.userId, request.settings)
+      await deleteSavedGroup(deleteContext, record, request.userId)
+      return null
     }
   }
 }
@@ -324,45 +313,36 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
         await reportDetail()
-        post(await checkIns.attach({ type: 'state', ...imported, ...rebuildable() }, 'addFiles'))
+        const reply = await acct.stateReply(imported.state, 'addFiles', imported, imported)
+        post(await checkIns.attach({ ...reply, ...rebuildable() }, 'addFiles'))
       } else if (event.data.type === 'rebuildStale') {
-        const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
+        const rebuilt = await rebuildStale(libraryContext, event.data.userId)
         await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
-        post(
-          await checkIns.attach(
-            { type: 'rebuildComplete', ...rebuilt, ...rebuildable() },
-            'rebuildStale',
-          ),
-        )
+        // An account's reply has no state, so there is no check-in to attach here (see checkinWorker.ts).
+        post({
+          type: 'rebuildComplete',
+          ...rebuilt,
+          ...acct.factsOf(rebuilt.state),
+          ...rebuildable(),
+        })
       } else if (event.data.type === 'undoLabels') {
         post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
         post(await checkIns.answer(event.data, importContext.lastImport))
-      } else if (event.data.type === 'exportData') {
-        post({
-          type: 'exportReady',
-          file: await exportAccount(event.data, hiddenRecordIds(savedRecords.values())),
-        })
-      } else if (event.data.type === 'activitySplits') {
-        post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
-      } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {
-        if (event.data.type === 'forgetRoutes') {
-          workbench.clearMemory()
-          view.activeScope = null
-        }
-        post(await routes.reply(event.data))
-      } else if (event.data.type === 'activityTrace') {
-        const reply = await activityTraceReply(importContext, event.data)
-        // Reading a trace back from an original stores it, which may push an older one out. The page
-        // hears of that before the reply: nothing the worker says after its reply is attributed.
-        if (event.data.fromOriginal === true) await reportDetail()
-        post({ type: 'activityTrace', reply })
+      } else if (isReadRequest(event.data)) {
+        post(
+          await readReply(
+            { savedRecords, session, workbench, view, routes, importContext, reportDetail },
+            event.data,
+          ),
+        )
       } else {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        post(await checkIns.attach({ type: 'state', state, ...rebuildable() }, type))
+        const reply = await acct.stateReply(state, type, {})
+        post(await checkIns.attach({ ...reply, ...rebuildable() }, type))
       }
     } catch (error) {
       post({

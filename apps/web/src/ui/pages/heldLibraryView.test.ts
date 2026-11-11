@@ -57,3 +57,17 @@ describe('heldLibraryView', () => {
     expect(view.update).toBe(false)
   })
 })
+
+describe('heldLibraryView and the empty library', () => {
+  it('says it holds no runs or rides only when the index lists nothing', () => {
+    const empty = heldLibraryView({ ...none, libraryActivities: 0 })
+    expect(empty.lines.join(' ')).toMatch(/holds no runs or rides yet/)
+    const listed = heldLibraryView({ ...none, libraryActivities: 200 })
+    expect(listed.lines.join(' ')).not.toMatch(/holds no runs or rides yet/)
+    expect(listed.lines.join(' ')).toMatch(/200 activities/)
+  })
+
+  it('keeps the empty line where the count is not given, as for every other caller', () => {
+    expect(heldLibraryView(none).lines.join(' ')).toMatch(/holds no runs or rides yet/)
+  })
+})

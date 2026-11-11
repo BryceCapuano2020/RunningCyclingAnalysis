@@ -4,7 +4,6 @@ import {
   ACCOUNT_SCOPE_HEADER,
   CLIENT_HEADER,
   CLIENT_HEADER_VALUE,
-  MAX_ACTIVITIES_PER_USER,
   MAX_PAGE_BODY_BYTES,
   MAX_PAGE_SIZE,
   MAX_FILE_BYTES,
@@ -118,7 +117,7 @@ export async function request(
     const canRetry = backoffMs !== undefined && attempt === 0 && failedFast
     if (response === null) {
       if (!canRetry) throw new ApiRequestError(0, 'network_error', 'Could not reach the server')
-    } else if (response.ok) {
+    } else if (response.ok || (response.status === 304 && options.notModified === true)) {
       if (response.body === null) clearResponseTimeout(response)
       return response
     } else if (!canRetry || response.status < 500 || response.headers.get('retry-after') !== null) {
@@ -156,6 +155,13 @@ export async function deleteAccount(userId?: string): Promise<void> {
 }
 
 /**
+ * A fixed safety ceiling on what a library listing may return, independent of the account quota: the quota was 5,000 and came
+ * down to 3,000, and an account already over the new quota still has to load its library. It only stops a server that never
+ * ends its pages.
+ */
+const LEGACY_LIBRARY_CEILING = 5000
+
+/**
  * Every activity the user has, newest first, following the server's pages to the end. With
  * `since` (epoch ms), only those created at or after it. `onUnreadable` receives the number of
  * stored activities that could not be read, whether the server found they are not JSON or a digest
@@ -181,7 +187,7 @@ export async function listActivities(
   let total = 0
   let unreadable = 0
   do {
-    if (pages >= MAX_ACTIVITIES_PER_USER) {
+    if (pages >= LEGACY_LIBRARY_CEILING) {
       throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
     }
     pages++
@@ -193,7 +199,7 @@ export async function listActivities(
       ActivityPageWireSchema,
       PAGE_BODY_LIMIT,
     )
-    if (total + page.items.length > MAX_ACTIVITIES_PER_USER) {
+    if (total + page.items.length > LEGACY_LIBRARY_CEILING) {
       throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
     }
     total += page.items.length

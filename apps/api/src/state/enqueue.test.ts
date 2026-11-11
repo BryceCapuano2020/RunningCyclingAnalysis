@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHarness, digestFixture } from '../test/harness.ts'
-import { liftSet } from '../test/lifts.ts'
+import { keyOf, liftSet } from '../test/lifts.ts'
 import { failingDb, stateWorld, type StateWorld } from '../test/stateKit.ts'
 import { clearPending } from './pending.ts'
 import { sha256Hex } from '../util.ts'
@@ -46,6 +46,26 @@ const WRITES: [string, (w: StateWorld) => Promise<Response>][] = [
         method: 'PUT',
         path: '/api/settings',
         json: { keepPower: ['a'], countedRuns: null, period: null },
+        cookies: w.cookies,
+      }),
+  ],
+  [
+    'a lift write',
+    (w) =>
+      w.h.send({
+        method: 'PUT',
+        path: '/api/lifts',
+        json: { sets: [liftSet()] },
+        cookies: w.cookies,
+      }),
+  ],
+  [
+    'a lift delete',
+    (w) =>
+      w.h.send({
+        method: 'POST',
+        path: '/api/lifts/delete',
+        json: { keys: [keyOf(liftSet())] },
         cookies: w.cookies,
       }),
   ],
@@ -141,7 +161,7 @@ describe('the state job producer', () => {
     expect(w.sent).toEqual([])
   })
 
-  it('sends nothing for a read, a refused write, a lift or a signed-out request', async () => {
+  it('sends nothing for a read, a refused write or a signed-out request', async () => {
     const w = await stateWorld()
     await w.h.send({ path: '/api/activities', cookies: w.cookies })
     await w.h.send({ path: '/api/settings', cookies: w.cookies })
@@ -164,25 +184,7 @@ describe('the state job producer', () => {
         })
       ).status,
     ).toBe(401)
-    const lift = await w.h.send({
-      method: 'PUT',
-      path: '/api/lifts',
-      json: { sets: [liftSet()] },
-      cookies: w.cookies,
-    })
-    expect(lift.status).toBe(200)
     expect(w.sent).toEqual([])
-  })
-
-  it('sends nothing for an account off the allowlist, whatever is bound, and for an unset list', async () => {
-    const w = await stateWorld({ on: false })
-    for (const [, write] of WRITES) expect((await write(w)).status).toBeLessThan(300)
-    w.env.SERVER_COMPUTE_USERS = 'someone-else'
-    for (const [, write] of WRITES) expect((await write(w)).status).toBeLessThan(300)
-    expect(w.sent).toEqual([])
-    w.env.SERVER_COMPUTE_USERS = w.userId
-    expect((await WRITES[1]![1](w)).status).toBe(200)
-    expect(w.sent).toHaveLength(1)
   })
 
   it('does not fail a write when the queue refuses it', async () => {
@@ -192,7 +194,7 @@ describe('the state job producer', () => {
         throw new Error('queue down')
       },
     } as unknown as Queue<{ userId: string }>
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', STATE_QUEUE: failing })
+    const h = createHarness({}, { STATE_QUEUE: failing })
     const token = await h.signIn('other@example.com')
     const res = await h.send({
       method: 'PUT',

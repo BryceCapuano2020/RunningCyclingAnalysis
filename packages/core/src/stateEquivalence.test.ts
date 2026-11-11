@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UTC_ZONE, calendarKey, setViewerZone, type Zone } from './calendar'
+import { dayOf } from './customRange'
+import { liftResultsOf } from './lift/liftResults'
 import { AnalysisSession } from './session'
 import type { SessionState } from './sessionState'
 import { fromSnapshot, toSnapshot, type StateSnapshot } from './stateSnapshot'
@@ -29,7 +31,15 @@ function browserSnapshot(
     session.setZone(zone.zone)
     session.clock = () => nowMs
     const state = session.loadDigests(library.digests, library.settings)
-    return toSnapshot(state, { ...META, nowMs, zone: zone.name })
+    // The browser's own check-in, and the lift results of a log with no sets (the lift page builds its own from its sets).
+    return toSnapshot(
+      state,
+      { ...META, nowMs, zone: zone.name },
+      {
+        lift: liftResultsOf([], library.settings, dayOf(nowMs)),
+        checkIn: session.checkInSnapshot(state, nowMs),
+      },
+    )
   } finally {
     setViewerZone(before)
   }

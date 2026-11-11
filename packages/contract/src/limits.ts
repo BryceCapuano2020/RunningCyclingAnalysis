@@ -11,8 +11,12 @@ export const CLIENT_HEADER_VALUE = 'web'
 /** Optional binding between a browser request and the account whose data it targets. */
 export const ACCOUNT_SCOPE_HEADER = 'X-RCA-User'
 
-/** Most activities one user may store. Re-uploads of an existing activity do not count again. */
-export const MAX_ACTIVITIES_PER_USER = 5000
+/**
+ * Most activities one user may store. Re-uploads of an existing activity do not count again. The server computes the
+ * results of every account (no account falls back to the browser), so this and the digest byte quota below are what the
+ * state job's heap is measured against (apps/api/LIMITS.md, state/memory.sim.test.ts).
+ */
+export const MAX_ACTIVITIES_PER_USER = 3000
 
 /** Most original-file bytes one user may store, summed over their activities. */
 export const MAX_STORED_BYTES_PER_USER = 1024 * 1024 * 1024
@@ -34,7 +38,7 @@ export const DAILY_LIMITS = {
   activityDelete: 50,
   activityCreate: MAX_ACTIVITIES_PER_USER,
   fileUpload: 2000,
-  /** Library listings and profile reads. One listing of 5,000 rows is 5,000 D1 rows read. */
+  /** Library listings and profile reads. One listing of 3,000 rows is 3,000 D1 rows read. */
   read: 100,
   /** Dated-settings writes (adds and deletes). Each is one D1 row written. */
   measurementWrite: 200,
@@ -67,6 +71,12 @@ export const LIST_ROWS_PER_DAY = 200_000
  */
 export const LIST_ROWS_LIMIT_MESSAGE =
   "You have listed as many activity rows as today's allowance covers. Try again after midnight UTC"
+
+/**
+ * Most lift sets one user keeps. The check on `users.lift_count` (migration 0012) holds the same number, so raising it is
+ * a migration; the state job's heap is measured with this many (apps/api/LIMITS.md).
+ */
+export const MAX_LIFT_SETS_PER_USER = 60_000
 
 /** Lift sets in one GET /api/lifts page; the account's 60,000 sets are 60 pages. */
 export const LIFT_PAGE_SIZE = 1000
@@ -173,7 +183,7 @@ export const MAX_PAGE_BODY_BYTES =
   MAX_INTEGER_JSON_BYTES
 
 /** Most digest JSON bytes one user may store, summed over their activities. See apps/api/LIMITS.md. */
-export const MAX_DIGEST_BYTES_PER_USER = 64 * 1024 * 1024
+export const MAX_DIGEST_BYTES_PER_USER = 24 * 1024 * 1024
 /**
  * Creates are refused while the database's last-seen size is above this. D1 Free allows 500 MB per
  * database; the margin leaves room for in-flight writes and the ledger row itself.

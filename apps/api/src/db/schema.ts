@@ -107,8 +107,13 @@ export const stateJobs = sqliteTable('state_jobs', {
   // 0015: when the last compute began (a failed one included), and until when a message for the account is on its way.
   attemptedAt: integer('attempted_at').notNull().default(0),
   pendingUntil: integer('pending_until').notNull().default(0),
-  // 0016: the combine-time analysis revision the snapshot was computed under (core ANALYSIS_REVISION).
+  // 0016: the combine-time analysis revision the snapshot was computed under (a part of the result revision, state/resultRevision.ts: the column holds the whole tuple as one integer).
   analysisRevision: integer('analysis_revision').notNull().default(0),
+  // 0019: the order columns of the stored snapshot (lift revision and the instant it was computed for), beside snapshotVersion and analysisRevision (docs/design/server-authority.md).
+  snapshotLiftRevision: integer('snapshot_lift_revision').notNull().default(0),
+  snapshotNowMs: integer('snapshot_now_ms').notNull().default(0),
+  // 0019: until when a compute holds the account's claim (state/record.ts); freed the moment the compute finishes, 0 when none.
+  claimUntil: integer('claim_until').notNull().default(0),
 })
 
 /**
@@ -229,6 +234,8 @@ export const r2StorageBudget = sqliteTable('r2_storage_budget', {
   monthlyPutBytes: integer('monthly_put_bytes').notNull().default(0),
   /** Where the orphaned-object sweep resumes listing, or null when it starts from the beginning. */
   orphanSweepCursor: text('orphan_sweep_cursor'),
+  /** The last account id the counter reconciliation read, or null when its next run starts from the first (counterReconcile.ts). */
+  reconcileCursor: text('reconcile_cursor'),
   /** Independent ceilings for unauthenticated deep-health HEAD probes. */
   healthProbeDay: text('health_probe_day').notNull().default(''),
   healthProbeDayCount: integer('health_probe_day_count').notNull().default(0),

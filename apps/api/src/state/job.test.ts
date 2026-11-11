@@ -1,6 +1,12 @@
-import { StateSnapshotSchema, StoredActivityDigestSchema } from '@rca/contract'
+import {
+  MAX_ACTIVITIES_PER_USER,
+  StateSnapshotSchema,
+  StoredActivityDigestSchema,
+} from '@rca/contract'
 import { analysisSettings, bodyMassOn } from '@rca/core/athlete'
 import { UTC_ZONE, setViewerZone, withViewerZone } from '@rca/core/calendar'
+import { dayOf } from '@rca/core/customRange'
+import { liftResultsOf } from '@rca/core/lift'
 import { AnalysisSession } from '@rca/core/session'
 import { toSnapshot } from '@rca/core/stateSnapshot'
 import { gunzipSync } from 'node:zlib'
@@ -13,8 +19,10 @@ import {
   seedDigests,
   stateWorld,
 } from '../test/stateKit.ts'
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { runStateJob } from './job.ts'
+import { computeAndStore } from './refresh.ts'
+import { jobRow } from './row.ts'
 import { zoneNamed } from './zone.ts'
 
 const digests = libraryDigests()
@@ -43,6 +51,15 @@ async function row(w: Awaited<ReturnType<typeof prepared>>) {
       snapshot_hash: string | null
       snapshot_version: number
     }>()
+}
+
+async function nowMsOf(w: Awaited<ReturnType<typeof prepared>>): Promise<number> {
+  const found = await w.env.DB.prepare(
+    'SELECT snapshot_now_ms AS n FROM state_jobs WHERE user_id = ?',
+  )
+    .bind(w.userId)
+    .first<{ n: number }>()
+  return found!.n
 }
 
 async function version(w: Awaited<ReturnType<typeof prepared>>): Promise<number> {
@@ -114,22 +131,20 @@ describe('the state job', () => {
       const session = new AnalysisSession(undefined, viewerZone)
       session.clock = () => nowMs
       session.choosePeriod(42)
-      const state = session.loadDigests(
-        parsed,
-        analysisSettings(
-          { massKg, bikeMassKg: 8 },
-          [measurement as never],
-          1990,
-          [],
-          ['ride-a'],
-          'female',
-        ),
+      const settings = analysisSettings(
+        { massKg, bikeMassKg: 8 },
+        [measurement as never],
+        1990,
+        [],
+        ['ride-a'],
+        'female',
       )
-      const expected = toSnapshot(state, {
-        libraryVersion: saved!.snapshot_version,
-        nowMs,
-        zone,
-        buildSha: 'unknown',
+      const state = session.loadDigests(parsed, settings)
+      const meta = { libraryVersion: saved!.snapshot_version, nowMs, zone, buildSha: 'unknown' }
+      // The lift results of an account with no sets, as of its local day, and the check-in the session makes.
+      const expected = toSnapshot(state, meta, {
+        lift: withViewerZone(viewerZone, () => liftResultsOf([], settings, dayOf(nowMs))),
+        checkIn: session.checkInSnapshot(state, nowMs),
       })
       expect(snapshot).toStrictEqual(JSON.parse(JSON.stringify(expected)))
     } finally {
@@ -184,9 +199,11 @@ describe('the state job', () => {
     expect(second).toMatchObject({
       computed_version: first!.computed_version + 3,
       snapshot_hash: first!.snapshot_hash,
-      snapshot_version: first!.snapshot_version,
+      // The order columns move on the unchanged path too (the day, the version), so the next read is a 304.
+      snapshot_version: first!.computed_version + 3,
       computed_at: w.h.clock.now,
     })
+    expect(await nowMsOf(w)).toBe(w.h.clock.now)
     expect(await stored(w)).toEqual([key])
   })
 
@@ -256,7 +273,15 @@ describe('the state job', () => {
             }
             await seedDigests(w.env.DB, w.userId, [extra], 6_000)
             w.h.clock.now = extra.startMs + 7_200_000
-            expect(await runStateJob({ ...w.env, FILES: target }, w.deps, w.userId)).toBe('written')
+            // Another isolate: the lock is this one's, so the second compute runs past it.
+            const other = await computeAndStore(
+              { ...w.env, FILES: target },
+              w.deps,
+              w.userId,
+              (await jobRow(w.env.DB, w.userId))!,
+              true,
+            )
+            expect(other.kind).toBe('written')
           }
           return result
         }
@@ -270,13 +295,13 @@ describe('the state job', () => {
     expect(final!.snapshot_version).toBe(await version(w))
   })
 
-  it('leaves an account to the browser past the activity limit, and a deleting or missing one alone', async () => {
+  it('computes an account at the activity quota, and leaves a deleting or missing one alone', async () => {
     const w = await prepared()
-    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
-      .bind(w.userId)
+    await w.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER, w.userId)
       .run()
-    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('too_large')
-    expect(await stored(w)).toEqual([])
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+    expect(await stored(w)).toHaveLength(1)
     await w.env.DB.prepare('UPDATE users SET deleting_at = 1 WHERE id = ?').bind(w.userId).run()
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('gone')
     expect(await runStateJob(w.env, w.deps, 'nobody')).toBe('gone')
@@ -299,18 +324,6 @@ describe('the state job', () => {
     await expect(runStateJob({ ...w.env, FILES: undefined }, w.deps, w.userId)).rejects.toThrow(
       'no file storage',
     )
-  })
-
-  it('removes the object it wrote when the row cannot take it', async () => {
-    const w = await prepared()
-    const env = {
-      ...w.env,
-      DB: racingDb(w.env.DB, /INSERT INTO state_jobs \(user_id, computed_version/, async () => {
-        await w.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(w.userId).run()
-      }),
-    }
-    await expect(runStateJob(env, w.deps, w.userId)).rejects.toThrow()
-    expect(await stored(w)).toEqual([])
   })
 
   it('reads no digest when the R2 ledger would refuse the snapshot, so a retry costs no compute', async () => {
@@ -351,7 +364,7 @@ describe('the state job', () => {
     await w.env.DB.prepare(
       'UPDATE state_jobs SET analysis_revision = ?, snapshot_hash = ? WHERE user_id = ?',
     )
-      .bind(ANALYSIS_REVISION - 1, stale, w.userId)
+      .bind(RESULT_REVISION - 1, stale, w.userId)
       .run()
     w.h.clock.now += 60_000
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
@@ -368,7 +381,7 @@ describe('the state job', () => {
     expect(after).toMatchObject({
       snapshot_version: v,
       computed_version: v,
-      analysis_revision: ANALYSIS_REVISION,
+      analysis_revision: RESULT_REVISION,
     })
     expect(after!.snapshot_hash).not.toBe(stale)
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('current')

@@ -1,15 +1,21 @@
+import { MAX_ACTIVITIES_PER_USER } from '@rca/contract'
 import type { Bindings } from '../env.ts'
 import type { Deps } from '../deps.ts'
 import { isReadOnly } from '../readOnly.ts'
-import { serverStateFor } from './flag.ts'
 import { runStateJob, type JobOutcome } from './job.ts'
-import { STATE_MIN_INTERVAL_SECONDS, STATE_RETRY_SECONDS, type StateMessage } from './message.ts'
+import {
+  STATE_LOCK_RETRY_SECONDS,
+  STATE_MIN_INTERVAL_SECONDS,
+  STATE_RETRY_SECONDS,
+  type StateMessage,
+} from './message.ts'
 import { markPending } from './pending.ts'
+import { claimWaitMs } from './record.ts'
 
 /** What a batch did, for the log line: counts only, never an id or a figure. */
 export interface BatchReport {
   accounts: number
-  outcomes: Partial<Record<JobOutcome | 'failed' | 'not_listed', number>>
+  outcomes: Partial<Record<JobOutcome | 'failed', number>>
 }
 
 /**
@@ -17,7 +23,7 @@ export interface BatchReport {
  * digests are the memory the job needs, and the isolate has 128 MB. Each account's messages are answered together:
  * acknowledged when its job ran or had nothing to do, or was deferred (one later message is sent in its place). When the job failed, one message is retried and the rest acknowledged, so a failing account is tried once
  * per retry however many messages named it, up to the Queue's own retry limit. An account whose messages are lost or
- * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first. A message for an account off the allowlist is dropped, and in the operator's read-only mode every message waits.
+ * exhausted stays dirty until its next write or the daily re-send (resend.ts), whichever comes first. In the operator's read-only mode every message waits.
  */
 export async function handleStateBatch(
   batch: MessageBatch<StateMessage>,
@@ -25,7 +31,7 @@ export async function handleStateBatch(
   deps: Deps,
 ): Promise<BatchReport> {
   const report: BatchReport = { accounts: 0, outcomes: {} }
-  const count = (outcome: JobOutcome | 'failed' | 'not_listed') => {
+  const count = (outcome: JobOutcome | 'failed') => {
     report.outcomes[outcome] = (report.outcomes[outcome] ?? 0) + 1
   }
   if (isReadOnly(env)) {
@@ -40,22 +46,24 @@ export async function handleStateBatch(
   }
   for (const [userId, messages] of byAccount) {
     report.accounts += 1
-    // A message for an account off the list (the list changed after it was sent) is dropped without a read.
-    if (!serverStateFor(env, userId)) {
-      count('not_listed')
-      for (const message of messages) message.ack()
-      continue
-    }
     try {
       const outcome = await runStateJob(env, deps, userId)
       count(outcome)
-      if (outcome === 'deferred') {
+      if (outcome === 'deferred' || outcome === 'busy') {
         // One message for the whole account, however many are in this batch, sent whatever the marker says: the live
         // marker may be this message's own (its write set it), and this message is spent, so a claim that waited on it
-        // would leave the account dirty with nothing on its way. The write is computed once the interval has passed.
+        // would leave the account dirty with nothing on its way. Busy (another compute, in this isolate or another, holds
+        // the account) is the same: a retry would count toward the Queue's limit and could end in the dead-letter queue, a
+        // fresh message does not. The write is computed once the delay has passed.
+        // A busy account waits out what is left of the claim that holds it, not five seconds at a time (an isolate's own lock has none).
+        const left = outcome === 'busy' ? await claimWaitMs(env.DB, userId, deps.now()) : 0
+        const delay =
+          outcome === 'busy'
+            ? Math.max(STATE_LOCK_RETRY_SECONDS, Math.ceil(left / 1000))
+            : STATE_MIN_INTERVAL_SECONDS
         if (env.STATE_QUEUE === undefined) throw new Error('state job: no queue bound')
-        await markPending(env.DB, userId, deps.now(), STATE_MIN_INTERVAL_SECONDS)
-        await env.STATE_QUEUE.send({ userId }, { delaySeconds: STATE_MIN_INTERVAL_SECONDS })
+        await markPending(env.DB, userId, deps.now(), delay)
+        await env.STATE_QUEUE.send({ userId }, { delaySeconds: delay })
       }
       // A write that landed mid-read sent its own message; this one is spent either way.
       for (const message of messages) message.ack()
@@ -65,6 +73,8 @@ export async function handleStateBatch(
         JSON.stringify({
           event: 'state_job_failed',
           errorClass: error instanceof Error ? error.constructor.name : typeof error,
+          // A size bucket, no figure: tells an account too large for the isolate (it fails every try, daily) from a transient error.
+          activities: await activityBucket(env.DB, userId),
         }),
       )
       // One message carries the retry and the rest are spent: the retry reads the account as it is then, every write
@@ -76,4 +86,19 @@ export async function handleStateBatch(
     }
   }
   return report
+}
+
+/** The size class of an account's library, for the failure log: the account limit is 3,000. */
+async function activityBucket(db: D1Database, userId: string): Promise<string> {
+  try {
+    const row = await db
+      .prepare('SELECT activity_count AS n FROM users WHERE id = ?')
+      .bind(userId)
+      .first<{ n: number }>()
+    if (row === null) return 'unknown'
+    if (row.n > MAX_ACTIVITIES_PER_USER) return 'over_quota'
+    return row.n >= 3000 ? '3000_to_quota' : row.n >= 1000 ? '1000_to_2999' : 'under_1000'
+  } catch {
+    return 'unknown'
+  }
 }

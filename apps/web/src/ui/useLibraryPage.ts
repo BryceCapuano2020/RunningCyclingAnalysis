@@ -54,7 +54,11 @@ export function useLibraryPage(
     knowledge,
     restoring: analysis.restoring,
     loading:
-      signedIn && (analysis.libraryStatus === 'idle' || analysis.libraryStatus === 'loading'),
+      signedIn &&
+      (analysis.libraryStatus === 'idle' ||
+        analysis.libraryStatus === 'loading' ||
+        analysis.resultsWaiting),
+    resultsFailed: signedIn && analysis.resultsFailed,
     failed: signedIn ? analysis.libraryStatus === 'failed' : deviceUnreadable,
   })
   return { knowledge, hold, holdInputs, page }

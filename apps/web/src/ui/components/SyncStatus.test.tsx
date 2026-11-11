@@ -122,7 +122,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('network', 3)] })} />)
     const status = message()
     expect(status).toHaveTextContent(
-      '3 activities were not fully saved because the connection dropped. They save when the connection returns.',
+      '3 activities were not fully saved because the connection dropped. They save when the connection returns, then appear in your results.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -140,7 +140,7 @@ describe('SyncStatus', () => {
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     expect(message()).toHaveTextContent(
-      '1 activity was not fully saved because of a server error. It saves the next time the page loads.',
+      '1 activity was not fully saved because of a server error. It saves the next time the page loads, then appears in your results.',
     )
   })
 
@@ -191,12 +191,12 @@ describe('SyncStatus', () => {
     [
       'activity-quota',
       2,
-      'Your library is full (5,000 activities). 2 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 2 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'activity-quota',
       1,
-      'Your library is full (5,000 activities). 1 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 1 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'storage-quota',
@@ -237,22 +237,22 @@ describe('SyncStatus', () => {
     [
       'network',
       2,
-      '2 activities were not fully saved because the connection dropped. They save when the connection returns.',
+      '2 activities were not fully saved because the connection dropped. They save when the connection returns, then appear in your results.',
     ],
     [
       'network',
       1,
-      '1 activity was not fully saved because the connection dropped. It saves when the connection returns.',
+      '1 activity was not fully saved because the connection dropped. It saves when the connection returns, then appears in your results.',
     ],
     [
       'server',
       2,
-      '2 activities were not fully saved because of a server error. They save the next time the page loads.',
+      '2 activities were not fully saved because of a server error. They save the next time the page loads, then appear in your results.',
     ],
     [
       'server',
       1,
-      '1 activity was not fully saved because of a server error. It saves the next time the page loads.',
+      '1 activity was not fully saved because of a server error. It saves the next time the page loads, then appears in your results.',
     ],
     [
       'digest-quota',
@@ -298,7 +298,7 @@ describe('SyncStatus', () => {
     ],
     [
       'activity-quota',
-      /^Your library is full \(5,000 activities\)\. 1,240 saved, 310 waiting\. Delete older activities to make room, then add the rest again\.$/,
+      /^Your library is full \(3,000 activities\)\. 1,240 saved, 310 waiting\. Delete older activities to make room, then add the rest again\.$/,
     ],
     [
       'rate-limited',
@@ -341,7 +341,7 @@ describe('SyncStatus', () => {
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (5,000 activities). 310 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 310 waiting. Delete older activities to make room, then add the rest again.',
     )
   })
 
@@ -357,7 +357,7 @@ describe('SyncStatus', () => {
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (5,000 activities, 120 of them copies of the same workout from another file). 10 waiting.',
+      'Your library is full (3,000 activities, 120 of them copies of the same workout from another file). 10 waiting.',
     )
     rerender(
       <SyncStatus

@@ -35,7 +35,7 @@ export interface MaintenanceReport {
   orphansDeleted: number
   /** Inbox rows past their retention deleted, with their files (inbox/expiry.ts). */
   inboxExpired: number
-  /** Messages sent for allowlisted accounts left dirty with none on its way (state/resend.ts). */
+  /** Messages sent for accounts left dirty with none on its way (state/resend.ts). */
   stateResent: number
   /** Accounts whose counters were compared with their rows this run, and how many differed (counterReconcile.ts). */
   countersChecked: number
@@ -84,11 +84,13 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const inboxExpired = await within(0, () => expireInboxItems(bound, now))
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
-  const stateResent = await within(0, () => resendDirty(bound, now))
+  // Each account costs a D1 claim and a queue send, after the one read that lists them: only what the budget leaves.
+  const resent = { sent: 0 }
+  await within(0, () => resendDirty(bound, now, Math.floor((budget.left - 1) / 2), resent))
+  const stateResent = resent.sent
   // Report-only, so it runs after the re-send, and a failure in it never stops another step.
-  const none = { checked: 0, drifted: 0 }
-  const reconciled = await guarded('counter_reconcile_failed', none, () =>
-    within(none, () => reconcileCounters(bound, now)),
+  const reconciled = await guarded('counter_reconcile_failed', { checked: 0, drifted: 0 }, () =>
+    reconcileCounters(bound, now),
   )
   // The only place the size the create guard reads is written (request paths no longer record it,
   // so writers do not queue on one row). It runs last, so it sees the day's deletions, and on the
@@ -121,6 +123,11 @@ class OperationBudget {
 
   get operations(): number {
     return this.spent
+  }
+
+  /** Operations the run may still issue. */
+  get left(): number {
+    return MAX_MAINTENANCE_OPERATIONS - this.spent
   }
 
   /** Charges count operations before they are issued, so the cap is never exceeded. */

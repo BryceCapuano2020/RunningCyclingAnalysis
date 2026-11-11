@@ -28,7 +28,10 @@ export interface LastImport {
   added: number
 }
 
-type CheckInRequest = Extract<WorkerRequest, { type: 'markSeen' | 'acceptPartialImport' }>
+type CheckInRequest = Extract<
+  WorkerRequest,
+  { type: 'markSeen' | 'acceptPartialImport' | 'checkInFor' }
+>
 
 /**
  * The worker's side of "since your last import": the baseline of each scope, which library the check-in is about,
@@ -76,14 +79,20 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     async afterRebuild(rebuilt: number): Promise<void> {
       if (rebuilt > 0) await keeper.rebuilt(view.checkinScope)
     },
-    /** The state message with "since your last import" for the library on screen, when the request can change it and it says something. */
+    /**
+     * The state message with "since your last import" for the library on screen, when the request can change it and it says
+     * something. An account's reply has no state (`state` is null) and no check-in from here: the page derives it from the
+     * server's snapshot it holds. Only the baseline an import starts from is read in the worker (accountState.ts).
+     */
     async attach<T extends Extract<WorkerResponse, { type: 'state' | 'rebuildComplete' }>>(
       message: T,
       requestType: WorkerRequest['type'],
     ): Promise<T> {
       if (!CHANGING.has(requestType)) return message
+      const { state } = message
+      if (state === null) return message
       const shown = await keeper.view(view.checkinScope, () =>
-        session.checkInSnapshot(message.state, Date.now()),
+        session.checkInSnapshot(state, Date.now()),
       )
       return shown.checkIn === null && !shown.seen && shown.lookBackSeenFor === undefined
         ? message
@@ -91,11 +100,20 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     },
     /** Whether the request is about a row of the check-in, which has its own reply. */
     answers: (request: WorkerRequest): request is CheckInRequest =>
-      request.type === 'markSeen' || request.type === 'acceptPartialImport',
+      request.type === 'markSeen' ||
+      request.type === 'acceptPartialImport' ||
+      request.type === 'checkInFor',
     async answer(
       request: CheckInRequest,
       last: LastImport | null,
-    ): Promise<Extract<WorkerResponse, { type: 'checkInSaved' }>> {
+    ): Promise<Extract<WorkerResponse, { type: 'checkInSaved' | 'checkInView' }>> {
+      // An account's check-in: its baseline is here, the library to compare it with is the server's, which the page hands over.
+      if (request.type === 'checkInFor') {
+        return {
+          type: 'checkInView',
+          view: await keeper.view(view.checkinScope, () => request.live),
+        }
+      }
       if (request.type === 'markSeen') {
         return {
           type: 'checkInSaved',

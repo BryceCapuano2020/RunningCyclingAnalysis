@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { bodyMassOn } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header } from './ui/components'
@@ -47,6 +47,7 @@ import { useAnalysisSettings } from './ui/useAnalysisSettings'
 import { useKeptPower } from './ui/keptPowerStore'
 import { useCountedRuns } from './ui/useCountedRuns'
 import { useAccountSettings } from './ui/useAccountSettings'
+import { useLiftAccount } from './ui/lift/useLiftAccount'
 import { forgetAccountChoices } from './ui/accountSettings'
 import { useAppSignOut } from './ui/useAppSignOut'
 import { useSignInProblem } from './ui/signInProblem'
@@ -58,12 +59,6 @@ export function App() {
   const route = useRoute()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
-  const liftUserId = account.me?.user.id ?? null
-  // The lifting corner on Balance reads the sets the Lift page logs, from the same scope.
-  const liftAccount = useMemo(
-    () => ({ status: account.status, userId: liftUserId }),
-    [account.status, liftUserId],
-  )
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
   const athleteValues: AthleteValues = profile
@@ -88,7 +83,7 @@ export function App() {
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
-  useAccountSettings(account.status, account.me?.user.id ?? null, account.me?.serverState === true)
+  const accountChoices = useAccountSettings(account.status, account.me?.user.id ?? null)
   const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
@@ -119,6 +114,7 @@ export function App() {
   })
 
   const analysis = useAnalysis(analysisAthlete, account)
+  const liftAccount = useLiftAccount(account, analysis.accountLift)
 
   // The download holds the dated settings, so it waits for them rather than leave them out.
   const downloadData = async () => {
@@ -297,7 +293,7 @@ export function App() {
             pageNotice={
               accountDeleted && route.page === 'balance'
                 ? 'Your account and data were deleted.'
-                : (signInProblem ?? coldNotice ?? '')
+                : (signInProblem ?? coldNotice ?? accountChoices.notice)
             }
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}
@@ -333,7 +329,7 @@ export function App() {
                 account={account}
                 units={units}
                 settings={analysisAthlete}
-                profile={ageProfile}
+                accountLift={analysis.accountLift}
                 {...liftDay}
               />
             ) : page === 'result' && analysis.state.result ? (
@@ -356,7 +352,11 @@ export function App() {
                 <LibraryLoadingPage route={route} />
               </Shell>
             ) : page === 'unavailable' ? (
-              <UnavailableLibraryPage canRetry={signedIn} />
+              <UnavailableLibraryPage
+                canRetry={signedIn}
+                resultsFailed={analysis.resultsFailed}
+                onRetry={analysis.retryResults ?? undefined}
+              />
             ) : page === 'held' ? (
               <HeldLibraryPage
                 analysis={analysis}

@@ -64,12 +64,7 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://example.invalid"
-# Results computed on the server: off for everyone here too. Local tests and the e2e server list accounts (or `*`) with
-# --var 'SERVER_COMPUTE_USERS:*'.
-SERVER_COMPUTE_USERS = ""
-
-# The state job's queues, run by Miniflare locally; nothing sends to them while the list is empty. Production's blocks
-# are in wrangler.toml, commented.
+# The state job's queues, run by Miniflare locally. Production's blocks are in wrangler.toml.
 [[queues.producers]]
 binding = "STATE_QUEUE"
 queue = "rca-state"

@@ -12,10 +12,10 @@ import {
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
-import { storedPeriodRequest } from '../periodPreference'
 import { accountPending, drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
-import type { SeenEvent } from '../../worker/protocol'
+import type { CheckInSnapshot } from '@rca/core/lookback'
+import type { CheckInView, SeenEvent } from '../../worker/protocol'
 import type { WorkerTransport } from './workerTransport'
 
 interface LibraryActionDeps {
@@ -49,14 +49,9 @@ export function useLibraryActions({
   const loadLibrary = useCallback(
     (userId: string) => {
       setLibrary('loading')
-      send({
-        type: 'loadServer',
-        settings: settingsRef.current,
-        userId,
-        ...storedPeriodRequest(),
-      })
+      send({ type: 'loadServer', userId })
     },
-    [send, setLibrary, settingsRef],
+    [send, setLibrary],
   )
 
   /** Imports wait for a loading library; otherwise there is no library for them to join. */
@@ -219,12 +214,24 @@ export function useLibraryActions({
     [library, send, workerRef],
   )
 
+  /** Asks the worker for the account's check-in against the library the server's results show; its answer is the row. */
+  const requestCheckIn = useCallback(
+    (live: CheckInSnapshot | null, settle: (view: CheckInView) => void) => {
+      if (workerRef.current === null) return
+      send({ type: 'checkInFor', live }, undefined, (message) => {
+        if (message?.type === 'checkInView') settle(message.view)
+      })
+    },
+    [send, workerRef],
+  )
+
   /** The athlete goes on with an import that stopped short: the worker moves the baseline now. */
   const acceptPartialImport = useCallback(() => {
     if (workerRef.current !== null) send({ type: 'acceptPartialImport' })
   }, [send, workerRef])
 
   return {
+    requestCheckIn,
     markCheckInSeen,
     acceptPartialImport,
     loadLibrary,

@@ -49,6 +49,13 @@ function localTime(ms: number): string {
 /** The reset sentence, with the local time left to the viewer's zone. */
 const RESET_AT_UTC_MIDNIGHT = /It resets at .+, your time\.$/
 
+/** What an account's reply says of the library from the worker's index. */
+const INDEX = {
+  outdatedActivities: 0,
+  incompatibleActivities: 0,
+  libraryActivities: 0,
+  heldOut: [],
+}
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
 /** The request a worker gets when it starts without a signed-in account. */
@@ -183,27 +190,25 @@ describe('useAnalysis account handling', () => {
     rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
     rerender({ account: { ...SIGNED_IN_KEEP }, current: SETTINGS })
 
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('loads the stored activities when signing in after the first lookup found nobody', () => {
     const { rerender } = setup(SIGNED_OUT)
     rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('loads the stored activities when the page opens already signed in', () => {
     setup(SIGNED_IN_KEEP)
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
-  it('loads the stored activities on the period picked on this device', () => {
+  it('loads the stored activities with no period, whatever this device picked: the server holds the choice', () => {
     localStorage.setItem(PERIOD_KEY, JSON.stringify(42))
     try {
       setup(SIGNED_IN_KEEP)
-      expect(worker().posted).toEqual([
-        { type: 'loadServer', settings: SETTINGS, userId: USER_ID, choice: 42 },
-      ])
+      expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
     } finally {
       localStorage.removeItem(PERIOD_KEY)
     }
@@ -213,7 +218,7 @@ describe('useAnalysis account handling', () => {
     localStorage.setItem(PERIOD_KEY, JSON.stringify('default'))
     try {
       setup(SIGNED_IN_KEEP)
-      expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+      expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
       expect(worker().posted[0]).not.toHaveProperty('choice')
     } finally {
       localStorage.removeItem(PERIOD_KEY)
@@ -232,7 +237,7 @@ describe('useAnalysis account handling', () => {
     )
     expect(FakeWorker.instances).toHaveLength(2)
     expect(FakeWorker.instances[0]?.terminated).toBe(true)
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('clears the library when the user signs out', () => {
@@ -249,14 +254,18 @@ describe('useAnalysis account handling', () => {
   it('keeps a slow prior-account reply from restoring the library after sign-out', () => {
     const { result, rerender } = setup(SIGNED_IN_KEEP)
     const oldWorker = worker()
-    act(() => oldWorker.reply({ type: 'state', state: { ...STATE, totalActivities: 4 } }))
-    expect(result.current.state.totalActivities).toBe(4)
+    act(() =>
+      oldWorker.reply({ type: 'state', state: null, index: { ...INDEX, libraryActivities: 4 } }),
+    )
+    expect(result.current.state.libraryActivities).toBe(4)
 
     act(() => result.current.addFiles([FILE]))
     rerender({ account: SIGNED_OUT, current: SETTINGS })
     expect(result.current.state).toEqual(STATE)
 
-    act(() => oldWorker.reply({ type: 'state', state: { ...STATE, totalActivities: 5 } }))
+    act(() =>
+      oldWorker.reply({ type: 'state', state: null, index: { ...INDEX, libraryActivities: 5 } }),
+    )
     expect(result.current.state).toEqual(STATE)
     expect(worker()).not.toBe(oldWorker)
     expect(worker().posted).toEqual([DEVICE_LOAD])
@@ -276,9 +285,11 @@ describe('useAnalysis account handling', () => {
     expect(workerA.terminated).toBe(true)
     rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
     const workerB = worker()
-    expect(workerB.posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    expect(workerB.posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
 
-    act(() => workerA.reply({ type: 'state', state: { ...STATE, totalActivities: 99 } }))
+    act(() =>
+      workerA.reply({ type: 'state', state: null, index: { ...INDEX, libraryActivities: 99 } }),
+    )
     expect(result.current.state).toEqual(STATE)
     expect(workerB.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
   })
@@ -315,7 +326,7 @@ describe('useAnalysis account handling', () => {
 
     expect(workerA.terminated).toBe(true)
     expect(workerB).not.toBe(workerA)
-    expect(workerB.posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    expect(workerB.posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
   })
 
   it('does not surface a worker failure from an import abandoned by sign-out', () => {
@@ -390,7 +401,7 @@ describe('useAnalysis account handling', () => {
     act(() => result.current.addFiles([FILE]))
 
     expect(worker().posted).toEqual([
-      { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
+      { type: 'loadServer', userId: USER_ID },
       {
         type: 'addFiles',
         files: [FILE],
@@ -416,7 +427,7 @@ describe('useAnalysis account handling', () => {
     act(() => worker().reply({ type: 'state', state: STATE }))
 
     act(() => result.current.addFiles([FILE]))
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
     expect(result.current.busy).toBe(true)
 
     await act(async () => {
@@ -530,7 +541,7 @@ describe('useAnalysis account handling', () => {
       ),
     )
 
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
     expect(result.current.busy).toBe(false)
   })
 
@@ -553,7 +564,7 @@ describe('useAnalysis account handling', () => {
     })
 
     expect(oldWorker.terminated).toBe(true)
-    expect(nextWorker.posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    expect(nextWorker.posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
     await waitFor(() => expect(result.current.error).toMatch(/account changed/))
   })
 
@@ -576,9 +587,7 @@ describe('useAnalysis account handling', () => {
     })
 
     expect(oldWorker.terminated).toBe(true)
-    expect(restartedWorker.posted).toEqual([
-      { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
-    ])
+    expect(restartedWorker.posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
     expect(restartedWorker.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
     expect(result.current.error).toMatch(/Stopped\. Add your files again/)
   })
@@ -662,7 +671,6 @@ describe('useAnalysis account handling', () => {
       rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
       expect(worker().posted.at(-1)).toEqual({
         type: 'loadServer',
-        settings: SETTINGS,
         userId: USER_ID,
       })
       settle()
@@ -709,7 +717,7 @@ describe('useAnalysis account handling', () => {
       rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
       expect(worker().posted.slice(1)).toEqual([
         { type: 'clear', forgetDevice: false },
-        { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
+        { type: 'loadServer', userId: USER_ID },
       ])
       act(() => worker().reply({ type: 'state', state: STATE }))
       act(() => worker().reply({ type: 'error', message: 'Library down' }))
@@ -1589,7 +1597,7 @@ describe('useAnalysis device library', () => {
 
     expect(first.terminated).toBe(true)
     expect(worker()).not.toBe(first)
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('never sends the device load after a signed-in worker restarts and the session expires', () => {
@@ -1763,7 +1771,12 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'state',
-        state: { ...STATE, syncIssues: [{ code: 'storage-budget', count: 1 }] },
+        state: null,
+        facts: {
+          rejected: [],
+          unsupportedFiles: 0,
+          syncIssues: [{ code: 'storage-budget', count: 1 }],
+        },
       }),
     )
     expect(result.current.state.syncIssues).toEqual([{ code: 'storage-budget', count: 1 }])
@@ -1856,7 +1869,6 @@ describe('useAnalysis state', () => {
     await waitFor(() =>
       expect(worker().posted.at(-1)).toEqual({
         type: 'loadServer',
-        settings: SETTINGS,
         userId: USER_ID,
       }),
     )
@@ -1896,7 +1908,7 @@ describe('useAnalysis state', () => {
     rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
     expect(worker()).not.toBe(signedOutWorker)
     expect(result.current.state.syncIssues).toEqual([])
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('refuses sample data while a signed-in library is shown, and sends nothing', () => {
@@ -1951,11 +1963,13 @@ describe('useAnalysis state', () => {
 
   it('takes the outdated activities that have an original from the same reply as the state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
-    const outdated = { ...STATE, outdatedActivities: 3 }
+    const outdated = { ...INDEX, outdatedActivities: 3 }
     // The missing count arrives ahead of the state and does not move the outdated count.
     act(() => worker().reply({ type: 'missingOriginals', count: 3 }))
     expect(result.current.outdatedWithOriginal).toBe(0)
-    act(() => worker().reply({ type: 'state', state: outdated, outdatedWithOriginal: 2 }))
+    act(() =>
+      worker().reply({ type: 'state', state: null, index: outdated, outdatedWithOriginal: 2 }),
+    )
     expect(result.current.state.outdatedActivities).toBe(3)
     expect(result.current.outdatedWithOriginal).toBe(2)
 
@@ -1963,7 +1977,8 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'rebuildComplete',
-        state: { ...STATE, outdatedActivities: 1 },
+        state: null,
+        index: { ...INDEX, outdatedActivities: 1 },
         outdatedWithOriginal: 0,
         rebuilt: 2,
         missing: 1,
@@ -2482,13 +2497,13 @@ describe('useAnalysis state', () => {
     act(() => result.current.rebuildSavedActivities())
     expect(worker().posted.at(-1)).toEqual({
       type: 'rebuildStale',
-      settings: SETTINGS,
       userId: USER_ID,
     })
     act(() =>
       worker().reply({
         type: 'rebuildComplete',
-        state: { ...STATE, outdatedActivities: 2 },
+        state: null,
+        index: { ...INDEX, outdatedActivities: 2 },
         rebuilt: 1,
         missing: 1,
         failed: 0,
@@ -2507,7 +2522,8 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'rebuildComplete',
-        state: { ...STATE, outdatedActivities: 2 },
+        state: null,
+        index: { ...INDEX, outdatedActivities: 2 },
         rebuilt: 1,
         missing: 1,
         failed: 2,
@@ -2537,7 +2553,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (3,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -2577,7 +2593,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(5,000 per day\) was reached\. It resets at .+, your time\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(3,000 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -2590,7 +2606,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.errorIssue).toBe('daily-limit')
     expect(result.current.error).toMatch(
-      new RegExp(`^You have reached today's limit on saves \\(5,000 per day\\)\\. `),
+      new RegExp(`^You have reached today's limit on saves \\(3,000 per day\\)\\. `),
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
@@ -2845,7 +2861,7 @@ describe('useAnalysis state', () => {
     const { result } = setup(account)
     act(() => result.current.rebuildSavedActivities())
 
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
     expect(result.current.rebuildNotice).toMatch(/cannot be read right now/i)
   })
 
@@ -2856,7 +2872,6 @@ describe('useAnalysis state', () => {
     expect(worker()).not.toBe(stoppedWorker)
     expect(worker().posted).toContainEqual({
       type: 'loadServer',
-      settings: SETTINGS,
       userId: USER_ID,
     })
     expect(result.current.error).toMatch(/saved library is reloading/i)
@@ -2893,7 +2908,7 @@ describe('useAnalysis state', () => {
     expect(result.current.state).toEqual(STATE)
     expect(result.current.error).toMatch(/Stopped\. Add your files again/)
     expect(worker()).not.toBe(stopped)
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: USER_ID }])
   })
 
   it('clears signed-out results after an unrecoverable worker failure', () => {
@@ -3500,7 +3515,6 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
     act(() => worker().reply({ type: 'state', state }))
   }
   const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
-  const LIB_A2 = { tag: 'library A after stop' } as unknown as SessionState['result']
   const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
   const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
   const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
@@ -3514,47 +3528,6 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
     const account: Account = { status: 'signed-in', me, flushProfileWrites: () => gate }
     return { account, release: (value: Me | null) => release(value) }
   }
-
-  it('compares an import abandoned by an account switch with the next account, not the abandoned one', async () => {
-    const gated = gatedAccount(meWith(true))
-    const { result, rerender } = setup(gated.account)
-    act(() => result.current.addFiles([FILE]))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
-    await act(async () => gated.release(meWith(true)))
-    finishLibraryLoad({ ...STATE, totalActivities: 2, result: LIB_B })
-    act(() => result.current.addFiles([FILE]))
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 3, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_B)
-  })
-
-  it('compares an import made after Stop with the library as it is then, not the one a pending write held', async () => {
-    const gated = gatedAccount(meWith(true))
-    const { result } = setup(gated.account)
-    act(() => result.current.addFiles([FILE]))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    act(() => result.current.stop())
-    await act(async () => gated.release(meWith(true)))
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A2 })
-    await act(async () => {
-      result.current.addFiles([FILE])
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 4, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_A2)
-  })
 
   it('compares each drop waiting for the device library with that library', () => {
     localStorage.setItem('rca.kept.v1', '1')
@@ -3692,50 +3665,7 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
 
 describe('round 7: the baseline when an import is sent, and a library read a Start over overtakes', () => {
   const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
-  const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
   const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
-  const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
-
-  it('compares an import waiting on a profile write with the result reported when it is sent', async () => {
-    let waiting = false
-    let releaseWrite: (value: Me | null) => void = () => undefined
-    const account: Account = {
-      status: 'signed-in',
-      me: meWith(true),
-      flushProfileWrites: () => {
-        if (!waiting) return Promise.resolve(meWith(true))
-        return new Promise<Me | null>((resolve) => {
-          releaseWrite = resolve
-        })
-      },
-    }
-    const { result } = setup(account)
-    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
-    await act(async () => {
-      result.current.addFiles([FILE])
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    waiting = true
-    act(() => result.current.addFiles([FILE]))
-    await act(async () => {
-      // File A's reply moves the result, and the profile write B waits on lands in the same turn.
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 4, result: LIB_B },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      })
-      releaseWrite(meWith(true))
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
-    act(() =>
-      worker().reply({
-        type: 'state',
-        state: { ...STATE, totalActivities: 5, result: RESULT_NEW },
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
-      }),
-    )
-    expect(result.current.importChange?.before).toBe(LIB_B)
-  })
 
   it('does not show the kept results a device load answers after a Start over, and ends the restoring state at once', () => {
     localStorage.setItem('rca.kept.v1', '1')

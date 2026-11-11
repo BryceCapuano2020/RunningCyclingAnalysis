@@ -5,8 +5,6 @@ import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/st
 import { createHarness } from '../test/harness.ts'
 import { runStateJob } from '../state/job.ts'
 
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
-
 const digests = libraryDigests()
 
 async function ready(email?: string) {
@@ -59,7 +57,8 @@ describe('GET /api/state', () => {
         return typeof value === 'function' ? value.bind(target) : value
       },
     })
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', FILES: watched })
+    const h = createHarness({}, { FILES: watched })
+    h.clock.now = w.h.clock.now
     const res = await h.send({
       path: '/api/state',
       cookies: w.cookies,
@@ -73,27 +72,7 @@ describe('GET /api/state', () => {
     expect((await w.get({ 'If-None-Match': '*' })).status).toBe(304)
   })
 
-  it('is a 404 for everyone while no account is on the allowlist, unset or empty', async () => {
-    const w = await stateWorld({ on: false })
-    expect((await w.h.send({ path: '/api/state', cookies: w.cookies })).status).toBe(404)
-    expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
-    w.env.SERVER_COMPUTE_USERS = ' , '
-    expect((await w.h.send({ path: '/api/state', cookies: w.cookies })).status).toBe(404)
-  })
-
-  it('is a 404 for an account that is not on the allowlist, even with a snapshot, and spends no unit', async () => {
-    const w = await ready()
-    w.env.SERVER_COMPUTE_USERS = 'someone-else'
-    expect((await w.get()).status).toBe(404)
-    const spent = await w.env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM daily_budget WHERE action = 'stateRead'",
-    ).first<{ n: number }>()
-    expect(spent?.n).toBe(0)
-    w.env.SERVER_COMPUTE_USERS = `someone-else,${w.userId}`
-    expect((await w.get()).status).toBe(200)
-  })
-
-  it('answers a signed-out request 404 with an account listed, as with none, and a 404 for an account with no snapshot', async () => {
+  it('answers a signed-out request 404', async () => {
     const w = await ready()
     expect((await w.h.send({ path: '/api/state' })).status).toBe(404)
     // A cross-site signed-out request, and a stale session, give nothing away either.
@@ -103,21 +82,31 @@ describe('GET /api/state', () => {
     expect(
       (await w.h.send({ path: '/api/state', cookies: { rca_session: 'not-a-session' } })).status,
     ).toBe(404)
-    const other = await stateWorld({ email: 'other@example.com' })
-    expect((await other.h.send({ path: '/api/state', cookies: other.cookies })).status).toBe(404)
   })
 
   it('serves an account only its own snapshot', async () => {
     const mine = await ready('mine@example.com')
     const token = await mine.h.signIn('other@example.com')
+    const own = await mine.get()
     const res = await mine.h.send({ path: '/api/state', cookies: { rca_session: token } })
-    expect(res.status).toBe(404)
+    // The other account has no library: its own (empty) results are computed, not mine.
+    expect(res.status).toBe(200)
+    expect(res.headers.get('ETag')).not.toBe(own.headers.get('ETag'))
+    expect((await res.json()) as object).not.toEqual(await own.json())
   })
 
-  it('is a 404 when the object the row names is gone', async () => {
+  it('computes the snapshot again in the read when the object the row names is gone, and keeps no unit for the lost read', async () => {
     const w = await ready()
-    await w.env.FILES!.delete(`users/${w.userId}/state/${w.hash}.json.gz`)
-    expect((await w.get()).status).toBe(404)
+    const key = `users/${w.userId}/state/${w.hash}.json.gz`
+    await w.env.FILES!.delete(key)
+    w.h.clock.now += 11_000
+    const res = await w.get()
+    expect(res.status).toBe(200)
+    expect(await w.env.FILES!.head(key)).not.toBeNull()
+    const spent = await w.env.DB.prepare(
+      "SELECT coalesce(sum(used), 0) AS n FROM daily_budget WHERE action = 'stateRead'",
+    ).first<{ n: number }>()
+    expect(spent?.n).toBe(1)
   })
 
   it('refuses a cross-site read, which would spend the reader budget', async () => {
@@ -135,57 +124,5 @@ describe('GET /api/state', () => {
     const res = await w.get()
     expect(res.status).toBe(429)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('daily_limit')
-  })
-
-  it('serves no snapshot made under another analysis revision, and asks the job for a new one once', async () => {
-    const w = await ready()
-    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
-      .bind(ANALYSIS_REVISION - 1, w.userId)
-      .run()
-    w.sent.length = 0
-    // The compute that made it began moments ago: a read within the interval asks for nothing.
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([])
-    w.h.clock.now += 60_000
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 10 } }])
-    // A message is on its way: the next read sends none.
-    expect((await w.get()).status).toBe(404)
-    expect(w.sent).toHaveLength(1)
-  })
-
-  it('asks for nothing for a library the server does not compute for, however often it is read', async () => {
-    const w = await ready()
-    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ?')
-      .bind(w.userId)
-      .run()
-    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
-      .bind(w.userId)
-      .run()
-    w.sent.length = 0
-    w.h.clock.now += 60_000
-    for (let i = 0; i < 3; i += 1) expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([])
-  })
-
-  it('treats an object an older Worker wrote as stale: no revision of its own, whatever the row says', async () => {
-    const w = await ready()
-    const key = `users/${w.userId}/state/${w.hash}.json.gz`
-    const object = await w.env.FILES!.get(key)
-    const bytes = new Uint8Array(await object!.arrayBuffer())
-    // An older Worker's put: the same bytes, no revision in the object's metadata, and the row left as it was.
-    await w.env.FILES!.put(key, bytes, {
-      httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
-    })
-    w.sent.length = 0
-    w.h.clock.now += 60_000
-    expect((await w.get()).status).toBe(404)
-    const row = await w.env.DB.prepare(
-      'SELECT analysis_revision AS r FROM state_jobs WHERE user_id = ?',
-    )
-      .bind(w.userId)
-      .first<{ r: number }>()
-    expect(row?.r).toBe(0)
-    expect(w.sent).toHaveLength(1)
   })
 })

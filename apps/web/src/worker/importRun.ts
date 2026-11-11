@@ -1,5 +1,12 @@
 import type { ActivityRecord } from '@rca/contract'
-import type { AnalysisSession, SessionState, SyncIssueCode, SyncItem } from '@rca/core/session'
+import type {
+  AnalysisSession,
+  ImportFacts,
+  IndexFacts,
+  SessionState,
+  SyncIssueCode,
+  SyncItem,
+} from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { accountSaver } from './accountSave'
 import { workoutKeyOf as activityKey } from './device'
@@ -22,7 +29,8 @@ import { skipAllowance } from './skipAllowance'
 import type { Workbench } from './workbench'
 import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
-import { applyListLabels, reloadSession } from './applyListLabels'
+import { accountBaseline } from './accountState'
+import { applyListLabels, reloadIndex } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
 import { DEVICE_LABELS } from './labelUndo'
 import type { LabelUndo } from './labelUndo'
@@ -62,11 +70,20 @@ export interface ImportRunContext {
   lastImport: { scope: CheckinScope | null; added: number } | null
 }
 
-/** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
+/**
+ * Runs one import: each new activity is saved, and its file uploaded when files are kept. Into an account (`sync`) the
+ * import builds no state, since the results are the server's: `state` is null and `facts` holds what only the import knows.
+ */
 export async function runImport(
   ctx: ImportRunContext,
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
-): Promise<{ state: SessionState; outcome?: ImportOutcome; saved?: number }> {
+): Promise<{
+  state: SessionState | null
+  facts?: ImportFacts
+  index?: IndexFacts
+  outcome?: ImportOutcome
+  saved?: number
+}> {
   const { session, post, missingOriginals, savedRecords, workbench, provisionalItems } = ctx
   const { device, routes, view, reportLibrary } = ctx
   const { sync } = request
@@ -81,6 +98,7 @@ export async function runImport(
         ? { kind: 'device' }
         : null
   view.activeScope = traceScope ?? { kind: 'device' }
+  view.accountIndex = sync !== null
   // What storage turned away in an earlier import says nothing about room now.
   workbench.forgetOutranked()
   // Signing in again lifts the block that signing out put on the account's recordings.
@@ -126,7 +144,11 @@ export async function runImport(
         })
   // The library as it stands before any file of this import is kept: what "since your last import" compares with.
   if (heldScope !== null || request.provisional === true) {
-    const before = session.checkInSnapshot(session.setSettings(request.settings), Date.now())
+    // An account's is the server's, read fresh (or the device copy while it computes); with neither there is no check-in for this import.
+    const before =
+      sync !== null
+        ? ((await accountBaseline(sync.userId)) ?? null)
+        : session.checkInSnapshot(session.setSettings(request.settings), Date.now())
     await ctx.checkIns.begin(heldScope, before)
   }
   view.checkinScope = heldScope
@@ -156,7 +178,11 @@ export async function runImport(
   // library cannot be read the files are analysed on their own and the page is told: nothing is lost, and
   // nothing kept is written over, since each save first reads what is kept under its workout (a strict read).
   if (sync === null && request.saveToDevice && !device.inSession()) {
-    await device.load(request.settings).catch(() => post({ type: 'deviceIssue', issue: 'notRead' }))
+    await device.load(request.settings).catch(() => {
+      post({ type: 'deviceIssue', issue: 'notRead' })
+      // The index may still be the account of a session that expired: its digests are not analysed with these files.
+      session.replaceLibrary([])
+    })
   }
   view.showingSample = false
   const keeper = deviceKeeper(device, post)
@@ -165,14 +191,13 @@ export async function runImport(
   const holdForDevice = async (item: SyncItem) => {
     provisionalItems.set(activityKey(item.digest), { ...item, bytes: new Uint8Array() })
   }
-  let state: SessionState
+  let state: SessionState | null = null
   // The type the export's list gave each file, which labels the workouts the account already holds.
   let listedTypes: ReadonlyMap<string, string> | undefined
   let emptied = false
   try {
-    state = await session.addFiles(
+    const imported: Parameters<AnalysisSession['importFiles']> = [
       request.files,
-      request.settings,
       (count) => {
         noteWork()
         reporter.filesReadSoFar(count)
@@ -213,7 +238,10 @@ export async function runImport(
         else await workbench.remove(traceScope, replacedId)
       },
       heldIndex?.files,
-    )
+    ]
+    const [files, ...rest] = imported
+    if (sync === null) state = await session.addFiles(files, request.settings, ...rest)
+    else await session.importFiles(files, ...rest)
   } finally {
     // First, so a failure below cannot skip it: the page does not keep the count from before.
     if (sync !== null)
@@ -244,6 +272,8 @@ export async function runImport(
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
+  // The files this import refused, taken now: the labelling below may read the index again.
+  const importFacts = sync === null ? undefined : session.importFacts()
   if (sync !== null && ATHLETE_LABELS_ENABLED && listedTypes !== undefined) {
     const labelled = await applyListLabels(savedRecords, listedTypes, sync.userId, (fresh) => {
       savedRecords.clear()
@@ -252,7 +282,7 @@ export async function runImport(
     // Also when nothing was labelled: the newest import's labels are the ones Undo takes off, and an older set is not.
     ctx.labelUndo.remember(sync.userId, view.libraryEpoch, labelled)
     if (labelled.length > 0) {
-      state = reloadSession(session, request.settings, [...savedRecords.values()])
+      reloadIndex(session, [...savedRecords.values()])
       outcome = { ...outcome, labelled: labelled.length }
     }
   } else if (
@@ -270,8 +300,10 @@ export async function runImport(
       outcome = { ...outcome, labelled: done.labelled.length }
     }
   }
+  // The unsaved list is read once the index is, since a library read from the account settles what it holds.
+  const facts = importFacts && { ...importFacts, syncIssues: session.importFacts().syncIssues }
   // A zip that could not be read to its end leaves the library short: that import moves the baseline only if accepted.
-  const damaged = state.rejected.some(
+  const damaged = (state?.rejected ?? facts?.rejected ?? []).some(
     ({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName),
   )
   const added = (outcome.runs ?? 0) + (outcome.rides ?? 0)
@@ -289,5 +321,10 @@ export async function runImport(
     keeper.report()
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
-  return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }
+  return {
+    state,
+    ...(facts ? { facts, index: session.indexFacts() } : {}),
+    outcome,
+    ...(sync ? { saved: reporter.savedCount } : {}),
+  }
 }

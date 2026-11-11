@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { AthleteSettings } from '@rca/core/athlete'
-import type { AgeProfile } from '@rca/core/grade'
-import type { Equipment, LiftSet } from '@rca/core/lift'
+import { liftResultsOf } from '@rca/core/lift'
+import type { Equipment, LiftResults, LiftSet } from '@rca/core/lift'
 import type { UnitSystem } from '@rca/core/units'
 import type { AccountController } from '../useAccount'
 import { LevelRanges } from '../pages/LevelRanges'
@@ -12,7 +12,9 @@ import { BigThreeLead } from './BigThreeLead'
 import { LiftPage } from './LiftPage'
 import { LiftPicker } from './LiftPicker'
 import { SetForm } from './SetForm'
+import { DEVICE_SCOPE } from '../../worker/liftTransitions'
 import { liftOverviewOf } from './liftEntries'
+import { useLiftScope } from './liftScope'
 import { EARLIER_STEP, earlierDays, lastSetOf, liftsOfDay, setOfKey } from './liftPageData'
 import type { NewLiftSet } from './useLiftLog'
 import { useLiftLog } from './useLiftLog'
@@ -24,10 +26,10 @@ export interface LiftConnectedProps {
   day: string
   today: string
   openDay: (day: string) => void
-  /** The athlete's settings, whose body mass the times-body-mass figure and the grade read. */
+  /** The athlete's settings, whose body mass, year of birth and sex the grades read. */
   settings: AthleteSettings
-  /** The year of birth and sex for the age grade, or null while either is missing. */
-  profile: AgeProfile | null
+  /** Signed in: the lift results from the server's snapshot, null until it answers. Signed out they are worked out from the log. */
+  accountLift?: LiftResults | null
 }
 
 /** A set without its set order, which the log assigns. */
@@ -61,7 +63,7 @@ export function LiftConnected({
   today,
   openDay,
   settings,
-  profile,
+  accountLift = null,
 }: LiftConnectedProps) {
   const log = useLiftLog({
     status: account.status,
@@ -80,20 +82,16 @@ export function LiftConnected({
   const logged = log.days.find((entry) => entry.date === day)
   const lifts = useMemo(() => liftsOfDay(logged), [logged])
   const earlier = useMemo(() => earlierDays(log.days, day, count), [log.days, day, count])
-  // The caller builds the profile afresh each render, so the memo reads its two values.
-  const birthYear = profile?.birthYear ?? null
-  const sex = profile?.sex ?? null
-  const overview = useMemo(
-    () =>
-      liftOverviewOf(
-        log.sets,
-        settings,
-        birthYear === null || sex === null ? null : { birthYear, sex },
-        units,
-        today,
-      ),
-    [log.sets, settings, birthYear, sex, units, today],
+  // Every figure on the page is core's `liftResultsOf`: the server's for an account (what it holds, so a set not yet sent changes
+  // nothing here), this log's for a signed-out visitor. The log still gives the day view and the form.
+  // The lift scope decides: with no user id yet (the lookup loads or failed) it is the last account's, and its log holds unsent sets.
+  const accountScope = useLiftScope(account.status, account.me?.user.id ?? null) !== DEVICE_SCOPE
+  const shown = useMemo(
+    () => liftResultsOf(accountScope ? [] : log.sets, settings, today),
+    [accountScope, log.sets, settings, today],
   )
+  const figures = accountScope && accountLift !== null ? accountLift : shown
+  const overview = useMemo(() => liftOverviewOf(figures, units), [figures, units])
   const editing = editingKey === null ? undefined : setOfKey(logged, editingKey)
 
   const exercise = choice?.exercise ?? null

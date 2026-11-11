@@ -1,4 +1,5 @@
 import { MAX_KEPT_POWER } from '@rca/contract'
+import { forgetUnsent } from './settingsUnsent'
 import type { AccountSettings } from '@rca/contract'
 import { MAX_COUNTED_RUNS } from '@rca/core/athlete'
 import { sameChoice } from '@rca/core/period'
@@ -41,6 +42,8 @@ export function forgetAccountChoices(): void {
   clearKeptPower()
   clearPeriodChoice()
   writeOwner(null)
+  forgetReportedZones()
+  forgetUnsent()
 }
 
 /** What this browser holds, as the account keeps it: a list or a pick that is empty is null, never set. */
@@ -128,13 +131,14 @@ export function settle(
  * choices to an account that has none. Returns when both are done. A copy that mirrored another account is
  * dropped first and never offered. The copy is marked as this account's only once the account holds what was
  * offered, so a save that failed is offered again on the retry, not read as a copy that already mirrors it.
- * The zone goes along only for an account the server computes results for (`serverState`).
+ * The zone goes along for every account, since the server computes each one's results: here when it is not the one this device last
+ * reported (see `reportedZone`), so two devices in different zones do not take it from each other on every read. A save of the
+ * choices always carries this browser's. Resolves whether it wrote to the account.
  */
 export async function pullAccountSettings(
   userId: string,
   chosen: ReadonlySet<SettingsField>,
-  serverState: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const account = await getAccountSettings(userId)
   const owner = readOwner()
   if (owner !== null && owner !== userId) {
@@ -144,22 +148,47 @@ export async function pullAccountSettings(
   }
   const settled = settle(account, browserSettings(), owner === null, chosen)
   adopt(settled)
-  // The server cuts the days of the results it computes in the athlete's zone, so it is told when it differs.
-  const zone = serverState ? reportableZone() : undefined
-  if (!sameSettings(settled, account) || (zone !== undefined && account.zone !== zone)) {
-    await putAccountSettings(withZone(settled, zone), userId)
-  }
+  // The server cuts the days of the results it computes in the athlete's zone. This device tells it when its zone is not the one it
+  // last reported (a first read, or a move), so two devices in different zones each write once and do not flip it on every read.
+  const zone = reportableZone()
+  const moved = zone !== undefined && zone !== account.zone && zone !== reportedZone(userId)
+  const write = !sameSettings(settled, account) || moved
+  if (write) await putAccountSettings(withZone(settled, zone), userId)
+  if (zone !== undefined && (write || zone === account.zone)) noteReportedZone(userId, zone)
   writeOwner(userId)
+  return write
 }
 
 function withZone(settings: AccountSettings, zone: string | undefined): AccountSettings {
   return zone === undefined ? settings : { ...settings, zone }
 }
 
-/** Saves this browser's copy as the account's. */
-export async function pushAccountSettings(userId: string, serverState: boolean): Promise<void> {
-  await putAccountSettings(
-    withZone(browserSettings(), serverState ? reportableZone() : undefined),
-    userId,
-  )
+const ZONE_KEY_PREFIX = 'rca-zone-reported:'
+const zoneKey = (userId: string) => `${ZONE_KEY_PREFIX}${userId}`
+
+/** The notes of the zone this device told each account, which sign-out and account deletion take beside the owner note. */
+function forgetReportedZones(): void {
+  try {
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith(ZONE_KEY_PREFIX)) localStorage.removeItem(key)
+  } catch {
+    // A browser that refuses storage holds none.
+  }
+}
+
+/** The zone this device last told the account it is in, or null. */
+function reportedZone(userId: string): string | null {
+  try {
+    return localStorage.getItem(zoneKey(userId))
+  } catch {
+    return null
+  }
+}
+
+function noteReportedZone(userId: string, zone: string): void {
+  try {
+    localStorage.setItem(zoneKey(userId), zone)
+  } catch {
+    // Not remembered: the zone is told again on the next read.
+  }
 }

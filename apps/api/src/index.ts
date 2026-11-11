@@ -10,8 +10,8 @@ const app = createApp()
 export default {
   fetch: (request: Request, env: Bindings, ctx: ExecutionContext) => app.fetch(request, env, ctx),
   /**
-   * The state job's Queue (wrangler.toml [[queues.consumers]], bound only where SERVER_COMPUTE_USERS is not empty): computes the results of
-   * each account a write named. Not bound in production while the owner is off Workers Paid.
+   * The state job's Queue (wrangler.toml [[queues.consumers]]): computes the results of
+   * each account a write named.
    */
   async queue(batch: MessageBatch<StateMessage>, env: Bindings): Promise<void> {
     const report = await handleStateBatch(batch, env, systemDeps)

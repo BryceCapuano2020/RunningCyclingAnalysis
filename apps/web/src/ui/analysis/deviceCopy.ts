@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SessionState } from '@rca/core/session'
 import { fromSnapshot, toSnapshot } from '@rca/core/stateSnapshot'
-import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import {
   DEVICE_STATE_SCOPE,
   clearSnapshot,
@@ -11,7 +10,6 @@ import {
 import { browserZone, copyIsStale } from './copyAge'
 import type { Account, LibraryStatus } from './model'
 import { accountPending } from './model'
-import { newerServerCopy } from './serverCopy'
 
 /** How long the state must stand still before it is kept, so an import's replies cost one write. */
 const KEEP_AFTER_MS = 1_500
@@ -20,7 +18,6 @@ type CopyAccount = Pick<Account, 'status' | 'lookupPending' | 'me'>
 
 /** The device copy on screen: the results of the last visit, until the live analysis replaces them. */
 export interface PaintedCopy {
-  scope: string
   state: SessionState
   /** The instant the analysis behind it treated as now. */
   madeAt: number
@@ -28,34 +25,27 @@ export interface PaintedCopy {
   stale: boolean
 }
 
-/** The scope the page shows now: an account's id, the device, or null while it is not known who is signed in. */
-export function scopeOf(account: CopyAccount): string | null {
-  if (account.status === 'signed-in' && account.me !== null) return account.me.user.id
-  return accountPending(account) ? null : DEVICE_STATE_SCOPE
-}
-
-async function loadCopy(
-  scope: string,
-): Promise<{ copy: PaintedCopy; snapshot: StateSnapshot } | null> {
-  const snapshot = await readSnapshot(scope)
+async function loadCopy(): Promise<PaintedCopy | null> {
+  const snapshot = await readSnapshot(DEVICE_STATE_SCOPE)
   if (snapshot === null) return null
   try {
-    const state = fromSnapshot(snapshot)
-    const copy = { scope, state, madeAt: snapshot.nowMs, stale: copyIsStale(snapshot, Date.now()) }
-    return { copy, snapshot }
+    return {
+      state: fromSnapshot(snapshot),
+      madeAt: snapshot.nowMs,
+      stale: copyIsStale(snapshot, Date.now()),
+    }
   } catch {
     // A copy that does not decode is never read, so it goes.
-    await clearSnapshot(scope)
+    await clearSnapshot(DEVICE_STATE_SCOPE)
     return null
   }
 }
 
 /**
- * The device copy of the results (`rca-state`): painted at once on open, kept after each live analysis. For an account the
- * server's snapshot replaces it when the server has a newer one (`./serverCopy`); where the server has none the copy stands.
- * The device's copy
- * is read as the page mounts, an account's as soon as it is known to be signed in; a copy of another scope is dropped, and
- * so is the copy once the live analysis answers (or the library cannot be read). Returns the copy to show, or null.
+ * The signed-out visitor's copy of the results (`rca-state`, scope `device`): painted at once on open, kept after each live
+ * analysis. A signed-in account has none here: its results are the server's, and their copy is kept by `useAccountResults`,
+ * so the browser never writes a snapshot it computed itself for an account. The copy is read as the page mounts, and dropped
+ * once the live analysis answers (or the library cannot be read). Returns the copy to show, or null.
  */
 export function useDeviceCopy(
   account: CopyAccount,
@@ -65,60 +55,39 @@ export function useDeviceCopy(
 ): PaintedCopy | null {
   const [copy, setCopy] = useState<PaintedCopy | null>(null)
   const [first] = useState(live)
-  // The scope whose live analysis has answered: its copy is not read again, even if its library is read anew.
-  const answered = useRef<string | null>(null)
-  const scope = scopeOf(account)
+  const answered = useRef(false)
   const signedIn = account.status === 'signed-in'
-  // Whether /api/me says the server computes this account's results: no request is made for any other account.
-  const serverState = account.me?.serverState === true
-  // A state the worker has sent is live: the page never shows a copy over it. For an account it is the state of its
-  // library read, not one made before the account was known.
-  const liveArrived = live !== first && (!signedIn || libraryStatus === 'loaded')
-  const gone =
-    liveArrived ||
-    libraryStatus === 'failed' ||
-    (copy !== null && scope !== null && copy.scope !== scope)
+  const pending = accountPending(account)
+  // A state the worker has sent is live: the page never shows a copy over it.
+  const liveArrived = live !== first
+  const gone = liveArrived || libraryStatus === 'failed' || signedIn
 
-  // The device's copy on mount; an account's once it is known.
   useEffect(() => {
-    const wanted = scope ?? DEVICE_STATE_SCOPE
-    if (liveArrived) answered.current = wanted
-    if (liveArrived || answered.current === wanted) return
+    if (liveArrived) answered.current = true
+    if (liveArrived || answered.current || signedIn) return
     let current = true
-    void loadCopy(wanted).then(async (found) => {
-      if (!current) return
-      setCopy(found?.copy ?? null)
-      // An account's server snapshot, when it has one and it is newer: shown and kept as the device copy.
-      if (scope === null || scope === DEVICE_STATE_SCOPE) return
-      const server = await newerServerCopy(scope, found?.snapshot ?? null, serverState)
-      if (server === null || !current) return
-      setCopy({
-        scope,
-        state: server.state,
-        madeAt: server.snapshot.nowMs,
-        stale: copyIsStale(server.snapshot, Date.now()),
-      })
-      void writeSnapshot(scope, server.snapshot)
+    void loadCopy().then((found) => {
+      if (current) setCopy(found)
     })
     return () => {
       current = false
     }
-  }, [scope, liveArrived, serverState])
+  }, [liveArrived, signedIn])
 
   // A copy that is no longer shown is dropped, so it does not come back when a later reload of the library clears `gone`.
   if (gone && copy !== null) setCopy(null)
 
-  // Keeps the live results as this scope's copy once they stand still; a library with no results leaves none.
+  // Keeps the live results as the device's copy once they stand still; a library with no results leaves none.
   useEffect(() => {
-    if (!liveArrived || scope === null || busy || live.isSample) return
+    if (!liveArrived || signedIn || pending || busy || live.isSample) return
     const timer = setTimeout(() => {
       if (live.result === null) {
-        void clearSnapshot(scope)
+        void clearSnapshot(DEVICE_STATE_SCOPE)
         return
       }
       try {
         void writeSnapshot(
-          scope,
+          DEVICE_STATE_SCOPE,
           toSnapshot(live, {
             libraryVersion: 0,
             nowMs: Date.now(),
@@ -131,7 +100,7 @@ export function useDeviceCopy(
       }
     }, KEEP_AFTER_MS)
     return () => clearTimeout(timer)
-  }, [live, liveArrived, scope, busy])
+  }, [live, liveArrived, signedIn, pending, busy])
 
   return gone ? null : copy
 }

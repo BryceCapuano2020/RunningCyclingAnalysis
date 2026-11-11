@@ -83,3 +83,38 @@ describe('pageKeyOf', () => {
     expect(pageKeyOf({ page: 'activity', id: 'a1' }, 'result')).toBe('activity:a1')
   })
 })
+
+describe('libraryPageOf with the server’s results', () => {
+  const present = { knowledge: 'present' as const, hasResult: false }
+
+  it('shows the restoring page, not the held one, while the results are owed (a 202, or a stale snapshot)', () => {
+    expect(pages({ ...present, loading: true })).toEqual([
+      'restoring',
+      'restoring',
+      'restoring',
+      'restoring',
+      'method',
+      'profile',
+    ])
+  })
+
+  it('shows the error page when the results could not be fetched, and the held one only once they came', () => {
+    expect(pages({ ...present, resultsFailed: true }).slice(0, 4)).toEqual([
+      'unavailable',
+      'unavailable',
+      'unavailable',
+      'unavailable',
+    ])
+    expect(pages({ ...present }).slice(0, 4)).toEqual(['held', 'held', 'held', 'held'])
+  })
+
+  it('shows a result whatever the results flags say, and restoring wins over a failed read while a kept library restores', () => {
+    expect(pages({ ...present, hasResult: true, resultsFailed: true }).slice(0, 4)).toEqual([
+      'result',
+      'result',
+      'result',
+      'result',
+    ])
+    expect(pages({ ...present, restoring: true, resultsFailed: true })[0]).toBe('restoring')
+  })
+})

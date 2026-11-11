@@ -100,7 +100,10 @@ export async function seedDigests(
   digests: readonly ActivityDigest[],
   firstCreatedAt = 1_000,
 ): Promise<void> {
-  const statements = digests.map((digest, index) =>
+  // Statements are built one batch at a time (a padded library's rows are tens of MiB, and all of them bound at once held every
+  // digest twice), in batches of at most 25 rows and about 128 KiB: a batch of megabytes dropped Miniflare's local D1 socket
+  // on a loaded runner (the memory sim).
+  const insert = (digest: ActivityDigest, index: number, json: string) =>
     db
       .prepare(
         `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
@@ -115,14 +118,21 @@ export async function seedDigests(
         digest.startMs,
         digest.name,
         digest.version,
-        JSON.stringify(digest),
+        json,
         `file-${index}.fit`,
         'a'.repeat(64),
         firstCreatedAt + index,
-      ),
-  )
-  for (let start = 0; start < statements.length; start += 50) {
-    await db.batch(statements.slice(start, start + 50))
+      )
+  let batch: D1PreparedStatement[] = []
+  let batchBytes = 0
+  for (const [index, digest] of digests.entries()) {
+    const json = JSON.stringify(digest)
+    batch.push(insert(digest, index, json))
+    batchBytes += json.length
+    if (batch.length < 25 && batchBytes < 128 * 1024 && index < digests.length - 1) continue
+    await db.batch(batch)
+    batch = []
+    batchBytes = 0
   }
   await db
     .prepare('UPDATE users SET activity_count = activity_count + ? WHERE id = ?')
@@ -140,10 +150,8 @@ export interface StateWorld {
   cookies: { rca_session: string }
 }
 
-/** A harness with the feature on and a recording Queue, and one signed-in account (with its profile, as sign-in makes it). */
-export async function stateWorld(
-  options: { on?: boolean; email?: string } = {},
-): Promise<StateWorld> {
+/** A harness with a recording Queue and one signed-in account (with its profile, as sign-in makes it). */
+export async function stateWorld(options: { email?: string } = {}): Promise<StateWorld> {
   const { queue, sent } = fakeQueue()
   const h = createHarness({}, { STATE_QUEUE: queue })
   const token = await h.signIn(options.email ?? 'rider@example.com')
@@ -152,8 +160,6 @@ export async function stateWorld(
     user: { id: string }
   }
   sent.length = 0
-  // The account is on the allowlist unless the test says otherwise, now that its id is known.
-  if (options.on !== false) h.env.SERVER_COMPUTE_USERS = me.user.id
   return {
     h,
     env: h.env,

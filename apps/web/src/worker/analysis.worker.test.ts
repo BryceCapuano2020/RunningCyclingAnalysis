@@ -540,7 +540,8 @@ describe('analysis worker', () => {
     )
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { totalActivities: 1, syncIssues: [] },
+      state: null,
+      facts: { syncIssues: [] },
     })
   })
 
@@ -565,7 +566,8 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-budget', count: 3 }], totalActivities: 3 },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-budget', count: 3 }] },
     })
   })
 
@@ -599,7 +601,8 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
+      state: null,
+      facts: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
     })
   })
 
@@ -615,7 +618,8 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'server', count: 1 }], totalActivities: 1 },
+      state: null,
+      facts: { syncIssues: [{ code: 'server', count: 1 }] },
     })
     expect(mocked.uploadFile).not.toHaveBeenCalled()
   })
@@ -632,14 +636,15 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'original-held', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'original-held', count: 1 }] },
     })
   })
 
-  it('loads the account digests and replies with the analysis', async () => {
+  it('loads the account digests into the index and replies with no state', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'loadServer', userId: USER_ID })
 
     expect(mocked.listActivities).toHaveBeenCalledWith(
       undefined,
@@ -654,61 +659,27 @@ describe('analysis worker', () => {
       { type: 'missingOriginals', count: 1 },
       {
         type: 'state',
-        state: expect.objectContaining({ totalActivities: 1, isSample: false }),
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
+        index: expect.anything(),
+        checkIn: { checkIn: null, seen: false },
       },
     ])
   })
 
-  it('loads the account digests on the period the page asks for, in one analysis', async () => {
-    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    const { send } = await startWorker()
-    const messages = await send({
-      type: 'loadServer',
-      settings: SETTINGS,
-      userId: USER_ID,
-      choice: 42,
-    })
-
-    expect(messages.filter((message) => message.type === 'state')).toEqual([
-      {
-        type: 'state',
-        state: expect.objectContaining({
-          totalActivities: 1,
-          period: expect.objectContaining({ choice: 42, days: 42 }),
-        }),
-      },
-    ])
-  })
-
-  it('loads the account digests on the default period when the page asks for none', async () => {
-    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      state: { period: { choice: 'default' } },
-    })
-  })
-
-  it('analyses the account library once on the stored period, after the sample was on screen', async () => {
+  it('does not analyse the account library, after the sample was on screen', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS, choice: 'all' })
-    // Counted from here. A period set before the account loads would analyse the sample first.
     const { PeriodCache } = await import('@rca/core/period')
     const analysis = vi.spyOn(PeriodCache.prototype, 'analysis')
     const messages = await send({
       type: 'loadServer',
-      settings: SETTINGS,
       userId: USER_ID,
-      choice: 42,
     })
 
-    expect(analysis).toHaveBeenCalledTimes(1)
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      state: { totalActivities: 1, period: { choice: 42, days: 42 } },
-    })
+    expect(analysis).not.toHaveBeenCalled()
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('loads the sample on the period the page asks for, in one analysis', async () => {
@@ -775,6 +746,29 @@ describe('analysis worker', () => {
     expect(messages.some((message) => message.type === 'error')).toBe(false)
   })
 
+  it('does not analyse an expired account’s digests with files imported after, when the kept library cannot be read', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      all: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+      lookup: () => Promise.reject(new Error('Connection to Indexed Database server lost')),
+    }
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', userId: USER_ID })
+    // The session ended: the page keeps the screen, and the worker's scope is emptied but its index is not.
+    await send({ type: 'forgetRoutes' })
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(secondSampleActivity, 'b.fit')],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notRead' })
+    expect(analysedStarts(messages)).toEqual([secondSampleActivity.startMs])
+  })
+
   it('leaves the sample on its period when the kept library loads after it', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS })
@@ -791,7 +785,7 @@ describe('analysis worker', () => {
       .mockResolvedValueOnce([recordFor(stale, true)])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(mocked.downloadActivityFile).toHaveBeenCalledWith(`rec-${stale.id}`, USER_ID)
     expect(mocked.createActivity).toHaveBeenCalledWith(
@@ -811,7 +805,9 @@ describe('analysis worker', () => {
         limited: 0,
         limitKind: null,
         limitResetsAtMs: null,
-        state: expect.objectContaining({ totalActivities: 1, outdatedActivities: 0 }),
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
+        index: expect.anything(),
       },
     ])
   })
@@ -832,7 +828,7 @@ describe('analysis worker', () => {
       .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'activities/1.gpx' }])
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(messages.at(-1)).toMatchObject({
       type: 'rebuildComplete',
@@ -849,7 +845,7 @@ describe('analysis worker', () => {
       .mockResolvedValueOnce([recordFor(named, true)])
       .mockResolvedValueOnce([recordFor({ ...SAMPLE_DIGEST, name: 'Lunch with Sam' }, true)])
     const { send } = await startWorker()
-    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(mocked.createActivity).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Lunch with Sam', modelRevision: MODEL_REVISION }),
@@ -867,7 +863,7 @@ describe('analysis worker', () => {
       new ApiRequestError(404, 'not_found', 'Activity not found'),
     )
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(mocked.createActivity).toHaveBeenCalledWith(
@@ -891,7 +887,7 @@ describe('analysis worker', () => {
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
     expect(mocked.createActivity).not.toHaveBeenCalled()
@@ -905,7 +901,9 @@ describe('analysis worker', () => {
         limited: 0,
         limitKind: null,
         limitResetsAtMs: null,
-        state: expect.objectContaining({ totalActivities: 0, outdatedActivities: 1 }),
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
+        index: expect.anything(),
       },
     ])
   })
@@ -916,7 +914,7 @@ describe('analysis worker', () => {
       .mockResolvedValueOnce([recordFor(stale, false)])
       .mockResolvedValueOnce([recordFor(stale, false)])
     const { send } = await startWorker()
-    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'rebuildStale', userId: USER_ID })
     const messages = await send({
       type: 'addFiles',
       files: [fitFile()],
@@ -955,7 +953,7 @@ describe('analysis worker', () => {
       new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
     )
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     // Two activities are rebuilt at a time, so two downloads met the limit; the third is never asked for.
     expect(mocked.downloadActivityFile).toHaveBeenCalledTimes(2)
@@ -985,7 +983,7 @@ describe('analysis worker', () => {
     )
     const { send } = await startWorker()
     const before = Date.now()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
     const after = Date.now()
 
     // Each of the two activities tried at once is tried again after the wait, and no more.
@@ -1003,7 +1001,7 @@ describe('analysis worker', () => {
       return [recordFor(SAMPLE_DIGEST)]
     })
     const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'loadServer', userId: USER_ID })
 
     expect(messages).toContainEqual({ type: 'libraryUnreadable', count: 2 })
   })
@@ -1017,7 +1015,7 @@ describe('analysis worker', () => {
       })
       .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(messages.some((message) => message.type === 'libraryUnreadable')).toBe(false)
     expect(messages.at(-1)).toMatchObject({ type: 'rebuildComplete', rebuilt: 1 })
@@ -1032,7 +1030,7 @@ describe('analysis worker', () => {
       new ApiRequestError(409, 'activity_conflict', 'Saved from another file'),
     )
     const { send } = await startWorker()
-    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(messages.at(-1)).toMatchObject({
       type: 'rebuildComplete',
@@ -1049,7 +1047,7 @@ describe('analysis worker', () => {
     const tieA = { ...SAMPLE_DIGEST, id: 'tie-a' }
     mocked.listActivities.mockResolvedValue([recordFor(older), recordFor(tieB), recordFor(tieA)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const messages = await send({ type: 'loadServer', userId: USER_ID })
 
     expect(messages[0]).toMatchObject({
       type: 'libraryActivities',
@@ -1063,7 +1061,7 @@ describe('analysis worker', () => {
     vi.setSystemTime(SAMPLE_REFERENCE_NOW_MS)
     const { send } = await startWorker()
     const [sample] = await send({ type: 'loadSample', settings: SETTINGS })
-    if (sample?.type !== 'state') throw new Error('expected a state')
+    if (sample?.type !== 'state' || sample.state === null) throw new Error('expected a state')
     const listed = sample.state.library.find((activity) => activity.sport === 'run')
     const run = listed && sampleActivityById(deviceClock(), listed.id)
     if (!run) throw new Error('The sample has no run')
@@ -1114,7 +1112,7 @@ describe('analysis worker', () => {
   it('posts the message of a request that fails', async () => {
     mocked.listActivities.mockRejectedValue(new Error('Sign in required'))
     const { send } = await startWorker()
-    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
+    expect(await send({ type: 'loadServer', userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required' },
     ])
   })
@@ -1122,7 +1120,7 @@ describe('analysis worker', () => {
   it('posts a non-Error failure as text', async () => {
     mocked.listActivities.mockRejectedValue('offline')
     const { send } = await startWorker()
-    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
+    expect(await send({ type: 'loadServer', userId: USER_ID })).toEqual([
       { type: 'error', message: 'offline' },
     ])
   })
@@ -1142,7 +1140,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'signed-out', count: 2 }], totalActivities: 2 },
+      state: null,
+      facts: { syncIssues: [{ code: 'signed-out', count: 2 }] },
     })
   })
 
@@ -1161,7 +1160,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'account-changed', count: 2 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'account-changed', count: 2 }] },
     })
   })
 
@@ -1180,7 +1180,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: {
+      state: null,
+      facts: {
         syncIssues: [
           { code: 'server', count: 1 },
           { code: 'network', count: 1 },
@@ -1204,7 +1205,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
     })
   })
 
@@ -1228,7 +1230,8 @@ describe('analysis worker', () => {
     expect(messages).toContainEqual({ type: 'accountIssue', issue: cause })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: cause, count: 2 }] },
+      state: null,
+      facts: { syncIssues: [{ code: cause, count: 2 }] },
     })
   })
 
@@ -1246,7 +1249,7 @@ describe('analysis worker', () => {
 
     expect(mocked.createActivity).toHaveBeenCalledTimes(3)
     expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncIssues: [] } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null, facts: { syncIssues: [] } })
     expect(messages.findLast((message) => message.type === 'progress')).toMatchObject({
       uploaded: 2,
     })
@@ -1304,7 +1307,8 @@ describe('analysis worker', () => {
     expect(messages).toContainEqual({ type: 'accountIssue', issue: 'rate-limited' })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'rate-limited', count: 2 }], totalActivities: 2 },
+      state: null,
+      facts: { syncIssues: [{ code: 'rate-limited', count: 2 }] },
     })
   })
 
@@ -1324,7 +1328,8 @@ describe('analysis worker', () => {
     expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'activity-conflict', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'activity-conflict', count: 1 }] },
     })
   })
 
@@ -1351,18 +1356,25 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
     })
   })
 
   it('reports the saved activities whose originals are missing, and clears each one a re-import restores', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST, false)])
     const { send } = await startWorker()
-    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const loaded = await send({ type: 'loadServer', userId: USER_ID })
     expect(loaded.filter((m) => m.type !== 'deviceOffer')).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
-      { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
+      {
+        type: 'state',
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
+        index: expect.anything(),
+        checkIn: { checkIn: null, seen: false },
+      },
     ])
 
     const imported = await send({
@@ -1401,12 +1413,12 @@ describe('analysis worker', () => {
         recordFor(other('no-file-current', 3, MODEL_REVISION)),
       ])
       const { send } = await startWorker()
-      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const loaded = await send({ type: 'loadServer', userId: USER_ID })
 
       expect(ending(loaded)).toMatchObject({
         type: 'state',
         outdatedWithOriginal: 1,
-        state: { outdatedActivities: 2 },
+        state: null,
       })
       // The missing count goes ahead of the state, alone: the two outdated counts must land together.
       expect(loaded).toContainEqual({ type: 'missingOriginals', count: 2 })
@@ -1416,9 +1428,9 @@ describe('analysis worker', () => {
     it('leaves the count off when none of the outdated activities has its file', async () => {
       mocked.listActivities.mockResolvedValue([recordFor(stale, false)])
       const { send } = await startWorker()
-      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const loaded = await send({ type: 'loadServer', userId: USER_ID })
 
-      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 1 } })
+      expect(ending(loaded)).toMatchObject({ state: null })
       expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
     })
 
@@ -1428,9 +1440,9 @@ describe('analysis worker', () => {
         recordFor({ ...stale, id: 'same-start', modelRevision: MODEL_REVISION }, true),
       ])
       const { send } = await startWorker()
-      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const loaded = await send({ type: 'loadServer', userId: USER_ID })
 
-      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 0 } })
+      expect(ending(loaded)).toMatchObject({ state: null })
       expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
     })
 
@@ -1438,17 +1450,17 @@ describe('analysis worker', () => {
       const library = () => [recordFor(stale, true), recordFor(other('no-file', 1), false)]
       mocked.listActivities.mockImplementation(async () => library())
       const { send } = await startWorker()
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
 
       const updated = library()
       updated[0] = recordFor(SAMPLE_DIGEST, true)
       mocked.listActivities.mockResolvedValueOnce(library()).mockResolvedValueOnce(updated)
-      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const rebuilt = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(ending(rebuilt)).toMatchObject({
         type: 'rebuildComplete',
         rebuilt: 1,
-        state: { outdatedActivities: 1 },
+        state: null,
       })
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
     })
@@ -1458,19 +1470,19 @@ describe('analysis worker', () => {
       const library = () => [recordFor(stale, true), recordFor(other('second', 1), true)]
       mocked.listActivities.mockImplementation(async () => library())
       const { send } = await startWorker()
-      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const loaded = await send({ type: 'loadServer', userId: USER_ID })
       expect(ending(loaded)).toMatchObject({ outdatedWithOriginal: 2 })
 
       const updated = library()
       updated[0] = recordFor(SAMPLE_DIGEST, true)
       mocked.listActivities.mockResolvedValueOnce(library()).mockResolvedValueOnce(updated)
-      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const rebuilt = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(ending(rebuilt)).toMatchObject({
         type: 'rebuildComplete',
         rebuilt: 1,
         missing: 1,
-        state: { outdatedActivities: 1 },
+        state: null,
       })
       // Update now would only report the same file missing again, so none is offered.
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
@@ -1482,11 +1494,11 @@ describe('analysis worker', () => {
       const library = () => [recordFor(stale, true)]
       mocked.listActivities.mockImplementation(async () => library())
       const { send } = await startWorker()
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
       mocked.createActivity.mockRejectedValueOnce(
         new ApiRequestError(404, 'not_found', 'Activity not found'),
       )
-      await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'rebuildStale', userId: USER_ID })
       await send({
         type: 'deleteActivity',
         id: `rec-${stale.id}`,
@@ -1498,21 +1510,21 @@ describe('analysis worker', () => {
       mocked.downloadActivityFile.mockRejectedValueOnce(
         new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
       )
-      const limited = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const limited = await send({ type: 'rebuildStale', userId: USER_ID })
       expect(ending(limited)).toMatchObject({ limited: 1, outdatedWithOriginal: 1 })
     })
 
     it('forgets the unmatched activities when the library loads again', async () => {
       mocked.listActivities.mockImplementation(async () => [recordFor(stale, true)])
       const { send } = await startWorker()
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
       mocked.createActivity.mockRejectedValueOnce(
         new ApiRequestError(404, 'not_found', 'Activity not found'),
       )
-      const rebuilt = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const rebuilt = await send({ type: 'rebuildStale', userId: USER_ID })
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
 
-      const reloaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const reloaded = await send({ type: 'loadServer', userId: USER_ID })
       expect(ending(reloaded)).toMatchObject({ outdatedWithOriginal: 1 })
       expect(reloaded).toContainEqual({ type: 'missingOriginals', count: 0 })
     })
@@ -1520,7 +1532,7 @@ describe('analysis worker', () => {
     it('refreshes the count when an import updates an outdated activity', async () => {
       mocked.listActivities.mockImplementation(async () => [recordFor(stale, true)])
       const { send } = await startWorker()
-      const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      const loaded = await send({ type: 'loadServer', userId: USER_ID })
       expect(ending(loaded)).toMatchObject({ outdatedWithOriginal: 1 })
 
       const imported = await send({
@@ -1529,14 +1541,14 @@ describe('analysis worker', () => {
         settings: SETTINGS,
         sync: { keepFiles: true, userId: USER_ID },
       })
-      expect(ending(imported)).toMatchObject({ type: 'state', state: { outdatedActivities: 0 } })
+      expect(ending(imported)).toMatchObject({ type: 'state', state: null })
       expect(ending(imported)).not.toHaveProperty('outdatedWithOriginal')
     })
 
     it('tells the page which originals are missing when an import fails', async () => {
       mocked.listActivities.mockResolvedValue([recordFor(stale, false)])
       const { send } = await startWorker()
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
       vi.mocked(importSummary.summarizeAdded).mockImplementationOnce(() => {
         throw new Error('The summary failed')
       })
@@ -1557,7 +1569,7 @@ describe('analysis worker', () => {
       new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
     )
     const { send } = await startWorker()
-    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
+    expect(await send({ type: 'loadServer', userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required', issue: 'signed-out' },
     ])
   })
@@ -1573,7 +1585,7 @@ describe('analysis worker', () => {
       new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
     )
     const { send } = await startWorker()
-    expect(await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })).toEqual([
+    expect(await send({ type: 'rebuildStale', userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required', issue: 'signed-out' },
     ])
     // Two are in flight at once; the third is never asked for.
@@ -1594,7 +1606,7 @@ describe('analysis worker', () => {
         .mockResolvedValueOnce([recordFor(stale, true)])
         .mockResolvedValueOnce([recordFor(stale, true)])
       const { send } = await startWorker()
-      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
       expect(mocked.createActivity).not.toHaveBeenCalled()
@@ -1606,7 +1618,7 @@ describe('analysis worker', () => {
         .mockResolvedValueOnce([recordFor({ ...stale, startMs: stale.startMs + 60_000 }, true)])
         .mockResolvedValueOnce([recordFor(stale, true)])
       const { send } = await startWorker()
-      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(mocked.createActivity).not.toHaveBeenCalled()
       // The file holds no activity at that time, so it is unmatched, not rebuilt.
@@ -1618,7 +1630,7 @@ describe('analysis worker', () => {
         .mockResolvedValueOnce([recordFor({ ...stale, id: 'the-id-it-was-saved-with' }, true)])
         .mockResolvedValueOnce([recordFor(stale, true)])
       const { send } = await startWorker()
-      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(mocked.createActivity).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'the-id-it-was-saved-with' }),
@@ -1636,7 +1648,7 @@ describe('analysis worker', () => {
         .mockResolvedValueOnce([recordFor(stale, true)])
       mocked.createActivity.mockRejectedValue(new ApiRequestError(409, 'app_outdated', 'Reload'))
       const { send } = await startWorker()
-      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
       expect(messages.at(-1)).toMatchObject({ rebuilt: 0, failed: 0, stopped: 'outdated' })
       expect(mocked.createActivity).toHaveBeenCalledOnce()
@@ -1651,7 +1663,7 @@ describe('analysis worker', () => {
         new ApiRequestError(500, 'server_error', 'down'),
       )
       const { send } = await startWorker()
-      const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const messages = await send({ type: 'rebuildStale', userId: USER_ID })
 
       const done = messages.at(-1)
       expect(done).toMatchObject({ rebuilt: 0, stopped: 'breaker' })
@@ -1663,7 +1675,7 @@ describe('analysis worker', () => {
         .mockResolvedValueOnce([recordFor(stale, true)])
         .mockResolvedValueOnce([recordFor(stale, true)])
       const { send, posted } = await startWorker()
-      const update = send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      const update = send({ type: 'rebuildStale', userId: USER_ID })
       const change = send({ type: 'clear' })
       await Promise.all([update, change])
 
@@ -1703,7 +1715,7 @@ it('deletes by server record id without dropping another unsaved activity', asyn
   mocked.listActivities.mockResolvedValue([saved])
   mocked.deleteActivity.mockResolvedValue(undefined)
   const { send } = await startWorker()
-  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  await send({ type: 'loadServer', userId: USER_ID })
   mocked.createActivity.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
   await send({
     type: 'addFiles',
@@ -1721,7 +1733,8 @@ it('deletes by server record id without dropping another unsaved activity', asyn
   expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
   expect(messages.at(-1)).toMatchObject({
     type: 'state',
-    state: { totalActivities: 1, syncIssues: [{ code: 'network', count: 1 }] },
+    state: null,
+    facts: { syncIssues: [{ code: 'network', count: 1 }] },
   })
 })
 
@@ -1730,7 +1743,7 @@ it('keeps a saved activity after its deletion fails', async () => {
   mocked.listActivities.mockResolvedValue([saved])
   mocked.deleteActivity.mockRejectedValue(new ApiRequestError(503, 'unavailable', 'Try later'))
   const { send } = await startWorker()
-  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  await send({ type: 'loadServer', userId: USER_ID })
   const messages = await send({
     type: 'deleteActivity',
     id: saved.id,
@@ -1738,8 +1751,15 @@ it('keeps a saved activity after its deletion fails', async () => {
     settings: SETTINGS,
   })
   expect(messages).toEqual([{ type: 'error', message: 'Try later', issue: 'server' }])
-  const state = await send({ type: 'setSettings', settings: SETTINGS })
-  expect(state.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  // Still in the index, so a second try finds it and lists it away.
+  mocked.deleteActivity.mockResolvedValue(undefined)
+  const again = await send({
+    type: 'deleteActivity',
+    id: saved.id,
+    userId: USER_ID,
+    settings: SETTINGS,
+  })
+  expect(again).toContainEqual({ type: 'libraryActivities', activities: [] })
 })
 
 it('reports a daily limit during a delete with the daily-limit cause', async () => {
@@ -1747,7 +1767,7 @@ it('reports a daily limit during a delete with the daily-limit cause', async () 
   mocked.listActivities.mockResolvedValue([saved])
   mocked.deleteActivity.mockRejectedValue(new ApiRequestError(429, 'daily_limit', 'Tomorrow'))
   const { send } = await startWorker()
-  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  await send({ type: 'loadServer', userId: USER_ID })
   const messages = await send({
     type: 'deleteActivity',
     id: saved.id,
@@ -1798,7 +1818,8 @@ function refusingLibrary(): DeviceLibrary {
 /** The start times, earliest first, of the activities the last reply analyses. */
 function analysedStarts(messages: WorkerResponse[]): number[] {
   const last = messages.at(-1)
-  if (last?.type !== 'state') throw new Error('The request did not reply with a state')
+  if (last?.type !== 'state' || last.state === null)
+    throw new Error('The request did not reply with a state')
   return (last.state.result?.activities ?? [])
     .map((activity) => activity.startMs)
     .sort((a, b) => a - b)
@@ -2193,7 +2214,7 @@ describe('device library', () => {
     await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
     await send({ type: 'loadDevice', settings: SETTINGS })
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send(signedOutImport(fitFile(thirdSampleActivity, 'third.fit')))
 
@@ -2210,7 +2231,7 @@ describe('device library', () => {
     const keptDigest = digestActivity(secondSampleActivity)
     await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({
       type: 'addFiles',
@@ -2221,7 +2242,7 @@ describe('device library', () => {
     })
 
     const both = [sampleActivity.startMs, thirdSampleActivity.startMs].sort((a, b) => a - b)
-    expect(analysedStarts(messages)).toEqual(both)
+    expect(listedStarts(messages)).toEqual(both)
   })
 
   it('loads the kept library again after a clear that keeps it', async () => {
@@ -2242,7 +2263,7 @@ describe('device library', () => {
     await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
     await send({ type: 'loadDevice', settings: SETTINGS })
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST, true)])
-    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'rebuildStale', userId: USER_ID })
 
     const messages = await send({ type: 'loadDevice', settings: SETTINGS })
 
@@ -2275,7 +2296,7 @@ describe('an analysis made while the account loads', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     await send({ type: 'addFiles', files: [fitFile()], settings: SETTINGS, sync: null })
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({
       type: 'addFiles',
@@ -2284,13 +2305,8 @@ describe('an analysis made while the account loads', () => {
       sync: { keepFiles: false, userId: USER_ID },
     })
 
-    // The account keeps one copy of the workout, so the library still counts it once.
-    expect(messages).toContainEqual(
-      expect.objectContaining({
-        type: 'state',
-        state: expect.objectContaining({ totalActivities: 1 }),
-      }),
-    )
+    // The account keeps one copy of the workout, so the library still lists it once.
+    expect(listedStarts(messages)).toHaveLength(1)
   })
 
   it('is saved once and reported as added when a signed-out visitor is re-run after the kept library loads', async () => {
@@ -2386,7 +2402,8 @@ describe('keeping what was analysed while the account was unknown', () => {
     const { send } = await startWorker()
     await send({ type: 'loadDevice', settings: SETTINGS })
     const analysed = await send(provisionalImport())
-    const digest = (analysed.at(-1) as Extract<WorkerResponse, { type: 'state' }>).state.library[0]!
+    const digest = (analysed.at(-1) as Extract<WorkerResponse, { type: 'state' }>).state!
+      .library[0]!
 
     const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
 
@@ -2412,7 +2429,7 @@ describe('keeping what was analysed while the account was unknown', () => {
     const { send } = await startWorker()
     await send({ type: 'loadDevice', settings: SETTINGS })
     await send(provisionalImport())
-    await send({ type: 'loadServer', settings: SETTINGS, userId: 'u1' })
+    await send({ type: 'loadServer', userId: 'u1' })
 
     await send({ type: 'keepProvisional', settings: SETTINGS })
 
@@ -2668,7 +2685,7 @@ describe('route shapes', () => {
     mocked.listActivities.mockResolvedValue([savedRecord(true)])
     mocked.downloadActivityFile.mockResolvedValue(GPX_BYTES)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     const id = savedRecord(true).id
 
     const unasked = await send({ type: 'routeShape', id, userId: USER_ID })
@@ -2687,7 +2704,7 @@ describe('route shapes', () => {
   it('gives no route to a saved activity with no original file, and reads nothing', async () => {
     mocked.listActivities.mockResolvedValue([savedRecord(false)])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const asked = await send({
       type: 'routeShape',
@@ -2783,7 +2800,7 @@ describe('route shapes', () => {
     mocked.listActivities.mockResolvedValue([indoor])
     mocked.downloadActivityFile.mockResolvedValue(GPX_BYTES)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const unasked = await send({ type: 'routeShape', id: indoor.id, userId: USER_ID })
     const asked = await send({
@@ -2839,7 +2856,7 @@ describe('deleting a signed-in activity', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     mocked.deleteActivity.mockResolvedValue(undefined)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await keptDevice().put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
 
     const messages = await send({
@@ -2860,7 +2877,7 @@ describe('a signed-in delete whose device copy cannot be removed', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     mocked.deleteActivity.mockResolvedValue(undefined)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await keptDevice().put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
     vi.spyOn(keptDevice(), 'remove').mockRejectedValueOnce(new Error('storage refused'))
 
@@ -2916,7 +2933,7 @@ describe('rebuilding a multisport leg keeps its session key', () => {
       .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'ACTIVITY.FIT' }])
       .mockResolvedValueOnce([recordFor({ ...stale, modelRevision: MODEL_REVISION }, true)])
     const { send } = await startWorker()
-    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'rebuildStale', userId: USER_ID })
 
     expect(mocked.createActivity).toHaveBeenCalledWith(
       expect.objectContaining({ sessionKey: leg.sessionKey }),
@@ -2932,7 +2949,7 @@ describe('request numbers', () => {
   it('announces a numbered request and stamps its reply and the events it posts', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
-    const request = { type: 'loadServer', settings: SETTINGS, userId: USER_ID, requestId: 41 }
+    const request = { type: 'loadServer', userId: USER_ID, requestId: 41 }
     const messages = (await send(request as WorkerRequest)).filter((m) => m.type !== 'deviceOffer')
 
     expect(messages[0]).toEqual({ type: 'started', during: 41 })
@@ -3032,7 +3049,7 @@ describe('a reply carries its request number, and nothing follows it', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     expectOneReply(
-      await sendNumbered(send, { type: 'rebuildStale', settings: SETTINGS, userId: USER_ID }, 14),
+      await sendNumbered(send, { type: 'rebuildStale', userId: USER_ID }, 14),
       'rebuildComplete',
       14,
     )
@@ -3050,7 +3067,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
   async function loadedAccount() {
     mocked.listActivities.mockResolvedValue(records)
     const started = await startWorker()
-    const loaded = await started.send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const loaded = await started.send({ type: 'loadServer', userId: USER_ID })
     return { ...started, loaded }
   }
 
@@ -3061,16 +3078,13 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(list).toMatchObject({ activities: [{ id: records[0]!.id }] })
     // Neither has an original, and only the shown one is missed.
     expect(loaded).toContainEqual({ type: 'missingOriginals', count: 1 })
-    expect(loaded.at(-1)).toMatchObject({
-      type: 'state',
-      state: { totalActivities: 1, hiddenDuplicates: 1 },
-    })
+    expect(loaded.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('stores both copies of a signed-in import, and lists one', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({
       type: 'addFiles',
@@ -3080,11 +3094,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
     })
 
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      saved: 2,
-      state: { totalActivities: 1, hiddenDuplicates: 1 },
-    })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', saved: 2, state: null })
+    expect(listedStarts(messages)).toHaveLength(1)
   })
 
   it('deletes the whole group of copies when the one shown is deleted', async () => {
@@ -3102,7 +3113,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
       records.map((record) => record.id).sort(),
     )
     expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('deletes nothing of the group, and keeps it, when the server refuses the first delete', async () => {
@@ -3155,7 +3166,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
     const current = recordFor(GPX_DIGEST)
     mocked.listActivities.mockResolvedValue([staleRecord, current])
     const { send } = await startWorker()
-    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const loaded = await send({ type: 'loadServer', userId: USER_ID })
 
     const list = loaded.find((message) => message.type === 'libraryActivities')
     // The stale one is held out of the analysis, so the current GPX is not a copy of it: both are listed.
@@ -3194,7 +3205,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
     )
     mocked.listActivities.mockResolvedValue([...records, third])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     mocked.deleteActivity
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new ApiRequestError(503, 'unavailable', 'Try later'))
@@ -3213,9 +3224,6 @@ describe('rule R: near-copies of one workout in the worker', () => {
     const listed = list.activities.map((activity) => activity.id)
     expect(listed).not.toContain(records[0]!.id)
     expect(mocked.deleteActivity).toHaveBeenCalledTimes(2)
-    // And the session no longer holds it: the two left are copies of each other, one shown.
-    const next = await send({ type: 'setSettings', settings: SETTINGS })
-    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
   })
 
   it.each([
@@ -3226,7 +3234,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
     async (_name, order) => {
       mocked.listActivities.mockResolvedValue([])
       const { send } = await startWorker()
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
       const files = order.map((which) =>
         which === 'fit' ? fitFile(sampleActivity, 'a.fit') : copyFile(),
       )
@@ -3248,7 +3256,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
       expect(id).toBe(`rec-${fit?.[0].id}`)
       expect(messages.at(-1)).toMatchObject({
         type: 'state',
-        state: { syncIssues: [], totalActivities: 1, hiddenDuplicates: 1 },
+        state: null,
+        facts: { syncIssues: [] },
       })
     },
   )
@@ -3257,7 +3266,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
     mocked.listActivities.mockResolvedValue([])
     mocked.uploadFile.mockRejectedValue(new ApiRequestError(403, 'storage_quota', 'Storage full'))
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({
       type: 'addFiles',
@@ -3269,7 +3278,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
     })
   })
 
@@ -3442,8 +3452,8 @@ describe('a signed-in import saves its activities side by side', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(12)
     expect(most).toBe(3)
     const reply = messages.at(-1)
-    expect(reply).toMatchObject({ type: 'state', saved: 12, state: { totalActivities: 12 } })
-    expect(reply).toMatchObject({ state: { syncIssues: [] } })
+    expect(reply).toMatchObject({ type: 'state', saved: 12 })
+    expect(reply).toMatchObject({ state: null, facts: { syncIssues: [] } })
   })
 
   it('reports the activities that did not save by their reason, and the rest as saved', async () => {
@@ -3465,7 +3475,8 @@ describe('a signed-in import saves its activities side by side', () => {
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
       saved: 7,
-      state: { totalActivities: 8, syncIssues: [{ code: 'server', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'server', count: 1 }] },
     })
   })
 })
@@ -3495,7 +3506,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send, posted } = await startWorker()
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await vi.waitFor(() =>
       expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
     )
@@ -3518,7 +3529,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send, posted } = await startWorker()
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await vi.waitFor(() =>
       expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
     )
@@ -3539,7 +3550,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     })
     const { send, posted } = await startWorker()
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await new Promise((resolve) => setTimeout(resolve, 30))
 
     expect(mocked.createActivity).not.toHaveBeenCalled()
@@ -3552,7 +3563,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send, posted } = await startWorker()
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(posted.some((m) => m.type === 'outbox')).toBe(false)
@@ -3567,7 +3578,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     })
     const { send } = await startWorker()
     mocked.listActivities.mockResolvedValue([])
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     await send({
       type: 'addFiles',
@@ -3589,7 +3600,7 @@ describe('the saves an earlier visit left in the outbox', () => {
 
     expect([...outboxRows.values()].every((rows) => rows.size === 0)).toBe(true)
     mocked.listActivities.mockResolvedValue([])
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(mocked.createActivity).not.toHaveBeenCalled()
   })
@@ -3602,7 +3613,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     )
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await vi.waitFor(() => expect(mocked.createActivity).toHaveBeenCalled())
     const sent = mocked.createActivity.mock.calls.length
 
@@ -3627,7 +3638,7 @@ describe('the saves an earlier visit left in the outbox', () => {
     mocked.createActivity.mockRejectedValue(new ApiRequestError(500, 'server_error', 'Boom'))
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     await send({
       type: 'addFiles',
@@ -3655,7 +3666,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     await keptOne(SAMPLE_DIGEST)
     await keptOne(SECOND_DIGEST, null)
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     await vi.waitFor(() =>
       expect(posted).toContainEqual({ type: 'deviceOffer', adoptable: 1, again: 1, held: 0 }),
@@ -3667,7 +3678,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send, posted } = await startWorker()
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(posted.filter((m) => m.type === 'deviceOffer')).toEqual([
@@ -3680,7 +3691,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     const { send, posted } = await startWorker()
     await keptOne(SAMPLE_DIGEST)
     await keptOne(SECOND_DIGEST)
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     // The account lists what was added once it is read again.
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST), recordFor(SECOND_DIGEST)])
 
@@ -3705,7 +3716,8 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     )
     expect(await kept.library?.all()).toEqual([])
     expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
+    expect(listedStarts(messages)).toHaveLength(2)
     expect(posted.filter((m) => m.type === 'outbox')).toEqual([])
     expect(outboxRows.get(USER_ID)?.size).toBe(0)
   })
@@ -3734,7 +3746,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
       })
     }
 
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await vi.waitFor(() =>
       expect(posted).toContainEqual(expect.objectContaining({ type: 'outbox', finished: true })),
     )
@@ -3747,7 +3759,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     await keptOne(SAMPLE_DIGEST)
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     await send({
       type: 'addFiles',
@@ -3763,7 +3775,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     await keptOne(SAMPLE_DIGEST)
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     vi.stubGlobal('navigator', {
       locks: {
         request: async (_name: string, _options: object, callback: (lock: null) => unknown) =>
@@ -3785,7 +3797,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
     await keptOne(SAMPLE_DIGEST)
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({ type: 'adoptDevice', userId: 'someone-else', settings: SETTINGS })
 
@@ -3798,14 +3810,14 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     mocked.listActivities.mockResolvedValue([recordFor(SECOND_DIGEST)])
     const { send } = await startWorker()
     await keptOne(SAMPLE_DIGEST)
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
 
     const messages = await send({ type: 'forgetDeviceLibrary', settings: SETTINGS })
 
     expect(await kept.library?.all()).toEqual([])
     expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
     expect(messages).toContainEqual({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
     expect(mocked.deleteActivity).not.toHaveBeenCalled()
   })
 })
@@ -3882,7 +3894,7 @@ describe('an import of an export whose list labels activities the account holds'
   it('sends no label to a held workout while the labels are off; the digest of the new import carries its own', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     const messages = await send({
       type: 'addFiles',
       files: [hikeExport()],
@@ -3916,7 +3928,7 @@ describe('an import of an export whose list labels activities the account holds'
       mocked.listActivities.mockResolvedValueOnce([savedAs()]).mockResolvedValueOnce([labelled])
       mocked.patchLabels.mockResolvedValue({ applied: 1, skipped: 0, refused: 0, missed: [] })
       const worker = await startWorker()
-      await worker.send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await worker.send({ type: 'loadServer', userId: USER_ID })
       const messages = await worker.send({
         type: 'addFiles',
         files: [hikeExport()],
@@ -3941,7 +3953,53 @@ describe('an import of an export whose list labels activities the account holds'
       expect(messages.at(-1)).toMatchObject({
         type: 'state',
         outcome: { labelled: 1 },
-        state: { labelledRuns: 1, totalActivities: 0 },
+        state: null,
+      })
+    })
+
+    it('reports the unsaved activities after the library is read again, so one the account went on to store is not named', async () => {
+      vi.doMock('./labelsConfig', () => ({ ATHLETE_LABELS_ENABLED: true }))
+      const csv = strToU8(
+        'Activity ID,Activity Name,Activity Type,Filename\n' +
+          '1,Lunch,Hike,activities/1.fit\n2,Loop,Run,activities/2.fit\n',
+      )
+      const other = new Uint8Array(encodeFit(secondSampleActivity, { gps: true }))
+      const zip = new File(
+        [
+          new Uint8Array(
+            zipSync({
+              'activities/1.fit': RUN_FILE_BYTES,
+              'activities/2.fit': other,
+              'activities.csv': csv,
+            }),
+          ),
+        ],
+        'export.zip',
+      )
+      const stored = recordFor(digestActivity(secondSampleActivity))
+      mocked.listActivities
+        .mockResolvedValueOnce([savedAs()])
+        .mockResolvedValueOnce([savedAs('hike'), stored])
+      mocked.patchLabels.mockResolvedValue({ applied: 1, skipped: 0, refused: 0, missed: [] })
+      // The second save timed out here, and the account stored it all the same.
+      mocked.createActivity.mockImplementation(async (digest) => {
+        if (digest.startMs === secondSampleActivity.startMs)
+          throw new ApiRequestError(0, 'network_error', 'Offline')
+        return { record: recordFor(digest), created: true }
+      })
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', userId: USER_ID })
+      const messages = await send({
+        type: 'addFiles',
+        files: [zip],
+        settings: SETTINGS,
+        sync: { userId: USER_ID, keepFiles: false },
+      })
+      expect(mocked.patchLabels).toHaveBeenCalledOnce()
+      expect(messages.at(-1)).toMatchObject({
+        type: 'state',
+        state: null,
+        facts: { syncIssues: [], rejected: [] },
       })
     })
 
@@ -3959,8 +4017,8 @@ describe('an import of an export whose list labels activities the account holds'
           athleteType: null,
         },
       ])
-      expect(undone.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
-      expect(undone.at(-1)).not.toHaveProperty('state.labelledRuns')
+      expect(undone.at(-1)).toMatchObject({ type: 'state', state: null })
+      expect(undone.at(-1)).not.toHaveProperty('labelsLeft')
     })
 
     it('undoes once: a second Undo, or one after the library changed, sends nothing', async () => {
@@ -3979,12 +4037,12 @@ describe('an import of an export whose list labels activities the account holds'
       expect(first.at(-1)).toMatchObject({
         type: 'state',
         labelsLeft: 1,
-        state: { labelledRuns: 1 },
+        state: null,
       })
 
       mocked.listActivities.mockResolvedValue([savedAs()])
       const second = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
-      expect(second.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+      expect(second.at(-1)).toMatchObject({ type: 'state', state: null })
       expect(second.at(-1)).not.toHaveProperty('labelsLeft')
       expect(mocked.patchLabels).toHaveBeenCalledTimes(3)
     })
@@ -3999,7 +4057,7 @@ describe('an import of an export whose list labels activities the account holds'
     it('sends nothing for an Undo that follows a reload of the library', async () => {
       const { send } = await importHikeExport()
       mocked.listActivities.mockResolvedValue([savedAs('hike')])
-      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      await send({ type: 'loadServer', userId: USER_ID })
       await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
       expect(mocked.patchLabels).toHaveBeenCalledTimes(1)
     })

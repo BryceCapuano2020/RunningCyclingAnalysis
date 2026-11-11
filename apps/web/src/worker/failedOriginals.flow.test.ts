@@ -152,7 +152,7 @@ describe('an original whose upload failed, and Try again now', () => {
 
     vi.mocked(deleteActivity).mockResolvedValue(undefined)
     const deleting = {
-      session: { removeActivity: vi.fn(() => ({})) },
+      session: { dropActivity: vi.fn() },
       savedRecords: ctx.savedRecords,
       unmatchedOriginals: new Set<string>(),
       missingOriginals,
@@ -163,7 +163,7 @@ describe('an original whose upload failed, and Try again now', () => {
       post: vi.fn(),
       reportLibrary: vi.fn(),
     } as unknown as DeleteGroupContext
-    await deleteSavedGroup(deleting, record, 'u1', {} as never)
+    await deleteSavedGroup(deleting, record, 'u1')
     expect(failedOriginals.size).toBe(0)
 
     vi.mocked(uploadFile).mockClear()

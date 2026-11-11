@@ -196,7 +196,7 @@ describe('limitedSentence', () => {
   it('names the daily download limit and its reset on a daily limit', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1, 'daily', resetsAt)).toBe(
-      `1 activity was not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `1 activity was not updated because today's limit on downloads (3,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -212,7 +212,7 @@ describe('limitedSentence', () => {
   it('groups a count of a thousand or more on a daily limit', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1204, 'daily', resetsAt)).toBe(
-      `1,204 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `1,204 activities were not updated because today's limit on downloads (3,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { sameRegime } from '@rca/core/period'
 import type { NewBest } from '@rca/core/lookback'
-import type { SessionState } from '@rca/core/session'
+import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { EMPTY_SESSION } from './model'
 import type { Baseline, ImportProgress } from './model'
@@ -54,6 +54,9 @@ export function useImportState() {
     reportedRef.current = next
     setStateNow(next)
   }, [])
+  // What an account's replies say that the server's results do not: refused files and unsaved activities, and the index's counts.
+  const [facts, setFacts] = useState<ImportFacts | null>(null)
+  const [index, setIndex] = useState<IndexFacts | null>(null)
   const [busy, setBusy] = useState(false)
   const [waitingReason, setWaitingReason] = useState<string | null>(null)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
@@ -75,6 +78,10 @@ export function useImportState() {
     state,
     setState,
     reportedRef,
+    facts,
+    setFacts,
+    index,
+    setIndex,
     busy,
     setBusy,
     waitingReason,

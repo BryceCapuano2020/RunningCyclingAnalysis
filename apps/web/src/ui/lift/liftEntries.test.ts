@@ -3,6 +3,7 @@ import { buildLiftState, liftChange, liftGrade, liftHistory, WINDOW_DAYS } from 
 import { formatMass } from '@rca/core/units'
 import { LAST_SQUAT_DAY, risingSquats, squat } from './liftFixtures'
 import { LOAD_WEEKS, liftOverviewOf, loadParts, rangeText } from './liftEntries'
+import { resultsFor } from './liftResultsKit'
 
 const SETTINGS = { massKg: 80, bikeMassKg: 9 }
 const PROFILE = { birthYear: 1990, sex: 'male' } as const
@@ -12,7 +13,7 @@ const bench = (date: string, loadKg: number) =>
 
 describe('liftOverviewOf', () => {
   const sets = risingSquats()
-  const overview = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', LAST_SQUAT_DAY)
+  const overview = liftOverviewOf(resultsFor(sets, SETTINGS, PROFILE, LAST_SQUAT_DAY), 'metric')
 
   it('leads with the most recently trained lift that has an estimate, and its figures are core’s', () => {
     const state = buildLiftState(sets, SETTINGS)
@@ -27,14 +28,16 @@ describe('liftOverviewOf', () => {
 
   it('gives the lead no grade while the weight is a placeholder the athlete did not enter', () => {
     const assumed = { ...SETTINGS, massAssumed: true as const }
-    expect(liftOverviewOf(sets, assumed, PROFILE, 'metric', LAST_SQUAT_DAY).lead?.grade).toEqual({
+    expect(
+      liftOverviewOf(resultsFor(sets, assumed, PROFILE, LAST_SQUAT_DAY), 'metric').lead?.grade,
+    ).toEqual({
       kind: 'gap',
       why: 'no-mass',
     })
   })
 
   it('ends the weekly load at this week, so weeks with no lifting since the last set show as empty', () => {
-    const later = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2031-04-08')
+    const later = liftOverviewOf(resultsFor(sets, SETTINGS, PROFILE, '2031-04-08'), 'metric')
     expect(later.weeks).toHaveLength(LOAD_WEEKS)
     expect(later.weeks.at(-1)!.weekStart).toBe('2031-04-07')
     expect(later.weeks.at(-1)!.regions.lower.workingSets).toBe(0)
@@ -42,18 +45,20 @@ describe('liftOverviewOf', () => {
 
   it('has no grade for a lift outside the big three, and none without an estimate to lead', () => {
     const curl = squat('2031-01-02', 20, { exercise: 'biceps-curl', equipment: 'dumbbell' })
-    expect(liftOverviewOf([curl], SETTINGS, PROFILE, 'metric', '2031-01-03').lead?.grade).toBeNull()
+    expect(
+      liftOverviewOf(resultsFor([curl], SETTINGS, PROFILE, '2031-01-03'), 'metric').lead?.grade,
+    ).toBeNull()
     const warmup = squat('2031-01-02', 60, { warmup: true })
-    const none = liftOverviewOf([warmup], SETTINGS, PROFILE, 'metric', '2031-01-03')
+    const none = liftOverviewOf(resultsFor([warmup], SETTINGS, PROFILE, '2031-01-03'), 'metric')
     expect(none.lead).toBeNull()
     expect(none.lifts).toEqual([])
   })
 
   it('leads with the lift trained last when two have estimates', () => {
     const two = [...sets, bench('2031-03-05', 60)]
-    expect(liftOverviewOf(two, SETTINGS, PROFILE, 'metric', '2031-03-06').lead?.title).toBe(
-      'Bench press, barbell',
-    )
+    expect(
+      liftOverviewOf(resultsFor(two, SETTINGS, PROFILE, '2031-03-06'), 'metric').lead?.title,
+    ).toBe('Bench press, barbell')
   })
 
   it('gives each estimated lift its detail rows: max, floor, times body mass, last session, sets and effort', () => {
@@ -79,14 +84,11 @@ describe('liftOverviewOf', () => {
 
   it('leaves times body mass out without a mass, and effort out when no session is in the window', () => {
     const noMass = liftOverviewOf(
-      sets,
-      { massKg: 0, bikeMassKg: 9 },
-      PROFILE,
+      resultsFor(sets, { massKg: 0, bikeMassKg: 9 }, PROFILE, '2031-03-02'),
       'metric',
-      '2031-03-02',
     )
     expect(noMass.lifts[0]!.rows.map((row) => row.label)).not.toContain('Times body mass')
-    const late = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2032-01-01')
+    const late = liftOverviewOf(resultsFor(sets, SETTINGS, PROFILE, '2032-01-01'), 'metric')
     expect(late.lifts[0]!.rows.map((row) => row.label)).not.toContain('Effort')
     expect(late.lifts[0]!.rows.find((row) => row.label.startsWith('Sets'))?.value).toBe('0')
   })
@@ -96,14 +98,18 @@ describe('liftOverviewOf', () => {
     expect(overview.weeks).toHaveLength(LOAD_WEEKS)
     expect(overview.weeks.at(-1)!.weekStart).toBe('2031-02-24')
     const gap = liftOverviewOf(
-      [squat('2031-01-06', 100), squat('2031-02-24', 100)],
-      SETTINGS,
-      PROFILE,
+      resultsFor(
+        [squat('2031-01-06', 100), squat('2031-02-24', 100)],
+        SETTINGS,
+        PROFILE,
+        '2031-02-25',
+      ),
       'metric',
-      '2031-02-25',
     )
     expect(gap.weeks.some((week) => week.regions.lower.workingSets === 0)).toBe(true)
-    expect(liftOverviewOf([], SETTINGS, PROFILE, 'metric', '2031-02-25').weeks).toEqual([])
+    expect(liftOverviewOf(resultsFor([], SETTINGS, PROFILE, '2031-02-25'), 'metric').weeks).toEqual(
+      [],
+    )
   })
 
   it('breaks a tie of dates by the larger estimate, not the name, and leads with a big-three lift', () => {
@@ -111,28 +117,19 @@ describe('liftOverviewOf', () => {
     const curl = (name: string, load: number) =>
       squat(day, load, { exercise: name, equipment: 'dumbbell' })
     const others = liftOverviewOf(
-      [curl('aaa-curl', 20), curl('zzz-curl', 40)],
-      SETTINGS,
-      PROFILE,
+      resultsFor([curl('aaa-curl', 20), curl('zzz-curl', 40)], SETTINGS, PROFILE, day),
       'metric',
-      day,
     )
     expect(others.lead?.title).toBe('Zzz curl, dumbbell')
     const mixed = liftOverviewOf(
-      [curl('aaa-curl', 90), squat(day, 60), bench(day, 80)],
-      SETTINGS,
-      PROFILE,
+      resultsFor([curl('aaa-curl', 90), squat(day, 60), bench(day, 80)], SETTINGS, PROFILE, day),
       'metric',
-      day,
     )
     // Both big-three lifts were trained on the day: the larger estimate leads, and the curl never does.
     expect(mixed.lead?.title).toBe('Bench press, barbell')
     const big = liftOverviewOf(
-      [curl('aaa-curl', 90), squat(day, 60)],
-      SETTINGS,
-      PROFILE,
+      resultsFor([curl('aaa-curl', 90), squat(day, 60)], SETTINGS, PROFILE, day),
       'metric',
-      day,
     )
     expect(big.lead?.title).toBe('Back squat, barbell')
   })
@@ -151,7 +148,7 @@ describe('liftOverviewOf', () => {
       bench('2031-02-09', 72),
       squat('2031-03-02', 100),
     ]
-    const got = liftOverviewOf(sets, SETTINGS, PROFILE, 'metric', '2031-03-02')
+    const got = liftOverviewOf(resultsFor(sets, SETTINGS, PROFILE, '2031-03-02'), 'metric')
     expect(got.lifts.map((entry) => entry.title)).toEqual([
       'Back squat, barbell',
       'Bench press, barbell',
@@ -168,11 +165,8 @@ describe('liftOverviewOf', () => {
 
   it('writes estimates in whole units and logged loads as they were logged', () => {
     const got = liftOverviewOf(
-      [squat('2031-03-02', 61.25, { reps: 11 })],
-      SETTINGS,
-      PROFILE,
+      resultsFor([squat('2031-03-02', 61.25, { reps: 11 })], SETTINGS, PROFILE, '2031-03-02'),
       'imperial',
-      '2031-03-02',
     )
     expect(got.lead?.title).toBe('Back squat, barbell')
     const value = (got.lifts[0]!.rows[0]!.value as string).split(', ')

@@ -3,11 +3,11 @@ import { withViewerZone } from '@rca/core/calendar'
 import { computeSnapshot } from '@rca/core/stateCompute'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { BUILD_SHA } from '../buildInfo.ts'
-import type { StateInputs } from './inputs.ts'
+import type { StateInputs } from './stateInputs.ts'
 import { zoneNamed } from './zone.ts'
 
 /** The zone the days are cut in while the browser has reported none. */
-const DEFAULT_ZONE = 'UTC'
+export const DEFAULT_ZONE = 'UTC'
 
 /**
  * The account's snapshot at an instant: the settings the browser would build from the same choices (`analysisSettings`,
@@ -31,6 +31,7 @@ export function computeFor(inputs: StateInputs, nowMs: number): StateSnapshot {
   )
   return computeSnapshot({
     digests: inputs.digests,
+    liftSets: inputs.liftSets,
     settings,
     ...(inputs.settings.period === null ? {} : { choice: inputs.settings.period }),
     libraryVersion: inputs.version,

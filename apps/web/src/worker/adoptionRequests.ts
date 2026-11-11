@@ -19,7 +19,7 @@ export interface AdoptionRequestContext {
   savedRecords: Map<string, ActivityRecord>
   sending: SendingKeys
   workbench: Workbench
-  view: Pick<WorkerView, 'activeScope'>
+  view: Pick<WorkerView, 'activeScope' | 'accountIndex'>
   libraryContext: LibraryContext
   /** Answers a request: stamped with its number. */
   post: (message: WorkerResponse) => void
@@ -63,7 +63,7 @@ async function reportDeviceLeft(ctx: AdoptionRequestContext): Promise<void> {
 export async function adoptDeviceRequest(
   ctx: AdoptionRequestContext,
   request: Extract<WorkerRequest, { type: 'adoptDevice' }>,
-): Promise<SessionState> {
+): Promise<null> {
   if (ctx.view.activeScope?.kind !== 'account' || ctx.view.activeScope.userId !== request.userId)
     throw new Error('Reload your library before adding what this browser kept.')
   // Saves left from an earlier visit finish through the same outbox, so they go first.
@@ -90,18 +90,19 @@ export async function adoptDeviceRequest(
   ctx.post({ type: 'adoption', saved, conflicts, failed, again, held })
   if (result.stopped !== null) ctx.post({ type: 'accountIssue', issue: result.stopped })
   await reportDeviceLeft(ctx)
-  // What was added is in the account, not yet in the session: read the library again.
-  return loadServer(ctx.libraryContext, request.settings, request.userId, undefined)
+  // What was added is in the account, not yet in the index: read the library again. The page asks the server for the results.
+  await loadServer(ctx.libraryContext, request.userId)
+  return null
 }
 
 /** Empties the library kept in this browser while the account is on screen, which stays as it is. */
 export async function forgetDeviceLibraryRequest(
   ctx: AdoptionRequestContext,
   request: Extract<WorkerRequest, { type: 'forgetDeviceLibrary' }>,
-): Promise<SessionState> {
+): Promise<SessionState | null> {
   await ctx.deviceLibrary.clear()
   await ctx.workbench.clearScope({ kind: 'device' })
   ctx.post({ type: 'deviceHolds', holds: false })
   ctx.post({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-  return ctx.session.setSettings(request.settings)
+  return ctx.view.accountIndex ? null : ctx.session.setSettings(request.settings)
 }

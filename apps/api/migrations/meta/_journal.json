@@ -134,6 +134,13 @@
       "when": 1794378837061,
       "tag": "0018_garmin_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1794381932560,
+      "tag": "0019_state_lift_order",
+      "breakpoints": true
     }
   ]
 }

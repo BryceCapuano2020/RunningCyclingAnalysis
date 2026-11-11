@@ -2,13 +2,29 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { validateDeployConfig } from './check-deploy-config.mjs'
 
-const valid = `database_id = "12345678-1234-1234-1234-123456789abc"
+const bare = `database_id = "12345678-1234-1234-1234-123456789abc"
 [[r2_buckets]]
 binding = "FILES"
 bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.owner.workers.dev"`
+const producer = `
+[[queues.producers]]
+binding = "STATE_QUEUE"
+queue = "rca-state"`
+const consumer = `
+[[queues.consumers]]
+queue = "rca-state"
+max_batch_size = 2
+max_concurrency = 1
+max_retries = 3
+dead_letter_queue = "rca-state-dlq"`
+const limits = `
+[limits]
+cpu_ms = 60000`
+/** A configuration that passes: the settings and the whole bounded set of the state queue. */
+const valid = bare + producer + consumer + limits
 
 test('accepts a configured HTTPS production origin and real database id', () => {
   assert.doesNotThrow(() => validateDeployConfig(valid))
@@ -65,62 +81,32 @@ test('accepts ordinary comments and single quoted values', () => {
   assert.doesNotThrow(() => validateDeployConfig(valid.replaceAll('"', "'") + ' # public origin\n'))
 })
 
-const producer = `
-[[queues.producers]]
-binding = "STATE_QUEUE"
-queue = "rca-state"`
-const consumer = `
-[[queues.consumers]]
-queue = "rca-state"
-max_batch_size = 2
-max_concurrency = 1
-max_retries = 3
-dead_letter_queue = "rca-state-dlq"`
-const limits = `
-[limits]
-cpu_ms = 10000`
-test('with the list empty and nothing bound the configuration passes, as it does with the list in a secret', () => {
-  assert.doesNotThrow(() => validateDeployConfig(`${valid}\nSERVER_COMPUTE_USERS = ""`))
-  assert.doesNotThrow(() => validateDeployConfig(valid))
-  assert.doesNotThrow(() => validateDeployConfig(`${valid}\n# [[queues.producers]]`))
-})
-test('with the list empty (the owner is in a secret) a queue or limit is accepted only as the whole bounded set', () => {
-  const lists = ['', 'SERVER_COMPUTE_USERS = ""\n', 'SERVER_COMPUTE_USERS = " , "\n']
-  for (const list of lists) {
-    assert.doesNotThrow(() => validateDeployConfig(list + valid + producer + consumer + limits))
-    for (const part of [producer, consumer, limits, producer + consumer, consumer + limits]) {
-      assert.throws(() => validateDeployConfig(list + valid + part), /as a set/)
-    }
+test('every account computes on the server, so the whole bounded set is required, and nothing less passes', () => {
+  assert.doesNotThrow(() => validateDeployConfig(bare + producer + consumer + limits))
+  assert.throws(() => validateDeployConfig(bare), /as a set/)
+  assert.throws(() => validateDeployConfig(`${bare}\n# [[queues.producers]]`), /as a set/)
+  for (const part of [producer, consumer, limits, producer + consumer, consumer + limits]) {
+    assert.throws(() => validateDeployConfig(bare + part), /as a set/)
   }
+  // Also while bootstrapping the origin: the bounds do not depend on it.
+  assert.throws(() => validateDeployConfig(bare, { allowUnconfiguredOrigin: true }), /as a set/)
 })
-test('a list of accounts binds the producer, a bounded consumer with a dead-letter queue, and a CPU cap', () => {
-  const on = `${valid}\nSERVER_COMPUTE_USERS = "u1, u2"`
-  assert.doesNotThrow(() => validateDeployConfig(on + producer + consumer + limits))
-  assert.throws(() => validateDeployConfig(on), /as a set/)
-  assert.throws(() => validateDeployConfig(on + producer + consumer), /as a set/)
-  assert.throws(() => validateDeployConfig(on + consumer + limits), /as a set/)
-  assert.throws(() => validateDeployConfig(on + producer + limits), /as a set/)
+test('the consumer needs a batch size, one at a time, a retry limit and a dead-letter queue', () => {
   for (const key of ['max_batch_size', 'max_concurrency', 'max_retries', 'dead_letter_queue']) {
     const lacking = consumer.replace(new RegExp(`\\n${key}.*`), '')
-    assert.throws(() => validateDeployConfig(on + producer + lacking + limits), new RegExp(key))
-    assert.throws(() => validateDeployConfig(valid + producer + lacking + limits), new RegExp(key))
+    assert.throws(() => validateDeployConfig(bare + producer + lacking + limits), new RegExp(key))
   }
 })
 test('the consumer runs one at a time', () => {
   const wide = consumer.replace('max_concurrency = 1', 'max_concurrency = 5')
-  assert.throws(() => validateDeployConfig(valid + producer + wide + limits), /max_concurrency = 1/)
+  assert.throws(() => validateDeployConfig(bare + producer + wide + limits), /max_concurrency = 1/)
 })
-test('production never lists everyone', () => {
-  const star = `${valid}\nSERVER_COMPUTE_USERS = "*"`
-  assert.throws(() => validateDeployConfig(star + producer + consumer + limits), /not \*/)
-})
-test('the committed production configuration lists no account and binds the whole bounded set', async () => {
+test('the committed production configuration binds the whole bounded set and names no account list', async () => {
   const { readFile } = await import('node:fs/promises')
   const config = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8')
-  // Accounts come from the SERVER_COMPUTE_ACCOUNTS secret only, never the repository.
-  assert.match(config, /^SERVER_COMPUTE_USERS = ""/m)
+  assert.doesNotMatch(config, /SERVER_COMPUTE/)
   assert.match(config, /^\[\[queues\.producers\]\]/m)
-  assert.match(config, /^\[limits\]\s*\ncpu_ms = 10000/m)
+  assert.match(config, /^\[limits\]\s*\ncpu_ms = 60000/m)
   assert.doesNotThrow(() => validateDeployConfig(config))
 })
 

@@ -1,7 +1,15 @@
 import type { Profile } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
+import type { CheckInSnapshot } from '@rca/core/lookback'
 import type { PeriodChoice } from '@rca/core/period'
-import type { Copy, RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
+import type {
+  Copy,
+  ImportFacts,
+  IndexFacts,
+  RejectedFile,
+  SessionState,
+  SyncIssueCode,
+} from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
@@ -133,12 +141,9 @@ export type WorkerRequest =
   /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
   | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
-  | ({
-      type: 'loadServer'
-      settings: AthleteSettings
-      userId: string
-    } & LoadPeriod)
-  | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
+  /** Lists the account's library into this worker's index. The results are the server's, so no settings or period go with it. */
+  | { type: 'loadServer'; userId: string }
+  | { type: 'rebuildStale'; userId: string }
   /**
    * Sends the saves the outbox holds now, in the tab that holds the account's writer lock, without reading the library
    * again. Answered with the state, once they have ended, so the saves that went are off its list of unsaved ones.
@@ -203,6 +208,12 @@ export type WorkerRequest =
   | { type: 'markSeen'; row: SeenRow; event: SeenEvent; lead?: string }
   /** The athlete chose to go on with an import that stopped short: its snapshot becomes the baseline now. */
   | { type: 'acceptPartialImport' }
+  /**
+   * An account's check-in for the library the page holds results of: `live` is the check-in snapshot the server's snapshot carries (null
+   * for a library with nothing to compare). The worker holds the baseline and what is seen; the figures are the server's. Answered with
+   * `checkInView`.
+   */
+  | { type: 'checkInFor'; live: CheckInSnapshot | null }
 
 /**
  * A request as it travels to the worker: the request and the page's number for it. The worker stamps
@@ -228,6 +239,7 @@ export const REPLY_TYPES: ReadonlySet<WorkerResponse['type']> = new Set<WorkerRe
   'activityTrace',
   'rebuildComplete',
   'checkInSaved',
+  'checkInView',
 ])
 
 export type WorkerResponse =
@@ -274,6 +286,8 @@ export type WorkerResponse =
    * same. Null ids say storage could not answer. Absent while a sample shows.
    */
   | { type: 'detailCoverage'; ids: string[] | null; oldestStartMs: number | null }
+  /** Answers `checkInFor`: "since your last import" for the account's library, and whether it has been seen. */
+  | { type: 'checkInView'; view: CheckInView }
   /** Answers `markSeen` and `acceptPartialImport`: whether the check-in row is seen for its baseline. */
   | { type: 'checkInSaved'; seen: boolean }
   /** Saved activities without an original file. Sent before the state that ends the request. */
@@ -312,10 +326,21 @@ export type WorkerResponse =
    * original file to rebuild from, sent with the state so the two counts always agree. `checkIn` is "since your last
    * import" for the library on screen and whether it has been seen, sent with the state it was made against; absent
    * when there is none (no baseline, the sample, files kept nowhere).
+   *
+   * `state` is null for a request in an account's scope: the worker builds no state for an account, whose results are the
+   * server's (`GET /api/state`). `facts`, sent by an import, holds the parts of a state that only the import knows.
    */
   | {
       type: 'state'
-      state: SessionState
+      state: SessionState | null
+      facts?: ImportFacts
+      /** With `facts`: what the index knows of the library's age and size, which the server's state is not read for. */
+      index?: IndexFacts
+      /**
+       * Answering `loadServer`: the account's library version as it stood before the list was read, which the index is at least as new as.
+       * Answering an account's `addFiles`: the version after its last save, which the results that tell what it moved must reach.
+       */
+      libraryVersion?: number
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
@@ -325,7 +350,10 @@ export type WorkerResponse =
     }
   | {
       type: 'rebuildComplete'
-      state: SessionState
+      /** Null: an account's results are the server's; `facts` then holds what only the import knows. */
+      state: SessionState | null
+      facts?: ImportFacts
+      index?: IndexFacts
       checkIn?: CheckInView
       /** Absent when zero. As on `state`: the outdated activities in `state` that a rebuild can update. */
       outdatedWithOriginal?: number

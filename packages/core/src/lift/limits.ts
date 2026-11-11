@@ -30,7 +30,7 @@ export const LIFT_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
  */
 export const LIFT_YEARS = { min: 1970, max: 2100 } as const
 
-/** Sets one account keeps: about nine years of a heavy lifter's logging. */
+/** Sets one account keeps: about nine years of a heavy lifter's logging. Same as the contract's (pinned equal by a test there). */
 export const MAX_LIFT_SETS_PER_USER = 60_000
 
 /** A Hevy workouts CSV: years of logging are a few MB, so past this is not a Hevy export. */

@@ -12,4 +12,6 @@ export interface RequestOptions {
   retryWithinMs?: number
   /** Extra request headers, for a conditional read (If-None-Match). */
   headers?: Record<string, string>
+  /** Answers a 304 as a response, so its headers can be read, instead of failing it. */
+  notModified?: boolean
 }

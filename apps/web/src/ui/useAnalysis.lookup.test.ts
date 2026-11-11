@@ -11,6 +11,7 @@ import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeWorker } from '../test/fakeWorker'
+import { indexOf } from '../test/signedInAnalysis'
 import { setKeptLibraryHinted } from './analysis/keptLibrary'
 import { EMPTY_PERIOD } from './analysis/model'
 import type { AccountStatus } from './useAccount'
@@ -156,15 +157,18 @@ describe('a returning visitor while the account lookup is out', () => {
   })
 
   describe('the account turns out to be signed in, in either order', () => {
-    const SERVER = stateWith(11)
+    const SERVER_INDEX = indexOf(11)
     const DEVICE = stateWith(7)
 
     /** Answers every request the worker owes, in order, with the state its kind would produce. */
     function settleAll() {
       const owed = worker().posted.map((request) => request.type)
       for (const type of owed) {
-        const state = type === 'loadServer' ? SERVER : type === 'loadDevice' ? DEVICE : stateWith(0)
-        act(() => worker().reply({ type: 'state', state }))
+        const message =
+          type === 'loadServer'
+            ? { type: 'state' as const, state: null, index: SERVER_INDEX }
+            : { type: 'state' as const, state: type === 'loadDevice' ? DEVICE : stateWith(0) }
+        act(() => worker().reply(message))
       }
     }
 
@@ -178,8 +182,8 @@ describe('a returning visitor while the account lookup is out', () => {
       // The kept results leave the page, then the account's library loads.
       expect(types()).toEqual(['loadDevice', 'clear', 'loadServer'])
       act(() => worker().reply({ type: 'state', state: stateWith(0) }))
-      act(() => worker().reply({ type: 'state', state: SERVER }))
-      expect(result.current.state.totalActivities).toBe(11)
+      act(() => worker().reply({ type: 'state', state: null, index: SERVER_INDEX }))
+      expect(result.current.state.libraryActivities).toBe(11)
       expect(result.current.libraryStatus).toBe('loaded')
     })
 
@@ -190,7 +194,7 @@ describe('a returning visitor while the account lookup is out', () => {
       rerender({ account: SIGNED_IN })
       expect(types()).toEqual(['loadDevice', 'clear', 'loadServer'])
       settleAll()
-      expect(result.current.state.totalActivities).toBe(11)
+      expect(result.current.state.libraryActivities).toBe(11)
       expect(result.current.libraryStatus).toBe('loaded')
     })
   })
@@ -244,8 +248,14 @@ describe('a returning visitor while the account lookup is out', () => {
       rerender({ account: SIGNED_IN })
       expect(types()).toEqual(['addFiles', 'loadDevice', 'clear', 'loadServer'])
       // Replies in the order the worker owes them.
-      for (const state of [stateWith(0), stateWith(7), stateWith(0), stateWith(11)])
-        act(() => worker().reply({ type: 'state', state }))
+      for (const state of [stateWith(0), stateWith(7), stateWith(0), null])
+        act(() =>
+          worker().reply({
+            type: 'state',
+            state,
+            ...(state === null ? { index: indexOf(11) } : {}),
+          }),
+        )
       await act(async () => undefined)
       const adds = worker().posted.filter((request) => request.type === 'addFiles')
       expect(adds).toHaveLength(2)

@@ -44,12 +44,34 @@ export interface WorkerEventDeps {
   reloadLibrary: () => void
   /** The record of imports (see importManifest.ts): how far the running one got, and how it ended. */
   manifest: Pick<ImportManifestController, 'progress' | 'finish' | 'fail'>
+  /** Asks the server for the account's results again: an account's reply carries none. */
+  refreshResults: () => void
+  /** The worker's index is as current as this reply: another device's change after it is news. */
+  indexListed: (version?: number) => void
+  /** Asks the worker for the check-in again against the snapshot on screen, though that snapshot's check-in has not changed. */
+  askCheckInAgain: () => void
+  /** An account's import ended: its summary tells what it moved once the results include it (`useAccountImportChange`). */
+  importLanded: (
+    outcome: ImportOutcome,
+    baseline: Baseline | null | undefined,
+    version: number | undefined,
+  ) => void
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
   libraryChanged: (scope: 'device' | 'account') => void
 }
 
+/** Whether the import added a workout or brought one up to date: only then does it move a figure, or the baseline of the check-in. */
+export function addedAny({
+  runs = 0,
+  rides = 0,
+  updatedRuns = 0,
+  updatedRides = 0,
+}: ImportOutcome): boolean {
+  return runs + rides + updatedRuns + updatedRides > 0
+}
+
 /** Whether the import brought any workout up to date from an older model. */
-function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
+export function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean {
   return updatedRuns + updatedRides > 0
 }
 
@@ -58,9 +80,10 @@ function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean
  * with the library this reply leaves, the result the page shows once it renders, and keeps that
  * baseline when it is sent.
  */
-function addWaiting(deps: WorkerEventDeps, state: SessionState): void {
+function addWaiting(deps: WorkerEventDeps, state: SessionState | null): void {
   const { library, addFiles, refreshBusy } = deps
-  for (const files of drainBatches(library.libraryWaitRef)) addFiles(files, baselineOf(state))
+  for (const files of drainBatches(library.libraryWaitRef))
+    addFiles(files, state === null ? undefined : baselineOf(state))
   refreshBusy()
 }
 
@@ -145,7 +168,10 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   waiting.splice(waiting.indexOf(pending), 1)
   if (pending.kind === 'addFiles' && pending.provisional !== true) {
     if (message.type === 'state')
-      deps.manifest.finish(pending.id, damagedZips(message.state.rejected))
+      deps.manifest.finish(
+        pending.id,
+        damagedZips(message.state?.rejected ?? message.facts?.rejected ?? []),
+      )
     else if (message.type === 'error') deps.manifest.fail(pending.id)
   }
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
@@ -177,7 +203,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     return
   }
   // What a row of "since your last import" now says of being seen settles its request alone.
-  if (message.type === 'checkInSaved') {
+  if (message.type === 'checkInSaved' || message.type === 'checkInView') {
     pending?.settle?.(message)
     return
   }
@@ -203,26 +229,48 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   if (changed !== null) deps.libraryChanged(changed)
   // Remove all also cleared the lifting sets the log on screen holds.
   if (pending?.kind === 'clear' && pending.forgetDevice === true) announceLiftsCleared()
-  imports.setState(message.state)
+  // An account's reply holds no state: its results are read from the server (`useAccountResults`), which is asked again now.
+  // What only the import and the index know comes with it, and the check-in stands unless the reply names one.
+  if (message.state !== null) {
+    imports.setState(message.state)
+    imports.setFacts(null)
+    imports.setIndex(null)
+  } else {
+    imports.setFacts(message.facts ?? null)
+    imports.setIndex(message.index ?? null)
+    deps.refreshResults()
+    deps.indexListed(message.type === 'state' ? message.libraryVersion : undefined)
+  }
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
   // "Since your last import", with the state it was made against (none when it says nothing).
-  library.setCheckIn(message.checkIn ?? NO_CHECKIN)
+  if (message.state !== null || message.checkIn !== undefined)
+    library.setCheckIn(message.checkIn ?? NO_CHECKIN)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
     noteProvisionalOutcome(imports, pending, message)
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)
-      imports.setImportChange({
-        outcome: message.outcome,
-        // Workouts brought up to date are not new, so an import that updated any moves nothing.
-        before: isUpdate(message.outcome)
-          ? null
-          : comparableBefore(pending?.baseline, message.state),
-        after: message.state.result,
-        bests: message.checkIn?.checkIn?.bests ?? null,
-      })
+      // An account's import has no state to compare here: what it moved is told once the server's results include it.
+      if (message.state === null) {
+        // An import that added workouts moved the baseline the row was made against: the row goes, and is asked for again against the
+        // snapshot on screen with the new baseline, so the old one is not marked seen. One that added none moved nothing, and the row stays.
+        if ((message.outcome.runs ?? 0) + (message.outcome.rides ?? 0) > 0) {
+          library.setCheckIn(NO_CHECKIN)
+          deps.askCheckInAgain()
+        }
+        deps.importLanded(message.outcome, pending?.baseline, message.libraryVersion)
+      } else
+        imports.setImportChange({
+          outcome: message.outcome,
+          // Workouts brought up to date are not new, so an import that updated any moves nothing.
+          before: isUpdate(message.outcome)
+            ? null
+            : comparableBefore(pending?.baseline, message.state),
+          after: message.state.result,
+          bests: message.checkIn?.checkIn?.bests ?? null,
+        })
     }
     if (pending?.kind === 'loadServer') {
       library.setLibrary('loaded')
@@ -253,7 +301,11 @@ function noteProvisionalOutcome(
       held.current === null ? message.outcome : mergeOutcomes(held.current, message.outcome)
   } else if (pending?.kind === 'keepProvisional' && held.current !== null) {
     imports.setImportOutcome(held.current)
-    imports.setImportChange({ outcome: held.current, before: null, after: message.state.result })
+    imports.setImportChange({
+      outcome: held.current,
+      before: null,
+      after: message.state?.result ?? null,
+    })
     held.current = null
   } else if (['loadDevice', 'loadServer', 'clear', 'loadSample'].includes(pending?.kind ?? '')) {
     held.current = null
