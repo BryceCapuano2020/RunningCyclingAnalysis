@@ -88,6 +88,16 @@ describe('liftResultsOf', () => {
     expect(results.corner.kind).toBe('graded')
   })
 
+  it('lists the big three first in their order, the most recent first within a lift, then the others', () => {
+    expect(results.order).toEqual([
+      'back-squat.barbell',
+      'bench-press.barbell',
+      'sumo-deadlift.barbell',
+      'deadlift.barbell',
+      'overhead-press.barbell',
+    ])
+  })
+
   it('leads with the big three lift trained last, and grades and dates it as the page does', () => {
     const lead = results.lead!
     expect(lead.key).toBe('sumo-deadlift.barbell')

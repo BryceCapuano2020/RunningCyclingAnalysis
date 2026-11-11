@@ -31,6 +31,15 @@ describe('getServerSnapshot', () => {
     expect(new Headers(init?.headers).get('x-rca-user')).toBe('u1')
   })
 
+  it('refuses a snapshot of this build whose check-in is not one, and leaves one of another shape alone', async () => {
+    const snapshot = snapshotAt(1_000, 'UTC')
+    stub(json(200, { ...snapshot, checkIn: { v: 1, counts: 'many' } }))
+    await expect(getServerSnapshot('u1')).rejects.toThrow()
+    const newer = { ...snapshot, schemaVersion: snapshot.schemaVersion + 1, checkIn: 'new shape' }
+    stub(json(200, newer))
+    expect(await getServerSnapshot('u1')).toEqual(newer)
+  })
+
   it('sends the tag of the copy it holds, and answers null for a 304 (no-store means the browser sends none itself)', async () => {
     const held = snapshotAt(1_000, 'UTC')
     const fetchMock = stub(new Response(null, { status: 304 }))

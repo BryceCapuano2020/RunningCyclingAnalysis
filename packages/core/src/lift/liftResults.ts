@@ -42,6 +42,8 @@ export interface LiftResults {
   histories: Record<ExerciseKey, LiftHistoryPoint[]>
   /** The last eight weeks' sets, sessions and rated sessions, for each lift that has an estimate. */
   windows: Record<ExerciseKey, LiftWindowCounts>
+  /** The estimated lifts in the order the page lists them: the big three first (squat, bench, deadlift), then the most recent. */
+  order: ExerciseKey[]
   /** The lift the page leads with when no big three lift is estimated, or none with no estimated lift at all. */
   lead: LiftLeadResult | null
   /** The big three's heaviest estimates and their total. */
@@ -72,7 +74,16 @@ function leadOf(estimated: readonly LiftSummary[]): LiftSummary | undefined {
   return [...(big.length > 0 ? big : estimated)].sort(newerThan)[0]
 }
 
-/** The lift results of a log, as of `today` (a local day, YYYY-MM-DD). Call it in the viewer's zone. */
+/**
+ * The lift results of a log, as of `today` (a local day, YYYY-MM-DD). Call it in the viewer's zone.
+ *
+ * Two differences from what the page built before, for the web slice that reads these to map:
+ *  - A grade with no profile and a placeholder mass is `no-profile` in `liftGrade`, which the Lift page used; the lifting row on
+ *    Balance (`liftTileOf`) passed no profile when the weight was unknown, so it said `no-mass`. Here the profile is read from
+ *    `settings` alone, so both gaps follow `liftGrade`'s own order: `no-profile` first, then `no-mass`.
+ *  - `corner` is always a `LiftCornerGrade`. BalancePage held it null for the sample library and without a year of birth, sex or
+ *    weight; the snapshot is the account's own, so there is no sample, and the gaps (`no-profile`, `no-mass`) are what say so.
+ */
 export function liftResultsOf(
   sets: readonly LiftSet[],
   settings: AthleteSettings,
@@ -93,6 +104,9 @@ export function liftResultsOf(
     windows[summary.key] = liftWindowCounts(own, today)
   }
 
+  const order = [...estimated]
+    .sort((a, b) => bigThreeRank(a) - bigThreeRank(b) || newerThan(a, b))
+    .map((summary) => summary.key)
   const top = leadOf(estimated)
   let lead: LiftLeadResult | null = null
   if (top !== undefined && top.estimate !== null) {
@@ -121,6 +135,7 @@ export function liftResultsOf(
     today,
     histories,
     windows,
+    order,
     lead,
     bigThree,
     bigThreeGrades: bigThree.parts.map((part) =>

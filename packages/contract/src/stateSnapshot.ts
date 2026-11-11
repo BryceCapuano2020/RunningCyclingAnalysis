@@ -1,5 +1,6 @@
 import './zodConfig.ts'
 import { z } from 'zod'
+import { CheckInSnapshotSchema, LiftResultsSchema } from './stateSnapshotParts.ts'
 
 /**
  * The envelope of a state snapshot, as `GET /api/state` serves it (docs/design/server-compute.md, decision 7). Only the
@@ -21,8 +22,8 @@ export const StateSnapshotSchema = z.strictObject({
   buildSha: z.string().min(1).max(64),
   state: z.record(z.string(), z.unknown()),
   /** The encoded `LiftResults` (`@rca/core/stateSnapshot` reads it, as it does `state`); absent from a copy made on a device. */
-  lift: z.record(z.string(), z.unknown()).optional(),
+  lift: LiftResultsSchema.optional(),
   /** The encoded `CheckInSnapshot`, null for an empty library; absent from a copy made on a device. */
-  checkIn: z.record(z.string(), z.unknown()).nullable().optional(),
+  checkIn: CheckInSnapshotSchema.nullable().optional(),
 })
 export type StateSnapshotWire = z.infer<typeof StateSnapshotSchema>

@@ -176,7 +176,8 @@ export { ANALYSIS_REVISION } from './analysisRevision'
  */
 export async function snapshotContentHash(snapshot: StateSnapshot): Promise<string> {
   const { libraryVersion: _version, nowMs: _now, buildSha: _build, ...content } = snapshot
-  // The check-in is stamped with the instant it was taken, which is not something the athlete sees change.
+  // Left out beside the top-level `nowMs`: the check-in's own `atMs`, the instant it was taken, which no figure shows. Every
+  // other field of it (the keys, counts and bests) is in the hash, so a library that gained a workout hashes differently.
   if (content.checkIn !== undefined && content.checkIn !== null && !Array.isArray(content.checkIn))
     content.checkIn = { ...(content.checkIn as { [key: string]: Json }), atMs: 0 }
   const digest = await crypto.subtle.digest(

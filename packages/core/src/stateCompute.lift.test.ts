@@ -110,6 +110,19 @@ describe('a snapshot carries the lift results and the check-in', () => {
     expect(await hash(at(library.nowMs, setsOn(['2026-01-05'])))).not.toBe(await hash(first))
   })
 
+  it('names a library that gained a workout differently, though the check-in stamp is left out of the hash', async () => {
+    const snapshot = computeSnapshot(inputFor(library, east!))
+    const checkIn = snapshot.checkIn as { counts: { run: number }; atMs: number }
+    const gained = {
+      ...snapshot,
+      checkIn: { ...checkIn, counts: { ...checkIn.counts, run: checkIn.counts.run + 1 } },
+    }
+    expect(await snapshotContentHash(gained)).not.toBe(await snapshotContentHash(snapshot))
+    // Its own stamp is not part of the hash: the same check-in taken at another instant is the same content.
+    const restamped = { ...snapshot, checkIn: { ...checkIn, atMs: checkIn.atMs + 1 } }
+    expect(await snapshotContentHash(restamped)).toBe(await snapshotContentHash(snapshot))
+  })
+
   it('a snapshot made without extras (a device copy) carries neither', () => {
     const state = new AnalysisSession().loadDigests(library.digests, library.settings)
     const device = toSnapshot(state, { libraryVersion: 0, nowMs: 1, zone: 'UTC', buildSha: 'x' })
