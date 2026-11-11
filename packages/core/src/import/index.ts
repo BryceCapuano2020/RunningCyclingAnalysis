@@ -3,7 +3,7 @@ import { parseGpx } from '../gpx/parse'
 import { parseTcx } from '../tcx/parse'
 import type { ParseLimits, ParseOptions, ParseResult } from './result'
 
-export { DEFAULT_PARSE_LIMITS } from './result'
+export { DEFAULT_PARSE_LIMITS, GARMIN_PARSE_LIMITS } from './result'
 export { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from './activitiesCsv'
 export {
   MAX_GARMIN_SUMMARIES_BYTES,
