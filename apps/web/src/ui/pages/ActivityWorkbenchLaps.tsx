@@ -3,7 +3,7 @@ import type { KeyboardEvent } from 'react'
 import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
 import { formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { useSize } from '../charts/useSize'
-import { lapGroupsOf } from './workbenchChannels'
+import { recordedLapsOf } from './workbenchChannels'
 import type { Selection } from './workbenchTime'
 import './ActivityWorkbenchLaps.css'
 
@@ -12,31 +12,16 @@ const MAX_NUMBERED = 8
 /** A segment of the bar shows its number only where it is at least this wide, in px. */
 const NUMBER_FITS_PX = 22
 
-/** What one strip is called: the device's laps, or the intervals the readings suggest. */
-const STRIPS = {
-  recorded: { name: 'Lap', title: 'Laps', plural: 'laps' },
-  suggested: { name: 'Interval', title: 'Suggested intervals', plural: 'intervals' },
-} as const
-
 type StripProps = {
   max: number
   selection: Selection
   onSelect: (selection: Selection) => void
 }
 
-/**
- * The laps the device recorded and the intervals found in the readings, each as a strip, the device's first. Choosing a
- * lap or an interval zooms the stack to it. Nothing when the activity has neither.
- */
+/** The laps the device recorded, as one strip; choosing a lap zooms the stack to it. Nothing for fewer than two laps. */
 export function LapChoices({ trace, ...props }: StripProps & { trace: ActivityTrace }) {
-  const { recorded, suggested } = lapGroupsOf(trace)
-  if (recorded.length === 0 && suggested.length === 0) return null
-  return (
-    <>
-      {recorded.length > 0 && <LapStrip {...props} laps={recorded} kind="recorded" />}
-      {suggested.length > 0 && <LapStrip {...props} laps={suggested} kind="suggested" />}
-    </>
-  )
+  const laps = recordedLapsOf(trace)
+  return laps.length === 0 ? null : <LapStrip {...props} laps={laps} />
 }
 
 /**
@@ -44,17 +29,10 @@ export function LapChoices({ trace, ...props }: StripProps & { trace: ActivityTr
  * proportional bar, with every lap also in a list beside it, so the strip is never a wall of buttons.
  * The arrow keys step from lap to lap.
  */
-function LapStrip({
-  max,
-  selection,
-  onSelect,
-  laps,
-  kind,
-}: StripProps & { laps: ActivityLap[]; kind: keyof typeof STRIPS }) {
+function LapStrip({ max, selection, onSelect, laps }: StripProps & { laps: ActivityLap[] }) {
   const [barRef, barWidth] = useSize()
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const titleId = useId()
-  const { name, title, plural } = STRIPS[kind]
   const bar = laps.length > MAX_NUMBERED
   const boundsOf = (lap: ActivityLap) => ({ startS: lap.startS, endS: Math.min(lap.endS, max) })
   const isActive = (lap: ActivityLap) => {
@@ -91,7 +69,7 @@ function LapStrip({
 
   return (
     <div className="activity-workbench__laps">
-      <h3 id={titleId}>{title}</h3>
+      <h3 id={titleId}>Laps</h3>
       <div className="lap-strip-wrap">
         <div
           ref={barRef}
@@ -103,7 +81,7 @@ function LapStrip({
             const active = isActive(lap)
             const covered =
               lap.startS < selection.endS && Math.min(lap.endS, max) > selection.startS
-            const label = `${name} ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`
+            const label = `Lap ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`
             const wide =
               bar && (barWidth * (lap.endS - lap.startS)) / Math.max(1, total) >= NUMBER_FITS_PX
             return (
@@ -138,17 +116,17 @@ function LapStrip({
             {/* The bar's segments can be a few px wide, so every lap is also a plain list, which a finger and a keyboard can use. */}
             <select
               className="lap-strip__list"
-              aria-label={`Choose ${name.toLowerCase()}`}
+              aria-label={'Choose lap'}
               value={chosen < 0 ? '' : String(chosen)}
               onChange={(event) => {
                 if (event.currentTarget.value !== '')
                   onSelect(boundsOf(laps[Number(event.currentTarget.value)]!))
               }}
             >
-              {chosen < 0 && <option value="">{`${laps.length} ${plural}`}</option>}
+              {chosen < 0 && <option value="">{`${laps.length} laps`}</option>}
               {laps.map((lap, index) => (
                 <option key={`${lap.startS}-${lap.endS}`} value={index}>
-                  {`${name} ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`}
+                  {`Lap ${index + 1} · from ${formatRecordTime(lap.startS)} · ${formatTotalTime(lap.endS - lap.startS)}`}
                 </option>
               ))}
             </select>

@@ -13,7 +13,7 @@ import { TimeSelection } from './ActivityWorkbenchTime'
 import { DetailNote, WorkbenchSection } from './ActivityWorkbenchSection'
 import { MetricControls } from './ActivityWorkbenchMeasures'
 import { overviewOf } from './workbenchChannels'
-import { DEFAULT_METRICS, METRIC_ORDER } from './workbenchFormat'
+import { METRIC_ORDER, defaultMetrics } from './workbenchFormat'
 import { readableTrace } from './workbenchData'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
@@ -252,7 +252,7 @@ function ReadyWorkbench({
   )
   const max = Math.floor(trace.durationS)
   const [visible, setVisible] = useState<TraceMetric[]>(() =>
-    available.filter((metric) => DEFAULT_METRICS.includes(metric)),
+    defaultMetrics(available, trace.sport),
   )
   const [chosen, setChosen] = useState<Selection>({ startS: 0, endS: max })
   const overview = useMemo(() => (max < 1 ? null : overviewOf(trace, max)), [trace, max])

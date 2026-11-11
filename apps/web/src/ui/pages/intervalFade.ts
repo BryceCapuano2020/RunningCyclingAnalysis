@@ -1,7 +1,7 @@
-import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
+import type { ActivityTrace } from '@rca/core/workbench'
 import type { Sport } from '@rca/core/types'
 import { flatSpeedOf } from './repFlatPace'
-import { selectionOf, suggestedIntervals } from './workbenchData'
+import { selectionOf } from './workbenchData'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
 
@@ -47,8 +47,6 @@ export interface Rep {
 
 export interface RepFade {
   metric: RepMetric
-  /** True when the device recorded the laps, false when they are intervals found in the readings. */
-  recorded: boolean
   reps: Rep[]
 }
 
@@ -139,12 +137,6 @@ function recoversBetween(
   })
 }
 
-/** The laps the device recorded, or the intervals found in the readings when it recorded none. */
-function lapsOf(trace: ActivityTrace): { laps: ActivityLap[]; recorded: boolean } {
-  const recorded = trace.laps.length > 0
-  return { laps: recorded ? trace.laps : suggestedIntervals(trace), recorded }
-}
-
 interface Usable {
   lapNumber: number
   bounds: Selection
@@ -192,7 +184,7 @@ function repsIn(trace: ActivityTrace, metric: RepMetric, usable: Usable[]): Rep[
  */
 export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean }): RepFade | null {
   const max = Math.floor(trace.durationS)
-  const { laps, recorded } = lapsOf(trace)
+  const laps = trace.laps
   const usable = laps.flatMap((lap, i) =>
     lap.endS > lap.startS && max >= 1
       ? [{ lapNumber: i + 1, bounds: clampSelection(lap, max) }]
@@ -203,7 +195,7 @@ export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean })
     if (metric === 'speed' && speedNeedsTrainer && !indoor) continue
     const reps = repsIn(trace, metric, usable)
     if (reps === null) continue
-    return { metric, recorded, reps }
+    return { metric, reps }
   }
   return null
 }

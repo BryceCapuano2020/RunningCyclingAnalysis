@@ -91,7 +91,7 @@ export function ActivityBests({
   if (sport === 'ride' && !weightKnown) {
     return (
       <section className="section" aria-labelledby="activity-bests">
-        <h2 id="activity-bests">Best efforts set here</h2>
+        <h2 id="activity-bests">Best efforts</h2>
         <WeightNote />
       </section>
     )
@@ -145,7 +145,7 @@ export function ActivityBests({
   ]
   return (
     <section className="section" aria-labelledby="activity-bests">
-      <h2 id="activity-bests">{counts ? 'Best efforts set here' : 'Distance times'}</h2>
+      <h2 id="activity-bests">{counts ? 'Best efforts' : 'Distance times'}</h2>
       {rows.length > 0 && <SportRecords rows={rows} />}
       {unfigured.length > 0 && (
         <p className="secondary">

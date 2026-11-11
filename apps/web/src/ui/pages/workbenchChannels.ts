@@ -4,7 +4,7 @@ import { formatDistance, formatRecordTime } from '@rca/core/units'
 import type { BrushOverview } from '../charts/TimeBrush'
 import { hasReadingNear, meanAround } from '../charts/timeSeriesModel'
 import type { AxisScale } from '../charts/timeSeriesModel'
-import type { ChannelColour, CursorHead, StackChannel, StackMark } from '../charts/timeSeriesTypes'
+import type { ChannelColour, CursorHead, StackChannel } from '../charts/timeSeriesTypes'
 import { MIN_LAPS } from '../components/lapRows'
 import {
   movingAverageSpeed,
@@ -12,7 +12,6 @@ import {
   selectionOf,
   seriesFor,
   smoothedBand,
-  suggestedIntervals,
   typicalBand,
 } from './workbenchData'
 import {
@@ -132,41 +131,9 @@ export function skippedStretches(trace: ActivityTrace, metric: TraceMetric): [nu
   return mask === undefined ? [] : runsOfMask(mask, 1)
 }
 
-/** The stretches of the activity the device paused or did not record, for the lane under the rows. A gap outranks a pause. */
-export function timelineMarks(trace: ActivityTrace): StackMark[] {
-  const gaps = runsOfMask(trace.unrecorded, 1).map(([startS, endS]): StackMark => ({
-    kind: 'unrecorded',
-    startS,
-    endS,
-  }))
-  const pauses = runsOfMask(trace.paused, 1).flatMap(([from, to]) => {
-    const kept: StackMark[] = []
-    let startS = from
-    for (let i = from; i <= to; i += 1) {
-      const covered = i < to && trace.unrecorded[i] === 1
-      if (i === to || covered) {
-        if (i > startS) kept.push({ kind: 'paused', startS, endS: i })
-        startS = i + 1
-      }
-    }
-    return kept
-  })
-  return [...pauses, ...gaps].sort((a, b) => a.startS - b.startS)
-}
-
-/**
- * The laps the device recorded and the intervals found in the readings, both: the suggestions sit beside the device's laps and
- * do not replace them, since the readings find work the device's own laps cut across (or never marked). One recorded lap is the whole
- * activity, which the whole-activity selection already is, so it is no choice; a suggestion is held to `suggestedIntervals`' own rule.
- */
-export function lapGroupsOf(trace: ActivityTrace): {
-  recorded: ActivityLap[]
-  suggested: ActivityLap[]
-} {
-  return {
-    recorded: trace.laps.length >= MIN_LAPS ? trace.laps : [],
-    suggested: suggestedIntervals(trace),
-  }
+/** The laps the device recorded. One recorded lap is the whole activity, which the whole-activity selection already is, so it is no choice. */
+export function recordedLapsOf(trace: ActivityTrace): ActivityLap[] {
+  return trace.laps.length >= MIN_LAPS ? trace.laps : []
 }
 
 /** The measures as channels of the stack, over the window, at this many columns. */

@@ -62,9 +62,7 @@ export function DetailNote({
   return (
     <WorkbenchSection note>
       <p className="secondary" role={status === 'failed' ? 'alert' : 'status'}>
-        {status === 'failed'
-          ? 'The recorded details could not be loaded.'
-          : MISSING_DETAIL}
+        {status === 'failed' ? 'The recorded details could not be loaded.' : MISSING_DETAIL}
       </p>
       {status === 'failed' && (
         <div className="activity-workbench__actions">

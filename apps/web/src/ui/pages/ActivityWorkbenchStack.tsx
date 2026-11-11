@@ -4,13 +4,7 @@ import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { TimeSeriesStack } from '../charts/TimeSeriesStack'
 import { ChannelTable } from './ActivityWorkbenchPlotTable'
-import {
-  channelsFor,
-  headAt,
-  lapGroupsOf,
-  stackDescription,
-  timelineMarks,
-} from './workbenchChannels'
+import { channelsFor, headAt, recordedLapsOf, stackDescription } from './workbenchChannels'
 import { axisFor } from './workbenchData'
 import { metricLabel } from './workbenchFormat'
 
@@ -61,9 +55,8 @@ export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
     [trace, present, units, startS, endS],
   )
   const head = useCallback((second: number) => headAt(trace, units, second), [trace, units])
-  const marks = useMemo(() => timelineMarks(trace), [trace])
   // The lap lines are the device's own laps, as the strips beside the stack list them; a suggestion has its own strip.
-  const laps = useMemo(() => lapGroupsOf(trace).recorded, [trace])
+  const laps = useMemo(() => recordedLapsOf(trace), [trace])
   return (
     <>
       {present.length > 0 && (
@@ -74,7 +67,6 @@ export const ActivityWorkbenchStack = memo(function ActivityWorkbenchStack({
           endS={endS}
           channels={channels}
           laps={laps}
-          marks={marks}
           head={head}
           onSelect={onSelect}
           zoomed={zoomed}

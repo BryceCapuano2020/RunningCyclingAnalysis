@@ -5,14 +5,13 @@ import type { NavigationKey } from './PlotSurface'
 import { PlotSurface } from './PlotSurface'
 import { ReadoutContext } from './readoutContext'
 import { TimeSeriesCursor } from './TimeSeriesCursor'
-import { TimeSeriesNote } from './TimeSeriesNote'
 import { TimeSeriesReadout } from './TimeSeriesReadout'
 import { TimeSeriesRows } from './TimeSeriesRows'
 import { geometryScale } from './plotBox'
 import { layoutOf } from './timeSeriesLayout'
 import { NARROW_WIDTH } from './ticks'
 import { stackMargin, stepCursor } from './timeSeriesModel'
-import type { StackChannel, StackMark } from './timeSeriesTypes'
+import type { StackChannel } from './timeSeriesTypes'
 import type { CursorHead } from './timeSeriesTypes'
 import { useSize } from './useSize'
 import { useStackSelection } from './useStackSelection'
@@ -33,7 +32,6 @@ export interface TimeSeriesStackProps {
   channels: (plotWidthPx: number, tickCount: number) => StackChannel[]
   /** Laps shaded behind the rows, every second one. */
   laps: readonly { startS: number; endS: number }[]
-  marks: readonly StackMark[]
   /** The words at the head of the readout for a whole second. */
   head: (second: number) => CursorHead
   /** The text twin, shown under "View as table". */
@@ -63,7 +61,6 @@ export function TimeSeriesStack({
   endS,
   channels: build,
   laps,
-  marks,
   head,
   tables,
   onSelect,
@@ -200,8 +197,6 @@ export function TimeSeriesStack({
               startS={startS}
               endS={endS}
               laps={laps}
-              marks={marks}
-              hatchId={`${id}-hatch`}
             />
             {inside !== null && (
               <TimeSeriesCursor
@@ -239,7 +234,6 @@ export function TimeSeriesStack({
       </div>
       {below}
       <div className="ts-stack__foot">
-        <TimeSeriesNote channels={channels} marks={marks} startS={startS} endS={endS} />
         <details className="chart-frame__details">
           <summary>View as table</summary>
           {tables}
