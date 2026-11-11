@@ -127,7 +127,7 @@ export function levelRangeRows(
       ladder,
       ladder.findIndex((rung) => rung.label === band.label),
     ),
-    meaning: levelMeaningLine(band.label) ?? null,
+    meaning: levelMeaningLine(band.label, sport === 'lift') ?? null,
     range: rangeOf(ends(band, figure.value), figure.words(units)),
     pace:
       figure.pace === undefined

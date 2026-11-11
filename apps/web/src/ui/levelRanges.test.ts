@@ -56,5 +56,8 @@ describe('levelRangeRows', () => {
     expect(rows.map((row) => row.mine)).toEqual([false, true, false])
     expect(rows.map((row) => row.band)).toEqual(['90% and up', '80% to 89%', 'Under 30%'])
     expect(rows[1]!.meaning).toBe('You contend at a national championship.')
+    expect(levelRangeRows('lift', BANDS, 'metric', null)[1]!.meaning).toBe(
+      'You place at a national meet.',
+    )
   })
 })

@@ -15,14 +15,30 @@ export const OWN_LEVEL_MEANING: readonly { name: string; meaning: string }[] = [
   { name: 'Recreational', meaning: 'you move for fun.' },
 ]
 
-/** The meaning of a level, or undefined for a name that is not one. */
-export function levelMeaning(name: string): string | undefined {
-  return OWN_LEVEL_MEANING.find((level) => level.name === name)?.meaning
+/**
+ * The same levels in a lifter's terms, for the Lift page's table: its grade is a total against powerlifting meets' results, so a
+ * level reads as a place at a meet, not a race.
+ */
+export const LIFT_LEVEL_MEANING: readonly { name: string; meaning: string }[] = [
+  { name: 'World', meaning: 'among the best lifters in the world for your age.' },
+  { name: 'National', meaning: 'you place at a national meet.' },
+  { name: 'Regional', meaning: 'you place at a regional meet.' },
+  { name: 'Local', meaning: 'you win your class at a local meet.' },
+  { name: 'Club', meaning: 'you post a solid total at a local meet.' },
+  { name: 'Trained', meaning: 'steady programmed lifting shows.' },
+  { name: 'Active', meaning: 'you lift most weeks.' },
+  { name: 'Recreational', meaning: 'you lift now and then.' },
+]
+
+/** The meaning of a level, or undefined for a name that is not one; `lift` gives the lifter's terms. */
+export function levelMeaning(name: string, lift = false): string | undefined {
+  return (lift ? LIFT_LEVEL_MEANING : OWN_LEVEL_MEANING).find((level) => level.name === name)
+    ?.meaning
 }
 
 /** The meaning as the second line of its level, so it starts with a capital; undefined for a name that is not a level. */
-export function levelMeaningLine(name: string): string | undefined {
-  const text = levelMeaning(name)
+export function levelMeaningLine(name: string, lift = false): string | undefined {
+  const text = levelMeaning(name, lift)
   return text === undefined ? undefined : text.charAt(0).toUpperCase() + text.slice(1)
 }
 
