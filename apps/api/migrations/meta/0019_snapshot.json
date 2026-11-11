@@ -1231,14 +1231,6 @@
           "autoincrement": false,
           "default": 0
         },
-        "computed_lift_revision": {
-          "name": "computed_lift_revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
         "snapshot_lift_revision": {
           "name": "snapshot_lift_revision",
           "type": "integer",

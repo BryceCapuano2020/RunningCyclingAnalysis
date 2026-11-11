@@ -16,7 +16,7 @@ async function fresh() {
   const read = () =>
     w.env.DB.prepare(
       `SELECT snapshot_hash AS hash, snapshot_version AS v, snapshot_lift_revision AS l, snapshot_now_ms AS now,
-         computed_version AS cv, computed_lift_revision AS cl, analysis_revision AS rev
+         computed_version AS cv, snapshot_lift_revision AS sl, analysis_revision AS rev
        FROM state_jobs WHERE user_id = ?`,
     )
       .bind(w.userId)
@@ -62,14 +62,14 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
       .bind(ANALYSIS_REVISION + 1, w.userId)
       .run()
     expect((await record(w.env.DB, w.userId, at(50, 50, 50_000), 'h3', null)).held).toBe('h2')
-    expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION + 1, v: 1, cv: 1, cl: 0 })
+    expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION + 1, v: 1, cv: 1 })
   })
 
   it('never lowers the coverage within a revision', async () => {
     const w = await fresh()
     await record(w.env.DB, w.userId, at(7, 3, 1000), 'h1', null)
     await record(w.env.DB, w.userId, at(2, 1, 1), null, 'h1')
-    expect(await w.read()).toMatchObject({ cv: 7, cl: 3 })
+    expect(await w.read()).toMatchObject({ cv: 7, l: 3 })
   })
 
   it('lets one claim win a window, any isolate, and the next once it has passed', async () => {

@@ -54,12 +54,11 @@ export async function record(
     db
       .prepare(
         `UPDATE state_jobs SET
-           computed_version = CASE WHEN analysis_revision = ?4 THEN max(computed_version, ?2) ELSE ?2 END,
-           computed_lift_revision = CASE WHEN analysis_revision = ?4 THEN max(computed_lift_revision, ?3) ELSE ?3 END,
-           computed_at = ?5
-         WHERE user_id = ?1 AND analysis_revision <= ?4 AND (?6 IS NULL OR snapshot_hash = ?6)`,
+           computed_version = CASE WHEN analysis_revision = ?3 THEN max(computed_version, ?2) ELSE ?2 END,
+           computed_at = ?4
+         WHERE user_id = ?1 AND analysis_revision <= ?3 AND (?5 IS NULL OR snapshot_hash = ?5)`,
       )
-      .bind(userId, version, liftRevision, ANALYSIS_REVISION, at, matched),
+      .bind(userId, version, ANALYSIS_REVISION, at, matched),
     db
       .prepare(
         `UPDATE state_jobs SET snapshot_hash = coalesce(?5, snapshot_hash), snapshot_version = ?2,

@@ -83,7 +83,7 @@ type Ctx = Context<AppEnv>
 function headersFor(hash: string, nowMs: number, version: number): Record<string, string> {
   // `no-store` like every /api response, so the browser never keeps a copy of the account's results in its HTTP cache. It
   // therefore sends no conditional request of its own: the client sets If-None-Match from the hash of its device copy.
-  // `X-State-Computed-Version` is the library version the latest compute covered, for a client that knows a newer one.
+  // `X-State-Computed-Version` is the library version the stored snapshot covers, for a client that knows a newer one.
   // `X-State-Now` is the instant the snapshot was computed for, a 304 included: an unchanged recompute moves it.
   return {
     ETag: `"${hash}"`,
@@ -176,11 +176,19 @@ async function computeInRequest(
   c: Ctx,
   row: JobRow,
   store: boolean,
-  claim: { held: boolean },
+  claim: { held: boolean; refused?: HttpError },
 ): Promise<Computed | null> {
   const userId = currentUser(c).id
   const run = await withComputeLock(async () => {
-    const charge = await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
+    let charge
+    try {
+      charge = await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
+    } catch (error) {
+      // Over the day's budget: no compute and no claim stamped, but the stored copy is free (the caller serves it).
+      if (!(error instanceof HttpError) || error.status !== 429) throw error
+      claim.refused = error
+      return null
+    }
     // The claim is taken once per request, after the budget unit (a refused read must not stamp attempted_at and defer
     // the queue): a second read of the inputs after a write moved them is still this request's.
     if (store && !claim.held) {
@@ -222,7 +230,7 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     if (served === 'stale') throw NOT_FOUND()
     return served
   }
-  const claim = { held: false }
+  const claim: { held: boolean; refused?: HttpError } = { held: false }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const order = revisionOrder(row)
     if (isCurrent(row, now)) {
@@ -249,6 +257,8 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     }
     const done = await computeInRequest(c, row, order !== 'newer', claim)
     if (done === null) {
+      // Over budget with no stored copy of this build's to serve: the refusal stands.
+      if (claim.refused !== undefined && order !== 'same') throw claim.refused
       // Computing for another read: serve what is stored while it is this build's own, else say it is coming.
       if (order === 'same') {
         const served = await serveStored(c, row, true)
@@ -258,7 +268,11 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     }
     if (done.kind === 'gone' || done.kind === 'busy') throw NOT_FOUND()
     if (done.kind === 'moved') {
-      // A write landed while the inputs were read: read the row again, once.
+      // A write landed while the inputs were read: read the row again, once. The claim is stamped again first, since the
+      // first read may have run longer than its window and another isolate would then compute alongside.
+      await c.env.DB.prepare('UPDATE state_jobs SET attempted_at = ? WHERE user_id = ?')
+        .bind(c.var.deps.now(), userId)
+        .run()
       const again = await jobRow(c.env.DB, userId)
       if (again === null) throw NOT_FOUND()
       row = again

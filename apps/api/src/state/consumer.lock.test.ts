@@ -116,7 +116,7 @@ describe('the consumer and the isolate lock', () => {
     expect(await runStateJob(env, w.deps, w.userId)).toBe('moved')
     expect(await stored(w)).toBe(0)
     const row = await w.env.DB.prepare(
-      'SELECT computed_lift_revision AS l, snapshot_hash AS h FROM state_jobs WHERE user_id = ?',
+      'SELECT snapshot_lift_revision AS l, snapshot_hash AS h FROM state_jobs WHERE user_id = ?',
     )
       .bind(w.userId)
       .first<{ l: number; h: string | null }>()

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 
-/** Migration 0019: the lift revision a compute covered and the order columns of the stored snapshot. */
+/** Migration 0019: the order columns of the stored snapshot. */
 const MIGRATIONS = new URL('../migrations/', import.meta.url)
 const TAG = '0019_state_lift_order'
 
@@ -40,7 +40,7 @@ describe('migration 0019', () => {
     expect(tags.indexOf(TAG)).toBeGreaterThan(tags.indexOf('0017_activity_name_override'))
   })
 
-  it('adds three integer columns, not null, default 0, and backfills an existing row to 0', () => {
+  it('adds two integer columns, not null, default 0, and backfills an existing row to 0', () => {
     const db = migrated(TAG)
     const columns = db.prepare("PRAGMA table_info('state_jobs')").all() as {
       name: string
@@ -48,7 +48,7 @@ describe('migration 0019', () => {
       notnull: number
       dflt_value: string
     }[]
-    for (const name of ['computed_lift_revision', 'snapshot_lift_revision', 'snapshot_now_ms']) {
+    for (const name of ['snapshot_lift_revision', 'snapshot_now_ms']) {
       expect(columns.find((c) => c.name === name)).toMatchObject({
         type: 'INTEGER',
         notnull: 1,
@@ -57,7 +57,6 @@ describe('migration 0019', () => {
     }
     expect(db.prepare("SELECT * FROM state_jobs WHERE user_id = 'u1'").get()).toMatchObject({
       computed_version: 4,
-      computed_lift_revision: 0,
       snapshot_lift_revision: 0,
       snapshot_now_ms: 0,
     })

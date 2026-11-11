@@ -22,7 +22,7 @@ async function ready() {
   await runStateJob(w.env, w.deps, w.userId)
   const row = () =>
     w.env.DB.prepare(
-      `SELECT snapshot_hash AS hash, computed_version AS version, computed_lift_revision AS lift,
+      `SELECT snapshot_hash AS hash, computed_version AS version, snapshot_lift_revision AS lift,
          analysis_revision AS rev, snapshot_now_ms AS now FROM state_jobs WHERE user_id = ?`,
     )
       .bind(w.userId)
@@ -237,11 +237,13 @@ describe('compute on read', () => {
       .bind(w.userId)
       .run()
     const reads = { n: 0 }
-    const bump = () =>
-      w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
+    // The first read runs long (the clock moves 8 s) and a lift write lands during it.
+    const bump = async () => {
+      h.clock.now += 8_000
+      await w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
         .bind(w.userId)
         .run()
-        .then(() => undefined)
+    }
     const h = createHarness(
       {},
       { SERVER_COMPUTE_USERS: '*', DB: countingDb(w.env.DB, reads, bump) },
@@ -250,6 +252,13 @@ describe('compute on read', () => {
     const res = await h.send({ path: '/api/state', cookies: w.cookies })
     expect(res.status).toBe(200)
     expect(reads.n).toBe(2)
+    // The claim was stamped again before the second read, so another isolate does not claim in the gap.
+    const stamped = await w.env.DB.prepare(
+      'SELECT attempted_at AS a FROM state_jobs WHERE user_id = ?',
+    )
+      .bind(w.userId)
+      .first<{ a: number }>()
+    expect(stamped?.a).toBe(h.clock.now)
     expect((await w.row())!.lift).toBe(2)
     expect(await w.used()).toBe(1)
   })
@@ -310,11 +319,19 @@ describe('compute on read', () => {
     )
       .bind(w.userId, new Date(w.h.clock.now + CLAIM_MS + 1).toISOString().slice(0, 10), 300)
       .run()
-    expect((await w.get()).status).toBe(429)
+    // Stale, over budget: the stored copy is still free, and nothing is claimed.
+    const free = await w.get()
+    expect(free.status).toBe(200)
+    expect(free.headers.get('X-State-Current')).toBe('0')
     const row = await w.env.DB.prepare('SELECT attempted_at AS a FROM state_jobs WHERE user_id = ?')
       .bind(w.userId)
       .first<{ a: number }>()
     expect(row?.a).toBe(5)
+    // No stored copy this build can serve: the refusal stands.
+    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ?')
+      .bind(w.userId)
+      .run()
+    expect((await w.get()).status).toBe(429)
   })
 
   it('names no X-State-Now for a row no compute has stamped', async () => {

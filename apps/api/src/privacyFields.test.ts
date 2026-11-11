@@ -134,8 +134,6 @@ const DISCLOSED: Record<string, string> = {
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.snapshot_version':
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
-  'state_jobs.computed_lift_revision':
-    'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.snapshot_lift_revision':
     'the database keeps a count of the changes to your activities, profile, dated settings and account settings, which tells the server when to compute again, with the version and time of the last compute, when the last try began, whether one is on its way, the name of the copy and the analysis it was made under',
   'state_jobs.snapshot_now_ms':
