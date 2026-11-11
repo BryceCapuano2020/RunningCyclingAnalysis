@@ -1,7 +1,7 @@
 import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
 import { stateWorld } from '../test/stateKit.ts'
-import { claimCompute, record, type Covered } from './record.ts'
+import { claimCompute, record, releaseClaim, restampClaim, type Covered } from './record.ts'
 
 const at = (version: number, liftRevision: number, nowMs: number): Covered => ({
   version,
@@ -72,12 +72,20 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
     expect(await w.read()).toMatchObject({ cv: 7, l: 3 })
   })
 
-  it('lets one claim win a window, any isolate, and the next once it has passed', async () => {
+  it('lets one claim win a window, any isolate, and the next once it has passed or been released', async () => {
     const w = await stateWorld()
     // No row yet (a new account): the claim makes it.
-    expect(await claimCompute(w.env.DB, w.userId, 100_000, 10_000)).toBe(true)
-    expect(await claimCompute(w.env.DB, w.userId, 100_001, 10_000)).toBe(false)
-    expect(await claimCompute(w.env.DB, w.userId, 109_999, 10_000)).toBe(false)
-    expect(await claimCompute(w.env.DB, w.userId, 110_000, 10_000)).toBe(true)
+    expect(await claimCompute(w.env.DB, w.userId, 100_000, 10_000)).toBe(110_000)
+    expect(await claimCompute(w.env.DB, w.userId, 100_001, 10_000)).toBeNull()
+    expect(await claimCompute(w.env.DB, w.userId, 109_999, 10_000)).toBeNull()
+    expect(await claimCompute(w.env.DB, w.userId, 110_000, 10_000)).toBe(120_000)
+    // A release of a stamp that is no longer the row's leaves the claim; its own stamp frees it.
+    await releaseClaim(w.env.DB, w.userId, 110_000)
+    expect(await claimCompute(w.env.DB, w.userId, 111_000, 10_000)).toBeNull()
+    await releaseClaim(w.env.DB, w.userId, 120_000)
+    expect(await claimCompute(w.env.DB, w.userId, 111_000, 10_000)).toBe(121_000)
+    // A restamp holds only the claim it names: one lost (lapsed, taken by another) is null.
+    expect(await restampClaim(w.env.DB, w.userId, 112_000, 10_000, 121_000)).toBe(122_000)
+    expect(await restampClaim(w.env.DB, w.userId, 113_000, 10_000, 121_000)).toBeNull()
   })
 })
