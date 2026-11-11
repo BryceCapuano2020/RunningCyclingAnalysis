@@ -18,6 +18,7 @@ import { storedPeriodChoice } from './periodPreference'
 import {
   CHOICE_NOT_SAVED,
   CHOICE_REFUSED,
+  CHOICE_SIGNED_OUT,
   retryWaitMs,
   SETTINGS_RETRY_MAX_MS,
   SETTINGS_RETRY_MS,
@@ -52,6 +53,12 @@ afterEach(() => {
   localStorage.clear()
   resetKeptPowerCache()
 })
+
+/** The athlete picks a period the account does not hold. */
+function choosePeriod() {
+  localStorage.setItem('rca.period.v1', JSON.stringify(42))
+  settingsChosen('period')
+}
 
 /** Puts the choices a signed-out visit made into this browser. */
 function chooseSignedOut() {
@@ -226,7 +233,7 @@ describe('useAccountSettings', () => {
     try {
       renderHook(() => useAccountSettings('signed-in', 'u1'))
       await vi.advanceTimersByTimeAsync(5000)
-      act(() => settingsChosen('period'))
+      act(choosePeriod)
       await vi.advanceTimersByTimeAsync(10)
       expect(get).toHaveBeenCalledTimes(2)
       expect(put).not.toHaveBeenCalled()
@@ -237,7 +244,7 @@ describe('useAccountSettings', () => {
 
   it('does nothing signed out', async () => {
     renderHook(() => useAccountSettings('signed-out', null))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await Promise.resolve()
     expect(get).not.toHaveBeenCalled()
     expect(put).not.toHaveBeenCalled()
@@ -291,7 +298,7 @@ describe('the zone', () => {
     get.mockResolvedValue(ACCOUNT)
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put.mock.calls[0]![0].zone).toBe(ZONE)
   })
@@ -304,7 +311,7 @@ describe('the zone, for every signed-in account', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(put.mock.calls[0]![0].zone).toBe(ZONE)
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await waitFor(() => expect(put).toHaveBeenCalledTimes(2))
     expect(put.mock.calls[1]![0].zone).toBe(ZONE)
   })
@@ -343,7 +350,7 @@ describe('a saved choice', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     expect(heard).toEqual([])
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await waitFor(() => expect(heard).toEqual(['settings']))
     stop()
   })
@@ -355,7 +362,7 @@ describe('a saved choice', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     put.mockRejectedValueOnce(new Error('offline'))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     await Promise.resolve()
     expect(heard).toEqual([])
@@ -395,7 +402,7 @@ describe('a choice that is not saved', () => {
     put.mockRejectedValue(new Error('offline'))
     // The choice: a period the account does not hold.
     localStorage.setItem('rca.period.v1', JSON.stringify(42))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await advance(0)
     expect(put).toHaveBeenCalledTimes(1)
     expect(view.result.current.notSaved).toBe(true)
@@ -421,7 +428,7 @@ describe('a choice that is not saved', () => {
     await advance(0)
     put.mockRejectedValue(new Error('offline'))
     localStorage.setItem('rca.period.v1', JSON.stringify(42))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await advance(0)
     expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
     // The other tab's save went through with the shared copy: the notice here is stale.
@@ -441,7 +448,7 @@ describe('a choice that is not saved', () => {
     await advance(0)
     put.mockRejectedValueOnce(new Error('offline'))
     localStorage.setItem('rca.period.v1', JSON.stringify(42))
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await advance(0)
     expect(put).toHaveBeenCalledTimes(1)
     // Meanwhile another device changed the rides kept, which this one did not touch.
@@ -454,6 +461,59 @@ describe('a choice that is not saved', () => {
     expect(put.mock.calls[1]![0].period).toBe(storedPeriodChoice())
   })
 
+  it('keeps a choice made during a save queued: the first save ending does not clear it, and its retry still sends it', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    let finishFirst: (settings: AccountSettings) => void = () => undefined
+    put.mockImplementationOnce(() => new Promise<AccountSettings>((done) => (finishFirst = done)))
+    put.mockRejectedValueOnce(new Error('offline'))
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    act(choosePeriod)
+    await advance(0)
+    // The rides kept are chosen while the period is still being saved.
+    localStorage.setItem('rca.keepPower.v1', JSON.stringify(['ride-new']))
+    resetKeptPowerCache()
+    act(() => settingsChosen('keepPower'))
+    finishFirst({ ...ACCOUNT, period: 42 })
+    await advance(0)
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(view.result.current.notSaved).toBe(true)
+    expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
+    // The retry reads the account (which still holds the old rides) and sends this device's choice over it.
+    get.mockResolvedValue({ ...ACCOUNT, period: 42 })
+    await advance(SETTINGS_RETRY_MS)
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(3)
+    expect(put.mock.calls[2]![0]).toMatchObject({ keepPower: ['ride-new'], period: 42 })
+    expect(view.result.current.notSaved).toBe(false)
+  })
+
+  it('reads the account before its first save too, so a copy left open for days does not overwrite another device', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    get.mockResolvedValue({ ...ACCOUNT, keepPower: ['ride-from-the-phone'] })
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    act(choosePeriod)
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(put.mock.calls[0]![0]).toMatchObject({ keepPower: ['ride-from-the-phone'], period: 42 })
+  })
+
+  it('does not say it saves when the connection returns after the session ended', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    put.mockRejectedValue(new ApiRequestError(401, 'unauthorized', 'Sign in'))
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    act(choosePeriod)
+    await advance(0)
+    expect(view.result.current.notice).toBe(CHOICE_SIGNED_OUT)
+    expect(view.result.current.notice).not.toMatch(/connection/)
+  })
+
   it.each([
     ['a 429', new ApiRequestError(429, 'rate_limited', 'Slow down')],
     ['a 503', new ApiRequestError(503, 'unavailable', 'Try later')],
@@ -464,7 +524,7 @@ describe('a choice that is not saved', () => {
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await advance(0)
     put.mockRejectedValueOnce(failure)
-    act(() => settingsChosen('period'))
+    act(choosePeriod)
     await advance(0)
     await advance(SETTINGS_RETRY_MS)
     await advance(0)
@@ -481,7 +541,7 @@ describe('a choice that is not saved', () => {
       const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
       await advance(0)
       put.mockRejectedValue(refusal)
-      act(() => settingsChosen('period'))
+      act(choosePeriod)
       await advance(0)
       expect(view.result.current.notice).toBe(CHOICE_REFUSED)
       await advance(10 * SETTINGS_RETRY_MAX_MS)

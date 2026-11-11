@@ -269,6 +269,20 @@ describe('the index of the library', () => {
       expect(view.result.current.results).not.toBeNull()
     })
 
+    it('stands until an answer is current: the stored copy a held compute serves does not end it', async () => {
+      read.mockRejectedValueOnce(new Error('timeout'))
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      read.mockResolvedValue(answer({ current: false }))
+      await advance(BUSY_RETRY_MS)
+      expect(view.result.current.results).not.toBeNull()
+      expect(view.result.current.failed).toBe(true)
+      read.mockResolvedValue(answer())
+      await advance(POLL_MS)
+      expect(view.result.current.failed).toBe(false)
+    })
+
     it('takes a 404 for the same, since the library has no results to show', async () => {
       read.mockResolvedValue({ kind: 'none' })
       const view = mount()

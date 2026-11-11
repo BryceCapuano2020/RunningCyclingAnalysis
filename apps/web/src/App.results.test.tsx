@@ -74,6 +74,7 @@ describe('a library whose index has loaded and whose results have not come', () 
     render(<App />)
     expect(screen.getByText('Your results could not be fetched.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    expect(screen.getByText('Fetching is available again tomorrow.')).toBeInTheDocument()
   })
 
   it('still shows the held page for a library whose results are here and hold nothing to show', () => {

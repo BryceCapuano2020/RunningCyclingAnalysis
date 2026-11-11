@@ -91,11 +91,12 @@ export function useAccountResults(
     stored !== null && (stored.id === userId || (userId === null && keepOnExpiry))
       ? stored.results
       : null
-  const [failedFor, setFailedFor] = useState<string | null>(null)
-  const [listedVersion, setListedVersion] = useState<number | null>(null)
-  const failed = failedFor !== null && failedFor === userId
-  // The failure was a 429: the account's budget for the day is spent, and asking again does not change that.
-  const [spent, setSpent] = useState(false)
+  // The last failed ask with the account it was for; `spent` is a 429, the account's budget for the day, which asking again does not mend.
+  const [failure, setFailure] = useState<{ id: string; spent: boolean } | null>(null)
+  const [listedAt, setListed] = useState<{ id: string; version: number | null } | null>(null)
+  const failed = failure !== null && failure.id === userId
+  const spent = failed && failure.spent
+  const listedVersion = listedAt !== null && listedAt.id === userId ? listedAt.version : null
   const idRef = useRef<string | null>(null)
   const epoch = useRef(0)
   const held = useRef<StateSnapshot | null>(null)
@@ -212,15 +213,16 @@ export function useAccountResults(
         if (mine !== epoch.current) return
         // An error, a timeout, a 429 or a 404 leaves what is held and asks again, the waits doubling as they do for a row that stays stale.
         if (!read || read.kind === 'none') {
-          setFailedFor(id)
-          setSpent(over)
+          setFailure({ id, spent: over })
           misses.current++
           armRetry(busyWaitMs(misses.current))
           return
         }
-        setFailedFor(null)
-        setSpent(false)
         const wait = apply(read)
+        // A failure stands until an answer is current: the stored copy a held compute serves is not an end to it.
+        if (wait === null) {
+          setFailure(null)
+        }
         if (wait !== null) armRetry(wait)
       } finally {
         // A read of an account since left must not end the one the new account has begun.
@@ -294,7 +296,7 @@ export function useAccountResults(
   // version: the next snapshot's is the one it matches).
   const indexListed = useCallback((version?: number) => {
     indexAt.current = version ?? null
-    setListedVersion(version ?? null)
+    if (idRef.current !== null) setListed({ id: idRef.current, version: version ?? null })
   }, [])
   // The page's Retry: asks now, and the waits go on from where they were (a change, which starts them again, is `refresh`).
   const retry = useCallback(() => void pull(), [pull])
