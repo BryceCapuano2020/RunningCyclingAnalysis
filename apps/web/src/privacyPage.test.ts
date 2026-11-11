@@ -68,7 +68,14 @@ const minimiseSource = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/minimise.ts',
 )
-const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
+// The schema is split across files (the users table is its own); the page is checked against all of it.
+const apiSchema = (
+  await Promise.all(
+    ['schema.ts', 'users.ts', 'providers.ts'].map((file) =>
+      readStylesheet(import.meta.url, `../../api/src/db/${file}`),
+    ),
+  )
+).join('\n')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
 const apiList = await readStylesheet(import.meta.url, '../../api/src/routes/activities/list.ts')
 const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
@@ -690,7 +697,7 @@ describe('the code behind the page', () => {
   })
 
   it.each([
-    ['activityCreate', 'routes/activities/create.ts'],
+    ['activityCreate', 'routes/activities/saveDigest.ts'],
     ['fileDownload', 'routes/activities/file.ts'],
     ['activityDelete', 'routes/activities/remove.ts'],
     ['fileUpload', 'routes/activities/upload.ts'],

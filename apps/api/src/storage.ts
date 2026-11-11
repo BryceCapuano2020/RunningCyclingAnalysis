@@ -7,6 +7,7 @@ import {
 } from '@rca/contract'
 import { HttpError } from './errors.ts'
 import { isStateKey } from './state/key.ts'
+import { isInboxKey } from './inbox/key.ts'
 
 const DEFAULT_PAGE_SIZE = 1000
 /** At most 5,000 activities per user, so each of two cleanup sweeps needs at most 5 pages. */
@@ -358,10 +359,16 @@ export async function hasStoredFiles(db: D1Database, userId: string): Promise<bo
   return row !== null
 }
 
+/** The objects a job owns, which turning original files off leaves: the results snapshot and the inbox's files. */
+function keptByJobs(key: string): boolean {
+  return isStateKey(key) || isInboxKey(key)
+}
+
 /**
  * Removes every object under the user's prefix, reserving cleanup LIST headroom first. Callers
  * decide whether the user has objects at all, so accounts without files never spend the budget.
- * `keepState` leaves the account's results snapshot, which turning original files off does not touch.
+ * `keepState` leaves the account's results snapshot and the files waiting in its inbox, which turning
+ * original files off does not touch.
  */
 export async function sweepUserFiles(
   db: D1Database,
@@ -377,7 +384,7 @@ export async function sweepUserFiles(
       userFilePrefix(userId),
       budget,
       DEFAULT_PAGE_SIZE,
-      keepState ? isStateKey : undefined,
+      keepState ? keptByJobs : undefined,
     )
   } finally {
     await releaseR2CleanupBudget(db, budget)

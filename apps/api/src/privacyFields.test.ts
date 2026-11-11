@@ -16,8 +16,34 @@ const page = readFileSync(new URL('../../web/privacy.html', import.meta.url), 'u
   .replace(/\s+/g, ' ')
   .toLowerCase()
 
+// Garmin sync (migration 0018), off behind GARMIN_ENABLED: the page says what connecting would store.
+const GARMIN_LINK =
+  'if you connect a garmin account, the server stores its garmin user id, the permissions you granted, its access tokens encrypted with a key kept apart from the database and the name of that key, and when you connected'
+const GARMIN_INBOX =
+  "for each activity garmin sends, it stores its garmin activity id, the file's size and where it is stored, how many times it was tried, whether it was read, the reason if it could not be, and when it arrived"
+const ACTIVITY_SOURCE =
+  'each activity saved from garmin is marked as from garmin, and one added from a file as from a file'
+
 // Whole sentences of the page, so a column cannot be matched by a word that appears elsewhere.
 const DISCLOSED: Record<string, string> = {
+  'provider_links.user_id': GARMIN_LINK,
+  'provider_links.provider': GARMIN_LINK,
+  'provider_links.provider_user_id': GARMIN_LINK,
+  'provider_links.token_ciphertext': GARMIN_LINK,
+  'provider_links.key_id': GARMIN_LINK,
+  'provider_links.scopes': GARMIN_LINK,
+  'provider_links.linked_at': GARMIN_LINK,
+  'inbox_items.id': GARMIN_INBOX,
+  'inbox_items.user_id': GARMIN_INBOX,
+  'inbox_items.provider': GARMIN_INBOX,
+  'inbox_items.provider_activity_id': GARMIN_INBOX,
+  'inbox_items.file_key': GARMIN_INBOX,
+  'inbox_items.file_size': GARMIN_INBOX,
+  'inbox_items.attempts': GARMIN_INBOX,
+  'inbox_items.state': GARMIN_INBOX,
+  'inbox_items.reason': GARMIN_INBOX,
+  'inbox_items.received_at': GARMIN_INBOX,
+  'activities.source': ACTIVITY_SOURCE,
   'users.id':
     'google account id, email, display name, and profile picture address (loaded from google), and when the account was created',
   'users.email':
@@ -273,7 +299,7 @@ describe('a column the page does not list', () => {
       recursive: true,
       encoding: 'utf8',
     })
-      .filter((path) => /\.ts$/.test(path) && !/\.test\.ts$/.test(path) && path !== 'db/schema.ts')
+      .filter((path) => /\.ts$/.test(path) && !/\.test\.ts$/.test(path) && !path.startsWith('db/'))
       .map((path) => [path, readFileSync(new URL(path, import.meta.url), 'utf8')] as const)
     const writers = sources
       .filter(([, text]) => /listCursor|list_cursor/.test(text))

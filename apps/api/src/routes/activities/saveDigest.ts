@@ -2,6 +2,7 @@ import {
   ActivityCreateSchema,
   MAX_ACTIVITIES_PER_USER,
   MAX_DIGEST_BYTES_PER_USER,
+  type ActivitySource,
 } from '@rca/contract'
 import { HttpError } from '../../errors.ts'
 import { validationMessage } from '../../http.ts'
@@ -50,14 +51,15 @@ async function insertActivity(
   id: string,
   userId: string,
   input: CreateInput,
+  source: ActivitySource,
 ): Promise<D1Result<ActivityRow>> {
   const { DB, deps } = ctx
   const { dedupeKey, digest, digestJson, digestBytes, fileName, fileHash } = input
   const [inserted] = await DB.batch<ActivityRow>([
     DB.prepare(
       `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-          digest_json, file_name, file_hash, created_at)
-       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          digest_json, file_name, file_hash, created_at, source)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
        WHERE (SELECT activity_count FROM users WHERE id = ?) < ?
          AND (SELECT digest_bytes FROM users WHERE id = ?) + ? <= ?
          AND coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?
@@ -76,6 +78,7 @@ async function insertActivity(
       fileName,
       fileHash,
       deps.now(),
+      source,
       userId,
       MAX_ACTIVITIES_PER_USER,
       userId,
@@ -93,7 +96,12 @@ async function insertActivity(
 }
 
 /** Inserts a new activity, refunding its daily unit when a concurrent request wrote it first. */
-async function insertNew(ctx: SaveContext, userId: string, input: CreateInput): Promise<Saved> {
+async function insertNew(
+  ctx: SaveContext,
+  userId: string,
+  input: CreateInput,
+  source: ActivitySource,
+): Promise<Saved> {
   const { DB, db, deps } = ctx
   // What the account cannot hold is refused before a daily unit is taken, so a refused create
   // writes nothing. The insert holds the same limits, for requests that race this check.
@@ -106,7 +114,7 @@ async function insertNew(ctx: SaveContext, userId: string, input: CreateInput): 
   // Only a request that will insert a new row takes a daily create unit.
   const charge = await chargeDaily(DB, userId, 'activityCreate', deps.now())
   const id = deps.randomUUID()
-  const inserted = await insertActivity(ctx, id, userId, input)
+  const inserted = await insertActivity(ctx, id, userId, input, source)
   const row = inserted.results[0]
   if (row) {
     // Only a create that wrote its row updates the size the guard reads.
@@ -128,12 +136,13 @@ async function insertNew(ctx: SaveContext, userId: string, input: CreateInput): 
  * The one create path (docs/design/garmin-sync.md decision 6): `POST /api/activities` and Garmin's ingest consumer
  * both save through it. It checks the body (the revision, the schema, the digest's size and text), holds the quotas,
  * dedupes on `workoutKey(sport, startMs)` and keeps the athlete's stored label and name. A refusal is an HttpError.
+ * `source` is stored on a new row only: a duplicate keeps the source it was first saved with.
  */
 export async function saveDigest(
   ctx: SaveContext,
   userId: string,
   body: unknown,
-  options: { replace?: string } = {},
+  options: { replace?: string; source?: ActivitySource } = {},
 ): Promise<Saved> {
   requireCurrentRevision(body)
   const parsed = ActivityCreateSchema.safeParse(body)
@@ -145,5 +154,5 @@ export async function saveDigest(
   if (options.replace !== undefined) return replaceExact(ctx, userId, options.replace, input)
   const existing = await findExisting(ctx.db, userId, input.dedupeKey)
   if (existing) return upgradeExisting(ctx, userId, existing, input)
-  return insertNew(ctx, userId, input)
+  return insertNew(ctx, userId, input, options.source ?? 'file')
 }

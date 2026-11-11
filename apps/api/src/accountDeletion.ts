@@ -53,18 +53,19 @@ export async function finishAccountDeletion(
   userId: string,
 ): Promise<boolean> {
   const db = env.DB
-  // Decide once, while the user row still exists and deleting_at blocks new reservations: with no
-  // file rows, no R2 object can appear later, so no sweep is needed.
+  // Decide once, while the user row still exists and deleting_at blocks new reservations and pushes: with no
+  // file rows and no inbox file, no R2 object can appear later, so no sweep is needed.
   await db
     .prepare(
       `UPDATE pending_account_deletions SET sweep_pending = 0
-       WHERE user_id = ? AND sweep_pending = 1
-         AND EXISTS (SELECT 1 FROM users WHERE id = ? AND deleting_at IS NOT NULL)
+       WHERE user_id = ?1 AND sweep_pending = 1
+         AND EXISTS (SELECT 1 FROM users WHERE id = ?1 AND deleting_at IS NOT NULL)
          AND NOT EXISTS (
            SELECT 1 FROM activities
-           WHERE user_id = ? AND (file_key IS NOT NULL OR file_size IS NOT NULL))`,
+           WHERE user_id = ?1 AND (file_key IS NOT NULL OR file_size IS NOT NULL))
+         AND NOT EXISTS (SELECT 1 FROM inbox_items WHERE user_id = ?1 AND file_key IS NOT NULL)`,
     )
-    .bind(userId, userId, userId)
+    .bind(userId)
     .run()
   const pending = await db
     .prepare('SELECT sweep_pending FROM pending_account_deletions WHERE user_id = ?')
