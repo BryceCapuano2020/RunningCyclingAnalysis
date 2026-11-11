@@ -99,9 +99,7 @@ function bestRow(label: string): HTMLElement {
 
 /** The Best efforts section. */
 function bestsSection(): HTMLElement {
-  const section = screen
-    .getByRole('heading', { level: 2, name: 'Best efforts set here' })
-    .closest('section')
+  const section = screen.getByRole('heading', { level: 2, name: 'Best efforts' }).closest('section')
   if (!section) throw new Error('No Best efforts section')
   return section
 }
@@ -290,9 +288,7 @@ describe('ActivityPage', () => {
 
   it('lists the run best efforts this activity set, with the pace each was run at', async () => {
     renderPage(morningRun)
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Best efforts' })).toBeInTheDocument()
     expect(
       screen.queryByText('Best 1 min', { selector: '.records__label' }),
     ).not.toBeInTheDocument()
@@ -452,7 +448,7 @@ describe('ActivityPage', () => {
 
   it('shows no best efforts section when the activity set none, rather than saying so', () => {
     renderPage(makeActivity({ id: 'run-2', name: 'Easy run' }))
-    expect(screen.queryByRole('heading', { name: 'Best efforts set here' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Best efforts' })).not.toBeInTheDocument()
     expect(screen.queryByText(/None of your best efforts/)).not.toBeInTheDocument()
   })
 
@@ -1286,9 +1282,7 @@ describe('ActivityPage: a run at walking pace the athlete may count', () => {
     // Counting takes the cause away, whatever it was, so no cause is named: the chip is for a run still at walking pace.
     expect(screen.queryByText('Walking pace')).not.toBeInTheDocument()
     expect(screen.queryByText(/walking pace/i)).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Best efforts' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Leave this run out' }))
     expect(onStop).toHaveBeenCalledTimes(1)
   })

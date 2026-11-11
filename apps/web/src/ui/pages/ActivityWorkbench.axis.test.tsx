@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
@@ -65,8 +64,12 @@ function row(figure: HTMLElement, metric: string): Element {
   return found
 }
 
+// The first row runs from the room above it to its weight of the wide row height.
+const ROW_TOP = 20
+const ROW_BOTTOM = 108
+
 describe('ActivityWorkbench: a pace row and its artifacts', () => {
-  it('reads the axis on the pace the run held, and says what lay past each end', async () => {
+  it('reads the axis on the pace the run held, with nothing keyed past each end', async () => {
     show(runWithBriefArtifacts())
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
     const drawing = within(figure).getByRole('img', {
@@ -82,36 +85,18 @@ describe('ActivityWorkbench: a pace row and its artifacts', () => {
     // The run swung between 3 and 4 m/s a second; its trend sits near 3.5 m/s, 4:46 a kilometre, and the axis
     // is read there, on round paces, with neither the standing start (27:47) nor the burst (2:02) on it.
     expect(ticks).toEqual(['4:40', '4:50', '5:00'])
-    // The clipped readings are bars on the row's top and bottom edges, keyed under the plot, and the line never leaves the row.
-    // The key states the furthest raw readings past each edge, the burst and the standing start, as the pace is written.
-    expect(figure).toHaveTextContent('Beyond the edge pace 2:02 /km high, 27:47 /km low')
-    const edge = row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d') ?? ''
-    expect(edge).toMatch(/M [\d.-]+ 6 L/)
-    expect(edge).toMatch(/M [\d.-]+ 102 L/)
+    // The line never leaves the row, and nothing is drawn or keyed past its edges.
+    expect(row(figure, 'speed').querySelector('.ts-stack__edge')).toBeNull()
+    expect(figure).not.toHaveTextContent('Beyond the edge')
     const ys = yOf(row(figure, 'speed').querySelector('.ts-stack__line')?.getAttribute('d'))
-    expect(Math.min(...ys)).toBe(6)
-    expect(Math.max(...ys)).toBe(102)
+    expect(Math.min(...ys)).toBe(ROW_TOP)
+    expect(Math.max(...ys)).toBe(ROW_BOTTOM)
   })
 
-  it('draws the raw spread as a band much rougher than the smoothed line it surrounds', async () => {
-    const trace = runWithBriefArtifacts()
-    // A slow swell with a second-by-second jitter on it, the way a watch's pace reads.
-    trace.streams.speed = Float32Array.from(
-      { length: 1200 },
-      (_, i) => 3.5 + 0.6 * Math.sin(i / 120) + (i % 3 === 0 ? 0.35 : i % 3 === 1 ? -0.3 : 0),
-    )
-    show(trace)
+  it('draws no spread band around the line', async () => {
+    show(runWithBriefArtifacts())
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
-    const speed = row(figure, 'speed')
-    const line = yOf(speed.querySelector('.ts-stack__line')?.getAttribute('d'))
-    const band = yOf(speed.querySelector('.ts-stack__band')?.getAttribute('d')).slice(
-      0,
-      line.length,
-    )
-    const roughness = (values: number[]) =>
-      values.slice(1).reduce((sum, value, i) => sum + Math.abs(value - values[i]!), 0) /
-      values.length
-    expect(roughness(line)).toBeLessThan(roughness(band) / 3)
+    expect(row(figure, 'speed').querySelector('.ts-stack__band')).toBeNull()
   })
 
   it('does not let a spike set the axis: a rare spike is clipped at the edge and the trend keeps the row', async () => {
@@ -121,47 +106,10 @@ describe('ActivityWorkbench: a pace row and its artifacts', () => {
     show(trace)
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
     const speed = row(figure, 'speed')
-    expect(speed.querySelector('.ts-stack__edge')?.getAttribute('d')).toMatch(/M [\d.-]+ 6 L/)
+    expect(speed.querySelector('.ts-stack__edge')).toBeNull()
     // The axis spans the steady 3.5 m/s with room, not the spike: the tick labels are paces near 4:46.
     const labels = [...speed.querySelectorAll('.ts-stack__tick')].map((tick) => tick.textContent)
     expect(labels.length).toBeGreaterThan(1)
     expect(labels.every((label) => /^[3-7]:\d\d$/.test(label ?? ''))).toBe(true)
-  })
-
-  it('leaves a row with no artifacts exactly as it was', async () => {
-    const trace = runWithBriefArtifacts()
-    trace.streams.speed = Float32Array.from({ length: 1200 }, (_, i) => 3.5 + (i % 2) * 0.05)
-    show(trace)
-    const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
-    expect(row(figure, 'speed').querySelector('.ts-stack__edge')?.getAttribute('d')).toBe('')
-    expect(figure).not.toHaveTextContent('Beyond the edge')
-  })
-})
-
-describe('ActivityWorkbench: the interval tiles of a run', () => {
-  it('gives a chosen interval the average pace the activity header gives: the distance over the moving time', async () => {
-    const user = userEvent.setup()
-    show(runWithArtifacts())
-    await screen.findByRole('figure', { name: /^Pace over time/ })
-    const end = await screen.findByRole('textbox', { name: 'End time' })
-    await user.clear(end)
-    await user.type(end, '5:00{Enter}')
-    const tile = (await screen.findByText('Average pace')).parentElement!
-    // The distance up to the last sample of the interval, over its 300 s: the sum the activity header makes.
-    expect(tile).toHaveTextContent(/^Average pace\d:\d\d \/km$/)
-    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('5:00')
-  })
-
-  it('draws no stats table, for the whole activity or a part of it', async () => {
-    const user = userEvent.setup()
-    show(runWithArtifacts())
-    await screen.findByRole('figure', { name: /^Pace over time/ })
-    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
-    const end = await screen.findByRole('textbox', { name: 'End time' })
-    await user.clear(end)
-    await user.type(end, '5:00{Enter}')
-    await screen.findByText('Elapsed time')
-    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
-    expect(screen.queryByText('Typical range')).toBeNull()
   })
 })

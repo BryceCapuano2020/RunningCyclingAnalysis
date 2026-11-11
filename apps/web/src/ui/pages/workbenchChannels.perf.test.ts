@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
-import { areaPath, bandPath, linePath } from '../charts/timeSeriesModel'
+import { areaPath, linePath } from '../charts/timeSeriesModel'
 import { channelsFor } from './workbenchChannels'
 
 /**
@@ -41,7 +41,7 @@ function drawn(trace: ActivityTrace, startS: number, endS: number): number {
   const map = { x: (t: number) => t, y: (v: number) => v }
   let length = 0
   for (const channel of channelsFor(trace, METRICS, 'metric', startS, endS, 700, 3)) {
-    length += linePath(channel.columns, map).length + bandPath(channel.columns, map).length
+    length += linePath(channel.columns, map).length
     length += areaPath(channel.columns, map, 0).length
   }
   return length

@@ -92,7 +92,6 @@ describe('repFadeOf', () => {
       [5, 10],
       [6, 12],
     ])
-    expect(fade.recorded).toBe(true)
     expect(fade.metric).toBe('speed')
     expect(fade.reps[0]!.bounds).toEqual({ startS: 600, endS: 900 })
     expect(fade.reps[0]!.heartRate).toBe(150)
@@ -307,7 +306,7 @@ describe('repFadeOf', () => {
     expect(trainer.reps).toHaveLength(3)
   })
 
-  it('uses intervals found in the readings when the device recorded no laps', () => {
+  it('finds no reps in readings with no device laps', () => {
     const stretches: Stretch[] = [{ seconds: 120, power: 100, heartRate: 110 }]
     for (const power of [300, 296, 288, 280]) {
       stretches.push(
@@ -315,9 +314,7 @@ describe('repFadeOf', () => {
         { seconds: 120, power: 100, heartRate: 130 },
       )
     }
-    const fade = repFadeOf(repsTrace('ride', stretches), OUTDOOR)!
-    expect(fade.recorded).toBe(false)
-    expect(fade.reps).toHaveLength(4)
+    expect(repFadeOf(repsTrace('ride', stretches), OUTDOOR)).toBeNull()
   })
 
   it('has no table when a lap of the set has no reading, rather than dropping it', () => {

@@ -57,7 +57,7 @@ describe('the activity page of an indoor run', () => {
     renderBests(indoor, makeResult({ activities: [indoor] }))
 
     expect(screen.getByText('Indoor pace is not used for bests.')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Best efforts set here' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Best efforts' })).toBeNull()
   })
 
   it('leaves the line off an outdoor run, whose time is a Best 10 km', () => {

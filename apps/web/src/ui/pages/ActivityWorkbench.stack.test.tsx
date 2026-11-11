@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
-import { layoutOf } from '../charts/timeSeriesLayout'
+import { layoutOf, ROW_GAP_PX } from '../charts/timeSeriesLayout'
 import { ActivityWorkbench } from './ActivityWorkbench'
 import { runTrace, steadyTrace } from './test/workbenchFixtures'
 
@@ -155,37 +155,20 @@ describe('the stack’s laps and notes on the timeline', () => {
     expect(screen.getByRole('img', { name: /^From 0:02 to 0:06:/ })).toBeInTheDocument()
   })
 
-  it('draws a pause and a gap as marks on the lane under the rows, and keys only those that are there', async () => {
-    show(runTrace())
-    const plot = await surface()
-    const svg = svgOf(plot)
-    expect(svg.querySelectorAll('.ts-stack__mark--paused')).toHaveLength(1)
-    expect(svg.querySelectorAll('.ts-stack__mark--unrecorded')).toHaveLength(1)
-    const figure = screen.getByRole('figure')
-    expect(figure).toHaveTextContent('Paused')
-    expect(figure).toHaveTextContent('Not recorded')
-  })
-
-  it('draws no marks, and no key for them, on an activity with none', async () => {
-    show(steadyTrace(120))
-    const plot = await surface()
-    expect(svgOf(plot).querySelectorAll('.ts-stack__mark')).toHaveLength(0)
-    const figure = screen.getByRole('figure')
-    expect(figure).not.toHaveTextContent('Paused')
-    expect(figure).not.toHaveTextContent('Reading left out')
-  })
-
-  it('marks the readings the analysis left out as ticks on their own row', async () => {
-    const trace = steadyTrace(300)
-    const mask = new Uint8Array(300)
-    mask.fill(1, 100, 104)
+  it('draws no marks lane, skipped-reading ticks or key, whatever the activity paused or left out', async () => {
+    const trace = runTrace()
+    const mask = new Uint8Array(trace.durationS)
+    mask.fill(1, 3, 5)
     trace.unusable = { heartRate: mask }
     show(trace)
     const plot = await surface()
     const svg = svgOf(plot)
-    expect(svg.querySelectorAll('[data-channel="heartRate"] .ts-stack__skipped')).toHaveLength(1)
-    expect(svg.querySelectorAll('[data-channel="speed"] .ts-stack__skipped')).toHaveLength(0)
-    expect(screen.getByRole('figure')).toHaveTextContent('Reading left out')
+    expect(svg.querySelectorAll('.ts-stack__mark')).toHaveLength(0)
+    expect(svg.querySelectorAll('.ts-stack__skipped')).toHaveLength(0)
+    const figure = screen.getByRole('figure')
+    for (const text of ['Paused', 'Not recorded', 'Reading left out', 'Beyond the edge']) {
+      expect(figure).not.toHaveTextContent(text)
+    }
   })
 
   it('keeps the facts about the lines and bands out of the key under the plot', async () => {
@@ -221,17 +204,18 @@ describe('the stack’s layout', () => {
 
   it('gives each row its weight of the base height, and a gap between rows', () => {
     const { rows } = layoutOf(1200, [1, 0.6].map(channel))
-    expect(rows[0]!.bottom - rows[0]!.top).toBe(96)
-    expect(rows[1]!.bottom - rows[1]!.top).toBe(58)
-    expect(rows[1]!.top - rows[0]!.bottom).toBe(10)
+    expect(rows[0]!.bottom - rows[0]!.top).toBe(88)
+    expect(rows[1]!.bottom - rows[1]!.top).toBe(53)
+    expect(rows[1]!.top - rows[0]!.bottom).toBe(ROW_GAP_PX)
   })
 
-  it('puts a phone’s row names in the gap above each row, clear of its line, and a wide stack’s over the row', () => {
-    const phone = layoutOf(390, [1, 0.6].map(channel))
-    expect(phone.labelAbove).toBe(true)
-    // Room for a 12 px name above the first row and above the second.
-    expect(phone.rows[0]!.top).toBeGreaterThanOrEqual(14)
-    expect(phone.rows[1]!.top - phone.rows[0]!.bottom).toBeGreaterThanOrEqual(18)
-    expect(layoutOf(1200, [1].map(channel)).labelAbove).toBe(false)
+  it('puts every row’s name in the gap above it, and ends the plot at the last row', () => {
+    for (const width of [390, 1200]) {
+      const layout = layoutOf(width, [1, 0.6].map(channel))
+      expect(layout.rows[0]!.top).toBeGreaterThanOrEqual(18)
+      expect(layout.rows[1]!.top - layout.rows[0]!.bottom).toBe(ROW_GAP_PX)
+      expect(layout.plot.bottom).toBe(layout.rows[1]!.bottom)
+      expect(layout.height).toBeGreaterThan(layout.plot.bottom)
+    }
   })
 })

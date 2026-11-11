@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
@@ -44,6 +45,8 @@ describe('measures with nothing to draw', () => {
     const power = await screen.findByRole('checkbox', { name: /^Measured power/ })
     expect(power).toBeEnabled()
     expect(power.closest('label')).not.toHaveTextContent('no data')
+    // A run opens on its pace, so power is turned on by choosing it.
+    await userEvent.setup().click(power)
     const figure = await screen.findByRole('figure', { name: /measured power/i })
     expect(figure.querySelector('[data-channel="power"]')).not.toBeNull()
     // Its readout holds the one value it held, and the drawing is of a steady line within its row.

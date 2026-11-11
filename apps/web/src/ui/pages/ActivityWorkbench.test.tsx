@@ -173,19 +173,16 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByRole('button', { name: /^Lap 1/ })).not.toBeInTheDocument()
   })
 
-  it('names suggested intervals by number and start instead of repeating one label', async () => {
+  it('suggests no intervals from the readings of an activity with no laps', async () => {
     // Three efforts of 100 s with a rest of 100 s between them, inside a warm-up and a cool-down.
     const trace = steadyTrace(900)
     trace.streams.power = Float32Array.from({ length: 900 }, (_, index) =>
       index >= 200 && index < 700 && Math.floor((index - 200) / 100) % 2 === 0 ? 300 : 100,
     )
     show(trace)
-    expect(await screen.findByRole('heading', { name: 'Suggested intervals' })).toBeInTheDocument()
-    const buttons = screen.getAllByRole('button', { name: /^Interval \d+ · from / })
-    expect(buttons.length).toBeGreaterThan(1)
-    expect(buttons[0]).toHaveAccessibleName(/^Interval 1 · from \d+:\d{2} · /)
-    expect(buttons[1]).toHaveAccessibleName(/^Interval 2 · from \d+:\d{2} · /)
-    expect(screen.queryByText(/Inferred interval/)).not.toBeInTheDocument()
+    await screen.findByRole('figure')
+    expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Interval \d+ · from / })).not.toBeInTheDocument()
   })
 
   it('does not snap a time while it is typed, and commits it on Enter', async () => {
@@ -323,7 +320,7 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByText(/Stopped or no reading/)).not.toBeInTheDocument()
   })
 
-  it('draws elevation as an area and the other measures as lines with a band', async () => {
+  it('draws elevation as an area and the other measures as lines, with no spread band', async () => {
     const user = userEvent.setup()
     const trace = runTrace()
     trace.streams.altitude = Float32Array.from({ length: 10 }, (_, index) => 100 + index)
@@ -334,7 +331,8 @@ describe('ActivityWorkbench', () => {
     expect(elevation.querySelector('.ts-stack__area')?.getAttribute('d')).toMatch(/^M /)
     expect(elevation.querySelector('.ts-stack__band')).toBeNull()
     const heart = figure.querySelector('[data-channel="heartRate"]')!
-    expect(heart.querySelector('.ts-stack__band')?.getAttribute('d')).toMatch(/^M /)
+    expect(heart.querySelector('.ts-stack__line')?.getAttribute('d')).toMatch(/^M /)
+    expect(heart.querySelector('.ts-stack__band')).toBeNull()
     expect(heart.querySelector('.ts-stack__area')).toBeNull()
     await user.click(screen.getByRole('checkbox', { name: /^Elevation/ }))
     expect(rowsOf(screen.getByRole('figure'))).not.toContain('altitude')

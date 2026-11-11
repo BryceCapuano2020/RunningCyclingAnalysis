@@ -104,9 +104,7 @@ function splitsSection(): HTMLElement {
 }
 
 function bestsSection(): HTMLElement {
-  const section = screen
-    .getByRole('heading', { level: 2, name: 'Best efforts set here' })
-    .closest('section')
+  const section = screen.getByRole('heading', { level: 2, name: 'Best efforts' }).closest('section')
   if (!section) throw new Error('No Best efforts section')
   return section
 }

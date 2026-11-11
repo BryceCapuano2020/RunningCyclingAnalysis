@@ -107,7 +107,7 @@ describe('many laps', () => {
   })
 })
 
-describe('laps and suggested intervals', () => {
+describe('laps only', () => {
   /** Four 5 min reps with a 1 min jog between them, and the device's laps cutting across them every 8 min. */
   function lappedReps(): ActivityTrace {
     const reps = [3.7, 3.65, 3.6, 3.5].flatMap((speed) => [
@@ -121,25 +121,22 @@ describe('laps and suggested intervals', () => {
     ])
   }
 
-  it('shows both, the device’s laps first and the suggested intervals beside them', async () => {
+  it('shows the device’s laps and no suggested intervals beside them', async () => {
     show(lappedReps())
     await screen.findByRole('heading', { name: 'Laps' })
     const titles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(titles.indexOf('Laps')).toBeGreaterThanOrEqual(0)
-    expect(titles.indexOf('Suggested intervals')).toBeGreaterThan(titles.indexOf('Laps'))
+    expect(titles).toContain('Laps')
+    expect(titles).not.toContain('Suggested intervals')
     expect(screen.getByRole('button', { name: /^Lap 1 · from 0:00/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Interval 1 · from / })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Interval \d/ })).toBeNull()
   })
 
-  it('shows the suggestions alone when the device recorded none, and the laps alone when nothing is suggested', async () => {
+  it('shows nothing for readings with no device laps, however hard the efforts', async () => {
     const trace = lappedReps()
     trace.laps = []
-    const { unmount } = show(trace)
-    await screen.findByRole('heading', { name: 'Suggested intervals' })
+    show(trace)
+    await screen.findByRole('figure')
     expect(screen.queryByRole('heading', { name: 'Laps' })).toBeNull()
-    unmount()
-    show(lapped(4))
-    await screen.findByRole('heading', { name: 'Laps' })
     expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).toBeNull()
   })
 })
