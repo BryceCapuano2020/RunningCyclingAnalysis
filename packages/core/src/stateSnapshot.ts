@@ -8,7 +8,8 @@ import type { SessionState } from './sessionState'
 /**
  * A `SessionState` as plain JSON, for a copy kept on the device and for the one the server computes
  * (docs/design/server-compute.md, decision 7). The browser applies a snapshot only when its `schemaVersion` and
- * `modelRevision` are its own build's; otherwise it computes locally.
+ * `modelRevision` are its own build's; otherwise it computes locally. Only ever raised: the server orders its stored
+ * snapshots by it (apps/api/src/state/resultRevision.ts), so a lower value is never healed.
  */
 export const STATE_SNAPSHOT_VERSION = 2
 

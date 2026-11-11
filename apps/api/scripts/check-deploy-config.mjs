@@ -63,13 +63,10 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
 
 /**
  * Results computed on the server (docs/design/server-authority.md) need Workers Paid and run for every signed-in account.
- * Any queue or [limits] block must be the whole, bounded set: the STATE_QUEUE producer, a consumer with a small batch, one
+ * The queue and [limits] blocks must be present and be the whole, bounded set, since every account depends on them: the STATE_QUEUE producer, a consumer with a small batch, one
  * at a time, a retry limit and a dead-letter queue, and a CPU cap.
  */
 function checkServerState(config) {
-  const queues = /^\[\[queues\./m.test(config) || /^\[queues\b/m.test(config)
-  const limits = /^\[limits\]/m.test(config)
-  if (!queues && !limits) return
   const producer =
     /^\[\[queues\.producers\]\]\s*\n(?:(?!\[\[).)*?^binding\s*=\s*["']STATE_QUEUE["']/ms.test(
       config,

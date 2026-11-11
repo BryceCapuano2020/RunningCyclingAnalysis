@@ -328,7 +328,7 @@ the Worker that reads it**: `GET /api/state`, the state job and the daily re-sen
 | Wrangler blocks   | `[limits] cpu_ms = 10000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
 | Plan              | Workers Paid (Queues, `limits.cpu_ms`)                                                                                                                                                                                                                 |
 
-The deploy check (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) accepts no queue and no `[limits]`, or the whole
+The deploy check (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) requires the whole
 set: the producer, a consumer that sets `max_batch_size`, `max_concurrency = 1`, `max_retries` and `dead_letter_queue`, and a
 CPU cap. No scheduled trigger computes. The daily maintenance sends one message for each account (at most 50 a run, the one
 whose last compute began longest ago first) whose inputs moved past its last compute, or whose stored result revision is lower than this

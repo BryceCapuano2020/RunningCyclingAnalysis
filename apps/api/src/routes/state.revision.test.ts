@@ -5,7 +5,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { runStateJob } from '../state/job.ts'
 import { STATE_CLAIM_SECONDS } from '../state/message.ts'
 import { forgetUnstored } from '../state/lock.ts'
-import { RESULT_REVISION, resultRevisionOf } from '../state/resultRevision.ts'
+import {
+  RELEASED_RESULT_REVISION_FLOOR,
+  RESULT_REVISION,
+  resultRevisionOf,
+} from '../state/resultRevision.ts'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
 import { liftSet } from '../test/lifts.ts'
 
@@ -55,6 +59,8 @@ describe('the result revision', () => {
     expect(ordered).toEqual([...ordered].sort((a, b) => a - b))
     expect(new Set(ordered).size).toBe(ordered.length)
     expect(RESULT_REVISION).toBe(resultRevisionOf(A, S, L))
+    // Never below what a release has written: a part that went down is never healed.
+    expect(RESULT_REVISION).toBeGreaterThanOrEqual(RELEASED_RESULT_REVISION_FLOOR)
     expect(() => resultRevisionOf(1000, 0, 0)).toThrow()
     expect(() => resultRevisionOf(0, -1, 0)).toThrow()
   })
@@ -68,6 +74,7 @@ describe('GET /api/state against the stored result revision', () => {
       'one made under an earlier analysis, whatever its other parts',
       resultRevisionOf(A - 1, 999, 999),
     ],
+    ['a row from before the result revision, holding the analysis revision alone', A],
   ])(
     "computes %s again, and writes this build's revision to the row and the object",
     async (_name, stored) => {

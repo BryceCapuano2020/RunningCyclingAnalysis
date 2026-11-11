@@ -1,9 +1,9 @@
 import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
-import { runMaintenance } from '../maintenance.ts'
+import { MAX_MAINTENANCE_OPERATIONS, runMaintenance } from '../maintenance.ts'
 import { stateWorld } from '../test/stateKit.ts'
 import { clearPending } from './pending.ts'
-import { resendDirty } from './resend.ts'
+import { MAX_RESEND_ACCOUNTS, resendDirty } from './resend.ts'
 
 describe('the daily re-send', () => {
   it('sends one message for an account left dirty with none on its way, and none while one is', async () => {
@@ -55,13 +55,43 @@ describe('the daily re-send', () => {
     expect(await resendDirty(w.env, now)).toBe(1)
   })
 
-  it('sends for every account, not a list, the one whose last compute began longest ago first', async () => {
+  it('sends for every account, the one whose last compute began longest ago first, at most the limit', async () => {
     const w = await stateWorld()
-    const other = await w.h.signIn('second@example.com')
-    expect(other).not.toBe('')
+    const ids = [w.userId]
+    for (const email of ['b@example.com', 'c@example.com']) {
+      const token = await w.h.signIn(email)
+      const me = (await (
+        await w.h.send({ path: '/api/me', cookies: { rca_session: token } })
+      ).json()) as { user: { id: string } }
+      ids.push(me.user.id)
+    }
+    // Attempted most recently, longest ago, and never: never first, then longest ago.
+    const attempted = [3_000, 1_000, 0]
+    for (const [i, id] of ids.entries()) {
+      await w.env.DB.prepare(
+        'INSERT INTO state_jobs (user_id, attempted_at) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2',
+      )
+        .bind(id, attempted[i])
+        .run()
+    }
     w.sent.length = 0
-    expect(await resendDirty(w.env, w.h.clock.now)).toBe(2)
-    expect(new Set(w.sent.map((m) => m.body.userId)).size).toBe(2)
+    expect(await resendDirty(w.env, w.h.clock.now, 2)).toBe(2)
+    expect(w.sent.map((m) => m.body.userId)).toEqual([ids[2], ids[1]])
+    expect(await resendDirty(w.env, w.h.clock.now, 0)).toBe(0)
+    // The rest follow once the first two have messages on their way.
+    expect(await resendDirty(w.env, w.h.clock.now)).toBe(1)
+    expect(w.sent.at(-1)?.body.userId).toBe(ids[0])
+  })
+
+  it('stops within the maintenance operation budget and reports what it sent', async () => {
+    const w = await stateWorld()
+    for (let i = 0; i < 24; i += 1) await w.h.signIn(`many-${i}@example.com`)
+    w.sent.length = 0
+    const report = await runMaintenance(w.env, w.deps)
+    expect(report.operations).toBeLessThanOrEqual(MAX_MAINTENANCE_OPERATIONS)
+    expect(report.stateResent).toBeGreaterThan(0)
+    expect(report.stateResent).toBeLessThanOrEqual(MAX_RESEND_ACCOUNTS)
+    expect(report.stateResent).toBe(w.sent.length)
   })
 
   it('leaves a library the server does not compute for to the browser', async () => {

@@ -2,6 +2,7 @@ import { runInNewContext } from 'node:vm'
 import { setFlagsFromString, getHeapStatistics } from 'node:v8'
 import { describe, expect, it } from 'vitest'
 import { copiedLibrary } from '../../../../packages/core/src/test/libraryFixture'
+import { seedLiftSets } from '../test/liftRows.ts'
 import { seedDigests, stateWorld } from '../test/stateKit.ts'
 import { runStateJob } from './job.ts'
 import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
@@ -20,12 +21,16 @@ const used = () => getHeapStatistics().used_heap_size
 /** The 128 MB the isolate holds, heap and Wasm together. */
 const ISOLATE_MIB = 128
 
-describe('the state job memory', () => {
-  it.each([1000, 2000, 3000, 5000])('peak heap for a library of %i activities', async (count) => {
-    const w = await stateWorld({ email: `memory-${count}@example.com` })
+/** The most lift sets an account holds (the check on users.lift_count). */
+const MAX_LIFT_SETS = 60_000
+
+async function measure(count: number, liftSets: number, limitMiB = ISOLATE_MIB / 2): Promise<void> {
+  {
+    const w = await stateWorld({ email: `memory-${count}-${liftSets}@example.com` })
     const library = copiedLibrary(count, { hard: true })
     w.h.clock.now = Math.max(...library.map((digest) => digest.startMs)) + 7_200_000
     await seedDigests(w.env.DB, w.userId, library)
+    if (liftSets > 0) await seedLiftSets(w.env.DB, w.userId, liftSets)
     const stored = await w.env.DB.prepare(
       'SELECT sum(length(digest_json)) AS bytes FROM activities WHERE user_id = ?',
     )
@@ -83,10 +88,21 @@ describe('the state job memory', () => {
       JSON.stringify({
         event: 'state_job_memory',
         activities: count,
+        liftSets,
         digestMiB: Math.round((stored!.bytes / MiB) * 10) / 10,
         peakHeapMiB: Math.round(peakMiB * 10) / 10,
       }),
     )
-    if (count <= SERVER_STATE_MAX_ACTIVITIES) expect(peakMiB).toBeLessThan(ISOLATE_MIB / 2)
-  })
+    if (count <= SERVER_STATE_MAX_ACTIVITIES) expect(peakMiB).toBeLessThan(limitMiB)
+  }
+}
+
+describe('the state job memory', () => {
+  it.each([1000, 2000, 3000, 5000])('peak heap for a library of %i activities', (count) =>
+    measure(count, 0),
+  )
+
+  // Garbage-dependent: 52 and 74 MiB in two runs, so up to over half the isolate, so the bound here is three quarters: LIMITS.md records it as the case to watch.
+  it('peak heap for 2,000 activities and the most lift sets an account holds', () =>
+    measure(SERVER_STATE_MAX_ACTIVITIES, MAX_LIFT_SETS, (ISOLATE_MIB * 3) / 4))
 })

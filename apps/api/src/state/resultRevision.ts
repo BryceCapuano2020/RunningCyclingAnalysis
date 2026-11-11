@@ -20,6 +20,13 @@ export function resultRevisionOf(analysis: number, schema: number, lift: number)
   return (analysis * PART + schema) * PART + lift
 }
 
+/**
+ * The lowest result revision any release has written, and the floor `resultRevision.test.ts` pins this build against. A part
+ * that went down would be read as a later Worker's snapshot, kept and never healed. Raise it to the new revision at each
+ * release that moves a part (docs/RELEASES.md); never lower it. 5, 2, 4 is the build that first stored the tuple.
+ */
+export const RELEASED_RESULT_REVISION_FLOOR = resultRevisionOf(5, 2, 4)
+
 /** What this build writes. */
 export const RESULT_REVISION = resultRevisionOf(
   ANALYSIS_REVISION,
