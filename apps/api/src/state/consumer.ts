@@ -10,6 +10,7 @@ import {
   type StateMessage,
 } from './message.ts'
 import { markPending } from './pending.ts'
+import { claimWaitMs } from './record.ts'
 
 /** What a batch did, for the log line: counts only, never an id or a figure. */
 export interface BatchReport {
@@ -54,7 +55,12 @@ export async function handleStateBatch(
         // would leave the account dirty with nothing on its way. Busy (another compute, in this isolate or another, holds
         // the account) is the same: a retry would count toward the Queue's limit and could end in the dead-letter queue, a
         // fresh message does not. The write is computed once the delay has passed.
-        const delay = outcome === 'busy' ? STATE_LOCK_RETRY_SECONDS : STATE_MIN_INTERVAL_SECONDS
+        // A busy account waits out what is left of the claim that holds it, not five seconds at a time (an isolate's own lock has none).
+        const left = outcome === 'busy' ? await claimWaitMs(env.DB, userId, deps.now()) : 0
+        const delay =
+          outcome === 'busy'
+            ? Math.max(STATE_LOCK_RETRY_SECONDS, Math.ceil(left / 1000))
+            : STATE_MIN_INTERVAL_SECONDS
         if (env.STATE_QUEUE === undefined) throw new Error('state job: no queue bound')
         await markPending(env.DB, userId, deps.now(), delay)
         await env.STATE_QUEUE.send({ userId }, { delaySeconds: delay })
@@ -82,7 +88,7 @@ export async function handleStateBatch(
   return report
 }
 
-/** The size class of an account's library, for the failure log: the account limit is 4,000. */
+/** The size class of an account's library, for the failure log: the account limit is 3,000. */
 async function activityBucket(db: D1Database, userId: string): Promise<string> {
   try {
     const row = await db

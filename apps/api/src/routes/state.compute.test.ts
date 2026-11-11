@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createHarness } from '../test/harness.ts'
 import { racingDb } from '../test/racingDb.ts'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
-import { STATE_CLAIM_SECONDS } from '../state/message.ts'
+import { STATE_CLAIM_SECONDS, STATE_FAILURE_HOLD_SECONDS } from '../state/message.ts'
 import { forgetUnstored, withComputeLock } from '../state/lock.ts'
 import { runStateJob } from '../state/job.ts'
 
@@ -280,7 +280,7 @@ describe('compute on read', () => {
     expect(await w.used()).toBe(1)
   })
 
-  it('serves what is stored, or 202, while another isolate holds the claim, and computes once the window has passed', async () => {
+  it('serves what is stored, or 202, while another isolate holds the claim, and computes once the window and the hold after a compute that died have passed', async () => {
     const w = await ready()
     await w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
       .bind(w.userId)
@@ -302,7 +302,10 @@ describe('compute on read', () => {
       .bind(w.userId)
       .run()
     expect((await get()).status).toBe(202)
+    // The window passes with no release: that compute died, and its claim is held like a failure's.
     h.clock.now += CLAIM_MS + 1
+    expect((await get()).status).toBe(202)
+    h.clock.now += STATE_FAILURE_HOLD_SECONDS * 1000
     expect((await get()).status).toBe(200)
     expect(reads.n).toBe(1)
   })

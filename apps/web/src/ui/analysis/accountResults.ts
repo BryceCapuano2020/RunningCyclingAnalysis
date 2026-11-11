@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { SessionState } from '@rca/core/session'
+import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { LiftResults } from '@rca/core/lift'
 import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
+import { ApiRequestError } from '../../api/apiError'
 import { readServerState } from '../../api/state'
 import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
@@ -76,7 +77,13 @@ export function useAccountResults(
 ): {
   results: AccountResults | null
   refresh: () => void
+  /** The page's Retry, asking now with the waits going on; null when the last failure was a spent budget (a 429), which asking cannot mend. */
+  retry: (() => void) | null
   indexListed: (version?: number) => void
+  /** The library version the worker's index was listed at, when it said (null otherwise): results of an earlier version are behind it. */
+  listedVersion: number | null
+  /** The last ask could not be answered (an error, a timeout, a 429, or a 404): nothing is known to be wrong with the library. */
+  failed: boolean
 } {
   // The results with the account they are of, so a shown result is never another account's.
   const [stored, setStored] = useState<{ id: string; results: AccountResults } | null>(null)
@@ -84,6 +91,12 @@ export function useAccountResults(
     stored !== null && (stored.id === userId || (userId === null && keepOnExpiry))
       ? stored.results
       : null
+  // The last failed ask with the account it was for; `spent` is a 429, the account's budget for the day, which asking again does not mend.
+  const [failure, setFailure] = useState<{ id: string; spent: boolean } | null>(null)
+  const [listedAt, setListed] = useState<{ id: string; version: number | null } | null>(null)
+  const failed = failure !== null && failure.id === userId
+  const spent = failed && failure.spent
+  const listedVersion = listedAt !== null && listedAt.id === userId ? listedAt.version : null
   const idRef = useRef<string | null>(null)
   const epoch = useRef(0)
   const held = useRef<StateSnapshot | null>(null)
@@ -170,6 +183,13 @@ export function useAccountResults(
 
   const pull = useCallback(
     async function run(fresh = false): Promise<void> {
+      // Only while in view: coming back into view asks again at once. One timer at most, whichever ask armed the last.
+      const armRetry = (wait: number) => {
+        clearTimeout(timer.current)
+        timer.current = setTimeout(() => {
+          if (document.visibilityState === 'visible') void run()
+        }, wait)
+      }
       if (idRef.current === null) return
       // A change someone made (this tab, or another) starts the waits again: a burst of them is not a row that stays stale.
       if (fresh) misses.current = 0
@@ -183,19 +203,27 @@ export function useAccountResults(
         clearTimeout(timer.current)
         const id = idRef.current
         const tag = refused.current ?? held.current
+        let over = false
         const read = await Promise.resolve()
           .then(() => readServerState(id, tag))
-          .catch(() => null)
-        if (mine !== epoch.current || !read || read.kind === 'none') return
-        const wait = apply(read)
-        // Only while in view: coming back into view asks again at once.
-        if (wait !== null) {
-          // One timer at most, whichever ask armed the last.
-          clearTimeout(timer.current)
-          timer.current = setTimeout(() => {
-            if (document.visibilityState === 'visible') void run()
-          }, wait)
+          .catch((error: unknown) => {
+            over = error instanceof ApiRequestError && error.status === 429
+            return null
+          })
+        if (mine !== epoch.current) return
+        // An error, a timeout, a 429 or a 404 leaves what is held and asks again, the waits doubling as they do for a row that stays stale.
+        if (!read || read.kind === 'none') {
+          setFailure({ id, spent: over })
+          misses.current++
+          armRetry(busyWaitMs(misses.current))
+          return
         }
+        const wait = apply(read)
+        // A failure stands until an answer is current: the stored copy a held compute serves is not an end to it.
+        if (wait === null) {
+          setFailure(null)
+        }
+        if (wait !== null) armRetry(wait)
       } finally {
         // A read of an account since left must not end the one the new account has begun.
         if (mine === epoch.current) {
@@ -268,8 +296,31 @@ export function useAccountResults(
   // version: the next snapshot's is the one it matches).
   const indexListed = useCallback((version?: number) => {
     indexAt.current = version ?? null
+    if (idRef.current !== null) setListed({ id: idRef.current, version: version ?? null })
   }, [])
-  return { results, refresh: onChange, indexListed }
+  // The page's Retry: asks now, and the waits go on from where they were (a change, which starts them again, is `refresh`).
+  const retry = useCallback(() => void pull(), [pull])
+  return {
+    results,
+    refresh: onChange,
+    retry: spent ? null : retry,
+    indexListed,
+    listedVersion,
+    failed,
+  }
+}
+
+/**
+ * The server's state with what only the browser knows laid over it: the last import's facts (refused files, unsaved activities) and the
+ * worker's index (the library's age and size). For the same digests and no import they are what the state already holds, so the layer
+ * changes nothing (held by the equivalence test).
+ */
+export function layerState(
+  state: SessionState,
+  facts: ImportFacts | null,
+  index: IndexFacts | null,
+): SessionState {
+  return { ...state, ...facts, ...index }
 }
 
 /** What the page shows. */
@@ -298,7 +349,7 @@ export function useShownResults(
   const held = shows ? results : null
   const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
   const state = useMemo(
-    () => ({ ...(held?.state ?? EMPTY_SESSION), ...device.facts, ...device.index }),
+    () => layerState(held?.state ?? EMPTY_SESSION, device.facts, device.index),
     [held, device.facts, device.index],
   )
   return { state: shows ? state : device.state, lift, stale: held?.stale === true }
@@ -312,4 +363,33 @@ function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
   if (expired && atExpiry === null) setAtExpiry(deviceState)
   else if (!expired && atExpiry !== null) setAtExpiry(null)
   return expired && deviceState === atExpiry
+}
+
+/**
+ * Whether the page waits for an account's results, or could not get them. A signed-in account with none yet shows its loading state, not
+ * an empty library. So does one whose results are older than its library: a snapshot the server served from its store while it computes
+ * (not current, or a copy kept from an earlier visit), with nothing in it while the index lists activities, or of a library version
+ * behind the one the index was listed at. One the server could not answer says so, with a retry, unless the library read itself failed
+ * (its notice has it). `listed` is how many activities the index lists.
+ */
+export function resultsFlags(
+  userId: string | null,
+  {
+    results,
+    failed,
+    listedVersion,
+  }: { results: AccountResults | null; failed: boolean; listedVersion: number | null },
+  libraryStatus: string,
+  listed: number,
+): { resultsWaiting: boolean; resultsFailed: boolean } {
+  if (userId === null) return { resultsWaiting: false, resultsFailed: false }
+  const behind =
+    results === null ||
+    (!results.current &&
+      ((results.state.result === null && listed > 0) ||
+        (listedVersion !== null && results.snapshot.libraryVersion < listedVersion)))
+  return {
+    resultsWaiting: behind && !failed,
+    resultsFailed: behind && failed && libraryStatus !== 'failed',
+  }
 }

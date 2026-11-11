@@ -16,7 +16,7 @@ export const ACCOUNT_SCOPE_HEADER = 'X-RCA-User'
  * results of every account (no account falls back to the browser), so this and the digest byte quota below are what the
  * state job's heap is measured against (apps/api/LIMITS.md, state/memory.sim.test.ts).
  */
-export const MAX_ACTIVITIES_PER_USER = 4000
+export const MAX_ACTIVITIES_PER_USER = 3000
 
 /** Most original-file bytes one user may store, summed over their activities. */
 export const MAX_STORED_BYTES_PER_USER = 1024 * 1024 * 1024
@@ -38,7 +38,7 @@ export const DAILY_LIMITS = {
   activityDelete: 50,
   activityCreate: MAX_ACTIVITIES_PER_USER,
   fileUpload: 2000,
-  /** Library listings and profile reads. One listing of 4,000 rows is 4,000 D1 rows read. */
+  /** Library listings and profile reads. One listing of 3,000 rows is 3,000 D1 rows read. */
   read: 100,
   /** Dated-settings writes (adds and deletes). Each is one D1 row written. */
   measurementWrite: 200,
@@ -183,7 +183,7 @@ export const MAX_PAGE_BODY_BYTES =
   MAX_INTEGER_JSON_BYTES
 
 /** Most digest JSON bytes one user may store, summed over their activities. See apps/api/LIMITS.md. */
-export const MAX_DIGEST_BYTES_PER_USER = 32 * 1024 * 1024
+export const MAX_DIGEST_BYTES_PER_USER = 24 * 1024 * 1024
 /**
  * Creates are refused while the database's last-seen size is above this. D1 Free allows 500 MB per
  * database; the margin leaves room for in-flight writes and the ledger row itself.

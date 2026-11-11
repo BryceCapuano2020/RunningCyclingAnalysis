@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { snapshotContentHash } from '@rca/core/stateSnapshot'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiRequestError } from '../../api/apiError'
 import type { StateRead } from '../../api/state'
 import * as api from '../../api/state'
 import { resultState, snapshotAt } from '../../test/stateCopyKit'
@@ -246,5 +247,81 @@ describe('the index of the library', () => {
     await flush()
     expect(view.result.current.results?.snapshot.libraryVersion).toBe(6)
     expect(behind).toHaveBeenCalledTimes(1)
+  })
+
+  describe('when the server cannot be asked', () => {
+    it('says so, asks again after the short wait and then at doubling ones, and clears it on an answer', async () => {
+      read.mockRejectedValue(new Error('timeout'))
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      expect(read).toHaveBeenCalledTimes(1)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      // The second wait is twice as long: an error is not asked about every few seconds either.
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(3)
+      read.mockResolvedValue(answer())
+      await advance(2 * BUSY_RETRY_MS * 2)
+      expect(view.result.current.failed).toBe(false)
+      expect(view.result.current.results).not.toBeNull()
+    })
+
+    it('stands until an answer is current: the stored copy a held compute serves does not end it', async () => {
+      read.mockRejectedValueOnce(new Error('timeout'))
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      read.mockResolvedValue(answer({ current: false }))
+      await advance(BUSY_RETRY_MS)
+      expect(view.result.current.results).not.toBeNull()
+      expect(view.result.current.failed).toBe(true)
+      read.mockResolvedValue(answer())
+      await advance(POLL_MS)
+      expect(view.result.current.failed).toBe(false)
+    })
+
+    it('takes a 404 for the same, since the library has no results to show', async () => {
+      read.mockResolvedValue({ kind: 'none' })
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it('asks at once for the page’s Retry and keeps the waits where they were; one spent budget (a 429) offers none', async () => {
+      read.mockRejectedValue(new Error('timeout'))
+      const view = mount()
+      await flush()
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      // The next wait is the doubled one; Retry reads now, and the wait after it is longer still, not the short one again.
+      act(() => view.result.current.retry?.())
+      await flush()
+      expect(read).toHaveBeenCalledTimes(3)
+      await advance(BUSY_RETRY_MS * 2)
+      expect(read).toHaveBeenCalledTimes(3)
+      await advance(BUSY_RETRY_MS * 2)
+      expect(read).toHaveBeenCalledTimes(4)
+      read.mockRejectedValue(new ApiRequestError(429, 'rate_limited', 'Too many requests'))
+      await advance(BUSY_RETRY_MS * 8)
+      expect(view.result.current.failed).toBe(true)
+      expect(view.result.current.retry).toBeNull()
+    })
+  })
+})
+
+describe('a 304 on the held copy', () => {
+  it('makes the copy current when the server says so, and keeps it as it was otherwise', async () => {
+    read.mockResolvedValueOnce(answer({ current: false }))
+    const view = mount()
+    await flush()
+    expect(view.result.current.results?.current).toBe(false)
+    read.mockResolvedValue({ kind: 'unchanged', nowMs: null, version: null, current: true })
+    await advance(BUSY_RETRY_MS)
+    expect(view.result.current.results?.current).toBe(true)
   })
 })

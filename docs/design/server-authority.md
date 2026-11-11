@@ -115,11 +115,11 @@ few seconds; it never acks it, so a write made with no tab open is still compute
 loop for its CPU time, under a second at 2,000 activities; the cap measurement below records it at the largest library.
 
 **One compute per account.** Across isolates, a read that computes takes a claim first: one conditional upsert that sets
-`state_jobs.claim_until` to now plus `STATE_CLAIM_SECONDS` (10 s) when none is held. A second read, in any isolate, and a
+`state_jobs.claim_until` to now plus `STATE_CLAIM_SECONDS` (60 s) when none is held. A second read, in any isolate, and a
 queued message that find it held serve what is stored (the message retries). The claim is held while the compute runs,
 not after: when the compute finishes (written, unchanged or gone), or a read ends without one (a write landed twice, over budget), it frees the claim, only if the row still
-holds its own stamp, so a read that follows an import computes at once instead of waiting out the window. The 10 s is
-the bound on a compute that dies, and the throttle on one that fails: a failed compute leaves its claim to lapse, so a failure that repeats is not recomputed on every read. A read that finds its claim lost when it stamps it again stops and serves what is stored. The queue's interval (`STATE_MIN_INTERVAL_SECONDS`, 30 s) is a
+holds its own stamp, so a read that follows an import computes at once instead of waiting out the window. The 60 s is
+the bound on a compute that dies (one can run 15 to 31 s at the quotas). A compute in a read that throws keeps its unit charged and leaves its claim held: `claim_until` is moved to the instant of the failure, which is lapsed and not zero (a released claim is 0), and a read holds a claim like that for `STATE_FAILURE_HOLD_SECONDS` (5 minutes) after it lapsed. A compute that dies (a CPU-limit kill runs no catch) leaves the same mark, so it is held the same way. A failure that repeats is not recomputed by every tab's poll, and a user it fails for every time reaches the daily cap. The queue's job passes no hold: it retries a failure itself after `STATE_RETRY_SECONDS`, so a failure hold does not make its messages busy. A message that finds the account busy waits what is left of the claim (`claimWaitMs`), not five seconds at a time. A read that finds its claim lost when it stamps it again stops and serves what is stored. The queue's interval (`STATE_MIN_INTERVAL_SECONDS`, 30 s) is a
 separate clock: it reads `attempted_at` and `computed_at`, which the claim still stamps and the release leaves alone,
 so a burst of messages still coalesces. `claim_until` is a defaulted column in migration 0019.
 
@@ -138,17 +138,17 @@ runs computes for different accounts in one isolate.
 
 The server computes for every account, so its bound is the account limits, and no smaller one: `SERVER_STATE_MAX_ACTIVITIES`
 and the `too_large` outcome are gone. Memory grows with digest bytes, not with activity count. The limits came down so the
-largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 4,000 and `MAX_DIGEST_BYTES_PER_USER` 64 to 32 MiB, with
+largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 3,000 and `MAX_DIGEST_BYTES_PER_USER` 64 to 24 MiB (4,000 and 32 MiB first; that case dropped Miniflare's local D1 socket on CI, so the cap went to 3,000 as agreed), with
 `MAX_LIFT_SETS_PER_USER` (60,000, the database's own check) in the same case.
 
 - **Measured in workerd** (apps/api/LIMITS.md has the figures): the job on synthetic data at those limits, with the isolate's
   heap limited by `MINIFLARE_WORKERD_V8_FLAGS="--max-old-space-size=N"`, passes at 96 MB. CPU is 15.6 s there (the
   collector thrashing), about 31 s at the 2x allowance for Cloudflare's CPUs, so `limits.cpu_ms` is 60,000: about 2x over the
-  thrash case. If 4,000 later fails CI, the cap goes to 3,000.
+  thrash case. These runs were at 4,000 and 32 MiB, an upper bound for the 3,000 and 24 MiB now set.
 - **A test pins it.** The memory sim asserts the library it measured is the account limits (activities, lift sets and the byte quota), and `state/memoryCases.test.ts` pins that case to the contract's constants.
 - **Lowering a quota is not safe on its own:** rows over a new quota are kept, never dropped. The release session first
-  checks, with a read-only query, that no account in production is over either (`activity_count > 4000` or
-  `digest_bytes > 33554432` on `users`); one that is would still compute, and may not fit. **That read-only check is the guard**: the `too_large` outcome that once sent an oversized account to the browser is gone, so an account that does not fit the isolate fails its job on every try, goes to the dead-letter queue, and is re-sent and fails again each day (its `state_job_failed` log line carries `activities`, a size bucket and no figure).
+  checks, with a read-only query, that no account in production is over either (`activity_count > 3000` or
+  `digest_bytes > 25165824` on `users`); one that is would still compute, and may not fit. **That read-only check is the guard**: the `too_large` outcome that once sent an oversized account to the browser is gone, so an account that does not fit the isolate fails its job on every try, goes to the dead-letter queue, and is re-sent and fails again each day (its `state_job_failed` log line carries `activities`, a size bucket and no figure).
 
 ## What the browser stops doing for accounts
 

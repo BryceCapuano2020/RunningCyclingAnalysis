@@ -40,8 +40,7 @@ export function heldIds({ library }: KeepState, keys: readonly string[]): (strin
 /**
  * Moves one saved workout to a digest rebuilt from its original file: the digest leaves `readable` or `heldOut` for the
  * map its revision calls for. A workout the library holds at the same or a higher rank than the new digest (another copy
- * already current) is left as it is. Says whether it moved. It builds no state: a rebuild of thousands of digests
- * moves each to its place and the page hears of the change with the next state.
+ * already current) is left as it is. Says whether it moved.
  */
 export function replaceDigest(
   { library }: KeepState,

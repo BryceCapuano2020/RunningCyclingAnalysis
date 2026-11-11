@@ -67,6 +67,23 @@ describe('the consumer and the isolate lock', () => {
     expect(await stored(w)).toBe(0)
   })
 
+  it('delays its fresh message by what is left of the claim, not five seconds at a time through a failure hold', async () => {
+    const w = await prepared()
+    // A read's compute failed 100 s ago: its claim is held for the failure hold, and the queue's job is not held by it but a running
+    // claim in another isolate is. Here the claim is a running one with 40 s left.
+    await claimCompute(w.env.DB, w.userId, w.h.clock.now - 40_000, 60_000)
+    const { batch } = fakeBatch([w.userId])
+    const report = await handleStateBatch(batch, w.env, w.deps)
+    expect(report.outcomes).toEqual({ busy: 1 })
+    expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 20 } }])
+  })
+
+  it('computes over a failure hold: the queue retries a failure itself, so it is not held by the hold a read put', async () => {
+    const w = await prepared()
+    await claimCompute(w.env.DB, w.userId, w.h.clock.now - 100_000, 60_000, 300_000)
+    expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
+  })
+
   it("acknowledges without computing when the stored snapshot is a later Worker's", async () => {
     const w = await prepared()
     await runStateJob(w.env, w.deps, w.userId)

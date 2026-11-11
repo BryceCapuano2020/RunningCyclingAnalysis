@@ -83,6 +83,13 @@ describe('readServerState', () => {
     expect(await readServerState('u1')).toEqual({ kind: 'computing', retryAfterMs: 5_000 })
   })
 
+  it('answers a 202 whose body cannot be cancelled all the same', async () => {
+    const response = json(202, { state: 'computing' })
+    vi.spyOn(response.body!, 'cancel').mockRejectedValue(new Error('locked'))
+    stub(response)
+    expect(await readServerState('u1')).toEqual({ kind: 'computing', retryAfterMs: 2_000 })
+  })
+
   it('answers a 404 as none and throws any other failure', async () => {
     stub(json(404, { error: { code: 'not_found', message: 'Not found' } }))
     expect(await readServerState('u1')).toEqual({ kind: 'none' })

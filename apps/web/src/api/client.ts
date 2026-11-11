@@ -156,7 +156,7 @@ export async function deleteAccount(userId?: string): Promise<void> {
 
 /**
  * A fixed safety ceiling on what a library listing may return, independent of the account quota: the quota was 5,000 and came
- * down to 4,000, and an account already over the new quota still has to load its library. It only stops a server that never
+ * down to 3,000, and an account already over the new quota still has to load its library. It only stops a server that never
  * ends its pages.
  */
 const LEGACY_LIBRARY_CEILING = 5000

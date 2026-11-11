@@ -9,7 +9,7 @@ import { useSettingsSync } from './useSettingsSync'
 import { useImportActions } from './importActions'
 import { useAccountCheckIn } from './accountCheckIn'
 import { accountBaseline, shownChange, useAccountImportChange } from './accountImportChange'
-import { useAccountResults, useShownResults } from './accountResults'
+import { resultsFlags, useAccountResults, useShownResults } from './accountResults'
 import { useOnSend } from './onSend'
 import { useQueueControl } from './queueControl'
 import { useImportManifest } from './importManifestHook'
@@ -74,12 +74,12 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   // A signed-in account's results are the server's; the page never shows one the browser computed for it.
   const userId = account.status === 'signed-in' && account.me !== null ? account.me.user.id : null
   // The index is read again when the server's library moves past it; the reader is made below, once its parts exist.
-  const indexBehindRef = useRef<() => void>(() => undefined)
+  const indexBehindRef = useRef<(() => void) | null>(null)
   const accountResults = useAccountResults(
     userId,
     account.sessionExpired === true,
     !imports.busy,
-    () => indexBehindRef.current(),
+    () => indexBehindRef.current?.(),
   )
   // What the page shows: the account's results, with an expired session keeping them until a state of the device's own arrives.
   const shown = useShownResults(
@@ -296,6 +296,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   return {
     state: shown.state,
     accountLift: shown.lift,
+    ...resultsFlags(userId, accountResults, library.libraryStatus, shown.state.libraryActivities),
     ...(shown.stale ? { copyStale: true } : {}),
     busy: imports.busy,
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
@@ -311,6 +312,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     libraryStatus: library.libraryStatus,
     restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
+    retryResults: accountResults.retry,
     resumeSaves: libraryActions.resumeSaves,
     detail: library.detail,
     missingOriginals: library.missingOriginals,

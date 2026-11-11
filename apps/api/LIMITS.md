@@ -51,7 +51,7 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 
 | Action                                   | Limit per user per UTC day  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| File downloads                           | **4,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts.                                                                                                                                                                                                                                                              |
+| File downloads                           | **3,000**                   | Equals the library limit, so a revision rebuild finishes in one UTC day; see Original downloads below. Refunded if R2 refuses the read before it starts.                                                                                                                                                                                                                                                              |
 | Profile writes                           | 50                          | Includes keepFiles toggles and each `PATCH /api/activities/labels` request, whatever it carries (at most 200 labels).                                                                                                                                                                                                                                                                                                 |
 | Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).                                                                                                                                                                                                                                                                                                              |
 | Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.                                                                                                                                                                                                                                                                                                                           |
@@ -61,29 +61,29 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | Lift reads                               | 300                         | `GET /api/lifts`: a page is at most 1,000 sets, also charged to the list-rows meter by the rows it returns. Refunded when the page is refused.                                                                                                                                                                                                                                                                        |
 | Lift writes                              | 300                         | `PUT /api/lifts` and `POST /api/lifts/delete`, up to 500 sets or keys each. Refunded when refused (cap reached, user gone).                                                                                                                                                                                                                                                                                           |
 | Activity deletions                       | 50                          |                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Activity creates                         | **4,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                                                                                                                                                                                                                                                                             |
+| Activity creates                         | **3,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not.                                                                                                                                                                                                                                                                                                             |
 | Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                                                                                                                                                                                                                                                                                                                               |
 | Library listings (`GET /api/activities`) | 100                         | One unit per library load (a request with no cursor). Pages are metered in rows; see Read charging.                                                                                                                                                                                                                                                                                                                   |
 | Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.                                                                                                                                                                                                                                                                                                              |
 
 **Deviation from the owner's default of 50.** A first Strava export import is hundreds to thousands
 of activities, so activity creates and uploads need a higher daily allowance. Creates are capped at the
-library limit itself (`MAX_ACTIVITIES_PER_USER`, 4,000), so one day admits a whole library. Uploads are
+library limit itself (`MAX_ACTIVITIES_PER_USER`, 3,000), so one day admits a whole library. Uploads are
 capped at 2,000. Use these figures only for those two actions.
 
 Daily rows older than seven UTC days are pruned by the scheduled job.
 
-**Original downloads.** The 4,000 a day equals `MAX_ACTIVITIES_PER_USER`, so rebuilding the largest allowed
+**Original downloads.** The 3,000 a day equals `MAX_ACTIVITIES_PER_USER`, so rebuilding the largest allowed
 library from its stored originals after a `MODEL_REVISION` bump finishes inside one UTC day (an owner-sized
 library of about 2,700 takes about half of one). It was 50, which made a rebuild take weeks. Originals exist
 only for accounts that turned on `keepFiles` (off by default), and each download is one R2 operation against the
-deployment's 90,000 ordinary operations a month: one full rebuild of 4,000 originals is 4.4 percent of it.
+deployment's 90,000 ordinary operations a month: one full rebuild of 3,000 originals is 3.3 percent of it.
 The sign-up list bounds who can spend it.
 
 _Worst case against the app's own R2 ledger._ That 90,000 (`MAX_GLOBAL_R2_STANDARD_OPERATIONS`, in
 `r2_storage_budget`) is this app's deliberately conservative share of R2, a tenth of the free Class A
 allowance and far below the free Class B one, not the free tier itself. One user downloading the daily
-maximum every day spends it in 22 days (90,000 / 4,000); six users doing so spend it in under 4. When it is spent,
+maximum every day spends it in 30 days (90,000 / 3,000); six users doing so spend it in 5. When it is spent,
 ordinary R2 reads and writes for everyone are refused until the next month (digests keep syncing). A large
 library's rebuild after each `MODEL_REVISION` bump costs about 3 percent of the month (2,700 / 90,000), so
 several bumps in a month are affordable for one such user but add up across users.
@@ -91,7 +91,7 @@ several bumps in a month are affordable for one such user but add up across user
 _No per-user monthly download meter._ A cap of 3 times `MAX_ACTIVITIES_PER_USER` a month was considered and
 not built, because it does not fit the existing design cheaply. `daily_budget` rows are keyed by a UTC day and
 pruned after seven days, so a month meter needs rows exempt from that prune and a month key; each download
-would write two more D1 rows on top of the two the daily charge writes (a 4,000-file rebuild: 8,000 more of the
+would write two more D1 rows on top of the two the daily charge writes (a 3,000-file rebuild: 6,000 more of the
 100,000 rows written a day); and deleting the account and signing up again would reset it, since the saved
 identity counts live about two days, not a month. The deployment-wide ledger already bounds the harm, and the
 sign-up list bounds who can reach it. Revisit with the ledger rather than per user.
@@ -143,7 +143,7 @@ page reads alone scanned the user's whole library once per page, about N squared
 |     2,700 |                          89,000 | 10,800 |
 |     5,000 |                         292,000 | 20,000 |
 
-At 200,000 rows listed a day a user can make about 74 cold loads of a 2,700 library or 50 of a 4,000 library.
+At 200,000 rows listed a day a user can make about 74 cold loads of a 2,700 library or 66 of a 3,000 library.
 Worst case billed reads for one user at the cap are about 800,000 rows, so six users all at their cap would
 approach the shared allowance; this is a bound on one account, not on the whole deployment.
 
@@ -227,7 +227,7 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
   starts in that race is answered 409 `account_deleting`, not a quota. When both a limit and the day are
   spent, the limit is the answer. The insert returns the stored row
   (`RETURNING`), so the answer needs no read-back.
-- **Digest quota.** Each user may store 32 MiB of digest JSON (`MAX_DIGEST_BYTES_PER_USER`). A create past
+- **Digest quota.** Each user may store 24 MiB of digest JSON (`MAX_DIGEST_BYTES_PER_USER`). A create past
   it returns **403 `digest_quota`** and stores nothing. An upgrade to a newer model revision is refused the
   same way unless it shrinks the digest. A request for a revision the row already has is answered with the
   stored digest and never needs quota.
@@ -281,8 +281,8 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
 
 ## Free text in a digest
 
-The digest budget (256 KiB) bounds a digest as a whole, so one string could once take all of it: with 4,000 activities
-an account could spend its 32 MiB on names. The API now refuses a create or replace whose free text is over a byte cap, with
+The digest budget (256 KiB) bounds a digest as a whole, so one string could once take all of it: with 3,000 activities
+an account could spend its 24 MiB on names. The API now refuses a create or replace whose free text is over a byte cap, with
 **413 `text_too_long`**, before anything is stored. The caps count UTF-8 bytes, not characters, and are the contract's
 `MAX_DIGEST_NAME_BYTES` (1,024: a title is at most 255 characters), `MAX_DIGEST_ID_BYTES` and
 `MAX_DIGEST_SESSION_KEY_BYTES` (1,100 each: a start time and a file name of at most 255 characters) and
@@ -296,14 +296,14 @@ charges keep running. How to use it, and the abuse runbook around it, are in doc
 
 ## Results computed on the server
 
-On for every signed-in account (there is no allowlist), whatever its size: the server bound is the account limits (4,000
-activities, 32 MiB of digest JSON, 60,000 lift sets), because no account falls back to the browser. The committed
+On for every signed-in account (there is no allowlist), whatever its size: the server bound is the account limits (3,000
+activities, 24 MiB of digest JSON, 60,000 lift sets), because no account falls back to the browser. The committed
 production configuration binds the queue and its bounds (the deploy-config check requires the whole set).
 No scheduled trigger computes. Compute is bounded by `limits.cpu_ms = 60000`, a consumer batch of 2 messages, one batch at a time, 3 tries and
 a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is docs/design/server-authority.md.
 
-- **Which libraries:** all of them, up to the largest account the quotas admit. Measured on synthetic data of that size
-  (4,000 activities padded to 31.99 MiB of digest JSON, and 60,000 lift sets) in local workerd, with the isolate's heap
+- **Which libraries:** all of them, up to the largest account the quotas admit. Measured on synthetic data at the earlier limits, which bound
+  the current ones from above (4,000 activities padded to 31.99 MiB of digest JSON, and 60,000 lift sets) in local workerd, with the isolate's heap
   limited by `MINIFLARE_WORKERD_V8_FLAGS="--max-old-space-size=N"` (the job is run by a temporary route in a local
   `wrangler dev`, one fresh process a run):
 
@@ -328,9 +328,12 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   no figure and no data.
   The same library in Node (`state/memory.sim.test.ts`, the heap live after a collection at each D1 read and the R2 write,
   which is a floor since workerd adds its own): 15.8 MiB for 1,000 activities, 23.6 for 2,000, 29 to 35 for 3,000, and 74
-  to 80 for the largest account. The sim fails above 96 MiB, and `state/memoryCases.test.ts` pins that it runs the account
+  to 80 for the earlier largest account (4,000, 32 MiB). The sim fails above 96 MiB, and `state/memoryCases.test.ts` pins that it runs the account
   limits.
-  CI figures: not recorded yet. They are added when the integration PR's sim job has run three times. (CI-FIGURES-PENDING)
+  The quotas came down once more, to 3,000 activities and 24 MiB, because the largest-account case at 4,000 activities, 32 MiB and
+  60,000 lift sets dropped Miniflare's local D1 socket on the CI runner while it was seeded (`fetch failed`, `other side closed`); the
+  1,000, 2,000 and 3,000 cases had passed. The seeding was also made lighter (batches of at most 25 rows and about 128 KiB, built one
+  batch at a time). CI figures for the 3,000 case: not recorded yet. They are added when the sim job has run three times. (CI-FIGURES-PENDING)
 
 - **One job at a time:** the consumer runs the accounts of a batch one after another, never together, so the memory
   is one library's.
@@ -342,7 +345,7 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   for the account is on its way already; three tries, 30 seconds apart, then the dead-letter queue. The consumer runs one batch at a time (`max_concurrency = 1`, two messages). A
   job that finds the last compute began under 30 seconds ago computes nothing and sends one message delayed 30 seconds,
   so an account computes at most once per 30 seconds, and about once a minute through a long import: a 2,000-file import
-  is tens of full computes, not one per file. A read that computes in the request takes the account's claim (`state_jobs.claim_until`, 10 s) and frees it when the compute finishes, so the next stale read computes at once; the 30 s interval reads `attempted_at` and `computed_at`, which the release leaves alone. A lost or exhausted message leaves the account dirty
+  is tens of full computes, not one per file. A read that computes in the request takes the account's claim (`state_jobs.claim_until`, 60 s) and frees it when the compute finishes, so the next stale read computes at once; the 30 s interval reads `attempted_at` and `computed_at`, which the release leaves alone. A lost or exhausted message leaves the account dirty
   (`users.library_version` above `state_jobs.computed_version`) until the next write or the daily maintenance, which sends one message for each account left dirty, up to 20 a run and no more than the run's operation budget allows, with
   none on its way (a daily stand-in for the hourly refresh, S6, which is not built).
 
@@ -358,8 +361,8 @@ and it acts only on an entry whose access token matches the link's, so it costs 
 
 | Limit                       | Value                       | Enforcement                                                                                                                                              |
 | --------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Activities stored           | 4,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                                              |
-| Digest JSON bytes stored    | 32 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                                            |
+| Activities stored           | 3,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                                              |
+| Digest JSON bytes stored    | 24 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                                            |
 | Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.                                     |
 | Dated settings stored       | 200                         | `PUT /api/measurements`: the count and the insert are one statement, so two requests cannot both take the last place. Replacing a date needs no place.   |
 | Lift sets stored            | 60,000                      | `users.lift_count`, changed by the first statement of the batch that writes the rows. Past the cap the check fails and the whole batch rolls back (409). |
@@ -408,12 +411,12 @@ all users. Rough per-request estimates from statement shape:
   about 21 accounts at their caps would use all of it.
 - An activity create: about 9 rows (activity row with its five indexes, daily upsert, counter). The five
   indexes are the primary key, the dedupe key, start, created, and `activities_user_created_id_idx`; it was 8
-  before the last. A first import at the 4,000 cap writes about 36,000 rows, of the
+  before the last. A first import at the 3,000 cap writes about 27,000 rows, of the
   free 100,000 a day. Each delete writes one row more for the same index.
 - An upload: about 6 rows, one of them the `users.file_bytes` row that the trigger moves.
 - Turning keep files off writes one `users` row per stored file, through the trigger, on top of the
   activity rows it clears. It clears only the rows that record a file, a size or a reservation (a test
-  counts them), so a 4,000-activity library with a few originals writes a few rows, not 12,000.
+  counts them), so a 3,000-activity library with a few originals writes a few rows, not 12,000.
 - Planning the first imports. At the default (originals off) a first import writes about 9 rows an
   activity, so five owner-sized friends the same day stay under the day's 100,000. With originals on it is
   about 18 rows an activity, and the third owner-sized first import on one UTC day crosses the line. Until
@@ -532,7 +535,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 409    | `account_deleting`         | Sign-in, or an upload or create whose deletion began after its session check. New.                                                     |
 | 409    | `garmin_linked_elsewhere`  | Garmin connect: that Garmin account is linked to another account. Sent as `#/profile?garmin=<code>`, as every connect outcome is. New. |
 | 503    | `garmin_unavailable`       | Garmin connect with `GARMIN_ENABLED` on but no client id or no valid `PROVIDER_TOKEN_KEY`. New.                                        |
-| 403    | `activity_quota`           | 4,000 activities reached.                                                                                                              |
+| 403    | `activity_quota`           | 3,000 activities reached.                                                                                                              |
 | 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                       |
 | 429    | `rate_limited`             | Per-minute limiter.                                                                                                                    |
 | 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                                                                         |
@@ -541,7 +544,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 411    | `length_required`          | Original-file upload without a Content-Length header.                                                                                  |
 | 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                             |
 | 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                           |
-| 403    | `digest_quota`             | 32 MiB of stored digest JSON reached.                                                                                                  |
+| 403    | `digest_quota`             | 24 MiB of stored digest JSON reached.                                                                                                  |
 | 503    | `database_full`            | Database over 450 MiB (8192 MiB in production); new activities and growing upgrades are refused until the recorded size falls.         |
 | 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                           |
 | 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                    |

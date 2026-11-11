@@ -1,4 +1,5 @@
 import { MAX_KEPT_POWER } from '@rca/contract'
+import { forgetUnsent } from './settingsUnsent'
 import type { AccountSettings } from '@rca/contract'
 import { MAX_COUNTED_RUNS } from '@rca/core/athlete'
 import { sameChoice } from '@rca/core/period'
@@ -42,6 +43,7 @@ export function forgetAccountChoices(): void {
   clearPeriodChoice()
   writeOwner(null)
   forgetReportedZones()
+  forgetUnsent()
 }
 
 /** What this browser holds, as the account keeps it: a list or a pick that is empty is null, never set. */
@@ -159,13 +161,6 @@ export async function pullAccountSettings(
 
 function withZone(settings: AccountSettings, zone: string | undefined): AccountSettings {
   return zone === undefined ? settings : { ...settings, zone }
-}
-
-/** Saves this browser's copy as the account's, with the zone this browser is in. */
-export async function pushAccountSettings(userId: string): Promise<void> {
-  const zone = reportableZone()
-  await putAccountSettings(withZone(browserSettings(), zone), userId)
-  if (zone !== undefined) noteReportedZone(userId, zone)
 }
 
 const ZONE_KEY_PREFIX = 'rca-zone-reported:'

@@ -74,8 +74,8 @@ DATABASE_SOFT_LIMIT_MIB = "8192"
 # Results computed on the server for every signed-in account (docs/design/server-authority.md). The blocks below are on
 # (Workers Paid, both queues created 10 Nov 2026); the deploy-config check requires them, complete.
 
-# Bound on Workers Paid: 60 s of CPU an invocation (Workers Paid allows 300 s; unused time costs nothing), for the largest account the quotas admit: 4,000
-# activities, 32 MiB of digests and 60,000 lift sets (apps/api/LIMITS.md records the local figures).
+# Bound on Workers Paid: 60 s of CPU an invocation (Workers Paid allows 300 s; unused time costs nothing), for the largest account the quotas admit: 3,000
+# activities, 24 MiB of digests and 60,000 lift sets (apps/api/LIMITS.md records the local figures, taken at the earlier 4,000 and 32 MiB).
 [limits]
 cpu_ms = 60000
 

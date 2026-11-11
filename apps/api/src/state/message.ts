@@ -17,7 +17,13 @@ export const STATE_MIN_INTERVAL_SECONDS = 30
 export const STATE_LOCK_RETRY_SECONDS = 5
 /**
  * A read that computes in the request claims the account in D1 first (`claimCompute`): while a compute began less than
- * this long ago, in any isolate, every other read serves what is stored. Longer than a compute runs (10 s of CPU is the
- * Worker's bound), far shorter than the queue's own interval, whose `attempted_at` it shares.
+ * this long ago, in any isolate, every other read serves what is stored, unless the compute finished and released it. A compute
+ * can run 15 to 31 s at the account quotas (the Worker's bound is 30 s of CPU), so the window is longer than that: one that
+ * dies without releasing must not let a second compute start beside it. Far shorter than the queue's own interval.
  */
-export const STATE_CLAIM_SECONDS = 10
+export const STATE_CLAIM_SECONDS = 60
+/**
+ * A compute that throws holds its claim this long, and its read unit stays charged: a failure that repeats is recomputed once in
+ * this long, not by every tab's poll, and a user whose compute fails every time reaches the daily cap.
+ */
+export const STATE_FAILURE_HOLD_SECONDS = 300
