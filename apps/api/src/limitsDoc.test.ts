@@ -26,6 +26,11 @@ import {
 } from '@rca/contract'
 import { MAX_LIFT_SETS_PER_USER } from '@rca/core/lift'
 import { UPLOAD_SLOT_LEASE_MS } from './budget.ts'
+import {
+  FAILED_INBOX_RETENTION_DAYS,
+  INBOX_EXPIRY_PER_RUN,
+  SETTLED_INBOX_RETENTION_DAYS,
+} from './inbox/expiry.ts'
 import { MAX_HEALTH_PROBES_PER_DAY, MAX_HEALTH_PROBES_PER_MONTH } from './healthBudget.ts'
 import {
   MAX_MAINTENANCE_OPERATIONS,
@@ -249,5 +254,8 @@ describe('the scheduled job', () => {
     expect(PENDING_DELETIONS_PER_RUN).toBe(2)
     expect(text, HINT).toContain(`Sweeps two pages of`)
     expect(ORPHAN_PAGES_PER_RUN).toBe(2)
+    expect(text, HINT).toContain(
+      `Deletes up to ${INBOX_EXPIRY_PER_RUN} expired Garmin inbox rows a run: \`done\` and stale \`pending\` ones after ${SETTLED_INBOX_RETENTION_DAYS} days, \`failed\` ones and their files after ${FAILED_INBOX_RETENTION_DAYS}`,
+    )
   })
 })

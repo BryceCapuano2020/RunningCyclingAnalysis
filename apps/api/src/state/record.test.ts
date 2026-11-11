@@ -1,7 +1,7 @@
 import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 import { describe, expect, it } from 'vitest'
 import { stateWorld } from '../test/stateKit.ts'
-import { claimCompute, markAttempt, record, type Covered } from './record.ts'
+import { claimCompute, record, type Covered } from './record.ts'
 
 const at = (version: number, liftRevision: number, nowMs: number): Covered => ({
   version,
@@ -12,7 +12,7 @@ const at = (version: number, liftRevision: number, nowMs: number): Covered => ({
 
 async function fresh() {
   const w = await stateWorld()
-  await markAttempt(w.env.DB, w.userId, 1)
+  await claimCompute(w.env.DB, w.userId, 1, 0)
   const read = () =>
     w.env.DB.prepare(
       `SELECT snapshot_hash AS hash, snapshot_version AS v, snapshot_lift_revision AS l, snapshot_now_ms AS now,
@@ -27,15 +27,15 @@ async function fresh() {
 describe('the snapshot order: (revision, version, lift revision, instant)', () => {
   it('takes a later instant, version or lift revision, and refuses the same or an earlier one', async () => {
     const w = await fresh()
-    expect(await record(w.env.DB, w.userId, at(5, 2, 1000), 'h1', null)).toBe('h1')
+    expect((await record(w.env.DB, w.userId, at(5, 2, 1000), 'h1', null)).held).toBe('h1')
     // The same coordinates, an earlier instant, a lower version, a lower lift revision: all refused.
     for (const covered of [at(5, 2, 1000), at(5, 2, 900), at(4, 9, 9999), at(5, 1, 9999)]) {
-      expect(await record(w.env.DB, w.userId, covered, 'h2', null)).toBe('h1')
+      expect((await record(w.env.DB, w.userId, covered, 'h2', null)).held).toBe('h1')
     }
     expect(await w.read()).toMatchObject({ hash: 'h1', v: 5, l: 2, now: 1000 })
-    expect(await record(w.env.DB, w.userId, at(5, 2, 1001), 'h3', null)).toBe('h3')
-    expect(await record(w.env.DB, w.userId, at(5, 3, 1001), 'h4', null)).toBe('h4')
-    expect(await record(w.env.DB, w.userId, at(6, 0, 1001), 'h5', null)).toBe('h5')
+    expect((await record(w.env.DB, w.userId, at(5, 2, 1001), 'h3', null)).held).toBe('h3')
+    expect((await record(w.env.DB, w.userId, at(5, 3, 1001), 'h4', null)).held).toBe('h4')
+    expect((await record(w.env.DB, w.userId, at(6, 0, 1001), 'h5', null)).held).toBe('h5')
     expect(await w.read()).toMatchObject({ hash: 'h5', v: 6, l: 0, now: 1001 })
   })
 
@@ -56,12 +56,12 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
       .bind(ANALYSIS_REVISION - 1, w.userId)
       .run()
-    expect(await record(w.env.DB, w.userId, at(1, 0, 10), 'h2', null)).toBe('h2')
+    expect((await record(w.env.DB, w.userId, at(1, 0, 10), 'h2', null)).held).toBe('h2')
     expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION, v: 1, cv: 1 })
     await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = ? WHERE user_id = ?')
       .bind(ANALYSIS_REVISION + 1, w.userId)
       .run()
-    expect(await record(w.env.DB, w.userId, at(50, 50, 50_000), 'h3', null)).toBe('h2')
+    expect((await record(w.env.DB, w.userId, at(50, 50, 50_000), 'h3', null)).held).toBe('h2')
     expect(await w.read()).toMatchObject({ rev: ANALYSIS_REVISION + 1, v: 1, cv: 1, cl: 0 })
   })
 

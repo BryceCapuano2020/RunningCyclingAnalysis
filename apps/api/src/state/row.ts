@@ -10,7 +10,8 @@ export interface JobRow {
   lift_revision: number
   activity_count: number
   computed_version: number | null
-  computed_lift_revision: number | null
+  snapshot_version: number | null
+  snapshot_lift_revision: number | null
   computed_at: number | null
   attempted_at: number | null
   snapshot_hash: string | null
@@ -22,7 +23,7 @@ export interface JobRow {
 export async function jobRow(db: D1Database, userId: string): Promise<JobRow | null> {
   return db
     .prepare(
-      `SELECT u.library_version, u.lift_revision, u.activity_count, j.computed_version, j.computed_lift_revision,
+      `SELECT u.library_version, u.lift_revision, u.activity_count, j.computed_version, j.snapshot_version, j.snapshot_lift_revision,
               j.computed_at, j.attempted_at, j.snapshot_hash, j.snapshot_now_ms, j.analysis_revision,
               (SELECT s.zone FROM athlete_settings s WHERE s.user_id = u.id) AS zone
        FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
@@ -50,14 +51,14 @@ export function revisionOrder(row: JobRow): RevisionOrder {
 }
 
 /**
- * Whether the stored snapshot is the answer now: it covers the library version and the lift revision, was made under
+ * Whether the stored snapshot is the answer now: it covers the library version and the lift revision (`snapshot_*`: what the stored snapshot covers, not what a compute reached), was made under
  * this build's analysis, and was made for today in the account's zone (a day ago it would show last night's week).
  */
 export function isCurrent(row: JobRow, now: number): boolean {
   return (
     row.snapshot_hash !== null &&
-    (row.computed_version ?? 0) >= row.library_version &&
-    (row.computed_lift_revision ?? 0) >= row.lift_revision &&
+    (row.snapshot_version ?? 0) >= row.library_version &&
+    (row.snapshot_lift_revision ?? 0) >= row.lift_revision &&
     (row.analysis_revision ?? 0) === ANALYSIS_REVISION &&
     localDayOf(row.zone, row.snapshot_now_ms ?? 0) === localDayOf(row.zone, now)
   )

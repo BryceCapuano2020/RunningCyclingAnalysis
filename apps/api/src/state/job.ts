@@ -14,7 +14,7 @@ export type JobOutcome =
   | 'newer' // the stored snapshot is a later Worker's: this one computes nothing and leaves it
   | 'too_large' // more activities than the server computes for; the browser does
   | 'deferred' // computed moments ago; the caller sends one delayed message instead
-  | 'busy' // this isolate is computing for a read; the caller retries the message after a delay, never acks it
+  | 'busy' // another compute holds the account (a read, here or in another isolate); the caller sends one delayed message
   | 'moved' // a write landed while reading; its own job follows
   | 'unchanged' // computed, the same figures: the order columns move and nothing is written
   | 'written' // a new snapshot object, and the old one deleted

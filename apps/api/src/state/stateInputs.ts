@@ -1,15 +1,12 @@
 import type { AccountSettings } from '@rca/contract'
 import type { Measurement } from '@rca/core/athlete'
-import type { LiftSet } from '@rca/core/lift'
 import type { ActivityDigest } from '@rca/core/types'
 
 /** Everything the account's results are a function of, read at one `library_version`. */
 export interface StateInputs {
   version: number
-  /** `users.lift_revision` at the same read: a compute never records a revision whose sets it did not read. */
+  /** `users.lift_revision` at the same read: a compute never records a revision it did not read at the same version. The lift sets join when a figure takes them. */
   liftRevision: number
-  /** The account's lift sets in key order. Read with the version so a write is caught; no figure takes them yet. */
-  liftSets: LiftSet[]
   digests: ActivityDigest[]
   /** Rows whose digest would not parse (skipped, as the browser skips them). */
   unreadable: number

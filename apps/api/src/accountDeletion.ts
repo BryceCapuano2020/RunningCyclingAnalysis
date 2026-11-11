@@ -6,6 +6,8 @@ import { GOOGLE_PROVIDER } from './auth/accounts.ts'
 import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
 import { stateKey } from './state/key.ts'
+import { forgetUnstoredFor } from './state/lock.ts'
+import { deregisterQuietly, linkOf } from './garmin/link.ts'
 
 /**
  * How long a deleted account's tombstone is kept: longer than the 90-day backup archives, so a
@@ -53,18 +55,20 @@ export async function finishAccountDeletion(
   userId: string,
 ): Promise<boolean> {
   const db = env.DB
-  // Decide once, while the user row still exists and deleting_at blocks new reservations: with no
-  // file rows, no R2 object can appear later, so no sweep is needed.
+  // Decide once, while the user row still exists and deleting_at blocks new reservations and pushes: with no
+  // file rows and no inbox row, no R2 object can appear later, so no sweep is needed. Any inbox row counts, as a
+  // push puts its file after its row, as an upload's file_size reserves before its put.
   await db
     .prepare(
       `UPDATE pending_account_deletions SET sweep_pending = 0
-       WHERE user_id = ? AND sweep_pending = 1
-         AND EXISTS (SELECT 1 FROM users WHERE id = ? AND deleting_at IS NOT NULL)
+       WHERE user_id = ?1 AND sweep_pending = 1
+         AND EXISTS (SELECT 1 FROM users WHERE id = ?1 AND deleting_at IS NOT NULL)
          AND NOT EXISTS (
            SELECT 1 FROM activities
-           WHERE user_id = ? AND (file_key IS NOT NULL OR file_size IS NOT NULL))`,
+           WHERE user_id = ?1 AND (file_key IS NOT NULL OR file_size IS NOT NULL))
+         AND NOT EXISTS (SELECT 1 FROM inbox_items WHERE user_id = ?1)`,
     )
-    .bind(userId, userId, userId)
+    .bind(userId)
     .run()
   const pending = await db
     .prepare('SELECT sweep_pending FROM pending_account_deletions WHERE user_id = ?')
@@ -74,6 +78,9 @@ export async function finishAccountDeletion(
   const sweep = pending.sweep_pending === 1
 
   if (sweep) await sweepBeforeDelete(env, deps, userId)
+  // Garmin is asked to stop sending first, while the link's tokens still exist; it never blocks the deletion.
+  const garmin = await linkOf(db, userId)
+  if (garmin !== null) await deregisterQuietly(env, deps, garmin)
   await deleteUserKeepingCounts(env, deps, userId)
 
   try {
@@ -124,6 +131,7 @@ async function deleteUserKeepingCounts(env: Bindings, deps: Deps, userId: string
   if (identityKey !== undefined)
     statements.unshift(saveCountsStatement(db, identityKey, userId, now))
   await db.batch(statements)
+  forgetUnstoredFor(userId)
   // R2 deletes are unmetered. A failure leaves the object for the orphan sweep, which finds it with no job row.
   if (snapshot?.snapshot_hash && env.FILES) {
     await env.FILES.delete(stateKey(userId, snapshot.snapshot_hash)).catch(() => undefined)

@@ -23,6 +23,8 @@ const OPTIONAL_TABLES = [
   'account_tombstones',
   'lift_sets',
   'state_jobs',
+  'provider_links',
+  'inbox_items',
 ]
 const TABLE_SET = new Set([...TABLES, ...OPTIONAL_TABLES])
 export const MAX_D1_EXPORT_BYTES = 64 * 1024 * 1024

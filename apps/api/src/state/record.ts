@@ -1,16 +1,5 @@
 import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
 
-/** Records that a compute began, before it reads anything, so a compute that then fails still counts for coalescing. */
-export async function markAttempt(db: D1Database, userId: string, now: number): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO state_jobs (user_id, attempted_at) VALUES (?1, ?2)
-       ON CONFLICT(user_id) DO UPDATE SET attempted_at = ?2`,
-    )
-    .bind(userId, now)
-    .run()
-}
-
 /**
  * The cross-isolate claim of a compute made in a request: one conditional upsert of the same `attempted_at` the queue's
  * coalescing reads, so a stale read in another isolate or tab, and a queued message, see it. True when this caller
@@ -44,13 +33,13 @@ export interface Covered {
 
 /**
  * Records a compute and moves the stored snapshot to it when it is later. Two statements in one batch, so one
- * transaction. The coverage (`computed_*`) moves up only, and restarts when the analysis revision changes. The snapshot
+ * transaction. The coverage (`computed_*`) moves up only, restarts when the analysis revision changes, and on the unchanged path moves only while the row still holds the matched hash, so it never says a version is covered while another job's snapshot is stored. The snapshot
  * columns move to a later (revision, version, lift revision, instant), so two jobs that overlap cannot put an older
  * snapshot over a newer one, and a same-version compute on a later day is taken (the content hash leaves out the
  * instant, so an unchanged snapshot still moves its day). `hash` is the new snapshot's; null on the unchanged path,
  * where `matched` names the hash the job found equal, so a hash another job stored meanwhile is never stamped with
- * today. A row holding a later revision than this build's is left alone. UPDATE only: `markAttempt` made the row.
- * Returns the hash the row holds afterwards.
+ * today. A row holding a later revision than this build's is left alone. UPDATE only: `claimCompute` made the row.
+ * Returns the hash the row holds afterwards (`held`) and the one it held before (`prior`, the object to delete).
  */
 export async function record(
   db: D1Database,
@@ -58,18 +47,19 @@ export async function record(
   covered: Covered,
   hash: string | null,
   matched: string | null,
-): Promise<string | null> {
+): Promise<{ held: string | null; prior: string | null }> {
   const { version, liftRevision, nowMs, at } = covered
-  const [, , read] = await db.batch([
+  const [prior, , , read] = await db.batch([
+    db.prepare('SELECT snapshot_hash FROM state_jobs WHERE user_id = ?').bind(userId),
     db
       .prepare(
         `UPDATE state_jobs SET
            computed_version = CASE WHEN analysis_revision = ?4 THEN max(computed_version, ?2) ELSE ?2 END,
            computed_lift_revision = CASE WHEN analysis_revision = ?4 THEN max(computed_lift_revision, ?3) ELSE ?3 END,
            computed_at = ?5
-         WHERE user_id = ?1 AND analysis_revision <= ?4`,
+         WHERE user_id = ?1 AND analysis_revision <= ?4 AND (?6 IS NULL OR snapshot_hash = ?6)`,
       )
-      .bind(userId, version, liftRevision, ANALYSIS_REVISION, at),
+      .bind(userId, version, liftRevision, ANALYSIS_REVISION, at, matched),
     db
       .prepare(
         `UPDATE state_jobs SET snapshot_hash = coalesce(?5, snapshot_hash), snapshot_version = ?2,
@@ -80,5 +70,7 @@ export async function record(
       .bind(userId, version, liftRevision, ANALYSIS_REVISION, hash, nowMs, matched),
     db.prepare('SELECT snapshot_hash FROM state_jobs WHERE user_id = ?').bind(userId),
   ])
-  return (read!.results as { snapshot_hash: string | null }[])[0]?.snapshot_hash ?? null
+  const hashOf = (r: D1Result) =>
+    (r.results as { snapshot_hash: string | null }[])[0]?.snapshot_hash ?? null
+  return { held: hashOf(read!), prior: hashOf(prior!) }
 }

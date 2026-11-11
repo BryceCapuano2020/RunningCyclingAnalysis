@@ -7,7 +7,8 @@ import { checkR2PutBudget, reserveR2Put } from '../storage.ts'
 import { computeFor } from './compute.ts'
 import { InputsMoved, readInputs } from './inputs.ts'
 import { stateKey } from './key.ts'
-import { markAttempt, record } from './record.ts'
+import { STATE_CLAIM_SECONDS } from './message.ts'
+import { claimCompute, record } from './record.ts'
 import type { JobRow } from './row.ts'
 import { contentHash, encodeSnapshot } from './store.ts'
 
@@ -15,6 +16,7 @@ import { contentHash, encodeSnapshot } from './store.ts'
 export type Computed =
   | { kind: 'gone' }
   | { kind: 'moved' }
+  | { kind: 'busy' } // another compute holds the account's claim
   | {
       /** `unchanged`: the figures match the stored snapshot, so only its day moved. `unstored`: served, not kept. */
       kind: 'written' | 'unchanged' | 'unstored'
@@ -46,6 +48,8 @@ export async function computeAndStore(
   userId: string,
   before: JobRow,
   store: boolean,
+  /** The caller already holds the account's claim (a read takes it before its budget unit is spent). */
+  claimed = false,
 ): Promise<Computed> {
   const db = env.DB
   const bucket = env.FILES
@@ -53,7 +57,10 @@ export async function computeAndStore(
   if (store) {
     // Before any digest is read: a ledger that would refuse the snapshot's PUT costs no compute (the retry finds it the same).
     await checkR2PutBudget(db, deps.now(), 0)
-    await markAttempt(db, userId, deps.now())
+    // The same claim a read takes, so the queue and the reads exclude each other across isolates.
+    if (!claimed && !(await claimCompute(db, userId, deps.now(), STATE_CLAIM_SECONDS * 1000))) {
+      return { kind: 'busy' }
+    }
   }
   let inputs
   try {
@@ -88,21 +95,22 @@ export async function computeAndStore(
     // deploy) from the row, which that Worker does not keep.
     customMetadata: { analysisRevision: String(ANALYSIS_REVISION) },
   })
-  let held: string | null
+  let outcome
   try {
-    held = await record(db, userId, covered, hash, null)
+    outcome = await record(db, userId, covered, hash, null)
   } catch (error) {
     // The row did not take it (the account went, say): the object has no owner, so it goes rather than wait for the sweep.
     await bucket.delete(stateKey(userId, hash)).catch(() => undefined)
     throw error
   }
+  const { held, prior } = outcome
   if (held === null) {
     // The row is gone (the account was deleted between the check and here): the object has no owner.
     await bucket.delete(stateKey(userId, hash)).catch(() => undefined)
     return { kind: 'gone' }
   }
-  // The old object goes in the same job. If a newer job won the row, ours is the one with no owner.
-  const stale = held === hash ? before.snapshot_hash : hash
+  // The object the row held before goes in the same job. If a newer job won the row, ours is the one with no owner.
+  const stale = held === hash ? prior : hash
   if (stale !== null && stale !== held) await bucket.delete(stateKey(userId, stale))
   return { kind: 'written', ...done }
 }

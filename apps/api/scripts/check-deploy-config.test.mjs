@@ -123,3 +123,15 @@ test('the committed production configuration lists no account and binds the whol
   assert.match(config, /^\[limits\]\s*\ncpu_ms = 10000/m)
   assert.doesNotThrow(() => validateDeployConfig(config))
 })
+
+test('Garmin sync stays off in production until its release (garmin-sync.md G6)', () => {
+  for (const value of ['true', 'on', '1', ' TRUE ']) {
+    assert.throws(
+      () => validateDeployConfig(`${valid}\nGARMIN_ENABLED = "${value}"`),
+      /GARMIN_ENABLED/,
+    )
+  }
+  assert.throws(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = true`), /GARMIN_ENABLED/)
+  assert.doesNotThrow(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = ""`))
+  assert.doesNotThrow(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = "false"`))
+})

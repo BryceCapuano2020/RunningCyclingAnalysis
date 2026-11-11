@@ -1,6 +1,5 @@
 import { DEFAULT_BIKE_MASS_KG, StoredActivityDigestSchema } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
-import { toLiftSet, type LiftRow } from '../routes/liftSql.ts'
 import { toSettings, type SettingsRow } from './settingsRow.ts'
 import { measurementOf, type MeasurementRow, type StateInputs } from './stateInputs.ts'
 
@@ -39,12 +38,12 @@ async function countersOf(db: D1Database, userId: string): Promise<Counters | nu
 
 /**
  * The account's inputs as of one version (decision 6): the library version, the lift revision and every small input
- * (the lift sets included) in one D1 batch, which is one transaction, then the digests in pages by the listing's own key,
+ * in one D1 batch, which is one transaction, then the digests in pages by the listing's own key,
  * then both counters again. A write to either between the two reads raises it, and the read is refused (`InputsMoved`)
  * instead of mixing two versions. Null when the account is gone or deleting.
  */
 export async function readInputs(db: D1Database, userId: string): Promise<StateInputs | null> {
-  const [counters, profile, measurements, settings, lifts] = await db.batch([
+  const [counters, profile, measurements, settings] = await db.batch([
     db.prepare(COUNTERS).bind(userId),
     db
       .prepare('SELECT mass_kg, bike_mass_kg, birth_year, sex FROM profiles WHERE user_id = ?')
@@ -58,12 +57,6 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     db
       .prepare(
         'SELECT keep_power, counted_runs, period, zone FROM athlete_settings WHERE user_id = ?',
-      )
-      .bind(userId),
-    db
-      .prepare(
-        `SELECT date, exercise, equipment, set_order, reps, load_kg, rpe, warmup, time, time_precision
-         FROM lift_sets WHERE user_id = ? ORDER BY date, exercise, equipment, set_order`,
       )
       .bind(userId),
   ])
@@ -98,7 +91,6 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
   return {
     version: start.library_version,
     liftRevision: start.lift_revision,
-    liftSets: (lifts!.results as LiftRow[]).map(toLiftSet),
     digests,
     unreadable,
     massKg: own?.mass_kg ?? null,

@@ -9,6 +9,7 @@ import {
   stateWorld,
 } from '../test/stateKit.ts'
 import { handleStateBatch } from './consumer.ts'
+import { claimCompute } from './record.ts'
 import { forgetUnstored, withComputeLock } from './lock.ts'
 import { runStateJob } from './job.ts'
 
@@ -27,25 +28,39 @@ const stored = async (w: Awaited<ReturnType<typeof prepared>>) =>
   (await w.env.FILES!.list({ prefix: `users/${w.userId}/state/` })).objects.length
 
 describe('the consumer and the isolate lock', () => {
-  it('retries every message for an account whose isolate is computing, acknowledges none, and computes it after', async () => {
+  it('acknowledges the messages of an account another compute holds, sends one fresh delayed message, and computes it after', async () => {
     const w = await prepared()
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     const held = withComputeLock(() => gate)
-    const { batch, acked, retried } = fakeBatch([w.userId, w.userId])
-    const report = await handleStateBatch(batch, w.env, w.deps)
-    expect(report).toEqual({ accounts: 1, outcomes: { busy: 1 } })
-    expect(acked).toEqual([])
-    expect(retried).toEqual([
-      { id: 0, delaySeconds: 5 },
-      { id: 1, delaySeconds: 5 },
-    ])
-    expect(await stored(w)).toBe(0)
-    release()
-    await held
+    try {
+      const { batch, acked, retried } = fakeBatch([w.userId, w.userId])
+      const report = await handleStateBatch(batch, w.env, w.deps)
+      expect(report).toEqual({ accounts: 1, outcomes: { busy: 1 } })
+      // A retry would count toward the Queue's limit and could end in the dead-letter queue: a fresh message does not.
+      expect(retried).toEqual([])
+      expect(acked).toEqual([0, 1])
+      expect(w.sent).toEqual([{ body: { userId: w.userId }, options: { delaySeconds: 5 } }])
+      expect(await stored(w)).toBe(0)
+    } finally {
+      release()
+      await held
+    }
     const again = fakeBatch([w.userId])
     expect((await handleStateBatch(again.batch, w.env, w.deps)).outcomes).toEqual({ written: 1 })
     expect(again.acked).toEqual([0])
+  })
+
+  it('says busy and computes nothing when a read in another isolate claims the account first', async () => {
+    const w = await prepared()
+    const env = {
+      ...w.env,
+      DB: racingDb(w.env.DB, /INSERT INTO state_jobs \(user_id, attempted_at\)/, async () => {
+        expect(await claimCompute(w.env.DB, w.userId, w.h.clock.now, 10_000)).toBe(true)
+      }),
+    }
+    expect(await runStateJob(env, w.deps, w.userId)).toBe('busy')
+    expect(await stored(w)).toBe(0)
   })
 
   it("acknowledges without computing when the stored snapshot is a later Worker's", async () => {

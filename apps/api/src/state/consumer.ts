@@ -54,20 +54,16 @@ export async function handleStateBatch(
     try {
       const outcome = await runStateJob(env, deps, userId)
       count(outcome)
-      if (outcome === 'deferred') {
+      if (outcome === 'deferred' || outcome === 'busy') {
         // One message for the whole account, however many are in this batch, sent whatever the marker says: the live
         // marker may be this message's own (its write set it), and this message is spent, so a claim that waited on it
-        // would leave the account dirty with nothing on its way. The write is computed once the interval has passed.
+        // would leave the account dirty with nothing on its way. Busy (another compute, in this isolate or another, holds
+        // the account) is the same: a retry would count toward the Queue's limit and could end in the dead-letter queue, a
+        // fresh message does not. The write is computed once the delay has passed.
+        const delay = outcome === 'busy' ? STATE_LOCK_RETRY_SECONDS : STATE_MIN_INTERVAL_SECONDS
         if (env.STATE_QUEUE === undefined) throw new Error('state job: no queue bound')
-        await markPending(env.DB, userId, deps.now(), STATE_MIN_INTERVAL_SECONDS)
-        await env.STATE_QUEUE.send({ userId }, { delaySeconds: STATE_MIN_INTERVAL_SECONDS })
-      }
-      if (outcome === 'busy') {
-        // This isolate is computing for a read: every message waits a few seconds and none is acknowledged, so a write made
-        // with no tab open is still computed. The marker is held so a write in the meantime does not send another.
-        for (const message of messages) message.retry({ delaySeconds: STATE_LOCK_RETRY_SECONDS })
-        await markPending(env.DB, userId, deps.now(), STATE_LOCK_RETRY_SECONDS)
-        continue
+        await markPending(env.DB, userId, deps.now(), delay)
+        await env.STATE_QUEUE.send({ userId }, { delaySeconds: delay })
       }
       // A write that landed mid-read sent its own message; this one is spent either way.
       for (const message of messages) message.ack()

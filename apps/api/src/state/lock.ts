@@ -47,3 +47,8 @@ export function keepUnstored(key: string, result: UnstoredResult): void {
 
 /** Forgets every kept result: the account is gone, or a test starts clean. */
 export const forgetUnstored = (): void => unstored.clear()
+
+/** Forgets what is kept for one account: it was deleted, and its results do not outlive it in an isolate. */
+export function forgetUnstoredFor(userId: string): void {
+  for (const key of [...unstored.keys()]) if (key.startsWith(`${userId}:`)) unstored.delete(key)
+}

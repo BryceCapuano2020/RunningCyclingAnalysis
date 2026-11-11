@@ -110,6 +110,21 @@ export const DEFAULT_PARSE_LIMITS: Readonly<ParseLimits> = {
   maxActivitySeconds: MAX_FILE_SAMPLES,
 }
 
+/** 36 hours at 1 Hz: the longest activity the server reads, enough for a 100-mile race. */
+const MAX_SERVER_SECONDS = 36 * 3600
+
+/**
+ * The limits for a file the server reads (Garmin's push, docs/design/garmin-sync.md decision 8): one FIT file per
+ * activity, never an archive, at most 5 MiB as the push handler takes it. Each field is under the browser's, so a
+ * hostile file costs a queue consumer less than it may cost a tab. The server never opens an archive.
+ */
+export const GARMIN_PARSE_LIMITS: Readonly<ParseLimits> = {
+  maxFileBytes: 5 * MIB,
+  maxRecordMessages: 4 * MAX_SERVER_SECONDS,
+  maxMessages: 600_000,
+  maxActivitySeconds: MAX_SERVER_SECONDS,
+}
+
 export const NO_RECORDS = 'File contains no activity records'
 
 export function failure(

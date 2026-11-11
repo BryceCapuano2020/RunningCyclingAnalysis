@@ -40,6 +40,20 @@ export interface Bindings {
   SERVER_COMPUTE_ACCOUNTS?: string
   /** The Queue the state job's messages go to. Bound only where SERVER_COMPUTE_USERS is not empty. */
   STATE_QUEUE?: Queue<StateMessage>
+  /**
+   * Garmin sync (docs/design/garmin-sync.md): "true", "1" or "on" lets athletes connect Garmin; unset is off, as
+   * production ships until G6 (garmin/flag.ts). Off still lets a link be removed.
+   */
+  GARMIN_ENABLED?: string
+  /** Garmin's OAuth client id, a plain variable once Garmin issues one. */
+  GARMIN_CLIENT_ID?: string
+  /** Garmin's OAuth client secret: a Worker secret, never in the repository. */
+  GARMIN_CLIENT_SECRET?: string
+  /**
+   * Worker secret: the keys provider tokens are sealed with, `id:key` comma separated, each key 32 random bytes in
+   * base64url; the first seals and every one listed opens (providers/tokens.ts). Kept apart from D1.
+   */
+  PROVIDER_TOKEN_KEY?: string
   /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
   SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */

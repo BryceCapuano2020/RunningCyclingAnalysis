@@ -23,7 +23,7 @@ export async function resendDirty(env: Bindings, now: number): Promise<number> {
   const dirty = await env.DB.prepare(
     `SELECT u.id FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
      WHERE u.id IN (${ids.map(() => '?').join(', ')}) AND u.deleting_at IS NULL AND u.activity_count <= ?
-       AND (coalesce(j.computed_version, 0) < u.library_version OR coalesce(j.computed_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) <> ?)
+       AND (coalesce(j.snapshot_version, 0) < u.library_version OR coalesce(j.snapshot_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) <> ?)
        AND coalesce(j.pending_until, 0) <= ?`,
   )
     .bind(...ids, SERVER_STATE_MAX_ACTIVITIES, ANALYSIS_REVISION, now)

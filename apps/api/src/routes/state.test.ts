@@ -111,10 +111,18 @@ describe('GET /api/state', () => {
     expect(res.status).toBe(404)
   })
 
-  it('is a 404 when the object the row names is gone', async () => {
+  it('computes the snapshot again in the read when the object the row names is gone, and keeps no unit for the lost read', async () => {
     const w = await ready()
-    await w.env.FILES!.delete(`users/${w.userId}/state/${w.hash}.json.gz`)
-    expect((await w.get()).status).toBe(404)
+    const key = `users/${w.userId}/state/${w.hash}.json.gz`
+    await w.env.FILES!.delete(key)
+    w.h.clock.now += 11_000
+    const res = await w.get()
+    expect(res.status).toBe(200)
+    expect(await w.env.FILES!.head(key)).not.toBeNull()
+    const spent = await w.env.DB.prepare(
+      "SELECT coalesce(sum(used), 0) AS n FROM daily_budget WHERE action = 'stateRead'",
+    ).first<{ n: number }>()
+    expect(spent?.n).toBe(1)
   })
 
   it('refuses a cross-site read, which would spend the reader budget', async () => {

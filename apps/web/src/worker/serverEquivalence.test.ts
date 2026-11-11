@@ -129,7 +129,6 @@ function serverState(
   const inputs: StateInputs = {
     version: 3,
     liftRevision: 0,
-    liftSets: [],
     digests: library.digests,
     unreadable: 0,
     massKg: choices.massKg,

@@ -5,7 +5,7 @@ import { createHarness } from '../test/harness.ts'
 import { racingDb } from '../test/racingDb.ts'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
 import { STATE_CLAIM_SECONDS } from '../state/message.ts'
-import { forgetUnstored } from '../state/lock.ts'
+import { forgetUnstored, withComputeLock } from '../state/lock.ts'
 import { runStateJob } from '../state/job.ts'
 
 /** Compute on read (docs/design/server-authority.md): what GET /api/state does for each state of the stored row. */
@@ -109,19 +109,36 @@ describe('compute on read', () => {
   })
 
   it('moves snapshot_now_ms for an aged day with the same figures, so the next read is a 304 with the new X-State-Now', async () => {
-    const w = await ready()
-    const before = await w.row()
-    // The same local day number moves by one at the next UTC midnight; the library has not changed.
+    // An account with no activities: its figures do not move with the day, so the hash is the same on both sides of
+    // midnight (an activity library's would change, and the test would then say nothing about the unchanged path).
+    const w = await stateWorld()
+    await runStateJob(w.env, w.deps, w.userId)
+    const get = (headers: Record<string, string>) => {
+      w.h.clock.now += CLAIM_MS + 1
+      return w.h.send({ path: '/api/state', cookies: w.cookies, headers })
+    }
+    const read = () =>
+      w.env.DB.prepare(
+        'SELECT snapshot_hash AS hash, snapshot_now_ms AS now FROM state_jobs WHERE user_id = ?',
+      )
+        .bind(w.userId)
+        .first<{ hash: string; now: number }>()
+    const before = (await read())!
     w.h.clock.now = Math.ceil(w.h.clock.now / DAY) * DAY + 60_000
-    const res = await w.get({ 'If-None-Match': `"${before!.hash}"` })
-    const after = await w.row()
-    // Same hash: a 304, answered from the compute, with the day moved. A different hash means the figures changed
-    // with the day, which this test is not about: the hash is then new and the read a 200.
-    expect(res.status).toBe(after!.hash === before!.hash ? 304 : 200)
-    expect(after!.now).toBe(w.h.clock.now)
-    const next = await w.get({ 'If-None-Match': `"${after!.hash}"` })
+    const res = await get({ 'If-None-Match': `"${before.hash}"` })
+    const after = (await read())!
+    expect(after.hash).toBe(before.hash)
+    expect(res.status).toBe(304)
+    expect(res.headers.get('X-State-Now')).toBe(String(w.h.clock.now))
+    expect(after.now).toBe(w.h.clock.now)
+    const next = await get({ 'If-None-Match': `"${after.hash}"` })
     expect(next.status).toBe(304)
-    expect(next.headers.get('X-State-Now')).toBe(String(after!.now))
+    expect(next.headers.get('X-State-Now')).toBe(String(after.now))
+    expect(
+      await w.env.DB.prepare("SELECT used FROM daily_budget WHERE action = 'stateRead'").first<{
+        used: number
+      }>(),
+    ).toEqual({ used: 1 })
   })
 
   it('computes a later Worker snapshot once per isolate, stores nothing, and answers 304 after', async () => {
@@ -278,5 +295,45 @@ describe('compute on read', () => {
     expect(both.filter((res) => res.headers.get('X-State-Current') === '0')).toHaveLength(1)
     expect(reads.n).toBe(1)
     expect(await w.used()).toBe(1)
+  })
+
+  it('stamps nothing and defers no one for a read over the budget, and answers no X-State-Now for a row never stamped', async () => {
+    const w = await ready()
+    await w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
+      .bind(w.userId)
+      .run()
+    await w.env.DB.prepare('UPDATE state_jobs SET attempted_at = 5 WHERE user_id = ?')
+      .bind(w.userId)
+      .run()
+    await w.env.DB.prepare(
+      `INSERT INTO daily_budget (user_id, day, action, used) VALUES (?, ?, 'stateRead', ?)`,
+    )
+      .bind(w.userId, new Date(w.h.clock.now + CLAIM_MS + 1).toISOString().slice(0, 10), 300)
+      .run()
+    expect((await w.get()).status).toBe(429)
+    const row = await w.env.DB.prepare('SELECT attempted_at AS a FROM state_jobs WHERE user_id = ?')
+      .bind(w.userId)
+      .first<{ a: number }>()
+    expect(row?.a).toBe(5)
+  })
+
+  it('names no X-State-Now for a row no compute has stamped', async () => {
+    const w = await ready()
+    await w.env.DB.prepare('UPDATE state_jobs SET snapshot_now_ms = 0 WHERE user_id = ?')
+      .bind(w.userId)
+      .run()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const held = withComputeLock(() => gate)
+    try {
+      const { hash } = (await w.row())!
+      const res = await w.get({ 'If-None-Match': `"${hash}"` })
+      expect(res.status).toBe(304)
+      expect(res.headers.get('X-State-Current')).toBe('0')
+      expect(res.headers.get('X-State-Now')).toBeNull()
+    } finally {
+      release()
+      await held
+    }
   })
 })

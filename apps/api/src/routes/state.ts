@@ -89,7 +89,8 @@ function headersFor(hash: string, nowMs: number, version: number): Record<string
     ETag: `"${hash}"`,
     'Cache-Control': 'no-store',
     'X-State-Computed-Version': String(version),
-    'X-State-Now': String(nowMs),
+    // 0 is a row no compute has stamped yet (migration 0019's backfill): there is no instant to name.
+    ...(nowMs === 0 ? {} : { 'X-State-Now': String(nowMs) }),
   }
 }
 
@@ -119,23 +120,35 @@ async function serveStored(c: Ctx, row: JobRow, under: boolean): Promise<Respons
   const userId = currentUser(c).id
   const hash = row.snapshot_hash!
   const headers: Record<string, string> = {
-    ...headersFor(hash, row.snapshot_now_ms ?? 0, row.computed_version ?? 0),
+    ...headersFor(hash, row.snapshot_now_ms ?? 0, row.snapshot_version ?? 0),
     ...(under ? { 'X-State-Current': '0' } : {}),
   }
   if (matches(c.req.header('If-None-Match'), headers.ETag!)) return c.body(null, 304, headers)
-  if (!under) await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
+  const charge = under
+    ? undefined
+    : await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
   const object = await getOriginalFile(
     c.env.DB,
     c.env.FILES!,
     stateKey(userId, hash),
     c.var.deps.now,
   )
-  // The row names an object that is gone (swept, or the put was lost): there is no snapshot to serve.
-  if (object === null) throw NOT_FOUND()
+  if (object === null) {
+    // The row names an object that is gone (swept, or the put was lost): the row is reset, with the same hash guard, and
+    // the caller computes it again in this read. No unit is kept for a read that served nothing.
+    if (!under) await charge?.refund().catch(() => undefined)
+    await c.env.DB.prepare(
+      'UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ? AND snapshot_hash = ?',
+    )
+      .bind(userId, hash)
+      .run()
+    return 'stale'
+  }
   // An object an older Worker wrote (a rollback, a rolling deploy) carries no revision of its own while the row, which
   // that Worker does not keep, still says this one. Only a lower revision is reset: a later Worker's is left alone.
   if (Number(object.customMetadata?.analysisRevision ?? 0) < ANALYSIS_REVISION) {
     await object.body.cancel().catch(() => undefined)
+    await charge?.refund().catch(() => undefined)
     await c.env.DB.prepare(
       'UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ? AND snapshot_hash = ?',
     )
@@ -167,16 +180,20 @@ async function computeInRequest(
 ): Promise<Computed | null> {
   const userId = currentUser(c).id
   const run = await withComputeLock(async () => {
-    // Another isolate, or another tab, began a compute a moment ago: this read serves what is stored.
-    // The claim is taken once per request: a second read of the inputs after a write moved them is still this request's.
+    const charge = await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
+    // The claim is taken once per request, after the budget unit (a refused read must not stamp attempted_at and defer
+    // the queue): a second read of the inputs after a write moved them is still this request's.
     if (store && !claim.held) {
       claim.held = await claimCompute(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
-      if (!claim.held) return null
+      if (!claim.held) {
+        // Another isolate, or another tab, began a compute a moment ago: this read serves what is stored.
+        await charge.refund().catch(() => undefined)
+        return null
+      }
     }
-    const charge = await chargeDaily(c.env.DB, userId, 'stateRead', c.var.deps.now())
     let done: Computed
     try {
-      done = await computeAndStore(c.env, c.var.deps, userId, row, store)
+      done = await computeAndStore(c.env, c.var.deps, userId, row, store, true)
     } catch (error) {
       await charge.refund().catch(() => undefined)
       throw error
@@ -239,7 +256,7 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
       }
       return computing(c)
     }
-    if (done.kind === 'gone') throw NOT_FOUND()
+    if (done.kind === 'gone' || done.kind === 'busy') throw NOT_FOUND()
     if (done.kind === 'moved') {
       // A write landed while the inputs were read: read the row again, once.
       const again = await jobRow(c.env.DB, userId)
