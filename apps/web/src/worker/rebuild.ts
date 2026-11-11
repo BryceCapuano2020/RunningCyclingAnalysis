@@ -79,7 +79,10 @@ export async function loadServer(ctx: LibraryContext, userId: string): Promise<v
     count: shownCount(ctx.missingOriginals, ctx.savedRecords.values()),
   })
   ctx.device.replaced()
-  ctx.session.replaceLibrary(records.map((record) => record.digest))
+  ctx.session.replaceLibrary(
+    records.map((record) => record.digest),
+    { fromServer: true },
+  )
 }
 
 /** What an update has to report when another tab holds the writer lock: nothing was tried. */
@@ -176,7 +179,10 @@ export async function rebuildStale(ctx: LibraryContext, userId: string) {
     refreshed = records
   }
   ctx.device.replaced()
-  ctx.session.replaceLibrary(refreshed.map((record) => record.digest))
+  ctx.session.replaceLibrary(
+    refreshed.map((record) => record.digest),
+    { fromServer: true },
+  )
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
   // Rebuilding them again would find the same mismatch, so Update now leaves them out; adding

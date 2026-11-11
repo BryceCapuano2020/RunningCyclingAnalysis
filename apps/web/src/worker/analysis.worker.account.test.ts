@@ -5,7 +5,7 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { sampleDataset } from '@rca/core/synthetic'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 import { REPLY_TYPES } from './protocol'
@@ -80,6 +80,8 @@ async function startWorker() {
   }
   return { send }
 }
+
+afterEach(() => vi.doUnmock('./labelsConfig'))
 
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory())

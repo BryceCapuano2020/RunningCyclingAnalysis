@@ -107,5 +107,8 @@ export async function undoListLabels(
 
 /** Puts the session's index on the library as the account now holds it. Builds no state: the server computes the results. */
 export function reloadIndex(session: AnalysisSession, records: readonly ActivityRecord[]): void {
-  session.replaceLibrary(records.map((record) => record.digest))
+  session.replaceLibrary(
+    records.map((record) => record.digest),
+    { fromServer: true },
+  )
 }

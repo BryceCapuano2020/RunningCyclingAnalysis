@@ -71,8 +71,17 @@ describe('AnalysisSession reloading the library from the server', () => {
       throw new SyncFailure('network', 'timed out')
     })
     expect(session.importFacts().syncIssues).toEqual([{ code: 'network', count: 1 }])
-    session.replaceLibrary([digestActivity(run(1))])
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true })
     expect(session.importFacts().syncIssues).toEqual([])
+  })
+
+  it('keeps a signed-out save failure on the list when the library kept in this browser holds the workout', async () => {
+    const session = new AnalysisSession()
+    await session.importFiles([fileOf(1)], undefined, async () => {
+      throw new SyncFailure('signed-out', 'The session ended')
+    })
+    session.replaceLibrary([digestActivity(run(1))])
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'signed-out', count: 1 }])
   })
 
   it('does not put an unsaved digest back unless asked to, and keeps reporting it until it is saved', async () => {

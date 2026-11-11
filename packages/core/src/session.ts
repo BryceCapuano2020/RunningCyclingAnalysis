@@ -37,6 +37,7 @@ import {
   replaceDigest,
   splitsOf,
 } from './sessionIndex'
+import type { ReplaceOptions } from './sessionIndex'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import { newSaveBatch, type SyncSink } from './sessionSync'
@@ -231,16 +232,16 @@ export class AnalysisSession {
   }
 
   /** Replaces the library with digests stored elsewhere (see `fillLibrary`); builds no state. */
-  replaceLibrary(digests: ActivityDigest[], options: { keepUnsaved?: boolean } = {}): void {
+  replaceLibrary(digests: ActivityDigest[], options: ReplaceOptions = {}): void {
     const before = new Map(this.library.digests)
     this.resetLibrary()
-    fillLibrary(this.keeping, digests, before, options.keepUnsaved === true)
+    fillLibrary(this.keeping, digests, before, options)
   }
 
   loadDigests(
     digests: ActivityDigest[],
     settings: AthleteSettings,
-    options: { keepUnsaved?: boolean } = {},
+    options: ReplaceOptions = {},
   ): SessionState {
     this.replaceLibrary(digests, options)
     return this.state(settings)

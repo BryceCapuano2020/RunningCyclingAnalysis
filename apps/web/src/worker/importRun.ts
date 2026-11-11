@@ -176,7 +176,11 @@ export async function runImport(
   // library cannot be read the files are analysed on their own and the page is told: nothing is lost, and
   // nothing kept is written over, since each save first reads what is kept under its workout (a strict read).
   if (sync === null && request.saveToDevice && !device.inSession()) {
-    await device.load(request.settings).catch(() => post({ type: 'deviceIssue', issue: 'notRead' }))
+    await device.load(request.settings).catch(() => {
+      post({ type: 'deviceIssue', issue: 'notRead' })
+      // The index may still be the account of a session that expired: its digests are not analysed with these files.
+      session.replaceLibrary([])
+    })
   }
   view.showingSample = false
   const keeper = deviceKeeper(device, post)
@@ -266,8 +270,8 @@ export async function runImport(
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
-  // Taken before the index is read again from the account, which settles the unsaved list for the workouts it holds.
-  const facts = sync === null ? undefined : session.importFacts()
+  // The files this import refused, taken now: the labelling below may read the index again.
+  const importFacts = sync === null ? undefined : session.importFacts()
   if (sync !== null && ATHLETE_LABELS_ENABLED && listedTypes !== undefined) {
     const labelled = await applyListLabels(savedRecords, listedTypes, sync.userId, (fresh) => {
       savedRecords.clear()
@@ -294,6 +298,8 @@ export async function runImport(
       outcome = { ...outcome, labelled: done.labelled.length }
     }
   }
+  // The unsaved list is read once the index is, since a library read from the account settles what it holds.
+  const facts = importFacts && { ...importFacts, syncIssues: session.importFacts().syncIssues }
   // A zip that could not be read to its end leaves the library short: that import moves the baseline only if accepted.
   const damaged = (state?.rejected ?? facts?.rejected ?? []).some(
     ({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName),
