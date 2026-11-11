@@ -6,6 +6,7 @@ import {
   NETWORK_PROBE_DELAY_MS,
   networkStreakAfter,
   stopsSaving,
+  waitsForFile,
   SyncFailure,
 } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
@@ -205,7 +206,7 @@ export function markUnsynced(
 ): void {
   state.unsynced.set(key, code)
   state.latestUnsynced.add(key)
-  if (digestSaved) state.originalOnly.add(key)
+  if (digestSaved && waitsForFile(code)) state.originalOnly.add(key)
   else state.originalOnly.delete(key)
 }
 

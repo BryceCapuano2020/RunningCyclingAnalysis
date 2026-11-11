@@ -65,6 +65,7 @@ export class AnalysisSession {
   private readonly latestUnsynced = new Set<string>()
   // The keys among them whose digest was saved and only the original failed.
   private readonly originalOnly = new Set<string>()
+  private originalsKept = true
   // The same collections, as sessionKeep.ts reads and changes them. Only its helpers change the two unsaved ones.
   private readonly keeping: KeepState = {
     library: this.library,
@@ -239,7 +240,15 @@ export class AnalysisSession {
   replaceLibrary(digests: ActivityDigest[], options: ReplaceOptions = {}): void {
     const before = new Map(this.library.digests)
     this.resetLibrary()
-    fillLibrary(this.keeping, digests, before, options)
+    fillLibrary(this.keeping, digests, before, {
+      ...options,
+      originalsKept: options.originalsKept ?? this.originalsKept,
+    })
+  }
+
+  /** Whether the account keeps original files (its profile's setting): when it does not, no refused original is waited for. */
+  setOriginalsKept(kept: boolean): void {
+    this.originalsKept = kept
   }
 
   loadDigests(

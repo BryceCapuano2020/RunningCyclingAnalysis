@@ -95,6 +95,50 @@ describe('AnalysisSession reloading the library from the server', () => {
     expect(session.importFacts().syncIssues).toEqual([])
   })
 
+  it('keeps the notice of an original refused through the deferred path (sink.finish) until the file is held', async () => {
+    const session = new AnalysisSession()
+    const key = workoutKey('run', run(1).startMs)
+    const sink = Object.assign(async () => {}, {
+      finish: async () => [{ key, code: 'rate-limited' as const }],
+    })
+    await session.importFiles([fileOf(1)], undefined, sink)
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'rate-limited', count: 1 }])
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set() })
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'rate-limited', count: 1 }])
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set([key]) })
+    expect(session.importFacts().syncIssues).toEqual([])
+  })
+
+  it.each([['file-too-large'], ['originals-off'], ['original-unsent'], ['storage-quota']] as const)(
+    'settles an original refused for %s on a listing, since sending again cannot fix it',
+    async (code) => {
+      const key = workoutKey('run', run(1).startMs)
+      for (const via of ['finish', 'save'] as const) {
+        const session = new AnalysisSession()
+        const sink =
+          via === 'finish'
+            ? Object.assign(async () => {}, { finish: async () => [{ key, code }] })
+            : async () => {
+                throw new SyncFailure(code, 'refused', true)
+              }
+        await session.importFiles([fileOf(1)], undefined, sink)
+        expect(session.importFacts().syncIssues).toEqual([{ code, count: 1 }])
+        session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set() })
+        expect(session.importFacts().syncIssues).toEqual([])
+      }
+    },
+  )
+
+  it('settles every refused original on a listing once the account keeps no original files', async () => {
+    const session = new AnalysisSession()
+    await session.importFiles([fileOf(1)], undefined, async () => {
+      throw new SyncFailure('rate-limited', 'too many requests', true)
+    })
+    session.setOriginalsKept(false)
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set() })
+    expect(session.importFacts().syncIssues).toEqual([])
+  })
+
   it('keeps a signed-out save failure on the list when the library kept in this browser holds the workout', async () => {
     const session = new AnalysisSession()
     await session.importFiles([fileOf(1)], undefined, async () => {

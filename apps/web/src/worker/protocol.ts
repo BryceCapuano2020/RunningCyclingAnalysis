@@ -142,7 +142,8 @@ export type WorkerRequest =
   | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
   /** Lists the account's library into this worker's index. The results are the server's, so no settings or period go with it. */
-  | { type: 'loadServer'; userId: string }
+  /** `keepFiles: false`: the account keeps no original files. Absent: it does, or the page does not know. */
+  | { type: 'loadServer'; userId: string; keepFiles?: boolean }
   | { type: 'rebuildStale'; userId: string }
   /**
    * Sends the saves the outbox holds now, in the tab that holds the account's writer lock, without reading the library

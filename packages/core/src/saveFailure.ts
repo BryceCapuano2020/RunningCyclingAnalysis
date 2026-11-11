@@ -60,6 +60,25 @@ export function isTransient(code: SyncIssueCode): boolean {
   return TRANSIENT_CODES.has(code)
 }
 
+/**
+ * The original-file failures that sending the file again can clear, so the notice waits for the file: the connection, a server
+ * error, a rate limit or the day's limit, an upload in progress, or an original held in memory to be sent again. Any other (too
+ * large, originals off, past the resend budget, a full storage) will fail the same way, so a listing settles it.
+ */
+const WAITS_FOR_FILE: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'network',
+  'server',
+  'rate-limited',
+  'daily-limit',
+  'upload-in-progress',
+  'original-held',
+])
+
+/** Whether an original that failed for this cause is still to be sent, so its notice stays until the file is held. */
+export function waitsForFile(code: SyncIssueCode): boolean {
+  return WAITS_FOR_FILE.has(code)
+}
+
 const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
   'signed-out',
   'account-changed',

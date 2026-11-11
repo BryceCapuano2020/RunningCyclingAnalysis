@@ -65,9 +65,11 @@ export function useLibraryActions({
       // Only a read of a loaded library leaves the status alone; from any other, imports wait for it.
       if (!quiet || libraryStatusRef.current !== 'loaded') setLibrary('loading')
       reads.current = quiet ? reads.current + 1 : 1
-      send({ type: 'loadServer', userId })
+      // Named only when off: the worker takes originals as kept unless told, and a refused one is then no longer waited for.
+      const off = accountRef.current.me?.profile.keepFiles === false
+      send({ type: 'loadServer', userId, ...(off ? { keepFiles: false } : {}) })
     },
-    [libraryStatusRef, send, setLibrary],
+    [accountRef, libraryStatusRef, send, setLibrary],
   )
   useEffect(() => {
     readEndedRef.current = () => {
