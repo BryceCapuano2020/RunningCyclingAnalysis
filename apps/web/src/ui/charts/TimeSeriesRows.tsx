@@ -1,12 +1,11 @@
 import type { ChartSize } from './chartTypes'
 import { ChartXAxis } from './ChartXAxis'
 import { axisFontRem, labelWidth, rootScale } from './ticks'
-import { areaPath, bandPath, linePath, timeTicks } from './timeSeriesModel'
+import { areaPath, linePath, timeTicks } from './timeSeriesModel'
 import type { PixelMap } from './timeSeriesModel'
-import { bandOpacity, edgeTicks } from './timeSeriesEdge'
 import { valueMap } from './timeSeriesLayout'
 import type { StackLayout } from './timeSeriesLayout'
-import type { StackChannel, StackMark } from './timeSeriesTypes'
+import type { StackChannel } from './timeSeriesTypes'
 import { formatRecordTime } from '@rca/core/units'
 import { memo } from 'react'
 import './TimeSeriesStack.css'
@@ -16,7 +15,6 @@ const TICK_GAP_PX = 64
 /** The tick text size and the air kept between two labels, px. */
 const TICK_FONT_PX = 12
 const TICK_AIR_PX = 16
-const SKIPPED_PX = 5
 
 export interface TimeSeriesRowsProps {
   size: ChartSize
@@ -25,12 +23,11 @@ export interface TimeSeriesRowsProps {
   startS: number
   endS: number
   laps: readonly { startS: number; endS: number }[]
-  marks: readonly StackMark[]
-  hatchId: string
 }
 
 /**
- * The static drawing of the stack: laps behind, then each channel's row, the lane of pauses and gaps, and the time axis. It does not
+ * The static drawing of the stack: laps behind, then each channel's row as a small chart of its own with its name above
+ * it, and the time axis. A pause or gap is a break in the line, with no mark of its own. It does not
  * know the cursor, so moving the cursor does not redraw it (it is memoised on what it draws).
  */
 export const TimeSeriesRows = memo(function TimeSeriesRows({
@@ -40,8 +37,6 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
   startS,
   endS,
   laps,
-  marks,
-  hatchId,
 }: TimeSeriesRowsProps) {
   const { plot } = size
   const span = Math.max(1, endS - startS)
@@ -58,11 +53,6 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
   }))
   return (
     <>
-      <defs>
-        <pattern id={hatchId} width="4" height="4" patternUnits="userSpaceOnUse">
-          <path d="M 0 4 L 4 0" className="ts-stack__hatch" />
-        </pattern>
-      </defs>
       {laps.map((lap, index) =>
         index % 2 === 1 && lap.endS > startS && lap.startS < endS ? (
           <rect
@@ -114,32 +104,8 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
             {channel.shape === 'area' && (
               <path className="ts-stack__area" d={areaPath(channel.columns, map, row.bottom)} />
             )}
-            {channel.shape === 'line' && (
-              <path
-                className="ts-stack__band"
-                d={bandPath(channel.columns, map)}
-                style={{ opacity: bandOpacity(span / Math.max(1, channel.columns.x.length)) }}
-              />
-            )}
             <path className="ts-stack__line" d={linePath(channel.columns, map)} />
-            <path className="ts-stack__edge" d={edgeTicks(channel, row, x)} />
-            {channel.skipped.map(([from, to]) =>
-              to > startS && from < endS ? (
-                <rect
-                  key={from}
-                  className="ts-stack__skipped"
-                  x={x(Math.max(from, startS))}
-                  y={row.bottom - SKIPPED_PX}
-                  width={Math.max(2, x(Math.min(to, endS)) - x(Math.max(from, startS)))}
-                  height={SKIPPED_PX}
-                />
-              ) : null,
-            )}
-            <text
-              className="ts-stack__label"
-              x={layout.labelAbove ? plot.left : plot.left + 6}
-              y={layout.labelAbove ? row.top - 5 : row.top + 12}
-            >
+            <text className="ts-stack__label" x={plot.left} y={row.top - 6}>
               {channel.short}{' '}
               <tspan className="ts-stack__unit" dx="2">
                 {channel.unit}
@@ -148,19 +114,6 @@ export const TimeSeriesRows = memo(function TimeSeriesRows({
           </g>
         )
       })}
-      {marks.map((mark) =>
-        mark.endS > startS && mark.startS < endS ? (
-          <rect
-            key={`${mark.kind}-${mark.startS}`}
-            className={`ts-stack__mark ts-stack__mark--${mark.kind}`}
-            x={x(Math.max(mark.startS, startS))}
-            y={layout.laneTop}
-            width={Math.max(2, x(Math.min(mark.endS, endS)) - x(Math.max(mark.startS, startS)))}
-            height={layout.laneBottom - layout.laneTop}
-            fill={mark.kind === 'unrecorded' ? `url(#${hatchId})` : undefined}
-          />
-        ) : null,
-      )}
     </>
   )
 })

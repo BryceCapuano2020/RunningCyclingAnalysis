@@ -13,10 +13,17 @@ describe('ActivityIssues', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('notes heart rate set aside, under Data notes, as a row, on an activity with no flags', () => {
+  it('notes heart rate set aside, under Data notes as a row, on an activity with no flags', () => {
     render(<ActivityIssues activity={makeActivity()} setAside />)
-    expect(screen.getByRole('heading', { name: 'Data notes' })).toBeInTheDocument()
+    expect(screen.getByText('Data notes').tagName).toBe('SUMMARY')
+    expect(screen.queryByRole('heading')).toBeNull()
     expect(rowValue(document.body, 'Heart rate')).toBe('Left out of the checks')
+  })
+
+  it('names recording gaps, which the timeline shows only as a break, under Data notes', () => {
+    render(<ActivityIssues activity={makeActivity()} gaps={{ count: 2, seconds: 90 }} />)
+    expect(screen.getByText('Data notes').tagName).toBe('SUMMARY')
+    expect(rowValue(document.body, 'Not recorded')).toMatch(/^2 stretches, /)
   })
 
   it('gives each kind a row with its count and what was done, then a row for each reading with its time', () => {
@@ -28,7 +35,8 @@ describe('ActivityIssues', () => {
       ],
     })
     render(<ActivityIssues activity={activity} />)
-    expect(screen.getByRole('heading', { name: 'Skipped readings' })).toBeInTheDocument()
+    expect(screen.getByText('Skipped readings').tagName).toBe('SUMMARY')
+    expect(screen.queryByText(/Show the/)).toBeNull()
     expect(rowValue(document.body, 'Heart rate jumps')).toBe('2 times, left out')
     expect(rowValue(document.body, 'Heart rate jumps 1')).toBe('from 1:40 to 1:50, 10 s')
     expect(rowValue(document.body, 'Heart rate jumps 2')).toMatch(/^from 5:00 to 5:02/)

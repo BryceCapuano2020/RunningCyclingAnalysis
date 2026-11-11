@@ -1,6 +1,8 @@
 import { DATABASE_SOFT_LIMIT_BYTES } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
-import { createHarness, digestFixture, testEnv } from '../test/harness.ts'
+import { runMaintenance } from '../maintenance.ts'
+import { createHarness, digestFixture, START, testEnv } from '../test/harness.ts'
+import { at } from '../test/maintenance.ts'
 
 describe('DELETE /api/me without original-file storage', () => {
   it('deletes an account whose activities have no file fields', async () => {
@@ -41,7 +43,7 @@ describe('DELETE /api/me without original-file storage', () => {
     expect(me.status).toBe(200)
   })
 
-  it('records the database size once the deletion completes, so creates are admitted again', async () => {
+  it('admits creates again once the next daily run records a size under the limit', async () => {
     const h = createHarness({}, { FILES: undefined })
     const leaving = await h.signIn('leaving@example.com')
     await testEnv()
@@ -58,6 +60,7 @@ describe('DELETE /api/me without original-file storage', () => {
       cookies: { rca_session: leaving },
     })
     expect(res.status).toBe(204)
+    await runMaintenance(testEnv(), at(START + 86_400_000))
 
     const next = await h.signIn('next@example.com')
     const created = await h.send({

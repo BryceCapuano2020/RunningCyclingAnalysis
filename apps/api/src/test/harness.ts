@@ -54,6 +54,7 @@ export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
     AUTH_RATE_LIMITER: { limit: async () => ({ success: true }) },
     WRITE_RATE_LIMITER: { limit: async () => ({ success: true }) },
     HEALTH_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    NOTICE_RATE_LIMITER: { limit: async () => ({ success: true }) },
     ...overrides,
   }
 }

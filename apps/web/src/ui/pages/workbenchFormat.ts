@@ -13,8 +13,16 @@ export const METRIC_ORDER: readonly TraceMetric[] = [
   'temperature',
 ]
 
-/** The measures plotted when the activity opens. The rest can be chosen. */
-export const DEFAULT_METRICS: readonly TraceMetric[] = ['speed', 'power', 'heartRate', 'altitude']
+/**
+ * The measures plotted when the activity opens, three at most: the effort (a ride's power where it has it, else its
+ * speed; a run's pace), heart rate and the terrain. The rest are a tap away.
+ */
+export function defaultMetrics(available: readonly TraceMetric[], sport: Sport): TraceMetric[] {
+  const effort: TraceMetric = sport === 'ride' && available.includes('power') ? 'power' : 'speed'
+  return METRIC_ORDER.filter(
+    (metric) => available.includes(metric) && [effort, 'heartRate', 'altitude'].includes(metric),
+  )
+}
 
 /**
  * The measures whose range leaves out the few extreme readings at either end. A standing start or a stop

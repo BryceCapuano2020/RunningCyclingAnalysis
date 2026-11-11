@@ -11,7 +11,6 @@ import { chargeDaily } from '../../budget.ts'
 import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { invalidRequest, limitBody } from '../../http.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
-import { recordDatabaseSize } from '../../storage.ts'
 import { readJsonBody } from './shared.ts'
 
 const LABEL_BODY_BYTES = 64 * 1024
@@ -134,7 +133,6 @@ labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c)
   const softLimit = databaseSoftLimitBytes(c.env)
   const unapplied: LabelChange[] = []
   let applied = 0
-  let sizeAfter: number | null = null
   for (let start = 0; start < labels.length; start += CHANGES_PER_BATCH) {
     const group = labels.slice(start, start + CHANGES_PER_BATCH)
     const results = await c.env.DB.batch(
@@ -156,10 +154,7 @@ labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c)
       if (results[3 * index + 2]?.meta.changes === 1) applied++
       else unapplied.push(change)
     })
-    sizeAfter = results.at(-1)?.meta.size_after ?? sizeAfter
   }
-  // The writes may have grown the database, so the size the create guard reads is recorded.
-  if (applied > 0 && sizeAfter !== null) await recordDatabaseSize(c.env.DB, deps.now(), sizeAfter)
 
   const held = new Map(
     (

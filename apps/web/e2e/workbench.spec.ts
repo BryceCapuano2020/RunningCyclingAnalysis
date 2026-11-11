@@ -54,7 +54,7 @@ test('an imported activity supports keyboard selection and restores its details 
   await start.fill('0:10')
   await start.press('Enter')
   // At 1100 px and wider the interval's figures sit in the column beside the timeline, outside its section.
-  await expect(page.getByText('Elapsed time').locator('..')).toContainText('20 s')
+  await expect(page.getByText('Elapsed time').locator('..')).toContainText('0:20')
   await expect(brushStart).toHaveAttribute('aria-valuenow', '10')
   await brushStart.focus()
   await page.keyboard.press('ArrowRight')
@@ -62,9 +62,6 @@ test('an imported activity supports keyboard selection and restores its details 
   const step = Math.max(1, Math.round(whole / 200))
   await expect(brushStart).toHaveAttribute('aria-valuenow', String(10 + step))
   await expect(start).toHaveValue(`0:${String(10 + step).padStart(2, '0')}`)
-  await expect(
-    workbench.getByRole('table', { name: /while moving in the selected interval/i }),
-  ).toBeVisible()
   await expect(workbench.locator('.ts-stack svg.chart-frame__svg')).toBeVisible()
 
   await page.reload()

@@ -56,15 +56,10 @@ function show(
   )
 }
 
-/** The zone that held most of the time is a label and a value, not a sentence. */
-function expectMost(value: string) {
-  expect(screen.getByText('Most time').nextSibling).toHaveTextContent(value)
-}
-
 describe('ActivityZoneTime', () => {
-  it('leads with pace, then heart rate, and says where most of the interval was', () => {
+  it('leads with pace, then heart rate, each with its share by zone', () => {
     show(steadyTrace(120), [heartRate200, pace35])
-    expectMost('Pace zone 2, 100%')
+    expect(screen.queryByText('Most time')).toBeNull()
     const bars = screen.getByRole('img')
     expect(bars).toHaveAccessibleName(/Pace: zone 2 100%\. Heart rate: zone 3 100%/)
   })
@@ -72,25 +67,20 @@ describe('ActivityZoneTime', () => {
   it('follows the interval: each part of the run is read in its own zones', () => {
     const trace = twoPartRun()
     const { unmount } = show(trace, [heartRate200], 0, 60)
-    expectMost('Heart rate zone 1, 100%')
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 100%/)
     unmount()
     show(trace, [heartRate200], 60, 120)
-    expectMost('Heart rate zone 3, 100%')
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 3 100%/)
   })
 
-  it('says no zone held half when the time is spread', () => {
+  it('splits the shares when the time is spread over zones', () => {
     show(twoPartRun(), [heartRate200])
-    expectMost('Heart rate zone 1, 50%')
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Heart rate: zone 1 50%, zone 3 50%/)
   })
 
-  it('keeps every zone, its range and its share in the table behind a disclosure, with the chart’s facts', () => {
+  it('keeps every zone, its range and its share in the table', () => {
     show(twoPartRun(), [heartRate200])
-    // The chart has a fact, so its disclosure is its Details: the fact, then the table.
-    const details = screen.getByText('Details', { selector: 'summary' }).closest('details')!
-    expect(within(details).getByText('Most time').nextSibling).toHaveTextContent(
-      'Heart rate zone 1, 50%',
-    )
-    const table = within(details).getByRole('table', { hidden: true })
+    const table = screen.getByRole('table', { hidden: true })
     expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(6)
     const row = within(table)
       .getByRole('cell', { name: '140–159 bpm', hidden: true })
@@ -121,20 +111,23 @@ describe('ActivityZoneTime', () => {
       },
     }
     show(trace, [setOf('ride', 'power', 250), setOf('ride', 'heartRate', 190)])
-    expectMost('Measured power zone 3, 100%')
     expect(screen.getByRole('img')).toHaveAccessibleName(/Measured power: zone 3 100%/)
   })
 
-  it('asks for a reference when there are no zones', () => {
+  it('names the heading and links to Profile when there are no zones', () => {
     show(steadyTrace(120), [])
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    expect(screen.getByRole('heading', { name: 'Time in zones' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Set your zones on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
     expect(screen.queryByRole('img')).toBeNull()
   })
 
-  it('says so when the interval has no reading to place', () => {
+  it('draws nothing when zones exist but the interval has no reading to place', () => {
     const trace = { ...steadyTrace(120), streams: {} }
-    show(trace, [heartRate200])
-    expect(screen.getByText(/No heart rate, power or pace readings/)).toBeInTheDocument()
+    const { container } = show(trace, [heartRate200])
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('leaves out a paused second', () => {
@@ -152,7 +145,6 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
     speed.fill(0.2, 0, 30)
     show({ ...base, streams: { speed } }, [pace35])
     expect(screen.getByRole('cell', { name: '30 s', hidden: true })).toBeInTheDocument()
-    expectMost('Pace zone 2, 75%')
     expect(screen.getByRole('img')).toHaveAccessibleName(/Pace: zone 1 25%, zone 2 75%/)
   })
 
@@ -161,26 +153,28 @@ describe('ActivityZoneTime, what it counts and what it says about heart rate', (
     expect(screen.queryByRole('img')).toBeNull()
   })
 
-  it('says heart rate was set aside and why, and where the sport’s other zones come from, when none are left', () => {
+  it('says heart rate was set aside in one line, and links to Profile when no zones are left', () => {
     show(steadyTrace(120), [], 0, 120, true)
-    expect(
-      screen.getByText(
-        'Heart rate is set aside for this activity: it read too low for the effort, as a working sensor would not, so it is left out of zones.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/^Pace zones use a threshold pace from/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    expect(screen.getByText('Heart rate set aside')).toBeInTheDocument()
+    expect(screen.queryByText(/read too low/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Set your zones on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
   })
 
-  it('names power zones for a ride whose heart rate is set aside and whose power zones are missing', () => {
-    show({ ...steadyTrace(120), sport: 'ride' }, [], 0, 120, true)
-    expect(screen.getByText(/^Power zones use a threshold power from/)).toBeInTheDocument()
-  })
-
-  it('says it beside the zones that remain', () => {
+  it('says it beside the zones that remain, with no link to Profile', () => {
     show(steadyTrace(120), [pace35], 0, 120, true)
-    expectMost('Pace zone 2, 100%')
-    expect(screen.getByText(/Heart rate is set aside for this activity/)).toBeInTheDocument()
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Pace: zone 2 100%/)
+    expect(screen.getByText('Heart rate set aside')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it('says only the set-aside line when the interval has no reading', () => {
+    const trace = { ...steadyTrace(120), streams: {} }
+    show(trace, [pace35], 0, 120, true)
+    expect(screen.getByText('Heart rate set aside')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).toBeNull()
   })
 })
 
@@ -194,11 +188,11 @@ describe('ActivityWorkbench zones', () => {
         loadTrace={async () => ({ kind: 'trace', trace })}
       />,
     )
-    await screen.findByText('Elapsed time')
+    await screen.findAllByRole('img')
     expect(screen.queryByRole('heading', { name: 'Time in zones' })).toBeNull()
   })
 
-  it('shows time in zones under the interval summary, for the whole activity at first', async () => {
+  it('shows time in zones for the whole activity at first', async () => {
     const trace = steadyTrace(120)
     render(
       <ActivityWorkbench
@@ -209,14 +203,14 @@ describe('ActivityWorkbench zones', () => {
       />,
     )
     const heading = await screen.findByRole('heading', { name: 'Time in zones' })
-    const summary = screen.getByRole('heading', { name: 'Interval summary' })
-    expect(summary.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expectMost('Pace zone 2, 100%')
+    expect(within(heading.parentElement!).getByRole('img')).toHaveAccessibleName(
+      /Pace: zone 2 100%/,
+    )
   })
 })
 
 describe('ActivityZoneTime, a pace the date has no zones for', () => {
-  it('says what would give pace zones beside the heart rate time that is left', async () => {
+  it('links to Profile beside the heart rate time that is left', async () => {
     const trace = twoPartRun()
     render(
       <ActivityWorkbench
@@ -227,15 +221,18 @@ describe('ActivityZoneTime, a pace the date has no zones for', () => {
         missingZones={[{ measure: 'pace' }]}
       />,
     )
-    await screen.findByRole('heading', { name: 'Time in zones' })
-    expect(
-      screen.getByText('No pace zones for this run. A run of 8 min or more sets your pace zones.'),
-    ).toBeInTheDocument()
+    const heading = await screen.findByRole('heading', { name: 'Time in zones' })
+    expect(within(heading.parentElement!).getByRole('img')).toHaveAccessibleName(/Heart rate: zone/)
+    expect(screen.getByRole('link', { name: 'Set your zones on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+    expect(screen.queryByText(/No pace zones/)).toBeNull()
   })
 })
 
 describe('ActivityZoneTime, a heart rate the date has no zones for', () => {
-  it('says "heart rate", not the measure’s name, and what would give the zones', async () => {
+  it('links to Profile for the heart rate zones it lacks, without the measure’s name', async () => {
     const trace = twoPartRun()
     render(
       <ActivityWorkbench
@@ -247,9 +244,8 @@ describe('ActivityZoneTime, a heart rate the date has no zones for', () => {
       />,
     )
     await screen.findByRole('heading', { name: 'Time in zones' })
-    expect(
-      screen.getByText(/^No heart rate zones for this run\. Enter your max heart rate on Profile/),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Set your zones on Profile' })).toBeInTheDocument()
+    expect(screen.queryByText(/No heart rate zones/)).toBeNull()
     expect(screen.queryByText(/heartRate/)).toBeNull()
   })
 })

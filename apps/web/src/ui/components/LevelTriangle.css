@@ -48,15 +48,6 @@
   stroke-linecap: round;
 }
 
-.level-triangle__ring-label {
-  fill: var(--ink-secondary);
-  font: 400 var(--text-xs) var(--font-mono);
-  text-anchor: end;
-  paint-order: stroke;
-  stroke: var(--paper);
-  stroke-width: 3px;
-}
-
 /* The shape belongs to no sport, so it is neutral ink: 7% fill, a 2 px edge with round joins. */
 .level-triangle__shape {
   fill: color-mix(in srgb, var(--ink) 7%, transparent);

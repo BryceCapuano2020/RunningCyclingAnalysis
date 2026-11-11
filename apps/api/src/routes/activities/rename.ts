@@ -11,7 +11,6 @@ import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { HttpError, accountDeleting } from '../../errors.ts'
 import { invalidRequest, limitBody } from '../../http.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
-import { recordDatabaseSize } from '../../storage.ts'
 import { accountState, databaseFull, digestQuota } from './quota.ts'
 import { readJsonBody } from './shared.ts'
 
@@ -86,7 +85,5 @@ renameRoutes.patch('/:id/name', limitBody(RENAME_BODY_BYTES), requireUser, async
     if (state.databaseBytes > databaseSoftLimitBytes(c.env)) throw databaseFull()
     throw digestQuota()
   }
-  // The write may have grown the database, so the size the create guard reads is recorded.
-  await recordDatabaseSize(c.env.DB, deps.now(), written.meta.size_after)
   return c.json({ name } satisfies ActivityRenameResult, 200)
 })

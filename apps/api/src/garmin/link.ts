@@ -52,6 +52,26 @@ export async function linkOfGarminUser(
   return row === null ? null : stored(row)
 }
 
+/**
+ * The links of several Garmin users in one statement, by Garmin user id. The provider is written into the SQL (it is
+ * this module's constant), so the ids alone are bound: a notice's 100 entries stay within D1's 100 parameters.
+ */
+export async function linksOfGarminUsers(
+  db: D1Database,
+  garminUserIds: readonly string[],
+): Promise<Map<string, StoredLink>> {
+  const ids = [...new Set(garminUserIds)]
+  if (ids.length === 0) return new Map()
+  const { results } = await db
+    .prepare(
+      `SELECT ${LINK_COLUMNS} FROM provider_links
+       WHERE provider = '${GARMIN}' AND provider_user_id IN (${ids.map(() => '?').join(', ')})`,
+    )
+    .bind(...ids)
+    .all<LinkRow>()
+  return new Map(results.map((row) => [row.provider_user_id, stored(row)]))
+}
+
 export type SaveOutcome =
   | { saved: true; replaced: StoredLink | null }
   | { saved: false; reason: 'linked_elsewhere' | 'deleting' }
@@ -59,7 +79,8 @@ export type SaveOutcome =
 /**
  * Stores the grant as the account's one Garmin link, sealed, in one statement that holds only while the account is
  * not deleting. A Garmin user linked to another account is refused; the unique index refuses one that races in.
- * `replaced` is the link this one replaced when it was for another Garmin user, whose grant the caller deregisters.
+ * `replaced` is the link this one replaced when it was for another Garmin user, whose grant the caller deregisters;
+ * that user's waiting inbox items and their files go with it.
  */
 export async function saveLink(
   env: Bindings,
@@ -79,28 +100,41 @@ export async function saveLink(
     GARMIN,
     grant.tokens,
   )
-  let written: { user_id: string } | null
+  // A link for another Garmin user takes that user's waiting inbox with it, in the same batch as the write.
+  const leaving = previous !== null && previous.garminUserId !== grant.garminUserId
+  let written: { user_id: string } | undefined
+  let dropped: { file_key: string | null }[] = []
   try {
-    written = await db
-      .prepare(
-        `INSERT INTO provider_links (user_id, provider, provider_user_id, token_ciphertext, key_id, scopes, linked_at)
-         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7
-         WHERE EXISTS (SELECT 1 FROM users WHERE id = ?1 AND deleting_at IS NULL)
-         ON CONFLICT (user_id, provider) DO UPDATE SET provider_user_id = excluded.provider_user_id,
-           token_ciphertext = excluded.token_ciphertext, key_id = excluded.key_id, scopes = excluded.scopes,
-           linked_at = excluded.linked_at
-         RETURNING user_id`,
-      )
-      .bind(
-        userId,
-        GARMIN,
-        grant.garminUserId,
-        sealed.ciphertext,
-        sealed.keyId,
-        grant.scopes.join(' '),
-        deps.now(),
-      )
-      .first<{ user_id: string }>()
+    const [link, items] = await db.batch<{ user_id?: string; file_key?: string | null }>([
+      db
+        .prepare(
+          `INSERT INTO provider_links (user_id, provider, provider_user_id, token_ciphertext, key_id, scopes, linked_at)
+           SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7
+           WHERE EXISTS (SELECT 1 FROM users WHERE id = ?1 AND deleting_at IS NULL)
+           ON CONFLICT (user_id, provider) DO UPDATE SET provider_user_id = excluded.provider_user_id,
+             token_ciphertext = excluded.token_ciphertext, key_id = excluded.key_id, scopes = excluded.scopes,
+             linked_at = excluded.linked_at
+           RETURNING user_id`,
+        )
+        .bind(
+          userId,
+          GARMIN,
+          grant.garminUserId,
+          sealed.ciphertext,
+          sealed.keyId,
+          grant.scopes.join(' '),
+          deps.now(),
+        ),
+      // changes() is the link write's: nothing goes when the account was deleting and no link was written.
+      db
+        .prepare(
+          `DELETE FROM inbox_items WHERE user_id = ?1 AND provider = ?2 AND ?3 = 1 AND changes() = 1
+           RETURNING file_key`,
+        )
+        .bind(userId, GARMIN, leaving ? 1 : 0),
+    ])
+    written = link?.results[0] as { user_id: string } | undefined
+    dropped = (items?.results ?? []) as { file_key: string | null }[]
   } catch (error) {
     // Another account's callback for the same Garmin user wrote first.
     if (/UNIQUE constraint failed/i.test(String(error))) {
@@ -108,10 +142,9 @@ export async function saveLink(
     }
     throw error
   }
-  if (written === null) return { saved: false, reason: 'deleting' }
-  const replaced =
-    previous !== null && previous.garminUserId !== grant.garminUserId ? previous : null
-  return { saved: true, replaced }
+  if (written === undefined) return { saved: false, reason: 'deleting' }
+  await deleteInboxFiles(env, deps.now(), dropped)
+  return { saved: true, replaced: leaving ? previous : null }
 }
 
 /**
@@ -136,9 +169,16 @@ export async function removeLink(
        RETURNING file_key`,
     ).bind(userId, GARMIN, garminUserId ?? null),
   ])
-  const keys = (items?.results ?? []).flatMap((row) =>
-    row.file_key === null ? [] : [row.file_key],
-  )
+  await deleteInboxFiles(env, now, items?.results ?? [])
+}
+
+/** Deletes the files of inbox rows just deleted. Best effort: files no row names go to the orphan scan. */
+async function deleteInboxFiles(
+  env: Bindings,
+  now: number,
+  rows: readonly { file_key: string | null }[],
+): Promise<void> {
+  const keys = rows.flatMap((row) => (row.file_key === null ? [] : [row.file_key]))
   if (keys.length === 0 || !env.FILES) return
   try {
     await reserveR2Operation(env.DB, now, { cleanup: true })

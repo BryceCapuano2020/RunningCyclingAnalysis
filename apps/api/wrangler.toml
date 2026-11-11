@@ -25,6 +25,13 @@ name = "HEALTH_RATE_LIMITER"
 namespace_id = "27104"
 simple = { limit = 1, period = 60 }
 
+# Garmin's deregistration notice (POST /api/garmin/deregistration): no session, and up to 100 token checks a call.
+# Garmin sends from few addresses, so 120 a minute per address leaves bursts room and bounds a forger.
+[[ratelimits]]
+name = "NOTICE_RATE_LIMITER"
+namespace_id = "27105"
+simple = { limit = 120, period = 60 }
+
 # Structured logs, retained by Cloudflare for 3 days on the Free plan. The lines this app writes
 # (app.ts, accessLog.ts) never include request bodies, query strings, tokens or database error text.
 # Cloudflare's own invocation log for each request does carry the request URL, query string included,
@@ -60,6 +67,10 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
+# Workers Paid: D1 holds 10 GB per database, so the create guard's cap is 8192 MiB (8 GiB, at least 1 GB under
+# 10 GB read either way), not the 450 MiB Free default. src/databaseGuard.ts ignores a value outside
+# 64..9216, and a test reads this line.
+DATABASE_SOFT_LIMIT_MIB = "8192"
 # Results computed on the server for every signed-in account (docs/design/server-authority.md). The blocks below are on
 # (Workers Paid, both queues created 10 Nov 2026); the deploy-config check requires them, complete.
 

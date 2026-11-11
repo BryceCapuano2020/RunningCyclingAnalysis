@@ -264,25 +264,6 @@ export function linePath(columns: SeriesColumns, map: PixelMap): string {
     .join(' ')
 }
 
-/** The band between the lowest and highest reading of each column, one closed shape for each unbroken stretch. */
-export function bandPath(columns: SeriesColumns, map: PixelMap): string {
-  const bounded = columns.lo.map((lo, i) =>
-    Number.isFinite(lo) && Number.isFinite(columns.hi[i]!) ? lo : Number.NaN,
-  )
-  return runsOf(bounded)
-    .map(([first, last]) => {
-      const top: string[] = []
-      const bottom: string[] = []
-      for (let i = first; i <= last; i += 1) {
-        const x = fixed(map.x(columns.x[i]!))
-        top.push(`${x} ${fixed(map.y(columns.hi[i]!))}`)
-        bottom.push(`${x} ${fixed(map.y(columns.lo[i]!))}`)
-      }
-      return `M ${top.join(' L ')} L ${bottom.reverse().join(' L ')} Z`
-    })
-    .join(' ')
-}
-
 /** The area under the smoothed line down to `baseline`, one closed shape for each unbroken stretch. */
 export function areaPath(columns: SeriesColumns, map: PixelMap, baseline: number): string {
   return runsOf(columns.mean)

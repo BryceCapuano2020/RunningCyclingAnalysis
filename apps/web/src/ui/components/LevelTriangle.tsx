@@ -48,21 +48,11 @@ export function LevelTriangle({
     <div className="level-triangle" role="group" aria-label="Level in each sport">
       <svg className="level-triangle__plot" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
         {rings.map((ring, order) => (
-          <g key={ring.percent}>
-            <polygon
-              className={`level-triangle__ring${order === 0 ? ' level-triangle__ring--outer' : ''}`}
-              points={pointsOf(ring.points)}
-            />
-            {order === 0 ? null : (
-              <text
-                className="level-triangle__ring-label"
-                x={f(ring.top.x - 10)}
-                y={f(ring.top.y - 4)}
-              >
-                {ring.percent}
-              </text>
-            )}
-          </g>
+          <polygon
+            key={ring.percent}
+            className={`level-triangle__ring${order === 0 ? ' level-triangle__ring--outer' : ''}`}
+            points={pointsOf(ring.points)}
+          />
         ))}
         {TRIANGLE_SPORTS.map((sport) => {
           const corner = corners[sport]
