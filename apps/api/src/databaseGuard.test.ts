@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { DATABASE_SOFT_LIMIT_BYTES } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import {
@@ -38,6 +39,18 @@ describe('databaseSoftLimitBytes', () => {
     expect(
       databaseSoftLimitBytes({ DATABASE_SOFT_LIMIT_MIB: String(MAX_DATABASE_LIMIT_MIB) }),
     ).toBe(MAX_DATABASE_LIMIT_MIB * MIB)
+  })
+})
+
+describe('the production configuration', () => {
+  it('sets the cap for the paid plan: about 90 percent of D1 Paid, not the Free default', () => {
+    const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8')
+    const value = /^DATABASE_SOFT_LIMIT_MIB\s*=\s*"?(\d+)"?/m.exec(toml)?.[1]
+    const bytes = databaseSoftLimitBytes({ DATABASE_SOFT_LIMIT_MIB: value })
+    const paidBytes = 10 * 1024 * MIB
+    expect(bytes).toBeGreaterThan(DATABASE_SOFT_LIMIT_BYTES)
+    expect(bytes).toBeGreaterThanOrEqual(0.85 * paidBytes)
+    expect(bytes).toBeLessThanOrEqual(0.95 * paidBytes)
   })
 })
 

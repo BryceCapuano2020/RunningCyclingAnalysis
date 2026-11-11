@@ -27,7 +27,6 @@ const LABELS: [RegExp, string][] = [
   [/^INSERT INTO daily_budget/, 'charge the day'],
   [/^INSERT INTO activities/, 'insert the activity'],
   [/^UPDATE users SET activity_count/, 'move the counters'],
-  [/^INSERT INTO r2_storage_budget/, 'record the database size'],
 ]
 
 function labelled(statements: string[]): string[] {
@@ -87,7 +86,6 @@ describe('what a new create costs', () => {
       'charge the day',
       'insert the activity',
       'move the counters',
-      'record the database size',
     ])
     const insert = counted.statements().find((sql) => sql.startsWith('INSERT INTO activities'))
     expect(insert).toMatch(/\bRETURNING\b/)

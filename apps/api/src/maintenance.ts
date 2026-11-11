@@ -4,7 +4,7 @@ import { finishAccountDeletion, pruneAccountTombstones } from './accountDeletion
 import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
 import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
-import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
+import { readDatabaseSize, recordDatabaseSize, reserveR2Operation } from './storage.ts'
 import { STATE_KEY, stateKey } from './state/key.ts'
 import { resendDirty } from './state/resend.ts'
 import { expireInboxItems } from './inbox/expiry.ts'
@@ -66,12 +66,6 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const expired = await within<D1Result | undefined>(undefined, () =>
     deleteExpiredSessions(bound, now),
   )
-  // The recorded size feeds the create guard. Refreshing it every run means a value left over the
-  // limit cannot block creates indefinitely, even when no later delete records a smaller one.
-  if (expired) {
-    const size = expired.meta.size_after
-    await within(undefined, () => recordDatabaseSize(bound.DB, now, size))
-  }
   const sessions = expired?.meta.changes ?? 0
   const slots = await within(0, () => pruneUploadSlots(bound.DB, now))
   // Daily rows, the counts a deleted account left under its identity code, and tombstones past
@@ -86,6 +80,12 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
   const stateResent = await within(0, () => resendDirty(bound, now))
+  // The only place the size the create guard reads is written (request paths no longer record it,
+  // so writers do not queue on one row). It runs last, so it sees the day's deletions, and on the
+  // unmetered binding, so a spent operation budget cannot skip it. Two statements, so the run stays
+  // under MAX_MAINTENANCE_OPERATIONS plus two. A reading up to a day old is fine: the cap leaves
+  // about 1 GB free below D1's limit and the app adds far less than that in a day.
+  await recordDatabaseSize(env.DB, now, await readDatabaseSize(env.DB))
   return {
     sessions,
     slots,
