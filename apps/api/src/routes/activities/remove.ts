@@ -3,7 +3,7 @@ import type { AppEnv } from '../../env.ts'
 import { HttpError } from '../../errors.ts'
 import { chargeDaily } from '../../budget.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
-import { activityFileKey, recordDatabaseSize } from '../../storage.ts'
+import { activityFileKey } from '../../storage.ts'
 import { findOwnedActivity } from './shared.ts'
 
 export const removeRoutes = new Hono<AppEnv>()
@@ -38,8 +38,6 @@ removeRoutes.delete('/:id', requireUser, async (c) => {
   ])
   const deletedRows = (removed?.results ?? []) as { file_key: string | null }[]
   if (deletedRows.length === 0) throw new HttpError(404, 'not_found', 'Activity not found')
-  // The delete may bring the database back under its soft limit, so the create guard reads it.
-  if (removed) await recordDatabaseSize(c.env.DB, deps.now(), removed.meta.size_after)
 
   if (c.env.FILES) {
     const keys = new Set([activityFileKey(userId, row.id)])

@@ -231,19 +231,18 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
   same way unless it shrinks the digest. A request for a revision the row already has is answered with the
   stored digest and never needs quota.
 - **Database guard.** `DATABASE_SOFT_LIMIT_BYTES` is 450 MiB, below D1 Free's 500 MB per database. It is
-  the default of the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` (`src/databaseGuard.ts`): on Workers
-  Paid, where D1 holds 10 GB, set it to about 90 percent of the plan (for example `9000`). A value that is
-  not a whole number between 64 and 9216 is ignored and the 450 MiB default stays, so a typo cannot remove
-  the guard. While the
-  last recorded size is above it, a new activity returns **503 `database_full`**, and so does an upgrade
-  that would grow a stored digest. Upgrades that do not grow it still succeed, and each successful upgrade
-  records the size it leaves behind.
-- **Recovery.** The recorded size is `r2_storage_budget.d1_size_bytes`, taken from `meta.size_after` of a D1
-  statement that has already run: after each create that writes a row, after each upgrade, after each successful
-  `DELETE /api/activities/:id`, when an account deletion completes, and in every maintenance run. Creates
-  are admitted again once one of those records a size at or under the limit. Creates do not measure the
-  size themselves, so a refused create does not recover the guard. The daily maintenance run guarantees
-  recovery within a day, even when no delete records a smaller size.
+  the default of the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` (`src/databaseGuard.ts`). Production is
+  on Workers Paid, where D1 holds 10 GB, so `wrangler.toml` sets it to `8192` (8 GiB, at least 1 GB under
+  the plan's 10 GB whether read as decimal or binary; a test reads that line). A value that is not a whole number between 64 and 9216 is ignored and the 450 MiB
+  default stays, so a typo cannot remove the guard. While the last recorded size is above the cap, a new
+  activity returns **503 `database_full`**, and so does an upgrade that would grow a stored digest.
+  Upgrades that do not grow it still succeed.
+- **Recovery.** The recorded size is `r2_storage_budget.d1_size_bytes`. Only the daily maintenance run
+  writes it, as the last step, from the `size_after` of a cheap statement it runs then. No create, upgrade,
+  delete, rename, label change or account deletion records it, so those writes never queue on that one row.
+  The guard therefore reads a figure up to a day old. At an 8192 MiB cap that is safe: at least 1 GB stays free
+  below D1's limit, more than one day of this app's writes adds. Creates are admitted again at the next run
+  after the size falls to the cap or below. A refused create does not recover the guard.
 
 ## Original-file uploads
 
@@ -460,13 +459,14 @@ of them.
 
 `[triggers] crons = ["17 3 * * *"]` runs `runMaintenance` (`src/maintenance.ts`), and each step is bounded:
 
-- Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
+- Deletes sessions that have expired or passed their 90-day end, up to 500 per run.
 - Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
 - Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
 - Deletes up to 90 expired Garmin inbox rows a run: `done` and stale `pending` ones after 7 days, `failed` ones and their files after 30 (`src/inbox/expiry.ts`): one D1 statement and at most one R2 delete.
 - Sweeps two pages of 90 keys per run for R2 objects that no activity row, results job or inbox row names, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 - An account deletion with a Garmin link first asks Garmin to deregister it: one call, five seconds at most, that never stops the deletion.
+- Last, records the database size the create guard reads (see the database guard): one cheap statement for the size and one write, outside the operation count below.
 
 Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIONS`, which is **45** per run, below the Workers Free limit of 50 subrequests per invocation. A step that reaches the cap stops, and the next run resumes from its saved state. CPU is not measured.
 
@@ -509,7 +509,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                             |
 | 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                           |
 | 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                                                  |
-| 503    | `database_full`            | Database over 450 MiB; new activities and growing upgrades are refused until the recorded size falls.                                  |
+| 503    | `database_full`            | Database over 450 MiB (8192 MiB in production); new activities and growing upgrades are refused until the recorded size falls.         |
 | 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                           |
 | 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                    |
 | 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                                                  |

@@ -60,6 +60,10 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
+# Workers Paid: D1 holds 10 GB per database, so the create guard's cap is 8192 MiB (8 GiB, at least 1 GB under
+# 10 GB read either way), not the 450 MiB Free default. src/databaseGuard.ts ignores a value outside
+# 64..9216, and a test reads this line.
+DATABASE_SOFT_LIMIT_MIB = "8192"
 # Results computed on the server (docs/design/server-compute.md): off for everyone. The list is user ids, comma
 # separated; empty means no account. The owner's id goes in the Worker secret SERVER_COMPUTE_ACCOUNTS, not here (the
 # secret wins over this variable; docs/PRODUCTION.md). The blocks below are on (Workers Paid, both queues created 10 Nov
