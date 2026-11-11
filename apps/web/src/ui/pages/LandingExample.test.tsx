@@ -6,6 +6,7 @@ import { AnalysisSession } from '@rca/core/session'
 import { landingText } from '../../test/landingText'
 import { gapOfHeadline } from '../balanceGap'
 import { thresholdGrades } from '../thresholdGrade'
+import { halfOfState } from '../runHalf'
 import { SAMPLE_DESCRIPTION, SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { LandingExample } from './LandingExample'
 import { LANDING_EXAMPLE } from '../landingExample'
@@ -21,23 +22,21 @@ afterEach(() => {
   cleanup()
 })
 
-/** The sample athlete's own analysis, which the example is drawn from. */
-function sampleResult() {
-  const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
+/** The sample athlete's own grades, the run's by its forecast half as its Balance asks it: what the example is drawn from. */
+function sampleGrades() {
+  const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+  const { result } = state
   if (result === null) throw new Error('The sample has no result')
-  return result
+  return thresholdGrades(result, SAMPLE_PROFILE, halfOfState(state)(result))
 }
 
 describe('LandingExample', () => {
   it('matches the gap the sample athlete itself shows', () => {
-    const result = sampleResult()
-    expect(gapOfHeadline(thresholdGrades(result, SAMPLE_PROFILE))).toMatchObject(
-      LANDING_EXAMPLE.gap,
-    )
+    expect(gapOfHeadline(sampleGrades())).toMatchObject(LANDING_EXAMPLE.gap)
   })
 
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {
-    const headline = thresholdGrades(sampleResult(), SAMPLE_PROFILE)
+    const headline = sampleGrades()
     for (const sport of ['run', 'ride'] as const) {
       const outcome = headline[sport]
       if (outcome.kind !== 'graded') throw new Error(`The sample has no ${sport} grade`)
