@@ -1,3 +1,4 @@
+import type { Profile } from '@rca/contract'
 import { bodyMassOn } from '@rca/core/athlete'
 import { ageProfileOf } from './grades'
 import { datedWeightActions } from './datedWeight'
@@ -16,11 +17,11 @@ import { usePreferences } from './useSettings'
  */
 export function useAthlete(
   account: AccountController,
+  profile: Profile | null,
   countedRuns: readonly string[],
   keptPower: readonly string[],
 ) {
   const [preferences, setPreferences] = usePreferences()
-  const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
   const athleteValues: AthleteValues = profile

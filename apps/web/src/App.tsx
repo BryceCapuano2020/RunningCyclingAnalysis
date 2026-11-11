@@ -64,7 +64,7 @@ export function App() {
     saveProfile,
     addSetting,
     removeSetting,
-  } = useAthlete(account, countedRuns.keys, keptPower.ids)
+  } = useAthlete(account, profile, countedRuns.keys, keptPower.ids)
   const { units } = athleteValues
   const liftDay = useLiftDay(now)
   const accountChoices = useAccountSettings(account.status, account.me?.user.id ?? null)
