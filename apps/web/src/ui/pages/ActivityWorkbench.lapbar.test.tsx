@@ -67,6 +67,21 @@ describe('many laps', () => {
     expect(document.querySelector('.lap-strip__line')).toBeNull()
   })
 
+  it('zoom to a lap chosen from the list, as a segment does', async () => {
+    const user = userEvent.setup()
+    show(lapped(12))
+    const group = await screen.findByRole('group', { name: 'Laps' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Choose lap' }), '4')
+    expect(within(group).getByRole('button', { name: /^Lap 5 / })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('slider', { name: 'Selection start' })).toHaveAttribute(
+      'aria-valuenow',
+      '240',
+    )
+  })
+
   it('are one stop in the tab order, and the arrows and Home and End step between laps', async () => {
     const user = userEvent.setup()
     show(lapped(12))
@@ -138,5 +153,28 @@ describe('laps only', () => {
     await screen.findByRole('figure')
     expect(screen.queryByRole('heading', { name: 'Laps' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).toBeNull()
+  })
+})
+
+describe('a trace that fails to load', () => {
+  it('says so as an alert and offers to try again, which reads it once more', async () => {
+    const user = userEvent.setup()
+    let calls = 0
+    const trace = lapped(3)
+    render(
+      <ActivityWorkbench
+        activityId={trace.activityId}
+        units="metric"
+        loadTrace={async () => {
+          calls += 1
+          if (calls === 1) throw new Error('read failed')
+          return { kind: 'trace', trace }
+        }}
+      />,
+    )
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('slider', { name: 'Selection start' })).toBeInTheDocument()
+    expect(calls).toBe(2)
   })
 })
