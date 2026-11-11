@@ -46,9 +46,8 @@ describe('measures with nothing to draw', () => {
     expect(power.closest('label')).not.toHaveTextContent('no data')
     const figure = await screen.findByRole('figure', { name: /measured power/i })
     expect(figure.querySelector('[data-channel="power"]')).not.toBeNull()
-    // It stays in the interval summary, as the one value it held, and the drawing is of a steady line within its row.
-    const table = screen.getByRole('table', { name: /while moving in the selected interval/i })
-    expect(within(table).getByRole('row', { name: /^Measured power/ })).toHaveTextContent('200 W')
+    // Its readout holds the one value it held, and the drawing is of a steady line within its row.
+    expect(within(figure).getByRole('status')).toHaveTextContent('200')
     const ys = [
       ...(
         figure.querySelector('[data-channel="power"] .ts-stack__line')?.getAttribute('d') ?? ''

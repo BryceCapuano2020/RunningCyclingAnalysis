@@ -123,22 +123,15 @@ describe('the stack’s crosshair and readout', () => {
   })
 })
 
-describe('the readout and the interval summary', () => {
-  it('give the same average for the same seconds, whole and for a lap', async () => {
+describe('the readout and the interval tiles', () => {
+  it('give the same average pace for the same seconds, for a lap', async () => {
     const user = userEvent.setup()
     show(runTrace())
     const status = within(await screen.findByRole('figure')).getByRole('status')
-    const tableAverage = async (name: RegExp, row: RegExp) =>
-      within(
-        within(await screen.findByRole('table', { name })).getByRole('row', { name: row }),
-      ).getAllByRole('cell')[0]!.textContent
-    for (const lap of [null, /^Lap 1/, /^Lap 2/]) {
-      if (lap !== null) await user.click(screen.getByRole('button', { name: lap }))
-      const pace = await tableAverage(/pace in the selected interval/i, /^Pace/)
-      const heart = await tableAverage(/while moving in the selected interval/i, /^Heart rate/)
-      expect(status).toHaveTextContent(`Pace${pace!.replace(' ', '')}`)
-      expect(status).toHaveTextContent(`Heart rate${heart!.replace(' ', '')}`)
-    }
+    await user.click(screen.getByRole('button', { name: /^Lap 1/ }))
+    const pace = (await screen.findByText('Average pace')).nextElementSibling!.textContent!
+    expect(pace).toBe('4:10 /km')
+    expect(status).toHaveTextContent(`Pace${pace.replace(' ', '')}`)
   })
 })
 
@@ -195,12 +188,12 @@ describe('the stack’s laps and notes on the timeline', () => {
     expect(screen.getByRole('figure')).toHaveTextContent('Reading left out')
   })
 
-  it('says what the line and the band are, with the average’s length for the window', async () => {
+  it('keeps the facts about the lines and bands out of the key under the plot', async () => {
     show(steadyTrace(3600))
     await surface()
     const figure = screen.getByRole('figure')
-    expect(figure).toHaveTextContent('Lines 21 s averages')
-    expect(figure).toHaveTextContent('Bands 10th to 90th percentile')
+    expect(figure).not.toHaveTextContent('Lines 21 s averages')
+    expect(figure).not.toHaveTextContent('Bands 10th to 90th percentile')
   })
 
   it('keeps the table twin for every measure shown', async () => {

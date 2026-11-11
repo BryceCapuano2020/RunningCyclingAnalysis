@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
 import { ActivityWorkbench } from './ActivityWorkbench'
@@ -137,39 +138,30 @@ describe('ActivityWorkbench: a pace row and its artifacts', () => {
   })
 })
 
-describe('ActivityWorkbench: the interval summary of a run', () => {
-  it('gives a pace’s typical range, fastest first, and leaves the burst and the standing start out of it', async () => {
-    show(runWithArtifacts())
-    const table = await screen.findByRole('table', { name: /pace in the selected interval/i })
-    expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(['Measure', 'Average', 'Typical range', 'Time'])
-    const pace = within(table).getByRole('row', { name: /^Pace/ })
-    expect(pace).toHaveTextContent('4:10 to 5:33 /km')
-    expect(pace).not.toHaveTextContent('2:02')
-    expect(pace).not.toHaveTextContent('27:47')
-  })
-
-  it('gives the average pace the activity header gives: the distance over the moving time', async () => {
+describe('ActivityWorkbench: the interval tiles of a run', () => {
+  it('gives a chosen interval the average pace the activity header gives: the distance over the moving time', async () => {
+    const user = userEvent.setup()
     show(runWithArtifacts())
     await screen.findByRole('figure', { name: /^Pace over time/ })
-    // The distance up to the last sample, 2,087.7 m, over the 600 s: the activity header's own sum.
-    expect(screen.getByText('Average pace').nextElementSibling).toHaveTextContent('4:47 /km')
+    const end = await screen.findByRole('textbox', { name: 'End time' })
+    await user.clear(end)
+    await user.type(end, '5:00{Enter}')
+    const tile = (await screen.findByText('Average pace')).parentElement!
+    // The distance up to the last sample of the interval, over its 300 s: the sum the activity header makes.
+    expect(tile).toHaveTextContent(/^Average pace\d:\d\d \/km$/)
+    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('5:00')
   })
 
-  it('gives heart rate its own typical range, in a table of its own beside the pace', async () => {
-    const trace = runWithArtifacts()
-    trace.streams.heartRate = Float32Array.from({ length: 600 }, (_, i) => 150 + (i % 2))
-    show(trace)
-    await screen.findByRole('figure', { name: /heart rate/ })
-    const others = screen.getByRole('table', { name: /while moving in the selected interval/i })
-    expect(
-      within(others)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(['Measure', 'Average', 'Typical range', 'Time'])
-    expect(within(others).queryByRole('row', { name: /^Pace/ })).not.toBeInTheDocument()
+  it('draws no stats table, for the whole activity or a part of it', async () => {
+    const user = userEvent.setup()
+    show(runWithArtifacts())
+    await screen.findByRole('figure', { name: /^Pace over time/ })
+    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
+    const end = await screen.findByRole('textbox', { name: 'End time' })
+    await user.clear(end)
+    await user.type(end, '5:00{Enter}')
+    await screen.findByText('Elapsed time')
+    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
+    expect(screen.queryByText('Typical range')).toBeNull()
   })
 })

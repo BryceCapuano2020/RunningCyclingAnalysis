@@ -7,7 +7,6 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { DURATIONS_S } from '@rca/core/constants'
 import { curveOf, curvePoint } from '../charts/test/fixtures'
 import { makeActivity, makeResult } from '../components/test/fixtures'
-import type { SplitsLoad, SplitsViewName } from '../components/splitRows'
 import { ActivityBests } from './ActivityBests'
 
 afterEach(() => {
@@ -65,8 +64,6 @@ function renderBests(
       inPeriod={inPeriod}
       period={period}
       earned={earned}
-      splitsLoad={{ status: 'loaded', splits: null }}
-      splitsView="units"
     />,
   )
 }
@@ -127,8 +124,10 @@ describe('the activity page’s best efforts', () => {
     renderBests({ period: TWELVE_MONTHS, inPeriod: false })
     expect(marksOf('Best 5 km')).toContain('All-time record')
     expect(marksOf('Best 10 km')).toEqual([])
-    expect(screen.getByText(/All-time records here: Best 5 min\./)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Run page' })).toHaveAttribute('href', '#/run')
+    expect(screen.getByRole('link', { name: 'Best 5 min' })).toHaveAttribute('href', '#/run')
+    expect(screen.getByRole('link', { name: 'Best 5 min' }).parentElement).toHaveTextContent(
+      /^All-time record: Best 5 min$/,
+    )
     expect(screen.queryByText(/not counted/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Outside/)).not.toBeInTheDocument()
     expect(screen.queryByText(/12 months/)).not.toBeInTheDocument()
@@ -147,8 +146,6 @@ describe('the activity page’s best efforts', () => {
         inPeriod={false}
         period={TWELVE_MONTHS}
         earned={[]}
-        splitsLoad={{ status: 'loaded', splits: null }}
-        splitsView="units"
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -183,8 +180,6 @@ function renderFor(
       inPeriod={inPeriod}
       period={period}
       earned={earned}
-      splitsLoad={{ status: 'loaded', splits: null }}
-      splitsView="units"
     />,
   )
 }
@@ -230,16 +225,15 @@ describe('the marks follow who holds the best', () => {
     expect(marksOf('Best 20 min')).toContain('Best in the last 12 months')
   })
 
-  it('names the sport page without asking for All time when the period already is all time', () => {
+  it('links an unfigured record to the sport page when the period already is all time', () => {
     // The chips say this run holds the 5 min record, though the period's curve gives the best to another.
     const result = makeResult({
       activities: [run],
       runCurve: curveHeldBy({ 300: [16, 'activity-2'] }),
     })
     renderFor(run, result, { period: ALL_TIME, earned: [{ kind: 'duration', durationS: 300 }] })
-    expect(screen.getByText(/All-time records here: Best 5 min\. See the/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Best 5 min' })).toHaveAttribute('href', '#/run')
     expect(screen.queryByText(/Choose All time/)).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Run page' })).toHaveAttribute('href', '#/run')
   })
 })
 
@@ -265,14 +259,16 @@ describe('a ride’s best efforts', () => {
     expect(marksOf('Best 1 min')).toEqual(['Best in the last 12 months'])
   })
 
-  it('names all-time records outside the period with a link to the Ride page', () => {
+  it('names an all-time record outside the period in one line with a link to the Ride page', () => {
     renderFor(ride, makeResult({ activities: [] }), {
       period: TWELVE_MONTHS,
       earned,
       inPeriod: false,
     })
-    expect(screen.getByText(/All-time records here: Best 5 min\./)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ride page' })).toHaveAttribute('href', '#/ride')
+    expect(screen.getByRole('link', { name: /^Best 5 min/ }).parentElement).toHaveTextContent(
+      /^All-time record: Best 5 min$/,
+    )
+    expect(screen.getByRole('link', { name: /^Best 5 min/ })).toHaveAttribute('href', '#/ride')
   })
 
   it('waits for the weight, and marks nothing until it is entered', () => {
@@ -283,71 +279,11 @@ describe('a ride’s best efforts', () => {
   })
 })
 
-describe('the note on how distance times and splits are timed', () => {
-  const NOTE = 'Distance times include stops. Splits are moving time.'
-  const SPLITS = {
-    km: [
-      {
-        distanceM: 1000,
-        seconds: 300,
-        gradeAdjustedSeconds: 290,
-        elevationGainM: 12,
-        avgHeartRate: 150,
-      },
-    ],
-    mile: [],
-  }
-
-  function renderWith(
-    splitsLoad: SplitsLoad,
-    activity: ActivitySummary = run,
-    splitsView: SplitsViewName = 'units',
-  ) {
-    return render(
-      <ActivityBests
-        activity={activity}
-        result={periodResult}
-        units="metric"
-        massKg={70}
-        weightKnown
-        profile={null}
-        inPeriod
-        period={ALL_TIME}
-        earned={[]}
-        splitsLoad={splitsLoad}
-        splitsView={splitsView}
-      />,
-    )
-  }
-
-  it('claims only the stops of the distance times while the recorded laps are shown', () => {
-    renderWith({ status: 'loaded', splits: SPLITS }, run, 'laps')
-    expect(screen.getByText('Distance times include stops.')).toBeInTheDocument()
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
-  })
-
-  it('sits under the distance times when the run lists splits', () => {
-    renderWith({ status: 'loaded', splits: SPLITS })
-    expect(screen.getByText(NOTE)).toBeInTheDocument()
-  })
-
-  it.each<[string, SplitsLoad]>([
-    ['are still loading', { status: 'loading' }],
-    ['could not be loaded', { status: 'failed' }],
-    ['were not kept', { status: 'loaded', splits: null }],
-    ['have no whole unit', { status: 'loaded', splits: { km: [], mile: [] } }],
-  ])('is left out when the splits %s', (_name, load) => {
-    renderWith(load)
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
-  })
-
-  it('is left out when the run has no distance time', () => {
-    const short = makeActivity({
-      id: 'activity-3',
-      sport: 'run',
-      distanceBests: [],
-    })
-    renderWith({ status: 'loaded', splits: SPLITS }, short)
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+describe('what the bests leave unsaid', () => {
+  it('has no timing note, no standard note and no power-curve line', () => {
+    renderBests()
+    expect(screen.queryByText(/Distance times include stops/)).toBeNull()
+    expect(screen.queryByText(/No age standard/)).toBeNull()
+    expect(screen.queryByText(/No power curve/)).toBeNull()
   })
 })

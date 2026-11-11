@@ -1,14 +1,8 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { ATHLETE_LABEL_CHIP, WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
-import { formatDay, formatTimeOfDay } from '../format/date'
-import { SPORT_LABEL } from '../sports'
+import { activityDayLine } from '../activityDayLine'
 import type { Property } from '../components/property'
 import { PageDetails } from './PageDetails'
-
-/** The one line under an activity's title: its sport, day and start time, as "Ride · Sat 8 Nov, 12:14". */
-export function activityDayLine(activity: ActivitySummary): string {
-  return `${SPORT_LABEL[activity.sport]} · ${formatDay(activity.startMs)}, ${formatTimeOfDay(activity.startMs)}`
-}
 
 /**
  * What the title leaves out: the sport, day and time as the one line under it, then behind one Details the rows that
