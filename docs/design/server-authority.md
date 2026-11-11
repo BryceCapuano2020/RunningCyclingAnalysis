@@ -134,7 +134,7 @@ largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 4,000 and `MAX_DIGEST_B
 
 - **Measured in workerd** (apps/api/LIMITS.md has the figures): the job on synthetic data at those limits, with the isolate's
   heap limited by `MINIFLARE_WORKERD_V8_FLAGS="--max-old-space-size=N"`, passes at 96 MB, and CPU is under half of
-  `limits.cpu_ms` (30,000). If 4,000 later fails CI, the cap goes to 3,000.
+  `limits.cpu_ms` (60,000: the GC-thrash case at 96 MB is 15.6 s locally, about 31 s at the 2x allowance for Cloudflare's CPUs). If 4,000 later fails CI, the cap goes to 3,000.
 - **A test pins it.** `state/memoryCases.test.ts` fails unless the memory sim runs the account limits.
 - **Lowering a quota is not safe on its own:** rows over a new quota are kept, never dropped. The release session first
   checks, with a read-only query, that no account in production is over either (`activity_count > 4000` or

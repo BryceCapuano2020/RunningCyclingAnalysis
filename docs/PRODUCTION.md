@@ -327,7 +327,7 @@ the Worker that reads it**: `GET /api/state`, the state job and the daily re-sen
 | Dead-letter queue | `rca-state-dlq` (`wrangler queues create rca-state-dlq`); nothing consumes it, a message that failed its tries waits there                                                                                                                             |
 | R2 key prefix     | `users/{userId}/state/{hash}.json.gz` in the existing `rca-files` bucket; no new bucket                                                                                                                                                                |
 | Worker secret     | none: `SERVER_COMPUTE_ACCOUNTS` is no longer read, and the owner removes it after this release                                                                                                                                                         |
-| Wrangler blocks   | `[limits] cpu_ms = 30000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
+| Wrangler blocks   | `[limits] cpu_ms = 60000`, `[[queues.producers]]`, `[[queues.consumers]]` with `max_batch_size = 2`, `max_concurrency = 1`, `max_retries = 3`, `dead_letter_queue = "rca-state-dlq"`: commented in `apps/api/wrangler.toml`, uncommented to turn it on |
 | Plan              | Workers Paid (Queues, `limits.cpu_ms`)                                                                                                                                                                                                                 |
 
 The deploy check (`node apps/api/scripts/check-deploy-config.mjs`, part of `deploy:built`) requires the whole
@@ -379,7 +379,7 @@ revision of its own and leaves `state_jobs.analysis_revision` as it was. After t
 object stale, sets the row's revision to 0 and sends one recompute, so nothing needs doing by hand. To recompute every listed
 account at once instead: `UPDATE state_jobs SET analysis_revision = 0`, and the daily re-send picks them up.
 
-`cpu_ms = 30000`: the largest account the quotas admit (4,000 activities, 32 MiB of digests, 60,000 lift sets) took 3.3 s of CPU locally, and 15.6 s with the isolate's heap limited to 96 MB, so 30 s is about twice the worst measured; a runaway job is stopped well before the platform's limit.
+`cpu_ms = 60000`: the largest account the quotas admit (4,000 activities, 32 MiB of digests, 60,000 lift sets) took 3.3 s of CPU locally, and 15.6 s with the isolate's heap limited to 96 MB (the collector thrashing). At the 2x allowance for Cloudflare's slower CPUs that is about 31 s, over 30 s, so the cap is 60 s; Workers Paid allows up to 300 s and unused time costs nothing.
 
 **Not built yet.** The hourly refresh (S6) does not exist. A message that is lost, or whose retries run out, leaves the account
 dirty until its next write or the next daily maintenance; and a change to the snapshot's shape or to `MODEL_REVISION` needs a write to recompute an account's

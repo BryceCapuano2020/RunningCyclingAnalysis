@@ -22,7 +22,7 @@ max_retries = 3
 dead_letter_queue = "rca-state-dlq"`
 const limits = `
 [limits]
-cpu_ms = 30000`
+cpu_ms = 60000`
 /** A configuration that passes: the settings and the whole bounded set of the state queue. */
 const valid = bare + producer + consumer + limits
 
@@ -106,7 +106,7 @@ test('the committed production configuration binds the whole bounded set and nam
   const config = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8')
   assert.doesNotMatch(config, /SERVER_COMPUTE/)
   assert.match(config, /^\[\[queues\.producers\]\]/m)
-  assert.match(config, /^\[limits\]\s*\ncpu_ms = 30000/m)
+  assert.match(config, /^\[limits\]\s*\ncpu_ms = 60000/m)
   assert.doesNotThrow(() => validateDeployConfig(config))
 })
 

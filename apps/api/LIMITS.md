@@ -299,7 +299,7 @@ charges keep running. How to use it, and the abuse runbook around it, are in doc
 On for every signed-in account (there is no allowlist), whatever its size: the server bound is the account limits (4,000
 activities, 32 MiB of digest JSON, 60,000 lift sets), because no account falls back to the browser. The committed
 production configuration binds the queue and its bounds (the deploy-config check requires the whole set).
-No scheduled trigger computes. Compute is bounded by `limits.cpu_ms = 30000`, a consumer batch of 2 messages, one batch at a time, 3 tries and
+No scheduled trigger computes. Compute is bounded by `limits.cpu_ms = 60000`, a consumer batch of 2 messages, one batch at a time, 3 tries and
 a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is docs/design/server-authority.md.
 
 - **Which libraries:** all of them, up to the largest account the quotas admit. Measured on synthetic data of that size
@@ -314,8 +314,10 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   | 80 MB          | passes         | 15.9 s         |
   | 64 MB          | out of memory  | n/a            |
 
-  The job must pass at 96 MB and does. Below about 112 MB the collector runs hard, which costs CPU (15.6 s against 3.3 s),
-  still half of `limits.cpu_ms`. Earlier runs, before the quotas came down: 5,000 activities at 26.6 MiB of digests passed at
+  The job must pass at 96 MB and does. Below about 112 MB the collector runs hard (GC thrash), which costs CPU: 15.6 s at
+  96 MB against 3.3 s unconstrained. Cloudflare's CPUs are slower than this machine, so the figure is taken at twice,
+  about 31 s, which is over 30 s: that is why `limits.cpu_ms` is 60,000 (Workers Paid allows up to 300,000, and unused
+  time costs nothing), a margin of about 2x over the thrash case. Earlier runs, before the quotas came down: 5,000 activities at 26.6 MiB of digests passed at
   48 MB; 5,000 at the old 64 MiB byte quota failed under 128 MB, which is why the quotas came down. CPU with no limit at
   2,000 activities was a median 1.4 s and at 5,000 a median 3.2 s (max 5.3 s). The lift sets are read in pages of 5,000
   after the digests (the check on `users.lift_count`, `MAX_LIFT_SETS_PER_USER`). If a larger account is ever admitted,
