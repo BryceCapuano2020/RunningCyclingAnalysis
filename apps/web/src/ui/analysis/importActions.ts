@@ -268,12 +268,8 @@ export function useImportActions({
       setRebuildNotice(ORIGINALS_UNAVAILABLE)
       return
     }
-    send({
-      type: 'rebuildStale',
-      settings: settingsRef.current,
-      userId,
-    })
-  }, [accountRef, send, setRebuildNotice, settingsRef])
+    send({ type: 'rebuildStale', userId })
+  }, [accountRef, send, setRebuildNotice])
 
   const undoLabels = useCallback(() => {
     const current = accountRef.current

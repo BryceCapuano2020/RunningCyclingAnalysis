@@ -128,12 +128,14 @@ export function settle(
  * choices to an account that has none. Returns when both are done. A copy that mirrored another account is
  * dropped first and never offered. The copy is marked as this account's only once the account holds what was
  * offered, so a save that failed is offered again on the retry, not read as a copy that already mirrors it.
- * The zone goes along for every account, since the server computes each one's results.
+ * The zone goes along for every account, since the server computes each one's results: here alone only to an account that holds none,
+ * so two devices in different zones do not take it from each other on every read (and dirty the results each time). A
+ * save of the choices always carries this browser's. Resolves whether it wrote to the account.
  */
 export async function pullAccountSettings(
   userId: string,
   chosen: ReadonlySet<SettingsField>,
-): Promise<void> {
+): Promise<boolean> {
   const account = await getAccountSettings(userId)
   const owner = readOwner()
   if (owner !== null && owner !== userId) {
@@ -143,12 +145,13 @@ export async function pullAccountSettings(
   }
   const settled = settle(account, browserSettings(), owner === null, chosen)
   adopt(settled)
-  // The server cuts the days of the results it computes in the athlete's zone, so it is told when it differs.
+  // The server cuts the days of the results it computes in the athlete's zone, so it is told once, when it holds none.
   const zone = reportableZone()
-  if (!sameSettings(settled, account) || (zone !== undefined && account.zone !== zone)) {
-    await putAccountSettings(withZone(settled, zone), userId)
-  }
+  const write =
+    !sameSettings(settled, account) || (account.zone === undefined && zone !== undefined)
+  if (write) await putAccountSettings(withZone(settled, zone), userId)
   writeOwner(userId)
+  return write
 }
 
 function withZone(settings: AccountSettings, zone: string | undefined): AccountSettings {

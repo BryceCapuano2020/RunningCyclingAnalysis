@@ -1,17 +1,18 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
-import type { WorkerRequest } from '../../worker/protocol'
 import type { AnalysisController } from './controller'
 import { useAccountIssue, useAccountTransitions } from './accountSync'
 import { SAVES_PAUSED, STILL_WORKING, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './copy'
 import { useAdoptionActions } from './adoptionActions'
 import { useSettingsSync } from './useSettingsSync'
 import { useImportActions } from './importActions'
+import { useAccountResults, useAccountState } from './accountResults'
+import { useOnSend } from './onSend'
 import { useImportManifest } from './importManifestHook'
 import type { ManifestScope } from '../importManifest'
 import { useKeptLibraryLoad } from './keptLibraryLoad'
-import { isQuietRequest, keepsError } from './quietRequests'
+import { isQuietRequest } from './quietRequests'
 import { baselineOf, useImportState } from './importState'
 import { useLibraryActions } from './libraryActions'
 import { useLibraryState } from './libraryState'
@@ -67,6 +68,13 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
 
   const library = useLibraryState()
   const imports = useImportState()
+  // A signed-in account's results are the server's; the page never shows one the browser computed for it.
+  const userId = account.status === 'signed-in' && account.me !== null ? account.me.user.id : null
+  const accountResults = useAccountResults(userId, account.sessionExpired === true)
+  const accountState = useAccountState(accountResults.results, imports.facts, imports.index)
+  // An expired session keeps the account's results on screen, as it keeps its library.
+  const showsAccount =
+    userId !== null || (account.sessionExpired === true && accountResults.results !== null)
   const { setLibraryAction, setLibraryNotice, setLibraryError, resetNoticesFor, libraryWaitRef } =
     library
   const {
@@ -104,54 +112,15 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     setWaitingReason(libraryWaitRef.current.length > 0 ? WAITING_FOR_LIBRARY : null)
   }, [libraryWaitRef, pendingAsyncImportsRef, setBusy, setLibraryAction, setWaitingReason])
 
-  /** The notices a request replaces are cleared as it is sent. */
-  const onSend = useCallback(
-    (request: WorkerRequest, requestId: number) => {
-      refreshBusy()
-      // An import into a library is recorded from the moment it is sent. The analysis made while the account
-      // loads is not: it is sent again once the account is known.
-      if (request.type === 'addFiles' && request.provisional !== true) {
-        beginManifest(
-          requestId,
-          request.files,
-          request.sync === null ? 'device' : `account:${request.sync.userId}`,
-        )
-      }
-      if (!keepsError(request)) setError(null)
-      // A new import or rebuild replaces the outcome of the last library change, and so does the sample or a
-      // clear, which leave nothing for that outcome to be about: the landing page would say it unprompted.
-      if (
-        request.type === 'addFiles' ||
-        request.type === 'rebuildStale' ||
-        request.type === 'loadSample' ||
-        request.type === 'clear'
-      ) {
-        setLibraryNotice(null)
-        setLibraryError(null)
-      }
-      resetNoticesFor(request)
-      // The summary describes the last import only: another import, a clear, the sample or a delete
-      // replaces it, since a delete changes the count the summary gave.
-      if (
-        request.type === 'addFiles' ||
-        request.type === 'clear' ||
-        request.type === 'loadSample' ||
-        request.type === 'deleteActivity' ||
-        request.type === 'deleteDeviceActivity'
-      ) {
-        setImportOutcome(null)
-      }
-    },
-    [
-      beginManifest,
-      refreshBusy,
-      resetNoticesFor,
-      setError,
-      setImportOutcome,
-      setLibraryError,
-      setLibraryNotice,
-    ],
-  )
+  const onSend = useOnSend({
+    refreshBusy,
+    beginManifest,
+    resetNoticesFor,
+    setError,
+    setImportOutcome,
+    setLibraryError,
+    setLibraryNotice,
+  })
 
   const transport = useWorkerTransport({
     pendingRepliesRef,
@@ -279,6 +248,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     busy: imports.busy,
   })
   const eventDeps = {
+    refreshResults: accountResults.refresh,
     transport,
     imports,
     library,
@@ -331,7 +301,8 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   })
 
   return {
-    state: imports.state,
+    state: showsAccount ? accountState : imports.state,
+    ...(showsAccount && accountResults.results?.stale === true ? { copyStale: true } : {}),
     busy: imports.busy,
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
     progress: imports.progress,

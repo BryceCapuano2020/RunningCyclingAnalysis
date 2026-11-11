@@ -140,75 +140,37 @@ describe('the library kept in this browser', () => {
 })
 
 describe('the account’s library', () => {
-  it('is read again when its revision differs from the one this tab loaded', async () => {
-    const account = signedIn('1.10', '2.20')
+  it('is read again when another tab says it changed', async () => {
+    const { loadLibrary } = setup({ account: signedIn('1.10', '1.10') })
+    act(() => otherTab.postMessage({ type: 'library', scope: 'account' }))
+    await settle()
+    expect(loadLibrary).toHaveBeenCalledWith('u1')
+  })
+
+  it('is not looked for on coming back into view: the results are asked for by their own hook, and /api/me is not polled', async () => {
+    const account = signedIn('1.10', '3.30')
     const { loadLibrary } = setup({ account })
-
-    act(() => otherTab.postMessage({ type: 'library', scope: 'account' }))
-    await settle()
-
-    expect(loadLibrary).toHaveBeenCalledWith('u1')
-  })
-
-  it('is read again when another tab says it changed, whatever the revision says', async () => {
-    // A delete and an add of the same size leave the tag as it was.
-    const { loadLibrary } = setup({ account: signedIn('1.10', '1.10') })
-    act(() => otherTab.postMessage({ type: 'library', scope: 'account' }))
-    await settle()
-    expect(loadLibrary).toHaveBeenCalledWith('u1')
-  })
-
-  it('is not read again on coming back into view when the revision is the one this tab loaded', async () => {
-    const { loadLibrary } = setup({ account: signedIn('1.10', '1.10') })
-    setVisibility('hidden')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
-    setVisibility('visible')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
-    await settle()
+    for (let i = 0; i < 3; i++) {
+      setVisibility('hidden')
+      act(() => document.dispatchEvent(new Event('visibilitychange')))
+      setVisibility('visible')
+      act(() => document.dispatchEvent(new Event('visibilitychange')))
+      await act(async () => void (await vi.advanceTimersByTimeAsync(30_000)))
+      await settle()
+    }
     expect(loadLibrary).not.toHaveBeenCalled()
+    expect(account.refresh).not.toHaveBeenCalled()
   })
 
-  it('does not take this tab’s own change for another’s when it only looks at the revision', async () => {
-    const account = signedIn('1.10', '2.20')
-    const { result, loadLibrary } = setup({ account })
-
-    // This tab's import moved the revision to 2.20; the others are told.
+  it('does not take this tab’s own change for another’s, and tells the others', async () => {
+    const { result, loadLibrary } = setup({ account: signedIn('1.10', '2.20') })
     await act(async () => {
       result.current.libraryChanged('account')
       await vi.advanceTimersByTimeAsync(0)
     })
     expect(sent).toContainEqual({ type: 'library', scope: 'account' })
-    setVisibility('hidden')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
-    setVisibility('visible')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
     await settle()
-
     expect(loadLibrary).not.toHaveBeenCalled()
-  })
-
-  it('looks for a change made on another device when the tab comes back, at most every 30 seconds', async () => {
-    const account = signedIn('1.10', '3.30')
-    const { loadLibrary } = setup({ account })
-    const comeBack = async () => {
-      setVisibility('hidden')
-      act(() => document.dispatchEvent(new Event('visibilitychange')))
-      setVisibility('visible')
-      act(() => document.dispatchEvent(new Event('visibilitychange')))
-      await settle()
-    }
-
-    await comeBack()
-    expect(loadLibrary).toHaveBeenCalledTimes(1)
-    account.me = meWith('3.30')
-    await comeBack()
-    expect(account.refresh).toHaveBeenCalledTimes(1)
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000)
-    })
-    await comeBack()
-    expect(account.refresh).toHaveBeenCalledTimes(2)
   })
 
   it('is not read while it is still loading', async () => {
@@ -216,36 +178,5 @@ describe('the account’s library', () => {
     act(() => otherTab.postMessage({ type: 'library', scope: 'account' }))
     await settle()
     expect(loadLibrary).not.toHaveBeenCalled()
-  })
-
-  it('keeps the library it has when the account cannot be read and only the revision hint suggested a change', async () => {
-    const account: Account = {
-      status: 'signed-in',
-      me: meWith('1.10'),
-      refresh: vi.fn(async () => {
-        throw new Error('offline')
-      }),
-    }
-    const { loadLibrary } = setup({ account })
-    setVisibility('hidden')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
-    setVisibility('visible')
-    act(() => document.dispatchEvent(new Event('visibilitychange')))
-    await settle()
-    expect(loadLibrary).not.toHaveBeenCalled()
-  })
-
-  it('reads the library when another tab said it changed, though the account cannot be asked', async () => {
-    const account: Account = {
-      status: 'signed-in',
-      me: meWith('1.10'),
-      refresh: vi.fn(async () => {
-        throw new Error('offline')
-      }),
-    }
-    const { loadLibrary } = setup({ account })
-    act(() => otherTab.postMessage({ type: 'library', scope: 'account' }))
-    await settle()
-    expect(loadLibrary).toHaveBeenCalledWith('u1')
   })
 })

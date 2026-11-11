@@ -110,8 +110,8 @@ const IN_ACCOUNT: Record<Exclude<WorkerRequest['type'], DeviceRequest>, () => Wo
     settings: SETTINGS,
     sync: { userId: USER, keepFiles: false },
   }),
-  loadServer: () => ({ type: 'loadServer', settings: SETTINGS, userId: USER, choice: 42 }),
-  rebuildStale: () => ({ type: 'rebuildStale', settings: SETTINGS, userId: USER }),
+  loadServer: () => ({ type: 'loadServer', userId: USER, choice: 42 }),
+  rebuildStale: () => ({ type: 'rebuildStale', userId: USER }),
   resumeSaves: () => ({ type: 'resumeSaves', settings: SETTINGS, userId: USER }),
   undoLabels: () => ({ type: 'undoLabels', settings: SETTINGS, userId: USER }),
   setSettings: () => ({ type: 'setSettings', settings: SETTINGS }),
@@ -168,7 +168,7 @@ const SETUP: Partial<Record<keyof typeof IN_ACCOUNT, (send: Send) => Promise<voi
       .mockResolvedValueOnce([saved])
       .mockResolvedValueOnce([{ ...saved, digest: { ...saved.digest, athleteType: 'hike' } }])
     mocked.patchLabels.mockResolvedValue({ applied: 1, skipped: 0, refused: 0, missed: [] })
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'loadServer', userId: USER })
     await send({
       type: 'addFiles',
       files: [hikeExport()],
@@ -197,7 +197,7 @@ describe('the worker in an account’s scope', () => {
         'state',
       )
       const setup = SETUP[type]
-      if (setup === undefined) await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+      if (setup === undefined) await send({ type: 'loadServer', userId: USER })
       else await setup(send)
       const reply = (await send(IN_ACCOUNT[type]())).at(-1)
       expect(reply, JSON.stringify(reply)).not.toMatchObject({ type: 'error' })
@@ -215,7 +215,7 @@ describe('the worker in an account’s scope', () => {
       AnalysisSession.prototype as unknown as { state: (settings: unknown) => unknown },
       'state',
     )
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'loadServer', userId: USER })
     await send({ type: 'forgetRoutes' })
     for (const request of [IN_ACCOUNT.setSettings(), IN_ACCOUNT.setRange()]) {
       expect((await send(request)).at(-1)).toMatchObject({ type: 'state', state: null })
@@ -225,7 +225,7 @@ describe('the worker in an account’s scope', () => {
 
   it('builds a state again for the library kept in this browser, once the account is left', async () => {
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'loadServer', userId: USER })
     await send({ type: 'clear' })
     const kept = (await send({ type: 'setSettings', settings: SETTINGS })).at(-1)
     expect(kept).toMatchObject({
@@ -236,7 +236,7 @@ describe('the worker in an account’s scope', () => {
 
   it('reads one fresh /api/state before an import, for its baseline, and shows no check-in when the server is computing', async () => {
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'loadServer', userId: USER })
     const reads = serverReads.reads
     const reply = (await send(IN_ACCOUNT.addFiles())).at(-1)
     expect(serverReads.reads).toBe(reads + 1)
@@ -246,7 +246,7 @@ describe('the worker in an account’s scope', () => {
 
   it('reads no /api/state for a period or settings change, or any other request', async () => {
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'loadServer', userId: USER })
     const reads = serverReads.reads
     await send(IN_ACCOUNT.setRange())
     await send(IN_ACCOUNT.setSettings())

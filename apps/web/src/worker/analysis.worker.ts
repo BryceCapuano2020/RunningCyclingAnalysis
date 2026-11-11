@@ -49,6 +49,7 @@ import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCover
 import { deviceClock } from './sampleClock'
 import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
+import { NO_CHECKIN } from './checkinKeeper'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 
@@ -358,9 +359,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
+        // A library read starts from no check-in: the last one was of another library.
+        const checkIn = type === 'loadServer' ? { checkIn: NO_CHECKIN } : {}
         post(
           await checkIns.attach(
-            { type: 'state', state, ...factsOf(state), ...rebuildable() },
+            { type: 'state', state, ...factsOf(state), ...checkIn, ...rebuildable() },
             type,
           ),
         )

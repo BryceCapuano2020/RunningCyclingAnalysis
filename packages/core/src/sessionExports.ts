@@ -2,6 +2,7 @@
 export { haltsImport, isTransient, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { ImportFacts, RejectedFile, SessionState } from './sessionState'
+export type { IndexFacts } from './sessionIndex'
 export type { HeldOutActivity } from './sessionLibrary'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'

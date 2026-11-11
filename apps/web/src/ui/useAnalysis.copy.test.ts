@@ -109,10 +109,10 @@ describe('the device copy on open', () => {
     await writeSnapshot('u1', snapshotAt(Date.now(), 'UTC', withCount(22)))
     const { result } = setup(SIGNED_IN)
     await waitFor(() => expect(result.current.state.totalActivities).toBe(22))
-    // The account's results stand until its library has loaded, whatever the device's worker sent meanwhile.
+    // The account's copy stands until the server answers, whatever the worker sends meanwhile: it builds no results for an account.
     expect(worker().posted.map((request) => request.type)).toContain('loadServer')
     act(() => worker().reply({ type: 'state', state: withCount(23) }))
-    expect(result.current.state.totalActivities).toBe(23)
+    expect(result.current.state.totalActivities).toBe(22)
   })
 
   it('shows an account with no copy of its own the restoring state, not the device’s results', async () => {
@@ -163,12 +163,14 @@ describe('keeping the copy', () => {
     expect(await readSnapshot('device')).toBeNull()
   })
 
-  it('keeps an account’s results under its own scope only once its library has loaded', async () => {
+  it('never keeps a state the browser computed for an account', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     setup(SIGNED_IN)
     act(() => worker().reply({ type: 'state', state: withCount(9) }))
     act(() => vi.advanceTimersByTime(2_000))
-    await vi.waitFor(async () => expect(await readSnapshot('u1')).not.toBeNull())
+    vi.useRealTimers()
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(await readSnapshot('u1')).toBeNull()
     expect(await readSnapshot('device')).toBeNull()
   })
 })

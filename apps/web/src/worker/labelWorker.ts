@@ -43,7 +43,7 @@ export function labelWorker(deps: {
       return {
         type: 'state',
         state,
-        ...(state === null ? { facts: session.importFacts() } : {}),
+        ...(state === null ? { facts: session.importFacts(), index: session.indexFacts() } : {}),
         ...(left > 0 ? { labelsLeft: left } : {}),
         ...extra,
       }

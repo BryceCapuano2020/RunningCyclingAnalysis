@@ -12,7 +12,6 @@ import {
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
-import { storedPeriodRequest } from '../periodPreference'
 import { accountPending, drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { SeenEvent } from '../../worker/protocol'
@@ -49,14 +48,9 @@ export function useLibraryActions({
   const loadLibrary = useCallback(
     (userId: string) => {
       setLibrary('loading')
-      send({
-        type: 'loadServer',
-        settings: settingsRef.current,
-        userId,
-        ...storedPeriodRequest(),
-      })
+      send({ type: 'loadServer', userId })
     },
-    [send, setLibrary, settingsRef],
+    [send, setLibrary],
   )
 
   /** Imports wait for a loading library; otherwise there is no library for them to join. */

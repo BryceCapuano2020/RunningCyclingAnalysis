@@ -1,4 +1,4 @@
-import type { AnalysisSession, ImportFacts, SessionState } from '@rca/core/session'
+import type { AnalysisSession, ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { WorkerView } from './workerView'
 
@@ -12,8 +12,8 @@ export function accountReplies(session: AnalysisSession, view: WorkerView) {
   return {
     inAccount,
     /** What only the import knows, sent with every reply that carries no state, so the page's copy of it stays current. */
-    factsOf: (state: SessionState | null): { facts?: ImportFacts } =>
-      state === null ? { facts: session.importFacts() } : {},
+    factsOf: (state: SessionState | null): { facts?: ImportFacts; index?: IndexFacts } =>
+      state === null ? { facts: session.importFacts(), index: session.indexFacts() } : {},
     /** The state of the session with these settings, or null in an account's scope. */
     stateWith: (settings: AthleteSettings): SessionState | null =>
       inAccount() ? null : session.setSettings(settings),
