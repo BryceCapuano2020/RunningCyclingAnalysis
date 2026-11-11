@@ -1,4 +1,5 @@
 import type { ActivityRecord } from '@rca/contract'
+import { replaceFromAccount } from './listedLibrary'
 import { digestActivity } from '@rca/core/digest'
 import { revisionStatus } from '@rca/core/digest/revisions'
 import type { AnalysisSession } from '@rca/core/session'
@@ -79,10 +80,7 @@ export async function loadServer(ctx: LibraryContext, userId: string): Promise<v
     count: shownCount(ctx.missingOriginals, ctx.savedRecords.values()),
   })
   ctx.device.replaced()
-  ctx.session.replaceLibrary(
-    records.map((record) => record.digest),
-    { fromServer: true },
-  )
+  replaceFromAccount(ctx.session, records)
 }
 
 /** What an update has to report when another tab holds the writer lock: nothing was tried. */
@@ -179,10 +177,7 @@ export async function rebuildStale(ctx: LibraryContext, userId: string) {
     refreshed = records
   }
   ctx.device.replaced()
-  ctx.session.replaceLibrary(
-    refreshed.map((record) => record.digest),
-    { fromServer: true },
-  )
+  replaceFromAccount(ctx.session, refreshed)
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
   // Rebuilding them again would find the same mismatch, so Update now leaves them out; adding

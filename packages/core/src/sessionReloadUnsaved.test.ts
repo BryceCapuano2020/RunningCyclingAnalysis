@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { digestActivity } from './digest'
+import { workoutKey } from './duplicates'
 import { encodeFit } from './fit'
 import { AnalysisSession, SyncFailure } from './session'
 import { DEFAULT_ATHLETE, generateActivity } from './synthetic'
@@ -72,6 +73,25 @@ describe('AnalysisSession reloading the library from the server', () => {
     })
     expect(session.importFacts().syncIssues).toEqual([{ code: 'network', count: 1 }])
     session.replaceLibrary([digestActivity(run(1))], { fromServer: true })
+    expect(session.importFacts().syncIssues).toEqual([])
+  })
+
+  it('keeps the notice of an original that was refused until the file is held: the digest is listed, the file is not', async () => {
+    const session = new AnalysisSession()
+    // The summary was saved; only the original file was refused.
+    await session.importFiles([fileOf(1)], undefined, async () => {
+      throw new SyncFailure('rate-limited', 'too many requests', true)
+    })
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'rate-limited', count: 1 }])
+    const key = workoutKey('run', run(1).startMs)
+    // A read of the account lists the digest without a file: the issue stands.
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set() })
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'rate-limited', count: 1 }])
+    // Without word of files it stands too (a caller that does not know holds nothing for certain).
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true })
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'rate-limited', count: 1 }])
+    // Once the listed record has its file, the issue goes.
+    session.replaceLibrary([digestActivity(run(1))], { fromServer: true, withFile: new Set([key]) })
     expect(session.importFacts().syncIssues).toEqual([])
   })
 

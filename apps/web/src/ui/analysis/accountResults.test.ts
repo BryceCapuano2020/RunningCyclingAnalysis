@@ -6,13 +6,7 @@ import { ApiRequestError } from '../../api/apiError'
 import type { StateRead } from '../../api/state'
 import * as api from '../../api/state'
 import { resultState, snapshotAt } from '../../test/stateCopyKit'
-import {
-  BUSY_RETRY_MS,
-  INDEX_SETTLE_MS,
-  POLL_MS,
-  busyWaitMs,
-  useAccountResults,
-} from './accountResults'
+import { BUSY_RETRY_MS, POLL_MS, busyWaitMs, useAccountResults } from './accountResults'
 import * as staleBuild from './staleBuild'
 import { tellOtherTabs } from '../tabSync'
 
@@ -207,7 +201,6 @@ describe('the index of the library', () => {
     expect(behind).not.toHaveBeenCalled()
     act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
-    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
     view.unmount()
   })
@@ -239,7 +232,6 @@ describe('the index of the library', () => {
     read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
     act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
-    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
@@ -254,7 +246,6 @@ describe('the index of the library', () => {
     act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
     expect(view.result.current.results?.snapshot.libraryVersion).toBe(6)
-    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
@@ -268,83 +259,66 @@ describe('the index of the library', () => {
     expect(behind).not.toHaveBeenCalled()
     read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
     await advance(BUSY_RETRY_MS)
-    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
     await advance(POLL_MS)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
-  it('does not take the baseline from a read that began before this tab changed the index itself', async () => {
-    const behind = vi.fn()
-    // A read of the library as it was is still in flight when this tab's own import ends and notes the index current.
-    let late: (value: StateRead) => void = () => undefined
-    read.mockImplementationOnce(() => new Promise<StateRead>((done) => (late = done)))
-    const view = renderHook(() => useAccountResults('u1', false, true, behind))
-    await flush()
-    act(() => view.result.current.indexListed())
-    await act(async () => late(answer({ snapshot: snapshot(1) })))
-    // The next read covers the import (version 2): the library moved by this tab's own work, not another device's.
-    read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
-    act(() => tellOtherTabs({ type: 'lifts' }))
-    await flush()
-    expect(behind).not.toHaveBeenCalled()
-  })
-
-  it('does not read the index again for a version this tab’s profile, settings or dated settings moved: they change figures, not the list', async () => {
-    const behind = vi.fn()
-    const view = renderHook(() => useAccountResults('u1', false, true, behind))
-    await flush()
-    act(() => view.result.current.indexListed(2))
-    for (const [index, type] of (['profile', 'measurements', 'settings'] as const).entries()) {
-      read.mockResolvedValue(answer({ snapshot: snapshot(3 + index) }))
-      act(() => tellOtherTabs({ type }))
-      await flush()
-    }
-    expect(behind).not.toHaveBeenCalled()
-    // A library change is another matter.
-    read.mockResolvedValue(answer({ snapshot: snapshot(9) }))
-    act(() => tellOtherTabs({ type: 'library', scope: 'account' }))
-    await flush()
-    await advance(INDEX_SETTLE_MS)
-    expect(behind).toHaveBeenCalledTimes(1)
-  })
-
-  describe('a library version that moves while this tab is importing', () => {
-    function busyMount() {
+  describe('another device’s change is never taken for this tab’s own', () => {
+    it('during this tab’s import: the read is asked for at once, and the tab reads it when it has no work', async () => {
       const behind = vi.fn()
       const view = renderHook(
         ({ quiet }: { quiet: boolean }) => useAccountResults('u1', false, quiet, behind),
         { initialProps: { quiet: false } },
       )
-      return { behind, view }
-    }
-
-    it('is this import’s own work: it is not read again when the import ends and notes the index current', async () => {
-      const { behind, view } = busyMount()
       await flush()
       act(() => view.result.current.indexListed(2))
       read.mockResolvedValue(answer({ snapshot: snapshot(3) }))
       act(() => tellOtherTabs({ type: 'lifts' }))
       await flush()
-      expect(behind).not.toHaveBeenCalled()
-      act(() => view.result.current.indexListed())
-      view.rerender({ quiet: true })
-      await flush()
-      expect(behind).not.toHaveBeenCalled()
+      expect(behind).toHaveBeenCalledTimes(1)
     })
 
-    it('is read again once the tab is quiet when the import did not note the index', async () => {
-      const { behind, view } = busyMount()
+    it('right before this tab’s own save: the save’s message does not take the baseline over it', async () => {
+      const behind = vi.fn()
+      const view = renderHook(() => useAccountResults('u1', false, true, behind))
       await flush()
-      act(() => view.result.current.indexListed(2))
-      read.mockResolvedValue(answer({ snapshot: snapshot(3) }))
+      act(() => view.result.current.indexListed(10))
+      // The phone's import moved the library to 11; this tab's profile save then moved it to 12.
+      read.mockResolvedValue(answer({ snapshot: snapshot(12) }))
+      act(() => tellOtherTabs({ type: 'profile' }))
+      await flush()
+      expect(behind).toHaveBeenCalledTimes(1)
+    })
+
+    it('right after a reply that named no version: the first current answer is the baseline, and the next one past it is read', async () => {
+      const behind = vi.fn()
+      const view = renderHook(() => useAccountResults('u1', false, true, behind))
+      await flush()
+      act(() => view.result.current.indexListed())
+      read.mockResolvedValueOnce(answer({ snapshot: snapshot(5) }))
       act(() => tellOtherTabs({ type: 'lifts' }))
       await flush()
       expect(behind).not.toHaveBeenCalled()
-      view.rerender({ quiet: true })
+      read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
+      act(() => tellOtherTabs({ type: 'lifts' }))
       await flush()
-      await advance(INDEX_SETTLE_MS)
       expect(behind).toHaveBeenCalledTimes(1)
+    })
+
+    it('is forgotten with the account: the version listed for one is no baseline for another', async () => {
+      const behind = vi.fn()
+      const view = renderHook(
+        ({ id }: { id: string }) => useAccountResults(id, false, true, behind),
+        { initialProps: { id: 'u1' } },
+      )
+      await flush()
+      act(() => view.result.current.indexListed(2))
+      read.mockResolvedValue(answer({ snapshot: snapshot(9) }))
+      view.rerender({ id: 'u2' })
+      await flush()
+      expect(behind).not.toHaveBeenCalled()
+      expect(view.result.current.listedVersion).toBeNull()
     })
   })
 
