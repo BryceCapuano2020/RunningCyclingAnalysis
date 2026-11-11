@@ -99,8 +99,8 @@ export function activitiesFromRecords(
  * suffix, and a name that two activities of the file share gets the start time. The sample budget is
  * shared by all units. Never throws.
  *
- * Per part: speeds above the sport's maximum are dropped as impossible; a part under a minute vouched
- * for, over 48 hours or dated implausibly is refused; a unit splits at gaps over four hours and is
+ * Per part: speeds above the sport's maximum are dropped as impossible; a part is refused when its
+ * records vouch for under a minute, when it runs over 48 hours or when its date is implausible; a unit splits at gaps over four hours and is
  * resampled to 1 Hz. Every format goes through here, so one rule decides what an activity is.
  */
 export function activitiesFromUnits(
