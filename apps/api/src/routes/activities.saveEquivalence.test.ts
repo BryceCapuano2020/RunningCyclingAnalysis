@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from '@rca/core/fit'
+import { buildFit, secondly } from '@rca/core/fit/test/fitTestFiles'
 import { minimisedForUpload } from '@rca/core/import/minimise'
 import { createBodiesOfFile } from '@rca/core/import/serverFile'
 import { AnalysisSession, type SyncItem } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
-import type { Activity } from '@rca/core/types'
 import { createHarness, type Harness } from '../test/harness.ts'
 import { saveContext, saveDigest } from './activities/saveDigest.ts'
 
@@ -19,10 +19,30 @@ const sample = sampleDataset().activities
 const run = sample.find((activity) => activity.sport === 'run')!
 const ride = sample.find((activity) => activity.sport === 'ride')!
 
-const FIXTURES: { name: string; activity: Activity; gps: boolean }[] = [
-  { name: 'run.fit', activity: run, gps: true },
-  { name: 'ride.fit', activity: ride, gps: true },
-  { name: 'indoor ride.fit', activity: ride, gps: false },
+/** A brick: a run then a ride in one file, two activities that share the file's session key and hash. */
+function brick(): Uint8Array {
+  const runStart = Date.UTC(2026, 2, 7, 8, 0, 0)
+  const rideStart = runStart + 25 * 60_000
+  const leg = (startMs: number, speed: number, power?: number) =>
+    secondly(startMs, 20 * 60, { speed, gps: true }).map((record, t) =>
+      Object.assign(record, {
+        heartRate: 140 + (t % 25),
+        power: power === undefined ? undefined : power + (t % 40),
+      }),
+    )
+  return buildFit({
+    sessions: [
+      { sport: 'running', startMs: runStart, durationS: 1200, records: leg(runStart, 3.4) },
+      { sport: 'cycling', startMs: rideStart, durationS: 1200, records: leg(rideStart, 9, 210) },
+    ],
+  })
+}
+
+const FIXTURES: { name: string; bytes: () => Uint8Array; activities: number }[] = [
+  { name: 'run.fit', bytes: () => encodeFit(run, { gps: true }), activities: 1 },
+  { name: 'ride.fit', bytes: () => encodeFit(ride, { gps: true }), activities: 1 },
+  { name: 'indoor ride.fit', bytes: () => encodeFit(ride), activities: 1 },
+  { name: 'brick.fit', bytes: brick, activities: 2 },
 ]
 
 /** What the web client posts for each activity of a file it imports (api/client.ts createActivity). */
@@ -61,11 +81,11 @@ async function storedRows(h: Harness, userId: string) {
 describe('a FIT file saved the server way', () => {
   it.each(FIXTURES)('stores the digest the browser import stores: $name', async (fixture) => {
     const h = createHarness()
-    const bytes = encodeFit(fixture.activity, { gps: fixture.gps })
+    const bytes = fixture.bytes()
 
     const browserToken = await h.signIn('browser@example.test', 'Browser')
     const sent = await browserBodies(bytes, fixture.name)
-    expect(sent).toHaveLength(1)
+    expect(sent).toHaveLength(fixture.activities)
     for (const body of sent) {
       const res = await h.send({
         method: 'POST',
@@ -90,7 +110,7 @@ describe('a FIT file saved the server way', () => {
     // The request bodies are the same text, and so are the rows they stored.
     expect(read.bodies).toEqual(sent.map((body) => JSON.stringify(body)))
     const browserRows = await storedRows(h, await userIdOf(h, browserToken))
-    expect(browserRows).toHaveLength(1)
+    expect(browserRows).toHaveLength(fixture.activities)
     expect(await storedRows(h, serverUser)).toEqual(browserRows)
   })
 

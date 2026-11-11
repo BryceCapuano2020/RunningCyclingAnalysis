@@ -83,9 +83,12 @@ received_at)`, unique `(user_id, provider, provider_activity_id)` so a repeated 
    `routes/activities/create.ts`: the digest size and text checks, the quotas, the revision check, the dedupe on
    `workoutKey(sport, startMs)` and the stored-label rule. A Garmin activity that is already in the library from an
    export is a duplicate, and the row is `done` with no new activity. A file import that arrives after a Garmin
-   activity is a duplicate the same way.
+   activity is a duplicate the same way. The same workout from a different file (another copy of it) is refused 409
+   `activity_conflict`, as a second browser copy is; the consumer counts that as held: the row is `done`, nothing is
+   retried or shown.
 7. **The server minimises as the browser does.** The id and file name are hashed and the title is kept
-   (`minimisedForUpload`). There is no title setting: a Garmin activity is saved with its own name.
+   (`minimisedForUpload`). There is no title setting: a Garmin activity is saved with its own name. A FIT file carries no name, so the digest's
+   name is the generated one unless the push's summary gives one, passed as the parser's `activityName` (G4, section 9).
 8. **Parse limits are smaller on the server.** `GARMIN_PARSE_LIMITS` caps the file at the push limit (5 MiB) and the
    records and seconds at what one long activity needs, well under the browser's `DEFAULT_PARSE_LIMITS` (64 MiB). No
    archive is ever opened on the server: Garmin sends one FIT file per activity. The consumer's memory is measured in

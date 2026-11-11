@@ -51,6 +51,7 @@
     "./history/test/balanceLibrary": "./src/history/test/balanceLibrary.ts",
     "./fitness/types": "./src/fitness/types.ts",
     "./fit": "./src/fit/index.ts",
+    "./fit/test/fitTestFiles": "./src/fit/test/fitTestFiles.ts",
     "./gpx": "./src/gpx/index.ts",
     "./gpx/encode": "./src/gpx/encode.ts",
     "./grade": "./src/grade/index.ts",
