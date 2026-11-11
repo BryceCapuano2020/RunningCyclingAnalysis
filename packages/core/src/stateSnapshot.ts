@@ -1,5 +1,8 @@
 import { ANALYSIS_REVISION } from './analysisRevision'
 import { MODEL_REVISION } from './digest/modelRevision'
+import { LIFT_REVISION } from './lift/revision'
+import type { LiftResults } from './lift/liftResults'
+import type { CheckInSnapshot } from './lookback/snapshot'
 import type { SessionState } from './sessionState'
 
 /**
@@ -7,7 +10,7 @@ import type { SessionState } from './sessionState'
  * (docs/design/server-compute.md, decision 7). The browser applies a snapshot only when its `schemaVersion` and
  * `modelRevision` are its own build's; otherwise it computes locally.
  */
-export const STATE_SNAPSHOT_VERSION = 1
+export const STATE_SNAPSHOT_VERSION = 2
 
 /** A value JSON cannot hold, written as a tagged object. `$` is reserved: no object of the state may use it as a key. */
 type Tagged =
@@ -34,8 +37,20 @@ export interface StateSnapshot extends SnapshotMeta {
   modelRevision: number
   /** The combine-time analysis it was made under (`ANALYSIS_REVISION`); absent from a snapshot made before it existed. */
   analysisRevision?: number
+  /** The lift estimator the lift results were made under (`LIFT_REVISION`); absent from a snapshot made before they were carried. */
+  liftRevision?: number
   /** The state with its `Map`s, `Set`s and non-finite numbers tagged (`encodeValue`). */
   state: Json
+  /** The account's `LiftResults`, encoded as `state` is; absent from a copy made on a device, which builds them from its own log. */
+  lift?: Json
+  /** The `CheckInSnapshot` of the library as the analysis reads it, encoded; null for an empty library. Absent as `lift` is. */
+  checkIn?: Json
+}
+
+/** What a snapshot carries beside the session state. */
+export interface SnapshotExtras {
+  lift: LiftResults
+  checkIn: CheckInSnapshot | null
 }
 
 const SPECIAL_NUMBERS = new Map<string, number>([
@@ -92,17 +107,40 @@ function decodeValue(json: Json): unknown {
  * The snapshot of a state: plain JSON, whole, so `fromSnapshot` of it (or of its JSON text) is deep-equal to the state.
  * Its keys come in one order whoever builds it, so the text hashes the same (the ETag).
  */
-export function toSnapshot(state: SessionState, meta: SnapshotMeta): StateSnapshot {
+export function toSnapshot(
+  state: SessionState,
+  meta: SnapshotMeta,
+  extras?: SnapshotExtras,
+): StateSnapshot {
   return {
     schemaVersion: STATE_SNAPSHOT_VERSION,
     modelRevision: MODEL_REVISION,
     analysisRevision: ANALYSIS_REVISION,
+    liftRevision: LIFT_REVISION,
     libraryVersion: meta.libraryVersion,
     nowMs: meta.nowMs,
     zone: meta.zone,
     buildSha: meta.buildSha,
     state: encodeValue(state, 'state'),
+    ...(extras === undefined
+      ? {}
+      : {
+          lift: encodeValue(extras.lift, 'lift'),
+          checkIn: encodeValue(extras.checkIn, 'checkIn'),
+        }),
   }
+}
+
+/** The lift results a snapshot carries, or null when it carries none (a device's copy). Check `snapshotIsCurrent` first. */
+export function liftOfSnapshot(snapshot: StateSnapshot): LiftResults | null {
+  return snapshot.lift === undefined ? null : (decodeValue(snapshot.lift) as LiftResults)
+}
+
+/** The check-in snapshot a snapshot carries; null for an empty library and for a snapshot that carries none. */
+export function checkInOfSnapshot(snapshot: StateSnapshot): CheckInSnapshot | null {
+  return snapshot.checkIn === undefined
+    ? null
+    : (decodeValue(snapshot.checkIn) as CheckInSnapshot | null)
 }
 
 /** The state a snapshot holds. Check `snapshotIsCurrent` first: this does not read an older or newer shape. */
@@ -111,16 +149,20 @@ export function fromSnapshot(snapshot: StateSnapshot): SessionState {
 }
 
 /**
- * Whether this build may show the snapshot: its shape, its digest model and its combine-time analysis are this build's
- * (decision 7). One made before a change to how a figure is worked out (a model-ledger row) is stale, so it is not shown.
+ * Whether this build may show the snapshot: its shape, its digest model, its combine-time analysis and its lift estimator are
+ * this build's (decision 7). One made before a change to how a figure is worked out (a model-ledger row) is stale, so it is not shown.
  */
 export function snapshotIsCurrent(
-  snapshot: Pick<StateSnapshot, 'schemaVersion' | 'modelRevision' | 'analysisRevision'>,
+  snapshot: Pick<
+    StateSnapshot,
+    'schemaVersion' | 'modelRevision' | 'analysisRevision' | 'liftRevision'
+  >,
 ): boolean {
   return (
     snapshot.schemaVersion === STATE_SNAPSHOT_VERSION &&
     snapshot.modelRevision === MODEL_REVISION &&
-    snapshot.analysisRevision === ANALYSIS_REVISION
+    snapshot.analysisRevision === ANALYSIS_REVISION &&
+    snapshot.liftRevision === LIFT_REVISION
   )
 }
 
@@ -134,6 +176,9 @@ export { ANALYSIS_REVISION } from './analysisRevision'
  */
 export async function snapshotContentHash(snapshot: StateSnapshot): Promise<string> {
   const { libraryVersion: _version, nowMs: _now, buildSha: _build, ...content } = snapshot
+  // The check-in is stamped with the instant it was taken, which is not something the athlete sees change.
+  if (content.checkIn !== undefined && content.checkIn !== null && !Array.isArray(content.checkIn))
+    content.checkIn = { ...(content.checkIn as { [key: string]: Json }), atMs: 0 }
   const digest = await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(JSON.stringify(content)),

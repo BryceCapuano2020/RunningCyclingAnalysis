@@ -12,11 +12,17 @@ export const StateSnapshotSchema = z.strictObject({
   modelRevision: z.number().int().min(1),
   /** The combine-time analysis revision; absent from a snapshot made before it existed, which is then stale. */
   analysisRevision: z.number().int().min(1).optional(),
+  /** The lift estimator revision the lift results were made under; absent from a snapshot made before they were carried. */
+  liftRevision: z.number().int().min(1).max(1_000_000).optional(),
   libraryVersion: z.number().int().min(0),
   nowMs: z.number().int().min(0),
   /** The viewer's zone, an IANA name. */
   zone: z.string().min(1).max(64),
   buildSha: z.string().min(1).max(64),
   state: z.record(z.string(), z.unknown()),
+  /** The encoded `LiftResults` (`@rca/core/stateSnapshot` reads it, as it does `state`); absent from a copy made on a device. */
+  lift: z.record(z.string(), z.unknown()).optional(),
+  /** The encoded `CheckInSnapshot`, null for an empty library; absent from a copy made on a device. */
+  checkIn: z.record(z.string(), z.unknown()).nullable().optional(),
 })
 export type StateSnapshotWire = z.infer<typeof StateSnapshotSchema>

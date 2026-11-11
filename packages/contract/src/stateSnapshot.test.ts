@@ -19,6 +19,15 @@ describe('StateSnapshotSchema', () => {
     expect(StateSnapshotSchema.safeParse({ ...wire, schemaVersion: 2 }).success).toBe(true)
   })
 
+  it('accepts the lift results and the check-in, and refuses them as anything but objects', () => {
+    const full = { ...snapshot, liftRevision: 4, lift: { state: { lifts: [] } }, checkIn: { v: 1 } }
+    expect(StateSnapshotSchema.parse(JSON.parse(JSON.stringify(full)))).toEqual(full)
+    expect(StateSnapshotSchema.safeParse({ ...full, checkIn: null }).success).toBe(true)
+    expect(StateSnapshotSchema.safeParse({ ...full, lift: [] }).success).toBe(false)
+    expect(StateSnapshotSchema.safeParse({ ...full, liftRevision: 0 }).success).toBe(false)
+    expect(StateSnapshotSchema.safeParse({ ...full, liftRevision: 1.5 }).success).toBe(false)
+  })
+
   it('refuses a missing field, a stray one and a state that is not an object', () => {
     const { zone: _zone, ...noZone } = snapshot
     expect(StateSnapshotSchema.safeParse(noZone).success).toBe(false)

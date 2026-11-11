@@ -264,10 +264,5 @@ describe('the server computes what the browser builds for a signed-out visitor',
     expect(massIn('America/Los_Angeles')).toBe(61)
   })
 
-  it.todo(
-    'the lift state: `lift` in the snapshot equals what the Lift page builds from the same rows (a later slice)',
-  )
-  it.todo(
-    'the check-in: the snapshot carries the CheckInSnapshot the worker makes from the same digests (a later slice)',
-  )
+  // The lift state and the check-in are held equal in serverEquivalence.lift.test.ts.
 })
