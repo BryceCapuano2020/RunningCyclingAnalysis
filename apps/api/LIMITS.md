@@ -242,7 +242,14 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
   delete, rename, label change or account deletion records it, so those writes never queue on that one row.
   The guard therefore reads a figure up to a day old. At an 8192 MiB cap that is safe: at least 1 GB stays free
   below D1's limit, more than one day of this app's writes adds. Creates are admitted again at the next run
-  after the size falls to the cap or below. A refused create does not recover the guard.
+  after the size falls to the cap or below. A refused create does not recover the guard. If the run's size
+  read or write fails, it logs `database_size_failed` with the error's class, the last recorded size stays,
+  and the rest of the run still reports.
+- **Fresh database.** Until the first daily run records a size, the guard reads 0 and admits creates. Production
+  already has the row, so this window opens only on a new database.
+- **The shared row still takes writes.** The size write is off the request path, but `r2_storage_budget`
+  also holds the R2 ledger. Every R2 call is reserved there first, so each original upload still writes its
+  monthly counters (see Deployment R2 ledger), and so does the queue when it stores a results snapshot.
 
 ## Original-file uploads
 
@@ -465,7 +472,8 @@ of them.
 - Sweeps two pages of 90 keys per run for R2 objects that no activity row, results job or inbox row names, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 - An account deletion with a Garmin link first asks Garmin to deregister it: one call, five seconds at most, that never stops the deletion.
-- Last, records the database size the create guard reads (see the database guard): one cheap statement for the size and one write, outside the operation count below.
+- Compares the per-account counters with their rows, report-only (`src/counterReconcile.ts`): five accounts a run (each check reads the account's digest rows whole), the page following the day number, so the table is covered over successive days. Accounts being deleted are left out of the page and of the page count. `activity_count`, `digest_bytes` and `file_bytes` are checked against the sums of the account's rows, and `library_version` against the state job's `computed_version`. One `counter_drift` log line names each account that differs and which counters (never the values); the run's totals are `countersChecked` and `countersDrifted` in the `maintenance` log line. A create or a label write in flight can show a brief `digest_bytes` mismatch, since the bytes are reserved before the row is written, so one report alone is noise. Nothing is changed. Two statements, counted in the operation total below. It runs after the state re-send, and an error in it ends only this step, logged as `counter_reconcile_failed` with the error's class.
+- Last, records the database size the create guard reads (see the database guard): one cheap statement for the size and one write, outside the operation count below. An error in it ends only this step, logged as `database_size_failed` with the error's class.
 
 Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIONS`, which is **45** per run, below the Workers Free limit of 50 subrequests per invocation. A step that reaches the cap stops, and the next run resumes from its saved state. CPU is not measured.
 

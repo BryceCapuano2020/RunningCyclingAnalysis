@@ -8,7 +8,7 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "npm run dev -w @rca/web",
