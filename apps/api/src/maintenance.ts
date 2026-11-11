@@ -2,8 +2,9 @@ import type { Bindings } from './env.ts'
 import type { Deps } from './deps.ts'
 import { finishAccountDeletion, pruneAccountTombstones } from './accountDeletion.ts'
 import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
-import { reconcileCounters, type ReconcileReport } from './counterReconcile.ts'
+import { reconcileCounters } from './counterReconcile.ts'
 import { pruneIdentityBudget } from './identityBudget.ts'
+import { OperationBudgetExhausted, errorClass, guarded, within } from './maintenanceGuard.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { readDatabaseSize, recordDatabaseSize, reserveR2Operation } from './storage.ts'
 import { STATE_KEY, stateKey } from './state/key.ts'
@@ -85,13 +86,19 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
   const stateResent = await within(0, () => resendDirty(bound, now))
   // Report-only, so it runs after the re-send, and a failure in it never stops another step.
-  const reconciled = await reconcileGuarded(bound, now)
+  const none = { checked: 0, drifted: 0 }
+  const reconciled = await guarded('counter_reconcile_failed', none, () =>
+    within(none, () => reconcileCounters(bound, now)),
+  )
   // The only place the size the create guard reads is written (request paths no longer record it,
   // so writers do not queue on one row). It runs last, so it sees the day's deletions, and on the
   // unmetered binding, so a spent operation budget cannot skip it. The two statements sit outside the
   // 45-operation budget. A reading up to a day old is fine: the cap leaves at least 1 GB below D1's
-  // 10 GB (decimal or binary), more than this app's writes add in a day.
-  await recordDatabaseSize(env.DB, now, await readDatabaseSize(env.DB))
+  // 10 GB (decimal or binary), more than this app's writes add in a day. A failure in it keeps the
+  // last recorded size and ends only this step.
+  await guarded('database_size_failed', undefined, async () =>
+    recordDatabaseSize(env.DB, now, await readDatabaseSize(env.DB)),
+  )
   return {
     sessions,
     slots,
@@ -105,14 +112,6 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
     countersDrifted: reconciled.drifted,
     operations: budget.operations,
     budgetReached: budget.reached,
-  }
-}
-
-/** Thrown by a metered binding once the run has no operations left. Caught by the step that hit it. */
-class OperationBudgetExhausted extends Error {
-  constructor() {
-    super('maintenance operation budget reached')
-    this.name = 'OperationBudgetExhausted'
   }
 }
 
@@ -181,32 +180,6 @@ function meterEnv(env: Bindings, budget: OperationBudget): Bindings {
   }
 }
 
-/** Runs one step. If the run's operation budget is spent, the step ends and returns its fallback. */
-async function within<T>(fallback: T, step: () => Promise<T>): Promise<T> {
-  try {
-    return await step()
-  } catch (error) {
-    if (error instanceof OperationBudgetExhausted) return fallback
-    throw error
-  }
-}
-
-/** The counter check. An error in it ends only this step, logged as one line naming its class. */
-async function reconcileGuarded(env: Bindings, now: number): Promise<ReconcileReport> {
-  const none = { checked: 0, drifted: 0 }
-  try {
-    return await within(none, () => reconcileCounters(env, now))
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        event: 'counter_reconcile_failed',
-        errorClass: error instanceof Error ? error.constructor.name : typeof error,
-      }),
-    )
-    return none
-  }
-}
-
 async function deleteExpiredSessions(env: Bindings, now: number, limit = 500): Promise<D1Result> {
   return env.DB.prepare(
     `DELETE FROM sessions WHERE id IN (
@@ -238,10 +211,7 @@ async function finishPendingDeletions(
       if (error instanceof OperationBudgetExhausted) break
       failed += 1
       console.error(
-        JSON.stringify({
-          event: 'account_deletion_retry_failed',
-          errorClass: error instanceof Error ? error.constructor.name : typeof error,
-        }),
+        JSON.stringify({ event: 'account_deletion_retry_failed', errorClass: errorClass(error) }),
       )
     }
   }
