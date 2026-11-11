@@ -4,6 +4,7 @@ import { analysisSettings } from './athlete'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/settings'
+import { ApiRequestError } from '../api/client'
 import {
   browserSettings,
   forgetAccountChoices,
@@ -16,11 +17,14 @@ import { resetKeptPowerCache, useKeptPower } from './keptPowerStore'
 import { storedPeriodChoice } from './periodPreference'
 import {
   CHOICE_NOT_SAVED,
+  CHOICE_REFUSED,
   retryWaitMs,
+  SETTINGS_RETRY_MAX_MS,
   SETTINGS_RETRY_MS,
   useAccountSettings,
 } from './useAccountSettings'
-import { onOwnChange as ownChange } from './tabSync'
+import { onOwnChange as ownChange, resetTabSync } from './tabSync'
+import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
 import { settingsChosen } from './settingsChosen'
 
 vi.mock('../api/settings', () => ({ getAccountSettings: vi.fn(), putAccountSettings: vi.fn() }))
@@ -389,6 +393,8 @@ describe('a choice that is not saved', () => {
     await advance(0)
     expect(view.result.current.notSaved).toBe(false)
     put.mockRejectedValue(new Error('offline'))
+    // The choice: a period the account does not hold.
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
     act(() => settingsChosen('period'))
     await advance(0)
     expect(put).toHaveBeenCalledTimes(1)
@@ -404,6 +410,85 @@ describe('a choice that is not saved', () => {
     expect(put).toHaveBeenCalledTimes(3)
     expect(view.result.current.notSaved).toBe(false)
   })
+
+  it('clears the notice when another tab saves the settings, and stops its own retry', async () => {
+    resetTabSync()
+    FakeBroadcastChannel.reset()
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    const otherTab = FakeBroadcastChannel.other('rca-sync-v1')
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    put.mockRejectedValue(new Error('offline'))
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    act(() => settingsChosen('period'))
+    await advance(0)
+    expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
+    // The other tab's save went through with the shared copy: the notice here is stale.
+    act(() => otherTab.postMessage({ type: 'settings' }))
+    expect(view.result.current.notSaved).toBe(false)
+    expect(view.result.current.notice).toBe('')
+    const calls = put.mock.calls.length
+    await advance(SETTINGS_RETRY_MAX_MS)
+    expect(put).toHaveBeenCalledTimes(calls)
+    vi.unstubAllGlobals()
+    resetTabSync()
+  })
+
+  it('reads the account again on a retry and sends only the fields this device chose, so another device’s newer choice is not overwritten', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    put.mockRejectedValueOnce(new Error('offline'))
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    act(() => settingsChosen('period'))
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(1)
+    // Meanwhile another device changed the rides kept, which this one did not touch.
+    get.mockResolvedValue({ ...ACCOUNT, keepPower: ['ride-from-the-phone'] })
+    await advance(SETTINGS_RETRY_MS)
+    await advance(0)
+    expect(get.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(put.mock.calls[1]![0]).toMatchObject({ keepPower: ['ride-from-the-phone'] })
+    expect(put.mock.calls[1]![0].period).toBe(storedPeriodChoice())
+  })
+
+  it.each([
+    ['a 429', new ApiRequestError(429, 'rate_limited', 'Slow down')],
+    ['a 503', new ApiRequestError(503, 'unavailable', 'Try later')],
+    ['a timeout', new ApiRequestError(408, 'timeout', 'Timed out')],
+    ['no connection', new ApiRequestError(0, 'network_error', 'Could not reach the server')],
+  ])('is tried again after %s', async (_name, failure) => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    put.mockRejectedValueOnce(failure)
+    act(() => settingsChosen('period'))
+    await advance(0)
+    await advance(SETTINGS_RETRY_MS)
+    await advance(0)
+    expect(put.mock.calls.length + get.mock.calls.length).toBeGreaterThan(2)
+  })
+
+  it.each([
+    ['a 400', new ApiRequestError(400, 'invalid', 'Not accepted')],
+    ['a 413', new ApiRequestError(413, 'too_large', 'Too large')],
+  ])(
+    'stops after %s and says the account did not accept it, with a different notice',
+    async (_name, refusal) => {
+      get.mockResolvedValue(ACCOUNT)
+      const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+      await advance(0)
+      put.mockRejectedValue(refusal)
+      act(() => settingsChosen('period'))
+      await advance(0)
+      expect(view.result.current.notice).toBe(CHOICE_REFUSED)
+      await advance(10 * SETTINGS_RETRY_MAX_MS)
+      expect(put).toHaveBeenCalledTimes(1)
+      expect(view.result.current.notice).toBe(CHOICE_REFUSED)
+    },
+  )
 
   it('goes on trying for as long as the page is open, with waits that stop doubling at a minute', () => {
     expect([1, 2, 3, 4, 5, 6, 7, 8].map(retryWaitMs)).toEqual([

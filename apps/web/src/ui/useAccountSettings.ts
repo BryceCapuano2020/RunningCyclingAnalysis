@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApiRequestError } from '../api/apiError'
 import { pullAccountSettings, pushAccountSettings } from './accountSettings'
 import { onSettingsChosen } from './settingsChosen'
-import { tellOtherTabs } from './tabSync'
+import { tellOtherTabs, useTabMessages } from './tabSync'
 import type { SettingsField } from './settingsChosen'
 import type { AccountStatus } from './useAccount'
 
@@ -12,6 +13,22 @@ export const SETTINGS_RETRY_MAX_MS = 60_000
 /** What the page says while a choice is not in the account. */
 export const CHOICE_NOT_SAVED =
   'Your last choice is not saved to your account yet. It saves when the connection returns.'
+/** What it says when the account refused the choice, which trying again does not change. */
+export const CHOICE_REFUSED =
+  'Your account did not accept your last choice. It stays on this device.'
+
+/**
+ * Whether a failure is worth trying again: no connection, a timeout, too many requests or a server error. Anything else is an answer
+ * (the account refused it, or the session ended), and sending the same thing again changes nothing.
+ */
+function worthRetrying(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) return true
+  return error.status === 0 || error.status === 408 || error.status === 429 || error.status >= 500
+}
+
+/** A refusal of the settings themselves: a 400 or a 413. */
+const refused = (error: unknown): boolean =>
+  error instanceof ApiRequestError && (error.status === 400 || error.status === 413)
 
 /** The wait before the retry that follows `failures` failures in a row. */
 export const retryWaitMs = (failures: number): number =>
@@ -32,8 +49,16 @@ export function useAccountSettings(
   status: AccountStatus,
   userId: string | null,
 ): { notSaved: boolean; notice: string } {
+  const [refusedChoice, setRefused] = useState(false)
   const signedIn = status === 'signed-in' && userId !== null
   const [notSaved, setNotSaved] = useState(false)
+  // Another tab saved settings: the copy it sent is the one in this browser, so what this tab still held back is in the account too.
+  const savedElsewhere = useRef<() => void>(() => undefined)
+  useTabMessages(
+    useCallback((message) => {
+      if (message.type === 'settings') savedElsewhere.current()
+    }, []),
+  )
   useEffect(() => {
     if (!signedIn) return
     let current = true
@@ -41,6 +66,8 @@ export function useAccountSettings(
     let pulled = false
     let failures = 0
     const chosen = new Set<SettingsField>()
+    // The fields this device chose since the account last held them: a retry reads the account again and sends only these over it.
+    const pending = new Set<SettingsField>()
     // Saves run one at a time, each from the copy as it stands when it starts.
     let queue: Promise<unknown> = Promise.resolve()
     const retry = (again: () => void) => {
@@ -50,20 +77,23 @@ export function useAccountSettings(
         if (current) again()
       }, retryWaitMs(failures))
     }
-    const save = () => {
+    const save = (retrying = false) => {
       queue = queue.then(
         () =>
           current
-            ? pushAccountSettings(userId).then(
+            ? (retrying ? pullAccountSettings(userId, pending) : pushAccountSettings(userId)).then(
                 () => {
                   failures = 0
+                  pending.clear()
                   setNotSaved(false)
+                  setRefused(false)
                   // The server's results changed with it: this tab and the others ask for them again.
                   tellOtherTabs({ type: 'settings' })
                 },
-                () => {
+                (error: unknown) => {
                   setNotSaved(true)
-                  retry(save)
+                  if (refused(error)) setRefused(true)
+                  else if (worthRetrying(error)) retry(() => save(true))
                 },
               )
             : undefined,
@@ -71,6 +101,8 @@ export function useAccountSettings(
       )
     }
     const stop = onSettingsChosen((field) => {
+      pending.add(field)
+      setRefused(false)
       if (pulled) save()
       else {
         chosen.add(field)
@@ -81,22 +113,33 @@ export function useAccountSettings(
       pullAccountSettings(userId, chosen).then(
         (wrote) => {
           pulled = true
+          pending.clear()
           failures = 0
           setNotSaved(false)
           if (wrote) tellOtherTabs({ type: 'settings' })
         },
-        () => {
-          if (current) retry(pull)
+        (error: unknown) => {
+          if (current && worthRetrying(error)) retry(pull)
         },
       )
     }
+    savedElsewhere.current = () => {
+      if (!pulled) return
+      failures = 0
+      clearTimeout(timer)
+      pending.clear()
+      setNotSaved(false)
+      setRefused(false)
+    }
     pull()
     return () => {
+      savedElsewhere.current = () => undefined
       current = false
       clearTimeout(timer)
       stop()
     }
   }, [signedIn, userId])
   const unsaved = notSaved && signedIn
-  return { notSaved: unsaved, notice: unsaved ? CHOICE_NOT_SAVED : '' }
+  const notice = !unsaved ? '' : refusedChoice ? CHOICE_REFUSED : CHOICE_NOT_SAVED
+  return { notSaved: unsaved, notice }
 }

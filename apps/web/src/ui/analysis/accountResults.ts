@@ -3,6 +3,7 @@ import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { LiftResults } from '@rca/core/lift'
 import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
+import { ApiRequestError } from '../../api/apiError'
 import { readServerState } from '../../api/state'
 import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
@@ -76,7 +77,11 @@ export function useAccountResults(
 ): {
   results: AccountResults | null
   refresh: () => void
+  /** The page's Retry, asking now with the waits going on; null when the last failure was a spent budget (a 429), which asking cannot mend. */
+  retry: (() => void) | null
   indexListed: (version?: number) => void
+  /** The library version the worker's index was listed at, when it said (null otherwise): results of an earlier version are behind it. */
+  listedVersion: number | null
   /** The last ask could not be answered (an error, a timeout, a 429, or a 404): nothing is known to be wrong with the library. */
   failed: boolean
 } {
@@ -87,7 +92,10 @@ export function useAccountResults(
       ? stored.results
       : null
   const [failedFor, setFailedFor] = useState<string | null>(null)
+  const [listedVersion, setListedVersion] = useState<number | null>(null)
   const failed = failedFor !== null && failedFor === userId
+  // The failure was a 429: the account's budget for the day is spent, and asking again does not change that.
+  const [spent, setSpent] = useState(false)
   const idRef = useRef<string | null>(null)
   const epoch = useRef(0)
   const held = useRef<StateSnapshot | null>(null)
@@ -194,18 +202,24 @@ export function useAccountResults(
         clearTimeout(timer.current)
         const id = idRef.current
         const tag = refused.current ?? held.current
+        let over = false
         const read = await Promise.resolve()
           .then(() => readServerState(id, tag))
-          .catch(() => null)
+          .catch((error: unknown) => {
+            over = error instanceof ApiRequestError && error.status === 429
+            return null
+          })
         if (mine !== epoch.current) return
         // An error, a timeout, a 429 or a 404 leaves what is held and asks again, the waits doubling as they do for a row that stays stale.
         if (!read || read.kind === 'none') {
           setFailedFor(id)
+          setSpent(over)
           misses.current++
           armRetry(busyWaitMs(misses.current))
           return
         }
         setFailedFor(null)
+        setSpent(false)
         const wait = apply(read)
         if (wait !== null) armRetry(wait)
       } finally {
@@ -280,8 +294,18 @@ export function useAccountResults(
   // version: the next snapshot's is the one it matches).
   const indexListed = useCallback((version?: number) => {
     indexAt.current = version ?? null
+    setListedVersion(version ?? null)
   }, [])
-  return { results, refresh: onChange, indexListed, failed }
+  // The page's Retry: asks now, and the waits go on from where they were (a change, which starts them again, is `refresh`).
+  const retry = useCallback(() => void pull(), [pull])
+  return {
+    results,
+    refresh: onChange,
+    retry: spent ? null : retry,
+    indexListed,
+    listedVersion,
+    failed,
+  }
 }
 
 /**
@@ -341,16 +365,29 @@ function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
 
 /**
  * Whether the page waits for an account's results, or could not get them. A signed-in account with none yet shows its loading state, not
- * an empty library; one the server could not answer says so, with a retry, unless the library read itself failed (its notice has it).
+ * an empty library. So does one whose results are older than its library: a snapshot the server served from its store while it computes
+ * (not current, or a copy kept from an earlier visit), with nothing in it while the index lists activities, or of a library version
+ * behind the one the index was listed at. One the server could not answer says so, with a retry, unless the library read itself failed
+ * (its notice has it). `listed` is how many activities the index lists.
  */
 export function resultsFlags(
   userId: string | null,
-  { results, failed }: { results: AccountResults | null; failed: boolean },
+  {
+    results,
+    failed,
+    listedVersion,
+  }: { results: AccountResults | null; failed: boolean; listedVersion: number | null },
   libraryStatus: string,
+  listed: number,
 ): { resultsWaiting: boolean; resultsFailed: boolean } {
-  const none = userId !== null && results === null
+  if (userId === null) return { resultsWaiting: false, resultsFailed: false }
+  const behind =
+    results === null ||
+    (!results.current &&
+      ((results.state.result === null && listed > 0) ||
+        (listedVersion !== null && results.snapshot.libraryVersion < listedVersion)))
   return {
-    resultsWaiting: none && !failed,
-    resultsFailed: none && failed && libraryStatus !== 'failed',
+    resultsWaiting: behind && !failed,
+    resultsFailed: behind && failed && libraryStatus !== 'failed',
   }
 }

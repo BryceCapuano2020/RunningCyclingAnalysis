@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { snapshotContentHash } from '@rca/core/stateSnapshot'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiRequestError } from '../../api/apiError'
 import type { StateRead } from '../../api/state'
 import * as api from '../../api/state'
 import { resultState, snapshotAt } from '../../test/stateCopyKit'
@@ -275,6 +276,26 @@ describe('the index of the library', () => {
       expect(view.result.current.failed).toBe(true)
       await advance(BUSY_RETRY_MS)
       expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it('asks at once for the page’s Retry and keeps the waits where they were; one spent budget (a 429) offers none', async () => {
+      read.mockRejectedValue(new Error('timeout'))
+      const view = mount()
+      await flush()
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      // The next wait is the doubled one; Retry reads now, and the wait after it is longer still, not the short one again.
+      act(() => view.result.current.retry?.())
+      await flush()
+      expect(read).toHaveBeenCalledTimes(3)
+      await advance(BUSY_RETRY_MS * 2)
+      expect(read).toHaveBeenCalledTimes(3)
+      await advance(BUSY_RETRY_MS * 2)
+      expect(read).toHaveBeenCalledTimes(4)
+      read.mockRejectedValue(new ApiRequestError(429, 'rate_limited', 'Too many requests'))
+      await advance(BUSY_RETRY_MS * 8)
+      expect(view.result.current.failed).toBe(true)
+      expect(view.result.current.retry).toBeNull()
     })
   })
 })

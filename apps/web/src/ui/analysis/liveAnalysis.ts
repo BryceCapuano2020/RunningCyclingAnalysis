@@ -296,7 +296,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   return {
     state: shown.state,
     accountLift: shown.lift,
-    ...resultsFlags(userId, accountResults, library.libraryStatus),
+    ...resultsFlags(userId, accountResults, library.libraryStatus, shown.state.libraryActivities),
     ...(shown.stale ? { copyStale: true } : {}),
     busy: imports.busy,
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
@@ -311,10 +311,8 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     retryWorker: transport.retryWorker,
     libraryStatus: library.libraryStatus,
     restoring: library.restoring,
-    retryLibrary: () => {
-      libraryActions.retryLibrary()
-      accountResults.refresh()
-    },
+    retryLibrary: libraryActions.retryLibrary,
+    retryResults: accountResults.retry,
     resumeSaves: libraryActions.resumeSaves,
     detail: library.detail,
     missingOriginals: library.missingOriginals,

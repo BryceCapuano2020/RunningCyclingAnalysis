@@ -354,7 +354,8 @@ export function App() {
             ) : page === 'unavailable' ? (
               <UnavailableLibraryPage
                 canRetry={signedIn}
-                onRetry={analysis.resultsFailed ? analysis.retryLibrary : undefined}
+                resultsFailed={analysis.resultsFailed}
+                onRetry={analysis.retryResults ?? undefined}
               />
             ) : page === 'held' ? (
               <HeldLibraryPage

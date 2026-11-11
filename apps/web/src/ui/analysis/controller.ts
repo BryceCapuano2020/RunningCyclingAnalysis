@@ -30,6 +30,8 @@ export interface AnalysisController {
   resultsWaiting: boolean
   /** Signed in, no results yet, and the server could not be asked or had none (and the library read itself did not fail): the page says so, with a retry. */
   resultsFailed: boolean
+  /** Asks the server for the results again, the waits going on; null when the last ask hit the day's budget (a 429), which asking cannot mend. */
+  retryResults: (() => void) | null
   /** True while the results shown are the last visit's copy, made on an earlier local day: the live analysis replaces them as soon as it is ready. */
   copyStale?: boolean
   /** Import work is in progress or waiting. A library change such as a delete is not counted. */

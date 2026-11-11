@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
@@ -54,12 +54,26 @@ describe('a library whose index has loaded and whose results have not come', () 
   it('says it is not showing yet, with a retry, when the results could not be fetched', () => {
     indexLoadedNoResults()
     app.analysis.resultsFailed = true
+    app.analysis.retryResults = vi.fn()
     render(<App />)
     expect(screen.queryByText(/holds no runs or rides yet/)).toBeNull()
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your library is not showing yet' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.getByText('Your results could not be fetched.')).toBeInTheDocument()
+    expect(screen.queryByText(/Nothing was lost/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(app.analysis.retryResults).toHaveBeenCalledTimes(1)
+    expect(app.analysis.retryLibrary).not.toHaveBeenCalled()
+  })
+
+  it('offers no retry when the day’s budget is spent, which asking again cannot mend', () => {
+    indexLoadedNoResults()
+    app.analysis.resultsFailed = true
+    app.analysis.retryResults = null
+    render(<App />)
+    expect(screen.getByText('Your results could not be fetched.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 
   it('still shows the held page for a library whose results are here and hold nothing to show', () => {

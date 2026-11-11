@@ -19,6 +19,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     accountLift: null,
     resultsWaiting: false,
     resultsFailed: false,
+    retryResults: null,
     busy: false,
     waitingReason: null,
     progress: null,
