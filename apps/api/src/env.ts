@@ -61,6 +61,8 @@ export interface Bindings {
   AUTH_RATE_LIMITER?: RateLimit
   WRITE_RATE_LIMITER?: RateLimit
   HEALTH_RATE_LIMITER?: RateLimit
+  /** Garmin's deregistration notice, per address (rateLimit.ts). */
+  NOTICE_RATE_LIMITER?: RateLimit
 }
 
 /** Drizzle over D1, with the raw binding for batches and statements Drizzle cannot express. */

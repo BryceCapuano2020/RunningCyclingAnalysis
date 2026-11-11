@@ -26,9 +26,9 @@ export const publicRateLimit = createMiddleware<AppEnv>(async (c, next) => {
   c.header('Retry-After', '60')
   await admit(c.env.API_RATE_LIMITER, `ip:${address}`)
   if (c.req.path === GARMIN_NOTICE_PATH) {
-    // Garmin's servers send notices in bursts from a few addresses: a bucket of their own, so a burst neither
-    // spends sign-in's bucket nor is refused by it.
-    await admit(c.env.API_RATE_LIMITER, `notice:${address}`)
+    // Garmin's servers send notices in bursts from a few addresses: a limiter of their own (120 a minute,
+    // wrangler.toml), so a burst neither spends sign-in's bucket nor is refused by it, and a forger is bounded.
+    await admit(c.env.NOTICE_RATE_LIMITER, `notice:${address}`)
   } else if (
     (c.req.path.startsWith('/api/auth/') && c.req.path !== '/api/auth/logout') ||
     c.req.path.startsWith('/api/garmin/')

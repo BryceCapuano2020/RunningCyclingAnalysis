@@ -481,12 +481,13 @@ an intent binding, not a replacement for session authentication or owner-scoped 
 
 Cloudflare rate-limit bindings apply outside local development:
 
-| Binding               | Threshold per minute | Key                                        |
-| --------------------- | -------------------: | ------------------------------------------ |
-| `API_RATE_LIMITER`    |                1,200 | Cloudflare-supplied client address         |
-| `AUTH_RATE_LIMITER`   |                   30 | Client address, OAuth/sign-in routes       |
-| `WRITE_RATE_LIMITER`  |                  600 | Authenticated user id, account data writes |
-| `HEALTH_RATE_LIMITER` |                    1 | Client address, `GET /api/health/deep`     |
+| Binding               | Threshold per minute | Key                                            |
+| --------------------- | -------------------: | ---------------------------------------------- |
+| `API_RATE_LIMITER`    |                1,200 | Cloudflare-supplied client address             |
+| `AUTH_RATE_LIMITER`   |                   30 | Client address, OAuth/sign-in routes           |
+| `WRITE_RATE_LIMITER`  |                  600 | Authenticated user id, account data writes     |
+| `HEALTH_RATE_LIMITER` |                    1 | Client address, `GET /api/health/deep`         |
+| `NOTICE_RATE_LIMITER` |                  120 | Client address, Garmin's deregistration notice |
 
 Counters are approximate and local to a Cloudflare location; they are abuse controls, not strict
 billing quotas. Requests denied by the limiter return `429` and `Retry-After: 60`. Missing or failing
