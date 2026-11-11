@@ -64,7 +64,7 @@ async function upgradeDigest(
   existing: ActivityRow,
   next: DigestUpgrade,
 ): Promise<ActivityRow | null> {
-  const { DB, db, deps } = ctx
+  const { DB, db } = ctx
   // Only a newer model revision upgrades. Check it before reserving quota, so a request that cannot
   // upgrade is never refused for quota it does not need.
   const stored = await db
