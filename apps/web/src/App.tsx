@@ -83,7 +83,7 @@ export function App() {
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const keptPower = useKeptPower()
   const countedRuns = useCountedRuns()
-  useAccountSettings(account.status, account.me?.user.id ?? null)
+  const accountChoices = useAccountSettings(account.status, account.me?.user.id ?? null)
   const signOutWarning = useAppSignOut(account, countedRuns)
   const signInProblem = useSignInProblem()
   const analysisAthlete = useAnalysisSettings(
@@ -293,7 +293,7 @@ export function App() {
             pageNotice={
               accountDeleted && route.page === 'balance'
                 ? 'Your account and data were deleted.'
-                : (signInProblem ?? coldNotice ?? '')
+                : (signInProblem ?? coldNotice ?? accountChoices.notice)
             }
             walkingNote={WALKING_NOTE_PAGES.includes(route.page)}
             countedRuns={countedRuns}

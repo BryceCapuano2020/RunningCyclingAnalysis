@@ -43,10 +43,11 @@
       <h1>Privacy policy</h1>
 
       <p class="lede">
-        Analysis runs in your browser, and on the server too for accounts that have server results
-        enabled. Without an account, files are not uploaded. With an account, your profile and
-        activity summaries are stored on Cloudflare, and original files only if you choose. We do
-        not sell your data, and the app has no analytics or advertising trackers.
+        Signed out, analysis runs in your browser and files are not uploaded. Signed in, the server
+        computes your results from the activity summaries it holds, stores them with your account
+        and deletes them with it, and this browser keeps a copy. Your profile and activity summaries
+        are stored on Cloudflare, and original files only if you choose. We do not sell your data,
+        and the app has no analytics or advertising trackers.
       </p>
 
       <p>
@@ -189,12 +190,13 @@
         </li>
         <li>
           The results the app last showed you are kept in this browser, in a database named
-          rca-state, so a reload shows them at once while the app works them out again. For each
-          library it holds one copy of those results: the figures, the dates and the names and
-          labels of your activities, the same things the page shows. It is never uploaded. Signing
-          out and deleting your account clear the account's copy, so does Remove all my activities,
-          and signing in as someone else clears the other account's copy. Nothing is written while
-          you are looking at the sample.
+          rca-state, so a reload shows them at once while the latest are fetched. For each library
+          it holds one copy of those results: the figures, the dates and the names and labels of
+          your activities, the same things the page shows. For an account it is the copy the server
+          sent; signed out, the results this browser worked out. It is never uploaded. Signing out
+          and deleting your account clear the account's copy, so does Remove all my activities, and
+          signing in as someone else clears the other account's copy. Nothing is written while you
+          are looking at the sample.
         </li>
         <li>
           The name printed on a shared card stays in this browser: it is kept in local storage under
@@ -292,19 +294,18 @@
           account, unless the account already has its own.
         </li>
         <li>
-          <strong>Server results, where server results are on:</strong> signed out, analysis runs in
-          your browser; signed in, the server also computes your results from the summaries it
-          already holds. This applies to accounts server results are enabled for; for every other
-          account, analysis runs in your browser only. The server keeps the latest copy in the file
-          bucket under your account, and this browser shows it while its own analysis catches up.
-          The copy holds the figures, the dates and the names and labels of your activities, the
-          same things the page shows, and no per-second recording or route data. The database keeps
-          a count of the changes to your activities, profile, dated settings and account settings,
-          which tells the server when to compute again, with the version and time of the last
-          compute, when the last try began, whether one is on its way, the name of the copy and the
-          analysis it was made under; and the time zone this browser reports, saved with your
-          account settings, which sets where your days start. Deleting your account deletes the
-          copy.
+          <strong>Your results, signed in:</strong> the server computes them from the summaries it
+          already holds, and from your logged lift sets and the check-in against your last import,
+          which are part of them. It keeps the latest copy in the file bucket under your account,
+          and this browser keeps a copy and shows it while the latest are fetched. Signed out,
+          analysis runs in your browser and nothing is sent. The copy holds the figures, the dates
+          and the names and labels of your activities, the same things the page shows, and no
+          per-second recording or route data. The database keeps a count of the changes to your
+          activities, profile, dated settings and account settings, which tells the server when to
+          compute again, with the version and time of the last compute, when the last try began,
+          whether one is on its way, the name of the copy and the analysis it was made under; and
+          the time zone this browser reports, saved with your account settings, which sets where
+          your days start. Deleting your account deletes the copy.
         </li>
         <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,

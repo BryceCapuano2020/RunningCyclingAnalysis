@@ -19,6 +19,21 @@ describe('the privacy page on the results copy (rca-state)', () => {
     expect(text).toContain('Nothing is written while you are looking at the sample')
   })
 
+  it('says what the server-authority design does with signed-in results, and that signed out analysis stays in the browser', () => {
+    expect(text).toContain('Signed out, analysis runs in your browser and files are not uploaded')
+    expect(text).toContain(
+      'Signed in, the server computes your results from the activity summaries it holds, stores them with your account and deletes them with it, and this browser keeps a copy',
+    )
+    expect(text).toContain('Your results, signed in: the server computes them from the summaries')
+    expect(text).toContain(
+      'your logged lift sets and the check-in against your last import, which are part of them',
+    )
+    expect(text).toContain('Signed out, analysis runs in your browser and nothing is sent')
+    expect(text).not.toContain('enabled for')
+    expect(text).not.toContain('analysis catches up')
+    expect(text).not.toContain('works them out again')
+  })
+
   it('is cleared where the page says it is', () => {
     expect(forget).toContain('clearSnapshot(userId)')
     expect(remove).toContain('clearSnapshot(userId)')

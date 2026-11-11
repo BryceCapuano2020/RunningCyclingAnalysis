@@ -5,6 +5,10 @@ import { dayOf } from '@rca/core/customRange'
 import type { PeriodChoice } from '@rca/core/period'
 import type { SessionState } from '@rca/core/session'
 import { fromSnapshot, toSnapshot } from '@rca/core/stateSnapshot'
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { AnalysisSession } from '@rca/core/session'
+import { EMPTY_SESSION } from '../ui/analysis/model'
+import { layerState } from '../ui/analysis/accountResults'
 import { DAY_MS } from '@rca/core/constants'
 import {
   snapshotCorpus,
@@ -126,13 +130,14 @@ function serverState(
   choice: SetChoice | undefined,
   nowMs: number,
   zone: string | null,
+  unreadable = 0,
 ): SessionState {
   const inputs: StateInputs = {
     version: 3,
     liftRevision: 0,
     liftSets: [],
     digests: library.digests,
-    unreadable: 0,
+    unreadable,
     massKg: choices.massKg,
     bikeMassKg: BIKE_KG,
     birthYear: choices.birthYear,
@@ -268,4 +273,84 @@ describe('the server computes what the browser builds for a signed-out visitor',
   })
 
   // The lift state and the check-in are held equal in serverEquivalence.lift.test.ts.
+})
+
+/**
+ * A library with digests the analysis holds out: some made by an older model (stale) and one by a newer app. They are listed and
+ * counted and left out of every figure, on the server and in the browser alike.
+ */
+function withHeldOut(library: CorpusLibrary): CorpusLibrary {
+  const first = library.digests[0]!
+  const older = (days: number, modelRevision: number, id: string) => ({
+    ...first,
+    id,
+    startMs: first.startMs - days * DAY_MS,
+    modelRevision,
+  })
+  return {
+    ...library,
+    name: `${library.name} with stale and newer digests`,
+    digests: [
+      ...library.digests,
+      older(100, MODEL_REVISION - 1, 'stale-a'),
+      older(101, MODEL_REVISION - 1, 'stale-b'),
+      older(102, MODEL_REVISION + 1, 'newer-a'),
+    ],
+  }
+}
+
+describe('digests the analysis holds out, and rows it cannot read', () => {
+  const held = withHeldOut(corpus[1]!)
+  const cases = casesFor(held).filter((c) => /default|all time|settings change/.test(c.name))
+
+  it.each(cases.map((c) => [c.name, c] as const))(
+    'the server and the browser agree, with stale and newer digests in the library: %s',
+    async (_name, { choices, choice, nowMs = held.nowMs }) => {
+      vi.stubEnv('TZ', 'UTC')
+      installDeviceZone()
+      const browser = await browserState(held, choices, choice, nowMs)
+      const server = serverState(held, choices, choice, nowMs, 'UTC')
+      expectSameState(server, browser)
+      // Not vacuous: they are counted, and are not in the results.
+      expect(server.outdatedActivities).toBe(2)
+      expect(server.incompatibleActivities).toBe(1)
+      expect(server.libraryActivities).toBe(held.digests.length)
+    },
+  )
+
+  it('rows the server cannot read move no figure: its state is the same with them as without', () => {
+    vi.stubEnv('TZ', 'UTC')
+    installDeviceZone()
+    const library = corpus[1]!
+    const without = serverState(library, NONE, 'all', library.nowMs, 'UTC', 0)
+    const withUnreadable = serverState(library, NONE, 'all', library.nowMs, 'UTC', 3)
+    expectSameState(withUnreadable, without)
+  })
+
+  it('the page’s layer over the server’s state changes nothing for the same digests and no import', () => {
+    vi.stubEnv('TZ', 'UTC')
+    installDeviceZone()
+    for (const library of [corpus[1]!, held]) {
+      const server = serverState(library, NONE, 'all', library.nowMs, 'UTC')
+      // What the worker's index and the import say of the same library, before any file is dropped.
+      const session = new AnalysisSession()
+      session.replaceLibrary(library.digests)
+      const layered = layerState(server, session.importFacts(), session.indexFacts())
+      expectSameState(layered, server)
+    }
+  })
+
+  it('the layer is what puts the index over a state, so the check above is not vacuous', () => {
+    const layered = layerState(
+      EMPTY_SESSION,
+      { rejected: [], unsupportedFiles: 2, syncIssues: [] },
+      { outdatedActivities: 4, incompatibleActivities: 1, libraryActivities: 9, heldOut: [] },
+    )
+    expect(layered).toMatchObject({
+      unsupportedFiles: 2,
+      outdatedActivities: 4,
+      incompatibleActivities: 1,
+      libraryActivities: 9,
+    })
+  })
 })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { SessionState } from '@rca/core/session'
+import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
 import type { LiftResults } from '@rca/core/lift'
 import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
@@ -284,6 +284,19 @@ export function useAccountResults(
   return { results, refresh: onChange, indexListed, failed }
 }
 
+/**
+ * The server's state with what only the browser knows laid over it: the last import's facts (refused files, unsaved activities) and the
+ * worker's index (the library's age and size). For the same digests and no import they are what the state already holds, so the layer
+ * changes nothing (held by the equivalence test).
+ */
+export function layerState(
+  state: SessionState,
+  facts: ImportFacts | null,
+  index: IndexFacts | null,
+): SessionState {
+  return { ...state, ...facts, ...index }
+}
+
 /** What the page shows. */
 interface Shown {
   state: SessionState
@@ -310,7 +323,7 @@ export function useShownResults(
   const held = shows ? results : null
   const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
   const state = useMemo(
-    () => ({ ...(held?.state ?? EMPTY_SESSION), ...device.facts, ...device.index }),
+    () => layerState(held?.state ?? EMPTY_SESSION, device.facts, device.index),
     [held, device.facts, device.index],
   )
   return { state: shows ? state : device.state, lift, stale: held?.stale === true }

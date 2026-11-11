@@ -14,7 +14,12 @@ import { browserZone } from './analysis/copyAge'
 import { loadCountedRuns, storeCountedRuns } from './countedRunsStore'
 import { resetKeptPowerCache, useKeptPower } from './keptPowerStore'
 import { storedPeriodChoice } from './periodPreference'
-import { useAccountSettings } from './useAccountSettings'
+import {
+  CHOICE_NOT_SAVED,
+  retryWaitMs,
+  SETTINGS_RETRY_MS,
+  useAccountSettings,
+} from './useAccountSettings'
 import { onOwnChange as ownChange } from './tabSync'
 import { settingsChosen } from './settingsChosen'
 
@@ -365,5 +370,62 @@ describe('signing out or deleting the account', () => {
     expect(localStorage.getItem('rca-zone-reported:u2')).toBeNull()
     expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBeNull()
     expect(localStorage.getItem('unrelated')).toBe('kept')
+  })
+})
+
+describe('a choice that is not saved', () => {
+  const advance = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('is tried again after waits that double, and the page is told it is not saved until it is', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    expect(view.result.current.notSaved).toBe(false)
+    put.mockRejectedValue(new Error('offline'))
+    act(() => settingsChosen('period'))
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(view.result.current.notSaved).toBe(true)
+    expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
+    await advance(SETTINGS_RETRY_MS)
+    expect(put).toHaveBeenCalledTimes(2)
+    // The second wait is twice as long.
+    await advance(SETTINGS_RETRY_MS)
+    expect(put).toHaveBeenCalledTimes(2)
+    put.mockImplementation(async (settings) => settings)
+    await advance(SETTINGS_RETRY_MS)
+    expect(put).toHaveBeenCalledTimes(3)
+    expect(view.result.current.notSaved).toBe(false)
+  })
+
+  it('goes on trying for as long as the page is open, with waits that stop doubling at a minute', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map(retryWaitMs)).toEqual([
+      2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000, 60_000,
+    ])
+  })
+
+  it('sends the choices once a settings read that failed over and over answers, instead of never', async () => {
+    chooseSignedOut()
+    get.mockRejectedValue(new Error('offline'))
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    for (const wait of [2_000, 4_000, 8_000]) await advance(wait)
+    expect(put).not.toHaveBeenCalled()
+    // A choice made while the read is failing is not saved, and the page says so.
+    act(() => settingsChosen('period'))
+    expect(view.result.current.notSaved).toBe(true)
+    get.mockResolvedValue(NONE)
+    await advance(16_000)
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(put.mock.calls[0]![0]).toMatchObject({ keepPower: ['ride-z'], period: 'all' })
+    expect(view.result.current.notSaved).toBe(false)
   })
 })
