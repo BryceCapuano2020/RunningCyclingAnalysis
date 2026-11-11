@@ -9,8 +9,6 @@ import type { WorkerTransport } from './workerTransport'
 
 /** How long a change is left to settle before the library is read again, so a burst of them reads once. */
 export const RELOAD_DEBOUNCE_MS = 1_000
-/** How often a tab coming back into view looks for a change made on another device. */
-const REVISION_CHECK_MS = 30_000
 /** How many times a reload waits for this tab's own work to end before it gives up until the next change. */
 const BUSY_RETRIES = 5
 
@@ -32,32 +30,21 @@ interface LibraryTabsDeps {
  * - Another tab changed the library kept in this browser, or the account's library: this tab reads it
  *   again, a moment after the last such message, and only while it is in view and not busy with its own
  *   work. A tab that is out of view reads once it comes back.
- * - The account's library is also checked on coming back into view, at most every 30 s, against the
- *   revision tag `/api/me` carries. The tag is only a hint that something changed: a different tag makes
- *   the tab read the library, an equal one never proves it is current. A message from another tab needs no
- *   hint: it is read.
- * - The tab's own changes are announced to the others, and the revision after them is taken as the
- *   baseline, so they are not mistaken for changes made elsewhere.
+ * - The account's results are not read here: `useAccountResults` asks the server for them on the same messages, on coming
+ *   back into view and every minute. This reads the account's list of activities (the worker's index), on a message only.
+ * - The tab's own changes are announced to the others.
  */
 export function useLibraryTabs(deps: LibraryTabsDeps): {
   libraryChanged: (scope: Scope) => void
+  /** The server's results show the account's library past the index this tab listed: another device changed it. */
+  indexBehind: () => void
 } {
   const latest = useLatest(deps)
   const dirty = useRef<Scope | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const retries = useRef(0)
-  const baseline = useRef<string | undefined>(undefined)
-  const checkedAt = useRef(0)
-  // Whether another tab said the library changed (so it is read), or only the revision hint suggests it.
-  const heard = useRef(false)
   // The reload asks itself again while the tab is busy.
   const again = useRef<() => void>(() => undefined)
-
-  // The library has just been read: the account's revision as it stands is the one it matches.
-  useEffect(() => {
-    if (deps.libraryStatus === 'loaded')
-      baseline.current = deps.accountRef.current.me?.libraryRevision
-  }, [deps.libraryStatus, deps.accountRef])
 
   const reload = useCallback(async () => {
     const { accountRef, settingsRef, send, libraryStatus, loadLibrary, busy } = latest()
@@ -70,9 +57,7 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
     }
     dirty.current = null
     retries.current = 0
-    const certain = heard.current
-    heard.current = false
-    const { status, me, refresh } = accountRef.current
+    const { status, me } = accountRef.current
     if (scope === 'device') {
       if (status !== 'signed-in') {
         send({
@@ -84,24 +69,8 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
       }
       return
     }
-    if (
-      status !== 'signed-in' ||
-      me === null ||
-      libraryStatus !== 'loaded' ||
-      refresh === undefined
-    )
-      return
-    // A tab that said it changed the library is believed: its change may leave the revision tag as it was (a
-    // delete and an add of the same size), and the baseline may already include the rows. Only the hint on coming
-    // back into view, with no message behind it, is judged by the tag.
-    const found = await refresh().catch(() => null)
-    if (found === null) {
-      if (certain) loadLibrary(me.user.id)
-      return
-    }
-    if (!certain && found.libraryRevision === baseline.current) return
-    baseline.current = found.libraryRevision
-    loadLibrary(found.user.id)
+    if (status !== 'signed-in' || me === null || libraryStatus !== 'loaded') return
+    loadLibrary(me.user.id)
   }, [latest])
 
   useEffect(() => {
@@ -120,7 +89,6 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
       const signedIn = latest().accountRef.current.status === 'signed-in'
       if ((message.scope === 'account') !== signedIn) return
       dirty.current = message.scope
-      heard.current = true
       schedule()
     },
     [latest, schedule],
@@ -129,38 +97,22 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      const now = Date.now()
-      if (
-        dirty.current === null &&
-        latest().accountRef.current.status === 'signed-in' &&
-        now - checkedAt.current >= REVISION_CHECK_MS
-      ) {
-        checkedAt.current = now
-        dirty.current = 'account'
-      }
-      if (dirty.current !== null) schedule()
+      if (document.visibilityState === 'visible' && dirty.current !== null) schedule()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
       clearTimeout(timer.current)
     }
-  }, [latest, schedule])
+  }, [schedule])
 
   const libraryChanged = useCallback(
-    (scope: Scope) => {
-      tellOtherTabs({ type: 'library', scope })
-      if (scope !== 'account') return
-      // After this tab's own change the account's revision is the new baseline.
-      void latest()
-        .accountRef.current.refresh?.()
-        .then((found) => {
-          baseline.current = found?.libraryRevision
-        })
-        .catch(() => undefined)
-    },
-    [latest],
+    (scope: Scope) => tellOtherTabs({ type: 'library', scope }),
+    [],
   )
-  return { libraryChanged }
+  const indexBehind = useCallback(() => {
+    dirty.current = 'account'
+    schedule()
+  }, [schedule])
+  return { libraryChanged, indexBehind }
 }

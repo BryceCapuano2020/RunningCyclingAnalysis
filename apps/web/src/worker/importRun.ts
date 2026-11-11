@@ -2,6 +2,7 @@ import type { ActivityRecord } from '@rca/contract'
 import type {
   AnalysisSession,
   ImportFacts,
+  IndexFacts,
   SessionState,
   SyncIssueCode,
   SyncItem,
@@ -79,6 +80,7 @@ export async function runImport(
 ): Promise<{
   state: SessionState | null
   facts?: ImportFacts
+  index?: IndexFacts
   outcome?: ImportOutcome
   saved?: number
 }> {
@@ -321,7 +323,7 @@ export async function runImport(
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
   return {
     state,
-    ...(facts ? { facts } : {}),
+    ...(facts ? { facts, index: session.indexFacts() } : {}),
     outcome,
     ...(sync ? { saved: reporter.savedCount } : {}),
   }

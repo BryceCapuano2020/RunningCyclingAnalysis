@@ -2,6 +2,7 @@ import { hiddenDigests, workoutKey } from './duplicates'
 import { readRank } from './sessionLibrary'
 import { clearUnsynced } from './sessionKeep'
 import type { KeepState } from './sessionKeep'
+import type { SessionState } from './sessionState'
 import type { ActivityDigest, DigestSplits, Sport } from './types'
 
 /**
@@ -9,6 +10,21 @@ import type { ActivityDigest, DigestSplits, Sport } from './types'
  * server, and this library is the index its imports, list, deletes and updates read. Functions over `KeepState`, as
  * sessionKeep.ts is, so the session class stays small.
  */
+
+/** What the index knows of the library's age and size, which an account's page reads from it and not from the server's state. */
+export type IndexFacts = Pick<
+  SessionState,
+  'outdatedActivities' | 'incompatibleActivities' | 'libraryActivities' | 'heldOut'
+>
+
+export function indexFactsOf({ library }: KeepState): IndexFacts {
+  return {
+    outdatedActivities: library.countHeldOut('stale'),
+    incompatibleActivities: library.countHeldOut('newer'),
+    libraryActivities: library.size,
+    heldOut: library.heldOutActivities(),
+  }
+}
 
 /** The ids of the digests the analysis hides as copies of a better one, as the library stands now. */
 export function hiddenIds({ library }: KeepState): Set<string> {

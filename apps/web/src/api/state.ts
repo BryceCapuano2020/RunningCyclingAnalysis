@@ -31,31 +31,6 @@ const SnapshotWire = {
 }
 
 /**
- * The server's snapshot of the signed-in account's results, or null when the server has none to give this account:
- * `GET /api/state` answers 404 when server results are off for it (and for any account with no snapshot yet), and 304
- * when the copy the device holds (`held`) is still the latest. The response is `no-store`, so the browser sends no
- * conditional header of its own: the tag is computed here from `held`. Any other failure throws; the caller treats it
- * as null. A snapshot of another shape comes back as it is for the caller to refuse.
- */
-export async function getServerSnapshot(
-  userId: string,
-  held: StateSnapshot | null = null,
-): Promise<StateSnapshot | null> {
-  const headers: Record<string, string> = {}
-  if (held !== null) headers['If-None-Match'] = `"${await snapshotContentHash(held)}"`
-  let response: Response
-  try {
-    response = await request('GET', '/api/state', undefined, userId, undefined, { headers })
-  } catch (error) {
-    if (error instanceof ApiRequestError && (error.status === 404 || error.status === 304)) {
-      return null
-    }
-    throw error
-  }
-  return readJson(response, SnapshotWire, BODY_LIMIT)
-}
-
-/**
  * What `GET /api/state` said. `unchanged` is a 304: the copy held is the latest. `nowMs` is the instant the stored snapshot
  * was computed for (`X-State-Now`, sent with a 304 too), null when the server names none. `current` is false when the server
  * served the stored snapshot because it was busy computing (`X-State-Current: 0`): ask again in a few seconds.
@@ -77,7 +52,7 @@ function headerNumber(response: Response, name: string): number | null {
 
 /**
  * The server's answer for the signed-in account, with what the page acts on besides the snapshot (see `StateRead`). The tag is
- * computed from `held`, as for `getServerSnapshot`. Any other failure throws.
+ * computed from `held`. Any other failure throws.
  */
 export async function readServerState(
   userId: string,

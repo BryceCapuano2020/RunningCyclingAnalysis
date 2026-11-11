@@ -44,6 +44,10 @@ export interface WorkerEventDeps {
   reloadLibrary: () => void
   /** The record of imports (see importManifest.ts): how far the running one got, and how it ended. */
   manifest: Pick<ImportManifestController, 'progress' | 'finish' | 'fail'>
+  /** Asks the server for the account's results again: an account's reply carries none. */
+  refreshResults: () => void
+  /** The worker's index is as current as this reply: another device's change after it is news. */
+  indexListed: (version?: number) => void
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
   libraryChanged: (scope: 'device' | 'account') => void
 }
@@ -207,8 +211,18 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   if (changed !== null) deps.libraryChanged(changed)
   // Remove all also cleared the lifting sets the log on screen holds.
   if (pending?.kind === 'clear' && pending.forgetDevice === true) announceLiftsCleared()
-  // An account's reply holds no state: its results are read from the server, and the check-in stands unless the reply names one.
-  if (message.state !== null) imports.setState(message.state)
+  // An account's reply holds no state: its results are read from the server (`useAccountResults`), which is asked again now.
+  // What only the import and the index know comes with it, and the check-in stands unless the reply names one.
+  if (message.state !== null) {
+    imports.setState(message.state)
+    imports.setFacts(null)
+    imports.setIndex(null)
+  } else {
+    imports.setFacts(message.facts ?? null)
+    imports.setIndex(message.index ?? null)
+    deps.refreshResults()
+    deps.indexListed(message.type === 'state' ? message.libraryVersion : undefined)
+  }
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
   // "Since your last import", with the state it was made against (none when it says nothing).

@@ -1,5 +1,6 @@
 import type { CheckInSnapshot } from '@rca/core/lookback'
 import { checkInOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
+import { getMe } from '../api/client'
 import { readServerState } from '../api/state'
 import { readSnapshot } from './stateStore'
 
@@ -26,4 +27,16 @@ export async function accountBaseline(userId: string): Promise<CheckInSnapshot |
   return copy === null || !snapshotIsCurrent(copy) || copy.checkIn === undefined
     ? undefined
     : checkInOfSnapshot(copy)
+}
+
+/**
+ * The account's library version as it stands now, read before its list of activities so the index is at least this new. Undefined
+ * when it cannot be read: the page then takes the next snapshot's version as the index's.
+ */
+export async function libraryVersionNow(): Promise<number | undefined> {
+  try {
+    return (await getMe({ retry: false, timeoutMs: 5_000 }))?.libraryVersion
+  } catch {
+    return undefined
+  }
 }

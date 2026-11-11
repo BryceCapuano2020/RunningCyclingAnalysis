@@ -170,6 +170,9 @@ function switchAccount(deps: AccountTransitionDeps): void {
   // worker starts empty; a signed-in account will be hydrated by the next effect pass.
   deps.clearQueues()
   imports.setState(EMPTY_SESSION)
+  // What the last account's replies said of its import and index is not the next account's.
+  imports.setFacts(null)
+  imports.setIndex(null)
   imports.setProgress(null)
   imports.setUploading(null)
   deps.setError(
@@ -200,6 +203,8 @@ function startSession(deps: AccountTransitionDeps): void {
   // A new sign-in starts with a new session, so earlier sync issues are cleared. The new
   // worker's account pass loads the library.
   deps.imports.setState(EMPTY_SESSION)
+  deps.imports.setFacts(null)
+  deps.imports.setIndex(null)
   deps.imports.setImportOutcome(null)
   deps.library.dropNotSaved()
   deps.setError(null)

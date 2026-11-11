@@ -15,8 +15,8 @@ import { loadCountedRuns, storeCountedRuns } from './countedRunsStore'
 import { resetKeptPowerCache, useKeptPower } from './keptPowerStore'
 import { storedPeriodChoice } from './periodPreference'
 import { useAccountSettings } from './useAccountSettings'
+import { onOwnChange as ownChange } from './tabSync'
 import { settingsChosen } from './settingsChosen'
-import { resetUnsent, settingsUnsent } from './settingsUnsent'
 
 vi.mock('../api/settings', () => ({ getAccountSettings: vi.fn(), putAccountSettings: vi.fn() }))
 
@@ -42,7 +42,6 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   resetKeptPowerCache()
-  resetUnsent()
 })
 
 /** Puts the choices a signed-out visit made into this browser. */
@@ -237,11 +236,31 @@ describe('useAccountSettings', () => {
 })
 
 describe('the zone', () => {
-  it('is sent to the account when it holds none or another, with the choices as they stand', async () => {
+  it('is sent once to an account that holds another zone, and not again when another device moves it back, so two devices do not flip it', async () => {
     get.mockResolvedValue({ ...ACCOUNT, zone: 'Pacific/Apia' })
-    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    const first = renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
-    expect(put).toHaveBeenCalledWith({ ...ACCOUNT, zone: ZONE }, 'u1')
+    expect(put.mock.calls[0]![0].zone).toBe(ZONE)
+    first.unmount()
+    // The other device took it back; this one has told the account where it is, and does not on a later read.
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  it('is not told to an account that already holds this zone, whatever this device last reported', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
+    expect(put).not.toHaveBeenCalled()
+    view.unmount()
+    localStorage.setItem('rca-zone-reported:u1', 'Pacific/Apia')
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    // The account holds this zone already: nothing to tell.
+    expect(put).not.toHaveBeenCalled()
   })
 
   it('is sent when the account has never had one', async () => {
@@ -307,41 +326,44 @@ describe('the zone, for every signed-in account', () => {
   })
 })
 
-describe('settings not yet sent', () => {
-  it('are reported from the choice until the account has them', async () => {
+describe('a saved choice', () => {
+  it('is announced to this tab and the others once the account has it, so the results are asked for again', async () => {
     get.mockResolvedValue(ACCOUNT)
-    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    const heard: string[] = []
+    const stop = ownChange((message) => heard.push(message.type))
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
-    expect(settingsUnsent()).toBe(false)
-    let release: (settings: AccountSettings) => void = () => undefined
-    put.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    expect(heard).toEqual([])
     act(() => settingsChosen('period'))
-    expect(settingsUnsent()).toBe(true)
-    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
-    await act(async () => release(ACCOUNT))
-    await waitFor(() => expect(settingsUnsent()).toBe(false))
-    view.unmount()
+    await waitFor(() => expect(heard).toEqual(['settings']))
+    stop()
   })
 
-  it('stay reported when the save fails', async () => {
+  it('is not announced when the save fails', async () => {
     get.mockResolvedValue(ACCOUNT)
+    const heard: string[] = []
+    const stop = ownChange((message) => heard.push(message.type))
     renderHook(() => useAccountSettings('signed-in', 'u1'))
     await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
     put.mockRejectedValueOnce(new Error('offline'))
     act(() => settingsChosen('period'))
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     await Promise.resolve()
-    expect(settingsUnsent()).toBe(true)
+    expect(heard).toEqual([])
+    stop()
   })
+})
 
-  it('are forgotten when the account goes', async () => {
-    get.mockResolvedValue(ACCOUNT)
-    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
-    await waitFor(() => expect(loadCountedRuns()).toHaveLength(1))
-    put.mockRejectedValueOnce(new Error('offline'))
-    act(() => settingsChosen('period'))
-    expect(settingsUnsent()).toBe(true)
-    view.unmount()
-    expect(settingsUnsent()).toBe(false)
+describe('signing out or deleting the account', () => {
+  it('takes the notes of the zone this device told each account, beside the note of whose settings these are', () => {
+    localStorage.setItem('rca-zone-reported:u1', 'Pacific/Apia')
+    localStorage.setItem('rca-zone-reported:u2', 'Europe/Paris')
+    localStorage.setItem(SETTINGS_OWNER_KEY, 'u1')
+    localStorage.setItem('unrelated', 'kept')
+    forgetAccountChoices()
+    expect(localStorage.getItem('rca-zone-reported:u1')).toBeNull()
+    expect(localStorage.getItem('rca-zone-reported:u2')).toBeNull()
+    expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBeNull()
+    expect(localStorage.getItem('unrelated')).toBe('kept')
   })
 })

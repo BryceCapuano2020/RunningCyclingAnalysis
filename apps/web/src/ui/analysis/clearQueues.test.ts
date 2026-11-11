@@ -118,7 +118,7 @@ describe('stop empties every queue', () => {
     act(() => result.current.stop())
 
     act(() => worker().reply({ type: 'state', state: STATE }))
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u1' }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: 'u1' }])
   })
 
   it('drops the requests queued for a stopped worker', () => {
@@ -162,7 +162,7 @@ describe('an account change empties every queue', () => {
 
     rerender({ account: SIGNED_IN_B, current: SETTINGS })
     act(() => worker().reply({ type: 'state', state: STATE }))
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
   })
 
   it('drops the imports held for the library of the previous account', () => {
@@ -171,7 +171,7 @@ describe('an account change empties every queue', () => {
 
     rerender({ account: SIGNED_IN_B, current: SETTINGS })
     act(() => worker().reply({ type: 'state', state: STATE }))
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
   })
 
   it('drops the requests queued for a stopped worker', () => {
@@ -180,9 +180,7 @@ describe('an account change empties every queue', () => {
     rerender({ account: SIGNED_IN_A, current: CHANGED_SETTINGS })
 
     rerender({ account: SIGNED_IN_B, current: CHANGED_SETTINGS })
-    expect(worker().posted).toEqual([
-      { type: 'loadServer', settings: CHANGED_SETTINGS, userId: 'u2' },
-    ])
+    expect(worker().posted).toEqual([{ type: 'loadServer', userId: 'u2' }])
   })
 
   it('ends a pending export', async () => {

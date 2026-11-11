@@ -34,10 +34,11 @@ import {
   hasOutdated,
   heldIds,
   hiddenIds,
+  indexFactsOf,
   replaceDigest,
   splitsOf,
 } from './sessionIndex'
-import type { ReplaceOptions } from './sessionIndex'
+import type { IndexFacts, ReplaceOptions } from './sessionIndex'
 import type { KeepState } from './sessionKeep'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import { newSaveBatch, type SyncSink } from './sessionSync'
@@ -247,6 +248,9 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /** What the index knows of the library's age and size (see `indexFactsOf`). */
+  indexFacts = (): IndexFacts => indexFactsOf(this.keeping)
+
   /** What the last import left that the server's results do not hold: refused files and unsaved activities. */
   importFacts(): ImportFacts {
     return {
@@ -346,10 +350,7 @@ export class AnalysisSession {
         zoneTimes: this.zoneTimes,
         judge: this.judge,
         recordsCache: this.recordsCache,
-        outdatedActivities: this.library.countHeldOut('stale'),
-        incompatibleActivities: this.library.countHeldOut('newer'),
-        libraryActivities: this.library.size,
-        heldOut: this.library.heldOutActivities(),
+        ...this.indexFacts(),
         ...this.importFacts(),
         nowMs: this.isSample ? this.sampleNowMs : this.clock(),
       },

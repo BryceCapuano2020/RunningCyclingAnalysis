@@ -4,6 +4,7 @@ import type { PeriodChoice } from '@rca/core/period'
 import type {
   Copy,
   ImportFacts,
+  IndexFacts,
   RejectedFile,
   SessionState,
   SyncIssueCode,
@@ -139,12 +140,9 @@ export type WorkerRequest =
   /** `reload` reads the library again even when this tab holds it, because another tab changed it. */
   | ({ type: 'loadDevice'; settings: AthleteSettings; reload?: boolean } & LoadPeriod)
   | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
-  | ({
-      type: 'loadServer'
-      settings: AthleteSettings
-      userId: string
-    } & LoadPeriod)
-  | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
+  /** Lists the account's library into this worker's index. The results are the server's, so no settings or period go with it. */
+  | { type: 'loadServer'; userId: string }
+  | { type: 'rebuildStale'; userId: string }
   /**
    * Sends the saves the outbox holds now, in the tab that holds the account's writer lock, without reading the library
    * again. Answered with the state, once they have ended, so the saves that went are off its list of unsaved ones.
@@ -326,6 +324,10 @@ export type WorkerResponse =
       type: 'state'
       state: SessionState | null
       facts?: ImportFacts
+      /** With `facts`: what the index knows of the library's age and size, which the server's state is not read for. */
+      index?: IndexFacts
+      /** Answering `loadServer`: the account's library version as it stood before the list was read, which the index is at least as new as. */
+      libraryVersion?: number
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
@@ -338,6 +340,7 @@ export type WorkerResponse =
       /** Null: an account's results are the server's; `facts` then holds what only the import knows. */
       state: SessionState | null
       facts?: ImportFacts
+      index?: IndexFacts
       checkIn?: CheckInView
       /** Absent when zero. As on `state`: the outdated activities in `state` that a rebuild can update. */
       outdatedWithOriginal?: number

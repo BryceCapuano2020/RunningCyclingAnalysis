@@ -28,6 +28,14 @@ const ME: Me = {
 }
 export const SIGNED_IN = { status: 'signed-in' as const, me: ME }
 
+/** What an account's reply carries of its library from the worker's index: `count` activities, none out of date. */
+export const indexOf = (count: number) => ({
+  outdatedActivities: 0,
+  incompatibleActivities: 0,
+  libraryActivities: count,
+  heldOut: [],
+})
+
 export function stateWith(totalActivities: number): SessionState {
   return {
     result: null,
@@ -66,7 +74,7 @@ export const types = () => worker().posted.map((request) => request.type)
 
 export function ready() {
   const hook = renderHook(() => useAnalysis(SETTINGS, SIGNED_IN))
-  act(() => worker().reply({ type: 'state', state: stateWith(0) }))
+  act(() => worker().reply({ type: 'state', state: null, index: indexOf(0) }))
   return hook
 }
 

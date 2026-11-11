@@ -5,7 +5,7 @@ import {
   apart,
   ready,
   SETTINGS,
-  stateWith,
+  indexOf,
   types,
   stubFakeWorker,
   worker,
@@ -51,7 +51,7 @@ describe('what the browser kept before sign-in', () => {
     expect(result.current.busy).toBe(true)
 
     apart({ type: 'adoption', saved: 2, conflicts: 1, failed: 0, again: 0, held: 0 })
-    act(() => worker().reply({ type: 'state', state: stateWith(2) }))
+    act(() => worker().reply({ type: 'state', state: null, index: indexOf(2) }))
 
     expect(result.current.busy).toBe(false)
     expect(result.current.adoption).toEqual({
@@ -61,7 +61,7 @@ describe('what the browser kept before sign-in', () => {
       again: 0,
       held: 0,
     })
-    expect(result.current.state.totalActivities).toBe(2)
+    expect(result.current.state.libraryActivities).toBe(2)
   })
 
   it('puts the result away on request', () => {
@@ -84,9 +84,9 @@ describe('what the browser kept before sign-in', () => {
     apart({ type: 'deviceOffer', adoptable: 2, again: 0, held: 0 })
     act(() => result.current.forgetDeviceLibrary())
     apart({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-    act(() => worker().reply({ type: 'state', state: stateWith(4) }))
+    act(() => worker().reply({ type: 'state', state: null, index: indexOf(4) }))
 
     expect(result.current.deviceOffer).toEqual({ adoptable: 0, again: 0, held: 0 })
-    expect(result.current.state.totalActivities).toBe(4)
+    expect(result.current.state.libraryActivities).toBe(4)
   })
 })

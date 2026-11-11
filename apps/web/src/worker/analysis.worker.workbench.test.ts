@@ -242,7 +242,7 @@ describe('where an import keeps recordings', () => {
     await send({ ...provisional, provisional: true } as WorkerRequest)
 
     // The account loads, and the same files are sent to it.
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     await send({ ...provisional, sync: { keepFiles: false, userId: USER_ID } } as WorkerRequest)
     await send({ type: 'keepProvisional', settings: SETTINGS })
 
@@ -452,7 +452,7 @@ describe('signing in again after a sign-out', () => {
   it('lets the account take recordings again when its library is loaded', async () => {
     mocked.listActivities.mockResolvedValue([])
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     expect(spy.store.reopenScope).toHaveBeenCalledExactlyOnceWith({
       kind: 'account',
       userId: USER_ID,
@@ -501,7 +501,7 @@ describe('what is said when a recording cannot be removed', () => {
     mocked.listActivities.mockResolvedValue([record])
     mocked.deleteActivity.mockResolvedValue(undefined)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await send({ type: 'loadServer', userId: USER_ID })
     vi.mocked(spy.store.remove).mockResolvedValue(false)
     await kept.library!.put(workoutKeyOf(digest), digest)
     vi.spyOn(kept.library!, 'remove').mockRejectedValue(new Error('refused'))
@@ -534,7 +534,7 @@ describe('what the worker says after reading a recording from the original', () 
     vi.mocked(client.listActivities).mockResolvedValue([record])
     vi.mocked(client.downloadActivityFile).mockResolvedValue(bytes)
     const { send } = await startWorker()
-    await send({ type: 'loadServer', settings: SETTINGS, userId: 'u1' })
+    await send({ type: 'loadServer', userId: 'u1' })
 
     const messages = await send({
       type: 'activityTrace',
