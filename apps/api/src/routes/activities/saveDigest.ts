@@ -7,7 +7,6 @@ import {
 import { HttpError } from '../../errors.ts'
 import { validationMessage } from '../../http.ts'
 import { chargeDaily } from '../../budget.ts'
-import { recordDatabaseSize } from '../../storage.ts'
 import { must } from '../../util.ts'
 import { ACTIVITY_COLUMNS, findOwnedActivity, toRecord, type ActivityRow } from './shared.ts'
 import { requireCurrentRevision } from './revisionCheck.ts'
@@ -117,8 +116,6 @@ async function insertNew(
   const inserted = await insertActivity(ctx, id, userId, input, source)
   const row = inserted.results[0]
   if (row) {
-    // Only a create that wrote its row updates the size the guard reads.
-    await recordDatabaseSize(DB, deps.now(), inserted.meta.size_after)
     return { status: 201, record: toRecord(row) }
   }
 

@@ -7,6 +7,7 @@ import {
   MAX_DIGEST_BYTES_PER_USER,
 } from '@rca/contract'
 import { utcDay } from '../budget.ts'
+import { runMaintenance } from '../maintenance.ts'
 import {
   countingDb,
   createHarness,
@@ -15,6 +16,7 @@ import {
   testEnv,
   type Harness,
 } from '../test/harness.ts'
+import { at } from '../test/maintenance.ts'
 import { seedActivityRow } from '../test/seed.ts'
 import { bulk } from '../test/sized.ts'
 import { sha256Hex } from '../util.ts'
@@ -403,15 +405,15 @@ describe('database size guard', () => {
     expect((await createActivity(h, token)).status).toBe(201)
   })
 
-  it('records the database size after a create, so the guard sees the growth', async () => {
+  it('leaves the shared budget row alone on a create, so writers do not queue on it', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    expect(await databaseBytes(h)).toBe(0)
+    await setDatabaseBytes(h, 123)
     await idOf(await createActivity(h, token))
-    expect(await databaseBytes(h)).toBeGreaterThan(0)
+    expect(await databaseBytes(h)).toBe(123)
   })
 
-  it('admits creates again once a delete records a size under the limit', async () => {
+  it('admits creates again once the daily maintenance run records a size under the limit', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const first = await idOf(await createActivity(h, token, {}, { name: 'First' }))
@@ -425,6 +427,9 @@ describe('database size guard', () => {
       ...as(token),
     })
     expect(deleted.status).toBe(204)
+    // A delete no longer records the size; the next daily run does.
+    expect((await createActivity(h, token, {}, second)).status).toBe(503)
+    await runMaintenance(h.env, at(START + 86_400_000))
     expect(await databaseBytes(h)).toBeLessThanOrEqual(DATABASE_SOFT_LIMIT_BYTES)
     expect((await createActivity(h, token, {}, second)).status).toBe(201)
   })
@@ -449,7 +454,7 @@ describe('database size guard', () => {
     expect(await digestBytes(h, uid)).toEqual({ counter: before, actual: before })
   })
 
-  it('records the database size after an upgrade, so the guard sees the growth', async () => {
+  it('leaves the shared budget row alone on an upgrade', async () => {
     const h = createHarness()
     const token = await h.signIn()
     await seedStale(h, token, { name: 'a' })
@@ -462,7 +467,7 @@ describe('database size guard', () => {
       { modelRevision: MODEL_REVISION, name: 'a much longer name for the same ride' },
     )
     expect(upgrade.status).toBe(200)
-    expect(await databaseBytes(h)).toBeGreaterThan(0)
+    expect(await databaseBytes(h)).toBe(0)
   })
 
   it('still returns an existing activity and accepts upgrades while the database is over the limit', async () => {

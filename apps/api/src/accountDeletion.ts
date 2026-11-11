@@ -1,7 +1,7 @@
 import type { Bindings } from './env.ts'
 import { HttpError } from './errors.ts'
 import type { Deps } from './deps.ts'
-import { recordDatabaseSize, sweepUserFiles } from './storage.ts'
+import { sweepUserFiles } from './storage.ts'
 import { GOOGLE_PROVIDER } from './auth/accounts.ts'
 import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
@@ -84,12 +84,7 @@ export async function finishAccountDeletion(
 
   try {
     if (sweep) await sweepBeforeDelete(env, deps, userId)
-    const cleared = await db
-      .prepare('DELETE FROM pending_account_deletions WHERE user_id = ?')
-      .bind(userId)
-      .run()
-    // The account's rows are gone, so the size after this statement is the size without them.
-    await recordDatabaseSize(db, deps.now(), cleared.meta.size_after)
+    await db.prepare('DELETE FROM pending_account_deletions WHERE user_id = ?').bind(userId).run()
   } catch (error) {
     console.error(
       JSON.stringify({ event: 'account_deletion_left_pending', errorClass: errorClass(error) }),
