@@ -77,6 +77,8 @@ export function useAccountResults(
   results: AccountResults | null
   refresh: () => void
   indexListed: (version?: number) => void
+  /** The last ask could not be answered (an error, a timeout, a 429, or a 404): nothing is known to be wrong with the library. */
+  failed: boolean
 } {
   // The results with the account they are of, so a shown result is never another account's.
   const [stored, setStored] = useState<{ id: string; results: AccountResults } | null>(null)
@@ -84,6 +86,8 @@ export function useAccountResults(
     stored !== null && (stored.id === userId || (userId === null && keepOnExpiry))
       ? stored.results
       : null
+  const [failedFor, setFailedFor] = useState<string | null>(null)
+  const failed = failedFor !== null && failedFor === userId
   const idRef = useRef<string | null>(null)
   const epoch = useRef(0)
   const held = useRef<StateSnapshot | null>(null)
@@ -170,6 +174,13 @@ export function useAccountResults(
 
   const pull = useCallback(
     async function run(fresh = false): Promise<void> {
+      // Only while in view: coming back into view asks again at once. One timer at most, whichever ask armed the last.
+      const armRetry = (wait: number) => {
+        clearTimeout(timer.current)
+        timer.current = setTimeout(() => {
+          if (document.visibilityState === 'visible') void run()
+        }, wait)
+      }
       if (idRef.current === null) return
       // A change someone made (this tab, or another) starts the waits again: a burst of them is not a row that stays stale.
       if (fresh) misses.current = 0
@@ -186,16 +197,17 @@ export function useAccountResults(
         const read = await Promise.resolve()
           .then(() => readServerState(id, tag))
           .catch(() => null)
-        if (mine !== epoch.current || !read || read.kind === 'none') return
-        const wait = apply(read)
-        // Only while in view: coming back into view asks again at once.
-        if (wait !== null) {
-          // One timer at most, whichever ask armed the last.
-          clearTimeout(timer.current)
-          timer.current = setTimeout(() => {
-            if (document.visibilityState === 'visible') void run()
-          }, wait)
+        if (mine !== epoch.current) return
+        // An error, a timeout, a 429 or a 404 leaves what is held and asks again, the waits doubling as they do for a row that stays stale.
+        if (!read || read.kind === 'none') {
+          setFailedFor(id)
+          misses.current++
+          armRetry(busyWaitMs(misses.current))
+          return
         }
+        setFailedFor(null)
+        const wait = apply(read)
+        if (wait !== null) armRetry(wait)
       } finally {
         // A read of an account since left must not end the one the new account has begun.
         if (mine === epoch.current) {
@@ -269,7 +281,7 @@ export function useAccountResults(
   const indexListed = useCallback((version?: number) => {
     indexAt.current = version ?? null
   }, [])
-  return { results, refresh: onChange, indexListed }
+  return { results, refresh: onChange, indexListed, failed }
 }
 
 /** What the page shows. */
@@ -312,4 +324,20 @@ function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
   if (expired && atExpiry === null) setAtExpiry(deviceState)
   else if (!expired && atExpiry !== null) setAtExpiry(null)
   return expired && deviceState === atExpiry
+}
+
+/**
+ * Whether the page waits for an account's results, or could not get them. A signed-in account with none yet shows its loading state, not
+ * an empty library; one the server could not answer says so, with a retry, unless the library read itself failed (its notice has it).
+ */
+export function resultsFlags(
+  userId: string | null,
+  { results, failed }: { results: AccountResults | null; failed: boolean },
+  libraryStatus: string,
+): { resultsWaiting: boolean; resultsFailed: boolean } {
+  const none = userId !== null && results === null
+  return {
+    resultsWaiting: none && !failed,
+    resultsFailed: none && failed && libraryStatus !== 'failed',
+  }
 }

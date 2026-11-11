@@ -55,7 +55,14 @@ export function HeldLibraryPage({
 }
 
 /** The library could not be loaded or read. The message above the page has the retry; this says what the page is. */
-export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
+export function UnavailableLibraryPage({
+  canRetry,
+  onRetry,
+}: {
+  canRetry: boolean
+  /** Given when the page itself offers the retry: the results could not be fetched, which no notice above the page says. */
+  onRetry?: (() => void) | undefined
+}) {
   return (
     <section className="held">
       <PageHeading>Your library is not showing yet</PageHeading>
@@ -64,6 +71,11 @@ export function UnavailableLibraryPage({ canRetry }: { canRetry: boolean }) {
           ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'
           : 'It could not be read from this browser. Nothing was lost. Reload the page to try again.'}
       </p>
+      {onRetry && (
+        <button type="button" className="btn" onClick={onRetry}>
+          Retry
+        </button>
+      )}
     </section>
   )
 }

@@ -28,8 +28,10 @@ export interface LibraryPageInputs {
   restoring: boolean
   /** The library was asked for and could not be loaded or read. */
   failed: boolean
-  /** A signed-in library read is still owed, so the counts the held page reads are not in yet. */
+  /** A signed-in library read, or the server's results, are still owed: the counts the held page reads are not in yet. */
   loading?: boolean
+  /** The server's results could not be fetched: with the library present the page says it is not showing yet, with a retry. */
+  resultsFailed?: boolean
 }
 
 export function libraryPageOf({
@@ -39,6 +41,7 @@ export function libraryPageOf({
   restoring,
   failed,
   loading = false,
+  resultsFailed = false,
 }: LibraryPageInputs): LibraryPage {
   const { ownPage, ownOverResult } = PAGE_RULES[route.page]
   if (ownPage !== null && ownOverResult) return ownPage
@@ -46,6 +49,7 @@ export function libraryPageOf({
   if (ownPage !== null) return ownPage
   if (knowledge === 'unknown') return failed && !restoring ? 'unavailable' : 'restoring'
   if (knowledge !== 'present') return 'landing'
+  if (resultsFailed && !restoring) return 'unavailable'
   return restoring || loading ? 'restoring' : 'held'
 }
 

@@ -247,4 +247,34 @@ describe('the index of the library', () => {
     expect(view.result.current.results?.snapshot.libraryVersion).toBe(6)
     expect(behind).toHaveBeenCalledTimes(1)
   })
+
+  describe('when the server cannot be asked', () => {
+    it('says so, asks again after the short wait and then at doubling ones, and clears it on an answer', async () => {
+      read.mockRejectedValue(new Error('timeout'))
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      expect(read).toHaveBeenCalledTimes(1)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      // The second wait is twice as long: an error is not asked about every few seconds either.
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(3)
+      read.mockResolvedValue(answer())
+      await advance(2 * BUSY_RETRY_MS * 2)
+      expect(view.result.current.failed).toBe(false)
+      expect(view.result.current.results).not.toBeNull()
+    })
+
+    it('takes a 404 for the same, since the library has no results to show', async () => {
+      read.mockResolvedValue({ kind: 'none' })
+      const view = mount()
+      await flush()
+      expect(view.result.current.failed).toBe(true)
+      await advance(BUSY_RETRY_MS)
+      expect(read).toHaveBeenCalledTimes(2)
+    })
+  })
 })

@@ -352,7 +352,10 @@ export function App() {
                 <LibraryLoadingPage route={route} />
               </Shell>
             ) : page === 'unavailable' ? (
-              <UnavailableLibraryPage canRetry={signedIn} />
+              <UnavailableLibraryPage
+                canRetry={signedIn}
+                onRetry={analysis.resultsFailed ? analysis.retryLibrary : undefined}
+              />
             ) : page === 'held' ? (
               <HeldLibraryPage
                 analysis={analysis}

@@ -26,6 +26,10 @@ export interface AnalysisController {
   state: SessionState
   /** Signed in: the account's lift results from the server's snapshot; null before it answers, and signed out (the log is read there). */
   accountLift: LiftResults | null
+  /** Signed in and the server's results have not come (and have not failed): the page shows its loading state, not an empty library. */
+  resultsWaiting: boolean
+  /** Signed in, no results yet, and the server could not be asked or had none (and the library read itself did not fail): the page says so, with a retry. */
+  resultsFailed: boolean
   /** True while the results shown are the last visit's copy, made on an earlier local day: the live analysis replaces them as soon as it is ready. */
   copyStale?: boolean
   /** Import work is in progress or waiting. A library change such as a delete is not counted. */
