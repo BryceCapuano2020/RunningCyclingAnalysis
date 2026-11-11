@@ -1,25 +1,12 @@
 import { DEFAULT_BIKE_MASS_KG, StoredActivityDigestSchema } from '@rca/contract'
-import type { AccountSettings } from '@rca/contract'
-import type { Measurement } from '@rca/core/athlete'
 import type { ActivityDigest } from '@rca/core/types'
 import { toSettings, type SettingsRow } from './settingsRow.ts'
+import { measurementOf, type MeasurementRow, type StateInputs } from './stateInputs.ts'
+
+export type { StateInputs }
 
 /** Digest rows read in one query: about half a megabyte at a typical 5 KiB each. */
 const PAGE_ROWS = 100
-
-/** Everything the account's results are a function of, read at one `library_version`. */
-export interface StateInputs {
-  version: number
-  digests: ActivityDigest[]
-  /** Rows whose digest would not parse (skipped, as the browser skips them). */
-  unreadable: number
-  massKg: number | null
-  bikeMassKg: number
-  birthYear: number | null
-  sex: 'female' | 'male' | null
-  measurements: Measurement[]
-  settings: AccountSettings
-}
 
 /** A write landed while the digests were being read, so the inputs are not one version. The write has sent its own job. */
 export class InputsMoved extends Error {}
@@ -29,13 +16,6 @@ interface ProfileRow {
   bike_mass_kg: number
   birth_year: number | null
   sex: 'female' | 'male' | null
-}
-
-interface MeasurementRow {
-  kind: Measurement['kind']
-  sport: '' | 'run' | 'ride'
-  from_date: string
-  value: number
 }
 
 interface DigestRow {
@@ -113,13 +93,6 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     measurements: (measurements!.results as MeasurementRow[]).map(measurementOf),
     settings: toSettings(((settings!.results as SettingsRow[])[0] ?? null) as SettingsRow | null),
   }
-}
-
-/** A stored row as the settings carry it: the body mass has no sport, which is '' in the table. */
-function measurementOf(row: MeasurementRow): Measurement {
-  return row.sport === ''
-    ? { kind: row.kind, value: row.value, from: row.from_date }
-    : { kind: row.kind, sport: row.sport, value: row.value, from: row.from_date }
 }
 
 /** A stored digest as the browser reads it back from the listing (the same schema), or null when it will not parse. */
