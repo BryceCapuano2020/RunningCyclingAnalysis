@@ -6,6 +6,7 @@ import { SAMPLE_REFERENCE_NOW_MS } from '@rca/core/synthetic'
 import { LANDING_MIN_LEAD_POINTS } from '../../scripts/landingFigures'
 import { gapOfHeadline } from './balanceGap'
 import { thresholdGrades } from './thresholdGrade'
+import { halfOfState } from './runHalf'
 import { LANDING_EXAMPLE } from './landingExample'
 import { headlineEffort, sportRecords } from './records'
 import { sampleProfileAt } from './sampleAthlete'
@@ -75,7 +76,8 @@ describe('the sample gives one result on every day of a week, and in every week'
     const state = new AnalysisSession().loadSample(SETTINGS, clock)
     const result = state.result!
     const newest = state.library[0]!.startMs
-    const grades = thresholdGrades(result, sampleProfileAt(newest))
+    // The run is graded by its forecast half, asked as the sample's Balance asks it.
+    const grades = thresholdGrades(result, sampleProfileAt(newest), halfOfState(state)(result))
     const run = state.fitness.run
     return {
       newestYear: new Date(newest).getUTCFullYear(),

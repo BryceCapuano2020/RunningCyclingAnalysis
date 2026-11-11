@@ -1,5 +1,6 @@
 import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from '../src/ui/balanceGap.ts'
+import { halfOfState } from '../src/ui/runHalf.ts'
 import { thresholdGrades } from '../src/ui/thresholdGrade.ts'
 import type { LandingFigures } from '../src/ui/landingFigures.ts'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../src/ui/sampleAthlete.ts'
@@ -22,13 +23,15 @@ export const LANDING_MIN_LEAD_POINTS = 5
  * least LANDING_MIN_LEAD_POINTS), so the page never describes a sample that has moved.
  */
 export function computeLandingFigures(): LandingFigures {
-  const { result } = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+  const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+  const { result } = state
   if (result === null)
     throw new Error(`The sample has no result, so the landing page has no figures: ${FIX}.`)
-  const headline = thresholdGrades(result, SAMPLE_PROFILE)
+  // The run is graded by its forecast half, asked as the sample's Balance asks it.
+  const headline = thresholdGrades(result, SAMPLE_PROFILE, halfOfState(state)(result))
   const gap = gapOfHeadline(headline)
   if (headline.run.kind !== 'graded' || headline.ride.kind !== 'graded' || gap === null) {
-    throw new Error(`The sample no longer grades both sports at their thresholds: ${FIX}.`)
+    throw new Error(`The sample no longer grades both sports: ${FIX}.`)
   }
   // The example states a lean, and Balance decides a lean by the centre alone, so that is what the example needs to keep.
   if (gap.lean === 'even' || Math.abs(gap.centre) < LANDING_MIN_LEAD_POINTS) {
