@@ -42,6 +42,16 @@ describe('the saves an earlier visit left behind', () => {
     expect(result.current.libraryStatus).toBe('loaded')
   })
 
+  it('says a read is under way while the library stays loaded, so the page does not take it for an import', () => {
+    const { result } = ready()
+    expect(result.current.libraryReading).toBe(false)
+    apart({ type: 'outbox', pending: 0, saved: 3, failed: 0, finished: true })
+    expect(result.current.libraryStatus).toBe('loaded')
+    expect(result.current.libraryReading).toBe(true)
+    act(() => worker().reply({ type: 'state', state: stateWith(3) }))
+    expect(result.current.libraryReading).toBe(false)
+  })
+
   it('sets the library to loading when it is read again from a failed one, so imports wait for it', () => {
     const { result } = ready()
     apart({ type: 'outbox', pending: 0, saved: 3, failed: 0, finished: true })

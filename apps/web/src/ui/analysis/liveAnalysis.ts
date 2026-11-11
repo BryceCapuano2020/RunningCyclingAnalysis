@@ -90,7 +90,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     account.sessionExpired === true,
     imports,
   )
-  const { setLibraryAction, libraryWaitRef } = library
+  const { setLibraryAction, setLibraryReading, libraryWaitRef } = library
   const {
     setBusy,
     setWaitingReason,
@@ -118,13 +118,21 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   const refreshBusy = useCallback(() => {
     const replies = pendingRepliesRef.current
     setLibraryAction(replies.some((pending) => isDeletion(pending.kind)) ? 'deleting' : null)
+    setLibraryReading(replies.some((pending) => pending.kind === 'loadServer'))
     setBusy(
       replies.some((pending) => !isQuietRequest(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
         libraryWaitRef.current.length > 0,
     )
     setWaitingReason(libraryWaitRef.current.length > 0 ? WAITING_FOR_LIBRARY : null)
-  }, [libraryWaitRef, pendingAsyncImportsRef, setBusy, setLibraryAction, setWaitingReason])
+  }, [
+    libraryWaitRef,
+    pendingAsyncImportsRef,
+    setBusy,
+    setLibraryAction,
+    setLibraryReading,
+    setWaitingReason,
+  ])
 
   const onSend = useOnSend({ refreshBusy, beginManifest, setError, library, imports })
 
@@ -301,6 +309,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     ...resultsFlags(userId, accountResults, library.libraryStatus, shown.state.libraryActivities),
     ...(shown.stale ? { copyStale: true } : {}),
     busy: imports.busy,
+    libraryReading: library.libraryReading,
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
     progress: imports.progress,
     uploading: imports.uploading,
