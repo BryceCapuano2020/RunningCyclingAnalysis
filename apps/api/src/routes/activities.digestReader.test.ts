@@ -26,6 +26,7 @@ function rowOf(digestJson: string): ActivityRow {
     fileSize: null,
     fileReservationToken: null,
     createdAt: 1,
+    source: 'file',
   }
 }
 

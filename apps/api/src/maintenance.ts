@@ -8,6 +8,8 @@ import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
 import { STATE_KEY, stateKey } from './state/key.ts'
 import { resendDirty } from './state/resend.ts'
+import { expireInboxItems } from './inbox/expiry.ts'
+import { INBOX_KEY } from './inbox/key.ts'
 
 /** Objects younger than this may still be mid-upload, so the orphan sweep leaves them alone. */
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000
@@ -30,6 +32,8 @@ export interface MaintenanceReport {
   finishedDeletions: number
   failedDeletions: number
   orphansDeleted: number
+  /** Inbox rows past their retention deleted, with their files (inbox/expiry.ts). */
+  inboxExpired: number
   /** Messages sent for allowlisted accounts left dirty with none on its way (state/resend.ts). */
   stateResent: number
   /** Accounts whose counters were compared with their rows this run, and how many differed (counterReconcile.ts). */
@@ -51,6 +55,8 @@ interface Candidate {
   activityId: string | undefined
   /** Set on a results snapshot, which state_jobs (not an activity row) references. */
   stateHash?: string
+  /** Set on a file waiting in the inbox: the id of the inbox_items row that references it. */
+  inboxId?: string
 }
 
 /**
@@ -79,6 +85,8 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
     (await within(0, () => pruneIdentityBudget(bound.DB, now))) +
     (await within(0, () => pruneAccountTombstones(bound.DB, now)))
   const { finished, failed } = await finishPendingDeletions(bound, deps)
+  // Before the orphan scan, so a file whose row expires tonight is deleted by its own step.
+  const inboxExpired = await within(0, () => expireInboxItems(bound, now))
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
   const stateResent = await within(0, () => resendDirty(bound, now))
@@ -91,6 +99,7 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
     finishedDeletions: finished,
     failedDeletions: failed,
     orphansDeleted,
+    inboxExpired,
     stateResent,
     countersChecked: reconciled.checked,
     countersDrifted: reconciled.drifted,
@@ -271,6 +280,9 @@ async function sweepOrphanObjects(env: Bindings, deps: Deps): Promise<number> {
           const state = STATE_KEY.exec(object.key)
           if (state)
             return { key: object.key, userId: state[1], activityId: undefined, stateHash: state[2] }
+          const inbox = INBOX_KEY.exec(object.key)
+          if (inbox)
+            return { key: object.key, userId: inbox[1], activityId: undefined, inboxId: inbox[2] }
           const match = OBJECT_KEY.exec(object.key)
           return { key: object.key, userId: match?.[1], activityId: match?.[2] }
         })
@@ -297,7 +309,8 @@ async function saveSweepCursor(db: D1Database, cursor: string | undefined): Prom
 }
 
 /**
- * The candidate keys that no activity row references. A row references an object only when its
+ * The candidate keys that no row references: an activity's original, the results snapshot its job row names, or a
+ * file waiting in the inbox that its row names. An activity row references an object only when its
  * file_key is exactly that key. An owner with an unexpired upload lease keeps its candidates for
  * this run, because a lease does not record which key it is writing. One D1 query per page for
  * the rows, and one more when a lease needs checking.
@@ -331,6 +344,17 @@ async function unreferencedKeys(
       .bind(...stateOwners)
       .all<{ user_id: string; snapshot_hash: string }>()
     for (const row of rows.results) referenced.add(stateKey(row.user_id, row.snapshot_hash))
+  }
+  // A waiting file is referenced by the inbox row that names it.
+  const inboxIds = candidates.flatMap((c) => (c.inboxId ? [c.inboxId] : []))
+  if (inboxIds.length > 0) {
+    const rows = await db
+      .prepare(
+        `SELECT file_key FROM inbox_items WHERE id IN (${inboxIds.map(() => '?').join(', ')})`,
+      )
+      .bind(...inboxIds)
+      .all<{ file_key: string | null }>()
+    for (const row of rows.results) if (row.file_key !== null) referenced.add(row.file_key)
   }
   const unreferenced = candidates.filter((c) => !referenced.has(c.key))
   const owners = [...new Set(unreferenced.flatMap((c) => (c.userId ? [c.userId] : [])))]

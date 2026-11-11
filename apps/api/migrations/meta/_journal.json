@@ -127,6 +127,13 @@
       "when": 1794351939684,
       "tag": "0017_activity_name_override",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1794378837061,
+      "tag": "0018_garmin_sync",
+      "breakpoints": true
     }
   ]
 }
