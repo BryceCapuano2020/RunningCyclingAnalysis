@@ -1,4 +1,5 @@
 import { MAX_KEPT_POWER } from '@rca/contract'
+import { forgetUnsent } from './settingsUnsent'
 import type { AccountSettings } from '@rca/contract'
 import { MAX_COUNTED_RUNS } from '@rca/core/athlete'
 import { sameChoice } from '@rca/core/period'
@@ -42,6 +43,7 @@ export function forgetAccountChoices(): void {
   clearPeriodChoice()
   writeOwner(null)
   forgetReportedZones()
+  forgetUnsent()
 }
 
 /** What this browser holds, as the account keeps it: a list or a pick that is empty is null, never set. */

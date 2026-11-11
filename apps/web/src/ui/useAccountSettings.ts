@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiRequestError } from '../api/apiError'
 import { pullAccountSettings } from './accountSettings'
 import { onSettingsChosen } from './settingsChosen'
+import { addUnsent, clearUnsent, unsentFields } from './settingsUnsent'
 import { tellOtherTabs, useTabMessages } from './tabSync'
 import type { SettingsField } from './settingsChosen'
 import type { AccountStatus } from './useAccount'
@@ -72,9 +73,6 @@ export function useAccountSettings(
     let timer: ReturnType<typeof setTimeout> | undefined
     let pulled = false
     let failures = 0
-    const chosen = new Set<SettingsField>()
-    // The fields this device chose since the account last held them: a retry reads the account again and sends only these over it.
-    const pending = new Set<SettingsField>()
     // Saves run one at a time, each from the copy as it stands when it starts.
     let queue: Promise<unknown> = Promise.resolve()
     const retry = (again: () => void) => {
@@ -87,14 +85,15 @@ export function useAccountSettings(
     const save = () => {
       queue = queue.then(() =>
         current
-          ? // Every save reads the account first and sends only what this device chose, so a device open for days does not
-            // put its old copy over another device's newer choice. A choice made meanwhile stays queued for the next save.
+          ? // Every save reads the account first and sends what this browser chose and the account does not hold yet, from
+            // every tab (the set is in localStorage), so a device open for days does not put its old copy over another
+            // device's newer choice and one tab's save does not put back another's. A choice made meanwhile stays unsent.
             ((fields: ReadonlySet<SettingsField>) =>
               pullAccountSettings(userId, fields).then(
                 () => {
                   failures = 0
-                  for (const field of fields) pending.delete(field)
-                  setNotSaved(pending.size > 0)
+                  clearUnsent(userId, fields)
+                  setNotSaved(unsentFields(userId).size > 0)
                   setWhy(null)
                   // The server's results changed with it: this tab and the others ask for them again.
                   tellOtherTabs({ type: 'settings' })
@@ -105,26 +104,24 @@ export function useAccountSettings(
                   else if (sessionEnded(error)) setWhy('session')
                   else if (worthRetrying(error)) retry(save)
                 },
-              ))(new Set(pending))
+              ))(unsentFields(userId))
           : undefined,
       )
     }
     const stop = onSettingsChosen((field) => {
-      pending.add(field)
+      addUnsent(userId, field)
       setWhy(null)
       if (pulled) save()
-      else {
-        chosen.add(field)
-        setNotSaved(true)
-      }
+      else setNotSaved(true)
     })
     const pull = () => {
-      pullAccountSettings(userId, chosen).then(
+      const fields = unsentFields(userId)
+      pullAccountSettings(userId, fields).then(
         (wrote) => {
           pulled = true
-          pending.clear()
+          clearUnsent(userId, fields)
           failures = 0
-          setNotSaved(false)
+          setNotSaved(unsentFields(userId).size > 0)
           if (wrote) tellOtherTabs({ type: 'settings' })
         },
         (error: unknown) => {
@@ -134,11 +131,14 @@ export function useAccountSettings(
     }
     savedElsewhere.current = () => {
       if (!pulled) return
-      failures = 0
-      clearTimeout(timer)
-      pending.clear()
-      setNotSaved(false)
-      setWhy(null)
+      // The other tab cleared the fields it sent; any left are still this browser's to save.
+      const left = unsentFields(userId).size
+      setNotSaved(left > 0)
+      if (left === 0) {
+        failures = 0
+        clearTimeout(timer)
+        setWhy(null)
+      }
     }
     pull()
     return () => {

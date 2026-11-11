@@ -4,6 +4,7 @@ import { heldViewFor } from './heldLibraryView'
 import type { AnalysisController } from '../useAnalysis'
 import './HeldLibraryPage.css'
 import { PageHeading } from '../components/PageHeading'
+import { limitReached } from '../limitCopy'
 
 export interface HeldLibraryPageProps {
   analysis: AnalysisController
@@ -76,7 +77,7 @@ export function UnavailableLibraryPage({
             ? 'It could not be loaded. Nothing was lost. Use Retry, or reload the page.'
             : 'It could not be read from this browser. Nothing was lost. Reload the page to try again.'}
       </p>
-      {resultsFailed && !onRetry && <p>Fetching is available again tomorrow.</p>}
+      {resultsFailed && !onRetry && <p>{limitReached('stateRead')}</p>}
       {onRetry && (
         <button type="button" className="btn" onClick={onRetry}>
           Retry

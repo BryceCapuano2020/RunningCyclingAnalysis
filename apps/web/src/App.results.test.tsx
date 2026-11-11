@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { preloadAllPages } from './ui/lazyPages'
+import { limitReached } from './ui/limitCopy'
 import { app, resetAppMocks, setAccount, setSession } from './test/appMocks'
 
 // The pages load on first use in the app; these tests render one the moment its route is chosen.
@@ -74,7 +75,7 @@ describe('a library whose index has loaded and whose results have not come', () 
     render(<App />)
     expect(screen.getByText('Your results could not be fetched.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
-    expect(screen.getByText('Fetching is available again tomorrow.')).toBeInTheDocument()
+    expect(screen.getByText(limitReached('stateRead'))).toBeInTheDocument()
   })
 
   it('still shows the held page for a library whose results are here and hold nothing to show', () => {

@@ -9,6 +9,7 @@ import {
   browserSettings,
   forgetAccountChoices,
   SETTINGS_OWNER_KEY,
+  pullAccountSettings,
   settle,
 } from './accountSettings'
 import { browserZone } from './analysis/copyAge'
@@ -27,6 +28,7 @@ import {
 import { onOwnChange as ownChange, resetTabSync } from './tabSync'
 import { FakeBroadcastChannel } from '../test/fakeBroadcastChannel'
 import { settingsChosen } from './settingsChosen'
+import { addUnsent, clearUnsent, unsentFields } from './settingsUnsent'
 
 vi.mock('../api/settings', () => ({ getAccountSettings: vi.fn(), putAccountSettings: vi.fn() }))
 
@@ -432,6 +434,7 @@ describe('a choice that is not saved', () => {
     await advance(0)
     expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
     // The other tab's save went through with the shared copy: the notice here is stale.
+    clearUnsent('u1', unsentFields('u1'))
     act(() => otherTab.postMessage({ type: 'settings' }))
     expect(view.result.current.notSaved).toBe(false)
     expect(view.result.current.notice).toBe('')
@@ -488,6 +491,58 @@ describe('a choice that is not saved', () => {
     expect(put).toHaveBeenCalledTimes(3)
     expect(put.mock.calls[2]![0]).toMatchObject({ keepPower: ['ride-new'], period: 42 })
     expect(view.result.current.notSaved).toBe(false)
+  })
+
+  /** What a second tab does when it chooses a period: notes it, saves what the browser holds unsent, and tells the others. */
+  async function otherTabSavesPeriod(otherTab: { postMessage(data: unknown): void }) {
+    localStorage.setItem('rca.period.v1', JSON.stringify(42))
+    addUnsent('u1', 'period')
+    const fields = unsentFields('u1')
+    await pullAccountSettings('u1', fields)
+    clearUnsent('u1', fields)
+    otherTab.postMessage({ type: 'settings' })
+  }
+
+  it('does not lose a choice another tab could not save: that tab’s save sends it too, and its notice clears once it is in', async () => {
+    resetTabSync()
+    FakeBroadcastChannel.reset()
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    const otherTab = FakeBroadcastChannel.other('rca-sync-v1')
+    get.mockResolvedValue(ACCOUNT)
+    const view = renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    // This tab's rides kept do not save (the server is busy), and a retry is armed.
+    put.mockRejectedValueOnce(new ApiRequestError(503, 'unavailable', 'Try later'))
+    localStorage.setItem('rca.keepPower.v1', JSON.stringify(['ride-new']))
+    resetKeptPowerCache()
+    act(() => settingsChosen('keepPower'))
+    await advance(0)
+    expect(view.result.current.notice).toBe(CHOICE_NOT_SAVED)
+    // The other tab saves a period; the account still holds the old rides.
+    await act(() => otherTabSavesPeriod(otherTab))
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(put.mock.calls[1]![0]).toMatchObject({ keepPower: ['ride-new'], period: 42 })
+    expect(browserSettings().keepPower).toEqual(['ride-new'])
+    expect(view.result.current.notSaved).toBe(false)
+    vi.unstubAllGlobals()
+    resetTabSync()
+  })
+
+  it('does not put an old value back when another tab saves while this tab’s save is still in flight', async () => {
+    get.mockResolvedValue(ACCOUNT)
+    renderHook(() => useAccountSettings('signed-in', 'u1'))
+    await advance(0)
+    put.mockImplementationOnce(() => new Promise<AccountSettings>(() => undefined))
+    localStorage.setItem('rca.keepPower.v1', JSON.stringify(['ride-new']))
+    resetKeptPowerCache()
+    act(() => settingsChosen('keepPower'))
+    await advance(0)
+    expect(put).toHaveBeenCalledTimes(1)
+    // The other tab's read of the account lands before this tab's write does: it still carries this tab's choice.
+    await act(() => otherTabSavesPeriod({ postMessage: () => undefined }))
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(put.mock.calls[1]![0]).toMatchObject({ keepPower: ['ride-new'], period: 42 })
+    expect(browserSettings().keepPower).toEqual(['ride-new'])
   })
 
   it('reads the account before its first save too, so a copy left open for days does not overwrite another device', async () => {
