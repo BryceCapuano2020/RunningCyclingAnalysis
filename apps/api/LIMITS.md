@@ -232,16 +232,16 @@ Routes: `GET /api/lifts`, `PUT /api/lifts`, `POST /api/lifts/delete` (design: do
   stored digest and never needs quota.
 - **Database guard.** `DATABASE_SOFT_LIMIT_BYTES` is 450 MiB, below D1 Free's 500 MB per database. It is
   the default of the plain Worker variable `DATABASE_SOFT_LIMIT_MIB` (`src/databaseGuard.ts`). Production is
-  on Workers Paid, where D1 holds 10 GB, so `wrangler.toml` sets it to `9216` (90 percent of the plan; a
-  test reads that line). A value that is not a whole number between 64 and 9216 is ignored and the 450 MiB
+  on Workers Paid, where D1 holds 10 GB, so `wrangler.toml` sets it to `8192` (8 GiB, at least 1 GB under
+  the plan's 10 GB whether read as decimal or binary; a test reads that line). A value that is not a whole number between 64 and 9216 is ignored and the 450 MiB
   default stays, so a typo cannot remove the guard. While the last recorded size is above the cap, a new
   activity returns **503 `database_full`**, and so does an upgrade that would grow a stored digest.
   Upgrades that do not grow it still succeed.
 - **Recovery.** The recorded size is `r2_storage_budget.d1_size_bytes`. Only the daily maintenance run
   writes it, as the last step, from the `size_after` of a cheap statement it runs then. No create, upgrade,
   delete, rename, label change or account deletion records it, so those writes never queue on that one row.
-  The guard therefore reads a figure up to a day old. At a 9216 MiB cap that is safe: about 1 GB stays free
-  below D1's limit, far more than one day of this app's writes. Creates are admitted again at the next run
+  The guard therefore reads a figure up to a day old. At an 8192 MiB cap that is safe: at least 1 GB stays free
+  below D1's limit, more than one day of this app's writes adds. Creates are admitted again at the next run
   after the size falls to the cap or below. A refused create does not recover the guard.
 
 ## Original-file uploads
@@ -509,7 +509,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                             |
 | 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                           |
 | 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                                                  |
-| 503    | `database_full`            | Database over 450 MiB (9216 MiB in production); new activities and growing upgrades are refused until the recorded size falls.         |
+| 503    | `database_full`            | Database over 450 MiB (8192 MiB in production); new activities and growing upgrades are refused until the recorded size falls.         |
 | 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                           |
 | 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                    |
 | 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                                                  |

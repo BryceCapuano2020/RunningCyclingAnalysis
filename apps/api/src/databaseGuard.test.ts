@@ -43,14 +43,14 @@ describe('databaseSoftLimitBytes', () => {
 })
 
 describe('the production configuration', () => {
-  it('sets the cap for the paid plan: about 90 percent of D1 Paid, not the Free default', () => {
+  it('sets the cap for the paid plan: above the Free default and 1 GB under 10 GB', () => {
     const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8')
     const value = /^DATABASE_SOFT_LIMIT_MIB\s*=\s*"?(\d+)"?/m.exec(toml)?.[1]
     const bytes = databaseSoftLimitBytes({ DATABASE_SOFT_LIMIT_MIB: value })
-    const paidBytes = 10 * 1024 * MIB
+    const decimalPaidBytes = 10e9
     expect(bytes).toBeGreaterThan(DATABASE_SOFT_LIMIT_BYTES)
-    expect(bytes).toBeGreaterThanOrEqual(0.85 * paidBytes)
-    expect(bytes).toBeLessThanOrEqual(0.95 * paidBytes)
+    // D1's 10 GB may be decimal: the cap keeps at least 1 GB free either way.
+    expect(bytes).toBeLessThanOrEqual(decimalPaidBytes - 1e9)
   })
 })
 

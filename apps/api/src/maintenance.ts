@@ -82,9 +82,9 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const stateResent = await within(0, () => resendDirty(bound, now))
   // The only place the size the create guard reads is written (request paths no longer record it,
   // so writers do not queue on one row). It runs last, so it sees the day's deletions, and on the
-  // unmetered binding, so a spent operation budget cannot skip it. Two statements, so the run stays
-  // under MAX_MAINTENANCE_OPERATIONS plus two. A reading up to a day old is fine: the cap leaves
-  // about 1 GB free below D1's limit and the app adds far less than that in a day.
+  // unmetered binding, so a spent operation budget cannot skip it. The two statements sit outside the
+  // 45-operation budget. A reading up to a day old is fine: the cap leaves at least 1 GB below D1's
+  // 10 GB (decimal or binary), more than this app's writes add in a day.
   await recordDatabaseSize(env.DB, now, await readDatabaseSize(env.DB))
   return {
     sessions,

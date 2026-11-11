@@ -466,8 +466,8 @@ Service limits (per-account quotas, byte caps, edge rate limits and the applicat
 budgets) are listed in [apps/api/LIMITS.md](../apps/api/LIMITS.md). This document describes how
 they behave in production; the limits page is the reference for values.
 
-**Workers Paid.** The database guard is set for the paid plan: `DATABASE_SOFT_LIMIT_MIB = "9216"` in
-`apps/api/wrangler.toml` under `[vars]` (90 percent of D1's 10 GB). The recorded size is written once a day
+**Workers Paid.** The database guard is set for the paid plan: `DATABASE_SOFT_LIMIT_MIB = "8192"` in
+`apps/api/wrangler.toml` under `[vars]` (8 GiB, at least 1 GB under D1's 10 GB). The recorded size is written once a day
 by the maintenance run. The other capacity limits are separate and are listed in LIMITS.md. A value outside
 64 to 9216 is ignored.
 
