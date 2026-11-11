@@ -10,8 +10,12 @@ Both parts end with the same reconciliation: accounts deleted after the point yo
 back with the copy, so they are deleted again before anyone signs in
 (`scripts/ops/reconcile-restore.mjs`).
 
-**Neither part has been rehearsed.** Run Part B on a scratch database and Part A on the newest backup,
-record the times, and only then trust either. A drill that is not recorded does not count.
+**Rehearsal status.** Part A has been rehearsed once, locally, on a synthetic library (see the
+[drill log](#drill-log)). Part B has not been rehearsed, and neither part has run against a remote
+database: no backup exists yet, and on 10 Nov 2026 `wrangler d1 export rca --remote` from the owner's
+local Wrangler login failed with `Authentication error [code: 10000]`, so that token cannot export
+either. Run Part B on a scratch database and Part A on the newest backup, record the times, and only
+then trust either. A drill that is not recorded does not count.
 
 ## Targets and limits
 
@@ -124,27 +128,35 @@ or the privacy contact log and delete them by hand.
 
 ## 6. Verify row counts and sample digests
 
-Compare the counts with the manifest's `d1.rows`:
+Compare the counts with the manifest's `d1.rows`. The restored counts differ from the manifest only
+by the accounts step 5 deleted (their rows cascade), `sessions` at 0 and the tombstones step 5
+added to `account_tombstones`. A table whose count is off for any other reason is a failed restore.
+This lists every table the manifest counts:
 
 ```bash
 jq -r '.d1.rows | to_entries[] | "\(.key) \(.value)"' "$WORK/manifest.json"
-for table in activities oauth_accounts profiles r2_storage_budget users d1_migrations; do
-  npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
-    --command "SELECT '$table' AS table_name, COUNT(*) AS n FROM $table;"
+for table in $(jq -r '.d1.rows | keys[]' "$WORK/manifest.json"); do
+  npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote --json \
+    --command "SELECT '$table' AS table_name, COUNT(*) AS n FROM $table;" | jq -c '.[0].results[0]'
 done
 ```
 
-`sessions` is expected to be 0 after step 5. Run the integrity and foreign-key checks, then sample
-digests:
+Run the foreign-key and quick checks, then sample digests. Both pragmas must return no problems.
+(`PRAGMA integrity_check` failed with `SQLITE_AUTH` on local D1 in the 10 Nov 2026 drill, so this
+runbook uses `quick_check`; remote D1 has not been tried. `prepare-d1-restore.mjs` already ran the
+full check on the export in step 2.)
 
 ```bash
 npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
   --command "PRAGMA foreign_key_check;"
 npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
+  --command "PRAGMA quick_check;"
+npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
   --command "SELECT id, sport, name, json_valid(digest_json) AS valid, json_extract(digest_json, '$.modelRevision') AS revision FROM activities ORDER BY random() LIMIT 5;"
 ```
 
-Every sampled digest must be valid JSON. The revision shows which analysis model produced it.
+Every sampled digest must be valid JSON. For the whole table, `SELECT COUNT(*) FROM activities WHERE NOT
+json_valid(digest_json);` must be 0. The revision shows which analysis model produced it.
 
 Compare one activity's `file_hash` with the SHA-256 of the owner's original file for it, if the
 owner still has that file.
@@ -237,7 +249,75 @@ counts compared, and any missing originals.
 
 Run this procedure quarterly against the newest backup, using steps 1 to 7 only. A drill that is
 not recorded does not count. The first drill is the evidence that this runbook works; until it is
-done, treat the restore as unverified.
+done, treat the restore as unverified. The local drill in the log below proves the scripts and the
+SQL, not the remote steps, so a first remote drill is still owed.
+
+## Drill log
+
+### 10 Nov 2026: Part A, local, synthetic (no remote)
+
+What ran: steps 1 to 6 of Part A on one machine (macOS, Node 22.17, Wrangler 4.158.0), with local D1
+databases in place of remote ones. Step 3 (create a database) is an empty `--persist-to` directory;
+step 7 (preview Worker) needs a remote account and was skipped. The "backup" was made the way
+`backup.yml` makes it: `wrangler d1 export` of a synthetic source database, `scripts/ops/make-manifest.mjs`,
+then `tar` and `age` with a throwaway key, and step 1 decrypted that archive.
+
+The source held every migration (0000 to 0017) and a synthetic library at about production scale: five
+accounts, one with 1,900 activities and 400 lift sets, 2,000 activities in all, 12 MB of export SQL
+(10 MB of digest JSON, copied from the 24 digests of `copiedLibrary` in `packages/core/src/test/libraryFixture.ts`). Counters matched the rows.
+One account was mid-deletion (`users.deleting_at`), one had a `pending_account_deletions` row, one
+tombstone existed, and a third account was deleted after the export so that step 5 had a live
+tombstone to replay. The live database was the source itself.
+
+Starting state of the production switch-on at that date: the environments `production` and `backup`
+existed, no repository or environment secrets were set, `ops/backup-recipient.txt` was the
+placeholder, and `RCA_BACKUP_ENABLED` was unset.
+
+| Step | What                                                    | Time                                     |
+| ---- | ------------------------------------------------------- | ---------------------------------------- |
+| 1    | decrypt, untar, checksum matched the manifest           | under 1 s                                |
+| 2    | `prepare-d1-restore.mjs` (12.2 MB out)                  | about 1 s                                |
+| 3    | create database (local: nothing)                        | 0 s                                      |
+| 4    | import 2,488 statements, `migrations list` (no pending) | about 8 s                                |
+| 5    | export live tombstones, build and run `reconcile.sql`   | about 4 s                                |
+| 6    | counts, foreign keys, quick check, digests, counters    | about 26 s (one Wrangler start each)     |
+| 7    | preview Worker                                          | not run                                  |
+|      | **Total, steps 1 to 6**                                 | **about 40 s** against an RTO of 2 hours |
+
+The times are local SQLite on an idle machine with second resolution. They say the scripts and the
+SQL are sound at this size, not how long the remote steps take. Remote `d1 export`, `d1 execute --file`
+of tens of megabytes and the preview deploy are not measured. Step 7 adds a Worker build, a deploy and
+the two health checks, minutes rather than hours, but that is an estimate.
+
+Results: the checksum matched; the restored database had the migration state of the source (18 rows
+in `d1_migrations`, none pending), all 12 triggers and 26 indexes, and `users.library_version` and
+`digest_bytes` equal to the source, so no trigger ran over a loaded row. After step 5 the three
+deleted accounts (mid-deletion, pending deletion, deleted after the export) and their 90 activities
+were gone, `resurrected` and `sessions` were 0, and the tombstone table held the four ids. Foreign-key
+check and quick check returned nothing, all digests were valid JSON, and both counter queries
+(`file_bytes`, `activity_count`) returned no rows.
+
+What was wrong or unclear in the runbook, now fixed above:
+
+- `PRAGMA integrity_check` fails with `SQLITE_AUTH` on local D1 (remote behaviour unconfirmed), and
+  step 6 only said to "run the integrity check". Step 6 now runs `PRAGMA quick_check` and says the
+  full check ran on the export in step 2.
+- The step 6 table loop listed six tables, missed `lift_sets` and every later table, and did not say
+  the counts differ from the manifest by the deleted accounts. It now loops over the manifest's own
+  tables and says what the expected differences are.
+- Not an error, but worth knowing for the next local drill: `wrangler d1 export` has no `--persist-to`.
+  With `--local` it reads `apps/api/.wrangler/state`, so seed the source there (or copy a state
+  directory into it) before exporting. `d1 execute` and `d1 migrations` take `--persist-to`.
+- The export limit of `prepare-d1-restore.mjs` is 64 MiB for the whole database, and one account may
+  store 64 MiB of digests (`docs/PRODUCTION.md`). This library used under a fifth of the cap. Two
+  accounts near their digest quota would pass it, and then only Part B works.
+
+Still needed for a production drill: a scratch remote database (`wrangler d1 create`), a Cloudflare
+token with D1 export and edit rights (the token on the owner's machine failed export with code 10000),
+the first real backup artifact and the offline age key, a scratch R2 bucket for step 7, a check that
+`PRAGMA quick_check` runs on remote D1 (step 6 depends on it), and the
+Part B Time Travel rewind on a scratch database, which was not run. The switch-on steps are in
+[docs/PRODUCTION.md](../../docs/PRODUCTION.md#setting-up-backups-owner).
 
 ## Part B. Rewind the live database with Time Travel
 
