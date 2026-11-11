@@ -5,6 +5,7 @@ import { hashedFileName } from '@rca/core/import/minimise'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession } from '@rca/core/session'
 import { listActivities, patchLabels } from '../api/client'
+import { replaceFromAccount } from './listedLibrary'
 import { noteWork } from './workerWire'
 
 /** What applying the list's labels changed: the proposals the account took, and the library as it now stands. */
@@ -107,8 +108,5 @@ export async function undoListLabels(
 
 /** Puts the session's index on the library as the account now holds it. Builds no state: the server computes the results. */
 export function reloadIndex(session: AnalysisSession, records: readonly ActivityRecord[]): void {
-  session.replaceLibrary(
-    records.map((record) => record.digest),
-    { fromServer: true },
-  )
+  replaceFromAccount(session, records)
 }

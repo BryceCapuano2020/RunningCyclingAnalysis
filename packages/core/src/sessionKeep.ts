@@ -6,6 +6,7 @@ import {
   NETWORK_PROBE_DELAY_MS,
   networkStreakAfter,
   stopsSaving,
+  waitsForFile,
   SyncFailure,
 } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
@@ -26,6 +27,8 @@ export interface KeepState {
   unsynced: Map<string, SyncIssueCode>
   /** The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones. */
   latestUnsynced: Set<string>
+  /** The keys in `unsynced` whose digest was saved and only the original file failed: a listing of the digest settles nothing for them. */
+  originalOnly: Set<string>
 }
 
 /**
@@ -112,7 +115,7 @@ export async function considerActivity(
     batch.networkStreak = networkStreakAfter(batch.networkStreak, null)
   } catch (error) {
     const code = failureOf(error)
-    markUnsynced(state, key, code.code)
+    markUnsynced(state, key, code.code, code.answered)
     batch.networkStreak = networkStreakAfter(batch.networkStreak, code.answered ? null : code.code)
     if (stopsSaving(code.code) || (probing && !code.answered && code.code === 'network')) {
       batch.halt = code.code
@@ -157,7 +160,7 @@ function settleLater(
       },
       (error: unknown) => {
         const { code, answered } = failureOf(error)
-        markUnsynced(state, key, code)
+        markUnsynced(state, key, code, answered)
         batch.networkStreak = networkStreakAfter(batch.networkStreak, answered ? null : code)
         if (stopsSaving(code) || (probing && !answered && code === 'network')) batch.halt = code
       },
@@ -195,21 +198,30 @@ function endProbe(batch: SaveBatch): void {
 }
 
 /** Notes that the activity is not saved, and why, as a failure of the import in progress. */
-export function markUnsynced(state: KeepState, key: string, code: SyncIssueCode): void {
+export function markUnsynced(
+  state: KeepState,
+  key: string,
+  code: SyncIssueCode,
+  digestSaved = false,
+): void {
   state.unsynced.set(key, code)
   state.latestUnsynced.add(key)
+  if (digestSaved && waitsForFile(code)) state.originalOnly.add(key)
+  else state.originalOnly.delete(key)
 }
 
 /** Takes the activity off the unsaved list: it was saved, or it is gone. */
 export function clearUnsynced(state: KeepState, key: string): void {
   state.unsynced.delete(key)
   state.latestUnsynced.delete(key)
+  state.originalOnly.delete(key)
 }
 
 /** Empties the unsaved list, with the library it belongs to. */
 export function resetUnsynced(state: KeepState): void {
   state.unsynced.clear()
   state.latestUnsynced.clear()
+  state.originalOnly.clear()
 }
 
 /** A new import begins: the unsaved activities stay, but none counts as this import's own yet. */

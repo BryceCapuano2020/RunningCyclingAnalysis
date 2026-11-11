@@ -220,6 +220,7 @@ async function handle(
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
+      if (request.keepFiles !== undefined) session.setOriginalsKept(request.keepFiles)
       await acct.readListed()
       await loadServer(libraryContext, request.userId)
       resume.start(() => startResume(resumeParts, request.userId))

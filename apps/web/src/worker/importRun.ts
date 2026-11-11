@@ -99,6 +99,7 @@ export async function runImport(
         : null
   view.activeScope = traceScope ?? { kind: 'device' }
   view.accountIndex = sync !== null
+  if (sync !== null) session.setOriginalsKept(sync.keepFiles)
   // What storage turned away in an earlier import says nothing about room now.
   workbench.forgetOutranked()
   // Signing in again lifts the block that signing out put on the account's recordings.

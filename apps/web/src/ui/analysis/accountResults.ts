@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
-import type { LiftResults } from '@rca/core/lift'
-import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { SessionState } from '@rca/core/session'
+import { fromSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { ApiRequestError } from '../../api/apiError'
 import { readServerState } from '../../api/state'
@@ -9,9 +8,8 @@ import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
 import { useOwnChanges, useTabMessages } from '../tabSync'
 import { copyIsStale } from './copyAge'
-import type { ImportState } from './importState'
-import { EMPTY_SESSION } from './model'
 import { reloadOnceForNewBuild } from './staleBuild'
+import { useIndexBaseline } from './useIndexBaseline'
 
 /** How often a tab in view asks the server whether the results changed. */
 export const POLL_MS = 60_000
@@ -93,10 +91,8 @@ export function useAccountResults(
       : null
   // The last failed ask with the account it was for; `spent` is a 429, the account's budget for the day, which asking again does not mend.
   const [failure, setFailure] = useState<{ id: string; spent: boolean } | null>(null)
-  const [listedAt, setListed] = useState<{ id: string; version: number | null } | null>(null)
   const failed = failure !== null && failure.id === userId
   const spent = failed && failure.spent
-  const listedVersion = listedAt !== null && listedAt.id === userId ? listedAt.version : null
   const idRef = useRef<string | null>(null)
   const epoch = useRef(0)
   const held = useRef<StateSnapshot | null>(null)
@@ -109,12 +105,8 @@ export function useAccountResults(
   const refused = useRef<StateSnapshot | null>(null)
   const reloadWanted = useRef(false)
   const quietNow = useRef(quiet)
-  // The library version the worker's index was listed at; null means the next snapshot's version is it.
-  const indexAt = useRef<number | null>(null)
-  const behind = useRef(onIndexBehind)
-  useEffect(() => {
-    behind.current = onIndexBehind
-  }, [onIndexBehind])
+  const baseline = useIndexBaseline(userId, onIndexBehind)
+  const { check: checkIndex, reset: resetBaseline } = baseline
 
   const keep = useCallback((snapshot: StateSnapshot, shown: AccountResults | null) => {
     held.current = snapshot
@@ -127,21 +119,6 @@ export function useAccountResults(
     if (!reloadWanted.current || !quietNow.current) return
     reloadWanted.current = false
     reloadOnceForNewBuild()
-  }, [])
-
-  /**
-   * The index was listed at `indexAt`; a library version past it is another device's change. Only a current answer says what the
-   * library is: the stored snapshot served while the server computes covers an older version, and taking it for the baseline would
-   * make this tab's own import look like another device's when the current one follows.
-   */
-  const checkIndex = useCallback((version: number, current: boolean) => {
-    if (!current) return
-    const listed = indexAt.current
-    if (listed === null) indexAt.current = version
-    else if (version > listed) {
-      indexAt.current = null
-      behind.current()
-    }
   }, [])
 
   const apply = useCallback(
@@ -259,7 +236,7 @@ export function useAccountResults(
     refused.current = null
     reloadWanted.current = false
     misses.current = 0
-    indexAt.current = null
+    resetBaseline()
     if (userId === null) return
     void readSnapshot(userId).then((copy) => {
       if (mine !== epoch.current) return
@@ -272,7 +249,7 @@ export function useAccountResults(
       void pull()
     })
     return () => clearTimeout(timer.current)
-  }, [userId, keepOnExpiry, pull])
+  }, [userId, keepOnExpiry, pull, resetBaseline])
 
   useEffect(() => {
     const onVisible = () => {
@@ -297,75 +274,14 @@ export function useAccountResults(
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
-  // The index has just been read at `version` (the library's, before the list was read), or kept current by this tab's own work (no
-  // version: the next snapshot's is the one it matches).
-  const indexListed = useCallback((version?: number) => {
-    indexAt.current = version ?? null
-    if (idRef.current !== null) setListed({ id: idRef.current, version: version ?? null })
-  }, [])
   // The page's Retry: asks now, and the waits go on from where they were (a change, which starts them again, is `refresh`).
   const retry = useCallback(() => void pull(), [pull])
   return {
     results,
     refresh: onChange,
     retry: spent ? null : retry,
-    indexListed,
-    listedVersion,
+    indexListed: baseline.note,
+    listedVersion: baseline.listedVersion,
     failed,
   }
-}
-
-/**
- * The server's state with what only the browser knows laid over it: the last import's facts (refused files, unsaved activities) and the
- * worker's index (the library's age and size). For the same digests and no import they are what the state already holds, so the layer
- * changes nothing (held by the equivalence test).
- */
-export function layerState(
-  state: SessionState,
-  facts: ImportFacts | null,
-  index: IndexFacts | null,
-): SessionState {
-  return { ...state, ...facts, ...index }
-}
-
-/** What the page shows. */
-interface Shown {
-  state: SessionState
-  /** The account's lift results (L3); null signed out, and before the server has answered. */
-  lift: LiftResults | null
-  /** The account's results are a copy made on an earlier day. */
-  stale: boolean
-}
-
-/**
- * What the page shows: for an account, the server's state with what only the browser knows laid over it. The refused files and unsaved
- * activities of the last import come from its `facts`; the library's age and size from the worker's index, which is current the moment a
- * delete or an update ends, where a snapshot may be a moment behind. An expired session keeps the account's results until a state of the
- * device's own arrives (a file dropped after the expiry is analysed here), which is then the one shown.
- */
-export function useShownResults(
-  results: AccountResults | null,
-  signedIn: boolean,
-  expired: boolean,
-  device: Pick<ImportState, 'state' | 'facts' | 'index'>,
-): Shown {
-  const keeps = useKeepsAccount(!signedIn && expired, device.state)
-  const shows = signedIn || (keeps && results !== null)
-  const held = shows ? results : null
-  const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
-  const state = useMemo(
-    () => layerState(held?.state ?? EMPTY_SESSION, device.facts, device.index),
-    [held, device.facts, device.index],
-  )
-  return { state: shows ? state : device.state, lift, stale: held?.stale === true }
-}
-
-/**
- * Whether an expired session still shows the account's results: until a state of the device's own arrives, which is then the one shown.
- */
-function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
-  const [atExpiry, setAtExpiry] = useState<SessionState | null>(null)
-  if (expired && atExpiry === null) setAtExpiry(deviceState)
-  else if (!expired && atExpiry !== null) setAtExpiry(null)
-  return expired && deviceState === atExpiry
 }
