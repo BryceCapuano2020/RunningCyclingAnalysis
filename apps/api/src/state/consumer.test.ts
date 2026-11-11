@@ -14,8 +14,8 @@ import { handleStateBatch } from './consumer.ts'
 
 const digests = libraryDigests()
 
-async function prepared(options: { on?: boolean } = {}) {
-  const w = await stateWorld(options)
+async function prepared() {
+  const w = await stateWorld()
   w.h.clock.now = afterNewest(digests)
   await seedDigests(w.env.DB, w.userId, digests)
   return w
@@ -39,7 +39,6 @@ describe('the state consumer', () => {
 
   it('runs the accounts one after another and answers each its own way', async () => {
     const w = await prepared()
-    w.env.SERVER_COMPUTE_USERS = `${w.userId},no-such-account`
     const { batch, acked } = fakeBatch([w.userId, 'no-such-account'])
     const report = await handleStateBatch(batch, w.env, w.deps)
     expect(report).toEqual({ accounts: 2, outcomes: { written: 1, gone: 1 } })
@@ -57,24 +56,6 @@ describe('the state consumer', () => {
     expect(log).toHaveBeenCalledOnce()
     expect(log.mock.calls[0]?.[0]).toBe('{"event":"state_job_failed","errorClass":"Error"}')
     log.mockRestore()
-  })
-
-  it('drops the messages of an account off the allowlist, and computes one on it', async () => {
-    const off = await prepared({ on: false })
-    const dropped = fakeBatch([off.userId])
-    expect(await handleStateBatch(dropped.batch, off.env, off.deps)).toEqual({
-      accounts: 1,
-      outcomes: { not_listed: 1 },
-    })
-    expect(dropped.acked).toEqual([0])
-    expect(await hashOf(off)).toBeNull()
-    // Listed among others, with stray spaces: computed.
-    off.env.SERVER_COMPUTE_USERS = ` other-id , ${off.userId} `
-    const listed = fakeBatch([off.userId])
-    expect(await handleStateBatch(listed.batch, off.env, off.deps)).toEqual({
-      accounts: 1,
-      outcomes: { written: 1 },
-    })
   })
 
   it('answers a burst with one delayed message, not one per write, and computes when the interval has passed', async () => {

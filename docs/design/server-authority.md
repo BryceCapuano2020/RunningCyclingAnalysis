@@ -64,10 +64,13 @@ is usually a 304. Whether the queue, pending markers and re-send can go is measu
 - `state_jobs.snapshot_lift_revision >= users.lift_revision` (new column; lift writes already raise `lift_revision`).
   These are what the stored snapshot covers, not what a compute reached: an unchanged compute moves the coverage
   only while the row still holds the hash it matched;
-- `state_jobs.analysis_revision = ANALYSIS_REVISION`;
+- `state_jobs.analysis_revision = RESULT_REVISION` (`apps/api/src/state/resultRevision.ts`): one integer for the tuple
+  (analysis revision, snapshot schema version, lift estimator revision) in that order, each part below 1,000. The column
+  kept its name and held the analysis revision alone before, so every earlier row reads as lower. The R2 object's custom
+  metadata names it as `resultRevision`;
 - the local day of `state_jobs.snapshot_now_ms` (new column) in the account's zone is today.
 
-**Revisions.** A Worker recomputes and stores only when the stored revision is lower than its own. When the stored
+**Revisions.** The revision here and below is the result revision. A Worker recomputes and stores only when the stored revision is lower than its own. When the stored
 revision is higher (a rollback, an old Worker during a gradual deploy), it computes in the request and serves the result
 without storing it, so the newer snapshot stays for the newer Worker and an old tab still gets results it can read. The
 isolate keeps that unstored result, keyed by account, version, lift revision and local day, and answers its ETag with a
@@ -154,8 +157,9 @@ Line counts are non-test lines at main 114e4de5.
   of `checkinWorker.ts`; the account path of `useLiftSummary.ts` and `ui/lift/bigThreeModel.ts`.
 - **The reconciliation.** `serverCopy.ts` (54) and its unsent-work rule, `settingsUnsent.ts` (32), the writing of
   browser-computed account snapshots in `deviceCopy.ts`, the `me.serverState` flag, and on the server the allowlist
-  (`state/flag.ts`, `SERVER_COMPUTE_USERS`) and, once measured, `SERVER_STATE_MAX_ACTIVITIES`. The
-  `SERVER_COMPUTE_ACCOUNTS` secret stays until the release that no longer reads it; then the owner removes it.
+  (`SERVER_COMPUTE_USERS` and the `SERVER_COMPUTE_ACCOUNTS` secret, removed in C3b: every signed-in account computes on the server,
+  and `/api/me` no longer sends `serverState`) and, once measured, `SERVER_STATE_MAX_ACTIVITIES`. The owner removes the
+  `SERVER_COMPUTE_ACCOUNTS` secret after that release.
 
 **Phase 2, after the Garmin parser runs in the Worker (G1 to G3):**
 
@@ -198,8 +202,7 @@ open and checks each is in the sweep or named here as device-only.
 - **No account state in the browser.** A worker test sends every request type in account scope and fails if any
   builds a `SessionState`.
 - **Compute on read.** A write followed by `GET /api/state` returns the new result in that response; a lift write, a
-  lower stored revision and an aged day each recompute; an aged day with unchanged figures moves `snapshot_now_ms`, so
-  the next read is a 304 with the new `X-State-Now`; a higher stored revision computes once per isolate, stores nothing and then answers 304; a 304 with a newer `X-State-Now` survives a reload as a fresh copy; two requests
+  lower stored revision (an earlier snapshot version or lift estimator included) and an aged day each recompute; a version bump that moves no figure is a 304 with the new revision stored, and a day roll is a 200 with a new tag; a higher stored revision computes once per isolate, stores nothing and then answers 304; a 304 with a newer `X-State-Now` survives a reload as a fresh copy; two requests
   and a queue message in one isolate run one compute, and the message is retried, not acked; no stored snapshot under
   the lock answers 202; a lift write during the input read is `InputsMoved`; a day of 60 s polls stays inside the read
   budget.

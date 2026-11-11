@@ -15,7 +15,7 @@ import {
   seedDigests,
   stateWorld,
 } from '../test/stateKit.ts'
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { runStateJob } from './job.ts'
 import { computeAndStore } from './refresh.ts'
 import { jobRow } from './row.ts'
@@ -360,7 +360,7 @@ describe('the state job', () => {
     await w.env.DB.prepare(
       'UPDATE state_jobs SET analysis_revision = ?, snapshot_hash = ? WHERE user_id = ?',
     )
-      .bind(ANALYSIS_REVISION - 1, stale, w.userId)
+      .bind(RESULT_REVISION - 1, stale, w.userId)
       .run()
     w.h.clock.now += 60_000
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('written')
@@ -377,7 +377,7 @@ describe('the state job', () => {
     expect(after).toMatchObject({
       snapshot_version: v,
       computed_version: v,
-      analysis_revision: ANALYSIS_REVISION,
+      analysis_revision: RESULT_REVISION,
     })
     expect(after!.snapshot_hash).not.toBe(stale)
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('current')

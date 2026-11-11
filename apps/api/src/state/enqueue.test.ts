@@ -187,17 +187,6 @@ describe('the state job producer', () => {
     expect(w.sent).toEqual([])
   })
 
-  it('sends nothing for an account off the allowlist, whatever is bound, and for an unset list', async () => {
-    const w = await stateWorld({ on: false })
-    for (const [, write] of WRITES) expect((await write(w)).status).toBeLessThan(300)
-    w.env.SERVER_COMPUTE_USERS = 'someone-else'
-    for (const [, write] of WRITES) expect((await write(w)).status).toBeLessThan(300)
-    expect(w.sent).toEqual([])
-    w.env.SERVER_COMPUTE_USERS = w.userId
-    expect((await WRITES[1]![1](w)).status).toBe(200)
-    expect(w.sent).toHaveLength(1)
-  })
-
   it('does not fail a write when the queue refuses it', async () => {
     const w = await stateWorld()
     const failing = {
@@ -205,7 +194,7 @@ describe('the state job producer', () => {
         throw new Error('queue down')
       },
     } as unknown as Queue<{ userId: string }>
-    const h = createHarness({}, { SERVER_COMPUTE_USERS: '*', STATE_QUEUE: failing })
+    const h = createHarness({}, { STATE_QUEUE: failing })
     const token = await h.signIn('other@example.com')
     const res = await h.send({
       method: 'PUT',

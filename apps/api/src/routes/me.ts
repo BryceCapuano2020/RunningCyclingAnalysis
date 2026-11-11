@@ -11,7 +11,6 @@ import { HttpError } from '../errors.ts'
 import { currentUser, optionalUser, requireUser, requireUserEvenIfDeleting } from '../middleware.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { hasStoredFiles, sweepUserFiles } from '../storage.ts'
-import { serverStateFor } from '../state/flag.ts'
 import { must } from '../util.ts'
 import { activities, profiles, users } from '../db/schema.ts'
 
@@ -41,8 +40,7 @@ meRoutes.get('/me', optionalUser, async (c) => {
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))
   const me = await buildMe(db, deps, user, Boolean(c.env.FILES), units)
   const revisions = await revisionsOf(db, user.id)
-  const serverState = serverStateFor(c.env, user.id) ? { serverState: true } : {}
-  return c.json({ ...me, ...revisions, ...serverState }, 200)
+  return c.json({ ...me, ...revisions }, 200)
 })
 
 /**

@@ -1,5 +1,5 @@
 import { StateSnapshotSchema } from '@rca/contract'
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import type { Deps } from '../deps.ts'
 import type { Bindings } from '../env.ts'
@@ -81,7 +81,7 @@ export async function computeAndStore(
   const covered = { version: inputs.version, liftRevision: inputs.liftRevision, nowMs, at: nowMs }
   // The stored object is this build's own only when the row says this revision: a lower one may be an older Worker's
   // object under the same hash, which is written again so its metadata names this revision.
-  if (hash === before.snapshot_hash && before.analysis_revision === ANALYSIS_REVISION) {
+  if (hash === before.snapshot_hash && before.analysis_revision === RESULT_REVISION) {
     await record(db, userId, covered, null, hash)
     return { kind: 'unchanged', ...done }
   }
@@ -93,7 +93,7 @@ export async function computeAndStore(
     httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
     // The object names its own analysis revision, so a reader can tell one an older Worker wrote (a rollback, a rolling
     // deploy) from the row, which that Worker does not keep.
-    customMetadata: { analysisRevision: String(ANALYSIS_REVISION) },
+    customMetadata: { resultRevision: String(RESULT_REVISION) },
   })
   let outcome
   try {

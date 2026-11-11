@@ -1,4 +1,4 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { claimCompute } from '../state/record.ts'
@@ -13,7 +13,7 @@ import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
 import { currentUser, requireUserOrNotFound, sameOriginReadGuard } from '../middleware.ts'
 import { getOriginalFile } from '../storage.ts'
-import { SERVER_STATE_MAX_ACTIVITIES, serverStateAnyone, serverStateFor } from '../state/flag.ts'
+import { SERVER_STATE_MAX_ACTIVITIES } from '../state/flag.ts'
 import { stateKey } from '../state/key.ts'
 import { inflate } from '../state/store.ts'
 import { keepUnstored, unstoredFor, unstoredKey, withComputeLock } from '../state/lock.ts'
@@ -56,23 +56,19 @@ function matches(header: string | undefined, etag: string): boolean {
 /**
  * The latest snapshot of the signed-in account's results, computed on the server (docs/design/server-compute.md). The
  * ETag is the snapshot's content hash, so a browser that holds it is answered 304 without the object being read. The
- * session's own user id is the only key: no id comes from the request. 404 when the account is not on the allowlist or the account has no
- * snapshot yet (a library the server does not compute for, a job not run), and the browser then computes locally.
+ * session's own user id is the only key: no id comes from the request. Every signed-in account has one. 404 when the account has
+ * no snapshot to serve (a library the server does not compute for), and the browser then computes locally.
  */
 export const stateRoutes = new Hono<AppEnv>()
 
-// With no account on the allowlist the route is not there for anyone, signed in or not.
+// Without file storage bound the route is not there for anyone, signed in or not.
 stateRoutes.use('*', async (c, next) => {
-  if (!serverStateAnyone(c.env) || c.env.FILES === undefined) throw NOT_FOUND()
+  if (c.env.FILES === undefined) throw NOT_FOUND()
   await next()
 })
 
-// A signed-out request and an account off the list get the answer they would get with the list empty, before the
-// cross-site check and before any budget is spent: no status tells an outsider the feature is on for someone.
-stateRoutes.use('*', requireUserOrNotFound, async (c, next) => {
-  if (!serverStateFor(c.env, currentUser(c).id)) throw NOT_FOUND()
-  await next()
-})
+// A signed-out request gets a 404 before the cross-site check and before any budget is spent.
+stateRoutes.use('*', requireUserOrNotFound)
 
 /** Seconds a client waits before asking again when the answer is still being computed. */
 const COMPUTING_RETRY_SECONDS = 2
@@ -146,7 +142,7 @@ async function serveStored(c: Ctx, row: JobRow, under: boolean): Promise<Respons
   }
   // An object an older Worker wrote (a rollback, a rolling deploy) carries no revision of its own while the row, which
   // that Worker does not keep, still says this one. Only a lower revision is reset: a later Worker's is left alone.
-  if (Number(object.customMetadata?.analysisRevision ?? 0) < ANALYSIS_REVISION) {
+  if (Number(object.customMetadata?.resultRevision ?? 0) < RESULT_REVISION) {
     await object.body.cancel().catch(() => undefined)
     await charge?.refund().catch(() => undefined)
     await c.env.DB.prepare(

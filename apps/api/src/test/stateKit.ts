@@ -140,10 +140,8 @@ export interface StateWorld {
   cookies: { rca_session: string }
 }
 
-/** A harness with the feature on and a recording Queue, and one signed-in account (with its profile, as sign-in makes it). */
-export async function stateWorld(
-  options: { on?: boolean; email?: string } = {},
-): Promise<StateWorld> {
+/** A harness with a recording Queue and one signed-in account (with its profile, as sign-in makes it). */
+export async function stateWorld(options: { email?: string } = {}): Promise<StateWorld> {
   const { queue, sent } = fakeQueue()
   const h = createHarness({}, { STATE_QUEUE: queue })
   const token = await h.signIn(options.email ?? 'rider@example.com')
@@ -152,8 +150,6 @@ export async function stateWorld(
     user: { id: string }
   }
   sent.length = 0
-  // The account is on the allowlist unless the test says otherwise, now that its id is known.
-  if (options.on !== false) h.env.SERVER_COMPUTE_USERS = me.user.id
   return {
     h,
     env: h.env,

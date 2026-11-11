@@ -31,6 +31,7 @@ export function computeFor(inputs: StateInputs, nowMs: number): StateSnapshot {
   )
   return computeSnapshot({
     digests: inputs.digests,
+    liftSets: inputs.liftSets,
     settings,
     ...(inputs.settings.period === null ? {} : { choice: inputs.settings.period }),
     libraryVersion: inputs.version,

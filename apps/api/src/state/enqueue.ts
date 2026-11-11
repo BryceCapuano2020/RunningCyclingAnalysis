@@ -1,6 +1,5 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv } from '../env.ts'
-import { serverStateFor } from './flag.ts'
 import { STATE_DELAY_SECONDS } from './message.ts'
 import { claimPending } from './pending.ts'
 
@@ -22,9 +21,8 @@ const READS = new Set(['GET', 'HEAD', 'OPTIONS'])
  * After a write that changed an input, tells the state job whose results to compute, delayed so a burst is one compute
  * (design: server-compute.md, section 1). The counter the job reads is raised by triggers in the same transaction as the
  * write, so a message that is lost or sent for a write that changed nothing costs nothing worse than a skipped job. A lost
- * message leaves the account dirty until its next write or the daily re-send (resend.ts). Only for the
- * accounts on the allowlist (SERVER_COMPUTE_USERS); for any other nothing is sent. Nor when a message for the account is
- * on its way already (pending.ts): the job it starts reads this write too, so a burst sends one message, not one per write.
+ * message leaves the account dirty until its next write or the daily re-send (resend.ts), for every signed-in account. Nothing is sent
+ * when a message for the account is on its way already (pending.ts): the job it starts reads this write too, so a burst sends one message, not one per write.
  * Sending never fails the request, and a marker that cannot be read sends, so a D1 error costs a duplicate, never a write.
  */
 export const stateEnqueue = createMiddleware<AppEnv>(async (c, next) => {
@@ -33,7 +31,7 @@ export const stateEnqueue = createMiddleware<AppEnv>(async (c, next) => {
   if (queue === undefined) return
   if (READS.has(c.req.method) || c.res.status >= 400) return
   const user = c.var.user
-  if (user === null || !serverStateFor(c.env, user.id)) return
+  if (user === null) return
   const path = c.req.path
   if (ORIGINAL_FILE.test(path)) return
   if (!INPUT_ROUTES.some((route) => path === route || path.startsWith(`${route}/`))) return

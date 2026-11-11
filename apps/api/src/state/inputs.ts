@@ -1,5 +1,7 @@
 import { DEFAULT_BIKE_MASS_KG, StoredActivityDigestSchema } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
+import { PAGE_AFTER, PAGE_FIRST, toLiftSet, type LiftRow } from '../routes/liftSql.ts'
+import type { LiftSet } from '@rca/core/lift'
 import { toSettings, type SettingsRow } from './settingsRow.ts'
 import { measurementOf, type MeasurementRow, type StateInputs } from './stateInputs.ts'
 
@@ -7,6 +9,9 @@ export type { StateInputs }
 
 /** Digest rows read in one query: about half a megabyte at a typical 5 KiB each. */
 const PAGE_ROWS = 100
+
+/** Lift set rows read in one query: about half a megabyte at 100 bytes each. */
+const LIFT_PAGE_ROWS = 5000
 
 /** A write landed while the digests were being read, so the inputs are not one version. The write has sent its own job. */
 export class InputsMoved extends Error {}
@@ -39,7 +44,7 @@ async function countersOf(db: D1Database, userId: string): Promise<Counters | nu
 /**
  * The account's inputs as of one version (decision 6): the library version, the lift revision and every small input
  * in one D1 batch, which is one transaction, then the digests in pages by the listing's own key,
- * then both counters again. A write to either between the two reads raises it, and the read is refused (`InputsMoved`)
+ * then the lift sets in pages the same way (up to 60,000 of them), then both counters again. A write to either between the two reads raises it, and the read is refused (`InputsMoved`)
  * instead of mixing two versions. Null when the account is gone or deleting.
  */
 export async function readInputs(db: D1Database, userId: string): Promise<StateInputs | null> {
@@ -83,6 +88,7 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     if (last === undefined || page.results.length < PAGE_ROWS) break
     after = { createdAt: last.created_at, id: last.id }
   }
+  const liftSets = await readLiftSets(db, userId)
   const end = await countersOf(db, userId)
   if (end?.library_version !== start.library_version || end.lift_revision !== start.lift_revision) {
     throw new InputsMoved()
@@ -91,6 +97,7 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
   return {
     version: start.library_version,
     liftRevision: start.lift_revision,
+    liftSets,
     digests,
     unreadable,
     massKg: own?.mass_kg ?? null,
@@ -99,6 +106,32 @@ export async function readInputs(db: D1Database, userId: string): Promise<StateI
     sex: own?.sex ?? null,
     measurements: (measurements!.results as MeasurementRow[]).map(measurementOf),
     settings: toSettings(((settings!.results as SettingsRow[])[0] ?? null) as SettingsRow | null),
+  }
+}
+
+/** The account's lift sets in key order, in pages: one statement for all 60,000 would hold them in the batch's transaction. */
+async function readLiftSets(db: D1Database, userId: string): Promise<LiftSet[]> {
+  const sets: LiftSet[] = []
+  let after: LiftRow | undefined
+  for (;;) {
+    const statement =
+      after === undefined
+        ? db.prepare(PAGE_FIRST).bind(userId, LIFT_PAGE_ROWS)
+        : db
+            .prepare(PAGE_AFTER)
+            .bind(
+              userId,
+              after.date,
+              after.exercise,
+              after.equipment,
+              after.set_order,
+              LIFT_PAGE_ROWS,
+            )
+    const page = await statement.all<LiftRow>()
+    for (const row of page.results) sets.push(toLiftSet(row))
+    const last = page.results.at(-1)
+    if (last === undefined || page.results.length < LIFT_PAGE_ROWS) return sets
+    after = last
   }
 }
 

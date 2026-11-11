@@ -1,4 +1,4 @@
-import { ANALYSIS_REVISION } from '@rca/core/stateSnapshot'
+import { RESULT_REVISION } from './resultRevision.ts'
 import { DEFAULT_ZONE } from './compute.ts'
 import { zoneNamed } from './zone.ts'
 
@@ -39,27 +39,28 @@ export function localDayOf(zone: string | null, ms: number): number {
 }
 
 /**
- * How the stored snapshot stands against this build: `newer` when a later Worker made it (a rollback, a rolling deploy),
- * which this one never overwrites; `older` when an earlier analysis made it (or none is stored); `same` otherwise.
+ * How the stored snapshot stands against this build's result revision (resultRevision.ts): `newer` when a later Worker made it
+ * (a rollback, a rolling deploy), which this one never overwrites; `older` when an earlier analysis, snapshot version or lift
+ * estimator made it (or none is stored); `same` otherwise.
  */
 export type RevisionOrder = 'newer' | 'same' | 'older'
 
 export function revisionOrder(row: JobRow): RevisionOrder {
   if (row.snapshot_hash === null) return 'older'
   const stored = row.analysis_revision ?? 0
-  return stored > ANALYSIS_REVISION ? 'newer' : stored === ANALYSIS_REVISION ? 'same' : 'older'
+  return stored > RESULT_REVISION ? 'newer' : stored === RESULT_REVISION ? 'same' : 'older'
 }
 
 /**
  * Whether the stored snapshot is the answer now: it covers the library version and the lift revision (`snapshot_*`: what the stored snapshot covers, not what a compute reached), was made under
- * this build's analysis, and was made for today in the account's zone (a day ago it would show last night's week).
+ * this build's result revision, and was made for today in the account's zone (a day ago it would show last night's week).
  */
 export function isCurrent(row: JobRow, now: number): boolean {
   return (
     row.snapshot_hash !== null &&
     (row.snapshot_version ?? 0) >= row.library_version &&
     (row.snapshot_lift_revision ?? 0) >= row.lift_revision &&
-    (row.analysis_revision ?? 0) === ANALYSIS_REVISION &&
+    (row.analysis_revision ?? 0) === RESULT_REVISION &&
     localDayOf(row.zone, row.snapshot_now_ms ?? 0) === localDayOf(row.zone, now)
   )
 }

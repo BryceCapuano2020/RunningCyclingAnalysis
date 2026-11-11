@@ -60,13 +60,9 @@ bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
-# Results computed on the server (docs/design/server-compute.md): off for everyone. The list is user ids, comma
-# separated; empty means no account. The owner's id goes in the Worker secret SERVER_COMPUTE_ACCOUNTS, not here (the
-# secret wins over this variable; docs/PRODUCTION.md). The blocks below are on (Workers Paid, both queues created 10 Nov
-# 2026); the deploy-config check requires them complete whenever any of them is present. With the list and the secret
-# empty, nothing is enqueued or computed. `*` (everyone) is for local
-# tests only.
-SERVER_COMPUTE_USERS = ""
+# Results computed on the server for every signed-in account (docs/design/server-authority.md). The blocks below are on
+# (Workers Paid, both queues created 10 Nov 2026); the deploy-config check requires them complete whenever any of them
+# is present.
 
 # Bound on Workers Paid: 10 s of CPU an invocation, well over a 2,000-activity analysis (about 0.5 s).
 [limits]
