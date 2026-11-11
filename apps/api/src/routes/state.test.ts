@@ -125,18 +125,4 @@ describe('GET /api/state', () => {
     expect(res.status).toBe(429)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('daily_limit')
   })
-
-  it('asks for nothing for a library the server does not compute for, however often it is read', async () => {
-    const w = await ready()
-    await w.env.DB.prepare('UPDATE state_jobs SET analysis_revision = 0 WHERE user_id = ?')
-      .bind(w.userId)
-      .run()
-    await w.env.DB.prepare('UPDATE users SET activity_count = 2001 WHERE id = ?')
-      .bind(w.userId)
-      .run()
-    w.sent.length = 0
-    w.h.clock.now += 60_000
-    for (let i = 0; i < 3; i += 1) expect((await w.get()).status).toBe(404)
-    expect(w.sent).toEqual([])
-  })
 })

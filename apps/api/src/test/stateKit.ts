@@ -121,8 +121,17 @@ export async function seedDigests(
         firstCreatedAt + index,
       ),
   )
-  for (let start = 0; start < statements.length; start += 50) {
-    await db.batch(statements.slice(start, start + 50))
+  // Batches of at most 50 rows and about 256 KiB: one batch of a padded library's rows is megabytes, which is what
+  // dropped Miniflare's local D1 socket under load (the memory sim).
+  let batch: D1PreparedStatement[] = []
+  let batchBytes = 0
+  for (const [index, statement] of statements.entries()) {
+    batch.push(statement)
+    batchBytes += JSON.stringify(digests[index]).length
+    if (batch.length < 50 && batchBytes < 256 * 1024 && index < statements.length - 1) continue
+    await db.batch(batch)
+    batch = []
+    batchBytes = 0
   }
   await db
     .prepare('UPDATE users SET activity_count = activity_count + ? WHERE id = ?')

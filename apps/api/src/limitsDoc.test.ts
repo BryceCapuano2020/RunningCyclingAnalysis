@@ -182,7 +182,7 @@ describe('read charging and the account caps', () => {
   it('gives the rows-listed meter, and the loads it allows, as the contract sets them', () => {
     expect(text, HINT).toContain(`\`LIST_ROWS_PER_DAY\`, **${n(LIST_ROWS_PER_DAY)} per UTC day**`)
     expect(text, HINT).toContain(
-      `about ${Math.floor(LIST_ROWS_PER_DAY / 2700)} cold loads of a 2,700 library or ${Math.floor(LIST_ROWS_PER_DAY / 5000)} of a 5,000 library`,
+      `about ${Math.floor(LIST_ROWS_PER_DAY / 2700)} cold loads of a 2,700 library or ${Math.floor(LIST_ROWS_PER_DAY / MAX_ACTIVITIES_PER_USER)} of a ${n(MAX_ACTIVITIES_PER_USER)} library`,
     )
     expect(text, HINT).toContain(`is charged \`max(limit, ${MAX_PAGE_SIZE})\` up front`)
   })

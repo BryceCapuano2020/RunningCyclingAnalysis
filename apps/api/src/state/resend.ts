@@ -1,5 +1,4 @@
 import type { Bindings } from '../env.ts'
-import { SERVER_STATE_MAX_ACTIVITIES } from './flag.ts'
 import { STATE_DELAY_SECONDS } from './message.ts'
 import { claimPending } from './pending.ts'
 import { RESULT_REVISION } from './resultRevision.ts'
@@ -17,8 +16,8 @@ export interface ResendTally {
  * moved past its last compute, or whose stored snapshot was made under a lower result revision (a deploy that changed how
  * a figure is worked out, the snapshot's shape or the lift estimator), while no message is on its way, so a message the
  * Queue lost or sent to the dead-letter queue leaves an account dirty for a day at most, not until its next write. A
- * higher stored revision is a later Worker's and is left alone, as is a library the server does not compute for and an
-account being deleted. At most `max` accounts, the least that the caller's operation budget allows
+ * higher stored revision is a later Worker's and is left alone, as is an account being deleted. At most `max` accounts,
+ * the fewer the caller's operation budget allows
  * (`tally.sent` counts them as they go). Returns how many messages it sent.
  */
 export async function resendDirty(
@@ -32,12 +31,12 @@ export async function resendDirty(
   if (queue === undefined || limit <= 0) return 0
   const dirty = await env.DB.prepare(
     `SELECT u.id FROM users u LEFT JOIN state_jobs j ON j.user_id = u.id
-     WHERE u.deleting_at IS NULL AND u.activity_count <= ?1 AND coalesce(j.analysis_revision, 0) <= ?2
-       AND (coalesce(j.snapshot_version, 0) < u.library_version OR coalesce(j.snapshot_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) < ?2)
-       AND coalesce(j.pending_until, 0) <= ?3
-     ORDER BY coalesce(j.attempted_at, 0), u.id LIMIT ?4`,
+     WHERE u.deleting_at IS NULL AND coalesce(j.analysis_revision, 0) <= ?1
+       AND (coalesce(j.snapshot_version, 0) < u.library_version OR coalesce(j.snapshot_lift_revision, 0) < u.lift_revision OR coalesce(j.analysis_revision, 0) < ?1)
+       AND coalesce(j.pending_until, 0) <= ?2
+     ORDER BY coalesce(j.attempted_at, 0), u.id LIMIT ?3`,
   )
-    .bind(SERVER_STATE_MAX_ACTIVITIES, RESULT_REVISION, now, limit)
+    .bind(RESULT_REVISION, now, limit)
     .all<{ id: string }>()
   for (const { id } of dirty.results) {
     if (!(await claimPending(env.DB, id, now, STATE_DELAY_SECONDS))) continue

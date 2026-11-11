@@ -10,7 +10,7 @@ import { isStateKey } from './state/key.ts'
 import { isInboxKey } from './inbox/key.ts'
 
 const DEFAULT_PAGE_SIZE = 1000
-/** At most 5,000 activities per user, so each of two cleanup sweeps needs at most 5 pages. */
+/** At most 4,000 activities per user, so each of two cleanup sweeps needs at most 4 pages; 10 leaves room. */
 export const MAX_CLEANUP_LIST_RESERVATION = 10
 
 export interface R2CleanupBudget {

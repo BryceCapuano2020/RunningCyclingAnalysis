@@ -2537,7 +2537,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (5,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (4,000 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -2577,7 +2577,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(5,000 per day\) was reached\. It resets at .+, your time\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(4,000 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -2590,7 +2590,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.errorIssue).toBe('daily-limit')
     expect(result.current.error).toMatch(
-      new RegExp(`^You have reached today's limit on saves \\(5,000 per day\\)\\. `),
+      new RegExp(`^You have reached today's limit on saves \\(4,000 per day\\)\\. `),
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
