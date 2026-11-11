@@ -5,15 +5,24 @@ import { openDatabase, WorkbenchOpenError } from './workbenchOpen'
 export { WorkbenchOpenError } from './workbenchOpen'
 export type TraceScope = { kind: 'device' } | { kind: 'account'; userId: string }
 
+/**
+ * The budget is global, not per scope: the device results and every account share these bytes, so one
+ * scope's import can evict another's oldest recordings. Scope keys only decide who may read a recording.
+ */
 export const WORKBENCH_TOTAL_BYTES = 64 * 1024 * 1024
 export const WORKBENCH_ENTRY_BYTES = 12 * 1024 * 1024
 export const WORKBENCH_MAX_ENTRIES = 10_000
 
 export const DB_NAME = 'rca-workbench-evidence'
+/** Version 3 added the activity start that ranks recordings. Older code cannot open it and falls back to memory. */
 const DB_VERSION = 3
 export const TRACES = 'traces'
 export const ENTRIES = 'entries'
 export const STATE = 'state'
+/**
+ * Marks of closed account scopes. A deletion tombstone rejects writes from stale workers for good, a
+ * sign-out mark never replaces it, and an upgrade keeps them while it empties the recordings.
+ */
 export const OWNERS = 'owners'
 /**
  * The state row that holds the device scope's epoch: a number raised in the transaction that clears the

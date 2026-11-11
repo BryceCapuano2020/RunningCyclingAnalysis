@@ -127,6 +127,8 @@ export async function upgradeExisting(
   existing: ActivityRow,
   input: CreateInput,
 ): Promise<Saved> {
+  // A saved activity is tied to the hash of its original file: a different file for the same workout is
+  // refused, so replacing it means deleting the activity and importing the preferred file again.
   if (existing.fileHash !== input.fileHash) {
     throw new HttpError(409, 'activity_conflict', CONFLICTING_FILE_MESSAGE)
   }

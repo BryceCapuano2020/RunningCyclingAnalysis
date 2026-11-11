@@ -100,7 +100,8 @@ async function createAccount(
  * Finds or creates the user for a verified Google account and links the Google identity.
  *
  * An account that already exists for the identity or the email signs in without the gate; the gate
- * decides only whether a new account may be created. The sign-in steps are in docs/ARCHITECTURE.md.
+ * decides only whether a new account may be created. The route steps (state and PKCE cookies, code exchange, ID token
+ * checks) are in routes/auth.ts and google.ts; the session is issued by `createSession` (auth/session.ts).
  */
 export async function signInWithGoogle(
   db: Db,

@@ -15,7 +15,12 @@ export interface ActivityLap {
   label?: string
 }
 
-/** Compact, serializable evidence for one activity's detail workbench. */
+/**
+ * Compact, serializable evidence for one activity's detail workbench: one-second measured streams,
+ * cumulative distance, pause and recording-gap masks and recorded laps. It holds no GPS position, original
+ * bytes or virtual power. A chart may downsample for display but must keep extrema; statistics always use
+ * the full selected recording.
+ */
 export interface ActivityTrace {
   version: 1
   activityId: string

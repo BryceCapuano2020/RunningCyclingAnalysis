@@ -75,6 +75,10 @@ export function splitsOf({ library }: KeepState, id: string): DigestSplits | nul
 export interface ReplaceOptions {
   keepUnsaved?: boolean
   fromServer?: boolean
+  /** The workout keys whose listed record holds the original file. Without it a refused original is never taken for held. */
+  withFile?: ReadonlySet<string>
+  /** False when the account keeps no original files: the file will never be held, so a refused original settles on a listing. */
+  originalsKept?: boolean
 }
 
 /**
@@ -82,13 +86,14 @@ export interface ReplaceOptions {
  * key that arrives both stale and newer is one row held back. With `fromServer` (the default with `keepUnsaved`: the replacement is the account's library) a
  * workout it holds is saved, so it leaves the unsaved list; a library read from this browser settles nothing. With
  * `keepUnsaved` a workout whose save failed, and which the replacement lacks, stays (from `before`) and stays unsaved, so
- * adding its file again retries it.
+ * adding its file again retries it. A workout whose digest was saved and only its original failed stays on the list until
+ * its listed record is in `withFile`.
  */
 export function fillLibrary(
   state: KeepState,
   digests: readonly ActivityDigest[],
   before: ReadonlyMap<string, ActivityDigest>,
-  { keepUnsaved = false, fromServer = keepUnsaved }: ReplaceOptions,
+  { keepUnsaved = false, fromServer = keepUnsaved, withFile, originalsKept = true }: ReplaceOptions,
 ): void {
   const { library, unsynced } = state
   for (const digest of digests) {
@@ -97,7 +102,9 @@ export function fillLibrary(
     if (kept === undefined || readRank(kept) < readRank(digest)) library.put(key, digest)
   }
   for (const key of [...unsynced.keys()]) {
-    if (fromServer && library.digests.has(key)) clearUnsynced(state, key)
+    // A digest that failed to save is settled by listing it; one whose original failed only when the listed record has the file.
+    const settled = !state.originalOnly.has(key) || !originalsKept || withFile?.has(key) === true
+    if (fromServer && library.digests.has(key) && settled) clearUnsynced(state, key)
     else if (keepUnsaved && before.has(key)) library.put(key, before.get(key)!)
   }
 }

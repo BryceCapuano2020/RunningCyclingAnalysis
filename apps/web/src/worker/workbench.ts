@@ -17,6 +17,7 @@ export type ActivityTraceReply =
   | { kind: 'missing' }
   | { kind: 'failed' }
 
+/** Recent views stay usable from memory when a write is refused, and an outranked recording lives here for the visit. */
 const MEMORY_ENTRIES = 4
 
 /**

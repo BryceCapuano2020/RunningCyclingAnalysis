@@ -1,7 +1,6 @@
 # age public recipient for the encrypted production backups (.github/workflows/backup.yml).
 #
-# THIS IS A PLACEHOLDER. The backup workflow refuses to run until a real public key replaces the
-# line below. Nothing is exported or uploaded before that.
+# The owner's public key, set 11 Nov 2026. The private key is kept offline by the owner.
 #
 # Set-up, on your own machine and never in CI:
 #   1. Install age (https://age-encryption.org) and run:  age-keygen -o backup-key.txt
@@ -11,5 +10,5 @@
 #      or another store you control. Never commit it, and never add it to GitHub secrets. Without
 #      it, no backup can be decrypted, so keep a second copy somewhere separate.
 #
-# Replace this line with the public key (age1...):
-REPLACE_WITH_AGE_PUBLIC_KEY
+# Public key (age1...):
+age1pryq973ersk6rlmfq6z28thrrysxn84dtutg3n7g495wpxpugggsfq9rsd

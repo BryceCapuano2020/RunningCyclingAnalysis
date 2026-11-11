@@ -53,7 +53,11 @@ export const REVISIONS: readonly RevisionDeclaration[] = [
     // long best efforts, the weekly bests, the change test's verdicts and the records move by more than a third of the
     // least change the app states (a steep descent now costs more), and a library with some digests that carry a
     // temperature and some that do not reads a different fitness (the warm-day term), so a library holds one revision
-    // at a time. Zones, thresholds and the lean do not move, which the study also records.
+    // at a time. Zones, thresholds and the lean do not move, which the study also records. The sizes: long best
+    // efforts of a hilly library move by up to 2% (more than a third of the least change the app states), the
+    // warm-day term moves the fitness of a library with temperatures by 5% and flips its status in two mixtures,
+    // and a run over the marathon sets a record only revision 7 can hold. A signed-in library with stale digests
+    // keeps its activities listed, shows the update panel and holds its results until it is rebuilt.
     kind: 'exclusive',
     adds: ['temperature', 'athleteType', 'localDayShift'],
     changes: [
@@ -138,6 +142,8 @@ export function stepsFrom(
 /**
  * How a digest of `revision` stands against the current one. The one place revisions are compared.
  * A revision the table does not know, below the first, is stale: it is older than anything declared.
+ * `current`; `compatible` (read, marked as the previous model); `stale` (listed, held out of the analysis until
+ * rebuilt); `newer` (listed, "need a newer app").
  */
 export function revisionStatus(
   revision: number,

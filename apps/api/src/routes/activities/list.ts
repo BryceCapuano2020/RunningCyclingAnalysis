@@ -231,6 +231,11 @@ function buildListing(page: PageScan): string {
   })
 }
 
+/*
+ * The library list: only the session user's rows, in pages of at most MAX_PAGE_SIZE, by the stateless keyset cursor
+ * (created_at, id). Each stored digest is sent as stored after a JSON check (body.ts); the browser validates it
+ * and skips one that fails (apps/web/src/api/pageRecords.ts).
+ */
 export const listRoutes = new Hono<AppEnv>()
 
 listRoutes.get(

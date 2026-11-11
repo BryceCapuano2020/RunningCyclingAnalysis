@@ -11,7 +11,7 @@ import { R1CreateDigestSchema, R1StoredDigestSchema } from './test/frozen/r1/dig
  * The rollback floor W1 (the Worker of release R1) against what revision 7 writes. W1 must list every
  * revision-7 digest with every field kept, and must take revision 7 for a newer app's: the library shows
  * "need a newer app", never the landing page, and the rows are not lost. This is the claim the floor
- * moves on (docs/ARCHITECTURE.md, rollback).
+ * moves on (docs/RELEASES.md, rollback).
  */
 
 const FIELDS = {

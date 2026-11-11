@@ -5,7 +5,7 @@ import type { LibraryState } from './libraryState'
 import type { WorkerTransport } from './workerTransport'
 import { useLibraryActions } from './libraryActions'
 
-function setup(status: 'loaded' | 'failed' | 'idle' = 'loaded') {
+function setup(status: 'loaded' | 'failed' | 'idle' = 'loaded', keepFiles?: boolean) {
   const send = vi.fn()
   const setLibrary = vi.fn()
   const library = {
@@ -26,7 +26,12 @@ function setup(status: 'loaded' | 'failed' | 'idle' = 'loaded') {
         restartWorker: vi.fn(),
       } as unknown as WorkerTransport,
       refreshBusy: vi.fn(),
-      accountRef: { current: { status: 'signed-in', me: null } } as never,
+      accountRef: {
+        current: {
+          status: 'signed-in',
+          me: keepFiles === undefined ? null : { profile: { keepFiles } },
+        },
+      } as never,
       settingsRef: { current: { massKg: 75, bikeMassKg: 9 } },
       setError: vi.fn(),
     }),
@@ -64,5 +69,17 @@ describe('reading the library again', () => {
     act(() => result.current.loadLibrary('u1', true))
     act(() => result.current.loadLibrary('u2'))
     expect(loads()).toBe(2)
+  })
+
+  it('tells the worker whether the account keeps original files, so a refused original is not waited for when it never will be', () => {
+    const off = setup('loaded', false)
+    act(() => off.result.current.loadLibrary('u1'))
+    expect(off.send).toHaveBeenCalledWith({ type: 'loadServer', userId: 'u1', keepFiles: false })
+    const on = setup('loaded', true)
+    act(() => on.result.current.loadLibrary('u1'))
+    expect(on.send).toHaveBeenCalledWith({ type: 'loadServer', userId: 'u1' })
+    const unknown = setup('loaded')
+    act(() => unknown.result.current.loadLibrary('u1'))
+    expect(unknown.send).toHaveBeenCalledWith({ type: 'loadServer', userId: 'u1' })
   })
 })

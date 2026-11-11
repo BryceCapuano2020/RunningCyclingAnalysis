@@ -10,7 +10,7 @@ import { databaseExists } from './workbenchExists'
  *  - `marks`, `seen`: the baseline of "since your last import" and what the athlete has seen of it, key `<scope>`.
  *
  * A scope is `device` for the library kept in this browser and `account:<userId>` for a signed-in account. Nothing
- * here leaves the browser, and every use is best effort: storage that cannot be opened is no index and no baseline,
+ * here leaves the browser, and no route, name, heart rate or file is in it. Every use is best effort: storage that cannot be opened is no index and no baseline,
  * which behaves as a first visit.
  */
 export const CHECKIN_DB = 'rca-checkin'
