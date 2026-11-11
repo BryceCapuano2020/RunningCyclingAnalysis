@@ -333,7 +333,9 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   The quotas came down once more, to 3,000 activities and 24 MiB, because the largest-account case at 4,000 activities, 32 MiB and
   60,000 lift sets dropped Miniflare's local D1 socket on the CI runner while it was seeded (`fetch failed`, `other side closed`); the
   1,000, 2,000 and 3,000 cases had passed. The seeding was also made lighter (batches of at most 25 rows and about 128 KiB, built one
-  batch at a time). CI figures for the 3,000 case: not recorded yet. They are added when the sim job has run three times. (CI-FIGURES-PENDING)
+  batch at a time). CI figures for the account-limit case (3,000 activities, 23.9 MiB of digests, 60,000 lift sets),
+  three runs of the sim job on 11 Nov 2026: peak heap 54.7, 54.6 and 54.7 MiB; none dropped the socket. The whole test,
+  seeding included, took 17.9 to 24.5 s of wall time, an upper bound on the compute; CPU was not measured separately.
 
 - **One job at a time:** the consumer runs the accounts of a batch one after another, never together, so the memory
   is one library's.
