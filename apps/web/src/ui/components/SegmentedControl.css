@@ -41,6 +41,13 @@
   text-align: center;
 }
 
+/* A phone's row of four (All, Runs, Rides, Lifts) needs the narrower inset to fit 320 px at 200% text. */
+@media (max-width: 479px) {
+  .segmented-control__option {
+    padding-inline: var(--space-2);
+  }
+}
+
 /* A label of two lines balances them, so a short last word does not sit alone on the second. */
 .segmented-control__option span {
   text-wrap: balance;

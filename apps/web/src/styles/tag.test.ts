@@ -5,12 +5,7 @@ const components = await readStylesheet(import.meta.url, './components.css')
 const sheets = await readStylesheetsUnder(import.meta.url, '../')
 
 /** The label classes that were seven rules of their own and now take the one `.tag` (D10: fewer boxes). */
-const TAGGED = [
-  '.stat-tile__name',
-  '.sport-hero__period',
-  '.fitness-card__sport',
-  '.fitness-track__tag',
-]
+const TAGGED = ['.stat-tile__name', '.sport-hero__period', '.fitness-card__sport']
 const FACE = /(font-family|font-size|font-weight|letter-spacing|text-transform)\s*:/
 
 describe('the tag', () => {
@@ -40,11 +35,5 @@ describe('the tag', () => {
       const rule = own.exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))
       if (rule?.[2] !== undefined) expect(rule[2], `${path} ${selector}`).not.toMatch(FACE)
     }
-  })
-
-  it('names the fitness track’s marks as meta lines, with no tag of their own', () => {
-    const track = sheets.find(({ path }) => path.endsWith('FitnessTrack.css'))?.css ?? ''
-    expect(track).not.toMatch(/\.tag\b/)
-    expect(track).toMatch(/\.fitness-track__tag--now \{[^}]*color:\s*var\(--ink\)/)
   })
 })

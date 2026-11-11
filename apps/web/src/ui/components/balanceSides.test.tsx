@@ -26,7 +26,7 @@ describe('every surface writes a balance from the same side', () => {
   it('writes the cycling side in the lede, and of the range in the range text and the spoken sentence', () => {
     expect(reading.lean).toBe('even')
     expect(rangeText(reading)).toBe(RANGE)
-    expect(lineOf(-2, -6, 2)).toBe('Cycling grades 2 points higher at\u00a0threshold.')
+    expect(lineOf(-2, -6, 2)).toBe('Cycling grades 2 points higher.')
     expect(balanceSentence(reading)).toBe(`In balance: cycling 2 points higher, range ${RANGE}`)
   })
 
@@ -39,7 +39,7 @@ describe('every surface writes a balance from the same side', () => {
   })
 
   it('says the two grade the same for an estimate of zero, with no range to print', () => {
-    expect(lineOf(0, 0, 0)).toBe('Running and cycling grade the same at\u00a0threshold.')
+    expect(lineOf(0, 0, 0)).toBe('Running and cycling grade the same.')
   })
 
   it('signs a range that touches zero', () => {

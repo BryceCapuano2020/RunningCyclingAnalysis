@@ -23,13 +23,14 @@ function page(result: AnalysisResult | null, profile: AgeProfile | null, weightK
 }
 
 /** The most words the page may hold with every disclosure closed. */
-const BUDGET = 1340
+const BUDGET = 1380
 
 describe('the Method page', () => {
   it('stays within its word budget', () => {
     const { container } = render(page(makeResult(), MAN_BORN_1986))
     // Measured with every disclosure closed: 2,342 words before the rewrite, 3,822 with every disclosure open. The rewrite
-    // leads each section with one line and lists its facts, and leaves 1,333.
+    // leads each section with one line and lists its facts, and leaves 1,333. The owner asked for a meaning beside every
+    // level, the four WMA classes included, and the header's one line and labels: 1,347 with them.
     expect(wordsOf(container).length).toBeLessThanOrEqual(BUDGET)
   })
 })

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisSession } from '@rca/core/session'
 import type { Period } from '@rca/core/period'
 import { makeActivity, makeResult, makeRunThreshold } from '../components/test/fixtures'
+import { headlineHalf, raceAnswerFor } from '../raceAnswer'
 import { threshold } from '../records'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from '../sampleAthlete'
 import { thresholdSpan } from '../thresholdRange'
@@ -25,19 +26,23 @@ function sample() {
   return { state, result, grades: { run: headline.run, ride: headline.ride } }
 }
 
+/** The tiles as Balance renders them, with the half marathon the page asks for from the same result and library. */
 function renderTiles(over: Partial<Parameters<typeof BalanceTiles>[0]> = {}) {
   const { state, result, grades } = sample()
+  const shown = { result, library: state.library, ...over }
+  const half = headlineHalf(
+    raceAnswerFor('run', { ...shown, rangeDays: PERIOD.days, periodEndMs: PERIOD.endMs }),
+  )
   return render(
     <BalanceTiles
-      result={result}
-      library={state.library}
       units="metric"
       massKg={SAMPLE_SETTINGS.massKg}
       grades={grades}
       weighted
       period={PERIOD}
       onAddFiles={vi.fn()}
-      {...over}
+      half={half}
+      {...shown}
     />,
   )
 }
@@ -105,7 +110,7 @@ describe('BalanceTiles', () => {
       'Runs used',
       'Strongest effort',
     ])
-    expect(detailSummaries(run)).toEqual(['Details for threshold pace'])
+    expect(detailSummaries(run)).toEqual(['Details for half-marathon'])
   })
 
   it('gives the ride its watts alone, the watts per kilogram one tap down', () => {
@@ -122,17 +127,17 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.props')?.textContent).toMatch(/Likely time.*Threshold pace/)
   })
 
-  it('says each sport’s level and grade on its tile, at threshold, and no line of the best 20 min of its own', () => {
+  it('says each sport’s level and grade on its tile, and no line of the best 20 min of its own', () => {
     renderTiles()
     const run = screen.getByRole('article', { name: 'Half-marathon' })
-    expect(run).toHaveTextContent(/\w+ · \d+% at threshold\./)
+    expect(run).toHaveTextContent(/\w+ · \d+%\./)
     expect(run).not.toHaveTextContent(/Best 20 min:/)
     const ride = screen.getByRole('article', { name: 'Functional threshold power' })
-    expect(ride).toHaveTextContent(/\w+ · \d+% at threshold\./)
+    expect(ride).toHaveTextContent(/\w+ · \d+%\./)
     expect(ride).not.toHaveTextContent(/Best 20 min:/)
     // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
     const lines = [...ride.querySelectorAll('.stat-tile__line')].map((line) => line.textContent)
-    expect(lines.at(-1)).toMatch(/^\w+ · \d+% at threshold\./)
+    expect(lines.at(-1)).toMatch(/^\w+ · \d+%\./)
   })
 
   it('holds the ride’s tiles for the weight', () => {

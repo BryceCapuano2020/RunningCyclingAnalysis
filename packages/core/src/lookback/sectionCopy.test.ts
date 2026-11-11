@@ -1,30 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { SportLookBack } from './compute'
-import { episodeFigure, tooShortText } from './copy'
-import { episodeFinding, yearsFinding } from './sectionCopy'
-import type { EffortMilestones, HindsightEpisode, HindsightFitness } from './types'
+import { tooShortText } from './copy'
+import { yearsFinding } from './sectionCopy'
+import type { EffortMilestones, HindsightFitness } from './types'
 
 const T = (year: number, month: number) => Date.UTC(year, month - 1, 1)
-const episode = (over: Partial<HindsightEpisode>): HindsightEpisode => ({
-  kind: 'slip-back',
-  fromMs: T(2021, 5),
-  toMs: T(2022, 1),
-  change: { value: -0.08, low: -0.1, high: -0.06 },
-  regained: null,
-  remaining: null,
-  z: -6,
-  steps: 1,
-  runs: 60,
-  ...over,
-})
 const years = (over: Partial<HindsightFitness>): HindsightFitness => ({
   kind: 'ok',
   fromMs: T(2020, 1),
   toMs: T(2024, 8),
   runs: 300,
   levels: [],
-  episodes: [],
-  omittedEpisodes: 0,
   quiet: [],
   thin: [],
   breaks: [],
@@ -39,58 +25,20 @@ const block = (sport: 'run' | 'ride', fitness: SportLookBack['fitness']): SportL
 })
 
 describe("the finding a sport's years are named by", () => {
-  it('is the latest episode that ended, said by its year and how it ended', () => {
-    const run = block(
-      'run',
-      years({
-        episodes: [
-          episode({}),
-          episode({
-            kind: 'improvement',
-            fromMs: T(2023, 2),
-            toMs: T(2023, 9),
-            change: { value: 0.07, low: 0.05, high: 0.09 },
-          }),
-          episode({ kind: 'slip-open', fromMs: T(2024, 3), toMs: null }),
-        ],
-      }),
+  it('is the quiet stretch, said in the sport own terms', () => {
+    const quiet = [{ fromMs: T(2021, 6), toMs: T(2024, 7), within: 0.03, runs: 310 }]
+    expect(yearsFinding(block('run', years({ quiet })))).toBe(
+      'Pace stayed within 3% from June 2021 to July 2024',
     )
-    expect(yearsFinding(run)).toBe('Improved in 2023')
-    expect(episodeFinding(episode({}), run)).toBe('Slipped in 2021, then came back')
-    expect(episodeFinding(episode({ kind: 'slip-partly-back' }), run)).toBe(
-      'Slipped in 2021, then came part of the way back',
-    )
-    expect(episodeFinding(episode({ kind: 'slip-open' }), run)).toBe(
-      'Slipped in 2021, stayed lower until it fell again',
-    )
-    expect(
-      episodeFinding(
-        episode({ kind: 'after-break', change: { value: 0.08, low: 0.05, high: 0.1 } }),
-        run,
-      ),
-    ).toBe('Pace was faster after the break in 2021')
+    expect(yearsFinding(block('ride', years({ quiet })))).toMatch(/^Power stayed within /)
   })
 
-  it('says a ride in power, and an open slip only as the year it began', () => {
-    const ride = block('ride', years({ episodes: [episode({ kind: 'slip-open', toMs: null })] }))
-    expect(yearsFinding(ride)).toBe('Slipped in 2021')
-    const up = block(
-      'ride',
-      years({
-        episodes: [episode({ kind: 'improvement', change: { value: 0.08, low: 0.06, high: 0.1 } })],
-      }),
-    )
-    expect(yearsFinding(up)).toBe('Improved in 2021')
-  })
-
-  it('falls back to a quiet stretch, then to nothing, and says what a short library needs', () => {
+  it('waits for the card before it says a level stayed within a range, and has nothing without one', () => {
     const quiet = block(
       'run',
       years({ quiet: [{ fromMs: T(2021, 6), toMs: T(2024, 7), within: 0.03, runs: 310 }] }),
     )
-    expect(yearsFinding(quiet)).toBe('Pace stayed within 3% from June 2021 to July 2024')
-    // A statement that a level stayed within a range waits for the card to allow it.
-    expect(yearsFinding(quiet, 'slipping')).toBeNull()
+    expect(yearsFinding(quiet, 'improving')).toBeNull()
     expect(yearsFinding(quiet, 'holding')).toMatch(/^Pace stayed within 3% from /)
     expect(yearsFinding(block('run', years({})))).toBeNull()
     expect(yearsFinding(block('run', { kind: 'unavailable' }))).toBeNull()
@@ -116,45 +64,17 @@ describe("the finding a sport's years are named by", () => {
     expect(yearsFinding(ride)).toBe('Best efforts by year')
   })
 
-  it('says rides where a ride is meant: steady riding, steady rides', () => {
-    const short = {
-      kind: 'too-short',
-      steady: 20,
-      weeks: 30,
-      needSteady: 40,
-      needWeeks: 52,
-    } as const
-    expect(yearsFinding(block('ride', short))).toBeNull()
+  it('says rides where a ride is meant: steady rides', () => {
     expect(tooShortText('ride')).toBe('Not enough steady rides for a fitness history.')
-    const ride = block(
-      'ride',
-      years({
-        episodes: [episode({})],
-        quiet: [{ fromMs: T(2022, 1), toMs: T(2023, 1), within: 0.03, runs: 90 }],
-      }),
-    )
-    expect(episodeFigure(episode({}), ride, ride.fitness as HindsightFitness).steady).toBe(
-      '60 steady rides',
-    )
   })
 
   it('uses none of the words the copy rules ban', () => {
     const run = block(
       'run',
-      years({
-        episodes: [
-          episode({}),
-          episode({ kind: 'after-break' }),
-          episode({ kind: 'slip-open', toMs: T(2023, 1) }),
-        ],
-      }),
+      years({ quiet: [{ fromMs: T(2021, 6), toMs: T(2024, 7), within: 0.03, runs: 310 }] }),
     )
-    const all =
-      run.fitness.kind === 'ok'
-        ? run.fitness.episodes.map((e) => episodeFinding(e, run)).join(' ')
-        : ''
-    expect(all).not.toMatch(
-      /limiter|weak|strength|holding you back|ahead of|because|caused|grade|—/i,
+    expect(yearsFinding(run)).not.toMatch(
+      /limiter|weak|strength|holding you back|ahead of|because|caused|grade|slip|—/i,
     )
   })
 })

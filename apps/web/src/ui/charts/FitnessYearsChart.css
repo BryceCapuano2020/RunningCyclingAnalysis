@@ -28,30 +28,6 @@
   fill-opacity: 0.1;
 }
 
-/* The slips and rises: a wash across the plot, told apart by shape and word (a slip has a dashed edge). */
-.fitness-years__span {
-  fill: var(--ink-secondary);
-  fill-opacity: 0.1;
-  stroke: var(--ink-secondary);
-  stroke-opacity: 0.45;
-  stroke-width: 1px;
-}
-
-.fitness-years__span--slip {
-  stroke-dasharray: 4 3;
-}
-
-/* The slip or rise the pointer is over: a firmer wash, so its dates in the reading are plainly its own. */
-.fitness-years__span--read {
-  fill-opacity: 0.22;
-  stroke-opacity: 0.8;
-}
-
-.fitness-years__span--rise {
-  stroke-dasharray: none;
-  fill-opacity: 0.16;
-}
-
 @media (forced-colors: active) {
   .fitness-years__dots--dot {
     stroke: CanvasText;
@@ -67,8 +43,7 @@
     stroke: Highlight;
   }
 
-  .fitness-years__year,
-  .fitness-years__span {
+  .fitness-years__year {
     fill: Canvas;
     stroke: CanvasText;
   }

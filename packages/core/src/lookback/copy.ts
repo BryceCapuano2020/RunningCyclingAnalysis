@@ -3,17 +3,12 @@ import { MONTH_NAMES, civilOfDay, localDayOfInstant } from '../calendar'
 import { formatDuration } from '../units/format'
 import { formatPace, formatPower } from '../units'
 import type { UnitSystem } from '../units'
-import { oneSided, shownChange, sized, withinText } from '../fitness/copy'
-import type { Ranged } from '../fitness/types'
 import type { Sport } from '../types'
-import type { LookBack, SportLookBack } from './compute'
-import type { Lead } from './lead'
-import type { EffortMilestones, HindsightEpisode, HindsightFitness, Span } from './types'
+import type { EffortMilestones } from './types'
 
 /**
- * The words of the look-back. Every date carries its year, every claim about the level that the look-back cannot see
- * past the horizon is dated to it, and a change is told in the page's own terms (a run in pace, a ride in power).
- * Plain, in the reader's voice; no cause is ever given.
+ * The words of the look-back. Every date carries its year, and every claim about the level that the look-back cannot see
+ * past the horizon is dated to it. Plain, in the reader's voice; no cause is ever given.
  */
 
 /** "May 2021". */
@@ -42,159 +37,10 @@ export function monthsBetween(fromMs: number, toMs: number): string {
     : `${monthYear(fromMs)} to ${monthYear(toMs)}`
 }
 
-/** What each sport's level is called, and how a change in it is worded. */
-export const SAY: Record<
-  Sport,
-  {
-    subject: string
-    down: string
-    up: string
-    steady: string
-    all: string
-    /** What a break was from: "After a break from running". */
-    breakFrom: string
-  }
-> = {
-  run: {
-    subject: 'pace',
-    down: 'slower',
-    up: 'faster',
-    steady: 'steady runs',
-    all: 'runs',
-    breakFrom: 'running',
-  },
-  ride: {
-    subject: 'power',
-    down: 'lower',
-    up: 'higher',
-    steady: 'steady rides',
-    all: 'rides',
-    breakFrom: 'riding',
-  },
-}
-
-export const level = (sport: SportLookBack): string =>
-  `your ${SAY[sport.sport].subject} at ${sport.referenceHr === null ? 'the same heart rate' : `${sport.referenceHr} bpm`}`
-
-/** The size of a change and its range, as the page writes it, and which way it went. */
-function amount(sport: Sport, change: Ranged): string {
-  const shown = shownChange(sport, change)
-  return `${sized(sport, change)} ${shown.value < 0 ? SAY[sport].down : SAY[sport].up}`
-}
-
-/** How long a best has stood, in whole years: "Stood 8 years." Nothing under a year, which is no news. */
-export function stoodText(fromMs: number, toMs: number): string {
-  const years = Math.floor(Math.max(0, toMs - fromMs) / (365.25 * 86_400_000))
-  return years === 0 ? '' : `Stood ${years} ${years === 1 ? 'year' : 'years'}.`
-}
-
-/** The break that an after-break step sits beside, from the breaks the sport had. */
-function breakNear(years: HindsightFitness, episode: HindsightEpisode): Span | undefined {
-  const near = 6 * 7 * 86_400_000
-  return years.breaks.find(
-    (b) => episode.fromMs >= b.fromMs - near && episode.fromMs <= b.toMs + near,
-  )
-}
-
-const upper = (text: string) => `${text[0]!.toUpperCase()}${text.slice(1)}`
-
-/** What is still missing after a partial return, as a short sentence, or nothing when it is no longer on one side of level. */
-const stillOff = (s: Sport, remaining: Ranged | null): string =>
-  remaining !== null && oneSided(remaining) ? ` Still ${sized(s, remaining)} off.` : ''
-
-/**
- * An episode as short sentences, each with at most one range and the size first, told in the reader's voice. `held`
- * adds that a rise stayed through the horizon.
- */
-export function episodeSentence(
-  episode: HindsightEpisode,
-  sport: SportLookBack,
-  years: HindsightFitness,
-  held = false,
-): string {
-  const s = sport.sport
-  const from = monthYear(episode.fromMs)
-  const to = episode.toMs === null ? null : monthYear(episode.toMs)
-  const slipped = `Slipped ${sized(s, episode.change)} in ${from}.`
-  switch (episode.kind) {
-    case 'slip-back':
-      return `${slipped} Back by ${to}.`
-    case 'slip-partly-back':
-      return `${slipped} Up ${sized(s, episode.regained!)} by ${to}.${stillOff(s, episode.remaining)}`
-    case 'slip-open':
-      // One that ended before the horizon was followed by a further fall, and the level had not come back when it began.
-      return to === null
-        ? `${slipped} Still lower in ${monthYear(years.toMs)}.`
-        : `${slipped} Stayed lower until it fell again in ${to}.`
-    case 'improvement': {
-      const span = monthsBetween(episode.fromMs, episode.toMs ?? years.toMs)
-      const holds = held ? ` Held through ${monthYear(years.toMs)}.` : ''
-      return `Improved ${sized(s, episode.change)} between ${span.replace(' to ', ' and ')}.${holds}`
-    }
-    case 'after-break': {
-      const gap = breakNear(years, episode)
-      const how = `${SAY[s].subject} was ${amount(s, episode.change)}`
-      return gap === undefined
-        ? `${upper(how)} after a break from ${SAY[s].breakFrom} in ${from}.`
-        : `No ${SAY[s].steady} from ${monthsBetween(gap.fromMs, gap.toMs)}. Then ${how}.`
-    }
-  }
-}
-
-/** One row of the list of episodes as a label over a figure: what happened, when, and its size. */
-export interface EpisodeFigure {
-  /** What happened: "Slipped, then back". */
-  label: string
-  /** When, with the steady activities it rests on: "May 2021 to January 2022". */
-  span: string
-  /** The size, with its range: "6% (3 to 9)", or "6% (3 to 9) faster" for a step after a break. */
-  value: string
-  /** What followed a slip that did not fully come back: "Up 4%", "Up 4%, still 2% off". Empty otherwise. */
-  then: string
-  /** How many steady activities the episode rests on: "64 steady runs". Empty for a step after a break. */
-  steady: string
-}
-
-export function episodeFigure(
-  episode: HindsightEpisode,
-  sport: SportLookBack,
-  years: HindsightFitness,
-): EpisodeFigure {
-  const s = sport.sport
-  const span =
-    episode.toMs === null ? monthYear(episode.fromMs) : monthsBetween(episode.fromMs, episode.toMs)
-  const steady = `${episode.runs} ${SAY[s].steady}`
-  const size = sized(s, episode.change)
-  switch (episode.kind) {
-    case 'slip-back':
-      return { label: 'Slipped, then back', span, value: size, then: '', steady }
-    case 'slip-partly-back': {
-      const off = episode.remaining !== null && oneSided(episode.remaining)
-      const up = `Up ${sized(s, episode.regained!)}`
-      const then = off ? `${up}, still ${sized(s, episode.remaining!)} off` : up
-      return { label: 'Slipped, part way back', span, value: size, then, steady }
-    }
-    case 'slip-open':
-      return {
-        label: episode.toMs === null ? 'Slipped, still lower' : 'Slipped, fell again',
-        span,
-        value: size,
-        then: episode.toMs === null ? `Lower in ${monthYear(years.toMs)}` : '',
-        steady,
-      }
-    case 'improvement':
-      return { label: 'Improved', span, value: size, then: '', steady }
-    case 'after-break': {
-      const gap = breakNear(years, episode)
-      return {
-        label: `${upper(SAY[s].subject)} after a break`,
-        span: gap === undefined ? monthYear(episode.fromMs) : monthsBetween(gap.fromMs, gap.toMs),
-        value: amount(s, episode.change),
-        then: '',
-        steady: '',
-      }
-    }
-  }
+/** What each sport's level is called, and its steady activities. */
+export const SAY: Record<Sport, { subject: string; steady: string }> = {
+  run: { subject: 'pace', steady: 'steady runs' },
+  ride: { subject: 'power', steady: 'steady rides' },
 }
 
 /** What an effort is called: "5 min", "20 min", "60 min", "5 km", "10 km", "half marathon". */
@@ -220,20 +66,4 @@ export function bestValue(
 /** What a sport's years lack, as one line with no counts: a library with none would otherwise read "You have 0 over 0". */
 export function tooShortText(sport: Sport = 'run'): string {
   return `Not enough ${SAY[sport].steady} for a fitness history.`
-}
-
-/** The lead of the look-back as one sentence, in the reader's units. */
-export function leadSentence(lead: Lead, lookBack: LookBack, system: UnitSystem): string {
-  const sport = lookBack.sports[lead.sport]
-  if (lead.kind === 'episode') {
-    return episodeSentence(lead.episode, sport, sport.fitness as HindsightFitness, lead.held)
-  }
-  if (lead.kind === 'quiet') {
-    const q = lead.stretch
-    return `${upper(level(sport))} stayed within ${withinText(lead.sport, q.within)} from ${monthYear(q.fromMs)} to ${monthYear(q.toMs)}.`
-  }
-  const m = lead.best
-  const set = `Best ${effortName(m.effort)}: ${bestValue(m, m.best.value, system)}, set on ${dayMonthYear(m.best.atMs)}.`
-  const stood = stoodText(m.best.atMs, lookBack.asOfMs)
-  return stood === '' ? set : `${set} ${stood}`
 }

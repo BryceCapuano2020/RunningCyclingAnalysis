@@ -2239,7 +2239,7 @@ describe('useAnalysis state', () => {
         state: { ...STATE, result: makeResult() },
         outcome,
         checkIn: {
-          checkIn: { ...checkIn, bests: [best], fitness: [], episodes: [], quiet: false },
+          checkIn: { ...checkIn, bests: [best], quiet: false },
           seen: false,
         },
       }),

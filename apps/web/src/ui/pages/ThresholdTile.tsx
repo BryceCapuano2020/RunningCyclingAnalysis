@@ -120,7 +120,12 @@ export function ThresholdTile({
         }
   return (
     <StatTile sport={sport} heading={lead.heading} figure={lead.figure}>
-      <ThresholdBasis sport={sport} rows={lead.rows} className="stat-tile__source" />
+      <ThresholdBasis
+        sport={sport}
+        rows={lead.rows}
+        className="stat-tile__source"
+        name={half === null ? undefined : lead.heading}
+      />
       {line === null ? null : <p className="stat-tile__line">{line}</p>}
     </StatTile>
   )

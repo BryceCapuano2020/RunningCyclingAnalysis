@@ -7,9 +7,8 @@ const RANGE = / \((?:[\d:.,]+) to (?:[\d:.,]+)\)/g
 export const withoutRange = (text: string): string => text.replace(RANGE, '')
 
 /**
- * The one line under a row's title: the first change where the status calls one ("Up 9% from your 2023 low."), else the
- * level ("205 W at 140 bpm."), each without its range.
+ * The one line under a row's title: the level ("205 W at 140 bpm."), without its range.
  */
 export function fitnessLine(view: FitnessView): string {
-  return withoutRange(view.changes[0] ?? view.headline)
+  return withoutRange(view.headline)
 }

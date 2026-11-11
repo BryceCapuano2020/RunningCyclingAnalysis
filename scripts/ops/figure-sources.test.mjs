@@ -40,7 +40,7 @@ const BANNED = [
 const ALLOWED = new Map([
   [
     'ui/grades.ts',
-    'grades a best at a duration (the grade by duration) and a distance record by its finish time, which the road standards grade; neither is a threshold figure',
+    'grades a best at a duration (an activity’s and the records’ bests) and a distance record by its finish time, which the road standards grade; neither is a threshold figure',
   ],
 ])
 
@@ -252,7 +252,7 @@ test('names fixtures and test folders as support, and not an ordinary module', (
   ]) {
     assert.equal(isSupport(path), true, path)
   }
-  for (const path of ['./gradeProfile', './landingFigures', './latest', './contest']) {
+  for (const path of ['./grades', './landingFigures', './latest', './contest']) {
     assert.equal(isSupport(path), false, path)
   }
   assert.deepEqual(

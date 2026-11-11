@@ -19,19 +19,31 @@ import { MethodPage } from './pages/MethodPage'
 import { SportAnswer } from './pages/SportAnswer'
 import { standingOf } from './standing'
 import { gradesOfStanding } from './thresholdGrade'
+import { halfForecastFor } from './runHalf'
 
 afterEach(cleanup)
 
 const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
 const result = state.result!
-const standing = standingOf(result, SAMPLE_PROFILE, {
-  massKg: SAMPLE_SETTINGS.massKg,
-  units: 'metric',
-})
+// The run is graded by its forecast half, asked as the sport page asks it (all time, the sample's library and judgement).
+const raceContext = {
+  result,
+  rangeDays: null,
+  library: state.library,
+  heartRateJudgement: state.heartRateJudgement,
+}
+const half = halfForecastFor(raceContext)
+const standing = standingOf(
+  result,
+  SAMPLE_PROFILE,
+  { massKg: SAMPLE_SETTINGS.massKg, units: 'metric' },
+  half,
+)
 const grades = gradesOfStanding(result, standing)
 
 describe('one standing, read by every surface', () => {
-  it('prints the same threshold grade on the triangle’s corners and on each sport page', () => {
+  it('prints the same grade on the triangle’s corners and on each sport page', () => {
+    expect(half).not.toBeNull()
     const { container } = render(<LevelTriangle view={triangleViewOf(grades)} />)
     const corner = (sport: string) =>
       container.querySelector(`[data-sport="${sport}"] .level-triangle__figure`)?.textContent
@@ -54,6 +66,8 @@ describe('one standing, read by every surface', () => {
           count={3}
           held={false}
           rangeDays={null}
+          library={state.library}
+          heartRateJudgement={state.heartRateJudgement}
           emptyText=""
           inLibrary={3}
           onShowAll={() => {}}

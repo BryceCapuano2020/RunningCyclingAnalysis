@@ -49,10 +49,11 @@ describe('How this works entries', () => {
 
   it('has an entry for every section a sport page can show, or a Method section of its own', () => {
     // Typed by SectionId, so a new section fails to compile here until it is placed. Race predictions have their own
-    // Method section, Thresholds and race times, which their Details link to.
+    // Method section, Thresholds and race times, which their Details link to. Levels say what they mean in the table itself.
     const entryFor: Record<SectionId, RegExp | null> = {
       years: /Fitness status/,
       bestEfforts: /Best efforts and curves/,
+      levels: null,
       racePredictions: null,
       timeInZones: /Dated settings and zones/,
     }

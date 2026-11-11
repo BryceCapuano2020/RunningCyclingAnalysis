@@ -49,7 +49,7 @@ export const SPORT_FORMAT: Record<Sport, SportFormat> = {
     glyph: 'dot',
     gradeName: 'Age grade',
     axisTitle: (units, full = false) =>
-      `${full ? 'Grade-adjusted pace' : 'GAP'} (${PACE_UNIT[units]}), faster up`,
+      `${full ? 'Grade-adjusted pace' : 'GAP'} (${PACE_UNIT[units]})`,
     plotted: (speedMs, units) => paceSeconds(speedMs, units),
     formatted: (speedMs, units) => formatPace(speedMs, units),
     fillsArea: false,

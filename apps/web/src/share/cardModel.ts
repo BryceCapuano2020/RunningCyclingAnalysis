@@ -2,7 +2,10 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { LIFT_STANDARDS_SOURCE } from '@rca/core/lift'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
+import type { RacePrediction } from '@rca/core/predict'
+import type { TriangleSport } from '@rca/core/standing'
 import type { AthleteSettings, Sport } from '@rca/core/types'
+import { formatRecordTime } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_WORDS } from '../appName'
 import type { BalanceGap } from '../ui/balanceGap'
@@ -12,9 +15,10 @@ import type { HoldInputs } from '../ui/resultHold'
 import { rideHoldInputs } from '../ui/rideLeftOut'
 import { periodDates } from '../ui/components/rangeOptions'
 import type { GradeOutcome } from '../ui/grades'
+import type { LiftTileModel } from '../ui/lift/liftTile'
 import { threshold } from '../ui/records'
 import { BALANCE_PAIR } from '../ui/sports'
-import { THRESHOLD_NAME } from '../ui/thresholdName'
+import { HEADLINE_NAME, THRESHOLD_NAME } from '../ui/thresholdName'
 import { triangleAnswer, triangleTitleText } from '../ui/pages/triangleCopy'
 import { triangleViewOf } from '../ui/triangleSports'
 import type { TriangleView } from '../ui/triangleSports'
@@ -28,10 +32,10 @@ export interface ShareFigure {
   unit: string
 }
 
-/** One sport's threshold on the card. A card is offered only when every sport has one. */
+/** One sport's headline figure on the card, as Balance's row for it shows it. A card is offered only when run and ride have one. */
 export interface ShareHero {
-  sport: Sport
-  /** The threshold's name as Balance titles it, such as "Run threshold". */
+  sport: TriangleSport
+  /** The figure's name as Balance titles its row, such as "Half-marathon" or "Functional threshold power". */
   label: string
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
@@ -52,7 +56,7 @@ export interface ShareCardModel {
   triangle: TriangleView
   /** The image's description: the headline, the line and the three corners in one sentence. */
   alt: string
-  /** Running first, then cycling. */
+  /** Running first, then cycling, then lifting when it has a figure. */
   heroes: ShareHero[]
   /** The selected period's dates, such as "12 May – 3 Aug 2025". */
   period: string
@@ -125,8 +129,24 @@ function splitFigure(value: string): ShareFigure {
   return { number: value.slice(0, space), unit: value.slice(space + 1) }
 }
 
-/** One sport's hero, or null when the sport has no threshold yet. */
-function heroFor(
+/** The figures Balance's rows lead with that the card repeats: the run's half marathon, and the lifting row. */
+export interface CardFigures {
+  /** The half marathon the run's row leads with (`headlineHalf`), or null when it leads with the threshold. */
+  half: RacePrediction | null
+  /** The lifting row (`liftTileOf`); its figure is null while no lift has an estimate. */
+  lift: LiftTileModel | null
+}
+
+const NO_FIGURES: CardFigures = { half: null, lift: null }
+
+/** Each sport's row name with its threshold: a run's threshold, a ride's functional threshold power. */
+const THRESHOLD_LABEL: Record<Sport, string> = {
+  run: THRESHOLD_NAME.run,
+  ride: HEADLINE_NAME.ride,
+}
+
+/** One sport's threshold as its row shows it, or null when the sport has no threshold yet. */
+function thresholdHero(
   result: AnalysisResult,
   sport: Sport,
   settings: AthleteSettings,
@@ -136,23 +156,42 @@ function heroFor(
   if (estimate === null) return null
   return {
     sport,
-    label: THRESHOLD_NAME[sport],
+    label: THRESHOLD_LABEL[sport],
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
   }
 }
 
-/** Both heroes, running first, or null while either sport has no threshold. */
+/**
+ * The heroes, in the rows' order, or null while either sport has no threshold. The run leads with its half marathon when its
+ * row does, and lifting follows when its row has a figure: the big three total, or the heaviest lift's projected one-rep max.
+ */
 function heroesFor(
   result: AnalysisResult,
   settings: AthleteSettings,
   units: UnitSystem,
+  figures: CardFigures,
 ): ShareHero[] | null {
   const heroes: ShareHero[] = []
   for (const sport of BALANCE_PAIR) {
-    const hero = heroFor(result, sport, settings, units)
+    const hero = thresholdHero(result, sport, settings, units)
     if (hero === null) return null
-    heroes.push(hero)
+    // Only a run predicts a half marathon, as on its row.
+    const half = { run: figures.half, ride: null }[sport]
+    heroes.push(
+      half === null
+        ? hero
+        : {
+            sport,
+            label: HEADLINE_NAME.half,
+            figure: { number: formatRecordTime(half.seconds), unit: '' },
+            sub: null,
+          },
+    )
+  }
+  const { lift } = figures
+  if (lift !== null && lift.figure !== null) {
+    heroes.push({ sport: 'lift', label: lift.heading, figure: lift.figure, sub: null })
   }
   return heroes
 }
@@ -175,13 +214,14 @@ export function buildShareCard(
   name: string | null = null,
   hold: HoldInputs = {},
   triangle: TriangleView = triangleViewOf(grades),
+  figures: CardFigures = NO_FIGURES,
 ): ShareCardModel | null {
   // The ride's own reason to be out of the comparison joins what the app holds, as it does on screen.
   const held = rideHoldInputs(grades.ride, result, hold)
   if (!hasShareableContent(result, gap, weightKnown, held)) return null
   const { pick } = heldPick(result, held)
   const reading = balanceOfPick(gap, pick)
-  const heroes = heroesFor(result, settings, units)
+  const heroes = heroesFor(result, settings, units, figures)
   if (reading === null || heroes === null) return null
   const answer = triangleAnswer(reading, triangle, pick?.point.durationS)
   const headline = triangleTitleText(answer.title)

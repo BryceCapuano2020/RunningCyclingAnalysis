@@ -3,7 +3,6 @@ import {
   DEFAULT_BIKE_MODEL,
   DURATIONS_S,
   EQUIVALENCE_DURATIONS_S,
-  PROFILE_DURATIONS_S,
   RESTING_W_PER_KG,
 } from '../constants'
 import { smoothGrade, travelledDistance } from '../metabolic'
@@ -637,7 +636,6 @@ describe('equivalenceFor', () => {
   })
 
   it("prices a result's own equivalents again from the athlete's sex and mass", () => {
-    // The grade by duration prices the durations a combine leaves out this way, so it must agree with it.
     const equivalence = equivalenceFor(settings.sex)
     expect(result.equivalents.length).toBeGreaterThan(0)
     for (const { ridePowerW, runSpeed } of result.equivalents) {
@@ -645,14 +643,11 @@ describe('equivalenceFor', () => {
     }
   })
 
-  it('leaves the combine at the cross-sport durations, which the grade by duration extends', () => {
+  it('leaves the combine at the cross-sport durations', () => {
     expect(result.equivalents.map((e) => e.durationS)).toEqual(
       EQUIVALENCE_DURATIONS_S.filter((durationS) =>
         result.rideCurve.some((p) => p.durationS === durationS && Number.isFinite(p.value)),
       ),
     )
-    expect(PROFILE_DURATIONS_S).toEqual([
-      180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800,
-    ])
   })
 })

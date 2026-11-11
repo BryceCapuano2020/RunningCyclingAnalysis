@@ -3,8 +3,6 @@ import { DAY_MS } from '../constants'
 import { sameSet } from '../digestMemo'
 import { fitnessHistories } from '../fitness/compute'
 import type { FitnessHistory } from '../fitness/compute'
-import { hindsightsOf } from '../lookback/compute'
-import type { EpisodeKind, SportYears } from '../lookback/types'
 import { quantileSorted } from '../math'
 import type { ActivityDigest, Sport } from '../types'
 import { perSport } from './sports'
@@ -17,14 +15,6 @@ const STEP: Record<Sport, number> = { run: 0.01, ride: 1 }
 const LINE_STEP_DAYS = 28
 const LINE_HALF_DAYS = 42
 const LINE_MIN = 4
-
-/** A slip or a rise the look-back lists, as the weeks it spans on the day clock the dots are on. */
-export interface DotsSpan {
-  kind: 'slip' | 'rise'
-  fromDay: number
-  /** The day the next change began; null while it lasts (to `horizonDay`). */
-  toDay: number | null
-}
 
 /** A calendar year's steady activities: how many, their middle and the middle 80% of them, in `step`s. All zero for a year with none. */
 export interface DotsYear {
@@ -52,9 +42,6 @@ export interface FitnessDots {
   /** The middle of the dots every 28 days from `firstDay`, in steps; null where fewer than 4 dots lie within 6 weeks of it. */
   line: (number | null)[]
   years: DotsYear[]
-  spans: DotsSpan[]
-  /** The look-back's horizon day, where an open slip ends; null when it tells nothing of the sport. */
-  horizonDay: number | null
 }
 
 const NO_DOTS: FitnessDots = {
@@ -65,19 +52,8 @@ const NO_DOTS: FitnessDots = {
   levels: [],
   line: [],
   years: [],
-  spans: [],
-  horizonDay: null,
 }
 
-/** The look-back's episodes this chart shades: a slip however it ended, and a rise. */
-const SPAN_KIND: Partial<Record<EpisodeKind, DotsSpan['kind']>> = {
-  'slip-back': 'slip',
-  'slip-partly-back': 'slip',
-  'slip-open': 'slip',
-  improvement: 'rise',
-}
-
-const dayOfMs = (ms: number): number => Math.round((ms - WEEK_ORIGIN_MS) / DAY_MS)
 const yearOfDay = (day: number): number => new Date(WEEK_ORIGIN_MS + day * DAY_MS).getUTCFullYear()
 
 /** The middle of values sorted ascending. */
@@ -122,21 +98,8 @@ function yearsOf(days: readonly number[], values: readonly number[], step: numbe
   })
 }
 
-function spansOf(years: SportYears | undefined): { spans: DotsSpan[]; horizonDay: number | null } {
-  if (years === undefined || years.kind !== 'ok') return { spans: [], horizonDay: null }
-  return {
-    spans: years.episodes.flatMap((e) => {
-      const kind = SPAN_KIND[e.kind]
-      return kind === undefined
-        ? []
-        : [{ kind, fromDay: dayOfMs(e.fromMs), toDay: e.toMs === null ? null : dayOfMs(e.toMs) }]
-    }),
-    horizonDay: dayOfMs(years.toMs),
-  }
-}
-
-/** One sport's dots from the steady runs the fitness card reads and the look-back's episodes. */
-function dotsOf(sport: Sport, history: FitnessHistory, years: SportYears | undefined): FitnessDots {
+/** One sport's dots from the steady runs the fitness card reads. */
+function dotsOf(sport: Sport, history: FitnessHistory): FitnessDots {
   const { runs } = history
   if (runs.length === 0) return NO_DOTS
   const step = STEP[sport]
@@ -150,20 +113,17 @@ function dotsOf(sport: Sport, history: FitnessHistory, years: SportYears | undef
     levels: values.map((value) => Math.round(value / step)),
     line: middleLine(days, values).map((v) => (v === null ? null : Math.round(v / step))),
     years: yearsOf(days, values, step),
-    ...spansOf(years),
   }
 }
 
 /**
  * Fitness over the years: for each sport, the steady runs or rides the fitness card reads (one dot for each, at the
- * card's heart rate), a rolling middle, a summary of each year, and the slips and rises the look-back lists. It reads
- * the card's own memory of the runs and the look-back's of its episodes, so the three are one story: the same dots,
- * the same heart rate, the same episodes.
+ * card's heart rate), a rolling middle and a summary of each year. It reads the card's own memory of the runs, so the
+ * dots and the card share one heart rate.
  */
 function build(digests: ActivityDigest[], input: HistoryInput): Record<Sport, FitnessDots> {
   const histories = fitnessHistories(digests, input.setAside)
-  const years = hindsightsOf(digests, input.setAside)
-  return perSport((sport) => dotsOf(sport, histories[sport], years?.[sport]))
+  return perSport((sport) => dotsOf(sport, histories[sport]))
 }
 
 export const fitness: HistoryPart<Record<Sport, FitnessDots>> = {

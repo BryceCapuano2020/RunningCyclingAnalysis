@@ -5,10 +5,10 @@ import { LibraryReplaced } from './deviceFile'
 import type { DeviceFile } from './deviceFile'
 import { fromNewerVersion, readRow } from './deviceRows'
 import { commitOrThrow, requestResult, yieldToOtherTabs } from './idb'
-import { OPEN_TIMEOUT_MS } from './openIndexedDb'
+import { OpenFailure, OPEN_TIMEOUT_MS, STORE, openDatabase } from './deviceDatabase'
 
 export type { DeviceFile }
-export { LibraryReplaced }
+export { LibraryReplaced, OPEN_TIMEOUT_MS }
 
 /**
  * Activity digests kept in this browser for a signed-out visitor, so a reload keeps their results.
@@ -79,6 +79,13 @@ export interface DeviceLibrary {
     change: { from: AthleteType | null; athleteType: AthleteType | null },
     epoch?: number,
   ): Promise<boolean>
+  /**
+   * Gives the workout the name the athlete chose, in its digest and in the row beside it, keeping the route and the file.
+   * The name outlives a rebuild: `put` gives a replacing digest the name the row holds. Only the row whose digest is
+   * `digestId` is changed, checked in the same transaction that writes it, so a row replaced since is left alone. With
+   * an `epoch` the write is refused (`LibraryReplaced`) unless the library is still in it. True when it wrote.
+   */
+  setName(workoutKey: string, digestId: string, name: string, epoch?: number): Promise<boolean>
   remove(workoutKey: string): Promise<void>
   /**
    * Removes the row only if it still holds the digest `digestId`, checked in the same transaction that deletes it,
@@ -112,73 +119,6 @@ export interface DeviceEntry {
   digest: ActivityDigest
   /** The file the digest was made from, absent for a row kept before files were recorded. */
   file?: DeviceFile
-}
-
-const DB_NAME = 'rca-device-library'
-const STORE = 'digests'
-
-export { OPEN_TIMEOUT_MS }
-
-/** Errors that mean this browser offers no storage here (a private window, a sandbox), not that it failed. */
-const NO_STORAGE_ERRORS = new Set(['InvalidStateError', 'SecurityError', 'NotSupportedError'])
-
-/**
- * Why the database did not open. `unavailable` is storage the browser does not offer, so nothing could
- * have been kept there; `failed` is any other reason (full, blocked by another tab, hung), where kept
- * rows may exist, so a read must not report them as none.
- */
-class OpenFailure extends Error {
-  readonly kind: 'unavailable' | 'failed'
-
-  constructor(message: string, kind: 'unavailable' | 'failed') {
-    super(message)
-    this.kind = kind
-  }
-}
-
-/** Opens the database, giving up after OPEN_TIMEOUT_MS or when another tab blocks it. */
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    let settled = false
-    const timer = setTimeout(
-      () => fail(new OpenFailure('Device storage did not open in time', 'failed')),
-      OPEN_TIMEOUT_MS,
-    )
-    function fail(error: OpenFailure) {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      reject(error)
-    }
-    let request: IDBOpenDBRequest
-    try {
-      request = indexedDB.open(DB_NAME, 1)
-    } catch (error) {
-      fail(new OpenFailure(String(error), 'unavailable'))
-      return
-    }
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE)
-    request.onblocked = () =>
-      fail(new OpenFailure('Device storage is blocked by another tab', 'failed'))
-    request.onerror = () => {
-      const name = request.error?.name ?? ''
-      fail(
-        new OpenFailure(
-          request.error?.message ?? 'Device storage failed',
-          NO_STORAGE_ERRORS.has(name) ? 'unavailable' : 'failed',
-        ),
-      )
-    }
-    request.onsuccess = () => {
-      // An open that was given up on and then succeeded holds a connection nobody will use.
-      if (settled) request.result.close()
-      else {
-        settled = true
-        clearTimeout(timer)
-        resolve(request.result)
-      }
-    }
-  })
 }
 
 const done = <T>(request: IDBRequest<T>): Promise<T> => requestResult(request, 'Device storage')
@@ -301,7 +241,17 @@ export function openDeviceLibrary(): DeviceLibrary {
           if (epoch !== undefined && epochOf(await done(store.get(SCOPE_KEY))) !== epoch) {
             throw new LibraryReplaced()
           }
-          store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)
+          // The name the athlete gave the workout stays with it when a rebuilt or re-imported digest replaces its row.
+          const named = readRow(await done(store.get(workoutKey)))?.nameOverride ?? null
+          store.put(
+            {
+              digest: serializeDigest(named === null ? digest : { ...digest, name: named }),
+              route,
+              ...(file ?? {}),
+              ...(named === null ? {} : { nameOverride: named }),
+            },
+            workoutKey,
+          )
         },
         undefined,
       ),
@@ -339,6 +289,27 @@ export function openDeviceLibrary(): DeviceLibrary {
             typeof stored === 'string'
               ? { digest: json, route: null }
               : { ...(stored as object), digest: json },
+            workoutKey,
+          )
+          return true
+        },
+        false,
+      ),
+    setName: (workoutKey, digestId, name, epoch) =>
+      withStore(
+        'readwrite',
+        async (store) => {
+          if (epoch !== undefined && epochOf(await done(store.get(SCOPE_KEY))) !== epoch) {
+            throw new LibraryReplaced()
+          }
+          const stored: unknown = await done(store.get(workoutKey))
+          const row = readRow(stored)
+          if (row === null || row.digest.id !== digestId) return false
+          const json = serializeDigest({ ...row.digest, name })
+          store.put(
+            typeof stored === 'string'
+              ? { digest: json, route: null, nameOverride: name }
+              : { ...(stored as object), digest: json, nameOverride: name },
             workoutKey,
           )
           return true

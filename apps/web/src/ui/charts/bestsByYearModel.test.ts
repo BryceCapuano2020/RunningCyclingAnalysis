@@ -160,8 +160,8 @@ describe('what a mark says', () => {
   })
 
   it('names the unit and which way is better under the title', () => {
-    expect(bestsNote('run', 'imperial')).toBe('Pace (/mi), faster up')
-    expect(bestsNote('run', 'metric')).toBe('Pace (/km), faster up')
+    expect(bestsNote('run', 'imperial')).toBe('Pace (/mi)')
+    expect(bestsNote('run', 'metric')).toBe('Pace (/km)')
     expect(bestsNote('ride', 'metric')).toBe('Power (W)')
   })
 })

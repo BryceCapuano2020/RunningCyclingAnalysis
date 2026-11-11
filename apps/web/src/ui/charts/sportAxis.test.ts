@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlotBox } from './chartTypes'
+import { labelWidth } from './ticks'
 import {
   axisTitle,
   axisTitleWithin,
@@ -74,12 +75,12 @@ describe('plottedValue, nativeLabel and axisTitle', () => {
   it('names each sport’s number and its axis, with the unit', () => {
     expect(nativeLabel('run')).toBe('GAP')
     expect(nativeLabel('ride')).toBe('Power')
-    expect(axisTitle('run', 'imperial')).toBe('GAP (/mi), faster up')
+    expect(axisTitle('run', 'imperial')).toBe('GAP (/mi)')
     expect(axisTitle('ride', 'metric')).toBe('Power (W)')
   })
 
   it('spells GAP out on the axis a page names it on, and leaves power as it is', () => {
-    expect(axisTitle('run', 'metric', true)).toBe('Grade-adjusted pace (/km), faster up')
+    expect(axisTitle('run', 'metric', true)).toBe('Grade-adjusted pace (/km)')
     expect(axisTitle('ride', 'metric', true)).toBe('Power (W)')
   })
 
@@ -163,16 +164,16 @@ describe('curveYAxis', () => {
 
 describe('axisTitleWithin', () => {
   it('spells the title out over a wide plot and shortens it over a narrow phone’s, so it never runs past the plot', () => {
-    const wide = { left: 48, right: 900, top: 20, bottom: 200 }
-    const narrow = { left: 40, right: 260, top: 20, bottom: 200 }
-    expect(axisTitleWithin('run', 'imperial', wide, 1)).toBe(axisTitle('run', 'imperial', true))
-    expect(axisTitleWithin('run', 'imperial', narrow, 1)).toBe(axisTitle('run', 'imperial'))
-    // At a larger text size the full title needs more room.
-    expect(axisTitleWithin('run', 'imperial', { ...narrow, right: 360 }, 1)).toBe(
+    // Boxes set by the full title's own width, so the test follows the title's words.
+    const need = labelWidth(axisTitle('run', 'imperial', true), 12, 1)
+    const roomy = { left: 40, right: 40 + need + 8, top: 20, bottom: 200 }
+    const tight = { ...roomy, right: 40 + need - 8 }
+    expect(axisTitleWithin('run', 'imperial', { ...roomy, right: 900 }, 1)).toBe(
       axisTitle('run', 'imperial', true),
     )
-    expect(axisTitleWithin('run', 'imperial', { ...narrow, right: 360 }, 2)).toBe(
-      axisTitle('run', 'imperial'),
-    )
+    expect(axisTitleWithin('run', 'imperial', tight, 1)).toBe(axisTitle('run', 'imperial'))
+    // At a larger text size the full title needs more room.
+    expect(axisTitleWithin('run', 'imperial', roomy, 1)).toBe(axisTitle('run', 'imperial', true))
+    expect(axisTitleWithin('run', 'imperial', roomy, 2)).toBe(axisTitle('run', 'imperial'))
   })
 })

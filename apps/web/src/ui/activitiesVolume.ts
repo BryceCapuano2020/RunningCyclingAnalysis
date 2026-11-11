@@ -15,13 +15,7 @@ import { formatCount } from './format/count'
 import { formatDayMonth, formatMonth } from './format/date'
 import { plural } from './components/plural'
 import { SPORT_ORDER } from './sports'
-import {
-  NO_LIFT_DAYS,
-  VOLUME_ESTIMATED,
-  VOLUME_KINDS,
-  VOLUME_NOUN,
-  VOLUME_PLURAL,
-} from './volumeKinds'
+import { NO_LIFT_DAYS, VOLUME_KINDS, VOLUME_NOUN, VOLUME_PLURAL } from './volumeKinds'
 import type { LiftDay, VolumeKind } from './volumeKinds'
 
 export { VOLUME_KINDS } from './volumeKinds'
@@ -42,11 +36,13 @@ const MIN_YEAR = 1970
 
 export type BucketKind = 'week' | 'month' | 'quarter'
 
-/** The count, seconds and metres of one sport; for lifting, sessions and estimated seconds, with no distance. */
+/** The count, seconds and metres of one sport; for lifting, sessions and seconds, with no distance. */
 export interface SportTotals {
   count: number
   seconds: number
   distanceM: number
+  /** Of the seconds, those estimated rather than measured: only lifting has any, and only then is it set. */
+  estimatedSeconds?: number
 }
 
 export type TotalsBySport = Record<VolumeKind, SportTotals>
@@ -71,6 +67,24 @@ export function emptyTotals(): TotalsBySport {
 function addLift(totals: TotalsBySport, lift: LiftDay): void {
   totals.lift.count += 1
   totals.lift.seconds += lift.seconds
+  if (!lift.measured)
+    totals.lift.estimatedSeconds = (totals.lift.estimatedSeconds ?? 0) + lift.seconds
+}
+
+/** Adds one set of totals' counts and seconds into another, as a strip's whole stretch sums its columns. */
+export function addTotals(into: TotalsBySport, from: TotalsBySport): void {
+  for (const kind of VOLUME_KINDS) {
+    into[kind].count += from[kind].count
+    into[kind].seconds += from[kind].seconds
+    const estimated = from[kind].estimatedSeconds
+    if (estimated !== undefined)
+      into[kind].estimatedSeconds = (into[kind].estimatedSeconds ?? 0) + estimated
+  }
+}
+
+/** Whether a kind's seconds include an estimate, which is then written with "~". */
+export function isEstimated(totals: SportTotals): boolean {
+  return (totals.estimatedSeconds ?? 0) > 0
 }
 
 function addTo(totals: TotalsBySport, activity: ActivitySummary): void {
@@ -297,11 +311,11 @@ export function volumeColumns(buckets: readonly VolumeBucket[]): VolumeColumn[] 
 }
 
 /**
- * All the hours of a total as written, with "~" when they include lifting's time, which is estimated from its sets
- * (`VOLUME_ESTIMATED`): "~36 h" beside a total of recorded time alone, "34 h".
+ * All the hours of a total as written, with "~" when they include an estimated lifting day: "~36 h" beside a total of
+ * recorded and measured time alone, "34 h".
  */
 export function totalHoursText(totals: TotalsBySport): string {
-  const estimated = VOLUME_KINDS.some((kind) => VOLUME_ESTIMATED[kind] && totals[kind].seconds > 0)
+  const estimated = VOLUME_KINDS.some((kind) => isEstimated(totals[kind]))
   return `${estimated ? '~' : ''}${formatHoursText(secondsOf(totals))}`
 }
 

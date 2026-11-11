@@ -2,7 +2,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  FITNESS_AS_OF_MS,
   FITNESS_BEFORE,
   HOLDING,
   RECOVERING,
@@ -26,7 +25,7 @@ describe('FitnessChart', () => {
     const figure = screen.getByRole('figure', { name: 'Pace at 150 bpm over time' })
     expect(figure).toBeInTheDocument()
     expect(within(figure).getByRole('img').getAttribute('aria-label')).toMatch(
-      /^GAP at 150 bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the level before the change began in February and the level now\.$/,
+      /^GAP at 150 bpm at steps four weeks apart, each read over the 4 to 16 weeks to it and given with its 90% range, against the earlier level and the level now\.$/,
     )
   })
 
@@ -42,49 +41,38 @@ describe('FitnessChart', () => {
     expect(container.querySelector('[data-testid="fitness-line"]')).not.toBeNull()
   })
 
-  it('labels the level before the change as a line, and the value now at the end of the line', () => {
-    const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
-    expect(container.querySelector('[data-annotation="before"]')?.textContent).toMatch(
-      /^Before February.*5:03 \/km$/,
-    )
-    expect(container.querySelector('[data-annotation="now"]')?.textContent).toMatch(/\/km.*now/)
+  it('labels the earlier level as a line whatever the status, and the value now at the end of the line', () => {
+    for (const status of [SLIPPING, HOLDING, RECOVERING]) {
+      const { container } = render(<FitnessChart status={status} units="metric" />)
+      expect(container.querySelector('[data-annotation="before"]')?.textContent).toMatch(
+        /^Earlier level.*\/km$/,
+      )
+      expect(container.querySelector('[data-annotation="now"]')?.textContent).toMatch(/\/km.*now/)
+      cleanup()
+    }
   })
 
-  it('marks the month the change began with a rule, and none for a status without one', () => {
-    const slipping = render(<FitnessChart status={SLIPPING} units="metric" />)
-    expect(slipping.container.querySelector('[data-testid="fitness-onset"]')?.textContent).toBe(
-      'Began February',
-    )
-    slipping.unmount()
-    const holding = render(<FitnessChart status={HOLDING} units="metric" />)
-    expect(holding.container.querySelector('[data-testid="fitness-onset"]')).toBeNull()
-    expect(holding.container.querySelector('[data-annotation="before"]')?.textContent).toMatch(
-      /^Earlier level/,
-    )
+  it('marks no month a change began and no low, whatever the status', () => {
+    for (const status of [SLIPPING, HOLDING, RECOVERING]) {
+      const { container } = render(<FitnessChart status={status} units="metric" />)
+      expect(container.querySelector('[data-testid="fitness-onset"]')).toBeNull()
+      expect(container.querySelector('[data-testid="fitness-low"]')).toBeNull()
+      expect(container.querySelector('[data-annotation="low"]')).toBeNull()
+      expect(container).not.toHaveTextContent(/Began|low\b/)
+      cleanup()
+    }
   })
 
-  it('names the year of a change that began in an earlier year, and draws no rule where the chart starts after it', () => {
-    const old = fitnessStatus('recovering', (i) => 0.01 * i, {
-      onsetMs: Date.UTC(2022, 7, 1),
-      gain: RECOVERING.gain,
-    })
-    const { container } = render(<FitnessChart status={old} units="metric" />)
-    expect(container.querySelector('[data-testid="fitness-onset"]')).toBeNull()
-    expect(container.querySelector('[data-annotation="before"]')?.textContent).toMatch(
-      /^Before August 2022/,
-    )
-  })
-
-  it('has a table twin with a row for each step and one for the level before, the month it began and now', () => {
+  it('has a table twin with a row for each step and one for the earlier level and now', () => {
     const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
     const [summary, steps] = [
       ...container.querySelectorAll('.chart-frame__details table'),
     ] as HTMLElement[]
     expect(summary).toBeDefined()
     const level = tableOf(summary!.parentElement!)
-    expect(level.rows[0]).toEqual(['Before February', '5:03 /km'])
-    expect(level.rows[1]).toEqual(['Change began', 'February 2026'])
-    expect(level.rows[2]![0]).toBe('Now')
+    expect(level.rows[0]).toEqual(['Earlier level', '5:03 /km'])
+    expect(level.rows[1]![0]).toBe('Now')
+    expect(level.rows).toHaveLength(2)
     expect(steps).toBeDefined()
     const { headers, rows } = tableOf(container)
     expect(headers).toContain('90% range')
@@ -92,7 +80,7 @@ describe('FitnessChart', () => {
     expect(screen.getByText('View as table')).toBeInTheDocument()
   })
 
-  it('reads the line as faster up: a slip ends lower on the page than it began', () => {
+  it('reads the line as faster up: a fall ends lower on the page than it began', () => {
     const { container } = render(<FitnessChart status={SLIPPING} units="metric" />)
     const ys = (
       container
@@ -133,29 +121,5 @@ describe('FitnessChart', () => {
       screen.getByText('A line needs 2 steps four weeks apart; there are none yet'),
     ).toBeInTheDocument()
     expect(FITNESS_BEFORE).toBeGreaterThan(0)
-  })
-})
-
-describe('FitnessChart: the low', () => {
-  it('marks a low inside the chart as a point at its month, and none for a status without one', () => {
-    const recovering = render(
-      <FitnessChart status={RECOVERING} units="metric" title="Recovering" />,
-    )
-    expect(recovering.container.querySelector('[data-testid="fitness-low"]')).not.toBeNull()
-    expect(recovering.container.querySelector('[data-annotation="low"]')).toBeNull()
-    expect(screen.getByRole('figure', { name: 'Recovering' })).toBeInTheDocument()
-    cleanup()
-    const holding = render(<FitnessChart status={HOLDING} units="metric" />)
-    expect(holding.container.querySelector('[data-testid="fitness-low"]')).toBeNull()
-  })
-
-  it('draws a low from before the chart’s first step as a labelled level, never as a point on its edge', () => {
-    // Three years before the newest activity: far left of the chart's first step.
-    const early = { ...RECOVERING, lowMs: FITNESS_AS_OF_MS - 3 * 365 * 86_400_000 }
-    const { container } = render(<FitnessChart status={early} units="metric" />)
-    expect(container.querySelector('[data-testid="fitness-low"]')).toBeNull()
-    expect(container.querySelector('[data-annotation="low"]')?.textContent).toMatch(
-      /^\w+ \d{4} low.*\/km$/,
-    )
   })
 })

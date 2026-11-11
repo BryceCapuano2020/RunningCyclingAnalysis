@@ -7,7 +7,7 @@ import type { ActivityDigest } from './types'
 
 /**
  * The library as the analysis reads it (duplicates and runs left out of every analysis not counted), summarised for
- * "since your last import" with the fitness and look-back of `state`.
+ * "since your last import" with the look-back of `state`.
  */
 export function checkInSnapshotOf(
   digests: ActivityDigest[],
@@ -18,7 +18,6 @@ export function checkInSnapshotOf(
   return snapshotOf(
     {
       digests: analysed,
-      fitness: state.fitness,
       lookBack: state.lookBack,
       revision: MODEL_REVISION,
     },

@@ -5,8 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
 import { PROFILE, balanceRows, rowOf, TWELVE_YEARS } from '../test/balanceFixtures'
 import { RIDE_SLIPPING, SLIPPING } from '../test/fitnessFixtures'
-import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
-import type { GradeProfile } from '../gradeProfile'
+import { dotsFixture } from '../test/fitnessYearsFixtures'
 import { THREE_YEARS } from '../test/historyFixtures'
 import { RIDE_BESTS, RUN_BESTS } from '../test/historyBestsFixtures'
 import { yearViews } from './balanceYears'
@@ -16,7 +15,6 @@ import { chartWidth } from './test/chartSizeStub'
 import { FitnessChart } from './FitnessChart'
 import { FitnessYearsChart } from './FitnessYearsChart'
 import { curvePoint } from './test/fixtures'
-import { GradeProfileChart } from './GradeProfileChart'
 import { HoursPerYearChart } from './HoursPerYearChart'
 import { SportCurveChart } from './SportCurveChart'
 import { INTERVAL_ZONES_TITLE, PERIOD_ZONES_TITLE } from './ZoneTimeChart'
@@ -26,11 +24,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const grade = (fraction: number) => ({ centre: { grade: fraction, level: 'Local' }, range: null })
-const PROFILE_GRADES: GradeProfile = {
-  run: [180, 1200, 3600].map((durationS) => ({ durationS, grade: grade(0.6) })),
-  ride: [180, 1200, 3600].map((durationS) => ({ durationS, grade: grade(0.5) })),
-}
 const RUN_CURVE = [
   curvePoint(180, 5.0, 'a'),
   curvePoint(1200, 4.0, 'b'),
@@ -73,21 +66,16 @@ const CHARTS: Record<string, (() => ReactElement)[]> = {
   ],
   FitnessYearsChart: [
     () => (
-      <FitnessYearsChart
-        sport="run"
-        dots={dotsFixture({ years: [2021, 2022], spans: slipAndRise(2021) })}
-        units="metric"
-      />
+      <FitnessYearsChart sport="run" dots={dotsFixture({ years: [2021, 2022] })} units="metric" />
     ),
     () => (
       <FitnessYearsChart
         sport="ride"
-        dots={dotsFixture({ sport: 'ride', years: [2021, 2022], spans: slipAndRise(2021) })}
+        dots={dotsFixture({ sport: 'ride', years: [2021, 2022] })}
         units="metric"
       />
     ),
   ],
-  GradeProfileChart: [() => <GradeProfileChart profile={PROFILE_GRADES} />],
   HoursPerYearChart: [() => <HoursPerYearChart years={THREE_YEARS} />],
   SportCurveChart: [
     () => sportCurve({ sport: 'run', curve: RUN_CURVE }),
@@ -159,7 +147,6 @@ describe('chart titles', () => {
   it('reads as a label for what is plotted', () => {
     expect([...allTitles()].flatMap(([, titles]) => titles).sort()).toEqual(
       [
-        'Age grade by effort length',
         'Best effort by duration',
         'Best effort by duration',
         'Best effort by duration',
@@ -197,16 +184,15 @@ describe('the sentence checks', () => {
     expect(caught).toBe(true)
   })
 
-  it.each([
-    'Age grade by effort length',
-    'Pace at 150 bpm over time',
-    'Hours per year, run and ride',
-  ])('accept %s', (title) => {
-    expect(
-      /[.!?]$/.test(title) ||
-        FINITE_VERB.test(title) ||
-        A_RESULT.test(title) ||
-        NAMES_A_WINNER.test(title),
-    ).toBe(false)
-  })
+  it.each(['Best effort by duration', 'Pace at 150 bpm over time', 'Hours per year, run and ride'])(
+    'accept %s',
+    (title) => {
+      expect(
+        /[.!?]$/.test(title) ||
+          FINITE_VERB.test(title) ||
+          A_RESULT.test(title) ||
+          NAMES_A_WINNER.test(title),
+      ).toBe(false)
+    },
+  )
 })

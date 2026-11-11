@@ -1,8 +1,9 @@
 import { CYCLING_ANCHOR_WKG } from '@rca/core/display'
 import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
+import { NO_TRIANGLE_GRADES, levelLadder } from '@rca/core/standing'
 import { StandardsCredit } from '../components/StandardsCredit'
-import { LEVEL_BANDS, SEX_NOUN } from '../grades'
-import { OWN_LEVEL_MEANING } from '../levelMeaning'
+import { SEX_NOUN } from '../grades'
+import { levelBandText, levelMeaning } from '../levelMeaning'
 import { hrefFor } from '../route'
 import { MethodFacts, MethodSection } from './MethodSection'
 import './AgeGradingSection.css'
@@ -17,24 +18,20 @@ const LEAD = 'An age grade is your effort as a share of world class at your age 
 const FACTS = [
   `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance at your age and sex, over your time.`,
   'It uses grade-adjusted pace (GAP), corrected for hills.',
+  'Your run level is your predicted half marathon, graded this way. With no prediction, it is your threshold pace held for an hour.',
   `A ride’s W/kg is set against the best riders’ hour (${CYCLING_ANCHOR_WKG.male.toFixed(2)} W/kg men, ${CYCLING_ANCHOR_WKG.female.toFixed(2)} women), then graded as a run at that share.`,
   'A threshold is graded at your age on the day of its strongest effort.',
-  'On Balance’s age grade by effort length, a sport is higher only where the run’s grade is outside the ride’s range.',
 ]
 
-const whole = (share: number) => Math.round(share * 100)
+const LADDER = levelLadder(NO_TRIANGLE_GRADES)
 
 /** Each band, highest first, as "National is 80% to 89%", with the meaning of the app's own bands below Local. */
-const LEVELS = [...LEVEL_BANDS].reverse().map((band, index, bands) => {
-  const above = bands[index - 1]
-  const span =
-    above === undefined
-      ? `${whole(band.min)}% and up`
-      : band.min === 0
-        ? `under ${whole(above.min)}%`
-        : `${whole(band.min)}% to ${whole(above.min) - 1}%`
-  const meaning = OWN_LEVEL_MEANING.find((level) => level.name === band.name)?.meaning
-  return meaning === undefined ? `${band.name} is ${span}.` : `${band.name} is ${span}: ${meaning}`
+const LEVELS = LADDER.map((rung, index) => {
+  const span = levelBandText(LADDER, index).toLowerCase()
+  const meaning = levelMeaning(rung.label)
+  return meaning === undefined
+    ? `${rung.label} is ${span}.`
+    : `${rung.label} is ${span}: ${meaning}`
 })
 
 const LIMITS = [

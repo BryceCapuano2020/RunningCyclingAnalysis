@@ -43,7 +43,13 @@ export { liftWeekStart, weeklyLoad } from './weeklyLoad'
 export type { LiftWeek, RegionLoad } from './weeklyLoad'
 export { buildLiftState } from './liftState'
 export type { LiftFlag, LiftPeriod, LiftState, LiftSummary } from './liftState'
-export { liftSessionsOf, WARMUP_SET_SECONDS, WORKING_SET_SECONDS } from './liftSessions'
+export {
+  liftSessionsOf,
+  MEASURED_MAX_SECONDS,
+  MEASURED_MIN_SECONDS,
+  WARMUP_SET_SECONDS,
+  WORKING_SET_SECONDS,
+} from './liftSessions'
 export type { LiftSession } from './liftSessions'
 export { liftHistory } from './liftHistory'
 export type { LiftHistoryPoint } from './liftHistory'

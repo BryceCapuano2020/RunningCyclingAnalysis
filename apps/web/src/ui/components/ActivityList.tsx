@@ -4,16 +4,19 @@ import type { EarnedRecord } from '@rca/core/records'
 import { formatTotalTime } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { monthTotals } from '../activitiesVolume'
-import type { LiftDay } from '../volumeKinds'
+import type { LiftRow } from '../activitiesLift'
 import { groupByMonth } from '../activitySort'
+import type { ActivitySort } from '../activitySort'
 import { movingTimeOf } from '../activityFigures'
-import { firstActivityOf, rowEntries } from '../sessions'
-import type { ListEntry } from '../sessions'
+import { rowEntries } from '../sessions'
+import { rowKeyOf, withLiftRows } from '../listRows'
+import type { ListRow } from '../listRows'
 import { chipLabels } from '../records'
 import { SPORT_NEEDS_WEIGHT } from '../sports'
 import { plural } from './plural'
 import { ActivityMonthHead } from './ActivityMonthHead'
 import { ActivityRow } from './ActivityRow'
+import { LiftSessionRow } from './LiftSessionRow'
 import { Pager } from './Pager'
 import { PAGE_SIZE, usePagination } from './usePagination'
 import './ActivityList.css'
@@ -46,13 +49,16 @@ export interface ActivityListProps {
   detailIds?: ReadonlySet<string> | null
   /** Whether the visitor is signed in, which says where a removal takes the activity from. */
   signedIn: boolean
-  /** The days with lifting that fall in what is listed, which add to each month's heading. */
-  lifts?: readonly LiftDay[]
+  /** The days with lifting that fall in what is listed: each is a row, and adds to its month's heading. */
+  lifts?: readonly LiftRow[]
+  /** The sort the activities are in, which places the lifting days among them. */
+  sort?: ActivitySort
   /** Removes a kept activity by its saved copy. Without it, no row offers Delete. */
   onDelete?: (savedId: string) => void
 }
 
 const NO_KEPT: ReadonlyMap<string, string> = new Map()
+const NO_LIFTS: readonly LiftRow[] = []
 
 const activityCollectionIds = new WeakMap<ActivitySummary[], number>()
 let nextActivityCollectionId = 0
@@ -66,13 +72,14 @@ function activityCollectionId(activities: ActivitySummary[]): number {
   return id
 }
 
-/** How many activities a row holds: one, or the legs of a session. */
-function activitiesIn(entry: ListEntry): number {
-  return entry.kind === 'activity' ? 1 : entry.legs.length
+/** How many activities a row holds: one, or the legs of a session; a lifting day is one. */
+function activitiesIn(entry: ListRow): number {
+  return entry.kind === 'session' ? entry.legs.length : 1
 }
 
 /**
- * Activities as a list, in the order given, a page of 20 rows at a time. Each name opens its activity.
+ * Activities as a list, in the order given with the lifting days placed among them by the sort, a page of 20 rows at a
+ * time. Each name opens its activity, or the Lift page at its day.
  * The page is over rows, so a session is one row and is never split across a page.
  */
 export function ActivityList({
@@ -88,7 +95,8 @@ export function ActivityList({
   busy = false,
   detailIds = null,
   signedIn,
-  lifts,
+  lifts = NO_LIFTS,
+  sort = 'newest',
   onDelete,
 }: ActivityListProps) {
   const collectionId = activityCollectionId(activities)
@@ -97,9 +105,12 @@ export function ActivityList({
     () => (dateOrder ? monthTotals(activities, lifts) : null),
     [activities, dateOrder, lifts],
   )
-  const entries = useMemo(() => rowEntries(activities, dateOrder), [activities, dateOrder])
+  const entries = useMemo(
+    () => withLiftRows(rowEntries(activities, dateOrder), lifts, sort),
+    [activities, dateOrder, lifts, sort],
+  )
   const { page, pageCount, visible, firstItemRef, changePage } = usePagination<
-    ListEntry,
+    ListRow,
     HTMLLIElement
   >(entries, PAGE_SIZE, collectionId, { initialPage, onPageChange })
   const previousCollectionIdRef = useRef(collectionId)
@@ -138,7 +149,7 @@ export function ActivityList({
     .slice(0, page * PAGE_SIZE)
     .reduce((sum, entry) => sum + activitiesIn(entry), 0)
   const firstEntry = visible[0]
-  const firstShownId = firstEntry === undefined ? undefined : firstActivityOf(firstEntry).id
+  const firstShownId = firstEntry === undefined ? undefined : rowKeyOf(firstEntry)
   const remove = onDelete
     ? (savedId: string) => {
         removedRef.current = true
@@ -149,8 +160,9 @@ export function ActivityList({
   const placeOf = new Map<string, number>()
   let placed = 0
   for (const entry of visible) {
-    for (const leg of entry.kind === 'activity' ? [entry.activity] : entry.legs) {
-      placeOf.set(leg.id, before + placed)
+    const keys = entry.kind === 'session' ? entry.legs.map((leg) => leg.id) : [rowKeyOf(entry)]
+    for (const key of keys) {
+      placeOf.set(key, before + placed)
       placed += 1
     }
   }
@@ -177,9 +189,23 @@ export function ActivityList({
       />
     )
   }
-  const entryRows = (items: ListEntry[]) =>
+  const entryRows = (items: ListRow[]) =>
     items.map((entry) => {
       if (entry.kind === 'activity') return rowFor(entry.activity)
+      if (entry.kind === 'lift') {
+        const key = rowKeyOf(entry)
+        const isFirst = key === firstShownId
+        return (
+          <LiftSessionRow
+            key={key}
+            lift={entry.lift}
+            isFirst={isFirst}
+            index={placeOf.get(key) ?? 0}
+            rowRef={isFirst ? firstItemRef : undefined}
+            dateOrder={dateOrder}
+          />
+        )
+      }
       const total = entry.legs.reduce((sum, leg) => sum + movingTimeOf(leg), 0)
       return (
         <li key={`session-${entry.key}-${entry.legs[0]?.id}`} className="activity-list__session">
@@ -215,9 +241,9 @@ export function ActivityList({
         page={page}
         pageCount={pageCount}
         pageSize={PAGE_SIZE}
-        total={activities.length}
+        total={activities.length + lifts.length}
         shown={{ from: before + 1, to: before + onPage }}
-        noun="activities"
+        noun={activities.length === 0 ? 'lifts' : 'activities'}
         label="Activity pages"
         announce
         onPageChange={turnPage}

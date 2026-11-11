@@ -1,21 +1,19 @@
 import { DAY_MS } from '../constants'
-import type { FitnessState } from '../fitness/types'
 import type { Sport } from '../types'
 import { SPORTS } from '../types'
 import { decodeSeconds } from './snapshot'
 import type { CheckInSnapshot, SnapshotBest } from './snapshot'
-import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
+import type { MilestoneEffort, MilestoneUnit } from './types'
 
 /**
  * "Since your last import": the library as it was before the import against the library as it is. Every line is a
- * fact about what the import added or what the fitness card's own rules changed; the check-in makes no level
- * contrast of its own, so it can never say a different thing from the card.
+ * fact about what the import added: workouts, new bests and files older than the baseline.
  */
 
 /** A workout is "found in older files" when it starts this long before the newest workout the baseline held. */
 export const OLDER_DAYS = 28
 /** Most of each list the check-in carries. */
-const MOST = { bests: 3, episodes: 3 } as const
+const MOST = { bests: 3 } as const
 
 /** A best set since the baseline, by a workout that is new. */
 export interface NewBest {
@@ -30,21 +28,6 @@ export interface NewBest {
   older: boolean
 }
 
-export type FitnessLine =
-  /** The card's state is not what it was at the baseline. */
-  | { sport: Sport; kind: 'moved'; from: FitnessState; to: FitnessState }
-  /** The same state, begun again since the baseline. */
-  | { sport: Sport; kind: 'began'; state: FitnessState; sinceMs: number }
-  /** The same state with no event: quoted as the card has it, `within` set while holding. */
-  | { sport: Sport; kind: 'same'; state: FitnessState; within: number | null }
-
-export interface NewEpisode {
-  sport: Sport
-  kind: EpisodeKind
-  fromMs: number
-  toMs: number | null
-}
-
 export interface CheckIn {
   /** When the baseline was taken. */
   sinceMs: number
@@ -52,9 +35,7 @@ export interface CheckIn {
   /** Of the added workouts, those found in older files, and the stretch they cover; null when there are none. */
   older: Record<Sport, { count: number; fromMs: number; toMs: number } | null>
   bests: NewBest[]
-  fitness: FitnessLine[]
-  episodes: NewEpisode[]
-  /** Nothing to tell beyond what was added: no new best, no change of fitness, no new episode, no older files. */
+  /** Nothing to tell beyond what was added: no new best and no older files. */
   quiet: boolean
 }
 
@@ -105,48 +86,6 @@ function newBests(base: CheckInSnapshot, live: CheckInSnapshot, olderKeys: Set<s
     }))
 }
 
-function fitnessLines(base: CheckInSnapshot, live: CheckInSnapshot): FitnessLine[] {
-  return SPORTS.flatMap((sport): FitnessLine[] => {
-    const [was, now] = [base.fitness[sport], live.fitness[sport]]
-    if (was === null || now === null) return []
-    if (now.state === 'not-enough-evidence') return []
-    // A sport that could not be read at the baseline and can now is news; the state it reads is told as a move.
-    if (was.state !== now.state) return [{ sport, kind: 'moved', from: was.state, to: now.state }]
-    // An event is a state that began since the baseline, not one the baseline already showed.
-    if (now.enteredMs !== null && now.enteredMs !== was.enteredMs && now.enteredMs > base.atMs) {
-      return [{ sport, kind: 'began', state: now.state, sinceMs: now.enteredMs }]
-    }
-    return [{ sport, kind: 'same', state: now.state, within: now.within }]
-  })
-}
-
-/** An episode is the same one when it starts within this long of the baseline's: its kind may change as it ends. */
-const SAME_START_MS = 8 * 7 * DAY_MS
-
-/**
- * Episodes the hindsight now lists that the baseline's did not (one starting about when a baseline one did is the same
- * episode, whatever state it is in now), that began before the baseline's newest workout and
- * hold a workout found in older files: the backfilled data is what produced them.
- */
-function newEpisodes(
-  base: CheckInSnapshot,
-  live: CheckInSnapshot,
-  olderMs: Record<Sport, number[]>,
-): NewEpisode[] {
-  const cutoff = base.asOfMs - OLDER_DAYS * DAY_MS
-  return SPORTS.flatMap((sport) =>
-    live.episodes[sport]
-      .filter((e) => e.fromMs < cutoff)
-      .filter((e) => olderMs[sport].some((t) => t >= e.fromMs && t <= (e.toMs ?? live.asOfMs)))
-      .filter(
-        (e) => !base.episodes[sport].some((b) => Math.abs(b.fromMs - e.fromMs) <= SAME_START_MS),
-      )
-      .map((e) => ({ sport, kind: e.kind, fromMs: e.fromMs, toMs: e.toMs })),
-  )
-    .sort((a, b) => b.fromMs - a.fromMs)
-    .slice(0, MOST.episodes)
-}
-
 /**
  * The check-in between a baseline and the library as it stands now; null without a baseline (a first import). The
  * caller passes only a baseline of the model the live snapshot was taken with (see `usableBaseline`): numbers across
@@ -160,7 +99,6 @@ export function checkInBetween(
   const cutoff = baseline.asOfMs - OLDER_DAYS * DAY_MS
   const added = { run: 0, ride: 0 }
   const older: CheckIn['older'] = { run: null, ride: null }
-  const olderMs: Record<Sport, number[]> = { run: [], ride: [] }
   const olderKeys = new Set<string>()
   for (const sport of SPORTS) {
     const had = new Set(decodeSeconds(baseline.keys[sport]))
@@ -170,7 +108,6 @@ export function checkInBetween(
       const ms = second * 1000
       if (ms >= cutoff) continue
       olderKeys.add(`${sport}-${second}`)
-      olderMs[sport].push(ms)
       const span = older[sport]
       older[sport] = {
         count: (span?.count ?? 0) + 1,
@@ -180,13 +117,6 @@ export function checkInBetween(
     }
   }
   const bests = newBests(baseline, live, olderKeys)
-  const fitness = fitnessLines(baseline, live)
-  const episodes = newEpisodes(baseline, live, olderMs)
-  const quiet =
-    bests.length === 0 &&
-    episodes.length === 0 &&
-    older.run === null &&
-    older.ride === null &&
-    fitness.every((l) => l.kind === 'same')
-  return { sinceMs: baseline.atMs, added, older, bests, fitness, episodes, quiet }
+  const quiet = bests.length === 0 && older.run === null && older.ride === null
+  return { sinceMs: baseline.atMs, added, older, bests, quiet }
 }

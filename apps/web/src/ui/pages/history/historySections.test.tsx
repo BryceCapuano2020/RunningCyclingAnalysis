@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { NO_LOOKBACK } from '@rca/core/lookback'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../../test/deviceZone'
 import { chartWidth } from '../../charts/test/chartSizeStub'
@@ -61,7 +60,6 @@ describe('the History page', () => {
         history={{ ...historyWithBests(), years: THREE_YEARS }}
         units="metric"
         grading={GRADING}
-        lookBack={NO_LOOKBACK}
       />,
     )
     const names = screen
@@ -76,12 +74,10 @@ describe('the History page', () => {
     chartWidth(800)
     const base = { ...historyWithBests(), years: THREE_YEARS }
     const going = { ...base, yearToDate: { ...base.yearToDate, today: { year: 2023 } } }
-    const { rerender } = render(
-      <HistoryPage history={going} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />,
-    )
+    const { rerender } = render(<HistoryPage history={going} units="metric" grading={GRADING} />)
     expect(screen.getAllByText('2023 so far').length).toBeGreaterThan(0)
     const past = { ...base, yearToDate: { ...base.yearToDate, today: { year: 2024 } } }
-    rerender(<HistoryPage history={past} units="metric" grading={GRADING} lookBack={NO_LOOKBACK} />)
+    rerender(<HistoryPage history={past} units="metric" grading={GRADING} />)
     expect(screen.queryByText(/so far/)).toBeNull()
   })
 })

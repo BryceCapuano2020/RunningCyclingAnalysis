@@ -345,29 +345,73 @@ describe('BalancePage', () => {
     expect(screen.queryByText('Not counted')).toBeNull()
   })
 
-  it('puts the grade by duration after the tiles, with the width of the page to itself', () => {
-    const durations = [600, 1200, 3600]
-    const result = makeResult({
-      runCurve: durations.map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
-      rideCurve: durations.map((d) => curvePoint(d, 400, 'ride-1')),
-      equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
-    })
-    const { container } = renderPage(result, {}, MAN_BORN_1986)
-    const chart = screen.getByRole('region', { name: 'Age grade by effort length' })
+  it('puts the levels after the tiles, each level with its band and each sport on the row its corner names', () => {
+    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    const levels = screen.getByRole('region', { name: 'Levels' })
     const tiles = container.querySelector('.balance-tiles')
     expect(
-      (tiles?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+      (tiles?.compareDocumentPosition(levels) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    // Not in a pair with anything.
-    expect(chart.parentElement).not.toHaveClass('balance__pair')
-    expect(container.querySelector('.balance__pair')).toBeNull()
+    const table = within(levels).getByRole('table')
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Level', 'Run', 'Ride', 'Lift'])
+    const rows = within(table).getAllByRole('rowheader')
+    expect(rows.map((cell) => cell.querySelector('.levels__name')?.textContent)).toEqual([
+      'World',
+      'National',
+      'Regional',
+      'Local',
+      'Club',
+      'Trained',
+      'Active',
+      'Recreational',
+    ])
+    expect(rows[0]).toHaveTextContent('90% and up')
+    expect(rows[4]).toHaveTextContent('50% to 59%')
+    expect(rows[4]).toHaveTextContent('You hold your own in a club race.')
+    expect(rows[7]).toHaveTextContent('Under 30%')
+    // Each graded corner's percent sits in its sport's column, on the row of the level the corner names.
+    const corners = screen.getByRole('group', { name: 'Level in each sport' })
+    const graded = [...corners.querySelectorAll('.level-triangle__corner')].flatMap((corner) => {
+      const percent = corner.querySelector('.level-triangle__figure')?.textContent
+      const level = corner.querySelector('.level-triangle__level')?.textContent
+      return percent === undefined || level === undefined ? [] : [{ percent, level }]
+    })
+    expect(graded).toHaveLength(2)
+    const marks = [...table.querySelectorAll('.levels__mark')].map((mark) => ({
+      percent: mark.textContent,
+      level: mark.closest('tr')?.querySelector('.levels__name')?.textContent,
+      sport: mark.closest('td')?.getAttribute('data-sport'),
+    }))
+    expect(marks).toEqual([
+      { ...graded[0], sport: 'run' },
+      { ...graded[1], sport: 'ride' },
+    ])
   })
 
-  it('leaves the grade by duration out when only one duration is graded in both sports', () => {
-    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
-    expect(
-      screen.queryByRole('region', { name: 'Age grade by effort length' }),
-    ).not.toBeInTheDocument()
+  it('leaves the levels out while no sport has a level on the triangle', () => {
+    renderPage(BOTH_SPORTS, {}, null)
+    expect(screen.queryByRole('region', { name: 'Levels' })).not.toBeInTheDocument()
+    cleanup()
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986, false)
+    expect(screen.queryByRole('region', { name: 'Levels' })).not.toBeInTheDocument()
+  })
+
+  it('has no age grade by effort length', () => {
+    const durations = [600, 1200, 3600]
+    renderPage(
+      makeResult({
+        runCurve: durations.map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
+        rideCurve: durations.map((d) => curvePoint(d, 400, 'ride-1')),
+        equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
+      }),
+      {},
+      MAN_BORN_1986,
+    )
+    expect(document.body).not.toHaveTextContent(/by effort length|by duration/)
   })
 
   it('names only the missing field, in the prompt and on its button', () => {
@@ -590,13 +634,14 @@ describe('BalancePage concept budget', () => {
       copy.querySelectorAll('.definition__note').forEach((note) => note.remove())
       return copy.textContent
     })
-    // The share sheet's heading and the three tiles: nothing else. The heart-rate check is a chip on a tile.
+    // The share sheet's heading, the three tiles and the levels: nothing else. The heart-rate check is a chip on a tile.
     expect(before).toEqual([
       'Share image',
       'Headline numbers',
       'Run threshold',
       'Functional threshold power',
       'Big three total',
+      'Levels',
     ])
   })
 

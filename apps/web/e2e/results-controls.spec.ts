@@ -201,7 +201,7 @@ test('Method says that both best efforts were hard efforts', async ({ page }) =>
   // detail says nothing of heart rate, and the method page says they reached the hard line.
   await expect(page.getByRole('button', { name: 'Hard effort', exact: true })).toHaveCount(0)
   const run = page.getByRole('article', { name: 'Half-marathon' })
-  await run.locator('summary', { hasText: 'Details for threshold pace' }).click()
+  await run.locator('summary', { hasText: 'Details for half-marathon' }).click()
   await expect(run.locator('.props__row', { hasText: /^Runs used/ }).locator('dd')).toHaveText(
     /^\d+$/,
   )
@@ -243,7 +243,7 @@ test('the ride threshold says what it rests on, and opens its range and method o
   await expect(
     page
       .getByRole('article', { name: 'Half-marathon' })
-      .locator('summary', { hasText: 'Details for threshold pace' }),
+      .locator('summary', { hasText: 'Details for half-marathon' }),
   ).toBeVisible()
 })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dotsFixture, slipAndRise } from '../test/fitnessYearsFixtures'
+import { dotsFixture } from '../test/fitnessYearsFixtures'
 import type { ChartSize } from './chartTypes'
 import { fitnessYearsLayout } from './fitnessYearsLayout'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'
@@ -31,7 +31,7 @@ function fastestMs(run: () => void): number {
 
 describe('fitnessYearsLayout performance', () => {
   const years = Array.from({ length: 12 }, (_, i) => 2014 + i)
-  const dots = dotsFixture({ years, perYear: 250, spans: slipAndRise(2018) })
+  const dots = dotsFixture({ years, perYear: 250 })
 
   it(`lays out ${dots.levels.length} dots in under ${BUDGET_MS} ms`, () => {
     let drawn = 0

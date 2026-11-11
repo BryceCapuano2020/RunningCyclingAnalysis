@@ -1,6 +1,12 @@
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { limitReached, listingLimitReached } from '../limitCopy'
-import { DEVICE_NOT_LOADED, deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText } from './copy'
+import {
+  DEVICE_NOT_LOADED,
+  deleteFailureText,
+  LIBRARY_NOT_LOADED,
+  rebuildNoticeText,
+  renameFailureText,
+} from './copy'
 import type { ErrorReply } from './copy'
 import { announceLiftsCleared } from '../lift/liftsCleared'
 import { rememberKeptLibrary } from './rememberKept'
@@ -10,7 +16,7 @@ import { mergeOutcomes } from './mergeOutcomes'
 import { isOvertaken } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
-import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
+import { drainBatches, EMPTY_SESSION, isActivityChange, isDeletion } from './model'
 import type { ImportOutcome } from '../../worker/protocol'
 import { NO_CHECKIN } from '../../worker/checkinKeeper'
 import type { Account, Baseline, Box, Pending, SetError } from './model'
@@ -122,6 +128,7 @@ function changedLibrary(pending: Pending): 'device' | 'account' | null {
     case 'rebuildStale':
       return 'account'
     case 'undoLabels':
+    case 'renameActivity':
       return pending.saveToDevice === true ? 'device' : 'account'
     case 'addFiles':
       return pending.saveToDevice === true ? 'device' : 'account'
@@ -224,7 +231,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     }
     // Imports made while the kept library loaded are saved once it has, each compared with it.
     if (pending?.kind === 'loadDevice') addWaiting(deps, message.state)
-    if (pending && isDeletion(pending.kind)) library.setLibraryNotice(pending.notice ?? null)
+    if (pending && isActivityChange(pending.kind)) library.setLibraryNotice(pending.notice ?? null)
     return
   }
   imports.setRebuildNotice(rebuildNoticeText(message))
@@ -271,8 +278,10 @@ function handleReplyError(
     const dropped = drainBatches(library.libraryWaitRef).length > 0
     refreshBusy()
     setError(dropped ? DEVICE_NOT_LOADED : message.message)
-  } else if (pending && isDeletion(pending.kind)) {
-    library.setLibraryError(deleteFailureText(message))
+  } else if (pending && isActivityChange(pending.kind)) {
+    library.setLibraryError(
+      isDeletion(pending.kind) ? deleteFailureText(message) : renameFailureText(message),
+    )
   } else if (message.issue === 'daily-limit') {
     // A rebuild fails outright only when its first library listing is refused.
     setError(

@@ -22,6 +22,7 @@ import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { aboutNotesOf, noteRow } from '../components/aboutNotes'
 import { MethodPage } from './MethodPage'
+import { halfOfState } from '../runHalf'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
 import { keptIdsOf } from './keptIds'
@@ -190,7 +191,6 @@ export function ResultPage({
             history={analysis.state.history}
             units={units}
             grading={{ profile, missingAge, weightKnown }}
-            lookBack={analysis.state.lookBack}
           />
         )
       case 'activities':
@@ -248,6 +248,7 @@ export function ResultPage({
             busy={removing}
             signedIn={signedIn}
             onDelete={analysis.deleteActivity}
+            onRename={analysis.renameActivity}
             libraryNotice={analysis.libraryNotice}
             libraryError={analysis.libraryError}
           />
@@ -257,6 +258,7 @@ export function ResultPage({
         return (
           <MethodPage
             result={result}
+            halfOf={halfOfState(analysis.state)}
             heartRateJudgement={analysis.state.heartRateJudgement}
             profile={profile}
             period={period}

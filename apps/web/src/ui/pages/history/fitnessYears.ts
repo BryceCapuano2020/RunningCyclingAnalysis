@@ -5,6 +5,6 @@ import type { HistorySection } from './types'
 export const fitnessYears: HistorySection = {
   id: 'fitness-over-years',
   order: 65,
-  render: ({ history, units, lookBack }) =>
-    createElement(FitnessYearsSection, { fitness: history.fitness, units, lookBack }),
+  render: ({ history, units }) =>
+    createElement(FitnessYearsSection, { fitness: history.fitness, units }),
 }

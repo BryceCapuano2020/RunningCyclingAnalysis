@@ -1,7 +1,6 @@
 import { fileNameOf } from '../duplicates'
 import { sha256TextHex } from '../sha256Sync'
 import type { ActivityDigest } from '../types'
-import { generatedName } from './names'
 
 /**
  * What a new activity says about its owner beyond the analysis, and what is sent of it (D12 E7, RCA-032). From
@@ -10,8 +9,7 @@ import { generatedName } from './names'
  *   export's file is the activity's number on Strava, and any other file's name is often its title. The id is made so at
  *   import (`hashedFileName` in the pipeline), so the id on this device, in the trace cache and in the account are the
  *   same;
- * - a new activity is sent to the account with a generated name ("Morning Run") unless the athlete chose to send titles,
- *   and with the file name hashed.
+ * - a new activity is sent to the account with its own title and with the file name hashed.
  * An activity already saved keeps the id, file name and title it has: a replace or an upgrade sends them as they are, and
  * so does a rebuild (originalActivity.ts), so nothing minimises the past.
  *
@@ -21,11 +19,6 @@ import { generatedName } from './names'
  * of a row), at the second, so a start rounded to the minute would find no row to upgrade and would insert a copy. See
  * docs/PRODUCTION.md, "What is sent of an activity".
  */
-export interface UploadPolicy {
-  /** The athlete's choice to send the titles of their activities. */
-  titles: boolean
-}
-
 /** A name this module made: `rca-` and sixteen hex digits, then the format's extension if the file had one. */
 const HASHED_NAME = /^rca-[0-9a-f]{16}(\.(?:fit|tcx|gpx))?$/i
 
@@ -49,19 +42,16 @@ export function hashedDigestId(id: string): string {
 }
 
 /**
- * The digest and file name to send for a new activity: the id and the file name hashed, and the title generated unless the
- * account sends titles.
+ * The digest and file name to send for a new activity: the id and the file name hashed, and the title as it is.
  */
 export function minimisedForUpload(
   digest: ActivityDigest,
   fileName: string,
-  policy: UploadPolicy,
 ): { digest: ActivityDigest; fileName: string } {
   return {
     digest: {
       ...digest,
       id: hashedDigestId(digest.id),
-      name: policy.titles ? digest.name : generatedName(digest.startMs, digest.sport),
     },
     fileName: hashedFileName(fileName),
   }

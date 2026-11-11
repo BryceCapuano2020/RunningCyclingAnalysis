@@ -1,10 +1,8 @@
 import { madSd, medianInPlace } from '../math'
 import { floorAt, levelOf, slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
-import { bestSplit } from './anchors'
 import { localMedians } from './localMedians'
 import { partition } from './partition'
-import type { Anchor } from './anchors'
 import { LOOKBACK } from './params'
 
 const S = LOOKBACK.segment
@@ -16,19 +14,7 @@ export interface Level {
   m: number
   se: number
   n: number
-  /** The level begins at a change the fitness card declared (a fall, or its return): judged by the card's bar, not the look-back's. */
-  forced?: 'fall' | 'rise'
-  /**
-   * The level read without the weeks `card.guardWeeks` either side of a change the card declared. Where that change was put is
-   * where the runs split best, which favours a bigger step than there is; the runs beside the cut that made it big are
-   * left out when the step is judged (kept or merged, back or not), so a dip the card saw in noise is not confirmed by the
-   * choosing of its date.
-   */
-  core?: { m: number; se: number }
 }
-
-/** What a step is judged on: the level without the weeks beside a change the card declared. */
-export const coreOf = (level: Level): { m: number; se: number } => level.core ?? level
 
 export interface Segmented {
   levels: Level[]
@@ -85,57 +71,23 @@ export const stepZ = (
   floor: number,
 ): number => (b.m - a.m) / Math.sqrt(a.se ** 2 + b.se ** 2 + floor ** 2)
 
-/**
- * How firmly the step from level `i` to the next stands: under 1 it is merged. A change the card declared stands when the
- * runs agree with its direction by the card's lower bar, and goes when they do not; any other step stands on `bar`.
- */
+/** How firmly the step from level `i` to the next stands: under 1 it is merged. */
 function strengthOf(
   levels: readonly Level[],
   i: number,
   floor: number,
   bar: { delta: number; z: number },
 ): number {
-  const [before, after] = [coreOf(levels[i]!), coreOf(levels[i + 1]!)]
-  const step = after.m - before.m
-  const forced = levels[i + 1]!.forced
-  if (forced === undefined) {
-    return Math.min(
-      Math.abs(step) / bar.delta,
-      Math.abs(stepZ(levels[i]!, levels[i + 1]!, floor)) / bar.z,
-    )
-  }
-  return (forced === 'fall') !== step > 0
-    ? Math.min(
-        Math.abs(step) / LOOKBACK.card.delta,
-        Math.abs(stepZ(before, after, floor)) / LOOKBACK.card.z,
-      )
-    : 0
-}
-
-/**
- * Whether merging level `i` into the one after it (`next` is the levels once merged) undoes a change the card declared at
- * the start of level `i`: it stood before, and averaged with its neighbour it no longer does. A weak step back out of a slip
- * must not wash the slip out.
- */
-function undoesCard(
-  before: readonly Level[],
-  next: readonly Level[],
-  i: number,
-  floor: number,
-  bar: { delta: number; z: number },
-): boolean {
-  return (
-    i > 0 &&
-    next[i]!.forced !== undefined &&
-    strengthOf(before, i - 1, floor, bar) >= 1 &&
-    strengthOf(next, i - 1, floor, bar) < 1
+  const [before, after] = [levels[i]!, levels[i + 1]!]
+  return Math.min(
+    Math.abs(after.m - before.m) / bar.delta,
+    Math.abs(stepZ(before, after, floor)) / bar.z,
   )
 }
 
 /**
  * Merges neighbours, weakest first, while a step is under `delta` or under `z` standard errors, or (with `maxLevels`) while
- * there are more levels than that. A level is re-read from the runs of both. A merge that would undo a change the card
- * declared and the runs back is passed over for the next weakest: only the card's own cut, being weak itself, is given up.
+ * there are more levels than that. A level is re-read from the runs of both.
  */
 function mergeLevels(
   levels: Level[],
@@ -146,39 +98,18 @@ function mergeLevels(
   maxLevels = Number.POSITIVE_INFINITY,
 ): Level[] {
   let out = [...levels]
-  /** The levels with the pair at `i` merged, the cores read again (the merge moved the cuts the later steps are judged beside). */
-  const mergedAt = (i: number): Level[] | null => {
-    const [a, b] = [out[i]!, out[i + 1]!]
-    const merged = levelBetween(runs, a.fromWeek, b.toWeek, sigma)
-    if (merged === null) return null
-    const next = [...out]
-    next.splice(i, 2, a.forced === undefined ? merged : { ...merged, forced: a.forced })
-    return withCores(
-      runs,
-      sigma,
-      next.map((level) =>
-        level.core === undefined ? level : Object.assign({}, level, { core: undefined }),
-      ),
-    )
-  }
   for (;;) {
     const weak = out
       .slice(1)
       .map((_, i) => ({ i, strength: strengthOf(out, i, floor, bar) }))
       .filter((c) => c.strength < 1 || out.length > maxLevels)
       .sort((x, y) => x.strength - y.strength || x.i - y.i)
-    let next: Level[] | null = null
-    for (const { i } of weak) {
-      const merged = mergedAt(i)
-      if (merged === null) return out
-      if (out[i + 1]!.forced === undefined && undoesCard(out, merged, i, floor, bar)) continue
-      next = merged
-      break
-    }
-    // Every weak step guards a card change: over the cap the weakest goes anyway.
-    if (next === null && weak.length > 0 && out.length > maxLevels) next = mergedAt(weak[0]!.i)
-    if (next === null) return out
-    out = next
+    const first = weak[0]
+    if (first === undefined) return out
+    const [a, b] = [out[first.i]!, out[first.i + 1]!]
+    const merged = levelBetween(runs, a.fromWeek, b.toWeek, sigma)
+    if (merged === null) return out
+    out = [...out.slice(0, first.i), merged, ...out.slice(first.i + 2)]
   }
 }
 
@@ -186,60 +117,24 @@ function mergeLevels(
 const stands = (level: Level): boolean =>
   level.toWeek - level.fromWeek >= S.minWeeks && level.n >= S.minRuns
 
-/** Each level beside a change the card declared, read again without the weeks next to that change (see `Level.core`). */
-function withCores(runs: readonly RunPoint[], sigma: number, levels: Level[]): Level[] {
-  const guard = LOOKBACK.card.guardWeeks
-  return levels.map((level, i) => {
-    const from = level.forced === undefined ? level.fromWeek : level.fromWeek + guard
-    const to = levels[i + 1]?.forced === undefined ? level.toWeek : level.toWeek - guard
-    if ((from === level.fromWeek && to === level.toWeek) || to - from < S.minWeeks) return level
-    const core = levelBetween(runs, from, to, sigma)
-    return core === null || core.n < S.minRuns
-      ? level
-      : { ...level, core: { m: core.m, se: core.se } }
-  })
-}
-
 /**
- * The levels between `edges` (weeks, first and last included) with a cut added at each change the card declared. A cut of the
- * card's replaces any other within half a level's minimum span of it; a level too short or too thin to stand gives up its edge
- * (the other kind of edge first, then the later one), so the plateaus keep the rules the partition was made under.
+ * The levels between `edges` (weeks, first and last included). A level too short or too thin to stand gives up its
+ * edge (the later one for the first level, the earlier one otherwise), so the plateaus keep the rules the partition was made under.
  */
-function cutAt(
+function levelsBetween(
   runs: readonly RunPoint[],
   sigma: number,
   edges: readonly number[],
-  cards: readonly { week: number; dir: 'fall' | 'rise' }[],
 ): Level[] {
-  const last = edges.at(-1)!
-  const cut = new Map<number, 'fall' | 'rise' | undefined>(edges.map((e) => [e, undefined]))
-  for (const { week, dir } of cards) {
-    if (week <= edges[0]! + S.minWeeks || week >= last - S.minWeeks) continue
-    for (const e of [...cut.keys()]) {
-      if (e !== edges[0] && e !== last && Math.abs(e - week) < S.minWeeks / 2) cut.delete(e)
-    }
-    cut.set(week, dir)
-  }
+  const cut = [...edges]
   for (;;) {
-    const weeks = [...cut.keys()].sort((a, b) => a - b)
-    const levels = weeks.slice(0, -1).flatMap((w, i) => {
-      const level = levelBetween(runs, w, weeks[i + 1]!, sigma)
-      const forced = cut.get(w)
-      return level === null ? [] : [forced === undefined ? level : { ...level, forced }]
+    const levels = cut.slice(0, -1).flatMap((w, i) => {
+      const level = levelBetween(runs, w, cut[i + 1]!, sigma)
+      return level === null ? [] : [level]
     })
     const thin = levels.findIndex((level) => !stands(level))
-    if (thin < 0 || levels.length < 2) return withCores(runs, sigma, levels)
-    // Give up the edge that is not the card's, else the later one.
-    const [left, right] = [levels[thin]!.fromWeek, levels[thin]!.toWeek]
-    const drop =
-      thin === 0
-        ? right
-        : thin === levels.length - 1
-          ? left
-          : cut.get(left) === undefined
-            ? left
-            : right
-    cut.delete(drop)
+    if (thin < 0 || levels.length < 2) return levels
+    cut.splice(cut.indexOf(thin === 0 ? levels[thin]!.toWeek : levels[thin]!.fromWeek), 1)
   }
 }
 
@@ -255,7 +150,6 @@ export function segmentLevels(
   endDay: number,
   bar: { delta: number; z: number },
   maxLevels: number = LOOKBACK.caps.levels,
-  anchors: readonly Anchor[] = [],
 ): Segmented | null {
   const own = slice(runs, Number.NEGATIVE_INFINITY, endDay)
   if (own.length === 0) return null
@@ -303,14 +197,10 @@ export function segmentLevels(
   const edges = [weeks]
   for (let b = weeks; from[b]! > 0; b = from[b]!) edges.unshift(from[b]!)
   edges.unshift(0)
-  const levels = cutAt(
+  const levels = levelsBetween(
     own,
     sigma,
     edges.map((e) => e + first),
-    anchors.flatMap((a) => {
-      const week = bestSplit(own, a, sigma, first)
-      return week === null ? [] : [{ week, dir: a.dir }]
-    }),
   )
   return { levels: mergeLevels(levels, own, sigma, floor, bar, maxLevels), sigma, floor }
 }

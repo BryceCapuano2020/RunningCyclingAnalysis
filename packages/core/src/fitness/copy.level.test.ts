@@ -32,11 +32,10 @@ describe('a status that cannot call a trend', () => {
       'metric',
     )
 
-  it('tells the level with its range and the activities it is read from, and no slip or rise', () => {
+  it('tells the level with its range and the activities it is read from', () => {
     const lines = waiting({ kind: 'history', have: 7, need: 12, weeks: 7, needWeeks: 8 })
     expect(lines).toEqual({
       headline: '212 W (205 to 219) at 140 bpm.',
-      changes: [],
       support: 'From 7 steady rides.',
       needs: '5 more earlier rides to see a trend.',
     })
@@ -106,7 +105,6 @@ describe('a status that cannot call a trend', () => {
       )
     expect(none('ride', 0)).toEqual({
       headline: 'No steady rides with a power meter yet.',
-      changes: [],
       support: '',
       needs: '',
     })
@@ -131,8 +129,7 @@ describe('a status that cannot call a trend', () => {
     ]
     for (const sport of ['run', 'ride'] as const) {
       for (const shortfall of shortfalls) {
-        const { headline, changes, support, needs } = waiting(shortfall, sport)
-        expect(changes).toEqual([])
+        const { headline, support, needs } = waiting(shortfall, sport)
         const text = [headline, support, needs].join(' ')
         expect(lintCopy(text)).toEqual([])
         expect(text).not.toMatch(/—|honest|read from|comparable|reference|\bto say\b|\bshown\b/i)

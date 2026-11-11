@@ -9,9 +9,8 @@ import { powerSetAsideIds } from './digest/powerCheck'
 import { rideReferenceOf } from './digest/powerEvidence'
 import { judgedWorkOf } from './digest/judgedWork'
 import { hiddenDigests } from './duplicates'
-import { fitnessHistories, fitnessStatuses } from './fitness/compute'
+import { fitnessStatuses } from './fitness/compute'
 import { historyOf, NO_HISTORY } from './history/compute'
-import { datedByLookBack } from './lookback/cardDates'
 import { lookBackOf, NO_LOOKBACK } from './lookback/compute'
 import { splitPeriods } from './period'
 import type { PeriodCache, PeriodChoice } from './period'
@@ -131,7 +130,6 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
   // Library-wide like the judgement it reads, and remembered for these digests, so a period switch costs nothing.
   // As of the newest activity, not the clock: an export that ended months ago is not a long break.
   const statuses = fitnessStatuses(analysed, new Set(held))
-  const histories = fitnessHistories(analysed, new Set(held))
   // The runs and rides the card is read from: heart rate set aside, and power set aside.
   const lookBack =
     athlete === null
@@ -147,8 +145,7 @@ export function buildState(inputs: StateInputs, athlete: AthleteSettings | null)
     result: analysis,
     trend,
     heartRateJudgement: judgement,
-    // The card names its episode by the dates of the look-back's, so the two tell one episode.
-    fitness: datedByLookBack(statuses, lookBack, histories),
+    fitness: statuses,
     lookBack,
     // Library-wide too: the History page ignores the period, and these digests make the same answer each time.
     history:

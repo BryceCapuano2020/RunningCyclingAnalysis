@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dotsFixture, openSlip, slipAndRise, startOf } from '../test/fitnessYearsFixtures'
+import { dotsFixture, startOf } from '../test/fitnessYearsFixtures'
 import type { ChartSize } from './chartTypes'
 import { daysOf, EDGE_PX, fitnessYearsLayout, yearAtX } from './fitnessYearsLayout'
 import { nearestByX } from './hover'
@@ -22,7 +22,7 @@ describe('daysOf', () => {
 })
 
 describe('fitnessYearsLayout', () => {
-  const dots = dotsFixture({ years: [2020, 2021, 2023], spans: slipAndRise(2021) })
+  const dots = dotsFixture({ years: [2020, 2021, 2023] })
 
   it('has nothing to lay out without a dot', () => {
     expect(fitnessYearsLayout({ ...dots, levels: [], gaps: [] }, 'run', 'metric', SIZE)).toBeNull()
@@ -56,20 +56,6 @@ describe('fitnessYearsLayout', () => {
     }
     expect(m.line.some((p) => p === null)).toBe(true)
     expect(m.line.filter((p) => p !== null).length).toBeGreaterThan(10)
-  })
-
-  it('clips a span to the dots and runs an open one to the horizon', () => {
-    const slip = fitnessYearsLayout(dots, 'run', 'metric', SIZE)!.spans
-    expect(slip.map((s) => s.kind)).toEqual(['slip', 'rise'])
-    expect(
-      slip.every((s) => s.x1 > s.x0 && s.x0 >= SIZE.plot.left && s.x1 <= SIZE.plot.right),
-    ).toBe(true)
-    const wide = dotsFixture({ years: [2021, 2022], spans: openSlip(2022) })
-    const open = fitnessYearsLayout(wide, 'run', 'metric', SIZE)!.spans[0]!
-    expect(open.x1).toBeCloseTo(SIZE.plot.right - EDGE_PX, 5)
-    // A span wholly before the first dot is not drawn.
-    const before = dotsFixture({ years: [2022], spans: slipAndRise(2019) })
-    expect(fitnessYearsLayout(before, 'run', 'metric', SIZE)!.spans).toEqual([])
   })
 
   it('rounds a dot’s place to a tenth of a pixel, and a ride’s is a closed diamond', () => {
@@ -107,54 +93,6 @@ describe('fitnessYearsLayout', () => {
     expect(m.xs).toHaveLength(1)
     expect(Number.isFinite(m.xs[0])).toBe(true)
     expect(m.yTicks.length).toBeGreaterThan(1)
-  })
-})
-
-describe('the slips and rises against the years', () => {
-  it('draws a span from the pixel of its first day to the pixel of its last, on the same scale as the years', () => {
-    // A slip that runs exactly through 2021: its edges are the edges of the 2021 room.
-    const spans = [{ kind: 'slip' as const, fromDay: startOf(2021), toDay: startOf(2022) }]
-    const m = fitnessYearsLayout(
-      dotsFixture({ years: [2020, 2021, 2022], spans }),
-      'run',
-      'metric',
-      SIZE,
-    )!
-    expect(m.spans).toHaveLength(1)
-    expect(m.spans[0]!.x0).toBeCloseTo(m.rooms[1]!.x0, 6)
-    expect(m.spans[0]!.x1).toBeCloseTo(m.rooms[1]!.x1, 6)
-  })
-
-  it('puts a span a third of the way into a year a third of the way across its room', () => {
-    const day = Math.round(365 / 3)
-    const spans = [
-      { kind: 'rise' as const, fromDay: startOf(2021) + day, toDay: startOf(2021) + 2 * day },
-    ]
-    const m = fitnessYearsLayout(
-      dotsFixture({ years: [2020, 2021, 2022], spans }),
-      'run',
-      'metric',
-      SIZE,
-    )!
-    const room = m.rooms[1]!
-    const share = (x: number) => (x - room.x0) / (room.x1 - room.x0)
-    expect(share(m.spans[0]!.x0)).toBeCloseTo(day / 365, 2)
-    expect(share(m.spans[0]!.x1)).toBeCloseTo((2 * day) / 365, 2)
-  })
-
-  it('keeps each span’s place among the dots’ spans, so the one drawn is the one the reading names', () => {
-    // The first span ends before the first dot and is not drawn; the second keeps its own place, 1.
-    const spans = [
-      { kind: 'slip' as const, fromDay: startOf(2018), toDay: startOf(2018) + 100 },
-      { kind: 'rise' as const, fromDay: startOf(2021) + 30, toDay: startOf(2021) + 90 },
-    ]
-    const m = fitnessYearsLayout(
-      dotsFixture({ years: [2020, 2021], spans }),
-      'run',
-      'metric',
-      SIZE,
-    )!
-    expect(m.spans.map((s) => [s.kind, s.index])).toEqual([['rise', 1]])
   })
 })
 

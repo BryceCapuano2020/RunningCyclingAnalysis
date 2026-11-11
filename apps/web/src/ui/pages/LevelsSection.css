@@ -1,0 +1,67 @@
+/*
+ * The levels: one row per level, its name over its band, and a column per sport that holds the athlete's grade on the row of
+ * its level. A grade is ink text with a dot in its sport's ink, so the colour is never the only cue. It fits a 320 px phone at
+ * the default text size; with larger text it scrolls in its own box.
+ */
+.levels__table {
+  max-width: 36rem;
+}
+
+/* The cell keeps its table display, so it stays a header cell; its parts stack as blocks inside it. */
+.levels__table th[scope='row'] {
+  color: var(--ink);
+  font-weight: 400;
+  white-space: normal;
+}
+
+.levels__table th[scope='col'][data-sport] {
+  color: var(--sport-ink);
+  text-align: right;
+}
+
+.levels__name,
+.levels__band,
+.levels__meaning {
+  display: block;
+}
+
+.levels__name {
+  font-weight: 500;
+}
+
+.levels__band {
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+}
+
+.levels__meaning {
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  max-width: 16rem;
+}
+
+.levels__table td {
+  vertical-align: top;
+}
+
+.levels__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.levels__mark::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--sport-ink);
+}
+
+@media (forced-colors: active) {
+  .levels__mark::before {
+    background: CanvasText;
+  }
+}

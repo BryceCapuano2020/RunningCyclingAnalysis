@@ -5,6 +5,7 @@ import {
   drawLines,
   metaStyle,
   setFont,
+  wrapIn,
   type CardContext,
   type TextStyle,
 } from './cardCanvas'
@@ -13,6 +14,8 @@ import type { ShareFigure, ShareHero } from './cardModel'
 
 /** Between the side-by-side hero columns. */
 const COLUMN_GAP = 40
+/** A figure's name takes at most this many lines in its column; a longer one is cut. */
+const LABEL_LINES = 2
 /** The rule above the thresholds and the space under it. */
 const RULE_HEIGHT = 2
 const RULE_GAP = 28
@@ -61,16 +64,19 @@ function figureSize(
 
 interface Column {
   hero: ShareHero
-  height: number
+  /** The name in upper case, wrapped to the column. */
+  label: string[]
 }
 
-function measureColumn(hero: ShareHero, size: number): Column {
-  const height =
-    LABEL.lineHeight +
-    SPACE +
-    figureStyle(size).lineHeight +
-    (hero.sub === null ? 0 : SUB.lineHeight)
-  return { hero, height }
+/** A column's name, wrapped to its width, so "Functional threshold power" takes two lines in a column of three. */
+function measureColumn(ctx: CardContext, hero: ShareHero, width: number): Column {
+  return { hero, label: wrapIn(ctx, hero.label.toUpperCase(), LABEL, width, LABEL_LINES) }
+}
+
+/** The figures' height under the names: the figure, and the reading under it where any column has one. */
+function figuresHeight(columns: Column[], size: number): number {
+  const sub = columns.some((column) => column.hero.sub !== null) ? SUB.lineHeight : 0
+  return SPACE + figureStyle(size).lineHeight + sub
 }
 
 /** The number at its size, with the unit after it on the same baseline. */
@@ -93,11 +99,20 @@ function drawFigure(
   ctx.textBaseline = 'top'
 }
 
-/** One threshold: its name, the figure in ink, and the second reading under it. */
-function drawColumn(ctx: CardContext, column: Column, size: number, x: number, y: number): void {
+/**
+ * One figure: its name, the figure in ink, and the second reading under it. Every column's figure starts at `figureY`, under
+ * the tallest name, so the figures share one baseline.
+ */
+function drawColumn(
+  ctx: CardContext,
+  column: Column,
+  size: number,
+  x: number,
+  y: number,
+  figureY: number,
+): void {
   const { hero } = column
-  drawLines(ctx, [hero.label.toUpperCase()], x, y, LABEL, CARD_COLORS.secondary)
-  const figureY = y + LABEL.lineHeight + SPACE
+  drawLines(ctx, column.label, x, y, LABEL, CARD_COLORS.secondary)
   drawFigure(ctx, hero.figure, size, x, figureY)
   if (hero.sub !== null) {
     drawLines(
@@ -112,7 +127,8 @@ function drawColumn(ctx: CardContext, column: Column, size: number, x: number, y
 }
 
 /**
- * The thresholds under a rule, one column per sport in the order given, side by side.
+ * The headline figures under a rule, one column per sport in the order given, side by side: two or three columns of one
+ * width, the figures on one baseline under the names.
  */
 export function heroBlock(
   ctx: CardContext,
@@ -120,18 +136,26 @@ export function heroBlock(
   layout: CardLayout,
   contentWidth: number,
 ): Block {
-  const columnWidth = (contentWidth - COLUMN_GAP) / heroes.length
+  const columnWidth = (contentWidth - COLUMN_GAP * (heroes.length - 1)) / heroes.length
   const size = figureSize(ctx, heroes, layout.figure, columnWidth)
-  const columns = heroes.map((hero) => measureColumn(hero, size))
-  const body = Math.max(...columns.map((column) => column.height))
+  const columns = heroes.map((hero) => measureColumn(ctx, hero, columnWidth))
+  const labelHeight = Math.max(...columns.map((column) => column.label.length)) * LABEL.lineHeight
   return {
-    height: RULE_HEIGHT + RULE_GAP + body,
+    height: RULE_HEIGHT + RULE_GAP + labelHeight + figuresHeight(columns, size),
     draw: (y) => {
       ctx.fillStyle = CARD_COLORS.rule
       ctx.fillRect(layout.marginX, y, contentWidth, RULE_HEIGHT)
       const top = y + RULE_HEIGHT + RULE_GAP
+      const figureY = top + labelHeight + SPACE
       columns.forEach((column, index) =>
-        drawColumn(ctx, column, size, layout.marginX + index * (columnWidth + COLUMN_GAP), top),
+        drawColumn(
+          ctx,
+          column,
+          size,
+          layout.marginX + index * (columnWidth + COLUMN_GAP),
+          top,
+          figureY,
+        ),
       )
     },
   }

@@ -80,7 +80,6 @@ function yearsOf(digests: ActivityDigest[], input: YearsInput): Years | null {
               .filter((d) => d.sport === s)
               .map((d) => dayOfMs(d.startMs) + dayShiftFor(d)),
             asOfDay,
-            records: histories[s].records,
           }),
   })
   return {

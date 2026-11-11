@@ -17,6 +17,7 @@ function rowOf(digestJson: string): ActivityRow {
     sport: 'ride',
     startMs: 1,
     name: 'n',
+    nameOverride: null,
     digestVersion: 1,
     digestJson,
     fileName: 'a.fit',

@@ -35,7 +35,7 @@ export interface BalanceHeroProps {
   onShowAll: () => void
   /** False while no body weight is entered: a ride's figures wait for it, so the balance does too. */
   weightKnown: boolean
-  /** The share button: an icon in the page header, in the plain states too. */
+  /** The share button: a page action at the right of the period's line, in the plain states too. */
   action?: ReactNode
   /** Each sport's level as the tiles show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
@@ -77,11 +77,17 @@ export function BalanceHero({
   const hold = useHoldInputs()
   const head = (title: ReactNode, className?: string) => (
     <div className="balance-hero__head">
-      <PageHeading className={className} action={action}>
-        {title}
-      </PageHeading>
+      <PageHeading className={className}>{title}</PageHeading>
     </div>
   )
+  // The period's line and the page's action share one row under the title: the line at the left, Share at the right.
+  const bar =
+    controls === null && action === null ? null : (
+      <div className="balance-hero__bar">
+        {controls}
+        {action}
+      </div>
+    )
   // Once both sports are on file, the balance is held for the weight: the one prompt says why.
   if (
     !weightKnown &&
@@ -94,7 +100,7 @@ export function BalanceHero({
         <p className="lede secondary">
           <WeightPrompt />
         </p>
-        {controls}
+        {bar}
       </section>
     )
   }
@@ -111,7 +117,7 @@ export function BalanceHero({
       <div className="balance-hero__pair">
         <section className="balance-hero">
           {head(title)}
-          {controls}
+          {bar}
           {detail === '' ? null : <p className="lede secondary">{detail}</p>}
           {canShowAll && (
             <p>
@@ -135,7 +141,7 @@ export function BalanceHero({
       <section className="balance-hero balance-hero--answer">
         <div className="balance-hero__text">
           {head(triangleTitleText(title), 'balance-hero__title')}
-          {controls}
+          {bar}
           {line === null ? null : (
             <p className="balance-hero__lede">
               <NumText text={line} />

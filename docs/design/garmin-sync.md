@@ -84,10 +84,8 @@ received_at)`, unique `(user_id, provider, provider_activity_id)` so a repeated 
    `workoutKey(sport, startMs)` and the stored-label rule. A Garmin activity that is already in the library from an
    export is a duplicate, and the row is `done` with no new activity. A file import that arrives after a Garmin
    activity is a duplicate the same way.
-7. **The server minimises as the browser does.** The id and file name are hashed and the title is generated
-   (`minimisedForUpload`). The title choice ("send titles") is device-only today (`ui/uploadTitlesPreference.ts`);
-   it joins the account settings in S3 with server-compute.md decision 10. Until then a Garmin activity gets a
-   generated name.
+7. **The server minimises as the browser does.** The id and file name are hashed and the title is kept
+   (`minimisedForUpload`). There is no title setting: a Garmin activity is saved with its own name.
 8. **Parse limits are smaller on the server.** `GARMIN_PARSE_LIMITS` caps the file at the push limit (5 MiB) and the
    records and seconds at what one long activity needs, well under the browser's `DEFAULT_PARSE_LIMITS` (64 MiB). No
    archive is ever opened on the server: Garmin sends one FIT file per activity. The consumer's memory is measured in
@@ -202,7 +200,6 @@ Each its own PR under the size cap, behind `GARMIN_ENABLED` until the last.
 
 G1 to G3 need nothing from Garmin and can start before approval. G4 needs server compute's S4 (the Queue binding and
 the workerd memory harness) and answers 3 and 4 for the real payload; its fake-Garmin version can be built before.
-G1's title rule needs S3 if titles are to be sent.
 
 ## Sources
 

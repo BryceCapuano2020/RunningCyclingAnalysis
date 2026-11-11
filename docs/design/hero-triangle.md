@@ -55,14 +55,14 @@ recommendation there matters most.
 The sentence names the sport at the top, the way the current one does, and the line under it states the one fact: how far
 the top grade is from the bottom one.
 
-| Situation (graded sports only)                                | Headline                                             | Line under it (one line)                                     |
-| ------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
-| One sport clearly highest (decided by the existing lean rule) | Your balance leans toward running                    | Running grades 13 points higher than lifting.                |
-| Two sports within the even rule of each other, a third below  | Your balance leans toward running and cycling        | Running grades 12 points higher than lifting.                |
-| All within the even rule                                      | Your running, cycling and lifting are in balance     | The three sit within 4 points of each other.                 |
-| Only two graded                                               | Today's headlines, unchanged                         | Today's line, "Running grades 9 points higher at threshold." |
-| One graded                                                    | The levels title, as today (`levelsTitle`)           | Today's line                                                 |
-| None graded                                                   | Today's states (add a birth year and sex, and so on) | Today's line                                                 |
+| Situation (graded sports only)                                | Headline                                             | Line under it (one line)                        |
+| ------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| One sport clearly highest (decided by the existing lean rule) | Your balance leans toward running                    | Running grades 13 points higher than lifting.   |
+| Two sports within the even rule of each other, a third below  | Your balance leans toward running and cycling        | Running grades 12 points higher than lifting.   |
+| All within the even rule                                      | Your running, cycling and lifting are in balance     | The three sit within 4 points of each other.    |
+| Only two graded                                               | Today's headlines, unchanged                         | Today's line, "Running grades 9 points higher." |
+| One graded                                                    | The levels title, as today (`levelsTitle`)           | Today's line                                    |
+| None graded                                                   | Today's states (add a birth year and sex, and so on) | Today's line                                    |
 
 Rules:
 
@@ -182,18 +182,18 @@ Open Graph card (`public/social-card.png`) is the sample athlete drawn the same 
 
 > Owner cut, 10 Nov 2026: the hero's Details, the "What changed" strip and the "Your years" row are removed from Balance; the range and gap rows below no longer appear there.
 
-| Today                                               | After                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------- |
-| Headline "leans toward running" or "in balance"     | Same wording, by the top and bottom graded sports (section 3)       |
-| Line "Running grades 11 points higher at threshold" | Unchanged for two sports; "higher than lifting" with three          |
-| The dot, at the gap's best estimate                 | Gone. Each sport's dot is at its own grade                          |
-| The range written at the dot                        | A band along each axis, and the gap's range in Details              |
-| The Even tick and "Even" label                      | Gone. An equilateral triangle is even                               |
-| The ends "RUNNING" and "CYCLING"                    | Corner labels, with Lifting added                                   |
-| `BalanceLevels` ("Running 67% Local")               | The corners. The component is removed, since it would restate them  |
-| The energy ratio and its basis line                 | Unchanged on Method. The hero never showed it as the default        |
-| The share card's meter                              | The triangle (section 10)                                           |
-| The landing example (meter and levels)              | The triangle with run and ride graded and lift in its missing state |
+| Today                                           | After                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| Headline "leans toward running" or "in balance" | Same wording, by the top and bottom graded sports (section 3)       |
+| Line "Running grades 11 points higher"          | Unchanged for two sports; "higher than lifting" with three          |
+| The dot, at the gap's best estimate             | Gone. Each sport's dot is at its own grade                          |
+| The range written at the dot                    | A band along each axis, and the gap's range in Details              |
+| The Even tick and "Even" label                  | Gone. An equilateral triangle is even                               |
+| The ends "RUNNING" and "CYCLING"                | Corner labels, with Lifting added                                   |
+| `BalanceLevels` ("Running 67% Local")           | The corners. The component is removed, since it would restate them  |
+| The energy ratio and its basis line             | Unchanged on Method. The hero never showed it as the default        |
+| The share card's meter                          | The triangle (section 10)                                           |
+| The landing example (meter and levels)          | The triangle with run and ride graded and lift in its missing state |
 
 Removed with the meter: `BalanceMeter` and its stylesheet, `balanceScale` helpers only the meter reads, and `BalanceLevels`.
 The tests that pinned the meter's sentence and the levels line move to the headline and the corners.

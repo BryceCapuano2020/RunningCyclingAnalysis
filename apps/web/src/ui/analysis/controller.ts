@@ -93,6 +93,8 @@ export interface AnalysisController {
   /** Says why the last library change failed. */
   libraryError: string | null
   deleteActivity: (id: string) => void
+  /** Gives a saved activity a name of the athlete's own; `id` is the saved copy's id. The answer is the notice or the error. */
+  renameActivity: (id: string, name: string) => void
   /**
    * The signed-in account's data as a JSON file, built from the server by the worker. Rejects with
    * the reason when it cannot be made. An export does not make the page busy.

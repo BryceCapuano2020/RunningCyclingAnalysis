@@ -209,6 +209,15 @@ export function deleteFailureText(message: ErrorReply): string {
     : `Could not delete the activity. ${message.message}`
 }
 
+/** Said when the athlete's name for an activity is saved. */
+export const RENAMED = 'Name saved.'
+
+export function renameFailureText(message: ErrorReply): string {
+  return message.issue === 'daily-limit'
+    ? limitReached('profileWrite')
+    : `Could not save the name. ${message.message}`
+}
+
 export function deleteNoticeText(activity: SavedActivity | undefined): string {
   return activity
     ? `Deleted ${activity.name} (${formatDay(activity.startMs)}).`

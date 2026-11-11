@@ -2,7 +2,8 @@ import { ACTIVITY_SORTS, type ActivitySort } from './activitySort'
 import { bucketSpan } from './activitiesVolume'
 import { hashQuery } from './route'
 
-export type SportFilter = 'all' | 'run' | 'ride'
+/** Every kind, one sport, or the lifting days. */
+export type SportFilter = 'all' | 'run' | 'ride' | 'lift'
 
 /** Every activity on file, or only the ones the analysis leaves out. */
 export type ShowFilter = 'all' | 'not-counted'
@@ -30,7 +31,7 @@ export const DEFAULT_VIEW: ActivitiesView = {
   page: 0,
 }
 
-const SPORTS: readonly SportFilter[] = ['all', 'run', 'ride']
+const SPORTS: readonly SportFilter[] = ['all', 'run', 'ride', 'lift']
 const SHOWS: readonly ShowFilter[] = ['all', 'not-counted']
 
 function oneOf<T extends string>(value: string | null, options: readonly T[], fallback: T): T {

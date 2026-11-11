@@ -168,6 +168,14 @@ describe('buildAccountExport', () => {
     })
   })
 
+  it('carries the name the athlete gave an activity, in the entry and in its digest', () => {
+    const named: ActivityRecord = { ...RECORD, digest: { ...DIGEST, name: 'Club loop' } }
+    const [activity] = build({ activities: [named] }).activities
+    expect(activity).toMatchObject({ name: 'Club loop', digest: { name: 'Club loop' } })
+    const [streamed] = JSON.parse(`[${exportActivitiesJson([named])}]`) as { name: string }[]
+    expect(streamed?.name).toBe('Club loop')
+  })
+
   it('does not add the file size or any other field to an activity', () => {
     const [activity] = build().activities
     expect(activity).not.toHaveProperty('fileSize')

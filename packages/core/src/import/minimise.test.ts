@@ -5,7 +5,6 @@ import { fileNameOf, workoutKey } from '../duplicates'
 import type { ActivityDigest } from '../types'
 import { hashedDigestId, hashedFileName, isHashedFileName, minimisedForUpload } from './minimise'
 
-const POLICY = { titles: false }
 const START = Date.UTC(2026, 2, 14, 7, 30, 41)
 
 function digestOf(id: string, name: string, modelRevision = 7): ActivityDigest {
@@ -42,19 +41,14 @@ describe('the hashed file name', () => {
 })
 
 describe('what is sent of a new activity from revision 7', () => {
-  it('replaces the title by a generated name unless the athlete chose to send titles', () => {
+  it('sends the activity’s own title', () => {
     const digest = digestOf(ID, 'Run along the Embarcadero to home')
-    const hidden = minimisedForUpload(digest, 'activities/12345678.fit', POLICY)
-    expect(hidden.digest.name).toMatch(
-      /^(Early Morning|Morning|Afternoon|Evening|Night|Lunch).* Run$/,
-    )
-    expect(hidden.digest.name).not.toContain('Embarcadero')
-    const shown = minimisedForUpload(digest, 'activities/12345678.fit', { titles: true })
-    expect(shown.digest.name).toBe('Run along the Embarcadero to home')
+    const sent = minimisedForUpload(digest, 'activities/12345678.fit')
+    expect(sent.digest.name).toBe('Run along the Embarcadero to home')
   })
 
   it('hashes the file name and the digest id with it', () => {
-    const sent = minimisedForUpload(digestOf(ID, 'x'), 'activities/12345678.fit', POLICY)
+    const sent = minimisedForUpload(digestOf(ID, 'x'), 'activities/12345678.fit')
     expect(sent.fileName).toBe(hashedFileName('activities/12345678.fit'))
     expect(sent.digest.id).toBe(`${START}-${sent.fileName}`)
     expect(fileNameOf(sent.digest.id)).toBe(sent.fileName)
@@ -63,14 +57,14 @@ describe('what is sent of a new activity from revision 7', () => {
   it('sends an id and a name that are already hashed as they are, so an activity made at import is not changed', () => {
     const name = hashedFileName('activities/1.fit')
     const digest = digestOf(`${START}-${name}`, 'x')
-    const sent = minimisedForUpload(digest, name, POLICY)
+    const sent = minimisedForUpload(digest, name)
     expect(sent.digest.id).toBe(digest.id)
     expect(sent.fileName).toBe(name)
   })
 
   it('changes nothing else of the digest, and nothing of the workout’s key', () => {
     const digest = digestOf(ID, 'Title')
-    const sent = minimisedForUpload(digest, 'activities/12345678.fit', POLICY).digest
+    const sent = minimisedForUpload(digest, 'activities/12345678.fit').digest
     const { id: _a, name: _b, ...rest } = sent
     const { id: _c, name: _d, ...before } = digest
     expect(rest).toEqual(before)

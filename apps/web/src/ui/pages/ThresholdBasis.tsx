@@ -16,10 +16,13 @@ export function ThresholdBasis({
   sport,
   rows,
   className,
+  name = THRESHOLD_HEADING[sport],
 }: {
   sport: Sport
   rows: readonly Property[]
   className: string
+  /** The figure the Details are of, as its tile heads it: a run's half marathon where it leads. Default: the threshold. */
+  name?: string
 }) {
   if (rows.length === 0) return null
   return (
@@ -27,13 +30,13 @@ export function ThresholdBasis({
       <details className="disclosure">
         <summary>
           {DETAIL_TERM}
-          <span className="sr-only">{` for ${THRESHOLD_HEADING[sport].toLowerCase()}`}</span>
+          <span className="sr-only">{` for ${name.toLowerCase()}`}</span>
         </summary>
         <div className="disclosure__body">
           <PropertyList
             rows={rows}
             method={SECTION_ID.thresholds}
-            methodName={`how ${THRESHOLD_HEADING[sport].toLowerCase()} was worked out`}
+            methodName={`how ${name.toLowerCase()} was worked out`}
           />
         </div>
       </details>

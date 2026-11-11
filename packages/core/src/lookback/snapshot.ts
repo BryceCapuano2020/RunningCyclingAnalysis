@@ -1,10 +1,9 @@
 import { orderedFor } from '../digest/consumers'
 import { workoutKey } from '../duplicates'
-import type { FitnessBySport, FitnessState } from '../fitness/types'
 import type { ActivityDigest, Sport } from '../types'
 import { SPORTS } from '../types'
 import type { LookBack } from './compute'
-import type { EpisodeKind, MilestoneEffort, MilestoneUnit } from './types'
+import type { MilestoneEffort, MilestoneUnit } from './types'
 
 /**
  * What a library looked like at one import, kept to compare the next library with ("since your last import"). Small
@@ -22,22 +21,6 @@ export interface SnapshotBest {
   key: string
 }
 
-/** A sport's fitness status as the card showed it: the state word and what the check-in may quote of it. */
-export interface SnapshotFitness {
-  state: FitnessState
-  referenceHr: number | null
-  /** When the state began (the end of the week it was first shown); null for one that was never interrupted. */
-  enteredMs: number | null
-  /** How far from level the runs allow the athlete to be, in log units; null unless holding. */
-  within: number | null
-}
-
-export interface SnapshotEpisode {
-  kind: EpisodeKind
-  fromMs: number
-  toMs: number | null
-}
-
 export interface CheckInSnapshot {
   v: 1
   /** MODEL_REVISION when taken: numbers across revisions are not comparable. */
@@ -50,14 +33,11 @@ export interface CheckInSnapshot {
   keys: Record<Sport, string>
   counts: Record<Sport, number>
   bests: Record<Sport, SnapshotBest[]>
-  fitness: Record<Sport, SnapshotFitness | null>
-  episodes: Record<Sport, SnapshotEpisode[]>
 }
 
 export interface SnapshotInputs {
   /** The library as the analysis reads it: duplicates hidden, walking-pace runs left out. */
   digests: ActivityDigest[]
-  fitness: FitnessBySport
   lookBack: LookBack
   revision: number
 }
@@ -111,21 +91,5 @@ export function snapshotOf(inputs: SnapshotInputs, nowMs: number): CheckInSnapsh
           : [{ effort: m.effort, unit: m.unit, value: m.best.value, atMs: m.best.atMs, key }]
       }),
     ),
-    fitness: per((s) => {
-      const status = inputs.fitness[s]
-      if (status.shortfall?.kind === 'unavailable') return null
-      return {
-        state: status.state,
-        referenceHr: status.referenceHr,
-        enteredMs: status.entered?.atMs ?? null,
-        within: status.within,
-      }
-    }),
-    episodes: per((s) => {
-      const years = inputs.lookBack.sports[s].fitness
-      return years.kind === 'ok'
-        ? years.episodes.map((e) => ({ kind: e.kind, fromMs: e.fromMs, toMs: e.toMs }))
-        : []
-    }),
   }
 }

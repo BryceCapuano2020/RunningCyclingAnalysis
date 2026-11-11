@@ -2,8 +2,8 @@ import { halfWidth } from '../fitness/status'
 import { levelOf, slice } from '../fitness/windows'
 import type { RunPoint } from '../fitness/windows'
 import { LOOKBACK } from './params'
-import type { WeekSpan } from './episodes'
 import type { Level } from './segments'
+import type { WeekSpan } from './types'
 
 const Q = LOOKBACK.quiet
 

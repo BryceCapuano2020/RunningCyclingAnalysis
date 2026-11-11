@@ -33,7 +33,7 @@ export interface MatchFigure {
 }
 
 /** The athlete the figure is for: the age the lower sport was graded at, the sex, and the body mass today. */
-interface Athlete {
+export interface Athlete {
   age: number
   sex: Sex
   massKg: number
@@ -54,7 +54,7 @@ const SPEED_STEPS = 25
  * The flat speed, m/s, at which holding it for an hour grades at the target. Speed raises the distance covered, so the grade rises
  * with it and bisection finds the one speed. Null when no speed within the standards' distances reaches the target.
  */
-function runSpeedAtGrade(grade: number, athlete: Athlete): number | null {
+export function runSpeedAtGrade(grade: number, athlete: Athlete): number | null {
   const gradeAt = (speedMs: number) =>
     ageGradeForEffort(speedMs, HOUR_S, athlete.age, athlete.sex) ?? Number.NaN
   let lo = FIRST_GRADED_DISTANCE_M / HOUR_S

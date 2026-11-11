@@ -50,6 +50,7 @@ import { useAccountSettings } from './ui/useAccountSettings'
 import { forgetAccountChoices } from './ui/accountSettings'
 import { useAppSignOut } from './ui/useAppSignOut'
 import { useSignInProblem } from './ui/signInProblem'
+import { halfOfState } from './ui/runHalf'
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
@@ -146,6 +147,7 @@ export function App() {
     ageProfile,
     weighted,
     holdInputs,
+    halfOfState(analysis.state),
   )
   const restoringPage = page === 'restoring'
   const key = pageKeyOf(route, page)
@@ -317,7 +319,6 @@ export function App() {
                 email={account.me?.user.email ?? null}
                 keepFiles={keepFiles}
                 fileRetentionAvailable={fileRetentionAvailable}
-                userId={account.me?.user.id ?? null}
                 onSaveProfile={saveProfile}
                 dated={measurements}
                 onAddSetting={addSetting}

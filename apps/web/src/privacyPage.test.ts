@@ -64,10 +64,6 @@ const activitiesCsvSource = await readStylesheet(
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
 const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
-const uploadTitlesPreference = await readStylesheet(
-  import.meta.url,
-  './ui/uploadTitlesPreference.ts',
-)
 const minimiseSource = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/minimise.ts',
@@ -288,17 +284,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
         .exec(snapshot)?.[1]
         ?.match(/^\s{2}(\w+):/gm)
         ?.map((f) => f.trim()),
-    ).toEqual([
-      'v:',
-      'revision:',
-      'atMs:',
-      'asOfMs:',
-      'keys:',
-      'counts:',
-      'bests:',
-      'fitness:',
-      'episodes:',
-    ])
+    ).toEqual(['v:', 'revision:', 'atMs:', 'asOfMs:', 'keys:', 'counts:', 'bests:'])
     expect(text).toMatch(/summary of the library as it stood\s+before your last import/)
     expect(text).toMatch(/values and dates of your best efforts/)
     expect(text).toMatch(/whether you have seen what was said/)
@@ -449,18 +435,18 @@ describe('privacy page describes what is stored as the app stores it', () => {
     )
   })
 
-  it('says titles are saved only by choice, file names are hashed, and the choice stays in this browser under its key', () => {
-    expect(uploadTitlesPreference).toContain("UPLOAD_TITLES_KEY = 'rca.uploadTitles.v1'")
+  it('says titles are saved with the activity and file names are hashed', () => {
     expect(minimiseSource).toContain('`rca-${sha256TextHex(fileName).slice(0, 16)}${extension}`')
     expect(sentenceWith('an activity saved from now on keeps its title')).toContain(
-      'Send my activity titles to my library',
+      'in your library',
     )
     expect(text).toContain('rca- and sixteen characters')
     expect(text).toContain(
       'Activities saved before keep the title and file name they were saved with',
     )
     expect(text).toContain('it is not secrecy')
-    expect(text).toContain('rca.uploadTitles.v1')
+    expect(text).not.toContain('Send my activity titles')
+    expect(text).not.toContain('rca.uploadTitles.v1')
   })
 
   it('says the name printed on a shared card stays in this browser, under the key the app reads', () => {
@@ -673,9 +659,12 @@ describe('privacy page states the limits the code sets', () => {
 describe('the code behind the page', () => {
   it('stores the digest, its route outline and its file’s name and hash on this device, with no coordinates', () => {
     expect(device).toContain('async save({ digest, route, fileName, fileHash })')
+    // The row is the digest, the route outline, the file and, when the athlete renamed the workout, that name.
     expect(deviceLibrary).toContain(
-      'store.put({ digest: serializeDigest(digest), route, ...(file ?? {}) }, workoutKey)',
+      'digest: serializeDigest(named === null ? digest : { ...digest, name: named }),',
     )
+    expect(deviceLibrary).toContain('...(file ?? {}),')
+    expect(deviceLibrary).toContain('...(named === null ? {} : { nameOverride: named }),')
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''
     expect(digest).not.toBe('')

@@ -6,19 +6,18 @@ import type { EarnedRecord } from '@rca/core/records'
 import { startedWithin, windowEnding } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
+import { SPORTS } from '@rca/core/types'
 import { ACTIVITY_SORTS, SORT_LABELS, sortActivities } from '../activitySort'
 import { bucketInPhrase, bucketSpan, inBucket } from '../activitiesVolume'
-import { liftDaysInBucket, liftDaysInPeriod, liftDaysOf } from '../activitiesLift'
-import { useLiveLiftSets } from '../lift/useLiveLiftSets'
 import type { LiftSummaryAccount } from '../lift/useLiveLiftSets'
-import { NO_LIFT_DAYS } from '../volumeKinds'
+import { VOLUME_PLURAL } from '../volumeKinds'
+import { useActivitiesLifts } from './useActivitiesLifts'
 import { DEFAULT_VIEW, hasRemovedMark, queryFromView, viewFromQuery } from '../activitiesView'
 import type { ActivitiesView, ShowFilter, SportFilter } from '../activitiesView'
 import { countsOf, isNotCounted } from '../activityCounts'
 import { ActivityList } from '../components/ActivityList'
 import { LIBRARY_RANGE_OPTIONS } from '../components/rangeOptions'
 import { allCountedText, listEmptyText, periodClause } from '../periodCopy'
-import { SPORT_PLURAL } from '../sports'
 import { RangePicker } from '../components/RangePicker'
 import { NumText } from '../components/NumText'
 import { VolumeStrip } from '../components/VolumeStrip'
@@ -64,6 +63,7 @@ const SPORT_OPTIONS: SegmentedControlOption<SportFilter>[] = [
   { value: 'all', label: 'All' },
   { value: 'run', label: 'Runs' },
   { value: 'ride', label: 'Rides' },
+  { value: 'lift', label: 'Lifts' },
 ]
 
 const SHOW_OPTIONS: SegmentedControlOption<ShowFilter>[] = [
@@ -148,18 +148,12 @@ export function ActivitiesPage({
     (high, activity) => Math.max(high, activity.startMs),
     -Infinity,
   )
-  // Lifting time joins the strip and month headings when the list is not narrowed to a sport or to the activities not
-  // counted, which lifting is neither.
-  const liveSets = useLiveLiftSets(liftAccount)
-  const allLiftDays = useMemo(() => liftDaysOf(liveSets ?? []), [liveSets])
-  const lifts = useMemo(
-    () =>
-      sport === 'all' && show === 'all'
-        ? liftDaysInPeriod(allLiftDays, days, newestMs)
-        : NO_LIFT_DAYS,
-    [allLiftDays, days, newestMs, sport, show],
-  )
-  const liftsShown = useMemo(() => liftDaysInBucket(lifts, bucket), [lifts, bucket])
+  // Lifting days are rows, and join the strip and month headings, unless the list is narrowed to a sport or to the
+  // activities not counted, which lifting is neither.
+  const liftDays = useActivitiesLifts(liftAccount, view, days, newestMs)
+  const lifts = liftDays.inPeriod
+  const liftsShown = liftDays.listed
+  const anything = activities.length > 0 || liftDays.all.length > 0
   // Written without a new history entry, so Back still leaves the page the visitor came from.
   useEffect(() => {
     const query = queryFromView(view)
@@ -167,9 +161,11 @@ export function ActivitiesPage({
     if (window.location.hash !== hash) window.history.replaceState(window.history.state, '', hash)
   }, [view])
 
-  // The count is the activities on file, or the one sport the list is narrowed to in its own words, with how many
-  // of them the analysis does not count. The filter for those is offered while there are any.
-  const counts = countsOf(activities, sport === 'all' ? undefined : sport)
+  // The count is the activities and lifting days on file, or the one kind the list is narrowed to in its own words, with
+  // how many of them the analysis does not count. The filter for those is offered while there are any.
+  const oneSport = SPORTS.find((one) => one === sport)
+  const counts = sport === 'lift' ? { onFile: 0, notCounted: 0 } : countsOf(activities, oneSport)
+  const liftsOnFile = sport === 'all' || sport === 'lift' ? liftDays.all.length : 0
   const anyNotCounted = countsOf(activities).notCounted > 0
   // A new filter or sort is a new list, so it starts on its first page.
   const narrow = (patch: Partial<ActivitiesView>) => {
@@ -177,6 +173,7 @@ export function ActivitiesPage({
     removal.clear()
     setView((current) => ({ ...current, ...patch, page: 0 }))
   }
+  const rows = shown.length + liftsShown.length
   useEffect(() => {
     if (shown.length > 0 || !removedRef.current) {
       // A list that still has rows, after a removal, kept its focus where it was; the flag is spent.
@@ -189,7 +186,7 @@ export function ActivitiesPage({
   }, [shown.length])
   const span = bucket === null ? null : bucketSpan(bucket)
   // A week or month with nothing in it, beside a period that has something: the bucket is why the list is empty.
-  const emptiedByBucket = span !== null && inPeriod.length > 0
+  const emptiedByBucket = span !== null && (inPeriod.length > 0 || lifts.length > 0)
   const showAll = () =>
     narrow({
       period: DEFAULT_VIEW.period,
@@ -201,19 +198,19 @@ export function ActivitiesPage({
     <div className="page-stack activities">
       <div className="page-title">
         <PageHeading>Activities</PageHeading>
-        {activities.length === 0 && <p className="secondary">No activities yet</p>}
+        {!anything && <p className="secondary">No activities yet</p>}
       </div>
-      {activities.length > 0 && (
+      {anything && (
         <div className="activities__controls">
           <RangePicker
             choice={period}
             options={LIBRARY_RANGE_OPTIONS}
-            shown={shown.length}
-            total={counts.onFile}
+            shown={rows}
+            total={counts.onFile + liftsOnFile}
             notCounted={counts.notCounted}
             noun={sport === 'all' ? 'activity' : sport}
             foldedLead={
-              inPeriod.length > 0 ? (
+              inPeriod.length > 0 || lifts.length > 0 ? (
                 <p>
                   <NumText text={volumeTakeaway(inPeriod, periodClause(days, newestMs), lifts)} />
                 </p>
@@ -258,7 +255,7 @@ export function ActivitiesPage({
           )}
         </div>
       )}
-      {inPeriod.length > 0 && (
+      {(inPeriod.length > 0 || lifts.length > 0) && (
         <VolumeStrip
           activities={inPeriod}
           selected={bucket}
@@ -276,7 +273,7 @@ export function ActivitiesPage({
             {removal.outcome.text}
           </p>
         ))}
-      {shown.length > 0 ? (
+      {rows > 0 ? (
         <ActivityList
           activities={shown}
           units={units}
@@ -294,15 +291,16 @@ export function ActivitiesPage({
           detailIds={detailIds}
           signedIn={signedIn}
           lifts={liftsShown}
+          sort={sort}
           onDelete={removeHere}
         />
       ) : (
-        activities.length > 0 && (
+        anything && (
           <div className="activities__empty" ref={emptyRef} tabIndex={-1}>
             {emptiedByBucket ? (
               <>
                 <p className="secondary">
-                  {`No ${sport === 'all' ? 'activities' : SPORT_PLURAL[sport]} in ${bucketInPhrase(span)}.`}
+                  {`No ${sport === 'all' ? 'activities' : VOLUME_PLURAL[sport]} in ${bucketInPhrase(span)}.`}
                 </p>
                 <p>
                   <button type="button" className="btn" onClick={() => narrow({ bucket: null })}>

@@ -4,6 +4,7 @@ import { tooShortText, yearsFinding } from '@rca/core/lookback'
 import { timeInZonesLack } from '../zoneTimeCopy'
 import { bestEffortRows } from './bestEffortRows'
 import { BestEffortsSection } from './BestEffortsSection'
+import { levelsContent } from './sportLevels'
 import { racePredictionsContent } from './racePredictionsSection'
 import { SectionCell } from './SectionCell'
 import { SectionLine } from './SectionLine'
@@ -14,7 +15,7 @@ import { SPORT_PLURAL } from '../sports'
 import type { SectionContext } from './sportPageProps'
 
 /** The sections that can follow a sport page's answer. */
-export type SectionId = 'years' | 'bestEfforts' | 'racePredictions' | 'timeInZones'
+export type SectionId = 'years' | 'bestEfforts' | 'levels' | 'racePredictions' | 'timeInZones'
 
 /**
  * What a section gives the page: its content, or when the library cannot fill it yet, the one line in its place that
@@ -28,6 +29,7 @@ export interface SectionOutcome {
 const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
   years: () => 'History',
   bestEfforts: () => 'Best efforts',
+  levels: () => 'Levels',
   racePredictions: () => 'Race predictions',
   timeInZones: () => 'Time in zones',
 }
@@ -37,11 +39,11 @@ const SECTION_NAME: Record<SectionId, (sport: Sport) => string> = {
  * a desktop: what the best efforts predict beside how the time was spread across zones. The answer comes first
  * and these follow. History
  * is the one row that comes first, directly after the answer: its finding and a link to the History tab, which holds the
- * chart and the episodes. A sport without race predictions leaves that section out and its zones take the whole row.
+ * chart. A sport without race predictions leaves that section out and its zones take the whole row.
  */
 export const SPORT_ROWS: Record<Sport, readonly (readonly SectionId[])[]> = {
-  run: [['years'], ['bestEfforts'], ['racePredictions', 'timeInZones']],
-  ride: [['years'], ['bestEfforts'], ['timeInZones']],
+  run: [['years'], ['bestEfforts'], ['levels'], ['racePredictions', 'timeInZones']],
+  ride: [['years'], ['bestEfforts'], ['levels'], ['timeInZones']],
 }
 
 /** Each sport's section ids in reading order. */
@@ -64,7 +66,7 @@ const nothingToTell = (sport: Sport) => `Needs a year of ${SPORT_PLURAL[sport]}.
 
 /** How each section makes its outcome from what the page worked out. */
 const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
-  // The row says the finding of the sport's years and links to the History tab, which holds the chart and the episodes.
+  // The row says the finding of the sport's years and links to the History tab, which holds the chart.
   // A sport with no years to tell, or no look-back to read, says what it needs; one too short for them says so.
   years: (context) => {
     const { sport, lookBack, fitness, fitnessDots, units } = context
@@ -91,14 +93,20 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
       }
     }
     const finding = yearsFinding(block, fitness?.[sport].state ?? null)
-    if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
     if (drawn) {
       return {
         content: (
-          <SportHistory sport={sport} dots={dots} units={units} finding={finding} link={link} />
+          <SportHistory
+            sport={sport}
+            dots={dots}
+            units={units}
+            {...(finding === null ? {} : { finding })}
+            link={link}
+          />
         ),
       }
     }
+    if (finding === null) return emptyOf(context, 'years', nothingToTell(sport))
     return {
       content: (
         <SectionLine
@@ -112,6 +120,8 @@ const SECTIONS: Record<SectionId, (context: Context) => SectionOutcome> = {
     }
   },
   bestEfforts: (context) => ({ content: <BestEffortsSection {...context} /> }),
+  // The levels in the sport's own figure; none while the year of birth or sex is missing.
+  levels: (context) => ({ content: levelsContent(context) }),
   racePredictions: (context) => {
     const found = racePredictionsContent(context)
     if (found.content !== null) return { content: found.content }

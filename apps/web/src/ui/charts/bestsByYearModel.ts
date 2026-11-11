@@ -154,7 +154,7 @@ const sentenceCase = (text: string): string => text.charAt(0).toUpperCase() + te
 
 /** The line under a bests chart's title: its unit, and which way is better. */
 const UNIT_NOTE: Record<Sport, (units: UnitSystem) => string> = {
-  run: (units) => `Pace (${PACE_UNIT[units]}), faster up`,
+  run: (units) => `Pace (${PACE_UNIT[units]})`,
   ride: () => 'Power (W)',
 }
 

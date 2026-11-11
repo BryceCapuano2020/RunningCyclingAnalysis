@@ -11,6 +11,7 @@ import type { Pending } from './model'
 export function isQuietRequest(kind: Pending['kind']): boolean {
   return (
     isDeletion(kind) ||
+    kind === 'renameActivity' ||
     kind === 'exportData' ||
     kind === 'activitySplits' ||
     kind === 'activityTrace' ||

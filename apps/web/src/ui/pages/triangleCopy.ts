@@ -8,9 +8,6 @@ import { TRIANGLE_NOUN, TRIANGLE_TITLE } from '../triangleSports'
 import type { TriangleView } from '../triangleSports'
 import { titleParts } from './balanceCopy'
 
-/** What the grades are of, with a no-break space, so "at threshold" never parts across a line. */
-const AT = 'at threshold'
-
 /** "running", "running and cycling", "running, cycling and lifting". */
 function listOf(sports: readonly TriangleSport[]): string {
   const nouns = sports.map((sport) => TRIANGLE_NOUN[sport])
@@ -44,7 +41,7 @@ export function triangleTitleText(title: TriangleTitle): string {
 
 /**
  * The one line under the headline, or null with fewer than two graded. Three graded sports state the highest over the lowest; two
- * state who grades higher, at threshold, as the page always has; a level three say how near they sit.
+ * state who grades higher; a level three say how near they sit.
  */
 export function triangleLine(reading: TriangleReading): string | null {
   const { graded, higher, lower, lead, even, spread } = reading
@@ -53,9 +50,9 @@ export function triangleLine(reading: TriangleReading): string | null {
   if (graded.length === 2) {
     const [first, second] = graded
     if (points === 0 && first !== undefined && second !== undefined) {
-      return `${TRIANGLE_TITLE[first]} and ${TRIANGLE_NOUN[second]} grade the same ${AT}.`
+      return `${TRIANGLE_TITLE[first]} and ${TRIANGLE_NOUN[second]} grade the same.`
     }
-    return `${TRIANGLE_TITLE[higher]} grades ${plural(points, 'point')} higher ${AT}.`
+    return `${TRIANGLE_TITLE[higher]} grades ${plural(points, 'point')} higher.`
   }
   if (even) {
     return spread === 0

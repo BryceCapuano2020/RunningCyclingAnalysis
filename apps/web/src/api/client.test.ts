@@ -1,5 +1,4 @@
 import { hashedFileName } from '@rca/core/import/minimise'
-import { noteUploadTitles } from './uploadPolicy'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import {
   CLIENT_HEADER,
@@ -672,37 +671,27 @@ describe('createActivity', () => {
     expect(record.digest.durationS).toBe(3600)
   })
 
-  it('sends a generated title and a hashed file name from revision 7, and the title when chosen', async () => {
+  it('sends the file’s own title and a hashed file name from revision 7', async () => {
     const digest = {
       ...DIGEST,
       modelRevision: 7,
       name: 'Run past my house',
       id: '1000-run/9988.fit',
     }
-    const sentBody = async (): Promise<{ digest: ActivityDigest; fileName: string }> => {
-      const fetchMock = stubFetch(respond(201, RECORD_WIRE))
-      await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1')
-      return JSON.parse(callOf(fetchMock).init.body as string) as {
-        digest: ActivityDigest
-        fileName: string
-      }
+    const fetchMock = stubFetch(respond(201, RECORD_WIRE))
+    await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1')
+    const sent = JSON.parse(callOf(fetchMock).init.body as string) as {
+      digest: ActivityDigest
+      fileName: string
     }
-    noteUploadTitles({ uploadTitles: false })
-    const hidden = await sentBody()
-    expect(hidden.digest.name).not.toContain('house')
-    expect(hidden.fileName).toMatch(/^rca-[0-9a-f]{16}\.fit$/)
-    expect(hidden.digest.id).toBe(`1000-${hidden.fileName}`)
-    noteUploadTitles({ uploadTitles: true })
-    const shown = await sentBody()
-    expect(shown.digest.name).toBe('Run past my house')
-    expect(shown.fileName).toBe(hidden.fileName)
-    noteUploadTitles({ uploadTitles: false })
+    expect(sent.digest.name).toBe('Run past my house')
+    expect(sent.fileName).toMatch(/^rca-[0-9a-f]{16}\.fit$/)
+    expect(sent.digest.id).toBe(`1000-${sent.fileName}`)
   })
 
   it('sends a replace as it is: an activity already saved keeps its id, file name and title', async () => {
     const digest = { ...DIGEST, modelRevision: 7, name: 'My own title', id: '1000-run/9988.fit' }
     const fetchMock = stubFetch(respond(200, RECORD_WIRE))
-    noteUploadTitles({ uploadTitles: false })
     await createActivity(digest, 'run/9988.fit', 'c'.repeat(64), 'u1', 'rec-1')
     const { path, init } = callOf(fetchMock)
     expect(path).toBe('/api/activities?replace=rec-1')

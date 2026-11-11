@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
-import { uploadTitlesField } from '../uploadTitlesPreference'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
+  RENAMED,
   EXPORT_INTERRUPTED,
   exportFailureText,
   LIBRARY_NOT_LOADED,
@@ -53,7 +53,6 @@ export function useLibraryActions({
         type: 'loadServer',
         settings: settingsRef.current,
         userId,
-        ...uploadTitlesField(userId),
         ...storedPeriodRequest(),
       })
     },
@@ -99,44 +98,57 @@ export function useLibraryActions({
     send({ type: 'resumeSaves', settings: settingsRef.current, userId: current.me.user.id })
   }, [accountRef, send, settingsRef, workerRef])
 
+  /**
+   * Whose library a change to a saved activity is made in: the account's (its id), or the one kept in this browser
+   * (null). Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until then the
+   * change says why nothing happened, rather than closing without a word. Undefined when it cannot be made now.
+   */
+  const changeScope = useCallback((): { userId: string | null } | undefined => {
+    const current = accountRef.current
+    const signedIn = current.status === 'signed-in'
+    if (
+      accountPending(current) ||
+      (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
+    ) {
+      setLibraryError(LIBRARY_NOT_READY)
+      return undefined
+    }
+    if (workerRef.current === null) {
+      setLibraryError(STOPPED)
+      return undefined
+    }
+    setLibraryNotice(null)
+    setLibraryError(null)
+    return { userId: signedIn && current.me !== null ? current.me.user.id : null }
+  }, [accountRef, libraryStatusRef, setLibraryError, setLibraryNotice, workerRef])
+
   const deleteActivity = useCallback(
     (id: string) => {
-      const current = accountRef.current
-      const signedIn = current.status === 'signed-in'
-      // Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until
-      // then the delete says why nothing happened, rather than closing without a word.
-      if (
-        accountPending(current) ||
-        (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
-      ) {
-        setLibraryError(LIBRARY_NOT_READY)
-        return
-      }
-      if (workerRef.current === null) {
-        setLibraryError(STOPPED)
-        return
-      }
       const activity = savedActivitiesRef.current.find((saved) => saved.id === id)
-      setLibraryNotice(null)
-      setLibraryError(null)
+      const scope = changeScope()
+      if (scope === undefined) return
       const settings = settingsRef.current
       send(
-        signedIn && current.me !== null
-          ? { type: 'deleteActivity', id, userId: current.me.user.id, settings }
+        scope.userId !== null
+          ? { type: 'deleteActivity', id, userId: scope.userId, settings }
           : { type: 'deleteDeviceActivity', id, settings },
         deleteNoticeText(activity),
       )
     },
-    [
-      accountRef,
-      libraryStatusRef,
-      savedActivitiesRef,
-      send,
-      setLibraryError,
-      setLibraryNotice,
-      settingsRef,
-      workerRef,
-    ],
+    [changeScope, savedActivitiesRef, send, settingsRef],
+  )
+
+  /** Gives a saved activity the name the athlete chose; the page shows the answer's notice or error beside it. */
+  const renameActivity = useCallback(
+    (id: string, name: string) => {
+      const scope = changeScope()
+      if (scope === undefined) return
+      send(
+        { type: 'renameActivity', id, name, userId: scope.userId, settings: settingsRef.current },
+        RENAMED,
+      )
+    },
+    [changeScope, send, settingsRef],
   )
 
   /**
@@ -221,6 +233,7 @@ export function useLibraryActions({
     retryLibrary,
     resumeSaves,
     deleteActivity,
+    renameActivity,
     exportData,
     activitySplits,
   }

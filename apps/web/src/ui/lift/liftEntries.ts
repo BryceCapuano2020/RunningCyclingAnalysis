@@ -29,6 +29,8 @@ import { plural } from '../components/plural'
 import { formatDayMonth } from '../format/date'
 import { dayNoonMs, shiftDay } from './liftDay'
 import { liftName } from './liftNames'
+import type { LevelRangeRow } from '../levelRanges'
+import { liftLevelRowsOf } from './liftLevelRows'
 import { bigThreeLeadOf } from './bigThreeModel'
 import type { BigThreeLeadModel } from './bigThreeModel'
 
@@ -71,6 +73,8 @@ export interface LiftOverview {
   lead: LiftLead | null
   /** The big three side by side, which the page leads with in place of `lead` once any of them has an estimate. */
   bigThree: BigThreeLeadModel | null
+  /** The big three total that earns each level, for the Levels table; null while age, sex or weight is missing. */
+  levels: LevelRangeRow[] | null
   /** Every lift with an estimate: big three first, then the most recent. A lift with one session has no line yet. */
   lifts: LiftEntry[]
   /** The lift the page leads with, which the chart shows first; null with no lift. */
@@ -248,6 +252,7 @@ export function liftOverviewOf(
   return {
     lead,
     bigThree: bigThreeLeadOf(state.lifts, profile, settings, units),
+    levels: liftLevelRowsOf(state.lifts, profile, settings, units, today),
     leadId: top?.id ?? null,
     lifts: ordered,
     weeks: filledWeeks(state.weeks, today),

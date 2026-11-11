@@ -54,6 +54,7 @@ const CHANGES_LIBRARY: ReadonlySet<WorkerRequest['type']> = new Set<WorkerReques
   'clear',
   'deleteActivity',
   'deleteDeviceActivity',
+  'renameActivity',
   'loadServer',
   'loadDevice',
   'loadSample',

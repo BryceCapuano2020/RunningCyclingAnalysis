@@ -375,6 +375,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     libraryNotice: library.libraryNotice,
     libraryError: library.libraryError,
     deleteActivity: libraryActions.deleteActivity,
+    renameActivity: libraryActions.renameActivity,
     exportData: libraryActions.exportData,
     activitySplits: libraryActions.activitySplits,
     rebuildNotice: imports.rebuildNotice,

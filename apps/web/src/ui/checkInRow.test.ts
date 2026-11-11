@@ -27,16 +27,13 @@ describe('which row leads under the fitness card', () => {
 })
 
 describe('the words of the row', () => {
-  it('give what was added as a label over its value, and what was checked as rows', () => {
+  it('give what was added as a label over its value, and no row when nothing else was told', () => {
     const words = checkInWords(view(QUIET_CHECK_IN), 'metric')!
     expect(words.headline).toEqual({
       label: 'Added since 2 October 2025',
       value: '14 runs and 3 rides',
     })
-    expect(words.rows).toContainEqual({ label: 'Fitness moved', value: 'Nothing' })
-    expect(words.rows).toContainEqual(
-      expect.objectContaining({ label: 'Run fitness', value: 'No clear change' }),
-    )
+    expect(words.rows).toEqual([])
   })
 
   it('carry a new best in the athlete’s units, and none for no check-in', () => {

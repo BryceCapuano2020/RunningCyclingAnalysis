@@ -28,7 +28,7 @@ import {
 import { databaseSoftLimitBytes } from '../../databaseGuard.ts'
 import { checkDigestText } from './digestText.ts'
 import { requireCurrentRevision } from './revisionCheck.ts'
-import { keepStoredLabel } from './storedLabel.ts'
+import { keepStoredLabel, keepStoredName } from './storedLabel.ts'
 import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
@@ -203,14 +203,18 @@ async function upgradeExisting(
   // while the stored revision is older, so simultaneous retries cannot downgrade the digest.
   // The athlete's own label, set since the file was read, is kept (storedLabel.ts); it is part of the digest, so
   // it counts against the size limit the digest was checked against without it.
-  const digestJson = keepStoredLabel(existing.digestJson, input.digest, input.digestJson)
+  // The name the athlete gave it is kept too (a rename, `name_override`), in the digest and the row.
+  const digestJson = keepStoredName(
+    existing.nameOverride,
+    keepStoredLabel(existing.digestJson, input.digest, input.digestJson),
+  )
   if (digestByteLength(digestJson) > MAX_DIGEST_BYTES) {
     throw new HttpError(413, 'digest_too_large', 'Activity digest is larger than 256 KB')
   }
   const upgraded = await upgradeDigest(c, userId, existing, {
     digestJson,
     digestVersion: input.digest.version,
-    name: input.digest.name,
+    name: existing.nameOverride ?? input.digest.name,
     modelRevision: input.digest.modelRevision,
     fileHash: input.fileHash,
   })

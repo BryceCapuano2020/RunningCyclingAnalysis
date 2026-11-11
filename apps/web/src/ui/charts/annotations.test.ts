@@ -39,7 +39,7 @@ describe('a callout', () => {
     expect(placed?.preferred).toBe(true)
     expect(placed?.box.bottom).toBeLessThan(200)
     expect(placed?.texts.map((text) => text.role)).toEqual(['eyebrow', 'value', 'caption'])
-    expect(placed?.texts[1]).toMatchObject({ text: '6:37', unit: ' /mi', px: 30 })
+    expect(placed?.texts[1]).toMatchObject({ text: '6:37', unit: ' /mi', px: 18 })
     // The leader runs from just above the point to the box's lower edge, and stops short of the point.
     expect(placed?.leader?.y1).toBeLessThan(200)
     expect(placed?.leader?.y1).toBeGreaterThan(placed?.leader?.y2 ?? 0)
@@ -399,10 +399,10 @@ describe('a callout beside the curve’s own line', () => {
     expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThanOrEqual(LINE_CLEARANCE_PX / 2)
   })
 
-  it('has more room than an obstacle as thin as the stroke gave', () => {
-    // The 3 px stroke alone lets the value sit nearly on the line; its clearance obstacle keeps it well off. (A 5 px
-    // obstacle now gives the same room as the clearance here: the value's box is measured at the mono's full 0.6 em.)
-    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThan(gapFor(3) * 2)
+  it('has at least the room an obstacle as thin as the stroke gives', () => {
+    // At the label size (18 px) the leader's own length already holds the text this far off; the clearance obstacle
+    // never lets it come closer.
+    expect(gapFor(LINE_CLEARANCE_PX)).toBeGreaterThanOrEqual(gapFor(3))
   })
 })
 

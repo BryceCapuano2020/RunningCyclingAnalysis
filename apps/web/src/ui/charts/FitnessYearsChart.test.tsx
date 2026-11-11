@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../test/deviceZone'
-import { dotsFixture, openSlip, slipAndRise, startOf } from '../test/fitnessYearsFixtures'
+import { dotsFixture, startOf } from '../test/fitnessYearsFixtures'
 import { FitnessYearsChart } from './FitnessYearsChart'
 
 /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
@@ -27,7 +27,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const THREE = dotsFixture({ years: [2021, 2022, 2023], spans: slipAndRise(2021) })
+const THREE = dotsFixture({ years: [2021, 2022, 2023] })
 const dotCount = (d: string | null) => (d?.match(/M/g) ?? []).length
 
 describe('FitnessYearsChart', () => {
@@ -39,7 +39,7 @@ describe('FitnessYearsChart', () => {
     const items = within(screen.getByRole('list', { name: 'Legend' })).getAllByRole('listitem')
     expect(items.map((item) => item.textContent)).toEqual(['Steady run', 'Median'])
     expect(screen.getByRole('img')).toHaveAccessibleName(
-      '120 steady runs from 2021 to 2023, each pace at 142 bpm, with a line through their median and the slips and rises shaded.',
+      '120 steady runs from 2021 to 2023, each pace at 142 bpm, with a line through their median.',
     )
   })
 
@@ -61,7 +61,7 @@ describe('FitnessYearsChart', () => {
     const { container, rerender } = render(
       <FitnessYearsChart sport="run" dots={fast} units="metric" />,
     )
-    expect(container.querySelector('svg')).toHaveTextContent('GAP (/km), faster up')
+    expect(container.querySelector('svg')).toHaveTextContent('GAP (/km)')
     const d = container.querySelector('[data-testid="fitness-dots"]')!.getAttribute('d')!
     const ys = d
       .split('M')
@@ -76,26 +76,11 @@ describe('FitnessYearsChart', () => {
     expect(container.querySelector('svg')).toHaveTextContent('Power (W)')
   })
 
-  it('shades each slip and rise with its word, and an open slip to the horizon', () => {
+  it('shades nothing: the plot holds the dots, the median and the axes', () => {
     chartWidth(800)
-    const { container, rerender } = render(
-      <FitnessYearsChart sport="run" dots={THREE} units="metric" />,
-    )
-    const spans = container.querySelectorAll('[data-testid="fitness-span"]')
-    expect(Array.from(spans, (s) => s.textContent)).toEqual(['Slip', 'Rise'])
-    expect(spans[0]!.querySelector('rect')).toHaveClass('fitness-years__span--slip')
-    expect(spans[1]!.querySelector('rect')).toHaveClass('fitness-years__span--rise')
-    rerender(
-      <FitnessYearsChart
-        sport="run"
-        dots={dotsFixture({ years: [2021, 2022, 2023], spans: openSlip(2022) })}
-        units="metric"
-      />,
-    )
-    const open = container.querySelector('[data-testid="fitness-span"] rect')!
-    const [x, width] = [Number(open.getAttribute('x')), Number(open.getAttribute('width'))]
-    // It runs to the right edge of the dots: the horizon is the last dot's day here.
-    expect(x + width).toBeGreaterThan(700)
+    const { container } = render(<FitnessYearsChart sport="run" dots={THREE} units="metric" />)
+    expect(container.querySelector('[data-testid="fitness-span"]')).toBeNull()
+    expect(container).not.toHaveTextContent(/slip|rise/i)
   })
 
   it('lifts the pen across a gap instead of drawing the median over it', () => {
@@ -114,22 +99,19 @@ describe('FitnessYearsChart', () => {
     expect(pieces()).toBe(2)
   })
 
-  it('reads a year with the keyboard: the middle, the middle 80%, the count, and the slip in it', () => {
+  it('reads a year with the keyboard: the middle, the middle 80% and the count', () => {
     chartWidth(800)
     render(<FitnessYearsChart sport="run" dots={THREE} units="metric" />)
     const surface = screen.getByTestId('plot-surface')
     fireEvent.keyDown(surface, { key: 'Home' })
     const status = screen.getByRole('status')
-    for (const text of ['2021', 'Pace', '/km', 'Middle 80%', 'Steady runs', '40', 'Slip', 'to']) {
+    for (const text of ['2021', 'Pace', '/km', 'Middle 80%', 'Steady runs', '40']) {
       expect(status).toHaveTextContent(text)
     }
-    expect(status).toHaveTextContent('March to October 2021')
     fireEvent.keyDown(surface, { key: 'ArrowRight' })
     expect(screen.getByRole('status')).toHaveTextContent('2022')
-    expect(screen.getByRole('status')).toHaveTextContent('Rise')
     fireEvent.keyDown(surface, { key: 'End' })
     expect(screen.getByRole('status')).toHaveTextContent('2023')
-    expect(screen.getByRole('status')).not.toHaveTextContent('Slip')
   })
 
   it('says a year with no steady runs had none, and keeps it in the table as dashes', () => {
@@ -153,7 +135,7 @@ describe('FitnessYearsChart', () => {
     ).toEqual(['None', 'None', '0'])
   })
 
-  it('gives each year in a table, and the slips and rises in a second one', () => {
+  it('gives each year in a table, and no second one', () => {
     chartWidth(800)
     render(<FitnessYearsChart sport="run" dots={THREE} units="metric" />)
     const years = screen.getByRole('table', { name: 'Pace at 142 bpm by year' })
@@ -165,20 +147,7 @@ describe('FitnessYearsChart', () => {
     const first = within(years).getAllByRole('row')[1]!
     expect(within(first).getByRole('rowheader')).toHaveTextContent('2021')
     expect(within(first).getAllByRole('cell')[2]).toHaveTextContent('40')
-    const episodes = screen.getByRole('table', { name: 'Slips and rises' })
-    const lines = within(episodes)
-      .getAllByRole('row')
-      .slice(1)
-      .map((row) => row.textContent)
-    expect(lines).toEqual([expect.stringMatching(/^Slip/), expect.stringMatching(/^Rise/)])
-  })
-
-  it('has no second table when nothing was shaded', () => {
-    chartWidth(800)
-    render(
-      <FitnessYearsChart sport="run" dots={dotsFixture({ years: [2021, 2022] })} units="metric" />,
-    )
-    expect(screen.queryByRole('table', { name: 'Slips and rises' })).toBeNull()
+    expect(screen.getAllByRole('table')).toHaveLength(1)
   })
 
   it('fits a phone with a readout row that says the latest year', () => {
@@ -190,80 +159,28 @@ describe('FitnessYearsChart', () => {
   it('reads a pace in miles when the athlete counts in miles', () => {
     chartWidth(800)
     const { container } = render(<FitnessYearsChart sport="run" dots={THREE} units="imperial" />)
-    expect(container.querySelector('svg')).toHaveTextContent('GAP (/mi), faster up')
+    expect(container.querySelector('svg')).toHaveTextContent('GAP (/mi)')
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'Home' })
     expect(screen.getByRole('status')).toHaveTextContent('/mi')
   })
 
-  describe('with the pointer on the plot', () => {
-    // A slip from March to July of 2021 and a rise from September 2021 to April 2022: both touch 2021.
-    const both = dotsFixture({
-      years: [2020, 2021, 2022],
-      spans: [
-        { kind: 'slip', fromDay: startOf(2021) + 60, toDay: startOf(2021) + 200 },
-        { kind: 'rise', fromDay: startOf(2021) + 250, toDay: startOf(2022) + 100 },
-      ],
+  it('reads the year the pointer is in even where a narrow first year has its middle nearer', () => {
+    chartWidth(800)
+    const shifted = {
+      ...dotsFixture({ years: [2020, 2021, 2022] }),
+      firstDay: startOf(2020) + 330,
+    }
+    const { container } = render(<FitnessYearsChart sport="run" dots={shifted} units="metric" />)
+    // A tenth of the way into the 2021 room, which is as wide as 2022's: the middle of the narrow 2020 room is nearer.
+    const [, mid2021, mid2022] = Array.from(
+      container.querySelectorAll('.chart-x-axis__tick'),
+      (t) => Number(t.getAttribute('x')),
+    )
+    const room = mid2022! - mid2021!
+    fireEvent.pointerMove(screen.getByTestId('plot-surface'), {
+      clientX: mid2021! - 0.4 * room,
+      clientY: 100,
     })
-    const rects = (container: HTMLElement) =>
-      Array.from(container.querySelectorAll('[data-testid="fitness-span"] rect'))
-    const middleOf = (rect: Element) =>
-      Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2
-    const labels = () =>
-      Array.from(
-        screen.getByRole('status').querySelectorAll('.chart-tooltip__label'),
-        (l) => l.textContent,
-      )
-
-    it('reads the year it is over, and puts the slip or rise under it, with its months, first', () => {
-      chartWidth(800)
-      const { container } = render(<FitnessYearsChart sport="run" dots={both} units="metric" />)
-      const [slip, rise] = rects(container)
-      const surface = screen.getByTestId('plot-surface')
-      fireEvent.pointerMove(surface, { clientX: middleOf(slip!), clientY: 100 })
-      expect(screen.getByRole('status')).toHaveTextContent('2021')
-      expect(labels().slice(-2)).toEqual(['Slip', 'Rise'])
-      expect(screen.getByRole('status')).toHaveTextContent('March to July 2021')
-      fireEvent.pointerMove(surface, { clientX: middleOf(rise!), clientY: 100 })
-      expect(screen.getByRole('status')).toHaveTextContent('2021')
-      expect(labels().slice(-2)).toEqual(['Rise', 'Slip'])
-      expect(screen.getByRole('status')).toHaveTextContent('September 2021 to April 2022')
-      // The band under the pointer is firmer, and the other is not.
-      expect(rise).toHaveClass('fitness-years__span--read')
-      expect(slip).not.toHaveClass('fitness-years__span--read')
-    })
-
-    it('shows no band as read when the pointer is between them, or off the plot', () => {
-      chartWidth(800)
-      const { container } = render(<FitnessYearsChart sport="run" dots={both} units="metric" />)
-      const [slip, rise] = rects(container)
-      const between =
-        (Number(slip!.getAttribute('x')) +
-          Number(slip!.getAttribute('width')) +
-          Number(rise!.getAttribute('x'))) /
-        2
-      fireEvent.pointerMove(screen.getByTestId('plot-surface'), { clientX: between, clientY: 100 })
-      expect(container.querySelector('.fitness-years__span--read')).toBeNull()
-      expect(labels().slice(-2)).toEqual(['Slip', 'Rise'])
-      fireEvent.pointerLeave(screen.getByTestId('plot-surface'))
-      expect(container.querySelector('.fitness-years__span--read')).toBeNull()
-      expect(screen.getByRole('status')).toBeEmptyDOMElement()
-    })
-
-    it('reads the year the pointer is in even where a narrow first year has its middle nearer', () => {
-      chartWidth(800)
-      const shifted = { ...both, firstDay: startOf(2020) + 330 }
-      const { container } = render(<FitnessYearsChart sport="run" dots={shifted} units="metric" />)
-      // A tenth of the way into the 2021 room, which is as wide as 2022's: the middle of the narrow 2020 room is nearer.
-      const [, mid2021, mid2022] = Array.from(
-        container.querySelectorAll('.chart-x-axis__tick'),
-        (t) => Number(t.getAttribute('x')),
-      )
-      const room = mid2022! - mid2021!
-      fireEvent.pointerMove(screen.getByTestId('plot-surface'), {
-        clientX: mid2021! - 0.4 * room,
-        clientY: 100,
-      })
-      expect(screen.getByRole('status')).toHaveTextContent('2021')
-    })
+    expect(screen.getByRole('status')).toHaveTextContent('2021')
   })
 })

@@ -13,12 +13,13 @@ import { SportAnswer } from './pages/SportAnswer'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 import { standingOf } from './standing'
 import { gradesOfStanding } from './thresholdGrade'
+import { halfForecastFor } from './runHalf'
 import { triangleViewOf } from './triangleSports'
 
 afterEach(cleanup)
 
 /*
- * A sport's age grade at its threshold is one figure shown on the Balance triangle, on the sport's page and on the share card
+ * A sport's age grade (a run's by its forecast half) is one figure shown on the Balance triangle, on the sport's page and on the share card
  * (docs/ENGINEERING.md, "One figure, one function"). Each test renders all three from one result and compares the level and the
  * percent they print, so a surface that works out a grade of its own fails here.
  */
@@ -27,6 +28,9 @@ const SPORTS: readonly Sport[] = ['run', 'ride']
 const CONTEXT = { massKg: SAMPLE_SETTINGS.massKg, units: 'metric' } as const
 const ALL_TIME: Period = { choice: 'all', startMs: null, endMs: null, days: null, fellBack: false }
 const sample = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result!
+
+/** The run's forecast half for a result, asked as the sport page below asks it (all time, no library beyond the result). */
+const halfOf = (result: AnalysisResult) => halfForecastFor({ result, rangeDays: null, library: [] })
 
 /** The result with a sport's threshold raised, so the grades under test are not one pair of numbers. */
 function withRaised(base: AnalysisResult, sport: Sport, factor: number): AnalysisResult {
@@ -48,7 +52,7 @@ interface Printed {
 
 /** The corners of the level triangle, by sport. */
 function onLevels(result: AnalysisResult): Record<Sport, Printed> {
-  const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT)
+  const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT, halfOf(result))
   const grades = gradesOfStanding(result, standing)
   render(<LevelTriangle view={triangleViewOf(grades)} />)
   const read = (sport: Sport): Printed => {
@@ -63,7 +67,7 @@ function onLevels(result: AnalysisResult): Record<Sport, Printed> {
   return printed
 }
 
-/** The age grade at threshold on a sport's page. */
+/** The age grade on a sport's page. */
 function onSportPage(result: AnalysisResult, sport: Sport): Printed {
   render(
     <SportAnswer
@@ -92,7 +96,7 @@ function onSportPage(result: AnalysisResult, sport: Sport): Printed {
 
 /** A sport's level and percent on the share card's triangle. */
 function onShareCard(result: AnalysisResult, sport: Sport): Printed {
-  const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT)
+  const standing = standingOf(result, SAMPLE_PROFILE, CONTEXT, halfOf(result))
   const card = buildShareCard(
     result,
     SAMPLE_SETTINGS,
@@ -112,7 +116,7 @@ describe.each([
   ['the sample', sample],
   ['a faster run', withRaised(sample, 'run', 1.1)],
   ['a slower ride', withRaised(sample, 'ride', 0.9)],
-])('the grade at threshold for %s', (_name, result) => {
+])('the grade for %s', (_name, result) => {
   const levels = onLevels(result)
 
   it.each(SPORTS)(

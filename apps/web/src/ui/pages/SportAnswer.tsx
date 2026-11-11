@@ -2,6 +2,7 @@ import { AddSportFiles } from '../components/AddSportFiles'
 import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { CountWalkingRuns } from '../components/WalkingChoice'
 import { WeightNote } from '../components/WeightNote'
+import { sportHalfFor } from '../runHalf'
 import { thresholdGrade } from '../thresholdGrade'
 import { SportHero } from './SportHero'
 import type { SportPageProps } from './sportPageProps'
@@ -16,6 +17,8 @@ export interface SportAnswerProps extends Pick<
   | 'profile'
   | 'missingAge'
   | 'rangeDays'
+  | 'heartRateJudgement'
+  | 'periodEndMs'
   | 'emptyText'
   | 'leftOut'
   | 'inLibrary'
@@ -25,6 +28,8 @@ export interface SportAnswerProps extends Pick<
   /** The previous period's thresholds and label, which the hero's change reads. Absent: all time. */
   previousThresholds?: SportPageProps['previousThresholds']
   previousLabel?: string | null
+  /** The library the run's forecast half is asked of, as the Run page's predictions ask it. Absent: the period alone. */
+  library?: SportPageProps['library']
   /** How many of the sport's activities the period holds. */
   count: number
   /** Whether the page holds the sport's figures for the body weight a ride needs. */
@@ -76,7 +81,15 @@ export function SportAnswer(props: SportAnswerProps) {
   const { previousThresholds = null, previousLabel = null } = props
   if (count === 0) return <EmptySport {...props} />
   if (held) return <WeightNote />
-  const headline = profile === null ? null : thresholdGrade(result, sport, profile)
+  // A run is graded by the half its race predictions forecast, the one Balance grades it by; a ride by its threshold.
+  const half = sportHalfFor(sport, {
+    result,
+    rangeDays: props.rangeDays,
+    library: props.library ?? [],
+    heartRateJudgement: props.heartRateJudgement,
+    periodEndMs: props.periodEndMs,
+  })
+  const headline = profile === null ? null : thresholdGrade(result, sport, profile, half)
   return (
     <SportHero
       sport={sport}

@@ -63,8 +63,8 @@ Decided earlier and still in force:
 
 ## Phase 2: Evolving capability
 
-- **Done: fitness at the same heart rate** (stage C): slipping, holding, recovering and back per
-  sport, with its evidence ([fitness.md](design/fitness.md)).
+- **Done: fitness at the same heart rate** (stage C): the level at one heart rate per sport, with its
+  evidence ([fitness.md](design/fitness.md)). The page names no state and tells no slip or recovery (10 Nov 2026).
 - **One calibrated change test (stage D).** Every "this changed" sentence uses one test calibrated
   on the athlete's own library, and the best-of-window weekly trend is retired.
 - **Timeline engine.** A capability trajectory whose interval widens between observations.

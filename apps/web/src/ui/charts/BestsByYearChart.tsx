@@ -76,7 +76,7 @@ const BESTS_TITLE: Record<Sport, string> = {
 
 /**
  * A sport's best effort of each length in each year, as small charts on one run of years: a panel for each length with its
- * own axis (pace for a run, faster up; power for a ride), the all-time best large and labelled, and a best that heart rate
+ * own axis (pace for a run; power for a ride), the all-time best large and labelled, and a best that heart rate
  * does not show was hard, or that is estimated, drawn hollow and keyed. The title is the measure.
  */
 export function BestsByYearChart({ sport, efforts, units, controls }: BestsByYearChartProps) {

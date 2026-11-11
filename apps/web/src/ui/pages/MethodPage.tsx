@@ -14,6 +14,8 @@ import { NumText } from '../components/NumText'
 import { plural } from '../components/plural'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
+import { NO_HALF } from '../runHalf'
+import type { HalfOf } from '../runHalf'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { MethodAnswer } from './MethodAnswerBlock'
 import {
@@ -42,6 +44,8 @@ import { PageHeading } from '../components/PageHeading'
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
   result: AnalysisResult | null
+  /** The run's forecast half for a result, asked as Balance asks it (`halfOfState`). Absent: the run is graded by its threshold. */
+  halfOf?: HalfOf
   /** What the heart rate set aside was judged against, the library's, which the line on it cites. */
   heartRateJudgement: HeartRateJudgement
   /** The year of birth and sex for the grades, or null while either is missing. */
@@ -70,6 +74,7 @@ function contributorsOf(curve: Curve): number {
 /** How each figure is worked out: the answer first, then one section a figure, each led by the line a reader wants. */
 export function MethodPage({
   result,
+  halfOf = NO_HALF,
   heartRateJudgement,
   profile,
   period,
@@ -82,7 +87,10 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const holdInputs = useHoldInputs()
-  const standing = profile === null || result === null ? null : standingOf(result, profile)
+  // The run is graded by its forecast half where there is one, as Balance and the Run page grade it.
+  const half = result === null ? null : halfOf(result)
+  const standing =
+    profile === null || result === null ? null : standingOf(result, profile, undefined, half)
   const headline = standing === null || result === null ? null : gradesOfStanding(result, standing)
   // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
   const rideHold =
@@ -147,8 +155,9 @@ export function MethodPage({
 
   return (
     <div className="page-stack method">
-      <div className="page-head">
+      <div className="page-head method__head">
         <PageHeading>Method</PageHeading>
+        <p className="method__lede">How each figure is worked out.</p>
       </div>
 
       <MethodAnswer
@@ -162,15 +171,21 @@ export function MethodPage({
       />
 
       <nav className="method__contents" aria-label="On this page">
-        <ul>
-          {contentsOf(showAccuracy).map(({ id, label }) => (
+        <p className="eyebrow method__contents-title" aria-hidden="true">
+          Contents
+        </p>
+        <ol>
+          {contentsOf(showAccuracy).map(({ id, label }, index) => (
             <li key={id}>
               <button type="button" onClick={() => focusSection(id)}>
-                {label}
+                <span className="method__contents-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="method__contents-label">{label}</span>
               </button>
             </li>
           ))}
-        </ul>
+        </ol>
       </nav>
 
       <MethodSection section="thresholds" lead={THRESHOLD_LEAD} facts={THRESHOLD_FACTS}>

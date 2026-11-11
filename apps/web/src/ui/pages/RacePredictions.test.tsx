@@ -96,7 +96,7 @@ describe('RacePredictions', () => {
     )
   })
 
-  it('draws a triangle above the bar for the runs and one below for heart rate, and only the one there is', () => {
+  it('draws a triangle above the bar for the runs and one below for heart rate, and none for one estimate alone', () => {
     const both = makeResult({
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
@@ -108,8 +108,11 @@ describe('RacePredictions', () => {
     view.unmount()
     const runsOnly = renderPredictions(makeResult({ activities: [withBests] }))
     const only = runsOnly.container.querySelector('.race-row')!
-    expect(only.querySelectorAll('.race-bar__mark--above')).toHaveLength(1)
-    expect(only.querySelectorAll('.race-bar__mark--below')).toHaveLength(0)
+    // One estimate is the prediction itself: its triangle would sit on the dot, so neither it nor its key entry is drawn.
+    expect(only.querySelectorAll('.race-bar__mark')).toHaveLength(0)
+    const key = within(runsOnly.container).getByRole('list', { name: 'Key' })
+    expect(key).not.toHaveTextContent('From your runs')
+    expect(key).toHaveTextContent('Prediction')
   })
 
   it('draws the prediction between the spread’s caps, never outside them', () => {

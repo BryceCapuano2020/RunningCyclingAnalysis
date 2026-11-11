@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_FITNESS } from '@rca/core/fitness/types'
 import type { AthleteSettings } from '@rca/core/types'
@@ -12,7 +12,7 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/test/fixtures'
-import { FITNESS_AS_OF_MS, RECOVERING, SLIPPING } from '../test/fitnessFixtures'
+import { FITNESS_AS_OF_MS, SLIPPING } from '../test/fitnessFixtures'
 import { BalancePage } from './BalancePage'
 
 /** The status is as of the fixtures' day; today is read for how new it is, so the tests set it. */
@@ -27,7 +27,7 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
-/** A run and a ride at three durations, graded for a man born in 1986, so the grade by duration is drawn. */
+/** A run and a ride at three durations, graded for a man born in 1986, so the levels are shown. */
 const GRADED = makeResult({
   runCurve: [600, 1200, 3600].map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
   rideCurve: [600, 1200, 3600].map((d) => curvePoint(d, 400, 'ride-1')),
@@ -60,82 +60,19 @@ function renderHome(
 const follows = (a: Node, b: Node) =>
   (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
-describe('the home page’s fitness', () => {
-  it('sits under the balance: after its heading, the period control and the tiles, before the grades', () => {
+describe('the home page and fitness', () => {
+  it('draws no fitness section: it is on the Run and Ride pages, and the levels follow the tiles', () => {
     renderHome(undefined, undefined, true)
-    const fitness = screen.getByRole('region', { name: 'Your fitness' })
-    const title = screen.getByRole('heading', { level: 1 })
-    const picker = screen.getByText('Period picker')
-    const tiles = screen.getByRole('region', { name: 'Headline numbers' })
-    const grades = screen.getByRole('region', { name: 'Age grade by effort length' })
-    expect(follows(title, fitness)).toBe(true)
-    expect(follows(picker, fitness)).toBe(true)
-    expect(follows(tiles, fitness)).toBe(true)
-    expect(follows(fitness, grades)).toBe(true)
-    expect(fitness.parentElement?.firstElementChild).not.toBe(fitness)
-  })
-
-  it('says the run’s state as a row titled by the sport and the state, with no index when it is the one row', () => {
-    renderHome({ run: RECOVERING, ride: NO_FITNESS.ride })
-    const region = screen.getByRole('region', { name: 'Your fitness' })
-    const title = within(region).getByRole('heading', { level: 3, name: 'Run · Recovering' })
-    expect(title.closest('li')).toHaveAttribute('data-sport', 'run')
-    expect(title.closest('li')?.querySelector('.row__index')).toBeNull()
-  })
-
-  it('draws no fitness section for a library with no status, and the balance still opens the page', () => {
-    renderHome(NO_FITNESS)
     expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('fitness-section')).not.toBeInTheDocument()
-    const title = screen.getByRole('heading', { level: 1 })
-    expect(title.closest('.page-stack')?.firstElementChild).toContainElement(title)
+    const tiles = screen.getByRole('region', { name: 'Headline numbers' })
+    const levels = screen.getByRole('region', { name: 'Levels' })
+    expect(follows(tiles, levels)).toBe(true)
   })
 
-  it('says what would give a one-sport library a status when it has none, in one line and no card', () => {
+  it('draws none for a one-sport library either, and no line about what fitness needs', () => {
     renderHome(NO_FITNESS, [makeActivity({ id: 'run-1', sport: 'run' })])
-    expect(screen.getByTestId('fitness-lack-line')).toHaveTextContent(
-      'Fitness needs heart rate. Add runs recorded with a strap or watch.',
-    )
-    expect(screen.queryByRole('region', { name: 'Your fitness' })).not.toBeInTheDocument()
-  })
-
-  it('names the power a ride needs, and leaves the line out once the sport has a status', () => {
-    renderHome(NO_FITNESS, [makeActivity({ id: 'ride-1', sport: 'ride' })])
-    expect(screen.getByTestId('fitness-lack-line')).toHaveTextContent(
-      'Fitness needs power. Add rides recorded with a power meter.',
-    )
-    cleanup()
-    renderHome({ run: SLIPPING, ride: NO_FITNESS.ride }, [
-      makeActivity({ id: 'run-1', sport: 'run' }),
-    ])
     expect(screen.queryByTestId('fitness-lack-line')).not.toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Your fitness' })).toBeInTheDocument()
-  })
-
-  it('says nothing about a lack for a library of both sports, which has its own balance to lead with', () => {
-    renderHome(NO_FITNESS)
-    expect(screen.queryByTestId('fitness-lack-line')).not.toBeInTheDocument()
-  })
-
-  it('asks a treadmill-only runner for outdoor runs, as fitness leaves treadmill runs out and heart rate is not what is missing', () => {
-    renderHome(NO_FITNESS, [
-      makeActivity({ id: 'run-1', sport: 'run', indoor: true }),
-      makeActivity({ id: 'run-2', sport: 'run', indoor: true }),
-    ])
-    const line = screen.getByTestId('fitness-lack-line')
-    expect(line).toHaveTextContent(
-      'Fitness skips treadmill runs. Add runs recorded outdoors with a strap or watch.',
-    )
-    expect(line).not.toHaveTextContent(/needs heart rate/)
-  })
-
-  it('still asks for heart rate when some runs were outdoors', () => {
-    renderHome(NO_FITNESS, [
-      makeActivity({ id: 'run-1', sport: 'run', indoor: true }),
-      makeActivity({ id: 'run-2', sport: 'run' }),
-    ])
-    expect(screen.getByTestId('fitness-lack-line')).toHaveTextContent(
-      'Fitness needs heart rate. Add runs recorded with a strap or watch.',
-    )
+    expect(screen.queryByTestId('fitness-section')).not.toBeInTheDocument()
   })
 })

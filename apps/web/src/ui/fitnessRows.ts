@@ -20,8 +20,8 @@ function trendValue(needs: string): string {
 
 /**
  * A fitness row's Details as a detail panel's rows (docs/design/system.md, Detail panels): the level at its heart rate, its
- * range where the status has one, the other changes, the steady activities it rests on, what a trend needs, how old the
- * status is, whether warm days were adjusted for, and when a change was new. The measure is on Method.
+ * range where the status has one, the steady activities it rests on, what a trend needs, how old the
+ * status is and whether warm days were adjusted for. The measure is on Method.
  */
 export function fitnessRows(
   view: FitnessView,
@@ -41,9 +41,6 @@ export function fitnessRows(
     ...(!showLevel || figures.range === null
       ? []
       : [{ label: 'Range', value: `${figures.range} ${figures.unit}` }]),
-    ...view.changes
-      .slice(1)
-      .map((change) => ({ label: `${words.output} change`, value: change.replace(/\.$/, '') })),
     ...(figures.steady === null
       ? []
       : [{ label: cap(words.steadyPlural), value: String(figures.steady) }]),
@@ -53,6 +50,5 @@ export function fitnessRows(
     ...(view.needs === '' ? [] : [{ label: 'Trend', value: trendValue(view.needs) }]),
     ...(view.ago === null ? [] : [{ label: 'Latest activity', value: view.ago }]),
     ...(warm ? [{ label: 'Warm days', value: 'Adjusted for' }] : []),
-    ...(view.fresh === null ? [] : [{ label: 'New since', value: view.fresh }]),
   ]
 }

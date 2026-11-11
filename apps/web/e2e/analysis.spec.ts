@@ -225,15 +225,9 @@ const CORNER_PARTS = [
   '.level-triangle__none',
 ]
 
-/** The run's fitness row: its title (the sport and its state), its one line, and the Details that hold the rest. */
-const FITNESS_CARD = '.fitness-card[data-sport="run"]'
-const FITNESS_STATE = `${FITNESS_CARD} .fitness-card__state`
-const FITNESS_LINE = `${FITNESS_CARD} .fitness-card__line`
-const FITNESS_DETAILS = `${FITNESS_CARD} details.fitness-card__evidence`
-
 // The balance leads the home page: at 1440 by 900 its headline, triangle and corners are on the first screen, and the
-// fitness card sits under the tiles, whole, with its track beside the words.
-test('at 1440 by 900 the balance leads the first screen, and the fitness card sits under its tiles', async ({
+// levels follow the tiles.
+test('at 1440 by 900 the balance leads the first screen, and the levels follow its tiles', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -243,29 +237,11 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
   const corners = await edgesOf(page.locator(CORNERS).last())
   expect(headline.bottom).toBeLessThan(plot.top)
   expect(corners.bottom).toBeLessThanOrEqual(900)
-  // The card comes after the tiles and before the grade by duration.
+  // The levels follow the tiles; fitness is on the Run and Ride pages, not here.
   const tiles = await edgesOf(page.locator('.balance-tiles'))
-  const card = await edgesOf(page.locator(FITNESS_CARD))
-  const grades = await edgesOf(page.getByRole('region', { name: 'Age grade by effort length' }))
-  expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
-  expect(card.bottom).toBeLessThanOrEqual(grades.top)
-  await page.locator(FITNESS_CARD).scrollIntoViewIfNeeded()
-  await expect(page.locator(FITNESS_STATE)).toHaveText('Run · Slipping')
-  // One line under the title, a figure with no range; the level with its range, what is new and the track are behind
-  // the row's Details, inside the row, under its line.
-  await expect(page.locator(FITNESS_LINE)).toHaveText(/^\S.*\.$/)
-  await expect(page.locator(FITNESS_LINE)).not.toHaveText(/\(\S+ to \S+\)/)
-  const fresh = page.locator(`${FITNESS_CARD} .props__row`, { hasText: /^New since/ })
-  await expect(fresh).toBeHidden()
-  await page.locator(`${FITNESS_DETAILS} > summary`).click()
-  await expect(fresh.locator('dd')).toContainText('the week of')
-  // Balance's Details hold the rows alone: the track and the graph are the Run and Ride pages'.
-  await expect(page.locator(`${FITNESS_CARD} .fitness-track`)).toHaveCount(0)
-  await expect(page.locator(`${FITNESS_CARD} .chart-frame`)).toHaveCount(0)
-  const lineEdges = await edgesOf(page.locator(FITNESS_LINE))
-  const rowsEdges = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
-  expect(rowsEdges.top).toBeGreaterThanOrEqual(lineEdges.bottom)
-  expect(rowsEdges.bottom).toBeLessThanOrEqual((await edgesOf(page.locator(FITNESS_CARD))).bottom)
+  const levels = await edgesOf(page.getByRole('region', { name: 'Levels' }))
+  expect(levels.top).toBeGreaterThanOrEqual(tiles.bottom)
+  await expect(page.locator('.fitness-card')).toHaveCount(0)
   // The triangle is the first drawing on the page.
   const first = await page.evaluate(
     () => document.querySelector('main svg:not(.icon)')?.getAttribute('class') ?? '',
@@ -279,12 +255,12 @@ test('at 1440 by 900 the balance leads the first screen, and the fitness card si
 })
 
 // A phone opens on the balance, the sample notice and all: at 390 by 844 and at 320 by 640 the headline and the
-// triangle end on the first screen, under the header and the rail, and the fitness row follows the tiles.
+// triangle end on the first screen, under the header and the rail, and the levels follow the tiles.
 for (const [width, height] of [
   [390, 844],
   [320, 640],
 ] as const) {
-  test(`at ${width} by ${height} the balance headline and triangle are on the first screen, and the fitness row follows the tiles`, async ({
+  test(`at ${width} by ${height} the balance headline and triangle are on the first screen, and the levels follow the tiles`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
@@ -308,24 +284,12 @@ for (const [width, height] of [
     expect(ride.y).toBeGreaterThan(run.y + run.height)
     expect(lift.y).toBeGreaterThan(run.y + run.height)
     expect(lift.x + lift.width).toBeLessThanOrEqual(ride.x + 1)
-    // The row is under the tiles, and its title, its line and, once opened, its rows follow one another.
-    await page.locator(`${FITNESS_DETAILS} > summary`).click()
+    // The levels follow the tiles.
     const tiles = await edgesOf(page.locator('.balance-tiles'))
-    const card = await edgesOf(page.locator(FITNESS_CARD))
-    const state = await edgesOf(page.locator(FITNESS_STATE))
-    const sentence = await edgesOf(page.locator(FITNESS_LINE))
-    const rows = await edgesOf(page.locator(`${FITNESS_CARD} .props`).first())
-    expect(card.top).toBeGreaterThanOrEqual(tiles.bottom)
-    expect(sentence.top).toBeGreaterThanOrEqual(state.bottom)
-    expect(rows.top).toBeGreaterThanOrEqual(sentence.bottom)
-    expect(rows.bottom).toBeLessThanOrEqual(card.bottom)
+    const levels = await edgesOf(page.getByRole('region', { name: 'Levels' }))
+    expect(levels.top).toBeGreaterThanOrEqual(tiles.bottom)
     // Nothing collides, and the page does not scroll sideways.
-    for (const selector of [
-      FITNESS_CARD,
-      FITNESS_LINE,
-      `${FITNESS_CARD} .props`,
-      ...CORNER_PARTS,
-    ]) {
+    for (const selector of ['.balance-tiles', ...CORNER_PARTS]) {
       const box = await page.locator(selector).first().boundingBox()
       expect(box === null ? -1 : box.x).toBeGreaterThanOrEqual(0)
       expect(box === null ? width + 1 : box.x + box.width).toBeLessThanOrEqual(width)

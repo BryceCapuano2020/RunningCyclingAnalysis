@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import type { History } from '@rca/core/history'
-import type { LookBack } from '@rca/core/lookback'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { FitnessYearsChart } from '../../charts/FitnessYearsChart'
 import { SPORT_ORDER } from '../../sports'
-import { FitnessEpisodes } from './FitnessEpisodes'
 import { sportToggle } from './sportToggle'
 
 export interface FitnessYearsSectionProps {
   fitness: History['fitness']
   units: UnitSystem
-  /** The look-back, whose episodes are listed under the chart. */
-  lookBack: LookBack
 }
 
 /**
@@ -22,10 +18,9 @@ export interface FitnessYearsSectionProps {
 const MIN_DOTS = 8
 
 /**
- * The fitness dots of one sport at a time, with its episodes listed under them: the sports with enough steady activities
- * are the toggle's choices. A library with neither gets one line saying what to add.
+ * The fitness dots of one sport at a time: the sports with enough steady activities are the toggle's choices. A library with neither gets one line saying what to add.
  */
-export function FitnessYearsSection({ fitness, units, lookBack }: FitnessYearsSectionProps) {
+export function FitnessYearsSection({ fitness, units }: FitnessYearsSectionProps) {
   const sports = SPORT_ORDER.filter((sport) => fitness[sport].levels.length >= MIN_DOTS)
   const [picked, setPicked] = useState<Sport | null>(null)
   const sport = sports.find((candidate) => candidate === picked) ?? sports[0]
@@ -37,14 +32,11 @@ export function FitnessYearsSection({ fitness, units, lookBack }: FitnessYearsSe
     )
   }
   return (
-    <>
-      <FitnessYearsChart
-        sport={sport}
-        dots={fitness[sport]}
-        units={units}
-        controls={sportToggle({ sports, selected: sport, onSelect: setPicked })}
-      />
-      <FitnessEpisodes sport={sport} lookBack={lookBack} />
-    </>
+    <FitnessYearsChart
+      sport={sport}
+      dots={fitness[sport]}
+      units={units}
+      controls={sportToggle({ sports, selected: sport, onSelect: setPicked })}
+    />
   )
 }

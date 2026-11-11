@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { uploadTitlesField } from '../uploadTitlesPreference'
 import { bodyMassOn } from '@rca/core/athlete'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
@@ -117,7 +116,6 @@ export function useImportActions({
               sync: {
                 keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
                 userId: submittedUserId,
-                ...uploadTitlesField(submittedUserId),
               },
             },
             undefined,
@@ -274,7 +272,6 @@ export function useImportActions({
       type: 'rebuildStale',
       settings: settingsRef.current,
       userId,
-      ...uploadTitlesField(userId),
     })
   }, [accountRef, send, setRebuildNotice, settingsRef])
 

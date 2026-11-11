@@ -166,7 +166,7 @@ describe('every stylesheet in the app', () => {
 const BOTH_SPORTS: Record<string, readonly string[]> = {
   // The brand mark draws both sport strokes.
   'ui/components/icons.css': ['.brand-mark__run', '.brand-mark__ride'],
-  // Method's curves and the grade by duration draw both sports on one plot.
+  // Method's curves draw both sports on one plot.
   'ui/charts/ChartSeries.css': [
     '.chart-series__line--run',
     '.chart-series__line--ride',
