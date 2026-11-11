@@ -76,14 +76,20 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     async afterRebuild(rebuilt: number): Promise<void> {
       if (rebuilt > 0) await keeper.rebuilt(view.checkinScope)
     },
-    /** The state message with "since your last import" for the library on screen, when the request can change it and it says something. */
+    /**
+     * The state message with "since your last import" for the library on screen, when the request can change it and it says
+     * something. An account's reply has no state (`state` is null) and no check-in from here: the page derives it from the
+     * server's snapshot it holds. Only the baseline an import starts from is read in the worker (accountState.ts).
+     */
     async attach<T extends Extract<WorkerResponse, { type: 'state' | 'rebuildComplete' }>>(
       message: T,
       requestType: WorkerRequest['type'],
     ): Promise<T> {
       if (!CHANGING.has(requestType)) return message
+      const { state } = message
+      if (state === null) return message
       const shown = await keeper.view(view.checkinScope, () =>
-        session.checkInSnapshot(message.state, Date.now()),
+        session.checkInSnapshot(state, Date.now()),
       )
       return shown.checkIn === null && !shown.seen && shown.lookBackSeenFor === undefined
         ? message

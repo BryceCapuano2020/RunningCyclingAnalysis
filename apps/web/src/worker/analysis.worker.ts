@@ -43,6 +43,7 @@ import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
 import { newWorkerView } from './workerView'
+import { accountReplies } from './accountReply'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
 import { deviceClock } from './sampleClock'
@@ -79,6 +80,7 @@ const device = deviceActions(
   () => workbench.watchDevice(),
 )
 const view = newWorkerView()
+const { inAccount, factsOf, stateWith } = accountReplies(session, view)
 const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
@@ -152,12 +154,6 @@ const adoptionContext: AdoptionRequestContext = {
   resume: () => resume.get(),
   resumeEnded: () => resume.clear(),
 }
-function finishLoad(state: SessionState, userId: string): SessionState {
-  resume.start(() => startResume(resumeParts, userId))
-  void offerDevice(adoptionContext, userId)
-  return state
-}
-
 const renameContext: RenameContext = {
   session,
   deviceLibrary,
@@ -180,7 +176,9 @@ const deleteContext: DeleteGroupContext = {
   reportLibrary,
 }
 
-async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
+async function handle(
+  request: Exclude<WorkerRequest, RouteMemoryRequest>,
+): Promise<SessionState | null> {
   checkIns.onRequest(request)
   switch (request.type) {
     case 'addFiles':
@@ -195,6 +193,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       view.showingSample = true
       view.sampleClock = deviceClock()
       device.replaced()
@@ -206,26 +205,22 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
+      view.accountIndex = true
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
-      return finishLoad(
-        await loadServer(
-          libraryContext,
-          request.settings,
-          request.userId,
-          periodChoiceOf(request.choice),
-        ),
-        request.userId,
-      )
+      await loadServer(libraryContext, request.userId)
+      resume.start(() => startResume(resumeParts, request.userId))
+      void offerDevice(adoptionContext, request.userId)
+      return null
     case 'resumeSaves':
       // The connection is back, or the athlete asked: what the outbox holds goes now, without reading the library again.
       if (view.activeScope?.kind === 'account' && view.activeScope.userId === request.userId) {
         await resume.end()
         await resume.start(() => startResume(resumeParts, request.userId, true)).finished
       }
-      return session.setSettings(request.settings)
+      return stateWith(request.settings)
     case 'undoLabels':
       // Answered with the state and how many labels are left, from onmessage.
       throw new Error('An undo is not a session request')
@@ -237,9 +232,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
     case 'setSettings':
-      return session.setSettings(request.settings)
+      return stateWith(request.settings)
     case 'setRange':
-      return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
+      return inAccount()
+        ? null
+        : session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
       // Results shown here that could not be kept are not given up for a reload: they stay as they are.
       if (request.reload === true && !device.hasUnkept()) device.replaced()
@@ -253,10 +250,12 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
       view.libraryEpoch++
+      view.accountIndex = false
       labels.labelUndo.clear()
       resume.cancel()
       failedOriginals.forget()
@@ -302,7 +301,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
-      return deleteSavedGroup(deleteContext, record, request.userId, request.settings)
+      await deleteSavedGroup(deleteContext, record, request.userId)
+      return null
     }
   }
 }
@@ -326,15 +326,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         await reportDetail()
         post(await checkIns.attach({ type: 'state', ...imported, ...rebuildable() }, 'addFiles'))
       } else if (event.data.type === 'rebuildStale') {
-        const rebuilt = await rebuildStale(libraryContext, event.data.settings, event.data.userId)
+        const rebuilt = await rebuildStale(libraryContext, event.data.userId)
         await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
-        post(
-          await checkIns.attach(
-            { type: 'rebuildComplete', ...rebuilt, ...rebuildable() },
-            'rebuildStale',
-          ),
-        )
+        // An account's reply has no state, so there is no check-in to attach here (see checkinWorker.ts).
+        post({ type: 'rebuildComplete', ...rebuilt, ...factsOf(rebuilt.state), ...rebuildable() })
       } else if (event.data.type === 'undoLabels') {
         post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
@@ -362,7 +358,12 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        post(await checkIns.attach({ type: 'state', state, ...rebuildable() }, type))
+        post(
+          await checkIns.attach(
+            { type: 'state', state, ...factsOf(state), ...rebuildable() },
+            type,
+          ),
+        )
       }
     } catch (error) {
       post({

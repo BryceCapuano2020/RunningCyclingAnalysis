@@ -21,6 +21,13 @@ export interface RejectedFile extends Rejection {
   fileName: string
 }
 
+/** The parts of a state that come from the browser's own import, not from the analysis: an account's server results leave them out. */
+export interface ImportFacts {
+  rejected: RejectedFile[]
+  unsupportedFiles: number
+  syncIssues: SyncIssue[]
+}
+
 export interface SessionState {
   /** Null until at least one activity has been loaded. */
   result: AnalysisResult | null

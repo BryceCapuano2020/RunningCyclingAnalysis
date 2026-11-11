@@ -2,7 +2,7 @@ import type { ActivityRecord } from '@rca/contract'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
-import { reloadSession, undoListLabels } from './applyListLabels'
+import { reloadIndex, undoListLabels } from './applyListLabels'
 import type { DeviceLabelling } from './deviceLabels'
 import { DEVICE_LABELS } from './labelUndo'
 import type { LabelUndo } from './labelUndo'
@@ -29,11 +29,16 @@ export interface UndoLabelsContext {
 export async function undoLabelsRequest(
   ctx: UndoLabelsContext,
   request: { userId: string | null; settings: AthleteSettings },
-): Promise<{ state: SessionState; left: number }> {
+): Promise<{ state: SessionState | null; left: number }> {
   // No account: the labels are those of the library kept in this browser.
   const owner = request.userId ?? DEVICE_LABELS
   const applied = ctx.labelUndo.take(owner, ctx.epoch())
-  if (applied.length === 0) return { state: ctx.session.setSettings(request.settings), left: 0 }
+  if (applied.length === 0) {
+    return {
+      state: request.userId === null ? ctx.session.setSettings(request.settings) : null,
+      left: 0,
+    }
+  }
   if (request.userId === null) {
     const done = await ctx.deviceLabels.undo(applied, request.settings)
     const taken = new Set(done.labelled.map(({ id }) => id))
@@ -52,8 +57,6 @@ export async function undoLabelsRequest(
   const remaining = applied.filter(({ id }) => !done.has(id))
   if (remaining.length > 0) ctx.labelUndo.remember(request.userId, ctx.epoch(), remaining)
   ctx.reportLibrary()
-  return {
-    state: reloadSession(ctx.session, request.settings, [...ctx.savedRecords.values()]),
-    left: remaining.length,
-  }
+  reloadIndex(ctx.session, [...ctx.savedRecords.values()])
+  return { state: null, left: remaining.length }
 }

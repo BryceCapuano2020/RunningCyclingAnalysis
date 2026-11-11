@@ -118,7 +118,7 @@ export async function request(
     const canRetry = backoffMs !== undefined && attempt === 0 && failedFast
     if (response === null) {
       if (!canRetry) throw new ApiRequestError(0, 'network_error', 'Could not reach the server')
-    } else if (response.ok) {
+    } else if (response.ok || (response.status === 304 && options.notModified === true)) {
       if (response.body === null) clearResponseTimeout(response)
       return response
     } else if (!canRetry || response.status < 500 || response.headers.get('retry-after') !== null) {

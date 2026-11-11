@@ -59,7 +59,8 @@ describe('renaming in the account', () => {
       settings: SETTINGS,
     })
     expect(rename).toHaveBeenCalledWith('saved-1', '  Club loop ', 'u1')
-    expect(names(state)).toEqual(['Club loop'])
+    // An account's results are the server's: the worker answers with no state.
+    expect(state).toBeNull()
     expect(ctx.savedRecords.get('saved-1')?.digest.name).toBe('Club loop')
     expect(ctx.reportLibrary).toHaveBeenCalled()
   })
@@ -102,7 +103,7 @@ describe('renaming in this browser', () => {
       settings: SETTINGS,
     })
     expect(rename).not.toHaveBeenCalled()
-    expect(names(state)).toEqual(['Club loop'])
+    expect(names(state!)).toEqual(['Club loop'])
     expect((await ctx.deviceLibrary.get('run-1'))?.name).toBe('Club loop')
   })
 
