@@ -121,20 +121,34 @@ describe('compute claim release', () => {
     expect(second.headers.get('X-State-Current')).not.toBe('0')
   })
 
-  it('lets a failed compute hold its claim, so a failure that repeats is not recomputed on every read', async () => {
+  it('holds the claim for minutes after a failed compute, and keeps its unit charged, so a failure that repeats is not recomputed by every poll', async () => {
     const w = await ready()
     w.h.clock.now += 20_000
     await w.write('failing')
+    const used = async () =>
+      (
+        await w.env.DB.prepare(
+          "SELECT used FROM daily_budget WHERE action = 'stateRead' AND user_id = ?",
+        )
+          .bind(w.userId)
+          .first<{ used: number }>()
+      )?.used ?? 0
+    const before = await used()
     const reads = { n: 0 }
     const failing = createHarness({}, { DB: failingRead(w.env.DB, reads) })
     failing.clock.now = w.h.clock.now
     await failing.send({ path: '/api/state', cookies: w.cookies })
     expect(reads.n).toBe(1)
-    failing.clock.now += 1_000
-    await failing.send({ path: '/api/state', cookies: w.cookies })
+    // The failed compute is paid for: a user whose compute fails every time reaches the daily cap.
+    expect(await used()).toBe(before + 1)
+    // A visible tab polls every minute: none of them recomputes for the next minutes.
+    for (let minute = 0; minute < 4; minute += 1) {
+      failing.clock.now += 60_000
+      await failing.send({ path: '/api/state', cookies: w.cookies })
+    }
     expect(reads.n).toBe(1)
-    // The window passes and it tries again.
-    failing.clock.now += 10_000
+    // The hold passes and it tries again.
+    failing.clock.now += 120_000
     await failing.send({ path: '/api/state', cookies: w.cookies })
     expect(reads.n).toBe(2)
   })

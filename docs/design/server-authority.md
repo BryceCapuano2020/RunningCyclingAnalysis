@@ -115,11 +115,11 @@ few seconds; it never acks it, so a write made with no tab open is still compute
 loop for its CPU time, under a second at 2,000 activities; the cap measurement below records it at the largest library.
 
 **One compute per account.** Across isolates, a read that computes takes a claim first: one conditional upsert that sets
-`state_jobs.claim_until` to now plus `STATE_CLAIM_SECONDS` (10 s) when none is held. A second read, in any isolate, and a
+`state_jobs.claim_until` to now plus `STATE_CLAIM_SECONDS` (60 s) when none is held. A second read, in any isolate, and a
 queued message that find it held serve what is stored (the message retries). The claim is held while the compute runs,
 not after: when the compute finishes (written, unchanged or gone), or a read ends without one (a write landed twice, over budget), it frees the claim, only if the row still
-holds its own stamp, so a read that follows an import computes at once instead of waiting out the window. The 10 s is
-the bound on a compute that dies, and the throttle on one that fails: a failed compute leaves its claim to lapse, so a failure that repeats is not recomputed on every read. A read that finds its claim lost when it stamps it again stops and serves what is stored. The queue's interval (`STATE_MIN_INTERVAL_SECONDS`, 30 s) is a
+holds its own stamp, so a read that follows an import computes at once instead of waiting out the window. The 60 s is
+the bound on a compute that dies (one can run 15 to 31 s at the quotas). A compute that throws keeps its read unit charged and holds its claim for `STATE_FAILURE_HOLD_SECONDS` (5 minutes), so a failure that repeats is not recomputed by every tab's poll and a user it fails for every time reaches the daily cap; the queue's own failed compute frees its claim, since it retries itself after `STATE_RETRY_SECONDS`. A read that finds its claim lost when it stamps it again stops and serves what is stored. The queue's interval (`STATE_MIN_INTERVAL_SECONDS`, 30 s) is a
 separate clock: it reads `attempted_at` and `computed_at`, which the claim still stamps and the release leaves alone,
 so a burst of messages still coalesces. `claim_until` is a defaulted column in migration 0019.
 

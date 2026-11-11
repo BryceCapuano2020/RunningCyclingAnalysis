@@ -1,8 +1,8 @@
 import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { claimCompute, releaseClaim, restampClaim } from '../state/record.ts'
-import { STATE_CLAIM_SECONDS } from '../state/message.ts'
+import { claimCompute, holdClaim, releaseClaim, restampClaim } from '../state/record.ts'
+import { STATE_CLAIM_SECONDS, STATE_FAILURE_HOLD_SECONDS } from '../state/message.ts'
 import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
 import { HttpError } from '../errors.ts'
@@ -171,8 +171,12 @@ async function computeInRequest(
     try {
       done = await computeAndStore(c.env, c.var.deps, userId, row, store, claim.stamp)
     } catch (error) {
-      await charge.refund().catch(() => undefined)
-      // A failed compute leaves its claim to lapse (10 s), so a failure that repeats is not recomputed on every read.
+      // A failed compute keeps its unit and holds its claim for minutes (not released, not left to lapse in a window): a failure that
+      // repeats is not recomputed on every read, and a user it fails for every time reaches the daily cap.
+      if (claim.stamp !== null) {
+        const until = c.var.deps.now() + STATE_FAILURE_HOLD_SECONDS * 1000
+        await holdClaim(c.env.DB, userId, claim.stamp, until).catch(() => undefined)
+      }
       claim.stamp = null
       throw error
     }

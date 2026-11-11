@@ -66,6 +66,8 @@ describe('a library whose index has loaded and whose results have not come', () 
     indexLoadedNoResults()
     setSession({ outdatedActivities: 2 })
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1, name: 'Update your library' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Update your library' }),
+    ).toBeInTheDocument()
   })
 })

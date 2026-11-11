@@ -59,6 +59,22 @@ export async function releaseClaim(db: D1Database, userId: string, stamp: number
     .run()
 }
 
+/**
+ * Holds a claim until `until` instead of freeing it: a compute that failed is not tried again by every read. Only the claim this
+ * stamp names, as `releaseClaim`.
+ */
+export async function holdClaim(
+  db: D1Database,
+  userId: string,
+  stamp: number,
+  until: number,
+): Promise<void> {
+  await db
+    .prepare('UPDATE state_jobs SET claim_until = ?3 WHERE user_id = ?1 AND claim_until = ?2')
+    .bind(userId, stamp, until)
+    .run()
+}
+
 /** What a compute covered, and the instant it was computed for. */
 export interface Covered {
   version: number
