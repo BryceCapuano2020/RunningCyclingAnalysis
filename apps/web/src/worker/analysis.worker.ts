@@ -193,6 +193,7 @@ async function handle(
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       view.showingSample = true
       view.sampleClock = deviceClock()
       device.replaced()
@@ -204,6 +205,7 @@ async function handle(
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'account', userId: request.userId }
+      view.accountIndex = true
       await workbench.reopenScope(view.activeScope)
       view.showingSample = false
       // A resume belongs to the library it began under.
@@ -248,10 +250,12 @@ async function handle(
       provisionalItems.clear()
       workbench.clearMemory()
       view.activeScope = { kind: 'device' }
+      view.accountIndex = false
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
       view.libraryEpoch++
+      view.accountIndex = false
       labels.labelUndo.clear()
       resume.cancel()
       failedOriginals.forget()
@@ -325,12 +329,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const rebuilt = await rebuildStale(libraryContext, event.data.userId)
         await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
-        post(
-          await checkIns.attach(
-            { type: 'rebuildComplete', ...rebuilt, ...factsOf(rebuilt.state), ...rebuildable() },
-            'rebuildStale',
-          ),
-        )
+        // An account's reply has no state, so there is no check-in to attach here (see checkinWorker.ts).
+        post({ type: 'rebuildComplete', ...rebuilt, ...factsOf(rebuilt.state), ...rebuildable() })
       } else if (event.data.type === 'undoLabels') {
         post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {

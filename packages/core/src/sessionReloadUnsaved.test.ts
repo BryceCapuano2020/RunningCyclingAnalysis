@@ -64,6 +64,27 @@ describe('AnalysisSession reloading the library from the server', () => {
     expect(reloaded.syncIssues).toEqual([])
   })
 
+  it('stops reporting a save the server went on to store, when the library is replaced for an account', async () => {
+    const session = new AnalysisSession()
+    // The save timed out here, and the server stored it all the same.
+    await session.importFiles([fileOf(1)], undefined, async () => {
+      throw new SyncFailure('network', 'timed out')
+    })
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'network', count: 1 }])
+    session.replaceLibrary([digestActivity(run(1))])
+    expect(session.importFacts().syncIssues).toEqual([])
+  })
+
+  it('does not put an unsaved digest back unless asked to, and keeps reporting it until it is saved', async () => {
+    const session = new AnalysisSession()
+    await session.importFiles([fileOf(1)], undefined, async () => {
+      throw new SyncFailure('network', 'could not be saved')
+    })
+    session.replaceLibrary([])
+    expect(session.heldIds([`run-${Math.round(run(1).startMs / 1000)}`])).toEqual([undefined])
+    expect(session.importFacts().syncIssues).toEqual([{ code: 'network', count: 1 }])
+  })
+
   it('leaves them out of a library read from this browser, as when a session expired mid-import', async () => {
     const session = new AnalysisSession()
     await session.addFiles([fileOf(1)], SETTINGS, undefined, async () => {

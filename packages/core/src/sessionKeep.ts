@@ -14,7 +14,7 @@ import type { ActivityListeners } from './sessionHooks'
 import type { SessionLibrary } from './sessionLibrary'
 import type { Considered } from './sessionSource'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import type { Activity, ActivityDigest } from './types'
+import type { Activity } from './types'
 
 /**
  * The session's library bookkeeping that keeping an activity reads and changes. The maps are the
@@ -236,17 +236,4 @@ export function heldNameOf(
     if (saving && state.unsynced.has(key)) return null
   }
   return fileNameOf(first.id)
-}
-
-/** After a library is replaced: an activity whose save failed stays, unsaved, unless the replacement holds that workout. */
-export function keepUnsavedFrom(
-  state: KeepState,
-  before: ReadonlyMap<string, ActivityDigest>,
-): void {
-  for (const key of state.unsynced.keys()) {
-    const digest = before.get(key)
-    if (digest === undefined) continue
-    if (!state.library.digests.has(key)) state.library.put(key, digest)
-    else clearUnsynced(state, key)
-  }
 }

@@ -1,6 +1,4 @@
 import type { AnalysisSession } from '@rca/core/session'
-import type { CheckInSnapshot } from '@rca/core/lookback'
-import { accountCheckIn } from './accountState'
 import { CheckInKeeper } from './checkinKeeper'
 import { accountScope } from './checkinStore'
 import type { CheckinScope } from './checkinStore'
@@ -20,12 +18,6 @@ const CHANGING: ReadonlySet<WorkerRequest['type']> = new Set<WorkerRequest['type
   'clear',
   'deleteActivity',
   'deleteDeviceActivity',
-  'setSettings',
-  'setRange',
-])
-
-/** The requests that change no library, so an account's check-in is left as the last reply said it. */
-const LEAVES_LIBRARY: ReadonlySet<WorkerRequest['type']> = new Set<WorkerRequest['type']>([
   'setSettings',
   'setRange',
 ])
@@ -86,8 +78,8 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     },
     /**
      * The state message with "since your last import" for the library on screen, when the request can change it and it says
-     * something. An account's reply has no state (`state` is null): its check-in is the one in the server's snapshot, read
-     * fresh, and with no answer (a 202) the row is not shown.
+     * something. An account's reply has no state (`state` is null) and no check-in from here: the page derives it from the
+     * server's snapshot it holds. Only the baseline an import starts from is read in the worker (accountState.ts).
      */
     async attach<T extends Extract<WorkerResponse, { type: 'state' | 'rebuildComplete' }>>(
       message: T,
@@ -95,15 +87,10 @@ export function checkInWorker(session: AnalysisSession, view: WorkerView) {
     ): Promise<T> {
       if (!CHANGING.has(requestType)) return message
       const { state } = message
-      const scope = view.checkinScope
-      if (state === null && LEAVES_LIBRARY.has(requestType)) return message
-      const served: CheckInSnapshot | null | undefined =
-        state === null && scope !== null && scope !== 'device'
-          ? await accountCheckIn(scope.slice('account:'.length), false)
-          : undefined
-      const live = () =>
-        state === null ? (served ?? null) : session.checkInSnapshot(state, Date.now())
-      const shown = await keeper.view(scope, live)
+      if (state === null) return message
+      const shown = await keeper.view(view.checkinScope, () =>
+        session.checkInSnapshot(state, Date.now()),
+      )
       return shown.checkIn === null && !shown.seen && shown.lookBackSeenFor === undefined
         ? message
         : { ...message, checkIn: shown }

@@ -7,6 +7,11 @@ import type { TraceScope } from './workbenchStore'
 export interface WorkerView {
   /** The exact library scope this worker is currently allowed to answer details for. */
   activeScope: TraceScope | null
+  /**
+   * The library the session holds is an account's index, which builds no state. Its own flag, not `activeScope`, which
+   * a session expiry empties (`forgetRoutes`) while the index stays. Set by a library load, cleared when the library changes.
+   */
+  accountIndex: boolean
   /** Where the check-in of the library on screen is kept: null for the sample and for files that are kept nowhere. */
   checkinScope: CheckinScope | null
   /** The sample is shown in place of the library kept in this browser, never added to it. */
@@ -23,6 +28,7 @@ export interface WorkerView {
 export function newWorkerView(): WorkerView {
   return {
     activeScope: null,
+    accountIndex: false,
     checkinScope: null,
     showingSample: false,
     sampleClock: deviceClock(),

@@ -28,7 +28,7 @@ import { skipAllowance } from './skipAllowance'
 import type { Workbench } from './workbench'
 import type { TraceScope } from './workbenchStore'
 import type { WorkerView } from './workerView'
-import { accountCheckIn } from './accountState'
+import { accountBaseline } from './accountState'
 import { applyListLabels, reloadIndex } from './applyListLabels'
 import { ATHLETE_LABELS_ENABLED } from './labelsConfig'
 import { DEVICE_LABELS } from './labelUndo'
@@ -96,6 +96,7 @@ export async function runImport(
         ? { kind: 'device' }
         : null
   view.activeScope = traceScope ?? { kind: 'device' }
+  view.accountIndex = sync !== null
   // What storage turned away in an earlier import says nothing about room now.
   workbench.forgetOutranked()
   // Signing in again lifts the block that signing out put on the account's recordings.
@@ -144,7 +145,7 @@ export async function runImport(
     // An account's is the server's, read fresh (or the device copy while it computes); with neither there is no check-in for this import.
     const before =
       sync !== null
-        ? ((await accountCheckIn(sync.userId, true)) ?? null)
+        ? ((await accountBaseline(sync.userId)) ?? null)
         : session.checkInSnapshot(session.setSettings(request.settings), Date.now())
     await ctx.checkIns.begin(heldScope, before)
   }
@@ -191,7 +192,6 @@ export async function runImport(
   try {
     const imported: Parameters<AnalysisSession['importFiles']> = [
       request.files,
-      request.settings,
       (count) => {
         noteWork()
         reporter.filesReadSoFar(count)
@@ -233,8 +233,9 @@ export async function runImport(
       },
       heldIndex?.files,
     ]
-    if (sync === null) state = await session.addFiles(...imported)
-    else await session.importFiles(...imported)
+    const [files, ...rest] = imported
+    if (sync === null) state = await session.addFiles(files, request.settings, ...rest)
+    else await session.importFiles(files, ...rest)
   } finally {
     // First, so a failure below cannot skip it: the page does not keep the count from before.
     if (sync !== null)
@@ -265,6 +266,8 @@ export async function runImport(
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
+  // Taken before the index is read again from the account, which settles the unsaved list for the workouts it holds.
+  const facts = sync === null ? undefined : session.importFacts()
   if (sync !== null && ATHLETE_LABELS_ENABLED && listedTypes !== undefined) {
     const labelled = await applyListLabels(savedRecords, listedTypes, sync.userId, (fresh) => {
       savedRecords.clear()
@@ -292,7 +295,6 @@ export async function runImport(
     }
   }
   // A zip that could not be read to its end leaves the library short: that import moves the baseline only if accepted.
-  const facts = sync === null ? undefined : session.importFacts()
   const damaged = (state?.rejected ?? facts?.rejected ?? []).some(
     ({ code, fileName }) => code === 'corrupt' && /\.zip$/i.test(fileName),
   )

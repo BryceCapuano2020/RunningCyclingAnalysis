@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
@@ -29,7 +30,9 @@ vi.mock('../api/client', async (importOriginal) => {
 vi.mock('../api/renameClient', () => ({
   renameActivity: async (_id: string, name: string) => ({ name }),
 }))
-vi.mock('../api/settings', () => ({ getAccountSettings: async () => ({}) }))
+vi.mock('../api/settings', () => ({
+  getAccountSettings: async () => ({ keepPower: [], countedRuns: null, period: null }),
+}))
 vi.mock('../api/lifts', () => ({
   createLiftTransport: () => ({ page: async () => ({ items: [], next: null, liftRevision: 1 }) }),
 }))
@@ -47,6 +50,7 @@ const [first, second] = sampleDataset().activities
 if (first === undefined || second === undefined)
   throw new Error('The sample has too few activities')
 const DIGEST = digestActivity(first)
+const RUN_BYTES = new Uint8Array(encodeFit(first, { gps: true }))
 const recordFor = (digest: typeof DIGEST, hasFile = false): ActivityRecord => ({
   id: `rec-${digest.id}`,
   digest,
@@ -128,7 +132,7 @@ const IN_ACCOUNT: Record<Exclude<WorkerRequest['type'], DeviceRequest>, () => Wo
   exportData: () => ({
     type: 'exportData',
     userId: USER,
-    account: { id: USER, email: 'a@example.test', createdAt: 0 } as never,
+    account: { name: 'Sam', email: 'a@example.test' },
     profile: {} as never,
   }),
   activitySplits: () => ({ type: 'activitySplits', id: DIGEST.id }),
@@ -139,43 +143,112 @@ const IN_ACCOUNT: Record<Exclude<WorkerRequest['type'], DeviceRequest>, () => Wo
   acceptPartialImport: () => ({ type: 'acceptPartialImport' }),
 }
 
+/** An export of one run, which the list calls a hike: with the labels on it labels the record the account holds. */
+function hikeExport(): File {
+  const csv = strToU8(
+    'Activity ID,Activity Name,Activity Type,Filename\n1,Lunch,Hike,activities/1.fit.gz\n',
+  )
+  return new File(
+    [
+      new Uint8Array(
+        zipSync({ 'activities/1.fit.gz': gzipSync(RUN_BYTES), 'activities.csv': csv }),
+      ),
+    ],
+    'export.zip',
+  )
+}
+
+/** Puts the worker where an entry's request means something: undo needs labels an import applied. */
+const SETUP: Partial<Record<keyof typeof IN_ACCOUNT, (send: Send) => Promise<void>>> = {
+  undoLabels: async (send) => {
+    const saved = recordFor({ ...DIGEST, id: `${first.startMs}-activities/1.fit` })
+    mocked.listActivities
+      .mockResolvedValueOnce([saved])
+      .mockResolvedValueOnce([{ ...saved, digest: { ...saved.digest, athleteType: 'hike' } }])
+    mocked.patchLabels.mockResolvedValue({ applied: 1, skipped: 0, refused: 0, missed: [] })
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({
+      type: 'addFiles',
+      files: [hikeExport()],
+      settings: SETTINGS,
+      sync: { userId: USER, keepFiles: false },
+    })
+    expect(mocked.patchLabels).toHaveBeenCalledOnce()
+    mocked.listActivities.mockResolvedValue([saved])
+  },
+}
+
+type Send = (request: WorkerRequest) => Promise<WorkerResponse[]>
+
 describe('the worker in an account’s scope', () => {
-  it('builds no state for any request: the analysis is never asked for an account’s library', async () => {
+  // A fresh worker for each request, so one request's change of scope cannot make the next one pass or fail.
+  it.each(Object.keys(IN_ACCOUNT) as (keyof typeof IN_ACCOUNT)[])(
+    'builds no state for %s: the analysis is never asked for an account’s library',
+    async (type) => {
+      // Labels are off unless a test turns them on, before the worker loads.
+      if (type === 'undoLabels')
+        vi.doMock('./labelsConfig', () => ({ ATHLETE_LABELS_ENABLED: true }))
+      const { send } = await startWorker()
+      const { AnalysisSession } = await import('@rca/core/session')
+      const built = vi.spyOn(
+        AnalysisSession.prototype as unknown as { state: (settings: unknown) => unknown },
+        'state',
+      )
+      const setup = SETUP[type]
+      if (setup === undefined) await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+      else await setup(send)
+      const reply = (await send(IN_ACCOUNT[type]())).at(-1)
+      expect(reply, JSON.stringify(reply)).not.toMatchObject({ type: 'error' })
+      if (reply?.type === 'state' || reply?.type === 'rebuildComplete') {
+        expect(reply.state).toBeNull()
+      }
+      expect(built).not.toHaveBeenCalled()
+    },
+  )
+
+  it('builds none after the session expires, which empties the worker’s scope but not the account’s index', async () => {
     const { send } = await startWorker()
-    // The session and the period cache are the worker's own, loaded after the reset.
     const { AnalysisSession } = await import('@rca/core/session')
     const built = vi.spyOn(
       AnalysisSession.prototype as unknown as { state: (settings: unknown) => unknown },
       'state',
     )
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
-    const requests = Object.values(IN_ACCOUNT)
-    for (const make of requests) {
-      const reply = (await send(make())).at(-1)
-      if (reply?.type === 'state' || reply?.type === 'rebuildComplete') {
-        expect(reply.state, `${JSON.stringify(reply).slice(0, 80)}`).toBeNull()
-      }
+    await send({ type: 'forgetRoutes' })
+    for (const request of [IN_ACCOUNT.setSettings(), IN_ACCOUNT.setRange()]) {
+      expect((await send(request)).at(-1)).toMatchObject({ type: 'state', state: null })
     }
     expect(built).not.toHaveBeenCalled()
   })
 
-  it('reads the check-in baseline from a fresh /api/state before an import, and shows none when the server is computing', async () => {
+  it('builds a state again for the library kept in this browser, once the account is left', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
+    await send({ type: 'clear' })
+    const kept = (await send({ type: 'setSettings', settings: SETTINGS })).at(-1)
+    expect(kept).toMatchObject({
+      type: 'state',
+      state: expect.objectContaining({ isSample: false }),
+    })
+  })
+
+  it('reads one fresh /api/state before an import, for its baseline, and shows no check-in when the server is computing', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
     const reads = serverReads.reads
     const reply = (await send(IN_ACCOUNT.addFiles())).at(-1)
-    // One read for the baseline, one for the check-in of the library the import left; a 202 gives neither a view.
-    expect(serverReads.reads).toBe(reads + 2)
+    expect(serverReads.reads).toBe(reads + 1)
     expect(reply).toMatchObject({ type: 'state', state: null })
     expect(reply).not.toHaveProperty('checkIn')
   })
 
-  it('leaves the check-in alone for a period or settings change', async () => {
+  it('reads no /api/state for a period or settings change, or any other request', async () => {
     const { send } = await startWorker()
     await send({ type: 'loadServer', settings: SETTINGS, userId: USER })
     const reads = serverReads.reads
     await send(IN_ACCOUNT.setRange())
     await send(IN_ACCOUNT.setSettings())
+    await send(IN_ACCOUNT.deleteActivity())
     expect(serverReads.reads).toBe(reads)
   })
 })

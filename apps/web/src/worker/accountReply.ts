@@ -7,8 +7,8 @@ import type { WorkerView } from './workerView'
  * (docs/design/server-authority.md): its replies carry a null state, and the facts only the import knows.
  */
 export function accountReplies(session: AnalysisSession, view: WorkerView) {
-  /** Whether the worker holds an account's library, and is not showing the sample. */
-  const inAccount = (): boolean => view.activeScope?.kind === 'account' && !view.showingSample
+  /** Whether the session holds an account's index. */
+  const inAccount = (): boolean => view.accountIndex
   return {
     inAccount,
     /** What only the import knows, sent with every reply that carries no state, so the page's copy of it stays current. */

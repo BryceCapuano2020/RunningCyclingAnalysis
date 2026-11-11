@@ -19,7 +19,7 @@ export interface AdoptionRequestContext {
   savedRecords: Map<string, ActivityRecord>
   sending: SendingKeys
   workbench: Workbench
-  view: Pick<WorkerView, 'activeScope'>
+  view: Pick<WorkerView, 'activeScope' | 'accountIndex'>
   libraryContext: LibraryContext
   /** Answers a request: stamped with its number. */
   post: (message: WorkerResponse) => void
@@ -104,5 +104,5 @@ export async function forgetDeviceLibraryRequest(
   await ctx.workbench.clearScope({ kind: 'device' })
   ctx.post({ type: 'deviceHolds', holds: false })
   ctx.post({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-  return ctx.view.activeScope?.kind === 'account' ? null : ctx.session.setSettings(request.settings)
+  return ctx.view.accountIndex ? null : ctx.session.setSettings(request.settings)
 }
