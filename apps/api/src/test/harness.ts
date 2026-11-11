@@ -10,6 +10,7 @@ import type { Bindings } from '../env.ts'
 import { deleteByPrefix } from '../storage.ts'
 import { toHex } from '../util.ts'
 import { DURATIONS_S } from '@rca/core/constants'
+import { fakeGarmin } from './garmin.ts'
 
 const APP_DIR = fileURLToPath(new URL('../..', import.meta.url))
 const START_MS = Date.UTC(2026, 0, 15, 12, 0, 0)
@@ -66,6 +67,8 @@ export async function resetTestEnv(): Promise<void> {
       'athlete_settings',
       'state_jobs',
       'lift_sets',
+      'inbox_items',
+      'provider_links',
       'activities',
       'sessions',
       'oauth_accounts',
@@ -169,6 +172,7 @@ export function createHarness(
       return `00000000-0000-4000-8000-${String(uuidCounter).padStart(12, '0')}`
     },
     google: () => fakeGoogle(),
+    garmin: () => fakeGarmin(),
     ...overrides,
   }
   const app = createApp(deps)

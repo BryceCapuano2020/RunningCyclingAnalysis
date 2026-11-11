@@ -1,8 +1,8 @@
 # Garmin sync: new activities without a file
 
-Status: designed, revised 10 Nov 2026 for server-side parsing ([server-compute.md](server-compute.md) decision 14);
-no code. First written 9 Nov 2026 against main 34de84bc. Garmin's mechanics are not yet confirmed (section 9); the
-parts that depend on them are marked. The build waits on server compute's S1, S3 and S4 (section 10).
+Status: revised 10 Nov 2026 for server-side parsing ([server-compute.md](server-compute.md) decision 14). G1 to G3
+built against a fake Garmin and switched off (`GARMIN_ENABLED`); G4 waits on Garmin's answers. First written 9 Nov 2026
+against main 34de84bc. Garmin's mechanics are not yet confirmed (section 9); the parts that depend on them are marked.
 
 ## Why
 
@@ -83,9 +83,12 @@ received_at)`, unique `(user_id, provider, provider_activity_id)` so a repeated 
    `routes/activities/create.ts`: the digest size and text checks, the quotas, the revision check, the dedupe on
    `workoutKey(sport, startMs)` and the stored-label rule. A Garmin activity that is already in the library from an
    export is a duplicate, and the row is `done` with no new activity. A file import that arrives after a Garmin
-   activity is a duplicate the same way.
+   activity is a duplicate the same way. The same workout from a different file (another copy of it) is refused 409
+   `activity_conflict`, as a second browser copy is; the consumer counts that as held: the row is `done`, nothing is
+   retried or shown.
 7. **The server minimises as the browser does.** The id and file name are hashed and the title is kept
-   (`minimisedForUpload`). There is no title setting: a Garmin activity is saved with its own name.
+   (`minimisedForUpload`). There is no title setting: a Garmin activity is saved with its own name. A FIT file carries no name, so the digest's
+   name is the generated one unless the push's summary gives one, passed as the parser's `activityName` (G4, section 9).
 8. **Parse limits are smaller on the server.** `GARMIN_PARSE_LIMITS` caps the file at the push limit (5 MiB) and the
    records and seconds at what one long activity needs, well under the browser's `DEFAULT_PARSE_LIMITS` (64 MiB). No
    archive is ever opened on the server: Garmin sends one FIT file per activity. The consumer's memory is measured in
@@ -93,7 +96,8 @@ received_at)`, unique `(user_id, provider, provider_activity_id)` so a repeated 
    result goes in apps/api/LIMITS.md.
 9. **Retries and failure.** A consumer error before the save retries with the queue's backoff; a parse that fails is
    not retried (the same bytes give the same answer) and the row is `failed` with the parser's reason. After three
-   delivery attempts the message goes to a dead-letter queue and the row is `failed`. A failed item keeps its file
+   delivery attempts the message goes to a dead-letter queue and the row is `failed`. A message whose row is gone (expired as
+   stale, or deleted by a disconnect) is acknowledged and dropped, never requeued. A failed item keeps its file
    for 30 days so the athlete can be shown it and a later parser can read it again.
 10. **The digest carries the Worker's model revision.** The server makes digests with the `MODEL_REVISION` of the
     code it runs. The web and the Worker ship from one commit (docs/DEPLOY.md), so the revisions match. A digest
@@ -137,6 +141,44 @@ Rows, per [system.md](system.md). No new page.
   (`fit/parse.fuzz.test.ts`); the server adds the corpus of malformed synthetic files to the consumer's tests.
 - The token key lives in Worker secrets, apart from D1, so a D1 leak alone exposes no token. The
   scopes requested are the narrowest that read activities (named once Garmin's list is known).
+
+## 5a. The link's states (G3)
+
+An account has no link (N) or one link (L, one Garmin user id). `GARMIN_ENABLED` gates connecting only: with it off,
+connect and its callback answer 404, while disconnect, the deregistration notice and account deletion still remove a
+link, so turning the flag off never strands one. "Deregister" calls Garmin's deregistration endpoint with the link's
+token: best effort, five seconds at most, logged by error class only, and it never blocks the removal, since a push for
+an unknown Garmin user stores nothing (decision 5).
+
+| Event                                                                  | From N                                    | From L                                                                         |
+| ---------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| Connect (signed in, not deleting); a second connect replaces the state | N; state cookies set                      | L; state cookies set                                                           |
+| Callback, any outcome                                                  | the one-shot cookies are cleared first    | the same                                                                       |
+| Callback: signed out, or the session's account is not the cookie's     | N, 401 or 400, no code exchange           | L unchanged, no exchange                                                       |
+| Callback: state missing, stale or not matching                         | N, 400, no exchange                       | L unchanged, 400                                                               |
+| Callback in read-only mode                                             | N, 503 `read_only`, no exchange           | L unchanged                                                                    |
+| Callback: Garmin refuses the code or the user-id call fails            | N, 502                                    | L unchanged, 502                                                               |
+| Callback: good, Garmin user linked to another account                  | N, 409 `garmin_linked_elsewhere`          | L unchanged, 409                                                               |
+| Callback: good                                                         | L                                         | L with the new tokens; a new Garmin user id deregisters the old grant          |
+| Callback: good, the account started deleting meanwhile                 | N, 409 `account_deleting` (one statement) | L until the cascade                                                            |
+| Disconnect (`DELETE /api/garmin`), signed in                           | N, 204; pending connect cookies cleared   | deregister, then N: the link and every inbox item go, then their files; 204    |
+| Deregistration notice: link found, its token matches                   | -                                         | N, as a disconnect without the call to Garmin; 200                             |
+| Notice: unknown user, no token, or a token that does not match         | N, 200, nothing changes                   | L unchanged, 200                                                               |
+| Notice in read-only mode                                               | 503, Garmin retries                       | 503, Garmin retries                                                            |
+| Notice for a link whose token cannot be opened (the key dropped)       | -                                         | L unchanged, 503, Garmin retries                                               |
+| Account deletion (route or maintenance)                                | as before                                 | deregister first, then the cascade removes the link and the inbox              |
+| Worker stops mid-callback or mid-disconnect                            | N (one statement)                         | L old or new, whole; a disconnect retried removes it; stray files: orphan scan |
+| Two callbacks for one account, or a callback racing a disconnect       | the later statement wins                  | the later statement wins                                                       |
+| Two accounts' callbacks for one Garmin user                            | one links, the other 409                  | -                                                                              |
+
+The state is 32 random bytes in a cookie scoped to `/api/garmin`, with its issue time and an HMAC under
+`SESSION_SIGNING_KEY` over the state, the time and the account id; the server refuses one over ten minutes old. The callback reads the session itself and finishes only for the account the HMAC names, so
+signing out or switching accounts in between fails it. The PKCE verifier is a second cookie; both live ten minutes.
+A callback that wins a race with a disconnect re-links: the athlete started it. The deregistration notice cannot be
+authenticated until Garmin says how (section 9), so it acts only when it carries the link's own access token, compared
+in constant time after decrypting the stored one (a length mismatch is no match). It is exempt from the CSRF header,
+since Garmin's server sends it, and it is rate limited per address with sign-in. No route logs a body or a token, and
+no redirect carries one.
 
 ## 6. Garmin's attribution
 

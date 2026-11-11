@@ -21,13 +21,17 @@ service. More athletes come only after the launch bar below passes in full, and 
    fixes stale docs. The presentation pass shows every figure label over number, moves Share to a page-header
    icon, and makes the Balance hero a level triangle of the three age grades (run, ride, lift) once the lift grade
    exists: three grades side by side, never summed.
-3. **Server compute (stage Y), in progress:** S1 to S3 built, S4 and S5 building, switched off until the owner
-   upgrades to Workers Paid and turns it on. For signed-in accounts the Worker computes the opening state with the same core
-   code, and the device shows its last copy at once ([server-compute.md](design/server-compute.md)). Signed-out
-   use stays in the browser.
-4. **Garmin sync, as far as it goes before approval.** New activities pushed by Garmin and parsed on the server
-   ([garmin-sync.md](design/garmin-sync.md), revised for server-side parsing on 10 Nov). OAuth and ingestion are built
-   against a fake Garmin, switched off.
+3. **Done: server compute (stage Y).** S1 to S5 are built, and since 10 Nov the Worker computes the opening state
+   for the owner's account only, with the same core code, while the device shows its last copy at once
+   ([server-compute.md](design/server-compute.md)). A stored result carries the analysis revision it was made under
+   (#522), so one made before a figure changed is stale. Signed-out use stays in the browser. Not built: S6, the hourly
+   refresh.
+4. **Garmin sync, as far as it goes before approval: in progress.** New activities pushed by Garmin and parsed on the
+   server ([garmin-sync.md](design/garmin-sync.md), revised for server-side parsing on 10 Nov), switched off behind
+   `GARMIN_ENABLED`. Built against a fake Garmin: one create path for the browser and the server with an equivalence
+   test (G1), the link and inbox tables with their expiry and sweeps (G2), and connect, disconnect and deregistration
+   with tokens sealed under `PROVIDER_TOKEN_KEY` (G3). The push receiver and ingest consumer (G4) wait on Garmin's
+   answers to section 9.
 5. **Service basics.** Latency and uptime targets, the uptime monitor on, cost per user, a tested rollback, and one
    incident written up.
 6. **Launch bar check**, everything except Garmin: every core flow (sign up, import, Balance, Run, Ride, Lift,
