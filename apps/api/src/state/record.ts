@@ -25,19 +25,26 @@ export async function claimCompute(
   return won === null ? null : until
 }
 
-/** Stamps a held claim again (a read that runs a second time inside one request); returns the new stamp. */
+/**
+ * Stamps a held claim again (a read that runs a second time inside one request); returns the new stamp, or null when
+ * the claim is no longer `old` (it lapsed and another compute took it): the caller stops.
+ */
 export async function restampClaim(
   db: D1Database,
   userId: string,
   now: number,
   windowMs: number,
-): Promise<number> {
+  old: number,
+): Promise<number | null> {
   const until = now + windowMs
-  await db
-    .prepare('UPDATE state_jobs SET attempted_at = ?, claim_until = ? WHERE user_id = ?')
-    .bind(now, until, userId)
-    .run()
-  return until
+  const kept = await db
+    .prepare(
+      `UPDATE state_jobs SET attempted_at = ?2, claim_until = ?3 WHERE user_id = ?1 AND claim_until = ?4
+       RETURNING user_id`,
+    )
+    .bind(userId, now, until, old)
+    .first<{ user_id: string }>()
+  return kept === null ? null : until
 }
 
 /**

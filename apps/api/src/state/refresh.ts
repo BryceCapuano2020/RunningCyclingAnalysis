@@ -59,13 +59,9 @@ export async function computeAndStore(
   // The same claim a read takes, so the queue and the reads exclude each other across isolates.
   const stamp = claimed ?? (await claimCompute(db, userId, deps.now(), STATE_CLAIM_SECONDS * 1000))
   if (stamp === null) return { kind: 'busy' }
-  let done: Computed
-  try {
-    done = await compute(env, deps, userId, before, true)
-  } catch (error) {
-    await releaseClaim(db, userId, stamp).catch(() => undefined)
-    throw error
-  }
+  // A compute that throws leaves its claim to lapse: a failure that repeats is throttled by the window, not retried
+  // on every read.
+  const done = await compute(env, deps, userId, before, true)
   // A read's compute that found a write landed reads again under the same claim (the route stamps it again).
   if (done.kind !== 'moved' || claimed === null) {
     await releaseClaim(db, userId, stamp).catch(() => undefined)

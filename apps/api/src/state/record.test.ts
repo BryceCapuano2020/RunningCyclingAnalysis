@@ -1,7 +1,7 @@
 import { RESULT_REVISION } from './resultRevision.ts'
 import { describe, expect, it } from 'vitest'
 import { stateWorld } from '../test/stateKit.ts'
-import { claimCompute, record, releaseClaim, type Covered } from './record.ts'
+import { claimCompute, record, releaseClaim, restampClaim, type Covered } from './record.ts'
 
 const at = (version: number, liftRevision: number, nowMs: number): Covered => ({
   version,
@@ -84,5 +84,8 @@ describe('the snapshot order: (revision, version, lift revision, instant)', () =
     expect(await claimCompute(w.env.DB, w.userId, 111_000, 10_000)).toBeNull()
     await releaseClaim(w.env.DB, w.userId, 120_000)
     expect(await claimCompute(w.env.DB, w.userId, 111_000, 10_000)).toBe(121_000)
+    // A restamp holds only the claim it names: one lost (lapsed, taken by another) is null.
+    expect(await restampClaim(w.env.DB, w.userId, 112_000, 10_000, 121_000)).toBe(122_000)
+    expect(await restampClaim(w.env.DB, w.userId, 113_000, 10_000, 121_000)).toBeNull()
   })
 })

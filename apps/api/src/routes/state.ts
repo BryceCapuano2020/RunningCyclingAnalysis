@@ -1,7 +1,7 @@
 import { RESULT_REVISION } from '../state/resultRevision.ts'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { claimCompute, restampClaim } from '../state/record.ts'
+import { claimCompute, releaseClaim, restampClaim } from '../state/record.ts'
 import { STATE_CLAIM_SECONDS } from '../state/message.ts'
 import type { AppEnv } from '../env.ts'
 import { chargeDaily } from '../budget.ts'
@@ -144,7 +144,7 @@ async function computeInRequest(
   c: Ctx,
   row: JobRow,
   store: boolean,
-  claim: { stamp: number | null; refused?: HttpError },
+  claim: ClaimHeld,
 ): Promise<Computed | null> {
   const userId = currentUser(c).id
   const run = await withComputeLock(async () => {
@@ -172,6 +172,8 @@ async function computeInRequest(
       done = await computeAndStore(c.env, c.var.deps, userId, row, store, claim.stamp)
     } catch (error) {
       await charge.refund().catch(() => undefined)
+      // A failed compute leaves its claim to lapse (10 s), so a failure that repeats is not recomputed on every read.
+      claim.stamp = null
       throw error
     }
     if (done.kind === 'gone' || done.kind === 'moved') await charge.refund().catch(() => undefined)
@@ -182,12 +184,29 @@ async function computeInRequest(
 
 const CLAIM_MS = STATE_CLAIM_SECONDS * 1000
 
+/** The claim a request holds (its stamp, `claimCompute`) and the budget refusal it met. */
+interface ClaimHeld {
+  stamp: number | null
+  refused?: HttpError
+}
+
+/** A read that ends holding the claim without a finished compute (moved twice, over budget, an early answer) frees it. */
 stateRoutes.get('/', sameOriginReadGuard, async (c) => {
+  const claim: ClaimHeld = { stamp: null }
+  try {
+    return await serveState(c, claim)
+  } finally {
+    if (claim.stamp !== null) {
+      await releaseClaim(c.env.DB, currentUser(c).id, claim.stamp).catch(() => undefined)
+    }
+  }
+})
+
+async function serveState(c: Ctx, claim: ClaimHeld): Promise<Response> {
   const userId = currentUser(c).id
   const now = c.var.deps.now()
   let row = await jobRow(c.env.DB, userId)
   if (row === null) throw NOT_FOUND()
-  const claim: { stamp: number | null; refused?: HttpError } = { stamp: null }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const order = revisionOrder(row)
     if (isCurrent(row, now)) {
@@ -227,7 +246,15 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     if (done.kind === 'moved') {
       // A write landed while the inputs were read: read the row again, once. The claim is stamped again first, since the
       // first read may have run longer than its window and another isolate would then compute alongside.
-      claim.stamp = await restampClaim(c.env.DB, userId, c.var.deps.now(), CLAIM_MS)
+      claim.stamp = await restampClaim(c.env.DB, userId, c.var.deps.now(), CLAIM_MS, claim.stamp!)
+      if (claim.stamp === null) {
+        // The claim was lost (the window ran out and another compute took it): serve what is stored, or say it is coming.
+        if (order === 'same') {
+          const served = await serveStored(c, row, true)
+          if (served !== 'stale') return served
+        }
+        return computing(c)
+      }
       const again = await jobRow(c.env.DB, userId)
       if (again === null) throw NOT_FOUND()
       row = again
@@ -247,4 +274,4 @@ stateRoutes.get('/', sameOriginReadGuard, async (c) => {
     return answer(c, done)
   }
   return computing(c)
-})
+}

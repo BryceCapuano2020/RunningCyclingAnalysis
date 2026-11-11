@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { createHarness } from '../test/harness.ts'
+import { racingDb } from '../test/racingDb.ts'
 import { forgetUnstored } from '../state/lock.ts'
 import { runStateJob } from '../state/job.ts'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
@@ -22,6 +24,46 @@ async function ready() {
       5_000,
     )
   return { ...w, get, write }
+}
+
+const DIGEST_READ = /SELECT id, created_at, digest_json/
+
+/** Runs `hook` just before each of the first `times` reads of digests (a write landing during a compute's reads). */
+function eachRead(db: D1Database, hook: () => Promise<void>, times: number) {
+  let n = 0
+  return new Proxy(db, {
+    get(target, prop) {
+      const value: unknown = Reflect.get(target, prop, target)
+      if (prop !== 'prepare' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value
+      }
+      return (sql: string) => {
+        const fresh =
+          DIGEST_READ.test(sql) && n < times ? racingDb(target, DIGEST_READ, hook) : target
+        if (fresh !== target) n += 1
+        return fresh.prepare(sql)
+      }
+    },
+  })
+}
+
+/** Throws at the first read of digests: a compute that fails. */
+function failingRead(db: D1Database, reads: { n: number }) {
+  return new Proxy(db, {
+    get(target, prop) {
+      const value: unknown = Reflect.get(target, prop, target)
+      if (prop !== 'prepare' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value
+      }
+      return (sql: string) => {
+        if (DIGEST_READ.test(sql)) {
+          reads.n += 1
+          throw new Error('digest read failed')
+        }
+        return Reflect.apply(value, target, [sql])
+      }
+    },
+  })
 }
 
 describe('compute claim release', () => {
@@ -58,5 +100,42 @@ describe('compute claim release', () => {
     // The read finished and released its claim, but the compute still began under the queue's interval.
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
     expect(await runStateJob(w.env, w.deps, w.userId)).toBe('deferred')
+  })
+
+  it('frees the claim when a read ends without a finished compute (a write during both input reads)', async () => {
+    const w = await ready()
+    w.h.clock.now += 20_000
+    await w.write('landing')
+    const bump = () =>
+      w.env.DB.prepare('UPDATE users SET lift_revision = lift_revision + 1 WHERE id = ?')
+        .bind(w.userId)
+        .run()
+        .then(() => undefined)
+    const racing = createHarness({}, { DB: eachRead(w.env.DB, bump, Infinity) })
+    racing.clock.now = w.h.clock.now
+    const first = await racing.send({ path: '/api/state', cookies: w.cookies })
+    expect(first.status).toBe(202)
+    // A second later the same inputs are still uncovered, and the read computes: the claim was not left held.
+    w.h.clock.now += 1_000
+    const second = await w.get()
+    expect(second.headers.get('X-State-Current')).not.toBe('0')
+  })
+
+  it('lets a failed compute hold its claim, so a failure that repeats is not recomputed on every read', async () => {
+    const w = await ready()
+    w.h.clock.now += 20_000
+    await w.write('failing')
+    const reads = { n: 0 }
+    const failing = createHarness({}, { DB: failingRead(w.env.DB, reads) })
+    failing.clock.now = w.h.clock.now
+    await failing.send({ path: '/api/state', cookies: w.cookies })
+    expect(reads.n).toBe(1)
+    failing.clock.now += 1_000
+    await failing.send({ path: '/api/state', cookies: w.cookies })
+    expect(reads.n).toBe(1)
+    // The window passes and it tries again.
+    failing.clock.now += 10_000
+    await failing.send({ path: '/api/state', cookies: w.cookies })
+    expect(reads.n).toBe(2)
   })
 })
