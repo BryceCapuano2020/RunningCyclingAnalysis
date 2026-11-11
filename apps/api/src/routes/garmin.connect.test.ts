@@ -3,6 +3,7 @@ import { createHarness, testEnv, type Harness } from '../test/harness.ts'
 import { fakeGarmin, GARMIN_ON, type FakeGarmin, type FakeGarminOptions } from '../test/garmin.ts'
 import { openTokens } from '../providers/tokens.ts'
 import { saveLink } from '../garmin/link.ts'
+import { inboxKey } from '../inbox/key.ts'
 
 /** docs/design/garmin-sync.md section 5a, the connect rows, against a fake Garmin. */
 
@@ -174,6 +175,33 @@ describe('connecting Garmin', () => {
 
     expect(garmin.deregistered).toEqual(['access-g-1-2'])
     expect((await links()).map((link) => link.provider_user_id)).toEqual(['g-2'])
+  })
+
+  it('drops the inbox of a Garmin account left, and keeps it on a reconnect to the same one', async () => {
+    const { h } = garminHarness()
+    const token = await h.signIn()
+    const userId = await userIdOf(h, token)
+    await callback(h, token, await connect(h, token), { code: 'code-for-g-1' })
+    const key = inboxKey(userId, 'waiting')
+    await h.env.FILES!.put(key, new Uint8Array([1]))
+    await testEnv()
+      .DB.prepare(
+        `INSERT INTO inbox_items (id, user_id, provider, provider_activity_id, file_key, file_size, received_at)
+         VALUES ('waiting', ?, 'garmin', 'a-1', ?, 1, 1)`,
+      )
+      .bind(userId, key)
+      .run()
+    const inbox = async () =>
+      (await testEnv().DB.prepare('SELECT COUNT(*) AS n FROM inbox_items').first<{ n: number }>())!
+        .n
+
+    await callback(h, token, await connect(h, token), { code: 'code-for-g-1' })
+    expect(await inbox()).toBe(1)
+    expect(await h.env.FILES!.head(key)).not.toBeNull()
+
+    await callback(h, token, await connect(h, token), { code: 'code-for-g-2' })
+    expect(await inbox()).toBe(0)
+    expect(await h.env.FILES!.head(key)).toBeNull()
   })
 
   it('stores nothing for an account that started deleting during the exchange', async () => {
