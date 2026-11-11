@@ -3,7 +3,6 @@ import {
   THRESHOLD_NEEDS,
   ZONE_WINDOW_VALUE,
   describable,
-  mainZoneRow,
   percentText,
   timeInZonesLack,
   zoneNoteLine,
@@ -54,32 +53,6 @@ describe('describable', () => {
 
   it('names the stretch a wider window is of in a few words', () => {
     expect(ZONE_WINDOW_VALUE).toEqual({ year: 'Last 12 months', all: 'All time' })
-  })
-})
-
-describe('mainZoneRow', () => {
-  it('gives the zone that held the most time, with its share', () => {
-    const time = measureTime('run', 'heartRate', [0, 64, 30, 6, 0])
-    expect(mainZoneRow('heartRate', time)).toEqual({
-      label: 'Most time',
-      value: 'Heart rate zone 2, 64%',
-    })
-  })
-
-  it('reads a share that rounds to all of it as above 99%, and a spread share as it is', () => {
-    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 100, 0, 0, 0]))?.value).toBe(
-      'Pace zone 2, 100%',
-    )
-    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 99.6, 0.4, 0, 0]))?.value).toBe(
-      'Pace zone 2, >99%',
-    )
-    expect(
-      mainZoneRow('power', measureTime('ride', 'power', [0, 10, 38, 30, 22, 0, 0]))?.value,
-    ).toBe('Measured power zone 3, 38%')
-  })
-
-  it('has nothing to say without time', () => {
-    expect(mainZoneRow('pace', measureTime('run', 'pace', [0, 0, 0, 0, 0]))).toBeNull()
   })
 })
 

@@ -5,30 +5,19 @@ import { NARROW_WIDTH } from './ticks'
 import type { StackChannel } from './timeSeriesTypes'
 
 /** A row's height in px for a weight of one: a phone's rows are shorter so the whole stack stays under a screen. */
-const BASE_ROW_PX = { phone: 56, wide: 96 }
-/** The air between two rows, where the lower one's top label and the upper one's lowest tick sit. */
-export const ROW_GAP_PX = 10
-/** The room above the first row. */
-const TOP_PX = 6
-/** The strip under the rows that holds the pauses and gaps. */
-export const LANE_PX = 8
-const LANE_GAP_PX = 6
-/** The room under the lane for the time labels. */
+const BASE_ROW_PX = { phone: 56, wide: 88 }
+/** The air between two rows, which holds the lower row's name, so each row reads as a chart of its own. */
+export const ROW_GAP_PX = 30
+/** The room above the first row, for its name. */
+const TOP_PX = 20
+/** The room under the rows for the time labels. */
 const AXIS_PX = 26
-
-/** On a phone the gap above each row is deep enough to hold the row's name, and the first row has room for its own. */
-const LABEL_GAP_PX = 18
-const LABEL_TOP_PX = 14
 
 export interface StackLayout {
   height: number
-  /** Whether each row's name sits in the gap above it (a phone's rows are too short for it over the line). */
-  labelAbove: boolean
-  /** The box the cursor reads: every row and the lane. */
+  /** The box the cursor reads: every row. */
   plot: PlotBox
   rows: { top: number; bottom: number }[]
-  laneTop: number
-  laneBottom: number
 }
 
 /**
@@ -41,8 +30,8 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
   const scale = geometryScale()
   const margin = stackMargin(scale)
   const base = (phone ? BASE_ROW_PX.phone : BASE_ROW_PX.wide) * scale
-  const gap = (phone ? LABEL_GAP_PX : ROW_GAP_PX) * scale
-  const first = (phone ? LABEL_TOP_PX : TOP_PX) * scale
+  const gap = ROW_GAP_PX * scale
+  const first = TOP_PX * scale
   let top = first
   const rows = channels.map((channel) => {
     const height = Math.round(base * channel.weight)
@@ -50,20 +39,16 @@ export function layoutOf(width: number, channels: readonly StackChannel[]): Stac
     top = row.bottom + gap
     return row
   })
-  const laneTop = (rows.at(-1)?.bottom ?? TOP_PX * scale) + LANE_GAP_PX * scale
-  const laneBottom = laneTop + LANE_PX * scale
+  const bottom = rows.at(-1)?.bottom ?? first
   return {
-    height: laneBottom + AXIS_PX * scale,
-    labelAbove: phone,
+    height: bottom + AXIS_PX * scale,
     plot: {
       left: margin.left,
       right: Math.max(margin.left + 1, width - margin.right),
       top: first,
-      bottom: laneBottom,
+      bottom,
     },
     rows,
-    laneTop,
-    laneBottom,
   }
 }
 

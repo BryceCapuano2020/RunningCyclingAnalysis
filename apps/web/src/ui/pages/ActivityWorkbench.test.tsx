@@ -83,21 +83,37 @@ describe('ActivityWorkbench', () => {
     expect(within(figure).getByText('View as table')).toBeInTheDocument()
   })
 
-  it('states paused and unrecorded time only when there is some', async () => {
+  it('states paused and unrecorded time of a chosen interval only when there is some', async () => {
+    const user = userEvent.setup()
     const view = show(runTrace())
-    expect((await screen.findByText('Paused time')).parentElement).toHaveTextContent('1 s')
-    expect(screen.getByText('Unrecorded time').parentElement).toHaveTextContent('1 s')
-    expect(screen.getByText('Moving time').parentElement).toHaveTextContent('8 s')
+    const end = await field('End time')
+    await user.clear(end)
+    await user.type(end, '0:09{Enter}')
+    expect((await screen.findByText('Paused time')).parentElement).toHaveTextContent('0:01')
+    expect(screen.getByText('Moving time').parentElement).toHaveTextContent('0:08')
+    expect(screen.getByRole('heading', { name: 'Selected interval' })).toBeInTheDocument()
     view.unmount()
 
     show(steadyTrace(120))
-    await screen.findByText('Elapsed time')
+    const steadyEnd = await field('End time')
+    await user.clear(steadyEnd)
+    await user.type(steadyEnd, '1:00{Enter}')
+    expect(await screen.findByText('Elapsed time')).toBeInTheDocument()
     expect(screen.queryByText('Paused time')).not.toBeInTheDocument()
     expect(screen.queryByText('Unrecorded time')).not.toBeInTheDocument()
     expect(screen.queryByText('Moving time')).not.toBeInTheDocument()
   })
 
-  it('lists measures in plain words, and says None in this interval for one with no reading', async () => {
+  it('draws no interval tiles and no stats tables for the whole activity', async () => {
+    show(runTrace())
+    await screen.findByRole('figure')
+    expect(screen.queryByRole('heading', { name: 'Selected interval' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Elapsed time')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
+    expect(screen.queryByText(/Typical range/)).not.toBeInTheDocument()
+  })
+
+  it('leaves a measure with no reading in the interval out of the readout', async () => {
     const trace = runTrace()
     // Cadence is read only in the last seconds, outside the lap.
     trace.streams.cadence = Float32Array.from({ length: 10 }, (_, i) =>
@@ -107,36 +123,22 @@ describe('ActivityWorkbench', () => {
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: /^Lap 1/ }))
     await user.click(await screen.findByRole('checkbox', { name: /^Cadence/ }))
-    const table = await screen.findByRole('table', {
-      name: /while moving in the selected interval/i,
-    })
-    expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(['Measure', 'Average', 'Typical range', 'Time'])
-    const cadence = within(table).getByRole('row', { name: /^Cadence/ })
-    expect(cadence).toHaveTextContent('None in this interval')
-    expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
-    // The typical range is the same spread the chart's bands show, said in the same percentiles.
-    expect(
-      screen.getByText('Typical range', { selector: 'dt' }).nextElementSibling,
-    ).toHaveTextContent('10th to 90th percentile')
-    expect(screen.queryByText(/5th to 95th/)).not.toBeInTheDocument()
+    const figure = await screen.findByRole('figure')
+    expect(within(figure).getByRole('status')).not.toHaveTextContent('Cadence')
+    expect(screen.queryByRole('table', { name: /in the selected interval/i })).toBeNull()
+    expect(screen.queryByText(/None in this interval/)).not.toBeInTheDocument()
   })
 
-  it('lists only the measures shown, with each one’s time as a duration', async () => {
+  it('reads only the measures shown in the readout', async () => {
     const user = userEvent.setup()
     show(runTrace())
-    const table = await screen.findByRole('table', {
-      name: /while moving in the selected interval/i,
-    })
-    expect(within(table).queryByRole('row', { name: /^Cadence/ })).not.toBeInTheDocument()
-    expect(within(table).getByRole('row', { name: /^Heart rate/ })).toHaveTextContent(/0:08$/)
+    const readout = within(await screen.findByRole('figure')).getByRole('status')
+    expect(readout).not.toHaveTextContent('Cadence')
+    expect(readout).toHaveTextContent('Heart rate')
     await user.click(screen.getByRole('checkbox', { name: /^Heart rate/ }))
-    expect(within(table).queryByRole('row', { name: /^Heart rate/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
-    expect(screen.queryByRole('table', { name: /while moving/i })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('figure')).getByRole('status')).not.toHaveTextContent(
+      'Heart rate',
+    )
   })
 
   it('reads the selection’s averages with no cursor, in a row that always holds the same measures', async () => {
@@ -159,31 +161,28 @@ describe('ActivityWorkbench', () => {
     expect(lap).toHaveClass('activity-workbench__lap--active')
     expect(await field('Start time')).toHaveValue('0:02')
     expect(await field('End time')).toHaveValue('0:06')
-    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('4 s')
+    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('0:04')
   })
 
   it('shows no Laps row for a single recorded lap, which is the whole activity', async () => {
     const trace = runTrace()
     trace.laps = [{ startS: 0, endS: 10 }]
     show(trace)
-    await screen.findByText('Elapsed time')
+    await screen.findByRole('figure')
     expect(screen.queryByRole('heading', { name: 'Laps' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Lap 1/ })).not.toBeInTheDocument()
   })
 
-  it('names suggested intervals by number and start instead of repeating one label', async () => {
+  it('suggests no intervals from the readings of an activity with no laps', async () => {
     // Three efforts of 100 s with a rest of 100 s between them, inside a warm-up and a cool-down.
     const trace = steadyTrace(900)
     trace.streams.power = Float32Array.from({ length: 900 }, (_, index) =>
       index >= 200 && index < 700 && Math.floor((index - 200) / 100) % 2 === 0 ? 300 : 100,
     )
     show(trace)
-    expect(await screen.findByRole('heading', { name: 'Suggested intervals' })).toBeInTheDocument()
-    const buttons = screen.getAllByRole('button', { name: /^Interval \d+ · from / })
-    expect(buttons.length).toBeGreaterThan(1)
-    expect(buttons[0]).toHaveAccessibleName(/^Interval 1 · from \d+:\d{2} · /)
-    expect(buttons[1]).toHaveAccessibleName(/^Interval 2 · from \d+:\d{2} · /)
-    expect(screen.queryByText(/Inferred interval/)).not.toBeInTheDocument()
+    await screen.findByRole('figure')
+    expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Interval \d+ · from / })).not.toBeInTheDocument()
   })
 
   it('does not snap a time while it is typed, and commits it on Enter', async () => {
@@ -206,7 +205,7 @@ describe('ActivityWorkbench', () => {
       'aria-valuetext',
       'End 1 min 30 s',
     )
-    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('30 s')
+    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('0:30')
   })
 
   it('refuses a time outside the interval and restores the last one on leaving', async () => {
@@ -273,13 +272,6 @@ describe('ActivityWorkbench', () => {
     trace.streams.speed!.fill(0.05, 0, 12)
     trace.streams.speed![30] = 3.3
     show(trace)
-    const table = await screen.findByRole('table', { name: /pace in the selected interval/i })
-    const pace = within(table).getByRole('row', { name: /^Pace/ })
-    // The one fast second is not the typical range, which is the 5:33 the run held; the average is the distance
-    // over the moving time, the standing seconds in it, as the header's is.
-    expect(pace).toHaveTextContent('Pace5:39 /km5:33 /km')
-    expect(pace).not.toHaveTextContent('—')
-    expect(pace).toHaveTextContent(/0:48$/)
     expect(
       await screen.findByText('Stopped or no reading for 12 s of moving time.'),
     ).toBeInTheDocument()
@@ -328,7 +320,7 @@ describe('ActivityWorkbench', () => {
     expect(screen.queryByText(/Stopped or no reading/)).not.toBeInTheDocument()
   })
 
-  it('draws elevation as an area and the other measures as lines with a band', async () => {
+  it('draws elevation as an area and the other measures as lines, with no spread band', async () => {
     const user = userEvent.setup()
     const trace = runTrace()
     trace.streams.altitude = Float32Array.from({ length: 10 }, (_, index) => 100 + index)
@@ -339,16 +331,17 @@ describe('ActivityWorkbench', () => {
     expect(elevation.querySelector('.ts-stack__area')?.getAttribute('d')).toMatch(/^M /)
     expect(elevation.querySelector('.ts-stack__band')).toBeNull()
     const heart = figure.querySelector('[data-channel="heartRate"]')!
-    expect(heart.querySelector('.ts-stack__band')?.getAttribute('d')).toMatch(/^M /)
+    expect(heart.querySelector('.ts-stack__line')?.getAttribute('d')).toMatch(/^M /)
+    expect(heart.querySelector('.ts-stack__band')).toBeNull()
     expect(heart.querySelector('.ts-stack__area')).toBeNull()
     await user.click(screen.getByRole('checkbox', { name: /^Elevation/ }))
     expect(rowsOf(screen.getByRole('figure'))).not.toContain('altitude')
   })
 
-  it('says once that readings stay on this device, and keeps the hedging lines out', async () => {
+  it('does not say that readings stay on this device, nor the old hedging lines', async () => {
     show(runTrace())
     await screen.findByRole('figure', { name: /^Pace/ })
-    expect(screen.getAllByText(/Detailed readings stay on this device/)).toHaveLength(1)
+    expect(screen.queryByText(/stay on this device/)).not.toBeInTheDocument()
     expect(screen.queryByText(/classifications/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Times are elapsed seconds/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Observed moving/)).not.toBeInTheDocument()
@@ -376,18 +369,21 @@ describe('ActivityWorkbench', () => {
     )
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
 
+    expect(
+      await screen.findByText("Detailed readings for this activity aren't on this device."),
+    ).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: 'Read original file' }))
     await waitFor(() => expect(loadTrace).toHaveBeenLastCalledWith('run-1', true))
-    expect(await screen.findByText(/Read from the original file/)).toBeInTheDocument()
+    expect(await screen.findByRole('figure', { name: /^Pace/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Read from the original file/)).not.toBeInTheDocument()
   })
 
   it('explains when details are unavailable and offers retry after a source failure', async () => {
     const loadTrace = vi.fn(async () => ({ kind: 'missing' }) satisfies ActivityTraceReply)
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
-    expect(await screen.findByText(/aren't kept on this device/)).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(
-      "Detailed readings for this activity aren't kept on this device: the browser keeps them for your newest activities, up to its storage limit. Its summary, bests and splits are still here.",
-    )
+    expect(
+      await screen.findByText("Detailed readings for this activity aren't on this device."),
+    ).toBeInTheDocument()
     // Said of what was dropped, not as a fault: it does not tell a person who just imported to import again.
     expect(screen.getByRole('status')).not.toHaveTextContent(/add this activity/i)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()

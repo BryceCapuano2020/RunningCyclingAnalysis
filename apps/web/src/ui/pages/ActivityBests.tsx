@@ -8,14 +8,7 @@ import { INDOOR_NOTE } from '../analysis/indoorCopy'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
-import { splitsListed, type SplitsLoad, type SplitsViewName } from '../components/splitRows'
-import {
-  TIMING_NOTE,
-  TIMING_NOTE_LAPS,
-  distanceGrade,
-  listedGradeNotes,
-  sportGrade,
-} from '../grades'
+import { distanceGrade, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import { periodBestText } from '../periodCopy'
 import { GAP_MARK, recordRow } from '../recordRow'
@@ -28,7 +21,6 @@ import {
   paceIsTime,
   sportRecords,
 } from '../records'
-import { SPORT_LABEL } from '../sports'
 import { hrefFor } from '../route'
 
 export interface ActivityBestsProps {
@@ -44,18 +36,8 @@ export interface ActivityBestsProps {
   inPeriod: boolean
   /** The period the result covers. Named on the page wherever it is used, never left to be guessed. */
   period?: Period
-  /** The records the activity holds across the whole library, which the record chips above show. */
+  /** The records the activity holds across the whole library, which its rows are marked with. */
   earned: readonly EarnedRecord[]
-  /** The run's splits as the page holds them, which say whether the timing note is on the page. */
-  splitsLoad: SplitsLoad
-  /** The view of the splits that is open, which says what their timing note claims. */
-  splitsView: SplitsViewName
-}
-
-/** Why a ride without measured power has no power curve, as the page says it. */
-const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
-  virtual: 'No power curve: an estimate is made only on climbs.',
-  none: 'No power curve: this ride has no power data.',
 }
 
 /** The mark an all-time record carries, in the same chip as the marks of the figure. */
@@ -83,15 +65,11 @@ export function ActivityBests({
   inPeriod,
   period,
   earned,
-  splitsLoad,
-  splitsView,
 }: ActivityBestsProps) {
   const sport = activity.sport
   // An indoor run's times are shown as run, but they are no best and carry no grade.
   const counts = effortsCount(activity)
   const periodMark = period === undefined ? null : periodBestText(period)
-  // A period of all time already holds every record, so the sport page has nothing to switch to.
-  const allTimeShown = period !== undefined && period.days === null
   const bests = inPeriod
     ? sportRecords(result, sport, massKg, units).filter(
         (record) => record.activity?.id === activity.id,
@@ -101,26 +79,19 @@ export function ActivityBests({
   // The period's distance bests, found over the activities the result holds, when there are times to mark.
   const periodDistances =
     inPeriod && distances.length > 0 ? distanceRecords(result.activities, units).records : []
-  // The records the chips name, which are the only ones marked, so the marks and the chips agree.
+  // The all-time records this activity holds, by the label its rows carry.
   const chipped = new Set(chipLabels(earned))
-  // The all-time records the chips name that the period's curve gives no figure for here.
+  // The all-time records the period's curve gives no figure for here, named on one line under the rows.
   const unfigured = chipLabels(earned.filter((record) => record.kind === 'duration')).filter(
     (label) => !bests.some((record) => `Best ${effortLabel(record.durationS)}` === label),
   )
-  if (bests.length === 0 && distances.length === 0 && unfigured.length === 0) {
-    if (!counts) return <p className="secondary">{INDOOR_NOTE}</p>
-    // A ride with no measured power has no power curve, and the page says why rather than leaving it out.
-    const reason =
-      sport === 'ride' && activity.powerSource !== 'measured'
-        ? NO_POWER_CURVE[activity.powerSource]
-        : null
-    return reason === null ? null : <p className="secondary">{reason}</p>
-  }
+  if (bests.length === 0 && distances.length === 0 && unfigured.length === 0)
+    return counts ? null : <p className="secondary">{INDOOR_NOTE}</p>
   // A ride's bests use the body mass, so they wait for the weight, as the cards' do.
   if (sport === 'ride' && !weightKnown) {
     return (
       <section className="section" aria-labelledby="activity-bests">
-        <h2 id="activity-bests">Best efforts set here</h2>
+        <h2 id="activity-bests">Best efforts</h2>
         <WeightNote />
       </section>
     )
@@ -136,12 +107,6 @@ export function ActivityBests({
         ? null
         : distanceGrade(record.distanceM, record.seconds, activity, profile),
   }))
-  const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
-  // The list says the no-standard gap once under it, so each row leaves it off.
-  const listNotes = listedGradeNotes(sport, outcomes, [
-    ...durationItems.map(({ record }) => effortLabel(record.durationS)),
-    ...distanceItems.map(({ record }) => record.label),
-  ])
   // A record of all time says so; else a best of the period says which period. Only one of them shows.
   const scopeMark = (allTime: boolean, ofPeriod: boolean): string[] => {
     if (allTime) return [ALL_TIME_MARK]
@@ -180,22 +145,13 @@ export function ActivityBests({
   ]
   return (
     <section className="section" aria-labelledby="activity-bests">
-      <h2 id="activity-bests">{counts ? 'Best efforts set here' : 'Distance times'}</h2>
+      <h2 id="activity-bests">{counts ? 'Best efforts' : 'Distance times'}</h2>
       {rows.length > 0 && <SportRecords rows={rows} />}
       {unfigured.length > 0 && (
         <p className="secondary">
-          {`All-time records here: ${unfigured.join(', ')}. ${allTimeShown ? 'See' : 'Choose All time on'} the `}
-          <a href={hrefFor({ page: sport })}>{`${SPORT_LABEL[sport]} page`}</a>
-          {allTimeShown ? ' for their figures.' : ' to see their figures.'}
+          {unfigured.length === 1 ? 'All-time record: ' : 'All-time records: '}
+          <a href={hrefFor({ page: sport })}>{unfigured.join(', ')}</a>
         </p>
-      )}
-      {listNotes.map((note) => (
-        <p key={note} className="muted">
-          {note}
-        </p>
-      ))}
-      {distances.length > 0 && splitsListed(splitsLoad, units) && (
-        <p className="muted">{splitsView === 'laps' ? TIMING_NOTE_LAPS : TIMING_NOTE}</p>
       )}
       {!counts && <p className="muted">{INDOOR_NOTE}</p>}
     </section>

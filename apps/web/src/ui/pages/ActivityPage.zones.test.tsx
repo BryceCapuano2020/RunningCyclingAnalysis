@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Measurement } from '@rca/core/athlete'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -56,6 +56,12 @@ function show(
   )
 }
 
+/** The chart of time in zones, which the heading names and the bars sit under. */
+async function zoneChart(): Promise<HTMLElement> {
+  const heading = await screen.findByRole('heading', { name: 'Time in zones' })
+  return within(heading.parentElement!).getByRole('img')
+}
+
 describe('the activity page zones', () => {
   it("cuts the interval by the zones in effect on the activity's day", async () => {
     const run = makeActivity({ id: 'run-a', startMs: new Date(2026, 1, 10, 12).getTime() })
@@ -65,7 +71,7 @@ describe('the activity page zones', () => {
     ]
     show(run, makeResult({ runCp: null }), settings(entries))
     // 140 bpm of 230 is 61% (zone 2), the maximum in effect on 10 February; of 150 it would be 93% (zone 5).
-    expect(await screen.findByText(/^Heart rate zone 2, 100%$/)).toBeInTheDocument()
+    expect(await zoneChart()).toHaveAccessibleName(/Heart rate: zone 2 100%/)
   })
 
   it("reads the estimate of the analysis when nothing is entered, and says it is the app's", async () => {
@@ -75,19 +81,16 @@ describe('the activity page zones', () => {
       makeResult({ runCp: null, runMaxHeartRate: 200, runObservedMaxHeartRate: 200 }),
       settings(),
     )
-    expect(await screen.findByText(/^Heart rate zone 3, 100%$/)).toBeInTheDocument()
+    expect(await zoneChart()).toHaveAccessibleName(/Heart rate: zone 3 100%/)
   })
 
   it('uses the set-aside of the whole library when the page is given it, for an activity the period does not hold', async () => {
     const run = makeActivity({ id: 'run-e' })
     // The period's analysis sets nothing aside; the library's does.
     show(run, makeResult({ runCp: null, runMaxHeartRate: 200 }), settings(), true, ['run-e'])
-    expect(
-      await screen.findByText(
-        'Heart rate is set aside for this activity: it read too low for the effort, as a working sensor would not, so it is left out of zones.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/heart rate zone/)).toBeNull()
+    expect(await screen.findByText('Heart rate set aside')).toBeInTheDocument()
+    expect(screen.queryByText(/read too low/)).toBeNull()
+    expect(screen.queryByRole('img', { name: /Heart rate: zone/ })).toBeNull()
   })
 
   it('notes the set-aside heart rate as a row in the data notes', async () => {
@@ -104,7 +107,8 @@ describe('the activity page zones', () => {
       makeResult({ runCp: null, heartRateSetAside: ['run-f'], runMaxHeartRate: 200 }),
       settings(),
     )
-    expect(await screen.findByText(/^Heart rate zone \d, 100%$/)).toBeInTheDocument()
+    expect(await zoneChart()).toHaveAccessibleName(/Heart rate: zone \d 100%/)
+    expect(screen.queryByText('Heart rate set aside')).toBeNull()
   })
 
   describe("a ride's estimated power zones", () => {
@@ -146,7 +150,7 @@ describe('the activity page zones', () => {
 
     it('show once the weight is entered', async () => {
       showRide(true)
-      expect(await screen.findByText(/^Measured power zone \d, 100%$/)).toBeInTheDocument()
+      expect(await zoneChart()).toHaveAccessibleName(/Measured power: zone \d 100%/)
     })
   })
 

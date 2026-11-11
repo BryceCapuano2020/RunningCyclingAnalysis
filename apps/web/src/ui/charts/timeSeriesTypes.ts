@@ -48,13 +48,6 @@ export interface StackChannel {
   skipped: readonly [number, number][]
 }
 
-/** A stretch with no usable readings in any channel, drawn on the timeline under the rows. */
-export interface StackMark {
-  kind: 'paused' | 'unrecorded'
-  startS: number
-  endS: number
-}
-
 /** The words at the head of the readout: the cursor's time, and its distance when there is one. */
 export interface CursorHead {
   time: string

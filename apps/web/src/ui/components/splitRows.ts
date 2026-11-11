@@ -143,8 +143,3 @@ export function columnsOf(rows: DigestSplit[], cells: SplitCells[]): Columns {
 export function rowsOf(splits: DigestSplits, units: UnitSystem): DigestSplit[] {
   return units === 'imperial' ? splits.mile : splits.km
 }
-
-/** Whether the page lists splits for the run: they loaded and have a row in the athlete's unit. */
-export function splitsListed(load: SplitsLoad, units: UnitSystem): boolean {
-  return load.status === 'loaded' && load.splits !== null && rowsOf(load.splits, units).length > 0
-}

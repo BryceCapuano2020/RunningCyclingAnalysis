@@ -54,14 +54,32 @@ describe('many laps', () => {
     expect(first).toHaveAccessibleName('Lap 1 · from 0:00 · 30 s')
   })
 
-  it('name the chosen lap and its figures under the bar', async () => {
+  it('put no line under the bar, and keep the list on the number of laps until one is chosen', async () => {
     const user = userEvent.setup()
     show(lapped(12))
-    const line = () => document.querySelector('.lap-strip__line')
     await screen.findByRole('group', { name: 'Laps' })
-    expect(line()).toHaveTextContent('12 laps. Choose one to zoom to it.')
+    const list = screen.getByRole('combobox') as HTMLSelectElement
+    expect(list.selectedOptions[0]).toHaveTextContent('12 laps')
+    expect(document.querySelector('.lap-strip__line')).toBeNull()
+    expect(screen.queryByText(/Choose one to zoom/)).toBeNull()
     await user.click(screen.getByRole('button', { name: /^Lap 3 / }))
-    expect(line()).toHaveTextContent('Lap 3 · from 2:00 · 1 min · 5:33 /km · 140 bpm')
+    expect(list.selectedOptions[0]).toHaveTextContent(/^Lap 3 · from 2:00/)
+    expect(document.querySelector('.lap-strip__line')).toBeNull()
+  })
+
+  it('zoom to a lap chosen from the list, as a segment does', async () => {
+    const user = userEvent.setup()
+    show(lapped(12))
+    const group = await screen.findByRole('group', { name: 'Laps' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Choose lap' }), '4')
+    expect(within(group).getByRole('button', { name: /^Lap 5 / })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('slider', { name: 'Selection start' })).toHaveAttribute(
+      'aria-valuenow',
+      '240',
+    )
   })
 
   it('are one stop in the tab order, and the arrows and Home and End step between laps', async () => {
@@ -86,7 +104,7 @@ describe('many laps', () => {
     expect(buttons[0]!.tabIndex).toBe(0)
   })
 
-  it('leave Up and Down to scroll the page, and tie the chosen lap to the line that measures it', async () => {
+  it('leave Up and Down to scroll the page', async () => {
     const user = userEvent.setup()
     show(lapped(12))
     const group = await screen.findByRole('group', { name: 'Laps' })
@@ -96,18 +114,15 @@ describe('many laps', () => {
     expect(document.getElementById(group.getAttribute('aria-labelledby')!)).toHaveTextContent(
       'Laps',
     )
-    expect(buttons.some((button) => button.hasAttribute('aria-describedby'))).toBe(false)
     await user.click(buttons[4]!)
     await user.keyboard('{ArrowDown}{ArrowUp}')
     expect(buttons[4]).toHaveAttribute('aria-pressed', 'true')
     expect(buttons[4]).toHaveFocus()
-    const line = document.getElementById(buttons[4]!.getAttribute('aria-describedby')!)
-    expect(line).toHaveTextContent(/^Lap 5 · from 4:00/)
-    expect(buttons.filter((button) => button.hasAttribute('aria-describedby'))).toHaveLength(1)
+    expect(buttons.some((button) => button.hasAttribute('aria-describedby'))).toBe(false)
   })
 })
 
-describe('laps and suggested intervals', () => {
+describe('laps only', () => {
   /** Four 5 min reps with a 1 min jog between them, and the device's laps cutting across them every 8 min. */
   function lappedReps(): ActivityTrace {
     const reps = [3.7, 3.65, 3.6, 3.5].flatMap((speed) => [
@@ -121,25 +136,45 @@ describe('laps and suggested intervals', () => {
     ])
   }
 
-  it('shows both, the device’s laps first and the suggested intervals beside them', async () => {
+  it('shows the device’s laps and no suggested intervals beside them', async () => {
     show(lappedReps())
     await screen.findByRole('heading', { name: 'Laps' })
     const titles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(titles.indexOf('Laps')).toBeGreaterThanOrEqual(0)
-    expect(titles.indexOf('Suggested intervals')).toBeGreaterThan(titles.indexOf('Laps'))
+    expect(titles).toContain('Laps')
+    expect(titles).not.toContain('Suggested intervals')
     expect(screen.getByRole('button', { name: /^Lap 1 · from 0:00/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Interval 1 · from / })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Interval \d/ })).toBeNull()
   })
 
-  it('shows the suggestions alone when the device recorded none, and the laps alone when nothing is suggested', async () => {
+  it('shows nothing for readings with no device laps, however hard the efforts', async () => {
     const trace = lappedReps()
     trace.laps = []
-    const { unmount } = show(trace)
-    await screen.findByRole('heading', { name: 'Suggested intervals' })
+    show(trace)
+    await screen.findByRole('figure')
     expect(screen.queryByRole('heading', { name: 'Laps' })).toBeNull()
-    unmount()
-    show(lapped(4))
-    await screen.findByRole('heading', { name: 'Laps' })
     expect(screen.queryByRole('heading', { name: 'Suggested intervals' })).toBeNull()
+  })
+})
+
+describe('a trace that fails to load', () => {
+  it('says so as an alert and offers to try again, which reads it once more', async () => {
+    const user = userEvent.setup()
+    let calls = 0
+    const trace = lapped(3)
+    render(
+      <ActivityWorkbench
+        activityId={trace.activityId}
+        units="metric"
+        loadTrace={async () => {
+          calls += 1
+          if (calls === 1) throw new Error('read failed')
+          return { kind: 'trace', trace }
+        }}
+      />,
+    )
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('slider', { name: 'Selection start' })).toBeInTheDocument()
+    expect(calls).toBe(2)
   })
 })

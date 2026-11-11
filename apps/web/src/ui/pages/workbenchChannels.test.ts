@@ -1,39 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   channelsFor,
-  lapGroupsOf,
   overviewOf,
   plotDomain,
+  recordedLapsOf,
   skippedStretches,
-  timelineMarks,
 } from './workbenchChannels'
-import { edgeReadings } from '../charts/timeSeriesEdge'
 import { movingAverageSpeed, selectionOf } from './workbenchData'
 import { repsTrace, runTrace, steadyTrace } from './test/workbenchFixtures'
 import { readingOf } from './workbenchScale'
-
-describe('timelineMarks', () => {
-  it('marks each pause and each gap, and lets a gap outrank a pause it overlaps', () => {
-    const trace = steadyTrace(20)
-    trace.paused.fill(1, 2, 8)
-    trace.unrecorded.fill(1, 5, 12)
-    expect(timelineMarks(trace)).toEqual([
-      { kind: 'paused', startS: 2, endS: 5 },
-      { kind: 'unrecorded', startS: 5, endS: 12 },
-    ])
-  })
-
-  it('marks nothing on an activity with neither', () => {
-    expect(timelineMarks(steadyTrace(30))).toEqual([])
-  })
-
-  it('reads the fixture’s pause and gap', () => {
-    expect(timelineMarks(runTrace())).toEqual([
-      { kind: 'paused', startS: 2, endS: 3 },
-      { kind: 'unrecorded', startS: 9, endS: 10 },
-    ])
-  })
-})
 
 describe('skippedStretches', () => {
   it('reads the left-out seconds of a measure as stretches, and nothing for a measure without any', () => {
@@ -51,25 +26,26 @@ describe('skippedStretches', () => {
   })
 })
 
-describe('lapGroupsOf', () => {
-  it('gives the recorded laps, none for a single lap, and suggested intervals beside them', () => {
-    expect(lapGroupsOf(runTrace()).recorded).toHaveLength(2)
+describe('recordedLapsOf', () => {
+  it('gives the device laps, and none for a single lap, which is the whole activity', () => {
+    expect(recordedLapsOf(runTrace())).toHaveLength(2)
     const single = runTrace()
     single.laps = [{ startS: 0, endS: 10 }]
-    expect(lapGroupsOf(single).recorded).toEqual([])
-    // Three efforts with a rest between, inside a warm-up and a cool-down.
+    expect(recordedLapsOf(single)).toEqual([])
+    const none = runTrace()
+    none.laps = []
+    expect(recordedLapsOf(none)).toEqual([])
+  })
+
+  it('finds no laps in readings the device did not mark', () => {
     const reps = repsTrace('ride', [
       { seconds: 300, power: 100 },
       { seconds: 120, power: 300 },
       { seconds: 120, power: 100 },
       { seconds: 120, power: 300 },
-      { seconds: 120, power: 100 },
-      { seconds: 120, power: 300 },
       { seconds: 300, power: 100 },
     ])
-    const found = lapGroupsOf(reps)
-    expect(found.recorded).toEqual([])
-    expect(found.suggested.length).toBeGreaterThan(1)
+    expect(recordedLapsOf(reps)).toEqual([])
   })
 })
 
@@ -96,7 +72,6 @@ describe('channelsFor', () => {
       i >= 100 && i < 110 ? 0 : i >= 200 && i < 203 ? 0.3 : 3,
     )
     const [pace] = channelsFor(trace, ['speed'], 'metric', 0, 300, 300, 3)
-    expect(String(edgeReadings(pace!).below)).not.toMatch(/—/)
     expect(pace!.columns.trough.every((value) => Number.isNaN(value) || value > 0)).toBe(true)
   })
 

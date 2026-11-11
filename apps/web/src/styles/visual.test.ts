@@ -16,7 +16,6 @@ const balancePage = await read('../ui/pages/BalancePage.css')
 const chartFrame = await read('../ui/charts/ChartFrame.css')
 const chartSeries = await read('../ui/charts/ChartSeries.css')
 const activityPage = await read('../ui/pages/ActivityPage.css')
-const activityFacts = await read('../ui/pages/ActivityFacts.css')
 const activityList = await read('../ui/components/ActivityList.css')
 const accountMenu = await read('../ui/components/AccountMenu.css')
 const segmented = await read('../ui/components/SegmentedControl.css')
@@ -221,20 +220,6 @@ describe('activity pages', () => {
   it('wraps a long activity name on the activity page, so the page does not widen', () => {
     expect(rulesWith(activityPage, '.activity-page__title')).toMatch(/overflow-wrap:\s*anywhere/)
     expect(rulesWith(activityList, '.activity-list__name')).toMatch(/overflow-wrap:\s*anywhere/)
-  })
-})
-
-describe('activity record links', () => {
-  it('sets a record link to its sport page at the control height, a target of its own', () => {
-    expect(rulesWith(activityFacts, '.activity-page__chips a.meta')).toMatch(
-      /min-height:\s*var\(--control-height\)/,
-    )
-  })
-
-  it('underlines a record link, a mono byline with no box', () => {
-    const link = rulesWith(activityFacts, '.activity-page__chips a.meta')
-    expect(link).toMatch(/text-decoration:\s*underline/)
-    expect(link).not.toMatch(/background/)
   })
 })
 

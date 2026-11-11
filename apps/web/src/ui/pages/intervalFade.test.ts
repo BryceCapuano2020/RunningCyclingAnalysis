@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { runCost } from '@rca/core/metabolic'
-import { fadeLede, hardLaps, repFadeOf, REP_FADE, similarLengths } from './intervalFade'
+import { hardLaps, repFadeOf, REP_FADE, similarLengths } from './intervalFade'
 import { repsTrace } from './test/workbenchFixtures'
 import type { Stretch } from './test/workbenchFixtures'
 
@@ -81,37 +81,8 @@ describe('hardLaps', () => {
   })
 })
 
-describe('fadeLede', () => {
-  it('names the rep that differs most from rep 1, as slower', () => {
-    expect(fadeLede('speed', [3.7, 3.65, 3.6, 3.55, 3.5, 3.55])).toBe(
-      'Rep 5 was 5% slower than rep 1.',
-    )
-  })
-
-  it('names a faster rep as faster', () => {
-    expect(fadeLede('flatSpeed', [3.5, 3.55, 3.7])).toBe('Rep 3 was 6% faster than rep 1.')
-  })
-
-  it('says power as more or less power', () => {
-    expect(fadeLede('power', [300, 295, 288])).toBe('Rep 3 averaged 4% less power than rep 1.')
-    expect(fadeLede('power', [300, 320, 310])).toBe('Rep 2 averaged 7% more power than rep 1.')
-  })
-
-  it('says the reps stayed within the next whole percent above their widest gap, when it is 2% or less', () => {
-    expect(fadeLede('speed', [3.7, 3.68, 3.65])).toBe('Your reps stayed within 2%.')
-    expect(fadeLede('speed', [3.7, 3.64, 3.63])).toBe('Your reps stayed within 2%.')
-    expect(fadeLede('speed', [3.7, 3.7, 3.7])).toBe('Your reps stayed within 1%.')
-    expect(fadeLede('speed', [100, 99.4, 100.3])).toBe('Your reps stayed within 1%.')
-  })
-
-  it('does not call a gap over 2% within 2%, even when it rounds to 2%', () => {
-    expect(fadeLede('speed', [100, 97.6])).toBe('Rep 2 was 2% slower than rep 1.')
-    expect(fadeLede('speed', [3.7, 3.62, 3.6])).toBe('Rep 3 was 3% slower than rep 1.')
-  })
-})
-
 describe('repFadeOf', () => {
-  it('finds the hard laps among warm-up and recoveries, and says how the last compared with the first', () => {
+  it('finds the hard laps among warm-up and recoveries', () => {
     const fade = repFadeOf(workout(), OUTDOOR)!
     expect(fade.reps.map((r) => [r.number, r.lapNumber])).toEqual([
       [1, 2],
@@ -121,18 +92,16 @@ describe('repFadeOf', () => {
       [5, 10],
       [6, 12],
     ])
-    expect(fade.recorded).toBe(true)
     expect(fade.metric).toBe('speed')
-    expect(fade.lede).toBe('Rep 6 was 4% slower than rep 1.')
     expect(fade.reps[0]!.bounds).toEqual({ startS: 600, endS: 900 })
     expect(fade.reps[0]!.heartRate).toBe(150)
     expect(fade.reps[0]!.output).toBeCloseTo(3.7, 5)
   })
 
-  it('keeps a last rep that collapsed, between the recoveries, and says how far it fell', () => {
+  it('keeps a last rep that collapsed, between the recoveries', () => {
     const fade = repFadeOf(workout({ speeds: [3.7, 3.68, 3.64, 3.6, 3.57, 2.74] }), OUTDOOR)!
     expect(fade.reps).toHaveLength(6)
-    expect(fade.lede).toBe('Rep 6 was 26% slower than rep 1.')
+    expect(fade.reps[5]!.output).toBeLessThan(fade.reps[0]!.output * 0.8)
   })
 
   it('keeps a last rep that collapsed when the rests between reps are not laps', () => {
@@ -147,12 +116,11 @@ describe('repFadeOf', () => {
     )
     const fade = repFadeOf(trace, OUTDOOR)!
     expect(fade.reps).toHaveLength(4)
-    expect(fade.lede).toBe('Rep 4 was 16% slower than rep 1.')
   })
 
-  it('says the reps stayed level when they did', () => {
+  it('keeps level reps as reps', () => {
     const fade = repFadeOf(workout({ speeds: [3.7, 3.69, 3.7, 3.71, 3.7, 3.69] }), OUTDOOR)!
-    expect(fade.lede).toBe('Your reps stayed within 1%.')
+    expect(fade.reps).toHaveLength(6)
   })
 
   it('has no reps in fewer than 3 laps of one length', () => {
@@ -292,7 +260,6 @@ describe('repFadeOf', () => {
     )
     const fade = repFadeOf(ride, OUTDOOR)!
     expect(fade.metric).toBe('power')
-    expect(fade.lede).toBe('Rep 3 averaged 7% less power than rep 1.')
   })
 
   const speedOnly = repsTrace(
@@ -314,7 +281,6 @@ describe('repFadeOf', () => {
   it('reads a trainer ride without power by its speed, and gives a road ride without power no table', () => {
     const slower = repFadeOf(speedOnly, INDOOR)!
     expect(slower.metric).toBe('speed')
-    expect(slower.lede).toBe('Rep 3 was 9% slower than rep 1.')
     expect(repFadeOf(speedOnly, OUTDOOR)).toBeNull()
   })
 
@@ -340,7 +306,7 @@ describe('repFadeOf', () => {
     expect(trainer.reps).toHaveLength(3)
   })
 
-  it('uses intervals found in the readings when the device recorded no laps', () => {
+  it('finds no reps in readings with no device laps', () => {
     const stretches: Stretch[] = [{ seconds: 120, power: 100, heartRate: 110 }]
     for (const power of [300, 296, 288, 280]) {
       stretches.push(
@@ -348,10 +314,7 @@ describe('repFadeOf', () => {
         { seconds: 120, power: 100, heartRate: 130 },
       )
     }
-    const fade = repFadeOf(repsTrace('ride', stretches), OUTDOOR)!
-    expect(fade.recorded).toBe(false)
-    expect(fade.reps).toHaveLength(4)
-    expect(fade.lede).toMatch(/^Rep 4 averaged [5-7]% less power than rep 1\.$/)
+    expect(repFadeOf(repsTrace('ride', stretches), OUTDOOR)).toBeNull()
   })
 
   it('has no table when a lap of the set has no reading, rather than dropping it', () => {
@@ -384,14 +347,12 @@ describe('repFadeOf', () => {
     it('reads each rep as a flat pace, so the hilly one does not pass for a fade', () => {
       const fade = repFadeOf(repsTrace('run', stretches, laps), OUTDOOR)!
       expect(fade.metric).toBe('flatSpeed')
-      expect(fade.lede).toMatch(/^Your reps stayed within [1-4]%\.$/)
     })
 
     it('reads the pace as recorded when the run has no altitude', () => {
       const flat = stretches.map(({ climb: _climb, ...rest }) => rest)
       const fade = repFadeOf(repsTrace('run', flat, laps), OUTDOOR)!
       expect(fade.metric).toBe('speed')
-      expect(fade.lede).toMatch(/^Rep 2 was \d+% slower than rep 1\.$/)
     })
   })
 })

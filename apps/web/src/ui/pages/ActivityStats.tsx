@@ -16,7 +16,7 @@ import { isEstimatedRecord } from '../records'
  * The figures an activity's page leads with. Its moving time is the hero, with the elapsed time under
  * it when the two differ. Two tiles are the key strip, which a phone sets directly under the title: the
  * distance, and the pace over the moving time (a ride's power when it has one, else its speed). The rest are
- * the tiles below the timeline: the climb, heart rate, and the other of a ride's speed and power. An indoor
+ * the tiles below the timeline: the climb, the average and peak heart rate, and the other of a ride's speed and power. An indoor
  * ride has no speed to report.
  */
 export function ActivityStats({
@@ -66,13 +66,10 @@ export function ActivityStats({
   const more = [
     activity.elevationGainM > 0 && tile('Climb', formatElevation(activity.elevationGainM, units)),
     typeof activity.avgHeartRate === 'number' &&
-      tile(
-        'Average heart rate',
-        `${Math.round(activity.avgHeartRate)} bpm`,
-        typeof activity.maxHeartRate === 'number'
-          ? `Peak heart rate (30 s) ${Math.round(activity.maxHeartRate)} bpm`
-          : undefined,
-      ),
+      tile('Average heart rate', `${Math.round(activity.avgHeartRate)} bpm`),
+    // The digest's peak is its best 30 s: a strap's one-second spike is no peak.
+    typeof activity.maxHeartRate === 'number' &&
+      tile('Peak heart rate', `${Math.round(activity.maxHeartRate)} bpm`),
     hasPower && (leadsWithPower ? speed : power),
   ].filter(Boolean)
   return (

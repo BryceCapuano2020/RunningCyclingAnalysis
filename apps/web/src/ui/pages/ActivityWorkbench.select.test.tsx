@@ -40,7 +40,7 @@ describe('dragging across the plot', () => {
     show(steadyTrace(600))
     const svg = await stack()
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
-    expect(screen.getByText(/^Drag to zoom, or use the range sliders below/)).toBeInTheDocument()
+    expect(screen.queryByText(/Drag to zoom|Hold, then drag/)).toBeNull()
     fireEvent.pointerDown(svg, {
       clientX: xOf(150),
       clientY: 40,

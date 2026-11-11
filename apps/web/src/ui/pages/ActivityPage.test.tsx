@@ -99,9 +99,7 @@ function bestRow(label: string): HTMLElement {
 
 /** The Best efforts section. */
 function bestsSection(): HTMLElement {
-  const section = screen
-    .getByRole('heading', { level: 2, name: 'Best efforts set here' })
-    .closest('section')
+  const section = screen.getByRole('heading', { level: 2, name: 'Best efforts' }).closest('section')
   if (!section) throw new Error('No Best efforts section')
   return section
 }
@@ -181,11 +179,11 @@ describe('ActivityPage', () => {
       'href',
       '#/activities',
     )
-    // The sport, day and time are rows behind Details: the title has no caption above or below it.
-    expect(rowValue(document.body, 'Sport')).toBe('Run')
-    expect(rowValue(document.body, 'Started')).toBe('Mon 5 Jan, 7:30 am')
-    const facts = screen.getByText('Mon 5 Jan, 7:30 am')
-    expect(facts.closest('details')).toHaveTextContent('Details')
+    // The sport, day and time are one visible line under the title, and no Details holds them.
+    expect(screen.getByText('Run · Mon 5 Jan, 7:30 am')).toBeVisible()
+    expect(rowValue(document.body, 'Sport')).toBeNull()
+    expect(rowValue(document.body, 'Started')).toBeNull()
+    expect(screen.queryByText('Details')).not.toBeInTheDocument()
     expect(heading.previousElementSibling?.className ?? '').not.toContain('meta')
   })
 
@@ -211,7 +209,7 @@ describe('ActivityPage', () => {
       makeActivity({ id: 'activity-1', name: 'Heart run', avgHeartRate: 150, maxHeartRate: 171 }),
     )
     expect(within(statFor('Average heart rate')).getByText('150 bpm')).toBeInTheDocument()
-    expect(screen.getByText('Peak heart rate (30 s) 171 bpm')).toBeInTheDocument()
+    expect(within(statFor('Peak heart rate')).getByText('171 bpm')).toBeInTheDocument()
     unmount()
     renderPage(
       makeActivity({
@@ -290,9 +288,7 @@ describe('ActivityPage', () => {
 
   it('lists the run best efforts this activity set, with the pace each was run at', async () => {
     renderPage(morningRun)
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Best efforts' })).toBeInTheDocument()
     expect(
       screen.queryByText('Best 1 min', { selector: '.records__label' }),
     ).not.toBeInTheDocument()
@@ -336,7 +332,7 @@ describe('ActivityPage', () => {
     expect(bestRow('Best 5 km').querySelector('.records__sub')?.textContent).toMatch(/ \/mi$/)
   })
 
-  it('says a run’s no-standard gap once under the bests, and leaves its row without a grade', () => {
+  it('says nothing of a missing age standard under the bests, and leaves the row without a grade', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
@@ -344,9 +340,7 @@ describe('ActivityPage', () => {
         distanceBests: [{ distanceM: METRES_PER_KM, seconds: 240 }],
       }),
     )
-    expect(
-      within(bestsSection()).getAllByText('No age standard under 1 mile, for the 5 min and 1 km'),
-    ).toHaveLength(1)
+    expect(within(bestsSection()).queryByText(/No age standard/)).toBeNull()
     expect(bestRow('Best 1 km').querySelector('.records__grade')).toBeNull()
   })
 
@@ -367,21 +361,13 @@ describe('ActivityPage', () => {
     )
   })
 
-  it('says why a ride with estimated power has no power curve', () => {
-    renderPage(
-      makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'virtual' }),
-    )
-    expect(
-      screen.getByText('No power curve: an estimate is made only on climbs.'),
-    ).toBeInTheDocument()
-  })
-
-  it('says a ride with no power data has no power curve', () => {
-    renderPage(
-      makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'none' }),
-    )
-    expect(screen.getByText('No power curve: this ride has no power data.')).toBeInTheDocument()
-  })
+  it.each(['virtual', 'none'] as const)(
+    'says nothing of a power curve for a ride whose power source is %s',
+    (powerSource) => {
+      renderPage(makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource }))
+      expect(screen.queryByText(/No power curve/)).not.toBeInTheDocument()
+    },
+  )
 
   it('shows no speed for an indoor ride, though it has a distance', () => {
     renderPage(
@@ -462,7 +448,7 @@ describe('ActivityPage', () => {
 
   it('shows no best efforts section when the activity set none, rather than saying so', () => {
     renderPage(makeActivity({ id: 'run-2', name: 'Easy run' }))
-    expect(screen.queryByRole('heading', { name: 'Best efforts set here' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Best efforts' })).not.toBeInTheDocument()
     expect(screen.queryByText(/None of your best efforts/)).not.toBeInTheDocument()
   })
 
@@ -486,12 +472,11 @@ describe('ActivityPage', () => {
         period={DATED}
       />,
     )
-    // The chip above and the section agree on the record, whatever period the page last held.
-    const group = screen.getByRole('group', { name: 'All-time records' })
-    expect(within(group).getByText('Best 5 min')).toBeInTheDocument()
-    expect(
-      within(bestsSection()).getByText(/All-time records here: Best 5 min\./),
-    ).toBeInTheDocument()
+    // One line under the bests names the record, whatever period the page last held, and no chip group repeats it.
+    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
+    const line = within(bestsSection()).getByRole('link', { name: 'Best 5 min' })
+    expect(line.parentElement).toHaveTextContent(/^All-time record: Best 5 min$/)
+    expect(line).toHaveAttribute('href', '#/run')
     expect(screen.queryByText(/not counted/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Outside/)).not.toBeInTheDocument()
   })
@@ -509,7 +494,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 2, 'speed-spike': 1 },
       }),
     )
-    expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
+    expect(screen.getByText('Skipped readings').tagName).toBe('SUMMARY')
     // Each kind's line carries its count, so the page does not also say the total.
     expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(rowValue(document.body, 'Heart rate missing or too low')).toBe('2 times, left out')
@@ -519,7 +504,7 @@ describe('ActivityPage', () => {
     expect(screen.queryByText(/impossible/)).not.toBeInTheDocument()
   })
 
-  it('keeps altitude notes out of the skipped count, under a Data notes heading', () => {
+  it('keeps altitude notes out of the skipped count, under a Data notes disclosure', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
@@ -531,7 +516,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'altitude-jump': 1, 'missing-altitude': 1 },
       }),
     )
-    expect(screen.getByRole('heading', { level: 2, name: 'Data notes' })).toBeInTheDocument()
+    expect(screen.getByText('Data notes').tagName).toBe('SUMMARY')
     expect(screen.queryByText(/readings? skipped/)).not.toBeInTheDocument()
     expect(rowValue(document.body, 'Altitude jumps')).toBe(
       'once, climb and slope figures near it left out',
@@ -631,7 +616,7 @@ describe('ActivityPage', () => {
     expect(rowValue(document.body, 'Listed')).toBe('1 of 60')
   })
 
-  it('links to the activities either side of this one in the library, and to its sport and method', () => {
+  it('links to the activities either side of this one in the library, in one row with the way back', () => {
     const day = 86_400_000
     const newer = makeActivity({
       id: 'newer',
@@ -654,7 +639,9 @@ describe('ActivityPage', () => {
       'href',
       '#/activities/older',
     )
-    expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
+    expect(screen.queryByRole('link', { name: 'Your run records' })).not.toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Around this activity' })
+    expect(within(nav).getAllByRole('link')[0]).toHaveAccessibleName('Back to activities')
     // The header links to Method, so the activity's own links do not.
     expect(screen.queryByRole('link', { name: 'Method' })).not.toBeInTheDocument()
   })
@@ -884,19 +871,10 @@ describe('ActivityPage records earned', () => {
     ],
   ])
 
-  it('lists every record the activity holds in one All-time records group', () => {
+  it('shows no All-time records chip group, and marks the held records on their rows', () => {
     renderPage(morningRun, resultWith(), 'metric', held)
-    const group = screen.getByRole('group', { name: 'All-time records' })
-    expect(within(group).getByText('Best 5 min')).toBeTruthy()
-    expect(within(group).getByText('Best 60 min')).toBeTruthy()
-    expect(within(group).getByText('Best 5 km')).toBeTruthy()
-    expect(within(group).queryByText(/more/)).toBeNull()
-  })
-
-  it('links each all-time record chip to the sport page its records are on', () => {
-    renderPage(morningRun, resultWith(), 'metric', held)
-    const group = screen.getByRole('group', { name: 'All-time records' })
-    expect(within(group).getByRole('link', { name: 'Best 5 min' })).toHaveAttribute('href', '#/run')
+    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
+    expect(screen.queryByText('All-time records')).toBeNull()
   })
 
   it('shows no Best efforts group for an activity that holds nothing', () => {
@@ -1183,7 +1161,7 @@ describe('ActivityPage layout around the timeline', () => {
       within(more as HTMLElement)
         .getAllByRole('term')
         .map((t) => t.textContent),
-    ).toEqual(['Climb', 'Average heart rate'])
+    ).toEqual(['Climb', 'Average heart rate', 'Peak heart rate'])
   })
 
   it('leads a ride with its power in the key strip, and gives its speed to the tiles below', () => {
@@ -1207,7 +1185,7 @@ describe('ActivityPage layout around the timeline', () => {
       loadTrace: async () => ({ kind: 'missing' }),
       onAddFiles,
     })
-    await screen.findByText(/aren't kept on this device/)
+    await screen.findByText("Detailed readings for this activity aren't on this device.")
     await waitFor(() =>
       expect(document.querySelector('.activity-page__main')).toHaveClass(
         'activity-page__main--summary-only',
@@ -1304,9 +1282,7 @@ describe('ActivityPage: a run at walking pace the athlete may count', () => {
     // Counting takes the cause away, whatever it was, so no cause is named: the chip is for a run still at walking pace.
     expect(screen.queryByText('Walking pace')).not.toBeInTheDocument()
     expect(screen.queryByText(/walking pace/i)).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Best efforts' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Leave this run out' }))
     expect(onStop).toHaveBeenCalledTimes(1)
   })

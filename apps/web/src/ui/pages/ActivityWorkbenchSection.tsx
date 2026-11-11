@@ -28,12 +28,8 @@ export function WorkbenchSection({
   )
 }
 
-/**
- * What an activity says when this browser holds no recording of it and keeps no original file. Said plainly: the
- * recording is what was dropped, and everything else on the page is still here.
- */
-export const MISSING_DETAIL =
-  "Detailed readings for this activity aren't kept on this device: the browser keeps them for your newest activities, up to its storage limit. Its summary, bests and splits are still here."
+/** What an activity says when this browser holds no recording of it: a sentence, since it says why the chart is missing. */
+export const MISSING_DETAIL = "Detailed readings for this activity aren't on this device."
 
 /** The file picker behind "Add this activity's file again", which is a way to the detail and not the page's point. */
 function AddFileAgain({ onFiles }: { onFiles: (files: File[]) => void }) {
@@ -66,11 +62,7 @@ export function DetailNote({
   return (
     <WorkbenchSection note>
       <p className="secondary" role={status === 'failed' ? 'alert' : 'status'}>
-        {status === 'failed'
-          ? 'The recorded details could not be loaded.'
-          : status === 'originalAvailable'
-            ? 'This browser has no detailed readings for this activity. They can be read from the saved original file.'
-            : MISSING_DETAIL}
+        {status === 'failed' ? 'The recorded details could not be loaded.' : MISSING_DETAIL}
       </p>
       {status === 'failed' && (
         <div className="activity-workbench__actions">
