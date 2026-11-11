@@ -88,7 +88,9 @@ Design: [design/server-authority.md](design/server-authority.md), [design/server
    lift revision, the result revision and today's local day. Otherwise it computes in the request, stores and
    serves. The ETag is the snapshot hash, so an unchanged state is a 304.
 3. One compute runs per isolate (a lock) and per account (`claim_until`). A request that loses either serves the
-   stored snapshot, or answers `202 computing` when there is none. The read budget charges computes, not 304s.
+   stored snapshot, or answers `202 computing` when there is none. The read budget (`stateRead`, `routes/state.ts`): a 304 is
+   free; a body costs one read unit, except a stored copy served while another compute runs; a compute is charged, and
+   refunded when it fails or has nothing to store.
 4. The browser reads only `/api/state` for an account, keeps the last answer in `rca-state`, and repaints when the ETag
    changes. Other tabs are told over `rca-sync-v1`. It builds no `SessionState` in account scope.
 5. The browser also keeps an index of the account's activity records (listed from `GET /api/activities`, keyset
@@ -103,7 +105,8 @@ Design: [design/garmin-sync.md](design/garmin-sync.md). Switched off (`GARMIN_EN
 through `/api/garmin/connect` and `/callback` (tokens are one AES-GCM ciphertext in `provider_links`). Garmin pushes
 a new activity, the Worker records it in `inbox_items` and answers at once, and the queue consumer reads the file with
 the same core parser, saves the digest through the same create path and deletes the file. The next open shows it from
-`/api/state`. `/api/garmin/deregistration` and account deletion unlink and ask Garmin to stop. Only the link and
+`/api/state`. `DELETE /api/garmin` unlinks. `/api/garmin/deregistration` (Garmin's notice, exempt from `X-RCA-Client`) and account
+deletion unlink and ask Garmin to stop. Only the link and
 deregistration routes exist today; the push ingest is the design's next step.
 
 ### Sign-in and session
@@ -167,17 +170,18 @@ that prefix.
 
 ### IndexedDB
 
-| Database                 | Holds                                                                    | Signed in                          |
-| ------------------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `rca-state`              | The last `/api/state` answer per account, and the signed-out device copy | Cache of the server's snapshot     |
-| `rca-device-library`     | Signed-out digests, each with its file's name and hash                   | Read once by adoption              |
-| `rca-outbox`             | Digests waiting to be saved to an account                                | Goes when uploads move server-side |
-| `rca-checkin`            | Files already read, the check-in baseline, what the athlete has seen     | Per-device baseline                |
-| `rca-workbench-evidence` | Per-second traces, a cache of originals under one shared budget          | Cache, never a result              |
-| `rca-lifts`              | The lift logger's rows. No grade is computed from it for an account      | Logger store                       |
-| `rca-import-meta`        | The last five import records per library                                 | Device only                        |
+| Database                 | Holds                                                                    | Signed in                                                                        |
+| ------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `rca-state`              | The last `/api/state` answer per account, and the signed-out device copy | Cache of the server's snapshot                                                   |
+| `rca-device-library`     | Signed-out digests, each with its file's name and hash                   | Read once by adoption                                                            |
+| `rca-outbox`             | Digests waiting to be saved to an account                                | Goes in phase 2; adoption stays ([server-authority](design/server-authority.md)) |
+| `rca-checkin`            | Files already read, the check-in baseline, what the athlete has seen     | Per-device baseline                                                              |
+| `rca-workbench-evidence` | Per-second traces, a cache of originals under one shared budget          | Cache, never a result                                                            |
+| `rca-lifts`              | The lift logger's rows. No grade is computed from it for an account      | Logger store                                                                     |
+| `rca-import-meta`        | The last five import records per library                                 | Device only                                                                      |
 
-Web Locks: `rca-flush-<userId>` (the writer lock for saves and the updater). `BroadcastChannel` `rca-sync-v1`
+Web Locks: `rca-flush-<userId>` (the writer lock for saves and the updater), `rca-lifts-flush` (lift sends) and
+`rca-import-<id>` (one per running import, so another tab can tell it is still going). `BroadcastChannel` `rca-sync-v1`
 carries only what changed, never data. The sign-in sweep (`worker/sweepAccountDetails.ts`) removes another account's
 rows from a shared browser.
 

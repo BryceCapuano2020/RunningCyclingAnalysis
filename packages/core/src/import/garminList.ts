@@ -12,7 +12,7 @@ import { cleanTitle } from './names'
  * takes several times its size, so MAX_GARMIN_SUMMARY_OBJECTS and MAX_GARMIN_SUMMARY_DEPTH bound that
  * parse too: it is these that keep a crafted file from costing more than a real one.
  */
-export const MAX_GARMIN_SUMMARY_BYTES = 16 * 1024 * 1024
+export const MAX_GARMIN_SUMMARY_BYTES = 16 * 1024 * 1024 // 16 MiB a summary, 500,000 objects, 64 levels, 64 MiB and 32 files in all
 /**
  * The most objects one summary may hold, counted before it is parsed. A real summary has a few dozen for
  * each activity, but a crafted list of empty objects is a few bytes for each, and a parsed object takes
@@ -23,7 +23,7 @@ export const MAX_GARMIN_SUMMARY_OBJECTS = 500_000
 export const MAX_GARMIN_SUMMARY_DEPTH = 64
 /** The most all of an export's summaries may inflate to together. They are read one at a time. */
 export const MAX_GARMIN_SUMMARIES_BYTES = 64 * 1024 * 1024
-/** The most summary files read from one export. Garmin splits a large account's summaries into a few. */
+/** The most summary files read from one export (32). Garmin splits a large account's summaries into a few. */
 export const MAX_SUMMARY_FILES = 32
 /**
  * How far a summary's start may sit from the start of the activity it names. The summary gives the
@@ -60,8 +60,8 @@ export interface GarminList {
   /** In start order, and for the same start in name order, whatever order the summaries came in. */
   activities: readonly GarminActivity[]
   /**
-   * The name of the activity that started within START_TOLERANCE_MS of `startMs`, the nearest first. When
-   * more than one started that close to each other (TIE_MS), the one whose type is the file's sport; when
+   * The name of the activity that started within START_TOLERANCE_MS (5 s) of `startMs`, the nearest first. When
+   * more than one started that close to each other (TIE_MS, 1 s), the one whose type is the file's sport; when
    * that still leaves two with different names, none.
    */
   nameAt(startMs: number, sport: Sport): string | undefined

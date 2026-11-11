@@ -121,6 +121,7 @@ export const labelRoutes = new Hono<AppEnv>()
  * another change in between makes it a miss, answered with what the row holds now), and `modelRevision`
  * is never touched. The whole request is one profile write.
  */
+// Sets or clears the athlete's label on up to MAX_LABELS_PER_REQUEST (200) saved activities, in place.
 labelRoutes.patch('/labels', limitBody(LABEL_BODY_BYTES), requireUser, async (c) => {
   const userId = currentUser(c).id
   const body = await readJsonBody(c.req.raw, LABEL_BODY_BYTES)

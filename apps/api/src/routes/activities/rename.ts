@@ -51,7 +51,8 @@ export const renameRoutes = new Hono<AppEnv>()
 
 /**
  * Sets the name of one saved activity, in place and without sending a digest up. A name is the athlete's own
- * and survives a rebuilt or re-imported digest of the same file. The write is one profile write.
+ * and survives a rebuilt or re-imported digest of the same file. The name is 1 to 100 characters after trimming
+ * (RENAME schema, MAX_ACTIVITY_NAME_CHARS). The write is one profile write.
  */
 renameRoutes.patch('/:id/name', limitBody(RENAME_BODY_BYTES), requireUser, async (c) => {
   const userId = currentUser(c).id

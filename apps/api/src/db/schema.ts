@@ -21,9 +21,10 @@ export { users } from './users.ts'
 export { inboxItems, providerLinks } from './providers.ts'
 
 /*
- * Every table keyed by a user references `users` with cascade delete: deleting a user removes its oauth_accounts,
- * sessions, profiles, athlete_measurements, athlete_settings, state_jobs, lift_sets, activities, provider_links and
- * inbox_items. Every query on a user's data filters on `user_id`, which comes from the session and never from a
+ * Every table that references `users` does so with cascade delete: deleting a user removes its oauth_accounts,
+ * sessions, profiles, athlete_measurements, athlete_settings, state_jobs, lift_sets, activities, provider_links,
+ * inbox_items, daily_budget and upload_slots. Three tables have no foreign key by design, so a deletion leaves them
+ * for its own sweep: pending_account_deletions, account_tombstones and identity_budget. Every query on a user's data filters on `user_id`, which comes from the session and never from a
  * request (routes/activities/shared.ts `findOwnedActivity`). `d1_migrations` is Wrangler's own table of applied
  * migrations, which live in apps/api/migrations.
  */
