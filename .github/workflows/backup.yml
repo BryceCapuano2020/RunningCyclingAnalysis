@@ -72,9 +72,10 @@ jobs:
             echo "D1 export failed. Its output is withheld because it can contain a signed URL." >&2
             exit 1
           fi
+          # The AWS CLI v2 follows every page itself and prints one merged object (there is no --paginate).
           aws s3api list-objects-v2 --bucket rca-files \
             --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com" \
-            --output json --paginate > "$RCA_WORK/r2-pages.json"
+            --output json > "$RCA_WORK/r2-pages.json"
           jq -s '[.[] | (.Contents // [])[]]' "$RCA_WORK/r2-pages.json" > "$RCA_WORK/r2-objects.json"
       - name: Validate the export and write the manifest
         shell: bash
