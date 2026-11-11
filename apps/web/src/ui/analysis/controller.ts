@@ -36,6 +36,8 @@ export interface AnalysisController {
   copyStale?: boolean
   /** Import work is in progress or waiting. A library change such as a delete is not counted. */
   busy: boolean
+  /** A read of the account's library is in flight, whatever its status: a re-read of a loaded library is not an import. */
+  libraryReading: boolean
   /** Why an import is held or paused, or null when nothing is waiting. */
   waitingReason: string | null
   /** Activity files read so far during an import, with the total when it is known. */

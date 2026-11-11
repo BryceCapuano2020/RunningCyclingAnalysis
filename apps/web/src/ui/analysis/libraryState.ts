@@ -44,6 +44,7 @@ export function useLibraryState() {
   // A reload of a visit that kept results restores them until the library has been read.
   const [restoring, setRestoring] = useState(keptLibraryHinted)
   const [libraryAction, setLibraryAction] = useState<'deleting' | null>(null)
+  const [libraryReading, setLibraryReading] = useState(false)
   const [libraryNotice, setLibraryNotice] = useState<string | null>(null)
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [missingOriginals, setMissingOriginals] = useState(0)
@@ -151,6 +152,8 @@ export function useLibraryState() {
     setRestoring,
     libraryAction,
     setLibraryAction,
+    libraryReading,
+    setLibraryReading,
     libraryNotice,
     setLibraryNotice,
     libraryError,

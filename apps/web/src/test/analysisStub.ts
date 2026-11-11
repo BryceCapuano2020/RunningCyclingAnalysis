@@ -22,6 +22,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     retryResults: null,
     busy: false,
     waitingReason: null,
+    libraryReading: false,
     progress: null,
     uploading: null,
     savedCount: null,

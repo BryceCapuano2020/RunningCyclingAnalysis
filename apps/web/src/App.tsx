@@ -125,7 +125,8 @@ export function App() {
     busy: analysis.busy,
     // A file import queued behind the library, or running while it is not loading.
     waiting: analysis.waitingReason !== null,
-    libraryLoading: analysis.libraryStatus === 'loading',
+    // A re-read of a loaded library holds the page busy as well, and is no import.
+    libraryLoading: analysis.libraryStatus === 'loading' || analysis.libraryReading,
     // A kept library restoring may still bring the result, so the notice waits for it.
     restoring: analysis.restoring,
     settled,

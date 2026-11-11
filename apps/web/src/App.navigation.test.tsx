@@ -206,6 +206,23 @@ describe('deep links without a result', () => {
     expect(window.location.hash).toBe('#/run')
   })
 
+  it('keeps a deep link through a re-read of a loaded library, which holds the page busy but is not an import', () => {
+    window.location.hash = '#/activities'
+    app.analysis.libraryStatus = 'loaded'
+    const view = render(<App />)
+
+    // The library is read again after an import's saves: busy, with the status still loaded.
+    app.analysis.busy = true
+    app.analysis.libraryReading = true
+    view.rerender(<App />)
+    app.analysis.busy = false
+    app.analysis.libraryReading = false
+    showResult()
+    view.rerender(<App />)
+
+    expect(window.location.hash).toBe('#/activities')
+  })
+
   it('moves a visitor who imports from the deep link to Balance, the home page', async () => {
     window.location.hash = '#/run'
     const view = render(<App />)
