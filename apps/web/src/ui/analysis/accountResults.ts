@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ImportFacts, IndexFacts, SessionState } from '@rca/core/session'
-import type { LiftResults } from '@rca/core/lift'
-import { fromSnapshot, liftOfSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { SessionState } from '@rca/core/session'
+import { fromSnapshot, snapshotIsCurrent } from '@rca/core/stateSnapshot'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { ApiRequestError } from '../../api/apiError'
 import { readServerState } from '../../api/state'
 import type { StateRead } from '../../api/state'
 import { readSnapshot, writeSnapshot } from '../../worker/stateStore'
 import { useOwnChanges, useTabMessages } from '../tabSync'
+import type { TabMessage } from '../tabSync'
 import { copyIsStale } from './copyAge'
-import type { ImportState } from './importState'
-import { EMPTY_SESSION } from './model'
 import { reloadOnceForNewBuild } from './staleBuild'
+
+/** How long a library version past the index's waits for this tab's own changes to say they moved it, before the index is read again. */
+export const INDEX_SETTLE_MS = 1_000
 
 /** How often a tab in view asks the server whether the results changed. */
 export const POLL_MS = 60_000
@@ -111,10 +112,24 @@ export function useAccountResults(
   const quietNow = useRef(quiet)
   // The library version the worker's index was listed at; null means the next snapshot's version is it.
   const indexAt = useRef<number | null>(null)
+  // How often the index has been listed or changed by this tab, and whether the read being applied began after the last of them.
+  const indexChanges = useRef(0)
+  const behindWhileBusy = useRef(false)
   const behind = useRef(onIndexBehind)
   useEffect(() => {
     behind.current = onIndexBehind
   }, [onIndexBehind])
+  const readTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const readSoon = useCallback(() => {
+    clearTimeout(readTimer.current)
+    readTimer.current = setTimeout(() => behind.current(), INDEX_SETTLE_MS)
+  }, [])
+  const cancelRead = useCallback(() => {
+    clearTimeout(readTimer.current)
+    behindWhileBusy.current = false
+  }, [])
+  useEffect(() => () => clearTimeout(readTimer.current), [])
+  const readIsOfNow = useRef(true)
 
   const keep = useCallback((snapshot: StateSnapshot, shown: AccountResults | null) => {
     held.current = snapshot
@@ -134,15 +149,23 @@ export function useAccountResults(
    * library is: the stored snapshot served while the server computes covers an older version, and taking it for the baseline would
    * make this tab's own import look like another device's when the current one follows.
    */
-  const checkIndex = useCallback((version: number, current: boolean) => {
-    if (!current) return
-    const listed = indexAt.current
-    if (listed === null) indexAt.current = version
-    else if (version > listed) {
-      indexAt.current = null
-      behind.current()
-    }
-  }, [])
+  const checkIndex = useCallback(
+    (version: number, current: boolean) => {
+      if (!current) return
+      const listed = indexAt.current
+      // A read that began before the index last changed describes the library as it was, and is no baseline for what follows.
+      if (listed === null) {
+        if (readIsOfNow.current) indexAt.current = version
+      } else if (version > listed) {
+        indexAt.current = null
+        // While this tab is importing, its own saves move the version: the end of the import says whether the index is current. And a
+        // moment is left for this tab's own profile, settings or index change to say so, which cancels the read.
+        if (quietNow.current) readSoon()
+        else behindWhileBusy.current = true
+      }
+    },
+    [readSoon],
+  )
 
   const apply = useCallback(
     (read: Exclude<StateRead, { kind: 'none' }>): number | null => {
@@ -209,6 +232,7 @@ export function useAccountResults(
         const id = idRef.current
         const tag = refused.current ?? held.current
         let over = false
+        const changesAtStart = indexChanges.current
         const read = await Promise.resolve()
           .then(() => readServerState(id, tag))
           .catch((error: unknown) => {
@@ -223,6 +247,7 @@ export function useAccountResults(
           armRetry(busyWaitMs(misses.current))
           return
         }
+        readIsOfNow.current = changesAtStart === indexChanges.current
         const wait = apply(read)
         // A failure stands until an answer is current: the stored copy a held compute serves is not an end to it.
         if (wait === null) {
@@ -290,19 +315,44 @@ export function useAccountResults(
   useEffect(() => {
     quietNow.current = quiet
     if (quiet) settleReload()
-  }, [quiet, settleReload])
+    if (quiet && behindWhileBusy.current) {
+      behindWhileBusy.current = false
+      readSoon()
+    }
+  }, [quiet, settleReload, readSoon])
 
   // What another tab, or this one, changed in the account: its results are asked for again.
-  const onChange = useCallback(() => void pull(true), [pull])
+  // A profile, settings or dated-settings save moves the library version (the figures change) without changing the list, so the
+  // index's baseline is taken again from the next current answer: it is not another device's import.
+  const onChange = useCallback(
+    (message?: TabMessage) => {
+      if (
+        message?.type === 'profile' ||
+        message?.type === 'measurements' ||
+        message?.type === 'settings'
+      ) {
+        indexChanges.current++
+        indexAt.current = null
+        cancelRead()
+      }
+      void pull(true)
+    },
+    [pull, cancelRead],
+  )
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
   // The index has just been read at `version` (the library's, before the list was read), or kept current by this tab's own work (no
   // version: the next snapshot's is the one it matches).
-  const indexListed = useCallback((version?: number) => {
-    indexAt.current = version ?? null
-    if (idRef.current !== null) setListed({ id: idRef.current, version: version ?? null })
-  }, [])
+  const indexListed = useCallback(
+    (version?: number) => {
+      indexChanges.current++
+      cancelRead()
+      indexAt.current = version ?? null
+      if (idRef.current !== null) setListed({ id: idRef.current, version: version ?? null })
+    },
+    [cancelRead],
+  )
   // The page's Retry: asks now, and the waits go on from where they were (a change, which starts them again, is `refresh`).
   const retry = useCallback(() => void pull(), [pull])
   return {
@@ -313,59 +363,4 @@ export function useAccountResults(
     listedVersion,
     failed,
   }
-}
-
-/**
- * The server's state with what only the browser knows laid over it: the last import's facts (refused files, unsaved activities) and the
- * worker's index (the library's age and size). For the same digests and no import they are what the state already holds, so the layer
- * changes nothing (held by the equivalence test).
- */
-export function layerState(
-  state: SessionState,
-  facts: ImportFacts | null,
-  index: IndexFacts | null,
-): SessionState {
-  return { ...state, ...facts, ...index }
-}
-
-/** What the page shows. */
-interface Shown {
-  state: SessionState
-  /** The account's lift results (L3); null signed out, and before the server has answered. */
-  lift: LiftResults | null
-  /** The account's results are a copy made on an earlier day. */
-  stale: boolean
-}
-
-/**
- * What the page shows: for an account, the server's state with what only the browser knows laid over it. The refused files and unsaved
- * activities of the last import come from its `facts`; the library's age and size from the worker's index, which is current the moment a
- * delete or an update ends, where a snapshot may be a moment behind. An expired session keeps the account's results until a state of the
- * device's own arrives (a file dropped after the expiry is analysed here), which is then the one shown.
- */
-export function useShownResults(
-  results: AccountResults | null,
-  signedIn: boolean,
-  expired: boolean,
-  device: Pick<ImportState, 'state' | 'facts' | 'index'>,
-): Shown {
-  const keeps = useKeepsAccount(!signedIn && expired, device.state)
-  const shows = signedIn || (keeps && results !== null)
-  const held = shows ? results : null
-  const lift = useMemo(() => (held === null ? null : liftOfSnapshot(held.snapshot)), [held])
-  const state = useMemo(
-    () => layerState(held?.state ?? EMPTY_SESSION, device.facts, device.index),
-    [held, device.facts, device.index],
-  )
-  return { state: shows ? state : device.state, lift, stale: held?.stale === true }
-}
-
-/**
- * Whether an expired session still shows the account's results: until a state of the device's own arrives, which is then the one shown.
- */
-function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
-  const [atExpiry, setAtExpiry] = useState<SessionState | null>(null)
-  if (expired && atExpiry === null) setAtExpiry(deviceState)
-  else if (!expired && atExpiry !== null) setAtExpiry(null)
-  return expired && deviceState === atExpiry
 }

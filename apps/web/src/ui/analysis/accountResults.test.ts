@@ -6,7 +6,13 @@ import { ApiRequestError } from '../../api/apiError'
 import type { StateRead } from '../../api/state'
 import * as api from '../../api/state'
 import { resultState, snapshotAt } from '../../test/stateCopyKit'
-import { BUSY_RETRY_MS, POLL_MS, busyWaitMs, useAccountResults } from './accountResults'
+import {
+  BUSY_RETRY_MS,
+  INDEX_SETTLE_MS,
+  POLL_MS,
+  busyWaitMs,
+  useAccountResults,
+} from './accountResults'
 import * as staleBuild from './staleBuild'
 import { tellOtherTabs } from '../tabSync'
 
@@ -94,7 +100,7 @@ describe('asking again while the server computes', () => {
     await flush()
     // An import ends: the page asks again for each reply it gets, and each answer is the stored snapshot.
     for (let i = 0; i < 8; i++) {
-      act(() => tellOtherTabs({ type: 'settings' }))
+      act(() => tellOtherTabs({ type: 'lifts' }))
       await flush()
     }
     const asked = read.mock.calls.length
@@ -138,7 +144,7 @@ describe('one ask at a time', () => {
     await flush()
     expect(read).toHaveBeenCalledTimes(1)
     act(() => {
-      for (let i = 0; i < 5; i++) tellOtherTabs({ type: 'settings' })
+      for (let i = 0; i < 5; i++) tellOtherTabs({ type: 'lifts' })
     })
     await flush()
     expect(read).toHaveBeenCalledTimes(1)
@@ -156,7 +162,7 @@ describe('a snapshot of another build', () => {
     read.mockResolvedValue(answer({ snapshot: refused }))
     mount()
     await flush()
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
     expect(read).toHaveBeenCalledTimes(2)
     expect(await snapshotContentHash(read.mock.calls[1]![1]!)).toBe(
@@ -196,11 +202,12 @@ describe('the index of the library', () => {
     read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
     const view = mount({ behind })
     await flush()
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
     expect(behind).not.toHaveBeenCalled()
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
+    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
     view.unmount()
   })
@@ -225,13 +232,14 @@ describe('the index of the library', () => {
     // The library was listed at version 5 (the loadServer reply says so); the snapshot on open was a 304, which names none.
     act(() => view.result.current.indexListed(5))
     read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, version: null, current: true })
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
     expect(behind).not.toHaveBeenCalled()
     // An import on the phone moves the library to 6; the next 200 shows it.
     read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
+    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
@@ -243,9 +251,10 @@ describe('the index of the library', () => {
     expect(view.result.current.results?.snapshot.libraryVersion).toBe(5)
     // Another device's import changed no figure: the snapshot is the same (a 304), and the server says it covers version 6.
     read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, version: 6, current: true })
-    act(() => tellOtherTabs({ type: 'settings' }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
     await flush()
     expect(view.result.current.results?.snapshot.libraryVersion).toBe(6)
+    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
@@ -259,9 +268,84 @@ describe('the index of the library', () => {
     expect(behind).not.toHaveBeenCalled()
     read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
     await advance(BUSY_RETRY_MS)
+    await advance(INDEX_SETTLE_MS)
     expect(behind).toHaveBeenCalledTimes(1)
     await advance(POLL_MS)
     expect(behind).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not take the baseline from a read that began before this tab changed the index itself', async () => {
+    const behind = vi.fn()
+    // A read of the library as it was is still in flight when this tab's own import ends and notes the index current.
+    let late: (value: StateRead) => void = () => undefined
+    read.mockImplementationOnce(() => new Promise<StateRead>((done) => (late = done)))
+    const view = renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    act(() => view.result.current.indexListed())
+    await act(async () => late(answer({ snapshot: snapshot(1) })))
+    // The next read covers the import (version 2): the library moved by this tab's own work, not another device's.
+    read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
+    act(() => tellOtherTabs({ type: 'lifts' }))
+    await flush()
+    expect(behind).not.toHaveBeenCalled()
+  })
+
+  it('does not read the index again for a version this tab’s profile, settings or dated settings moved: they change figures, not the list', async () => {
+    const behind = vi.fn()
+    const view = renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    act(() => view.result.current.indexListed(2))
+    for (const [index, type] of (['profile', 'measurements', 'settings'] as const).entries()) {
+      read.mockResolvedValue(answer({ snapshot: snapshot(3 + index) }))
+      act(() => tellOtherTabs({ type }))
+      await flush()
+    }
+    expect(behind).not.toHaveBeenCalled()
+    // A library change is another matter.
+    read.mockResolvedValue(answer({ snapshot: snapshot(9) }))
+    act(() => tellOtherTabs({ type: 'library', scope: 'account' }))
+    await flush()
+    await advance(INDEX_SETTLE_MS)
+    expect(behind).toHaveBeenCalledTimes(1)
+  })
+
+  describe('a library version that moves while this tab is importing', () => {
+    function busyMount() {
+      const behind = vi.fn()
+      const view = renderHook(
+        ({ quiet }: { quiet: boolean }) => useAccountResults('u1', false, quiet, behind),
+        { initialProps: { quiet: false } },
+      )
+      return { behind, view }
+    }
+
+    it('is this import’s own work: it is not read again when the import ends and notes the index current', async () => {
+      const { behind, view } = busyMount()
+      await flush()
+      act(() => view.result.current.indexListed(2))
+      read.mockResolvedValue(answer({ snapshot: snapshot(3) }))
+      act(() => tellOtherTabs({ type: 'lifts' }))
+      await flush()
+      expect(behind).not.toHaveBeenCalled()
+      act(() => view.result.current.indexListed())
+      view.rerender({ quiet: true })
+      await flush()
+      expect(behind).not.toHaveBeenCalled()
+    })
+
+    it('is read again once the tab is quiet when the import did not note the index', async () => {
+      const { behind, view } = busyMount()
+      await flush()
+      act(() => view.result.current.indexListed(2))
+      read.mockResolvedValue(answer({ snapshot: snapshot(3) }))
+      act(() => tellOtherTabs({ type: 'lifts' }))
+      await flush()
+      expect(behind).not.toHaveBeenCalled()
+      view.rerender({ quiet: true })
+      await flush()
+      await advance(INDEX_SETTLE_MS)
+      expect(behind).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('does not take a snapshot the server is still computing past for the library’s version: its next answer is not another device’s change', async () => {

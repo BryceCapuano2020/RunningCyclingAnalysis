@@ -8,7 +8,7 @@ import { fromSnapshot, toSnapshot } from '@rca/core/stateSnapshot'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { AnalysisSession } from '@rca/core/session'
 import { EMPTY_SESSION } from '../ui/analysis/model'
-import { layerState } from '../ui/analysis/accountResults'
+import { layerState } from '../ui/analysis/shownResults'
 import { DAY_MS } from '@rca/core/constants'
 import {
   snapshotCorpus,
