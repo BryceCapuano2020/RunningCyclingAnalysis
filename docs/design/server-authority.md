@@ -68,6 +68,9 @@ is usually a 304. Whether the queue, pending markers and re-send can go is measu
 **Revisions.** A Worker recomputes and stores only when the stored revision is lower than its own. When the stored
 revision is higher (a rollback, an old Worker during a gradual deploy), it computes in the request and serves the result
 without storing it, so the newer snapshot stays for the newer Worker and an old tab still gets results it can read. The
+isolate keeps that unstored result, keyed by account, version, lift revision and local day, and answers its ETag with a
+304, so a rollback costs one compute per account per isolate rather than one per read. A consumer that finds a higher
+stored revision acks without computing. The
 object-metadata check in `routes/state.ts` resets the row's revision only when the object's is lower than the
 Worker's own, never when it is higher.
 
@@ -83,11 +86,13 @@ WHERE user_id = :id AND (analysis_revision < :rev OR (analysis_revision = :rev A
   (snapshot_version, snapshot_lift_revision, snapshot_now_ms) < (:v, :l, :now)))
 ```
 
-It is an UPDATE only: `markAttempt` inserts the row before any compute. `computed_version`, `computed_lift_revision`
+On the unchanged path the statement adds `AND snapshot_hash = :matched`, the hash the job found equal, so it never
+stamps today's day on a hash another job stored meanwhile. It is an UPDATE only: `markAttempt` inserts the row before any compute. `computed_version`, `computed_lift_revision`
 and `computed_at` keep their own monotone updates. The migration adds `computed_lift_revision`,
 `snapshot_lift_revision` and `snapshot_now_ms`, backfilled to 0, so each account computes once on its first open;
 nothing is enqueued for it. Every answer carries `X-State-Now` (the stored `snapshot_now_ms`), a 304 included, and the
-browser takes it as the copy's `madeAt`, so an unchanged recompute does not leave the copy marked stale.
+browser writes it into the stored copy's `nowMs` in `rca-state` (`copyAge.ts` reads it from there), so an unchanged
+recompute does not leave the copy marked stale after a reload.
 
 **Consistent inputs.** `readInputs` (`state/inputs.ts`) reads `library_version` and `lift_revision` with the first
 batch, reads the lift sets in it, and re-checks both at the end. A write to either during the read is `InputsMoved`, as a
@@ -189,7 +194,7 @@ open and checks each is in the sweep or named here as device-only.
   builds a `SessionState`.
 - **Compute on read.** A write followed by `GET /api/state` returns the new result in that response; a lift write, a
   lower stored revision and an aged day each recompute; an aged day with unchanged figures moves `snapshot_now_ms`, so
-  the next read is a 304 with the new `X-State-Now`; a higher stored revision computes and stores nothing; two requests
+  the next read is a 304 with the new `X-State-Now`; a higher stored revision computes once per isolate, stores nothing and then answers 304; a 304 with a newer `X-State-Now` survives a reload as a fresh copy; two requests
   and a queue message in one isolate run one compute, and the message is retried, not acked; no stored snapshot under
   the lock answers 202; a lift write during the input read is `InputsMoved`; a day of 60 s polls stays inside the read
   budget.
