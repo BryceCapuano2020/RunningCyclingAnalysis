@@ -1,6 +1,8 @@
 import { StateSnapshotSchema, StoredActivityDigestSchema } from '@rca/contract'
 import { analysisSettings, bodyMassOn } from '@rca/core/athlete'
 import { UTC_ZONE, setViewerZone, withViewerZone } from '@rca/core/calendar'
+import { dayOf } from '@rca/core/customRange'
+import { liftResultsOf } from '@rca/core/lift'
 import { AnalysisSession } from '@rca/core/session'
 import { toSnapshot } from '@rca/core/stateSnapshot'
 import { gunzipSync } from 'node:zlib'
@@ -125,22 +127,20 @@ describe('the state job', () => {
       const session = new AnalysisSession(undefined, viewerZone)
       session.clock = () => nowMs
       session.choosePeriod(42)
-      const state = session.loadDigests(
-        parsed,
-        analysisSettings(
-          { massKg, bikeMassKg: 8 },
-          [measurement as never],
-          1990,
-          [],
-          ['ride-a'],
-          'female',
-        ),
+      const settings = analysisSettings(
+        { massKg, bikeMassKg: 8 },
+        [measurement as never],
+        1990,
+        [],
+        ['ride-a'],
+        'female',
       )
-      const expected = toSnapshot(state, {
-        libraryVersion: saved!.snapshot_version,
-        nowMs,
-        zone,
-        buildSha: 'unknown',
+      const state = session.loadDigests(parsed, settings)
+      const meta = { libraryVersion: saved!.snapshot_version, nowMs, zone, buildSha: 'unknown' }
+      // The lift results of an account with no sets, as of its local day, and the check-in the session makes.
+      const expected = toSnapshot(state, meta, {
+        lift: withViewerZone(viewerZone, () => liftResultsOf([], settings, dayOf(nowMs))),
+        checkIn: session.checkInSnapshot(state, nowMs),
       })
       expect(snapshot).toStrictEqual(JSON.parse(JSON.stringify(expected)))
     } finally {
