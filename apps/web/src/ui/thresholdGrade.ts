@@ -46,7 +46,11 @@ export function thresholdGrade(
   )
 }
 
-/** Both sports' grades at their thresholds, each at its own date. */
-export function thresholdGrades(result: AnalysisResult, profile: AgeProfile): HeadlineGrades {
-  return gradesOfStanding(result, standingOf(result, profile))
+/** Both sports' grades, each at its own date: a run's by its forecast half where one is given, else at its threshold. */
+export function thresholdGrades(
+  result: AnalysisResult,
+  profile: AgeProfile,
+  half: HalfForecast | null = null,
+): HeadlineGrades {
+  return gradesOfStanding(result, standingOf(result, profile, undefined, half))
 }

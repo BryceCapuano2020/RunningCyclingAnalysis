@@ -22,6 +22,8 @@ import type { ImportChange } from './importState'
 import { addedSportOf, thresholdGradeItem } from './singleImport'
 import { bestsAgreeing, distanceKey, durationKey } from './trackedBests'
 import type { KeyedBest } from './trackedBests'
+import { NO_HALF } from '../runHalf'
+import type { HalfOf } from '../runHalf'
 
 /**
  * One line of what an import did to the athlete's numbers. `spoken` replaces the arrow and the figures
@@ -118,11 +120,15 @@ function balanceItem(
   weighted: boolean,
   added: Sport | null,
   hold: HoldInputs,
+  halfOf: HalfOf,
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
-  const standingBefore = profile === null ? null : standingOf(before, profile)
-  const standingAfter = profile === null ? null : standingOf(after, profile)
+  // The run on each side is graded by its forecast half as Balance grades it, so the lead moves as the page's does.
+  const standingBefore =
+    profile === null ? null : standingOf(before, profile, undefined, halfOf(before))
+  const standingAfter =
+    profile === null ? null : standingOf(after, profile, undefined, halfOf(after))
   const gradesBefore = standingBefore === null ? null : gradesOfStanding(before, standingBefore)
   const gradesAfter = standingAfter === null ? null : gradesOfStanding(after, standingAfter)
   // A ride at the top of the age tables is out of the comparison, as the page leaves it out.
@@ -290,6 +296,7 @@ export function whatMoved(
   added: Sport | null = null,
   hold: HoldInputs = {},
   tracked: readonly NewBest[] | null = null,
+  halfOf: HalfOf = NO_HALF,
 ): MovedItem[] {
   if (before === null) return []
   // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
@@ -297,7 +304,7 @@ export function whatMoved(
     thresholdItem(before, after, 'run', settings, units),
     weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
   ])
-  const balance = balanceItem(before, after, profile, weighted, added, hold)
+  const balance = balanceItem(before, after, profile, weighted, added, hold, halfOf)
   const sports: readonly Sport[] = weighted ? BALANCE_PAIR : ['run']
   const bests = bestsAgreeing(
     [
@@ -309,7 +316,10 @@ export function whatMoved(
     units,
   )
   if (added === null) return [...thresholds, ...present([balance]), ...bests].slice(0, MAX_ITEMS)
-  const lead = present([balance, thresholdGradeItem(before, after, added, profile, weighted)])
+  const lead = present([
+    balance,
+    thresholdGradeItem(before, after, added, profile, weighted, halfOf),
+  ])
   return [...lead, ...thresholds, ...bests].slice(0, MAX_ITEMS)
 }
 
@@ -324,6 +334,7 @@ export function listedMoves(
   profile: AgeProfile | null,
   weighted = true,
   hold: HoldInputs = {},
+  halfOf: HalfOf = NO_HALF,
 ): MovedItem[] {
   if (change === null || change.after === null || addedSentence(change.outcome) === null) {
     return []
@@ -340,5 +351,6 @@ export function listedMoves(
     added,
     hold,
     bests,
+    halfOf,
   )
 }

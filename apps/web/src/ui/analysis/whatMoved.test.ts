@@ -747,7 +747,7 @@ describe('whatMoved: an import that added one activity', () => {
     ])
   })
 
-  it('adds the sport grade at its threshold after the balance, in a spoken form too, when its whole percent changed', () => {
+  it('adds the sport grade after the balance, in a spoken form too, when its whole percent changed', () => {
     const before = gradedResult(3.8)
     const after = gradedResult(3.5, {
       activities: [RUN, RIDE, NEW_RIDE],
@@ -759,9 +759,41 @@ describe('whatMoved: an import that added one activity', () => {
     const items = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')
     expect(items[0]?.text).toMatch(/^Your balance now leans more toward running \(/)
     expect(items[1]).toEqual({
-      text: `Ride threshold grade: ${from} → ${to}`,
-      spoken: `Ride threshold grade from ${from} to ${to}`,
+      text: `Ride grade: ${from} → ${to}`,
+      spoken: `Ride grade from ${from} to ${to}`,
     })
+  })
+
+  it('grades the run on each side by its forecast half, as Balance does, when the page gives one', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.8, { activities: [RUN, RIDE, NEW_RIDE] })
+    // Synthetic forecasts: 1:40:00 before the import, 1:36:00 after it, each with no range.
+    const AT = Date.UTC(2026, 5, 1)
+    const halves = new Map([
+      [before, { seconds: 6000, low: 6000, high: 6000, atMs: AT }],
+      [after, { seconds: 5760, low: 5760, high: 5760, atMs: AT }],
+    ])
+    const halfOf = (result: AnalysisResult) => halves.get(result) ?? null
+    const graded = (result: AnalysisResult) => {
+      const outcome = thresholdGrade(result, 'run', MAN_BORN_1986, halfOf(result))
+      if (outcome.kind !== 'graded') throw new Error('graded')
+      return formatGrade(outcome.grade.centre.grade)
+    }
+    const items = whatMoved(
+      before,
+      after,
+      SETTINGS,
+      'metric',
+      MAN_BORN_1986,
+      true,
+      'run',
+      {},
+      null,
+      halfOf,
+    )
+    expect(items.map((item) => item.text)).toContain(
+      `Run grade: ${graded(before)} → ${graded(after)}`,
+    )
   })
 
   it('leaves out the grade line when the whole percent did not change', () => {

@@ -101,6 +101,9 @@ const FIGURES: Record<TriangleSport, Figure> = {
   },
 }
 
+/** Which tables read a level in a lifter's terms (a meet, not a race). */
+const LIFTER_TERMS: Record<TriangleSport, boolean> = { run: false, ride: false, lift: true }
+
 /** The column head of a sport's table. */
 export const levelFigureHead = (sport: TriangleSport): string => FIGURES[sport].head
 
@@ -127,7 +130,7 @@ export function levelRangeRows(
       ladder,
       ladder.findIndex((rung) => rung.label === band.label),
     ),
-    meaning: levelMeaningLine(band.label, sport === 'lift') ?? null,
+    meaning: levelMeaningLine(band.label, LIFTER_TERMS[sport]) ?? null,
     range: rangeOf(ends(band, figure.value), figure.words(units)),
     pace:
       figure.pace === undefined

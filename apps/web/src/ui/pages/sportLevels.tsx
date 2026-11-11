@@ -4,7 +4,7 @@ import type { AgeProfile, LevelBand } from '@rca/core/grade'
 import { rideLevelPowers, runLevelTimes } from '@rca/core/standing'
 import type { Sport } from '@rca/core/types'
 import { levelRangeRows } from '../levelRanges'
-import { halfForecastFor } from '../runHalf'
+import { sportHalfFor } from '../runHalf'
 import { thresholdGrade } from '../thresholdGrade'
 import { anchorOf } from './sectionAnchor'
 import { LevelRanges } from './LevelRanges'
@@ -31,16 +31,13 @@ export function levelsContent(context: SectionContext): ReactNode | null {
   const { sport, profile, result, units } = context
   if (profile === null) return null
   // The run's own row is the level of its forecast half, the grade Balance and the hero name; with none, its threshold's.
-  const half =
-    sport === 'run'
-      ? halfForecastFor({
-          result,
-          rangeDays: context.rangeDays,
-          library: context.library,
-          heartRateJudgement: context.heartRateJudgement,
-          periodEndMs: context.periodEndMs,
-        })
-      : null
+  const half = sportHalfFor(sport, {
+    result,
+    rangeDays: context.rangeDays,
+    library: context.library,
+    heartRateJudgement: context.heartRateJudgement,
+    periodEndMs: context.periodEndMs,
+  })
   const bands = BANDS[sport](context, profile, half?.atMs ?? context.openedAt)
   if (bands === null) return null
   const graded = thresholdGrade(result, sport, profile, half)

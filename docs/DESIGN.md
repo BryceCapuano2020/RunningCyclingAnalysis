@@ -689,7 +689,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   anchored at the best riders' hour (docs/design/cross-sport.md), so a ride is graded as a share of the best riders' hour the way a run is as a share of the best runners'.
   Both carry their range (a half's from its forecast range), the ride's widened by the anchor's. A threshold's age is the age on the day of its strongest effort. The lean compares those two
   grades and its range combines the two in quadrature. One core function, `sportStanding`, works all of it out (the grades, the ride as a run, the lead and its range, and
-  what the lower sport needs to match the higher), and every surface reads that object and only formats it, so the lean, the level lines, the tiles, "Your ride as a run" and the share card cannot differ. The import notices compare threshold grades before and after (a follow-up).
+  what the lower sport needs to match the higher), and every surface reads that object and only formats it, so the lean, the level lines, the tiles, "Your ride as a run", the share card, the Method page and the import notice cannot differ. Method and the import notice ask each result's half through `halfOfState`, Balance's period, library and judgement.
   A sport with no threshold has a gap with the threshold's own words ("Needs an effort of 8 min or longer"). Still read from a best 20 min,
   because they grade efforts of a stated length or are judged by the change test: the best-effort rows and records,
   History's years, the energy ratio that stands in for a missing grade

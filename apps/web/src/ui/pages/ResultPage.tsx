@@ -22,6 +22,7 @@ import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import { ProfileFootnote } from '../components/ProfileFootnote'
 import { aboutNotesOf, noteRow } from '../components/aboutNotes'
 import { MethodPage } from './MethodPage'
+import { halfOfState } from '../runHalf'
 import { askHeadingFocus, useHeadingFocusWhen } from './useHeadingFocus'
 import { SportPage } from './SportPage'
 import { keptIdsOf } from './keptIds'
@@ -257,7 +258,7 @@ export function ResultPage({
         return (
           <MethodPage
             result={result}
-            library={analysed}
+            halfOf={halfOfState(analysis.state)}
             heartRateJudgement={analysis.state.heartRateJudgement}
             profile={profile}
             period={period}

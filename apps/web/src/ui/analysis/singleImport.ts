@@ -4,6 +4,8 @@ import type { ImportOutcome } from '../../worker/protocol'
 import { formatGrade } from '../gradeFormat'
 import type { AgeProfile } from '../grades'
 import { thresholdGrades } from '../thresholdGrade'
+import { NO_HALF } from '../runHalf'
+import type { HalfOf } from '../runHalf'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import type { MovedItem } from './whatMoved'
 
@@ -21,8 +23,8 @@ export function addedSportOf(outcome: Pick<ImportOutcome, 'runs' | 'rides'>): Sp
 }
 
 /**
- * The sport's age grade at its threshold, the grade the Balance page states, when both results grade it and its whole percent
- * changed, such as "Ride threshold grade: 54% → 57%". Null without a profile, without a weight for a ride, or without a
+ * The sport's age grade, the grade the Balance page states (a run's by its forecast half, `halfOf`, where it has one), when both results grade it and its whole percent
+ * changed, such as "Ride grade: 54% → 57%". Null without a profile, without a weight for a ride, or without a
  * grade on both sides.
  */
 export function thresholdGradeItem(
@@ -31,15 +33,16 @@ export function thresholdGradeItem(
   sport: Sport,
   profile: AgeProfile | null,
   weighted: boolean,
+  halfOf: HalfOf = NO_HALF,
 ): MovedItem | null {
   if (profile === null || (GRADE_WAITS_FOR_WEIGHT[sport] && !weighted)) return null
-  const from = thresholdGrades(before, profile)[sport]
-  const to = thresholdGrades(after, profile)[sport]
+  const from = thresholdGrades(before, profile, halfOf(before))[sport]
+  const to = thresholdGrades(after, profile, halfOf(after))[sport]
   if (from.kind !== 'graded' || to.kind !== 'graded') return null
   const fromText = formatGrade(from.grade.centre.grade)
   const toText = formatGrade(to.grade.centre.grade)
   if (fromText === toText) return null
-  const label = `${SPORT_LABEL[sport]} threshold grade`
+  const label = `${SPORT_LABEL[sport]} grade`
   return {
     text: `${label}: ${fromText} → ${toText}`,
     spoken: `${label} from ${fromText} to ${toText}`,
