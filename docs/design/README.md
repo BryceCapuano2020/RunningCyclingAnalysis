@@ -19,6 +19,8 @@ Decisions section. Status is one of designed, in progress, built or cut.
   server-side parsing; waits on server compute S4.
 - [server-compute.md](server-compute.md): for signed-in accounts the Worker computes the opening state with the same core
   code, and the browser shows its last copy at once. Status: designed, approved 9 Nov.
+- [server-authority.md](server-authority.md): the server is the one source of an account's results; the browser keeps
+  only signed-out use, with the deletion plan in two phases. Status: decided 10 Nov.
 - [lift-grade.md](lift-grade.md): an age grade for the squat, bench and deadlift, fitted on public powerlifting results, so lift can be
   a third corner of the hero. Status: designed, prototyped, waits for the science review.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness

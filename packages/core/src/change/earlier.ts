@@ -142,6 +142,7 @@ function compute(library: ActivityDigest[], input: EarlierInput): EarlierCompari
   }
 }
 
+// `bikeModel` and `immediate` are functions of the keyed inputs (the digests, settings, gate and rule), so they are not compared.
 const remembered = memoByDigests<EarlierInput, EarlierComparison | null>(
   compute,
   (a, b) =>
