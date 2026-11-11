@@ -36,7 +36,7 @@ recommendation there matters most.
   (`BALANCE_PAIR`). A point-up triangle puts one label above and two below, so no label sits beside another.
 - **Scale.** Linear from 0 at the centre to 100% at each outer corner, the same scale as the grade. The outer triangle
   is 100% (hairline `--rule`). Two inner triangles, 80 and 60, are hairlines (`--hairline`), the lower edges of National
-  and Local. Their numbers (12 px mono, `--ink-secondary`, paper halo) sit left of the run axis just above each ring.
+  and Local. They carry no numbers (owner, 10 Nov 2026): the corners give each grade.
   Below 60 is Recreational, Active, Trained or Club (50 and up), so the inner third needs no ring. The three axes are hairlines.
 - **The range** of a grade is a 12 px band along its own axis from its low to its high end, in the sport's wash
   (`--run-wash`, `--ride-wash`, and a lift wash), layered twice as the meter's was, with no edge and never dashed. The
@@ -144,14 +144,14 @@ states carry the reason (they are unchanged). No "?" icon and no dashed line.
 ## 8. Accessibility
 
 - The corners are HTML text in the page's flow order, placed over the SVG, so they scale and wrap as text and are real
-  links. The SVG is `aria-hidden="true"` and carries no text of its own except the ring numbers.
+  links. The SVG is `aria-hidden="true"` and carries no text of its own.
 - Reading order: headline, line, Details, then the corners in the rail's order (run, ride, lift). A link reads "Running
   61% Local" followed by visually hidden ", range 55 to 67". A missing one reads "Lifting No grade yet". That is the
   text equivalent, so no second table is needed and the figures have one source.
 - Shape alone never carries a fact: every grade is also a number. In forced colours the shape fill is `Canvas`, the edge,
   axes and dots take system colours, and the ring stays as a dot's outline.
 - Contrast: corner text is ink or `--ink-secondary` (4.5:1 or better); the sport ink labels are 4.5:1 or better
-  (lift 7.9:1). Ring numbers are 12 px `--ink-secondary` with a halo. The hairline rings are decoration, as the
+  (lift 7.9:1). The hairline rings are decoration, as the
   chart gridlines are.
 - Zoom to 200% and 320 px must not scroll sideways.
 

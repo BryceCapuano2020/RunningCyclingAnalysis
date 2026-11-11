@@ -92,13 +92,6 @@
   content: none;
 }
 
-.lap-strip__line {
-  margin: 0;
-  min-height: 1.5em;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-}
-
 /* The chosen lap's words and, beside them, the list of every lap: the bar's segments are small, the list is not. */
 .lap-strip__choose {
   display: flex;
@@ -106,10 +99,6 @@
   align-items: center;
   gap: var(--space-1) var(--space-3);
   min-width: 0;
-}
-
-.lap-strip__choose .lap-strip__line {
-  flex: 1 1 14rem;
 }
 
 .lap-strip__list {

@@ -104,9 +104,7 @@ function splitsSection(): HTMLElement {
 }
 
 function bestsSection(): HTMLElement {
-  const section = screen
-    .getByRole('heading', { level: 2, name: 'Best efforts set here' })
-    .closest('section')
+  const section = screen.getByRole('heading', { level: 2, name: 'Best efforts' }).closest('section')
   if (!section) throw new Error('No Best efforts section')
   return section
 }
@@ -121,7 +119,7 @@ describe('ActivityPage: laps as splits', () => {
 
   it('offers no laps view when the device recorded none', async () => {
     renderPage(withTrace([]))
-    await screen.findByText('Interval summary')
+    await screen.findByRole('table', { name: 'Pace for each kilometre' })
     expect(screen.getByRole('table', { name: 'Pace for each kilometre' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Laps' })).not.toBeInTheDocument()
   })
@@ -188,7 +186,7 @@ describe('ActivityPage: choosing the view once the detail settles', () => {
       trace: traceWith(id === run.id ? [] : UNEVEN, id),
     })
     const { rerender } = renderPage(loadTrace)
-    await screen.findByText('Interval summary')
+    await screen.findByRole('table', { name: 'Pace for each kilometre' })
     expect(screen.queryByRole('button', { name: 'Laps' })).not.toBeInTheDocument()
     rerender(pageFor(other, loadTrace))
     expect(await screen.findByRole('button', { name: 'Laps', pressed: true })).toBeInTheDocument()

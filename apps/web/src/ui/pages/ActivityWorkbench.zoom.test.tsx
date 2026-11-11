@@ -45,17 +45,16 @@ const yOf = (path: string | null | undefined) =>
   [...(path ?? '').matchAll(/[ML] [\d.-]+ ([\d.-]+)/g)].map((match) => Number(match[1]))
 
 describe('the pace row after zooming to a lap', () => {
-  it('is read on the lap, not the activity: the line clears both edges and nothing is marked past the axis', async () => {
+  it('is read on the lap, not the activity: the line clears both edges and nothing is keyed past the axis', async () => {
     const user = userEvent.setup()
     show(runWithFastLap())
     const figure = await screen.findByRole('figure', { name: /^Pace over time/ })
     await user.click(screen.getByRole('button', { name: /^Lap 2 / }))
     const row = figure.querySelector('[data-channel="speed"]')!
     const ys = yOf(row.querySelector('.ts-stack__line')?.getAttribute('d'))
-    // The row runs from 6 to 102 px; the line keeps its own headroom from both.
-    expect(Math.min(...ys)).toBeGreaterThan(6 + 3)
-    expect(Math.max(...ys)).toBeLessThan(102 - 3)
-    expect(row.querySelector('.ts-stack__edge')?.getAttribute('d')).toBe('')
+    // The row runs from 20 to 108 px; the line keeps its own headroom from both.
+    expect(Math.min(...ys)).toBeGreaterThan(20 + 3)
+    expect(Math.max(...ys)).toBeLessThan(108 - 3)
     expect(figure).not.toHaveTextContent('Beyond the edge')
     // The ticks are the lap's paces, 3:12 to 3:21 a kilometre, not the activity's 5:33.
     const labels = [...row.querySelectorAll('.ts-stack__tick')].map((tick) => tick.textContent)

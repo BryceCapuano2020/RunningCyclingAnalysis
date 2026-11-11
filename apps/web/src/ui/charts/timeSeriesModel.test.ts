@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   areaPath,
-  bandPath,
   hasReadingNear,
   linePath,
   meanAround,
@@ -208,21 +207,6 @@ describe('paths', () => {
       windowS: 3,
     }
     expect(linePath(columns, identity)).toBe('M 2 5 L 2 5')
-  })
-
-  it('closes one band for each unbroken stretch, top edge then bottom edge back', () => {
-    const columns = {
-      x: [1, 2, 3, 4, 5],
-      mean: [3, 3, NAN, 3, 3],
-      lo: [2, 2, NAN, 1, 1],
-      hi: [4, 4, NAN, 5, 5],
-      peak: [4, 4, NAN, 5, 5],
-      trough: [2, 2, NAN, 1, 1],
-      windowS: 3,
-    }
-    const band = bandPath(columns, identity)
-    expect(band.match(/Z/g)).toHaveLength(2)
-    expect(band.startsWith('M 1 4 L 2 4 L 2 2 L 1 2 Z')).toBe(true)
   })
 
   it('closes an area down to the baseline under each stretch', () => {

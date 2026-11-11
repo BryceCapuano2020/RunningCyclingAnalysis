@@ -49,17 +49,13 @@ export function RepFadeTable({
   const fade: RepFade | null = repFadeOf(trace, { indoor })
   if (fade === null) return null
   const { sport } = trace
-  const lapName = fade.recorded ? 'Lap' : 'Interval'
   const withHeartRate = fade.reps.some((rep) => rep.heartRate !== null)
   return (
     <div className="activity-workbench__reps">
-      <h3>How your reps held up</h3>
-      <p className="secondary">{fade.lede}</p>
+      <h3>Reps</h3>
       <div className="table-scroll">
         <table>
-          <caption>
-            {`${lapName}s within ${LENGTH_PERCENT}% of one length, while moving. Choose a rep to see it in the readings.`}
-          </caption>
+          <caption>{`Laps within ${LENGTH_PERCENT}% of one length, while moving`}</caption>
           <thead>
             <tr>
               <th scope="col">Rep</th>
@@ -91,9 +87,7 @@ export function RepFadeTable({
                     >
                       Rep {rep.number}
                     </button>{' '}
-                    <span className="muted">
-                      {lapName} {rep.lapNumber}
-                    </span>
+                    <span className="muted">Lap {rep.lapNumber}</span>
                   </th>
                   <td className="num">{formatRecordTime(rep.durationS)}</td>
                   <td className="num">{outputText(fade, rep.output, sport, units)}</td>

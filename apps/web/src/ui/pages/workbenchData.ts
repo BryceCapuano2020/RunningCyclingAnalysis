@@ -1,16 +1,5 @@
-import {
-  detectIntervals,
-  isTraceObservation,
-  readingBand,
-  summarizeSelection,
-} from '@rca/core/workbench'
-import type {
-  ActivityLap,
-  ActivityTrace,
-  ReadingBand,
-  SelectionSummary,
-  TraceMetric,
-} from '@rca/core/workbench'
+import { isTraceObservation, readingBand, summarizeSelection } from '@rca/core/workbench'
+import type { ActivityTrace, ReadingBand, SelectionSummary, TraceMetric } from '@rca/core/workbench'
 import { reduceSeries, smoothedStream } from '../charts/timeSeriesModel'
 import { usualSpread } from '../charts/usualSpread'
 import type { SeriesColumns, SmoothedStream } from '../charts/timeSeriesModel'
@@ -222,8 +211,4 @@ export function smoothedBand(
     }
     return { low, high }
   })
-}
-
-export function suggestedIntervals(trace: ActivityTrace): ActivityLap[] {
-  return remembered(trace, 'intervals', () => detectIntervals(readableTrace(trace)))
 }

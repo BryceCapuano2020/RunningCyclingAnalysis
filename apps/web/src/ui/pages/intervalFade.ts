@@ -1,15 +1,14 @@
-import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
+import type { ActivityTrace } from '@rca/core/workbench'
 import type { Sport } from '@rca/core/types'
 import { flatSpeedOf } from './repFlatPace'
-import { selectionOf, suggestedIntervals } from './workbenchData'
+import { selectionOf } from './workbenchData'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
 
 /**
  * What makes laps a set of reps. The reps are laps of about one length, so a drift between them is the
  * athlete's and not the interval's. minReps is how many it takes to speak of a fade. lengthTolerance is
- * how far a rep's duration may be from the middle one's. A fall of levelPct percent or less reads as
- * level. A split of splitGap or more between the hard laps and the easy ones means the easy ones are
+ * how far a rep's duration may be from the middle one's. A split of splitGap or more between the hard laps and the easy ones means the easy ones are
  * the recoveries between, which are left out. A recovery between two reps is a lap that is clearly slower
  * (splitGap or more below the reps' middle output) or clearly shorter (lengthTolerance or more below their
  * middle length) and not faster than the reps, or, with no lap between, a rest of restS or more that no lap covers.
@@ -17,7 +16,6 @@ import type { Selection } from './workbenchTime'
 export const REP_FADE = {
   minReps: 3,
   lengthTolerance: 0.2,
-  levelPct: 2,
   splitGap: 0.15,
   restS: 10,
 } as const
@@ -34,13 +32,6 @@ const OUTPUT: Record<Sport, { metrics: readonly RepMetric[]; speedNeedsTrainer: 
 /** Flat speed is a run's speed with the hills taken out, in m/s like speed. */
 export type RepMetric = 'flatSpeed' | 'speed' | 'power'
 
-/** How the lede says a rep's output differs from the first rep's, for each measure. */
-const DIFFERENCE: Record<RepMetric, (percent: number, higher: boolean) => string> = {
-  flatSpeed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
-  speed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
-  power: (percent, higher) => `averaged ${percent}% ${higher ? 'more' : 'less'} power than`,
-}
-
 export interface Rep {
   /** Its place among the reps, from 1. */
   number: number
@@ -56,10 +47,7 @@ export interface Rep {
 
 export interface RepFade {
   metric: RepMetric
-  /** True when the device recorded the laps, false when they are intervals found in the readings. */
-  recorded: boolean
   reps: Rep[]
-  lede: string
 }
 
 /** The middle value, the mean of the middle two for an even count. */
@@ -149,28 +137,6 @@ function recoversBetween(
   })
 }
 
-/** The laps the device recorded, or the intervals found in the readings when it recorded none. */
-function lapsOf(trace: ActivityTrace): { laps: ActivityLap[]; recorded: boolean } {
-  const recorded = trace.laps.length > 0
-  return { laps: recorded ? trace.laps : suggestedIntervals(trace), recorded }
-}
-
-/**
- * The lede: the rep that differs most from the first, or that the reps stayed level. The gap is the
- * rep's output over the first rep's, unrounded, so 2.4% is a difference and not "within 2%".
- */
-export function fadeLede(metric: RepMetric, outputs: readonly number[]): string {
-  const first = outputs[0]!
-  const changes = outputs.map((output) => output / first - 1)
-  const widest = changes.reduce(
-    (far, change, i) => (Math.abs(change) > Math.abs(changes[far]!) ? i : far),
-    0,
-  )
-  const gap = Math.abs(changes[widest]!) * 100
-  if (gap <= REP_FADE.levelPct) return `Your reps stayed within ${Math.max(Math.ceil(gap), 1)}%.`
-  return `Rep ${widest + 1} ${DIFFERENCE[metric](Math.round(gap), changes[widest]! > 0)} rep 1.`
-}
-
 interface Usable {
   lapNumber: number
   bounds: Selection
@@ -218,7 +184,7 @@ function repsIn(trace: ActivityTrace, metric: RepMetric, usable: Usable[]): Rep[
  */
 export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean }): RepFade | null {
   const max = Math.floor(trace.durationS)
-  const { laps, recorded } = lapsOf(trace)
+  const laps = trace.laps
   const usable = laps.flatMap((lap, i) =>
     lap.endS > lap.startS && max >= 1
       ? [{ lapNumber: i + 1, bounds: clampSelection(lap, max) }]
@@ -229,15 +195,7 @@ export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean })
     if (metric === 'speed' && speedNeedsTrainer && !indoor) continue
     const reps = repsIn(trace, metric, usable)
     if (reps === null) continue
-    return {
-      metric,
-      recorded,
-      reps,
-      lede: fadeLede(
-        metric,
-        reps.map((rep) => rep.output),
-      ),
-    }
+    return { metric, reps }
   }
   return null
 }

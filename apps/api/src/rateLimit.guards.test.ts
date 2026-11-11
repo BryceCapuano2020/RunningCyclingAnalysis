@@ -53,6 +53,7 @@ describe('an environment that is not development', () => {
     ['public', '/api/health', 'API_RATE_LIMITER'],
     ['auth', '/api/auth/google', 'AUTH_RATE_LIMITER'],
     ['deep health', '/api/health/deep', 'HEALTH_RATE_LIMITER'],
+    ['Garmin notice', '/api/garmin/deregistration', 'NOTICE_RATE_LIMITER'],
   ] as const)('keeps the %s limit on in staging', async (_name, path, binding) => {
     const deny = vi.fn(async () => ({ success: false }))
     // The public limiter runs first on every route, so the other two are tested with it admitting.
@@ -61,7 +62,11 @@ describe('an environment that is not development', () => {
       {},
       { ENVIRONMENT: 'staging', API_RATE_LIMITER: admit, [binding]: { limit: deny } },
     )
-    expect((await h.send({ path })).status).toBe(429)
+    const method = path === '/api/garmin/deregistration' ? 'POST' : 'GET'
+    expect(
+      (await h.send({ method, path, json: method === 'POST' ? {} : undefined, csrf: false }))
+        .status,
+    ).toBe(429)
     expect(deny).toHaveBeenCalled()
   })
 

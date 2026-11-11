@@ -1,7 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { MAX_DIGEST_BYTES, MAX_DIGEST_BYTES_PER_USER } from '@rca/contract'
 import { accountDeleting, HttpError } from '../../errors.ts'
-import { recordDatabaseSize } from '../../storage.ts'
 import { activities } from '../../db/schema.ts'
 import { must } from '../../util.ts'
 import { toRecordHolding, type ActivityRow } from './shared.ts'
@@ -65,7 +64,7 @@ async function upgradeDigest(
   existing: ActivityRow,
   next: DigestUpgrade,
 ): Promise<ActivityRow | null> {
-  const { DB, db, deps } = ctx
+  const { DB, db } = ctx
   // Only a newer model revision upgrades. Check it before reserving quota, so a request that cannot
   // upgrade is never refused for quota it does not need.
   const stored = await db
@@ -106,8 +105,6 @@ async function upgradeDigest(
     const result = must(updated, 'upgrade result')
     replaced = result.meta.changes === 1
     if (!replaced) return null
-    // The write may have grown the database, so the size the create guard reads is recorded.
-    await recordDatabaseSize(DB, deps.now(), result.meta.size_after)
     return {
       ...existing,
       digestJson: next.digestJson,

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { createHarness } from './test/harness.ts'
 
@@ -34,6 +35,47 @@ describe('edge rate limits', () => {
     expect(response.status).toBe(429)
     expect(auth).toHaveBeenCalledWith({ key: 'auth:unknown' })
   })
+
+  it("gives Garmin's notice a limiter of its own, apart from sign-in's, and keeps Garmin connect in sign-in's", async () => {
+    const api = vi.fn(async () => ({ success: true }))
+    const auth = vi.fn(async () => ({ success: true }))
+    const notice = vi.fn(async () => ({ success: false }))
+    const h = createHarness(
+      {},
+      {
+        ENVIRONMENT: 'production',
+        API_RATE_LIMITER: { limit: api },
+        AUTH_RATE_LIMITER: { limit: auth },
+        NOTICE_RATE_LIMITER: { limit: notice },
+      },
+    )
+    const headers = { 'CF-Connecting-IP': '192.0.2.20' }
+    const res = await h.send({
+      method: 'POST',
+      path: '/api/garmin/deregistration',
+      json: { deregistrations: [] },
+      csrf: false,
+      headers,
+    })
+    expect(res.status).toBe(429)
+    expect(notice).toHaveBeenCalledWith({ key: 'notice:192.0.2.20' })
+    expect(auth).not.toHaveBeenCalled()
+    expect(api).toHaveBeenCalledWith({ key: 'ip:192.0.2.20' })
+    expect(api).not.toHaveBeenCalledWith({ key: 'notice:192.0.2.20' })
+
+    await h.send({ path: '/api/garmin/connect', headers })
+    expect(auth).toHaveBeenCalledWith({ key: 'auth:192.0.2.20' })
+  })
+
+  it.each(['wrangler.toml', 'wrangler.local.toml'])(
+    "caps Garmin's notice at 120 a minute per address in %s",
+    (file) => {
+      const config = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+      expect(config).toMatch(
+        /\[\[ratelimits\]\]\nname = "NOTICE_RATE_LIMITER"\nnamespace_id = "27105"\nsimple = \{ limit = 120, period = 60 \}/,
+      )
+    },
+  )
 
   it('sends a browser that is rate limited on sign-in back to the app with the reason, not to raw JSON', async () => {
     const auth = vi.fn(async () => ({ success: false }))

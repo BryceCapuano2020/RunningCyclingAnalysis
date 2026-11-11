@@ -1,9 +1,8 @@
 import { shortestEffortMin } from '@rca/core/display'
-import { hasEnoughZoneTime, mainZone, sameEnteredReferences } from '@rca/core/zones'
+import { hasEnoughZoneTime, sameEnteredReferences } from '@rca/core/zones'
 import type { MeasureTime, ZoneMeasure, ZoneWindow } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
 import { formatTotalTime } from '@rca/core/units'
-import type { Property } from './components/property'
 
 /** The section's name, in its heading. */
 export const TIME_IN_ZONES_NAME = 'Time in zones'
@@ -54,19 +53,6 @@ export function describable(rows: readonly MeasureTime[], relaxed = false): Meas
 export const ZONE_WINDOW_VALUE: Record<ZoneWindow, string> = {
   year: 'Last 12 months',
   all: 'All time',
-}
-
-/** The row for one activity's measure: the zone that held most of the time, and its share. Null without time. */
-export function mainZoneRow(
-  measure: ZoneMeasure,
-  time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
-): Property | null {
-  const main = mainZone(time)
-  if (main === null) return null
-  return {
-    label: 'Most time',
-    value: `${ROW_LABEL[measure]} zone ${main.level}, ${percentText(main.share)}`,
-  }
 }
 
 /**

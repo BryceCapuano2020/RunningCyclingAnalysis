@@ -178,7 +178,8 @@ A callback that wins a race with a disconnect re-links: the athlete started it. 
 authenticated until Garmin says how (section 9), so it acts only when it carries the link's own access token, compared
 in constant time after decrypting the stored one (a length mismatch is no match). It is exempt from the CSRF header,
 since Garmin's server sends it, and it is rate limited per address with sign-in. No route logs a body or a token, and
-no redirect carries one.
+no redirect carries one. The callback stores the scopes Garmin granted and does not yet check them: once Garmin
+names the activity scope (section 9, question 5), G4 refuses a grant without it, so a link always can receive pushes.
 
 ## 6. Garmin's attribution
 

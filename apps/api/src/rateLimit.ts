@@ -17,17 +17,23 @@ async function admit(limiter: RateLimit | undefined, key: string): Promise<void>
     throw new HttpError(429, 'rate_limited', 'Too many requests. Please try again shortly')
 }
 
+const GARMIN_NOTICE_PATH = '/api/garmin/deregistration'
+
 /** Only Cloudflare's edge-supplied address is used; client forwarding headers are not trusted. */
 export const publicRateLimit = createMiddleware<AppEnv>(async (c, next) => {
   if (isLocalRequest(c)) return next()
   const address = c.req.header('CF-Connecting-IP') ?? 'unknown'
   c.header('Retry-After', '60')
   await admit(c.env.API_RATE_LIMITER, `ip:${address}`)
-  // Garmin's connect and notice routes share sign-in's tighter limit: each can start work with a third party.
-  const signInLike =
+  if (c.req.path === GARMIN_NOTICE_PATH) {
+    // Garmin's servers send notices in bursts from a few addresses: a limiter of their own (120 a minute,
+    // wrangler.toml), so a burst neither spends sign-in's bucket nor is refused by it, and a forger is bounded.
+    await admit(c.env.NOTICE_RATE_LIMITER, `notice:${address}`)
+  } else if (
     (c.req.path.startsWith('/api/auth/') && c.req.path !== '/api/auth/logout') ||
     c.req.path.startsWith('/api/garmin/')
-  if (signInLike) {
+  ) {
+    // Garmin connect shares sign-in's tighter limit: it starts work with a third party.
     await admit(c.env.AUTH_RATE_LIMITER, `auth:${address}`)
   }
   c.res.headers.delete('Retry-After')

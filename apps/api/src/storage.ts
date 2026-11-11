@@ -211,9 +211,15 @@ export async function reserveR2Put(
   })
 }
 
+/** The database size now: the `size_after` D1 reports on a statement that touches no table. */
+export async function readDatabaseSize(db: D1Database): Promise<number> {
+  const result = await db.prepare('SELECT 1').run()
+  return result.meta.size_after
+}
+
 /**
- * Keeps the database size last seen, which the create guard reads. Callers pass the `size_after`
- * from a D1 statement they have already run, so recording the size costs no size query.
+ * Keeps the database size last seen, which the create guard reads. Only the daily maintenance run
+ * records it (maintenance.ts), so no request writes this shared row.
  */
 export async function recordDatabaseSize(
   db: D1Database,

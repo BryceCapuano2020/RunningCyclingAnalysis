@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHarness, testEnv, type Harness } from '../test/harness.ts'
+import { countingDb, createHarness, testEnv, type Harness } from '../test/harness.ts'
 import { fakeGarmin, GARMIN_ON, type FakeGarminOptions } from '../test/garmin.ts'
 import { inboxKey } from '../inbox/key.ts'
 import { sealTokens } from '../providers/tokens.ts'
@@ -176,6 +176,19 @@ describe("Garmin's deregistration notice", () => {
     })
     expect(res.status).toBe(503)
     expect(await count('provider_links')).toBe(1)
+  })
+
+  it('reads every link a notice names in one statement, however many entries it has', async () => {
+    const counted = countingDb(testEnv().DB)
+    const garmin = fakeGarmin()
+    const h = createHarness({ garmin: () => garmin }, { ...GARMIN_ON, DB: counted.db })
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      userId: `g-none-${i}`,
+      userAccessToken: ACCESS,
+    }))
+    counted.reset()
+    expect((await notice(h, { deregistrations: entries })).status).toBe(200)
+    expect(counted.count()).toBe(1)
   })
 
   it('refuses a body that is not a notice', async () => {

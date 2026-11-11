@@ -42,7 +42,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/run`, `#/ride`  | Run, Ride         | The sport's fitness card first (its own status at the same heart rate; the ride's is in watts), threshold with its level ladder and the age grade at threshold, the best 20 min's heart-rate share, a line of recent form (the last day, the number of activities on file in the period as the period line counts them, and the distance), records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, a hero row (threshold with its basis line, detail and period; the level of the threshold on the level bands), then "History" (one row that says the finding of the sport's years and links to the History tab), the annotated best-effort curve in pace or watts (previous period a solid mid-grey line), race predictions as range bars (runs) beside time in zones, the best efforts of 5, 20 or 60 minutes as dated dots, by day, then sections, open by default, that each state their finding (pace at heart rate, durability, best durations, all best efforts), and for any section the library cannot fill yet one line in its own place that says what to add |
 | `#/history`        | History           | The whole library, whatever period is picked: a row of totals (years on file, total hours, each sport's distance), then one chart for each section, each with its table twin. See History                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a volume strip over the period and sport (hours by week, or by month beyond 26 weeks, stacked by sport, with the period's counts and hours as its heading), a sort (newest, oldest, distance, time or climb), month headings in date order with that month's counts, distance and hours, and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `#/activities/:id` | Activity          | Moving time and the figures as tiles beside the route shape (the route and figures stand in a column beside the timeline from 1100 px), In detail (one aligned timeline of the measures with a crosshair, laps, intervals and how your reps held up, and time in zones), a Walking pace chip for a run at walking pace, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `#/activities/:id` | Activity          | Moving time and the figures as tiles beside the route shape (the route and figures stand in a column beside the timeline from 1100 px), In detail (one aligned timeline of the measures with a crosshair, laps, reps, and time in zones), the walking-pace choice for a run at walking pace, splits (runs), best efforts, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy and one How this works list                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `#/profile`        | Profile           | About you (year of birth, sex, with one short line: "Without both, no level is shown."; the method is on How sure is this?), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, Settings over time (dated weight, max heart rate and thresholds: a form and a table of entries, latest date first within each setting), Training zones (a table for each sport and measure, with where its reference came from), account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), each a count by sport and the months it spans with a link to Activities, where an activity is opened and deleted, then Remove activities, which says Clear the analysis when nothing is kept                                                                                                                                                                                                                                                                     |
 
@@ -465,9 +465,10 @@ and the tests named at the foot of that page keep the two in step. A display siz
   previous 6 weeks", or "8 W more than previous 6 weeks", or "No clear change from previous 6 weeks" when the
   move is not one the change test calls (the same verdict the curve's title reads); a sport page's list leaves that line out, since the curve's title says it once. A length the test could not judge, with too few efforts in either period, shows no change at all. It is absent for All time, and for a ride when either best's watts are
   estimated, since two estimates moving is not a change in the rider. A record with no grade leaves
-  its grade out, so every row keeps the same columns. A sport page's and an activity page's list
-  says its no-standard note, such as a run's "No age standard under 1 mile" or a ride's "No age
-  standard for this duration", once, under the list, and each row then reads only its level. A ride's
+  its grade out, so every row keeps the same columns. A sport page's list says its no-standard note,
+  such as a run's "No age standard under 1 mile" or a ride's "No age standard for this duration",
+  once, under the list, and each row then reads only its level. An activity page's list says none: a
+  row with no grade simply has none. A ride's
   row carries no Estimated chip and the list no note about the running equivalent; the line above says
   how many rides had estimated watts, and the Method page says how a ride is graded.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
@@ -475,8 +476,8 @@ and the tests named at the foot of that page keep the two in step. A display siz
   estimated." The pipeline writes an average power only from a
   power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
   carries estimated watts.
-- **How your reps held up** sits in an activity's In detail section, under the lap strip (a Laps strip shows for two or more recorded laps, since one lap is the whole activity, and Suggested intervals show when none were recorded), when the activity
-  has at least 3 laps (the device's, or the suggested intervals when it recorded none) of about one length:
+- **Reps** sits in an activity's In detail section, under the lap strip (a Laps strip shows for two or more recorded laps, since one lap is the whole activity), when the activity
+  has at least 3 device laps of about one length (nothing is inferred from the readings; owner, 11 Nov 2026):
   within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
   the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
   laps at those places are the reps, so a rep that fell to the recoveries' pace stays in. With any other
@@ -488,44 +489,40 @@ and the tests named at the foot of that page keep the two in step. A display siz
   reps, so they get no table. Every rep needs the measure it is read in, and none
   is dropped for want of one. A run is read as flat pace where its altitude gives a grade for each rep, so a hill
   does not pass for a fade, and as recorded pace otherwise. A ride is read by its power; without power, by speed
-  on a trainer only, and an outdoor ride without power gets no table. One sentence leads, naming the rep that
-  differs most from rep 1: "Rep 6 was 4% slower than rep 1." (a ride's power: "Rep 3 averaged 4% less power
-  than rep 1."), or "Your reps stayed within 2%." when the widest unrounded gap is 2% or less. The table lists
+  on a trainer only, and an outdoor ride without power gets no table. The section is headed **Reps**, with no
+  sentence over the table: the rows show how the reps held up. The table lists
   each rep with its time, average pace or power and average heart rate, and drops the heart-rate column when no
   rep has one. A rep's button selects its lap as the lap buttons do. The rules are in
   `apps/web/src/ui/pages/intervalFade.ts`.
-- **An activity page reads top to bottom:** the name, the sport, the day and start time (with an
-  **Indoor** chip for a trainer ride and a **Walking pace** chip for a run at walking pace), the route when
-  it was kept, then the moving time as the hero, with the elapsed time under it when the file kept both.
-  Distance, average pace or speed over the moving time, climb, average heart rate with the highest 30 s
-  average (the stream's own highest reading is higher), and average power follow. An indoor ride reports no
-  speed anywhere, since a trainer's speed is virtual rather than measured on a road. Then **In detail** (the
-  measures, the lap strip, the timeline and its brush, how your reps held up, the figures for the
-  selection and time in zones), then, for a ride without a power meter, the line "Power here is estimated
-  from speed and climbs. No power meter recorded it." Earlier and Later name the activities either side in
-  the library, then the all-time records as chips, each linking to its sport's page (underlined on hover, not
-  at rest), the splits (runs), the best efforts set here (a run at walking pace gives a line saying it is
-  left out of the run analysis instead), the skipped readings, and Delete. A ride with no power curve says why in a line: an estimate is made only on
-  climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
-  activity from before moving time was kept shows its elapsed time, and says so.
-  A run's distance times and its splits are timed differently on purpose: a distance time is race-like, from the clock
-  including stops, and a split is moving time. When both are on the page, a line under the best efforts says so in
-  these words: "Distance times include stops. Splits are moving time." While the splits show the device's recorded
-  laps it says only "Distance times include stops." It is left out while the splits load or when they are
-  missing, and when the run has no distance time.
-  The best efforts set here do not follow a period the athlete picked elsewhere without saying so: a best that is an
-  all-time record is marked "All-time record" exactly when it has a chip above (a ride's one-minute best has none), and
+- **An activity page reads top to bottom:** the name, then one line with the sport, the day and start
+  time ("Ride · Sun 8 Nov, 11:41 am"), and a **Details** only where there is something conditional to say
+  (indoor, walking pace or another type, a power check, power estimated with no meter). The route when it
+  was kept, then the moving time as the hero, with the elapsed time under it when the file kept both.
+  Distance, average pace or speed over the moving time, climb, average heart rate, peak heart rate (the
+  highest 30 s average; the stream's own highest reading is higher), and average power follow, each label
+  over number. An indoor ride reports no speed anywhere, since a trainer's speed is virtual rather than
+  measured on a road. Then **In detail** (the timeline and its brush, the lap strip, the measures, reps,
+  the figures for a selected interval and time in zones). One row of links: back to where the page was
+  opened from, Earlier and Later. Then the splits (runs), the best efforts (a run at walking pace
+  gives a line saying it is left out of the run analysis instead), the skipped readings behind one
+  disclosure (with a "Not recorded" row for recording gaps where the device holds the readings, since the
+  timeline shows a gap only as a break), and Delete. Nothing says why a figure is absent (no power curve, no age standard): its row
+  or section is simply not there. A ride's bests wait for the weight. An activity from before moving time
+  was kept shows its elapsed time, and says so.
+  A run's distance times are race-like, from the clock including stops, and its splits are moving time. The page
+  prints no line about it.
+  The best efforts do not follow a period the athlete picked elsewhere without saying so: a best that is an
+  all-time record is marked "All-time record" (a ride's one-minute best is none), and
   one that is only the best of the period on screen says which, such as "Best in the last 12 months" (a custom range
   gives its dates, or "Best on 3 Aug 2025" for one day; all time names none). An activity outside that period has no
-  period bests, so it lists its distance times and names its all-time records, with a link to the sport page for their
-  figures ("Choose All time on the Run page to see their figures", or "See the Run page for their figures" when the
-  period is already all time), and never says its bests are "not counted".
+  period bests, so it lists its distance times and names its all-time records on one line ("All-time records: Best 5
+  min, Best 20 min", linked to the sport page), and never says its bests are "not counted".
 - **A list row reads the same figures.** The sport's glyph in a disc of its colour (its word is for
   screen readers), the name, the day and start time, with the **Indoor**, **Estimated power** and
   skipped-readings chips and the record chips, then the figures in the display face in columns at the
   right: the moving time, distance and climb, labelled, and the pace for a run, the speed for a ride, or
   the average power of an indoor ride with a power meter, set larger. A ride's record chips wait for the
-  weight, as its page's do. Up to 760 px a row is two lines: the glyph and name, then the day and the
+  weight, as its page's bests do. Up to 760 px a row is two lines: the glyph and name, then the day and the
   figures, which lose their visible labels (kept for screen readers); a phone leaves the climb out of
   that line unless the list is sorted by climb, and a row with chips has a third line for them. The legs
   of one upload are a session: its bytes are hashed, so two uploads of one name are two sessions.
@@ -1006,7 +1003,7 @@ and the tests named at the foot of that page keep the two in step. A display siz
   running, and asks for no weight. With a run and no ride, or a ride and no run, the energy view names
   the sport it needs and draws no ratio, so the ratio and its chart appear only with both. The request
   for a weight is written once, in weightCopy: the linked prompt Balance and
-  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to grade your rides and see their figures." in their place.
+  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests the same way, and says "Add your weight on Profile to grade your rides and see their figures." in their place.
 - **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
   but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
   when Analyse my files is pressed once more. Profile shows the question with a "Save 34.0 kg" control
@@ -1099,14 +1096,14 @@ How the time was spread across the training zones above, in one activity's selec
 sport's period. The maths is `packages/core/src/zones` (`timeInZones.ts`, `traceZones.ts`, `periodTime.ts`,
 `zoneShares.ts`); the research notes are in [research/zones.md](research/zones.md#5-time-in-zones).
 
-**Activity page, In detail: the timeline.** The measures stand in one figure, each in its own row at true pixel proportions
+**Activity page, In detail: the timeline.** The measures stand in one figure, each in its own row read as a small chart of its own
+(its name above it, 30 px of air between rows), at true pixel proportions
 (never a stretched SVG), all on one time axis and under one crosshair, in `ui/charts/TimeSeriesStack.tsx` (the arithmetic is
 `timeSeriesModel.ts`, which knows nothing of activities). Each row draws a smoothed line, a rolling mean as wide as a
 hundred and seventy-fifth of what is in view (3 s at least, so a lap shows its detail, and two minutes over a six-hour ride,
-which reads as a trend), and a light band behind it, the usual spread of the raw readings in each pixel: their 10th to 90th percentile, so a few
-strays do not set it and it does not routinely fill the row. Power's band leaves out the coasting zeros (the line's mean keeps
-them), and the band fades from full strength where a pixel is a second or two to about half where it is twenty seconds or more,
-so an overview's spread is quiet behind its trend. The line breaks across a gap of more than two seconds, the recorders' sample rate, and bridges a hiccup of one
+which reads as a trend), and nothing behind it: no spread band, no tick for a reading past the edge or left out, no key
+(owner, 11 Nov 2026: too much going on). The activity opens on three measures at most: the effort (a ride's power where it
+has it, else its speed; a run's pace), heart rate and elevation (`defaultMetrics`); the rest are a tap away. The line breaks across a gap of more than two seconds, the recorders' sample rate, and bridges a hiccup of one
 or two. Elevation is an area. Each measure has its own colour (the `--ch-*` tokens: pace green, power amber, heart rate
 magenta, cadence olive, elevation stone), which reaches 3:1 on the card in both schemes and stays at least 15 CIEDE2000 from
 the others and from the run, ride and swim hues (`channelTokens.test.ts`); the sport hue still only means a sport. A row's
@@ -1117,35 +1114,30 @@ fifth of the raw readings' own span (so a flat trend is drawn flat; a measure th
 an area, like elevation, is fitted to its own data and not forced through zero), and a pace axis never reaches zero speed, which would be an
 infinite pace. **A pace axis is even in pace, not in speed**: a minute is the same height anywhere on it, faster is up, and its
 ticks are evenly spaced (4:30, 5:00, 5:30), which an axis even in speed would not give; its room is a share of its height in
-pace, so the fast end clears the line as the slow end does (`timeSeriesModel.ts`, `AxisScale`). A raw reading past the axis (a power spike, a standing start) clips at the row's edge. It is marked only where it is more than
-15% of the axis's span past it (measured as the axis is drawn), with one small tick, in the row's colour at reduced opacity, to each 8 px, and keyed "Reading beyond
-the chart edge" under the plot while any is drawn. The band is a spread, not the extremes: the table twin keeps
-the true lowest and highest of every reading, spikes included, while the interval summary gives each measure's average and its typical range (10th to 90th percentile, the same spread as the band), as
-a lowest and highest are set by one stray second. Its
+pace, so the fast end clears the line as the slow end does (`timeSeriesModel.ts`, `AxisScale`). A raw reading past the axis (a power spike, a standing start) clips at the row's edge,
+unmarked; the table twin keeps the true lowest and highest of every reading, spikes included. Its
 ticks fall on round paces (4:30, not 4:32). There is no histogram: the time in zones says how
 time was spread, with its own table.
 The readout above the plot is the chart system's readout row, kept at every width (five measures at once would cover the plot
 if they floated): at the cursor it gives the elapsed time, the distance and each measure's value (the line's, and nothing in a
 paused or unrecorded stretch), and with no cursor the selection's averages, the same as the interval summary's. Arrow keys
 move the cursor by a hundredth of the window (a second at least), Home and End jump to the ends, Escape clears it, and the readout is
-announced to a screen reader from when the plot gains keyboard focus (not for a press, a pointer sweeping, or the idle averages); on a phone a touch scrubs and keeps its reading after the finger lifts. Pauses and
-gaps in the recording are marks on a lane under the rows (a pause solid grey, a gap hatched), and the readings the analysis
-left out are ticks on their own row, each keyed under the plot only for the kinds the window holds. Every second lap is
-shaded behind the rows. The laps, or the intervals found in the readings, are one strip above the plot. Intervals are found only when the device recorded no laps, from power for a ride and a run with power and from speed for a run (a ride's speed says terrain and wind, so a ride without a power meter has none): the smoothed readings are split into a higher and a lower level, the efforts are the stretches at the higher one, and they count when there are two or more with a recovery of up to ten minutes between them, about equally long (each block of a two-block session counts), or all with the same recovery (a pyramid or a ladder), or three or more of any length when the levels are far apart. A progressive run, a negative split, a tempo finish, the block between a warm-up and a cool-down, and a trail run or a run/walk plan with walking breaks give none. The limits are known and kept in `intervals.shapes.test.ts`: hills and a rolling road are not told from 2 min / 2 min repeats by speed alone (a rolling road of ±15% is read as repeats; ±8% is not), a hill repeat on foot is read by its faster jog down and not its slow climb, an effort that touches the start or the end of the recording is dropped (a workout with no warm-up loses its first rep), and a fartlek of varied surges at a moderate contrast is not found. Up to eight are
+announced to a screen reader from when the plot gains keyboard focus (not for a press, a pointer sweeping, or the idle averages); on a phone a touch scrubs and keeps its reading after the finger lifts. A pause or
+gap in the recording is a break in the line, with no mark of its own. Every second lap is
+shaded behind the rows. The device's laps are one strip above the plot; no intervals are inferred from the readings. Up to eight are
 numbered buttons as wide as the lap was long, at least a finger wide; more are a proportional bar (a number in a segment only
-where it fits) with the chosen lap's name, duration, pace or speed and heart rate in a line under it, one stop in the tab order
-with Left and Right (and Home and End) stepping from lap to lap, so Up and Down still scroll. Choosing a lap zooms the timeline to it. The interval is set by dragging across the plot (a mouse or pen, with a hint "Drag to zoom"; a finger scrubs as before and
-selects after it is held still for 0.4 s and then dragged, "Hold, then drag, to zoom"; the range is washed while dragged, applies on release, Escape drops it, and a Reset
+where it fits) and every lap also in a list beside it, one stop in the tab order
+with Left and Right (and Home and End) stepping from lap to lap, so Up and Down still scroll. Choosing a lap zooms the timeline to it. The interval is set by dragging across the plot (a mouse or pen; a finger scrubs as before and
+selects after it is held still for 0.4 s and then dragged; no hint is printed; the range is washed while dragged, applies on release, Escape drops it, and a Reset
 chip returns to the whole activity), or by a brush directly under the plot, over a small overview of the whole activity drawn from
 the measure the sport is read by (pace for a run, power for a ride, then heart rate, cadence and the terrain; one that never moves is passed over):
 drag an end (by how far it moves, so a grab off its centre does not jump), the window or the empty track; each end is a slider with named values ("Start 12 min 30 s"),
 which keeps the keyboard's way to the selection, and a disclosure under it ("0:00 to 6:13:37 · Set by time") sets either end by typed time. Each handle's hit area is
 44 px wide and slides outward from the other when the two are closer than that, so both stay grabbable for a four-minute rep in a seventy-minute run. The plot lets a vertical drag
-scroll the page. Measures a file holds with nothing to draw (all missing, or one value throughout) have a dashed chip that says "no data" and no row. The summary gives each measure's average and its
-typical range, and a pace or speed is a table of its own, whose caption says its average is the distance over the moving time, the figure the header, the interval's tiles and the readout also give. From 1100 px the
-interval's tiles stand in the column beside the timeline, below the figures, while a part of the activity is selected. On a phone the moving time and the two key figures are a strip directly under
+scroll the page. Measures a file holds with nothing to draw (all missing, or one value throughout) have a dashed chip that says "no data" and no row. Each measure's average over the selection is in the readout row; there is no summary table. A selected part of the activity has tiles of its own (elapsed, moving, paused and unrecorded time as a clock reads them, distance, average pace or speed), label over number. From 1100 px they
+stand in the column beside the timeline, below the figures; the whole activity draws none, since the page's figures are of it. On a phone the moving time and the two key figures are a strip directly under
 the title, then the timeline, then the other tiles, and the readout stays under the header while the rows scroll past (from 360 px).
-An activity whose recording is not kept is its summary, splits and bests, with one note after them and the file offered again as a quiet action. Opening a 6-hour ride at 1 Hz with
+An activity whose recording is not kept is its summary, splits and bests, with one sentence ("Detailed readings for this activity aren't on this device.") and the file offered again as a quiet action. Opening a 6-hour ride at 1 Hz with
 five measures, building every row's columns and paths, takes about 15 ms here (budget 40), a brush step about 10 (budget 25) and a
 cursor step a fraction of a millisecond (`workbenchChannels.perf.test.ts`, `timeSeriesModel.perf.test.ts`); the heavy figures
 follow the brush through `useDeferredValue`, and the rows are not redrawn when the cursor moves.
@@ -1157,16 +1149,15 @@ was, and keyed "Slower, Faster"; a route that held one pace is the sport's colou
 segment stands for the share of the distance that the path's length gives it (`routePace.ts`): a guide to where the pace was high or low,
 read from the trace already on the device, and nothing is sent.
 
-**Activity page, In detail.** Under the interval summary, a **Time in zones** block follows the interval the
-athlete selects: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval
-has readings for, a lede for the first of them in that order ("Most of this run was in pace zone 2 (64%).", or
-"This run spent the most time in heart rate zone 3 (38%)." when no zone held half, or "All of this run was in pace zone 2 (100%)." when one holds it all), and **View as table** with
+**Activity page, In detail.** A **Time in zones** block follows the interval the
+athlete selects, drawn as on the sport pages: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval
+has readings for, in that order, no sentence over them, and **View as table** with
 each zone's name, range, time and share. The zones are those in effect on the activity's day (`zonesAt`), so an
 entered setting that changed since is not applied backwards. Each recorded moving second counts once, in the zone
 of its reading, and a run's slow seconds count in the lowest pace zone, as in the digests behind the sport page, so a
 whole-activity interval matches it. A reading the quality assessment left out (a flagged heart-rate spike and its margin) is left out of both, and pace is cut from the speed the digest reads (lowered where the file's speed and distance disagree). A recording kept before this carries no such masks until it is captured again, so its zones read every recorded second. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
-analysis of the whole library set aside is not read, and the block says so ("Heart rate is set aside for this activity, so it
-is left out of zones.") instead of asking for zones. With no zones the block says what they need and links to Profile.
+analysis of the whole library set aside is not read, and the block says "Heart rate set aside" instead of asking for zones.
+With no zones, or with pace or power zones missing, the block links "Set your zones on Profile".
 
 **Sport pages.** A **Time in zones** section, last in each sport's list (`SPORT_SECTIONS`): a stacked horizontal bar for
 each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`). There is no

@@ -1,5 +1,5 @@
--- NOT YET APPLIED TO PRODUCTION: the owner approves the migration and applies it before the Worker that
--- reads it is deployed (docs/RELEASES.md).
+-- Applied to production. Later migrations are applied by the owner before the Worker that reads them is deployed
+-- (docs/RELEASES.md).
 -- Hand-written after drizzle-kit generated the columns and the table: it does not model triggers, so do not
 -- regenerate this file with it.
 -- Additive: a new table and two columns no earlier Worker names, so every earlier Worker stays a rollback target.

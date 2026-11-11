@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { displayValue, metricUnit, rangeHeadings, readingRange } from './workbenchFormat'
+import {
+  defaultMetrics,
+  displayValue,
+  metricUnit,
+  rangeHeadings,
+  readingRange,
+} from './workbenchFormat'
 import { parseClockTime } from './workbenchTime'
 
 describe('workbenchFormat', () => {
@@ -27,6 +33,34 @@ describe('workbenchFormat', () => {
     expect(rangeHeadings('speed', 'run')).toEqual(['Fastest', 'Slowest'])
     expect(rangeHeadings('speed', 'ride')).toEqual(['Lowest', 'Highest'])
     expect(rangeHeadings('heartRate', 'run')).toEqual(['Lowest', 'Highest'])
+  })
+})
+
+describe('defaultMetrics', () => {
+  const all = ['speed', 'power', 'heartRate', 'cadence', 'altitude', 'temperature'] as const
+
+  it('opens a ride on its power, heart rate and altitude, in the order of the stack', () => {
+    expect(defaultMetrics(all, 'ride')).toEqual(['power', 'heartRate', 'altitude'])
+  })
+
+  it('opens a ride with no power on its speed, heart rate and altitude', () => {
+    expect(defaultMetrics(['speed', 'heartRate', 'cadence', 'altitude'], 'ride')).toEqual([
+      'speed',
+      'heartRate',
+      'altitude',
+    ])
+  })
+
+  it('opens a run on its pace, heart rate and altitude, even with power recorded', () => {
+    expect(defaultMetrics(all, 'run')).toEqual(['speed', 'heartRate', 'altitude'])
+  })
+
+  it('leaves out what the activity did not record, and plots at most three', () => {
+    expect(defaultMetrics(['speed', 'cadence'], 'run')).toEqual(['speed'])
+    expect(defaultMetrics([], 'ride')).toEqual([])
+    for (const sport of ['run', 'ride'] as const) {
+      expect(defaultMetrics(all, sport).length).toBeLessThanOrEqual(3)
+    }
   })
 })
 

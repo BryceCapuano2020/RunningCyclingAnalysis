@@ -42,10 +42,10 @@ function renderTable(
 }
 
 describe('RepFadeTable', () => {
-  it('leads with the fade, then lists each rep with its time, pace and heart rate', () => {
+  it('lists each rep with its time, pace and heart rate under a Reps heading, with no lede', () => {
     renderTable(intervals())
-    expect(screen.getByRole('heading', { name: 'How your reps held up' })).toBeInTheDocument()
-    expect(screen.getByText('Rep 4 was 5% slower than rep 1.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Reps' })).toBeInTheDocument()
+    expect(screen.queryByText(/slower than rep 1|stayed within/)).toBeNull()
     const table = screen.getByRole('table')
     expect(
       within(table)
@@ -80,7 +80,7 @@ describe('RepFadeTable', () => {
       [0, 1, 2].map((i) => [i * 300, i * 300 + 240] as const),
     )
     renderTable(ride)
-    expect(screen.getByText('Rep 3 averaged 4% less power than rep 1.')).toBeInTheDocument()
+    expect(screen.queryByText(/less power than rep 1/)).toBeNull()
     expect(screen.getByRole('columnheader', { name: 'Measured power' })).toBeInTheDocument()
     expect(screen.getByText('300 W')).toBeInTheDocument()
   })
@@ -134,7 +134,7 @@ describe('RepFadeTable', () => {
       ],
     )
     renderTable(two)
-    expect(screen.queryByRole('heading', { name: 'How your reps held up' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Reps' })).toBeNull()
   })
 
   it('never uses the words the owner rules out', () => {
@@ -157,7 +157,7 @@ describe('the reps in the activity’s detail', () => {
         loadTrace={async () => ({ kind: 'trace', trace })}
       />,
     )
-    const heading = await screen.findByRole('heading', { name: 'How your reps held up' })
+    const heading = await screen.findByRole('heading', { name: 'Reps' })
     const laps = screen.getByRole('heading', { name: 'Laps' })
     expect(laps.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Rep 2' }))

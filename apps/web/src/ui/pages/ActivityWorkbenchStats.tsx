@@ -1,116 +1,14 @@
-import type { ActivityTrace, MetricSelectionSummary, TraceMetric } from '@rca/core/workbench'
+import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDistance, formatRecordTime, formatTotalTime } from '@rca/core/units'
+import { formatDistance, formatRecordTime } from '@rca/core/units'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ChartTable } from '../charts/ChartTable'
-import { SPREAD_WORDS } from '../charts/usualSpread'
-import type { Property } from '../components/property'
+import { StatFigure } from '../components/StatFigure'
 import { useMediaQuery } from '../useMediaQuery'
-import { PageDetails } from './PageDetails'
-import { movingAverageSpeed, selectionOf, typicalBand } from './workbenchData'
-import {
-  METRIC_ORDER,
-  SPORT_READING,
-  displayValue,
-  isPaceReading,
-  metricLabel,
-  readingRange,
-} from './workbenchFormat'
-import { readingOf } from './workbenchScale'
+import { movingAverageSpeed, selectionOf } from './workbenchData'
+import { SPORT_READING } from './workbenchFormat'
 
-const NONE = 'None in this interval'
-
-const MOVING_CAPTION = 'While moving in the selected interval'
-/** A speed or a pace is a table of its own, as its average is the figure the header gives. */
-const SPEED_CAPTION = 'Speed in the selected interval'
-const PACE_CAPTION = 'Pace in the selected interval'
-
-/** One table of the summary: the measures that share a caption. */
-interface StatGroup {
-  caption: string
-  key: string
-  rows: string[][]
-  /** A pace leaves the stops out of its typical range, which are not paces. */
-  leavesOutStops: boolean
-}
-
-const COLUMNS = ['Measure', 'Average', 'Typical range', 'Time']
-
-function rowOf(
-  metric: TraceMetric,
-  trace: ActivityTrace,
-  units: UnitSystem,
-  stats: MetricSelectionSummary,
-  band: { low: number; high: number } | null,
-  /** A speed's average: the distance over the moving time, the figure the page gives everywhere else. */
-  average: number | null,
-): string[] {
-  const label = metricLabel(metric, trace.sport)
-  if (stats.mean === null || band === null) return [label, NONE, NONE, formatRecordTime(0)]
-  const text = (value: number) => displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
-  // A pace is read fastest first, so its range runs from the faster end, which is the higher speed.
-  const { lowest, highest } = readingRange(metric, trace.sport, band.low, band.high)
-  const first = readingOf(metric, lowest, trace.sport, units, trace.cadenceUnit)
-  const last = readingOf(metric, highest, trace.sport, units, trace.cadenceUnit)
-  const range =
-    first.value === last.value
-      ? text(lowest)
-      : `${first.value} to ${last.value}${last.unit === '' ? '' : ` ${last.unit}`}`
-  return [label, text(average ?? stats.mean), range, formatRecordTime(stats.seconds)]
-}
-
-/**
- * The shown measures as tables: each one's average, the range most of its readings lay in, and the time it had
- * readings. A pace is a table of its own, since its average leaves out the stops and says so.
- */
-function groupsOf(
-  trace: ActivityTrace,
-  units: UnitSystem,
-  metrics: readonly TraceMetric[],
-  summary: ReturnType<typeof selectionOf>,
-): StatGroup[] {
-  const groups: StatGroup[] = []
-  for (const metric of METRIC_ORDER.filter((candidate) => metrics.includes(candidate))) {
-    const stats = summary.metrics[metric]
-    if (!stats) continue
-    const row = rowOf(
-      metric,
-      trace,
-      units,
-      stats,
-      typicalBand(trace, metric, summary.startS, summary.endS),
-      metric === 'speed' ? movingAverageSpeed(summary) : null,
-    )
-    const leavesOutStops =
-      isPaceReading(metric, trace.sport) && SPORT_READING[trace.sport].minSpeedMs > 0
-    // A speed or pace is a table of its own, as its caption says how its mean differs from the figure above.
-    const key = metric === 'speed' ? 'speed' : 'others'
-    const caption =
-      key === 'others' ? MOVING_CAPTION : leavesOutStops ? PACE_CAPTION : SPEED_CAPTION
-    const group = groups.find((candidate) => candidate.key === key)
-    if (group) group.rows.push(row)
-    else groups.push({ key, caption, rows: [row], leavesOutStops })
-  }
-  return groups
-}
-
-/** What the table's columns count, label over value, behind Details: said once for the tables above it. */
-function columnRows(groups: readonly StatGroup[]): Property[] {
-  const stopsLeftOut = groups.some((group) => group.leavesOutStops)
-  return [
-    ...(groups.some((group) => group.key === 'speed')
-      ? [{ label: 'Average', value: 'Distance over the moving time' }]
-      : []),
-    {
-      label: 'Typical range',
-      value: `${SPREAD_WORDS}${stopsLeftOut ? ', stops left out' : ''}`,
-    },
-    { label: 'Time', value: 'How long it had a reading' },
-  ]
-}
-
-/** The figures of the interval, as tiles: its times, its distance and its average pace or speed. */
+/** The figures of the interval, as tiles: its times as a clock reads them, as the brush does, its distance and its average pace or speed. */
 function SelectionTiles({
   trace,
   summary,
@@ -125,18 +23,13 @@ function SelectionTiles({
   const paused = summary.recordedS - summary.movingS
   const unrecorded = summary.elapsedS - summary.recordedS
   const tiles: [label: string, value: string][] = [
-    ['Elapsed time', formatTotalTime(summary.elapsedS)],
+    ['Elapsed time', formatRecordTime(summary.elapsedS)],
   ]
   // Moving time is shown only where it differs from elapsed time, and a gap or pause only where there is one.
-  if (paused > 0 || unrecorded > 0) tiles.push(['Moving time', formatTotalTime(summary.movingS)])
-  if (paused > 0) tiles.push(['Paused time', formatTotalTime(paused)])
-  if (unrecorded > 0) tiles.push(['Unrecorded time', formatTotalTime(unrecorded)])
-  tiles.push([
-    'Distance',
-    summary.distanceM === null
-      ? 'Not available for this interval'
-      : formatDistance(summary.distanceM, units),
-  ])
+  if (paused > 0 || unrecorded > 0) tiles.push(['Moving time', formatRecordTime(summary.movingS)])
+  if (paused > 0) tiles.push(['Paused time', formatRecordTime(paused)])
+  if (unrecorded > 0) tiles.push(['Unrecorded time', formatRecordTime(unrecorded)])
+  if (summary.distanceM !== null) tiles.push(['Distance', formatDistance(summary.distanceM, units)])
   // The activity header's figure for the interval: the distance over the moving time, stops included.
   const average = movingAverageSpeed(summary)
   if (average !== null) {
@@ -146,12 +39,17 @@ function SelectionTiles({
   return (
     <div className="activity-workbench__stats activity-workbench__stats--tiles">
       {heading}
+      {/* The same label over number as the page's own figures, so the interval reads as a part of them. */}
       <dl className="activity-workbench__summary">
         {tiles.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
+          <StatFigure
+            key={label}
+            label={label}
+            value={value}
+            className="activity-page__stat"
+            labelClassName="meta"
+            valueClassName="stat-number"
+          />
         ))}
       </dl>
     </div>
@@ -161,46 +59,36 @@ function SelectionTiles({
 /** From this width the timeline and the figures stand side by side, and the interval's tiles go to the column beside it. */
 const WIDE_MIN_WIDTH_PX = 1100
 
+/**
+ * The chosen interval's times, distance and average, beside the timeline from 1100 px and under it below that. The
+ * whole activity draws none: the page's own figures are of it already, and the readout row gives each measure's average.
+ */
 export function SelectionStats({
   trace,
   startS,
   endS,
   units,
-  metrics,
   tilesHost,
 }: {
   trace: ActivityTrace
   startS: number
   endS: number
   units: UnitSystem
-  /** The measures shown, which the table follows. */
-  metrics: readonly TraceMetric[]
   /** The column beside the timeline, where the tiles are drawn when the page is wide enough to have one. */
   tilesHost?: HTMLElement | null
 }) {
   const wide = useMediaQuery(`(min-width: ${WIDE_MIN_WIDTH_PX}px)`)
+  const whole = startS === 0 && endS >= Math.floor(trace.durationS)
+  if (whole) return null
   const summary = selectionOf(trace, startS, endS)
   const inColumn = wide && tilesHost !== null && tilesHost !== undefined
-  // Beside the timeline the page already shows the whole activity's figures, so the column holds a part of it only.
-  const whole = startS === 0 && endS >= Math.floor(trace.durationS)
-  const groups = groupsOf(trace, units, metrics, summary)
   const tiles = (
     <SelectionTiles
       trace={trace}
       summary={summary}
       units={units}
-      heading={inColumn ? <h2>Selected interval</h2> : <h3>Interval summary</h3>}
+      heading={inColumn ? <h2>Selected interval</h2> : <h3>Selected interval</h3>}
     />
   )
-  return (
-    <>
-      {inColumn ? !whole && createPortal(tiles, tilesHost) : tiles}
-      <div className="activity-workbench__stats">
-        {groups.map((group) => (
-          <ChartTable key={group.key} caption={group.caption} columns={COLUMNS} rows={group.rows} />
-        ))}
-        <PageDetails about="the table" rows={columnRows(groups)} />
-      </div>
-    </>
-  )
+  return inColumn ? createPortal(tiles, tilesHost) : tiles
 }
