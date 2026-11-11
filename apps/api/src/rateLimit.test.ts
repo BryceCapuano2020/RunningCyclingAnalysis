@@ -35,6 +35,33 @@ describe('edge rate limits', () => {
     expect(auth).toHaveBeenCalledWith({ key: 'auth:unknown' })
   })
 
+  it("gives Garmin's notice its own bucket, apart from sign-in's, and keeps Garmin connect in sign-in's", async () => {
+    const api = vi.fn(async () => ({ success: true }))
+    const auth = vi.fn(async () => ({ success: true }))
+    const h = createHarness(
+      {},
+      {
+        ENVIRONMENT: 'production',
+        API_RATE_LIMITER: { limit: api },
+        AUTH_RATE_LIMITER: { limit: auth },
+      },
+    )
+    const headers = { 'CF-Connecting-IP': '192.0.2.20' }
+    await h.send({
+      method: 'POST',
+      path: '/api/garmin/deregistration',
+      json: { deregistrations: [] },
+      csrf: false,
+      headers,
+    })
+    expect(auth).not.toHaveBeenCalled()
+    expect(api).toHaveBeenCalledWith({ key: 'ip:192.0.2.20' })
+    expect(api).toHaveBeenCalledWith({ key: 'notice:192.0.2.20' })
+
+    await h.send({ path: '/api/garmin/connect', headers })
+    expect(auth).toHaveBeenCalledWith({ key: 'auth:192.0.2.20' })
+  })
+
   it('sends a browser that is rate limited on sign-in back to the app with the reason, not to raw JSON', async () => {
     const auth = vi.fn(async () => ({ success: false }))
     const h = createHarness({}, { ENVIRONMENT: 'production', AUTH_RATE_LIMITER: { limit: auth } })

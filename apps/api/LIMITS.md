@@ -33,12 +33,12 @@ Values are read from `apps/api/wrangler.toml`. Each binding uses a 60-second win
 approximate per Cloudflare location. A denied request returns 429 `rate_limited`. A missing binding
 outside development returns 503.
 
-| Binding               | Namespace id | Limit per 60 s | Key                                 | Applied to                                                                    |
-| --------------------- | ------------ | -------------: | ----------------------------------- | ----------------------------------------------------------------------------- |
-| `API_RATE_LIMITER`    | 27101        |          1,200 | `ip:` plus the Cloudflare client IP | Every `/api/*` request (`publicRateLimit`, `src/rateLimit.ts`)                |
-| `AUTH_RATE_LIMITER`   | 27102        |             30 | `auth:` plus the client IP          | `/api/auth/*` except logout, and `/api/garmin/*` (`publicRateLimit`)          |
-| `WRITE_RATE_LIMITER`  | 27103        |            600 | `user:` plus the user id            | Authenticated requests other than GET, HEAD and OPTIONS (`accountWriteLimit`) |
-| `HEALTH_RATE_LIMITER` | 27104        |              1 | `health:` plus the client IP        | `GET /api/health/deep` (`healthRateLimit`, used in `src/routes/health.ts`)    |
+| Binding               | Namespace id | Limit per 60 s | Key                                 | Applied to                                                                                                                                     |
+| --------------------- | ------------ | -------------: | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_RATE_LIMITER`    | 27101        |          1,200 | `ip:` plus the Cloudflare client IP | Every `/api/*` request (`publicRateLimit`, `src/rateLimit.ts`); Garmin's notice also counts against `notice:` plus the IP, a bucket of its own |
+| `AUTH_RATE_LIMITER`   | 27102        |             30 | `auth:` plus the client IP          | `/api/auth/*` except logout, and `/api/garmin/*` but the notice (`publicRateLimit`)                                                            |
+| `WRITE_RATE_LIMITER`  | 27103        |            600 | `user:` plus the user id            | Authenticated requests other than GET, HEAD and OPTIONS (`accountWriteLimit`)                                                                  |
+| `HEALTH_RATE_LIMITER` | 27104        |              1 | `health:` plus the client IP        | `GET /api/health/deep` (`healthRateLimit`, used in `src/routes/health.ts`)                                                                     |
 
 ## Daily budgets
 
@@ -320,8 +320,7 @@ Built against a fake Garmin and off: `GARMIN_ENABLED` is unset in production and
 (docs/design/garmin-sync.md section 5a). Off, `GET /api/garmin/connect` and its callback are 404; disconnect
 (`DELETE /api/garmin`) and Garmin's deregistration notice (`POST /api/garmin/deregistration`) still remove a link, so no
 link is ever stranded. The notice's body is at most 64 KiB and 100 entries, it carries no session and no CSRF header,
-and it acts only on an entry whose access token matches the link's, so it costs at most one row read and one token
-check an entry. Each account holds one link. The inbox caps (200 items, 200 MiB) arrive with the push receiver (G4).
+and it acts only on an entry whose access token matches the link's, so it costs one read for all its entries and one token check an entry. Each account holds one link. The inbox caps (200 items, 200 MiB) arrive with the push receiver (G4).
 
 ## Other per-user limits
 

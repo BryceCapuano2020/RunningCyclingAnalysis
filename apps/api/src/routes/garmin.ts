@@ -13,7 +13,7 @@ import { garminConfigured, garminEnabled } from '../garmin/flag.ts'
 import {
   deregisterQuietly,
   linkOf,
-  linkOfGarminUser,
+  linksOfGarminUsers,
   removeLink,
   sameToken,
   saveLink,
@@ -221,10 +221,15 @@ garminRoutes.post('/deregistration', limitBody(NOTICE_BODY_BYTES), async (c) => 
   if (!parsed.success)
     throw new HttpError(400, 'invalid_request', 'The notice is not a deregistration')
   let unreadable = false
-  for (const entry of parsed.data.deregistrations) {
-    if (entry.userAccessToken === undefined) continue
-    const link = await linkOfGarminUser(c.env.DB, entry.userId)
-    if (link === null) continue
+  const entries = parsed.data.deregistrations.filter((entry) => entry.userAccessToken !== undefined)
+  // One read for every link the notice names, so a notice costs one statement however long it is.
+  const links = await linksOfGarminUsers(
+    c.env.DB,
+    entries.map((entry) => entry.userId),
+  )
+  for (const entry of entries) {
+    const link = links.get(entry.userId)
+    if (link === undefined || entry.userAccessToken === undefined) continue
     const tokens = await tokensOf(c.env, link)
     // A link whose token cannot be opened (the key dropped) cannot be checked: Garmin is asked to send it again.
     if (tokens === null) {
