@@ -131,6 +131,7 @@ test('Garmin sync stays off in production until its release (garmin-sync.md G6)'
       /GARMIN_ENABLED/,
     )
   }
+  assert.throws(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = true`), /GARMIN_ENABLED/)
   assert.doesNotThrow(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = ""`))
   assert.doesNotThrow(() => validateDeployConfig(`${valid}\nGARMIN_ENABLED = "false"`))
 })

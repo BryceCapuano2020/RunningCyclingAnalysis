@@ -11,7 +11,12 @@ type GarminEnv = Pick<Bindings, 'GARMIN_ENABLED' | 'GARMIN_CLIENT_ID' | 'PROVIDE
  * connecting only: disconnect, deregistration and account deletion still remove a link.
  */
 export function garminEnabled(env: Pick<GarminEnv, 'GARMIN_ENABLED'>): boolean {
-  return ON.has((env.GARMIN_ENABLED ?? '').trim().toLowerCase())
+  // String(): a [vars] value written unquoted reaches the Worker as a boolean.
+  return ON.has(
+    String(env.GARMIN_ENABLED ?? '')
+      .trim()
+      .toLowerCase(),
+  )
 }
 
 /** Whether a connect can finish: the client id and a valid token key are set. On without them is a 503, not a link. */

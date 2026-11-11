@@ -27,7 +27,10 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
   }
   checkServerState(config, readString('SERVER_COMPUTE_USERS'))
   // Garmin sync is built switched off (docs/design/garmin-sync.md); its release (G6) is the change that removes this.
-  if (['true', '1', 'on'].includes((readString('GARMIN_ENABLED') ?? '').trim().toLowerCase())) {
+  // Read quoted or not: an unquoted `true` is a TOML boolean, which the Worker reads as on.
+  const set = /^GARMIN_ENABLED\s*=\s*(?:["']([^"']*)["']|([^\s#]+))/m.exec(config)
+  const garmin = set?.[1] ?? set?.[2] ?? ''
+  if (['true', '1', 'on'].includes(garmin.trim().toLowerCase())) {
     throw new Error(
       'GARMIN_ENABLED stays off in production until the Garmin release (garmin-sync.md G6).',
     )

@@ -115,25 +115,41 @@ export async function saveLink(
 }
 
 /**
- * Removes the account's link and every inbox item, rows first in one batch, then the items' files. A run stopped
- * between leaves files no row names, which the orphan scan removes.
+ * Removes the account's link and every inbox item, rows first in one batch, then the items' files. With a Garmin user
+ * id, only that link goes (a notice must not remove a link made since it was read), and the inbox only with it. The
+ * files are best effort: a failure is logged, and files no row names go to the orphan scan.
  */
-export async function removeLink(env: Bindings, now: number, userId: string): Promise<void> {
+export async function removeLink(
+  env: Bindings,
+  now: number,
+  userId: string,
+  garminUserId?: string,
+): Promise<void> {
   const [, items] = await env.DB.batch<{ file_key: string | null }>([
-    env.DB.prepare('DELETE FROM provider_links WHERE user_id = ? AND provider = ?').bind(
-      userId,
-      GARMIN,
-    ),
     env.DB.prepare(
-      'DELETE FROM inbox_items WHERE user_id = ? AND provider = ? RETURNING file_key',
-    ).bind(userId, GARMIN),
+      `DELETE FROM provider_links WHERE user_id = ?1 AND provider = ?2
+         AND (?3 IS NULL OR provider_user_id = ?3)`,
+    ).bind(userId, GARMIN, garminUserId ?? null),
+    // changes() is the link statement's: the inbox goes only with the link (or when there was none to remove).
+    env.DB.prepare(
+      `DELETE FROM inbox_items WHERE user_id = ?1 AND provider = ?2 AND (?3 IS NULL OR changes() = 1)
+       RETURNING file_key`,
+    ).bind(userId, GARMIN, garminUserId ?? null),
   ])
   const keys = (items?.results ?? []).flatMap((row) =>
     row.file_key === null ? [] : [row.file_key],
   )
-  if (keys.length > 0 && env.FILES) {
+  if (keys.length === 0 || !env.FILES) return
+  try {
     await reserveR2Operation(env.DB, now, { cleanup: true })
     await env.FILES.delete(keys)
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'garmin_inbox_files_left',
+        errorClass: error instanceof Error ? error.constructor.name : typeof error,
+      }),
+    )
   }
 }
 

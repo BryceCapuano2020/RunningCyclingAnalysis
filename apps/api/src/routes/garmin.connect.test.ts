@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHarness, testEnv, type Harness } from '../test/harness.ts'
 import { fakeGarmin, GARMIN_ON, type FakeGarmin, type FakeGarminOptions } from '../test/garmin.ts'
 import { openTokens } from '../providers/tokens.ts'
+import { saveLink } from '../garmin/link.ts'
 
 /** docs/design/garmin-sync.md section 5a, the connect rows, against a fake Garmin. */
 
@@ -67,6 +68,7 @@ describe('connecting Garmin', () => {
     const token = await h.signIn()
     for (const path of ['/api/garmin/connect', '/api/garmin/callback?state=a&code=b']) {
       expect((await h.send({ path, cookies: { rca_session: token } })).status).toBe(404)
+      expect((await h.send({ path })).status).toBe(404)
     }
   })
 
@@ -190,5 +192,55 @@ describe('connecting Garmin', () => {
 
     expect(outcome(await callback(racing, token, flow))).toBe('account_deleting')
     expect(await links()).toEqual([])
+  })
+
+  it('stores nothing in read-only mode, and says so on the Profile page', async () => {
+    const { h, garmin } = garminHarness()
+    const token = await h.signIn()
+    const flow = await connect(h, token)
+    const readOnly = createHarness({ garmin: () => garmin }, { ...GARMIN_ON, READ_ONLY: 'on' })
+    expect(outcome(await callback(readOnly, token, flow))).toBe('read_only')
+    expect(garmin.exchanges).toEqual([])
+    expect(await links()).toEqual([])
+  })
+
+  it('refuses a state older than ten minutes, whatever the browser kept', async () => {
+    const { h, garmin } = garminHarness()
+    const token = await h.signIn()
+    const flow = await connect(h, token)
+    h.clock.now += 10 * 60 * 1000 + 1
+    expect(outcome(await callback(h, token, flow))).toBe('oauth_state_mismatch')
+    expect(garmin.exchanges).toEqual([])
+  })
+
+  it('reads a link another account wrote after the check as linked elsewhere', async () => {
+    const h = createHarness({}, GARMIN_ON)
+    const first = await userIdOf(h, await h.signIn('first@example.test'))
+    const second = await userIdOf(h, await h.signIn('second@example.test'))
+    const grant = { garminUserId: 'g-race', tokens: { accessToken: 'a' }, scopes: [] }
+    const deps = {
+      now: () => 1,
+      randomBytes: (n: number) => crypto.getRandomValues(new Uint8Array(n)),
+    }
+    expect(await saveLink(h.env, deps, first, grant)).toMatchObject({ saved: true })
+    // A database whose holder check misses the first link, as a request that raced it would.
+    const db = h.env.DB
+    const racing = {
+      ...h.env,
+      DB: new Proxy(db, {
+        get(target, key) {
+          if (key !== 'prepare') return Reflect.get(target, key)
+          return (sql: string) => {
+            const statement = target.prepare(sql)
+            if (!sql.includes('provider_user_id = ?')) return statement
+            return { bind: () => ({ first: async () => null }) }
+          }
+        },
+      }),
+    }
+    expect(await saveLink(racing, deps, second, grant)).toEqual({
+      saved: false,
+      reason: 'linked_elsewhere',
+    })
   })
 })

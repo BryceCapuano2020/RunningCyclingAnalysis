@@ -156,6 +156,7 @@ an unknown Garmin user stores nothing (decision 5).
 | Callback, any outcome                                                  | the one-shot cookies are cleared first    | the same                                                                       |
 | Callback: signed out, or the session's account is not the cookie's     | N, 401 or 400, no code exchange           | L unchanged, no exchange                                                       |
 | Callback: state missing, stale or not matching                         | N, 400, no exchange                       | L unchanged, 400                                                               |
+| Callback in read-only mode                                             | N, 503 `read_only`, no exchange           | L unchanged                                                                    |
 | Callback: Garmin refuses the code or the user-id call fails            | N, 502                                    | L unchanged, 502                                                               |
 | Callback: good, Garmin user linked to another account                  | N, 409 `garmin_linked_elsewhere`          | L unchanged, 409                                                               |
 | Callback: good                                                         | L                                         | L with the new tokens; a new Garmin user id deregisters the old grant          |
@@ -164,13 +165,14 @@ an unknown Garmin user stores nothing (decision 5).
 | Deregistration notice: link found, its token matches                   | -                                         | N, as a disconnect without the call to Garmin; 200                             |
 | Notice: unknown user, no token, or a token that does not match         | N, 200, nothing changes                   | L unchanged, 200                                                               |
 | Notice in read-only mode                                               | 503, Garmin retries                       | 503, Garmin retries                                                            |
+| Notice for a link whose token cannot be opened (the key dropped)       | -                                         | L unchanged, 503, Garmin retries                                               |
 | Account deletion (route or maintenance)                                | as before                                 | deregister first, then the cascade removes the link and the inbox              |
 | Worker stops mid-callback or mid-disconnect                            | N (one statement)                         | L old or new, whole; a disconnect retried removes it; stray files: orphan scan |
 | Two callbacks for one account, or a callback racing a disconnect       | the later statement wins                  | the later statement wins                                                       |
 | Two accounts' callbacks for one Garmin user                            | one links, the other 409                  | -                                                                              |
 
-The state is 32 random bytes in a cookie scoped to `/api/garmin`, with an HMAC under `SESSION_SIGNING_KEY` over the
-state and the account id. The callback reads the session itself and finishes only for the account the HMAC names, so
+The state is 32 random bytes in a cookie scoped to `/api/garmin`, with its issue time and an HMAC under
+`SESSION_SIGNING_KEY` over the state, the time and the account id; the server refuses one over ten minutes old. The callback reads the session itself and finishes only for the account the HMAC names, so
 signing out or switching accounts in between fails it. The PKCE verifier is a second cookie; both live ten minutes.
 A callback that wins a race with a disconnect re-links: the athlete started it. The deregistration notice cannot be
 authenticated until Garmin says how (section 9), so it acts only when it carries the link's own access token, compared

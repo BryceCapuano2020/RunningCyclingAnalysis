@@ -3,6 +3,10 @@ import { createHarness, testEnv, type Harness } from '../test/harness.ts'
 import { fakeGarmin, GARMIN_ON, type FakeGarminOptions } from '../test/garmin.ts'
 import { inboxKey } from '../inbox/key.ts'
 import { sealTokens } from '../providers/tokens.ts'
+import { startAccountDeletion } from '../accountDeletion.ts'
+import { runMaintenance } from '../maintenance.ts'
+import { at } from '../test/maintenance.ts'
+import { toBase64Url } from '../util.ts'
 
 /** docs/design/garmin-sync.md section 5a, the rows that remove a link: disconnect, Garmin's notice, deletion. */
 
@@ -20,11 +24,16 @@ async function userIdOf(h: Harness, token: string): Promise<string> {
 }
 
 /** A linked account with one waiting inbox item and its file, as connect and a push (G4) leave it. */
-async function linked(h: Harness, email = 'linked@example.test', garminUserId = 'g-7') {
+async function linked(
+  h: Harness,
+  email = 'linked@example.test',
+  garminUserId = 'g-7',
+  keys = GARMIN_ON.PROVIDER_TOKEN_KEY,
+) {
   const token = await h.signIn(email)
   const userId = await userIdOf(h, token)
   const sealed = await sealTokens(
-    GARMIN_ON.PROVIDER_TOKEN_KEY,
+    keys,
     (n) => crypto.getRandomValues(new Uint8Array(n)),
     userId,
     'garmin',
@@ -91,6 +100,26 @@ describe('disconnecting Garmin', () => {
     expect(await count('provider_links')).toBe(0)
   })
 
+  it('answers 204 when the files cannot be deleted, and leaves them to the orphan scan', async () => {
+    const garmin = fakeGarmin()
+    const base = createHarness({ garmin: () => garmin }, GARMIN_ON)
+    const failing = new Proxy(base.env.FILES!, {
+      get(target, key) {
+        if (key === 'delete') return async () => Promise.reject(new Error('R2 unavailable'))
+        return Reflect.get(target, key)
+      },
+    })
+    const h = createHarness({ garmin: () => garmin }, { ...GARMIN_ON, FILES: failing })
+    const { token } = await linked(h)
+    const res = await h.send({
+      method: 'DELETE',
+      path: '/api/garmin',
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(204)
+    expect(await count('provider_links')).toBe(0)
+  })
+
   it('is a no-op for an account with no link', async () => {
     const { h, garmin } = garminHarness()
     const token = await h.signIn()
@@ -129,6 +158,26 @@ describe("Garmin's deregistration notice", () => {
     expect(await count('inbox_items')).toBe(1)
   })
 
+  it('answers 503 when the link token cannot be opened, so Garmin sends it again', async () => {
+    const { h } = garminHarness()
+    const lost = `gone:${toBase64Url(new Uint8Array(32).fill(9))}`
+    await linked(h, 'lost@example.test', 'g-7', lost)
+    const res = await notice(h, { deregistrations: [{ userId: 'g-7', userAccessToken: ACCESS }] })
+    expect(res.status).toBe(503)
+    expect(await count('provider_links')).toBe(1)
+  })
+
+  it('answers 503 in read-only mode, so Garmin sends it again', async () => {
+    const { h } = garminHarness()
+    await linked(h)
+    const readOnly = createHarness({}, { ...GARMIN_ON, READ_ONLY: 'on' })
+    const res = await notice(readOnly, {
+      deregistrations: [{ userId: 'g-7', userAccessToken: ACCESS }],
+    })
+    expect(res.status).toBe(503)
+    expect(await count('provider_links')).toBe(1)
+  })
+
   it('refuses a body that is not a notice', async () => {
     const { h } = garminHarness()
     expect((await notice(h, { deregistrations: 'all' })).status).toBe(400)
@@ -151,6 +200,16 @@ describe('account deletion and the Garmin link', () => {
     const { token } = await linked(h)
     const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: token } })
     expect(res.status).toBe(204)
+    expect(await count('users')).toBe(0)
+  })
+
+  it('deregisters when maintenance finishes an interrupted deletion', async () => {
+    const { h } = garminHarness()
+    const { userId } = await linked(h)
+    await startAccountDeletion(h.env, userId, h.clock.now)
+    const garmin = fakeGarmin()
+    await runMaintenance(h.env, { ...at(h.clock.now), garmin: () => garmin })
+    expect(garmin.deregistered).toEqual([ACCESS])
     expect(await count('users')).toBe(0)
   })
 })

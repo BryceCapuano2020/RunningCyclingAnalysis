@@ -1,9 +1,11 @@
 import { Hono, type Context } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { z } from 'zod'
 import type { AppEnv } from '../env.ts'
 import { HttpError, accountDeleting } from '../errors.ts'
 import { limitBody } from '../http.ts'
+import { isReadOnly } from '../readOnly.ts'
 import { currentUser, requireUser } from '../middleware.ts'
 import { isSecure, loadSession } from '../auth/session.ts'
 import { toBase64Url, toHex } from '../util.ts'
@@ -48,26 +50,35 @@ async function hmacKey(c: Context<AppEnv>): Promise<CryptoKey> {
   )
 }
 
-/** What the state cookie's MAC covers: the state and the account that started the connect. */
-function bound(userId: string, state: string): Uint8Array {
-  return new TextEncoder().encode(`rca:garmin-connect:v1\u0000${userId}\u0000${state}`)
+/** What the state cookie's MAC covers: the state, when it was issued and the account that started the connect. */
+function bound(userId: string, state: string, issuedAt: string): Uint8Array {
+  return new TextEncoder().encode(
+    `rca:garmin-connect:v2\u0000${userId}\u0000${state}\u0000${issuedAt}`,
+  )
 }
 
-/** The state cookie: the state Garmin is sent, and a MAC that ties it to this account. */
+/** The state cookie: the state Garmin is sent, its issue time, and a MAC that ties both to this account. */
 async function stateCookie(c: Context<AppEnv>, userId: string, state: string): Promise<string> {
-  const mac = await crypto.subtle.sign('HMAC', await hmacKey(c), bound(userId, state))
-  return `${state}.${toBase64Url(new Uint8Array(mac))}`
+  const issuedAt = String(c.var.deps.now())
+  const mac = await crypto.subtle.sign('HMAC', await hmacKey(c), bound(userId, state, issuedAt))
+  return `${state}.${issuedAt}.${toBase64Url(new Uint8Array(mac))}`
 }
 
-/** Whether the cookie names this state for this account. The MAC is checked by WebCrypto, in constant time. */
+/**
+ * Whether the cookie names this state for this account, issued within the last ten minutes: the server holds the
+ * age, not only the browser's cookie life. The MAC is checked by WebCrypto, in constant time.
+ */
 async function stateHolds(
   c: Context<AppEnv>,
   cookie: string | undefined,
   userId: string,
   state: string | undefined,
 ): Promise<boolean> {
-  const [value, mac] = (cookie ?? '').split('.')
-  if (!value || !mac || value !== state || !/^[A-Za-z0-9_-]+$/.test(mac)) return false
+  const [value, issuedAt, mac, extra] = (cookie ?? '').split('.')
+  if (!value || !issuedAt || !mac || extra !== undefined || value !== state) return false
+  if (!/^\d{1,15}$/.test(issuedAt) || !/^[A-Za-z0-9_-]+$/.test(mac)) return false
+  const age = c.var.deps.now() - Number(issuedAt)
+  if (age < 0 || age > COOKIE_MAX_AGE_S * 1000) return false
   const base64 = mac.replace(/-/g, '+').replace(/_/g, '/')
   let bytes: Uint8Array
   try {
@@ -77,7 +88,7 @@ async function stateHolds(
   } catch {
     return false
   }
-  return crypto.subtle.verify('HMAC', await hmacKey(c), bytes, bound(userId, state))
+  return crypto.subtle.verify('HMAC', await hmacKey(c), bytes, bound(userId, state, issuedAt))
 }
 
 /** The app's Profile page with the outcome's code: never a message, a token or a Garmin id. */
@@ -85,14 +96,24 @@ function profileWith(c: Context<AppEnv>, code: string): string {
   return `${c.env.APP_URL.replace(/\/+$/, '')}/#/profile?garmin=${encodeURIComponent(code)}`
 }
 
+function notFound(): HttpError {
+  return new HttpError(404, 'not_found', 'Not found')
+}
+
+/** Off, connecting is not there at all: a 404 before the session is read, signed in or not. */
+const connectingOn = createMiddleware<AppEnv>(async (c, next) => {
+  if (!garminEnabled(c.env)) throw notFound()
+  await next()
+})
+
 function requireConnecting(c: Context<AppEnv>): void {
-  if (!garminEnabled(c.env)) throw new HttpError(404, 'not_found', 'Not found')
+  if (!garminEnabled(c.env)) throw notFound()
   if (!garminConfigured(c.env)) {
     throw new HttpError(503, 'garmin_unavailable', 'Garmin is not available right now')
   }
 }
 
-garminRoutes.get('/connect', requireUser, async (c) => {
+garminRoutes.get('/connect', connectingOn, requireUser, async (c) => {
   requireConnecting(c)
   const { deps } = c.var
   const state = toHex(deps.randomBytes(32))
@@ -113,6 +134,8 @@ async function finishConnect(
 ) {
   if (c.req.query('error'))
     throw new HttpError(400, 'oauth_denied', 'Garmin connection was cancelled')
+  // A GET that writes: the read-only switch stops it before the code is spent.
+  if (isReadOnly(c.env)) throw new HttpError(503, 'read_only', 'The service is read-only for now')
   const user = await loadSession(c)
   if (!user) throw new HttpError(401, 'unauthenticated', 'Sign in required')
   const state = c.req.query('state')
@@ -149,7 +172,7 @@ garminRoutes.get('/callback', async (c) => {
   const cookie = getCookie(c, STATE_COOKIE)
   const verifier = getCookie(c, VERIFIER_COOKIE)
   clearConnectCookies(c)
-  if (!garminEnabled(c.env)) throw new HttpError(404, 'not_found', 'Not found')
+  if (!garminEnabled(c.env)) throw notFound()
   try {
     requireConnecting(c)
     await finishConnect(c, cookie, verifier)
@@ -197,14 +220,24 @@ garminRoutes.post('/deregistration', limitBody(NOTICE_BODY_BYTES), async (c) => 
   const parsed = NoticeSchema.safeParse(body)
   if (!parsed.success)
     throw new HttpError(400, 'invalid_request', 'The notice is not a deregistration')
+  let unreadable = false
   for (const entry of parsed.data.deregistrations) {
     if (entry.userAccessToken === undefined) continue
     const link = await linkOfGarminUser(c.env.DB, entry.userId)
     if (link === null) continue
     const tokens = await tokensOf(c.env, link)
-    if (tokens === null || !sameToken(tokens.accessToken, entry.userAccessToken)) continue
-    await removeLink(c.env, c.var.deps.now(), link.userId)
+    // A link whose token cannot be opened (the key dropped) cannot be checked: Garmin is asked to send it again.
+    if (tokens === null) {
+      unreadable = true
+      continue
+    }
+    if (!sameToken(tokens.accessToken, entry.userAccessToken)) continue
+    await removeLink(c.env, c.var.deps.now(), link.userId, link.garminUserId)
   }
-  // Garmin is told it was heard whatever the outcome, so it stops sending a notice nothing will act on.
+  if (unreadable) {
+    console.error(JSON.stringify({ event: 'garmin_notice_unreadable_link' }))
+    throw new HttpError(503, 'garmin_unavailable', 'Garmin is not available right now')
+  }
+  // Otherwise Garmin is told it was heard, so it stops sending a notice nothing will act on.
   return c.body(null, 200)
 })
