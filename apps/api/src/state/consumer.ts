@@ -1,3 +1,4 @@
+import { MAX_ACTIVITIES_PER_USER } from '@rca/contract'
 import type { Bindings } from '../env.ts'
 import type { Deps } from '../deps.ts'
 import { isReadOnly } from '../readOnly.ts'
@@ -66,6 +67,8 @@ export async function handleStateBatch(
         JSON.stringify({
           event: 'state_job_failed',
           errorClass: error instanceof Error ? error.constructor.name : typeof error,
+          // A size bucket, no figure: tells an account too large for the isolate (it fails every try, daily) from a transient error.
+          activities: await activityBucket(env.DB, userId),
         }),
       )
       // One message carries the retry and the rest are spent: the retry reads the account as it is then, every write
@@ -77,4 +80,19 @@ export async function handleStateBatch(
     }
   }
   return report
+}
+
+/** The size class of an account's library, for the failure log: the account limit is 4,000. */
+async function activityBucket(db: D1Database, userId: string): Promise<string> {
+  try {
+    const row = await db
+      .prepare('SELECT activity_count AS n FROM users WHERE id = ?')
+      .bind(userId)
+      .first<{ n: number }>()
+    if (row === null) return 'unknown'
+    if (row.n > MAX_ACTIVITIES_PER_USER) return 'over_quota'
+    return row.n >= 3000 ? '3000_to_quota' : row.n >= 1000 ? '1000_to_2999' : 'under_1000'
+  } catch {
+    return 'unknown'
+  }
 }

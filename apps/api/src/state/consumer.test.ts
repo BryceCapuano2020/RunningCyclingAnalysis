@@ -1,3 +1,4 @@
+import { MAX_ACTIVITIES_PER_USER } from '@rca/contract'
 import { describe, expect, it, vi } from 'vitest'
 import { systemDeps } from '../deps.ts'
 import worker from '../index.ts'
@@ -54,7 +55,22 @@ describe('the state consumer', () => {
     expect(acked).toEqual([1])
     expect(retried).toEqual([{ id: 0, delaySeconds: 30 }])
     expect(log).toHaveBeenCalledOnce()
-    expect(log.mock.calls[0]?.[0]).toBe('{"event":"state_job_failed","errorClass":"Error"}')
+    expect(log.mock.calls[0]?.[0]).toBe(
+      '{"event":"state_job_failed","errorClass":"Error","activities":"under_1000"}',
+    )
+    log.mockRestore()
+  })
+
+  it('says in the failure log that an account is over the activity quota, by bucket and never by figure', async () => {
+    const w = await prepared()
+    await w.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER + 1, w.userId)
+      .run()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await handleStateBatch(fakeBatch([w.userId]).batch, { ...w.env, FILES: undefined }, w.deps)
+    expect(log.mock.calls[0]?.[0]).toBe(
+      '{"event":"state_job_failed","errorClass":"Error","activities":"over_quota"}',
+    )
     log.mockRestore()
   })
 

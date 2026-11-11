@@ -1,7 +1,7 @@
 import type { Bindings } from './env.ts'
 
 /**
- * Accounts compared in one run. Each is one aggregate over its activity rows (at most 5,000), and it
+ * Accounts compared in one run. Each is one aggregate over its activity rows (at most 4,000), and it
  * reads every digest row whole to sum their lengths, so the page stays small.
  */
 export const RECONCILE_USERS_PER_RUN = 5

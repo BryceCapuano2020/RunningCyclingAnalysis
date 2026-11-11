@@ -321,7 +321,11 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   48 MB; 5,000 at the old 64 MiB byte quota failed under 128 MB, which is why the quotas came down. CPU with no limit at
   2,000 activities was a median 1.4 s and at 5,000 a median 3.2 s (max 5.3 s). The lift sets are read in pages of 5,000
   after the digests (the check on `users.lift_count`, `MAX_LIFT_SETS_PER_USER`). If a larger account is ever admitted,
-  lower the quotas first: they are the memory bound.
+  lower the quotas first: they are the memory bound. **No account falls back to the browser any more**, so the release's
+  read-only check that no account is over the new quotas is what guards this: an account that does not fit the isolate
+  would fail its job on every try, reach the dead-letter queue and be re-sent and fail again each day. The failure log
+  line `state_job_failed` carries `activities`, a size bucket (`under_1000`, `1000_to_2999`, `3000_to_quota`, `over_quota`),
+  no figure and no data.
   The same library in Node (`state/memory.sim.test.ts`, the heap live after a collection at each D1 read and the R2 write,
   which is a floor since workerd adds its own): 15.8 MiB for 1,000 activities, 23.6 for 2,000, 29 to 35 for 3,000, and 74
   to 80 for the largest account. The sim fails above 96 MiB, and `state/memoryCases.test.ts` pins that it runs the account

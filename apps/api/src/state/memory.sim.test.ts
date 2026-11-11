@@ -1,5 +1,10 @@
 import { runInNewContext } from 'node:vm'
 import { setFlagsFromString, getHeapStatistics } from 'node:v8'
+import {
+  MAX_ACTIVITIES_PER_USER,
+  MAX_DIGEST_BYTES_PER_USER,
+  MAX_LIFT_SETS_PER_USER,
+} from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import { copiedLibrary } from '../../../../packages/core/src/test/libraryFixture'
 import { paddedToBytes } from '../test/librarySize.ts'
@@ -31,7 +36,14 @@ interface Library {
 }
 
 /** Seeds the account in a function of its own, so the fixture's objects are unreachable before the baseline is read. */
-async function seed(w: Awaited<ReturnType<typeof stateWorld>>, library: Library): Promise<number> {
+/** What the database holds of an account once seeded: the figures the quotas bound. */
+interface Stored {
+  activities: number
+  digestBytes: number
+  liftSets: number
+}
+
+async function seed(w: Awaited<ReturnType<typeof stateWorld>>, library: Library): Promise<Stored> {
   const { activities, digestBytes, liftSets } = library
   const fixture = copiedLibrary(activities, { hard: true })
   const digests = digestBytes === null ? fixture : paddedToBytes(fixture, digestBytes)
@@ -39,18 +51,21 @@ async function seed(w: Awaited<ReturnType<typeof stateWorld>>, library: Library)
   await seedDigests(w.env.DB, w.userId, digests)
   if (liftSets > 0) await seedLiftSets(w.env.DB, w.userId, liftSets)
   const stored = await w.env.DB.prepare(
-    'SELECT sum(length(digest_json)) AS bytes FROM activities WHERE user_id = ?',
+    `SELECT (SELECT count(*) FROM activities WHERE user_id = ?1) AS activities,
+            (SELECT coalesce(sum(length(digest_json)), 0) FROM activities WHERE user_id = ?1) AS digestBytes,
+            (SELECT count(*) FROM lift_sets WHERE user_id = ?1) AS liftSets`,
   )
     .bind(w.userId)
-    .first<{ bytes: number }>()
-  return stored!.bytes
+    .first<Stored>()
+  return stored!
 }
 
-async function measure(library: Library, limitMiB: number): Promise<void> {
+/** Runs the job on the seeded library and returns what the account held, so a case can assert it measured what it names. */
+async function measure(library: Library, limitMiB: number): Promise<Stored> {
   {
     const { activities, liftSets } = library
     const w = await stateWorld({ email: `memory-${activities}-${liftSets}@example.com` })
-    const storedBytes = await seed(w, library)
+    const stored = await seed(w, library)
     gc()
     const baseline = used()
     let peak = baseline
@@ -107,27 +122,34 @@ async function measure(library: Library, limitMiB: number): Promise<void> {
         event: 'state_job_memory',
         activities,
         liftSets,
-        digestMiB: Math.round((storedBytes / MiB) * 10) / 10,
+        digestMiB: Math.round((stored.digestBytes / MiB) * 10) / 10,
         peakHeapMiB: Math.round(peakMiB * 10) / 10,
       }),
     )
     expect(peakMiB).toBeLessThan(limitMiB)
+    return stored
   }
 }
 
 describe('the state job memory', () => {
-  it.each(SMALLER_LIBRARIES)('peak heap for a library of %i activities', (activities) =>
-    measure({ activities, digestBytes: null, liftSets: 0 }, ISOLATE_MIB / 2),
-  )
+  it.each(SMALLER_LIBRARIES)('peak heap for a library of %i activities', async (activities) => {
+    await measure({ activities, digestBytes: null, liftSets: 0 }, ISOLATE_MIB / 2)
+  })
 
   // Three quarters of the isolate, the 96 MB the workerd heap-limit run must pass; LIMITS.md records the figures.
-  it('peak heap for the largest account the quotas admit', () =>
-    measure(
+  it('peak heap for the largest account the quotas admit', async () => {
+    const ran = await measure(
       {
         activities: ACCOUNT_LIMIT_CASE.activities,
         digestBytes: ACCOUNT_LIMIT_CASE.digestBytes,
         liftSets: ACCOUNT_LIMIT_CASE.liftSets,
       },
       (ISOLATE_MIB * 3) / 4,
-    ))
+    )
+    // The case it ran is the account limits: every activity and lift set, and the byte quota to within a few percent.
+    expect(ran.activities).toBe(MAX_ACTIVITIES_PER_USER)
+    expect(ran.liftSets).toBe(MAX_LIFT_SETS_PER_USER)
+    expect(ran.digestBytes).toBeLessThanOrEqual(MAX_DIGEST_BYTES_PER_USER)
+    expect(ran.digestBytes).toBeGreaterThan(MAX_DIGEST_BYTES_PER_USER * 0.95)
+  })
 })

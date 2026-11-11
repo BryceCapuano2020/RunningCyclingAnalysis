@@ -17,9 +17,7 @@ describe('the memory measurement covers the account limits', () => {
     expect(Math.max(...SMALLER_LIBRARIES)).toBeLessThan(MAX_ACTIVITIES_PER_USER)
   })
 
-  it('is what the sim runs, and the lift cap is the one the database holds', () => {
-    const sim = readFileSync(new URL('./memory.sim.test.ts', import.meta.url), 'utf8')
-    expect(sim).toContain('ACCOUNT_LIMIT_CASE')
+  it('has a lift cap equal to the one the database holds', () => {
     const migration = readFileSync(
       new URL('../../migrations/0012_lift_sets.sql', import.meta.url),
       'utf8',

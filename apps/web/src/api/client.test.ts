@@ -3,6 +3,7 @@ import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import {
   CLIENT_HEADER,
   CLIENT_HEADER_VALUE,
+  MAX_ACTIVITIES_PER_USER,
   MAX_PAGE_DIGEST_BYTES,
   MAX_PAGE_SIZE,
 } from '@rca/contract'
@@ -608,6 +609,20 @@ describe('listActivities', () => {
       respond(200, { items: [RECORD_WIRE], nextCursor: 'same' }),
       respond(200, { items: [RECORD_WIRE], nextCursor: 'same' }),
     )
+    await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('still loads an account that is over the current activity quota, and stops at the fixed ceiling', async () => {
+    const full = Array.from({ length: MAX_PAGE_SIZE }, () => RECORD_WIRE)
+    const pages = (count: number) =>
+      Array.from({ length: count }, (_, i) =>
+        respond(200, { items: full, nextCursor: i === count - 1 ? null : `c${i}` }),
+      )
+    // One page more than the quota allows: the account was admitted when the quota was higher.
+    const over = Math.floor(MAX_ACTIVITIES_PER_USER / MAX_PAGE_SIZE) + 1
+    stubFetch(...pages(over))
+    expect(await listActivities()).toHaveLength(over * MAX_PAGE_SIZE)
+    stubFetch(...pages(Math.ceil(5000 / MAX_PAGE_SIZE) + 1))
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 

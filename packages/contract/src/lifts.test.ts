@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_LIFT_KEYS_PER_DELETE,
   MAX_LIFT_SETS_PER_WRITE,
+  MAX_LIFT_SETS_PER_USER as CORE_MAX_LIFT_SETS_PER_USER,
   LIFT_YEARS,
   liftSetKey,
   readLiftSet,
 } from '@rca/core/lift'
 import type { LiftSet } from '@rca/core/lift'
 import { LiftDeleteSchema, LiftPageSchema, LiftSetSchema, LiftWriteSchema } from './lifts.ts'
+import { MAX_LIFT_SETS_PER_USER } from './limits.ts'
 import { MEASUREMENT_YEARS } from './measurements.ts'
 
 const set: LiftSet = {
@@ -84,6 +86,11 @@ describe('LiftSetSchema', () => {
 
   it('uses the same years as dated settings', () => {
     expect(LIFT_YEARS).toEqual(MEASUREMENT_YEARS)
+  })
+
+  it('keeps core and the contract on one cap of sets per account', () => {
+    // Core cannot import the contract, so each holds the number; the database check (migration 0012) holds it too.
+    expect(CORE_MAX_LIFT_SETS_PER_USER).toBe(MAX_LIFT_SETS_PER_USER)
   })
 })
 
