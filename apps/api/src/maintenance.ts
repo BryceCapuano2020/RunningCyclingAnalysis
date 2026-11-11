@@ -2,7 +2,7 @@ import type { Bindings } from './env.ts'
 import type { Deps } from './deps.ts'
 import { finishAccountDeletion, pruneAccountTombstones } from './accountDeletion.ts'
 import { pruneDailyBudget, pruneUploadSlots } from './budget.ts'
-import { reconcileCounters } from './counterReconcile.ts'
+import { reconcileCounters, type ReconcileReport } from './counterReconcile.ts'
 import { pruneIdentityBudget } from './identityBudget.ts'
 import { SESSION_ABSOLUTE_MS } from './auth/session.ts'
 import { recordDatabaseSize, reserveR2Operation } from './storage.ts'
@@ -81,8 +81,9 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   const { finished, failed } = await finishPendingDeletions(bound, deps)
   // The sweep's first statement can reach the cap too, so the whole step is guarded.
   const orphansDeleted = bound.FILES ? await within(0, () => sweepOrphanObjects(bound, deps)) : 0
-  const reconciled = await within({ checked: 0, drifted: 0 }, () => reconcileCounters(bound, now))
   const stateResent = await within(0, () => resendDirty(bound, now))
+  // Report-only, so it runs last and a failure in it never stops another step.
+  const reconciled = await reconcileGuarded(bound, now)
   return {
     sessions,
     slots,
@@ -178,6 +179,22 @@ async function within<T>(fallback: T, step: () => Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof OperationBudgetExhausted) return fallback
     throw error
+  }
+}
+
+/** The counter check. An error in it ends only this step, logged as one line naming its class. */
+async function reconcileGuarded(env: Bindings, now: number): Promise<ReconcileReport> {
+  const none = { checked: 0, drifted: 0 }
+  try {
+    return await within(none, () => reconcileCounters(env, now))
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'counter_reconcile_failed',
+        errorClass: error instanceof Error ? error.constructor.name : typeof error,
+      }),
+    )
+    return none
   }
 }
 

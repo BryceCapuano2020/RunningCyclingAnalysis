@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RECONCILE_USERS_PER_RUN, reconcileCounters } from './counterReconcile.ts'
 import { runMaintenance } from './maintenance.ts'
 import { createHarness, START } from './test/harness.ts'
+import { stateWorld } from './test/stateKit.ts'
 import { addActivity, at, signedInUser } from './test/maintenance.ts'
 
 afterEach(() => vi.restoreAllMocks())
@@ -66,6 +67,28 @@ describe('reconcileCounters', () => {
     expect(await reconcileCounters(h.env, START)).toEqual({ checked: 0, drifted: 0 })
   })
 
+  it('counts pages without the accounts being deleted, so no day reads an empty page', async () => {
+    const h = createHarness()
+    const total = RECONCILE_USERS_PER_RUN * 2
+    await h.env.DB.batch(
+      Array.from({ length: total }, (_, i) =>
+        h.env.DB.prepare(
+          'INSERT INTO users (id, email, name, created_at, deleting_at) VALUES (?, ?, ?, ?, ?)',
+        ).bind(
+          `u${String(i).padStart(3, '0')}`,
+          `u${i}@example.com`,
+          `User ${i}`,
+          START,
+          i < RECONCILE_USERS_PER_RUN ? null : START,
+        ),
+      ),
+    )
+    for (let day = 0; day < 3; day += 1) {
+      const report = await reconcileCounters(h.env, START + day * 24 * 60 * 60 * 1000)
+      expect(report.checked).toBe(RECONCILE_USERS_PER_RUN)
+    }
+  })
+
   it('reads one page of accounts a run and moves to the next page the next day', async () => {
     const h = createHarness()
     const total = RECONCILE_USERS_PER_RUN + 3
@@ -91,5 +114,28 @@ describe('reconcileCounters', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const report = await runMaintenance(h.env, at(START))
     expect(report).toMatchObject({ countersChecked: 1, countersDrifted: 1 })
+  })
+
+  it('fails alone in the daily pass: the re-send still runs and the log names only the error class', async () => {
+    const w = await stateWorld()
+    const failing = new Proxy(w.env.DB, {
+      get(target, property) {
+        if (property === 'prepare') {
+          return (query: string) => {
+            if (query.includes('WITH page AS')) throw new TypeError(`no such table: ${w.userId}`)
+            return target.prepare(query)
+          }
+        }
+        const value: unknown = Reflect.get(target, property, target)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const report = await runMaintenance({ ...w.env, DB: failing }, w.deps)
+    expect(report).toMatchObject({ stateResent: 1, countersChecked: 0, countersDrifted: 0 })
+    expect(w.sent).toHaveLength(1)
+    expect(error.mock.calls.map(([line]) => JSON.parse(String(line)))).toEqual([
+      { event: 'counter_reconcile_failed', errorClass: 'TypeError' },
+    ])
   })
 })

@@ -1,7 +1,10 @@
 import type { Bindings } from './env.ts'
 
-/** Accounts compared in one run. Each is one aggregate over its activity rows (at most 5,000). */
-export const RECONCILE_USERS_PER_RUN = 10
+/**
+ * Accounts compared in one run. Each is one aggregate over its activity rows (at most 5,000), and it
+ * reads every digest row whole to sum their lengths, so the page stays small.
+ */
+export const RECONCILE_USERS_PER_RUN = 5
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export interface ReconcileReport {
@@ -28,12 +31,18 @@ interface Row {
  * never be below. Changes nothing. It logs one line for each account that differs, naming the
  * counters and never their values, and the caller logs the totals.
  *
- * One page of accounts per run, ordered by id. The page follows the day number, so the whole table
- * is covered over successive days without a saved cursor. Accounts being deleted are skipped: their
- * rows go in chunks.
+ * A create or a label write in flight while the check reads can show a brief mismatch: `digest_bytes`
+ * is reserved before the row is written. One report alone is noise; the same account reported on
+ * its next turn is drift.
+ *
+ * One page of accounts per run, ordered by id. The page follows the day number, so the table is
+ * covered over successive days without a saved cursor. Accounts being deleted are skipped (their
+ * rows go in chunks) and left out of the page count, so no page is empty.
  */
 export async function reconcileCounters(env: Bindings, now: number): Promise<ReconcileReport> {
-  const total = await env.DB.prepare('SELECT count(*) AS n FROM users').first<{ n: number }>()
+  const total = await env.DB.prepare(
+    'SELECT count(*) AS n FROM users WHERE deleting_at IS NULL',
+  ).first<{ n: number }>()
   const users = total?.n ?? 0
   if (users === 0) return { checked: 0, drifted: 0 }
   const pages = Math.ceil(users / RECONCILE_USERS_PER_RUN)

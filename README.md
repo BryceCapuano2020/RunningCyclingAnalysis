@@ -163,7 +163,7 @@ importers are checked against real device files in [docs/validation/devices.md](
 
 ## Development
 
-Requires Node 22.
+Requires Node 22.13 or later (the migration tests use `node:sqlite`).
 
 ```bash
 npm install
