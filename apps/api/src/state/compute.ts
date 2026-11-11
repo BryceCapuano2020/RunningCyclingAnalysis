@@ -3,7 +3,7 @@ import { withViewerZone } from '@rca/core/calendar'
 import { computeSnapshot } from '@rca/core/stateCompute'
 import type { StateSnapshot } from '@rca/core/stateSnapshot'
 import { BUILD_SHA } from '../buildInfo.ts'
-import type { StateInputs } from './inputs.ts'
+import type { StateInputs } from './stateInputs.ts'
 import { zoneNamed } from './zone.ts'
 
 /** The zone the days are cut in while the browser has reported none. */

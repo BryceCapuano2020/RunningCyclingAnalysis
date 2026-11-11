@@ -1,6 +1,7 @@
 # Server compute: results ready before the page opens
 
-Status: designed and approved by the owner on 9 Nov 2026 (section 7). S1 to S3 built; S5 (the browser reads the snapshot) built; S4 (server) built and off for
+Status: designed and approved by the owner on 9 Nov 2026 (section 7). Amended 10 Nov by [server-authority.md](server-authority.md): the server is the only source of an
+account's results, with no browser fallback; where the two disagree, that note wins. S1 to S3 built; S5 (the browser reads the snapshot) built; S4 (server) built and off for
 everyone (`SERVER_COMPUTE_USERS` empty, no queue bound in production) until the owner is on Workers Paid; then it runs for
 listed accounts only. Written 9 Nov 2026
 against main 34de84bc.
@@ -168,9 +169,10 @@ All four approved.
 
 ## 8. Open items
 
-- **S6 (the hourly refresh) is not built.** Until it is, a lost queue message or an exhausted retry leaves the account
-  dirty until its next write, and a snapshot that has aged past its local day is not refreshed.
-- **A snapshot-version or `MODEL_REVISION` change needs a write to recompute.** The job compares `library_version` only, so
-  after such a change an account's snapshot is old (the browser reads it as not current and computes locally) until the
-  account writes.
+- **S6 (the hourly refresh) is not built, and compute on read covers most of it.** `GET /api/state` computes in the
+  request when the stored snapshot is behind the library version, the lift revision, this build's analysis revision or
+  the local day (docs/design/server-authority.md, "Compute on read"), so a lost queue message or an aged snapshot is
+  fixed by the account's next open. An account nobody opens stays as it was until its next write or the daily re-send.
+- **A snapshot-version or `MODEL_REVISION` change recomputes on the next read**, since the row's analysis revision is
+  compared on every read and a lower one is computed again.
 - A client could mark a snapshot older than a pending job from `X-State-Computed-Version`; it is sent, not yet used.

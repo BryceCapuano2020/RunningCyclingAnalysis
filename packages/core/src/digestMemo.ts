@@ -14,6 +14,11 @@ export function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean
  * function whose answer a caller changes should return a copy (`copy`). The list is copied, so a caller that later
  * changes its own array cannot make a stale answer match. An answer also holds only while the calendar (local weeks
  * on or off, the viewer's zone) is the one it was made under.
+ *
+ * The rule, for a process that serves many accounts: `sameInput` must compare every input `compute` reads besides the
+ * digests (masses, kept power, references, gate, the day), and the calendar is compared here. A memo that leaves one out
+ * serves one account's answer to another with the same digests. Settings that a function does not read are the only
+ * ones left out, and the comment on the memo says which.
  */
 export function memoByDigests<I, R>(
   compute: (digests: ActivityDigest[], input: I) => R,
