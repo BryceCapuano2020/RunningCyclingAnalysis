@@ -391,6 +391,23 @@ To turn it off again, empty the secret (`wrangler secret put` with an empty list
 blocks: queued messages are dropped by a consumer that finds the account unlisted. The consumer logs one `state_batch` line per
 batch with counts only.
 
+## Garmin sync (off)
+
+Garmin sync (docs/design/garmin-sync.md) is built to G3 against a fake Garmin and **off**: `GARMIN_ENABLED` is unset,
+and `check-deploy-config` refuses it on in `wrangler.toml` until the Garmin release (G6) removes that check. Off,
+connecting answers 404; disconnect, Garmin's deregistration notice and account deletion still remove a link. Nothing
+below is set today, and no change sets it: at G6 the owner sets the client id as a plain variable and
+`GARMIN_CLIENT_SECRET` and `PROVIDER_TOKEN_KEY` as Worker secrets (`wrangler secret put`).
+
+| Setting                | Kind           | Value                                                                                                                                                                                                                       |
+| ---------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GARMIN_ENABLED`       | Plain variable | `true` turns connecting on (G6).                                                                                                                                                                                            |
+| `GARMIN_CLIENT_ID`     | Plain variable | Garmin's OAuth client id, once Garmin issues one.                                                                                                                                                                           |
+| `GARMIN_CLIENT_SECRET` | Worker secret  | Garmin's OAuth client secret.                                                                                                                                                                                               |
+| `PROVIDER_TOKEN_KEY`   | Worker secret  | `id:key`, comma separated, each key 32 random bytes in base64url (`openssl rand 32 \| basenc --base64url`). The first seals; to rotate, put a new key first and keep the old one until no `provider_links.key_id` names it. |
+
+Losing `PROVIDER_TOKEN_KEY` loses no activity: the links can no longer be read, so each athlete connects Garmin again.
+
 ## Read-only switch and abuse response
 
 **The switch.** The plain Worker variable `READ_ONLY` ("true", "1" or "on", any case) makes the API refuse every request that

@@ -6,6 +6,7 @@ import { GOOGLE_PROVIDER } from './auth/accounts.ts'
 import { identityKeyFor } from './auth/signupGate.ts'
 import { saveCountsStatement } from './identityBudget.ts'
 import { stateKey } from './state/key.ts'
+import { deregisterQuietly, linkOf } from './garmin/link.ts'
 
 /**
  * How long a deleted account's tombstone is kept: longer than the 90-day backup archives, so a
@@ -76,6 +77,9 @@ export async function finishAccountDeletion(
   const sweep = pending.sweep_pending === 1
 
   if (sweep) await sweepBeforeDelete(env, deps, userId)
+  // Garmin is asked to stop sending first, while the link's tokens still exist; it never blocks the deletion.
+  const garmin = await linkOf(db, userId)
+  if (garmin !== null) await deregisterQuietly(env, deps, garmin)
   await deleteUserKeepingCounts(env, deps, userId)
 
   try {

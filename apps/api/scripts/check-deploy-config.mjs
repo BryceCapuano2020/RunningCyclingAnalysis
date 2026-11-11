@@ -26,6 +26,12 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
     )
   }
   checkServerState(config, readString('SERVER_COMPUTE_USERS'))
+  // Garmin sync is built switched off (docs/design/garmin-sync.md); its release (G6) is the change that removes this.
+  if (['true', '1', 'on'].includes((readString('GARMIN_ENABLED') ?? '').trim().toLowerCase())) {
+    throw new Error(
+      'GARMIN_ENABLED stays off in production until the Garmin release (garmin-sync.md G6).',
+    )
+  }
   if (allowUnconfiguredOrigin) return
   const origin = readString('APP_URL')
   let url

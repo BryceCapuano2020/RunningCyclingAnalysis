@@ -36,7 +36,7 @@ outside development returns 503.
 | Binding               | Namespace id | Limit per 60 s | Key                                 | Applied to                                                                    |
 | --------------------- | ------------ | -------------: | ----------------------------------- | ----------------------------------------------------------------------------- |
 | `API_RATE_LIMITER`    | 27101        |          1,200 | `ip:` plus the Cloudflare client IP | Every `/api/*` request (`publicRateLimit`, `src/rateLimit.ts`)                |
-| `AUTH_RATE_LIMITER`   | 27102        |             30 | `auth:` plus the client IP          | `/api/auth/*` except logout (`publicRateLimit`)                               |
+| `AUTH_RATE_LIMITER`   | 27102        |             30 | `auth:` plus the client IP          | `/api/auth/*` except logout, and `/api/garmin/*` (`publicRateLimit`)          |
 | `WRITE_RATE_LIMITER`  | 27103        |            600 | `user:` plus the user id            | Authenticated requests other than GET, HEAD and OPTIONS (`accountWriteLimit`) |
 | `HEALTH_RATE_LIMITER` | 27104        |              1 | `health:` plus the client IP        | `GET /api/health/deep` (`healthRateLimit`, used in `src/routes/health.ts`)    |
 
@@ -314,6 +314,15 @@ a dead-letter queue (docs/PRODUCTION.md lists every resource). The design is doc
   (`users.library_version` above `state_jobs.computed_version`) until the next write or the daily maintenance, which sends one message for each listed account left dirty with
   none on its way (a daily stand-in for the hourly refresh, S6, which is not built).
 
+## Garmin sync (switched off)
+
+Built against a fake Garmin and off: `GARMIN_ENABLED` is unset in production and the deploy-config check refuses it on
+(docs/design/garmin-sync.md section 5a). Off, `GET /api/garmin/connect` and its callback are 404; disconnect
+(`DELETE /api/garmin`) and Garmin's deregistration notice (`POST /api/garmin/deregistration`) still remove a link, so no
+link is ever stranded. The notice's body is at most 64 KiB and 100 entries, it carries no session and no CSRF header,
+and it acts only on an entry whose access token matches the link's, so it costs at most one row read and one token
+check an entry. Each account holds one link. The inbox caps (200 items, 200 MiB) arrive with the push receiver (G4).
+
 ## Other per-user limits
 
 | Limit                       | Value                       | Enforcement                                                                                                                                              |
@@ -454,8 +463,10 @@ of them.
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
 - Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
 - Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
-- Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
+- Deletes up to 90 expired Garmin inbox rows a run: `done` and stale `pending` ones after 7 days, `failed` ones and their files after 30 (`src/inbox/expiry.ts`): one D1 statement and at most one R2 delete.
+- Sweeps two pages of 90 keys per run for R2 objects that no activity row, results job or inbox row names, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
+- An account deletion with a Garmin link first asks Garmin to deregister it: one call, five seconds at most, that never stops the deletion.
 
 Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIONS`, which is **45** per run, below the Workers Free limit of 50 subrequests per invocation. A step that reaches the cap stops, and the next run resumes from its saved state. CPU is not measured.
 
@@ -481,48 +492,50 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 
 ## Error codes
 
-| Status | Code                       | Meaning                                                                                                                            |
-| ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                                         |
-| 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                                       |
-| 409    | `account_deleting`         | Sign-in, or an upload or create whose deletion began after its session check. New.                                                 |
-| 403    | `activity_quota`           | 5,000 activities reached.                                                                                                          |
-| 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                   |
-| 429    | `rate_limited`             | Per-minute limiter.                                                                                                                |
-| 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                                                                     |
-| 429    | `upload_in_progress`       | Two uploads already in progress. New. `Retry-After: 5`.                                                                            |
-| 429    | `storage_budget_exhausted` | Deployment R2 ledger refused the call. The message is generic; the cap is logged as `storage_budget_refused`.                      |
-| 411    | `length_required`          | Original-file upload without a Content-Length header.                                                                              |
-| 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                         |
-| 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                       |
-| 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                                              |
-| 503    | `database_full`            | Database over 450 MiB; new activities and growing upgrades are refused until the recorded size falls.                              |
-| 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                       |
-| 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                |
-| 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                                              |
-| 400    | `bad_request`              | Malformed `Content-Length` header.                                                                                                 |
-| 400    | `invalid_json`             | Request body is not valid JSON.                                                                                                    |
-| 400    | `invalid_request`          | Body fails the contract schema, or a library cursor is malformed.                                                                  |
-| 400    | `empty_file`               | Original-file upload with an empty body.                                                                                           |
-| 400    | `length_mismatch`          | Body is shorter or longer than its `Content-Length`.                                                                               |
-| 400    | `oauth_denied`             | Google sign-in was cancelled.                                                                                                      |
-| 400    | `oauth_missing_code`       | Google returned no authorization code.                                                                                             |
-| 400    | `oauth_state_mismatch`     | Sign-in state is missing or does not match, usually an expired sign-in attempt.                                                    |
-| 400    | `bad_encoding`             | The body is named gzip and is not valid gzip.                                                                                      |
-| 400    | `unsupported_encoding`     | Original-file upload with a `Content-Encoding` other than gzip or identity.                                                        |
-| 400    | `oauth_token_expired`      | Google ID token has expired.                                                                                                       |
-| 403    | `csrf_rejected`            | Non-GET `/api` request without `X-RCA-Client: web`.                                                                                |
-| 403    | `email_not_verified`       | Google account email is not verified.                                                                                              |
-| 404    | `no_file`                  | Activity has no stored original, or the stored file is missing.                                                                    |
-| 408    | `body_timeout`             | Request body stopped arriving (15-second idle limit, two-minute total limit).                                                      |
-| 409    | `account_conflict`         | Google sign-in: the email is already linked to a different Google account.                                                         |
-| 409    | `files_disabled`           | Original-file upload or download while 'Keep original files' is off.                                                               |
-| 413    | `text_too_long`            | A digest's name, id, session key or a flag message is over its byte cap (see "Free text in a digest").                             |
-| 503    | `read_only`                | The operator's read-only switch is on: writes and new sign-ins are refused (see docs/PRODUCTION.md).                               |
-| 413    | `digest_too_large`         | Activity digest over 256 KiB.                                                                                                      |
-| 429    | `health_probe_limit`       | Deep health probe budget spent. The deep-health route turns this into a 200 `skipped` response, so clients do not normally see it. |
-| 500    | `internal_error`           | Unexpected error. The response carries the request id; the log carries only the id and the exception class.                        |
-| 502    | `oauth_exchange_failed`    | Google code exchange failed.                                                                                                       |
-| 502    | `oauth_bad_id_token`       | Google returned an ID token that failed validation.                                                                                |
-| 503    | `file_storage_unavailable` | The deployment has no file storage binding, or R2 is unavailable.                                                                  |
-| other  | `http_error`               | Other framework HTTP errors that are not 400.                                                                                      |
+| Status | Code                       | Meaning                                                                                                                                |
+| ------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                                             |
+| 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                                           |
+| 409    | `account_deleting`         | Sign-in, or an upload or create whose deletion began after its session check. New.                                                     |
+| 409    | `garmin_linked_elsewhere`  | Garmin connect: that Garmin account is linked to another account. Sent as `#/profile?garmin=<code>`, as every connect outcome is. New. |
+| 503    | `garmin_unavailable`       | Garmin connect with `GARMIN_ENABLED` on but no client id or no valid `PROVIDER_TOKEN_KEY`. New.                                        |
+| 403    | `activity_quota`           | 5,000 activities reached.                                                                                                              |
+| 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                       |
+| 429    | `rate_limited`             | Per-minute limiter.                                                                                                                    |
+| 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                                                                         |
+| 429    | `upload_in_progress`       | Two uploads already in progress. New. `Retry-After: 5`.                                                                                |
+| 429    | `storage_budget_exhausted` | Deployment R2 ledger refused the call. The message is generic; the cap is logged as `storage_budget_refused`.                          |
+| 411    | `length_required`          | Original-file upload without a Content-Length header.                                                                                  |
+| 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                             |
+| 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                           |
+| 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                                                  |
+| 503    | `database_full`            | Database over 450 MiB; new activities and growing upgrades are refused until the recorded size falls.                                  |
+| 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                           |
+| 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                    |
+| 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                                                  |
+| 400    | `bad_request`              | Malformed `Content-Length` header.                                                                                                     |
+| 400    | `invalid_json`             | Request body is not valid JSON.                                                                                                        |
+| 400    | `invalid_request`          | Body fails the contract schema, or a library cursor is malformed.                                                                      |
+| 400    | `empty_file`               | Original-file upload with an empty body.                                                                                               |
+| 400    | `length_mismatch`          | Body is shorter or longer than its `Content-Length`.                                                                                   |
+| 400    | `oauth_denied`             | Google sign-in was cancelled.                                                                                                          |
+| 400    | `oauth_missing_code`       | Google returned no authorization code.                                                                                                 |
+| 400    | `oauth_state_mismatch`     | Sign-in state is missing or does not match, usually an expired sign-in attempt.                                                        |
+| 400    | `bad_encoding`             | The body is named gzip and is not valid gzip.                                                                                          |
+| 400    | `unsupported_encoding`     | Original-file upload with a `Content-Encoding` other than gzip or identity.                                                            |
+| 400    | `oauth_token_expired`      | Google ID token has expired.                                                                                                           |
+| 403    | `csrf_rejected`            | Non-GET `/api` request without `X-RCA-Client: web`.                                                                                    |
+| 403    | `email_not_verified`       | Google account email is not verified.                                                                                                  |
+| 404    | `no_file`                  | Activity has no stored original, or the stored file is missing.                                                                        |
+| 408    | `body_timeout`             | Request body stopped arriving (15-second idle limit, two-minute total limit).                                                          |
+| 409    | `account_conflict`         | Google sign-in: the email is already linked to a different Google account.                                                             |
+| 409    | `files_disabled`           | Original-file upload or download while 'Keep original files' is off.                                                                   |
+| 413    | `text_too_long`            | A digest's name, id, session key or a flag message is over its byte cap (see "Free text in a digest").                                 |
+| 503    | `read_only`                | The operator's read-only switch is on: writes and new sign-ins are refused (see docs/PRODUCTION.md).                                   |
+| 413    | `digest_too_large`         | Activity digest over 256 KiB.                                                                                                          |
+| 429    | `health_probe_limit`       | Deep health probe budget spent. The deep-health route turns this into a 200 `skipped` response, so clients do not normally see it.     |
+| 500    | `internal_error`           | Unexpected error. The response carries the request id; the log carries only the id and the exception class.                            |
+| 502    | `oauth_exchange_failed`    | Google code exchange failed.                                                                                                           |
+| 502    | `oauth_bad_id_token`       | Google returned an ID token that failed validation.                                                                                    |
+| 503    | `file_storage_unavailable` | The deployment has no file storage binding, or R2 is unavailable.                                                                      |
+| other  | `http_error`               | Other framework HTTP errors that are not 400.                                                                                          |
