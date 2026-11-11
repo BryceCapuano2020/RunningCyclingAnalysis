@@ -762,16 +762,19 @@ those backups expire.
 
 ### Setting up backups (owner)
 
-Agents never create tokens or secrets, so every step here is yours. State on 10 Nov 2026: the
-environments `production` and `backup` exist, no repository or environment secrets are set,
-`ops/backup-recipient.txt` is still the placeholder, and `RCA_BACKUP_ENABLED` is unset. Do the steps
-in order. The scheduled run starts only at step 7. This section also covers the uptime probe
-(`RCA_UPTIME_ENABLED`, already `true`).
+Agents never create tokens or secrets, so the token, secret and key steps here are yours. Do the
+steps in order. The scheduled run starts only at step 7. This section also covers the uptime probe
+(`RCA_UPTIME_ENABLED`). The starting state when this was written (10 Nov 2026) is in the drill log
+of [scripts/ops/restore.md](../scripts/ops/restore.md#drill-log).
+
+Releases run from local Wrangler today. The `production` environment secrets (`CLOUDFLARE_API_TOKEN`
+and `CLOUDFLARE_ACCOUNT_ID`, see Environments above) are needed only if `deploy.yml` is used.
 
 1. **Check the `backup` environment** (Settings, Environments): no required reviewers, because
    scheduled runs cannot wait for approval, and deployment branches limited to `main`.
 2. **Create two Cloudflare tokens.** Name them for the backup and do not reuse the deploy token.
-   - API token (My Profile, API Tokens, Custom token): Account, D1, Edit and Account, Account Settings, Read. Limit it to this account.
+   - API token (My Profile, API Tokens, Custom token): Account > D1 > Edit, and Account > Account
+     Settings > Read. Limit it to this account.
    - R2 token (R2, Manage API tokens): permission Object Read only, on the bucket `rca-files`. It
      gives an Access Key ID and a Secret Access Key, shown once.
 3. **Add four secrets to the `backup` environment** (Settings, Environments, backup, Environment
@@ -782,11 +785,13 @@ in order. The scheduled run starts only at step 7. This section also covers the 
 4. **Make the age key on your own machine**, never in CI: `age-keygen -o backup-key.txt`. Copy the
    `age1...` line after `# public key:` onto the placeholder line of `ops/backup-recipient.txt`, check
    it with `node scripts/ops/check-backup-recipient.mjs ops/backup-recipient.txt`, and commit it
-   through a pull request that merges to `main`. Move `backup-key.txt` (the private key) to an
+   through a pull request that merges to `main` (you, or an agent, can open it with your public key;
+   only the key generation and custody are yours). Move `backup-key.txt` (the private key) to an
    offline store, with a second copy somewhere separate. Never put it in the repository or in GitHub
    secrets: without it, no backup can be decrypted.
 5. **Run one backup by hand**, after the recipient is on `main`:
-   `gh workflow run backup.yml --ref main`, then `gh run watch` on the run it starts.
+   `gh workflow run backup.yml --ref main`, then `gh run list --workflow backup.yml --limit 1` for the
+   run id and `gh run watch <run-id>`.
 6. **Check it worked.** The run is green, its summary names an `rca-backup-<run-id>` archive, and
    `gh run download <run-id> -n rca-backup-<run-id> -D <private dir>` gives one `.tar.gz.age` file
    that starts with `age-encryption.org/v1`. Then do steps 1 and 2 of

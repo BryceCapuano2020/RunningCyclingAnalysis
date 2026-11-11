@@ -128,9 +128,10 @@ or the privacy contact log and delete them by hand.
 
 ## 6. Verify row counts and sample digests
 
-Compare the counts with the manifest's `d1.rows`. The two differ by exactly the accounts step 5
-deleted (their rows cascade), `sessions` is 0 and `account_tombstones` has the rows step 5 added. A table whose count is off for any other reason
-is a failed restore. This lists every table the manifest counts:
+Compare the counts with the manifest's `d1.rows`. The restored counts differ from the manifest only
+by the accounts step 5 deleted (their rows cascade), `sessions` at 0 and the tombstones step 5
+added to `account_tombstones`. A table whose count is off for any other reason is a failed restore.
+This lists every table the manifest counts:
 
 ```bash
 jq -r '.d1.rows | to_entries[] | "\(.key) \(.value)"' "$WORK/manifest.json"
@@ -140,9 +141,10 @@ for table in $(jq -r '.d1.rows | keys[]' "$WORK/manifest.json"); do
 done
 ```
 
-Run the foreign-key and quick checks (D1 does not allow `PRAGMA integrity_check`, which fails with
-`SQLITE_AUTH`; `prepare-d1-restore.mjs` already ran the full one on the export in step 2), then
-sample digests. Both pragmas must return no problems:
+Run the foreign-key and quick checks, then sample digests. Both pragmas must return no problems.
+(`PRAGMA integrity_check` failed with `SQLITE_AUTH` on local D1 in the 10 Nov 2026 drill, so this
+runbook uses `quick_check`; remote D1 has not been tried. `prepare-d1-restore.mjs` already ran the
+full check on the export in step 2.)
 
 ```bash
 npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
@@ -262,10 +264,14 @@ then `tar` and `age` with a throwaway key, and step 1 decrypted that archive.
 
 The source held every migration (0000 to 0017) and a synthetic library at about production scale: five
 accounts, one with 1,900 activities and 400 lift sets, 2,000 activities in all, 12 MB of export SQL
-(10 MB of digest JSON, copied from the 24 digests of `copiedLibrary`). Counters matched the rows.
+(10 MB of digest JSON, copied from the 24 digests of `copiedLibrary` in `packages/core/src/test/libraryFixture.ts`). Counters matched the rows.
 One account was mid-deletion (`users.deleting_at`), one had a `pending_account_deletions` row, one
 tombstone existed, and a third account was deleted after the export so that step 5 had a live
 tombstone to replay. The live database was the source itself.
+
+Starting state of the production switch-on at that date: the environments `production` and `backup`
+existed, no repository or environment secrets were set, `ops/backup-recipient.txt` was the
+placeholder, and `RCA_BACKUP_ENABLED` was unset.
 
 | Step | What                                                    | Time                                     |
 | ---- | ------------------------------------------------------- | ---------------------------------------- |
@@ -293,8 +299,9 @@ check and quick check returned nothing, all digests were valid JSON, and both co
 
 What was wrong or unclear in the runbook, now fixed above:
 
-- `PRAGMA integrity_check` fails on D1 with `SQLITE_AUTH`, and step 6 only said to "run the integrity
-  check". Step 6 now runs `PRAGMA quick_check` and says the full check ran on the export in step 2.
+- `PRAGMA integrity_check` fails with `SQLITE_AUTH` on local D1 (remote behaviour unconfirmed), and
+  step 6 only said to "run the integrity check". Step 6 now runs `PRAGMA quick_check` and says the
+  full check ran on the export in step 2.
 - The step 6 table loop listed six tables, missed `lift_sets` and every later table, and did not say
   the counts differ from the manifest by the deleted accounts. It now loops over the manifest's own
   tables and says what the expected differences are.
@@ -307,7 +314,8 @@ What was wrong or unclear in the runbook, now fixed above:
 
 Still needed for a production drill: a scratch remote database (`wrangler d1 create`), a Cloudflare
 token with D1 export and edit rights (the token on the owner's machine failed export with code 10000),
-the first real backup artifact and the offline age key, a scratch R2 bucket for step 7, and the
+the first real backup artifact and the offline age key, a scratch R2 bucket for step 7, a check that
+`PRAGMA quick_check` runs on remote D1 (step 6 depends on it), and the
 Part B Time Travel rewind on a scratch database, which was not run. The switch-on steps are in
 [docs/PRODUCTION.md](../../docs/PRODUCTION.md#setting-up-backups-owner).
 
