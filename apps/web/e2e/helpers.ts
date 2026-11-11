@@ -143,18 +143,27 @@ export function fixturePath(name: string): string {
 }
 
 /**
- * Collects console errors and uncaught page errors. Attach before navigating. A 404 from `GET /api/state` is not one: it is
- * how the server says it has no snapshot for the account (results off, or none made yet), which the page handles, but the
- * browser logs every failed request.
+ * Collects console errors and uncaught page errors. Attach before navigating. Two lines about the app's own API are not errors.
+ * A 404 from `GET /api/state` is how the server says it has no snapshot for the account (results off, or none made yet), which
+ * the page handles, but the browser logs every failed request. And WebKit logs "due to access control checks" for an `/api/`
+ * fetch it cancels when the page is reloaded or left while the read is in flight (the results, the library list or the account
+ * lookup): a cancelled request, not a fault of the app.
  */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = []
+  const webkit = page.context().browser()?.browserType().name() === 'webkit'
+  const cancelled = (text: string) =>
+    webkit && /\/api\/[\w/?=&.-]* due to access control checks\.?$/.test(text)
   page.on('console', (message) => {
     const answerOfState =
       /\/api\/state$/.test(message.location().url) && /\b404\b/.test(message.text())
-    if (message.type() === 'error' && !answerOfState) errors.push(message.text())
+    if (message.type() === 'error' && !answerOfState && !cancelled(message.text())) {
+      errors.push(message.text())
+    }
   })
-  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('pageerror', (error) => {
+    if (!cancelled(error.message)) errors.push(error.message)
+  })
   return errors
 }
 

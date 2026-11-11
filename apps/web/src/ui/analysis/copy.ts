@@ -17,6 +17,9 @@ export const SAVES_PAUSED = 'Too many saves at once. Saving resumes in about a m
 /** A delete asked for before the library it would change has loaded. Nothing is removed. */
 export const LIBRARY_NOT_READY =
   'Your library is still loading, so nothing was deleted. Try again in a moment.'
+/** A rename asked for before the library it would change has loaded. The name stays as it was. */
+export const RENAME_LIBRARY_NOT_READY =
+  'Your library is still loading, so the name was not changed. Try again in a moment.'
 export const DEVICE_NOT_LOADED =
   'Your kept results could not be loaded in this browser, so these files were not added. Add them again.'
 export const LIBRARY_NOT_LOADED =

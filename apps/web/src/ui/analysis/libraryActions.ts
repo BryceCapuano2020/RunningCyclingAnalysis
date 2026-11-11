@@ -7,6 +7,7 @@ import {
   exportFailureText,
   LIBRARY_NOT_LOADED,
   LIBRARY_NOT_READY,
+  RENAME_LIBRARY_NOT_READY,
   SIGN_IN_TO_EXPORT,
   SPLITS_NOT_LOADED,
   STOPPED,
@@ -103,24 +104,27 @@ export function useLibraryActions({
    * (null). Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until then the
    * change says why nothing happened, rather than closing without a word. Undefined when it cannot be made now.
    */
-  const changeScope = useCallback((): { userId: string | null } | undefined => {
-    const current = accountRef.current
-    const signedIn = current.status === 'signed-in'
-    if (
-      accountPending(current) ||
-      (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
-    ) {
-      setLibraryError(LIBRARY_NOT_READY)
-      return undefined
-    }
-    if (workerRef.current === null) {
-      setLibraryError(STOPPED)
-      return undefined
-    }
-    setLibraryNotice(null)
-    setLibraryError(null)
-    return { userId: signedIn && current.me !== null ? current.me.user.id : null }
-  }, [accountRef, libraryStatusRef, setLibraryError, setLibraryNotice, workerRef])
+  const changeScope = useCallback(
+    (refusal = LIBRARY_NOT_READY): { userId: string | null } | undefined => {
+      const current = accountRef.current
+      const signedIn = current.status === 'signed-in'
+      if (
+        accountPending(current) ||
+        (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
+      ) {
+        setLibraryError(refusal)
+        return undefined
+      }
+      if (workerRef.current === null) {
+        setLibraryError(STOPPED)
+        return undefined
+      }
+      setLibraryNotice(null)
+      setLibraryError(null)
+      return { userId: signedIn && current.me !== null ? current.me.user.id : null }
+    },
+    [accountRef, libraryStatusRef, setLibraryError, setLibraryNotice, workerRef],
+  )
 
   const deleteActivity = useCallback(
     (id: string) => {
@@ -141,7 +145,7 @@ export function useLibraryActions({
   /** Gives a saved activity the name the athlete chose; the page shows the answer's notice or error beside it. */
   const renameActivity = useCallback(
     (id: string, name: string) => {
-      const scope = changeScope()
+      const scope = changeScope(RENAME_LIBRARY_NOT_READY)
       if (scope === undefined) return
       send(
         { type: 'renameActivity', id, name, userId: scope.userId, settings: settingsRef.current },
