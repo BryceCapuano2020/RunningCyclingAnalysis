@@ -47,7 +47,7 @@ export interface WorkerEventDeps {
   /** Asks the server for the account's results again: an account's reply carries none. */
   refreshResults: () => void
   /** The worker's index is as current as this reply: another device's change after it is news. */
-  indexListed: () => void
+  indexListed: (version?: number) => void
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
   libraryChanged: (scope: 'device' | 'account') => void
 }
@@ -221,7 +221,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     imports.setFacts(message.facts ?? null)
     imports.setIndex(message.index ?? null)
     deps.refreshResults()
-    deps.indexListed()
+    deps.indexListed(message.type === 'state' ? message.libraryVersion : undefined)
   }
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)

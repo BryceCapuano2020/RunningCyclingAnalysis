@@ -353,3 +353,17 @@ describe('a saved choice', () => {
     stop()
   })
 })
+
+describe('signing out or deleting the account', () => {
+  it('takes the notes of the zone this device told each account, beside the note of whose settings these are', () => {
+    localStorage.setItem('rca-zone-reported:u1', 'Pacific/Apia')
+    localStorage.setItem('rca-zone-reported:u2', 'Europe/Paris')
+    localStorage.setItem(SETTINGS_OWNER_KEY, 'u1')
+    localStorage.setItem('unrelated', 'kept')
+    forgetAccountChoices()
+    expect(localStorage.getItem('rca-zone-reported:u1')).toBeNull()
+    expect(localStorage.getItem('rca-zone-reported:u2')).toBeNull()
+    expect(localStorage.getItem(SETTINGS_OWNER_KEY)).toBeNull()
+    expect(localStorage.getItem('unrelated')).toBe('kept')
+  })
+})

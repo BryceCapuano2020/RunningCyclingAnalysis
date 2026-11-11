@@ -22,6 +22,7 @@ vi.mock('../api/client', async (importOriginal) => {
     createActivity: vi.fn(),
     downloadActivityFile: vi.fn(),
     listActivities: vi.fn(),
+    getMe: vi.fn(),
     deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
     patchLabels: vi.fn(),
@@ -232,6 +233,29 @@ describe('the worker in an account’s scope', () => {
       type: 'state',
       state: expect.objectContaining({ isSample: false }),
     })
+  })
+
+  it('says the library version it listed the account at, read before the list, so the page can tell a later change', async () => {
+    const order: string[] = []
+    mocked.getMe.mockImplementation(async () => {
+      order.push('me')
+      return { libraryVersion: 7 } as never
+    })
+    mocked.listActivities.mockImplementation(async () => {
+      order.push('list')
+      return [recordFor(DIGEST)]
+    })
+    const { send } = await startWorker()
+    const loaded = (await send({ type: 'loadServer', userId: USER })).at(-1)
+    expect(loaded).toMatchObject({ type: 'state', state: null, libraryVersion: 7 })
+    expect(order).toEqual(['me', 'list'])
+  })
+
+  it('names no version when the account cannot be asked, and the page takes the next snapshot’s', async () => {
+    mocked.getMe.mockRejectedValue(new Error('offline'))
+    const { send } = await startWorker()
+    const loaded = (await send({ type: 'loadServer', userId: USER })).at(-1)
+    expect(loaded).not.toHaveProperty('libraryVersion')
   })
 
   it('reads one fresh /api/state before an import, for its baseline, and shows no check-in when the server is computing', async () => {

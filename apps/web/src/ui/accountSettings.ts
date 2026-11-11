@@ -41,6 +41,7 @@ export function forgetAccountChoices(): void {
   clearKeptPower()
   clearPeriodChoice()
   writeOwner(null)
+  forgetReportedZones()
 }
 
 /** What this browser holds, as the account keeps it: a list or a pick that is empty is null, never set. */
@@ -167,7 +168,18 @@ export async function pushAccountSettings(userId: string): Promise<void> {
   if (zone !== undefined) noteReportedZone(userId, zone)
 }
 
-const zoneKey = (userId: string) => `rca-zone-reported:${userId}`
+const ZONE_KEY_PREFIX = 'rca-zone-reported:'
+const zoneKey = (userId: string) => `${ZONE_KEY_PREFIX}${userId}`
+
+/** The notes of the zone this device told each account, which sign-out and account deletion take beside the owner note. */
+function forgetReportedZones(): void {
+  try {
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith(ZONE_KEY_PREFIX)) localStorage.removeItem(key)
+  } catch {
+    // A browser that refuses storage holds none.
+  }
+}
 
 /** The zone this device last told the account it is in, or null. */
 function reportedZone(userId: string): string | null {

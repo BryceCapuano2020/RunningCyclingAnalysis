@@ -159,12 +159,15 @@ describe('a snapshot of another build', () => {
     expect(staleBuild.reloadOnceForNewBuild).toHaveBeenCalledTimes(1)
   })
 
-  it('reloads a tab that is out of view even while it has work', async () => {
+  it('does not reload a tab that is out of view while it has work, since it may be mid-import', async () => {
     setVisibility('hidden')
     read.mockResolvedValue(answer({ snapshot: other() }))
-    mount({ quiet: false })
+    const view = mount({ quiet: false })
     await flush()
     act(() => document.dispatchEvent(new Event('visibilitychange')))
+    await flush()
+    expect(staleBuild.reloadOnceForNewBuild).not.toHaveBeenCalled()
+    view.rerender({ quiet: true })
     await flush()
     expect(staleBuild.reloadOnceForNewBuild).toHaveBeenCalledTimes(1)
   })
@@ -198,5 +201,22 @@ describe('the index of the library', () => {
     act(() => tellOtherTabs({ type: 'library', scope: 'account' }))
     await flush()
     expect(behind).not.toHaveBeenCalled()
+  })
+
+  it('reads the index again for another device’s import after the tab opened on a 304: the list’s version is the baseline', async () => {
+    const behind = vi.fn()
+    const view = renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    // The library was listed at version 5 (the loadServer reply says so); the snapshot on open was a 304, which names none.
+    act(() => view.result.current.indexListed(5))
+    read.mockResolvedValueOnce({ kind: 'unchanged', nowMs: null, current: true })
+    act(() => tellOtherTabs({ type: 'settings' }))
+    await flush()
+    expect(behind).not.toHaveBeenCalled()
+    // An import on the phone moves the library to 6; the next 200 shows it.
+    read.mockResolvedValueOnce(answer({ snapshot: snapshot(6) }))
+    act(() => tellOtherTabs({ type: 'settings' }))
+    await flush()
+    expect(behind).toHaveBeenCalledTimes(1)
   })
 })

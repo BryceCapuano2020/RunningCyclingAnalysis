@@ -63,7 +63,11 @@ export function useAccountResults(
   quiet: boolean,
   /** The server's library is past the one the worker's index was listed at: another device changed it. */
   onIndexBehind: () => void,
-): { results: AccountResults | null; refresh: () => void; indexListed: () => void } {
+): {
+  results: AccountResults | null
+  refresh: () => void
+  indexListed: (version?: number) => void
+} {
   // The results with the account they are of, so a shown result is never another account's.
   const [stored, setStored] = useState<{ id: string; results: AccountResults } | null>(null)
   const results =
@@ -95,10 +99,9 @@ export function useAccountResults(
     if (idRef.current !== null) void writeSnapshot(idRef.current, snapshot)
   }, [])
 
-  /** Reloads for a newer build once this tab has nothing of its own under way, or is out of view. */
+  /** Reloads for a newer build once this tab has nothing of its own under way: hidden or not, since a hidden tab can be mid-import. */
   const settleReload = useCallback(() => {
-    if (!reloadWanted.current || (!quietNow.current && document.visibilityState === 'visible'))
-      return
+    if (!reloadWanted.current || !quietNow.current) return
     reloadWanted.current = false
     reloadOnceForNewBuild()
   }, [])
@@ -215,7 +218,6 @@ export function useAccountResults(
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') void pull()
-      else settleReload()
     }
     document.addEventListener('visibilitychange', onVisible)
     const poll = setInterval(onVisible, POLL_MS)
@@ -223,7 +225,7 @@ export function useAccountResults(
       document.removeEventListener('visibilitychange', onVisible)
       clearInterval(poll)
     }
-  }, [pull, settleReload])
+  }, [pull])
 
   // A reload held back for work under way goes once the tab has none.
   useEffect(() => {
@@ -236,9 +238,10 @@ export function useAccountResults(
   useTabMessages(onChange)
   useOwnChanges(onChange)
 
-  // The index has just been read, or kept current by this tab's own work: the next snapshot's version is the one it matches.
-  const indexListed = useCallback(() => {
-    indexAt.current = null
+  // The index has just been read at `version` (the library's, before the list was read), or kept current by this tab's own work (no
+  // version: the next snapshot's is the one it matches).
+  const indexListed = useCallback((version?: number) => {
+    indexAt.current = version ?? null
   }, [])
   return { results, refresh: onChange, indexListed }
 }

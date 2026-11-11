@@ -11,8 +11,6 @@ import { adoptDeviceRequest, forgetDeviceLibraryRequest, offerDevice } from './a
 import type { AdoptionRequestContext } from './adoptionRequests'
 import { newSession } from './newSession'
 import { keepProvisional } from './keepProvisional'
-import { clearLifts } from './liftStore'
-import { clearOutbox } from './outbox'
 import { FailedOriginals } from './failedOriginals'
 import { SendingKeys } from './sendingKeys'
 import { startResume } from './startResume'
@@ -38,7 +36,6 @@ import {
   stamped,
   waitingToChangeLibrary,
 } from './workerWire'
-import { clearCheckinScope } from './checkinStore'
 import { forgetHeldKeys } from './heldIndex'
 import { runImport } from './importRun'
 import type { ImportRunContext } from './importRun'
@@ -50,6 +47,9 @@ import { deviceClock } from './sampleClock'
 import { activityTraceReply } from './traceReply'
 import { checkInWorker } from './checkinWorker'
 import { NO_CHECKIN } from './checkinKeeper'
+import { libraryVersionNow } from './accountState'
+import { clearLibrary } from './clearLibrary'
+import type { ClearContext } from './clearLibrary'
 import { syncIssueFor } from './syncIssue'
 import { Workbench } from './workbench'
 
@@ -177,6 +177,22 @@ const deleteContext: DeleteGroupContext = {
   reportLibrary,
 }
 
+const clearContext: ClearContext = {
+  view,
+  labelUndo: labels.labelUndo,
+  resume,
+  failedOriginals,
+  provisionalItems,
+  workbench,
+  routes,
+  device,
+  session,
+  post,
+}
+
+/** The library version the last `loadServer` read before its list. */
+let listedVersion: number | undefined
+
 async function handle(
   request: Exclude<WorkerRequest, RouteMemoryRequest>,
 ): Promise<SessionState | null> {
@@ -211,6 +227,7 @@ async function handle(
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
+      listedVersion = await libraryVersionNow()
       await loadServer(libraryContext, request.userId)
       resume.start(() => startResume(resumeParts, request.userId))
       void offerDevice(adoptionContext, request.userId)
@@ -255,30 +272,7 @@ async function handle(
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
-      view.libraryEpoch++
-      view.accountIndex = false
-      labels.labelUndo.clear()
-      resume.cancel()
-      failedOriginals.forget()
-      provisionalItems.clear()
-      view.showingSample = false
-      workbench.clearMemory()
-      routes.clear()
-      if (request.forgetDevice) {
-        // The page is told once: forget() has already told it when the library would not clear.
-        const forgotten = await device.forget()
-        // The index of files read goes with the library it describes.
-        await clearCheckinScope('device')
-        const tracesCleared = await workbench.clearScope({ kind: 'device' })
-        // Every waiting save goes too, an expired session's included: nothing kept here stays, and a visitor who is
-        // signed out has no account on screen to ask about them.
-        const outboxCleared = await clearOutbox()
-        // The logged lifting sets are nothing kept here either.
-        const liftsCleared = await clearLifts()
-        if ((!tracesCleared || !outboxCleared || !liftsCleared) && forgotten)
-          post({ type: 'deviceIssue', issue: 'notForgotten' })
-      } else device.replaced()
-      return session.clear()
+      return clearLibrary(clearContext, request.forgetDevice === true)
     case 'deleteDeviceActivity':
       workbench.clearMemory()
       await forgetHeldKeys('device', [request.id])
@@ -360,10 +354,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
         // A library read starts from no check-in: the last one was of another library.
-        const checkIn = type === 'loadServer' ? { checkIn: NO_CHECKIN } : {}
+        const read =
+          type === 'loadServer'
+            ? {
+                checkIn: NO_CHECKIN,
+                ...(listedVersion === undefined ? {} : { libraryVersion: listedVersion }),
+              }
+            : {}
         post(
           await checkIns.attach(
-            { type: 'state', state, ...factsOf(state), ...checkIn, ...rebuildable() },
+            { type: 'state', state, ...factsOf(state), ...read, ...rebuildable() },
             type,
           ),
         )

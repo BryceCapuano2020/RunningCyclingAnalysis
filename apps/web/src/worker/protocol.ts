@@ -326,6 +326,8 @@ export type WorkerResponse =
       facts?: ImportFacts
       /** With `facts`: what the index knows of the library's age and size, which the server's state is not read for. */
       index?: IndexFacts
+      /** Answering `loadServer`: the account's library version as it stood before the list was read, which the index is at least as new as. */
+      libraryVersion?: number
       outcome?: ImportOutcome
       saved?: number
       outdatedWithOriginal?: number
