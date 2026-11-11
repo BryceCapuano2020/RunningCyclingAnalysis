@@ -37,18 +37,18 @@ path is the one that has run in production.
 
 ## How each account flow works after this
 
-| Flow                                                              | Today (account)                                       | After                                                                                                                                                |
-| ----------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Open the app                                                      | Device copy, then server copy or a local compute      | Device copy, then `/api/state` (304, a newer snapshot, or computing)                                                                                 |
-| Import while signed in                                            | Saved and loaded into the local session at once       | Checked against the index, saved (outbox on failure), then `/api/state`. A waiting save is in results once saved, and the import copy says so        |
-| Pick a period or a custom range                                   | `setRange` in the worker                              | The choice is saved to the account as today (it dirties the snapshot), then `/api/state` computes on read                                            |
-| Change mass, dated settings, birth year, counted runs, kept power | `setSettings` in the worker                           | The write as today, then `/api/state`                                                                                                                |
-| Delete, rename, label                                             | API call, then reload every digest and recompute      | API call, index updated, then `/api/state`                                                                                                           |
-| Lift corner, Lift page grades and charts                          | `buildLiftState` over `rca-lifts` in the page         | `lift` in the snapshot for both (L3). `rca-lifts` stays the logger's store of rows; it feeds no grade                                                |
-| "Since your last import" check-in                                 | `checkInSnapshotOf(digests, state)` in the worker     | The snapshot carries the current `CheckInSnapshot`. The baseline stays per device in `rca-checkin`, taken from a fresh `/api/state` after the import |
-| Another tab, device or Garmin changed it                          | Polls `/api/me` every 30 s, then reloads every digest | `/api/state` with its ETag on `rca-sync-v1` messages, on visibility change and every 60 s while visible                                              |
-| Workbench, route shape, traces, export                            | Trace cache or the original; export lists records     | Unchanged                                                                                                                                            |
-| Snapshot of another build                                         | Computes locally                                      | The Worker serves its own build, so the tab is old: reload once (guarded), keep the copy                                                             |
+| Flow                                                              | Today (account)                                       | After                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Open the app                                                      | Device copy, then server copy or a local compute      | Device copy, then `/api/state` (304, a newer snapshot, or computing)                                                                                                                                                                       |
+| Import while signed in                                            | Saved and loaded into the local session at once       | Checked against the index, saved (outbox on failure), then `/api/state`. A waiting save is in results once saved, and the import copy says so                                                                                              |
+| Pick a period or a custom range                                   | `setRange` in the worker                              | The choice is saved to the account as today (it dirties the snapshot), then `/api/state` computes on read                                                                                                                                  |
+| Change mass, dated settings, birth year, counted runs, kept power | `setSettings` in the worker                           | The write as today, then `/api/state`                                                                                                                                                                                                      |
+| Delete, rename, label                                             | API call, then reload every digest and recompute      | API call, index updated, then `/api/state`                                                                                                                                                                                                 |
+| Lift corner, Lift page grades and charts                          | `buildLiftState` over `rca-lifts` in the page         | `lift` in the snapshot for both (L3). `rca-lifts` stays the logger's store of rows; it feeds no grade                                                                                                                                      |
+| "Since your last import" check-in                                 | `checkInSnapshotOf(digests, state)` in the worker     | The snapshot carries the current `CheckInSnapshot`. The baseline stays per device in `rca-checkin`, taken from a fresh `/api/state` before the import starts (on a 202, from the device copy; with neither, that import shows no check-in) |
+| Another tab, device or Garmin changed it                          | Polls `/api/me` every 30 s, then reloads every digest | `/api/state` with its ETag on `rca-sync-v1` messages, on visibility change and every 60 s while visible                                                                                                                                    |
+| Workbench, route shape, traces, export                            | Trace cache or the original; export lists records     | Unchanged                                                                                                                                                                                                                                  |
+| Snapshot of another build                                         | Computes locally                                      | The Worker serves its own build, so the tab is old: reload once (guarded), keep the copy                                                                                                                                                   |
 
 ## Compute on read
 
@@ -62,30 +62,49 @@ is usually a 304. Whether the queue, pending markers and re-send can go is measu
 
 - `state_jobs.computed_version >= users.library_version`;
 - `state_jobs.computed_lift_revision >= users.lift_revision` (new column; lift writes already raise `lift_revision`);
-- `state_jobs.analysis_revision >= ANALYSIS_REVISION`. A Worker never recomputes a snapshot made by a newer revision,
-  so old and new Workers do not overwrite each other during a gradual deploy or a rollback;
+- `state_jobs.analysis_revision = ANALYSIS_REVISION`;
 - the local day of `state_jobs.snapshot_now_ms` (new column) in the account's zone is today.
 
+**Revisions.** A Worker recomputes and stores only when the stored revision is lower than its own. When the stored
+revision is higher (a rollback, an old Worker during a gradual deploy), it computes in the request and serves the result
+without storing it, so the newer snapshot stays for the newer Worker and an old tab still gets results it can read. The
+object-metadata check in `routes/state.ts` resets the row's revision only when the object's is lower than the
+Worker's own, never when it is higher.
+
 **Ordering.** `record()` (`state/job.ts`) today moves the snapshot only for a higher version or a different revision,
-so a same-version recompute on a new day is refused. It becomes an order on (revision, version, lift revision, now):
+so a same-version recompute on a new day is refused. It becomes an order on (revision, version, lift revision, now),
+and it runs on both paths: a new hash moves the hash and the order columns; an unchanged hash moves the order columns
+only. The content hash leaves out `nowMs`, so without the second path an idle account would recompute on every read.
 
 ```sql
-UPDATE state_jobs SET snapshot_hash = ?hash, snapshot_version = ?v, snapshot_lift_revision = ?l,
-  snapshot_now_ms = ?now, analysis_revision = ?rev
-WHERE user_id = ?id AND (analysis_revision < ?rev OR (analysis_revision = ?rev AND
-  (snapshot_version, snapshot_lift_revision, snapshot_now_ms) < (?v, ?l, ?now)))
+UPDATE state_jobs SET snapshot_hash = coalesce(:hash, snapshot_hash), snapshot_version = :v,
+  snapshot_lift_revision = :l, snapshot_now_ms = :now, analysis_revision = :rev
+WHERE user_id = :id AND (analysis_revision < :rev OR (analysis_revision = :rev AND
+  (snapshot_version, snapshot_lift_revision, snapshot_now_ms) < (:v, :l, :now)))
 ```
 
-`computed_version`, `computed_lift_revision` and `computed_at` keep their own monotone updates. The migration adds
-`computed_lift_revision`, `snapshot_lift_revision` and `snapshot_now_ms`, backfilled to 0 so every account is not
-current once.
+It is an UPDATE only: `markAttempt` inserts the row before any compute. `computed_version`, `computed_lift_revision`
+and `computed_at` keep their own monotone updates. The migration adds `computed_lift_revision`,
+`snapshot_lift_revision` and `snapshot_now_ms`, backfilled to 0, so each account computes once on its first open;
+nothing is enqueued for it. Every answer carries `X-State-Now` (the stored `snapshot_now_ms`), a 304 included, and the
+browser takes it as the copy's `madeAt`, so an unchanged recompute does not leave the copy marked stale.
+
+**Consistent inputs.** `readInputs` (`state/inputs.ts`) reads `library_version` and `lift_revision` with the first
+batch, reads the lift sets in it, and re-checks both at the end. A write to either during the read is `InputsMoved`, as a
+library write is today, so a job never records a lift revision whose sets it did not read.
 
 **One compute per isolate.** A module-level lock covers both the route and the queue consumer, since
 `max_concurrency = 1` limits consumers, not isolates. A request that finds the lock taken serves the stored snapshot
 with `X-State-Current: 0`, or, when the account has none (a new account, after a revision bump), answers
 `202 {"state":"computing"}` with `Retry-After: 2`. The page then shows the device copy or the loading state from
-server-compute.md section 4, and asks again. A compute blocks its isolate's event loop for its CPU time, under a second
-at 2,000 activities; the cap measurement below records it at the largest library.
+server-compute.md section 4, and asks again. A consumer that finds the lock taken retries the message with a delay of a
+few seconds; it never acks it, so a write made with no tab open is still computed. A compute blocks its isolate's event
+loop for its CPU time, under a second at 2,000 activities; the cap measurement below records it at the largest library.
+
+**Read budget.** `stateRead` allows 300 reads a day and charges every read (`packages/contract/src/limits.ts`,
+`routes/state.ts`). A 304, a 202 and a stored snapshot served under the lock are no longer charged; a compute in the
+request is. The budget and what it charges are pinned in a test, sized so a tab polling every 60 s for a day with
+retries stays inside it.
 
 **Deletion.** The job re-reads `users.deleting_at` before the R2 put as well as at the start, since compute on read
 widens the window in which a snapshot could be written after the account sweep.
@@ -169,8 +188,11 @@ open and checks each is in the sweep or named here as device-only.
 - **No account state in the browser.** A worker test sends every request type in account scope and fails if any
   builds a `SessionState`.
 - **Compute on read.** A write followed by `GET /api/state` returns the new result in that response; a lift write, a
-  lower stored revision and an aged day each recompute; a higher stored revision does not; two requests and a queue
-  message in one isolate run one compute; no stored snapshot under the lock answers 202.
+  lower stored revision and an aged day each recompute; an aged day with unchanged figures moves `snapshot_now_ms`, so
+  the next read is a 304 with the new `X-State-Now`; a higher stored revision computes and stores nothing; two requests
+  and a queue message in one isolate run one compute, and the message is retried, not acked; no stored snapshot under
+  the lock answers 202; a lift write during the input read is `InputsMoved`; a day of 60 s polls stays inside the read
+  budget.
 - **One lift source.** The Lift page and the lift corner render from one snapshot, and an unsent set changes neither.
 - **The cap.** A library at the byte quota computes on the server in workerd, and a test pins the bound to the quotas.
 - **Signed out.** The e2e signed-out and sample flows pass unchanged.
