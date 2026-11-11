@@ -587,7 +587,9 @@ describe('useAnalysis account handling', () => {
     })
 
     expect(oldWorker.terminated).toBe(true)
-    expect(restartedWorker.posted).toEqual([{ type: 'loadServer', userId: USER_ID, keepFiles: false }])
+    expect(restartedWorker.posted).toEqual([
+      { type: 'loadServer', userId: USER_ID, keepFiles: false },
+    ])
     expect(restartedWorker.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
     expect(result.current.error).toMatch(/Stopped\. Add your files again/)
   })
