@@ -110,7 +110,7 @@ describe('BalanceTiles', () => {
       'Runs used',
       'Strongest effort',
     ])
-    expect(detailSummaries(run)).toEqual(['Details for threshold pace'])
+    expect(detailSummaries(run)).toEqual(['Details for half-marathon'])
   })
 
   it('gives the ride its watts alone, the watts per kilogram one tap down', () => {
