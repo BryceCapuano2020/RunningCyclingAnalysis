@@ -2,7 +2,7 @@ import type { ActivityRecord } from '@rca/contract'
 import type { AnalysisSession, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { renameActivity } from '../api/renameClient'
-import { reloadSession } from './applyListLabels'
+import { reloadIndex } from './applyListLabels'
 import type { DeviceActions } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 import type { WorkerView } from './workerView'
@@ -25,8 +25,8 @@ const NOT_READ =
 /** Renames an activity of the account library: the server first, then the copy the page holds. */
 async function renameSaved(
   ctx: RenameContext,
-  request: { id: string; name: string; userId: string; settings: AthleteSettings },
-): Promise<SessionState> {
+  request: { id: string; name: string; userId: string },
+): Promise<null> {
   const { activeScope } = ctx.view
   if (activeScope?.kind !== 'account' || activeScope.userId !== request.userId) {
     throw new Error(NOT_LOADED)
@@ -36,7 +36,8 @@ async function renameSaved(
   const { name } = await renameActivity(request.id, request.name, request.userId)
   ctx.savedRecords.set(request.id, { ...record, digest: { ...record.digest, name } })
   ctx.reportLibrary()
-  return reloadSession(ctx.session, request.settings, [...ctx.savedRecords.values()])
+  reloadIndex(ctx.session, [...ctx.savedRecords.values()])
+  return null
 }
 
 /** Renames a workout kept in this browser, in its library, then puts the session on the library as it now stands. */
@@ -63,11 +64,11 @@ async function renameKept(
   )
 }
 
-/** The name the athlete gave an activity, kept in the account (a null `userId` is not one) or in this browser. */
+/** The name the athlete gave an activity, kept in the account (a null `userId` is not one) or in this browser. The account's answer is no state. */
 export function renameRequest(
   ctx: RenameContext,
   request: { id: string; name: string; userId: string | null; settings: AthleteSettings },
-): Promise<SessionState> {
+): Promise<SessionState | null> {
   return request.userId === null
     ? renameKept(ctx, request)
     : renameSaved(ctx, { ...request, userId: request.userId })

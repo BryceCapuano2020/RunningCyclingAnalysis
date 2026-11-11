@@ -40,7 +40,13 @@ export function labelWorker(deps: {
       extra: { outdatedWithOriginal?: number },
     ): Promise<WorkerResponse> {
       const { state, left } = await undoLabelsRequest(context, request)
-      return { type: 'state', state, ...(left > 0 ? { labelsLeft: left } : {}), ...extra }
+      return {
+        type: 'state',
+        state,
+        ...(state === null ? { facts: session.importFacts() } : {}),
+        ...(left > 0 ? { labelsLeft: left } : {}),
+        ...extra,
+      }
     },
   }
 }

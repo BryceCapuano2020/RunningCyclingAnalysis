@@ -1,8 +1,7 @@
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { revisionStatus } from '@rca/core/digest/revisions'
-import type { AnalysisSession, PeriodChoice, SessionState } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AnalysisSession } from '@rca/core/session'
 import type { Activity } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
@@ -50,13 +49,12 @@ export interface LibraryContext {
   restartResume: (userId: string) => void
 }
 
-/** Fetches the account's digests here, so a large library never crosses the main thread. */
-export async function loadServer(
-  ctx: LibraryContext,
-  settings: AthleteSettings,
-  userId: string,
-  choice?: PeriodChoice,
-): Promise<SessionState> {
+/**
+ * Lists the account's activities here, so a large library never crosses the main thread, into the saved records and the
+ * session's index (import dedupe, the Library list, delete groups, the updater's count). No state is built: the page's
+ * results are the server's (`GET /api/state`).
+ */
+export async function loadServer(ctx: LibraryContext, userId: string): Promise<void> {
   let unreadable = 0
   const records = await listActivities(
     undefined,
@@ -81,13 +79,7 @@ export async function loadServer(
     count: shownCount(ctx.missingOriginals, ctx.savedRecords.values()),
   })
   ctx.device.replaced()
-  // The first analysis is of the period the page shows, so the page need not ask for it afterwards.
-  ctx.session.choosePeriod(choice)
-  return ctx.session.loadDigests(
-    records.map((record) => record.digest),
-    settings,
-    { keepUnsaved: true },
-  )
+  ctx.session.replaceLibrary(records.map((record) => record.digest))
 }
 
 /** What an update has to report when another tab holds the writer lock: nothing was tried. */
@@ -105,7 +97,7 @@ const NOT_THE_WRITER: UpdateResult = {
  * engine (updater.ts) does the stepping; this supplies what it does in the world, and the listing that
  * follows. Only the tab that holds the account's writer lock updates.
  */
-export async function rebuildStale(ctx: LibraryContext, settings: AthleteSettings, userId: string) {
+export async function rebuildStale(ctx: LibraryContext, userId: string) {
   let unreadable = 0
   const records = await listActivities(
     undefined,
@@ -151,7 +143,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   // The library this ran for was replaced meanwhile, so nothing it learned is put back over the new one.
   if (update.stopped === 'discarded') {
     return {
-      state: ctx.session.setSettings(settings),
+      state: null,
       rebuilt: update.rebuilt,
       missing: 0,
       failed: update.failed,
@@ -184,11 +176,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
     refreshed = records
   }
   ctx.device.replaced()
-  const state = ctx.session.loadDigests(
-    refreshed.map((record) => record.digest),
-    settings,
-    { keepUnsaved: true },
-  )
+  ctx.session.replaceLibrary(refreshed.map((record) => record.digest))
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
   // Rebuilding them again would find the same mismatch, so Update now leaves them out; adding
@@ -206,7 +194,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
         ? Date.now() + RATE_LIMIT_WINDOW_MS
         : null
   return {
-    state,
+    state: null,
     rebuilt,
     missing,
     failed,

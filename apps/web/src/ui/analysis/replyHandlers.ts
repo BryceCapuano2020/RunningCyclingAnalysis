@@ -58,9 +58,10 @@ function isUpdate({ updatedRuns = 0, updatedRides = 0 }: ImportOutcome): boolean
  * with the library this reply leaves, the result the page shows once it renders, and keeps that
  * baseline when it is sent.
  */
-function addWaiting(deps: WorkerEventDeps, state: SessionState): void {
+function addWaiting(deps: WorkerEventDeps, state: SessionState | null): void {
   const { library, addFiles, refreshBusy } = deps
-  for (const files of drainBatches(library.libraryWaitRef)) addFiles(files, baselineOf(state))
+  for (const files of drainBatches(library.libraryWaitRef))
+    addFiles(files, state === null ? null : baselineOf(state))
   refreshBusy()
 }
 
@@ -145,7 +146,10 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   waiting.splice(waiting.indexOf(pending), 1)
   if (pending.kind === 'addFiles' && pending.provisional !== true) {
     if (message.type === 'state')
-      deps.manifest.finish(pending.id, damagedZips(message.state.rejected))
+      deps.manifest.finish(
+        pending.id,
+        damagedZips(message.state?.rejected ?? message.facts?.rejected ?? []),
+      )
     else if (message.type === 'error') deps.manifest.fail(pending.id)
   }
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
@@ -203,26 +207,30 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
   if (changed !== null) deps.libraryChanged(changed)
   // Remove all also cleared the lifting sets the log on screen holds.
   if (pending?.kind === 'clear' && pending.forgetDevice === true) announceLiftsCleared()
-  imports.setState(message.state)
+  // An account's reply holds no state: its results are read from the server, and the check-in stands unless the reply names one.
+  if (message.state !== null) imports.setState(message.state)
   // Set with the state, in one update, so the notice never counts one against the other's old value.
   library.setOutdatedWithOriginal(message.outdatedWithOriginal ?? 0)
   // "Since your last import", with the state it was made against (none when it says nothing).
-  library.setCheckIn(message.checkIn ?? NO_CHECKIN)
+  if (message.state !== null || message.checkIn !== undefined)
+    library.setCheckIn(message.checkIn ?? NO_CHECKIN)
   if (message.type === 'state') {
     imports.setSavedCount(message.saved ?? null)
     noteProvisionalOutcome(imports, pending, message)
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)
-      imports.setImportChange({
-        outcome: message.outcome,
-        // Workouts brought up to date are not new, so an import that updated any moves nothing.
-        before: isUpdate(message.outcome)
-          ? null
-          : comparableBefore(pending?.baseline, message.state),
-        after: message.state.result,
-        bests: message.checkIn?.checkIn?.bests ?? null,
-      })
+      // An account's import has no state to compare here: what it moved is told from the server's results.
+      if (message.state !== null)
+        imports.setImportChange({
+          outcome: message.outcome,
+          // Workouts brought up to date are not new, so an import that updated any moves nothing.
+          before: isUpdate(message.outcome)
+            ? null
+            : comparableBefore(pending?.baseline, message.state),
+          after: message.state.result,
+          bests: message.checkIn?.checkIn?.bests ?? null,
+        })
     }
     if (pending?.kind === 'loadServer') {
       library.setLibrary('loaded')
@@ -253,7 +261,11 @@ function noteProvisionalOutcome(
       held.current === null ? message.outcome : mergeOutcomes(held.current, message.outcome)
   } else if (pending?.kind === 'keepProvisional' && held.current !== null) {
     imports.setImportOutcome(held.current)
-    imports.setImportChange({ outcome: held.current, before: null, after: message.state.result })
+    imports.setImportChange({
+      outcome: held.current,
+      before: null,
+      after: message.state?.result ?? null,
+    })
     held.current = null
   } else if (['loadDevice', 'loadServer', 'clear', 'loadSample'].includes(pending?.kind ?? '')) {
     held.current = null

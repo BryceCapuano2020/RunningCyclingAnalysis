@@ -1,4 +1,5 @@
 import { digestActivity } from './digest'
+import { revisionStatus } from './digest/revisions'
 import { workoutKey, fileNameOf, outranksHeld } from './duplicates'
 import {
   NETWORK_FAILURES_BEFORE_PROBE,
@@ -13,7 +14,7 @@ import type { ActivityListeners } from './sessionHooks'
 import type { SessionLibrary } from './sessionLibrary'
 import type { Considered } from './sessionSource'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import type { Activity } from './types'
+import type { Activity, ActivityDigest } from './types'
 
 /**
  * The session's library bookkeeping that keeping an activity reads and changes. The maps are the
@@ -214,4 +215,38 @@ export function resetUnsynced(state: KeepState): void {
 /** A new import begins: the unsaved activities stay, but none counts as this import's own yet. */
 export function beginImportUnsynced(state: KeepState): void {
   state.latestUnsynced.clear()
+}
+
+/**
+ * The name of the file that holds these workouts, when the library holds every one of them and, with a sink, none is
+ * waiting to be saved: a file known to hold only these can then be left unread. Null when any is missing or waiting.
+ */
+export function heldNameOf(
+  state: KeepState,
+  keys: readonly string[],
+  saving: boolean,
+): string | null {
+  const first = keys.length === 0 ? undefined : state.library.digests.get(keys[0]!)
+  if (first === undefined) return null
+  for (const key of keys) {
+    const digest = state.library.digests.get(key)
+    // Only a current digest stands for the file (D12 section 3): one held out or read beside the current model
+    // (compatible, stale, newer) is read from the file again, whatever the index says.
+    if (digest === undefined || revisionStatus(digest.modelRevision) !== 'current') return null
+    if (saving && state.unsynced.has(key)) return null
+  }
+  return fileNameOf(first.id)
+}
+
+/** After a library is replaced: an activity whose save failed stays, unsaved, unless the replacement holds that workout. */
+export function keepUnsavedFrom(
+  state: KeepState,
+  before: ReadonlyMap<string, ActivityDigest>,
+): void {
+  for (const key of state.unsynced.keys()) {
+    const digest = before.get(key)
+    if (digest === undefined) continue
+    if (!state.library.digests.has(key)) state.library.put(key, digest)
+    else clearUnsynced(state, key)
+  }
 }

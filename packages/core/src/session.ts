@@ -11,13 +11,12 @@ import { setViewerZone, withViewerZone } from './calendar'
 import type { Zone } from './calendar'
 import { requirePositiveFinite } from './math'
 import type { ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { revisionStatus } from './digest/revisions'
-import { fileNameOf, workoutKey, hiddenDigests } from './duplicates'
+import { workoutKey, hiddenDigests } from './duplicates'
 import type { HeldFiles } from './importHeld'
 import { SessionLibrary, readRank } from './sessionLibrary'
 import { PeriodCache, type PeriodChoice } from './period'
 import { countIssues, type SyncIssueCode } from './saveFailure'
-import type { SessionState } from './sessionState'
+import type { ImportFacts, SessionState } from './sessionState'
 import { buildState } from './sessionBuild'
 import { checkInSnapshotOf } from './sessionCheckIn'
 import type { CheckInSnapshot } from './lookback/snapshot'
@@ -25,6 +24,8 @@ import {
   beginImportUnsynced,
   clearUnsynced,
   considerActivity,
+  heldNameOf,
+  keepUnsavedFrom,
   markUnsynced,
   resetUnsynced,
 } from './sessionKeep'
@@ -37,7 +38,7 @@ import type { ZoneSet } from './zones'
 
 export { haltsImport, isTransient, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
-export type { RejectedFile, SessionState } from './sessionState'
+export type { ImportFacts, RejectedFile, SessionState } from './sessionState'
 export type { HeldOutActivity } from './sessionLibrary'
 export type { Period, PeriodChoice } from './period'
 export type { RejectCode, Rejection } from './import/result'
@@ -105,9 +106,10 @@ export class AnalysisSession {
     )
   }
 
-  async addFiles(
+  /** Reads the files into the library and saves them through the sink, building no state (an account's results are the server's). */
+  async importFiles(
     sources: RangedSource[],
-    settings: AthleteSettings,
+    _settings: AthleteSettings,
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
     syncExisting = false,
@@ -115,7 +117,7 @@ export class AnalysisSession {
     onActivity?: ActivityListeners['kept'],
     onReplaced?: ActivityListeners['replaced'],
     held?: HeldFiles,
-  ): Promise<SessionState> {
+  ): Promise<void> {
     if (this.isSample) this.clear()
     // The rejected files are this import's only.
     this.rejected.length = 0
@@ -147,7 +149,7 @@ export class AnalysisSession {
           hashFiles: sink !== undefined,
           listedTypes,
           held,
-          heldNameOf: (keys) => this.heldNameOf(keys, sink !== undefined),
+          heldNameOf: (keys) => heldNameOf(this.keeping, keys, sink !== undefined),
           consider: (activity, file) =>
             considerActivity(this.keeping, activity, file, sink, syncExisting, batch, listeners),
         })
@@ -184,24 +186,11 @@ export class AnalysisSession {
         : { listed: { named: companion.named, received: companion.received } }),
       ...(hints.needsList ? { needsList: true as const } : {}),
     })
-    return this.state(settings)
   }
 
-  /**
-   * The name of the file that holds these workouts, when the library holds every one of them and, with a sink, none is
-   * waiting to be saved: a file known to hold only these can then be left unread. Null when any is missing or waiting.
-   */
-  private heldNameOf(keys: readonly string[], saving: boolean): string | null {
-    const first = keys.length === 0 ? undefined : this.library.digests.get(keys[0]!)
-    if (first === undefined) return null
-    for (const key of keys) {
-      const digest = this.library.digests.get(key)
-      // Only a current digest stands for the file (D12 section 3): one held out or read beside the current model
-      // (compatible, stale, newer) is read from the file again, whatever the index says.
-      if (digest === undefined || revisionStatus(digest.modelRevision) !== 'current') return null
-      if (saving && this.unsynced.has(key)) return null
-    }
-    return fileNameOf(first.id)
+  async addFiles(...args: Parameters<AnalysisSession['importFiles']>): Promise<SessionState> {
+    await this.importFiles(...args)
+    return this.state(args[1])
   }
 
   /** The ids of the digests the analysis hides as copies of a better one, as the library stands now. */
@@ -238,11 +227,15 @@ export class AnalysisSession {
     setViewerZone(zone)
   }
 
-  /** Removes one saved workout after its owner-scoped server deletion succeeds. */
-  removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
+  /** Removes one saved workout after its owner-scoped server deletion succeeds; builds no state. */
+  dropActivity(sport: Sport, startMs: number): void {
     const key = workoutKey(sport, startMs)
     this.library.drop(key)
     clearUnsynced(this.keeping, key)
+  }
+
+  removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
+    this.dropActivity(sport, startMs)
     return this.state(settings)
   }
 
@@ -259,13 +252,12 @@ export class AnalysisSession {
   /**
    * Replaces the library with digests stored elsewhere. With `keepUnsaved`, for a server library, an
    * activity whose save failed stays and stays unsaved, so adding its file again retries it, unless
-   * the server holds that workout. A library read from this browser leaves them out.
+   * the server holds that workout. A library read from this browser leaves them out. Builds no state.
    */
-  loadDigests(
+  replaceLibrary(
     digests: ActivityDigest[],
-    settings: AthleteSettings,
     { keepUnsaved = false }: { keepUnsaved?: boolean } = {},
-  ): SessionState {
+  ): void {
     const before = new Map(this.library.digests)
     this.resetLibrary()
     for (const digest of digests) {
@@ -274,15 +266,25 @@ export class AnalysisSession {
       const kept = this.library.digests.get(key) ?? this.library.notCurrent(key)
       if (kept === undefined || readRank(kept) < readRank(digest)) this.library.put(key, digest)
     }
-    for (const key of keepUnsaved ? this.unsynced.keys() : []) {
-      const digest = before.get(key)
-      if (digest === undefined) continue
-      if (!this.library.digests.has(key)) this.library.put(key, digest)
-      else {
-        clearUnsynced(this.keeping, key)
-      }
-    }
+    if (keepUnsaved) keepUnsavedFrom(this.keeping, before)
+  }
+
+  loadDigests(
+    digests: ActivityDigest[],
+    settings: AthleteSettings,
+    options: { keepUnsaved?: boolean } = {},
+  ): SessionState {
+    this.replaceLibrary(digests, options)
     return this.state(settings)
+  }
+
+  /** What the last import left that the server's results do not hold: refused files and unsaved activities. */
+  importFacts(): ImportFacts {
+    return {
+      rejected: this.rejected.map(({ file }) => file),
+      unsupportedFiles: this.unsupported.files,
+      syncIssues: countIssues(this.unsynced, this.latestUnsynced),
+    }
   }
 
   /** Loads the sample athlete's season as it stands on `clock`'s day; without one, the fixed reference season. */
@@ -313,10 +315,7 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  /**
-   * Chooses the period without analysing, so the next load is analysed once, on that period. Nothing
-   * to choose keeps the period the session has.
-   */
+  /** Chooses the period without analysing, so the next load is analysed once on it; none keeps the session's. */
   choosePeriod(choice: PeriodChoice | undefined): void {
     if (choice !== undefined) this.choice = choice
   }

@@ -1,6 +1,5 @@
 import type { ActivityRecord } from '@rca/contract'
-import type { AnalysisSession, SessionState } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AnalysisSession } from '@rca/core/session'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { workoutKeyOf as activityKey } from './device'
 import type { DeviceActions } from './device'
@@ -58,18 +57,16 @@ async function forgetRecord(
  * Deletes a saved activity from the account, and with it every near-copy of the same workout (rule R). The activity
  * the athlete sees stands for its whole group: deleting only it would let a hidden copy take its place. The one asked
  * for goes first, so a failure leaves the others as they were. The members the server has already deleted are gone
- * from the list and the session whether or not a later one failed.
+ * from the list and the index whether or not a later one failed. No state is built: the page reads the server's.
  */
 export async function deleteSavedGroup(
   ctx: DeleteGroupContext,
   record: ActivityRecord,
   userId: string,
-  settings: AthleteSettings,
-): Promise<SessionState> {
+): Promise<void> {
   const group = copiesOf(ctx.savedRecords.values(), record)
   const removed: ActivityRecord[] = []
   let cleared = true
-  let state: SessionState | null = null
   try {
     for (const member of group) {
       try {
@@ -90,9 +87,7 @@ export async function deleteSavedGroup(
         count: shownCount(ctx.missingOriginals, ctx.savedRecords.values()),
       })
     }
-    for (const member of removed) {
-      state = ctx.session.removeActivity(member.digest.sport, member.digest.startMs, settings)
-    }
+    for (const member of removed)
+      ctx.session.dropActivity(member.digest.sport, member.digest.startMs)
   }
-  return state!
 }

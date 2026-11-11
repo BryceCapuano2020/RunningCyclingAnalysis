@@ -64,8 +64,10 @@ export function rememberKeptLibrary(
     return
   }
   // A sample on screen says nothing about the library kept in this browser.
-  if (message.state.isSample) return
-  if (pending.kind === 'loadServer') setKeptLibraryHinted(message.state.library.length > 0)
+  if (message.state?.isSample === true) return
+  // An account's reply holds no state: the library it listed says whether there is anything to restore.
+  if (pending.kind === 'loadServer')
+    setKeptLibraryHinted(message.state === null ? kept : message.state.library.length > 0)
   else if (
     pending.kind === 'loadDevice' ||
     pending.kind === 'deleteDeviceActivity' ||

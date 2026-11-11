@@ -540,7 +540,8 @@ describe('analysis worker', () => {
     )
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { totalActivities: 1, syncIssues: [] },
+      state: null,
+      facts: { syncIssues: [] },
     })
   })
 
@@ -565,7 +566,8 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-budget', count: 3 }], totalActivities: 3 },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-budget', count: 3 }] },
     })
   })
 
@@ -599,7 +601,8 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
+      state: null,
+      facts: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
     })
   })
 
@@ -615,7 +618,8 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'server', count: 1 }], totalActivities: 1 },
+      state: null,
+      facts: { syncIssues: [{ code: 'server', count: 1 }] },
     })
     expect(mocked.uploadFile).not.toHaveBeenCalled()
   })
@@ -632,11 +636,12 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'original-held', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'original-held', count: 1 }] },
     })
   })
 
-  it('loads the account digests and replies with the analysis', async () => {
+  it('loads the account digests into the index and replies with no state', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
@@ -652,49 +657,14 @@ describe('analysis worker', () => {
     expect(messages.filter((m) => m.type !== 'deviceOffer')).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
-      {
-        type: 'state',
-        state: expect.objectContaining({ totalActivities: 1, isSample: false }),
-      },
+      { type: 'state', state: null, facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] } },
     ])
   })
 
-  it('loads the account digests on the period the page asks for, in one analysis', async () => {
-    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    const { send } = await startWorker()
-    const messages = await send({
-      type: 'loadServer',
-      settings: SETTINGS,
-      userId: USER_ID,
-      choice: 42,
-    })
-
-    expect(messages.filter((message) => message.type === 'state')).toEqual([
-      {
-        type: 'state',
-        state: expect.objectContaining({
-          totalActivities: 1,
-          period: expect.objectContaining({ choice: 42, days: 42 }),
-        }),
-      },
-    ])
-  })
-
-  it('loads the account digests on the default period when the page asks for none', async () => {
-    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
-    const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      state: { period: { choice: 'default' } },
-    })
-  })
-
-  it('analyses the account library once on the stored period, after the sample was on screen', async () => {
+  it('does not analyse the account library, after the sample was on screen', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
     await send({ type: 'loadSample', settings: SETTINGS, choice: 'all' })
-    // Counted from here. A period set before the account loads would analyse the sample first.
     const { PeriodCache } = await import('@rca/core/period')
     const analysis = vi.spyOn(PeriodCache.prototype, 'analysis')
     const messages = await send({
@@ -704,11 +674,8 @@ describe('analysis worker', () => {
       choice: 42,
     })
 
-    expect(analysis).toHaveBeenCalledTimes(1)
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      state: { totalActivities: 1, period: { choice: 42, days: 42 } },
-    })
+    expect(analysis).not.toHaveBeenCalled()
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('loads the sample on the period the page asks for, in one analysis', async () => {
@@ -811,7 +778,8 @@ describe('analysis worker', () => {
         limited: 0,
         limitKind: null,
         limitResetsAtMs: null,
-        state: expect.objectContaining({ totalActivities: 1, outdatedActivities: 0 }),
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
       },
     ])
   })
@@ -905,7 +873,8 @@ describe('analysis worker', () => {
         limited: 0,
         limitKind: null,
         limitResetsAtMs: null,
-        state: expect.objectContaining({ totalActivities: 0, outdatedActivities: 1 }),
+        state: null,
+        facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] },
       },
     ])
   })
@@ -1063,7 +1032,7 @@ describe('analysis worker', () => {
     vi.setSystemTime(SAMPLE_REFERENCE_NOW_MS)
     const { send } = await startWorker()
     const [sample] = await send({ type: 'loadSample', settings: SETTINGS })
-    if (sample?.type !== 'state') throw new Error('expected a state')
+    if (sample?.type !== 'state' || sample.state === null) throw new Error('expected a state')
     const listed = sample.state.library.find((activity) => activity.sport === 'run')
     const run = listed && sampleActivityById(deviceClock(), listed.id)
     if (!run) throw new Error('The sample has no run')
@@ -1142,7 +1111,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'signed-out', count: 2 }], totalActivities: 2 },
+      state: null,
+      facts: { syncIssues: [{ code: 'signed-out', count: 2 }] },
     })
   })
 
@@ -1161,7 +1131,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'account-changed', count: 2 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'account-changed', count: 2 }] },
     })
   })
 
@@ -1180,7 +1151,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: {
+      state: null,
+      facts: {
         syncIssues: [
           { code: 'server', count: 1 },
           { code: 'network', count: 1 },
@@ -1204,7 +1176,8 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
     })
   })
 
@@ -1228,7 +1201,8 @@ describe('analysis worker', () => {
     expect(messages).toContainEqual({ type: 'accountIssue', issue: cause })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: cause, count: 2 }] },
+      state: null,
+      facts: { syncIssues: [{ code: cause, count: 2 }] },
     })
   })
 
@@ -1246,7 +1220,7 @@ describe('analysis worker', () => {
 
     expect(mocked.createActivity).toHaveBeenCalledTimes(3)
     expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncIssues: [] } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null, facts: { syncIssues: [] } })
     expect(messages.findLast((message) => message.type === 'progress')).toMatchObject({
       uploaded: 2,
     })
@@ -1304,7 +1278,8 @@ describe('analysis worker', () => {
     expect(messages).toContainEqual({ type: 'accountIssue', issue: 'rate-limited' })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'rate-limited', count: 2 }], totalActivities: 2 },
+      state: null,
+      facts: { syncIssues: [{ code: 'rate-limited', count: 2 }] },
     })
   })
 
@@ -1324,7 +1299,8 @@ describe('analysis worker', () => {
     expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'activity-conflict', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'activity-conflict', count: 1 }] },
     })
   })
 
@@ -1351,7 +1327,8 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
     })
   })
 
@@ -1362,7 +1339,7 @@ describe('analysis worker', () => {
     expect(loaded.filter((m) => m.type !== 'deviceOffer')).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
-      { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
+      { type: 'state', state: null, facts: { rejected: [], unsupportedFiles: 0, syncIssues: [] } },
     ])
 
     const imported = await send({
@@ -1406,7 +1383,7 @@ describe('analysis worker', () => {
       expect(ending(loaded)).toMatchObject({
         type: 'state',
         outdatedWithOriginal: 1,
-        state: { outdatedActivities: 2 },
+        state: null,
       })
       // The missing count goes ahead of the state, alone: the two outdated counts must land together.
       expect(loaded).toContainEqual({ type: 'missingOriginals', count: 2 })
@@ -1418,7 +1395,7 @@ describe('analysis worker', () => {
       const { send } = await startWorker()
       const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 1 } })
+      expect(ending(loaded)).toMatchObject({ state: null })
       expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
     })
 
@@ -1430,7 +1407,7 @@ describe('analysis worker', () => {
       const { send } = await startWorker()
       const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-      expect(ending(loaded)).toMatchObject({ state: { outdatedActivities: 0 } })
+      expect(ending(loaded)).toMatchObject({ state: null })
       expect(ending(loaded)).not.toHaveProperty('outdatedWithOriginal')
     })
 
@@ -1448,7 +1425,7 @@ describe('analysis worker', () => {
       expect(ending(rebuilt)).toMatchObject({
         type: 'rebuildComplete',
         rebuilt: 1,
-        state: { outdatedActivities: 1 },
+        state: null,
       })
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
     })
@@ -1470,7 +1447,7 @@ describe('analysis worker', () => {
         type: 'rebuildComplete',
         rebuilt: 1,
         missing: 1,
-        state: { outdatedActivities: 1 },
+        state: null,
       })
       // Update now would only report the same file missing again, so none is offered.
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
@@ -1529,7 +1506,7 @@ describe('analysis worker', () => {
         settings: SETTINGS,
         sync: { keepFiles: true, userId: USER_ID },
       })
-      expect(ending(imported)).toMatchObject({ type: 'state', state: { outdatedActivities: 0 } })
+      expect(ending(imported)).toMatchObject({ type: 'state', state: null })
       expect(ending(imported)).not.toHaveProperty('outdatedWithOriginal')
     })
 
@@ -1721,7 +1698,8 @@ it('deletes by server record id without dropping another unsaved activity', asyn
   expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
   expect(messages.at(-1)).toMatchObject({
     type: 'state',
-    state: { totalActivities: 1, syncIssues: [{ code: 'network', count: 1 }] },
+    state: null,
+    facts: { syncIssues: [{ code: 'network', count: 1 }] },
   })
 })
 
@@ -1738,8 +1716,15 @@ it('keeps a saved activity after its deletion fails', async () => {
     settings: SETTINGS,
   })
   expect(messages).toEqual([{ type: 'error', message: 'Try later', issue: 'server' }])
-  const state = await send({ type: 'setSettings', settings: SETTINGS })
-  expect(state.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+  // Still in the index, so a second try finds it and lists it away.
+  mocked.deleteActivity.mockResolvedValue(undefined)
+  const again = await send({
+    type: 'deleteActivity',
+    id: saved.id,
+    userId: USER_ID,
+    settings: SETTINGS,
+  })
+  expect(again).toContainEqual({ type: 'libraryActivities', activities: [] })
 })
 
 it('reports a daily limit during a delete with the daily-limit cause', async () => {
@@ -1798,7 +1783,8 @@ function refusingLibrary(): DeviceLibrary {
 /** The start times, earliest first, of the activities the last reply analyses. */
 function analysedStarts(messages: WorkerResponse[]): number[] {
   const last = messages.at(-1)
-  if (last?.type !== 'state') throw new Error('The request did not reply with a state')
+  if (last?.type !== 'state' || last.state === null)
+    throw new Error('The request did not reply with a state')
   return (last.state.result?.activities ?? [])
     .map((activity) => activity.startMs)
     .sort((a, b) => a - b)
@@ -2221,7 +2207,7 @@ describe('device library', () => {
     })
 
     const both = [sampleActivity.startMs, thirdSampleActivity.startMs].sort((a, b) => a - b)
-    expect(analysedStarts(messages)).toEqual(both)
+    expect(listedStarts(messages)).toEqual(both)
   })
 
   it('loads the kept library again after a clear that keeps it', async () => {
@@ -2284,13 +2270,8 @@ describe('an analysis made while the account loads', () => {
       sync: { keepFiles: false, userId: USER_ID },
     })
 
-    // The account keeps one copy of the workout, so the library still counts it once.
-    expect(messages).toContainEqual(
-      expect.objectContaining({
-        type: 'state',
-        state: expect.objectContaining({ totalActivities: 1 }),
-      }),
-    )
+    // The account keeps one copy of the workout, so the library still lists it once.
+    expect(listedStarts(messages)).toHaveLength(1)
   })
 
   it('is saved once and reported as added when a signed-out visitor is re-run after the kept library loads', async () => {
@@ -2386,7 +2367,8 @@ describe('keeping what was analysed while the account was unknown', () => {
     const { send } = await startWorker()
     await send({ type: 'loadDevice', settings: SETTINGS })
     const analysed = await send(provisionalImport())
-    const digest = (analysed.at(-1) as Extract<WorkerResponse, { type: 'state' }>).state.library[0]!
+    const digest = (analysed.at(-1) as Extract<WorkerResponse, { type: 'state' }>).state!
+      .library[0]!
 
     const messages = await send({ type: 'keepProvisional', settings: SETTINGS })
 
@@ -3061,10 +3043,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(list).toMatchObject({ activities: [{ id: records[0]!.id }] })
     // Neither has an original, and only the shown one is missed.
     expect(loaded).toContainEqual({ type: 'missingOriginals', count: 1 })
-    expect(loaded.at(-1)).toMatchObject({
-      type: 'state',
-      state: { totalActivities: 1, hiddenDuplicates: 1 },
-    })
+    expect(loaded.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('stores both copies of a signed-in import, and lists one', async () => {
@@ -3080,11 +3059,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
     })
 
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
-    expect(messages.at(-1)).toMatchObject({
-      type: 'state',
-      saved: 2,
-      state: { totalActivities: 1, hiddenDuplicates: 1 },
-    })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', saved: 2, state: null })
+    expect(listedStarts(messages)).toHaveLength(1)
   })
 
   it('deletes the whole group of copies when the one shown is deleted', async () => {
@@ -3102,7 +3078,7 @@ describe('rule R: near-copies of one workout in the worker', () => {
       records.map((record) => record.id).sort(),
     )
     expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 0 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
   })
 
   it('deletes nothing of the group, and keeps it, when the server refuses the first delete', async () => {
@@ -3213,9 +3189,6 @@ describe('rule R: near-copies of one workout in the worker', () => {
     const listed = list.activities.map((activity) => activity.id)
     expect(listed).not.toContain(records[0]!.id)
     expect(mocked.deleteActivity).toHaveBeenCalledTimes(2)
-    // And the session no longer holds it: the two left are copies of each other, one shown.
-    const next = await send({ type: 'setSettings', settings: SETTINGS })
-    expect(next.at(-1)).toMatchObject({ state: { totalActivities: 1, hiddenDuplicates: 1 } })
   })
 
   it.each([
@@ -3248,7 +3221,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
       expect(id).toBe(`rec-${fit?.[0].id}`)
       expect(messages.at(-1)).toMatchObject({
         type: 'state',
-        state: { syncIssues: [], totalActivities: 1, hiddenDuplicates: 1 },
+        state: null,
+        facts: { syncIssues: [] },
       })
     },
   )
@@ -3269,7 +3243,8 @@ describe('rule R: near-copies of one workout in the worker', () => {
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
     })
   })
 
@@ -3442,8 +3417,8 @@ describe('a signed-in import saves its activities side by side', () => {
     expect(mocked.createActivity).toHaveBeenCalledTimes(12)
     expect(most).toBe(3)
     const reply = messages.at(-1)
-    expect(reply).toMatchObject({ type: 'state', saved: 12, state: { totalActivities: 12 } })
-    expect(reply).toMatchObject({ state: { syncIssues: [] } })
+    expect(reply).toMatchObject({ type: 'state', saved: 12 })
+    expect(reply).toMatchObject({ state: null, facts: { syncIssues: [] } })
   })
 
   it('reports the activities that did not save by their reason, and the rest as saved', async () => {
@@ -3465,7 +3440,8 @@ describe('a signed-in import saves its activities side by side', () => {
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
       saved: 7,
-      state: { totalActivities: 8, syncIssues: [{ code: 'server', count: 1 }] },
+      state: null,
+      facts: { syncIssues: [{ code: 'server', count: 1 }] },
     })
   })
 })
@@ -3705,7 +3681,8 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     )
     expect(await kept.library?.all()).toEqual([])
     expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
+    expect(listedStarts(messages)).toHaveLength(2)
     expect(posted.filter((m) => m.type === 'outbox')).toEqual([])
     expect(outboxRows.get(USER_ID)?.size).toBe(0)
   })
@@ -3805,7 +3782,7 @@ describe('what the browser kept before sign-in, offered to the account', () => {
     expect(await kept.library?.all()).toEqual([])
     expect(messages).toContainEqual({ type: 'deviceHolds', holds: false })
     expect(messages).toContainEqual({ type: 'deviceOffer', adoptable: 0, again: 0, held: 0 })
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: null })
     expect(mocked.deleteActivity).not.toHaveBeenCalled()
   })
 })
@@ -3941,7 +3918,7 @@ describe('an import of an export whose list labels activities the account holds'
       expect(messages.at(-1)).toMatchObject({
         type: 'state',
         outcome: { labelled: 1 },
-        state: { labelledRuns: 1, totalActivities: 0 },
+        state: null,
       })
     })
 
@@ -3959,8 +3936,8 @@ describe('an import of an export whose list labels activities the account holds'
           athleteType: null,
         },
       ])
-      expect(undone.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
-      expect(undone.at(-1)).not.toHaveProperty('state.labelledRuns')
+      expect(undone.at(-1)).toMatchObject({ type: 'state', state: null })
+      expect(undone.at(-1)).not.toHaveProperty('labelsLeft')
     })
 
     it('undoes once: a second Undo, or one after the library changed, sends nothing', async () => {
@@ -3979,12 +3956,12 @@ describe('an import of an export whose list labels activities the account holds'
       expect(first.at(-1)).toMatchObject({
         type: 'state',
         labelsLeft: 1,
-        state: { labelledRuns: 1 },
+        state: null,
       })
 
       mocked.listActivities.mockResolvedValue([savedAs()])
       const second = await send({ type: 'undoLabels', settings: SETTINGS, userId: USER_ID })
-      expect(second.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
+      expect(second.at(-1)).toMatchObject({ type: 'state', state: null })
       expect(second.at(-1)).not.toHaveProperty('labelsLeft')
       expect(mocked.patchLabels).toHaveBeenCalledTimes(3)
     })

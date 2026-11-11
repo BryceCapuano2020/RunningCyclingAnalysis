@@ -106,7 +106,8 @@ async function browserState(
     vi.useRealTimers()
   }
   const reply = posted.find((m) => REPLY_TYPES.has(m.type))
-  if (reply?.type !== 'state') throw new Error(`the worker answered ${reply?.type}`)
+  if (reply?.type !== 'state' || reply.state === null)
+    throw new Error(`the worker answered ${reply?.type}`)
   return reply.state
 }
 

@@ -4,7 +4,6 @@ import { applyLabels, undoLabels } from '@rca/core/import/applyLabels'
 import { hashedFileName } from '@rca/core/import/minimise'
 import type { LabelProposal } from '@rca/core/import/applyLabels'
 import type { AnalysisSession } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
 import { listActivities, patchLabels } from '../api/client'
 import { noteWork } from './workerWire'
 
@@ -106,15 +105,7 @@ export async function undoListLabels(
   return applied.length === 0 ? [] : write(undoLabels(applied), userId, reload)
 }
 
-/** Puts the session on the library as the account now holds it. */
-export function reloadSession(
-  session: AnalysisSession,
-  settings: AthleteSettings,
-  records: readonly ActivityRecord[],
-) {
-  return session.loadDigests(
-    records.map((record) => record.digest),
-    settings,
-    { keepUnsaved: true },
-  )
+/** Puts the session's index on the library as the account now holds it. Builds no state: the server computes the results. */
+export function reloadIndex(session: AnalysisSession, records: readonly ActivityRecord[]): void {
+  session.replaceLibrary(records.map((record) => record.digest))
 }

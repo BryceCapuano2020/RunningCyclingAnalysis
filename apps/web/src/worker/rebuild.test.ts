@@ -1,5 +1,4 @@
 import type { ActivityRecord } from '@rca/contract'
-import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { listActivities } from '../api/client'
 import { rebuildStale } from './rebuild'
@@ -38,8 +37,7 @@ function contextOf(
 ): LibraryContext {
   return {
     session: {
-      loadDigests: () => ({}),
-      setSettings: () => ({}),
+      replaceLibrary: () => undefined,
       replaceDigest: () => undefined,
     } as unknown as LibraryContext['session'],
     device: { replaced: () => undefined },
@@ -68,7 +66,7 @@ describe('updating the stale activities', () => {
       held.delete(writerLockName(USER))
     })
 
-    const result = await rebuildStale(contextOf(endResume), {} as AthleteSettings, USER)
+    const result = await rebuildStale(contextOf(endResume), USER)
 
     expect(endResume).toHaveBeenCalledTimes(1)
     expect(result.stopped).not.toBe('elsewhere')
@@ -80,7 +78,6 @@ describe('updating the stale activities', () => {
 
     const result = await rebuildStale(
       contextOf(async () => undefined),
-      {} as AthleteSettings,
       USER,
     )
 
@@ -97,7 +94,6 @@ describe('updating the stale activities', () => {
         async () => void order.push('end'),
         (userId) => void order.push(`restart ${userId}`),
       ),
-      {} as AthleteSettings,
       USER,
     )
 
@@ -115,7 +111,6 @@ describe('updating the stale activities', () => {
         restart,
         () => () => false,
       ),
-      {} as AthleteSettings,
       USER,
     )
 
