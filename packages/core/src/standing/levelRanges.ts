@@ -17,6 +17,16 @@ import { runSpeedAtGrade } from './match'
  * earning the level, so the grade of an entry figure is never under its level's floor.
  */
 
+/**
+ * When a table's age is taken: an instant (the age on its day), or the age a grade was taken at, so the table and the grade it
+ * marks are read at one age across a birthday.
+ */
+export type LevelAge = number | { age: number }
+
+function whoAt(profile: AgeProfile, at: LevelAge) {
+  return typeof at === 'number' ? ageAndSexAt(profile, at) : { age: at.age, sex: profile.sex }
+}
+
 /** The seconds that grade at `floor` or better over `distanceM`, whole, or null when the distance has no standard. */
 function entrySeconds(distanceM: number, age: number, sex: AgeProfile['sex'], floor: number) {
   const standard = ageStandardSeconds(distanceM, age, sex)
@@ -28,16 +38,16 @@ function entrySeconds(distanceM: number, age: number, sex: AgeProfile['sex'], fl
 }
 
 /**
- * The time at each level for a road race of `distanceM` (the half marathon on the Run page), by the athlete's age on `atMs` and
+ * The time at each level for a road race of `distanceM` (the half marathon on the Run page), by the athlete's age (`at`) and
  * their sex: the age-graded finish time that earns it, the same grade the road standards give a race. Null without a graded age or
  * without a standard for the distance. A time is better the lower it is.
  */
 export function runLevelTimes(
   profile: AgeProfile,
-  atMs: number,
+  at: LevelAge,
   distanceM: number,
 ): LevelBand[] | null {
-  const who = ageAndSexAt(profile, atMs)
+  const who = whoAt(profile, at)
   if (who === null) return null
   return levelBands((floor) => entrySeconds(distanceM, who.age, who.sex, floor), 1, false)
 }
@@ -51,10 +61,10 @@ export function runLevelTimes(
  */
 export function rideLevelPowers(
   profile: AgeProfile,
-  atMs: number,
+  at: LevelAge,
   massKg: number,
 ): LevelBand[] | null {
-  const who = ageAndSexAt(profile, atMs)
+  const who = whoAt(profile, at)
   if (who === null || !(massKg > 0)) return null
   const ceiling = gradeCeiling(HOUR_S, who.age, who.sex) ?? 1
   const gradeAtWatts = (watts: number) =>

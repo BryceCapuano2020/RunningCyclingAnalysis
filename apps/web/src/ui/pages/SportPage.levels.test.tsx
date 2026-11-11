@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { makeActivity, makeResult } from '../components/test/fixtures'
+import { makeActivity, makeResult, makeRunThreshold } from '../components/test/fixtures'
 import { SportPage } from './SportPage'
 import type { AgeProfile } from '../grades'
 
@@ -55,6 +55,18 @@ describe('SportPage: levels', () => {
     expect(within(rows[1]!).getByRole('rowheader')).toHaveTextContent('World')
     expect(within(rows[1]!).getAllByRole('cell')[0]!.textContent).toMatch(top)
     expect(within(rows[8]!).getByRole('rowheader')).toHaveTextContent('Recreational')
+  })
+
+  it('marks no row on the run table when the run has no forecast half, as its grade is the hour’s, not the half’s', () => {
+    // One run at an easy pace: a threshold to grade, and no hard run or heart rate to forecast a half from.
+    const result = makeResult({
+      activities: [makeActivity({ id: 'run-1', sport: 'run' })],
+      runThreshold: makeRunThreshold(3.2),
+    })
+    renderPage('run', result, PROFILE)
+    expect(document.querySelector('.sport-hero__level-name')).not.toBeNull()
+    const table = screen.getByRole('table', { name: /half marathon/i })
+    expect(table).not.toHaveTextContent('Your level')
   })
 
   it('holds the table while the year of birth or sex is missing', () => {
