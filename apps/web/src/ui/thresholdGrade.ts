@@ -1,5 +1,5 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { SportStanding, StandingGrade } from '@rca/core/standing'
+import type { HalfForecast, SportStanding, StandingGrade } from '@rca/core/standing'
 import type { Sport } from '@rca/core/types'
 import { THRESHOLD_GAP_TEXT, gapOutcome, outcomeOf } from './grades'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from './grades'
@@ -29,13 +29,21 @@ export function gradesOfStanding(result: AnalysisResult, standing: SportStanding
   }
 }
 
-/** A sport's age grade at its threshold, the one number a sport has on the current-period surfaces (`sportStanding`). */
+/**
+ * A sport's age grade, the one number a sport has on the current-period surfaces (`sportStanding`): a run's by its forecast half
+ * where the page has one (`halfForecastFor`), else at its threshold.
+ */
 export function thresholdGrade(
   result: AnalysisResult,
   sport: Sport,
   profile: AgeProfile,
+  half: HalfForecast | null = null,
 ): GradeOutcome {
-  return outcomeOfStanding(standingOf(result, profile).grades[sport], result, sport)
+  return outcomeOfStanding(
+    standingOf(result, profile, undefined, half).grades[sport],
+    result,
+    sport,
+  )
 }
 
 /** Both sports' grades at their thresholds, each at its own date. */

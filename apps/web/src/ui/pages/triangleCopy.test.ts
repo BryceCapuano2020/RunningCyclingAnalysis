@@ -42,8 +42,8 @@ function todaysText(run: number, ride: number) {
   const centre = wholeCentre(reading.lead)
   const line =
     centre === 0
-      ? 'Running and cycling grade the same at threshold.'
-      : `${SPORT_TITLE[readFrom(reading)]} grades ${plural(Math.abs(centre), 'point')} higher at threshold.`
+      ? 'Running and cycling grade the same.'
+      : `${SPORT_TITLE[readFrom(reading)]} grades ${plural(Math.abs(centre), 'point')} higher.`
   return { title: balanceTitle(reading), line }
 }
 
@@ -60,14 +60,14 @@ describe('with run and ride graded the headline and line are the page’s own, t
   it('states the examples a runner and a rider read', () => {
     expect(textOf(three(graded(61), graded(52), gap))).toEqual({
       title: 'Your balance leans toward running',
-      line: 'Running grades 9 points higher at threshold.',
+      line: 'Running grades 9 points higher.',
     })
     expect(textOf(three(graded(50), graded(60), gap)).title).toBe(
       'Your balance leans toward cycling',
     )
     expect(textOf(three(graded(60), graded(60), gap))).toEqual({
       title: 'Your running and cycling are in balance',
-      line: 'Running and cycling grade the same at threshold.',
+      line: 'Running and cycling grade the same.',
     })
   })
 })

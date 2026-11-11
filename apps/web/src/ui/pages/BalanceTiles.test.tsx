@@ -127,17 +127,17 @@ describe('BalanceTiles', () => {
     expect(tile.querySelector('.props')?.textContent).toMatch(/Likely time.*Threshold pace/)
   })
 
-  it('says each sport’s level and grade on its tile, at threshold, and no line of the best 20 min of its own', () => {
+  it('says each sport’s level and grade on its tile, and no line of the best 20 min of its own', () => {
     renderTiles()
     const run = screen.getByRole('article', { name: 'Half-marathon' })
-    expect(run).toHaveTextContent(/\w+ · \d+% at threshold\./)
+    expect(run).toHaveTextContent(/\w+ · \d+%\./)
     expect(run).not.toHaveTextContent(/Best 20 min:/)
     const ride = screen.getByRole('article', { name: 'Functional threshold power' })
-    expect(ride).toHaveTextContent(/\w+ · \d+% at threshold\./)
+    expect(ride).toHaveTextContent(/\w+ · \d+%\./)
     expect(ride).not.toHaveTextContent(/Best 20 min:/)
     // The grade line keeps the level and the percent; the ride's range and its estimate are one tap down.
     const lines = [...ride.querySelectorAll('.stat-tile__line')].map((line) => line.textContent)
-    expect(lines.at(-1)).toMatch(/^\w+ · \d+% at threshold\./)
+    expect(lines.at(-1)).toMatch(/^\w+ · \d+%\./)
   })
 
   it('holds the ride’s tiles for the weight', () => {

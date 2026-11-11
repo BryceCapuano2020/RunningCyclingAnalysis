@@ -8,7 +8,7 @@
  * athlete sees: `analysisRevision.test.ts` fails when the ledger gains a row until `ANALYSIS_LEDGER_ROWS` is the ledger's
  * count and `ANALYSIS_REVISION` has moved with it (the pair is pinned: the revision is the row count less 13).
  */
-export const ANALYSIS_REVISION = 4
+export const ANALYSIS_REVISION = 5
 
 /** The model-ledger rows this revision accounts for. */
-export const ANALYSIS_LEDGER_ROWS = 17
+export const ANALYSIS_LEDGER_ROWS = 18

@@ -18,6 +18,7 @@ const LEAD = 'An age grade is your effort as a share of world class at your age 
 const FACTS = [
   `A run’s grade is the ${ROAD_STANDARDS_SOURCE.shortName} time for its distance at your age and sex, over your time.`,
   'It uses grade-adjusted pace (GAP), corrected for hills.',
+  'Your run level is your predicted half marathon, graded this way. With no prediction, it is your threshold pace held for an hour.',
   `A ride’s W/kg is set against the best riders’ hour (${CYCLING_ANCHOR_WKG.male.toFixed(2)} W/kg men, ${CYCLING_ANCHOR_WKG.female.toFixed(2)} women), then graded as a run at that share.`,
   'A threshold is graded at your age on the day of its strongest effort.',
 ]

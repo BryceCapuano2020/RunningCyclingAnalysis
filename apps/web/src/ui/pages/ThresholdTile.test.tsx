@@ -323,9 +323,7 @@ describe('ThresholdTile', () => {
         runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
       })
       const { container } = renderTile('run', result, RUN_GRADED)
-      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(
-        /^Local · 64% at threshold\.$/,
-      )
+      expect(container.querySelector('.stat-tile__line')).toHaveTextContent(/^Local · 64%\.$/)
     })
 
     it('has no “Best 20 min” line of its own, whether the best sits above the threshold or below it', () => {
@@ -337,7 +335,7 @@ describe('ThresholdTile', () => {
         })
         const { container } = renderTile('run', result, RUN_GRADED)
         const lines = [...container.querySelectorAll('.stat-tile__line')].map((l) => l.textContent)
-        expect(lines).toEqual([expect.stringMatching(/^Local · 64% at threshold\./)])
+        expect(lines).toEqual([expect.stringMatching(/^Local · 64%\./)])
         expect(container.textContent).not.toMatch(/Best 20 min:/)
         cleanup()
       }
@@ -386,9 +384,7 @@ describe('ThresholdTile', () => {
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
-      expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
-        'Recreational · 58% at threshold.',
-      )
+      expect(container.querySelector('.stat-tile__line')?.textContent).toBe('Recreational · 58%.')
     })
 
     it('writes watts a power meter measured the same way: the grade line does not say which they were', () => {
@@ -397,9 +393,7 @@ describe('ThresholdTile', () => {
         rideCurve: [curvePoint(HEADLINE_DURATION_S, 246, 'ride-1')],
       })
       const { container } = renderTile('ride', result, RIDE_GRADED)
-      expect(container.querySelector('.stat-tile__line')?.textContent).toBe(
-        'Recreational · 58% at threshold.',
-      )
+      expect(container.querySelector('.stat-tile__line')?.textContent).toBe('Recreational · 58%.')
     })
 
     it('says the reason there is no grade, in place of the line, when the grade is a gap', () => {

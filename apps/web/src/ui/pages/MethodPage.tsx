@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { Period } from '@rca/core/period'
-import type { AnalysisResult } from '@rca/core/pipeline'
+import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Curve } from '@rca/core/types'
 import { formatPercent } from '@rca/core/units'
 import { standingOf } from '../standing'
@@ -14,6 +14,7 @@ import { NumText } from '../components/NumText'
 import { plural } from '../components/plural'
 import { gradedSexOf } from '../grades'
 import { gradesOfStanding } from '../thresholdGrade'
+import { halfForecastFor } from '../runHalf'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { MethodAnswer } from './MethodAnswerBlock'
 import {
@@ -42,6 +43,8 @@ import { PageHeading } from '../components/PageHeading'
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
   result: AnalysisResult | null
+  /** The library less the runs at walking pace, which the run's forecast half is asked of, as on Balance. Absent: the period alone. */
+  library?: readonly ActivitySummary[]
   /** What the heart rate set aside was judged against, the library's, which the line on it cites. */
   heartRateJudgement: HeartRateJudgement
   /** The year of birth and sex for the grades, or null while either is missing. */
@@ -53,6 +56,9 @@ export interface MethodPageProps {
   /** True while a kept library is still loading, which may still bring the results. */
   restoring?: boolean
 }
+
+/** No library given: the forecast is asked of the period alone. */
+const NO_ACTIVITIES: readonly ActivitySummary[] = []
 
 /** A ride's grade withheld, so that only a run's grade is left to say whose grades these are. */
 function runOnly(headline: HeadlineGrades | null): HeadlineGrades | null {
@@ -70,6 +76,7 @@ function contributorsOf(curve: Curve): number {
 /** How each figure is worked out: the answer first, then one section a figure, each led by the line a reader wants. */
 export function MethodPage({
   result,
+  library = NO_ACTIVITIES,
   heartRateJudgement,
   profile,
   period,
@@ -82,7 +89,19 @@ export function MethodPage({
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
   const holdInputs = useHoldInputs()
-  const standing = profile === null || result === null ? null : standingOf(result, profile)
+  // The run is graded by its forecast half where there is one, as Balance and the Run page grade it.
+  const half =
+    result === null
+      ? null
+      : halfForecastFor({
+          result,
+          rangeDays: period?.days ?? null,
+          library,
+          heartRateJudgement,
+          periodEndMs: period?.endMs ?? null,
+        })
+  const standing =
+    profile === null || result === null ? null : standingOf(result, profile, undefined, half)
   const headline = standing === null || result === null ? null : gradesOfStanding(result, standing)
   // A ride at the top of the age tables, or one with no usable power, is out of the comparison as Balance leaves it out.
   const rideHold =

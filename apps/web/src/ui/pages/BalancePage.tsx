@@ -20,6 +20,7 @@ import { soleSportOf } from '../soleSport'
 import { triangleViewOf } from '../triangleSports'
 import { liftTileOf } from '../lift/liftTile'
 import { headlineHalf, raceAnswerFor } from '../raceAnswer'
+import { halfForecastOf } from '../runHalf'
 import { useLiftSummary } from '../lift/useLiftSummary'
 import type { LiftSummaryAccount } from '../lift/useLiftSummary'
 import type { AnalysisController } from '../useAnalysis'
@@ -83,7 +84,27 @@ export function BalancePage({
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   const hold = useHoldInputs()
-  // Where the athlete stands, worked out once by core (`sportStanding`): each sport's grade is its threshold graded as an hour, and
+  // The run's row leads with the half marathon the Run page predicts, asked the same way, when it is a forecast; the share
+  // card leads with the same one, and the run is graded by it (`halfForecastOf`), so its row, level and corner are one figure.
+  const { heartRateJudgement } = analysis.state
+  const half = useMemo(
+    () =>
+      headlineHalf(
+        raceAnswerFor('run', {
+          result,
+          rangeDays: period.days,
+          library,
+          heartRateJudgement,
+          periodEndMs: period.endMs,
+        }),
+      ),
+    [result, period.days, period.endMs, library, heartRateJudgement],
+  )
+  const runHalf = useMemo(
+    () => halfForecastOf(half, { result, periodEndMs: period.endMs }),
+    [half, result, period.endMs],
+  )
+  // Where the athlete stands, worked out once by core (`sportStanding`): a run's grade is its forecast half's, a ride's its threshold's, and
   // the lead, the ride as a run and the level target come with it. The cards, the balance and the share card all read it. It is
   // memoised on the analysis and the two profile values, not the profile object, which the caller builds afresh on each render.
   // The share preview is drawn from it, so a new object each render would redraw it while the sheet is open.
@@ -93,8 +114,8 @@ export function BalancePage({
     () =>
       birthYear === null || sex === null
         ? null
-        : standingOf(result, { birthYear, sex }, { massKg: settings.massKg, units }),
-    [result, birthYear, sex, settings.massKg, units],
+        : standingOf(result, { birthYear, sex }, { massKg: settings.massKg, units }, runHalf),
+    [result, birthYear, sex, settings.massKg, units, runHalf],
   )
   const headline = useMemo(
     () => (standing === null ? null : gradesOfStanding(result, standing)),
@@ -143,22 +164,6 @@ export function BalancePage({
     // Without a weight the row still shows each projected one-rep max, with no grade beside it.
     () => liftTileOf(isSample ? [] : lifts, weightKnown ? profile : null, settings, units),
     [isSample, weightKnown, lifts, profile, settings, units],
-  )
-  // The run's row leads with the half marathon the Run page predicts, asked the same way, when it is a forecast; the share
-  // card leads with the same one.
-  const { heartRateJudgement } = analysis.state
-  const half = useMemo(
-    () =>
-      headlineHalf(
-        raceAnswerFor('run', {
-          result,
-          rangeDays: period.days,
-          library,
-          heartRateJudgement,
-          periodEndMs: period.endMs,
-        }),
-      ),
-    [result, period.days, period.endMs, library, heartRateJudgement],
   )
   // The level triangle: each sport's grade on its own corner. It holds back only while the weight is asked for, which the hero says.
   const triangle = useMemo(() => triangleViewOf(grades, liftGrade), [grades, liftGrade])

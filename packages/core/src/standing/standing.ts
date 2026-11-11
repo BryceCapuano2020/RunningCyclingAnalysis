@@ -8,6 +8,8 @@ import type { Interval, Sport } from '../types'
 import { SPORTS } from '../types'
 import type { UnitSystem } from '../units'
 import { runThresholdSpeed } from '../digest/equivalents'
+import { gradeHalf } from './halfGrade'
+import type { HalfForecast } from './halfGrade'
 import { balanceLead } from './lead'
 import type { BalanceLead } from './lead'
 import { matchFigure } from './match'
@@ -23,7 +25,10 @@ export type StandingGrade =
  * notice state about the two sports' thresholds comes from here, so no two surfaces can work out their own copy.
  */
 export interface SportStanding {
-  /** Each sport's grade at its threshold, as an hour, at the age on the day of the threshold's strongest effort. */
+  /**
+   * Each sport's grade. A run with a forecast half marathon is graded by that half (`gradeHalf`), the figure Balance's run row and
+   * the Run page's levels state; without one, and for a ride, by the threshold as an hour at the age on the day of its strongest effort.
+   */
   grades: Record<Sport, StandingGrade>
   /** The ride threshold as the pace the same hour of running would be (m/s, with the range); the "ride as a run". Null without a ride threshold. */
   rideAsRun: Interval | null
@@ -90,18 +95,27 @@ function gradeOf(result: AnalysisResult, sport: Sport, profile: AgeProfile | nul
 }
 
 /**
- * The athlete's standing: both thresholds graded as an hour (a run by its pace, a ride through the running equivalent anchored at
- * the best riders' hour), the lead between them and its range, the ride as a run, and, given the body mass and units, what the lower
- * sport would need to match the higher. Age is taken on the day of each threshold's strongest effort. Without a profile there are
+ * The athlete's standing: each sport graded (a run by its forecast half marathon, `runHalf`, when there is one, else by its
+ * threshold pace as an hour; a ride through the running equivalent anchored at the best riders' hour), the lead between them and its
+ * range, the ride as a run, and, given the body mass and units, what the lower sport's threshold would need to be to match the
+ * higher's grade. A threshold's age is taken on the day of its strongest effort, a half's on its `atMs`. Without a profile there are
  * no grades; the ride as a run needs none.
  */
 export function sportStanding(
   result: AnalysisResult,
   profile: AgeProfile | null,
   context?: StandingContext,
+  runHalf: HalfForecast | null = null,
 ): SportStanding {
   const grades = Object.fromEntries(
-    SPORTS.map((sport) => [sport, gradeOf(result, sport, profile)]),
+    SPORTS.map((sport) => [
+      sport,
+      sport === 'run' && runHalf !== null
+        ? profile === null
+          ? { kind: 'gap', why: 'no-profile' }
+          : gradeHalf(runHalf, profile)
+        : gradeOf(result, sport, profile),
+    ]),
   ) as Record<Sport, StandingGrade>
   const [first, second] = SPORTS
   const one = grades[first]

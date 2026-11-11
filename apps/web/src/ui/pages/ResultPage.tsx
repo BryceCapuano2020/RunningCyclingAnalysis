@@ -257,6 +257,7 @@ export function ResultPage({
         return (
           <MethodPage
             result={result}
+            library={analysed}
             heartRateJudgement={analysis.state.heartRateJudgement}
             profile={profile}
             period={period}
