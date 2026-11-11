@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as digestLimits from '@rca/core/digest/limits'
 import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
-import { DEFAULT_PARSE_LIMITS } from '@rca/core/import'
+import { DEFAULT_PARSE_LIMITS, GARMIN_PARSE_LIMITS } from '@rca/core/import'
 import * as importLimits from '@rca/core/import/limits'
 import { readStylesheet } from './ui/test/stylesheet'
 
@@ -21,16 +21,18 @@ function valueOf(name: string): string | undefined {
   return rows.find((cells) => cells[1]?.includes(`\`${name}\``))?.[2]
 }
 
-function numbersOf(group: object): Array<[string, number]> {
-  return Object.entries(group).filter(
-    (entry): entry is [string, number] => typeof entry[1] === 'number',
-  )
+/** A group's numbers by name; a prefix names the fields of a second group with the same keys apart. */
+function numbersOf(group: object, prefix = ''): Array<[string, number]> {
+  return Object.entries(group)
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+    .map(([name, value]) => [`${prefix}${name}`, value])
 }
 
 describe.each([
   ['the file and archive limits', numbersOf(importLimits)],
   ['the digest bounds', numbersOf(digestLimits)],
   ['the per-file parse limits', numbersOf(DEFAULT_PARSE_LIMITS)],
+  ['the server parse limits', numbersOf(GARMIN_PARSE_LIMITS, 'GARMIN_PARSE_LIMITS.')],
   ['the archive limits', numbersOf(DEFAULT_EXTRACT_LIMITS)],
 ])('docs/LIMITS.md gives %s as the code sets them', (_label, limits) => {
   it('has a row for each, with its value', () => {

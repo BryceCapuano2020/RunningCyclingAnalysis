@@ -6,7 +6,7 @@ service limits (accounts, bytes, rate limits and Cloudflare's free tier) are in
 
 Every limit here is a named constant, in `packages/core/src/import/limits.ts` for files and archives
 and `packages/core/src/digest/readLimits.ts` for digests, with two older groups that stay where they
-are (`DEFAULT_PARSE_LIMITS` in `import/result.ts` and `DEFAULT_EXTRACT_LIMITS` in `fit/extractLimits.ts`).
+are (`DEFAULT_PARSE_LIMITS` and `GARMIN_PARSE_LIMITS` in `import/result.ts` and `DEFAULT_EXTRACT_LIMITS` in `fit/extractLimits.ts`).
 `apps/web/src/limitsDoc.test.ts` fails when a value below is not the value in the code, or a
 constant has no row, so this page cannot drift.
 
@@ -65,6 +65,16 @@ slices, never built a character at a time, so a field costs about its own length
 | `maxRecordMessages`  | 691,200    | Records of one file: FIT record messages, or GPX and TCX trackpoints |
 | `maxMessages`        | 1,000,000  | FIT only: data messages of every kind                                |
 | `maxActivitySeconds` | 172,800    | The longest activity, in seconds (48 hours)                          |
+
+`GARMIN_PARSE_LIMITS`, applied by the server to a file Garmin sends (one FIT file per activity, never an archive). Each
+is under the browser's, so a hostile file costs a queue run less than it may cost a tab.
+
+| Field                                    | Value     | What it bounds                              |
+| ---------------------------------------- | --------- | ------------------------------------------- |
+| `GARMIN_PARSE_LIMITS.maxFileBytes`       | 5,242,880 | Bytes of one file (5 MiB, the push limit)   |
+| `GARMIN_PARSE_LIMITS.maxRecordMessages`  | 518,400   | FIT record messages                         |
+| `GARMIN_PARSE_LIMITS.maxMessages`        | 600,000   | FIT data messages of every kind             |
+| `GARMIN_PARSE_LIMITS.maxActivitySeconds` | 129,600   | The longest activity, in seconds (36 hours) |
 
 ## Archives
 
