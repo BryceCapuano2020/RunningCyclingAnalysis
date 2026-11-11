@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisSettings, bodyMassOn, type Measurement } from '@rca/core/athlete'
-import { UTC_ZONE, setViewerZone } from '@rca/core/calendar'
+import { UTC_ZONE, setViewerZone, withViewerZone } from '@rca/core/calendar'
 import { dayOf } from '@rca/core/customRange'
 import type { PeriodChoice } from '@rca/core/period'
 import type { SessionState } from '@rca/core/session'
@@ -10,7 +10,9 @@ import {
   snapshotCorpus,
   type CorpusLibrary,
 } from '../../../../packages/core/src/test/snapshotCorpus'
-import type { StateInputs } from '../../../api/src/state/inputs'
+import { measurementOf, type StateInputs } from '../../../api/src/state/stateInputs'
+import { zoneNamed } from '../../../api/src/state/zone'
+import { toSettings } from '../../../api/src/state/settingsRow'
 import { computeFor } from '../../../api/src/state/compute'
 import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import { installDeviceZone } from './viewerZone'
@@ -47,6 +49,8 @@ interface Choices {
   sex: 'female' | 'male' | null
   countedRuns: string[]
   keepPower: string[]
+  /** The lists are stored as `[]`, not NULL, when they hold nothing: the account chose none, rather than never chose. */
+  storedEmpty?: boolean
 }
 
 const NONE: Choices = {
@@ -106,13 +110,21 @@ async function browserState(
   return reply.state
 }
 
-/** What the API's read gives for the same account, and its compute, through the snapshot's round trip. */
+/** A list as its column holds it: JSON when it has items or the account chose an empty one, NULL when it never chose. */
+const column = (list: string[], storedEmpty: boolean | undefined) =>
+  list.length > 0 || storedEmpty === true ? JSON.stringify(list) : null
+
+/**
+ * What the API reads for the same account, through the row mappings it reads with (`toSettings` over the stored JSON
+ * columns, `measurementOf` over the dated rows), then its compute and the snapshot's round trip. `zone` null is an
+ * account whose browser has reported none.
+ */
 function serverState(
   library: CorpusLibrary,
   choices: Choices,
   choice: SetChoice | undefined,
   nowMs: number,
-  zone: string,
+  zone: string | null,
 ): SessionState {
   const inputs: StateInputs = {
     version: 3,
@@ -122,13 +134,15 @@ function serverState(
     bikeMassKg: BIKE_KG,
     birthYear: choices.birthYear,
     sex: choices.sex,
-    measurements: choices.measurements,
-    settings: {
-      keepPower: choices.keepPower.length === 0 ? null : choices.keepPower,
-      countedRuns: choices.countedRuns.length === 0 ? null : choices.countedRuns,
-      period: choice ?? null,
+    measurements: choices.measurements.map((m) =>
+      measurementOf({ kind: m.kind, sport: m.sport ?? '', from_date: m.from, value: m.value }),
+    ),
+    settings: toSettings({
+      keep_power: column(choices.keepPower, choices.storedEmpty),
+      counted_runs: column(choices.countedRuns, choices.storedEmpty),
+      period: choice === undefined ? null : JSON.stringify(choice),
       zone,
-    },
+    }),
   }
   return fromSnapshot(computeFor(inputs, nowMs))
 }
@@ -150,30 +164,64 @@ afterEach(() => {
 
 const corpus = snapshotCorpus()
 
+interface Case {
+  name: string
+  choices: Choices
+  choice: SetChoice | undefined
+  /** The instant, when the case is about one; the library's own otherwise. */
+  nowMs?: number
+  /** The zones to run in: `null` is an account with no saved zone, which the server reads as UTC. */
+  zones?: readonly (string | null)[]
+}
+
+/** The first UTC midnight after the library, plus two hours: a day later in UTC than in America/Los_Angeles. */
+const lateUtcDay = (library: CorpusLibrary) =>
+  Math.ceil(library.nowMs / DAY_MS) * DAY_MS + 2 * 3_600_000
+
 /** The choices of each case, from the library's own activities. */
-function casesFor(library: CorpusLibrary) {
+function casesFor(library: CorpusLibrary): Case[] {
   const runs = library.digests.filter((d) => d.sport === 'run').slice(0, 3)
   const rides = library.digests.filter((d) => d.sport === 'ride').slice(0, 3)
   const from = dayOf(library.nowMs - 40 * DAY_MS)
   const to = dayOf(library.nowMs - 10 * DAY_MS)
   const earlier = dayOf(library.nowMs - 90 * DAY_MS)
+  const late = lateUtcDay(library)
   return [
     { name: 'the default period', choices: NONE, choice: undefined },
-    { name: 'a period of days', choices: NONE, choice: 56 as SetChoice },
-    { name: 'all time', choices: NONE, choice: 'all' as SetChoice },
-    { name: 'a custom range', choices: NONE, choice: { from, to } as SetChoice },
+    { name: 'a period of days', choices: NONE, choice: 56 },
+    { name: 'all time', choices: NONE, choice: 'all' },
+    { name: 'a custom range', choices: NONE, choice: { from, to } },
     {
       name: 'a settings change',
       choices: {
         massKg: 64,
-        measurements: [{ kind: 'massKg', value: 61, from: earlier }] as Measurement[],
+        measurements: [{ kind: 'massKg', value: 61, from: earlier }],
         birthYear: 1985,
         sex: 'female',
         countedRuns: runs.map(workoutKeyOf),
         keepPower: rides.map((d) => d.id),
-      } satisfies Choices,
-      choice: 'all' as SetChoice,
+      },
+      choice: 'all',
     },
+    {
+      name: 'lists stored empty, not null',
+      choices: { ...NONE, storedEmpty: true },
+      choice: 'all',
+    },
+    {
+      // The weight starts on the UTC day of the instant: in effect there, and not yet in Los Angeles, where it is still the day before.
+      name: 'a dated weight that starts on a day the zones disagree on',
+      choices: {
+        ...NONE,
+        measurements: [
+          { kind: 'massKg', value: 61, from: dayOf(late - 30 * DAY_MS) },
+          { kind: 'massKg', value: 58, from: dayOf(late) },
+        ],
+      },
+      choice: undefined,
+      nowMs: late,
+    },
+    { name: 'no saved zone', choices: NONE, choice: undefined, zones: [null] },
   ]
 }
 
@@ -181,15 +229,16 @@ describe('the server computes what the browser builds for a signed-out visitor',
   for (const library of corpus) {
     it.each(casesFor(library).map((c) => [c.name, c] as const))(
       `${library.name}: %s`,
-      async (_name, { choices, choice }) => {
-        for (const zone of ZONES) {
-          vi.stubEnv('TZ', zone)
+      async (_name, { choices, choice, nowMs = library.nowMs, zones = ZONES }) => {
+        for (const zone of zones) {
+          // An account with no saved zone is cut in UTC, as a device in UTC is.
+          vi.stubEnv('TZ', zone ?? 'UTC')
           installDeviceZone()
-          const browser = await browserState(library, choices, choice, library.nowMs)
-          const server = serverState(library, choices, choice, library.nowMs, zone)
+          const browser = await browserState(library, choices, choice, nowMs)
+          const server = serverState(library, choices, choice, nowMs, zone)
           expectSameState(server, browser)
-          // What the device keeps and the server stores is the snapshot: the browser's state survives the same round trip.
-          const meta = { libraryVersion: 0, nowMs: library.nowMs, zone, buildSha: 'x' }
+          // Not equivalence: this checks that the snapshot round trip keeps a state, which the device's copy and the stored one rely on.
+          const meta = { libraryVersion: 0, nowMs, zone: zone ?? 'UTC', buildSha: 'x' }
           expectSameState(fromSnapshot(toSnapshot(browser, meta)), browser)
         }
       },
@@ -203,6 +252,16 @@ describe('the server computes what the browser builds for a signed-out visitor',
     const before = serverState(library, base!.choices, 'all', library.nowMs, 'UTC')
     const after = serverState(library, changed!.choices, 'all', library.nowMs, 'UTC')
     expect(after).not.toEqual(before)
+  })
+
+  it('the zone-dependent weight is a different mass in each zone, so that case is not vacuous', () => {
+    const dated = casesFor(corpus[1]!).find((c) => /dated weight/.test(c.name))!
+    const massIn = (zone: string) =>
+      withViewerZone(zoneNamed(zone), () =>
+        bodyMassOn(dated.choices.massKg, dated.choices.measurements, dated.nowMs!),
+      )
+    expect(massIn('UTC')).toBe(58)
+    expect(massIn('America/Los_Angeles')).toBe(61)
   })
 
   it.todo(
