@@ -88,7 +88,7 @@ export async function handleStateBatch(
   return report
 }
 
-/** The size class of an account's library, for the failure log: the account limit is 4,000. */
+/** The size class of an account's library, for the failure log: the account limit is 3,000. */
 async function activityBucket(db: D1Database, userId: string): Promise<string> {
   try {
     const row = await db

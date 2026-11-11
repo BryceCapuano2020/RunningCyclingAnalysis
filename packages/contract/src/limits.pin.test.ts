@@ -21,8 +21,8 @@ describe('contract limits', () => {
     // The digest reader bounds a text in characters by the same number the API bounds a body in bytes.
     expect(MAX_DIGEST_TEXT_CHARS).toBe(limits.MAX_DIGEST_BYTES)
     expect(limits.MAX_FILE_BYTES).toBe(50 * 1024 * 1024)
-    expect(limits.MAX_ACTIVITIES_PER_USER).toBe(4000)
-    expect(limits.MAX_DIGEST_BYTES_PER_USER).toBe(32 * 1024 * 1024)
+    expect(limits.MAX_ACTIVITIES_PER_USER).toBe(3000)
+    expect(limits.MAX_DIGEST_BYTES_PER_USER).toBe(24 * 1024 * 1024)
     expect(limits.MAX_LIFT_SETS_PER_USER).toBe(60_000)
     expect(limits.MAX_STORED_BYTES_PER_USER).toBe(1024 * 1024 * 1024)
     expect(limits.MAX_CONCURRENT_UPLOADS_PER_USER).toBe(2)
@@ -30,10 +30,10 @@ describe('contract limits', () => {
 
   it('pins the per-user daily budgets', () => {
     expect(limits.DAILY_LIMITS).toEqual({
-      fileDownload: 4000,
+      fileDownload: 3000,
       profileWrite: 50,
       activityDelete: 50,
-      activityCreate: 4000,
+      activityCreate: 3000,
       fileUpload: 2000,
       read: 100,
       measurementWrite: 200,

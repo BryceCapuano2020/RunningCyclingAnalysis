@@ -141,4 +141,17 @@ describe('useRouteGuard on a deep link', () => {
     rerender({ ...queued, busy: false, waiting: false, libraryLoading: false, hasResult: true })
     await waitFor(() => expect(window.location.hash).toBe('#/'))
   })
+
+  it('leaves a visitor on the page they chose while an import that began elsewhere runs, when the result arrives', async () => {
+    window.location.hash = '#/'
+    const importing: RouteGuardInput = { ...cold, route: { page: 'balance' }, busy: true }
+    const { rerender } = renderHook((input: RouteGuardInput) => useRouteGuard(input), {
+      initialProps: importing,
+    })
+    window.location.hash = '#/activities'
+    rerender({ ...importing, route: { page: 'activities' } })
+    rerender({ ...importing, route: { page: 'activities' }, busy: false, hasResult: true })
+    await Promise.resolve()
+    expect(window.location.hash).toBe('#/activities')
+  })
 })

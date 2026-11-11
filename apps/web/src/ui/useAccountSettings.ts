@@ -60,10 +60,10 @@ export function useAccountSettings(
   const signedIn = status === 'signed-in' && userId !== null
   const [notSaved, setNotSaved] = useState(false)
   // Another tab saved settings: the copy it sent is the one in this browser, so what this tab still held back is in the account too.
-  const savedElsewhere = useRef<() => void>(() => undefined)
+  const savedElsewhere = useRef<(() => void) | null>(null)
   useTabMessages(
     useCallback((message) => {
-      if (message.type === 'settings') savedElsewhere.current()
+      if (message.type === 'settings') savedElsewhere.current?.()
     }, []),
   )
   useEffect(() => {
@@ -85,30 +85,28 @@ export function useAccountSettings(
       }, retryWaitMs(failures))
     }
     const save = () => {
-      queue = queue.then(
-        () =>
-          current
-            ? // Every save reads the account first and sends only what this device chose, so a device open for days does not
-              // put its old copy over another device's newer choice. A choice made meanwhile stays queued for the next save.
-              ((fields: ReadonlySet<SettingsField>) =>
-                pullAccountSettings(userId, fields).then(
-                  () => {
-                    failures = 0
-                    for (const field of fields) pending.delete(field)
-                    setNotSaved(pending.size > 0)
-                    setWhy(null)
-                    // The server's results changed with it: this tab and the others ask for them again.
-                    tellOtherTabs({ type: 'settings' })
-                  },
-                  (error: unknown) => {
-                    setNotSaved(true)
-                    if (refused(error)) setWhy('refused')
-                    else if (sessionEnded(error)) setWhy('session')
-                    else if (worthRetrying(error)) retry(save)
-                  },
-                ))(new Set(pending))
-            : undefined,
-        () => undefined,
+      queue = queue.then(() =>
+        current
+          ? // Every save reads the account first and sends only what this device chose, so a device open for days does not
+            // put its old copy over another device's newer choice. A choice made meanwhile stays queued for the next save.
+            ((fields: ReadonlySet<SettingsField>) =>
+              pullAccountSettings(userId, fields).then(
+                () => {
+                  failures = 0
+                  for (const field of fields) pending.delete(field)
+                  setNotSaved(pending.size > 0)
+                  setWhy(null)
+                  // The server's results changed with it: this tab and the others ask for them again.
+                  tellOtherTabs({ type: 'settings' })
+                },
+                (error: unknown) => {
+                  setNotSaved(true)
+                  if (refused(error)) setWhy('refused')
+                  else if (sessionEnded(error)) setWhy('session')
+                  else if (worthRetrying(error)) retry(save)
+                },
+              ))(new Set(pending))
+          : undefined,
       )
     }
     const stop = onSettingsChosen((field) => {
@@ -144,7 +142,7 @@ export function useAccountSettings(
     }
     pull()
     return () => {
-      savedElsewhere.current = () => undefined
+      savedElsewhere.current = null
       current = false
       clearTimeout(timer)
       stop()

@@ -138,17 +138,17 @@ runs computes for different accounts in one isolate.
 
 The server computes for every account, so its bound is the account limits, and no smaller one: `SERVER_STATE_MAX_ACTIVITIES`
 and the `too_large` outcome are gone. Memory grows with digest bytes, not with activity count. The limits came down so the
-largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 4,000 and `MAX_DIGEST_BYTES_PER_USER` 64 to 32 MiB, with
+largest account fits: `MAX_ACTIVITIES_PER_USER` 5,000 to 3,000 and `MAX_DIGEST_BYTES_PER_USER` 64 to 24 MiB (4,000 and 32 MiB first; that case dropped Miniflare's local D1 socket on CI, so the cap went to 3,000 as agreed), with
 `MAX_LIFT_SETS_PER_USER` (60,000, the database's own check) in the same case.
 
 - **Measured in workerd** (apps/api/LIMITS.md has the figures): the job on synthetic data at those limits, with the isolate's
   heap limited by `MINIFLARE_WORKERD_V8_FLAGS="--max-old-space-size=N"`, passes at 96 MB. CPU is 15.6 s there (the
   collector thrashing), about 31 s at the 2x allowance for Cloudflare's CPUs, so `limits.cpu_ms` is 60,000: about 2x over the
-  thrash case. If 4,000 later fails CI, the cap goes to 3,000.
+  thrash case. These runs were at 4,000 and 32 MiB, an upper bound for the 3,000 and 24 MiB now set.
 - **A test pins it.** The memory sim asserts the library it measured is the account limits (activities, lift sets and the byte quota), and `state/memoryCases.test.ts` pins that case to the contract's constants.
 - **Lowering a quota is not safe on its own:** rows over a new quota are kept, never dropped. The release session first
-  checks, with a read-only query, that no account in production is over either (`activity_count > 4000` or
-  `digest_bytes > 33554432` on `users`); one that is would still compute, and may not fit. **That read-only check is the guard**: the `too_large` outcome that once sent an oversized account to the browser is gone, so an account that does not fit the isolate fails its job on every try, goes to the dead-letter queue, and is re-sent and fails again each day (its `state_job_failed` log line carries `activities`, a size bucket and no figure).
+  checks, with a read-only query, that no account in production is over either (`activity_count > 3000` or
+  `digest_bytes > 25165824` on `users`); one that is would still compute, and may not fit. **That read-only check is the guard**: the `too_large` outcome that once sent an oversized account to the browser is gone, so an account that does not fit the isolate fails its job on every try, goes to the dead-letter queue, and is re-sent and fails again each day (its `state_job_failed` log line carries `activities`, a size bucket and no figure).
 
 ## What the browser stops doing for accounts
 

@@ -53,7 +53,9 @@ export function coldNoticeFor({
  */
 export function useRouteGuard(input: RouteGuardInput): string | null {
   const { route, hasResult, busy, waiting, libraryLoading } = input
-  const importedOnColdPage = useRef(false)
+  // The page a deep link opened on when its import began, while it brings no result; null once the visitor has gone elsewhere.
+  const coldPage = useRef<Route['page'] | null>(null)
+  const wasImporting = useRef(false)
 
   useEffect(() => {
     const hash = window.location.hash
@@ -65,10 +67,13 @@ export function useRouteGuard(input: RouteGuardInput): string | null {
     // A library load also holds the page busy, so busy is an import only when no load is running. A
     // visitor's own import during a kept library's restore is an import, and moves them to Balance.
     const importing = waiting || (busy && !libraryLoading)
-    if (!hasResult && importing && needsResult(route)) {
-      importedOnColdPage.current = true
-    } else if (hasResult && importedOnColdPage.current) {
-      importedOnColdPage.current = false
+    const began = importing && !wasImporting.current
+    wasImporting.current = importing
+    // Only an import that began on the page moves the visitor: one who went there while an import ran chose it, and stays.
+    if (began && !hasResult && needsResult(route)) coldPage.current = route.page
+    else if (coldPage.current !== null && coldPage.current !== route.page) coldPage.current = null
+    if (hasResult && coldPage.current !== null) {
+      coldPage.current = null
       if (needsResult(route)) window.location.replace(hrefFor({ page: 'balance' }))
     }
   })

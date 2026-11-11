@@ -74,12 +74,12 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   // A signed-in account's results are the server's; the page never shows one the browser computed for it.
   const userId = account.status === 'signed-in' && account.me !== null ? account.me.user.id : null
   // The index is read again when the server's library moves past it; the reader is made below, once its parts exist.
-  const indexBehindRef = useRef<() => void>(() => undefined)
+  const indexBehindRef = useRef<(() => void) | null>(null)
   const accountResults = useAccountResults(
     userId,
     account.sessionExpired === true,
     !imports.busy,
-    () => indexBehindRef.current(),
+    () => indexBehindRef.current?.(),
   )
   // What the page shows: the account's results, with an expired session keeping them until a state of the device's own arrives.
   const shown = useShownResults(

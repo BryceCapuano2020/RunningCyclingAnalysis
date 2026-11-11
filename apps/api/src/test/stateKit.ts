@@ -100,7 +100,10 @@ export async function seedDigests(
   digests: readonly ActivityDigest[],
   firstCreatedAt = 1_000,
 ): Promise<void> {
-  const statements = digests.map((digest, index) =>
+  // Statements are built one batch at a time (a padded library's rows are tens of MiB, and all of them bound at once held every
+  // digest twice), in batches of at most 25 rows and about 128 KiB: a batch of megabytes dropped Miniflare's local D1 socket
+  // on a loaded runner (the memory sim).
+  const insert = (digest: ActivityDigest, index: number, json: string) =>
     db
       .prepare(
         `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
@@ -115,20 +118,18 @@ export async function seedDigests(
         digest.startMs,
         digest.name,
         digest.version,
-        JSON.stringify(digest),
+        json,
         `file-${index}.fit`,
         'a'.repeat(64),
         firstCreatedAt + index,
-      ),
-  )
-  // Batches of at most 50 rows and about 256 KiB: one batch of a padded library's rows is megabytes, which is what
-  // dropped Miniflare's local D1 socket under load (the memory sim).
+      )
   let batch: D1PreparedStatement[] = []
   let batchBytes = 0
-  for (const [index, statement] of statements.entries()) {
-    batch.push(statement)
-    batchBytes += JSON.stringify(digests[index]).length
-    if (batch.length < 50 && batchBytes < 256 * 1024 && index < statements.length - 1) continue
+  for (const [index, digest] of digests.entries()) {
+    const json = JSON.stringify(digest)
+    batch.push(insert(digest, index, json))
+    batchBytes += json.length
+    if (batch.length < 25 && batchBytes < 128 * 1024 && index < digests.length - 1) continue
     await db.batch(batch)
     batch = []
     batchBytes = 0

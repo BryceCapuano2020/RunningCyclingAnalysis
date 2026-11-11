@@ -313,3 +313,15 @@ describe('the index of the library', () => {
     })
   })
 })
+
+describe('a 304 on the held copy', () => {
+  it('makes the copy current when the server says so, and keeps it as it was otherwise', async () => {
+    read.mockResolvedValueOnce(answer({ current: false }))
+    const view = mount()
+    await flush()
+    expect(view.result.current.results?.current).toBe(false)
+    read.mockResolvedValue({ kind: 'unchanged', nowMs: null, version: null, current: true })
+    await advance(BUSY_RETRY_MS)
+    expect(view.result.current.results?.current).toBe(true)
+  })
+})

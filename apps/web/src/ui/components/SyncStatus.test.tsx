@@ -191,12 +191,12 @@ describe('SyncStatus', () => {
     [
       'activity-quota',
       2,
-      'Your library is full (4,000 activities). 2 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 2 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'activity-quota',
       1,
-      'Your library is full (4,000 activities). 1 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 1 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'storage-quota',
@@ -298,7 +298,7 @@ describe('SyncStatus', () => {
     ],
     [
       'activity-quota',
-      /^Your library is full \(4,000 activities\)\. 1,240 saved, 310 waiting\. Delete older activities to make room, then add the rest again\.$/,
+      /^Your library is full \(3,000 activities\)\. 1,240 saved, 310 waiting\. Delete older activities to make room, then add the rest again\.$/,
     ],
     [
       'rate-limited',
@@ -341,7 +341,7 @@ describe('SyncStatus', () => {
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (4,000 activities). 310 waiting. Delete older activities to make room, then add the rest again.',
+      'Your library is full (3,000 activities). 310 waiting. Delete older activities to make room, then add the rest again.',
     )
   })
 
@@ -357,7 +357,7 @@ describe('SyncStatus', () => {
       />,
     )
     expect(message()).toHaveTextContent(
-      'Your library is full (4,000 activities, 120 of them copies of the same workout from another file). 10 waiting.',
+      'Your library is full (3,000 activities, 120 of them copies of the same workout from another file). 10 waiting.',
     )
     rerender(
       <SyncStatus

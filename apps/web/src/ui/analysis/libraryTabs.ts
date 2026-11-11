@@ -44,7 +44,7 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const retries = useRef(0)
   // The reload asks itself again while the tab is busy.
-  const again = useRef<() => void>(() => undefined)
+  const again = useRef<(() => void) | null>(null)
 
   const reload = useCallback(async () => {
     const { accountRef, settingsRef, send, libraryStatus, loadLibrary, busy } = latest()
@@ -52,7 +52,7 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
     if (scope === null || document.visibilityState !== 'visible') return
     if (busy) {
       if (retries.current++ < BUSY_RETRIES)
-        timer.current = setTimeout(() => again.current(), RELOAD_DEBOUNCE_MS)
+        timer.current = setTimeout(() => again.current?.(), RELOAD_DEBOUNCE_MS)
       return
     }
     dirty.current = null
@@ -79,7 +79,7 @@ export function useLibraryTabs(deps: LibraryTabsDeps): {
 
   const schedule = useCallback(() => {
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => again.current(), RELOAD_DEBOUNCE_MS)
+    timer.current = setTimeout(() => again.current?.(), RELOAD_DEBOUNCE_MS)
   }, [])
 
   const onMessage = useCallback(

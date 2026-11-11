@@ -161,13 +161,6 @@ function withZone(settings: AccountSettings, zone: string | undefined): AccountS
   return zone === undefined ? settings : { ...settings, zone }
 }
 
-/** Saves this browser's copy as the account's, with the zone this browser is in. */
-export async function pushAccountSettings(userId: string): Promise<void> {
-  const zone = reportableZone()
-  await putAccountSettings(withZone(browserSettings(), zone), userId)
-  if (zone !== undefined) noteReportedZone(userId, zone)
-}
-
 const ZONE_KEY_PREFIX = 'rca-zone-reported:'
 const zoneKey = (userId: string) => `${ZONE_KEY_PREFIX}${userId}`
 

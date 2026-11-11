@@ -17,4 +17,4 @@ export const ACCOUNT_LIMIT_CASE = {
 } as const
 
 /** Smaller libraries, for the curve: activities as the fixture makes them, no padding, no lift sets. */
-export const SMALLER_LIBRARIES = [1000, 2000, 3000] as const
+export const SMALLER_LIBRARIES = [1000, 2000, 2500] as const
