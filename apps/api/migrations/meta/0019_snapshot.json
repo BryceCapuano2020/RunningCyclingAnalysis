@@ -1058,6 +1058,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "reconcile_cursor": {
+          "name": "reconcile_cursor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "health_probe_day": {
           "name": "health_probe_day",
           "type": "text",

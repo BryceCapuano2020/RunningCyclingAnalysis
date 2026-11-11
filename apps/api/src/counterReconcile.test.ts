@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { OperationBudgetExhausted } from './maintenanceGuard.ts'
 import { RECONCILE_USERS_PER_RUN, reconcileCounters } from './counterReconcile.ts'
 import { runMaintenance } from './maintenance.ts'
 import { createHarness, START } from './test/harness.ts'
@@ -84,7 +85,7 @@ describe('reconcileCounters', () => {
       ),
     )
     for (let day = 0; day < 3; day += 1) {
-      const report = await reconcileCounters(h.env, START + day * 24 * 60 * 60 * 1000)
+      const report = await reconcileCounters(h.env, START)
       expect(report.checked).toBe(RECONCILE_USERS_PER_RUN)
     }
   })
@@ -100,10 +101,78 @@ describe('reconcileCounters', () => {
       ),
     )
     const first = await reconcileCounters(h.env, START)
-    const second = await reconcileCounters(h.env, START + 24 * 60 * 60 * 1000)
+    const second = await reconcileCounters(h.env, START)
     expect([first.checked, second.checked].sort((a, b) => a - b)).toEqual([
       3,
       RECONCILE_USERS_PER_RUN,
+    ])
+  })
+
+  it('covers every account within ceil(n / page) runs whatever is added or deleted between them', async () => {
+    const h = createHarness()
+    const id = (i: number) => `u${String(i).padStart(3, '0')}`
+    const insert = (i: number) =>
+      h.env.DB.prepare(
+        'INSERT INTO users (id, email, name, created_at, activity_count) VALUES (?, ?, ?, ?, 5)',
+      ).bind(id(i), `u${i}@example.com`, `User ${i}`, START)
+    // Every account drifts (a count of 5 and no rows), so each one checked is named in a log line.
+    await h.env.DB.batch(Array.from({ length: 12 }, (_, i) => insert(i * 2 + 1)))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const seen = new Set<string>()
+    const run = async () => {
+      warn.mockClear()
+      await reconcileCounters(h.env, START)
+      for (const [line] of warn.mock.calls) seen.add(JSON.parse(String(line)).userId)
+    }
+    const runs = Math.ceil(12 / RECONCILE_USERS_PER_RUN)
+    await run()
+    // Between runs: accounts arrive in front of the cursor (which an offset would read twice, pushing the rest back) and
+    // accounts that were checked already are deleted (which an offset would let skip the ones behind).
+    await h.env.DB.batch([insert(0), insert(2), insert(4)])
+    await h.env.DB.prepare('DELETE FROM users WHERE id IN (?, ?)').bind(id(1), id(3)).run()
+    for (let i = 1; i < runs; i += 1) await run()
+    const waiting = Array.from({ length: 12 }, (_, i) => id(i * 2 + 1)).filter(
+      (user) => user !== id(1) && user !== id(3),
+    )
+    for (const user of waiting) expect(seen, user).toContain(user)
+  })
+
+  it('starts again from the first account once the last has been read, with no empty run between', async () => {
+    const h = createHarness()
+    const total = RECONCILE_USERS_PER_RUN * 2
+    await h.env.DB.batch(
+      Array.from({ length: total }, (_, i) =>
+        h.env.DB.prepare(
+          'INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)',
+        ).bind(`u${String(i).padStart(3, '0')}`, `u${i}@example.com`, `User ${i}`, START),
+      ),
+    )
+    const checked = []
+    for (let i = 0; i < 4; i += 1) checked.push((await reconcileCounters(h.env, START)).checked)
+    expect(checked).toEqual(Array(4).fill(RECONCILE_USERS_PER_RUN))
+  })
+
+  it('logs counter_reconcile_skipped when the operation budget stops it, and returns nothing checked', async () => {
+    const h = createHarness()
+    await signedInUser(h, 'a@example.com')
+    const spent = new Proxy(h.env.DB, {
+      get(target, property) {
+        if (property === 'prepare') {
+          return () => {
+            throw new OperationBudgetExhausted()
+          }
+        }
+        const value: unknown = Reflect.get(target, property, target)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    expect(await reconcileCounters({ ...h.env, DB: spent }, START)).toEqual({
+      checked: 0,
+      drifted: 0,
+    })
+    expect(warn.mock.calls.map(([line]) => JSON.parse(String(line)))).toEqual([
+      { event: 'counter_reconcile_skipped' },
     ])
   })
 
@@ -122,7 +191,7 @@ describe('reconcileCounters', () => {
       get(target, property) {
         if (property === 'prepare') {
           return (query: string) => {
-            if (query.includes('WITH page AS')) throw new TypeError(`no such table: ${w.userId}`)
+            if (query.includes('page AS')) throw new TypeError(`no such table: ${w.userId}`)
             return target.prepare(query)
           }
         }

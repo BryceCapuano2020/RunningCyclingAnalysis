@@ -24,23 +24,49 @@ const EXPECTED_TRIGGERS = [
   'settings_library_version_update',
 ]
 
-function migratedTriggers(): string[] {
-  const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
-    entries: { tag: string }[]
+const squash = (sql: string) => sql.replace(/\s+/g, ' ').trim()
+
+/** The CREATE TRIGGER statements of the migration files, by trigger name, whitespace squashed and without the final semicolon. */
+function writtenTriggers(): Map<string, string> {
+  const written = new Map<string, string>()
+  for (const { tag } of journal()) {
+    const text = readFileSync(new URL(`${tag}.sql`, MIGRATIONS), 'utf8')
+    for (const match of text.matchAll(/CREATE TRIGGER\s+`?(\w+)`?[\s\S]*?\bEND\s*;/g)) {
+      written.set(match[1]!, squash(match[0].replace(/;$/, '')))
+    }
   }
+  return written
+}
+
+function journal(): { tag: string }[] {
+  return (
+    JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
+      entries: { tag: string }[]
+    }
+  ).entries
+}
+
+/** The triggers a fresh database holds after the migrations, by name, with the text SQLite kept for each. */
+function migratedTriggers(): Map<string, string> {
   const db = new DatabaseSync(':memory:')
-  for (const { tag } of journal.entries) {
+  for (const { tag } of journal()) {
     db.exec(readFileSync(new URL(`${tag}.sql`, MIGRATIONS), 'utf8'))
   }
   const rows = db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name")
+    .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' ORDER BY name")
     .all()
   db.close()
-  return rows.map((row) => String(row.name))
+  return new Map(rows.map((row) => [String(row.name), squash(String(row.sql))]))
 }
 
 describe('migrations on a fresh database', () => {
   it('leave exactly the triggers the counters depend on', () => {
-    expect(migratedTriggers()).toEqual(EXPECTED_TRIGGERS)
+    expect([...migratedTriggers().keys()]).toEqual(EXPECTED_TRIGGERS)
+  })
+
+  it('leave each trigger with the text the migration wrote, so a changed body fails here', () => {
+    const written = writtenTriggers()
+    expect([...written.keys()].sort()).toEqual(EXPECTED_TRIGGERS)
+    for (const [name, sql] of migratedTriggers()) expect(sql, name).toBe(written.get(name))
   })
 })
