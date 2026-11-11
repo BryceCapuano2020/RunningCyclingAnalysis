@@ -138,6 +138,16 @@ describe('one source of lift figures for an account', () => {
     expect(container.textContent).not.toContain(`${total.number} ${total.unit}`)
   })
 
+  it('gives an account’s scope no figures of the log’s while the account loads or cannot be reached', () => {
+    logWith([...SAVED, UNSENT])
+    for (const status of ['loading', 'unavailable'] as const) {
+      const { result } = renderHook(() =>
+        useLiftResults({ status, userId: 'u1', accountLift: null }, SETTINGS),
+      )
+      expect(result.current).toBeNull()
+    }
+  })
+
   it('signed out works the same figures out of the log with the same function', () => {
     logWith(SAVED)
     const { result } = renderHook(() =>

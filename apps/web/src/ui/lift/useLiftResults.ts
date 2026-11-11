@@ -25,7 +25,10 @@ export function useLiftResults(
   const sets = useLiveLiftSets(account, transportFor)
   const today = localDateOf(useNow())
   return useMemo(() => {
-    if (account.status === 'signed-in') return account.accountLift ?? null
+    // An account's scope (also while it loads or cannot be reached, which keep the last account's): its results, never the log's,
+    // which holds sets not yet sent.
+    if (account.status === 'signed-in' || account.userId !== null)
+      return account.accountLift ?? null
     return sets === null ? null : liftResultsOf(sets, settings, today)
-  }, [account.status, account.accountLift, sets, settings, today])
+  }, [account.status, account.userId, account.accountLift, sets, settings, today])
 }

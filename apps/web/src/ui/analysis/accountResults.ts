@@ -32,11 +32,18 @@ export interface AccountResults {
   snapshot: StateSnapshot
   /** Made on an earlier local day than now (or in another zone): shown, and replaced as soon as the server answers. */
   stale: boolean
+  /** The server said this is the latest (not the stored snapshot it served while it computed), and has answered since this tab opened. */
+  current: boolean
 }
 
-function resultsOf(snapshot: StateSnapshot): AccountResults | null {
+function resultsOf(snapshot: StateSnapshot, current: boolean): AccountResults | null {
   try {
-    return { state: fromSnapshot(snapshot), snapshot, stale: copyIsStale(snapshot, Date.now()) }
+    return {
+      state: fromSnapshot(snapshot),
+      snapshot,
+      stale: copyIsStale(snapshot, Date.now()),
+      current,
+    }
   } catch {
     // A snapshot that does not decode is not shown.
     return null
@@ -119,11 +126,14 @@ export function useAccountResults(
         const copy = refused.current === null ? held.current : null
         if (copy !== null && read.nowMs !== null && read.nowMs !== copy.nowMs) {
           const moved = { ...copy, nowMs: read.nowMs }
-          keep(moved, resultsOf(moved))
+          keep(moved, resultsOf(moved, read.current))
         } else if (copy !== null) {
           const stale = copyIsStale(copy, Date.now())
+          const { current } = read
           setStored((was) =>
-            was?.id === idRef.current ? { ...was, results: { ...was.results, stale } } : was,
+            was?.id === idRef.current
+              ? { ...was, results: { ...was.results, stale, current } }
+              : was,
           )
         }
       } else if (!snapshotIsCurrent(read.snapshot)) {
@@ -134,7 +144,7 @@ export function useAccountResults(
         refused.current = null
         const snapshot =
           read.nowMs === null ? read.snapshot : { ...read.snapshot, nowMs: read.nowMs }
-        keep(snapshot, resultsOf(snapshot))
+        keep(snapshot, resultsOf(snapshot, read.current))
         const listed = indexAt.current
         if (listed === null) indexAt.current = snapshot.libraryVersion
         else if (snapshot.libraryVersion > listed) {
@@ -161,10 +171,12 @@ export function useAccountResults(
       const mine = epoch.current
       try {
         clearTimeout(timer.current)
-        const read = await readServerState(idRef.current, refused.current ?? held.current).catch(
-          () => null,
-        )
-        if (mine !== epoch.current || read === null || read.kind === 'none') return
+        const id = idRef.current
+        const tag = refused.current ?? held.current
+        const read = await Promise.resolve()
+          .then(() => readServerState(id, tag))
+          .catch(() => null)
+        if (mine !== epoch.current || !read || read.kind === 'none') return
         const wait = apply(read)
         // Only while in view: coming back into view asks again at once.
         if (wait !== null) {
@@ -211,7 +223,7 @@ export function useAccountResults(
       // An answer that came first (a change, or a poll, before the copy was read) is newer than the copy.
       if (copy !== null && held.current === null && snapshotIsCurrent(copy)) {
         held.current = copy
-        const shown = resultsOf(copy)
+        const shown = resultsOf(copy, false)
         if (shown !== null) setStored({ id: userId, results: shown })
       }
       void pull()

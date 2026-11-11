@@ -15,7 +15,7 @@ import type { LibraryState } from './libraryState'
 import { accountPending, drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { CheckInSnapshot } from '@rca/core/lookback'
-import type { SeenEvent } from '../../worker/protocol'
+import type { CheckInView, SeenEvent } from '../../worker/protocol'
 import type { WorkerTransport } from './workerTransport'
 
 interface LibraryActionDeps {
@@ -216,13 +216,13 @@ export function useLibraryActions({
 
   /** Asks the worker for the account's check-in against the library the server's results show; its answer is the row. */
   const requestCheckIn = useCallback(
-    (live: CheckInSnapshot | null) => {
+    (live: CheckInSnapshot | null, settle: (view: CheckInView) => void) => {
       if (workerRef.current === null) return
       send({ type: 'checkInFor', live }, undefined, (message) => {
-        if (message?.type === 'checkInView') library.setCheckIn(message.view)
+        if (message?.type === 'checkInView') settle(message.view)
       })
     },
-    [library, send, workerRef],
+    [send, workerRef],
   )
 
   /** The athlete goes on with an import that stopped short: the worker moves the baseline now. */

@@ -12,6 +12,7 @@ import type { StateRead } from '../api/state'
 import * as api from '../api/state'
 import { FakeWorker } from '../test/fakeWorker'
 import { resultState, snapshotAt } from '../test/stateCopyKit'
+import { makeResult } from './components/test/fixtures'
 import { readSnapshot, writeSnapshot } from '../worker/stateStore'
 import { setKeptLibraryHinted } from './analysis/keptLibrary'
 import { BUSY_RETRY_MS, POLL_MS } from './analysis/accountResults'
@@ -317,28 +318,98 @@ describe('a signed-in account’s results are the server’s', () => {
     expect(worker().posted.filter((request) => request.type === 'checkInFor')).toHaveLength(asked)
   })
 
-  it('tells what an import moved once the results include it: the baseline is what was shown when it was sent', async () => {
-    const at = (count: number, version: number) =>
-      served(count, { snapshot: { ...snapshot(count), libraryVersion: version } })
-    read.mockResolvedValue(at(61, 5))
-    const { result } = setup(SIGNED_IN)
-    await waitFor(() => expect(result.current.state.totalActivities).toBe(61))
-    act(() => worker().reply({ type: 'state', state: null }))
-    act(() => result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
-    await waitFor(() => expect(worker().posted.at(-1)?.type).toBe('addFiles'))
-    const outcome = { activities: 1, filesAdded: 1, rejected: 0, duplicates: [], runs: 1, rides: 0 }
-    act(() => worker().reply({ type: 'state', state: null, outcome, saved: 1 }))
-    // The first answer after the import is still the library as it was: nothing moved yet.
-    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(1))
-    expect(result.current.importOutcome).toEqual(outcome)
-    expect(result.current.importChange).toBeNull()
-    // The results that include it come, and the summary says what moved.
-    read.mockResolvedValue(at(62, 6))
-    act(() => tellOtherTabs({ type: 'settings' }))
-    await waitFor(() => expect(result.current.importChange).not.toBeNull())
-    expect(result.current.importChange).toMatchObject({ outcome })
-    expect(result.current.importChange?.before).not.toBeNull()
-    expect(result.current.importChange?.after).not.toBeNull()
+  describe('what an import moved', () => {
+    const R61 = makeResult({})
+    const R62 = { ...R61, marker: 'after the import' } as unknown as typeof R61
+    const at = (result: typeof R61, count: number, version: number, current = true): StateRead => ({
+      kind: 'snapshot',
+      snapshot: {
+        ...snapshotAt(Date.now(), ZONE, { ...resultState(), totalActivities: count, result }),
+        libraryVersion: version,
+      },
+      nowMs: null,
+      current,
+    })
+    const outcome = { activities: 2, filesAdded: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+
+    /** Signed in on the 61-activity results (version 5), an import of two files sent and its reply in: it ended at version 7. */
+    async function importEnded() {
+      read.mockResolvedValue(at(R61, 61, 5))
+      const view = setup(SIGNED_IN)
+      await waitFor(() => expect(view.result.current.state.totalActivities).toBe(61))
+      act(() => worker().reply({ type: 'state', state: null }))
+      act(() => view.result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
+      await waitFor(() => expect(worker().posted.at(-1)?.type).toBe('addFiles'))
+      act(() =>
+        worker().reply({ type: 'state', state: null, outcome, saved: 2, libraryVersion: 7 }),
+      )
+      await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(1))
+      expect(view.result.current.importOutcome).toEqual(outcome)
+      expect(view.result.current.importChange).toBeNull()
+      return view
+    }
+    const ask = async (next: StateRead) => {
+      read.mockResolvedValue(next)
+      const asked = read.mock.calls.length
+      act(() => tellOtherTabs({ type: 'settings' }))
+      await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(asked))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+
+    it('lands only on current results of the version the import ended at, and tells the 61-activity results from the 62', async () => {
+      const view = await importEnded()
+      // The server served what it had stored while it computed: that is not the results that include the import.
+      await ask(at(R62, 62, 7, false))
+      expect(view.result.current.importChange).toBeNull()
+      // A compute in the middle of the import (some of its files): current, but short of the version the import ended at.
+      await ask(at(R62, 62, 6))
+      expect(view.result.current.importChange).toBeNull()
+      await ask(at(R62, 62, 7))
+      await waitFor(() => expect(view.result.current.importChange).not.toBeNull())
+      expect(view.result.current.importChange).toMatchObject({ outcome })
+      expect(view.result.current.importChange?.before).toEqual(R61)
+      expect(view.result.current.importChange?.after).toEqual(R62)
+    })
+
+    it('ends the wait when the account changes: another account’s results never land it', async () => {
+      const view = await importEnded()
+      view.rerender({ account: { status: 'signed-in', me: meOf('u2') } })
+      await ask(at(R62, 62, 7))
+      expect(view.result.current.importChange).toBeNull()
+    })
+
+    it('ends the wait when the summary is dismissed', async () => {
+      const view = await importEnded()
+      act(() => view.result.current.dismissSummary())
+      await ask(at(R62, 62, 7))
+      expect(view.result.current.importChange).toBeNull()
+    })
+
+    it('waits for the row that goes with the results, so its bests are of the same baseline', async () => {
+      const view = await importEnded()
+      const withRow = (read: StateRead): StateRead =>
+        read.kind === 'snapshot'
+          ? {
+              ...read,
+              snapshot: {
+                ...read.snapshot,
+                checkIn: { v: 1, revision: 1, atMs: 1, asOfMs: 1, keys: {}, counts: {}, bests: {} },
+              },
+            }
+          : read
+      await ask(withRow(at(R62, 62, 7)))
+      // The library is loaded and the row is asked for; until it is answered the summary does not land.
+      await waitFor(() =>
+        expect(worker().posted.some((request) => request.type === 'checkInFor')).toBe(true),
+      )
+      expect(view.result.current.importChange).toBeNull()
+      const bests = [{ effort: 'e', unit: 'u', value: 1, atMs: 1, key: 'k' }]
+      act(() =>
+        worker().reply({ type: 'checkInView', view: { checkIn: { bests } as never, seen: false } }),
+      )
+      await waitFor(() => expect(view.result.current.importChange).not.toBeNull())
+      expect(view.result.current.importChange?.bests).toEqual(bests)
+    })
   })
 
   it('tells at once that an import that added nothing moved nothing', async () => {

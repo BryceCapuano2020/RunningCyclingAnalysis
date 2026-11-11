@@ -89,7 +89,6 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     imports,
   )
   const { setLibraryAction, libraryWaitRef } = library
-  const importLanded = useAccountImportChange(accountResults.results, imports.setImportChange)
   const {
     setBusy,
     setWaitingReason,
@@ -179,11 +178,28 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     loadLibrary: libraryActions.loadLibrary,
   })
 
+  const checkInVersion = useAccountCheckIn(
+    userId === null ? null : (accountResults.results?.snapshot ?? null),
+    library.libraryStatus === 'loaded',
+    libraryActions.requestCheckIn,
+    library.setCheckIn,
+  )
+  const importChange = useAccountImportChange({
+    results: accountResults.results,
+    userId,
+    checkIn: library.checkIn,
+    checkInVersion,
+    setImportChange,
+  })
+
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
    * waiting for its reply compares with it, and the next import replaces it.
    */
-  const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
+  const dismissSummary = useCallback(() => {
+    importChange.clear()
+    setImportChange(null)
+  }, [importChange, setImportChange])
   const { setAdoption } = library
   const dismissAdoption = useCallback(() => setAdoption(null), [setAdoption])
 
@@ -224,7 +240,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   const eventDeps = {
     refreshResults: accountResults.refresh,
     indexListed: accountResults.indexListed,
-    importLanded,
+    importLanded: importChange.landed,
     transport,
     imports,
     library,
@@ -257,11 +273,6 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
   })
 
   useSettingsSync(settings, settingsRef, transport.send)
-  useAccountCheckIn(
-    userId === null ? null : (accountResults.results?.snapshot ?? null),
-    library.libraryStatus === 'loaded',
-    libraryActions.requestCheckIn,
-  )
 
   useAccountTransitions({
     account,
@@ -320,12 +331,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
       libraryActions.acceptPartialImport()
     },
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
-    importChange: shownChange(
-      imports.importChange,
-      imports.importOutcome,
-      userId !== null,
-      library.checkIn,
-    ),
+    importChange: shownChange(imports.importChange, imports.importOutcome),
     dismissSummary,
     savedActivities: library.savedActivities,
     libraryAction: library.libraryAction,

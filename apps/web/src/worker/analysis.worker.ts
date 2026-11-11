@@ -43,7 +43,6 @@ import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { DETAIL_CHANGING, DETAIL_RESCOPING, detailReporter } from './detailCoverage'
 import { deviceClock } from './sampleClock'
 import { checkInWorker } from './checkinWorker'
-import { libraryVersionNow } from './accountState'
 import { clearLibrary } from './clearLibrary'
 import { isReadRequest, readReply } from './readReplies'
 import type { ClearContext } from './clearLibrary'
@@ -78,7 +77,7 @@ const device = deviceActions(
   () => workbench.watchDevice(),
 )
 const view = newWorkerView()
-const { inAccount, factsOf, stateWith, noteListed, loadReply } = accountReplies(session, view)
+const acct = accountReplies(session, view)
 const checkIns = checkInWorker(session, view)
 const libraryContext: LibraryContext = {
   session,
@@ -221,7 +220,7 @@ async function handle(
       view.showingSample = false
       // A resume belongs to the library it began under.
       resume.cancel()
-      noteListed(await libraryVersionNow())
+      await acct.readListed()
       await loadServer(libraryContext, request.userId)
       resume.start(() => startResume(resumeParts, request.userId))
       void offerDevice(adoptionContext, request.userId)
@@ -232,7 +231,7 @@ async function handle(
         await resume.end()
         await resume.start(() => startResume(resumeParts, request.userId, true)).finished
       }
-      return stateWith(request.settings)
+      return acct.stateWith(request.settings)
     case 'undoLabels':
       // Answered with the state and how many labels are left, from onmessage.
       throw new Error('An undo is not a session request')
@@ -244,9 +243,9 @@ async function handle(
       // Answered by rebuildComplete, from onmessage; the scope was set by the library load before it.
       throw new Error('A rebuild is not a session request')
     case 'setSettings':
-      return stateWith(request.settings)
+      return acct.stateWith(request.settings)
     case 'setRange':
-      return inAccount()
+      return acct.inAccount()
         ? null
         : session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
@@ -314,13 +313,19 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (event.data.type === 'addFiles') {
         const imported = await runImport(importContext, event.data)
         await reportDetail()
-        post(await checkIns.attach({ type: 'state', ...imported, ...rebuildable() }, 'addFiles'))
+        const reply = await acct.stateReply(imported.state, 'addFiles', imported, imported)
+        post(await checkIns.attach({ ...reply, ...rebuildable() }, 'addFiles'))
       } else if (event.data.type === 'rebuildStale') {
         const rebuilt = await rebuildStale(libraryContext, event.data.userId)
         await checkIns.afterRebuild(rebuilt.rebuilt)
         await reportDetail()
         // An account's reply has no state, so there is no check-in to attach here (see checkinWorker.ts).
-        post({ type: 'rebuildComplete', ...rebuilt, ...factsOf(rebuilt.state), ...rebuildable() })
+        post({
+          type: 'rebuildComplete',
+          ...rebuilt,
+          ...acct.factsOf(rebuilt.state),
+          ...rebuildable(),
+        })
       } else if (event.data.type === 'undoLabels') {
         post(await labels.reply(event.data, rebuildable()))
       } else if (checkIns.answers(event.data)) {
@@ -336,12 +341,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const state = await handle(event.data)
         const { type } = event.data
         if (DETAIL_CHANGING.has(type)) await reportDetail(DETAIL_RESCOPING.has(type))
-        post(
-          await checkIns.attach(
-            { type: 'state', state, ...factsOf(state), ...loadReply(type), ...rebuildable() },
-            type,
-          ),
-        )
+        const reply = await acct.stateReply(state, type, {})
+        post(await checkIns.attach({ ...reply, ...rebuildable() }, type))
       }
     } catch (error) {
       post({

@@ -58,10 +58,6 @@ function copiesNote(hiddenCopies: number): string {
     : ''
 }
 
-/** Where a waiting save goes once it is saved: the results are the server's, so it shows there then. */
-const appears = (count: number) =>
-  `${count === 1 ? 'It appears' : 'They appear'} in your results once saved.`
-
 /**
  * One sentence per cause: what happened, and the action that works. A summary is saved before its
  * original is uploaded, so the failures that can hit either step say 'not fully saved'. A limit
@@ -117,9 +113,9 @@ function issueSentence(
     case 'original-unsent':
       return `${originals} could not be kept. ${summaries} Add ${count === 1 ? 'its file' : 'their files'} again to keep ${them}.`
     case 'network':
-      return `${activities} ${wereOrWas} not fully saved because the connection dropped. ${count === 1 ? 'It saves' : 'They save'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}. ${appears(count)}`
+      return `${activities} ${wereOrWas} not fully saved because the connection dropped. ${count === 1 ? 'It saves' : 'They save'} when the connection returns${canRetry ? ', or when you press Try again now' : ''}, then ${count === 1 ? 'appears' : 'appear'} in your results.`
     case 'server':
-      return `${activities} ${wereOrWas} not fully saved because of a server error. ${count === 1 ? 'It saves' : 'They save'} the next time the page loads${canRetry ? ', or when you press Try again now' : ''}. ${appears(count)}`
+      return `${activities} ${wereOrWas} not fully saved because of a server error. ${count === 1 ? 'It saves' : 'They save'} the next time the page loads${canRetry ? ', or when you press Try again now' : ''}, then ${count === 1 ? 'appears' : 'appear'} in your results.`
   }
 }
 

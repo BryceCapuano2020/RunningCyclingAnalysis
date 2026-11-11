@@ -82,13 +82,13 @@ export function LiftConnected({
   const earlier = useMemo(() => earlierDays(log.days, day, count), [log.days, day, count])
   // Every figure on the page is core's `liftResultsOf`: the server's for an account (what it holds, so a set not yet sent changes
   // nothing here), this log's for a signed-out visitor. The log still gives the day view and the form.
-  const signedIn = account.status === 'signed-in'
-  const results = useMemo(
-    () => liftResultsOf(signedIn ? [] : log.sets, settings, today),
-    [signedIn, log.sets, settings, today],
+  const accountScope = account.status === 'signed-in' || account.me !== null
+  const shown = useMemo(
+    () => liftResultsOf(accountScope ? [] : log.sets, settings, today),
+    [accountScope, log.sets, settings, today],
   )
-  const shown = signedIn && accountLift !== null ? accountLift : results
-  const overview = useMemo(() => liftOverviewOf(shown, units), [shown, units])
+  const figures = accountScope && accountLift !== null ? accountLift : shown
+  const overview = useMemo(() => liftOverviewOf(figures, units), [figures, units])
   const editing = editingKey === null ? undefined : setOfKey(logged, editingKey)
 
   const exercise = choice?.exercise ?? null

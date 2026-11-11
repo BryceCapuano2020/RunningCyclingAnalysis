@@ -49,7 +49,11 @@ export interface WorkerEventDeps {
   /** The worker's index is as current as this reply: another device's change after it is news. */
   indexListed: (version?: number) => void
   /** An account's import ended: its summary tells what it moved once the results include it (`useAccountImportChange`). */
-  importLanded: (outcome: ImportOutcome, baseline: Baseline | null | undefined) => void
+  importLanded: (
+    outcome: ImportOutcome,
+    baseline: Baseline | null | undefined,
+    version: number | undefined,
+  ) => void
   /** Tells the other tabs that this tab changed a library, and takes the account's revision after it as the baseline. */
   libraryChanged: (scope: 'device' | 'account') => void
 }
@@ -237,8 +241,11 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)
       // An account's import has no state to compare here: what it moved is told once the server's results include it.
-      if (message.state === null) deps.importLanded(message.outcome, pending?.baseline)
-      else
+      if (message.state === null) {
+        // The import moved the baseline the row was made against: it is asked for again against the new one, not marked seen.
+        library.setCheckIn(NO_CHECKIN)
+        deps.importLanded(message.outcome, pending?.baseline, message.libraryVersion)
+      } else
         imports.setImportChange({
           outcome: message.outcome,
           // Workouts brought up to date are not new, so an import that updated any moves nothing.

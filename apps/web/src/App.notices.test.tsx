@@ -143,7 +143,7 @@ describe('library failure', () => {
     render(<App />)
     expect(
       screen.getByText(
-        '2 activities were not fully saved because the connection dropped. They save when the connection returns, or when you press Try again now. They appear in your results once saved.',
+        '2 activities were not fully saved because the connection dropped. They save when the connection returns, or when you press Try again now, then appear in your results.',
       ),
     ).toBeInTheDocument()
     // Added to the notice region that is already mounted, which announces it.
