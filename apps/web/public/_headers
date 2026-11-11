@@ -3,6 +3,8 @@
 # status (not_found_handling = "404-page"), or by the Worker's own 404 where Cloudflare invokes it. The
 # year-long cache rules for /assets are appended by the build, one for each emitted file, because a pattern
 # would also cover the 404 for a missing file (vite.config.ts, scripts/assetHeaders.ts).
+# The one third-party request the app makes is a signed-in user's profile picture, hence the img-src host below.
+# Headers are listed in docs/PRODUCTION.md (security headers and diagnostics).
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
   Cross-Origin-Opener-Policy: same-origin

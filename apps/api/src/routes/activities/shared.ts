@@ -47,7 +47,10 @@ export function toRecordHolding(row: ActivityRow, held: ActivityRecord['digest']
   }
 }
 
-/** Looks up an activity owned by the user. Other users' activities read as not found. */
+/**
+ * Looks up an activity owned by the user. Other users' activities read as not found (404, the same answer as a
+ * missing id), so ids do not reveal what exists. The user id is the session's, never the request's.
+ */
 export async function findOwnedActivity(db: Db, userId: string, id: string): Promise<ActivityRow> {
   const row = await db
     .select()

@@ -14,6 +14,7 @@ export interface GoogleOAuth {
   exchangeCode(code: string, codeVerifier: string): Promise<string>
 }
 
+/** The redirect URI is fixed to APP_URL plus the callback path, never taken from the request. */
 export function googleRedirectUri(env: Bindings): string {
   return `${env.APP_URL}/api/auth/google/callback`
 }

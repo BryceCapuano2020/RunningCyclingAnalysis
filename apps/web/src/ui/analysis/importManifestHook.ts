@@ -28,7 +28,7 @@ export interface ImportManifestController {
   finish: (requestId: number, damaged: DamagedSource[]) => void
   /** The import `requestId` failed, or with no number every running import was cut off (the worker is gone). */
   fail: (requestId?: number) => void
-  /** The athlete goes on with what the library holds. */
+  /** The athlete goes on with what the library holds: the notice and the headline hold go for good, and a later import of the same files finishes it. */
   accept: () => void
   /** The scope's library was removed, so what was recorded about it goes too. */
   forget: (scope: ManifestScope) => void

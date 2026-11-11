@@ -54,7 +54,10 @@ export const MAX_FIELD_CHARS = 1024
  * The most a Strava activity list may hold once inflated. A list of tens of thousands of activities
  * is a few megabytes, so this is generous. It bounds the text a list inflates to, but not the cells
  * a parser builds from that text: a row of commas is a cell per byte, and MAX_CSV_CELLS_PER_ROW
- * bounds those.
+ * bounds those. The cap is a memory budget: at the cap, reading the list peaks at about 100 to 150 MB (its
+ * compressed bytes, its inflated bytes and their decoded text). Its inflated bytes count against the zip's
+ * decompressed-bytes budget even when the list is malformed. The list holds at most 10,000 rows
+ * (`maxFitFiles`), and no field may pass MAX_CSV_FIELD_CHARS.
  */
 export const MAX_ACTIVITY_LIST_BYTES = 32 * MIB
 

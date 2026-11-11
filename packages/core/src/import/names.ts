@@ -106,7 +106,11 @@ export interface LegNaming {
 /**
  * The name of one leg. An export's name is used first, unless it is a device default, which falls
  * back to the leg's own title. A shared export name carries the sport when the file holds several
- * activities. Without a title, the name comes from the start time and sport.
+ * activities. Without a title, the name comes from the start time and sport, on the importing device's
+ * clock (such as "Morning Run"). TCX has no title element and its Notes are free text, so they are never used.
+ * Legs of one file that share a name each get their start time ("Morning Run, 6:11 am"), and legs still
+ * sharing one in the same minute are numbered in file order ("Morning Run, 6:11 am (2)"). The name is saved
+ * with the activity when it is imported and does not change when the file is read again.
  */
 export function nameOfLeg(leg: LegNaming): string {
   const exported = fileTitle(leg.exportName)

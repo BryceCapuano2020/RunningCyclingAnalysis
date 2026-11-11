@@ -20,6 +20,14 @@ import { inboxItems, providerLinks } from './providers.ts'
 export { users } from './users.ts'
 export { inboxItems, providerLinks } from './providers.ts'
 
+/*
+ * Every table keyed by a user references `users` with cascade delete: deleting a user removes its oauth_accounts,
+ * sessions, profiles, athlete_measurements, athlete_settings, state_jobs, lift_sets, activities, provider_links and
+ * inbox_items. Every query on a user's data filters on `user_id`, which comes from the session and never from a
+ * request (routes/activities/shared.ts `findOwnedActivity`). `d1_migrations` is Wrangler's own table of applied
+ * migrations, which live in apps/api/migrations.
+ */
+
 export const oauthAccounts = sqliteTable(
   'oauth_accounts',
   {
@@ -119,7 +127,8 @@ export const stateJobs = sqliteTable('state_jobs', {
 /**
  * The athlete's dated settings: a body mass, maximum heart rate or threshold in effect from a local
  * date. A row is identified by its kind, sport and date, so a second value for the same date replaces
- * the first. `sport` is '' for the body mass, which is not a sport's.
+ * the first. `sport` is '' for the body mass, which is not a sport's. Capped at MAX_MEASUREMENTS_PER_USER (200)
+ * by the write in routes/measurements.ts.
  */
 export const athleteMeasurements = sqliteTable(
   'athlete_measurements',
@@ -149,7 +158,8 @@ export const athleteMeasurements = sqliteTable(
 
 /**
  * One logged set (lift-data.md). The primary key is the set key: date, exercise, equipment and set
- * order, so a second write of the same key replaces the first. `warmup` is 0 or 1.
+ * order, so a second write of the same key replaces the first. `warmup` is 0 or 1. The cap of 60,000 sets a user
+ * is the check `users_lift_count_cap` on `users.lift_count` (db/users.ts).
  */
 export const liftSets = sqliteTable(
   'lift_sets',

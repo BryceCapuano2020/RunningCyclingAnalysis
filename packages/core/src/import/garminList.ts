@@ -40,6 +40,10 @@ const SECONDS_BELOW = 1e11
  * and in it DI-Connect-Fitness holds files such as `<account>_0_summarizedActivities.json`. The activity
  * files themselves are in zips under DI-Connect-Uploaded-Files, so they are named by upload, not by
  * activity: the only way to a name is the start time. Matched without its case, with "/" or "\\".
+ * This layout is taken from forum posts and third-party guides and is tested on synthetic zips only. Only
+ * a zip with no activities.csv is searched for summaries, by range, before any file is parsed. They are
+ * read one at a time, each parsed and let go before the next is inflated. A directory header pointing at an
+ * entry already read is skipped, so a small zip cannot list one entry many times.
  */
 const SUMMARY_PATH = /(^|[\\/])DI-Connect-Fitness[\\/][^\\/]*summarizedActivities[^\\/]*\.json$/i
 

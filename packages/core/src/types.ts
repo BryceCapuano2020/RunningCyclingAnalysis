@@ -129,7 +129,8 @@ export interface Activity {
   localDayShift?: LocalDayShift
   /**
    * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
-   * in a digest or sent to the server. See route/routeShape.ts.
+   * in a digest or sent to the server: it stays beside the digest in the device library, or in the worker's memory
+   * for an account, and no request or export carries it. See route/routeShape.ts.
    */
   route?: RouteShape
 }
@@ -269,10 +270,14 @@ export interface ActivityDigest {
   climbSections: DigestClimbSection[]
   /**
    * Runs only, absent for rides and for digests from before this field. One entry per record
-   * distance the run covers and has a valid window for, in ascending distance.
+   * distance the run covers and has a valid window for, in ascending distance: an empty list for a run under 1 km.
    */
   distanceBests?: DigestDistanceBest[]
-  /** Runs only. Absent on rides and on digests made before splits were kept. */
+  /**
+   * Runs only. Absent on rides and on digests made before splits were kept. Stored in each digest and loaded
+   * with the library, but kept out of activity summaries and SessionState: the activity page reads them from
+   * the session on demand.
+   */
   splits?: DigestSplits
   /**
    * Seconds the device was recording: neither paused nor in a record gap, so at most durationS.

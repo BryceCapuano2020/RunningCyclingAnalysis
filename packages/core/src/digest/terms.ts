@@ -13,6 +13,12 @@ export interface SampleTerms {
  * Mass-free power terms at every sample. Mechanical power is (m * (gravityAccel + crr * rolling)
  * + cda * aero) / DRIVETRAIN_EFFICIENCY for total mass m, so these arrays are all a bike model
  * needs. Air density, kg/m^3, is per sample and defaults to sea level.
+ *
+ * The model is P = (m (g_a + c_rr r) + CdA a) / eta, with g_a = v (g sin(theta) + dv/dt), r = g v cos(theta)
+ * and a = 1/2 rho v^3. The digest stores these terms (and the calibration sums, the same terms in the form
+ * that fits the bike model against power-meter rides), so mass, rolling resistance, CdA and efficiency are
+ * applied at combine time in the browser or the server and can be refitted without the files. A change that
+ * needs a per-sample quantity the digest does not hold means re-digesting the original.
  */
 export function sampleTerms(
   speed: Float64Array,

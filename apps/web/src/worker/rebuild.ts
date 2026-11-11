@@ -98,7 +98,9 @@ const NOT_THE_WRITER: UpdateResult = {
 /**
  * Rebuild stale digests only from their exact stored original file, retaining partial successes. The
  * engine (updater.ts) does the stepping; this supplies what it does in the world, and the listing that
- * follows. Only the tab that holds the account's writer lock updates.
+ * follows. Only the tab that holds the account's writer lock updates. Nothing but the athlete's press of
+ * "Update now" starts it (no background run is wired), and a rebuild keeps no copy of the old digest, so it is
+ * not undone. `keep` calls `replaceDigest`, which builds no state, so a rebuild of thousands analyses nothing.
  */
 export async function rebuildStale(ctx: LibraryContext, userId: string) {
   let unreadable = 0

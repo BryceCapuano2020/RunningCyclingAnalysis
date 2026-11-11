@@ -7,7 +7,8 @@ import type { MilestoneEffort, MilestoneUnit } from './types'
 
 /**
  * "Since your last import": the library as it was before the import against the library as it is. Every line is a
- * fact about what the import added: workouts, new bests and files older than the baseline.
+ * fact about what the import added: workouts, new bests and files older than the baseline. It makes no level
+ * contrast of its own, and a baseline from another model revision is dropped (see `usableBaseline`).
  */
 
 /** A workout is "found in older files" when it starts this long before the newest workout the baseline held. */
