@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
@@ -7,6 +7,7 @@ import {
   exportFailureText,
   LIBRARY_NOT_LOADED,
   LIBRARY_NOT_READY,
+  RENAME_LIBRARY_NOT_READY,
   SIGN_IN_TO_EXPORT,
   SPLITS_NOT_LOADED,
   STOPPED,
@@ -38,6 +39,7 @@ export function useLibraryActions({
 }: LibraryActionDeps) {
   const {
     libraryStatusRef,
+    readEndedRef,
     setLibrary,
     libraryWaitRef,
     savedActivitiesRef,
@@ -46,13 +48,35 @@ export function useLibraryActions({
   } = library
   const { send, workerRef, restartWorker } = transport
 
+  /**
+   * Reads the library from the account. A first read, or one for another account, holds imports and refuses changes until it
+   * answers. A `quiet` read is of a library already loaded, for what was saved or another tab changed since: it leaves the
+   * status alone, so a rename or a delete made meanwhile is not refused as "still loading" (the worker answers requests in order).
+   */
+  const reads = useRef(0)
+  const rereadFor = useRef<string | null>(null)
   const loadLibrary = useCallback(
-    (userId: string) => {
-      setLibrary('loading')
+    (userId: string, quiet = false) => {
+      // Each is a full listing against the day's allowance: one asked for while another runs waits and runs once after it.
+      if (quiet && reads.current > 0) {
+        rereadFor.current = userId
+        return
+      }
+      // Only a read of a loaded library leaves the status alone; from any other, imports wait for it.
+      if (!quiet || libraryStatusRef.current !== 'loaded') setLibrary('loading')
+      reads.current = quiet ? reads.current + 1 : 1
       send({ type: 'loadServer', userId })
     },
-    [send, setLibrary],
+    [libraryStatusRef, send, setLibrary],
   )
+  useEffect(() => {
+    readEndedRef.current = () => {
+      reads.current = Math.max(0, reads.current - 1)
+      const next = rereadFor.current
+      rereadFor.current = null
+      if (next !== null && reads.current === 0) loadLibrary(next, true)
+    }
+  }, [readEndedRef, loadLibrary])
 
   /** Imports wait for a loading library; otherwise there is no library for them to join. */
   const holdForLibrary = useCallback(
@@ -73,6 +97,8 @@ export function useLibraryActions({
    */
   const failLibrary = useCallback(() => {
     setLibrary('failed')
+    reads.current = 0
+    rereadFor.current = null
     const dropped = drainBatches(libraryWaitRef).length > 0
     refreshBusy()
     return dropped
@@ -98,24 +124,27 @@ export function useLibraryActions({
    * (null). Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until then the
    * change says why nothing happened, rather than closing without a word. Undefined when it cannot be made now.
    */
-  const changeScope = useCallback((): { userId: string | null } | undefined => {
-    const current = accountRef.current
-    const signedIn = current.status === 'signed-in'
-    if (
-      accountPending(current) ||
-      (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
-    ) {
-      setLibraryError(LIBRARY_NOT_READY)
-      return undefined
-    }
-    if (workerRef.current === null) {
-      setLibraryError(STOPPED)
-      return undefined
-    }
-    setLibraryNotice(null)
-    setLibraryError(null)
-    return { userId: signedIn && current.me !== null ? current.me.user.id : null }
-  }, [accountRef, libraryStatusRef, setLibraryError, setLibraryNotice, workerRef])
+  const changeScope = useCallback(
+    (refusal = LIBRARY_NOT_READY): { userId: string | null } | undefined => {
+      const current = accountRef.current
+      const signedIn = current.status === 'signed-in'
+      if (
+        accountPending(current) ||
+        (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
+      ) {
+        setLibraryError(refusal)
+        return undefined
+      }
+      if (workerRef.current === null) {
+        setLibraryError(STOPPED)
+        return undefined
+      }
+      setLibraryNotice(null)
+      setLibraryError(null)
+      return { userId: signedIn && current.me !== null ? current.me.user.id : null }
+    },
+    [accountRef, libraryStatusRef, setLibraryError, setLibraryNotice, workerRef],
+  )
 
   const deleteActivity = useCallback(
     (id: string) => {
@@ -136,7 +165,7 @@ export function useLibraryActions({
   /** Gives a saved activity the name the athlete chose; the page shows the answer's notice or error beside it. */
   const renameActivity = useCallback(
     (id: string, name: string) => {
-      const scope = changeScope()
+      const scope = changeScope(RENAME_LIBRARY_NOT_READY)
       if (scope === undefined) return
       send(
         { type: 'renameActivity', id, name, userId: scope.userId, settings: settingsRef.current },

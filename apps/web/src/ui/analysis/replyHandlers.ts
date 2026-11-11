@@ -274,6 +274,7 @@ export function handleReply(deps: WorkerEventDeps, message: ReplyResponse, pendi
     }
     if (pending?.kind === 'loadServer') {
       library.setLibrary('loaded')
+      library.readEndedRef.current()
       // Imports made while the library loaded join it now, in the order they were made.
       addWaiting(deps, message.state)
     }
@@ -322,6 +323,7 @@ function handleReplyError(
   if (pending?.kind === 'setRange') pending.settle?.(null)
   if (pending?.kind === 'loadServer') {
     const dropped = failLibrary()
+    library.readEndedRef.current()
     if (message.issue === 'daily-limit') {
       setError(listingLimitReached(message.message), 'daily-limit')
     } else if (dropped) setError(LIBRARY_NOT_LOADED)

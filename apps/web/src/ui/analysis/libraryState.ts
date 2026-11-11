@@ -138,9 +138,13 @@ export function useLibraryState() {
     [dropNotSaved, setDeviceIssue],
   )
 
+  // Called when a read of the account's library has ended, whichever way: the one that was asked for while it ran goes next.
+  const readEndedRef = useRef<() => void>(() => undefined)
+
   return {
     libraryStatus,
     libraryStatusRef,
+    readEndedRef,
     setLibrary,
     libraryWaitRef,
     restoring,

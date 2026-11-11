@@ -2711,6 +2711,17 @@ describe('useAnalysis state', () => {
     expect(worker().posted.some((request) => request.type === 'deleteActivity')).toBe(false)
   })
 
+  it('says the name was not changed when a rename is asked for before the library has loaded, not that nothing was deleted', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+
+    act(() => result.current.renameActivity('a1', 'Hill repeats'))
+
+    expect(result.current.libraryError).toBe(
+      'Your library is still loading, so the name was not changed. Try again in a moment.',
+    )
+    expect(worker().posted.some((request) => request.type === 'renameActivity')).toBe(false)
+  })
+
   it('says the account is still loading when a delete is asked for before the account is known', () => {
     const { result } = setup(LOADING)
 

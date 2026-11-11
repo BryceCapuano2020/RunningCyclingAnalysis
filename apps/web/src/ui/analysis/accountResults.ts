@@ -129,8 +129,13 @@ export function useAccountResults(
     reloadOnceForNewBuild()
   }, [])
 
-  /** The index was listed at `indexAt`; a library version past it is another device's change. */
-  const checkIndex = useCallback((version: number) => {
+  /**
+   * The index was listed at `indexAt`; a library version past it is another device's change. Only a current answer says what the
+   * library is: the stored snapshot served while the server computes covers an older version, and taking it for the baseline would
+   * make this tab's own import look like another device's when the current one follows.
+   */
+  const checkIndex = useCallback((version: number, current: boolean) => {
+    if (!current) return
     const listed = indexAt.current
     if (listed === null) indexAt.current = version
     else if (version > listed) {
@@ -154,7 +159,7 @@ export function useAccountResults(
           // Written into the held copy beside `nowMs`: a version bump that moved no figure is still a version the results cover.
           const moved = { ...copy, nowMs: nowMs!, libraryVersion: libraryVersion! }
           keep(moved, resultsOf(moved, read.current))
-          checkIndex(moved.libraryVersion)
+          checkIndex(moved.libraryVersion, read.current)
         } else if (copy !== null) {
           const stale = copyIsStale(copy, Date.now())
           const { current } = read
@@ -173,7 +178,7 @@ export function useAccountResults(
         const snapshot =
           read.nowMs === null ? read.snapshot : { ...read.snapshot, nowMs: read.nowMs }
         keep(snapshot, resultsOf(snapshot, read.current))
-        checkIndex(snapshot.libraryVersion)
+        checkIndex(snapshot.libraryVersion, read.current)
       }
       misses.current = read.current ? 0 : misses.current + 1
       return read.current ? null : busyWaitMs(misses.current)
@@ -363,33 +368,4 @@ function useKeepsAccount(expired: boolean, deviceState: SessionState): boolean {
   if (expired && atExpiry === null) setAtExpiry(deviceState)
   else if (!expired && atExpiry !== null) setAtExpiry(null)
   return expired && deviceState === atExpiry
-}
-
-/**
- * Whether the page waits for an account's results, or could not get them. A signed-in account with none yet shows its loading state, not
- * an empty library. So does one whose results are older than its library: a snapshot the server served from its store while it computes
- * (not current, or a copy kept from an earlier visit), with nothing in it while the index lists activities, or of a library version
- * behind the one the index was listed at. One the server could not answer says so, with a retry, unless the library read itself failed
- * (its notice has it). `listed` is how many activities the index lists.
- */
-export function resultsFlags(
-  userId: string | null,
-  {
-    results,
-    failed,
-    listedVersion,
-  }: { results: AccountResults | null; failed: boolean; listedVersion: number | null },
-  libraryStatus: string,
-  listed: number,
-): { resultsWaiting: boolean; resultsFailed: boolean } {
-  if (userId === null) return { resultsWaiting: false, resultsFailed: false }
-  const behind =
-    results === null ||
-    (!results.current &&
-      ((results.state.result === null && listed > 0) ||
-        (listedVersion !== null && results.snapshot.libraryVersion < listedVersion)))
-  return {
-    resultsWaiting: behind && !failed,
-    resultsFailed: behind && failed && libraryStatus !== 'failed',
-  }
 }
