@@ -31,8 +31,8 @@ describe('LevelTriangle', () => {
     )
     const plot = container.querySelector('svg')!
     expect(plot).toHaveAttribute('aria-hidden', 'true')
-    // The SVG's one text is the two ring numbers.
-    expect([...plot.querySelectorAll('text')].map((text) => text.textContent)).toEqual(['80', '60'])
+    // The rings carry no numbers: the corners give the grades.
+    expect(plot.querySelectorAll('text')).toHaveLength(0)
     const corners = [...container.querySelectorAll('.level-triangle__corner')]
     expect(corners.map((corner) => corner.getAttribute('data-sport'))).toEqual([
       'run',

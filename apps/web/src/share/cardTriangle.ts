@@ -39,7 +39,6 @@ function wordsAt(size: number): Words {
   const level = at(MONO_400, 28, 34)
   return { label, percent, level, height: label.lineHeight + percent.lineHeight + level.lineHeight }
 }
-const RING_NUMBER: TextStyle = { ...MONO_400, size: 18, lineHeight: 20 }
 /** The words of a corner take this much height, and sit this far from the vertex. */
 const WORDS_GAP = 10
 /** The dot's radius and its paper outline, in px at the figure's own size of 300 units. */
@@ -125,18 +124,6 @@ function drawFrame(ctx: CardContext, shape: TriangleGeometry, at: Point, unit: n
       ctx.lineCap = 'butt'
     }
   }
-  ctx.textAlign = 'right'
-  for (const ring of shape.rings.slice(1)) {
-    drawLines(
-      ctx,
-      [String(ring.percent)],
-      at.x + ring.top.x - 10,
-      at.y + ring.top.y - 4 - RING_NUMBER.lineHeight,
-      RING_NUMBER,
-      CARD_COLORS.secondary,
-    )
-  }
-  ctx.textAlign = 'left'
 }
 
 /** The shape through the dots, in neutral ink, then each sport's dot in its own ink. */
