@@ -5,6 +5,13 @@ import { runMaintenance } from './maintenance.ts'
 import { handleStateBatch } from './state/consumer.ts'
 import type { StateMessage } from './state/message.ts'
 
+/*
+ * Portability: the Hono handlers use fetch-style requests, so the app can run on Node, Bun or Deno with another entry
+ * point; only the bindings (D1, R2, secrets) change. The Drizzle schema is SQLite; Postgres would need new migrations
+ * and column types. R2 is used through the S3-compatible operations (put, get, delete), so S3 or MinIO could replace it
+ * behind a small interface. Auth uses Web Crypto and fetch only. packages/core and apps/web have no Cloudflare
+ * dependency: the web app is static and can be hosted anywhere.
+ */
 const app = createApp()
 
 export default {

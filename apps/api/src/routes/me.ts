@@ -148,6 +148,9 @@ meRoutes.put(
 /**
  * Deletes the account. The deletion is recorded before anything is removed, so a failure at any
  * point can be retried with the same session, or finished by the scheduler once the rows are gone.
+ * The tombstone and `deleting_at` block sign-in and new writes first; idempotent R2 sweeps run around the D1
+ * cascade; a failure leaves retry state, and daily maintenance finishes pending work in bounded batches. Completion
+ * can be late while storage is unavailable or retries keep failing.
  */
 meRoutes.delete('/me', requireUserEvenIfDeleting, async (c) => {
   const { deps } = c.var

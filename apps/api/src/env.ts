@@ -13,6 +13,7 @@ export interface Bindings {
   /** Public origin of the web app. OAuth redirects back here. */
   APP_URL: string
   GOOGLE_CLIENT_ID: string
+  /** A Worker secret, never in the repository. */
   GOOGLE_CLIENT_SECRET: string
   /**
    * Worker secret: the email addresses that may create a new account, comma separated and

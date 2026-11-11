@@ -1,6 +1,8 @@
 /**
  * The look-back: a sport's years of fitness at the same effort told in hindsight, through a horizon 12 weeks before the
- * newest activity. See docs/ARCHITECTURE.md.
+ * newest activity (the weeks after it belong to the fitness card). A sport needs `LOOKBACK.minimum` of steady-run
+ * history before the horizon. It cuts the steady-run series into plateaus and lists the quiet stretches and breaks,
+ * and lists no episodes. Its best efforts over the years are `milestonesOf`. Every number is in `params.ts`.
  */
 export { hindsightOf, horizonDay, shortOf } from './hindsight'
 export type { HindsightInput } from './hindsight'

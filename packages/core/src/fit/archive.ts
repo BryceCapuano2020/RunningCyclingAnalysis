@@ -59,6 +59,11 @@ export type FitErrorHandler = (fileName: string, rejection: Rejection) => void
  * skipped. Errors thrown by handlers propagate after stream cleanup. `listed` is for a zip whose own
  * list names its activities: an activity file of the zip itself that it refuses is counted as not
  * an activity, and is neither read nor counted against the file limit.
+ *
+ * Only .fit, .gpx and .tcx entries (each optionally .gz) are delivered; .kml, .kmz, .pwx and .hrm are
+ * counted and skipped, and skipped entries are drained, never buffered. Entry counts, entry sizes and
+ * total decompressed bytes are all capped, so an oversized archive stops with a reason, not out of memory.
+ * A nested zip is held to the shared budgets, not to the size of one entry.
  */
 export async function extractFitFiles(
   source: FitSource,

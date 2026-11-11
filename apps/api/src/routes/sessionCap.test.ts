@@ -2,7 +2,7 @@ import { MAX_SESSIONS_PER_USER } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import { createHarness, type Harness } from '../test/harness.ts'
 
-/** Rows T1-T8 of the session table: the ten-session cap and account deletion (docs/ARCHITECTURE.md). */
+/** Rows T1-T8 of the session table: the ten-session cap and account deletion (auth/session.ts, accountDeletion.ts). */
 
 async function signInAgain(h: Harness, email = 'rider@example.test'): Promise<string> {
   h.clock.now += 1000

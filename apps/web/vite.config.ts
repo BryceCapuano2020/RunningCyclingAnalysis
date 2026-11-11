@@ -59,6 +59,7 @@ function immutableAssets(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [react(), cleanUrls(), immutableAssets(), landingFigures()],
+  // The worker is its own bundle, so the app entry and the worker each carry a copy of zod (the entry's is for the API client).
   worker: { format: 'es' },
   build: {
     rollupOptions: {

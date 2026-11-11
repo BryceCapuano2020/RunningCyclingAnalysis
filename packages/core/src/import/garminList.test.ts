@@ -12,6 +12,7 @@ import {
   MAX_GARMIN_SUMMARY_BYTES,
   parseGarminSummaries,
   readGarminList,
+  MAX_SUMMARY_FILES,
   START_TOLERANCE_MS,
 } from './garminList'
 
@@ -39,6 +40,26 @@ function listedTimes(zipBytes: Uint8Array, times: number): Uint8Array<ArrayBuffe
   outView.setUint32(offset + size * times + 12, size * times, true)
   return out
 }
+
+describe('Garmin summary caps', () => {
+  // The numbers the importer holds a crafted export to; the boundary tests below and in readGarminList use them.
+  it('are 32 files, 16 MiB each, 64 MiB together, 500,000 objects and 64 levels', () => {
+    expect(MAX_SUMMARY_FILES).toBe(32)
+    expect(MAX_GARMIN_SUMMARY_BYTES).toBe(16 * 1024 * 1024)
+    expect(MAX_GARMIN_SUMMARIES_BYTES).toBe(64 * 1024 * 1024)
+    expect(MAX_GARMIN_SUMMARY_OBJECTS).toBe(500_000)
+    expect(MAX_GARMIN_SUMMARY_DEPTH).toBe(64)
+  })
+
+  it('reads a summary of exactly the object cap and refuses one more', () => {
+    const list = (n: number) =>
+      `[${Array.from({ length: n - 1 }, () => '{}').join(',')},{"name":"A","startTimeGmt":${START}}]`
+    expect(parseGarminSummaries(list(MAX_GARMIN_SUMMARY_OBJECTS))).toEqual([
+      { startMs: START, name: 'A' },
+    ])
+    expect(parseGarminSummaries(list(MAX_GARMIN_SUMMARY_OBJECTS + 1))).toEqual([])
+  })
+})
 
 describe('parseGarminSummaries', () => {
   it('reads the list Garmin writes, an object holding summarizedActivitiesExport', () => {

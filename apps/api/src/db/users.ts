@@ -21,7 +21,7 @@ export const users = sqliteTable(
      * Triggers on activities (migration 0008) keep it in step, so no writer has to. Capped per user.
      */
     fileBytes: integer('file_bytes').notNull().default(0),
-    /** The last continuation cursor the server issued for this user's library, spent once. */
+    /** Legacy: the library cursor is stateless now. Nothing reads or writes this; it stays for the previous Worker (a rollback target). */
     listCursor: text('list_cursor'),
     /**
      * Stored lift sets, kept in step with lift_sets by the same batch that changes them. The cap is the
