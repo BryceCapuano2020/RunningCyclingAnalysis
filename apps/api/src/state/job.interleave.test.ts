@@ -1,5 +1,5 @@
 import { gunzipSync } from 'node:zlib'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { afterNewest, libraryDigests, seedDigests, stateWorld } from '../test/stateKit.ts'
 import { runStateJob } from './job.ts'
 
@@ -84,7 +84,10 @@ async function alone(choices: Choices): Promise<unknown> {
   const w = await stateWorld({ email: `${++worlds}-owner@example.com` })
   const id = await addAccount(w, choices)
   w.h.clock.now = afterNewest(digests)
-  expect(await runStateJob(w.env, w.deps, id)).toBe('written')
+  // Core's memos are fresh for each baseline: a copy of every module no other account has touched.
+  vi.resetModules()
+  const fresh = await import('./job.ts')
+  expect(await fresh.runStateJob(w.env, w.deps, id)).toBe('written')
   return snapshotOf(w, id)
 }
 

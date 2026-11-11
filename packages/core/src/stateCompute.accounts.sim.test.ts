@@ -42,4 +42,30 @@ describe('a snapshot moves with each input it reads, as a fresh isolate gives, o
       )
     }
   })
+
+  it('moves the look-back with the weight inputs, and each answer is its own', async () => {
+    const plain = { ...base, settings: { ...base.settings, measurements: [], keepPower: [] } }
+    const variants: Account[] = [
+      { ...plain, settings: { ...plain.settings, massAssumed: true } },
+      {
+        ...plain,
+        settings: {
+          ...plain.settings,
+          measurements: [{ kind: 'massKg', from: '2000-01-01', value: 52 }],
+        },
+      },
+    ]
+    const lookBack = (s: { state: unknown }) =>
+      JSON.stringify((s.state as { lookBack: unknown }).lookBack)
+    vi.resetModules()
+    const { computeSnapshot } = await import('./stateCompute')
+    const baseAlone = await solo(library, plain)
+    computeSnapshot(inputFor(library, plain))
+    for (const [i, variant] of variants.entries()) {
+      const alone = await solo(library, variant)
+      // The input must matter to the look-back, or the comparison below proves nothing.
+      expect(lookBack(alone), `variant ${i}`).not.toBe(lookBack(baseAlone))
+      expect(computeSnapshot(inputFor(library, variant)), `variant ${i}`).toStrictEqual(alone)
+    }
+  })
 })
