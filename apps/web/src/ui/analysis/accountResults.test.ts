@@ -249,6 +249,21 @@ describe('the index of the library', () => {
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
+  it('reads the index again once when another device’s change is current: listed at 1, stored at 2, current at 2', async () => {
+    const behind = vi.fn()
+    read.mockResolvedValueOnce(answer({ snapshot: snapshot(2), current: false }))
+    const view = renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    act(() => view.result.current.indexListed(1))
+    // The stored snapshot covers 2 but is not current: it says nothing yet. The current one at 2 does.
+    expect(behind).not.toHaveBeenCalled()
+    read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
+    await advance(BUSY_RETRY_MS)
+    expect(behind).toHaveBeenCalledTimes(1)
+    await advance(POLL_MS)
+    expect(behind).toHaveBeenCalledTimes(1)
+  })
+
   it('does not take a snapshot the server is still computing past for the library’s version: its next answer is not another device’s change', async () => {
     const behind = vi.fn()
     // The stored snapshot of the last compute, served while this tab's own import is computed; then the current one.

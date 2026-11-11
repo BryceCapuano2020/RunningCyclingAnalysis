@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
@@ -39,6 +39,7 @@ export function useLibraryActions({
 }: LibraryActionDeps) {
   const {
     libraryStatusRef,
+    readEndedRef,
     setLibrary,
     libraryWaitRef,
     savedActivitiesRef,
@@ -52,13 +53,30 @@ export function useLibraryActions({
    * answers. A `quiet` read is of a library already loaded, for what was saved or another tab changed since: it leaves the
    * status alone, so a rename or a delete made meanwhile is not refused as "still loading" (the worker answers requests in order).
    */
+  const reads = useRef(0)
+  const rereadFor = useRef<string | null>(null)
   const loadLibrary = useCallback(
     (userId: string, quiet = false) => {
-      if (!quiet) setLibrary('loading')
+      // Each is a full listing against the day's allowance: one asked for while another runs waits and runs once after it.
+      if (quiet && reads.current > 0) {
+        rereadFor.current = userId
+        return
+      }
+      // Only a read of a loaded library leaves the status alone; from any other, imports wait for it.
+      if (!quiet || libraryStatusRef.current !== 'loaded') setLibrary('loading')
+      reads.current = quiet ? reads.current + 1 : 1
       send({ type: 'loadServer', userId })
     },
-    [send, setLibrary],
+    [libraryStatusRef, send, setLibrary],
   )
+  useEffect(() => {
+    readEndedRef.current = () => {
+      reads.current = Math.max(0, reads.current - 1)
+      const next = rereadFor.current
+      rereadFor.current = null
+      if (next !== null && reads.current === 0) loadLibrary(next, true)
+    }
+  }, [readEndedRef, loadLibrary])
 
   /** Imports wait for a loading library; otherwise there is no library for them to join. */
   const holdForLibrary = useCallback(
@@ -79,6 +97,8 @@ export function useLibraryActions({
    */
   const failLibrary = useCallback(() => {
     setLibrary('failed')
+    reads.current = 0
+    rereadFor.current = null
     const dropped = drainBatches(libraryWaitRef).length > 0
     refreshBusy()
     return dropped
