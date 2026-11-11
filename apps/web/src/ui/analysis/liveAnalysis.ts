@@ -231,7 +231,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     settingsRef,
     send: sendToWorker,
     libraryStatus: library.libraryStatus,
-    loadLibrary: libraryActions.loadLibrary,
+    loadLibrary: (id: string) => libraryActions.loadLibrary(id, true),
     busy: imports.busy,
   })
   useEffect(() => {
@@ -259,7 +259,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
       const { status, me } = accountRef.current
       // Not while an import is running: it is reading the library it will end in.
       if (status === 'signed-in' && me !== null && !imports.busy)
-        libraryActions.loadLibrary(me.user.id)
+        libraryActions.loadLibrary(me.user.id, true)
     },
     manifest,
     libraryChanged,

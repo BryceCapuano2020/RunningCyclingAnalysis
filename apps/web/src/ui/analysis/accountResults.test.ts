@@ -249,6 +249,18 @@ describe('the index of the library', () => {
     expect(behind).toHaveBeenCalledTimes(1)
   })
 
+  it('does not take a snapshot the server is still computing past for the library’s version: its next answer is not another device’s change', async () => {
+    const behind = vi.fn()
+    // The stored snapshot of the last compute, served while this tab's own import is computed; then the current one.
+    read.mockResolvedValueOnce(answer({ snapshot: snapshot(1), current: false }))
+    read.mockResolvedValue(answer({ snapshot: snapshot(2) }))
+    renderHook(() => useAccountResults('u1', false, true, behind))
+    await flush()
+    await advance(BUSY_RETRY_MS)
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(behind).not.toHaveBeenCalled()
+  })
+
   describe('when the server cannot be asked', () => {
     it('says so, asks again after the short wait and then at doubling ones, and clears it on an answer', async () => {
       read.mockRejectedValue(new Error('timeout'))

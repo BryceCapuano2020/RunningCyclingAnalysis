@@ -46,9 +46,14 @@ export function useLibraryActions({
   } = library
   const { send, workerRef, restartWorker } = transport
 
+  /**
+   * Reads the library from the account. A first read, or one for another account, holds imports and refuses changes until it
+   * answers. A `quiet` read is of a library already loaded, for what was saved or another tab changed since: it leaves the
+   * status alone, so a rename or a delete made meanwhile is not refused as "still loading" (the worker answers requests in order).
+   */
   const loadLibrary = useCallback(
-    (userId: string) => {
-      setLibrary('loading')
+    (userId: string, quiet = false) => {
+      if (!quiet) setLibrary('loading')
       send({ type: 'loadServer', userId })
     },
     [send, setLibrary],
