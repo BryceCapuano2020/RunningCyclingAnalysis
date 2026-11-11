@@ -29,7 +29,7 @@ function matches(header: string | undefined, etag: string): boolean {
  * The latest snapshot of the signed-in account's results, computed on the server (docs/design/server-compute.md). The
  * ETag is the snapshot's content hash, so a browser that holds it is answered 304 without the object being read. The
  * session's own user id is the only key: no id comes from the request. Every signed-in account has one. 404 when the account has
- * no snapshot to serve (a library the server does not compute for), and the browser then computes locally.
+ * no snapshot to serve (a library the server does not compute for): the browser then shows what it holds, and asks again later.
  */
 export const stateRoutes = new Hono<AppEnv>()
 

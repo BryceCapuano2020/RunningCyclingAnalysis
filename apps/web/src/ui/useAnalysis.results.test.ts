@@ -128,7 +128,7 @@ describe('a signed-in account’s results are the server’s', () => {
   it('writes the server’s X-State-Now into the stored copy on a 304, and it is not stale after a reload', async () => {
     const old = snapshot(22, Date.now() - 2 * DAY_MS)
     await writeSnapshot('u1', old)
-    read.mockResolvedValue({ kind: 'unchanged', nowMs: Date.now(), current: true })
+    read.mockResolvedValue({ kind: 'unchanged', nowMs: Date.now(), version: null, current: true })
     const first = setup(SIGNED_IN)
     await waitFor(async () => expect((await readSnapshot('u1'))?.nowMs).toBeGreaterThan(old.nowMs))
     await waitFor(() => expect(first.result.current.copyStale).toBeUndefined())
@@ -371,6 +371,13 @@ describe('a signed-in account’s results are the server’s', () => {
       expect(view.result.current.importChange?.after).toEqual(R62)
     })
 
+    it('lands on a 304 that names the version the import ended at: an import that moved no figure the page could tell by', async () => {
+      const view = await importEnded()
+      read.mockResolvedValue({ kind: 'unchanged', nowMs: null, version: 7, current: true })
+      act(() => tellOtherTabs({ type: 'settings' }))
+      await waitFor(() => expect(view.result.current.importChange).not.toBeNull())
+    })
+
     it('ends the wait when the account changes: another account’s results never land it', async () => {
       const view = await importEnded()
       view.rerender({ account: { status: 'signed-in', me: meOf('u2') } })
@@ -422,6 +429,59 @@ describe('a signed-in account’s results are the server’s', () => {
     const outcome = { activities: 1, filesAdded: 0, rejected: 0, duplicates: [], runs: 0, rides: 0 }
     act(() => worker().reply({ type: 'state', state: null, outcome }))
     await waitFor(() => expect(result.current.importChange).not.toBeNull())
+  })
+
+  describe('the check-in row against an account import', () => {
+    const live = { v: 1, revision: 1, atMs: 5, asOfMs: 5, keys: {}, counts: {}, bests: {} }
+    const rowView = { checkIn: { marker: 'row' } as never, seen: false }
+    const asks = () => worker().posted.filter((request) => request.type === 'checkInFor').length
+
+    /** Signed in with a row on screen, answered for a snapshot that carries a check-in. */
+    async function withRow() {
+      read.mockResolvedValue({
+        kind: 'snapshot',
+        snapshot: { ...snapshot(61), checkIn: live },
+        nowMs: null,
+        current: true,
+      })
+      const view = setup(SIGNED_IN)
+      await waitFor(() => expect(view.result.current.state.totalActivities).toBe(61))
+      act(() => worker().reply({ type: 'state', state: null }))
+      await waitFor(() => expect(asks()).toBe(1))
+      act(() => worker().reply({ type: 'checkInView', view: rowView }))
+      expect(view.result.current.checkIn).toEqual(rowView)
+      return view
+    }
+    const importWith = async (view: Awaited<ReturnType<typeof withRow>>, runs: number) => {
+      act(() => view.result.current.addFiles([new File([new Uint8Array(4)], 'a.fit')]))
+      await waitFor(() => expect(worker().posted.at(-1)?.type).toBe('addFiles'))
+      const outcome = {
+        activities: 1,
+        filesAdded: runs,
+        rejected: 0,
+        duplicates: [],
+        runs,
+        rides: 0,
+      }
+      act(() => worker().reply({ type: 'state', state: null, outcome, saved: runs }))
+    }
+
+    it('stays when the import added nothing: a re-import of files the account holds moved no baseline', async () => {
+      const view = await withRow()
+      await importWith(view, 0)
+      expect(view.result.current.checkIn).toEqual(rowView)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(asks()).toBe(1)
+    })
+
+    it('goes when the import added workouts, and is asked for again against the snapshot on screen, whose check-in has not changed', async () => {
+      const view = await withRow()
+      await importWith(view, 1)
+      expect(view.result.current.checkIn).not.toEqual(rowView)
+      await waitFor(() => expect(asks()).toBe(2))
+      act(() => worker().reply({ type: 'checkInView', view: { ...rowView, seen: false } }))
+      expect(view.result.current.checkIn).toEqual(rowView)
+    })
   })
 
   it('shows no account results after a sign-out', async () => {

@@ -6,6 +6,8 @@ import type { AthleteSettings } from '@rca/core/athlete'
 import { createLiftTransport } from '../../api/lifts'
 import type { LiftTransport } from '../../worker/liftTransport'
 import { useNow } from '../useNow'
+import { DEVICE_SCOPE } from '../../worker/liftTransitions'
+import { useLiftScope } from './liftScope'
 import { useLiveLiftSets } from './useLiveLiftSets'
 import type { LiftSummaryAccount } from './useLiveLiftSets'
 
@@ -22,13 +24,13 @@ export function useLiftResults(
   settings: AthleteSettings,
   transportFor: (userId: string) => LiftTransport = createLiftTransport,
 ): LiftResults | null {
+  const scope = useLiftScope(account.status, account.userId)
   const sets = useLiveLiftSets(account, transportFor)
   const today = localDateOf(useNow())
   return useMemo(() => {
-    // An account's scope (also while it loads or cannot be reached, which keep the last account's): its results, never the log's,
-    // which holds sets not yet sent.
-    if (account.status === 'signed-in' || account.userId !== null)
-      return account.accountLift ?? null
+    // An account's scope (decided by the lift scope itself: while the lookup loads or fails the app has no user id, and the scope is the
+    // last account's): its results, never the log's, which holds sets not yet sent.
+    if (scope !== DEVICE_SCOPE) return account.accountLift ?? null
     return sets === null ? null : liftResultsOf(sets, settings, today)
-  }, [account.status, account.userId, account.accountLift, sets, settings, today])
+  }, [scope, account.accountLift, sets, settings, today])
 }

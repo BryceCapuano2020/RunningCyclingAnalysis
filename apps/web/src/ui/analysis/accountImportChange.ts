@@ -5,15 +5,10 @@ import type { AccountResults } from './accountResults'
 import { baselineOf, comparableBefore } from './importState'
 import type { ImportChange } from './importState'
 import type { Baseline } from './model'
-import { isUpdate } from './replyHandlers'
+import { addedAny, isUpdate } from './replyHandlers'
 
 /** What an import added or brought up to date: none of it moves a figure. */
-const movedNothing = (outcome: ImportOutcome) =>
-  (outcome.runs ?? 0) +
-    (outcome.rides ?? 0) +
-    (outcome.updatedRuns ?? 0) +
-    (outcome.updatedRides ?? 0) ===
-  0
+const movedNothing = (outcome: ImportOutcome) => !addedAny(outcome)
 
 interface Waiting {
   outcome: ImportOutcome

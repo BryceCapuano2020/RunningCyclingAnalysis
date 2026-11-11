@@ -55,7 +55,8 @@ function resultsOf(snapshot: StateSnapshot, current: boolean): AccountResults | 
  * replaces it when the server answers with a different snapshot. The browser computes nothing and writes no snapshot of its own for an
  * account.
  *
- * - 304: the copy stands; the server's `X-State-Now` is written into the stored copy's `nowMs`, so an unchanged recompute does not leave
+ * - 304: the copy stands; the server's `X-State-Now` and `X-State-Computed-Version` are written into the stored copy's `nowMs` and
+ *   `libraryVersion`, so an unchanged recompute does not leave
  *   it marked old after a reload.
  * - 202 (computing): the copy stays, or nothing is shown yet; it asks again after `Retry-After`.
  * - `X-State-Current: 0` (the stored snapshot, served while the server computes): shown, and it asks again in a few seconds.
@@ -115,6 +116,16 @@ export function useAccountResults(
     reloadOnceForNewBuild()
   }, [])
 
+  /** The index was listed at `indexAt`; a library version past it is another device's change. */
+  const checkIndex = useCallback((version: number) => {
+    const listed = indexAt.current
+    if (listed === null) indexAt.current = version
+    else if (version > listed) {
+      indexAt.current = null
+      behind.current()
+    }
+  }, [])
+
   const apply = useCallback(
     (read: Exclude<StateRead, { kind: 'none' }>): number | null => {
       if (read.kind === 'computing') {
@@ -124,9 +135,13 @@ export function useAccountResults(
       if (read.kind === 'unchanged') {
         // A 304 on the tag of a refused snapshot says nothing of the copy.
         const copy = refused.current === null ? held.current : null
-        if (copy !== null && read.nowMs !== null && read.nowMs !== copy.nowMs) {
-          const moved = { ...copy, nowMs: read.nowMs }
+        const nowMs = read.nowMs ?? copy?.nowMs
+        const libraryVersion = read.version ?? copy?.libraryVersion
+        if (copy !== null && (nowMs !== copy.nowMs || libraryVersion !== copy.libraryVersion)) {
+          // Written into the held copy beside `nowMs`: a version bump that moved no figure is still a version the results cover.
+          const moved = { ...copy, nowMs: nowMs!, libraryVersion: libraryVersion! }
           keep(moved, resultsOf(moved, read.current))
+          checkIndex(moved.libraryVersion)
         } else if (copy !== null) {
           const stale = copyIsStale(copy, Date.now())
           const { current } = read
@@ -145,17 +160,12 @@ export function useAccountResults(
         const snapshot =
           read.nowMs === null ? read.snapshot : { ...read.snapshot, nowMs: read.nowMs }
         keep(snapshot, resultsOf(snapshot, read.current))
-        const listed = indexAt.current
-        if (listed === null) indexAt.current = snapshot.libraryVersion
-        else if (snapshot.libraryVersion > listed) {
-          indexAt.current = null
-          behind.current()
-        }
+        checkIndex(snapshot.libraryVersion)
       }
       misses.current = read.current ? 0 : misses.current + 1
       return read.current ? null : busyWaitMs(misses.current)
     },
-    [keep, settleReload],
+    [keep, settleReload, checkIndex],
   )
 
   const pull = useCallback(

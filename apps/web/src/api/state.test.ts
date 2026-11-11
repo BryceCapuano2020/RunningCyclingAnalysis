@@ -39,10 +39,16 @@ describe('readServerState', () => {
 
   it('answers a 304 with its X-State-Now, and sends the tag of the copy held', async () => {
     const held = snapshotAt(1_000, 'UTC')
-    const fetchMock = stub(new Response(null, { status: 304, headers: { 'X-State-Now': '7000' } }))
+    const fetchMock = stub(
+      new Response(null, {
+        status: 304,
+        headers: { 'X-State-Now': '7000', 'X-State-Computed-Version': '9' },
+      }),
+    )
     expect(await readServerState('u1', held)).toEqual({
       kind: 'unchanged',
       nowMs: 7_000,
+      version: 9,
       current: true,
     })
     expect(new Headers(fetchMock.mock.calls[0]![1]?.headers).get('if-none-match')).toBe(

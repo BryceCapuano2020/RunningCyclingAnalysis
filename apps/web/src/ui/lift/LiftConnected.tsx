@@ -12,7 +12,9 @@ import { BigThreeLead } from './BigThreeLead'
 import { LiftPage } from './LiftPage'
 import { LiftPicker } from './LiftPicker'
 import { SetForm } from './SetForm'
+import { DEVICE_SCOPE } from '../../worker/liftTransitions'
 import { liftOverviewOf } from './liftEntries'
+import { useLiftScope } from './liftScope'
 import { EARLIER_STEP, earlierDays, lastSetOf, liftsOfDay, setOfKey } from './liftPageData'
 import type { NewLiftSet } from './useLiftLog'
 import { useLiftLog } from './useLiftLog'
@@ -82,7 +84,8 @@ export function LiftConnected({
   const earlier = useMemo(() => earlierDays(log.days, day, count), [log.days, day, count])
   // Every figure on the page is core's `liftResultsOf`: the server's for an account (what it holds, so a set not yet sent changes
   // nothing here), this log's for a signed-out visitor. The log still gives the day view and the form.
-  const accountScope = account.status === 'signed-in' || account.me !== null
+  // The lift scope decides: with no user id yet (the lookup loads or failed) it is the last account's, and its log holds unsent sets.
+  const accountScope = useLiftScope(account.status, account.me?.user.id ?? null) !== DEVICE_SCOPE
   const shown = useMemo(
     () => liftResultsOf(accountScope ? [] : log.sets, settings, today),
     [accountScope, log.sets, settings, today],

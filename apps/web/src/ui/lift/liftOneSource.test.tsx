@@ -9,6 +9,7 @@ import type { AccountController } from '../useAccount'
 import { LiftConnected } from './LiftConnected'
 import { liftOverviewOf } from './liftEntries'
 import { liftTileOf } from './liftTile'
+import { noteLiftAccount } from './lastAccount'
 import { useLiftResults } from './useLiftResults'
 
 /** L3: the Lift page and the hero's lift corner render from one snapshot, and a set not yet sent changes neither. */
@@ -17,7 +18,10 @@ const hook = vi.hoisted(() => ({ current: {} as Record<string, unknown>, sets: [
 vi.mock('./useLiftLog', () => ({ useLiftLog: () => hook.current }))
 vi.mock('./useLiveLiftSets', () => ({ useLiveLiftSets: () => hook.sets }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})
 
 const TODAY = '2031-03-02'
 const SETTINGS = { massKg: 80, bikeMassKg: 9, birthYear: 1990, sex: 'male' as const }
@@ -138,14 +142,46 @@ describe('one source of lift figures for an account', () => {
     expect(container.textContent).not.toContain(`${total.number} ${total.unit}`)
   })
 
-  it('gives an account’s scope no figures of the log’s while the account loads or cannot be reached', () => {
+  it('gives an account’s scope no figures of the log’s while the account loads or cannot be reached, with no user id yet', () => {
     logWith([...SAVED, UNSENT])
+    // The last account signed in here is remembered; the app starts with no user id while it loads, and after a failed lookup.
+    noteLiftAccount('u1')
     for (const status of ['loading', 'unavailable'] as const) {
       const { result } = renderHook(() =>
-        useLiftResults({ status, userId: 'u1', accountLift: null }, SETTINGS),
+        useLiftResults({ status, userId: null, accountLift: null }, SETTINGS),
       )
       expect(result.current).toBeNull()
     }
+    // The same with the account's results in hand: they, not the log's.
+    const { result } = renderHook(() =>
+      useLiftResults({ status: 'loading', userId: null, accountLift: FROM_SNAPSHOT }, SETTINGS),
+    )
+    expect(result.current).toBe(FROM_SNAPSHOT)
+    // Nobody remembered: the device's own log.
+    noteLiftAccount(null)
+    const device = renderHook(() =>
+      useLiftResults({ status: 'loading', userId: null, accountLift: null }, SETTINGS),
+    )
+    expect(device.result.current).not.toBeNull()
+  })
+
+  it('draws the Lift page from no log figures for the last account while it loads', () => {
+    logWith([...SAVED, UNSENT])
+    noteLiftAccount('u1')
+    const loading = { ...account, status: 'loading', me: null } as unknown as AccountController
+    const { container } = render(
+      <LiftConnected
+        account={loading}
+        units="metric"
+        day={TODAY}
+        today={TODAY}
+        openDay={() => undefined}
+        settings={SETTINGS}
+        accountLift={null}
+      />,
+    )
+    const ifSent = liftOverviewOf(IF_SENT, 'metric').bigThree!.total!
+    expect(container.textContent).not.toContain(`${ifSent.number} ${ifSent.unit}`)
   })
 
   it('signed out works the same figures out of the log with the same function', () => {

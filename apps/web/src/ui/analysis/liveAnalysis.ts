@@ -178,7 +178,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     loadLibrary: libraryActions.loadLibrary,
   })
 
-  const checkInVersion = useAccountCheckIn(
+  const checkIn = useAccountCheckIn(
     userId === null ? null : (accountResults.results?.snapshot ?? null),
     library.libraryStatus === 'loaded',
     libraryActions.requestCheckIn,
@@ -188,7 +188,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     results: accountResults.results,
     userId,
     checkIn: library.checkIn,
-    checkInVersion,
+    checkInVersion: checkIn.version,
     setImportChange,
   })
 
@@ -241,6 +241,7 @@ export function useLiveAnalysis(settings: AthleteSettings, account: Account): An
     refreshResults: accountResults.refresh,
     indexListed: accountResults.indexListed,
     importLanded: importChange.landed,
+    askCheckInAgain: checkIn.again,
     transport,
     imports,
     library,
