@@ -50,6 +50,19 @@ describe('account deletion and the inbox', () => {
     expect(await h.env.FILES!.head(key)).toBeNull()
     expect(await countOf('SELECT COUNT(*) AS n FROM inbox_items')).toBe(0)
   })
+
+  it('sweeps when a row names no file yet, as a push that inserted its row puts the file after', async () => {
+    const h = createHarness()
+    const { token, uid } = await signedInUser(h, 'racing@example.test')
+    await seedItem(h, uid, { id: 'item-5', state: 'pending', withFile: false })
+    const landing = inboxKey(uid, 'item-5')
+    await h.env.FILES!.put(landing, new Uint8Array([4]))
+
+    const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: token } })
+
+    expect(res.status).toBe(204)
+    expect(await h.env.FILES!.head(landing)).toBeNull()
+  })
 })
 
 describe('turning original files off and the inbox', () => {

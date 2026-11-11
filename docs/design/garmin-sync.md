@@ -96,7 +96,8 @@ received_at)`, unique `(user_id, provider, provider_activity_id)` so a repeated 
    result goes in apps/api/LIMITS.md.
 9. **Retries and failure.** A consumer error before the save retries with the queue's backoff; a parse that fails is
    not retried (the same bytes give the same answer) and the row is `failed` with the parser's reason. After three
-   delivery attempts the message goes to a dead-letter queue and the row is `failed`. A failed item keeps its file
+   delivery attempts the message goes to a dead-letter queue and the row is `failed`. A message whose row is gone (expired as
+   stale, or deleted by a disconnect) is acknowledged and dropped, never requeued. A failed item keeps its file
    for 30 days so the athlete can be shown it and a later parser can read it again.
 10. **The digest carries the Worker's model revision.** The server makes digests with the `MODEL_REVISION` of the
     code it runs. The web and the Worker ship from one commit (docs/DEPLOY.md), so the revisions match. A digest

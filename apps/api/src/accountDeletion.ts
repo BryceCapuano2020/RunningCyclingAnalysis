@@ -54,7 +54,8 @@ export async function finishAccountDeletion(
 ): Promise<boolean> {
   const db = env.DB
   // Decide once, while the user row still exists and deleting_at blocks new reservations and pushes: with no
-  // file rows and no inbox file, no R2 object can appear later, so no sweep is needed.
+  // file rows and no inbox row, no R2 object can appear later, so no sweep is needed. Any inbox row counts, as a
+  // push puts its file after its row, as an upload's file_size reserves before its put.
   await db
     .prepare(
       `UPDATE pending_account_deletions SET sweep_pending = 0
@@ -63,7 +64,7 @@ export async function finishAccountDeletion(
          AND NOT EXISTS (
            SELECT 1 FROM activities
            WHERE user_id = ?1 AND (file_key IS NOT NULL OR file_size IS NOT NULL))
-         AND NOT EXISTS (SELECT 1 FROM inbox_items WHERE user_id = ?1 AND file_key IS NOT NULL)`,
+         AND NOT EXISTS (SELECT 1 FROM inbox_items WHERE user_id = ?1)`,
     )
     .bind(userId)
     .run()
