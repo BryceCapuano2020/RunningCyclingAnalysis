@@ -459,13 +459,14 @@ of them.
 
 `[triggers] crons = ["17 3 * * *"]` runs `runMaintenance` (`src/maintenance.ts`), and each step is bounded:
 
-- Deletes sessions that have expired or passed their 90-day end, up to 500 per run. Its statement also records the database size (see the database guard).
+- Deletes sessions that have expired or passed their 90-day end, up to 500 per run.
 - Prunes expired upload slots, daily rows older than seven days, saved identity counts older than yesterday and account tombstones older than 100 days.
 - Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts, and writes an `account_tombstones` row (account id and time) in the batch that deletes the user.
 - Deletes up to 90 expired Garmin inbox rows a run: `done` and stale `pending` ones after 7 days, `failed` ones and their files after 30 (`src/inbox/expiry.ts`): one D1 statement and at most one R2 delete.
 - Sweeps two pages of 90 keys per run for R2 objects that no activity row, results job or inbox row names, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 - An account deletion with a Garmin link first asks Garmin to deregister it: one call, five seconds at most, that never stops the deletion.
+- Last, records the database size the create guard reads (see the database guard): one cheap statement for the size and one write, outside the operation count below.
 
 Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIONS`, which is **45** per run, below the Workers Free limit of 50 subrequests per invocation. A step that reaches the cap stops, and the next run resumes from its saved state. CPU is not measured.
 
