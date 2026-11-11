@@ -89,9 +89,8 @@ export async function runMaintenance(env: Bindings, deps: Deps): Promise<Mainten
   await within(0, () => resendDirty(bound, now, Math.floor((budget.left - 1) / 2), resent))
   const stateResent = resent.sent
   // Report-only, so it runs after the re-send, and a failure in it never stops another step.
-  const none = { checked: 0, drifted: 0 }
-  const reconciled = await guarded('counter_reconcile_failed', none, () =>
-    within(none, () => reconcileCounters(bound, now)),
+  const reconciled = await guarded('counter_reconcile_failed', { checked: 0, drifted: 0 }, () =>
+    reconcileCounters(bound, now),
   )
   // The only place the size the create guard reads is written (request paths no longer record it,
   // so writers do not queue on one row). It runs last, so it sees the day's deletions, and on the

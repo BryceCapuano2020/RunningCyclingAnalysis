@@ -232,6 +232,8 @@ export const r2StorageBudget = sqliteTable('r2_storage_budget', {
   monthlyPutBytes: integer('monthly_put_bytes').notNull().default(0),
   /** Where the orphaned-object sweep resumes listing, or null when it starts from the beginning. */
   orphanSweepCursor: text('orphan_sweep_cursor'),
+  /** The last account id the counter reconciliation read, or null when its next run starts from the first (counterReconcile.ts). */
+  reconcileCursor: text('reconcile_cursor'),
   /** Independent ceilings for unauthenticated deep-health HEAD probes. */
   healthProbeDay: text('health_probe_day').notNull().default(''),
   healthProbeDayCount: integer('health_probe_day_count').notNull().default(0),
