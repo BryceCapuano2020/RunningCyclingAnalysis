@@ -53,6 +53,7 @@ export async function originalActivity(
     // Likewise the athlete's own label: the export's list is not at hand, so the saved digest keeps it.
     ...(record.digest.athleteType === undefined ? {} : { athleteType: record.digest.athleteType }),
     sessionKey: fileHash,
+    nowMs: Date.now(),
   })
   if (!parsed.ok) return { fileHash, activity: undefined }
   const activity = matchOriginalActivity(parsed.activities, record.digest, expectedActivityId)

@@ -26,12 +26,16 @@ export type ServerFileResult =
 export async function createBodiesOfFile(
   bytes: Uint8Array,
   fileName: string,
+  nowMs: number,
 ): Promise<ServerFileResult> {
   if (!/\.fit$/i.test(fileName)) {
     return { ok: false, reason: 'The server reads only FIT files', code: 'not-activity' }
   }
   const fileHash = await sha256Hex(bytes)
-  const parsed = parseActivityFile(bytes, fileName, GARMIN_PARSE_LIMITS, { sessionKey: fileHash })
+  const parsed = parseActivityFile(bytes, fileName, GARMIN_PARSE_LIMITS, {
+    sessionKey: fileHash,
+    nowMs,
+  })
   if (!parsed.ok) return { ok: false, reason: parsed.reason, code: parsed.code }
   return {
     ok: true,

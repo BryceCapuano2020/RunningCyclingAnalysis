@@ -57,7 +57,7 @@ export interface ParseOptions {
    * the id of the earlier revisions.
    */
   hashedIds?: boolean
-  /** The clock for the date check, in epoch milliseconds. Defaults to Date.now(). */
+  /** The clock for the date check, in epoch milliseconds. Without it no start is too far ahead: the caller that has a clock passes it. */
   nowMs?: number
   /**
    * The name the file's export gives the activity, such as Strava's activities.csv. It is used

@@ -97,7 +97,7 @@ describe('a FIT file saved the server way', () => {
     }
 
     const serverUser = await userIdOf(h, await h.signIn('server@example.test', 'Server'))
-    const read = await createBodiesOfFile(bytes, fixture.name)
+    const read = await createBodiesOfFile(bytes, fixture.name, Date.now())
     if (!read.ok) throw new Error(read.reason)
     const ctx = saveContext(h.env, {
       now: () => h.clock.now,
@@ -127,7 +127,7 @@ describe('a FIT file saved the server way', () => {
     })
     expect(posted.status).toBe(201)
 
-    const read = await createBodiesOfFile(bytes, 'run.fit')
+    const read = await createBodiesOfFile(bytes, 'run.fit', Date.now())
     if (!read.ok) throw new Error(read.reason)
     const ctx = saveContext(h.env, {
       now: () => h.clock.now,
@@ -146,7 +146,11 @@ describe('a FIT file saved the server way', () => {
       now: () => h.clock.now,
       randomUUID: () => crypto.randomUUID(),
     })
-    const pushed = await createBodiesOfFile(encodeFit(ride, { gps: true }), 'garmin-9.fit')
+    const pushed = await createBodiesOfFile(
+      encodeFit(ride, { gps: true }),
+      'garmin-9.fit',
+      Date.now(),
+    )
     if (!pushed.ok) throw new Error(pushed.reason)
     const ridden = pushed.bodies[0]
     expect((await saveDigest(ctx, userId, JSON.parse(ridden!), { source: 'garmin' })).status).toBe(

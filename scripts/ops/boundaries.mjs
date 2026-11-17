@@ -190,12 +190,7 @@ export const PURITY_RULES = [
 ]
 
 /** Non-test files in packages/core that break purity, each with the reason a reviewer accepts. */
-export const PURITY_ALLOW = new Map([
-  [
-    'packages/core/src/import/pipeline.ts',
-    'the import clock defaults to the real time when the caller passes no nowMs (smell: every caller should pass it)',
-  ],
-])
+export const PURITY_ALLOW = new Map([])
 
 const withoutStrings = (text) => text.replace(/(['"])(?:\\.|(?!\1)[^\\\n])*\1/g, (m) => m[0] + m[0])
 
