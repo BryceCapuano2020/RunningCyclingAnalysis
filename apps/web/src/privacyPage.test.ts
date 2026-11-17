@@ -218,8 +218,8 @@ describe('privacy page describes what is stored as the app stores it', () => {
   })
 
   it('names the record of imports this browser keeps, and says what clears it', async () => {
-    const manifest = await readStylesheet(import.meta.url, './ui/importManifestStore.ts')
-    const manifestSource = await readStylesheet(import.meta.url, './ui/importManifest.ts')
+    const manifest = await readStylesheet(import.meta.url, './domain/importManifestStore.ts')
+    const manifestSource = await readStylesheet(import.meta.url, './domain/importManifest.ts')
     expect(text).toContain('database rca-import-meta')
     expect(manifest).toContain("DB_NAME = 'rca-import-meta'")
     expect(text).toContain('The last five per library are kept.')

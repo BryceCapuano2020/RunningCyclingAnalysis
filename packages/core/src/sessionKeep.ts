@@ -89,7 +89,7 @@ export async function considerActivity(
   if (sink === undefined) return considered(false)
   // After a run of network failures one save is the probe, sent once the outage has had a moment to pass. The
   // others wait for its answer: if it fails too the network is down and the saves stop; if not, the import goes on.
-  const probing = await claimProbe(batch)
+  const probing = await claimProbe(batch, sink)
   if (batch.halt !== null) {
     // An activity already saved, offered again to keep its file, is not waiting for a save.
     if (held === undefined || replaces || state.unsynced.has(key)) {
@@ -176,7 +176,7 @@ function settleLater(
  * Whether this save is the network probe. While the network is thought to be down, the first save to arrive is the
  * probe and waits out the delay; the others wait for its answer, then go on or find the saves halted.
  */
-async function claimProbe(batch: SaveBatch): Promise<boolean> {
+async function claimProbe(batch: SaveBatch, sink: SyncSink): Promise<boolean> {
   while (batch.halt === null && batch.networkStreak >= NETWORK_FAILURES_BEFORE_PROBE) {
     if (batch.probe !== null) {
       await batch.probe.settled
@@ -184,7 +184,7 @@ async function claimProbe(batch: SaveBatch): Promise<boolean> {
     }
     let end: () => void = () => undefined
     batch.probe = { settled: new Promise<void>((resolve) => (end = resolve)), end }
-    await new Promise((resolve) => setTimeout(resolve, NETWORK_PROBE_DELAY_MS))
+    await sink.waitBeforeProbe?.(NETWORK_PROBE_DELAY_MS)
     return true
   }
   return false

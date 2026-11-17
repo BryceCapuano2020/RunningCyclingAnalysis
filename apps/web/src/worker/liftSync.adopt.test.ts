@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { openLiftStore } from './liftStore'
 import { createLiftSync } from './liftSync'
 import { fakeTransport, make } from './liftTestKit'
-import { LiftTransportError } from './liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
 
 const key = (order: number) => liftSetKey(make(order))
 

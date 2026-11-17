@@ -20,7 +20,7 @@ import type {
   OutboxStatus,
 } from './model'
 import type { RouteReply } from '../routeReply'
-import type { ImportManifest } from '../importManifest'
+import type { ImportManifest } from '../../domain/importManifest'
 
 export interface AnalysisController {
   state: SessionState

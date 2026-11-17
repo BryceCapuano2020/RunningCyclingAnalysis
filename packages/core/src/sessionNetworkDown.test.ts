@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodeFit } from './fit'
 import { NETWORK_PROBE_DELAY_MS } from './saveFailure'
 import { AnalysisSession, SyncFailure } from './session'
+import type { SyncItem, SyncSink } from './session'
 import { DEFAULT_ATHLETE, generateActivity } from './synthetic'
 import type { AthleteSettings } from './types'
 
@@ -12,6 +13,11 @@ const DAY_MS = 24 * 3_600_000
 const COUNT = 60
 // The real timer, kept before the fake ones are installed, to let the import's own work run.
 const realSetTimeout = globalThis.setTimeout
+
+const waitsForProbe = (save: (item: SyncItem) => Promise<void>): SyncSink =>
+  Object.assign(save, {
+    waitBeforeProbe: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+  })
 
 /** A zip of short runs, one a day apart, so none is a duplicate of another. */
 function zipOfRuns(count: number): File {
@@ -53,7 +59,9 @@ describe('AnalysisSession with the network down', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     const started = Date.now()
     let state: Awaited<ReturnType<AnalysisSession['addFiles']>> | undefined
-    const done = session.addFiles([file], SETTINGS, undefined, hangs).then((s) => (state = s))
+    const done = session
+      .addFiles([file], SETTINGS, undefined, waitsForProbe(hangs))
+      .then((s) => (state = s))
     while (state === undefined) {
       if (vi.getTimerCount() > 0) await vi.advanceTimersToNextTimerAsync()
       else await new Promise((resolve) => realSetTimeout(resolve, 0))
@@ -75,11 +83,16 @@ describe('AnalysisSession with the network down', () => {
     const started = Date.now()
     let state: Awaited<ReturnType<AnalysisSession['addFiles']>> | undefined
     const done = session
-      .addFiles([file], SETTINGS, undefined, async () => {
-        calls++
-        // The first three saves fall in the outage; the fourth, the probe, and the rest get through.
-        if (calls <= 3) throw new SyncFailure('network', 'Offline')
-      })
+      .addFiles(
+        [file],
+        SETTINGS,
+        undefined,
+        waitsForProbe(async () => {
+          calls++
+          // The first three saves fall in the outage; the fourth, the probe, and the rest get through.
+          if (calls <= 3) throw new SyncFailure('network', 'Offline')
+        }),
+      )
       .then((s) => (state = s))
     while (state === undefined) {
       if (vi.getTimerCount() > 0) await vi.advanceTimersToNextTimerAsync()
@@ -99,12 +112,17 @@ describe('AnalysisSession with the network down', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     let state: Awaited<ReturnType<AnalysisSession['addFiles']>> | undefined
     const done = session
-      .addFiles([file], SETTINGS, undefined, async () => {
-        calls++
-        if (calls <= 3) throw new SyncFailure('network', 'Offline')
-        // The probe: the digest reached the server and only the upload of the original failed.
-        if (calls === 4) throw new SyncFailure('network', 'Upload failed', true)
-      })
+      .addFiles(
+        [file],
+        SETTINGS,
+        undefined,
+        waitsForProbe(async () => {
+          calls++
+          if (calls <= 3) throw new SyncFailure('network', 'Offline')
+          // The probe: the digest reached the server and only the upload of the original failed.
+          if (calls === 4) throw new SyncFailure('network', 'Upload failed', true)
+        }),
+      )
       .then((s) => (state = s))
     while (state === undefined) {
       if (vi.getTimerCount() > 0) await vi.advanceTimersToNextTimerAsync()

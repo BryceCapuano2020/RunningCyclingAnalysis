@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { analysisStub } from '../test/analysisStub'
-import type { ImportManifest } from './importManifest'
+import type { ImportManifest } from '../domain/importManifest'
 import { useLibraryPage } from './useLibraryPage'
 
 function manifest(over: Partial<ImportManifest> = {}): ImportManifest {

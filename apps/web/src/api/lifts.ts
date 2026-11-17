@@ -1,7 +1,7 @@
 import { LiftDeleteAnswerSchema, LiftPageAnswerSchema, LiftWriteAnswerSchema } from '@rca/contract'
 import type { LiftSet } from '@rca/core/lift'
-import { LiftTransportError } from '../worker/liftTransport'
-import type { LiftPageAnswer, LiftPutAnswer, LiftTransport } from '../worker/liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
+import type { LiftPageAnswer, LiftPutAnswer, LiftTransport } from '../domain/liftTransport'
 import { ApiRequestError, readJson, request } from './client'
 
 /** An answer is a revision and at most 500 keys. */

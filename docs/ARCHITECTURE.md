@@ -226,7 +226,7 @@ answers are `no-store`. Secrets are Worker secrets. Details:
 | Worker messages, watchdog, request timeouts                        | `apps/web/src/worker/protocol.ts`, `workerWire.ts`, `ui/analysis/requestWatch.ts`                                              |
 | Device library epochs, several tabs                                | `worker/deviceLibrary.ts`, `ui/tabSync.ts`                                                                                     |
 | Trace cache budget, ledger, tombstones                             | `apps/web/src/worker/workbenchSchema.ts`, `workbench.ts`                                                                       |
-| Import record and the partial-import notice                        | `apps/web/src/ui/importManifest.ts`, `ui/analysis/importManifestHook.ts`                                                       |
+| Import record and the partial-import notice                        | `apps/web/src/domain/importManifest.ts`, `ui/analysis/importManifestHook.ts`                                                   |
 | Table rules, counters, caps, retention                             | `apps/api/src/db/schema.ts`, `db/users.ts`                                                                                     |
 | Sessions, sign-in, sign-up list, redirect codes                    | `apps/api/src/auth`, `signInProblem.ts`, [PRODUCTION.md](PRODUCTION.md)                                                        |
 | Activity list paging, labels, rename, upgrade                      | `apps/api/src/routes/activities`                                                                                               |

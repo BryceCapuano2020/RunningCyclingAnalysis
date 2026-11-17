@@ -5,7 +5,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { openLiftStore } from '../../worker/liftStore'
 import { fakeTransport, make } from '../../worker/liftTestKit'
-import { LiftTransportError } from '../../worker/liftTransport'
+import { LiftTransportError } from '../../domain/liftTransport'
 import { useDeviceLifts } from './useDeviceLifts'
 
 beforeEach(() => {

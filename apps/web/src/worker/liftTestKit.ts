@@ -1,6 +1,6 @@
 import type { LiftSet } from '@rca/core/lift'
-import { LiftTransportError } from './liftTransport'
-import type { LiftPageAnswer, LiftPutAnswer, LiftTransport } from './liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
+import type { LiftPageAnswer, LiftPutAnswer, LiftTransport } from '../domain/liftTransport'
 
 /** A synthetic set: one lift on one date, so `setOrder` alone tells sets apart. */
 export const make = (setOrder: number, loadKg = 60): LiftSet => ({

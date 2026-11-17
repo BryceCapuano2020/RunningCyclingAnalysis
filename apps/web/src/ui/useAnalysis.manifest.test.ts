@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeWorker } from '../test/fakeWorker'
 import { EMPTY_PERIOD } from './analysis/model'
 import { useAnalysis } from './useAnalysis'
-import { openManifestStore } from './importManifestStore'
+import { openManifestStore } from '../domain/importManifestStore'
 import type { Me } from '@rca/contract'
 
 import type { RejectedFile } from '@rca/core/session'

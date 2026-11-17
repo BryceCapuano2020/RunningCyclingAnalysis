@@ -1,5 +1,5 @@
-import type { LiftPutAnswer } from './liftTransport'
-import { LiftTransportError } from './liftTransport'
+import type { LiftPutAnswer } from '../domain/liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
 import type { LiftStore, SentRow } from './liftStore'
 import type { LiftRow } from './liftTransitions'
 

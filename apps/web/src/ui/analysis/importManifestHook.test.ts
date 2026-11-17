@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { lockName } from '../importManifest'
-import type { ImportManifest, ManifestScope } from '../importManifest'
-import type { ManifestStore } from '../importManifestStore'
+import { lockName } from '../../domain/importManifest'
+import type { ImportManifest, ManifestScope } from '../../domain/importManifest'
+import type { ManifestStore } from '../../domain/importManifestStore'
 import { useImportManifest } from './importManifestHook'
 
 /** A store in memory, with the manifests it starts with. */
