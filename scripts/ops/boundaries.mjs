@@ -158,14 +158,10 @@ export const IMPORT_RULES = [
 
 /** Calls and reads that make core depend on something other than its arguments. */
 export const PURITY_RULES = [
-  [/\bDate\.now\s*\(/, 'Date.now()', 'take the time as an argument from the caller'],
+  [/\bDate\.now\b/, 'Date.now', 'take the time as an argument from the caller'],
   [/\bnew\s+Date\s*\(\s*\)/, 'new Date()', 'take the time as an argument from the caller'],
-  [/\bperformance\.now\s*\(/, 'performance.now()', 'take the clock reading as an argument'],
-  [
-    /\bMath\.random\s*\(/,
-    'Math.random()',
-    'take a seeded generator or the random value as an argument',
-  ],
+  [/\bperformance\.now\b/, 'performance.now', 'take the clock reading as an argument'],
+  [/\bMath\.random\b/, 'Math.random', 'take a seeded generator or the random value as an argument'],
   [
     /\bcrypto\.(randomUUID|getRandomValues)\s*\(/,
     'crypto randomness',
@@ -190,7 +186,12 @@ export const PURITY_RULES = [
 ]
 
 /** Non-test files in packages/core that break purity, each with the reason a reviewer accepts. */
-export const PURITY_ALLOW = new Map([])
+export const PURITY_ALLOW = new Map([
+  [
+    'packages/core/src/session.ts',
+    'the session clock defaults to the real time; the server sets it from the snapshot input, the web worker and about 330 tests rely on the default (smell: make the clock a constructor argument)',
+  ],
+])
 
 const withoutStrings = (text) => text.replace(/(['"])(?:\\.|(?!\1)[^\\\n])*\1/g, (m) => m[0] + m[0])
 
