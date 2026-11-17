@@ -38,6 +38,7 @@ strong enough to justify that cost, and the reason belongs in the PR description
      independent decoders. The energy model is checked against references it was not built from,
      in `docs/validation`.
    - Numbers in docs and UI copy come from code constants, or are pinned by tests.
+   - Core has property tests (`packages/core/src/**/*.property.test.ts`, fast-check, helper in `src/test/property.ts`). They run under a fixed seed; set `FC_SEED` to explore, and a failure prints the seed and the shrunk counterexample.
 3. **Lean and production-grade.**
    - The service runs within Cloudflare's free tier, with explicit ceilings for every billable
      resource (`apps/api/LIMITS.md`).
