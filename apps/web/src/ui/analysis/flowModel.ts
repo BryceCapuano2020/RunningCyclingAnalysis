@@ -11,7 +11,7 @@ import {
 import { hasRemovedMark, removedHash } from '../activitiesView'
 import { hrefFor, parseRoute } from '../route'
 import type { Route } from '../route'
-import { guardStep, libraryLoadHolds, type GuardMemory } from '../useRouteGuard'
+import { guardStep, libraryLoadHolds, NO_GUARD_MEMORY, type GuardMemory } from '../useRouteGuard'
 import { readHoldsLibrary } from './libraryActions'
 import { keepsLibraryNotice } from './libraryState'
 import type { LibraryStatus } from './model'
@@ -41,7 +41,6 @@ export interface Tab {
   savesToReadBack: boolean
   importing: boolean
   importBeganOn: Page | null
-  readOverlappedImport: boolean
   resultsComing: boolean
   hasResult: boolean
   guard: GuardMemory
@@ -80,11 +79,7 @@ const currentFor = (buildsBehind: number) =>
     liftRevision: LIFT_REVISION,
   })
 
-export function clientModel(
-  left: ChancesLeft,
-  faults: ClientFaults = {},
-  excuseReadDuringImport = false,
-): Model<Tab> {
+export function clientModel(left: ChancesLeft, faults: ClientFaults = {}): Model<Tab> {
   const spend = (t: Tab, key: keyof ChancesLeft) => ({ ...t.left, [key]: t.left[key] - 1 })
 
   // source: ui/analysis/libraryActions.ts loadLibrary
@@ -108,11 +103,9 @@ export function clientModel(
           ? t.status === 'loading'
           : libraryLoadHolds(t.status, reading),
     })
-    const overlapped = t.readOverlappedImport || (t.importing && reading)
-    const moved = { ...t, guard: step.memory, readOverlappedImport: overlapped }
+    const moved = { ...t, guard: step.memory }
     if (!step.toBalance) return moved
-    const excused = excuseReadDuringImport && overlapped
-    const wrong = t.importBeganOn !== t.page && !excused ? `sent to Balance from ${t.page}` : null
+    const wrong = t.importBeganOn !== t.page ? `sent to Balance from ${t.page}` : null
     return {
       ...navigate(moved, 'balance'),
       importBeganOn: null,
@@ -222,7 +215,6 @@ export function clientModel(
         ...t,
         importing: true,
         importBeganOn: t.page,
-        readOverlappedImport: t.readsInFlight > 0,
       })),
     ),
     // source: core sessionKeep.ts markUnsynced, an original refused while its digest saved
@@ -267,10 +259,9 @@ export function clientModel(
     savesToReadBack: false,
     importing: false,
     importBeganOn: null,
-    readOverlappedImport: false,
     resultsComing: false,
     hasResult: false,
-    guard: { coldPage: null, wasImporting: false },
+    guard: NO_GUARD_MEMORY,
     originalRefused: false,
     originalNotice: false,
     originalOnly: false,
@@ -322,12 +313,8 @@ export const NO_CHANCES: ChancesLeft = {
   otherTabChanges: 0,
 }
 
-export function clientVerdict(
-  left: Partial<ChancesLeft>,
-  faults: ClientFaults = {},
-  excuseReadDuringImport = true,
-) {
-  const verdict = check(clientModel({ ...NO_CHANCES, ...left }, faults, excuseReadDuringImport))
+export function clientVerdict(left: Partial<ChancesLeft>, faults: ClientFaults = {}) {
+  const verdict = check(clientModel({ ...NO_CHANCES, ...left }, faults))
   if (verdict.ok) return { ok: true as const, states: verdict.states }
   return { ok: false as const, broken: verdict.broken, trace: formatTrace(verdict.trace, showTab) }
 }
