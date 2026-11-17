@@ -26,6 +26,7 @@ const GLOB_TOKENS: Record<string, string> = {
 }
 const LITERAL = /^(['"])[^'"]*\1$/
 const STRINGS = /(['"])((?:(?!\1).)*)\1/g
+const STRING_SPAN = /'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g
 
 export interface SourceFile {
   path: string
@@ -64,15 +65,23 @@ function isNodeBuiltin(text: string, argument: string): boolean {
   return false
 }
 
+function outsideStrings(text: string): (at: number) => boolean {
+  const spans = [...text.matchAll(STRING_SPAN)].map((m) => [m.index, m.index + m[0].length])
+  return (at) => !spans.some(([start, end]) => at >= start! && at < end!)
+}
+
 function reachesHeldOut(raw: string): boolean {
   const text = withoutComments(raw)
+  const outside = outsideStrings(text)
   if (/HELD_OUT_CONFIGS/i.test(text)) return true
   for (const m of text.matchAll(STATIC_SPECIFIER)) if (/heldout/i.test(m[1]!)) return true
   for (const m of text.matchAll(CALL)) {
+    if (!outside(m.index)) continue
     const argument = m[2]!.trim()
     if (!LITERAL.test(argument) && !isNodeBuiltin(text, argument)) return true
   }
   for (const m of text.matchAll(GLOB)) {
+    if (!outside(m.index)) continue
     const patterns = [...m[1]!.matchAll(STRINGS)].map((s) => s[2]!)
     if (patterns.length === 0 || patterns.some(globReaches)) return true
   }
