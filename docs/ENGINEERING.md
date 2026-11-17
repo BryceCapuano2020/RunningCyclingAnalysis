@@ -27,7 +27,11 @@ strong enough to justify that cost, and the reason belongs in the PR description
      already a function that makes it?
    - Prefer deleting code to adding it. Any new feature must name what it makes simpler, or what
      it costs, in its PR.
-   - Names and comments explain why, not what. There are no lint-disable comments.
+   - Names carry the meaning. A comment is a last resort, and comment lines, effects, timers and type
+     escapes are ratcheted per package or file in `scripts/ops/guardrails.ratchet.mjs`: none may
+     grow. A citation for a formula or published table is a `// source: <ref>` line and is not
+     counted. There are no lint-disable comments.
+   - A correction to an agent becomes a check or a ratchet. A prose rule is a stopgap.
 2. **Correct, with evidence.**
    - Every fix starts with a test that fails.
    - Importers are checked against real device files in `packages/core/test-corpus` and against
