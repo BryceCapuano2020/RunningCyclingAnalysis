@@ -221,7 +221,8 @@ timeout at random.
   slices](#features-and-slices)). The label is read when the job runs, so set it when the pull
   request is created, or re-run the job after adding it. `package-lock.json` does not count, nor
   does a removed line that no added line in its file replaces, so a file deleted whole or a block of
-  dead code cut out counts nothing.
+  dead code cut out counts nothing. A file moved with at least 90% of it unchanged counts only its
+  edits.
 - Pull requests audit production dependencies; the weekly supply-chain run audits every dependency.
 - A file over 360 lines, or a performance budget with under 15% headroom, is split or loosened
   before the next change to it. Two ready pull requests never both grow one: each passes alone and

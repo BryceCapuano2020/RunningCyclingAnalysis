@@ -85,8 +85,8 @@ test('a pull request over 800 lines needs the integration label, read when the j
   assert.match(size, /^ {4}needs: changes$/m)
   assert.match(size, /draft != 'true' && github\.event_name == 'pull_request'/)
   assert.match(size, /':\(exclude\)package-lock\.json'/)
-  // A file deleted whole is not counted.
-  assert.match(size, /--numstat --no-renames --diff-filter=d /)
+  // A file deleted whole is not counted, and a file moved with at least 90% unchanged counts only its edits.
+  assert.match(size, /--numstat -M90% --diff-filter=d /)
   // A removed line counts only as far as added lines in its file replace it.
   assert.match(size, /n \+= \$1 \+ \(\$2 < \$1 \? \$2 : \$1\)/)
   assert.match(size, /if \[ "\$lines" -le 800 \]; then exit 0; fi/)
