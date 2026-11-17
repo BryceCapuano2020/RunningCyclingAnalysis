@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { verdictOf } from './flowModel.ts'
 
 // source: state/job.ts, consumer.ts, refresh.ts, record.ts, inputs.ts, resend.ts, enqueue.ts, row.ts and routes/state.ts.
-// Each case is small enough for the unit run; flowModel.sim.test.ts puts every fault in one walk.
+// Each case is small enough for the unit run; flowModel.sim.test.ts walks wider bounds.
+// What the model leaves out: time is no clock, so each timer is a flag that passing time clears (a compute began recently, a
+// message pending, a claim's phase). A live compute never outlasts its claim's 60 s window. Lifts take the library's paths. The
+// daily re-send runs when the queue is quiet; one that runs mid-compute is a redelivery. Every `env` action is the world's: a
+// write, a read, a crash, a failure, a redelivery, a lost message, a deploy, a day roll.
 describe('the server results flow keeps its invariants and always settles', () => {
   it.each([
     ['two consumers, two writes and two reads', { consumers: 2, writes: 2, reads: 2 }],
     ['a crash and a failed compute', { writes: 2, reads: 1, crashes: 1, fails: 1 }],
-    ['a duplicate, a late and a lost message', { writes: 2, reads: 1, dups: 1, drops: 1 }],
+    ['a duplicate, a late and a lost message', { writes: 2, reads: 1, redeliveries: 1, drops: 1 }],
     [
       'a deploy that raises the revision, and a day roll',
       { writes: 1, reads: 2, bumps: 1, days: 1 },

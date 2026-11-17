@@ -8,67 +8,63 @@ import {
 import { resultRevisionOf } from './resultRevision.ts'
 import type { JobRow } from './row.ts'
 
-// What flowModel.ts walks: one account's row and its processes, and the SQL conditions they run, each beside the file it copies.
-
-/** Where a process is. A consumer: `first`, `before` (state/job.ts), `read`, `record` (state/refresh.ts). A read: `row` (routes/state.ts serveState), `read`, `record`. */
-export type Pc = 'idle' | 'first' | 'before' | 'row' | 'read' | 'record'
+export type JobStep = 'idle' | 'first' | 'before' | 'row' | 'read' | 'record'
 
 export interface Proc {
-  pc: Pc
-  /** The Worker build it runs, counted in deploys. */
+  pc: JobStep
   build: number
-  /** It holds the claim's stamp. */
-  held: boolean
-  /** The library version its inputs were read at, and whether a write landed during the read. */
-  v: number
-  torn: boolean
-  /** The row it decided on: the stored hash, and whether that snapshot is this build's (the unchanged path). */
-  beforeHash: number | null
-  beforeSame: boolean
-  /** A read's library version when it began (read-your-writes), and its attempt in serveState's loop. */
-  start: number
-  attempt: number
+  holdsClaim: boolean
+  readAt: number
+  tornRead: boolean
+  decidedOnHash: number | null
+  decidedOnThisBuild: boolean
+  libAtRequest: number
+  serveAttempt: number
 }
 
-/** claim_until: 0, in its window, lapsed under the failure hold, or lapsed past it (state/record.ts claimCompute). */
-export type Claim = 'free' | 'window' | 'lapsed' | 'old'
+export type Claim = 'released' | 'inWindow' | 'lapsedUnderHold' | 'lapsedPastHold'
 
-/** The `users` and `state_jobs` columns the flow reads. A snapshot's hash is the version its digests were read at, -1 when torn. */
+export type SnapshotReadAt = number | typeof TORN_READ
+
 export interface Row {
   lib: number
-  hash: number | null
+  hash: SnapshotReadAt | null
   version: number
   day: number
   rev: number
   computed: number
   claim: Claim
   owner: number | null
-  pending: boolean
-  recent: boolean
+  messagePending: boolean
+  computeBeganRecently: boolean
 }
 
-/** What the world may still do. `dups` covers a duplicate delivery and a message that arrives after its marker lapsed. */
-const BUDGET = ['writes', 'reads', 'crashes', 'fails', 'dups', 'drops', 'bumps', 'days'] as const
+const BUDGET = [
+  'writes',
+  'reads',
+  'crashes',
+  'fails',
+  'redeliveries',
+  'drops',
+  'bumps',
+  'days',
+] as const
 export type Budget = Record<(typeof BUDGET)[number], number>
 export const NO_BUDGET = Object.fromEntries(BUDGET.map((key) => [key, 0])) as Budget
 
 export interface World {
   row: Row
-  /** Messages on their way, and writes whose enqueue has not run. */
   queue: number
-  sending: number
+  writesNotEnqueued: number
   day: number
   build: number
-  /** The consumers, then one tab's reads. */
   procs: Proc[]
   left: Budget
-  /** What a read served wrongly, kept so the trace says it. */
-  wrong: string | null
+  staleAnswer: string | null
 }
 
 export type ServerBounds = Budget & { consumers: number }
 
-/** A guard taken out, to show the checker finds what it guards. */
 export interface ServerFaults {
   noMovedCheck?: boolean
   noClaim?: boolean
@@ -78,20 +74,20 @@ export interface ServerFaults {
 
 export const HOUR = 3_600_000
 export const DAY = 24 * HOUR
-export const DEAD = -1
+export const CRASHED_HOLDER = -1
+export const TORN_READ = -1
 export const IDLE: Proc = {
   pc: 'idle',
   build: 0,
-  held: false,
-  v: 0,
-  torn: false,
-  beforeHash: null,
-  beforeSame: false,
-  start: 0,
-  attempt: 0,
+  holdsClaim: false,
+  readAt: 0,
+  tornRead: false,
+  decidedOnHash: null,
+  decidedOnThisBuild: false,
+  libAtRequest: 0,
+  serveAttempt: 0,
 }
 
-/** The row as `jobRow` (state/row.ts) reads it, seen by a Worker of `build`: a later build's snapshot reads as a higher revision. */
 export function jobRowOf(row: Row, build: number, faults: ServerFaults): JobRow {
   const ahead = faults.noRevisionInCurrent === true ? 0 : row.rev - build
   const stored = row.hash !== null
@@ -113,15 +109,15 @@ export function jobRowOf(row: Row, build: number, faults: ServerFaults): JobRow 
   }
 }
 
-/** source: state/record.ts claimCompute, `claim_until = 0 OR claim_until <= now - hold`. A read passes the failure hold, the queue none. */
+// source: state/record.ts claimCompute, `claim_until = 0 OR claim_until <= now - hold`. A read passes the failure hold, the queue none.
 export const claimable = (claim: Claim, hold: boolean) =>
-  claim === 'free' || claim === 'old' || (!hold && claim === 'lapsed')
+  claim === 'released' || claim === 'lapsedPastHold' || (!hold && claim === 'lapsedUnderHold')
 
-/** source: state/record.ts releaseClaim, only the stamp the caller holds. */
+// source: state/record.ts releaseClaim, only the stamp the caller holds.
 export const release = (row: Row, id: number): Row =>
-  row.owner === id ? { ...row, claim: 'free', owner: null } : row
+  row.owner === id ? { ...row, claim: 'released', owner: null } : row
 
-/** source: state/record.ts record(): the coverage, then the snapshot moved to a later (revision, version, instant), one batch. */
+// source: state/record.ts record(): the coverage, then the snapshot moved to a later (revision, version, instant), one batch.
 export function record(
   row: Row,
   p: Proc,
@@ -131,14 +127,13 @@ export function record(
 ): Row {
   const stored = row.hash === null ? -Infinity : row.rev
   const hashOk = matched === null || row.hash === matched
-  const v = p.v
+  const v = p.readAt
   const computed =
     stored <= p.build && hashOk
       ? stored === p.build
         ? Math.max(row.computed, v)
         : v
       : row.computed
-  // Under the claim no two computes overlap, so a later record has a later instant.
   const later =
     stored < p.build ||
     (stored === p.build && (row.version < v || (row.version === v && row.day <= day)))
@@ -146,9 +141,8 @@ export function record(
   return { ...row, computed, hash: hash ?? row.hash, version: v, day, rev: p.build }
 }
 
-/** Why an answer a read gives as current is not: it misses a write made before the read, or this build may not show it. */
-export function servedWrong(content: number, rev: number, p: Proc): string | null {
-  if (content < p.start) return `served v${content} to a read begun at v${p.start}`
+export function whyServedStale(content: number, rev: number, p: Proc): string | null {
+  if (content < p.libAtRequest) return `served v${content} to a read begun at v${p.libAtRequest}`
   const shown = snapshotIsCurrent({
     schemaVersion: STATE_SNAPSHOT_VERSION,
     modelRevision: MODEL_REVISION,
@@ -158,16 +152,15 @@ export function servedWrong(content: number, rev: number, p: Proc): string | nul
   return shown ? null : `served build ${rev}'s snapshot to build ${p.build}`
 }
 
-/** A world on one line, for a trace: the library, the stored snapshot, the claim, the queue and each process. */
 export function showWorld(w: World): string {
   const r = w.row
   const procs = w.procs.map((p) =>
-    p.pc === 'idle' ? 'idle' : `${p.pc}${p.held ? '*' : ''}@v${p.v}`,
+    p.pc === 'idle' ? 'idle' : `${p.pc}${p.holdsClaim ? '*' : ''}@v${p.readAt}`,
   )
   return [
     `lib ${r.lib}, snapshot ${r.hash ?? 'none'} at v${r.version} rev ${r.rev} day ${r.day}, computed ${r.computed}`,
-    `claim ${r.claim}${r.owner === null ? '' : ` by ${r.owner}`}${r.pending ? ', pending' : ''}${r.recent ? ', recent' : ''}`,
-    `queue ${w.queue}, sending ${w.sending}, build ${w.build}, day ${w.day}, [${procs.join(', ')}]`,
-    ...(w.wrong === null ? [] : [w.wrong]),
+    `claim ${r.claim}${r.owner === null ? '' : ` by ${r.owner}`}${r.messagePending ? ', message pending' : ''}${r.computeBeganRecently ? ', compute began recently' : ''}`,
+    `queue ${w.queue}, not enqueued ${w.writesNotEnqueued}, build ${w.build}, day ${w.day}, [${procs.join(', ')}]`,
+    ...(w.staleAnswer === null ? [] : [w.staleAnswer]),
   ].join(' | ')
 }

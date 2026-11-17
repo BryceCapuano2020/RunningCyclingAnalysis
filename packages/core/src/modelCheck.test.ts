@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { check, formatTrace, STUCK } from './modelCheck'
 import type { Action, Model } from './modelCheck'
 
+// The checker walks every reachable state breadth first, keyed by its JSON, so a state is plain data with its keys in one
+// order and its bounds inside it. An `env` action is the world's: the liveness check looks for a way to quiescence without it.
 // Two processes add one to a shared count, each with a read and a write: the classic lost update.
 interface Toy {
   count: number
