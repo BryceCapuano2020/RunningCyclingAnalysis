@@ -14,7 +14,7 @@ import {
 } from './copy'
 import type { LibraryState } from './libraryState'
 import { accountPending, drainBatches } from './model'
-import type { Account, Box, SetError } from './model'
+import type { Account, Box, LibraryStatus, SetError } from './model'
 import type { CheckInSnapshot } from '@rca/core/lookback'
 import type { CheckInView, SeenEvent } from '../../worker/protocol'
 import type { WorkerTransport } from './workerTransport'
@@ -27,6 +27,9 @@ interface LibraryActionDeps {
   settingsRef: Box<AthleteSettings>
   setError: SetError
 }
+
+export const readHoldsLibrary = (quiet: boolean, status: LibraryStatus) =>
+  !quiet || status !== 'loaded'
 
 /** Loads, retries, holds, deletes and exports the signed-in library. */
 export function useLibraryActions({
@@ -63,7 +66,7 @@ export function useLibraryActions({
         return
       }
       // Only a read of a loaded library leaves the status alone; from any other, imports wait for it.
-      if (!quiet || libraryStatusRef.current !== 'loaded') setLibrary('loading')
+      if (readHoldsLibrary(quiet, libraryStatusRef.current)) setLibrary('loading')
       reads.current = quiet ? reads.current + 1 : 1
       // Named only when off: the worker takes originals as kept unless told, and a refused one is then no longer waited for.
       const off = accountRef.current.me?.profile.keepFiles === false
