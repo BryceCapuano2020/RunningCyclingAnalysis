@@ -1,9 +1,10 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { withoutComments } from './scanSource.mjs'
 
 /*
- * The import scanner the source guards share (figure-sources.test.mjs, boundaries.test.mjs). It reads TypeScript as text, with no
- * parser, so it holds across a TypeScript upgrade: it blanks comments, then reads every way a module comes in (`import { a }`,
+ * The import reader the source guards share (figure-sources.test.mjs, boundaries.test.mjs). It reads TypeScript as text through the
+ * shared scanner (scanSource.mjs), with no parser, so it holds across a TypeScript upgrade: it blanks comments, then reads every way a module comes in (`import { a }`,
  * `import d, { a }`, `import * as m`, `import('x')`, `export * from 'x'`, `export { a } from 'x'`). Type-only forms are skipped.
  */
 
@@ -22,38 +23,6 @@ export async function* sourceFiles(dir, { tests = false } = {}) {
       if (tests || !/\.(test|story)\.(ts|tsx)$/.test(entry.name)) yield path
     }
   }
-}
-
-/**
- * The source with its comments blanked and its strings kept, so a line of documentation that mentions `import (x)` is not code. A
- * quote ends at the end of its line, so an apostrophe in JSX text cannot swallow the file.
- */
-export function withoutComments(source) {
-  let out = ''
-  let i = 0
-  while (i < source.length) {
-    const c = source[i]
-    const next = source[i + 1]
-    if (c === '/' && next === '/') {
-      while (i < source.length && source[i] !== '\n') i++
-    } else if (c === '/' && next === '*') {
-      const end = source.indexOf('*/', i + 2)
-      const stop = end < 0 ? source.length : end + 2
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ')
-      i = stop
-    } else if (c === "'" || c === '"' || c === '`') {
-      let j = i + 1
-      while (j < source.length && source[j] !== c && (c === '`' || source[j] !== '\n')) {
-        j += source[j] === '\\' ? 2 : 1
-      }
-      out += source.slice(i, j + 1)
-      i = j + 1
-    } else {
-      out += c
-      i++
-    }
-  }
-  return out
 }
 
 /** The value names in `{ a, type b, c as d }`, as exported by their source module: type specifiers are erased and so are skipped. */

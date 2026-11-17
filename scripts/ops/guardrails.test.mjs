@@ -9,8 +9,8 @@ import {
   countEffects,
   countTimers,
   countTypeEscapes,
-  scanLines,
 } from './guardrails.scan.mjs'
+import { scanLines, withoutComments } from './scanSource.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 
@@ -121,6 +121,12 @@ test('the scanner does not read a URL in a string as a comment', () => {
   assert.match(line.code, /^const u = "\s+"/)
   assert.equal(line.comment, '// real')
   assert.equal(commentLineCount("const u = 'http://x'\nconst v = `//y`"), 0)
+})
+
+test('the scanner keeps strings and blanks comments when asked, for the import scan', () => {
+  const source = "import a from './a' // x\nconst u = `//y` /* z */ + '/*'"
+  assert.equal(withoutComments(source), "import a from './a' \nconst u = `//y`   + '/*'")
+  assert.match(scanLines("const s = 'abc'")[0].code, /^const s = '\s+'$/)
 })
 
 test('the scanner skips regex literals and divisions', () => {
