@@ -101,6 +101,12 @@ Design: [design/server-authority.md](design/server-authority.md), [design/server
    The browser retries a failed settings read or save with a doubling wait (`ui/useAccountSettings.ts`).
 7. Result revision, ordering and the cap on account size: `state/resultRevision.ts`, `state/record.ts`,
    `packages/contract/src/limits.ts`, `apps/api/LIMITS.md`.
+8. A model check walks every order of these steps for one account: `state/flowModel.ts`, run by the checker in
+   `packages/core/src/modelCheck.ts`. It calls the real `isCurrent`, `revisionOrder` and `snapshotIsCurrent`, and
+   mirrors each SQL condition beside the file it copies. It checks that claims are exclusive, that a snapshot holds
+   the version it covers, that no read serves a stale snapshot as current, and that every state can settle with
+   `computed_version` equal to `library_version`. The unit run walks small bounds; `flowModel.sim.test.ts` walks
+   wider ones. A change to this flow changes the model in the same PR.
 
 ### Garmin push
 

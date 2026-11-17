@@ -33,6 +33,7 @@
     "./digest/trendSeries": "./src/digest/trendSeries.ts",
     "./duplicates": "./src/duplicates.ts",
     "./math": "./src/math.ts",
+    "./modelCheck": "./src/modelCheck.ts",
     "./pipeline": "./src/pipeline.ts",
     "./period": "./src/period.ts",
     "./predict": "./src/predict/index.ts",
