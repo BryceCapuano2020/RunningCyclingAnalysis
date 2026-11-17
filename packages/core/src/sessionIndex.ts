@@ -81,6 +81,9 @@ export interface ReplaceOptions {
   originalsKept?: boolean
 }
 
+export const settlesOnListing = (originalOnly: boolean, originalsKept: boolean, hasFile: boolean) =>
+  !originalOnly || !originalsKept || hasFile
+
 /**
  * Fills an emptied library with digests stored elsewhere. The copy the analysis reads most wins, whatever the order; a
  * key that arrives both stale and newer is one row held back. With `fromServer` (the default with `keepUnsaved`: the replacement is the account's library) a
@@ -103,7 +106,11 @@ export function fillLibrary(
   }
   for (const key of [...unsynced.keys()]) {
     // A digest that failed to save is settled by listing it; one whose original failed only when the listed record has the file.
-    const settled = !state.originalOnly.has(key) || !originalsKept || withFile?.has(key) === true
+    const settled = settlesOnListing(
+      state.originalOnly.has(key),
+      originalsKept,
+      withFile?.has(key) === true,
+    )
     if (fromServer && library.digests.has(key) && settled) clearUnsynced(state, key)
     else if (keepUnsaved && before.has(key)) library.put(key, before.get(key)!)
   }

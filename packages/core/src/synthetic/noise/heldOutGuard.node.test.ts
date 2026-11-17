@@ -69,6 +69,12 @@ describe('held-out configurations', () => {
     ['a glob built at run time', 'src/a.ts', 'import.meta.glob(pattern)'],
     ['a copy of the table', 'src/a.ts', 'const x = HELD_OUT_CONFIGS'],
     [
+      'a variable import beside a string that reads like one',
+      'src/a.ts',
+      "it('takes an import (x)', f)\nawait import(name)",
+    ],
+    ['a variable glob after a string', 'src/a.ts', "const s = 'x'\nimport.meta.glob(pattern)"],
+    [
       'a root config',
       'vitest.config.ts',
       "import c from './packages/core/src/synthetic/noise/heldOut'",
@@ -95,6 +101,18 @@ describe('held-out configurations', () => {
     ],
     ['a glob of fixtures', 'src/a.ts', "import.meta.glob('./fixtures/*.json')"],
     ['an ordinary import', 'src/a.ts', "import { x } from './noise/presets'"],
+    [
+      'call-like text in a test name',
+      'src/a.test.ts',
+      "it('#546 the guard takes a re-read for an import (useRouteGuard.ts libraryLoadHolds)', f)",
+    ],
+    ['call-like text in a double-quoted string', 'src/a.ts', 'const s = "a require (x) here"'],
+    [
+      'call-like text in a template',
+      'src/a.ts',
+      'const s = `import(${x}) and import.meta.glob(y)`',
+    ],
+    ['an apostrophe in a line comment', 'src/a.ts', "// it's fine\nconst s = 'import (x)'"],
   ])('the guard lets through %s', (_, path, text) => {
     expect(heldOutOffenders([{ path, text }])).toEqual([])
   })

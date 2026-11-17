@@ -35,6 +35,9 @@ function retriesDevice(request: WorkerRequest): boolean {
 /** The pages a removal is made on and announced on: an activity and the list of them. */
 const inLibraryPages = (page: Route['page']) => page === 'activity' || page === 'activities'
 
+export const keepsLibraryNotice = (was: Route['page'], hash: string) =>
+  hasRemovedMark(hash) || (inLibraryPages(was) && inLibraryPages(parseRoute(hash).page))
+
 export function useLibraryState() {
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('idle')
   const libraryStatusRef = useRef<LibraryStatus>('idle')
@@ -85,8 +88,7 @@ export function useLibraryState() {
       // The list drops the marker from its own address once it has read it, and a browser under load may deliver that change
       // alone, without the one that carried the marker: a move between an activity and the list keeps the notice too. With
       // no results left, as when the last activity was deleted, the notice above the page is the only place that says it.
-      if (hasRemovedMark(window.location.hash) || (inLibraryPages(was) && inLibraryPages(page)))
-        return
+      if (keepsLibraryNotice(was, window.location.hash)) return
       setLibraryNotice(null)
       setLibraryError(null)
     }

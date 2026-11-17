@@ -26,7 +26,7 @@ import { useRouteHistory } from './ui/routeHistory'
 import { useLoadedPages } from './ui/useLoadedPages'
 import { useRunThenFocus } from './ui/useRunThenFocus'
 import { useAccount } from './ui/useAccount'
-import { useRouteGuard } from './ui/useRouteGuard'
+import { libraryLoadHolds, useRouteGuard } from './ui/useRouteGuard'
 import { useAccountDeleted, useRemoveAll } from './ui/useRemoval'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
@@ -126,7 +126,7 @@ export function App() {
     // A file import queued behind the library, or running while it is not loading.
     waiting: analysis.waitingReason !== null,
     // A re-read of a loaded library holds the page busy as well, and is no import.
-    libraryLoading: analysis.libraryStatus === 'loading' || analysis.libraryReading,
+    libraryLoading: libraryLoadHolds(analysis.libraryStatus, analysis.libraryReading),
     // A kept library restoring may still bring the result, so the notice waits for it.
     restoring: analysis.restoring,
     settled,
