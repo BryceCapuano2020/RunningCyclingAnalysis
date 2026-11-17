@@ -17,7 +17,7 @@ import {
 import { DeferredOriginals } from './deferredOriginals'
 import type { FailedOriginals } from './failedOriginals'
 import type { SyncOptions } from './protocol'
-import { retryAfterUploadSlot, SaveStop } from './rateLimitRetry'
+import { retryAfterUploadSlot, SaveStop, waitNoting } from './rateLimitRetry'
 import type { RouteMemory } from './routes'
 import { syncFailureOf } from './syncIssue'
 import type { Outbox } from './outbox'
@@ -189,5 +189,8 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
     done.catch(() => undefined)
     return { done }
   }
-  return Object.assign(sink, { finish: (hidden: ReadonlySet<string>) => originals.finish(hidden) })
+  return Object.assign(sink, {
+    waitBeforeProbe: waitNoting,
+    finish: (hidden: ReadonlySet<string>) => originals.finish(hidden),
+  })
 }

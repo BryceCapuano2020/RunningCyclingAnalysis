@@ -5,7 +5,7 @@ import { deviceLiftCount } from '../../worker/liftCounts'
 import { clearScope, openLiftStore } from '../../worker/liftStore'
 import { createLiftSync } from '../../worker/liftSync'
 import type { AdoptResult } from '../../worker/liftSync'
-import type { LiftTransport } from '../../worker/liftTransport'
+import type { LiftTransport } from '../../domain/liftTransport'
 import { DEVICE_SCOPE } from '../../worker/liftTransitions'
 
 /** How adding the device's lifting sets ended, with how many there were to add. */

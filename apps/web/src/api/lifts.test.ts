@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LiftSet } from '@rca/core/lift'
-import { LiftTransportError } from '../worker/liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
 import { createLiftTransport } from './lifts'
 
 const SET: LiftSet = {

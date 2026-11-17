@@ -9,10 +9,10 @@ import {
   summariseSources,
   tabId,
   withSuperseded,
-} from '../importManifest'
-import type { DamagedSource, ImportManifest, ManifestScope } from '../importManifest'
-import { openManifestStore } from '../importManifestStore'
-import type { ManifestStore } from '../importManifestStore'
+} from '../../domain/importManifest'
+import type { DamagedSource, ImportManifest, ManifestScope } from '../../domain/importManifest'
+import { openManifestStore } from '../../domain/importManifestStore'
+import type { ManifestStore } from '../../domain/importManifestStore'
 
 /** The least time between two writes of an import's progress. */
 const WRITE_EVERY_MS = 2_000

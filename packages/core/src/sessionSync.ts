@@ -42,6 +42,7 @@ export interface DeferredFailure {
  * copies of a workout that are not its best), and says which of the activities it held back then failed.
  */
 export type SyncSink = ((item: SyncItem) => Promise<void | QueuedSave>) & {
+  waitBeforeProbe?: (ms: number) => Promise<void>
   finish?: (hidden: ReadonlySet<string>) => Promise<readonly DeferredFailure[]>
 }
 

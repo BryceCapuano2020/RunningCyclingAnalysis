@@ -1,4 +1,4 @@
-import type { ImportManifest } from '../importManifest'
+import type { ImportManifest } from '../../domain/importManifest'
 import { incompleteText } from '../analysis/importIncompleteCopy'
 
 export interface IncompleteImportNoticeProps {

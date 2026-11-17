@@ -6,7 +6,7 @@ import { openLiftStore } from './liftStore'
 import { createLiftSync, defaultLocks, FLUSH_LOCK, retryDelayMs } from './liftSync'
 import type { LockProvider } from './liftSync'
 import { fakeTransport, make } from './liftTestKit'
-import { LiftTransportError } from './liftTransport'
+import { LiftTransportError } from '../domain/liftTransport'
 
 const key = (order: number) => liftSetKey(make(order))
 const stateOf = async (store: ReturnType<typeof openLiftStore>) =>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { openManifestStore } from '../ui/importManifestStore'
+import { openManifestStore } from '../domain/importManifestStore'
 import { forgetAccountDetails } from './forgetAccountDetails'
 import { signOutLifts } from './liftAccount'
 import { clearWorkbenchScope } from './workbenchStore'
@@ -15,7 +15,7 @@ vi.mock('./outbox', () => ({
     return outbox
   },
 }))
-vi.mock('../ui/importManifestStore', () => {
+vi.mock('../domain/importManifestStore', () => {
   const forget = vi.fn(async () => undefined)
   return { openManifestStore: () => ({ forget }) }
 })

@@ -1,4 +1,4 @@
-import type { ImportManifest } from '../importManifest'
+import type { ImportManifest } from '../../domain/importManifest'
 import { groupThousands } from '@rca/core/units'
 import { plural } from '../components/plural'
 

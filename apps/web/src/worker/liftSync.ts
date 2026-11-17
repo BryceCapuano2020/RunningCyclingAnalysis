@@ -6,7 +6,7 @@ import {
 import type { LiftStore } from './liftStore'
 import { newTally, sendChunk } from './liftSend'
 import type { SendTarget } from './liftSend'
-import type { LiftTransport } from './liftTransport'
+import type { LiftTransport } from '../domain/liftTransport'
 import type { LiftRow } from './liftTransitions'
 
 export const FLUSH_LOCK = 'rca-lifts-flush'

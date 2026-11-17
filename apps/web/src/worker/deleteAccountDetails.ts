@@ -1,7 +1,7 @@
 import { dropLiftScope } from './liftAccount'
 import { openOutbox } from './outbox'
 import { accountScope, clearCheckinScope } from './checkinStore'
-import { openManifestStore } from '../ui/importManifestStore'
+import { openManifestStore } from '../domain/importManifestStore'
 import { clearSnapshot } from './stateStore'
 import { deleteWorkbenchScope } from './workbenchStore'
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
-import type { ImportManifest } from '../importManifest'
+import type { ImportManifest } from '../../domain/importManifest'
 import { incompleteText } from './importIncompleteCopy'
 import { damagedZips } from './replyHandlers'
 

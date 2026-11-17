@@ -83,16 +83,7 @@ export const IMPORT_RULES = [
     forbids: (t) => isReact(t) || under(`${WEB}ui/`)(t),
     rule: 'The Web Worker code has no React and no page code: it runs where there is no DOM.',
     fix: 'Move the shared module out of src/ui into src/worker (or a neutral folder), and let the page import it from there.',
-    allow: new Map([
-      [
-        'apps/web/src/worker/deleteAccountDetails.ts',
-        'clears the import record store, which lives in ui/importManifestStore (smell: the store belongs below the page)',
-      ],
-      [
-        'apps/web/src/worker/forgetAccountDetails.ts',
-        'clears the import record store, which lives in ui/importManifestStore (smell: the store belongs below the page)',
-      ],
-    ]),
+    allow: new Map(),
   },
   {
     id: 'page-reaches-worker-through-listed-modules',
@@ -135,7 +126,6 @@ export const IMPORT_RULES = [
       ],
       ['apps/web/src/worker/liftSync', 'the lift log syncs from the page'],
       ['apps/web/src/worker/liftTransitions', 'the lift set states the page shows and changes'],
-      ['apps/web/src/worker/liftTransport', 'the lift request types the API client implements'],
       [
         'apps/web/src/worker/liftCounts',
         'counts the lift rows in the browser, for the sign-out warning and the device copy',
@@ -203,10 +193,6 @@ export const PURITY_ALLOW = new Map([
   [
     'packages/core/src/import/pipeline.ts',
     'the import clock defaults to the real time when the caller passes no nowMs (smell: every caller should pass it)',
-  ],
-  [
-    'packages/core/src/sessionKeep.ts',
-    'the save retry waits out the network probe delay (smell: the wait belongs to the worker that drives the saves)',
   ],
 ])
 

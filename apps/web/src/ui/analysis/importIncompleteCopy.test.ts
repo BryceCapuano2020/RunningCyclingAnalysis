@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ImportManifest } from '../importManifest'
+import type { ImportManifest } from '../../domain/importManifest'
 import { incompleteText } from './importIncompleteCopy'
 
 function manifest(over: Partial<ImportManifest>): ImportManifest {

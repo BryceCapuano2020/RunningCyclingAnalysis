@@ -23,7 +23,7 @@ import type { Account, Baseline, Box, Pending, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 import type { ImportManifestController } from './importManifestHook'
 import type { RejectedFile } from '@rca/core/session'
-import type { DamagedSource } from '../importManifest'
+import type { DamagedSource } from '../../domain/importManifest'
 
 export interface WorkerEventDeps {
   transport: WorkerTransport
