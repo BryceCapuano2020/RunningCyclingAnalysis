@@ -41,6 +41,7 @@ export interface ReadFile {
 /** What one import records as it reads one of its sources. */
 export interface SourceImport {
   limits: ExtractLimits
+  nowMs: number
   progress: ImportProgress
   /** The position of this source among the import's sources. */
   source: number
@@ -173,6 +174,7 @@ async function importFile(
     race: listed?.race,
     activityType: listed?.type,
     sessionKey,
+    nowMs: ctx.nowMs,
   })
   if (parsed.ok) {
     ctx.outcome.activities += parsed.activities.length

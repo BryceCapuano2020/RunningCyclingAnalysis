@@ -77,6 +77,15 @@ describe('AnalysisSession', () => {
     expect(state.isSample).toBe(false)
   })
 
+  it('refuses a file that starts after the session clock', async () => {
+    const session = new AnalysisSession()
+    session.clock = () => run.startMs - 2 * 24 * 3600_000
+    const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+
+    expect(state.rejected).toHaveLength(1)
+    expect(state.result?.activities ?? []).toEqual([])
+  })
+
   it('loads the FIT files from a zip and counts the KML file as unsupported', async () => {
     const session = new AnalysisSession()
     const state = await session.addFiles([exportZip()], SETTINGS)

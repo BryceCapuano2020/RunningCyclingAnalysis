@@ -114,7 +114,7 @@ export function activitiesFromUnits(
     idName: (opts.hashedIds ?? true) ? hashedFileName(fileName) : fileName,
     multi: units.length > 1,
     limits,
-    nowMs: opts.nowMs ?? Date.now(),
+    nowMs: opts.nowMs,
     usedSamples: 0,
     activityName: opts.activityName,
     nameAt: opts.nameAt,
@@ -160,7 +160,7 @@ interface Context {
   idName: string
   multi: boolean
   limits: ParseLimits
-  nowMs: number
+  nowMs: number | undefined
   /** Grid samples already allocated for this file. */
   usedSamples: number
   /** The name the file's export gives, which wins over a title in the file. */
@@ -304,7 +304,10 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   if ('refused' in grid) return grid.refused
   const { resampled } = grid
   if (activeSeconds(resampled) < MIN_SAMPLES) return SHORT_OUTCOME
-  if (resampled.startMs < EARLIEST_ACTIVITY_MS || resampled.startMs > nowMs + MAX_FUTURE_MS) {
+  if (
+    resampled.startMs < EARLIEST_ACTIVITY_MS ||
+    (nowMs !== undefined && resampled.startMs > nowMs + MAX_FUTURE_MS)
+  ) {
     return DATE_OUTCOME
   }
   // A part after a gap of over four hours counts from its own first sample, and a unit that follows

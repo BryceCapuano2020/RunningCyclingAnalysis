@@ -212,6 +212,16 @@ describe('activitiesFromRecords', () => {
     })
   })
 
+  it('reads a late start when no clock is passed', () => {
+    const result = activitiesFromRecords(
+      { ...unitOf(steadyRecords(60, START + 400 * DAY_MS)), fileName: 'late.gpx' },
+      DEFAULT_PARSE_LIMITS,
+      {},
+    )
+
+    expect(result.ok).toBe(true)
+  })
+
   it('splits a gap of more than four hours into two activities', () => {
     const records = [...steadyRecords(60, START), ...steadyRecords(60, START + 5 * HOUR_MS)]
     const result = succeeded(

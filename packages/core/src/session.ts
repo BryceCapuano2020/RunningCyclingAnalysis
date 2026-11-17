@@ -141,6 +141,7 @@ export class AnalysisSession {
       for (const [index, source] of rest.entries()) {
         await importSource(source, {
           limits: this.limits,
+          nowMs: this.clock(),
           progress,
           source: index,
           outcome,

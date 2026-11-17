@@ -12,7 +12,7 @@ const run = sampleDataset().activities.find((activity) => activity.sport === 'ru
 describe('createBodiesOfFile', () => {
   it('gives one create body per activity, minimised, with the hash of the bytes', async () => {
     const bytes = encodeFit(run, { gps: true })
-    const result = await createBodiesOfFile(bytes, 'garmin-123.fit')
+    const result = await createBodiesOfFile(bytes, 'garmin-123.fit', Date.now())
     if (!result.ok) throw new Error(result.reason)
     expect(result.bodies).toHaveLength(1)
     const body = JSON.parse(result.bodies[0]!) as {
@@ -27,17 +27,17 @@ describe('createBodiesOfFile', () => {
   })
 
   it('refuses a file that is not FIT, as the server reads nothing else', async () => {
-    const result = await createBodiesOfFile(encodeGpx(run), 'garmin-1.gpx')
+    const result = await createBodiesOfFile(encodeGpx(run), 'garmin-1.gpx', Date.now())
     expect(result.ok).toBe(false)
   })
 
   it('refuses a file over the server limit, 5 MiB', async () => {
-    const result = await createBodiesOfFile(new Uint8Array(5 * MIB + 1), 'garmin-2.fit')
+    const result = await createBodiesOfFile(new Uint8Array(5 * MIB + 1), 'garmin-2.fit', Date.now())
     expect(result).toMatchObject({ ok: false, code: 'too-large' })
   })
 
   it('refuses bytes that are not a FIT file with the parser reason', async () => {
-    const result = await createBodiesOfFile(new Uint8Array(64), 'garmin-3.fit')
+    const result = await createBodiesOfFile(new Uint8Array(64), 'garmin-3.fit', Date.now())
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason.length).toBeGreaterThan(0)
   })
