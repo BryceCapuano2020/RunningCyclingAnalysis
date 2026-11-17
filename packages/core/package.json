@@ -86,6 +86,7 @@
     "fflate": "^0.8.2"
   },
   "devDependencies": {
-    "@garmin/fitsdk": "^21.221.0"
+    "@garmin/fitsdk": "^21.221.0",
+    "fast-check": "4.10.2"
   }
 }

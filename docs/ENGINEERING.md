@@ -27,13 +27,18 @@ strong enough to justify that cost, and the reason belongs in the PR description
      already a function that makes it?
    - Prefer deleting code to adding it. Any new feature must name what it makes simpler, or what
      it costs, in its PR.
-   - Names and comments explain why, not what. There are no lint-disable comments.
+   - Names carry the meaning. A comment is a last resort, and comment lines, effects, timers and type
+     escapes are ratcheted per package or file in `scripts/ops/guardrails.ratchet.mjs`: none may
+     grow. A citation for a formula or published table is a `// source: <ref>` line and is not
+     counted. There are no lint-disable comments.
+   - A correction to an agent becomes a check or a ratchet. A prose rule is a stopgap.
 2. **Correct, with evidence.**
    - Every fix starts with a test that fails.
    - Importers are checked against real device files in `packages/core/test-corpus` and against
      independent decoders. The energy model is checked against references it was not built from,
      in `docs/validation`.
    - Numbers in docs and UI copy come from code constants, or are pinned by tests.
+   - Core has property tests (`packages/core/src/**/*.property.test.ts`, fast-check, helper in `src/test/property.ts`). They run under a fixed seed; set `FC_SEED` to explore, and a failure prints the seed and the shrunk counterexample.
 3. **Lean and production-grade.**
    - The service runs within Cloudflare's free tier, with explicit ceilings for every billable
      resource (`apps/api/LIMITS.md`).

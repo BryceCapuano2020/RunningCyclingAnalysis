@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
+import { importsOf, sourceFiles } from './imports.mjs'
 
 /*
  * One figure, one function (docs/ENGINEERING.md): the web names and formats the fitness figures core makes, and works none out. A
@@ -56,94 +57,6 @@ const ALLOWED = new Map([
 
 /** Test support builds synthetic inputs, which can work a figure backwards; production code may not import it (below). */
 const isSupport = (path) => /(^|[\\/])(test|[\w-]*[Ff]ixtures?)([\\/.]|$)/.test(path)
-
-async function* sourceFiles(dir) {
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (entry.name !== 'node_modules' && entry.name !== 'test') yield* sourceFiles(path)
-    } else if (/\.(ts|tsx)$/.test(entry.name) && !/\.(test|story)\.(ts|tsx)$/.test(entry.name)) {
-      yield path
-    }
-  }
-}
-
-/**
- * The source with its comments blanked and its strings kept, so a line of documentation that mentions `import (x)` is not code. A
- * quote ends at the end of its line, so an apostrophe in JSX text cannot swallow the file.
- */
-export function withoutComments(source) {
-  let out = ''
-  let i = 0
-  while (i < source.length) {
-    const c = source[i]
-    const next = source[i + 1]
-    if (c === '/' && next === '/') {
-      while (i < source.length && source[i] !== '\n') i++
-    } else if (c === '/' && next === '*') {
-      const end = source.indexOf('*/', i + 2)
-      const stop = end < 0 ? source.length : end + 2
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ')
-      i = stop
-    } else if (c === "'" || c === '"' || c === '`') {
-      let j = i + 1
-      while (j < source.length && source[j] !== c && (c === '`' || source[j] !== '\n')) {
-        j += source[j] === '\\' ? 2 : 1
-      }
-      out += source.slice(i, j + 1)
-      i = j + 1
-    } else {
-      out += c
-      i++
-    }
-  }
-  return out
-}
-
-/** The value names in `{ a, type b, c as d }`, as exported by their source module: type specifiers are erased and so are skipped. */
-function namesIn(braces) {
-  return braces
-    .split(',')
-    .map((part) => part.trim())
-    .filter((part) => part !== '' && !part.startsWith('type '))
-    .map((part) => part.split(/\s+as\s+/)[0])
-}
-
-/**
- * Everything a file takes from other modules, as `{ from, names, whole }`: the value names it imports or re-exports by name, or
- * `whole` where it takes a module as a whole (namespace import, `export *`, dynamic `import('x')`). Type-only forms are skipped.
- */
-export function importsOf(source) {
-  const text = withoutComments(source)
-  const found = []
-  for (const match of text.matchAll(/\bimport\s+([^;'"`()]*?)\s+from\s*(['"])([^'"\n]+)\2/g)) {
-    const clause = match[1]
-    if (/^type\s/.test(clause)) continue
-    const braces = /\{([^}]*)\}/.exec(clause)
-    const whole = /\*\s*as\s+[\w$]+/.test(clause)
-    const lead = /^([\w$]+)\s*(,|$)/.exec(clause)
-    found.push({
-      from: match[3],
-      names: [...(lead ? ['default'] : []), ...(braces ? namesIn(braces[1]) : [])],
-      whole,
-    })
-  }
-  for (const match of text.matchAll(
-    /\bexport\s+(type\s+)?(\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*(['"])([^'"\n]+)\3/g,
-  )) {
-    if (match[1]) continue
-    const star = match[2].startsWith('*')
-    found.push({
-      from: match[4],
-      names: star ? [] : namesIn(match[2].slice(1, -1)),
-      whole: star,
-    })
-  }
-  for (const match of text.matchAll(/\bimport\s*\(\s*(['"`])([^'"`\n]+)\1/g)) {
-    found.push({ from: match[2], names: [], whole: true })
-  }
-  return found
-}
 
 export const isBanned = (name) => BANNED.some((pattern) => pattern.test(name))
 

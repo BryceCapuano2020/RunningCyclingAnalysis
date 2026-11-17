@@ -48,6 +48,12 @@ revisions; `curves`, `records`, `splits`, `quality` and `metabolic` feed it; `se
 into results; `lookback`, `effort`, `workbench`, `route` and `lift` hold the features built on them. `duplicates.ts`
 is the one near-duplicate rule. `digest/readDigest.ts` is the one reader of a stored digest.
 
+**Layers.** `packages/core` is the bottom: it imports no app, no contract, no React, no Hono and no Cloudflare package, and
+it is a pure function of its inputs (no clock, randomness, timers, network, storage or environment). `packages/contract`
+imports only core. The two apps share code only through those packages. In the web app the worker code imports no React and no
+`src/ui`, and the page opens only a short list of worker modules besides messages. `scripts/ops/boundaries.test.mjs` checks
+all of it, and each failure names the fix. A listed exception needs a reason a reviewer accepts.
+
 **Hosting.** One Worker with Workers Static Assets, not Pages. `apps/api/wrangler.toml` points `[assets]` at
 `apps/web/dist`; `/api` runs the Worker first, everything else is a built file or the built 404 page. The app uses
 hash routes and one origin, so the session cookie is first-party. `npm run build` runs before every deploy.
