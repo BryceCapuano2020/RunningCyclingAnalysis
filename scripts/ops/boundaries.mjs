@@ -1,5 +1,6 @@
 import { posix } from 'node:path'
-import { importsOf, withoutComments } from './imports.mjs'
+import { importsOf } from './imports.mjs'
+import { withoutComments } from './scanSource.mjs'
 
 /*
  * The layers of the repo as checks (docs/ARCHITECTURE.md, Layers). A rule names the files it covers, the imports they may not
